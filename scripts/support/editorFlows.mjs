@@ -8593,6 +8593,7 @@ export function chatPanelFlowIn(language) {
       await elementSays(page, '[data-testid="chat-question"]', [language === 'en' ? 'And the rules?' : 'A pravila?'], 'the chat did not stay in memory')
       await pressSelector(page, press, '[data-testid="chat-new"]')
       await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
+      await savedChatGone(page)
       await pressSelector(page, press, '[data-testid="chat-close"]')
       await page.waitForSelector('[data-testid="chat-panel"]', { hidden: true, timeout: 5_000 })
     } finally {
@@ -8694,12 +8695,9 @@ async function flagReviewCounterparty(page, press, review, shoot, inspect) {
 }
 
 /**
- * A question about figures with Ana Horvat flagged as a person on her entry: the one card covers sending and reading the
- * app on screen, the answer shows Kuna's figure and her real name, the row under it opens to the exact text with her alias
- * and her IBAN masked, an invented amount is flagged, a read from outside the app asks again, and with Anonymise off for
- * Anthropic her name goes as written while the IBAN stays masked.
+ * Waits until this browser keeps no chat, as New chat forgets it in the background. A reload must not race that, and
+ * neither must the next flow of a touch session, or that flow opens on the chat brought back instead of an empty one.
  */
-/** Waits until this browser keeps no chat, as New chat forgets it in the background and a reload must not race that. */
 async function savedChatGone(page) {
   await page
     .waitForFunction(
@@ -8725,6 +8723,12 @@ async function savedChatGone(page) {
     })
 }
 
+/**
+ * A question about figures with Ana Horvat flagged as a person on her entry: the one card covers sending and reading the
+ * app on screen, the answer shows Kuna's figure and her real name, the row under it opens to the exact text with her alias
+ * and her IBAN masked, an invented amount is flagged, a read from outside the app asks again, and with Anonymise off for
+ * Anthropic her name goes as written while the IBAN stays masked.
+ */
 export function chatReadFlowIn(language) {
   const words = ASSIST_WORDS[language]
   const { dialog } = SCREEN_WORDS[language].spendingEntries
@@ -8844,6 +8848,7 @@ export function chatReadFlowIn(language) {
       if (!open.includes(PERSON_PAYEE)) throw new Error(`with Anonymise off the name did not go as written: ${open.slice(0, 300)}`)
       if (open.includes('HR1210010051863000160') || !open.includes('HR•• ••••0160')) throw new Error('with Anonymise off the IBAN did not go masked')
       await startOver()
+      await savedChatGone(page)
     } finally {
       await page.evaluate(() => {
         localStorage.removeItem('kuna.secret.anthropic')
@@ -8901,6 +8906,7 @@ export function chatProposeFlowIn(language) {
       await shoot('chat-restored')
       await pressSelector(page, press, '[data-testid="chat-new"]')
       await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
+      await savedChatGone(page)
     } finally {
       await page.evaluate(() => {
         localStorage.removeItem('kuna.secret.anthropic')
@@ -8946,6 +8952,7 @@ export function chatCloseAccountFlowIn(language) {
       await inspect?.('a proposal left with Not now')
       await shoot('chat-proposal-declined')
       await pressSelector(page, press, '[data-testid="chat-new"]')
+      await savedChatGone(page)
     } finally {
       await page.evaluate(() => {
         localStorage.removeItem('kuna.secret.anthropic')

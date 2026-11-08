@@ -361,7 +361,8 @@ async function checkWidth(width) {
   await page.setViewport({ width, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
   await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }])
 
-  const step = async (name, run) => {
+  /** `within` limits the size check to the controls inside it, for a flow on a page that holds other specimens. */
+  const step = async (name, run, within = null) => {
     const followed = Object.entries(CARRIES_ON_FROM).some(([later, earlier]) => earlier === name && selection.takes(later))
     if (!selection.takes(name) && !followed) return
     checked += 1
@@ -369,7 +370,7 @@ async function checkWidth(width) {
     const startedAt = Date.now()
     try {
       await run()
-      await inspect(page, scope)
+      await inspect(page, scope, within)
       console.log(`${scope.padEnd(36)} ok  ${((Date.now() - startedAt) / 1000).toFixed(1)} s`)
     } catch (error) {
       failures.push(`[${scope}] ${error.message}`)
@@ -1462,7 +1463,7 @@ async function checkWidth(width) {
     }
   }
 
-  for (const [name, variant, run, hash = '#/company', title = 'Overview'] of [
+  for (const [name, variant, run, hash = '#/company', title = 'Overview', within = null] of [
     ['statements-sync', '', statementSyncFlow],
     ['statements-held', '&fake=held-statement', heldStatementFlow],
     ['statements-held-croatian', '&fake=held-statement&lang=hr', heldStatementFlowIn('hr'), '#/company', overviewCroatian.title],
@@ -1479,7 +1480,7 @@ async function checkWidth(width) {
     ['mail-failed', '&fake=mail-failed', mailFailedFlow],
     ['mail-access', '&fake=mail', mailAccessFlow],
     ['mail-save-asks', '', mailSaveAsksFlow],
-    ['mail-plan-specimen', '', mailPlanSpecimenFlow, '#/gallery', 'Gallery'],
+    ['mail-plan-specimen', '', mailPlanSpecimenFlow, '#/gallery', 'Gallery', '[data-testid="gallery-mail-plan"], [data-testid="gallery-mail-stopped"]'],
     ['mail-rate-limited', '&fake=mail-rate-limited', mailRateLimitedFlow],
     ['mail-window', '&fake=mail-nothing-new', mailWindowFlow],
     ['sync-access-closed', '&fake=google-closed', accessClosedFlow],
@@ -1487,18 +1488,22 @@ async function checkWidth(width) {
     ['owner-net', '&fake=browser', ownerNetFlow, '#/company/owner?p=2026', 'Owner'],
     ['owner-net-unregistered', '', ownerNetUnregisteredFlow, '#/company/owner?p=2026', 'Owner'],
   ]) {
-    await step(name, async () => {
-      await page.goto(`${BASE}?theme=dark${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
-      await waitForTitle(page, title)
-      await run(page, {
-        press: (handle) => handle.tap(),
-        shoot: async (shot) => {
-          await inspect(page, `${width}px ${shot}`)
-          await page.screenshot({ path: join(OUTPUT_DIR, `${width}-${shot}.png`), fullPage: false })
-        },
-        inspect: (when) => inspect(page, `${width}px ${when}`),
-      })
-    })
+    await step(
+      name,
+      async () => {
+        await page.goto(`${BASE}?theme=dark${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+        await waitForTitle(page, title)
+        await run(page, {
+          press: (handle) => handle.tap(),
+          shoot: async (shot) => {
+            await inspect(page, `${width}px ${shot}`, within)
+            await page.screenshot({ path: join(OUTPUT_DIR, `${width}-${shot}.png`), fullPage: false })
+          },
+          inspect: (when) => inspect(page, `${width}px ${when}`, within),
+        })
+      },
+      within,
+    )
   }
 
   for (const screen of SCREENS) {
@@ -3289,50 +3294,58 @@ async function expect(valuePromise, holds, message) {
   if (!holds(actual)) throw new Error(`${message} (got ${JSON.stringify(actual)})`)
 }
 
-/** Every visible control at least 44 by 44 px, its label counted when the label toggles it too, and no sideways page scroll. */
-async function inspect(page, scope) {
-  const report = await page.evaluate((smallest) => {
-    const controls = 'a[href], button, input:not([type="hidden"]), select, textarea, [role="button"], [role="switch"], [role="checkbox"], [role="combobox"], [role="tab"]'
-    const tooSmall = []
-    for (const element of document.querySelectorAll(controls)) {
-      if (element.closest('[aria-hidden="true"], [inert]')) continue
-      const style = getComputedStyle(element)
-      if (style.visibility === 'hidden' || style.display === 'none') continue
-      const box = element.getBoundingClientRect()
-      if (box.width <= 1 || box.height <= 1) continue
-      let { left, top, right, bottom } = box
-      for (const label of element.labels ?? []) {
-        const labelBox = label.getBoundingClientRect()
-        left = Math.min(left, labelBox.left)
-        top = Math.min(top, labelBox.top)
-        right = Math.max(right, labelBox.right)
-        bottom = Math.max(bottom, labelBox.bottom)
+/**
+ * Every visible control at least 44 by 44 px, its label counted when the label toggles it too, and no sideways page scroll.
+ * With `within`, a selector, only the controls inside it are measured.
+ */
+async function inspect(page, scope, within = null) {
+  const report = await page.evaluate(
+    (smallest, within) => {
+      const controls = 'a[href], button, input:not([type="hidden"]), select, textarea, [role="button"], [role="switch"], [role="checkbox"], [role="combobox"], [role="tab"]'
+      const tooSmall = []
+      for (const element of document.querySelectorAll(controls)) {
+        if (element.closest('[aria-hidden="true"], [inert]')) continue
+        if (within !== null && element.closest(within) === null) continue
+        const style = getComputedStyle(element)
+        if (style.visibility === 'hidden' || style.display === 'none') continue
+        const box = element.getBoundingClientRect()
+        if (box.width <= 1 || box.height <= 1) continue
+        let { left, top, right, bottom } = box
+        for (const label of element.labels ?? []) {
+          const labelBox = label.getBoundingClientRect()
+          left = Math.min(left, labelBox.left)
+          top = Math.min(top, labelBox.top)
+          right = Math.max(right, labelBox.right)
+          bottom = Math.max(bottom, labelBox.bottom)
+        }
+        // A link in running text keeps the line height and reaches 44 px through an invisible margin, measured where a finger lands.
+        if (element.dataset.hitArea === 'extended' && extendedHitHeight(element) >= smallest - 0.5 && right - left >= smallest - 0.5) continue
+        if (right - left < smallest - 0.5 || bottom - top < smallest - 0.5) {
+          const name = (element.getAttribute('aria-label') || element.textContent || element.getAttribute('placeholder') || '').trim().slice(0, 30)
+          tooSmall.push(`${element.tagName.toLowerCase()} "${name}" ${Math.round(right - left)}x${Math.round(bottom - top)}`)
+        }
       }
-      // A link in running text keeps the line height and reaches 44 px through an invisible margin, measured where a finger lands.
-      if (element.dataset.hitArea === 'extended' && extendedHitHeight(element) >= smallest - 0.5 && right - left >= smallest - 0.5) continue
-      if (right - left < smallest - 0.5 || bottom - top < smallest - 0.5) {
-        const name = (element.getAttribute('aria-label') || element.textContent || element.getAttribute('placeholder') || '').trim().slice(0, 30)
-        tooSmall.push(`${element.tagName.toLowerCase()} "${name}" ${Math.round(right - left)}x${Math.round(bottom - top)}`)
-      }
-    }
-    const root = document.documentElement
-    return { tooSmall: [...new Set(tooSmall)], scrollWidth: root.scrollWidth, clientWidth: root.clientWidth }
+      const root = document.documentElement
+      return { tooSmall: [...new Set(tooSmall)], scrollWidth: root.scrollWidth, clientWidth: root.clientWidth }
 
-    /** How tall the strip is, through the middle of the link, where a tap reaches the link. The page scrolls back after. */
-    function extendedHitHeight(element) {
-      const scrolledTo = window.scrollY
-      element.scrollIntoView({ block: 'center' })
-      const box = element.getBoundingClientRect()
-      const x = box.left + Math.min(box.width / 2, 8)
-      const reaches = (y) => element.contains(document.elementFromPoint(x, y))
-      let top = box.top + box.height / 2
-      while (reaches(top - 1)) top -= 1
-      let bottom = box.top + box.height / 2
-      while (reaches(bottom + 1)) bottom += 1
-      window.scrollTo(0, scrolledTo)
-      return bottom - top + 1
-    }
-  }, SMALLEST_TARGET)
+      /** How tall the strip is, through the middle of the link, where a tap reaches the link. The page scrolls back after. */
+      function extendedHitHeight(element) {
+        const scrolledTo = window.scrollY
+        element.scrollIntoView({ block: 'center' })
+        const box = element.getBoundingClientRect()
+        const x = box.left + Math.min(box.width / 2, 8)
+        const reaches = (y) => element.contains(document.elementFromPoint(x, y))
+        let top = box.top + box.height / 2
+        while (reaches(top - 1)) top -= 1
+        let bottom = box.top + box.height / 2
+        while (reaches(bottom + 1)) bottom += 1
+        window.scrollTo(0, scrolledTo)
+        return bottom - top + 1
+      }
+    },
+    SMALLEST_TARGET,
+    within,
+  )
   if (report.tooSmall.length) throw new Error(`${report.tooSmall.length} control(s) under 44 px: ${report.tooSmall.slice(0, 6).join(', ')}`)
   if (report.scrollWidth > report.clientWidth + 1) throw new Error(`page scrolls sideways: ${report.scrollWidth} > ${report.clientWidth}`)
   const overlaps = await textOverlapsOn(page)

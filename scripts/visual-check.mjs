@@ -1424,7 +1424,7 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-card"]',
     shows: [
-      'Sinkronizacija, asistent, izgled i jezik',
+      'Sinkronizacija, asistent i njegova anonimizacija za svaku AI tvrtku',
       'Jezik preglednika',
       'Hrvatski',
       'Kad promijenite jezik, aplikacija se ponovno učita.',
@@ -2954,7 +2954,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="investments-books-card"] [data-testid="drive-file-place"] a',
     shows: ['Investments books', 'kuna-investments.json', 'Switch storage'],
-    cards: false,
   },
   {
     name: 'investments-settings-croatian',
@@ -2964,7 +2963,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="investments-books-card"] [data-testid="drive-file-place"] a',
     shows: ['Datoteka ulaganja', 'kuna-investments.json', 'Promijeni mjesto', 'Zadnja sinkronizacija'],
-    cards: false,
   },
   {
     name: 'investments-overview-sample',
@@ -3984,7 +3982,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="investments-books-card"]',
     shows: ['General', 'Prices', 'What Performance compares your portfolio with', 'Its last close in the prices file is from', 'Add a benchmark'],
-    cards: false,
   },
   {
     name: 'investments-settings-checks',
@@ -4014,7 +4011,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="books-file-missing"]',
     shows: ['Kuna stopped using this file', 'The file is in the Drive bin, so Kuna no longer reads or saves it.', 'Switch storage'],
-    cards: false,
   },
   {
     name: 'investments-settings-binned-croatian',
@@ -4024,7 +4020,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="books-file-missing"]',
     shows: ['Kuna je prestala koristiti ovu datoteku', 'Datoteka je u otpadu na Driveu, pa je Kuna više ne čita i ne sprema.', 'Promijeni mjesto'],
-    cards: false,
   },
   {
     name: 'investments-settings-sample-croatian',
@@ -4034,7 +4029,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="investments-books-card"]',
     shows: ['Općenito', 'Cijene', 'Referentni indeks', 'Dodaj indeks'],
-    cards: false,
   },
   {
     name: 'investments-prices-settings-keys',
