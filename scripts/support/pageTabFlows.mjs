@@ -6,7 +6,7 @@
 import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
 import { en as settingsEnglish, hr as settingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
 import { en as yearEnglish, hr as yearCroatian } from '../../src/apps/company/packs/hr-doo/presentation/year/words.ts'
-import { delay } from './editorFlows.mjs'
+import { delay } from './pressing.mjs'
 
 const TAB_WORDS = {
   en: { company: companyEnglish.name, settings: settingsEnglish, year: yearEnglish.tabs },

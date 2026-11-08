@@ -31,7 +31,7 @@ export function guardedModel(model: ModelPort, secrets: () => readonly string[])
 }
 
 function holdsSecret(modelName: string, request: ModelRequest, secrets: readonly string[]): boolean {
-  const whole = JSON.stringify([modelName, request.system, request.turns, request.output, request.tools])
+  const whole = JSON.stringify([modelName, request.system, request.turns, request.tools])
   return secrets.some((secret) => secret.length >= SHORTEST_SECRET && whole.includes(secret)) || readableText(modelName, request).some((text) => KEY_SHAPE.test(text))
 }
 
@@ -43,7 +43,7 @@ function readableText(modelName: string, request: ModelRequest): readonly string
   return [
     modelName,
     ...request.system.map((part) => part.text),
-    JSON.stringify([request.output, request.tools]),
+    JSON.stringify(request.tools),
     ...request.turns.flatMap((turn) => {
       switch (turn.role) {
         case 'user':

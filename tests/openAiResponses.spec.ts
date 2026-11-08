@@ -2,8 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { ModelRequest } from '../src/shared/ai/application/modelPort'
 import { ModelRequestFailed } from '../src/shared/ai/application/modelPort'
-import { runTask } from '../src/shared/ai/application/runTask'
-import type { AiTask } from '../src/shared/ai/domain/aiTask'
+import { runModelLoop } from '../src/shared/ai/application/runModelLoop'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import { openAiResponses } from '../src/shared/ai/infrastructure/openAiResponses'
 import type { ModelChoice } from '../src/shared/ai/domain/providerPresets'
@@ -12,7 +11,6 @@ import { eventsAsStream, streamCutByAbort, streamFixture, streamResponse } from 
 const KEY = 'made-up-openai-key-0042'
 const BASE_URL = 'https://api.openai.com/v1'
 const SOL: ModelChoice = { id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', price: { inputPerMillion: 2, cacheReadPerMillion: 0.1, cacheWritePerMillion: 2.5, outputPerMillion: 10 } }
-const CATEGORY_SCHEMA: StrictSchema = { type: 'object', properties: { category: { type: 'string', enum: ['office', 'travel'] } }, required: ['category'], additionalProperties: false }
 const RULE_INPUT: StrictSchema = { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }
 const TOKENS = { input: 400, cacheRead: 3000, cacheWrite: 1800, output: 96 }
 
@@ -44,7 +42,6 @@ function request(fields: Partial<ModelRequest> = {}): ModelRequest {
       { kind: 'text', text: 'Answer with the category only.' },
     ],
     turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Row 4: Tisak, 3.20 EUR' }] }],
-    output: CATEGORY_SCHEMA,
     tools: [],
     effort: 'low',
     ...fields,
@@ -74,17 +71,15 @@ describe('the Responses request', () => {
       reasoning: { effort: 'low' },
       instructions: 'You sort bank rows into categories.\n\nAnswer with the category only.',
       input: [{ role: 'user', content: [{ type: 'input_text', text: 'Row 4: Tisak, 3.20 EUR' }] }],
-      text: { format: { type: 'json_schema', name: 'answer', strict: true, schema: CATEGORY_SCHEMA } },
     })
   })
 
-  it('sends tools at the top level of each definition, strict, with an automatic choice and the schema beside them', async () => {
+  it('sends tools at the top level of each definition, strict, with an automatic choice', async () => {
     const requests = stubFetch(streamResponse(streamFixture('openai/answer')))
     await openAiResponses(BASE_URL, KEY, SOL).send(request({ tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }] }))
 
     expect(requests[0]!.body.tools).toEqual([{ type: 'function', name: 'rule', description: 'Reads one rule by its id.', parameters: RULE_INPUT, strict: true }])
     expect(requests[0]!.body.tool_choice).toBe('auto')
-    expect(requests[0]!.body.text).toBeDefined()
   })
 
   it('sends a PDF as a file part and a photo as an image part', async () => {
@@ -150,12 +145,6 @@ describe('the Responses request', () => {
       },
       { type: 'function_call_output', call_id: 'call_a3', output: 'Error: There is no attachment a3.' },
     ])
-  })
-
-  it('asks for no format when a request asks for no schema', async () => {
-    const requests = stubFetch(streamResponse(streamFixture('openai/answer')))
-    await openAiResponses(BASE_URL, KEY, SOL).send(request({ output: null }))
-    expect(requests[0]!.body.text).toBeUndefined()
   })
 })
 
@@ -250,28 +239,25 @@ describe('the Responses stream', () => {
   })
 })
 
-describe('a task run over the Responses adapter', () => {
-  const ANSWER_SCHEMA: StrictSchema = { type: 'object', properties: { category: { type: 'string', enum: ['office', 'travel'] } }, required: ['category'], additionalProperties: false }
-  const task: AiTask<string, { readonly category: string }> = {
-    id: 'company.category',
-    app: 'company',
-    effort: 'medium',
-    system: () => [{ kind: 'text', text: 'You pick a category.' }],
-    input: (question) => [{ kind: 'text', text: question }],
-    output: () => ANSWER_SCHEMA,
-    tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT, run: async () => ({ text: 'Rule pdv-25.', sources: ['pdv-25'], figures: [] }) }],
-    check: (output) => ({ draft: output as { category: string }, problems: [] }),
-  }
-  const ports = { model: openAiResponses(BASE_URL, KEY, SOL), appOn: true, employees: { sends: false, anonymising: true } }
+describe('a model loop over the Responses adapter', () => {
+  const asked = () =>
+    runModelLoop({
+      model: openAiResponses(BASE_URL, KEY, SOL),
+      system: [{ kind: 'text', text: 'You pick a category.' }],
+      turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Which category?' }] }],
+      tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }],
+      runTool: async () => ({ text: 'Rule pdv-25.', parts: [], isError: false }),
+      effort: 'medium',
+      rounds: 6,
+    })
 
   it('replays every item of the last reply, encrypted reasoning first, then the tool output, with nothing kept at OpenAI', async () => {
     const requests = stubFetch(streamResponse(streamFixture('openai/tool-round')), streamResponse(streamFixture('openai/answer')))
-    const result = await runTask(task, 'Which category?', ports)
+    const result = await asked()
 
-    expect(result).toEqual({
-      kind: 'draft',
-      draft: { category: 'office' },
-      problems: [],
+    expect(result).toMatchObject({
+      kind: 'answer',
+      text: '{"category":"office"}',
       usage: {
         model: 'GPT-6.1 Sol',
         inputTokens: 800,
@@ -290,10 +276,5 @@ describe('a task run over the Responses adapter', () => {
       { id: 'fc_made_up', type: 'function_call', status: 'completed', call_id: 'call_made_up_1', name: 'rule', arguments: '{"id":"pdv-25"}' },
       { type: 'function_call_output', call_id: 'call_made_up_1', output: 'Rule pdv-25.' },
     ])
-  })
-
-  it('gives an answer off the schema as a failure with the usage', async () => {
-    stubFetch(streamResponse(streamFixture('openai/off-schema')))
-    expect(await runTask(task, 'Which category?', ports)).toMatchObject({ kind: 'failed', reason: 'category is not one of the allowed values', usage: { inputTokens: 400 } })
   })
 })

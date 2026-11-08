@@ -34,7 +34,7 @@ beforeEach(() => {
 })
 
 async function page() {
-  return { ...(await import('../src/shared/ai/application/assistSettings')), ...(await import('../src/shared/ai/presentation/useAiTask')) }
+  return { ...(await import('../src/shared/ai/application/assistSettings')), ...(await import('../src/shared/ai/presentation/aiProvider')) }
 }
 
 describe('what a browser already holds of the assistant', () => {
@@ -75,12 +75,12 @@ describe('what a browser already holds of the assistant', () => {
 
 describe('the lines of the apps in Kuna settings', () => {
   const app = (id: string, assist: unknown, firstRun = false) => ({ id, name: id, assist, firstRun: () => firstRun }) as unknown as AppContribution
-  const tasks = (count: number) => ({ settings: `/${count}`, tasks: () => Array.from({ length: count }) })
+  const switchAt = (to: string) => ({ settings: to })
 
-  it('lists an app that names an assistant, tasks or none, and leaves out one with no assistant or in its first run', () => {
-    expect(assistLines([app('none', undefined), app('chat-only', tasks(0)), app('setting-up', tasks(1), true), app('company', tasks(2))])).toEqual([
-      { id: 'chat-only', name: 'chat-only', to: '/0' },
-      { id: 'company', name: 'company', to: '/2' },
+  it('lists every app that names an assistant, and leaves out one with no assistant or in its first run', () => {
+    expect(assistLines([app('none', undefined), app('spending', switchAt('/spending')), app('setting-up', switchAt('/setting-up'), true), app('company', switchAt('/company'))])).toEqual([
+      { id: 'spending', name: 'spending', to: '/spending' },
+      { id: 'company', name: 'company', to: '/company' },
     ])
   })
 })

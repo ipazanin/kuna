@@ -35,10 +35,17 @@
  * Company's To review keeps Suggest categories, which opens the chat about the queue and files the sure rows on a card, and an
  * opened row asks about itself. An invoice asked of the chat is a link to the Invoices tab, dollars are a currency card with a
  * warned line, a rule for Laptop Store re-files a confirmed row with a warning, and Kuna's dark look is a card with Undo.
+ * In Loans a loan offer is a card that sets Kuna's EKS beside the printed one and warns where they differ, and an extra
+ * payment is a card. In Investments a buy is a card, a sale over the units held is refused, and an attached workbook with no
+ * split or spin-off is an import card. In Assets a valuation is a card. Each card is accepted and undone, in Croatian too.
+ * A text note put beside a photo on the prompt is a refused chip that names the kinds Kuna takes. On Salaries with Anonymise
+ * off for Anthropic, Explain on a salary figure reads its build-up, and after a switch to OpenAI and back the same Explain is
+ * refused with nothing sent, in Croatian too.
  *
  * Kuna settings shows the assistant's card with no key, with a made-up Anthropic key kept and Anonymise on, with Anonymise off
  * for Anthropic, with a key refused and after a switch of company, which turns Anonymise back on, in Croatian too, and Company
- * and Spending show their Assistant tabs, Spending's naming only the chat when no key is kept. Spending's entry dialog and an opened row of Company's To review tab treat a payee
+ * and Spending show their Assistant tabs, Spending's naming only the chat when no key is kept. Loans, Investments and Assets
+ * show theirs with a key kept, and Kuna settings lists their lines. Spending's entry dialog and an opened row of Company's To review tab treat a payee
  * as a person, in Croatian too. With a key kept, the build-up amounts on Owner, Salaries, Year's Pay tab
  * and a closed year's open items have Ask the chat beside them, which opens the chat with the figure's build-up as its tag, in Croatian too.
  *
@@ -391,7 +398,6 @@ import {
   onboardingDriveFlow,
   onboardingDriveFlowIn,
   kunaWelcomeAiFlowIn,
-  kunaWelcomeAiNoAppToSwitchFlow,
   kunaWelcomeAiUnfinishedFlow,
   kunaWelcomeAiRefusedFlowIn,
   kunaWelcomeBrowserFlow,
@@ -450,6 +456,7 @@ import {
   spendingFlagPersonFlowIn,
   chatTagFlowIn,
   chatAttachFlow,
+  chatAttachRefusedFlow,
   chatAttachPdfOpenRouterFlow,
   chatAttachDropFlow,
   chatConsentFilesFlow,
@@ -461,7 +468,8 @@ import {
 } from './support/editorFlows.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
-import { companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
+import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
+import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
@@ -1578,7 +1586,7 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-company"][aria-checked="true"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist.company': 'on' },
-    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'Explain', 'Chat'],
+    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'Chat', 'records and figures from Company'],
     cards: false,
   },
   {
@@ -1589,7 +1597,7 @@ const SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-switch-company"][aria-checked="true"]',
     stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042', 'kuna.assist.company': 'on' },
-    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'Objasni', 'Razgovor'],
+    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'Razgovor', 'iznosi iz aplikacije Tvrtka'],
     cards: false,
   },
   {
@@ -1598,7 +1606,7 @@ const SCREENS = [
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="assist-add-key"]',
-    shows: ['The assistant can help here with:', 'Add a key in Kuna settings'],
+    shows: ['With a key, the chat can read and change your records in Company.', 'Add a key in Kuna settings'],
     cards: false,
   },
   {
@@ -1608,7 +1616,93 @@ const SCREENS = [
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="assist-add-key"]',
-    shows: ['Asistent ovdje može pomoći s ovim:', 'Dodajte ključ u postavkama Kune'],
+    shows: ['S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji Tvrtka.', 'Dodajte ključ u postavkama Kune'],
+    cards: false,
+  },
+  {
+    name: 'loans-settings-assist',
+    query: 'loans=sample',
+    hash: '#/loans/settings?tab=assistant',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="assist-switch-loans"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'records and figures from Loans the chat asks for'],
+    cards: false,
+  },
+  {
+    name: 'loans-settings-assist-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: '#/loans/settings?tab=assistant',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="assist-switch-loans"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'zapisi i iznosi iz aplikacije Krediti'],
+    cards: false,
+  },
+  {
+    name: 'investments-settings-assist',
+    query: 'investments=sample',
+    hash: '#/investments/settings?tab=assistant',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="assist-switch-investments"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'records and figures from Investments the chat asks for'],
+    cards: false,
+  },
+  {
+    name: 'investments-settings-assist-croatian',
+    query: 'investments=sample&lang=hr',
+    hash: '#/investments/settings?tab=assistant',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="assist-switch-investments"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'zapisi i iznosi iz aplikacije Ulaganja'],
+    cards: false,
+  },
+  {
+    name: 'assets-settings-assist',
+    query: 'assets=sample&loans=sample',
+    hash: '#/assets/settings?tab=assistant',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="assist-switch-assets"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['Uses your Anthropic key, straight from this browser.', 'Send without asking', 'records and figures from Assets the chat asks for'],
+    cards: false,
+  },
+  {
+    name: 'assets-settings-assist-croatian',
+    query: 'assets=sample&loans=sample&lang=hr',
+    hash: '#/assets/settings?tab=assistant',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="assist-switch-assets"]',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    shows: ['Koristi vaš ključ za Anthropic, izravno iz ovog preglednika.', 'Šalji bez pitanja', 'zapisi i iznosi iz aplikacije Imovina'],
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-assist-apps',
+    query: 'loans=sample&investments=sample&assets=sample',
+    hash: '#/settings',
+    title: 'Kuna settings',
+    charts: 0,
+    ready: '[data-testid="assist-card"]:has([data-testid="assist-app"][data-app="loans"]):has([data-testid="assist-app"][data-app="investments"]):has([data-testid="assist-app"][data-app="assets"])',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
+    cards: false,
+  },
+  {
+    name: 'kuna-settings-assist-apps-croatian',
+    query: 'loans=sample&investments=sample&assets=sample&lang=hr',
+    hash: '#/settings',
+    title: 'Postavke Kune',
+    charts: 0,
+    ready: '[data-testid="assist-card"]:has([data-testid="assist-app"][data-app="loans"]):has([data-testid="assist-app"][data-app="investments"]):has([data-testid="assist-app"][data-app="assets"])',
+    stored: { 'kuna.secret.anthropic': 'made-up-anthropic-key-0042' },
     cards: false,
   },
 ]
@@ -2923,7 +3017,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-add-key"]',
     shows: ['With a key, the chat can read and change your records in Spending.', 'Add a key in Kuna settings'],
-    lacks: ['can help here with'],
     cards: false,
   },
   {
@@ -2934,7 +3027,6 @@ const SOURCE_SCREENS = [
     charts: 0,
     ready: '[data-testid="assist-add-key"]',
     shows: ['S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji Potrošnja.', 'Dodajte ključ u postavkama Kune'],
-    lacks: ['pomoći s ovim'],
     cards: false,
   },
   {
@@ -4705,6 +4797,16 @@ const FLOWS = [
     queries: { drive: '&lang=hr' },
   },
   { name: 'chat-attach-sheet', hash: '#/gallery', title: 'Gallery', run: chatAttachFlow('sheet', CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  { name: 'chat-attach-refused', hash: '#/gallery', title: 'Gallery', run: chatAttachRefusedFlow(CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
+  {
+    name: 'chat-attach-refused-croatian',
+    hash: '#/',
+    title: 'Sve aplikacije',
+    run: chatAttachRefusedFlow(CHAT_ATTACHMENT_SAMPLES, 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
   { name: 'chat-attach-pdf-openrouter', hash: '#/gallery', title: 'Gallery', run: chatAttachPdfOpenRouterFlow(CHAT_ATTACHMENT_SAMPLES), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
   { name: 'chat-attach-drop', hash: '#/gallery', title: 'Gallery', run: chatAttachDropFlow(), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS },
   {
@@ -4930,6 +5032,115 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'company-chat-anonymise',
+    hash: '#/company/salaries',
+    title: 'Salaries',
+    run: companyChatAnonymiseFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&fake=five-employees' },
+  },
+  {
+    name: 'company-chat-anonymise-croatian',
+    hash: '#/company/salaries',
+    title: 'Plaće',
+    run: companyChatAnonymiseFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&fake=five-employees&lang=hr' },
+  },
+  // Loans', Investments' and Assets' cards in the chat.
+  {
+    name: 'chat-offer-card',
+    hash: '#/loans/scenarios',
+    title: 'Scenarios',
+    run: appChatCardFlowIn('en', 'offer'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&loans=sample' },
+  },
+  {
+    name: 'chat-offer-card-croatian',
+    hash: '#/loans/scenarios',
+    title: 'Scenariji',
+    run: appChatCardFlowIn('hr', 'offer'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&loans=sample&lang=hr' },
+  },
+  {
+    name: 'loans-chat-extra-payment',
+    hash: '#/loans',
+    title: 'Overview',
+    run: appChatCardFlowIn('en', 'extra'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&loans=sample' },
+  },
+  {
+    name: 'loans-chat-extra-payment-croatian',
+    hash: '#/loans',
+    title: 'Pregled',
+    run: appChatCardFlowIn('hr', 'extra'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&loans=sample&lang=hr' },
+  },
+  {
+    name: 'investments-chat-trade',
+    hash: '#/investments',
+    title: 'Overview',
+    run: appChatCardFlowIn('en', 'buy'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-chat-trade-croatian',
+    hash: '#/investments',
+    title: 'Pregled',
+    run: appChatCardFlowIn('hr', 'buy'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&investments=sample&lang=hr' },
+  },
+  {
+    name: 'investments-chat-workbook',
+    hash: '#/investments',
+    title: 'Overview',
+    run: appChatCardFlowIn('en', 'workbook', WORKBOOK_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&investments=drive&prices=sample' },
+  },
+  {
+    name: 'investments-chat-workbook-croatian',
+    hash: '#/investments',
+    title: 'Pregled',
+    run: appChatCardFlowIn('hr', 'workbook', WORKBOOK_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&investments=drive&prices=sample&lang=hr' },
+  },
+  {
+    name: 'assets-chat-valuation',
+    hash: '#/assets',
+    title: 'Overview',
+    run: appChatCardFlowIn('en', 'valuation'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&assets=sample&loans=sample' },
+  },
+  {
+    name: 'assets-chat-valuation-croatian',
+    hash: '#/assets',
+    title: 'Pregled',
+    run: appChatCardFlowIn('hr', 'valuation'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&assets=sample&loans=sample&lang=hr' },
   },
   { name: 'page-tabs', hash: '#/company/settings', title: 'Settings', run: pageTabsFlow },
   { name: 'year-tab-link', hash: '#/company/year?tab=statements', title: 'Year', run: yearTabLinkFlow },
@@ -5331,7 +5542,6 @@ const FLOWS = [
     queries: { drive: '&fake=empty&ai=key-refused' },
   },
   { name: 'kuna-welcome-ai-unfinished', hash: '#/', title: 'Welcome to Kuna', run: kunaWelcomeAiUnfinishedFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
-  { name: 'kuna-welcome-ai-no-switch', hash: '#/', title: 'Welcome to Kuna', run: kunaWelcomeAiNoAppToSwitchFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   {
     name: 'kuna-welcome-ai-refused-croatian',
     viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],

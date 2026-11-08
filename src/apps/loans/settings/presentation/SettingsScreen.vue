@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { LOANS_ASSIST } from '../../assistant/loansAssist'
 import { loansData } from '../../workbook/presentation/loansData'
 import AppAssistCard from '../../../../shared/ai/presentation/AppAssistCard.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
@@ -22,7 +21,7 @@ const TABS = [
         <LoansBooksCard />
       </template>
       <template #assistant>
-        <AppAssistCard :app="loansData.id" :tasks="LOANS_ASSIST.tasks()" :chat-reads="loansWords.name" />
+        <AppAssistCard :app="loansData.id" :app-name="loansWords.name" />
       </template>
     </PageTabs>
   </section>

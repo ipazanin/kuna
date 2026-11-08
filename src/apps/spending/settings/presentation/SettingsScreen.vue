@@ -2,7 +2,6 @@
 import BankSyncCard from '../../bankSync/presentation/BankSyncCard.vue'
 import CategoriesCard from '../../categories/presentation/CategoriesCard.vue'
 import ReceiptsCard from '../../receipts/presentation/ReceiptsCard.vue'
-import { SPENDING_ASSIST } from '../../assistant/spendingAssist'
 import { words as screenWords } from '../../screenWords'
 import RulesCard from '../../statements/presentation/RulesCard.vue'
 import AppAssistCard from '../../../../shared/ai/presentation/AppAssistCard.vue'
@@ -42,7 +41,7 @@ const TABS = [
         <ReceiptsCard />
       </template>
       <template #assistant>
-        <AppAssistCard :app="SPENDING_APP" :tasks="SPENDING_ASSIST.tasks()" :chat-reads="spendingWords.name" />
+        <AppAssistCard :app="SPENDING_APP" :app-name="spendingWords.name" />
       </template>
     </PageTabs>
   </section>

@@ -1,4 +1,4 @@
-import type { AiPart, AiTextPart } from '../domain/aiTask'
+import type { AiPart, AiTextPart } from '../domain/aiPart'
 import { NO_TOKENS } from '../domain/modelUsage'
 import type { ModelPrice, ModelTokens } from '../domain/modelUsage'
 import type { StrictSchema } from '../domain/strictSchema'
@@ -43,8 +43,6 @@ export interface ModelTool {
 export interface ModelRequest {
   readonly system: readonly AiTextPart[]
   readonly turns: readonly ModelTurn[]
-  /** The schema of the answer, or null for an answer in plain text. */
-  readonly output: StrictSchema | null
   readonly tools: readonly ModelTool[]
   readonly effort: 'low' | 'medium' | 'high'
   /** Aborts the request once its result no longer matters or it took too long. */

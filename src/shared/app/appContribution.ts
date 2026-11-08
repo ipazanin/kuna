@@ -96,20 +96,10 @@ export type HubState<Part extends HubPart = HubPart> = HubFigures<Part> | 'openi
  */
 export type AppHub = { readonly counts: true; figures(): HubState<CountedHubPart> } | { readonly counts: false; figures(): HubState }
 
-/** What one task sends, for the app's Assistant tab and the dialog that asks first. */
-export interface AssistTaskSummary {
-  readonly id: `${string}.${string}`
-  readonly title: string
-  /** What leaves the device, in plain sentences that follow "What leaves this device:". */
-  readonly sends: string
-}
-
-/** What the app's assistant may do, for its Assistant tab and its line in Kuna settings. */
+/** Where the app's assistant switch is, for its line in Kuna settings. */
 export interface AppAssist {
   /** Where the app's own switches are, which Kuna settings links to, as the shell cannot know an app's tabs. */
   readonly settings: RouteLocationRaw
-  /** Its tasks as the books on screen offer them, a pack's among them while the pack shows. */
-  tasks(): readonly AssistTaskSummary[]
 }
 
 /** A part of a screen the chat can link to, such as a tab, with the address that opens it. */

@@ -59,7 +59,8 @@ function readableFields<R extends { readonly id: string }>(kind: ReadableKindOf<
       return [{ name, exposure: 'ref', to: doc.to, id: record[name] as string | null }]
     }
     if ('amount' in doc) {
-      return [{ name, exposure: 'plain', of: doc.amount, cents: record[name] as number, currency: kind.currencyOf(record) }]
+      const cents = record[name] as number | null
+      return [cents === null ? { name, exposure: 'plain', value: null } : { name, exposure: 'plain', of: doc.amount, cents, currency: kind.currencyOf(record) }]
     }
     return [{ name, exposure: doc.exposure, value: doc.read === undefined ? (record[name] as StoredValue) : doc.read(record) }]
   })

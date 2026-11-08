@@ -1,22 +1,28 @@
 /**
  * The few things Chrome cannot show, run in real Firefox against the fake build: the sidebar and a
  * dialog with classic scrollbars taking room, focus shown by a call and by the keyboard, the chat, a
- * streamed answer read through the app's own reader, and the warning on leaving during a save.
+ * photo and a sheet picked through the chat's file input, a streamed answer read through the app's
+ * own reader, and the warning on leaving during a save.
  *
  *   npm run build:fake && npm run preview:fake -- --port 4173
  *   npm run check:firefox -- http://localhost:4173/kuna/
  */
 
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { stripTypeScriptTypes } from 'node:module'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { launch } from 'puppeteer-core'
 
 import { ENGLISH_FIREFOX_PREFS, firefoxPath } from './support/browsers.mjs'
+import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
+import { keepAiKey, openChat, sendInChat } from './support/chatFlows.mjs'
+import { pressSelector } from './support/pressing.mjs'
 
 const BASE = process.argv[2] ?? 'http://localhost:4173/kuna/'
 const VISIBLE = { visible: true, timeout: 15_000 }
-const MADE_UP_KEY = 'made-up-anthropic-key-0042'
+const click = (handle) => handle.click()
 
 const browser = await launch({
   browser: 'firefox',
@@ -125,17 +131,47 @@ await step('dialog', async (page) => {
 await step('chat', async (page) => {
   await open(page, 'fake=drive&spending=sample', '/spending')
   await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
-  await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_KEY)
-  await page.reload({ waitUntil: 'load' })
-  await (await page.waitForSelector('[data-testid="chat-open"]', VISIBLE)).click()
-  await page.waitForSelector('[data-testid="chat-panel"]', VISIBLE)
-  const prompt = await page.waitForSelector('textarea[data-testid="chat-prompt"]', VISIBLE)
-  await prompt.type('Hello')
-  await page.click('[data-testid="chat-send"]')
-  await (await page.waitForSelector('[data-testid="chat-allow"]', VISIBLE)).click()
+  await keepAiKey(page)
+  await openChat(page, click)
+  await sendInChat(page, click, 'Hello')
+  await pressSelector(page, click, '[data-testid="chat-allow"]')
   await page.waitForSelector('[data-testid="chat-answer"]', VISIBLE).catch(() => {
     throw new Error('the chat gave no answer')
   })
+})
+
+await step('attach', async (page) => {
+  const folder = mkdtempSync(join(tmpdir(), 'kuna-firefox-'))
+  try {
+    const samples = await writeChatAttachmentSamples(folder)
+    await open(page, 'fake=drive&spending=sample', '/spending')
+    await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
+    await keepAiKey(page)
+    await openChat(page, click)
+    const input = await page.waitForSelector('[data-testid="chat-attach-input"]', { timeout: 10_000 })
+    await input.uploadFile(samples.photo, samples.sheet)
+    await page
+      .waitForFunction(
+        () => {
+          const chips = [...document.querySelectorAll('[data-testid="chat-file"]')]
+          return chips.length === 2 && chips.every((chip) => chip.getAttribute('data-state') === 'ready')
+        },
+        { timeout: 15_000 },
+      )
+      .catch(async () => {
+        const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => `${chip.textContent?.trim()} ${chip.getAttribute('data-state')}`))
+        throw new Error(`the photo and the sheet picked are not both ready: ${states.join(', ') || 'no chip'}`)
+      })
+    await sendInChat(page, click, 'What is on these?')
+    await pressSelector(page, click, '[data-testid="chat-allow"]')
+    await page.waitForSelector('[data-testid="chat-answer"]', VISIBLE).catch(() => {
+      throw new Error('the chat gave no answer to a message with files')
+    })
+    const listed = await page.$eval('[data-testid="chat-question-files"]', (files) => files.textContent ?? '').catch(() => '')
+    if (!listed.includes('chat-sample-receipt.png') || !listed.includes('chat-sample-turnover.xlsx')) throw new Error(`the sent message lists "${listed}", not the photo and the sheet`)
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
 })
 
 await step('stream', async (page) => {

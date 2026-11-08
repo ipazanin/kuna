@@ -1,11 +1,11 @@
 import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall, ToolResult } from '../application/modelPort'
 import { ModelRequestFailed, resultParts } from '../application/modelPort'
-import type { AiPart } from '../domain/aiTask'
+import type { AiPart } from '../domain/aiPart'
 import type { ModelTokens } from '../domain/modelUsage'
 import { bearerHeaders, streamedEvents, withoutKey } from './providerFetch'
 import type { ModelChoice } from '../domain/providerPresets'
 
-/** Bounds what one request can write, reasoning included. Streaming would allow more, and no task needs it. */
+/** Bounds what one request can write, reasoning included. Streaming would allow more, and a chat answer needs no more. */
 const MAX_OUTPUT_TOKENS = 16_000
 
 /** An item of a response's output, with every field it came with, since it goes back unchanged on the next request. */
@@ -89,7 +89,6 @@ function responsesBody(modelId: string, request: ModelRequest): object {
     reasoning: { effort: request.effort },
     instructions: request.system.map((part) => part.text).join('\n\n'),
     input: request.turns.flatMap(inputItems),
-    ...(request.output === null ? {} : { text: { format: { type: 'json_schema', name: 'answer', strict: true, schema: request.output } } }),
     ...(request.tools.length === 0
       ? {}
       : {

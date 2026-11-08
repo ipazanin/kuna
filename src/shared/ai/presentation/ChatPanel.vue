@@ -39,7 +39,7 @@ import {
   sendChatMessage,
   stopChatMessage,
 } from './chatSession'
-import { anonymisingNow, providerInUse } from './useAiTask'
+import { anonymisingNow, providerInUse } from './aiProvider'
 import { words } from './words'
 
 /**

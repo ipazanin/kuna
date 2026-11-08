@@ -5,7 +5,7 @@ import UCheckboxGroup from '@nuxt/ui/components/CheckboxGroup.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import AssistSetUp from '../../shared/ai/presentation/AssistSetUp.vue'
-import { assistKeyKept } from '../../shared/ai/presentation/useAiTask'
+import { assistKeyKept } from '../../shared/ai/presentation/aiProvider'
 import { words as assistWords } from '../../shared/ai/presentation/words'
 import { answerKunaStart } from '../../shared/app/kunaStart'
 import type { FilesHome } from '../../shared/app/kunaStart'

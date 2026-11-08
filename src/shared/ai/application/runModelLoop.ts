@@ -1,8 +1,7 @@
-import type { AiPart, AiTextPart } from '../domain/aiTask'
+import type { AiPart, AiTextPart } from '../domain/aiPart'
 import { maskIdentifiers } from '../../privacy/domain/maskIdentifiers'
-import { NO_TOKENS, addedTokens, costOfRequest, documentTokens, fullRateTokens, promptTokens, spentNothing, usageOf } from '../domain/modelUsage'
+import { NO_TOKENS, addedTokens, costOfRequest, spentNothing, usageOf } from '../domain/modelUsage'
 import type { AiUsage, ModelTokens } from '../domain/modelUsage'
-import type { StrictSchema } from '../domain/strictSchema'
 import { SecretInRequest } from './egressGuard'
 import { ModelRequestFailed } from './modelPort'
 import type { ModelPort, ModelTool, ModelTurn, ToolCall, ToolResult } from './modelPort'
@@ -12,29 +11,27 @@ export interface ModelLoop {
   readonly system: readonly AiTextPart[]
   /** The turns so far, which the loop only ever adds to, as Anthropic refuses a history edited under its thinking blocks. */
   readonly turns: readonly ModelTurn[]
-  readonly output: StrictSchema | null
   readonly tools: readonly ModelTool[]
   /** Answers one tool call. The text comes back masked before the model reads it, and its photos or PDFs go whole. */
   readonly runTool: (call: ToolCall) => Promise<ToolResult>
   readonly effort: 'low' | 'medium' | 'high'
   readonly signal?: AbortSignal | undefined
   readonly onDelta?: ((text: string) => void) | undefined
-  /** The most tool rounds it may take, the largest prompt one request may send, and what the whole run may weigh in full-rate tokens before it stops. */
-  readonly limits: { readonly rounds: number; readonly requestTokens: number; readonly runTokens: number }
+  /** The most tool rounds it may take. */
+  readonly rounds: number
 }
 
-/** How a loop ended: the model's answer with every turn to keep, or a reply or a limit that gave no answer. */
+/** How a loop ended: the model's answer with every turn to keep, or a reply or a failure that gave no answer. */
 export type LoopEnd =
   | { readonly kind: 'answer'; readonly text: string; readonly turns: readonly ModelTurn[]; readonly usage: AiUsage | null }
-  | { readonly kind: 'refused' | 'cut-off' | 'too-long' | 'over-budget' | 'failed' | 'holds-secret'; readonly reason: string; readonly usage: AiUsage | null }
+  | { readonly kind: 'refused' | 'cut-off' | 'failed' | 'holds-secret'; readonly reason: string; readonly usage: AiUsage | null }
 
 /** Masks what it was given, sends it, runs the tools the model asks for and adds up what the requests spent. */
 export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
-  const { model, limits } = loop
+  const { model } = loop
   const system = loop.system.map((part) => ({ ...part, text: maskIdentifiers(part.text) }))
   const turns = loop.turns.map(maskedTurn)
   let used: ModelTokens = NO_TOKENS
-  let lastPrompt = 0
   let listDollars = 0
   const spend = (tokens: ModelTokens): void => {
     used = addedTokens(used, tokens)
@@ -42,21 +39,14 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
   }
   const usageSoFar = (): AiUsage | null => (spentNothing(used) ? null : usageOf(model.model, used, listDollars))
 
-  for (let round = 0; round <= limits.rounds; round += 1) {
+  for (let round = 0; round <= loop.rounds; round += 1) {
     // A person may stop a run while a tool waits for their answer, and then nothing more may go.
     if (loop.signal?.aborted === true) {
       return { kind: 'failed', reason: loop.signal.reason instanceof Error ? loop.signal.reason.message : '', usage: usageSoFar() }
     }
-    if (fullRateTokens(used) >= limits.runTokens) {
-      return { kind: 'over-budget', reason: '', usage: usageSoFar() }
-    }
-    // A conversation only grows, so the next request sends at least what the last one did.
-    if (Math.max(estimatedTokens(system, turns), lastPrompt) > limits.requestTokens) {
-      return { kind: 'too-long', reason: String(limits.requestTokens), usage: usageSoFar() }
-    }
     let reply
     try {
-      reply = await model.send({ system, turns, output: loop.output, tools: loop.tools, effort: loop.effort, signal: loop.signal, onDelta: loop.onDelta })
+      reply = await model.send({ system, turns, tools: loop.tools, effort: loop.effort, signal: loop.signal, onDelta: loop.onDelta })
     } catch (failure) {
       if (failure instanceof SecretInRequest) {
         return { kind: 'holds-secret', reason: '', usage: usageSoFar() }
@@ -68,7 +58,6 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
       throw failure
     }
     spend(reply.tokens)
-    lastPrompt = promptTokens(reply.tokens)
     const usage = usageSoFar()
     switch (reply.kind) {
       case 'refused':
@@ -78,7 +67,7 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
       case 'answer':
         return { kind: 'answer', text: reply.text, turns: [...turns, { role: 'assistant', calls: [], raw: reply.raw }], usage }
       case 'tool-calls': {
-        if (round === limits.rounds) break
+        if (round === loop.rounds) break
         const results = await Promise.all(
           reply.calls.map(async (call) => {
             const answer = await loop.runTool(call)
@@ -89,7 +78,7 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
       }
     }
   }
-  return { kind: 'failed', reason: `more than ${limits.rounds} rounds of lookups`, usage: usageSoFar() }
+  return { kind: 'failed', reason: `more than ${loop.rounds} rounds of lookups`, usage: usageSoFar() }
 }
 
 function maskedTurn(turn: ModelTurn): ModelTurn {
@@ -98,19 +87,4 @@ function maskedTurn(turn: ModelTurn): ModelTurn {
 
 function maskedPart(part: AiPart): AiPart {
   return part.kind === 'text' ? { kind: 'text', text: maskIdentifiers(part.text) } : part
-}
-
-/** A cautious count of the tokens a request sends: three characters a token of text and of a PDF's bytes, and a photo by its pixels, in a person's turn or a tool's result alike. */
-function estimatedTokens(system: readonly { readonly text: string }[], turns: readonly ModelTurn[]): number {
-  const parts = turns.flatMap((turn) => (turn.role === 'user' ? turn.parts : turn.role === 'tool-results' ? turn.results.flatMap((result) => result.parts) : []))
-  const characters =
-    system.reduce((sum, part) => sum + part.text.length, 0) +
-    parts.reduce((sum, part) => sum + (part.kind === 'text' ? part.text.length : part.kind === 'pdf' ? part.base64.length / 4 : 0), 0) +
-    turns.reduce((sum, turn) => {
-      if (turn.role === 'tool-results') return sum + turn.results.reduce((resultSum, result) => resultSum + result.text.length, 0)
-      if (turn.role === 'assistant') return sum + JSON.stringify(turn.calls).length
-      return sum
-    }, 0)
-  const photos = parts.reduce((sum, part) => sum + (part.kind === 'image' ? documentTokens({ kind: 'photo', width: part.width, height: part.height }) : 0), 0)
-  return Math.ceil(characters / 3) + photos
 }

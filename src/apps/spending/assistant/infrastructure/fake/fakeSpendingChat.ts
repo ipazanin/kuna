@@ -212,7 +212,7 @@ function receiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
       vat: [{ base: 18.79, tax: 4.7 }],
       total: 23.49,
       unreadable: [],
-      keepPhoto: false,
+      keepPhoto: true,
     }
     return lookup(5, 'propose_changes', { app: 'spending', title: says.receiptTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }] }, tokens)
   }

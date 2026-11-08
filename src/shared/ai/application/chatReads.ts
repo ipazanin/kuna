@@ -65,7 +65,7 @@ const NOT_ALLOWED = 'The person did not allow reading this app. Carry on with wh
 const ABOUT_AN_EMPLOYEE = 'That record is about an employee or their pay, so it stays on this device while Anonymise is on. Say so.'
 
 /** Why a build-up or a report of employees' pay was not read, with what the person can do about it. */
-function aboutEmployeesPay(what: 'build-up' | 'report'): string {
+export function aboutEmployeesPay(what: 'build-up' | 'report'): string {
   return `That ${what} is about employees' pay, so it stays on this device while Anonymise is on, and nothing was sent. Ask the person to turn Anonymise off for this AI company in Kuna settings if they want it explained.`
 }
 

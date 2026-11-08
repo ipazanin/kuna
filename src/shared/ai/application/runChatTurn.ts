@@ -13,10 +13,7 @@ import type { ModelPort, ModelRequest, ModelTurn } from './modelPort'
 import { runModelLoop } from './runModelLoop'
 import type { LoopEnd } from './runModelLoop'
 
-/** The id a chat's model goes by, which the fake build answers by. */
-export const CHAT_TASK_ID = 'chat.turn'
-
-/** The most lookups one message may take. A chat has no other limit: the panel shows the cost and never stops it, as the spend limit on the key is the only ceiling. */
+/** The most lookups one message may take. */
 const MOST_ROUNDS = 8
 
 /** Where the person is, in names only: an app, a screen, a declared place such as a tab and an address, with today's date. */
@@ -148,7 +145,6 @@ export function runChatTurn(turn: ChatTurn): Promise<LoopEnd> {
     model: watched,
     system: [{ kind: 'text', text: turn.catalogue.system }],
     turns: [...turn.history, { role: 'user', parts }],
-    output: null,
     tools: CHAT_TOOLS,
     runTool: async (call) => {
       turn.onLookup()
@@ -162,6 +158,6 @@ export function runChatTurn(turn: ChatTurn): Promise<LoopEnd> {
     effort: 'low',
     signal: turn.signal,
     onDelta: turn.onDelta,
-    limits: { rounds: MOST_ROUNDS, requestTokens: Number.POSITIVE_INFINITY, runTokens: Number.POSITIVE_INFINITY },
+    rounds: MOST_ROUNDS,
   })
 }

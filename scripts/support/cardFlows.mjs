@@ -3,7 +3,7 @@
  * `press` clicks or taps an element handle. A failure throws with what was wrong.
  */
 
-import { delay } from './editorFlows.mjs'
+import { delay } from './pressing.mjs'
 
 /** Reads one collapsible card as a reader meets it: its toggle, its body and what this device remembers. */
 function cardState(card) {

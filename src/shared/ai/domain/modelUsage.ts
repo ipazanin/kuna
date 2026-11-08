@@ -32,11 +32,6 @@ export interface AiUsage {
 
 export const NO_TOKENS: ModelTokens = { input: 0, cacheRead: 0, cacheWrite: 0, output: 0, chargedDollars: 0 }
 
-/** The ratios to the input price that the provider presets' prices hold, or fall just under for cache reads. They need no price, so they also weigh a typed model. */
-const CACHE_READ_WEIGHT = 0.1
-const CACHE_WRITE_WEIGHT = 1.25
-const OUTPUT_WEIGHT = 5
-
 export function addedTokens(left: ModelTokens, right: ModelTokens): ModelTokens {
   return {
     input: left.input + right.input,
@@ -52,13 +47,8 @@ export function spentNothing(tokens: ModelTokens): boolean {
   return promptTokens(tokens) + tokens.output + (tokens.chargedDollars ?? 0) === 0
 }
 
-/** What these tokens weigh as tokens of fresh input, each kind at the weight its price gives it. */
-export function fullRateTokens(tokens: ModelTokens): number {
-  return tokens.input + tokens.cacheRead * CACHE_READ_WEIGHT + tokens.cacheWrite * CACHE_WRITE_WEIGHT + tokens.output * OUTPUT_WEIGHT
-}
-
 /** The size of the prompt these tokens came from, which a provider's limits and price steps count whole. */
-export function promptTokens(tokens: ModelTokens): number {
+function promptTokens(tokens: ModelTokens): number {
   return tokens.input + tokens.cacheRead + tokens.cacheWrite
 }
 

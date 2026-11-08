@@ -8,7 +8,7 @@ import { modelOf, pickModel } from '../application/assistSettings'
 import { testProviderKey } from '../application/modelAccess'
 import { PROVIDER_PRESETS, presetOf } from '../domain/providerPresets'
 import type { KeyTest, ProviderId, ProviderPreset } from '../domain/providerPresets'
-import { providerInUse, switchProvider } from './useAiTask'
+import { providerInUse, switchProvider } from './aiProvider'
 import { words } from './words'
 
 /** Says a key was removed or replaced, with what puts it back. */

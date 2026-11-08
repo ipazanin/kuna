@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { assistKeyKept } from './useAiTask'
+import { assistKeyKept } from './aiProvider'
 import { words } from './words'
 
 /**

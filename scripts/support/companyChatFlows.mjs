@@ -1,6 +1,9 @@
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
-import { ASSIST_WORDS, MADE_UP_ANTHROPIC_KEY, delay, elementSays, pressSelector, queueRow, savedChatGone } from './editorFlows.mjs'
+import { TWO_KEYS_ANONYMISE_OFF, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
+import { ASSIST_WORDS, elementSays, goToRoute, openCompanies, pickCompany, queueRow } from './editorFlows.mjs'
+import { FIGURE_ASKS } from './figureAskFlows.mjs'
+import { delay, pressSelector } from './pressing.mjs'
 
 const TRANSACTIONS_WORDS = { en: transactionsEnglish, hr: transactionsCroatian }
 const SHARED_WORDS = { en: sharedEnglish, hr: sharedCroatian }
@@ -12,45 +15,13 @@ const PROMPTS = {
   currency: { en: 'Show my figures in US dollars', hr: 'Prikaži moje iznose u američkim dolarima' },
   refile: { en: 'Always file Laptop Store under office supplies', hr: 'Uvijek stavi Laptop Store pod uredski materijal' },
   theme: { en: 'Switch Kuna to the dark look', hr: 'Prebaci Kunu na tamni izgled' },
-}
-
-async function keepKey(page) {
-  await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-  await page.reload({ waitUntil: 'networkidle0' })
-}
-
-async function forgetKey(page) {
-  await page.evaluate(() => {
-    localStorage.removeItem('kuna.secret.anthropic')
-    localStorage.removeItem('kuna.assist.company')
-    localStorage.removeItem('kuna.assist-provider')
-  })
+  explain: { en: 'Explain this figure', hr: 'Objasni ovaj iznos' },
 }
 
 /** Types into the open chat and sends, and allows the read when the chat asks first. */
 async function ask(page, press, text) {
-  const prompt = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
-  await prompt.type(text)
-  await pressSelector(page, press, '[data-testid="chat-send"]')
-  const allow = await page.waitForSelector('[data-testid="chat-allow"]', { visible: true, timeout: 5_000 }).catch(() => null)
-  if (allow !== null) await pressSelector(page, press, '[data-testid="chat-allow"]')
-}
-
-/** Starts a new chat, unless the chat is empty, and waits until this browser keeps none, so the next flow opens on an empty chat. */
-async function newChat(page, press) {
-  const started = await page.$('[data-testid="chat-new"]')
-  if (started !== null) await press(started)
-  await savedChatGone(page)
-}
-
-/** Closes the chat where it covers the page, below the width that docks it beside the page. */
-async function giveThePageBack(page, press) {
-  const close = await page.$('[data-testid="chat-close"]')
-  const docked = await page.evaluate(() => window.matchMedia('(min-width: 1224px)').matches)
-  if (close !== null && !docked) {
-    await press(close)
-    await page.waitForFunction(() => !document.querySelector('[data-testid="chat-panel"]'), { timeout: 5_000 })
-  }
+  await sendInChat(page, press, text)
+  await allowIfAsked(page, press)
 }
 
 /**
@@ -64,7 +35,7 @@ export function companyReviewAskFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await keepKey(page)
+      await keepAiKey(page)
       await elementSays(page, '[data-testid="review-queue-ask"]', [words.review.suggestCategories], 'the queue does not keep Suggest categories on its header')
       await inspect?.('the queue with Suggest categories on its header')
       await shoot('company-review-ask')
@@ -111,7 +82,7 @@ export function companyReviewAskFlowIn(language) {
       await shoot('company-review-row-tagged')
       await newChat(page, press)
     } finally {
-      await forgetKey(page)
+      await forgetAssist(page)
     }
   }
 }
@@ -142,8 +113,8 @@ export function companyChatCardFlowIn(language, card) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await keepKey(page)
-      await pressSelector(page, press, '[data-testid="chat-open"]')
+      await keepAiKey(page)
+      await openChat(page, press)
       await ask(page, press, PROMPTS[card][language])
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
       await CARDS[card](page, language)
@@ -153,7 +124,7 @@ export function companyChatCardFlowIn(language, card) {
       if (card !== 'invoice') await pressSelector(page, press, '[data-testid="chat-proposal-decline"]')
       await newChat(page, press)
     } finally {
-      await forgetKey(page)
+      await forgetAssist(page)
     }
   }
 }
@@ -164,9 +135,9 @@ export function kunaChatThemeFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const dark = () => page.evaluate(() => document.documentElement.classList.contains('dark'))
     try {
-      await keepKey(page)
+      await keepAiKey(page)
       const before = await dark()
-      await pressSelector(page, press, '[data-testid="chat-open"]')
+      await openChat(page, press)
       await ask(page, press, PROMPTS.theme[language])
       await page.waitForSelector('[data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the chat proposed no card for the look')
@@ -191,8 +162,65 @@ export function kunaChatThemeFlowIn(language) {
         })
       await newChat(page, press)
     } finally {
-      await forgetKey(page)
+      await forgetAssist(page)
       await page.evaluate(() => localStorage.removeItem('kuna.theme'))
+    }
+  }
+}
+
+/** How the fake chat's answer names Anonymise when it keeps a figure on the device, in English or Croatian. */
+const KEPT_BY_ANONYMISE = /Anonymise|anonimizacij/
+
+/**
+ * A salary figure on Salaries with Anthropic picked, a second key kept and Anonymise off for Anthropic: Explain reads its
+ * build-up and answers in prose. A change of company in Kuna settings and back turns Anonymise on again, and the same
+ * Explain is then refused with nothing sent, asking to turn Anonymise off.
+ */
+export function companyChatAnonymiseFlowIn(language) {
+  const assist = ASSIST_WORDS[language]
+  const [{ at: figure }] = FIGURE_ASKS.salaries.figures
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const explainFigure = async () => {
+      await pressSelector(page, press, `${figure} [data-testid="ask-chat"]`)
+      await page.waitForSelector('[data-testid="chat-tag"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the chat opened with no tag for the salary figure')
+      })
+      await sendInChat(page, press, PROMPTS.explain[language])
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      return page.$eval('[data-testid="chat-answer"]', (answer) => answer.textContent ?? '')
+    }
+    try {
+      await keepAiKey(page, TWO_KEYS_ANONYMISE_OFF)
+      const explained = await explainFigure()
+      if (KEPT_BY_ANONYMISE.test(explained)) throw new Error('with Anonymise off the build-up was still refused')
+      await page.waitForSelector('[data-testid="chat-sent"]', { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('with Anonymise off the answer shows no row of what was sent')
+      })
+      await delay(300)
+      await inspect?.('a salary build-up explained with Anonymise off')
+      await shoot('chat-build-up-answer')
+      await newChat(page, press)
+      await giveThePageBack(page, press)
+
+      await goToRoute(page, '#/settings', '[data-testid="assist-provider-select"]')
+      await openCompanies(page, press)
+      await pickCompany(page, press, 'OpenAI')
+      await elementSays(page, '[data-testid="assist-moved"]', [assist.card.anonymiseBack], 'the change of company does not say Anonymise is on again')
+      await openCompanies(page, press)
+      await pickCompany(page, press, 'Anthropic')
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist-anonymise'))) !== null) throw new Error('Anonymise stays off after a change of company and back')
+
+      await goToRoute(page, '#/company/salaries', figure)
+      const refused = await explainFigure()
+      if (!KEPT_BY_ANONYMISE.test(refused)) throw new Error(`with Anonymise on again the answer does not ask to turn it off: ${refused}`)
+      if (await page.$('[data-testid="chat-sent"]')) throw new Error("with Anonymise on the build-up of employees' pay was sent")
+      await delay(300)
+      await inspect?.('a salary build-up refused with Anonymise on')
+      await shoot('company-chat-anonymise-refused')
+      await newChat(page, press)
+    } finally {
+      await forgetAssist(page)
     }
   }
 }

@@ -35,11 +35,10 @@ describe('what a request costs', () => {
       model,
       system: [],
       turns: [],
-      output: null,
       tools: [],
       runTool: async () => ({ text: '', parts: [], isError: false }),
       effort: 'low',
-      limits: { rounds: 2, requestTokens: Number.POSITIVE_INFINITY, runTokens: Number.POSITIVE_INFINITY },
+      rounds: 2,
     })
     // Two requests of 60,000 at $0.10 a million, under the step each, not 120,000 at five times.
     expect(end.usage?.dollars).toBeCloseTo(0.012)
@@ -74,7 +73,7 @@ describe('what a document weighs and costs', () => {
 })
 
 describe('the loop with a tool result that carries a photo', () => {
-  it('masks the text, sends the photo untouched, and counts it against the request limit', async () => {
+  it('masks the text and sends the photo untouched', async () => {
     const sent: unknown[] = []
     const photo = { kind: 'image' as const, base64: 'A'.repeat(1_200_000), mediaType: 'image/jpeg' as const, width: 280, height: 280 }
     const replies: ModelReply[] = [
@@ -89,29 +88,16 @@ describe('the loop with a tool result that carries a photo', () => {
         return replies.shift()!
       },
     }
-    const loop = (requestTokens: number) =>
-      runModelLoop({
-        model,
-        system: [],
-        turns: [],
-        output: null,
-        tools: [],
-        runTool: async () => ({ text: 'Paid from HR1723600001101234565.', parts: [photo], isError: false }),
-        effort: 'low',
-        limits: { rounds: 2, requestTokens, runTokens: Number.POSITIVE_INFINITY },
-      })
-
-    const end = await loop(Number.POSITIVE_INFINITY)
+    const end = await runModelLoop({
+      model,
+      system: [],
+      turns: [],
+      tools: [],
+      runTool: async () => ({ text: 'Paid from HR1723600001101234565.', parts: [photo], isError: false }),
+      effort: 'low',
+      rounds: 2,
+    })
     expect(end.kind).toBe('answer')
     expect(sent[1]).toEqual({ role: 'tool-results', results: [{ callId: 'a', text: expect.not.stringContaining('HR1723600001101234565') as unknown, parts: [photo], isError: false }] })
-
-    // The photo is 10 squares of 28 pixels by 10, so 100 tokens however long its base64. With the envelope's 30 or so, the second request goes over a limit of 100 and stays under 200.
-    replies.push({ kind: 'tool-calls', calls: [{ id: 'a', name: 'read_attachment', args: {} }], raw: [], tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 } })
-    expect((await loop(100)).kind).toBe('too-long')
-    replies.push(
-      { kind: 'tool-calls', calls: [{ id: 'a', name: 'read_attachment', args: {} }], raw: [], tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 } },
-      { kind: 'answer', text: 'done', raw: [], tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 } },
-    )
-    expect((await loop(200)).kind).toBe('answer')
   })
 })

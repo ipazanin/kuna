@@ -84,6 +84,8 @@ import { starterCategories } from '../../src/apps/spending/categories/domain/sta
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
 import { openEachMenuIn } from './menuFlows.mjs'
 import { settleCharts } from './settleCharts.mjs'
+import { MADE_UP_ANTHROPIC_KEY, TWO_KEYS_ANONYMISE_OFF, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, savedChatGone, sendInChat } from './chatFlows.mjs'
+import { delay, pressSelector } from './pressing.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
@@ -286,20 +288,6 @@ function anyCount(forms) {
 /** The form of a counted phrase from the app's words that the language writes `count` with. */
 function countedIn(words, forms, count) {
   return forms[new Intl.PluralRules(words.locale).select(count)] ?? forms.other
-}
-
-export function delay(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds))
-}
-
-export async function pressSelector(page, press, selector) {
-  const handle = await page.waitForSelector(selector, { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error(`no visible ${selector} within 10 s`)
-  })
-  await handle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await delay(200)
-  await press(handle)
-  return handle
 }
 
 /** Sets a field the way typing does, so Vue's v-model sees it. */
@@ -7952,8 +7940,6 @@ export const ASSIST_WORDS = {
   hr: { ...assistCroatian, keyRow: secretsCroatian.keyRow },
 }
 
-/** A made-up Anthropic key the assistant's card is given, whose whole text must never come back on screen. */
-export const MADE_UP_ANTHROPIC_KEY = 'made-up-anthropic-key-0042'
 const ANTHROPIC_ROW = '[data-testid="assist-card"] [data-provider="anthropic"]'
 const OPENAI_ROW = '[data-testid="assist-card"] [data-provider="openai"]'
 const OPENROUTER_ROW = '[data-testid="assist-card"] [data-provider="openrouter"]'
@@ -7962,30 +7948,8 @@ const COMPANY_SWITCH = '[data-testid="assist-switch-company"]'
 const CHAT_CONSENT = '[data-testid="chat-consent"]'
 const SHELL_SETTINGS_NAME = { en: 'Kuna settings', hr: 'Postavke Kune' }
 
-/** Keeps the made-up Anthropic key in this browser, and with `companyOn` Company's assistant switched on, then loads the page again with them. */
-async function keepAssistKey(page, { companyOn = false } = {}) {
-  await page.evaluate(
-    (key, on) => {
-      localStorage.setItem('kuna.secret.anthropic', key)
-      if (on) localStorage.setItem('kuna.assist.company', 'on')
-    },
-    MADE_UP_ANTHROPIC_KEY,
-    companyOn,
-  )
-  await page.reload({ waitUntil: 'networkidle0' })
-}
-
-/** Forgets the AI keys, the times of their last changes, the assistant's switches and its models in this browser, so the next flows start without them. */
-async function forgetAssist(page) {
-  await page.evaluate(() =>
-    Object.keys(localStorage)
-      .filter((key) => /^kuna\.secret(-changed)?\.(anthropic|openai|openrouter)$/.test(key) || key.startsWith('kuna.assist'))
-      .forEach((key) => localStorage.removeItem(key)),
-  )
-}
-
 /** Opens the select of AI companies, and returns what each option says, by its company's name. */
-async function openCompanies(page, press) {
+export async function openCompanies(page, press) {
   const trigger = await page.$(COMPANY_SELECT)
   if (trigger === null) throw new Error('no select of AI companies')
   await trigger.evaluate((element) => element.scrollIntoView({ block: 'center' }))
@@ -7998,7 +7962,7 @@ async function openCompanies(page, press) {
 }
 
 /** Picks an AI company from the select that is open, whose option starts with its name and goes on to say what it is. */
-async function pickCompany(page, press, name) {
+export async function pickCompany(page, press, name) {
   const option = await page.waitForFunction(
     (wanted) => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.trim().startsWith(wanted)) ?? null,
     { timeout: 5_000 },
@@ -8175,7 +8139,7 @@ async function switchSays(page, selector, on, failure) {
 }
 
 /** Goes to a route of the page without loading it again, and waits for what it should show. */
-async function goToRoute(page, hash, ready) {
+export async function goToRoute(page, hash, ready) {
   await page.evaluate((target) => {
     window.location.hash = target
   }, hash)
@@ -8188,7 +8152,7 @@ async function goToRoute(page, hash, ready) {
 /** Company's Assistant tab with a made-up key kept: its switch turned on stays on after a reload, and turned off again forgets the choice. */
 export async function assistSwitchFlow(page, { press, shoot, inspect }) {
   try {
-    await keepAssistKey(page)
+    await keepAiKey(page)
     await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 })
     if (await switchOn(page, COMPANY_SWITCH)) throw new Error("Company's switch is on before it was switched on")
     await pressSelector(page, press, COMPANY_SWITCH)
@@ -8233,7 +8197,7 @@ export function assistTabFlowIn(language) {
         throw new Error('the link did not open Kuna settings')
       })
 
-      await keepAssistKey(page)
+      await keepAiKey(page)
       await page.waitForSelector(companyState, { visible: true, timeout: 10_000 })
       await elementSays(page, companyState, [words.card.asksFirst], "Company's line does not say it asks first")
       if (await page.$('[data-testid="assist-app"][data-app="assets"]')) throw new Error('an app in its first run has a line')
@@ -8292,17 +8256,12 @@ export function chatPanelFlowIn(language) {
   const words = ASSIST_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const send = async (message) => {
-      const prompt = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
-      await prompt.type(message)
-      await pressSelector(page, press, '[data-testid="chat-send"]')
-    }
+    const send = (message) => sendInChat(page, press, message)
     const wide = () => page.evaluate(() => window.innerWidth >= 1224)
     const greeting = language === 'en' ? 'Hello' : 'Dobar dan'
     try {
       if (await page.$('[data-testid="chat-open"]')) throw new Error('the chat button shows with no key')
-      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-      await page.reload({ waitUntil: 'networkidle0' })
+      await keepAiKey(page)
 
       if (!(await wide())) {
         const scrolledTo = async (how) => {
@@ -8440,11 +8399,7 @@ export function chatPanelFlowIn(language) {
       await pressSelector(page, press, '[data-testid="chat-close"]')
       await page.waitForSelector('[data-testid="chat-panel"]', { hidden: true, timeout: 5_000 })
     } finally {
-      await page.evaluate(() => {
-        localStorage.removeItem('kuna.secret.anthropic')
-        localStorage.removeItem('kuna.assist.spending')
-        localStorage.removeItem('kuna.assist-provider')
-      })
+      await forgetAssist(page)
     }
   }
 }
@@ -8472,19 +8427,13 @@ export function spendingFlagPersonFlowIn(language) {
     if (await page.$('[data-testid="spending-entry-person"]')) throw new Error('the entry dialog offers the person flag with no AI key kept')
     await page.keyboard.press('Escape')
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
-    await keepAnthropicKey(page)
+    await keepAiKey(page)
     try {
       await flagSpendingPayee(page, press, dialog, shoot, inspect)
     } finally {
-      await page.evaluate(() => localStorage.removeItem('kuna.secret.anthropic'))
+      await forgetAssist(page)
     }
   }
-}
-
-/** Keeps a made-up Anthropic key and loads the page again, as the person flag shows only while a key is kept. */
-async function keepAnthropicKey(page) {
-  await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-  await page.reload({ waitUntil: 'networkidle0' })
 }
 
 /** Opens the flagged payee's entry, shoots the flag before and after its tap, and closes the dialog. */
@@ -8507,11 +8456,11 @@ export function reviewFlagPersonFlowIn(language) {
   const { review } = SCREEN_WORDS[language].transactions
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await keepAnthropicKey(page)
+    await keepAiKey(page)
     try {
       await flagReviewCounterparty(page, press, review, shoot, inspect)
     } finally {
-      await page.evaluate(() => localStorage.removeItem('kuna.secret.anthropic'))
+      await forgetAssist(page)
     }
   }
 }
@@ -8538,35 +8487,6 @@ async function flagReviewCounterparty(page, press, review, shoot, inspect) {
 }
 
 /**
- * Waits until this browser keeps no chat, as New chat forgets it in the background. A reload must not race that, and
- * neither must the next flow of a touch session, or that flow opens on the chat brought back instead of an empty one.
- */
-export async function savedChatGone(page) {
-  await page
-    .waitForFunction(
-      async () => {
-        if (!(await indexedDB.databases()).some((database) => database.name === 'kuna-chat')) return true
-        return new Promise((resolve) => {
-          const opening = indexedDB.open('kuna-chat')
-          opening.onerror = () => resolve(false)
-          opening.onsuccess = () => {
-            const database = opening.result
-            const reading = database.transaction('chat').objectStore('chat').get('last')
-            reading.onsuccess = () => {
-              database.close()
-              resolve(reading.result === undefined)
-            }
-          }
-        })
-      },
-      { timeout: 5_000, polling: 100 },
-    )
-    .catch(() => {
-      throw new Error('New chat left the chat kept in this browser')
-    })
-}
-
-/**
  * A question about figures with Ana Horvat flagged as a person on her entry: the one card covers sending and reading the
  * app on screen, the answer shows Kuna's figure and her real name, the row under it opens to the exact text with her alias
  * and her IBAN masked, an invented amount is flagged, a read from outside the app asks again, and with Anonymise off for
@@ -8580,19 +8500,7 @@ export function chatReadFlowIn(language) {
   const alias = language === 'en' ? 'Person 1' : 'Osoba 1'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const send = async () => {
-      const prompt = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
-      await prompt.type(question)
-      await pressSelector(page, press, '[data-testid="chat-send"]')
-    }
-    const openChat = async () => {
-      if (await page.$('[data-testid="chat-panel"]')) {
-        const visible = await page.$eval('[data-testid="chat-panel"]', (element) => element.offsetParent !== null)
-        if (visible) return
-      }
-      await pressSelector(page, press, '[data-testid="chat-open"]')
-      await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
-    }
+    const send = () => sendInChat(page, press, question)
     const startOver = async () => {
       await pressSelector(page, press, '[data-testid="chat-new"]')
       await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
@@ -8603,8 +8511,7 @@ export function chatReadFlowIn(language) {
       await page.waitForSelector('[data-testid="chat-sent-text"]', { visible: true, timeout: 5_000 })
     }
     try {
-      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-      await page.reload({ waitUntil: 'networkidle0' })
+      await keepAiKey(page)
       await page.evaluate(() => {
         window.location.hash = '#/spending/transactions'
       })
@@ -8613,7 +8520,7 @@ export function chatReadFlowIn(language) {
       await page.keyboard.press('Escape')
       await dialogGone(page, SPENDING_ENTRY_DIALOG)
       await dismissToasts(page)
-      await openChat()
+      await openChat(page, press)
       await send()
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
       await elementSays(page, CHAT_CONSENT, [words.chat.sendsAndReads(appName), words.chat.aliases], 'the card does not say the chat reads the app, with aliases')
@@ -8654,7 +8561,7 @@ export function chatReadFlowIn(language) {
       })
       await page.waitForFunction(() => window.location.hash === '#/' || window.location.hash.startsWith('#/?'), { timeout: 5_000 })
       await delay(300)
-      await openChat()
+      await openChat(page, press)
       await send()
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
       await elementSays(page, CHAT_CONSENT, [words.chat.sends], 'outside an app the first card still spoke of reading')
@@ -8674,7 +8581,7 @@ export function chatReadFlowIn(language) {
         window.location.hash = '#/spending'
       })
       await page.reload({ waitUntil: 'networkidle0' })
-      await openChat()
+      await openChat(page, press)
       if (await page.$('[data-testid="chat-note"]')) throw new Error('a chat cleared with New chat came back after a reload')
       await send()
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
@@ -8693,12 +8600,7 @@ export function chatReadFlowIn(language) {
       await startOver()
       await savedChatGone(page)
     } finally {
-      await page.evaluate(() => {
-        localStorage.removeItem('kuna.secret.anthropic')
-        localStorage.removeItem('kuna.assist.spending')
-        localStorage.removeItem('kuna.assist-provider')
-        localStorage.removeItem('kuna.assist-anonymise')
-      })
+      await forgetAssist(page)
     }
   }
 }
@@ -8713,8 +8615,7 @@ export function chatProposeFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const rulesHeld = () => page.evaluate(() => document.querySelector('[data-testid="chat-proposal"]')?.dataset.state)
     try {
-      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-      await page.reload({ waitUntil: 'networkidle0' })
+      await keepAiKey(page)
       await pressSelector(page, press, '[data-testid="chat-open"]')
       await page.waitForSelector('[data-testid="chat-quick-action"]', { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('the empty chat offers no quick action')
@@ -8747,15 +8648,12 @@ export function chatProposeFlowIn(language) {
       if (await page.$('[data-testid="chat-proposal-accept"], [data-testid="chat-proposal-undo"]')) throw new Error('a reloaded card can still write')
       await inspect?.('a chat after a reload')
       await shoot('chat-restored')
-      await pressSelector(page, press, '[data-testid="chat-new"]')
-      await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
-      await savedChatGone(page)
-    } finally {
-      await page.evaluate(() => {
-        localStorage.removeItem('kuna.secret.anthropic')
-        localStorage.removeItem('kuna.assist.spending')
-        localStorage.removeItem('kuna.assist-provider')
+      await newChat(page, press)
+      await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('New chat did not empty the chat')
       })
+    } finally {
+      await forgetAssist(page)
     }
   }
 }
@@ -8771,12 +8669,9 @@ export function chatCloseAccountFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-      await page.reload({ waitUntil: 'networkidle0' })
-      await pressSelector(page, press, '[data-testid="chat-open"]')
-      const prompt = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
-      await prompt.type(request)
-      await pressSelector(page, press, '[data-testid="chat-send"]')
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, request)
       await pressSelector(page, press, '[data-testid="chat-allow"]')
       await page.waitForSelector('[data-testid="chat-proposal-warning"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the card to close an account shows no warned line')
@@ -8794,14 +8689,9 @@ export function chatCloseAccountFlowIn(language) {
       await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.declined], 'Not now did not say the card was left')
       await inspect?.('a proposal left with Not now')
       await shoot('chat-proposal-declined')
-      await pressSelector(page, press, '[data-testid="chat-new"]')
-      await savedChatGone(page)
+      await newChat(page, press)
     } finally {
-      await page.evaluate(() => {
-        localStorage.removeItem('kuna.secret.anthropic')
-        localStorage.removeItem('kuna.assist.spending')
-        localStorage.removeItem('kuna.assist-provider')
-      })
+      await forgetAssist(page)
     }
   }
 }
@@ -8818,8 +8708,7 @@ export function chatTagFlowIn(language) {
     const tagged = (selector) => page.$eval(selector, (element) => element.getAttribute('data-chat-tagged'))
     const surface = () => page.$eval(card, (element) => getComputedStyle(element).backgroundColor)
     try {
-      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-      await page.reload({ waitUntil: 'networkidle0' })
+      await keepAiKey(page)
       await page.waitForSelector(card, { visible: true, timeout: 10_000 })
       const untagged = await surface()
       await pressSelector(page, press, '[data-testid="gallery-chat-ask"]')
@@ -8846,34 +8735,9 @@ export function chatTagFlowIn(language) {
       await page.waitForSelector('[data-testid="chat-tag"]', { hidden: true, timeout: 5_000 })
       if (docked && (await tagged(row)) !== null) throw new Error('the highlight stayed after the tag went')
     } finally {
-      await page.evaluate(() => localStorage.removeItem('kuna.secret.anthropic'))
+      await forgetAssist(page)
     }
   }
-}
-
-/** Keeps the made-up Anthropic key, loads the page again and opens the chat from the shell. */
-async function openChatWithKey(page, press, { alsoOpenRouter = false } = {}) {
-  await page.evaluate(
-    (key, openRouter) => {
-      localStorage.setItem('kuna.secret.anthropic', key)
-      if (openRouter) localStorage.setItem('kuna.secret.openrouter', key)
-    },
-    MADE_UP_ANTHROPIC_KEY,
-    alsoOpenRouter,
-  )
-  await page.reload({ waitUntil: 'networkidle0' })
-  if (!(await page.$('[data-testid="chat-panel"]'))) await pressSelector(page, press, '[data-testid="chat-open"]')
-  await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
-}
-
-/** Forgets the key, the picked provider and the saved chat this flow made. */
-async function forgetChatKey(page) {
-  await page.evaluate(() => {
-    localStorage.removeItem('kuna.secret.anthropic')
-    localStorage.removeItem('kuna.secret.openrouter')
-    localStorage.removeItem('kuna.assist.spending')
-    localStorage.removeItem('kuna.assist-provider')
-  })
 }
 
 /** Sets the chat input to the files, as a person picks them, and waits until none is still being read. */
@@ -8891,13 +8755,6 @@ async function attachToChat(page, ...paths) {
   await delay(300)
 }
 
-/** Types a message in the open chat and sends it. */
-async function sendInChat(page, press, text) {
-  const prompt = await pressSelector(page, press, 'textarea[data-testid="chat-prompt"]')
-  await prompt.type(text)
-  await pressSelector(page, press, '[data-testid="chat-send"]')
-}
-
 /**
  * One file of a kind on the chat's prompt: its chip, and under it the line that photos and PDFs go whole with the cost
  * line, or for a sheet the line that Kuna reads it alone.
@@ -8907,7 +8764,8 @@ export function chatAttachFlow(kind, samples, language = 'en') {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await openChatWithKey(page, press)
+      await keepAiKey(page)
+      await openChat(page, press)
       await attachToChat(page, samples[kind])
       const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => chip.getAttribute('data-state')))
       if (states.join() !== 'ready') throw new Error(`the ${kind} chip is ${states.join() || 'missing'}, not ready`)
@@ -8923,7 +8781,27 @@ export function chatAttachFlow(kind, samples, language = 'en') {
       await inspect?.(`a ${kind} on the prompt`)
       await shoot(`chat-attach-${kind}`)
     } finally {
-      await forgetChatKey(page)
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** A note beside a photo on the prompt: the note's chip is refused with the kinds Kuna takes, and the photo stays ready. */
+export function chatAttachRefusedFlow(samples, language = 'en') {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await attachToChat(page, samples.photo, samples.note)
+      const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => chip.getAttribute('data-state')).sort())
+      if (states.join() !== 'ready,refused') throw new Error(`the photo and the note are ${states.join() || 'missing'}, not one ready and one refused`)
+      await elementSays(page, '[data-testid="chat-file-note"]', [words.files.refused('chat-sample-note.txt', words.files.unknownKind)], 'the refused note does not say which kinds Kuna takes')
+      await inspect?.('a note refused beside a photo on the prompt')
+      await shoot('chat-attach-refused')
+    } finally {
+      await forgetAssist(page)
     }
   }
 }
@@ -8937,7 +8815,8 @@ export function chatAttachPdfOpenRouterFlow(samples) {
         window.dispatchEvent(new StorageEvent('storage', { key: 'kuna.assist-provider', newValue: picked }))
       }, id)
     try {
-      await openChatWithKey(page, press, { alsoOpenRouter: true })
+      await keepAiKey(page, { 'kuna.secret.openrouter': MADE_UP_ANTHROPIC_KEY })
+      await openChat(page, press)
       await attachToChat(page, samples.pdf)
       await pickProvider('openrouter')
       await page.waitForSelector('[data-testid="chat-file"][data-state="refused"]', { visible: true, timeout: 5_000 }).catch(() => {
@@ -8953,7 +8832,7 @@ export function chatAttachPdfOpenRouterFlow(samples) {
       await inspect?.('the PDF ready again')
       await shoot('chat-attach-pdf-openrouter-back')
     } finally {
-      await forgetChatKey(page)
+      await forgetAssist(page)
     }
   }
 }
@@ -8964,7 +8843,8 @@ export function chatAttachDropFlow(language = 'en') {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await openChatWithKey(page, press)
+      await keepAiKey(page)
+      await openChat(page, press)
       await page.$eval('[data-testid="chat-panel"]', (panel) => {
         const transfer = new DataTransfer()
         transfer.items.add(new File(['x'], 'dragged.pdf', { type: 'application/pdf' }))
@@ -8974,7 +8854,7 @@ export function chatAttachDropFlow(language = 'en') {
       await inspect?.('a drag of files over the chat')
       await shoot('chat-attach-drop')
     } finally {
-      await forgetChatKey(page)
+      await forgetAssist(page)
     }
   }
 }
@@ -8984,7 +8864,8 @@ export function chatConsentFilesFlow(samples, language = 'en') {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await openChatWithKey(page, press)
+      await keepAiKey(page)
+      await openChat(page, press)
       await attachToChat(page, samples.photo)
       await sendInChat(page, press, language === 'en' ? 'What is on this receipt?' : 'Što piše na ovom računu?')
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
@@ -8996,7 +8877,7 @@ export function chatConsentFilesFlow(samples, language = 'en') {
       await pressSelector(page, press, '[data-testid="chat-allow"]')
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
     } finally {
-      await forgetChatKey(page)
+      await forgetAssist(page)
     }
   }
 }
@@ -9006,7 +8887,8 @@ export function chatQuestionFilesFlow(samples, language = 'en') {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await openChatWithKey(page, press)
+      await keepAiKey(page)
+      await openChat(page, press)
       await attachToChat(page, samples.photo, samples.sheet)
       await sendInChat(page, press, language === 'en' ? 'What is on these?' : 'Što piše na ovima?')
       await pressSelector(page, press, '[data-testid="chat-allow"]')
@@ -9019,7 +8901,7 @@ export function chatQuestionFilesFlow(samples, language = 'en') {
       await inspect?.('a sent message with files and one without')
       await shoot('chat-question-files')
     } finally {
-      await forgetChatKey(page)
+      await forgetAssist(page)
     }
   }
 }
@@ -9035,7 +8917,8 @@ export function chatStatementCardFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await openChatWithKey(page, press)
+      await keepAiKey(page)
+      await openChat(page, press)
       await sendInChat(page, press, request)
       await pressSelector(page, press, '[data-testid="chat-allow"]')
       await page.waitForSelector('[data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(() => {
@@ -9054,21 +8937,10 @@ export function chatStatementCardFlowIn(language) {
       await shoot('chat-statement-card-done')
       await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
       await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.undone], 'Undo did not say it was undone')
-      await pressSelector(page, press, '[data-testid="chat-new"]')
-      await savedChatGone(page)
+      await newChat(page, press)
     } finally {
-      await forgetChatKey(page)
+      await forgetAssist(page)
     }
-  }
-}
-
-/** Closes the chat where it covers the page, below the width that docks it beside the page. */
-async function giveThePageBack(page, press) {
-  const close = await page.$('[data-testid="chat-close"]')
-  const docked = await page.evaluate(() => window.matchMedia('(min-width: 1224px)').matches)
-  if (close !== null && !docked) {
-    await press(close)
-    await page.waitForFunction(() => !document.querySelector('[data-testid="chat-panel"]'), { timeout: 5_000 })
   }
 }
 
@@ -9082,7 +8954,7 @@ export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await keepAssistKey(page)
+      await keepAiKey(page)
       if (parts.includes('queue')) {
         await page.waitForSelector('[data-testid="spending-review-ask"]', { visible: true, timeout: 10_000 }).catch(() => {
           throw new Error('To review offers no Ask the chat on its header')
@@ -9127,7 +8999,7 @@ export function spendingReceiptDialogFlowIn(language, photos) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await keepAssistKey(page)
+      await keepAiKey(page)
       await uploadReceiptPhoto(page, press, photos.oneMatch)
       await page.waitForSelector('[data-testid="spending-receipt-place"][data-match="ready"]', { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('the receipt is not offered its one payment ready')
@@ -9176,7 +9048,8 @@ async function rowHasLines(page, title, cents) {
 /**
  * On the receipts set's Entries with a made-up key kept: Read a receipt in the chat puts the photo on the prompt and fills in
  * nothing. Asked to read it, the chat proposes the Pet food category alone, and asked again once that is accepted, the receipt
- * card that splits the Corner market payment. With `accept`, Accept splits the row and Undo takes it back.
+ * card that splits the Corner market payment and says the photo stays on Drive after Undo. With `accept`, Accept splits the
+ * row and Undo takes it back.
  */
 export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
   const words = ASSIST_WORDS[language]
@@ -9184,12 +9057,8 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
   const petFood = language === 'en' ? 'Pet food' : 'Hrana za ljubimce'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const allowIfAsked = async () => {
-      const allow = await page.waitForSelector('[data-testid="chat-allow"]', { visible: true, timeout: 5_000 }).catch(() => null)
-      if (allow !== null) await press(allow)
-    }
     try {
-      await keepAssistKey(page)
+      await keepAiKey(page)
       await page.waitForSelector('[data-testid="spending-receipt-to-chat"]', { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('Entries offers no Read a receipt in the chat with a key kept')
       })
@@ -9208,7 +9077,7 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
       }
 
       await sendInChat(page, press, request)
-      await allowIfAsked()
+      await allowIfAsked(page, press)
       const category = await newestCard(page, 1, 'the chat proposed no category card')
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
       if (!(await category.evaluate((card, name) => card.textContent?.includes(name) ?? false, petFood))) throw new Error(`the first card does not add ${petFood}`)
@@ -9220,11 +9089,15 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
       await category.waitForSelector('[data-testid="chat-proposal-undo"]', { visible: true, timeout: 15_000 })
 
       await sendInChat(page, press, request)
-      await allowIfAsked()
+      await allowIfAsked(page, press)
       const receipt = await newestCard(page, 2, 'the chat proposed no receipt card once the category was there')
       await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
       const receiptSays = await receipt.evaluate((card) => card.textContent ?? '')
       if (!receiptSays.includes('Corner market')) throw new Error(`the receipt card does not name the payment it splits, and says "${receiptSays}"`)
+      const photoStays = (language === 'en' ? spendingAssistantEnglish : spendingAssistantCroatian).receipts.photoStays
+      const outside = await receipt.$('[data-testid="chat-proposal-outside"]')
+      if (outside === null || !(await outside.evaluate((line, text) => line.textContent?.includes(text) ?? false, photoStays)))
+        throw new Error('the receipt card does not say the photo stays on Drive after Undo')
       await delay(300)
       if (!accept) {
         await inspect?.('the receipt card after the category card')
@@ -9233,6 +9106,9 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
       }
       await inspect?.('the receipt card')
       await shoot('chat-receipt-card')
+      await outside.evaluate((line) => line.scrollIntoView({ block: 'center' }))
+      await delay(300)
+      await shoot('chat-card-outside')
       await press(await receipt.$('[data-testid="chat-proposal-accept"]'))
       await receipt.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
         const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
@@ -9249,24 +9125,10 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
         })
       await rowLinesAre(page, 'Corner market', -2349, 0)
     } finally {
-      const started = await page.$('[data-testid="chat-new"]')
-      if (started !== null) await press(started)
-      await savedChatGone(page)
+      await newChat(page, press)
       await forgetAssist(page)
     }
   }
-}
-
-/** Keeps made-up keys for Anthropic and OpenAI, Anthropic picked, Company sending without asking and Anonymise off for Anthropic, then loads the page again with them. */
-async function keepTwoKeysAnonymiseOff(page) {
-  await page.evaluate((key) => {
-    localStorage.setItem('kuna.secret.anthropic', key)
-    localStorage.setItem('kuna.secret.openai', 'made-up-openai-key-0077')
-    localStorage.setItem('kuna.assist-provider', 'anthropic')
-    localStorage.setItem('kuna.assist.company', 'on')
-    localStorage.setItem('kuna.assist-anonymise', 'anthropic')
-  }, MADE_UP_ANTHROPIC_KEY)
-  await page.reload({ waitUntil: 'networkidle0' })
 }
 
 /**
@@ -9279,7 +9141,7 @@ export function assistProviderSwitchFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await keepTwoKeysAnonymiseOff(page)
+      await keepAiKey(page, TWO_KEYS_ANONYMISE_OFF)
       await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, { visible: true, timeout: 10_000 })
       await switchSays(page, anonymise, false, 'Anonymise does not show off for Anthropic')
       const offered = await openCompanies(page, press)
@@ -9338,7 +9200,7 @@ export function assistKeyRefusedFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await keepAssistKey(page)
+      await keepAiKey(page)
       await page.evaluate(() => localStorage.setItem('kuna.assist-provider', 'anthropic'))
       await page.waitForSelector(COMPANY_SELECT, { visible: true, timeout: 10_000 })
       await openCompanies(page, press)
@@ -9386,8 +9248,8 @@ async function reachKeyStep(page, press, language, appNames) {
 }
 
 /**
- * Yes at the welcome, with Company and Loans picked: the key step in the same card, a key tested and kept, one line on the chat and the one consent, which turns on only Company,
- * the picked app that can send. Back on the way keeps what was picked.
+ * Yes at the welcome, with Company and Loans picked: the key step in the same card, a key tested and kept, one line on the chat and the one consent, which turns on
+ * Send without asking in both. Back on the way keeps what was picked.
  */
 export function kunaWelcomeAiFlowIn(language) {
   const screen = SCREEN_WORDS[language]
@@ -9417,7 +9279,12 @@ export function kunaWelcomeAiFlowIn(language) {
       await saveTypedKey(page, press, SET_UP, MADE_UP_ANTHROPIC_KEY)
       await testLineSays(page, SET_UP, words.card.accepted('Anthropic'), 'the key step does not say the company took the key')
       await elementSays(page, '[data-testid="assist-set-up-chat"]', [words.setUp.chat], 'the key step does not say what the key opens')
-      await elementSays(page, '[data-testid="assist-set-up-consent"]', [words.setUp.sends, words.retention.anthropic, words.appCard.switch, screen.company], 'the consent does not say what it covers')
+      await elementSays(
+        page,
+        '[data-testid="assist-set-up-consent"]',
+        [words.setUp.sends, words.retention.anthropic, words.appCard.switch, screen.company, screen.loans],
+        'the consent does not say what it covers',
+      )
       if (await page.$(`${SET_UP} [data-testid="assist-key"]`)) throw new Error('the key field stays after the company took the key')
       if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('the consent turned on before anyone said so')
       await page.waitForSelector('[data-testid="chat-open"]', { visible: true, timeout: 5_000 }).catch(() => {
@@ -9437,8 +9304,7 @@ export function kunaWelcomeAiFlowIn(language) {
         localStorage.getItem('kuna.secret.anthropic'),
         localStorage.getItem('kuna.assist-provider'),
       ])
-      if (company !== 'on') throw new Error('the consent did not turn on Company')
-      if (loans !== null) throw new Error('the consent turned on an app with no assistant')
+      if (company !== 'on' || loans !== 'on') throw new Error(`the consent left Company ${company ?? 'off'} and Loans ${loans ?? 'off'}`)
       if (kept !== MADE_UP_ANTHROPIC_KEY) throw new Error('the key was not kept')
       if (pick !== 'anthropic') throw new Error(`the assistant is on "${pick}" after the walk-through`)
     } finally {
@@ -9500,25 +9366,6 @@ export async function kunaWelcomeAiUnfinishedFlow(page, { press, shoot, inspect 
     await pressButton(page, press, '[data-testid="kuna-welcome-apps"] label', screen.loans)
     await pressSelector(page, press, '[data-testid="kuna-welcome-continue"]')
     await page.waitForSelector('[data-testid="home-card"][data-app="loans"]', { visible: true, timeout: 10_000 })
-  } finally {
-    await forgetAssist(page)
-  }
-}
-
-/** A key accepted with only an app that has no assistant picked: the line on the chat and what Kuna sends show, with no switch to turn on. */
-export async function kunaWelcomeAiNoAppToSwitchFlow(page, { press, shoot, inspect }) {
-  const screen = SCREEN_WORDS.en
-  const words = ASSIST_WORDS.en
-  try {
-    await reachKeyStep(page, press, 'en', [screen.loans])
-    await saveTypedKey(page, press, SET_UP, MADE_UP_ANTHROPIC_KEY)
-    await elementSays(page, '[data-testid="assist-set-up-consent"]', [words.setUp.sends, words.retention.anthropic], 'the key step does not say what Kuna sends')
-    if (await page.$('[data-testid="assist-set-up-switch"]')) throw new Error('the consent offers a switch that would change nothing')
-    await inspect?.('a key accepted with no app to switch')
-    await shoot('kuna-welcome-ai-no-switch')
-    await pressSelector(page, press, '[data-testid="assist-set-up-continue"]')
-    await page.waitForSelector('[data-testid="home-card"][data-app="loans"]', { visible: true, timeout: 10_000 })
-    if ((await page.evaluate(() => localStorage.getItem('kuna.assist.loans'))) !== null) throw new Error('the consent wrote a switch for an app with no assistant')
   } finally {
     await forgetAssist(page)
   }

@@ -179,9 +179,9 @@
             </li>
             <li>
               <code>drive.appdata</code>, "See, create, and delete its own configuration data in your Google Drive". Asked only while a file of yours is on Drive and you saved a key, hold an
-              instrument priced by a vendor that needs a key, or switched the assistant on for an app. It covers one hidden folder of Kuna's own in your Drive, which you do not see in Drive, which
-              nobody can share and which no other app reads. The app keeps your keys there in one small file, so every browser you sign in to gets them. It also deletes there the keys files an older
-              Kuna made, one per Investments file, once their keys are in the new file. It reads, writes and deletes nothing else with it.
+              instrument priced by a vendor that needs a key, or switched on Send without asking for Spending or Company. It covers one hidden folder of Kuna's own in your Drive, which you do not see
+              in Drive, which nobody can share and which no other app reads. The app keeps your keys there in one small file, so every browser you sign in to gets them. It also deletes there the keys
+              files an older Kuna made, one per Investments file, once their keys are in the new file. It reads, writes and deletes nothing else with it.
             </li>
             <li>
               <code>gmail.readonly</code>, "View your email messages and settings". Asked only while you name the address your bank mails from, switch on a kind of your accountant's mail, or switch on
@@ -212,8 +212,8 @@
             <code>drive.readonly</code>, <code>gmail.readonly</code> and <code>gmail.compose</code>, and the app stays within the 100 users Google allows an unverified app.
           </p>
           <p>
-            A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only. So is a receipt photo's QR code. The photo leaves this browser only when you tap Read
-            the lines or switch on Keep the photo on Drive, and it is gone from here when the dialog closes.
+            A file you open or drop on the page, an .xlsx workbook or a Kuna file, is read in this browser only. So is a receipt photo's QR code. The photo leaves this browser only when you switch on
+            Keep the photo on Drive, and it is gone from here when the dialog closes.
           </p>
         </section>
         <section>
@@ -246,12 +246,12 @@
             since every Kuna app uses them, and so do the backups folder and the files you exported.
           </p>
           <p>
-            When you save a receipt, it writes what you confirmed into your Spending file: the date, time and total, the JIR or ZKI, the merchant, its OIB and a buyer's OIB when a read gave them, the
-            lines with their categories, and the model that read them. With Keep the photo on Drive on, it uploads the photo as you took it, which can show a masked card number and a shop's address
-            and, from a phone, can hold the place it was taken, into a <code>Receipts</code> folder beside that file and keeps the file's id with the receipt. Removing the receipt or an Undo leaves
-            that photo on your Drive for you to delete. When the photo you pick holds a GPS position, the page reads it from the file in this browser and your Spending file stores it with the receipt
-            as a latitude and a longitude, whether or not you keep the photo. Kuna sends it to no one, and the photo sent to the assistant leaves it behind. The entry shows those coordinates with a
-            link to <code>openstreetmap.org</code>, which sees them only if you tap it.
+            When you save a receipt in Entries, or accept a receipt card in the chat, it writes what you confirmed into your Spending file: the date, time and total, the JIR or ZKI, the merchant, its
+            OIB and a buyer's OIB when a read gave them, the lines with their categories, and the model that read them when the chat did. With Keep the photo on Drive on, or a card that keeps it, it
+            uploads the photo as you took it, which can show a masked card number and a shop's address and, from a phone, can hold the place it was taken, into a <code>Receipts</code> folder beside
+            that file and keeps the file's id with the receipt. Removing the receipt or an Undo leaves that photo on your Drive for you to delete. When the photo you pick holds a GPS position, the
+            page reads it from the file in this browser and your Spending file stores it with the receipt as a latitude and a longitude, whether or not you keep the photo. Kuna sends it to no one, and
+            the photo sent to the assistant leaves it behind. The entry shows those coordinates with a link to <code>openstreetmap.org</code>, which sees them only if you tap it.
           </p>
           <p>
             While you name the address your bank mails statements from, each sync files the attachments of its new statement mail, the statement PDF and XML, into your statements folder in Drive, in a
@@ -265,8 +265,8 @@
           <h2>Where your data goes</h2>
           <p>
             There is no server. The page talks to Google's own APIs to read and write your books on Drive, read your bank statements and your mail, file the invoices you make and save their drafts,
-            for Investments to the price vendors named below, and for Assets to the Croatian Bureau of Statistics (DZS). No analytics, no tracking, no third-party scripts beyond Google's sign-in and
-            file picker.
+            for Investments to the price vendors named below, for Assets to the Croatian Bureau of Statistics (DZS), and for the assistant to the one AI company you pick. No analytics, no tracking, no
+            third-party scripts beyond Google's sign-in and file picker.
           </p>
           <p>
             For Spending's bank sync, once you saved a script of yours and linked a bank, the booked rows of your linked accounts, with their amounts, dates, descriptions, and the names and IBANs of
@@ -277,17 +277,6 @@
             For Investments, the page also asks the price vendors named in the Investments Settings for daily closes and exchange rates: Twelve Data, Alpha Vantage and the European Central Bank. It
             calls them with your own keys, kept in this browser and, with a file of yours on Drive, in Kuna's hidden folder in your Drive, where a vendor needs one. It sends them only the symbols of
             the instruments and the currencies your records name, plus USD, GBP and CHF, and the day it needs closes from, never an amount or anything else from your books.
-          </p>
-          <p>
-            The assistant runs only with your own key for one company, Anthropic, OpenAI or OpenRouter, chosen in Kuna settings and kept like the price vendor keys, and it sends only when you tap one
-            of its buttons. While an app's Send without asking is off, each send asks first and says what goes. Don't ask again, or that switch on its Settings under Assistant, stops the asking. A
-            change of company takes back every yes on employee data, so that data stays out until you allow it again, naming the new company. A key, a sync or a fetch from Google never changes the
-            company. Suggest categories sends the counterparty names, descriptions, amounts, months and accounts of the rows waiting for review, and your categories, with IBANs and OIBs masked and no
-            row that names an employee unless you switch that on. Explain sends a figure's build-up, its amounts and the rules it rests on, and a figure that names employees only once you switch that
-            on. It never sends a ledger row behind a figure or a planned revenue step that names a client or an invoice item, and it never reaches the web. What comes back is only a suggestion on
-            screen, which you save yourself. Read a receipt sends the whole photo, downscaled and without its camera data, which can show a masked card number, a loyalty card and the shop, with your
-            categories and earlier lines at the same shop, and it cannot mask what the photo shows. Testing a key sends nothing from your books. Anthropic deletes what Kuna sends within 30 days,
-            OpenAI keeps it up to 30 days to check for misuse, and neither trains on it. OpenRouter keeps nothing by default, and the model's own provider keeps what its terms say.
           </p>
           <p>
             For the mixes and the coming income of Investments, it also asks Finnhub, Alpha Vantage and Twelve Data about the instruments you hold: a company's industry and home country from Finnhub,
@@ -301,14 +290,79 @@
           </p>
         </section>
         <section>
+          <h2>The assistant</h2>
+          <p>
+            The assistant is a chat inside the page. It runs only with your own key for one company, Anthropic, OpenAI or OpenRouter, chosen in Kuna settings and kept like the price vendor keys, and
+            the page sends to that company straight from this browser and to no one else. It sends only when you send a message. Each message carries what you type, Kuna's own description of its apps,
+            screens and settings, which holds nothing from your books, and, when they changed since the last message, the app, screen and tab you are on with their address, today's date, what you
+            tagged with Ask the chat and each attached file's id and kind. A record or a build-up you tag goes as Kuna's reference to it, without its name, a figure as its label and a place as its
+            title and address. Kuna offers no model the web, and a model id that would turn web search on runs as the default model instead. A model you type by hand on OpenRouter may still search the
+            web on its own side, which Kuna cannot see. Testing a key sends nothing from your books.
+          </p>
+          <p>
+            The chat reads an app's books only once you allow it, on a card in the chat, for that chat or always. Always switches on Send without asking under Assistant in that app's Settings, and
+            switching it off there makes the chat ask again. Then, when a question needs them, the chat asks Kuna for records, a page at a time, and for figures Kuna computes with the same code as its
+            screens. Each read shows above its answer, one tap from the exact text that went. IBANs and OIBs go masked. What each app lets it read:
+          </p>
+          <ul>
+            <li>
+              Spending: transactions, accounts, categories, limits, rules, receipts and their lines, and the month, category, limit and balance figures. Never its settings, a receipt's JIR or ZKI, its
+              photo's file on Drive or where the photo was taken.
+            </li>
+            <li>
+              Company: the ledger, categories, accounts, rules, clients, invoices, the billing plan and the settings that name, switch or price something, and the month, profit, category, balance and
+              receivable figures. With the Croatian d.o.o. rules it also reads owner advances, the year's plan, pay scenarios, year-end lines, assets, grants and employees, the year's forecast and
+              taxes, and how Kuna built a figure you ask about, with the rules it rests on. Never your review label, a setting that routes mail or files, where invoice mail goes or the IBAN your
+              invoices print.
+            </li>
+            <li>
+              Investments: accounts, instruments, trades, income, cash movements, exchanges, transfers, splits, spin-offs, closes you typed, fund mixes, targets, checks and settings, and the
+              portfolio, holdings, income and tax figures.
+            </li>
+            <li>Loans: bank loans, rate periods, extra payments, late instalments, informal loans and their movements, saved tries and offers, and what each loan owes and what falls due next.</li>
+            <li>Assets: assets and valuations, and what they are worth on the day.</li>
+          </ul>
+          <p>
+            Anonymise, in Kuna settings, is on for every AI company but the one you switch it off for. While it is on, records that name an employee or go to an employee's IBAN stay on this device.
+            The chat cannot find them, a record you tag that is about an employee goes without its reference, and a figure you tag whose label names one goes without its label. A report or a build-up
+            that holds employees' pay stays on this device too, and the chat asks you to switch Anonymise off to explain it. The other people Kuna knows by name, those in your informal loans and the
+            payees you mark as a person, go as aliases such as Person 1, or Osoba 1 on a Croatian screen, and each IBAN or OIB goes as a token. Kuna keeps what each alias and token stands for in the
+            open page only, shows you the real names, and puts them back when you accept a change. Shops, other payees, amounts and dates go as written, and so does what you type. With Anonymise off
+            for a company, employees' records and every name Kuna knows go to that company as written, and to no other. IBANs and OIBs stay masked. Changing company turns Anonymise back on.
+          </p>
+          <p>
+            A message can carry up to four files. A photo goes whole, downscaled to a JPEG in this browser, which drops its camera data and the place it was taken. A PDF's pages go whole, as a copy
+            without the file's own metadata, up to 20 pages a read, and never to OpenRouter, which does not read PDFs in Kuna. Kuna cannot mask or alias what a photo or a PDF shows, even with
+            Anonymise on: a receipt can show a masked card number, a loyalty card and the shop, and a statement or a loan offer shows every name, IBAN and amount printed on it. The file's chip and the
+            card before its first send say so. The AI company gets the file's id, never its name. A sheet, an XML file or a CSV file stays on this device. Kuna reads it with the same readers as its
+            import screens, such as a Revolut sheet, a camt statement, a bank sheet with a saved profile, the Investments workbook or a file of daily closes, and shows what it holds only on a card in
+            the chat. The chat hears how many changes the card holds, or why Kuna refused it, never a cell.
+          </p>
+          <p>
+            The chat writes nothing itself. A change it proposes shows as a card in the chat, checked by the same rules as the app's screens and worded by Kuna, and only your tap on Accept writes it,
+            with an Undo after unless the card says No Undo. It writes only to your books and to this device's Kuna settings, such as the theme and the language. It never makes an invoice PDF or a
+            Gmail draft, asks for Google's consent, links a bank, picks a file in Google's picker, changes a key, Anonymise, Send without asking or the chat's history, or exports, moves or deletes
+            your books. For those it links the screen where you do it. Two cards reach outside the books and say so on the card. A receipt card can keep the photo as you took it in the
+            <code>Receipts</code> folder beside your Spending file, with the access you already gave, and the photo stays there after an Undo. A card that fetches prices asks the price vendors as the
+            Prices tab does, and has no Undo.
+          </p>
+          <p>
+            The last chat stays in this browser's storage for 30 days, and a new chat replaces it. It keeps what you typed, what the assistant answered with its aliases, how each card ended, and the
+            names of the files a message went with, never the files. It never keeps what was read from your books, what an alias stands for or Kuna's references to records, so after a reload the
+            assistant starts fresh and names show as aliases. Clear chat history, in Kuna settings, asks first and deletes it here. Anthropic deletes what Kuna sends within 30 days, OpenAI keeps it up
+            to 30 days to check for misuse, and neither trains on it. OpenRouter keeps nothing by default, and the model's own provider keeps what its terms say.
+          </p>
+        </section>
+        <section>
           <h2>Where your data is kept</h2>
           <p>With your books on Google Drive, the file there is the original. The app keeps a copy in this browser's storage so the figures show at once.</p>
           <p>
             The keys you enter for the price vendors and the assistant are kept in this browser's storage. With a file of yours on Drive, each sync also keeps them in Kuna's hidden app folder in your
             Drive, which Drive does not show, nobody can share and no other app reads, so every browser signed in to your account gets them. They never go into a books file, the prices file or a
-            folder you see. With every file kept in this browser, they stay only in this browser. The assistant's switches and the model you pick stay on this device. A device without keys reads the
-            closes another device fetched. Clearing this site's data in the browser forgets them here. Delete my keys from my Google account, in Kuna settings, deletes the keys file from that folder
-            and leaves this browser's keys, which the next sync saves again while a file of yours is on Drive. Google lets you delete an app's hidden folder yourself, and its help page
+            folder you see. With every file kept in this browser, they stay only in this browser. The assistant's switches and the model you pick stay on this device, and so does the last chat. A
+            device without keys reads the closes another device fetched. Clearing this site's data in the browser forgets them here. Delete my keys from my Google account, in Kuna settings, deletes
+            the keys file from that folder and leaves this browser's keys, which the next sync saves again while a file of yours is on Drive. Google lets you delete an app's hidden folder yourself,
+            and its help page
             <a href="https://support.google.com/drive/answer/2523073">Use Google Drive apps</a> says where Drive lists the apps you use.
           </p>
           <p>

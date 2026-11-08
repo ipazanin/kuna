@@ -1,5 +1,4 @@
-import type { ModelPort, ModelReply, ModelRequest } from '../../application/modelPort'
-import { CHAT_TASK_ID } from '../../application/runChatTurn'
+import type { ModelPort, ModelReply } from '../../application/modelPort'
 import type { KeyTest, ModelChoice, ProviderPreset } from '../../domain/providerPresets'
 import { fakeChatReply } from './fakeChatReply'
 
@@ -10,16 +9,6 @@ import { fakeChatReply } from './fakeChatReply'
  */
 export type FakeAiVariant = 'ok' | 'refused' | 'cut-off' | 'invented-figure' | 'key-refused'
 
-/** The fake build's answer to one task: the JSON its answer holds, built from the request, or another reply for a variant. */
-export type FakeAnswer = (request: ModelRequest, variant: FakeAiVariant) => unknown
-
-const answers = new Map<string, FakeAnswer>()
-
-/** Lets an app's fake seed say how the fake model answers one of its tasks. */
-export function registerFakeAnswer(taskId: string, answer: FakeAnswer): void {
-  answers.set(taskId, answer)
-}
-
 export function fakeAiVariant(): FakeAiVariant {
   const variant = new URLSearchParams(window.location.search).get('ai')
   return variant === 'refused' || variant === 'cut-off' || variant === 'invented-figure' || variant === 'key-refused' ? variant : 'ok'
@@ -27,8 +16,8 @@ export function fakeAiVariant(): FakeAiVariant {
 
 const TOKENS = { input: 812, cacheRead: 3400, cacheWrite: 600, output: 1190 }
 
-/** The fake build's model for one task, which never leaves the page. It answers after a short pause, as a real one would. */
-export function fakeModelPort(taskId: string, model: ModelChoice): ModelPort {
+/** The fake build's model for the chat, which never leaves the page. It answers after a short pause, as a real one would. */
+export function fakeModelPort(model: ModelChoice): ModelPort {
   return {
     model,
     readsPdf: true,
@@ -41,14 +30,7 @@ export function fakeModelPort(taskId: string, model: ModelChoice): ModelPort {
       if (variant === 'cut-off') {
         return { kind: 'cut-off', tokens: TOKENS }
       }
-      if (taskId === CHAT_TASK_ID) {
-        return fakeChatReply(request, TOKENS, variant === 'invented-figure')
-      }
-      const answer = answers.get(taskId)
-      if (answer === undefined) {
-        throw new Error(`The fake model has no answer for ${taskId}.`)
-      }
-      return { kind: 'answer', text: JSON.stringify(answer(request, variant)), raw: null, tokens: TOKENS }
+      return fakeChatReply(request, TOKENS, variant === 'invented-figure')
     },
   }
 }

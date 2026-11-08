@@ -1,6 +1,7 @@
 import { answered, answersSince, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply, ModelRequest } from '../../../../../shared/ai/application/modelPort'
+import { aboutEmployeesPay } from '../../../../../shared/ai/application/chatReads'
 import { language } from '../../../../../shared/text/language'
 
 const ANSWERS = {
@@ -17,6 +18,8 @@ const ANSWERS = {
     noCategory: 'I found no category for office supplies. Add one on Settings, Categories first.',
     noBuildUp: 'Tag a figure with its ask button first, and I will read how Kuna built it.',
     explained: (label: string, amount: string, steps: string) => `${label} is ${amount}. Kuna builds it from ${steps}. The link opens the tax rule it rests on.`,
+    keptByAnonymise:
+      'That figure is about employees and their pay, so it stays on this device while Anonymise is on. Turn Anonymise off for this AI company in Kuna settings if you want it explained.',
   },
   hr: {
     notRead: 'Niste dopustili čitanje Tvrtke, pa vam mogu reći samo kako radi.',
@@ -31,6 +34,8 @@ const ANSWERS = {
     noCategory: 'Nisam našao kategoriju za uredski materijal. Najprije je dodajte na Postavkama, Kategorije.',
     noBuildUp: 'Najprije označite iznos njegovim gumbom za pitanje, pa ću pročitati kako ga je Kuna izračunala.',
     explained: (label: string, amount: string, steps: string) => `${label} iznosi ${amount}. Kuna ga računa iz ${steps}. Poveznica otvara porezno pravilo na kojem počiva.`,
+    keptByAnonymise:
+      'Taj se iznos odnosi na zaposlenike i njihove plaće, pa ostaje na ovom uređaju dok je anonimizacija uključena. Isključite anonimizaciju za ovu AI tvrtku u postavkama Kune ako želite da ga objasnim.',
   },
 }
 
@@ -133,7 +138,7 @@ interface ReadStep {
   readonly steps: readonly ReadStep[]
 }
 
-/** Reads the build-up the context line names, links the first tax rule it cites, and answers in prose from the read. */
+/** Reads the build-up the context line names, links the first tax rule it cites, and answers in prose from the read, or says Anonymise keeps it on the device. */
 function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const ref = contextLines(request)
     .flatMap((line) => [...line.matchAll(/build-up-\d+/g)].map((match) => match[0]))
@@ -141,7 +146,7 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
   if (ref === undefined) return answered(request, says.noBuildUp, tokens)
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'read_build_up', { ref }, tokens)
-  if (answers[0]!.isError) return answered(request, answers[0]!.text, tokens)
+  if (answers[0]!.isError) return answered(request, answers[0]!.text === aboutEmployeesPay('build-up') ? says.keptByAnonymise : answers[0]!.text, tokens)
   const read = JSON.parse(answers[0]!.text) as { readonly figure: ReadStep; readonly ruleRefs?: Readonly<Record<string, string>> }
   const [rule] = Object.values(read.ruleRefs ?? {})
   if (answers.length === 1 && rule !== undefined) return lookup(1, 'show_screen', { route: '/company/settings?tab=tax-rules', params: [{ name: 'rule', value: rule }] }, tokens)

@@ -8,7 +8,7 @@ import type { Catalogue } from '../application/catalogue'
 import type { ChatReads } from '../application/chatReads'
 import type { ChatChip } from '../application/chatTools'
 import type { ModelTurn } from '../application/modelPort'
-import { CHAT_TASK_ID, NOTHING_TAGGED, contextLine, elementLine, runChatTurn } from '../application/runChatTurn'
+import { NOTHING_TAGGED, contextLine, elementLine, runChatTurn } from '../application/runChatTurn'
 import type { ChatContext, SentRead } from '../application/runChatTurn'
 import type { LoopEnd } from '../application/runModelLoop'
 import { chatRefs } from '../domain/chatRefs'
@@ -28,7 +28,7 @@ import { anonymiseOn, assistOn, modelOf, switchAssist } from '../application/ass
 import type { ProviderId, ProviderPreset } from '../domain/providerPresets'
 import type { KunaChat } from './chatApps'
 import { imagePartOf } from './imagePartOf'
-import { MOST_RUN_MILLISECONDS, costWords, providerInUse, resultLine } from './useAiTask'
+import { costWords, providerInUse, resultLine } from './aiProvider'
 import { words } from './words'
 
 export interface ChatLine {
@@ -92,6 +92,9 @@ interface Spent {
 }
 
 /** The chat kept in memory for this visit: it follows the person across apps and goes with a reload. */
+/** How long one message may take, its rounds together, which also ends a stream that stalls. A wait for the person's answer pauses it. */
+const MOST_RUN_MILLISECONDS = 5 * 60_000
+
 const lines = reactive<ChatLine[]>([])
 const spent = reactive<Spent>({ dollars: 0, unknown: false, any: false })
 const status = shallowRef<'ready' | 'streaming'>('ready')
@@ -438,7 +441,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
     }
   }
   try {
-    const model = preset === null ? null : await modelPort(CHAT_TASK_ID, preset)
+    const model = preset === null ? null : await modelPort(preset)
     if (model === null || preset === null) {
       line.failure = words.addKey
       return

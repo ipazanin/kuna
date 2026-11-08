@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
-import { assistKeyKept } from '../../../../../../shared/ai/presentation/useAiTask'
+import { assistKeyKept } from '../../../../../../shared/ai/presentation/aiProvider'
 import { words as aiWords } from '../../../../../../shared/ai/presentation/words'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'

@@ -4,6 +4,7 @@ import { createApp } from 'vue'
 import ui from '@nuxt/ui/vue-plugin'
 
 import App from './shell/App.vue'
+import { holdProviderInUse } from './shared/ai/presentation/aiProvider'
 import { askSilentlyOnOpen, takeGoogleRedirect } from './shared/google/googleAuth'
 import { moveBrowserSecrets } from './shared/secrets/infrastructure/browserSecrets'
 import { startServiceWorker } from './shell/pwa/appUpdate'
@@ -35,7 +36,6 @@ async function start(): Promise<void> {
     const { registerFakeKunaChat } = await import('./shell/assistant/infrastructure/fake/fakeKunaChat')
     registerFakeKunaChat()
   }
-  const { holdProviderInUse } = await import('./shared/ai/presentation/useAiTask')
   holdProviderInUse()
   const googleReturn = takeGoogleRedirect()
   if (googleReturn === null && navigator.onLine && installedApps().some((app) => app.asksGoogleOnOpen()) && askSilentlyOnOpen()) {

@@ -3,7 +3,7 @@
  * handle. A failure throws with what was wrong.
  */
 
-import { delay } from './editorFlows.mjs'
+import { delay } from './pressing.mjs'
 
 const MENU_TRIGGER = ':is(button[aria-haspopup="listbox"], button[role="combobox"])'
 

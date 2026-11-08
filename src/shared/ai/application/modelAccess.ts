@@ -10,20 +10,20 @@ export function keyKept(id: ProviderId): boolean {
 }
 
 /** The guarded model for the provider's key and chosen model, the fake one in the fake build, or null without a key. */
-export async function modelPort(taskId: string, preset: ProviderPreset): Promise<ModelPort | null> {
+export async function modelPort(preset: ProviderPreset): Promise<ModelPort | null> {
   const key = storedSecret(preset.id)
   if (key === null) {
     return null
   }
-  return guardedModel(await adapterOf(taskId, preset, key), keptSecrets)
+  return guardedModel(await adapterOf(preset, key), keptSecrets)
 }
 
-async function adapterOf(taskId: string, preset: ProviderPreset, key: string): Promise<ModelPort> {
+async function adapterOf(preset: ProviderPreset, key: string): Promise<ModelPort> {
   const model = modelOf(preset.id)
   // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const { fakeModelPort } = await import('../infrastructure/fake/fakeModel')
-    return fakeModelPort(taskId, model)
+    return fakeModelPort(model)
   }
   switch (preset.adapter) {
     case 'anthropic-messages': {

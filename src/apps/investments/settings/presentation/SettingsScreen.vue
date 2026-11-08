@@ -16,7 +16,6 @@ import ChecksCard from './ChecksCard.vue'
 import HistoryCard from './HistoryCard.vue'
 import InvestmentsBooksCard from './InvestmentsBooksCard.vue'
 import { words } from './words'
-import { INVESTMENTS_ASSIST } from '../../assistant/investmentsAssist'
 import { investmentsData } from '../../workbook/presentation/investmentsData'
 import { words as investmentsWords } from '../../words'
 
@@ -55,7 +54,7 @@ const tabs = computed(() => [
         <ChecksCard />
       </template>
       <template #assistant>
-        <AppAssistCard :app="investmentsData.id" :tasks="INVESTMENTS_ASSIST.tasks()" :chat-reads="investmentsWords.name" />
+        <AppAssistCard :app="investmentsData.id" :app-name="investmentsWords.name" />
       </template>
     </PageTabs>
   </section>

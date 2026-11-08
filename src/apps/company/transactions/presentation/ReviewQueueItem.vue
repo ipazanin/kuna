@@ -6,7 +6,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
-import { assistKeyKept } from '../../../../shared/ai/presentation/useAiTask'
+import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { capitalised } from '../../../../shared/text/capitalised'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'

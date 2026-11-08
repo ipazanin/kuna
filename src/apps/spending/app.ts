@@ -24,6 +24,7 @@ import { words } from './words'
 import { useSpendingBooks } from './workbook/application/spendingStore'
 import { SPENDING_APP } from './workbook/domain/spendingBooks'
 import { words as fileWords } from './workbook/presentation/words'
+import { providerInUse } from '../../shared/ai/presentation/aiProvider'
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
 import { isFirstRun } from '../../shared/app/isFirstRun'
@@ -79,12 +80,11 @@ export const spendingApp: AppContribution = {
   // Every figure on the Spending screens and on Net worth is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   assistant: async () => {
-    const [{ spendingAssistant }, { spendingProposer, spendingAcceptance }, { qrTextOn }, { canKeepPhotoNow, receiptPhotos }, { providerInUse }, { modelOf }] = await Promise.all([
+    const [{ spendingAssistant }, { spendingProposer, spendingAcceptance }, { qrTextOn }, { canKeepPhotoNow, receiptPhotos }, { modelOf }] = await Promise.all([
       import('./assistant/spendingAssistant'),
       import('./assistant/operations/spendingOperations'),
       import('./receipts/infrastructure/qrDecode'),
       import('./receipts/presentation/receiptPhotosPort'),
-      import('../../shared/ai/presentation/useAiTask'),
       import('../../shared/ai/application/assistSettings'),
     ])
     const store = useSpendingBooks()

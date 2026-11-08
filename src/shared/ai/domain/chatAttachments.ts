@@ -1,4 +1,4 @@
-import type { AiPdfPart } from './aiTask'
+import type { AiPdfPart } from './aiPart'
 import type { DocumentSize } from './modelUsage'
 
 /** What a file attached to the chat is. Only a photo or a PDF reaches the model. A sheet, XML or CSV reaches only an operation that names it. */

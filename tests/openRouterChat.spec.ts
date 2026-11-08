@@ -2,8 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ModelRequest } from '../src/shared/ai/application/modelPort'
 import { ModelRequestFailed } from '../src/shared/ai/application/modelPort'
 import { runModelLoop } from '../src/shared/ai/application/runModelLoop'
-import { runTask } from '../src/shared/ai/application/runTask'
-import type { AiTask } from '../src/shared/ai/domain/aiTask'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import { bearerHeaders, keyTestOf } from '../src/shared/ai/infrastructure/providerFetch'
 import { openRouterChat } from '../src/shared/ai/infrastructure/openRouterChat'
@@ -38,13 +36,6 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const CATEGORY_SCHEMA: StrictSchema = {
-  type: 'object',
-  properties: { category: { type: 'string', enum: ['office', 'travel'] } },
-  required: ['category'],
-  additionalProperties: false,
-}
-
 const RULE_INPUT: StrictSchema = { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }
 
 function completion(finishReason: string, message: Record<string, unknown>, usage: Record<string, unknown> = { prompt_tokens: 812, completion_tokens: 64, total_tokens: 876 }): Response {
@@ -69,7 +60,6 @@ function request(fields: Partial<ModelRequest> = {}): ModelRequest {
       { kind: 'text', text: 'Answer with the category only.' },
     ],
     turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Row 4: Tisak, 3.20 EUR' }] }],
-    output: CATEGORY_SCHEMA,
     tools: [],
     effort: 'low',
     ...fields,
@@ -95,28 +85,22 @@ describe('the Chat Completions request', () => {
     ])
   })
 
-  it('asks for the schema as a strict response format when the task has no tools', async () => {
-    const requests = stubFetch(completion('stop', { content: '{"category":"office"}' }))
+  it('sends no tools and no answer format when a request has no tools', async () => {
+    const requests = stubFetch(completion('stop', { content: 'Office.' }))
 
     await openRouterChat(BASE_URL, KEY, SOL).send(request())
 
-    expect(requests[0]!.body!.response_format).toEqual({ type: 'json_schema', json_schema: { name: 'answer', strict: true, schema: CATEGORY_SCHEMA } })
-    expect(Object.keys(requests[0]!.body!).sort()).toEqual(['max_completion_tokens', 'messages', 'model', 'provider', 'response_format'])
+    expect(Object.keys(requests[0]!.body!).sort()).toEqual(['max_completion_tokens', 'messages', 'model', 'provider'])
   })
 
-  it('sends strict functions and a last answer function with the schema, without a response format, when the task has tools', async () => {
-    const requests = stubFetch(completion('stop', { content: '{"category":"office"}' }))
+  it('sends each tool as a strict function with an automatic choice', async () => {
+    const requests = stubFetch(completion('stop', { content: 'Office.' }))
 
     await openRouterChat(BASE_URL, KEY, SOL).send(request(WITH_TOOLS))
 
     const body = requests[0]!.body!
-    expect(body.response_format).toBeUndefined()
     expect(body.tool_choice).toBe('auto')
-    const tools = body.tools as { type: string; function: { name: string; description: string; parameters: unknown; strict: boolean } }[]
-    expect(tools).toHaveLength(2)
-    expect(tools[0]).toEqual({ type: 'function', function: { name: 'rule', description: 'Reads one rule by its id.', parameters: RULE_INPUT, strict: true } })
-    expect(tools[1]!.function).toMatchObject({ name: 'answer', parameters: CATEGORY_SCHEMA, strict: true })
-    expect(tools[1]!.function.description).toContain('final answer')
+    expect(body.tools).toEqual([{ type: 'function', function: { name: 'rule', description: 'Reads one rule by its id.', parameters: RULE_INPUT, strict: true } }])
     expect(Object.keys(body)).not.toContain('temperature')
   })
 
@@ -268,16 +252,6 @@ describe('the Chat Completions reply', () => {
     })
   })
 
-  it('reads a call to the answer function as the answer, with its arguments as the text', async () => {
-    stubFetch(completion('tool_calls', { tool_calls: [functionCall('call_Ans1', 'answer', '{"category":"travel"}')] }))
-
-    expect(await openRouterChat(BASE_URL, KEY, SOL).send(request(WITH_TOOLS))).toMatchObject({
-      kind: 'answer',
-      text: '{"category":"travel"}',
-      tokens: { input: 812, cacheRead: 0, cacheWrite: 0, output: 64 },
-    })
-  })
-
   it('reads length as an answer cut off and content_filter as refused', async () => {
     stubFetch(completion('length', { content: '{"categ' }), completion('content_filter', { content: null }))
     const model = openRouterChat(BASE_URL, KEY, SOL)
@@ -311,23 +285,18 @@ describe('the Chat Completions reply', () => {
 
   it('keeps what OpenRouter says it charged, and a whole run shows it instead of the list price', async () => {
     const usage = { prompt_tokens: 900, completion_tokens: 40, total_tokens: 940, cost: 0.0123 }
-    stubFetch(
-      completion('tool_calls', { tool_calls: [functionCall('call_a', 'rule', '{"id":"pdv-25"}')] }, usage),
-      completion('tool_calls', { tool_calls: [functionCall('call_b', 'answer', '{"category":"office"}')] }, { ...usage, cost: 0.0077 }),
-    )
+    stubFetch(completion('tool_calls', { tool_calls: [functionCall('call_a', 'rule', '{"id":"pdv-25"}')] }, usage), completion('stop', { content: 'Office.' }, { ...usage, cost: 0.0077 }))
     const typed: ModelChoice = { id: 'made-up/model', name: 'made-up/model', price: null }
-    const task: AiTask<null, unknown> = {
-      id: 'test.charged',
-      app: 'test',
+    const result = await runModelLoop({
+      model: openRouterChat(BASE_URL, KEY, typed),
+      system: [],
+      turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Row' }] }],
+      tools: [{ name: 'rule', description: 'Reads one rule.', input: RULE_INPUT }],
+      runTool: async () => ({ text: 'A rule.', parts: [], isError: false }),
       effort: 'low',
-      system: () => [],
-      input: () => [{ kind: 'text', text: 'Row' }],
-      output: () => CATEGORY_SCHEMA,
-      tools: [{ name: 'rule', description: 'Reads one rule.', input: RULE_INPUT, run: async () => ({ text: 'A rule.', sources: [], figures: [] }) }],
-      check: (output) => ({ draft: output, problems: [] }),
-    }
-    const result = await runTask(task, null, { model: openRouterChat(BASE_URL, KEY, typed), appOn: true, employees: { sends: false, anonymising: true } })
-    expect(result).toMatchObject({ kind: 'draft', usage: { dollars: 0.0123 + 0.0077 } })
+      rounds: 6,
+    })
+    expect(result).toMatchObject({ kind: 'answer', usage: { dollars: 0.0123 + 0.0077 } })
   })
 
   it('reports no charge when a reply has none, which leaves the list price to the run', async () => {
@@ -341,11 +310,10 @@ describe('the Chat Completions reply', () => {
       model: openRouterChat(BASE_URL, KEY, SOL),
       system: [],
       turns: [],
-      output: null,
       tools: [],
       runTool: () => Promise.reject(new Error('no tool here')),
       effort: 'low',
-      limits: { rounds: 1, requestTokens: 1000, runTokens: 1000 },
+      rounds: 1,
     })
     expect(end).toEqual({ kind: 'cut-off', reason: '', usage: null })
   })
@@ -356,13 +324,6 @@ describe('the Chat Completions reply', () => {
     const sending = openRouterChat(BASE_URL, KEY, SOL).send(request({ signal: controller.signal }))
     setTimeout(() => controller.abort(new Error('Too slow.')), 10)
     await expect(sending).rejects.toMatchObject({ status: 0, message: 'Too slow.' })
-  })
-
-  it('offers no answer function and no format when a request asks for no schema', async () => {
-    const requests = stubFetch(completion('stop', { content: 'Plain words.' }))
-    await openRouterChat(BASE_URL, KEY, SOL).send(request({ ...WITH_TOOLS, output: null }))
-    expect((requests[0]!.body!.tools as { function: { name: string } }[]).map((tool) => tool.function.name)).toEqual(['rule'])
-    expect(requests[0]!.body!.response_format).toBeUndefined()
   })
 
   it('cuts the key out of what the provider says back', async () => {
@@ -437,45 +398,31 @@ describe('the bearer key test', () => {
   })
 })
 
-describe('a task run over the OpenRouter adapter', () => {
-  const ANSWER_SCHEMA: StrictSchema = {
-    type: 'object',
-    properties: { rate: { type: 'integer' }, rule: { type: 'string' } },
-    required: ['rate', 'rule'],
-    additionalProperties: false,
+describe('a model loop over the OpenRouter adapter', () => {
+  function askedOver(question: string) {
+    return runModelLoop({
+      model: openRouterChat(BASE_URL, KEY, SOL),
+      system: [{ kind: 'text', text: 'You answer which VAT rate applies, citing the rule.' }],
+      turns: [{ role: 'user', parts: [{ kind: 'text', text: question }] }],
+      tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }],
+      runTool: async () => ({ text: 'Rule pdv-25: the standard rate is 25 percent.', parts: [], isError: false }),
+      effort: 'medium',
+      rounds: 6,
+    })
   }
 
-  const task: AiTask<string, { readonly rate: number; readonly rule: string }> = {
-    id: 'company.vat-rate',
-    app: 'company',
-    effort: 'medium',
-    system: () => [{ kind: 'text', text: 'You answer which VAT rate applies, citing the rule.' }],
-    input: (question) => [{ kind: 'text', text: question }],
-    output: () => ANSWER_SCHEMA,
-    tools: [
-      {
-        name: 'rule',
-        description: 'Reads one rule by its id.',
-        input: RULE_INPUT,
-        run: async () => ({ text: 'Rule pdv-25: the standard rate is 25 percent.', sources: ['pdv-25'], figures: [] }),
-      },
-    ],
-    check: (output) => ({ draft: output as { rate: number; rule: string }, problems: [] }),
-  }
-
-  it('runs one tool round, then turns the answer function into a draft with the usage of both requests', async () => {
+  it('runs one tool round, then gives the answer with the usage of both requests', async () => {
     const lookup = functionCall('call_Qm3x', 'rule', '{"id":"pdv-25"}')
     const requests = stubFetch(
       completion('tool_calls', { tool_calls: [lookup] }, { prompt_tokens: 900, completion_tokens: 40, total_tokens: 940 }),
-      completion('tool_calls', { tool_calls: [functionCall('call_Ans1', 'answer', '{"rate":25,"rule":"pdv-25"}')] }, { prompt_tokens: 980, completion_tokens: 30, total_tokens: 1010 }),
+      completion('stop', { content: 'The standard rate of 25 percent applies, by rule pdv-25.' }, { prompt_tokens: 980, completion_tokens: 30, total_tokens: 1010 }),
     )
 
-    const result = await runTask(task, 'Which VAT rate applies to office chairs?', { model: openRouterChat(BASE_URL, KEY, SOL), appOn: true, employees: { sends: false, anonymising: true } })
+    const result = await askedOver('Which VAT rate applies to office chairs?')
 
-    expect(result).toEqual({
-      kind: 'draft',
-      draft: { rate: 25, rule: 'pdv-25' },
-      problems: [],
+    expect(result).toMatchObject({
+      kind: 'answer',
+      text: 'The standard rate of 25 percent applies, by rule pdv-25.',
       usage: { model: 'GPT-6.1 Sol', inputTokens: 1880, cacheReadTokens: 0, cacheWriteTokens: 0, outputTokens: 70, dollars: (1880 * 2 + 70 * 10) / 1_000_000 },
     })
     expect(requests).toHaveLength(2)

@@ -5,7 +5,6 @@ import type { ModelPort, ModelRequest } from '../src/shared/ai/application/model
 import { NO_TOKENS } from '../src/shared/ai/domain/modelUsage'
 
 const CANARY = 'made-up-stored-secret-0042'
-const OUTPUT = { type: 'object', additionalProperties: false, required: [], properties: {} } as const
 
 function modelNoting(name = 'Sonnet 5.5'): ModelPort & { readonly sent: ModelRequest[] } {
   const sent: ModelRequest[] = []
@@ -21,7 +20,7 @@ function modelNoting(name = 'Sonnet 5.5'): ModelPort & { readonly sent: ModelReq
 }
 
 function requestWith(text: string, rest: Partial<ModelRequest> = {}): ModelRequest {
-  return { system: [{ kind: 'text', text: 'Be brief.' }], turns: [{ role: 'user', parts: [{ kind: 'text', text }] }], output: OUTPUT, tools: [], effort: 'low', ...rest }
+  return { system: [{ kind: 'text', text: 'Be brief.' }], turns: [{ role: 'user', parts: [{ kind: 'text', text }] }], tools: [], effort: 'low', ...rest }
 }
 
 async function refuses(model: ModelPort, request: ModelRequest, secrets: readonly string[] = [CANARY]): Promise<boolean> {
@@ -46,7 +45,7 @@ describe('the egress guard', () => {
     ['a user turn', requestWith(`Key ${CANARY}`)],
     ['a tool result', requestWith('x', { turns: [{ role: 'tool-results', results: [{ callId: 'a', text: `Key ${CANARY}`, parts: [], isError: false }] }] })],
     ['what an assistant turn replays', requestWith('x', { turns: [{ role: 'assistant', calls: [], raw: [{ type: 'text', text: CANARY }] }] })],
-    ['a schema', requestWith('x', { output: { type: 'string', enum: [CANARY] } })],
+    ['a tool schema', requestWith('x', { tools: [{ name: 'look', description: 'Looks.', input: { type: 'string', enum: [CANARY] } }] })],
   ])('refuses a stored secret in %s and sends nothing', async (_where, request) => {
     const model = modelNoting()
     expect(await refuses(model, request)).toBe(true)

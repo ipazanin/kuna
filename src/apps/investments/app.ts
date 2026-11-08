@@ -10,6 +10,7 @@ import { shownPortfolio } from './home/presentation/shownPortfolio'
 import { INVESTMENTS_OVERVIEW_ROUTE, INVESTMENTS_SETTINGS_ROUTE, INVESTMENTS_START_ROUTE } from './overview/presentation/investmentLinks'
 import { HOLDING_ROUTE, HOLDINGS_ROUTE } from './holdings/presentation/holdingLinks'
 import { usePortfolio } from './holdings/presentation/usePortfolio'
+import { useMailReports } from './mail/presentation/useMailReports'
 import { TRANSACTIONS_ROUTE } from './transactions/presentation/transactionLinks'
 import { words as transactionWords } from './transactions/presentation/words'
 import { words as holdingsWords } from './holdings/presentation/words'
@@ -83,11 +84,10 @@ export const investmentsApp: AppContribution = {
   // Every figure leaves the app in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   assistant: async () => {
-    const [{ investmentsAssistant }, { investmentsProposer, investmentsAcceptance }, { fetchAddedInBackground }, { useMailReports }] = await Promise.all([
+    const [{ investmentsAssistant }, { investmentsProposer, investmentsAcceptance }, { fetchAddedInBackground }] = await Promise.all([
       import('./assistant/investmentsAssistant'),
       import('./assistant/operations/investmentsOperations'),
       import('./prices/presentation/pricesStep'),
-      import('./mail/presentation/useMailReports'),
     ])
     const store = useInvestmentsBooks()
     const prices = usePrices()

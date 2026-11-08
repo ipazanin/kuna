@@ -33,7 +33,7 @@ interface Started {
 /** The card as Kuna settings starts it: the shell holds the provider in use first, then the card opens. */
 async function card({ stored = {}, brought }: Started = {}) {
   for (const [name, value] of Object.entries(stored)) localStorage.setItem(name, value)
-  const { holdProviderInUse, providerInUse } = await import('../src/shared/ai/presentation/useAiTask')
+  const { holdProviderInUse, providerInUse } = await import('../src/shared/ai/presentation/aiProvider')
   const { anonymiseOn } = await import('../src/shared/ai/application/assistSettings')
   const { keepSyncedSecrets } = await import('../src/shared/secrets/presentation/pageSecrets')
   const { useAssistantCard } = await import('../src/shared/ai/presentation/useAssistantCard')

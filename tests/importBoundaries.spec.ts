@@ -235,6 +235,9 @@ function broken(rule: (entry: Import) => boolean): string[] {
   return IMPORTS.filter((entry) => !rule(entry)).map((entry) => `${entry.at} imports ${entry.specifier}`)
 }
 
+/** The files nothing in `src` imports: the page's entry and Vite's type declarations. */
+const UNIMPORTED = ['src/env.d.ts', 'src/main.ts']
+
 describe('import boundaries', () => {
   it('reads the imports it checks', () => {
     for (const app of ['company', 'loans', 'investments', 'assets', 'spending']) {
@@ -244,6 +247,11 @@ describe('import boundaries', () => {
     expect(IMPORTS.some((entry) => entry.from === 'src/apps/company/app.ts' && !entry.dynamic && entry.target === 'src/apps/company/packs/hr-doo/hrDooPack.ts')).toBe(true)
     expect(IMPORTS.some((entry) => entry.from.endsWith('.vue') && entry.target?.includes('/domain/'))).toBe(true)
     expect(IMPORTS.filter((entry) => entry.target !== null && !existsSync(join(ROOT, entry.target))).map((entry) => entry.at)).toEqual([])
+  })
+
+  it('leaves no file in src that nothing imports, so deleted code takes its last piece with it', () => {
+    const imported = new Set(IMPORTS.flatMap((entry) => (entry.target === null ? [] : [entry.target])))
+    expect(SOURCE_FILES.filter((file) => !imported.has(file)).sort()).toEqual([...UNIMPORTED].sort())
   })
 
   it('keeps the shared kernel off the shell and the apps', () => {

@@ -1,4 +1,4 @@
-import type { RuleId } from '../../ruleset/ruleset'
+import type { RuleId } from '../../src/apps/company/packs/hr-doo/ruleset/ruleset'
 
 /** The rules the year-end estimate, the forecast, the payroll and the pay scenarios read for 2025 and 2026. */
 export const FORECAST_RULE_IDS: readonly RuleId[] = [

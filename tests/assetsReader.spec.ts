@@ -55,6 +55,27 @@ describe('what the chat reads of Assets', () => {
     expect(fieldsOf(reader, 'valuation', EXAMPLE_RECORDS['valuation']!)).toMatchObject({ value: { cents: 1_550_000 }, asset: { exposure: 'ref', id: EXAMPLE_RECORDS['asset-boat'] } })
   })
 
+  it('finds an asset with no price, leaving the price out', async () => {
+    const desk = await assetsDesk(used)
+    const boat = desk.store.state.workbook!.readings.assets.facts.find((asset) => asset.id === EXAMPLE_RECORDS['asset-boat'])!
+    await desk.store.write('Inherited', (unit) => unit.of(ASSET_WRITES).change(boat, { ...boat, price: null }))
+    const reads: ChatReads = {
+      readers: new Map([['assets', { name: 'Assets', reader: assetsReader(readingOf(desk)) }]]),
+      pseudonyms: newPseudonyms(),
+      refs: chatRefs(),
+      anonymising: () => true,
+      persons: () => [],
+      mayRead: async () => true,
+    }
+    const input: FindRecordsInput = { app: 'assets', kind: 'asset', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+
+    const answer = await findRecords(input, reads)
+
+    const records = (JSON.parse(answer.text) as { records: Record<string, unknown>[] }).records
+    expect(records).toHaveLength(2)
+    expect(records.filter((record) => 'price' in record)).toHaveLength(1)
+  })
+
   it('says a loan Loans no longer lists, and one it cannot be asked about', async () => {
     const desk = await assetsDesk(used)
     const gone = assetsReader(readingOf(desk, { loans: () => [] }))

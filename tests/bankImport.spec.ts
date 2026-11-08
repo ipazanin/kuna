@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { BankRead } from '../src/apps/spending/bankSync/application/bankRead'
@@ -384,24 +381,5 @@ describe('the step while it holds back', () => {
     const result = await BANK_SYNC_STEP.run(() => undefined, '')
     expect(result).toMatchObject({ kind: 'waits', link: { to: '/spending/settings?tab=bank-sync' } })
     expect('line' in result && result.line).toContain('OTP did not answer')
-  })
-})
-
-describe('the privacy page', () => {
-  const page = readFileSync(fileURLToPath(new URL('../public/privacy.html', import.meta.url)), 'utf8')
-  const section = (heading: string): string => page.slice(page.indexOf(`<h2>${heading}</h2>`)).split('</section>')[0]!
-
-  it('says where bank rows go', () => {
-    expect(section('Where your data goes')).toContain('api.enablebanking.com')
-    expect(section('Where your data goes')).toContain('IBANs')
-  })
-
-  it('says removing Kuna does not end a bank link, and how to', () => {
-    expect(section('How to revoke access')).toContain('Script')
-    expect(section('How to revoke access')).toContain('at your bank')
-  })
-
-  it('names what the browser keeps for a link', () => {
-    for (const key of ['kuna.bank-link', 'kuna.bank-return', 'kuna.bank-sync-fetched']) expect(page).toContain(key)
   })
 })

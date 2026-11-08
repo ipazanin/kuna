@@ -15,12 +15,6 @@ describe("asking the chat from Company's To review", () => {
   const item = presentation('ReviewQueueItem.vue')
   const queue = presentation('ReviewQueue.vue')
 
-  it('runs no model on the page, so the chat is the one way to ask', () => {
-    for (const source of [queue, item]) {
-      expect(source).not.toMatch(/useAiTask\(|AssistButton|runTask|suggestion/)
-    }
-  })
-
   it('keeps the queue’s own words on its header button and tags the queue as the To review place', () => {
     expect(queue).toContain('<AskChatButton :label="words.tabs.review" :text="words.review.suggestCategories"')
     expect(queue).toMatch(/about: \{ kind: 'place', app: COMPANY_APP, route: REVIEW_LINK \}/)

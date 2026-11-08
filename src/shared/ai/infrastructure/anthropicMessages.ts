@@ -1,6 +1,6 @@
 import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall, ToolResult } from '../application/modelPort'
 import { ModelRequestFailed, resultParts } from '../application/modelPort'
-import type { AiPart, AiTextPart } from '../domain/aiTask'
+import type { AiPart, AiTextPart } from '../domain/aiPart'
 import { NO_TOKENS } from '../domain/modelUsage'
 import type { ModelTokens } from '../domain/modelUsage'
 import { keyTestOf, streamedEvents, withoutKey } from './providerFetch'
@@ -9,7 +9,7 @@ import type { KeyTest, ModelChoice } from '../domain/providerPresets'
 
 const MESSAGES_ADDRESS = 'https://api.anthropic.com/v1/messages'
 const COUNT_TOKENS_ADDRESS = 'https://api.anthropic.com/v1/messages/count_tokens'
-/** Bounds what one request can write, thinking included. Streaming would allow more, and no task needs it. */
+/** Bounds what one request can write, thinking included. Streaming would allow more, and a chat answer needs no more. */
 const MAX_OUTPUT_TOKENS = 16_000
 
 /** A content block as the stream built it, with every field it came with, since it goes back byte for byte on the next request. */
@@ -91,7 +91,7 @@ function messagesBody(modelId: string, request: ModelRequest): object {
     stream: true,
     system: request.system.map((part, index) => systemBlock(part, index === request.system.length - 1)),
     messages: messagesOf(request),
-    output_config: { effort: request.effort, ...(request.output === null ? {} : { format: { type: 'json_schema', schema: request.output } }) },
+    output_config: { effort: request.effort },
     ...(request.tools.length === 0
       ? {}
       : {
@@ -103,13 +103,12 @@ function messagesBody(modelId: string, request: ModelRequest): object {
 
 /**
  * A chat's turns with a cache breakpoint on the last block of the last turn, so a long history and what it read are read
- * from the cache in the next request. A task has a schema and one short run, and goes without. The turn is always a
- * person's or a tool's, whose blocks can carry it.
+ * from the cache in the next request. The turn is always a person's or a tool's, whose blocks can carry it.
  */
 function messagesOf(request: ModelRequest): readonly object[] {
   const messages = request.turns.map(message) as { readonly role: string; readonly content: readonly object[] }[]
   const last = messages.at(-1)
-  if (request.output !== null || last === undefined || last.role !== 'user') return messages
+  if (last === undefined || last.role !== 'user') return messages
   const tail = { ...last, content: last.content.map((block, at) => (at === last.content.length - 1 ? { ...block, cache_control: { type: 'ephemeral' } } : block)) }
   return [...messages.slice(0, -1), tail]
 }

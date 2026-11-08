@@ -1,3 +1,4 @@
+import { anonymisingNow } from '../../shared/ai/presentation/aiProvider'
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
 import { companyData } from './workbook/presentation/companyData'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
@@ -85,14 +86,13 @@ export const companyApp: AppContribution = {
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
   assist: COMPANY_ASSIST,
   assistant: async () => {
-    const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { loadImportFile }, { useStatementSync }, { anonymisingNow }] = await Promise.all([
+    const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { loadImportFile }, { useStatementSync }] = await Promise.all([
       import('./assistant/companyAssistant'),
       import('./packs/hr-doo/assistant/hrDooAssistant'),
       import('./assistant/operations/companyOperations'),
       import('./packs/hr-doo/assistant/operations/packOperations'),
       import('./imports/infrastructure/importFiles'),
       import('./imports/presentation/useStatementSync'),
-      import('../../shared/ai/presentation/useAiTask'),
     ])
     const store = useWorkbook()
     const statementSync = useStatementSync()

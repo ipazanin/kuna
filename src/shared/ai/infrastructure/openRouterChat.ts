@@ -1,14 +1,11 @@
 import type { ModelPort, ModelReply, ModelRequest, ModelTurn, ToolCall, ToolResult } from '../application/modelPort'
 import { ModelRequestFailed, resultParts } from '../application/modelPort'
-import type { AiPart } from '../domain/aiTask'
+import type { AiPart } from '../domain/aiPart'
 import type { ModelTokens } from '../domain/modelUsage'
-import type { StrictSchema } from '../domain/strictSchema'
 import { bearerHeaders, jsonAnswer } from './providerFetch'
 import type { ModelChoice } from '../domain/providerPresets'
 
 const MAX_OUTPUT_TOKENS = 16_000
-/** The function a model with tools calls to hand in its final answer, since a strict answer format may not combine with tools. */
-const ANSWER_FUNCTION = 'answer'
 
 interface FunctionCall {
   readonly id: string
@@ -61,25 +58,15 @@ function completionsBody(modelId: string, request: ModelRequest): object {
     model: modelId,
     max_completion_tokens: MAX_OUTPUT_TOKENS,
     messages: [...(system === '' ? [] : [{ role: 'system', content: system }]), ...request.turns.flatMap(messages)],
-    // Strict answers need every endpoint OpenRouter routes to to honour every parameter. Endpoints that keep or train on prompts are never chosen.
+    // Strict tool schemas need every endpoint OpenRouter routes to to honour every parameter. Endpoints that keep or train on prompts are never chosen.
     provider: { require_parameters: true, data_collection: 'deny' },
-    ...(request.tools.length === 0 && request.output !== null ? { response_format: { type: 'json_schema', json_schema: { name: ANSWER_FUNCTION, strict: true, schema: request.output } } } : {}),
     ...(request.tools.length === 0
       ? {}
       : {
-          tools: [
-            ...request.tools.map((tool) => functionTool(tool.name, tool.description, tool.input)),
-            ...(request.output === null
-              ? []
-              : [functionTool(ANSWER_FUNCTION, 'Call this once with your final answer when you have everything you need. Do not answer in plain text.', request.output)]),
-          ],
+          tools: request.tools.map((tool) => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.input, strict: true } })),
           tool_choice: 'auto',
         }),
   }
-}
-
-function functionTool(name: string, description: string, parameters: StrictSchema): object {
-  return { type: 'function', function: { name, description, parameters, strict: true } }
 }
 
 function messages(turn: ModelTurn): object[] {
@@ -133,10 +120,6 @@ function replyOf(response: ChatResponse): ModelReply {
     }
     case 'tool_calls': {
       const functionCalls = message.tool_calls ?? []
-      const answer = functionCalls.find((call) => call.function.name === ANSWER_FUNCTION)
-      if (answer !== undefined) {
-        return { kind: 'answer', text: answer.function.arguments, raw: message, tokens }
-      }
       if (functionCalls.length === 0) {
         throw new ModelRequestFailed(200, 'The provider stopped for tool calls but sent none.', tokens)
       }

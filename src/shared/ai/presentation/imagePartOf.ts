@@ -1,5 +1,5 @@
 import { base64OfBytes } from '../../text/base64'
-import type { AiImagePart } from '../domain/aiTask'
+import type { AiImagePart } from '../domain/aiPart'
 
 /** Enough pixels to read a till's small print, about 2,300 of Anthropic's image tokens. An area, since a long edge alone leaves a tall receipt too narrow to read. */
 const MOST_PIXELS = 1_800_000
@@ -22,7 +22,7 @@ function jpegOf(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
 }
 
 /**
- * A photo as a task sends it: a JPEG every provider reads, downscaled here, which also drops the camera's EXIF block with any
+ * A photo as the chat sends it: a JPEG every provider reads, downscaled here, which also drops the camera's EXIF block with any
  * GPS. Throws for a photo this browser cannot decode, such as a HEIC on Firefox.
  */
 export async function imagePartOf(photo: Blob): Promise<AiImagePart> {

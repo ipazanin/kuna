@@ -26,7 +26,9 @@
  * Ask the chat beside a build-up amount on Owner, Salaries, Year's Pay tab and a closed year's open items opening the chat with the figure's build-up as the tag,
  * Spending's To review asking the chat from its header and from a waiting row, a receipt photo from Entries read by the chat into a
  * category card and then a receipt card, accepted and undone, Company's queue sorted by the chat from Suggest categories, and an
- * invoice asked of the chat answered with a link to the Invoices tab,
+ * invoice asked of the chat answered with a link to the Invoices tab, a loan offer, a buy and an Assets valuation each proposed
+ * on a card, accepted and undone, and a sale over the units held refused, a text note beside a photo refused on the chat's
+ * prompt, a salary figure's build-up read with Anonymise off and refused with nothing sent once Anonymise is on again,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -197,7 +199,6 @@ import {
   onboardingDriveFlow,
   onboardingDriveFlowIn,
   kunaWelcomeAiFlowIn,
-  kunaWelcomeAiNoAppToSwitchFlow,
   kunaWelcomeAiUnfinishedFlow,
   kunaWelcomeAiRefusedFlowIn,
   kunaWelcomeBrowserFlow,
@@ -243,9 +244,12 @@ import {
   savesWaitingBenchmarkFlow,
   savesWaitingFlow,
   syncRunningFlow,
+  chatAttachRefusedFlow,
 } from './support/editorFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
-import { companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
+import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
+import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
+import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
@@ -254,6 +258,7 @@ import { runSelection } from './support/runSelection.mjs'
 import { textOverlapsOn } from './support/textOverlap.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
+import { delay } from './support/pressing.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 /** The ids of the sample Loans file's bank loan, its informal loan you owe and its informal loan owed to you whose borrower is behind on the plan, `?loans=sample`. */
@@ -322,6 +327,7 @@ const SPENDING_IMPORT_SAMPLES = writeSpendingImportSamples(OUTPUT_DIR)
 const SPENDING_RECEIPT_SAMPLES = writeSpendingReceiptSamples(OUTPUT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(OUTPUT_DIR)
 const CLOSES_SAMPLES = writeClosesSamples(OUTPUT_DIR)
+const CHAT_ATTACHMENT_SAMPLES = await writeChatAttachmentSamples(OUTPUT_DIR)
 
 const failures = []
 let checked = 0
@@ -3002,7 +3008,6 @@ async function checkWidth(width) {
     ['kuna-welcome-ai', 'empty', kunaWelcomeAiFlowIn('en'), '#/', 'Welcome to Kuna'],
     ['kuna-welcome-ai-croatian', 'empty&lang=hr', kunaWelcomeAiFlowIn('hr'), '#/', 'Dobrodošli u Kunu'],
     ['kuna-welcome-ai-unfinished', 'empty', kunaWelcomeAiUnfinishedFlow, '#/', 'Welcome to Kuna'],
-    ['kuna-welcome-ai-no-switch', 'empty', kunaWelcomeAiNoAppToSwitchFlow, '#/', 'Welcome to Kuna'],
     ['kuna-welcome-ai-refused', 'empty&ai=key-refused', kunaWelcomeAiRefusedFlowIn('en'), '#/', 'Welcome to Kuna'],
     ['kuna-welcome-ai-refused-croatian', 'empty&ai=key-refused&lang=hr', kunaWelcomeAiRefusedFlowIn('hr'), '#/', 'Dobrodošli u Kunu'],
     ['move-into-kuna', 'drive', moveIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
@@ -3119,6 +3124,7 @@ async function checkWidth(width) {
     ['chat-propose', 'drive&spending=people', chatProposeFlowIn('en'), '#/spending', 'Overview'],
     ['chat-propose-croatian', 'drive&spending=people&lang=hr', chatProposeFlowIn('hr'), '#/spending', 'Pregled'],
     ['chat-tag', 'drive', chatTagFlowIn('en'), '#/gallery', 'Gallery'],
+    ['chat-attach-refused', 'drive', chatAttachRefusedFlow(CHAT_ATTACHMENT_SAMPLES), '#/gallery', 'Gallery'],
     ['owner-figure-ask', 'browser', figureAskFlowIn('en', 'owner'), '#/company/owner?p=all', 'Owner'],
     ['salaries-figure-ask', 'five-employees', figureAskFlowIn('en', 'salaries'), '#/company/salaries', 'Salaries'],
     ['pay-figure-ask', 'browser', figureAskFlowIn('en', 'pay'), '#/company/year?year=2027&tab=pay', 'Year'],
@@ -3130,6 +3136,11 @@ async function checkWidth(width) {
     // Company's ways into the chat.
     ['company-review-sort', 'drive', companyReviewAskFlowIn('en'), '#/company/transactions?tab=review', 'Transactions'],
     ['company-chat-invoice', 'drive', companyChatCardFlowIn('en', 'invoice'), '#/company', 'Overview'],
+    ['company-chat-anonymise', 'five-employees', companyChatAnonymiseFlowIn('en'), '#/company/salaries', 'Salaries'],
+    // Loans', Investments' and Assets' cards in the chat.
+    ['chat-offer', 'drive&loans=sample', appChatCardFlowIn('en', 'offer'), '#/loans/scenarios', 'Scenarios'],
+    ['investments-chat-trade', 'drive&investments=sample', appChatCardFlowIn('en', 'buy'), '#/investments', 'Overview'],
+    ['assets-chat-valuation', 'drive&assets=sample&loans=sample', appChatCardFlowIn('en', 'valuation'), '#/assets', 'Overview'],
     ['assist-key', 'drive', assistKeyFlow, '#/settings', 'Kuna settings'],
     ['assist-switch', 'drive', assistSwitchFlow, '#/company/settings?tab=assistant', 'Settings'],
     ['assist-tab', 'drive&spending=drive', assistTabFlowIn('en'), '#/company/settings?tab=assistant', 'Settings'],
@@ -3421,8 +3432,4 @@ async function inspect(page, scope, within = null) {
   const overlaps = await textOverlapsOn(page)
   if (overlaps.length > 0) throw new Error(overlaps.join('. '))
   return scope
-}
-
-function delay(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }

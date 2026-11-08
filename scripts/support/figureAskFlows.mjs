@@ -1,4 +1,5 @@
-import { MADE_UP_ANTHROPIC_KEY, delay, pressSelector } from './editorFlows.mjs'
+import { forgetAssist, keepAiKey } from './chatFlows.mjs'
+import { delay, pressSelector } from './pressing.mjs'
 
 /** Opens each card, unless it is open. */
 function openCards(cards) {
@@ -60,8 +61,7 @@ export function figureAskFlowIn(language, screen) {
     const [{ at: asked, shape }] = figures
     const askButton = `${asked} [data-testid="ask-chat"]`
     try {
-      await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
-      await page.reload({ waitUntil: 'networkidle0' })
+      await keepAiKey(page)
       await before?.(page, press)
       for (const { at, roomIn } of figures) {
         await page.waitForSelector(at, { timeout: 10_000 }).catch(() => {
@@ -109,7 +109,7 @@ export function figureAskFlowIn(language, screen) {
       await page.waitForSelector('[data-testid="chat-tag"]', { hidden: true, timeout: 5_000 })
       if (docked && (await page.$eval(asked, (element) => element.getAttribute('data-chat-tagged'))) !== null) throw new Error('the highlight stayed after the tag went')
     } finally {
-      await page.evaluate(() => localStorage.removeItem('kuna.secret.anthropic'))
+      await forgetAssist(page)
     }
   }
 }

@@ -31,7 +31,7 @@ import { monthOf, monthsFrom, parseMonthKey } from '../../../../shared/calendar/
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { openChat } from '../../../../shared/ai/presentation/chatDock'
-import { assistKeyKept } from '../../../../shared/ai/presentation/useAiTask'
+import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'

@@ -1,5 +1,5 @@
 import { bytesOfBase64 } from '../../text/base64'
-import type { AiImagePart } from '../domain/aiTask'
+import type { AiImagePart } from '../domain/aiPart'
 import { attachRefusal, attachmentKindOf, pagesRefusal } from '../domain/chatAttachments'
 import type { AttachmentRefusal, ChatAttachment } from '../domain/chatAttachments'
 

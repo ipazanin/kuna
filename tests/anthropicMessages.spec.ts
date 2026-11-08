@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ModelRequest } from '../src/shared/ai/application/modelPort'
 import { ModelRequestFailed } from '../src/shared/ai/application/modelPort'
-import { runTask } from '../src/shared/ai/application/runTask'
-import type { AiTask } from '../src/shared/ai/domain/aiTask'
+import { runModelLoop } from '../src/shared/ai/application/runModelLoop'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import { anthropicMessages, testAnthropicKey } from '../src/shared/ai/infrastructure/anthropicMessages'
 import type { ModelChoice } from '../src/shared/ai/domain/providerPresets'
@@ -33,13 +32,6 @@ function stubFetch(...answers: Response[]): SentRequest[] {
 afterEach(() => {
   vi.unstubAllGlobals()
 })
-
-const CATEGORY_SCHEMA: StrictSchema = {
-  type: 'object',
-  properties: { category: { type: 'string', enum: ['office', 'travel'] } },
-  required: ['category'],
-  additionalProperties: false,
-}
 
 const RULE_INPUT: StrictSchema = { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }
 
@@ -86,7 +78,6 @@ function request(fields: Partial<ModelRequest> = {}): ModelRequest {
       { kind: 'text', text: 'Answer with the category only.' },
     ],
     turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Row 4: Tisak, 3.20 EUR' }] }],
-    output: CATEGORY_SCHEMA,
     tools: [],
     effort: 'low',
     ...fields,
@@ -109,7 +100,7 @@ describe('the Anthropic Messages request', () => {
     })
   })
 
-  it('sends the schema as the output format with the effort, and no sampling, thinking, tools or beta', async () => {
+  it('sends the effort, and no sampling, thinking, tools or beta', async () => {
     const requests = stubFetch(message({ content: [{ type: 'text', text: '{"category":"office"}' }], stop_reason: 'end_turn' }))
 
     await anthropicMessages(KEY, SONNET).send(request())
@@ -117,7 +108,7 @@ describe('the Anthropic Messages request', () => {
     const body = requests[0]!.body
     expect(body.model).toBe('claude-sonnet-5-5')
     expect(body.max_tokens).toBe(16000)
-    expect(body.output_config).toEqual({ effort: 'low', format: { type: 'json_schema', schema: CATEGORY_SCHEMA } })
+    expect(body.output_config).toEqual({ effort: 'low' })
     expect(body.stream).toBe(true)
     expect(Object.keys(body).sort()).toEqual(['max_tokens', 'messages', 'model', 'output_config', 'stream', 'system'])
     expect(Object.keys(requests[0]!.headers)).not.toContain('anthropic-beta')
@@ -134,7 +125,7 @@ describe('the Anthropic Messages request', () => {
     ])
   })
 
-  it('sends each task tool as a strict tool with an automatic choice, and no server tool', async () => {
+  it('sends each tool as a strict tool with an automatic choice, and no server tool', async () => {
     const requests = stubFetch(message({ content: [{ type: 'text', text: '{"category":"office"}' }], stop_reason: 'end_turn' }))
 
     await anthropicMessages(KEY, SONNET).send(request({ tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }] }))
@@ -167,7 +158,7 @@ describe('the Anthropic Messages request', () => {
         content: [
           { type: 'text', text: 'Read this offer.' },
           { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0xLjcK' }, title: 'offer.pdf' },
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: '/9j/4AAQSkZJRg==' } },
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: '/9j/4AAQSkZJRg==' }, cache_control: { type: 'ephemeral' } },
         ],
       },
     ])
@@ -199,7 +190,7 @@ describe('the Anthropic Messages request', () => {
       role: 'user',
       content: [
         { type: 'tool_result', tool_use_id: 'toolu_01A9q4Rm', content: 'PDV is 25 percent.', is_error: false },
-        { type: 'tool_result', tool_use_id: 'toolu_01B7xKp2', content: 'There is no rule pdv-13.', is_error: true },
+        { type: 'tool_result', tool_use_id: 'toolu_01B7xKp2', content: 'There is no rule pdv-13.', is_error: true, cache_control: { type: 'ephemeral' } },
       ],
     })
   })
@@ -209,7 +200,6 @@ describe('the Anthropic Messages request', () => {
 
     await anthropicMessages(KEY, SONNET).send(
       request({
-        output: null,
         turns: [
           { role: 'user', parts: [{ kind: 'text', text: 'Read my receipt and the offer.' }] },
           { role: 'assistant', calls: [], raw: TOOL_USE_CONTENT },
@@ -409,49 +399,35 @@ describe('the Anthropic key test', () => {
   })
 })
 
-describe('a task run over the Anthropic adapter', () => {
-  const ANSWER_SCHEMA: StrictSchema = {
-    type: 'object',
-    properties: { rate: { type: 'integer' }, rule: { type: 'string' } },
-    required: ['rate', 'rule'],
-    additionalProperties: false,
+describe('a model loop over the Anthropic adapter', () => {
+  function askedOver(question: string) {
+    return runModelLoop({
+      model: anthropicMessages(KEY, SONNET),
+      system: [{ kind: 'text', text: 'You answer which VAT rate applies, citing the rule.' }],
+      turns: [{ role: 'user', parts: [{ kind: 'text', text: question }] }],
+      tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }],
+      runTool: async () => ({ text: 'Rule pdv-25: the standard rate is 25 percent.', parts: [], isError: false }),
+      effort: 'medium',
+      rounds: 6,
+    })
   }
 
-  const task: AiTask<string, { readonly rate: number; readonly rule: string }> = {
-    id: 'company.vat-rate',
-    app: 'company',
-    effort: 'medium',
-    system: () => [{ kind: 'text', text: 'You answer which VAT rate applies, citing the rule.' }],
-    input: (question) => [{ kind: 'text', text: question }],
-    output: () => ANSWER_SCHEMA,
-    tools: [
-      {
-        name: 'rule',
-        description: 'Reads one rule by its id.',
-        input: RULE_INPUT,
-        run: async () => ({ text: 'Rule pdv-25: the standard rate is 25 percent.', sources: ['pdv-25'], figures: [] }),
-      },
-    ],
-    check: (output) => ({ draft: output as { rate: number; rule: string }, problems: [] }),
-  }
-
-  it('runs one tool round, then turns the answer into a draft with the usage of both requests', async () => {
+  it('runs one tool round, then gives the answer with the usage of both requests', async () => {
     const firstContent = [THINKING_BLOCK, { type: 'tool_use', id: 'toolu_01A9q4Rm', name: 'rule', input: { id: 'pdv-25' } }]
     const requests = stubFetch(
       message({ content: firstContent, stop_reason: 'tool_use', usage: { input_tokens: 300, cache_creation_input_tokens: 1700, cache_read_input_tokens: 0, output_tokens: 80 } }),
       message({
-        content: [THINKING_BLOCK, { type: 'text', text: '{"rate":25,"rule":"pdv-25"}' }],
+        content: [THINKING_BLOCK, { type: 'text', text: 'The standard rate of 25 percent applies, by rule pdv-25.' }],
         stop_reason: 'end_turn',
         usage: { input_tokens: 120, cache_creation_input_tokens: 0, cache_read_input_tokens: 1700, output_tokens: 20 },
       }),
     )
 
-    const result = await runTask(task, 'Which VAT rate applies to office chairs?', { model: anthropicMessages(KEY, SONNET), appOn: true, employees: { sends: false, anonymising: true } })
+    const result = await askedOver('Which VAT rate applies to office chairs?')
 
-    expect(result).toEqual({
-      kind: 'draft',
-      draft: { rate: 25, rule: 'pdv-25' },
-      problems: [],
+    expect(result).toMatchObject({
+      kind: 'answer',
+      text: 'The standard rate of 25 percent applies, by rule pdv-25.',
       usage: {
         model: 'Sonnet 5.5',
         inputTokens: 420,
@@ -466,7 +442,10 @@ describe('a task run over the Anthropic adapter', () => {
     expect(requests[1]!.body.messages).toEqual([
       { role: 'user', content: [{ type: 'text', text: 'Which VAT rate applies to office chairs?' }] },
       { role: 'assistant', content: firstContent },
-      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_01A9q4Rm', content: 'Rule pdv-25: the standard rate is 25 percent.', is_error: false }] },
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'toolu_01A9q4Rm', content: 'Rule pdv-25: the standard rate is 25 percent.', is_error: false, cache_control: { type: 'ephemeral' } }],
+      },
     ])
   })
 })
@@ -601,31 +580,6 @@ describe('a whole stream', () => {
     )
     expect(await anthropicMessages(KEY, SONNET).send(request())).toMatchObject({ kind: 'tool-calls', calls: [{ args: { not_json: '{"id":' } }] })
   })
-
-  it('reads plain text with no format when a request asks for no schema', async () => {
-    const requests = stubFetch(streamResponse(streamFixture('anthropic/answer')))
-    await anthropicMessages(KEY, SONNET).send(request({ output: null }))
-    expect(requests[0]!.body.output_config).toEqual({ effort: 'low' })
-  })
-
-  it('gives a task an answer off its schema as a failure with the usage', async () => {
-    stubFetch(streamResponse(streamFixture('anthropic/off-schema')))
-    const offered: AiTask<null, null> = {
-      id: 'test.off-schema',
-      app: 'test',
-      effort: 'low',
-      system: () => [],
-      input: () => [{ kind: 'text', text: 'Row' }],
-      output: () => CATEGORY_SCHEMA,
-      tools: [],
-      check: () => ({ draft: null, problems: [] }),
-    }
-    expect(await runTask(offered, null, { model: anthropicMessages(KEY, SONNET), appOn: true, employees: { sends: false, anonymising: true } })).toMatchObject({
-      kind: 'failed',
-      reason: 'category is not one of the allowed values',
-      usage: { inputTokens: 412 },
-    })
-  })
 })
 
 describe('an aborted Messages request', () => {
@@ -667,7 +621,7 @@ describe('the cache breakpoint on the tail of a chat', () => {
   it('sits on the last block of a person’s turn or a tool result, and on no earlier one', async () => {
     const requests = stubFetch(answerStream(), answerStream())
     const model = anthropicMessages(KEY, SONNET)
-    const base = { system: [{ kind: 'text' as const, text: 'Be Kuna.' }], output: null, tools: [], effort: 'low' as const }
+    const base = { system: [{ kind: 'text' as const, text: 'Be Kuna.' }], tools: [], effort: 'low' as const }
     await model.send({ ...base, turns: [{ role: 'user', parts: [{ kind: 'text', text: 'One' }] }] })
     expect(lastBlock(requests[0]!.body)['cache_control']).toEqual({ type: 'ephemeral' })
     await model.send({
@@ -681,25 +635,5 @@ describe('the cache breakpoint on the tail of a chat', () => {
     const messages = requests[1]!.body['messages'] as { content: Record<string, unknown>[] }[]
     expect(messages[0]!.content[0]!['cache_control']).toBeUndefined()
     expect(lastBlock(requests[1]!.body)['cache_control']).toEqual({ type: 'ephemeral' })
-  })
-
-  it('stays off a one-shot task with a schema', async () => {
-    const requests = stubFetch(
-      streamResponse(
-        eventsAsStream([
-          { type: 'message_start', message: { usage: { input_tokens: 1 } } },
-          { type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 1 } },
-          { type: 'message_stop' },
-        ]),
-      ),
-    )
-    await anthropicMessages(KEY, SONNET).send({
-      system: [{ kind: 'text', text: 'Be Kuna.' }],
-      output: { type: 'string' },
-      tools: [],
-      effort: 'low',
-      turns: [{ role: 'user', parts: [{ kind: 'text', text: 'One' }] }],
-    })
-    expect(lastBlock(requests[0]!.body)['cache_control']).toBeUndefined()
   })
 })

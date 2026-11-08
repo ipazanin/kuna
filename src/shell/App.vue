@@ -5,7 +5,7 @@ import UApp from '@nuxt/ui/components/App.vue'
 import { en_gb, hr } from '@nuxt/ui/locale'
 
 import { CHAT_DOCK_QUERY, chatOpen } from '../shared/ai/presentation/chatDock'
-import { assistKeyKept } from '../shared/ai/presentation/useAiTask'
+import { assistKeyKept } from '../shared/ai/presentation/aiProvider'
 import { useMediaQuery } from '../shared/layout/viewport'
 import { resumedBy } from '../shared/google/googleRedirect'
 import type { RedirectReturn } from '../shared/google/googleRedirect'
