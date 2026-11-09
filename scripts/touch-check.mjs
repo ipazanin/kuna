@@ -1,6 +1,6 @@
 /**
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
- * with its one-line Sync button and its navigation drawer of the whole menu under the link home, the arrow in it showing another app's pages with the drawer open and one of those pages closing it, the
+ * with its one-line Sync button and its navigation drawer of the whole menu under the link home, ending with the company's footer and its lines, the arrow in it showing another app's pages with the drawer open and one of those pages closing it, the
  * home's top bar with its menu button and no Net worth or Kuna settings button beside the cards, Net worth opened from the drawer with each
  * tile opening its app and Back, Assets value among them, and the company's figure opening Year's Pay tab on the kept profit, a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
  * filter added and removed,
@@ -287,7 +287,7 @@ if (selection.sharded) {
 const BASE = selection.base
 
 /** Steps that carry on from the page an earlier step left, so a run limited to one of them runs that one too. */
-const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview' }
+const CARRIES_ON_FROM = { 'top-bar': 'overview', drawer: 'overview', 'drawer-footer': 'overview' }
 
 /**
  * `ready` appears once the screen drew the fake workbook. `name` names the step of a screen with tabs. `p=all` resets the filters the drills left
@@ -475,6 +475,34 @@ async function checkWidth(width) {
       page.evaluate(() => document.querySelector('[data-testid="screen-title"]').getBoundingClientRect().top - document.querySelector('header').getBoundingClientRect().bottom),
       (gap) => gap >= 0,
       'the new screen opened with its heading under the top bar',
+    )
+  })
+
+  // The drawer ends with the company's footer, whose logo and name open its address, Privacy and Terms, each a thumb's size.
+  await step('drawer-footer', async () => {
+    await openDrawer(page)
+    await expect(
+      page.evaluate(() => {
+        const footer = document.querySelector('[role="dialog"] [data-testid="company-footer"]')
+        const nav = document.querySelector('[role="dialog"] nav')
+        return footer !== null && nav !== null && footer.getBoundingClientRect().top >= nav.getBoundingClientRect().bottom - 1 && footer.getBoundingClientRect().bottom <= window.innerHeight
+      }),
+      (last) => last,
+      'the drawer does not end with the footer on screen',
+    )
+    await page.tap('[role="dialog"] [data-testid="company-footer-open"]')
+    await page.waitForSelector('[data-testid="company-footer-lines"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect(page, `${width}px drawer footer open`)
+    await shoot('drawer-footer')
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('[data-testid="company-footer-lines"]', { hidden: true, timeout: 5_000 })
+    await page.keyboard.press('Escape')
+    await drawerClosed(page)
+    await expect(
+      page.evaluate(() => document.querySelector('[data-testid="skip-link"]').getBoundingClientRect().width),
+      (skipWidth) => skipWidth <= 1,
+      'the skip link shows without focus, in the way of a thumb',
     )
   })
 

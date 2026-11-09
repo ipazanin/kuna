@@ -218,7 +218,7 @@ function dropped(event: DragEvent): void {
       <p class="type-label">{{ words.files.drop }}</p>
       <p class="type-caption">{{ words.files.dropKinds }}</p>
     </div>
-    <header class="flex min-h-12 items-center gap-2 border-b border-default px-3 py-1.5">
+    <header class="flex min-h-14 items-center gap-2 border-b border-default px-3 py-1.5">
       <AppMark v-if="app && !phone" :icon="app.homeCard.icon" :colour="app.colour" />
       <p class="min-w-0 flex-1 truncate type-label" data-testid="chat-label">{{ app ? words.chat.inApp(app.name) : words.chat.inKuna }}</p>
       <UButton

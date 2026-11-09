@@ -25,7 +25,7 @@
  *
  * With saves that take seconds (`?fake=slow-writes`) the loan bucket switch on Settings and the benchmark select on Investments, Settings move at once, grayed with a
  * spinner, in Croatian too, and what is typed in the Settings form survives the switch's save.
- * With a key kept, every app shows with the chat open (`?chat=1`), docked from 1224 px and in the page's place below. A flow asks in
+ * With a key kept, every app shows with the chat open (`?chat=1`), docked from 1416 px and in the page's place below. A flow asks in
  * English and Croatian, answers the dialog, follows the link the fake model shows, and a second one tags an element from the gallery.
  * Another flags a payee as a person on its Spending entry, lets the chat read Spending from its card and opens the exact text sent,
  * with that person's alias and the IBAN masked, and again with Anonymise off. A proposal shows its card with Accept and one Undo.
@@ -481,6 +481,7 @@ import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { MADE_UP_ANTHROPIC_KEY } from './support/chatFlows.mjs'
 import { writeFlexReportSamples, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
+import { chatResizeFlow, menuLitFlow, quickJumpFlowIn, sidebarRoomWarningFlowIn, sidebarStateFlowIn, skipLinkFlow } from './support/shellFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -4705,6 +4706,8 @@ const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
 /** The menu flows run at the widths where a menu's text wraps differently, so the text overlap rule sees every picker open. */
 const MENU_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'desktop']
+/** The widths where the sidebar's states and the docked chat trade room. */
+const SIDEBAR_VIEWPORTS = ['tablet-wide', 'laptop', 'desktop', 'wide']
 /** The widths a design review looks at, for the flows that shoot what it needs. */
 const DESIGN_REVIEW_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'desktop']
 
@@ -6775,6 +6778,45 @@ const FLOWS = [
     queries: { drive: '&loans=failed&lang=hr&start=drive' },
   },
   { name: 'sidebar-dead-address', hash: '#/company/no-such-screen', title: 'All apps', run: sidebarDeadAddressFlow, viewports: ['desktop'], modes: ['drive'], queries: { drive: '' } },
+  ...['expanded', 'icons', 'hidden'].flatMap((choice) =>
+    [false, true].map((chat) => ({
+      name: `sidebar-${choice}${chat ? '-chat' : ''}`,
+      hash: '#/company',
+      title: 'Overview',
+      run: sidebarStateFlowIn(choice, { chat }),
+      viewports: SIDEBAR_VIEWPORTS,
+      modes: ['drive'],
+      queries: { drive: '' },
+    })),
+  ),
+  ...[
+    ['expanded', false],
+    ['icons', true],
+    ['hidden', true],
+  ].map(([choice, chat]) => ({
+    name: `sidebar-${choice}${chat ? '-chat' : ''}-croatian`,
+    hash: '#/company',
+    title: 'Pregled',
+    run: sidebarStateFlowIn(choice, { chat, language: 'hr' }),
+    viewports: SIDEBAR_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&lang=hr' },
+  })),
+  { name: 'sidebar-room-warning', hash: '#/company', title: 'Overview', run: sidebarRoomWarningFlowIn('en'), viewports: ['desktop'], modes: ['drive'], queries: { drive: '' } },
+  { name: 'sidebar-room-warning-croatian', hash: '#/company', title: 'Pregled', run: sidebarRoomWarningFlowIn('hr'), viewports: ['desktop'], modes: ['drive'], queries: { drive: '&lang=hr' } },
+  { name: 'chat-resize', hash: '#/company', title: 'Overview', run: chatResizeFlow(), viewports: ['wide'], modes: ['drive'], queries: { drive: '' } },
+  {
+    name: 'menu-lit',
+    hash: '#/company',
+    title: 'Overview',
+    run: menuLitFlow(),
+    viewports: ['desktop'],
+    modes: ['drive'],
+    queries: { drive: '&loans=sample&investments=sample&assets=sample&spending=sample' },
+  },
+  { name: 'skip-link', hash: '#/company', title: 'Overview', run: skipLinkFlow(), viewports: ['phone', 'desktop'], modes: ['drive'], queries: { drive: '' } },
+  { name: 'quick-jump', hash: '#/company', title: 'Overview', run: quickJumpFlowIn('en'), viewports: ['phone', 'desktop'], modes: ['drive'], queries: { drive: '' } },
+  { name: 'quick-jump-croatian', hash: '#/company', title: 'Pregled', run: quickJumpFlowIn('hr'), viewports: ['desktop'], modes: ['drive'], queries: { drive: '&lang=hr' } },
   {
     name: 'sidebar-fit',
     hash: '#/company',

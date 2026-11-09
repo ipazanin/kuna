@@ -224,6 +224,12 @@ const GALLERY_RECEIPT_WAYS = [
   { value: 'photo', label: 'Read the photo', icon: 'i-lucide-camera', description: 'Opens the camera on a phone' },
 ] as const
 const galleryReceiptWay = ref<(typeof GALLERY_RECEIPT_WAYS)[number]['value'] | null>(null)
+const GALLERY_LAYOUTS = [
+  { value: 'expanded', label: 'Expanded', icon: 'i-lucide-panel-left', description: 'Shows as icons while the chat needs the room' },
+  { value: 'icons', label: 'Icons', icon: 'i-lucide-panel-left-close' },
+  { value: 'hidden', label: 'Hidden', icon: 'i-lucide-panel-left-dashed' },
+] as const
+const galleryLayout = ref<(typeof GALLERY_LAYOUTS)[number]['value']>('expanded')
 const GALLERY_RANGES: readonly ChartRange[] = ['1y', '3y', 'next-5y', 'all']
 const galleryRange = ref<ChartRange>('all')
 const GALLERY_CHIPS = ['EXQ', 'Category: Software subscriptions', 'Counterparty: A supplier whose name runs far past the width of a chip']
@@ -864,10 +870,20 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
             <span class="identifier">{{ galleryPeriod }}</span>
           </div>
         </AppCard>
-        <AppCard title="MenuButton" subtitle="One button for a few ways to do one thing. The menu says which way was picked.">
+        <AppCard title="MenuButton" subtitle="One button for a few ways to do one thing, or for a setting with one choice in force, which the menu checks. The icon look names itself in a tooltip.">
           <div class="flex flex-wrap items-center gap-3 px-4 pt-3 pb-4 sm:px-5">
             <MenuButton label="Add a receipt" icon="i-lucide-receipt" :choices="GALLERY_RECEIPT_WAYS" data-testid="gallery-menu-button" @pick="galleryReceiptWay = $event" />
             <span class="identifier">{{ galleryReceiptWay ?? 'Nothing picked yet' }}</span>
+            <MenuButton
+              label="Sidebar layout"
+              icon="i-lucide-panel-left"
+              look="icon"
+              :choices="GALLERY_LAYOUTS"
+              :picked="galleryLayout"
+              data-testid="gallery-menu-button-picked"
+              @pick="galleryLayout = $event"
+            />
+            <span class="identifier">{{ galleryLayout }}</span>
           </div>
         </AppCard>
         <AppCard title="RemovableChip" subtitle="Names something picked, such as a filter or a ticker to compare with. A press anywhere on it removes it.">

@@ -114,7 +114,7 @@ export async function newChat(page, press) {
 /** Closes the chat where it covers the page, below the width that docks it beside the page. */
 export async function giveThePageBack(page, press) {
   const close = await page.$('[data-testid="chat-close"]')
-  const docked = await page.evaluate(() => window.matchMedia('(min-width: 1224px)').matches)
+  const docked = await page.evaluate(() => document.querySelector('[data-chat-place="dock"]') !== null)
   if (close !== null && !docked) {
     await press(close)
     await page.waitForFunction(() => !document.querySelector('[data-testid="chat-panel"]'), { timeout: 5_000 })

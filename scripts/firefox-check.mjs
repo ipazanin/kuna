@@ -2,7 +2,7 @@
  * The few things Chrome cannot show, run in real Firefox against the fake build: the sidebar and a
  * dialog with classic scrollbars taking room, focus shown by a call and by the keyboard, the chat, a
  * photo and a sheet picked through the chat's file input, a streamed answer read through the app's
- * own reader, and the warning on leaving during a save.
+ * own reader, Cmd+K or Ctrl+K taken from Firefox's search bar, the chat's edge by drag and keyboard, and the warning on leaving during a save.
  *
  *   npm run build:fake && npm run preview:fake -- --port 4173
  *   npm run check:firefox -- http://localhost:4173/kuna/
@@ -20,6 +20,7 @@ import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { keepAiKey, openChat, sendInChat } from './support/chatFlows.mjs'
 import { pressSelector } from './support/pressing.mjs'
 import { chartsFollowWidth } from './support/settleCharts.mjs'
+import { pressJumpKey } from './support/shellFlows.mjs'
 
 const BASE = process.argv[2] ?? 'http://localhost:4173/kuna/'
 const VISIBLE = { visible: true, timeout: 15_000 }
@@ -218,6 +219,41 @@ await step('stream', async (page) => {
   } finally {
     server.close()
   }
+})
+
+await step('shell-keys', async (page) => {
+  await open(page, 'fake=drive', '/company')
+  await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
+  await keepAiKey(page)
+  await page.evaluate(() => {
+    window.location.hash = '#/company?chat=1'
+  })
+  await page.waitForSelector('[data-testid="chat-dock"]', VISIBLE)
+  await page.focus('textarea[data-testid="chat-prompt"]')
+  await pressJumpKey(page)
+  await page.waitForSelector('[data-testid="quick-jump"]', VISIBLE).catch(() => {
+    throw new Error('the jump key did not open Jump to a page, so Firefox may have taken it')
+  })
+  if (!(await page.evaluate(() => document.hasFocus()))) throw new Error('the jump key moved focus out of the page')
+  await page.keyboard.press('Escape')
+  await page.waitForSelector('[data-testid="quick-jump"]', { hidden: true, timeout: 5_000 })
+
+  const handle = await page.waitForSelector('[data-testid="chat-resize"]', VISIBLE)
+  const box = await handle.boundingBox()
+  await page.mouse.move(box.x + box.width / 2, box.y + 200)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 - 24, box.y + 200, { steps: 4 })
+  await page.mouse.up()
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  const dragged = await handle.evaluate((element) => Number(element.getAttribute('aria-valuenow')))
+  if (dragged !== 408) throw new Error(`a 24 px drag at 1440 px left the chat at ${dragged}, not 408`)
+  await handle.focus()
+  await page.keyboard.press('Home')
+  await page.keyboard.press('ArrowLeft')
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  const keyed = await handle.evaluate((element) => Number(element.getAttribute('aria-valuenow')))
+  if (keyed !== 400) throw new Error(`Home then Left Arrow left the chat at ${keyed}, not 400`)
+  await page.evaluate(() => localStorage.clear())
 })
 
 await step('save-warning', async (page) => {

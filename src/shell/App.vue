@@ -4,9 +4,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import UApp from '@nuxt/ui/components/App.vue'
 import { en_gb, hr } from '@nuxt/ui/locale'
 
-import { CHAT_DOCK_QUERY, chatOpen } from '../shared/ai/presentation/chatDock'
 import { assistKeyKept } from '../shared/ai/presentation/aiProvider'
-import { useMediaQuery } from '../shared/layout/viewport'
 import { resumedBy } from '../shared/google/googleRedirect'
 import type { RedirectReturn } from '../shared/google/googleRedirect'
 import { DEFAULT_MONEY_FORMAT, setMoneyFormat } from '../shared/money/moneyFormat'
@@ -18,6 +16,7 @@ import { keepPageSynced } from './sync/keepPageSynced'
 import TopBarSync from './sync/TopBarSync.vue'
 import AppShell from './ui/AppShell.vue'
 import { navigationOf } from './ui/navigation'
+import QuickJump from './ui/QuickJump.vue'
 import ScreenNavigation from './ui/ScreenNavigation.vue'
 import ScreenSkeleton from '../shared/ui/ScreenSkeleton.vue'
 import UpdatePrompt from './ui/UpdatePrompt.vue'
@@ -49,7 +48,8 @@ function togglePages(appId: string): void {
   openApp.value = openApp.value === appId ? null : appId
 }
 
-const navigation = computed(() => navigationOf(installedApps(), openApp.value))
+const navigation = computed(() => navigationOf(installedApps(), openApp.value, typeof route.meta.under === 'string' ? route.meta.under : null))
+const quickJumpOpen = ref(false)
 
 const pageSync = startPageSync(installedApps())
 /** The sync or export control has nothing to show until some app has a file, so its place stays out of the shell too. */
@@ -75,11 +75,8 @@ void router.isReady().then(() => {
   )
 })
 
-const docks = useMediaQuery(CHAT_DOCK_QUERY)
-/** Toasts rise from the bottom, clear of the gesture bar in the installed app and of the docked chat's column. */
-const toaster = computed(() => ({
-  ui: { viewport: `bottom-[max(1rem,env(safe-area-inset-bottom))] ${assistKeyKept.value && chatOpen.value && docks.value ? 'right-[calc(var(--spacing-chat-dock)+1rem)]' : ''}` },
-}))
+/** Toasts rise from the bottom, clear of the gesture bar in the installed app and of the docked chat, whose width the shell sets while it is docked. */
+const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))] right-[calc(var(--chat-width,0px)+1rem)]' } }
 
 /** The chat's code loads only once a person with a key opens it. */
 const ChatPanel = defineAsyncComponent(() => import('../shared/ai/presentation/ChatPanel.vue'))
@@ -96,6 +93,7 @@ const uiLocale = language === 'hr' ? hr : en_gb
       :app-on-screen="appOnScreen === null ? null : { icon: appOnScreen.homeCard.icon, colour: appOnScreen.colour }"
       :chat-available="assistKeyKept"
       @drawer-closed="followAddress"
+      @quick-jump="quickJumpOpen = true"
     >
       <RouterView v-slot="{ Component }">
         <ScreenSkeleton v-if="screenLoading || !Component" />
@@ -111,6 +109,7 @@ const uiLocale = language === 'hr' ? hr : en_gb
         <TopBarSync :compact="compact" :rail="rail" />
       </template>
     </AppShell>
+    <QuickJump v-if="!bare && inFirstRun === null" v-model:open="quickJumpOpen" :navigation="navigation" :chat-available="assistKeyKept" />
     <UpdatePrompt />
   </UApp>
 </template>

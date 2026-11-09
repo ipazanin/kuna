@@ -465,6 +465,99 @@ section + section > .group-row:not(tr) {
   outline-offset: 1px;
 }
 
+/* The chat in the page's place under the top bar, before the keyboard's height is known and where the browser cannot say. */
+.chat-below-top-bar {
+  height: calc(100dvh - 3.5rem);
+}
+
+/* The installed app draws under the status bar and the gesture bar, so the phone layout clears them. */
+@media (max-width: 639px) {
+  .top-bar {
+    height: calc(3.5rem + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+    padding-inline: max(0.25rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right));
+  }
+
+  .chat-below-top-bar {
+    height: calc(100dvh - 3.5rem - env(safe-area-inset-top));
+  }
+
+  .app-main {
+    padding-top: 1rem;
+    padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* The shell's first stop for a keyboard, out of sight until it takes focus, then just under where a top bar would be. */
+.skip-link {
+  position: fixed;
+  inset-block-start: calc(3.5rem + env(safe-area-inset-top) + 0.5rem);
+  inset-inline-start: 0.5rem;
+  z-index: var(--z-index-top-bar);
+}
+
+.skip-link:not(:focus) {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The docked chat's leading edge, dragged to widen the chat. Its hit area is wider than its line, and wider still for a finger. */
+.chat-resize-handle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -6px;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+@media (pointer: coarse) {
+  .chat-resize-handle {
+    inset-inline-start: -12px;
+    width: 24px;
+  }
+}
+
+.chat-resize-handle::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: transparent;
+  transition: background-color var(--transition-duration-fade) ease;
+}
+
+.chat-resize-handle:hover::after,
+.chat-resize-handle[data-dragging]::after {
+  background: var(--accent);
+}
+
+.chat-resize-handle:focus-visible {
+  outline: none;
+}
+
+.chat-resize-handle:focus-visible::after {
+  left: calc(50% - 1.5px);
+  width: 3px;
+  background: var(--accent);
+}
+
+/* While the chat's edge is dragged, the whole page shows the drag's cursor and selects no text. */
+html.chat-resizing,
+html.chat-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 /* The chat's prompt draws its own ring around the field, so the field inside it draws none. */
 .chat-prompt textarea:focus-visible {
   outline: none;

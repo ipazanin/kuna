@@ -7,6 +7,7 @@
 
 import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
 import { FAKE_KEY_SAVED_AT } from '../../src/shared/secrets/infrastructure/fake/fakeSecrets.ts'
+import { FOOTER_FOLDS_BELOW_HEIGHT } from '../../src/shell/ui/sidebarLayout.ts'
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
 import { en as classWordsEnglish, hr as classWordsCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
 import { en as rulesEnglish, hr as rulesCroatian } from '../../src/apps/company/rules/presentation/words.ts'
@@ -5318,8 +5319,9 @@ export async function sidebarDeadAddressFlow(page) {
 }
 
 /**
- * The sidebar's height, with Company and its name line open as the longest menu there is. At 1280 x 800 and 1366 x 768 the whole
- * list fits, and at 1366 x 650 only the list scrolls, with the current page, Kuna settings and Sync on screen. Opening
+ * The sidebar's height, with Company and its name line open as the longest menu there is. At 1280 x 800 and 1366 x 768 the
+ * footer folds into its logo beside Sync, and at 1440 x 900 it keeps its own row. Each time the whole list fits, or only the
+ * list scrolls, as at 1366 x 650, with the current page, Kuna settings, Sync and the footer on screen. Opening
  * an app's pages runs 200 ms and hardly any time under reduced motion, and a deep link opens its app with no animation on load.
  */
 export function sidebarFitFlowIn(language) {
@@ -5347,17 +5349,31 @@ export function sidebarFitFlowIn(language) {
           current: inList(document.querySelector('aside a[aria-current="page"]')),
           kunaSettings: onScreen(document.querySelector('aside [data-testid="nav-kuna-settings"]')),
           sync: onScreen(document.querySelector('aside nav').nextElementSibling),
+          footer: onScreen(document.querySelector('aside [data-testid="company-footer-open"]')),
+          folded: document.querySelector('aside [data-testid="sidebar-sync"] [data-testid="company-footer"]') !== null,
         }
       })
     try {
+      // A short window folds the footer into its logo beside Sync. Then the whole menu fits, or only the list scrolls with the current page, Kuna settings, Sync and the footer in view.
       for (const [width, height] of [
         [1280, 800],
         [1366, 768],
+        [1440, 900],
       ]) {
         await page.setViewport({ ...before, width, height })
         await delay(300)
         const fitted = await fit()
-        if (fitted.gutter !== 'stable' || !fitted.subtitle || fitted.width !== 240 || fitted.scrolls || !fitted.lastPage || !fitted.lastApp || !fitted.kunaSettings || !fitted.sync)
+        const shown = fitted.scrolls ? fitted.current : fitted.lastPage && fitted.lastApp
+        if (
+          fitted.gutter !== 'stable' ||
+          !fitted.subtitle ||
+          fitted.width !== 240 ||
+          fitted.folded !== height < FOOTER_FOLDS_BELOW_HEIGHT ||
+          !shown ||
+          !fitted.kunaSettings ||
+          !fitted.sync ||
+          !fitted.footer
+        )
           throw new Error(`Company's sidebar does not fit ${width} x ${height}: ${JSON.stringify(fitted)}`)
         await inspect?.(`the sidebar at ${width} x ${height}`)
         await shoot(`sidebar-company-${width}x${height}${language === 'en' ? '' : `-${language}`}`)
@@ -5365,7 +5381,7 @@ export function sidebarFitFlowIn(language) {
       await page.setViewport({ ...before, width: 1366, height: 650 })
       await delay(300)
       const short = await fit()
-      if (!short.scrolls || !short.current || !short.kunaSettings || !short.sync) throw new Error(`at 1366 x 650 only the list should scroll: ${JSON.stringify(short)}`)
+      if (!short.scrolls || !short.current || !short.kunaSettings || !short.sync || !short.footer) throw new Error(`at 1366 x 650 only the list should scroll: ${JSON.stringify(short)}`)
       await inspect?.('the sidebar at 1366 x 650')
       await page.setViewport(before)
       await delay(300)
@@ -8444,7 +8460,7 @@ export function chatPanelFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const send = (message) => sendInChat(page, press, message)
-    const wide = () => page.evaluate(() => window.innerWidth >= 1224)
+    const wide = () => page.evaluate(() => window.innerWidth >= 1416)
     const greeting = language === 'en' ? 'Hello' : 'Dobar dan'
     try {
       if (await page.$('[data-testid="chat-open"]')) throw new Error('the chat button shows with no key')
@@ -8565,13 +8581,13 @@ export function chatPanelFlowIn(language) {
       if (await wide()) {
         await page.waitForSelector('[data-testid="chat-dock"]', { visible: true, timeout: 5_000 })
         await inspect?.('the dock beside the screen a link opened')
-        await page.setViewport({ ...page.viewport(), width: 1224 })
+        await page.setViewport({ ...page.viewport(), width: 1416 })
         await delay(300)
         await inspect?.('the dock at the narrowest width it docks')
         await page.focus('[data-testid="nav-kuna-settings"]')
         await elementSays(page, '[role="tooltip"]', [SHELL_SETTINGS_NAME[language]], 'a row of the icon sidebar does not say its name on focus')
         await page.focus('[data-testid="sync-button"], [data-testid="chat-open"]')
-        await shoot('chat-dock-1224')
+        await shoot('chat-dock-1416')
         await page.setViewport({ ...page.viewport(), width: 1440 })
       } else {
         await page.waitForSelector('[data-testid="chat-panel"]', { hidden: true, timeout: 5_000 }).catch(() => {

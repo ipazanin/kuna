@@ -16,6 +16,17 @@ export function useMediaQuery(query: string): Readonly<Ref<boolean>> {
   return readonly(matches)
 }
 
+/** The window's width in px, kept current until the calling component or scope goes away. */
+export function useWindowWidth(): Readonly<Ref<number>> {
+  const width = ref(window.innerWidth)
+  const follow = (): void => {
+    width.value = window.innerWidth
+  }
+  window.addEventListener('resize', follow)
+  onScopeDispose(() => window.removeEventListener('resize', follow))
+  return readonly(width)
+}
+
 export function usePhoneLayout(): Readonly<Ref<boolean>> {
   return useMediaQuery(PHONE_QUERY)
 }

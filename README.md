@@ -387,7 +387,7 @@ of a short page lets it.
 
 A dashboard screen's tiles and cards rearrange as the content area grows, by one rule in
 `DashboardGrid` in `src/shared/ui/`. The grids follow the shell's content area, a container from
-640 px, and not the window, so a page beside the chat's dock takes what its width allows. Tiles go
+640 px, and not the window, so a page beside the chat's dock takes what its width allows. The dock keeps the page at 976 px or more, and a person drags its edge to widen the chat up to 704 px. Tiles go
 two to a row, an odd last one across both, then all in one row from 896 px of content (`@4xl`, a
 1216 px window beside the sidebar). Three tiles take one row from 672 px of content (`@2xl`), and
 five or six go three to a row from a 1024 px window and join one row from 1344 px of content (`@8xl`). Cards go two to a row from

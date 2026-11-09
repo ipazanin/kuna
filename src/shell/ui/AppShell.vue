@@ -1,20 +1,24 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
+import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
-import { CHAT_DOCK_QUERY, chatOpen, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
+import { chatOpen, chatWidth, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
 import { words as chatWords } from '../../shared/ai/presentation/words'
 import CompanyFooter from '../../shared/app/CompanyFooter.vue'
 import { words as sharedWords } from '../../shared/app/words'
 import { useStickyBandPart } from '../../shared/layout/stickyBand'
-import { useHeightAboveKeyboard, useMediaQuery, usePhoneLayout } from '../../shared/layout/viewport'
+import { useHeightAboveKeyboard, useMediaQuery, usePhoneLayout, useWindowWidth } from '../../shared/layout/viewport'
 import { writesInFlight } from '../../shared/storage/application/writesInFlight'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import HomeLink from '../../shared/ui/HomeLink.vue'
 import WriteProgress from '../../shared/ui/WriteProgress.vue'
-import { SIDEBAR_FROM_WIDTH } from './sidebarLayout'
+import ChatResizeHandle from './ChatResizeHandle.vue'
+import type { SidebarForm } from './sidebarLayout'
+import { FOOTER_FOLDS_BELOW_HEIGHT, layoutOf, SIDEBAR_WIDTH, sidebarChoice } from './sidebarLayout'
+import SidebarLayoutMenu from './SidebarLayoutMenu.vue'
 import { words } from './words'
 
 const props = withDefaults(
@@ -30,6 +34,8 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   drawerClosed: []
+  /** A press on the Jump to a page button. */
+  quickJump: []
 }>()
 
 defineSlots<{
@@ -39,8 +45,56 @@ defineSlots<{
   sync(props: { compact: boolean; rail: boolean }): unknown
 }>()
 
-const wide = useMediaQuery(`(min-width: ${SIDEBAR_FROM_WIDTH}px)`)
 const phone = usePhoneLayout()
+const windowWidth = useWindowWidth()
+const chatShows = computed(() => props.chatAvailable && chatOpen.value)
+
+/** The chat's width under the pointer while its edge is dragged, and the sidebar drawn a moment before, or null. */
+const drag = ref<{ readonly width: number; readonly drawn: SidebarForm } | null>(null)
+/** The layout with the chat open, which also says whether it would dock while it is closed. */
+const withChat = computed(() =>
+  layoutOf({ choice: sidebarChoice.value, windowWidth: windowWidth.value, chat: drag.value?.width ?? chatWidth.value, ...(drag.value === null ? {} : { drawn: drag.value.drawn }) }),
+)
+const layout = computed(() => (chatShows.value ? withChat.value : layoutOf({ choice: sidebarChoice.value, windowWidth: windowWidth.value, chat: null })))
+const docks = computed(() => withChat.value.chat.at === 'dock')
+const dock = computed(() => (layout.value.chat.at === 'dock' ? layout.value.chat : null))
+const docked = computed(() => dock.value !== null)
+/** Narrower, the chat takes the page's place. The page stays mounted, so its filters and its scroll survive. */
+const inPane = computed(() => layout.value.chat.at === 'page')
+const sidebar = computed(() => layout.value.sidebar)
+const rail = computed(() => sidebar.value === 'icons')
+const sidebarShows = computed(() => sidebar.value === 'expanded' || sidebar.value === 'icons')
+const topBar = computed(() => !sidebarShows.value)
+const short = useMediaQuery(`(max-height: ${FOOTER_FOLDS_BELOW_HEIGHT - 1}px)`)
+/** The footer as the icon sidebar's logo button, beside Sync on a short window. */
+const footerFolded = computed(() => !rail.value && short.value)
+
+function dragChat(width: number): void {
+  drag.value = { width, drawn: layout.value.sidebar }
+}
+
+/** The widths drawn now, on the root, since the toaster's viewport is portalled out of the shell and reads the chat's. */
+watchEffect(() => {
+  const root = document.documentElement.style
+  root.setProperty('--sidebar-width', `${SIDEBAR_WIDTH[sidebar.value]}px`)
+  if (dock.value === null) root.removeProperty('--chat-width')
+  else root.setProperty('--chat-width', `${dock.value.width}px`)
+})
+onBeforeUnmount(() => {
+  document.documentElement.style.removeProperty('--sidebar-width')
+  document.documentElement.style.removeProperty('--chat-width')
+})
+
+const columns = computed(() => {
+  if (sidebarShows.value) return docked.value ? 'grid-cols-[var(--sidebar-width)_minmax(0,1fr)_var(--chat-width)]' : 'grid-cols-[var(--sidebar-width)_minmax(0,1fr)]'
+  return docked.value ? 'grid-cols-[minmax(0,1fr)_var(--chat-width)]' : 'grid-cols-[minmax(0,1fr)]'
+})
+/** The dock is the last column. In the page's place the chat sits under the top bar, or beside the sidebar for the window's height. */
+const paneCell = computed(() => {
+  if (docked.value) return sidebarShows.value ? 'col-start-3 row-span-2 row-start-1 sticky top-0 h-dvh' : 'col-start-2 row-span-2 row-start-1 sticky top-0 h-dvh'
+  return topBar.value ? 'chat-below-top-bar col-start-1 row-start-2' : 'col-start-2 row-span-2 row-start-1 sticky top-0 h-dvh'
+})
+const dockId = useId()
 
 const menuOpen = ref(false)
 const route = useRoute()
@@ -74,11 +128,6 @@ useStickyBandPart(useTemplateRef<HTMLElement>('topBar'))
 
 const CHAT_QUERY = 'chat'
 const router = useRouter()
-const docks = useMediaQuery(CHAT_DOCK_QUERY)
-const chatShows = computed(() => props.chatAvailable && chatOpen.value)
-const docked = computed(() => chatShows.value && docks.value)
-/** Narrower, the chat takes the page's place. The page stays mounted, so its filters and its scroll survive. */
-const inPane = computed(() => chatShows.value && !docks.value)
 
 /**
  * While the chat stands in the page's place it is a step in the browser's history, so Back closes it, and any link to a
@@ -129,6 +178,16 @@ watch(pageIsBack, (back) => {
 
 const shell = useTemplateRef<HTMLElement>('shell')
 const pane = useTemplateRef<HTMLElement>('pane')
+const main = useTemplateRef<HTMLElement>('main')
+
+/** The way past the menu: the screen's title, or the chat's prompt while the chat holds the page. */
+function skipToContent(): void {
+  if (inPane.value) {
+    pane.value?.querySelector<HTMLElement>('textarea')?.focus()
+    return
+  }
+  ;(main.value?.querySelector<HTMLElement>('.screen-title') ?? main.value)?.focus()
+}
 const paneHeight = useHeightAboveKeyboard(pane)
 
 /** The screen's name without its app's, as the router gives each route, since the tile and the drawer name the app. */
@@ -136,21 +195,43 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
 </script>
 
 <template>
-  <div ref="shell" class="flex min-h-dvh flex-col lg:grid" :class="docked ? 'lg:grid-cols-[3.5rem_minmax(0,1fr)_var(--spacing-chat-dock)]' : 'lg:grid-cols-[15rem_minmax(0,1fr)]'">
+  <div
+    ref="shell"
+    class="grid min-h-dvh grid-rows-[auto_1fr]"
+    :class="[columns, drag === null ? 'transition-[grid-template-columns] duration-fade' : '']"
+    :data-sidebar="sidebar"
+    data-testid="app-shell"
+  >
+    <UButton :label="words.navigation.skip" color="neutral" variant="outline" class="skip-link" data-testid="skip-link" @click="skipToContent" />
     <WriteProgress :active="writesInFlight > 0" :label="sharedWords.saving" class="write-progress fixed inset-x-0 z-top-bar" />
-    <aside v-if="wide" class="border-e border-default bg-raised/60" :aria-label="words.navigation.sidebar">
+    <aside v-if="sidebarShows" class="col-start-1 row-span-2 row-start-1 border-e border-default bg-raised/60" :aria-label="words.navigation.sidebar" data-testid="sidebar">
       <div class="sticky top-0 flex h-dvh flex-col">
-        <div class="border-b border-default py-2" :class="docked ? 'mx-1.5' : 'mx-3'">
-          <HomeLink :label="sharedWords.homeLink" :look="docked ? 'rail' : 'standard'" />
+        <div class="flex border-b border-default py-2" :class="rail ? 'mx-1.5 flex-col items-stretch gap-0.5' : 'mx-3 min-h-14 items-center gap-0.5'">
+          <HomeLink :label="sharedWords.homeLink" :look="rail ? 'rail' : 'standard'" class="min-w-0 flex-1" />
+          <UTooltip :text="words.quickJump.title" :kbds="['meta', 'k']" :content="{ side: rail ? 'right' : 'bottom' }">
+            <UButton icon="i-lucide-search" color="neutral" variant="ghost" class="justify-center" :aria-label="words.quickJump.title" data-testid="quick-jump-open" @click="emit('quickJump')" />
+          </UTooltip>
+          <SidebarLayoutMenu :window-width="windowWidth" :chat="chatShows ? chatWidth : null" />
         </div>
-        <slot name="navigation" :rail="docked" :chat="chatAvailable" />
-        <div v-if="$slots.sync" class="border-t border-default py-4" :class="docked ? 'flex justify-center px-1' : 'px-4'" data-testid="sidebar-sync">
-          <slot name="sync" :compact="docked" :rail="docked" />
+        <slot name="navigation" :rail="rail" :chat="chatAvailable" />
+        <div v-if="$slots.sync && footerFolded" class="flex items-end gap-2 border-t border-default py-4 ps-4 pe-2" data-testid="sidebar-sync">
+          <div class="min-w-0 flex-1">
+            <slot name="sync" :compact="false" :rail="false" />
+          </div>
+          <CompanyFooter look="rail" class="w-11 shrink-0" />
         </div>
+        <template v-else>
+          <div v-if="$slots.sync" class="border-t border-default py-4" :class="rail ? 'flex justify-center px-1' : 'px-4'" data-testid="sidebar-sync">
+            <slot name="sync" :compact="rail" :rail="rail" />
+          </div>
+          <div class="border-t border-default py-2" :class="rail ? 'px-1.5' : 'px-2'">
+            <CompanyFooter :look="rail || footerFolded ? 'rail' : 'sidebar'" />
+          </div>
+        </template>
       </div>
     </aside>
 
-    <header v-else ref="topBar" class="top-bar sticky top-0 z-top-bar flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4">
+    <header v-if="topBar" ref="topBar" class="top-bar sticky top-0 z-top-bar col-start-1 row-start-1 flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4">
       <USlideover
         v-model:open="menuOpen"
         side="left"
@@ -167,10 +248,15 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
         <UButton icon="i-lucide-menu" color="neutral" variant="ghost" :aria-label="words.navigation.open" data-testid="open-navigation" />
         <template #actions>
           <HomeLink :label="sharedWords.homeLink" look="standard" class="flex-1" />
+          <!-- The drawer's close button sits over the end of this row, so the layout menu stops short of it. -->
+          <SidebarLayoutMenu v-if="sidebar === 'hidden'" :window-width="windowWidth" :chat="chatShows ? chatWidth : null" class="me-10" />
         </template>
         <template #body>
           <div class="contents" @click="closeOnCurrentPage">
             <slot name="navigation" :rail="false" :chat="false" />
+          </div>
+          <div class="border-t border-default px-1 py-2">
+            <CompanyFooter look="sidebar" />
           </div>
         </template>
       </USlideover>
@@ -193,51 +279,32 @@ const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route
       </div>
     </header>
 
-    <main v-show="!inPane" class="app-main flex min-w-0 flex-1 flex-col px-4 pt-6 pb-6 sm:px-6 lg:px-10 lg:pt-9">
+    <main
+      v-show="!inPane"
+      ref="main"
+      tabindex="-1"
+      class="app-main row-start-2 flex min-w-0 flex-col px-4 pt-6 pb-6 outline-none sm:px-6 lg:px-10 lg:pt-9"
+      :class="sidebarShows ? 'col-start-2' : 'col-start-1'"
+    >
       <div class="mx-auto w-full max-w-shell flex-1 sm:@container">
         <slot />
       </div>
-      <CompanyFooter class="mx-auto mt-12 w-full max-w-shell" />
     </main>
 
     <div
       v-if="chatShows"
+      :id="dockId"
       ref="pane"
       class="min-w-0 bg-page"
-      :class="wide ? 'sticky top-0 h-dvh' : 'chat-below-top-bar'"
-      :style="!wide && paneHeight !== null ? { height: `${paneHeight}px` } : undefined"
+      :class="paneCell"
+      :style="topBar && !docked && paneHeight !== null ? { height: `${paneHeight}px` } : undefined"
       :data-chat-place="docked ? 'dock' : 'pane'"
       :data-testid="docked ? 'chat-dock' : 'chat-pane'"
     >
-      <div class="h-full" :class="{ 'border-s border-default': docked }">
+      <div class="relative h-full" :class="{ 'border-s border-default': docked }">
+        <ChatResizeHandle v-if="dock !== null" :width="dock.width" :widest="dock.widest" :controls="dockId" @drag="dragChat" @release="drag = null" />
         <slot name="chat" />
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-/* Before the keyboard's height is known, and where the browser cannot say. */
-.chat-below-top-bar {
-  height: calc(100dvh - 3.5rem);
-}
-
-/* The installed app draws under the status bar and the gesture bar, so the phone layout clears them. */
-@media (max-width: 639px) {
-  .top-bar {
-    height: calc(3.5rem + env(safe-area-inset-top));
-    padding-top: env(safe-area-inset-top);
-    padding-inline: max(0.25rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right));
-  }
-
-  .chat-below-top-bar {
-    height: calc(100dvh - 3.5rem - env(safe-area-inset-top));
-  }
-
-  .app-main {
-    padding-top: 1rem;
-    padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
-    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
-  }
-}
-</style>

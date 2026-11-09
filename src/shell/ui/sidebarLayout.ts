@@ -22,6 +22,12 @@ export const SIDEBAR_FROM_WIDTH = 1024
 /** Each sidebar's width in px. Hidden and the drawer leave the top bar, which takes no width beside the page. */
 export const SIDEBAR_WIDTH: Readonly<Record<SidebarForm, number>> = { expanded: 240, icons: 56, hidden: 0, drawer: 0 }
 
+/**
+ * Below this window height the expanded sidebar's footer folds into its logo beside Sync, since Company's menu with five
+ * apps needs about 852 px with the footer on its own row. Shorter still, the list of pages scrolls.
+ */
+export const FOOTER_FOLDS_BELOW_HEIGHT = 860
+
 const SIDEBAR_KEY = 'kuna.sidebar'
 
 function storedChoice(): SidebarChoice {
@@ -52,15 +58,19 @@ export function chooseSidebar(chosen: SidebarChoice): void {
   choice.value = chosen
 }
 
+/** How much room a dragged chat must leave beyond the expanded sidebar's need before it comes back from icons, so it does not flicker at the edge. */
+export const EXPANDED_RETURN_SLACK = 16
+
 /**
  * What the shell draws for a window `windowWidth` px wide, with `chat` the chat's asked width while it is open, or null.
- * The sidebar stays as chosen while it, the smallest page and the chat fit. An expanded sidebar then shows as icons
- * while the chat is open, and the chat narrows to the room left down to its smallest. With less room the chat takes the
- * page's place and the sidebar stays as chosen. The handle may widen the chat as far as the icons leave room, so
- * dragging moves between expanded and icons.
+ * The sidebar stays as chosen while it, the page at its smallest and the chat fit. An expanded sidebar otherwise shows as
+ * icons while the chat is open, and the chat narrows to the room left, down to its smallest. With less room the chat
+ * takes the page's place and the sidebar stays as chosen. The handle may widen the chat as far as the icons leave room,
+ * so dragging moves between expanded and icons. `drawn` is the sidebar drawn a moment ago during a drag, so icons
+ * turn back to expanded only with `EXPANDED_RETURN_SLACK` to spare.
  */
-export function layoutOf(asked: { readonly choice: SidebarChoice; readonly windowWidth: number; readonly chat: number | null }): ShellLayout {
-  const { choice: chosen, windowWidth, chat } = asked
+export function layoutOf(asked: { readonly choice: SidebarChoice; readonly windowWidth: number; readonly chat: number | null; readonly drawn?: SidebarForm }): ShellLayout {
+  const { choice: chosen, windowWidth, chat, drawn } = asked
   const sidebar: SidebarForm = windowWidth < SIDEBAR_FROM_WIDTH ? 'drawer' : chosen
   if (chat === null) return { sidebar, chat: { at: 'closed' } }
 
@@ -68,6 +78,7 @@ export function layoutOf(asked: { readonly choice: SidebarChoice; readonly windo
   const width = chatWidthIn(chat, room)
   if (width === null) return { sidebar, chat: { at: 'page' } }
 
-  const expandedFits = SIDEBAR_WIDTH.expanded + PAGE_MIN_WIDTH + width <= windowWidth
+  const spare = windowWidth - SIDEBAR_WIDTH.expanded - PAGE_MIN_WIDTH - width
+  const expandedFits = spare >= (drawn === 'icons' ? EXPANDED_RETURN_SLACK : 0)
   return { sidebar: sidebar === 'expanded' && !expandedFits ? 'icons' : sidebar, chat: { at: 'dock', width, widest: Math.min(CHAT_MAX_WIDTH, room) } }
 }
