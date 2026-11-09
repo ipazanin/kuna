@@ -77,6 +77,16 @@ describe('a sync', () => {
     expect(control()).toEqual({ kind: 'ready', syncedAt: AT })
   })
 
+  it('hands each step whether the run waits for what is due or asks now', async () => {
+    const statements = step('statements', 'drive.readonly')
+    const { sync } = harness({ steps: [statements] })
+
+    await sync.sync()
+    await sync.sync('now')
+
+    expect(statements.runs.mock.calls.map((call) => call[2])).toEqual(['due', 'now'])
+  })
+
   it('lets the other steps finish when one fails, and counts it as a problem', async () => {
     const statements = step('statements', 'drive.readonly', async () => {
       throw new Error('The statements folder could not be read.')

@@ -107,7 +107,11 @@ export function companyAssistant(
   return {
     kinds: [...Object.values(coreKinds), ...pack.kinds],
     places: [...PLACES, ...pack.places],
-    settings: [...SETTING_DEFINITIONS.filter(({ key }) => key !== PERSON_PAYEES_KEY).map(({ key, note }) => ({ key, note })), ...pack.settings],
+    settings: [
+      ...SETTING_DEFINITIONS.filter(({ key }) => key !== PERSON_PAYEES_KEY).map(({ key, note }) => ({ key, note })),
+      { key: 'invoice_mail_drafts', note: words.settings.mailDrafts },
+      ...pack.settings,
+    ],
     guides: [{ id: 'review', title: words.guides.review.title, body: words.guides.review.body(LABELS), places: [REVIEW_LINK, CATEGORY_RULES_LINK] }],
     automations: [
       {

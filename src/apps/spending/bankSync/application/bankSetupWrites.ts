@@ -36,8 +36,20 @@ export function addBankAccounts(unit: UnitOfWork, book: SpendingBook, proposals:
   )
 }
 
-/** The account takes the bank's details, and the rows held for it come in the same write. Its name and opening stay. */
-export function takeBankDetails(unit: UnitOfWork, book: SpendingBook, account: Account, update: Account, proposal: AccountProposal | null, day: CivilDate): void {
+/**
+ * The account as it stands takes the bank's details, its bank, IBAN, currency and kind, and the rows held for it come in the same write.
+ * Its name, its opening and any change made to it since the fetch stay.
+ */
+export function takeBankDetails(
+  unit: UnitOfWork,
+  book: SpendingBook,
+  account: Account,
+  bankDetails: Pick<Account, 'bank' | 'iban' | 'currency' | 'kind'>,
+  proposal: AccountProposal | null,
+  day: CivilDate,
+): void {
+  const { bank, iban, currency, kind } = bankDetails
+  const update = { ...account, bank, iban, currency, kind }
   unit.of(ACCOUNT_WRITES).change(account, update)
   writeHeldRows(unit, book, [{ account: update, rows: proposal?.rows.rows ?? [] }], day)
 }

@@ -2,11 +2,11 @@ import { ref, shallowRef } from 'vue'
 
 import type { BankRead } from '../application/bankRead'
 import { bankImporter, finishBankLink } from '../application/bankSync'
-import type { BankSyncOutcome } from '../application/bankSync'
+import type { BankSetup, BankSyncOutcome } from '../application/bankSync'
 import { withOlderHistory } from '../domain/bankAccountSetup'
 import { ENABLE_BANKING_NAMES } from '../domain/bankAnswer'
 import { hasLiveLink } from '../domain/bankLinks'
-import { loadPendingLink, saveLastFetch, savePendingLink } from '../infrastructure/bankBrowserState'
+import { loadLastFetch, loadPendingLink, saveLastFetch, savePendingLink } from '../infrastructure/bankBrowserState'
 import { bankProblemLines } from './bankStepResult'
 import { BANK_SYNC_SCOPE, bankSyncPort } from './bankSyncPort'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -47,6 +47,13 @@ export async function fetchAndImport(personHere: boolean, freshLink?: LinkableBa
     if (!isUnauthorized(reason)) failure.value = messageOf(reason)
     throw reason
   }
+}
+
+/** What the set-up list works from: the last fetch of this page with the rows it holds, or after a reload the accounts this device's last fetch gave, with nothing held. */
+export function heldBankSetup(): BankSetup | null {
+  if (lastOutcome.value !== null) return lastOutcome.value
+  const last = loadLastFetch()
+  return last === null ? null : { linked: last.linked, proposals: [], differences: [], olderRows: [] }
 }
 
 /** The bank sync as Settings shows and starts it, shared with the sync step through this module. */

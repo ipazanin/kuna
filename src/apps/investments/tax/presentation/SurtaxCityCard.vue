@@ -6,7 +6,7 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import { CITY_WITHOUT_SURTAX, cityOfValue } from '../domain/citySurtax'
 import type { YearSurtax } from '../domain/citySurtax'
 import { SURTAX_CITIES_2023 } from '../domain/surtaxRates2023'
-import { spelledOut, surtaxCityChoices } from './surtaxCityChoices'
+import { chosenCityText, spelledOut, surtaxCityChoices } from './surtaxCityChoices'
 import { words } from './words'
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
@@ -51,8 +51,7 @@ const help = computed(() => {
 /** The one line the card folds to once a city is known. */
 const summary = computed(() => {
   const { surtax } = props
-  if (surtax.kind !== 'due') return undefined
-  return surtax.city.kind === 'listed' ? text.summary(spelledOut(surtax.city.city.name), percentText(surtax.rate)) : text.unlisted
+  return surtax.kind === 'due' ? chosenCityText(surtax.city) : undefined
 })
 
 async function choose(value: string): Promise<void> {

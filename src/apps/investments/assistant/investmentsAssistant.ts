@@ -64,11 +64,11 @@ const PLACES: readonly AssistantPlace[] = [
   { route: INVESTMENTS_SETTINGS_ROUTE, title: settingsWords.title },
 ]
 
-/** What Investments tells the chat: what it keeps and where things are, the one setting the Tax screen keeps, the automations it offers, what it can read and what it can change. */
+/** What Investments tells the chat: what it keeps and where things are, the 2023 city the Tax screen keeps, the automations it offers, what it can read and what it can change. */
 export const investmentsAssistant = (reading: InvestmentsReading, changes: { readonly proposer: AppProposer; readonly acceptance: AppAcceptance } | null = null): AppAssistant => ({
   kinds: Object.values(investmentKinds),
   places: PLACES,
-  settings: [{ key: SURTAX_CITY_2023_KEY, note: words.settings.surtaxCity2023, neverPropose: true }],
+  settings: [{ key: SURTAX_CITY_2023_KEY, note: words.settings.surtaxCity2023 }],
   guides: [{ id: 'ibkr-mail', title: mailWords.guide.title, body: mailWords.guide.body, places: [INVESTMENTS_GENERAL_ROUTE] }],
   automations: [
     { id: 'daily-closes', title: words.automations.dailyCloses.title, what: words.automations.dailyCloses.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_PRICES_ROUTE },

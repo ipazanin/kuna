@@ -1,15 +1,18 @@
-import type { AcceptResult, AppAcceptance, AppProposer, AssistantOperation, CheckedProposal, ProposalGroup, ProposalStep, UndoResult } from '../../shared/app/assistantOperations'
+import { DEVICE_SETTING } from '../../shared/app/assistantOperations'
+import type { AcceptResult, AppAcceptance, AppProposer, AssistantOperation, CheckedProposal, DoneWarning, ProposalGroup, ProposalStep, UndoResult } from '../../shared/app/assistantOperations'
 import type { FilesHome, KunaStart } from '../../shared/app/kunaStart'
 import { inputOf } from '../../shared/app/operationInput'
 import { StepRefused } from '../../shared/app/proposedWrites'
 import { words as sharedWords } from '../../shared/app/words'
+import { formatCount } from '../../shared/money/moneyFormat'
+import type { SyncAsking } from '../../shared/sync/application/sync'
 import type { LanguageChoice } from '../../shared/text/language'
 import type { ThemeChoice } from '../../shared/theme/theme'
 import { words as settingsWords } from '../settings/words'
 import { words } from './words'
 import type { RecordNoun } from '../../shared/storage/domain/recordKind'
 
-/** The settings this device keeps that the chat may change, each read and set the way Kuna settings and the home do. */
+/** The settings this device keeps that the chat may change, each read and set the way Kuna settings and the home do, and the page's sync. */
 export interface KunaDevice {
   theme(): ThemeChoice
   chooseTheme(choice: ThemeChoice): void
@@ -25,12 +28,13 @@ export interface KunaDevice {
   forgetStart(): void
   /** The installed apps, by id and name. */
   apps(): readonly { readonly id: string; readonly name: string }[]
-}
-
-/** A setting this device keeps, as a card counts it. */
-const DEVICE_SETTING: RecordNoun = {
-  en: { one: 'setting on this device', many: 'settings on this device', article: 'a' },
-  hr: { one: 'postavka na ovom uređaju', of: 'postavke na ovom uređaju', few: 'postavke na ovom uređaju', other: 'postavki na ovom uređaju', gender: 'feminine' },
+  /** Whether some app keeps its file on Drive, so a sync has something to read. */
+  syncs(): boolean
+  /** Runs the page's sync as Sync on the top bar does, and resolves to what the person should know of the run, or null when every step went through. */
+  syncNow(asking: SyncAsking): Promise<DoneWarning | null>
+  /** The cards this device keeps folded, by id. */
+  foldedCards(): readonly string[]
+  foldCard(cardId: string, folded: boolean): void
 }
 
 /** An app the person said they use, as a card counts it. */
@@ -42,6 +46,7 @@ const APP_IN_USE: RecordNoun = {
 const THEMES: readonly ThemeChoice[] = ['system', 'light', 'dark']
 const LANGUAGES: readonly LanguageChoice[] = ['browser', 'en', 'hr']
 const SWITCH = ['on', 'off'] as const
+const ASKING: readonly SyncAsking[] = ['due', 'now']
 
 /** One setting a card changes, with its value as read when the card was made and the value Accept sets. */
 type DeviceChange =
@@ -50,13 +55,12 @@ type DeviceChange =
   | { readonly setting: 'autoSync'; readonly before: boolean; readonly after: boolean }
   | { readonly setting: 'start'; readonly before: KunaStart; readonly after: KunaStart; readonly added: readonly string[] }
   | { readonly setting: 'start'; readonly before: KunaStart; readonly after: null }
+  | { readonly setting: 'folded'; readonly before: readonly string[]; readonly after: readonly string[] }
 
-/** What a Kuna card holds for Accept, which only this file reads. */
-interface HeldChanges {
-  readonly changes: readonly DeviceChange[]
-}
+/** What a Kuna card holds for Accept, which only this file reads: settings to change, or a sync to run. */
+type HeldChanges = { readonly kind: 'settings'; readonly changes: readonly DeviceChange[] } | { readonly kind: 'sync'; readonly asking: SyncAsking }
 
-/** The changes the chat can propose on this device. Nothing that guards what the chat sends, holds a key or needs Google's consent is among them. */
+/** The changes the chat can propose on this device, and the page's sync. Nothing that guards what the chat sends or holds a key is among them. */
 export function kunaOperations(device: KunaDevice): readonly AssistantOperation[] {
   const apps = device.apps().map((app) => app.id)
   return [
@@ -80,7 +84,7 @@ export function kunaOperations(device: KunaDevice): readonly AssistantOperation[
     },
     {
       name: 'switch-auto-sync',
-      about: 'Whether this device syncs as Kuna opens and when the person comes back after ten minutes. To sync now, the person taps Sync on the top bar.',
+      about: 'Whether this device syncs as Kuna opens and when the person comes back after ten minutes. To sync now, propose sync-now.',
       input: inputOf({ auto: { type: 'string', enum: SWITCH } }),
       refs: {},
       creates: null,
@@ -95,6 +99,25 @@ export function kunaOperations(device: KunaDevice): readonly AssistantOperation[
       creates: null,
       alone: false,
       example: { app: apps.at(-1) ?? '' },
+    },
+    {
+      name: 'sync-now',
+      about:
+        "Syncs every app whose file is on Drive, as Sync on the top bar does: it reads each file, then runs each app's steps, such as Company's mail and statements, Investments' prices and Spending's banks. It reaches Google and the banks. banks due leaves a bank alone for six hours after any device asked it. banks now asks each linked bank at once as the person's own fetch, as Sync now on Spending's settings does, which costs a call to every bank and may be refused by a bank asked often, so take now only when the person asks for the latest rows. It goes on a card of its own and has no Undo, since each step's write keeps its own Undo on the sync list.",
+      input: inputOf({ banks: { type: 'string', enum: ASKING } }),
+      refs: {},
+      creates: null,
+      alone: true,
+      example: { banks: 'due' },
+    },
+    {
+      name: 'open-folded-cards',
+      about: 'Opens every card the person folded on this device, on every screen. A card on the screen now opens the next time its screen shows. Undo folds them again.',
+      input: inputOf({}),
+      refs: {},
+      creates: null,
+      alone: false,
+      example: {},
     },
     {
       name: 'forget-files-home',
@@ -138,6 +161,11 @@ function changeOf(device: KunaDevice, { operation, input }: ProposalStep, earlie
       const start = device.start()
       if (start === null) throw new StepRefused(words.refused.notAnswered)
       return { setting: 'start', before: start, after: null }
+    }
+    case 'open-folded-cards': {
+      const folded = device.foldedCards()
+      if (folded.length === 0) throw new StepRefused(words.refused.noneFolded)
+      return { setting: 'folded', before: folded, after: [] }
     }
     default:
       throw new StepRefused('There is no such operation.')
@@ -191,6 +219,8 @@ function groupsOf(device: KunaDevice, changes: readonly DeviceChange[]): readonl
         return [{ name: settingsWords.sync.auto, before: switchName(change.before), after: switchName(change.after), warns: false }]
       case 'start':
         return change.after === null ? [{ name: settingsWords.filesHome.title, before: homeName(change.before.home), after: words.home.askAgain, warns: false }] : []
+      case 'folded':
+        return [{ name: words.foldedCards, before: formatCount(change.before.length), after: formatCount(change.after.length), warns: false }]
     }
   })
   const added = changes.flatMap((change) => (isAdding(change) ? change.added.map((id) => ({ label: device.apps().find((app) => app.id === id)?.name ?? id, fields: [], warning: null })) : []))
@@ -210,6 +240,8 @@ function valueOf(device: KunaDevice, setting: DeviceChange['setting']): unknown 
       return device.autoSync()
     case 'start':
       return device.start()
+    case 'folded':
+      return device.foldedCards()
   }
 }
 
@@ -234,15 +266,34 @@ function set(device: KunaDevice, change: DeviceChange, to: 'before' | 'after'): 
       else device.answerStart(start)
       return
     }
+    case 'folded':
+      change.before.forEach((cardId) => device.foldCard(cardId, to === 'before'))
+      return
   }
 }
 
-/** The settings of this device the chat may change. They live in this browser and hold nothing of the books, so a check reads none. */
+/** A sync goes on a card of its own, and only while some app keeps its file on Drive. */
+function syncCheck(device: KunaDevice, title: string, steps: readonly ProposalStep[]): CheckedProposal | { readonly refused: readonly string[] } {
+  if (steps.length > 1) return { refused: [words.refused.syncAlone] }
+  if (!device.syncs()) return { refused: [words.refused.nothingOnDrive] }
+  let asking: SyncAsking
+  try {
+    asking = choiceOf(ASKING, steps[0]!.input['banks'])
+  } catch (failure) {
+    if (failure instanceof StepRefused) return { refused: [failure.message] }
+    throw failure
+  }
+  const held: HeldChanges = { kind: 'sync', asking }
+  return { title, count: 1, groups: [], outside: [asking === 'now' ? words.outside.syncsBanksNow : words.outside.syncs], undoable: false, heldBack: null, held }
+}
+
+/** The settings of this device the chat may change, and the page's sync. They hold nothing of the books, so a check reads none. */
 export function kunaProposer(device: KunaDevice): AppProposer {
   return {
     operations: kunaOperations(device),
     readsBooks: false,
     check(title, steps) {
+      if (steps.some((step) => step.operation === 'sync-now')) return Promise.resolve(syncCheck(device, title, steps))
       let changes: readonly DeviceChange[]
       try {
         changes = changesOf(device, steps)
@@ -252,26 +303,34 @@ export function kunaProposer(device: KunaDevice): AppProposer {
       }
       if (changes.some((change) => sameValue(change.before, change.after))) return Promise.resolve({ refused: [words.refused.same] })
       const reloads = changes.some((change) => change.setting === 'language')
-      const held: HeldChanges = { changes }
+      const held: HeldChanges = { kind: 'settings', changes }
       const proposal: CheckedProposal = { title, count: steps.length, groups: groupsOf(device, changes), outside: reloads ? [words.outside.reloads] : [], undoable: !reloads, heldBack: null, held }
       return Promise.resolve(proposal)
     },
   }
 }
 
-/** Sets what the card shows, refused when a setting was changed since. Undo puts back each value while it is still the one the card set. */
+/**
+ * Sets what the card shows, refused when a setting was changed since. Undo puts back each value while it is still the one the card set.
+ * A sync runs inside the person's click, so Google's consent can open, and says what needs the person.
+ */
 export function kunaAcceptance(device: KunaDevice): AppAcceptance {
   return {
-    accept(proposal): Promise<AcceptResult> {
-      const { changes } = proposal.held as HeldChanges
-      if (changes.some((change) => !sameValue(change.before, valueOf(device, change.setting)))) return Promise.resolve({ kind: 'refused', reason: words.refused.changedSince })
+    async accept(proposal): Promise<AcceptResult> {
+      const held = proposal.held as HeldChanges
+      if (held.kind === 'sync') {
+        const warning = await device.syncNow(held.asking)
+        return warning === null ? { kind: 'done', undo: null } : { kind: 'done', undo: null, warning }
+      }
+      const { changes } = held
+      if (changes.some((change) => !sameValue(change.before, valueOf(device, change.setting)))) return { kind: 'refused', reason: words.refused.changedSince }
       changes.forEach((change) => set(device, change, 'after'))
       const undo = (): Promise<UndoResult> => {
         if (changes.some((change) => !sameValue(change.after, valueOf(device, change.setting)))) return Promise.resolve({ kind: 'refused', reason: sharedWords.proposalUndoEnded })
         for (const change of [...changes].reverse()) set(device, change, 'before')
         return Promise.resolve({ kind: 'undone' })
       }
-      return Promise.resolve({ kind: 'done', undo: proposal.undoable ? undo : null })
+      return { kind: 'done', undo: proposal.undoable ? undo : null }
     },
   }
 }

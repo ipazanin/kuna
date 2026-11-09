@@ -9,7 +9,7 @@ import { browserFetch, browserPause } from '../infrastructure/browserPricePorts'
 import { googlePricesDrive } from '../infrastructure/googlePricesDrive'
 import { openPricesCache } from '../infrastructure/pricesCache'
 import { storedSecret } from '../../../../shared/secrets/infrastructure/browserSecrets'
-import { countRequest, requestsToday } from '../infrastructure/vendorUsage'
+import { countRequest, requestsToday, setRequestsToday } from '../infrastructure/vendorUsage'
 import { PRICE_VENDORS } from '../infrastructure/vendors/priceVendors'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { fetchInBackground, pricesStep } from './pricesStep'
@@ -42,7 +42,7 @@ async function vendorFetch(): Promise<VendorFetch> {
   return browserFetch
 }
 
-/** Bumped with each request, so the Prices settings read this browser's counts again. */
+/** Bumped with each request and each count set, so the Prices settings read this browser's counts again. */
 const counted = ref(0)
 
 /** Every vendor request of the page, which the fake build answers itself, counted against its vendor's day. */
@@ -55,11 +55,20 @@ export const pageVendorFetch: VendorFetch = async (url) => {
   return (await vendorFetch())(url)
 }
 
+/** This browser's requests to each vendor today, read and set, so the Prices settings show a count the chat set at once. */
+export const pageRequestCounts = {
+  today: (vendorId: string): number => requestsToday(vendorId, new Date()),
+  set(vendorId: string, count: number): void {
+    setRequestsToday(vendorId, new Date(), count)
+    counted.value += 1
+  },
+}
+
 /** This browser's requests to the vendor today, which updates as the page sends more. */
 export function useRequestsToday(): (vendorId: string) => number {
   return (vendorId) => {
     void counted.value
-    return requestsToday(vendorId, new Date())
+    return pageRequestCounts.today(vendorId)
   }
 }
 

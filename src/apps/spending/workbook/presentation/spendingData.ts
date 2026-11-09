@@ -1,7 +1,7 @@
 import { pageAppData } from '../../../../shared/storage/presentation/pageAppData'
 import { exportAppFile } from '../../../../shared/storage/presentation/exportAppFile'
 import { saveLastFetch, savePendingLink, takeReturnNote } from '../../bankSync/infrastructure/bankBrowserState'
-import { forgetLastAccount } from '../../entries/presentation/lastAccount'
+import { forgetLastAccount } from '../../entries/infrastructure/lastAccount'
 import { words as appWords } from '../../words'
 import { useSpendingBooks } from '../application/spendingStore'
 import { SPENDING_APP } from '../domain/spendingBooks'

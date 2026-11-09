@@ -4,10 +4,11 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { addBankAccounts, bringBackBankDetails, fixOpening, keepMine, keepOutOfKuna, takeBankDetails } from '../application/bankSetupWrites'
-import type { BankSyncOutcome } from '../application/bankSync'
-import { bankAccountKey, setupLines } from '../domain/bankAccountSetup'
+import type { BankSetup } from '../application/bankSync'
+import { setupActions, setupLineCurrency, setupLineKey, setupLines } from '../domain/bankAccountSetup'
 import type { AccountProposal, SetupLine } from '../domain/bankAccountSetup'
 import type { LinkedAccount } from '../domain/bankAnswer'
+import { currentDifferences } from '../domain/bankBalance'
 import type { BalanceDifference } from '../domain/bankBalance'
 import { differenceLine, olderRowsLine, pendingCaption, pendingLine } from './bankStepResult'
 import { useBankSync } from './useBankSync'
@@ -24,7 +25,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 
 /** The Bank sync tab's list of every account the linked banks give, each kept, offered to add, offered to update, or left out of Kuna, and the fixes the last fetch's balances suggest. */
-const props = defineProps<{ outcome: Pick<BankSyncOutcome, 'linked' | 'proposals' | 'differences' | 'olderRows'> }>()
+const props = defineProps<{ outcome: BankSetup }>()
 
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
@@ -36,10 +37,7 @@ const lines = computed<readonly SetupLine[]>(() => (book.value === null ? [] : s
 const shown = computed(() => lines.value.filter((line) => line.kind !== 'not-in-kuna' && !(line.kind === 'kept' && line.update === null)))
 const kept = computed(() => lines.value.flatMap((line) => (line.kind === 'kept' && line.update === null ? [line] : [])))
 const leftOut = computed(() => lines.value.flatMap((line) => (line.kind === 'not-in-kuna' ? [line] : [])))
-/** The differences whose account still opens as it did at the fetch, so one fixed or edited since stops showing. */
-const differences = computed(() =>
-  props.outcome.differences.filter((difference) => book.value?.accounts.find((account) => account.id === difference.account.id)?.opening === difference.account.opening),
-)
+const differences = computed(() => currentDifferences(props.outcome.differences, book.value?.accounts ?? []))
 const explained = computed(() => differences.value.filter((difference) => difference.explained))
 const unexplained = computed(() => differences.value.filter((difference) => !difference.explained))
 const addable = computed(() => lines.value.flatMap((line) => (line.kind === 'missing' && line.proposal !== null ? [line.proposal] : [])))
@@ -90,15 +88,6 @@ function stateLine(line: SetupLine): string {
   return words.setup.notKept
 }
 
-function currencyOf(line: SetupLine): string {
-  if (line.kind === 'kept' || line.kind === 'fits') return line.update?.currency ?? line.account.currency
-  return line.kind === 'missing' ? line.currency : line.linked.currency
-}
-
-function keyOf(line: SetupLine): string {
-  return `${line.linked.uid} ${currencyOf(line)}`
-}
-
 async function add(proposals: readonly AccountProposal[], key: string): Promise<void> {
   const open = book.value
   if (open === null) return
@@ -110,12 +99,7 @@ async function update(account: Account, updated: Account, proposal: AccountPropo
   if (open === null) return
   const current = open.accounts.find((each) => each.id === account.id)
   if (current === undefined) return
-  await writes.write(words.setup.updated, (unit) => takeBankDetails(unit, open, current, { ...current, ...pick(updated) }, proposal, today()), { key, failedTitle: words.setup.notUpdated })
-}
-
-/** The bank's details only, so a change made to the account since the fetch stays. */
-function pick({ bank, iban, currency, kind }: Account): Pick<Account, 'bank' | 'iban' | 'currency' | 'kind'> {
-  return { bank, iban, currency, kind }
+  await writes.write(words.setup.updated, (unit) => takeBankDetails(unit, open, current, updated, proposal, today()), { key, failedTitle: words.setup.notUpdated })
 }
 
 async function leaveOut(linked: LinkedAccount, out: boolean, key: string): Promise<void> {
@@ -157,9 +141,9 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
         @click="add(addable, 'add-all')"
       />
       <ul v-if="shown.length > 0" class="divide-y divide-default rounded-control border border-default">
-        <li v-for="line in shown" :key="keyOf(line)" class="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="spending-bank-account" :data-kind="line.kind">
+        <li v-for="line in shown" :key="setupLineKey(line)" class="flex flex-wrap items-center gap-3 px-3 py-2.5" data-testid="spending-bank-account" :data-kind="line.kind">
           <span class="flex min-w-0 flex-1 basis-60 flex-col gap-0.5">
-            <span class="text-sm text-highlighted">{{ title(line.bank, currencyOf(line)) }}</span>
+            <span class="text-sm text-highlighted">{{ title(line.bank, setupLineCurrency(line)) }}</span>
             <span class="type-caption break-words" data-testid="spending-bank-account-about">{{ about(line.linked) }}</span>
             <span class="text-sm text-muted" data-testid="spending-bank-account-state">{{ stateLine(line) }}</span>
             <template v-if="line.kind === 'missing'">
@@ -180,9 +164,9 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
               color="neutral"
               variant="outline"
               size="sm"
-              :loading="writes.saving(`add-${keyOf(line)}`)"
+              :loading="writes.saving(`add-${setupLineKey(line)}`)"
               data-testid="spending-bank-account-add"
-              @click="add([line.proposal], `add-${keyOf(line)}`)"
+              @click="add([line.proposal], `add-${setupLineKey(line)}`)"
             />
             <UButton
               v-if="(line.kind === 'kept' || line.kind === 'fits') && line.update !== null"
@@ -190,29 +174,29 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
               color="neutral"
               variant="outline"
               size="sm"
-              :loading="writes.saving(`update-${keyOf(line)}`)"
+              :loading="writes.saving(`update-${setupLineKey(line)}`)"
               data-testid="spending-bank-account-update"
-              @click="update(line.account, line.update, line.kind === 'fits' ? line.proposal : null, `update-${keyOf(line)}`)"
+              @click="update(line.account, line.update, line.kind === 'fits' ? line.proposal : null, `update-${setupLineKey(line)}`)"
             />
             <UButton
-              v-if="line.kind === 'kept' && line.update !== null && bankAccountKey(line.linked) !== null"
+              v-if="setupActions(line).includes('keep-mine')"
               :label="words.setup.keepMine"
               color="neutral"
               variant="ghost"
               size="sm"
-              :loading="writes.saving(`mine-${keyOf(line)}`)"
+              :loading="writes.saving(`mine-${setupLineKey(line)}`)"
               data-testid="spending-bank-account-keep-mine"
-              @click="keepTheirs(line.linked, `mine-${keyOf(line)}`)"
+              @click="keepTheirs(line.linked, `mine-${setupLineKey(line)}`)"
             />
             <UButton
-              v-if="(line.kind === 'missing' || line.kind === 'fits') && bankAccountKey(line.linked) !== null"
+              v-if="setupActions(line).includes('leave-out')"
               :label="words.setup.leaveOut"
               color="neutral"
               variant="ghost"
               size="sm"
-              :loading="writes.saving(`out-${keyOf(line)}`)"
+              :loading="writes.saving(`out-${setupLineKey(line)}`)"
               data-testid="spending-bank-account-leave-out"
-              @click="leaveOut(line.linked, true, `out-${keyOf(line)}`)"
+              @click="leaveOut(line.linked, true, `out-${setupLineKey(line)}`)"
             />
           </span>
         </li>
@@ -274,21 +258,21 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
   </AppCard>
   <AppCard v-if="kept.length > 0" :title="plural(words.setup.keptCount(kept.length), kept.length)" collapse-id="spending.bank-sync.kept" start-collapsed data-testid="spending-bank-sync-kept">
     <ul class="divide-y divide-default border-t border-default">
-      <li v-for="line in kept" :key="keyOf(line)" class="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-5" data-testid="spending-bank-account" data-kind="kept">
+      <li v-for="line in kept" :key="setupLineKey(line)" class="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-5" data-testid="spending-bank-account" data-kind="kept">
         <span class="flex min-w-0 flex-1 basis-60 flex-col gap-0.5">
-          <span class="text-sm text-highlighted">{{ title(line.bank, currencyOf(line)) }}</span>
+          <span class="text-sm text-highlighted">{{ title(line.bank, setupLineCurrency(line)) }}</span>
           <span class="type-caption break-words" data-testid="spending-bank-account-about">{{ about(line.linked) }}</span>
           <span class="text-sm text-muted" data-testid="spending-bank-account-state">{{ stateLine(line) }}</span>
         </span>
         <UButton
-          v-if="line.keptMine"
+          v-if="setupActions(line).includes('bring-back-mine')"
           :label="words.setup.bringBack"
           color="neutral"
           variant="ghost"
           size="sm"
-          :loading="writes.saving(`mine-back-${keyOf(line)}`)"
+          :loading="writes.saving(`mine-back-${setupLineKey(line)}`)"
           data-testid="spending-bank-account-bring-back-mine"
-          @click="bringBackMine(line.linked, `mine-back-${keyOf(line)}`)"
+          @click="bringBackMine(line.linked, `mine-back-${setupLineKey(line)}`)"
         />
       </li>
     </ul>
@@ -300,9 +284,9 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
     data-testid="spending-bank-sync-not-in-kuna"
   >
     <ul class="divide-y divide-default border-t border-default">
-      <li v-for="line in leftOut" :key="keyOf(line)" class="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-5" data-testid="spending-bank-account" data-kind="not-in-kuna">
+      <li v-for="line in leftOut" :key="setupLineKey(line)" class="flex flex-wrap items-center gap-3 px-4 py-2.5 sm:px-5" data-testid="spending-bank-account" data-kind="not-in-kuna">
         <span class="flex min-w-0 flex-1 basis-60 flex-col gap-0.5">
-          <span class="text-sm text-highlighted">{{ title(line.bank, currencyOf(line)) }}</span>
+          <span class="text-sm text-highlighted">{{ title(line.bank, setupLineCurrency(line)) }}</span>
           <span class="type-caption break-words" data-testid="spending-bank-account-about">{{ about(line.linked) }}</span>
         </span>
         <UButton
@@ -310,9 +294,9 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
           color="neutral"
           variant="outline"
           size="sm"
-          :loading="writes.saving(`back-${keyOf(line)}`)"
+          :loading="writes.saving(`back-${setupLineKey(line)}`)"
           data-testid="spending-bank-account-bring-back"
-          @click="leaveOut(line.linked, false, `back-${keyOf(line)}`)"
+          @click="leaveOut(line.linked, false, `back-${setupLineKey(line)}`)"
         />
       </li>
     </ul>

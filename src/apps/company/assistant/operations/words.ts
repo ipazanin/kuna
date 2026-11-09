@@ -55,6 +55,14 @@ export const en = {
     'categories-look-right': 'The starting categories look right',
     'statements-by-hand': 'Statements are imported by hand',
   },
+  mailDrafts: {
+    thisDevice: 'This device',
+    field: 'Invoice mail drafts in Gmail',
+    on: 'On',
+    off: 'Off',
+    asksGmail: 'Accept asks Google to let Kuna save drafts in your Gmail, and that permission stays after Undo.',
+    changedSince: 'Nothing was changed. Invoice drafts were switched since the card was made.',
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -110,6 +118,14 @@ export const hr: Translation<typeof en> = {
   setUp: {
     'categories-look-right': 'Početne kategorije su u redu',
     'statements-by-hand': 'Izvodi se uvoze ručno',
+  },
+  mailDrafts: {
+    thisDevice: 'Ovaj uređaj',
+    field: 'Skice poruka s računima u Gmailu',
+    on: 'Uključeno',
+    off: 'Isključeno',
+    asksGmail: 'Kad prihvatite, Google traži da Kuni dopustite spremanje skica u Gmailu, a to dopuštenje ostaje i nakon poništavanja.',
+    changedSince: 'Ništa nije promijenjeno. Skice računa uključene su ili isključene nakon što je kartica napravljena.',
   },
 }
 

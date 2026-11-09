@@ -180,7 +180,7 @@ export interface PricesRuns {
   answer: PricesFetchRun
 }
 
-/** An Investments file where every operation's example has what it needs, with the chat's refs, the cards it was shown, the fetches Accept started, the prices runs and the history answer of this device. */
+/** An Investments file where every operation's example has what it needs, with the chat's refs, the cards it was shown, the fetches Accept started, the prices runs, and the history answer and request counts of this device. */
 export interface InvestmentsDesk {
   readonly store: WorkbookStore<InvestmentsBooks>
   readonly reads: ChatReads
@@ -189,6 +189,8 @@ export interface InvestmentsDesk {
   readonly runs: PricesRuns
   /** This device's answer, and the id of the file on screen it belongs to. */
   readonly history: { complete: boolean; file: string | null }
+  /** This browser's requests to each price vendor today, Twelve Data's at 7. */
+  readonly requests: Map<string, number>
   /** The files attached to the chat: a1 a workbook, a2 closes of the share and a3 a Flex report of a day in October. */
   readonly attachments: ChatAttachment[]
   ref(kind: string, id: string): string
@@ -217,6 +219,7 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
   const fetches = { count: 0 }
   const runs: PricesRuns = { asked: [], answer: { kind: 'written', file: PRICES_FILE } }
   const history = { complete: false, file: 'investments-file' as string | null }
+  const requests = new Map([['twelvedata', 7]])
   const run = (asked: string) => {
     runs.asked.push(asked)
     return Promise.resolve(runs.answer)
@@ -232,6 +235,7 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
     },
     mailReport: () => mailedReport(),
     history: { file: () => history.file, given: () => history.complete, give: () => (history.complete = true), takeBack: () => (history.complete = false) },
+    requestCounts: { today: (vendorId) => requests.get(vendorId) ?? 0, set: (vendorId, count) => requests.set(vendorId, count) },
   }
   const attachments = [await workbookAttachment('a1', DEPOSIT_WORKBOOK), closesAttachment('a2', 'SHARE.csv', 'Date,Close\n2026-10-01,101.5\n2026-10-02,102\n'), flexAttachment('a3', ['2026-10-12'])]
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
@@ -244,6 +248,7 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
     fetches,
     runs,
     history,
+    requests,
     attachments,
     ref: (kind, id) => reads.refs.recordRef({ app: 'investments', kind, id }),
     propose: (steps) =>

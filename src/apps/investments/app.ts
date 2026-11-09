@@ -28,7 +28,7 @@ import { useInvestmentsBooks } from './workbook/application/investmentsStore'
 import { INVESTMENTS_APP } from './workbook/infrastructure/investmentsDocument'
 import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { words as fileWords } from './workbook/presentation/words'
-import { startPrices, usePrices } from './prices/presentation/usePrices'
+import { pageRequestCounts, startPrices, usePrices } from './prices/presentation/usePrices'
 import { INVESTMENTS_ASSIST } from './assistant/investmentsAssist'
 import type { InvestmentsPorts } from './assistant/operations/investmentsOperations'
 
@@ -99,6 +99,7 @@ export const investmentsApp: AppContribution = {
       pricesFile: () => prices.state.copy?.file ?? null,
       mailReport: () => reading.value,
       history: { file: () => state.choice?.id ?? null, given: () => taxShown.value, give: confirmHistoryComplete, takeBack: forgetHistoryComplete },
+      requestCounts: pageRequestCounts,
     }
     return investmentsAssistant(
       {

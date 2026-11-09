@@ -18,6 +18,7 @@ import { startRates, useRates } from './rates/presentation/useRates'
 import { words as screenWords } from './screenWords'
 import { SPENDING_ASSIST } from './assistant/spendingAssist'
 import type { ReceiptPorts } from './assistant/operations/receiptOperation'
+import type { SpendingPorts } from './assistant/operations/spendingOperations'
 import { reviewCount } from './statements/domain/reviewQueue'
 import { spendingSyncGroup } from './sync/presentation/spendingSyncGroup'
 import { words } from './words'
@@ -87,12 +88,22 @@ export const spendingApp: AppContribution = {
   // Every figure on the Spending screens and on Net worth is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
   assistant: async () => {
-    const [{ spendingAssistant }, { spendingProposer, spendingAcceptance }, { qrTextOn }, { canKeepPhotoNow, receiptPhotos }, { modelOf }] = await Promise.all([
+    const [
+      { spendingAssistant },
+      { spendingProposer, spendingAcceptance },
+      { qrTextOn },
+      { canKeepPhotoNow, receiptPhotos },
+      { modelOf },
+      { heldBankSetup },
+      { forgetLastAccount, lastAccountId, rememberLastAccount, startingAccount },
+    ] = await Promise.all([
       import('./assistant/spendingAssistant'),
       import('./assistant/operations/spendingOperations'),
       import('./receipts/infrastructure/qrDecode'),
       import('./receipts/presentation/receiptPhotosPort'),
       import('../../shared/ai/application/assistSettings'),
+      import('./bankSync/presentation/useBankSync'),
+      import('./entries/infrastructure/lastAccount'),
     ])
     const store = useSpendingBooks()
     const receipts: ReceiptPorts = {
@@ -105,13 +116,15 @@ export const spendingApp: AppContribution = {
         return preset === null ? '' : modelOf(preset.id).id
       },
     }
+    const ports: SpendingPorts = { receipts, device: { bankSetup: heldBankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount } }
     return spendingAssistant(
       {
         status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
         book: () => state.workbook,
         rates: () => ratesIn(rates.value),
+        bankSetup: heldBankSetup,
       },
-      { proposer: spendingProposer(store, receipts), acceptance: spendingAcceptance(store, receipts) },
+      { proposer: spendingProposer(store, ports), acceptance: spendingAcceptance(store, ports) },
     )
   },
   homeCard: SPENDING_HOME_CARD,

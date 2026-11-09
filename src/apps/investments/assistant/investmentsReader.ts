@@ -5,7 +5,9 @@ import { incomeByYear } from '../income/domain/incomeHistory'
 import { recordsOn } from '../performance/domain/portfolioPerformance'
 import { foreignIncomeYear } from '../tax/domain/foreignIncome'
 import type { IncomeTax } from '../tax/domain/foreignIncome'
+import { SURTAX_CITIES_2023 } from '../tax/domain/surtaxRates2023'
 import { capitalGainsYear, taxYearsOf } from '../tax/domain/taxYear'
+import { placeSpellings, surtaxCityChoices } from '../tax/presentation/surtaxCityChoices'
 import type { CashMovement } from '../workbook/domain/cashMovement'
 import type { CheckSetting } from '../workbook/domain/checkSetting'
 import type { Exchange } from '../workbook/domain/exchange'
@@ -47,10 +49,11 @@ import type { CurrencyCode } from '../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, decimalText } from '../../../shared/money/decimal'
 import type { Decimal } from '../../../shared/money/decimal'
 import type { Money } from '../../../shared/money/money'
-import { nearestBasisPoints, pointsOfShare } from '../../../shared/money/percent'
-import type { Share } from '../../../shared/money/percent'
+import { nearestBasisPoints, pointsOfShare, writtenPercent } from '../../../shared/money/percent'
+import type { Percent, Share } from '../../../shared/money/percent'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
 import type { SettingRow } from '../../../shared/storage/domain/settingRows'
+import type { RecordKind } from '../../../shared/storage/domain/recordKind'
 import { words } from './words'
 
 /** What the reader reads from, which `app.ts` hands in over the app's own store and prices, so this folder holds no store. */
@@ -61,6 +64,48 @@ export interface InvestmentsReading {
   sources(): PortfolioSources | null
   /** Whether the owner told Kuna the file holds every buy, which the Tax screen waits for before it shows a figure. */
   taxShown(): boolean
+}
+
+/** A place in Porezna's surtax table for 2023, which the chat looks up by name before it proposes the 2023 city. */
+interface TablePlace {
+  readonly id: string
+  readonly code: string
+  readonly name: string
+  readonly spellings: readonly string[]
+  readonly office: string
+  readonly rate: Percent
+}
+
+const TABLE_PLACE: Pick<RecordKind<TablePlace>, 'name' | 'noun'> = {
+  name: 'surtax-city-2023',
+  noun: {
+    en: { one: 'place in the 2023 surtax table', many: 'places in the 2023 surtax table', article: 'a' },
+    hr: {
+      one: 'mjesto iz tablice prireza za 2023.',
+      of: 'mjesta iz tablice prireza za 2023.',
+      few: 'mjesta iz tablice prireza za 2023.',
+      other: 'mjesta iz tablice prireza za 2023.',
+      gender: 'neuter',
+    },
+  },
+}
+
+const TABLE_PLACES: readonly TablePlace[] = surtaxCityChoices(SURTAX_CITIES_2023).map((choice) => ({
+  id: choice.city.code,
+  code: choice.city.code,
+  name: choice.city.name,
+  spellings: placeSpellings(choice),
+  office: choice.city.office,
+  rate: choice.city.rate,
+}))
+
+const TABLE_PLACE_FIELDS: FieldDocs<TablePlace> = {
+  id: { exposure: 'never', meaning: 'The place.' },
+  code: { exposure: 'plain', meaning: "Porezna's code of the place, which surtax_city_2023 holds." },
+  name: { exposure: 'plain', meaning: 'The name as the table writes it.' },
+  spellings: { exposure: 'plain', meaning: 'The ways a person writes the name, which a query matches.' },
+  office: { exposure: 'plain', meaning: 'The Porezna office it is under, which tells two places of one name apart.' },
+  rate: { exposure: 'plain', meaning: 'The yearly surtax rate for 2023.', read: (place) => `${writtenPercent(place.rate)}%` },
 }
 
 /** A decimal as the file stores it, with its currency, so `12.5 USD` reads the same in every language. */
@@ -358,7 +403,7 @@ function taxReport(sources: PortfolioSources, period: string | null, shown: bool
   ]
 }
 
-/** What the chat can read of Investments: every kind but the mail reader, with every field classified, and the figures the screens show, from the same functions. Nothing here writes. */
+/** What the chat can read of Investments: every kind but the mail reader, with every field classified, Porezna's 2023 surtax table, and the figures the screens show, from the same functions. Nothing here writes. */
 export function investmentsReader(reading: InvestmentsReading): AppReader {
   const fields = fieldsOf(() => reading.book())
   const rows = <R>(of: (book: InvestmentBook) => readonly R[]): readonly R[] => {
@@ -423,6 +468,7 @@ export function investmentsReader(reading: InvestmentsReading): AppReader {
       readableKind({ kind: TARGET_RECORDS, about: words.reads.target, fields: fields.target, dated: null, rows: () => rows((book) => book.targets), currencyOf: euro }),
       readableKind({ kind: CHECK_RECORDS, about: words.reads.check, fields: fields.check, dated: null, rows: () => rows((book) => book.checks), currencyOf: euro }),
       readableKind({ kind: SETTING_RECORDS, about: words.reads.setting, fields: fields.setting, dated: null, rows: () => rows((book) => book.settings), currencyOf: euro }),
+      readableKind({ kind: TABLE_PLACE, about: words.reads.surtaxCity2023, fields: TABLE_PLACE_FIELDS, dated: null, rows: () => TABLE_PLACES, currencyOf: euro }),
     ],
     reports: [
       { id: 'portfolio', title: words.reports.portfolio.title, about: words.reports.portfolio.about, period: 'day', figures: report(portfolioReport) },

@@ -4,8 +4,9 @@ import { catalogueOf } from '../src/shared/ai/application/catalogue'
 import { proposeChanges } from '../src/shared/ai/application/chatProposals'
 import type { ChatReads } from '../src/shared/ai/application/chatReads'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
-import type { CheckedProposal } from '../src/shared/app/assistantOperations'
+import type { CheckedProposal, DoneWarning } from '../src/shared/app/assistantOperations'
 import type { KunaStart } from '../src/shared/app/kunaStart'
+import type { SyncAsking } from '../src/shared/sync/application/sync'
 import type { LanguageChoice } from '../src/shared/text/language'
 import type { ThemeChoice } from '../src/shared/theme/theme'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
@@ -16,9 +17,18 @@ import type { KunaDevice } from '../src/shell/assistant/kunaOperations'
 import { words } from '../src/shell/assistant/words'
 import { words as settingsWords } from '../src/shell/settings/words'
 
-/** A device as Kuna settings and the home keep it, in memory. */
-function fakeDevice(start: KunaStart | null = { home: 'drive', apps: ['company'] }) {
-  const held = { theme: 'system' as ThemeChoice, language: 'browser' as LanguageChoice, autoSync: true, start, reloads: 0 }
+/** A device as Kuna settings and the home keep it, in memory, with a file on Drive and two cards folded. A sync ends in `warning`. */
+function fakeDevice(start: KunaStart | null = { home: 'drive', apps: ['company'] }, warning: DoneWarning | null = null) {
+  const held = {
+    theme: 'system' as ThemeChoice,
+    language: 'browser' as LanguageChoice,
+    autoSync: true,
+    start,
+    reloads: 0,
+    onDrive: true,
+    syncs: [] as SyncAsking[],
+    folded: new Set(['assets.list', 'billing.rows']),
+  }
   const device: KunaDevice = {
     theme: () => held.theme,
     chooseTheme: (choice) => (held.theme = choice),
@@ -37,6 +47,13 @@ function fakeDevice(start: KunaStart | null = { home: 'drive', apps: ['company']
       { id: 'loans', name: 'Loans' },
       { id: 'spending', name: 'Spending' },
     ],
+    syncs: () => held.onDrive,
+    syncNow: async (asking) => {
+      held.syncs.push(asking)
+      return warning
+    },
+    foldedCards: () => [...held.folded].sort(),
+    foldCard: (cardId, folded) => (folded ? held.folded.add(cardId) : held.folded.delete(cardId)),
   }
   return { held, device }
 }
@@ -59,14 +76,14 @@ describe("Kuna's own operations", () => {
     'have an example that passes the check without asking to read any books, and sets it on Accept: %s',
     async (_name, operation) => {
       const { held, device } = fakeDevice()
-      const before = JSON.stringify(held)
+      const before = JSON.stringify({ ...held, folded: [...held.folded] })
       const { answer, cards } = propose(device, [{ op: operation.name, input: operation.example }])
 
       expect((await answer).isError, (await answer).text).toBe(false)
       const done = await kunaAcceptance(device).accept(cards[0]!)
 
       expect(done.kind).toBe('done')
-      expect(JSON.stringify(held)).not.toBe(before)
+      expect(JSON.stringify({ ...held, folded: [...held.folded] })).not.toBe(before)
     },
   )
 
@@ -143,6 +160,57 @@ describe("Kuna's own operations", () => {
     expect((await withApp.answer).text).toBe(words.refused.twice)
   })
 
+  it('syncs in the click with the banks as asked, says what needs the person, and has no Undo', async () => {
+    const warning = { text: 'Company, Mail: Waits for your Gmail read access.', link: null }
+    const { held, device } = fakeDevice(undefined, warning)
+    const { answer, cards } = propose(device, [{ op: 'sync-now', input: { banks: 'now' } }])
+    await answer
+
+    const done = await kunaAcceptance(device).accept(cards[0]!)
+
+    expect(cards[0]!).toMatchObject({ groups: [], outside: [words.outside.syncsBanksNow], undoable: false })
+    expect(done).toEqual({ kind: 'done', undo: null, warning })
+    expect(held.syncs).toEqual(['now'])
+  })
+
+  it('refuses a sync beside another change, and one with no file on Drive', async () => {
+    const beside = propose(fakeDevice().device, [
+      { op: 'set-theme', input: { theme: 'dark' } },
+      { op: 'sync-now', input: { banks: 'due' } },
+    ])
+    const { held, device } = fakeDevice()
+    held.onDrive = false
+    const offDrive = propose(device, [{ op: 'sync-now', input: { banks: 'due' } }])
+
+    expect((await beside.answer).text).toBe(words.refused.syncAlone)
+    expect((await offDrive.answer).text).toBe(words.refused.nothingOnDrive)
+  })
+
+  it('opens every folded card, and Undo folds them again while none was folded since', async () => {
+    const { held, device } = fakeDevice()
+    const { answer, cards } = propose(device, [{ op: 'open-folded-cards', input: {} }])
+    await answer
+
+    const done = await kunaAcceptance(device).accept(cards[0]!)
+
+    expect(held.folded.size).toBe(0)
+    expect(cards[0]!.groups[0]!.lines[0]!.fields).toEqual([{ name: words.foldedCards, before: '2', after: '0', warns: false }])
+    if (done.kind !== 'done' || done.undo === null) throw new Error('No Undo')
+    held.folded.add('loans.list')
+    expect((await done.undo()).kind).toBe('refused')
+    held.folded.delete('loans.list')
+    expect((await done.undo()).kind).toBe('undone')
+    expect([...held.folded].sort()).toEqual(['assets.list', 'billing.rows'])
+  })
+
+  it('refuses to open folded cards when none is folded', async () => {
+    const { held, device } = fakeDevice()
+    held.folded.clear()
+    const { answer } = propose(device, [{ op: 'open-folded-cards', input: {} }])
+
+    expect((await answer).text).toBe(words.refused.noneFolded)
+  })
+
   it('refuses what would change nothing, a setting twice, an app in use, and an app before the home asked', async () => {
     const same = propose(fakeDevice().device, [{ op: 'set-theme', input: { theme: 'system' } }])
     const twice = propose(fakeDevice().device, [
@@ -158,17 +226,17 @@ describe("Kuna's own operations", () => {
     expect((await unasked.answer).text).toBe(words.refused.noAnswer)
   })
 
-  it('reaches no Anonymise, key, provider or sync, which its page names as only the person sets them on Kuna settings', async () => {
+  it('reaches no Anonymise, key, provider, Google access or history, which its page names as only the person sets them on Kuna settings', async () => {
     const operations = kunaOperations(fakeDevice().device).map((operation) => operation.name)
-    for (const op of ['set-anonymise', 'set-provider', 'set-key', 'sync-now', 'clear-history', 'sign-out']) {
+    for (const op of ['set-anonymise', 'set-provider', 'set-key', 'allow-access', 'clear-history', 'sign-out']) {
       const { answer } = propose(fakeDevice().device, [{ op, input: {} }])
       expect((await answer).isError).toBe(true)
     }
     const catalogue = catalogueOf([], { ...KUNA_CHAT, assistant: kunaAssistant() })
     const page = catalogue.pages.get('kuna')!
 
-    expect(operations).toEqual(['set-theme', 'set-language', 'switch-auto-sync', 'add-app', 'forget-files-home'])
-    for (const key of ['ai_provider', 'anonymise', 'chat_history', 'sync_now', 'google_sign_in']) expect(page.split(`- ${key}: `)[1]!.split('\n')[0]).toContain('Only a person sets it')
+    expect(operations).toEqual(['set-theme', 'set-language', 'switch-auto-sync', 'add-app', 'sync-now', 'open-folded-cards', 'forget-files-home'])
+    for (const key of ['ai_provider', 'anonymise', 'chat_history', 'google_sign_in']) expect(page.split(`- ${key}: `)[1]!.split('\n')[0]).toContain('Only a person sets it')
     expect(page).toContain('- Kuna settings: /settings')
     expect(catalogue.proposers.has('kuna')).toBe(true)
     expect([...catalogue.pages.keys()].filter((path) => path.startsWith('kuna/op/'))).toEqual(operations.map((operation) => `kuna/op/${operation}`))

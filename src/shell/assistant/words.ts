@@ -8,8 +8,11 @@ export const en = {
   on: 'On',
   off: 'Off',
   thisDevice: 'This device',
+  foldedCards: 'Folded cards',
   outside: {
     reloads: 'This card has no Undo. Kuna loads again in the new language, and the chat stays.',
+    syncs: 'Accept syncs every app whose file is on Drive, through Google and the banks. A bank asked in the last six hours is left alone. What each step writes keeps its Undo on the sync list.',
+    syncsBanksNow: 'Accept syncs every app whose file is on Drive, through Google and the banks, and asks every linked bank now. What each step writes keeps its Undo on the sync list.',
   },
   home: {
     drive: 'Google Drive',
@@ -23,6 +26,9 @@ export const en = {
     inUse: 'That app is already in use on this device.',
     notAnswered: 'Kuna already asks where new files go, as this device keeps no answer.',
     changedSince: 'Nothing was changed. That setting was changed since the card was made.',
+    noneFolded: 'No card is folded on this device.',
+    syncAlone: 'A sync goes on a card of its own. Propose it alone.',
+    nothingOnDrive: 'No app keeps its file on Google Drive, so there is nothing to sync.',
   },
   settings: {
     theme: 'The look on this device: system, light or dark.',
@@ -30,11 +36,12 @@ export const en = {
     autoSync: 'Whether this device syncs as Kuna opens and when it comes back after ten minutes.',
     apps: 'The apps the person said they use. An app left out waits under Other apps on the home until it has a file.',
     filesHome: 'Where new files go, Google Drive or this browser. The chat may only forget the answer, so Kuna asks again.',
+    syncNow: 'Sync now, of every app whose file is on Drive, with the banks asked once six hours have passed or at once.',
+    foldedCards: 'The cards the person folded on this device. The chat may only open them all.',
     neverProvider: 'The AI company, its key and its model, and fetching or deleting keys kept in the Google account.',
     neverAnonymise: 'Anonymise for each AI company, and each app’s Send without asking. They guard what the chat sends.',
     neverHistory: 'Clearing the chat history.',
-    neverSync: 'Sync now, and allowing Google access a sync misses. Google’s consent window needs the person, and a sync is started from the top bar.',
-    neverGoogle: 'Signing out of Google, and deleting all of Kuna.',
+    neverGoogle: 'Signing out of Google, allowing Google access a sync misses, and deleting all of Kuna. Google’s consent window needs the person.',
   },
 }
 
@@ -43,8 +50,13 @@ export const hr: Translation<typeof en> = {
   on: 'Uključeno',
   off: 'Isključeno',
   thisDevice: 'Ovaj uređaj',
+  foldedCards: 'Sklopljene kartice',
   outside: {
     reloads: 'Ova kartica nema poništavanje. Kuna se ponovno učitava na novom jeziku, a razgovor ostaje.',
+    syncs:
+      'Prihvati sinkronizira svaku aplikaciju čija je datoteka na Driveu, preko Googlea i banaka. Banka upitana u zadnjih šest sati ostaje na miru. Ono što svaki korak zapiše zadržava poništavanje na popisu sinkronizacije.',
+    syncsBanksNow:
+      'Prihvati sinkronizira svaku aplikaciju čija je datoteka na Driveu, preko Googlea i banaka, i odmah pita svaku povezanu banku. Ono što svaki korak zapiše zadržava poništavanje na popisu sinkronizacije.',
   },
   home: {
     drive: 'Google Drive',
@@ -58,6 +70,9 @@ export const hr: Translation<typeof en> = {
     inUse: 'Ta se aplikacija na ovom uređaju već koristi.',
     notAnswered: 'Kuna već pita gdje idu nove datoteke jer ovaj uređaj ne čuva odgovor.',
     changedSince: 'Ništa nije promijenjeno. Ta je postavka promijenjena nakon što je kartica napravljena.',
+    noneFolded: 'Na ovom uređaju nijedna kartica nije sklopljena.',
+    syncAlone: 'Sinkronizacija ide na zasebnu karticu. Predložite je samu.',
+    nothingOnDrive: 'Nijedna aplikacija ne drži datoteku na Google Driveu, pa nema što sinkronizirati.',
   },
   settings: {
     theme: 'Izgled na ovom uređaju: „system”, „light” ili „dark”.',
@@ -65,11 +80,12 @@ export const hr: Translation<typeof en> = {
     autoSync: 'Sinkronizira li se ovaj uređaj kad se Kuna otvori i kad joj se vratite nakon deset minuta.',
     apps: 'Aplikacije za koje je osoba rekla da ih koristi. Izostavljena aplikacija čeka pod Ostale aplikacije na početnoj stranici dok ne dobije datoteku.',
     filesHome: 'Gdje idu nove datoteke, Google Drive ili ovaj preglednik. Razgovor smije samo zaboraviti odgovor, pa Kuna ponovno pita.',
+    syncNow: 'Sinkroniziraj sada, za svaku aplikaciju čija je datoteka na Driveu, s bankama upitanima nakon šest sati ili odmah.',
+    foldedCards: 'Kartice koje je osoba sklopila na ovom uređaju. Razgovor ih smije samo sve otvoriti.',
     neverProvider: 'AI tvrtka, njezin ključ i model te dohvat ili brisanje ključeva spremljenih na Google računu.',
     neverAnonymise: 'Anonimiziraj za svaku AI tvrtku i Šalji bez pitanja svake aplikacije. Oni čuvaju ono što razgovor šalje.',
     neverHistory: 'Brisanje povijesti razgovora.',
-    neverSync: 'Sinkroniziraj sada i dopuštanje Google pristupa koji sinkronizaciji nedostaje. Googleov prozor za privolu traži osobu, a sinkronizacija se pokreće s gornje trake.',
-    neverGoogle: 'Odjava s Googlea i brisanje cijele Kune.',
+    neverGoogle: 'Odjava s Googlea, dopuštanje Google pristupa koji sinkronizaciji nedostaje i brisanje cijele Kune. Googleov prozor za privolu traži osobu.',
   },
 }
 

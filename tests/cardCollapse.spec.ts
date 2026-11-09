@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { rememberCollapse, storedCollapse } from '../src/shared/ui/cardCollapse'
+import { foldedCards, rememberCollapse, storedCollapse } from '../src/shared/ui/cardCollapse'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -21,6 +21,15 @@ describe('remembered card state', () => {
     expect(storedCollapse('billing.rows')).toBe(true)
   })
 
+  it('lists the cards kept folded, and none of what else this device keeps', () => {
+    rememberCollapse('billing.rows', true)
+    rememberCollapse('billing.months', false)
+    rememberCollapse('assets.list', true)
+    localStorage.setItem('kuna.theme', 'collapsed')
+
+    expect(foldedCards()).toEqual(['assets.list', 'billing.rows'])
+  })
+
   it('reads a damaged entry as no choice', () => {
     localStorage.setItem('kuna.card.billing.months', 'sideways')
 
@@ -37,5 +46,6 @@ describe('remembered card state', () => {
 
     expect(() => rememberCollapse('billing.months', true)).not.toThrow()
     expect(storedCollapse('billing.months')).toBeNull()
+    expect(foldedCards()).toEqual([])
   })
 })

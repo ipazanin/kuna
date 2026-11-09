@@ -48,3 +48,8 @@ export function balanceDifferences(stated: readonly StatedBalance[], rows: reado
     return [{ account, stated: balance, worked, pending, explained: difference === pending, fixedOpening: pending === null ? addAccountMoney(account.opening, difference) : null }]
   })
 }
+
+/** The differences whose account still opens as it did at the fetch, so one fixed or edited since drops out. */
+export function currentDifferences(differences: readonly BalanceDifference[], accounts: readonly Pick<Account, 'id' | 'opening'>[]): readonly BalanceDifference[] {
+  return differences.filter((difference) => accounts.find((account) => account.id === difference.account.id)?.opening === difference.account.opening)
+}

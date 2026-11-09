@@ -68,6 +68,9 @@ export interface BankSyncOutcome {
   readonly receipt: WriteReceipt | null
 }
 
+/** What the set-up list of bank accounts works from. */
+export type BankSetup = Pick<BankSyncOutcome, 'linked' | 'proposals' | 'differences' | 'olderRows'>
+
 export interface BankImportPorts {
   /** The script, told when a person started the fetch, which lifts the banks' limit on unattended reads. */
   script(deployment: string, personHere: boolean): Promise<BankSyncPort>

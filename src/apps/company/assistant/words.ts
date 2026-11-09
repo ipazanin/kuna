@@ -72,6 +72,9 @@ export const en = {
         ].join('\n'),
     },
   },
+  settings: {
+    mailDrafts: 'Whether an invoice made on this device also saves a Gmail draft with the PDF attached. Nothing is ever sent. Turning it on for books on Drive asks Google to allow Gmail drafts.',
+  },
   quickActions: {
     sort: { label: 'Sort what is waiting', prompt: 'Suggest categories for the rows waiting on To review, and propose a rule where the same counterparty keeps coming.' },
     month: { label: 'How did this month go?', prompt: "How do this month's income, cost and profit compare with last month?" },
@@ -129,6 +132,9 @@ export const hr: Translation<typeof en> = {
           `4. Poruka nakon promjene kategorije nudi ${labels.makeRule}, pa se ista vrsta retka sljedeći put razvrsta sama. Sva pravila navedena su na zaslonu ${labels.settings}, na kartici ${labels.categoryRules}.`,
         ].join('\n'),
     },
+  },
+  settings: {
+    mailDrafts: 'Sprema li račun izrađen na ovom uređaju i skicu u Gmailu s priloženim PDF-om. Ništa se nikad ne šalje. Kad se uključi za knjige na Driveu, Google traži dopuštenje za skice u Gmailu.',
   },
   quickActions: {
     sort: { label: 'Razvrstaj ono što čeka', prompt: 'Predloži kategorije za retke koji čekaju na kartici Za provjeru i predloži pravilo gdje se isti partner ponavlja.' },

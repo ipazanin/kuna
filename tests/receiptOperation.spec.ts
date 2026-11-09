@@ -6,7 +6,7 @@ import type { ReceiptPhotos } from '../src/apps/spending/receipts/application/re
 import { jpegWithMadeUpPlace, sampleFiscalQrText } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto'
 import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
-import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, receiptPorts, spendingDesk } from './fixtures/spendingDesk'
+import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, deskPorts, receiptPorts, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
 
@@ -81,7 +81,7 @@ describe('a receipt from the chat', () => {
 
   it("takes the QR code's date and total over the read's, and warns on the card", async () => {
     const qrText = sampleFiscalQrText(parseCivilDate('2026-10-21')!, 3100)
-    const desk = await spendingDesk(used, receiptPorts({ qrTextOn: async () => qrText }))
+    const desk = await spendingDesk(used, deskPorts(receiptPorts({ qrTextOn: async () => qrText })))
 
     await desk.propose([receipt(desk, { total: 30, issuedOn: '2026-10-20' })], [attachedPhoto()])
     await desk.accept()
@@ -180,7 +180,7 @@ describe('a receipt from the chat', () => {
 describe("a receipt's photo kept on Drive", () => {
   it('is kept in the click before the write, under the id the receipt holds, and the card says it stays after Undo', async () => {
     const keep = vi.fn<ReceiptPhotos['keep']>(async () => 'kept-photo-id')
-    const desk = await spendingDesk(used, receiptPorts({ photos: async () => ({ keep }) }))
+    const desk = await spendingDesk(used, deskPorts(receiptPorts({ photos: async () => ({ keep }) })))
 
     await desk.propose([receipt(desk, { keepPhoto: true })], [attachedPhoto()])
     expect(desk.cards[0]!.outside).toEqual([words.receipts.photoStays])
@@ -194,9 +194,9 @@ describe("a receipt's photo kept on Drive", () => {
   })
 
   it('is refused with the books off Drive, or with no way to Drive on this device, before a card shows', async () => {
-    const offDrive = await spendingDesk(used, receiptPorts({ keepsOnDrive: () => false }))
+    const offDrive = await spendingDesk(used, deskPorts(receiptPorts({ keepsOnDrive: () => false })))
     expect((await offDrive.propose([receipt(offDrive, { keepPhoto: true })], [attachedPhoto()])).text).toContain('keepPhoto false')
-    const noAccess = await spendingDesk(used, receiptPorts({ mayKeepNow: () => false }))
+    const noAccess = await spendingDesk(used, deskPorts(receiptPorts({ mayKeepNow: () => false })))
     expect((await noAccess.propose([receipt(noAccess, { keepPhoto: true })], [attachedPhoto()])).text).toContain('keepPhoto false')
   })
 
@@ -204,7 +204,7 @@ describe("a receipt's photo kept on Drive", () => {
     const keep = vi.fn<ReceiptPhotos['keep']>(async () => 'kept-photo-id')
     let asked = 0
     // The check, the keep and the plan with the kept photo each ask for Drive. The third ask of the first Accept fails after the keep.
-    const desk = await spendingDesk(used, receiptPorts({ photos: async () => ({ keep }), mayKeepNow: () => ++asked !== 3 }))
+    const desk = await spendingDesk(used, deskPorts(receiptPorts({ photos: async () => ({ keep }), mayKeepNow: () => ++asked !== 3 })))
     const photo = attachedPhoto()
 
     await desk.propose([receipt(desk, { keepPhoto: true })], [photo])
@@ -218,7 +218,7 @@ describe("a receipt's photo kept on Drive", () => {
 
   it('refuses Accept and writes nothing when the way to Drive went after the card showed', async () => {
     let reachable = true
-    const desk = await spendingDesk(used, receiptPorts({ mayKeepNow: () => reachable }))
+    const desk = await spendingDesk(used, deskPorts(receiptPorts({ mayKeepNow: () => reachable })))
     await desk.propose([receipt(desk, { keepPhoto: true })], [attachedPhoto()])
     reachable = false
 

@@ -1,11 +1,20 @@
+import { vi } from 'vitest'
+
 import type { ReceiptPorts } from '../../src/apps/spending/assistant/operations/receiptOperation'
 import { spendingAcceptance, spendingProposer } from '../../src/apps/spending/assistant/operations/spendingOperations'
+import type { SpendingPorts } from '../../src/apps/spending/assistant/operations/spendingOperations'
+import type { BankSetup } from '../../src/apps/spending/bankSync/application/bankSync'
+import { proposeAccount } from '../../src/apps/spending/bankSync/domain/bankAccountSetup'
+import type { LinkedAccount } from '../../src/apps/spending/bankSync/domain/bankAnswer'
+import { forgetLastAccount, lastAccountId, rememberLastAccount, startingAccount } from '../../src/apps/spending/entries/infrastructure/lastAccount'
+import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY } from '../../src/apps/spending/workbook/domain/spendingSettings'
+import { settingRow } from '../../src/shared/storage/domain/settingRows'
 import { codecOfSpendingKind } from '../../src/apps/spending/workbook/application/spendingCodecs'
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingRule } from '../../src/apps/spending/workbook/domain/spendingRule'
 import type { Transaction } from '../../src/apps/spending/workbook/domain/transaction'
 import { NO_BANK_FACTS } from '../../src/apps/spending/workbook/domain/transaction'
@@ -99,6 +108,31 @@ const RECEIPT: Receipt = {
 
 const RULE: SpendingRule = { id: recordIdOf(RULE_RECORDS, 'rule-corner'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner' }, category: GROCERIES.id }
 
+function linkedAccount(uid: string, iban: string, currency: string, described: Partial<LinkedAccount> = {}): LinkedAccount {
+  return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null, ...described }
+}
+
+const LEFT_OUT_IBAN = 'LT000000000000000007'
+
+/**
+ * What the page holds after a made-up bank sync: a Revolut pound account Kuna does not keep, drafted with no rows, the OTP
+ * account Current kept by its IBAN that the bank calls savings, a Revolut account left out of Kuna, and a balance on Current
+ * that the opening would fix.
+ */
+export function deskBankSetup(): BankSetup {
+  const pounds = linkedAccount('uid-pounds', 'LT000000000000000009', 'GBP')
+  return {
+    linked: [
+      { bank: 'revolut', account: pounds },
+      { bank: 'otp', account: linkedAccount('uid-current', CURRENT.iban, 'EUR', { cashAccountType: 'SVGS' }) },
+      { bank: 'revolut', account: linkedAccount('uid-left-out', LEFT_OUT_IBAN, 'EUR') },
+    ],
+    proposals: [proposeAccount(pounds, 'revolut', currencyCodeOf('GBP')!, [], [], recordIdOf(ACCOUNT_RECORDS, 'account-pounds'), on('2026-11-07'), [])],
+    differences: [{ account: CURRENT, stated: accountMoneyFromAmount(900), worked: accountMoneyFromAmount(1000), pending: null, explained: false, fixedOpening: accountMoneyFromAmount(900) }],
+    olderRows: [],
+  }
+}
+
 /** The record each operation's example names, by the name it gives it. */
 export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   category: RENT.id,
@@ -113,6 +147,9 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'account-other': SAVINGS.id,
   'account-empty': WALLET.id,
   rule: RULE.id,
+  'bank-account-missing': 'uid-pounds GBP',
+  'bank-account-update': 'uid-current EUR',
+  'bank-account-left-out': 'uid-left-out EUR',
 }
 
 export const DESK_ACCOUNTS = { CURRENT, SAVINGS, DOLLARS, WALLET, REVOLUT }
@@ -133,6 +170,17 @@ export function receiptPorts(fields: Partial<ReceiptPorts> = {}): ReceiptPorts {
   }
 }
 
+/** The ports `app.ts` hands the operations, with the desk's bank set-up list and this browser's starting account kept in a made-up storage. */
+export function deskPorts(receipts: ReceiptPorts = receiptPorts(), bankSetup: BankSetup | null = deskBankSetup()): SpendingPorts {
+  const stored = new Map<string, string>()
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, text: string) => stored.set(key, text),
+    removeItem: (key: string) => stored.delete(key),
+  })
+  return { receipts, device: { bankSetup: () => bankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount } }
+}
+
 /** A photo attached to the chat, of a few made-up bytes with no QR code and no place in them. */
 export function attachedPhoto(id = 'a1'): ChatAttachment {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
@@ -149,20 +197,21 @@ export interface SpendingDesk {
   accept(at?: number): ReturnType<ReturnType<typeof spendingAcceptance>['accept']>
 }
 
-export async function spendingDesk(used: Set<string>, receipts: ReceiptPorts = receiptPorts()): Promise<SpendingDesk> {
+export async function spendingDesk(used: Set<string>, ports: SpendingPorts = deskPorts()): Promise<SpendingDesk> {
   const document = spendingDocumentOf('2026-11-07T09:00:00.000Z', {
     ...stored(ACCOUNT_RECORDS, [CURRENT, SAVINGS, DOLLARS, WALLET, REVOLUT]),
     ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY]),
     ...stored(TRANSACTION_RECORDS, ROWS),
     ...stored(RULE_RECORDS, [RULE]),
     ...stored(RECEIPT_RECORDS, [RECEIPT]),
+    ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),
   })
   const { store } = await browserHarness(used, document, SPENDING)
   const typed = store as unknown as WorkbookStore<SpendingBooks>
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['spending', spendingProposer(typed, receipts)]])
-  const acceptance = spendingAcceptance(typed, receipts)
+  const proposers = new Map([['spending', spendingProposer(typed, ports)]])
+  const acceptance = spendingAcceptance(typed, ports)
   return {
     store: typed,
     reads,

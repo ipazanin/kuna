@@ -7,7 +7,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { entryCategoryChoices } from './categoryChoices'
-import { rememberLastAccount, startingAccount } from './lastAccount'
+import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
 import { words } from './words'
 import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, writeEntry, writeTransfer } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'

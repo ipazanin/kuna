@@ -4,6 +4,8 @@ import { words as mailWords } from '../../mail/presentation/words'
 import { thresholdText } from '../../overview/presentation/checkLines'
 import { words as overviewWords } from '../../overview/presentation/words'
 import { words as vendorWords } from '../../prices/infrastructure/vendors/words'
+import { storedCityText } from '../../tax/presentation/surtaxCityChoices'
+import { words as taxWords } from '../../tax/presentation/words'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
 import type { CheckSetting } from '../../workbook/domain/checkSetting'
 import type { Exchange } from '../../workbook/domain/exchange'
@@ -22,11 +24,13 @@ import {
   INVESTMENT_ACCOUNT_RECORDS,
   MAIL_READER_RECORDS,
   PRICE_RECORDS,
+  SETTING_RECORDS,
   SPIN_OFF_RECORDS,
   TARGET_RECORDS,
   TRADE_RECORDS,
   TRANSFER_RECORDS,
 } from '../../workbook/domain/investmentKinds'
+import { SURTAX_CITY_2023_KEY } from '../../workbook/domain/investmentSettings'
 import { REGIONS } from '../../workbook/domain/mixGroup'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import type { MixGroup, Region } from '../../workbook/domain/mixGroup'
@@ -48,6 +52,7 @@ import { formatCurrencyAmount, formatQuantity, formatUnitPrice } from '../../../
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordChange } from '../../../../shared/storage/application/recordStorage'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import { countryName } from '../../../../shared/text/countryName'
 import { plural } from '../../../../shared/text/translation'
 
@@ -225,8 +230,14 @@ function holdingValue(kind: RecordKind<unknown>, field: string, record: Proposed
   return undefined
 }
 
-/** A field of a check's setting or of the mail reader in the words of the Checks tab and the mail card, or undefined for a field shown as it is. */
+/** Whether the record is the 2023 city, which the card names as the Tax screen's card does. */
+function isSurtaxCity(kind: RecordKind<unknown>, record: ProposedRecord): record is ProposedRecord & SettingRow {
+  return isKind(kind, SETTING_RECORDS, record) && record.key === SURTAX_CITY_2023_KEY
+}
+
+/** A field of a check's setting, the mail reader or the 2023 city in the words of the Checks tab, the mail card and the Tax screen, or undefined for a field shown as it is. */
 function settingValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord): string | null | undefined {
+  if (isSurtaxCity(kind, record)) return field === 'value' ? storedCityText(record.value) : null
   if (isKind(kind, CHECK_RECORDS, record)) {
     const setting: CheckSetting = record
     const shown: Partial<Record<keyof CheckSetting, string | null>> = {
@@ -266,7 +277,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   return namesOf.get(value) ?? String(value)
 }
 
-/** What the record is called on screen: an account or an instrument by its name, a trade by its side and holding, a line of a fund's mix by its fund, and the rest by the write's own words. */
+/** What the record is called on screen: an account or an instrument by its name, a trade by its side and holding, a line of a fund's mix by its fund, the 2023 city by its card, and the rest by the write's own words. */
 function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>): string {
   if (isKind(kind, INVESTMENT_ACCOUNT_RECORDS, record) || isKind(kind, INSTRUMENT_RECORDS, record)) return record.name
   if (isKind(kind, TRADE_RECORDS, record)) return `${recordWords.sides[record.side]} ${namesOf.get(record.instrument) ?? ''}`.trim()
@@ -274,6 +285,7 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   if (isKind(kind, TARGET_RECORDS, record)) return sliceText(record.slice, namesOf)
   if (isKind(kind, CHECK_RECORDS, record)) return overviewWords.checks.labels[record.check]
   if (isKind(kind, MAIL_READER_RECORDS, record)) return mailWords.card.title
+  if (isSurtaxCity(kind, record)) return taxWords.surtaxCity.title
   return fallback
 }
 
@@ -291,7 +303,10 @@ export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook, no
   const original = (record: ProposedRecord): ProposedRecord => originals.get(record) ?? record
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
-    fieldName: (field) => MAIL_FIELD_NAMES[field] ?? (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
+    fieldName: (field, record) =>
+      record['key'] === SURTAX_CITY_2023_KEY && field === 'value'
+        ? taxWords.surtaxCity.field
+        : (MAIL_FIELD_NAMES[field] ?? (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field),
     shown: (kind, field, record) => shownValue(kind, field, original(record), book, namesOf),
     label: (kind, record, fallback) => labelOf(kind, original(record), fallback, namesOf),
     warns: (kind, field) => kind.name === MAIL_READER_RECORDS.name && WARNS.has(field),

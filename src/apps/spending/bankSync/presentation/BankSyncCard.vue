@@ -7,11 +7,11 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import { saveDeployment } from '../application/bankSync'
 import type { BankSyncOutcome } from '../application/bankSync'
-import { loadLastFetch, loadPendingLink } from '../infrastructure/bankBrowserState'
+import { loadPendingLink } from '../infrastructure/bankBrowserState'
 import { notedBankReturn } from './bankReturnOnOpen'
 import BankAccountsSetup from './BankAccountsSetup.vue'
 import { BANK_SYNC_SCOPE } from './bankSyncPort'
-import { useBankSync } from './useBankSync'
+import { heldBankSetup, useBankSync } from './useBankSync'
 import { words } from './words'
 import DryRunLines from '../../statements/presentation/DryRunLines.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -64,8 +64,7 @@ const returned = notedBankReturn()
 const returnLine = returned?.kind === 'refused' ? words.linkRefused(returned.reason) : returned?.kind === 'elsewhere' ? words.cameBackElsewhere : null
 
 /** After a reload the last fetch's accounts, against the file, with nothing held, so the step's link still lands on the list. */
-const heldFetch = loadLastFetch()
-const setup = computed(() => sync.lastOutcome.value ?? (heldFetch === null ? null : { linked: heldFetch.linked, proposals: [], differences: [], olderRows: [] }))
+const setup = computed(heldBankSetup)
 
 function announced(outcome: BankSyncOutcome | null): void {
   if (outcome?.receipt) writes.announce(outcome.receipt)

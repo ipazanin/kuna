@@ -16,6 +16,7 @@ import { ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
 /** One account a session reaches, with the bank it belongs to. */
 export interface LinkedOfBank {
@@ -130,6 +131,44 @@ function currenciesOf(linked: LinkedAccount, kept: readonly Account[], proposals
 export function leftOutOfKuna(linked: LinkedAccount, accounts: readonly Account[], notInKuna: readonly string[]): boolean {
   const key = bankAccountKey(linked)
   return key !== null && notInKuna.includes(key) && accountsOfLinked(linked, accounts).length === 0
+}
+
+/** A line of the setup list, as the chat reads it and names it in a step. It is no record of the file and lives as long as the fetch it comes from. */
+export const BANK_ACCOUNT_LINES: Pick<RecordKind, 'name' | 'noun'> = {
+  name: 'bank-account',
+  noun: {
+    en: { one: 'linked bank account', many: 'linked bank accounts', article: 'a' },
+    hr: { one: 'povezani bankovni račun', of: 'povezanog bankovnog računa', few: 'povezana bankovna računa', other: 'povezanih bankovnih računa', gender: 'masculine' },
+  },
+}
+
+/** The currency of a line: the one an account will hold once it takes the bank's details, else its own, else the bank's. */
+export function setupLineCurrency(line: SetupLine): string {
+  if (line.kind === 'kept' || line.kind === 'fits') return line.update?.currency ?? line.account.currency
+  return line.kind === 'missing' ? line.currency : line.linked.currency
+}
+
+/** What names a line on the page and in the chat: the bank's id of the linked account and the line's currency. */
+export function setupLineKey(line: SetupLine): string {
+  return `${line.linked.uid} ${setupLineCurrency(line)}`
+}
+
+/** What a person can do with a line of the setup list. Bring back takes an account off the list of ones not in Kuna, and bring back mine offers the bank's details again. */
+export type SetupAction = 'add' | 'update' | 'keep-mine' | 'leave-out' | 'bring-back' | 'bring-back-mine'
+
+/** The actions a line offers. Keep mine and leave out need a key that names the account across links. */
+export function setupActions(line: SetupLine): readonly SetupAction[] {
+  const named = bankAccountKey(line.linked) !== null
+  switch (line.kind) {
+    case 'missing':
+      return [...(line.proposal === null ? [] : (['add'] as const)), ...(named ? (['leave-out'] as const) : [])]
+    case 'fits':
+      return ['update', ...(named ? (['leave-out'] as const) : [])]
+    case 'kept':
+      return [...(line.update === null ? [] : (['update'] as const)), ...(line.update !== null && named ? (['keep-mine'] as const) : []), ...(line.keptMine ? (['bring-back-mine'] as const) : [])]
+    case 'not-in-kuna':
+      return ['bring-back']
+  }
 }
 
 /** The setup list: each currency of each linked account, matched against the file as it stands now. */

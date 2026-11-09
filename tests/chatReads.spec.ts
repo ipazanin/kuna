@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { BANK_ACCOUNT_LINES } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
 import { UNREAD_KINDS, spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
 import { findRecords, getRecord, readFigures } from '../src/shared/ai/application/chatReads'
@@ -221,9 +222,11 @@ describe('the figures of a read', () => {
 })
 
 describe('what Spending lets the chat read', () => {
-  it('names every kind it stores, as read or as kept out', () => {
+  it('names every kind it stores, as read or as kept out, and reads the bank set-up list beside them', () => {
     const reader = spendingReader(CHAT_READING)
-    expect([...reader.kinds.map((kind) => kind.name), ...UNREAD_KINDS].sort()).toEqual(
+    const stored = reader.kinds.map((kind) => kind.name).filter((name) => name !== BANK_ACCOUNT_LINES.name)
+    expect(reader.kinds.map((kind) => kind.name)).toContain(BANK_ACCOUNT_LINES.name)
+    expect([...stored, ...UNREAD_KINDS].sort()).toEqual(
       Object.values(spendingKinds)
         .map((kind) => kind.name)
         .sort(),

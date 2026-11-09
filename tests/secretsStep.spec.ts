@@ -174,16 +174,16 @@ describe('the Company part of the sync', () => {
 describe('the Keys step', () => {
   it('saves a key kept here to the secrets file and says so', async () => {
     PAGE_SECRET_STORE.write('twelvedata', OTHER_KEY)
-    expect(await secretsStep(() => true).run(() => {}, nextRun())).toMatchObject({ kind: 'done', line: "Saved this browser's keys to your Google account", link: null })
+    expect(await secretsStep(() => true).run(() => {}, nextRun(), 'due')).toMatchObject({ kind: 'done', line: "Saved this browser's keys to your Google account", link: null })
     expect(await page.drive.children(APP_DATA_FOLDER)).toEqual([expect.objectContaining({ name: SECRETS_FILE_NAME })])
   })
 
   it("takes another browser's key into this one", async () => {
     await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, encodeSecretsFile({ twelvedata: { key: OTHER_KEY, changedAt: '2026-10-30T10:00:00.000Z' } }))
     const step = secretsStep(() => true)
-    expect(await step.run(() => {}, nextRun())).toMatchObject({ kind: 'done', line: 'Took the changes another browser saved' })
+    expect(await step.run(() => {}, nextRun(), 'due')).toMatchObject({ kind: 'done', line: 'Took the changes another browser saved' })
     expect(localStorage.getItem('kuna.secret.twelvedata')).toBe(OTHER_KEY)
-    expect(await step.run(() => {}, nextRun())).toMatchObject({ kind: 'done', line: 'Up to date' })
+    expect(await step.run(() => {}, nextRun(), 'due')).toMatchObject({ kind: 'done', line: 'Up to date' })
   })
 
   it('reaches Drive once in a run that two groups list it in, and again in the next run', async () => {
@@ -191,32 +191,32 @@ describe('the Keys step', () => {
     const run = nextRun()
     const company = secretsStep(() => true)
     const investments = secretsStep(() => true)
-    expect(await company.run(() => {}, run)).toMatchObject({ kind: 'done', line: "Saved this browser's keys to your Google account" })
+    expect(await company.run(() => {}, run, 'due')).toMatchObject({ kind: 'done', line: "Saved this browser's keys to your Google account" })
     const asked = page.drive.requests.length
-    expect(await investments.run(() => {}, run)).toMatchObject({ kind: 'done', line: 'Up to date' })
+    expect(await investments.run(() => {}, run, 'due')).toMatchObject({ kind: 'done', line: 'Up to date' })
     expect(page.drive.requests).toHaveLength(asked)
-    await investments.run(() => {}, nextRun())
+    await investments.run(() => {}, nextRun(), 'due')
     expect(page.drive.requests.length).toBeGreaterThan(asked)
   })
 
   it('tries Drive again in the next group of a run whose first try failed', async () => {
     const run = nextRun()
     const listing = vi.spyOn(page.drive, 'children').mockRejectedValueOnce(new TypeError('Failed to fetch'))
-    await expect(secretsStep(() => true).run(() => {}, run)).rejects.toThrow('Failed to fetch')
-    expect(await secretsStep(() => true).run(() => {}, run)).toMatchObject({ kind: 'done', line: 'Up to date' })
+    await expect(secretsStep(() => true).run(() => {}, run, 'due')).rejects.toThrow('Failed to fetch')
+    expect(await secretsStep(() => true).run(() => {}, run, 'due')).toMatchObject({ kind: 'done', line: 'Up to date' })
     expect(listing).toHaveBeenCalledTimes(2)
   })
 
   it('tries Drive again in the next group of a run whose first group met a file it refuses', async () => {
     await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, 'not json')
     const run = nextRun()
-    expect(await secretsStep(() => true).run(() => {}, run)).toMatchObject({ kind: 'failed' })
-    expect(await secretsStep(() => true).run(() => {}, run)).toMatchObject({ kind: 'failed' })
+    expect(await secretsStep(() => true).run(() => {}, run, 'due')).toMatchObject({ kind: 'failed' })
+    expect(await secretsStep(() => true).run(() => {}, run, 'due')).toMatchObject({ kind: 'failed' })
   })
 
   it('fails on a secrets file Kuna does not write and links to Kuna settings', async () => {
     await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, 'not json')
-    expect(await secretsStep(() => true).run(() => {}, nextRun())).toEqual({
+    expect(await secretsStep(() => true).run(() => {}, nextRun(), 'due')).toEqual({
       kind: 'failed',
       line: 'A keys file in your Google account is not one Kuna can read, so Kuna left it as it is. Delete my keys from the Google account, in Kuna settings, clears it.',
       link: { label: 'Kuna settings', to: '/settings' },
@@ -227,8 +227,8 @@ describe('the Keys step', () => {
     localStorage.setItem('kuna.secret.twelvedata', OTHER_KEY)
     localStorage.setItem('kuna.secret-changed.twelvedata', '2026-10-30T10:00:00Z')
     const step = secretsStep(() => true)
-    expect(await step.run(() => {}, nextRun())).toMatchObject({ kind: 'done', line: "Saved this browser's keys to your Google account" })
-    expect(await step.run(() => {}, nextRun())).toMatchObject({ kind: 'done', line: 'Up to date' })
+    expect(await step.run(() => {}, nextRun(), 'due')).toMatchObject({ kind: 'done', line: "Saved this browser's keys to your Google account" })
+    expect(await step.run(() => {}, nextRun(), 'due')).toMatchObject({ kind: 'done', line: 'Up to date' })
   })
 })
 
@@ -237,13 +237,13 @@ describe('deleting the keys from the Google account', () => {
     PAGE_SECRET_STORE.write('twelvedata', OTHER_KEY)
     await page.drive.createFile(APP_DATA_FOLDER, SECRETS_FILE_NAME, encodeSecretsFile({ twelvedata: { key: 'made-up-other-key-1111', changedAt: '2026-10-30T10:00:00.000Z' } }))
     await page.drive.createFile(APP_DATA_FOLDER, 'kuna-investments-keys-old.json', 'not json')
-    expect(await secretsStep(() => true).run(() => {}, nextRun())).toMatchObject({ kind: 'failed' })
+    expect(await secretsStep(() => true).run(() => {}, nextRun(), 'due')).toMatchObject({ kind: 'failed' })
 
     await deleteKeysFromGoogle()
 
     expect(await page.drive.children(APP_DATA_FOLDER)).toEqual([])
     expect(localStorage.getItem('kuna.secret.twelvedata')).toBe(OTHER_KEY)
-    expect(await secretsStep(() => true).run(() => {}, nextRun())).toMatchObject({ kind: 'done', line: "Saved this browser's keys to your Google account" })
+    expect(await secretsStep(() => true).run(() => {}, nextRun(), 'due')).toMatchObject({ kind: 'done', line: "Saved this browser's keys to your Google account" })
   })
 
   it('points to the action from the refusal, in both languages', () => {

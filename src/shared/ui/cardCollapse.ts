@@ -19,3 +19,15 @@ export function rememberCollapse(cardId: string, collapsed: boolean): void {
     // Storage denied, as in some private windows. The card keeps its state until the page reloads.
   }
 }
+
+/** Each card this device keeps folded, by its id, or none when storage is denied. */
+export function foldedCards(): readonly string[] {
+  try {
+    return Array.from({ length: localStorage.length }, (_, at) => localStorage.key(at) ?? '')
+      .filter((key) => key.startsWith(KEY_PREFIX) && localStorage.getItem(key) === 'collapsed')
+      .map((key) => key.slice(KEY_PREFIX.length))
+      .sort()
+  } catch {
+    return []
+  }
+}

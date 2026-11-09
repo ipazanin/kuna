@@ -7,6 +7,7 @@ import { decimalOfText } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import { REGIONS, countryOf } from '../../workbook/domain/mixGroup'
 import type { Country } from '../../workbook/domain/mixGroup'
 
@@ -35,6 +36,8 @@ export interface CardBooks {
   readonly rates: RateBook | null
   /** This browser's copy of the prices file, or null before it is read. */
   readonly pricesFile: PricesFile | null
+  /** The settings rows as stored, a value the reader refused among them, so a step changes or clears it. */
+  readonly storedSettings: readonly SettingRow[]
   /** The id a step's field names: a `$` name of an earlier step's record, or the id the ref stood for. */
   idOf(value: unknown): string
 }

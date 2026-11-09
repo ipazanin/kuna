@@ -21,7 +21,7 @@ import { words as sharedWords } from '../src/shared/app/words'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
-import { companyDesk, deskPorts } from './fixtures/companyDesk'
+import { companyDesk, deskPorts, mailDraftsHeld } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 import { forgetCaches } from './fixtures/writeBack'
@@ -450,6 +450,63 @@ describe('settings, categories and accounts', () => {
   })
 })
 
+describe('switching invoice drafts', () => {
+  it('turns drafts on alone on this device, refuses a switch changed since, and Undo puts it back only while it is what the card set', async () => {
+    const drafts = mailDraftsHeld()
+    const desk = await companyDesk(used, { mailDrafts: drafts })
+    const waiting = { op: 'file-row', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-9').id), category: desk.ref(CATEGORY_RECORDS.name, 'office') } }
+    expect((await desk.propose([{ op: 'switch-mail-drafts', input: { drafts: 'on' } }, waiting])).isError).toBe(true)
+    expect((await desk.propose([{ op: 'switch-mail-drafts', input: { drafts: 'off' } }])).text).toContain('already off')
+
+    await desk.propose([{ op: 'switch-mail-drafts', input: { drafts: 'on' } }])
+    expect(desk.cards[0]!.outside).toEqual([])
+    drafts.switchTo(true)
+    expect(await desk.accept()).toEqual({ kind: 'refused', reason: words.mailDrafts.changedSince })
+    drafts.switchTo(false)
+
+    const accepted = await desk.accept()
+    expect(drafts.on()).toBe(true)
+    expect(drafts.asked).toBe(0)
+    drafts.switchTo(false)
+    if (accepted.kind === 'done') expect(await accepted.undo!()).toEqual({ kind: 'refused', reason: sharedWords.proposalUndoEnded })
+    drafts.switchTo(true)
+    if (accepted.kind === 'done') expect(await accepted.undo!()).toEqual({ kind: 'undone' })
+    expect(drafts.on()).toBe(false)
+  })
+
+  it("asks Google for Gmail within Accept's click when the page lacks it, says so on the card, and leaves drafts off when Google refuses", async () => {
+    const refused = await companyDesk(used, { mailDrafts: mailDraftsHeld('asks', 'Google gave no Gmail.') })
+    await refused.propose([{ op: 'switch-mail-drafts', input: { drafts: 'on' } }])
+    expect(refused.cards[0]!.outside).toEqual([words.mailDrafts.asksGmail])
+    expect(await refused.accept()).toEqual({ kind: 'refused', reason: 'Google gave no Gmail.' })
+    expect(refused.ports.mailDrafts.on()).toBe(false)
+
+    const drafts = mailDraftsHeld('asks')
+    const granted = await companyDesk(used, { mailDrafts: drafts })
+    await granted.propose([{ op: 'switch-mail-drafts', input: { drafts: 'on' } }])
+    const accepted = await granted.accept()
+    expect(accepted.kind).toBe('done')
+    expect(drafts.asked).toBe(1)
+    expect(drafts.on()).toBe(true)
+    if (accepted.kind === 'done') await accepted.undo!()
+    expect(drafts.on()).toBe(false)
+  })
+
+  it('refuses turning drafts on where asking Google would leave the page, and turns them off with no ask', async () => {
+    const drafts = mailDraftsHeld('leaves')
+    const desk = await companyDesk(used, { mailDrafts: drafts })
+    const answer = await desk.propose([{ op: 'switch-mail-drafts', input: { drafts: 'on' } }])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('/company/invoicing?tab=invoices')
+
+    drafts.switchTo(true)
+    await desk.propose([{ op: 'switch-mail-drafts', input: { drafts: 'off' } }])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(drafts.on()).toBe(false)
+    expect(drafts.asked).toBe(0)
+  })
+})
+
 describe('one card', () => {
   it('changes a row two steps touch once, from the row as read to the last step', async () => {
     const desk = await companyDesk(used)
@@ -476,7 +533,9 @@ describe("the catalogue of Company's operations", () => {
     })
 
     expect(new Set(names).size).toBe(names.length)
-    expect(names).toEqual(expect.arrayContaining(['file-row', 'import-statement', 'set-setting', 'add-invoice', 'fill-billing-year', 'add-owner-advance', 'add-employee', 'answer-set-up']))
+    expect(names).toEqual(
+      expect.arrayContaining(['file-row', 'import-statement', 'set-setting', 'add-invoice', 'fill-billing-year', 'add-owner-advance', 'add-employee', 'answer-set-up', 'switch-mail-drafts']),
+    )
     expect(names.filter((name) => name === 'set-setting')).toHaveLength(1)
     expect(catalogue.proposers.get('company')).toBe(assistant.proposer)
     expect([...catalogue.pages.keys()].filter((path) => path.startsWith('company/op/'))).toEqual(names.map((name) => `company/op/${name}`))

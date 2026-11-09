@@ -1,4 +1,4 @@
-import { tokenFor } from '../../../../shared/google/googleAuth'
+import { currentToken, signsInByRedirect, tokenFor } from '../../../../shared/google/googleAuth'
 import { gmailDrafts, googleInvoiceDrive } from '../infrastructure/googleInvoiceDrive'
 import type { InvoiceDrive, MailDrafts } from './invoiceRun'
 
@@ -23,4 +23,13 @@ export async function invoiceDrafts(): Promise<MailDrafts> {
     return fakeInvoiceGoogleSession().drafts
   }
   return gmailDrafts(await tokenFor('gmail.compose', null))
+}
+
+/** How Gmail stands for turning invoice drafts on: held, a tap here can ask Google for it, or asking would leave the page. */
+export type GmailForDrafts = 'held' | 'asks' | 'leaves'
+
+/** How Gmail stands for turning drafts on for these books. Books in this browser save no draft, and a phone asks Google by leaving the page, which the fake build never does. */
+export function gmailForDrafts(onDrive: boolean): GmailForDrafts {
+  if (!onDrive || currentToken('gmail.compose') !== null) return 'held'
+  return import.meta.env.VITE_FAKE_WORKBOOK === 'true' || !signsInByRedirect() ? 'asks' : 'leaves'
 }

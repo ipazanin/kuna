@@ -1,6 +1,12 @@
 import type { StrictSchema } from '../ai/domain/strictSchema'
 import type { RecordNoun } from '../storage/domain/recordKind'
 
+/** A setting this browser keeps rather than the books, as a card counts it. */
+export const DEVICE_SETTING: RecordNoun = {
+  en: { one: 'setting on this device', many: 'settings on this device', article: 'a' },
+  hr: { one: 'postavka na ovom uređaju', of: 'postavke na ovom uređaju', few: 'postavke na ovom uređaju', other: 'postavki na ovom uređaju', gender: 'feminine' },
+}
+
 /** A change the chat can propose, by name. It is data, and only the app's own write functions act on it. */
 export interface AssistantOperation {
   readonly name: string

@@ -24,7 +24,7 @@ import type { StoredField, StoredFields } from '../../../../shared/storage/domai
 const DAY_OR_NULL: StrictSchema = { type: ['string', 'null'], description: 'A day such as 2026-10-31, "" for none, or null to leave it.' }
 
 const MAKE_ON_SCREEN =
-  'An invoice made on the Invoices tab is drawn as a PDF, filed on Drive and saved as a Gmail draft, which only the person does there: link /company/invoicing?tab=invoices with make set to the client, or reexport set to the invoice, and say what to check.'
+  'An invoice made on the Invoices tab is drawn as a PDF, filed on Drive and saved as a Gmail draft while switch-mail-drafts has drafts on. Only the person makes it there: link /company/invoicing?tab=invoices with make set to the client, or reexport set to the invoice, and say what to check.'
 
 /** Every change the chat can propose to the invoices register, the billing plan and the clients. Making an invoice is a link, never a card. */
 const OPERATIONS: readonly AssistantOperation[] = [

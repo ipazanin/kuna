@@ -24,11 +24,16 @@ export function requestsToday(vendorId: string, at: Date): number {
   return usage !== null && usage.day === utcDay(at) ? usage.count : 0
 }
 
-/** Counts one request to the vendor, starting the count afresh on a new UTC day. */
-export function countRequest(vendorId: string, at: Date): void {
+/** Sets the requests this browser sent the vendor on the UTC day of `at`. */
+export function setRequestsToday(vendorId: string, at: Date, count: number): void {
   try {
-    localStorage.setItem(`${USAGE_PREFIX}${vendorId}`, JSON.stringify({ day: utcDay(at), count: requestsToday(vendorId, at) + 1 }))
+    localStorage.setItem(`${USAGE_PREFIX}${vendorId}`, JSON.stringify({ day: utcDay(at), count }))
   } catch {
     // Storage can be denied in a private window, and then nothing is counted.
   }
+}
+
+/** Counts one request to the vendor, starting the count afresh on a new UTC day. */
+export function countRequest(vendorId: string, at: Date): void {
+  setRequestsToday(vendorId, at, requestsToday(vendorId, at) + 1)
 }

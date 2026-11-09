@@ -9,7 +9,11 @@ import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistor
 import { capitalGainsYear } from '../src/apps/investments/tax/domain/taxYear'
 import * as investmentKinds from '../src/apps/investments/workbook/domain/investmentKinds'
 import { MAIL_READER_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
+import { findRecords } from '../src/shared/ai/application/chatReads'
+import type { ChatReads } from '../src/shared/ai/application/chatReads'
+import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import type { ReportFigure } from '../src/shared/app/assistantReader'
+import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import { WORKED_PRICES, WORKED_RATES, workedPortfolio } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
 
@@ -18,6 +22,9 @@ const SOURCES: PortfolioSources = { book: workedPortfolio(), prices: WORKED_PRIC
 function readingOf(taxShown: boolean, sources: PortfolioSources | null = SOURCES): InvestmentsReading {
   return { status: () => 'open', book: () => sources?.book ?? null, sources: () => sources, taxShown: () => taxShown }
 }
+
+/** The kind that reads Porezna's 2023 table, which needs no books. */
+const SURTAX_TABLE = 'surtax-city-2023'
 
 function figure(figures: readonly ReportFigure[], label: string): ReportFigure | undefined {
   return figures.find((entry) => entry.label === label)
@@ -30,9 +37,45 @@ function centsOf(entry: ReportFigure | undefined): number | null {
 describe('the Investments reader', () => {
   const reader = investmentsReader(readingOf(true))
 
-  it('reads every kind but the mail reader, which holds a mailbox’s senders', () => {
+  it('reads every kind but the mail reader, which holds a mailbox’s senders, and Porezna’s 2023 surtax table', () => {
     const kinds = Object.values(investmentKinds).map((kind) => kind.name)
-    expect(reader.kinds.map((kind) => kind.name).sort()).toEqual(kinds.filter((name) => name !== MAIL_READER_RECORDS.name).sort())
+    expect(reader.kinds.map((kind) => kind.name).sort()).toEqual([...kinds.filter((name) => name !== MAIL_READER_RECORDS.name), SURTAX_TABLE].sort())
+  })
+
+  it.each([
+    ['zagreb', ['133']],
+    ['Grad Zagreb', ['133']],
+    ['Sveti Ivan Zelina', ['429']],
+    ['sv. ivan zelina', ['429']],
+    ['Sv.Ivan Zelina', ['550', '429']],
+    ['Sveti Petar u Šumi', ['433']],
+    ['sv. petar u sumi', ['433']],
+    ['Sv. Filip i Jakov', ['428']],
+    ['Općina Bedenica', ['550']],
+    ['Durmanec', ['108']],
+  ])('looks a 2023 city up by %s, with its code, office and rate', async (query, codes) => {
+    const reads: ChatReads = {
+      readers: new Map([['investments', { name: 'Investments', reader }]]),
+      pseudonyms: newPseudonyms(),
+      refs: chatRefs(),
+      anonymising: () => true,
+      persons: () => [],
+      mayRead: async () => true,
+    }
+
+    const answer = await findRecords({ app: 'investments', kind: SURTAX_TABLE, query, from: null, to: null, about: null, only: null, limit: null, cursor: null }, reads)
+
+    const records = (JSON.parse(answer.text) as { records: Record<string, unknown>[] }).records
+    expect(records.map((record) => record['code'])).toEqual(codes)
+    expect(Object.keys(records[0]!)).toEqual(expect.arrayContaining(['code', 'office', 'rate']))
+  })
+
+  it('gives the 2023 rate as written in the table', () => {
+    const zagreb = reader.kinds
+      .find((kind) => kind.name === SURTAX_TABLE)!
+      .rows()
+      .find((row) => row.id === '133')!
+    expect(zagreb.fields.find((field) => field.name === 'rate')).toMatchObject({ value: '18%' })
   })
 
   it('hands every decimal over as text with its currency, so no row holds a number the chat cannot write', () => {
@@ -83,7 +126,7 @@ describe('the Investments reader', () => {
 
   it('reads no rows and no figures while the file or its prices are not read yet', () => {
     const empty = investmentsReader(readingOf(true, null))
-    expect(empty.kinds.flatMap((kind) => kind.rows())).toEqual([])
+    expect(empty.kinds.filter((kind) => kind.name !== SURTAX_TABLE).flatMap((kind) => kind.rows())).toEqual([])
     expect(empty.reports.flatMap((report) => report.figures(null))).toEqual([])
   })
 })

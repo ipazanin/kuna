@@ -4,6 +4,7 @@ import { companyData } from './workbook/presentation/companyData'
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
 import { isFirstRun } from '../../shared/app/isFirstRun'
 import { forgetSetUpAnswer, hasSetUpAnswer, keepSetUpAnswer } from '../../shared/app/setUpAnswer'
+import { tokenFor } from '../../shared/google/googleAuth'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { bindFiltersToRouter } from './filters/application/filterStore'
@@ -17,6 +18,7 @@ import { useSettings } from './settings/application/useSettings'
 import { COMPANY_ASSIST } from './settings/presentation/companyAssist'
 import { moneyFormatOf } from './settings/domain/settings'
 import { words as analysisWords } from './analysis/presentation/words'
+import { mailDraftsOn, switchMailDrafts } from './invoicing/infrastructure/mailDraftSwitch'
 import { words as invoicingWords } from './invoicing/presentation/words'
 import { words as onboardingWords } from './onboarding/presentation/words'
 import { words as overviewWords } from './overview/presentation/words'
@@ -86,13 +88,14 @@ export const companyApp: AppContribution = {
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
   assist: COMPANY_ASSIST,
   assistant: async () => {
-    const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { loadImportFile }, { useStatementSync }] = await Promise.all([
+    const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { loadImportFile }, { useStatementSync }, { gmailForDrafts }] = await Promise.all([
       import('./assistant/companyAssistant'),
       import('./packs/hr-doo/assistant/hrDooAssistant'),
       import('./assistant/operations/companyOperations'),
       import('./packs/hr-doo/assistant/operations/packOperations'),
       import('./imports/infrastructure/importFiles'),
       import('./imports/presentation/useStatementSync'),
+      import('./invoicing/application/invoiceGoogle'),
     ])
     const store = useWorkbook()
     const statementSync = useStatementSync()
@@ -108,6 +111,12 @@ export const companyApp: AppContribution = {
         takeBack: (answer: string) => {
           if (state.choice !== null) forgetSetUpAnswer(state.choice.id, answer)
         },
+      },
+      mailDrafts: {
+        on: () => mailDraftsOn.value,
+        switchTo: switchMailDrafts,
+        gmail: () => gmailForDrafts(state.workbook?.source === 'drive'),
+        askGmail: () => tokenFor('gmail.compose', null),
       },
       pack: hrDooOperations(anonymisingNow),
     }

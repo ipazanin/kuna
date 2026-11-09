@@ -464,7 +464,7 @@ describe('import boundaries', () => {
       expect(IMPORTS.filter((entry) => CHAT_CODE(entry.from) && !entry.dynamic && entry.target !== null && entry.target.includes('/assistant/operations/'))).toEqual([])
     })
 
-    it("sets this device's settings only through what Kuna's assistant hands in, so neither reaches a secret, Google or a sync beyond the auto sync switch", () => {
+    it("sets this device's settings only through what Kuna's assistant hands in, so neither reaches a secret or Google beyond the auto sync switch and the page's sync", () => {
       expect(
         IMPORTS.filter((entry) => entry.from === 'src/shell/assistant/kunaOperations.ts' && entry.target !== null && !entry.typeOnly && /^src\/shared\/(secrets|google|sync|ai)\//.test(entry.target)),
       ).toEqual([])
@@ -472,8 +472,10 @@ describe('import boundaries', () => {
         'src/shared/ai/presentation/chatSession.ts',
         'src/shared/app/kunaStart.ts',
         'src/shared/sync/infrastructure/autoSyncSwitch.ts',
+        'src/shared/sync/presentation/pageSync.ts',
         'src/shared/text/language.ts',
         'src/shared/theme/theme.ts',
+        'src/shared/ui/cardCollapse.ts',
         'src/shell/routing/appRegistry.ts',
         'src/shell/assistant/kunaOperations.ts',
         'src/shell/assistant/words.ts',

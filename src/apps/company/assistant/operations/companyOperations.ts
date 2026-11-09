@@ -4,6 +4,8 @@ import { IMPORTING, importOperations, withStatementFilesRead } from './importOpe
 import { INVOICING_OPERATIONS } from './invoicingOperations'
 import type { HeldStatements, StatementFileReader } from './importOperations'
 import { LEDGER_OPERATIONS } from './ledgerOperations'
+import { SWITCH_MAIL_DRAFTS, mailDraftsAccept, mailDraftsCheck } from './mailDraftsOperation'
+import type { MailDraftsSwitch } from './mailDraftsOperation'
 import { proposalGroupsOf } from './proposalLines'
 import { SET_UP_ANSWER, setUpAnswerCheck, setUpAnswerAccept } from './setUpAnswers'
 import type { SetUpAnswers } from './setUpAnswers'
@@ -27,6 +29,8 @@ export interface CompanyOperationPorts {
   readonly heldStatements: HeldStatements
   /** The answers to Company's set-up questions kept on this device. */
   readonly setUpAnswers: SetUpAnswers
+  /** This device's switch for invoice drafts in Gmail. */
+  readonly mailDrafts: MailDraftsSwitch
   /** The installed pack's changes, or null when the pack lets the chat change nothing. */
   readonly pack: PackOperations | null
 }
@@ -92,7 +96,7 @@ function companyWork(sets: readonly CompanyOperationSet[], pack: PackOperations 
 
 /** Every change the chat can propose in Company. A setting that is not listed under set-setting cannot be proposed, whatever a model asks. */
 export function companyOperations(ports: CompanyOperationPorts): readonly AssistantOperation[] {
-  return [...operationSets(ports).flatMap((set) => set.operations), SET_UP_ANSWER]
+  return [...operationSets(ports).flatMap((set) => set.operations), SET_UP_ANSWER, SWITCH_MAIL_DRAFTS]
 }
 
 /** The changes the chat can propose in Company and their dry run, over the company's store, which `app.ts` hands in with the ports. An attached file is read before the dry run. */
@@ -103,6 +107,7 @@ export function companyProposer(store: CompanyStore, ports: CompanyOperationPort
     readsBooks: true,
     async check(title, steps) {
       if (steps.some((step) => step.operation === SET_UP_ANSWER.name)) return setUpAnswerCheck(title, steps, ports.setUpAnswers)
+      if (steps.some((step) => step.operation === SWITCH_MAIL_DRAFTS.name)) return mailDraftsCheck(title, steps, ports.mailDrafts)
       const read = await withStatementFilesRead(steps, ports.readStatementFile)
       if ('refused' in read) return read
       const checked = await proposedWrites(store, companyWork(sets, ports.pack)).check(title, read)
@@ -116,5 +121,5 @@ export function companyProposer(store: CompanyStore, ports: CompanyOperationPort
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone, and the file's other writes go on. */
 export function companyAcceptance(store: CompanyStore, ports: CompanyOperationPorts): AppAcceptance {
   const accept = proposedWrites(store, companyWork(operationSets(ports), ports.pack)).accept
-  return { accept: async (proposal) => setUpAnswerAccept(proposal, ports.setUpAnswers) ?? accept(proposal) }
+  return { accept: async (proposal) => setUpAnswerAccept(proposal, ports.setUpAnswers) ?? mailDraftsAccept(proposal, ports.mailDrafts) ?? accept(proposal) }
 }

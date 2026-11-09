@@ -11,7 +11,7 @@ import type { PageSync } from '../../shared/sync/presentation/pageSync'
 export function keepPageSynced(sync: PageSync, googleReturn: RedirectReturn | null): () => void {
   const stores = sync.groups.map((group) => group.store)
   if (googleReturn?.kind === 'granted' && googleReturn.ask === 'tap' && googleReturn.resume === 'sync') {
-    void Promise.all(stores.map((store) => store.open())).then(sync.sync)
+    void Promise.all(stores.map((store) => store.open())).then(() => sync.sync())
   }
   return startAutoSync({
     stores,

@@ -8,8 +8,11 @@ import { IMPORTING, IMPORT_STEPS, importTooLarge, withRowsRead } from './importO
 import { INSTRUMENT_STEPS } from './instrumentOperations'
 import type { CardBooks, InvestmentSteps, SideCards } from './investmentSteps'
 import { PRICES_OPERATIONS, pricesCards } from './pricesOperations'
+import { SETTING_STEPS } from './settingOperations'
 import type { PricesPorts } from './pricesOperations'
 import { proposalGroupsOf } from './proposalLines'
+import { REQUEST_COUNT_OPERATIONS, requestCountCards } from './requestCountOperations'
+import type { RequestCounts } from './requestCountOperations'
 import { TRANSACTION_STEPS } from './transactionOperations'
 import type { WorkbookRows } from '../../imports/domain/importDryRun'
 import type { AppAcceptance, AppProposer, AssistantOperation, CardNote, CheckedProposal, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -18,10 +21,11 @@ import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWri
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 
 /**
  * What `app.ts` hands in from outside the books: the rates a new record's rate is filled from, the prices file and its
- * runs, the report the last sync read from mail, and the answer this device keeps that the history is complete.
+ * runs, the report the last sync read from mail, the answer this device keeps that the history is complete, and this browser's requests to each price vendor today.
  */
 export interface InvestmentsPorts extends PricesPorts {
   rates(): RateBook | null
@@ -30,20 +34,21 @@ export interface InvestmentsPorts extends PricesPorts {
   /** The rows of IBKR's report the last sync read from Gmail, or null before one did. */
   mailReport(): WorkbookRows | null
   readonly history: HistoryAnswer
+  readonly requestCounts: RequestCounts
 }
 
 type InvestmentsStore = Pick<WorkbookStore<InvestmentsBooks>, 'state' | 'check' | 'write' | 'undo'>
 
 /** Each part of the operations, which a later part joins by a line here. */
-const PARTS: readonly InvestmentSteps[] = [ACCOUNT_STEPS, INSTRUMENT_STEPS, TRANSACTION_STEPS, HOLDING_STEPS, IMPORT_STEPS]
+const PARTS: readonly InvestmentSteps[] = [ACCOUNT_STEPS, INSTRUMENT_STEPS, TRANSACTION_STEPS, HOLDING_STEPS, IMPORT_STEPS, SETTING_STEPS]
 
 /** The cards that write nothing to the books, each over the ports that do their work. */
 function sideCards(ports: InvestmentsPorts): readonly SideCards[] {
-  return [historyCards(ports.history), pricesCards(ports)]
+  return [historyCards(ports.history), pricesCards(ports), requestCountCards(ports.requestCounts)]
 }
 
 /** Every change the chat can propose in Investments. Each calls the write functions and checks the screens use. */
-export const INVESTMENTS_OPERATIONS: readonly AssistantOperation[] = [...PARTS.flatMap((part) => part.operations), ...HISTORY_OPERATIONS, ...PRICES_OPERATIONS]
+export const INVESTMENTS_OPERATIONS: readonly AssistantOperation[] = [...PARTS.flatMap((part) => part.operations), ...HISTORY_OPERATIONS, ...PRICES_OPERATIONS, ...REQUEST_COUNT_OPERATIONS]
 
 const PART_OF = new Map(PARTS.flatMap((part) => part.operations.map((operation) => [operation.name, part] as const)))
 
@@ -61,6 +66,7 @@ interface Planned {
 function planned(unit: UnitOfWork, books: OpenBooks<InvestmentsBooks>, steps: readonly ProposalStep[], ports: InvestmentsPorts): Planned {
   refuseBesideImport(steps, IMPORTING)
   let book = books.workbook.book
+  const storedSettings = recordsOf(books.records.settings)
   const made = new Map<string, string>()
   const fetches: string[] = []
   const notes: CardNote[] = []
@@ -68,7 +74,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<InvestmentsBooks>, steps: re
   for (const step of steps) {
     const part = PART_OF.get(step.operation)
     if (part === undefined) throw new StepRefused('There is no such operation.')
-    const card: CardBooks = { book, rates: ports.rates(), pricesFile: ports.pricesFile(), idOf: (value) => made.get(String(value)) ?? String(value) }
+    const card: CardBooks = { book, rates: ports.rates(), pricesFile: ports.pricesFile(), storedSettings, idOf: (value) => made.get(String(value)) ?? String(value) }
     const written = part.write(unit, card, step)
     book = written.book
     if (step.as !== null && written.made !== null) made.set(step.as, written.made)

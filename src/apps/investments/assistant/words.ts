@@ -17,7 +17,7 @@ export interface AutomationLabels {
 export const en = {
   settings: {
     surtaxCity2023:
-      "Porezna's code of the city or municipality the owner lived in during 2023, or none for one with no surtax. Its city surtax goes on the 2023 capital gains tax. Only the Tax screen sets it.",
+      "Porezna's code of the city or municipality the owner lived in during 2023, or none for one with no surtax. Its city surtax goes on the 2023 capital gains tax. Look the place up by name with find_records in surtax-city-2023 first, and propose its code with set-setting. Two places of one name differ by their office, so ask which when both match.",
   },
   automations: {
     dailyCloses: {
@@ -50,6 +50,7 @@ export const en = {
     target: 'The share of the value each group of one mix should hold.',
     check: 'The portfolio checks whose threshold or switch differs from the default.',
     setting: 'The Investments settings.',
+    surtaxCity2023: "Porezna's table of surtax rates for 2023, each place with its code, its office and its rate. Search it by the place's name.",
   },
   reports: {
     portfolio: {
@@ -169,13 +170,15 @@ export const en = {
     closes: 'Closes',
     closesOutside: 'The closes go into the prices file beside the books, and Kuna then fetches only the days after the last one.',
     failuresListed: 'Each is listed there with what to do.',
+    requestsToday: 'Requests today',
+    countChanged: 'Nothing was changed. Kuna asked the vendor again since the card was made.',
   },
 }
 
 export const hr: Translation<typeof en> = {
   settings: {
     surtaxCity2023:
-      'Šifra Porezne za grad ili općinu u kojoj je vlasnik živio 2023., ili none za onu bez prireza. Njezin prirez ide na porez na kapitalne dobitke za 2023. Postavlja ga samo zaslon Porez.',
+      'Šifra Porezne za grad ili općinu u kojoj je vlasnik živio 2023., ili none za onu bez prireza. Njezin prirez ide na porez na kapitalne dobitke za 2023. Najprije potražite mjesto po imenu s find_records u surtax-city-2023, a zatim predložite njegovu šifru sa set-setting. Dva mjesta istog imena razlikuju se po ispostavi, pa pitajte koje kad se oba podudaraju.',
   },
   automations: {
     dailyCloses: {
@@ -208,6 +211,7 @@ export const hr: Translation<typeof en> = {
     target: 'Udio vrijednosti koji bi svaka skupina jedne raspodjele trebala imati.',
     check: 'Provjere portfelja čiji se prag ili uključenost razlikuju od zadanih.',
     setting: 'Postavke Ulaganja.',
+    surtaxCity2023: 'Tablica stopa prireza Porezne za 2023., svako mjesto sa šifrom, ispostavom i stopom. Pretražite je po imenu mjesta.',
   },
   reports: {
     portfolio: {
@@ -349,6 +353,8 @@ export const hr: Translation<typeof en> = {
     closes: 'Zaključne cijene',
     closesOutside: 'Zaključne cijene idu u datoteku cijena pokraj knjiga, a Kuna zatim dohvaća samo dane nakon posljednje.',
     failuresListed: 'Ondje je svaki niz naveden sa savjetom što učiniti.',
+    requestsToday: 'Današnji zahtjevi',
+    countChanged: 'Ništa nije promijenjeno. Kuna je ponovno pitala izvor nakon što je kartica napravljena.',
   },
 }
 

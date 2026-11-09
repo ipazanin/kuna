@@ -4,6 +4,10 @@ import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
 import { countedAccounts } from '../rates/domain/euroRows'
 import { isWaiting, reviewCount } from '../statements/domain/reviewQueue'
+import type { BankSetup } from '../bankSync/application/bankSync'
+import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setupLines } from '../bankSync/domain/bankAccountSetup'
+import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
+import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
 import type { Account } from '../workbook/domain/account'
 import type { Budget } from '../workbook/domain/budget'
@@ -12,19 +16,23 @@ import type { SpendingBook } from '../workbook/domain/readSpendingBook'
 import type { Receipt } from '../workbook/domain/receipt'
 import type { ReceiptLine } from '../workbook/domain/receiptLine'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../workbook/domain/spendingKinds'
+import type { LinkableBank } from '../workbook/domain/spendingSettings'
 import type { SpendingRule } from '../workbook/domain/spendingRule'
 import type { Transaction } from '../workbook/domain/transaction'
 import { readableKind } from '../../../shared/app/assistantReader'
 import type { AppReader, ReportFigure } from '../../../shared/app/assistantReader'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
 import { parseCivilDate, today } from '../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { addMonths, monthOf, parseMonthKey } from '../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../shared/calendar/monthKey'
+import type { AccountMoney } from '../../../shared/money/accountMoney'
 import { EURO } from '../../../shared/money/currencyCode'
 import { ZERO, addMoney, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import { nearestBasisPoints, pointsOfShare } from '../../../shared/money/percent'
 import type { RateBook } from '../../../shared/money/rateBook'
+import type { RecordId } from '../../../shared/storage/domain/recordId'
 import { words } from './words'
 
 /** What the reader reads from, which `app.ts` hands in over the app's own store, so this folder holds no store. */
@@ -32,6 +40,28 @@ export interface SpendingReading {
   status(): ReturnType<AppReader['status']>
   book(): SpendingBook | null
   rates(): RateBook
+  /** What the bank set-up list works from, held by the page, or null before any fetch on this device. */
+  bankSetup(): BankSetup | null
+}
+
+/** One line of the bank set-up list as the chat reads it. */
+interface BankAccountLine {
+  readonly id: string
+  readonly bank: LinkableBank
+  readonly currency: string
+  readonly state: SetupLine['kind']
+  readonly account: RecordId | null
+  readonly iban: string
+  readonly offers: readonly SetupAction[]
+  readonly draft: string | null
+  readonly opening: AccountMoney | null
+  readonly openedOn: CivilDate | null
+  readonly rowsHeld: number | null
+  readonly takesBank: string | null
+  readonly takesIban: string | null
+  readonly takesKind: string | null
+  readonly bankBalance: AccountMoney | null
+  readonly fixedOpening: AccountMoney | null
 }
 
 /** The kinds that stay out of the chat's reach with why: a setting's value can route bank data or is an identifier, and the catalogue already says what each setting means. */
@@ -185,7 +215,56 @@ function balancesReport(book: SpendingBook, rates: RateBook, period: string | nu
   ]
 }
 
-/** What the chat can read of Spending: seven kinds, with every field classified, and the figures the screens show, from the same functions. Nothing here writes. */
+const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
+  id: { exposure: 'ref', to: BANK_ACCOUNT_LINES.name, meaning: 'The line, which the bank account operations take.' },
+  bank: { exposure: 'plain', meaning: 'otp or revolut.' },
+  currency: { exposure: 'plain', meaning: 'The currency of this line.' },
+  state: { exposure: 'plain', meaning: "kept as a Spending account, fits one that takes the bank's details, missing from Kuna, or not-in-kuna as you said." },
+  account: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The Spending account that keeps it or fits it, or none.' },
+  iban: { exposure: 'identifier', meaning: "The bank's IBAN for it." },
+  offers: { exposure: 'plain', meaning: 'What the bank account operations can do with it: add, update, keep-mine, leave-out, bring-back or bring-back-mine.' },
+  draft: { exposure: 'plain', meaning: 'The name of the account add makes, or none.' },
+  opening: { exposure: 'plain', amount: 'account', meaning: 'The opening the account add makes starts at.' },
+  openedOn: { exposure: 'plain', meaning: 'The day the account add makes opens.' },
+  rowsHeld: { exposure: 'plain', meaning: 'The rows the page holds for the account add makes, which come in with it.' },
+  takesBank: { exposure: 'plain', meaning: 'The bank update gives the account, when it differs.' },
+  takesIban: { exposure: 'identifier', meaning: 'The IBAN update gives the account, when it differs.' },
+  takesKind: { exposure: 'plain', meaning: 'The kind update gives the account, when it differs.' },
+  bankBalance: { exposure: 'plain', amount: 'account', meaning: "The bank's balance at the fetch, when it differs from Kuna's." },
+  fixedOpening: { exposure: 'plain', amount: 'account', meaning: "The opening fix-opening sets so Kuna's balance agrees with the bank's, or none when pending rows may explain the difference." },
+}
+
+/** The bank set-up list as the chat reads it, matched against the file as it stands. */
+function bankAccountLines(setup: BankSetup, book: SpendingBook): readonly BankAccountLine[] {
+  const differences = currentDifferences(setup.differences, book.accounts)
+  return setupLines(setup.linked, setup.proposals, book).map((line): BankAccountLine => {
+    const account = line.kind === 'kept' || line.kind === 'fits' ? line.account : null
+    const update = line.kind === 'kept' || line.kind === 'fits' ? line.update : null
+    const proposal = line.kind === 'missing' ? line.proposal : null
+    const difference = account === null ? undefined : differences.find((each) => each.account.id === account.id)
+    const differs = <K extends keyof Account>(field: K): Account[K] | null => (update === null || account === null || update[field] === account[field] ? null : update[field])
+    return {
+      id: setupLineKey(line),
+      bank: line.bank,
+      currency: setupLineCurrency(line),
+      state: line.kind,
+      account: account?.id ?? null,
+      iban: line.linked.iban,
+      offers: setupActions(line),
+      draft: proposal?.account.name ?? null,
+      opening: proposal?.account.opening ?? null,
+      openedOn: proposal?.account.openedOn ?? null,
+      rowsHeld: proposal?.rows.rows.length ?? null,
+      takesBank: differs('bank'),
+      takesIban: differs('iban'),
+      takesKind: differs('kind'),
+      bankBalance: difference?.stated ?? null,
+      fixedOpening: difference?.fixedOpening ?? null,
+    }
+  })
+}
+
+/** What the chat can read of Spending: seven kinds of record and the bank set-up list, with every field classified, and the figures the screens show, from the same functions. Nothing here writes. */
 export function spendingReader(reading: SpendingReading): AppReader {
   const rows = <R>(of: (book: SpendingBook) => readonly R[]): readonly R[] => {
     const book = reading.book()
@@ -228,6 +307,17 @@ export function spendingReader(reading: SpendingReading): AppReader {
         dated: null,
         rows: () => rows((book) => book.lines),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),
+      }),
+      readableKind<BankAccountLine>({
+        kind: BANK_ACCOUNT_LINES,
+        about: words.reads.bankAccount,
+        fields: BANK_ACCOUNT_FIELDS,
+        dated: null,
+        rows: () => {
+          const setup = reading.bankSetup()
+          return setup === null ? [] : rows((book) => bankAccountLines(setup, book))
+        },
+        currencyOf: (line) => line.currency,
       }),
     ],
     reports: [

@@ -1,7 +1,9 @@
 import { companyAcceptance, companyProposer } from '../../src/apps/company/assistant/operations/companyOperations'
 import type { CompanyOperationPorts } from '../../src/apps/company/assistant/operations/companyOperations'
 import { hrDooOperations } from '../../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
+import type { MailDraftsSwitch } from '../../src/apps/company/assistant/operations/mailDraftsOperation'
 import type { SetUpAnswer } from '../../src/apps/company/assistant/operations/setUpAnswers'
+import type { GmailForDrafts } from '../../src/apps/company/invoicing/application/invoiceGoogle'
 import type { LoadedImportFile } from '../../src/apps/company/imports/application/importStatements'
 import type { StatementReading } from '../../src/apps/company/imports/domain/importedStatement'
 import { RULE_COLUMNS } from '../../src/apps/company/rules/domain/readRules'
@@ -77,6 +79,29 @@ export function setUpAnswersHeld(): CompanyOperationPorts['setUpAnswers'] & { re
   return { held, given: (answer) => held.has(answer), give: (answer) => held.add(answer), takeBack: (answer) => held.delete(answer) }
 }
 
+/** This device's switch for invoice drafts as a test holds it: off, with Gmail as given, and a consent that grants Gmail unless it is told to refuse. */
+export function mailDraftsHeld(gmail: GmailForDrafts = 'held', refuses: string | null = null): MailDraftsSwitch & { readonly asked: number } {
+  let on = false
+  let stands = gmail
+  let asked = 0
+  return {
+    get asked() {
+      return asked
+    },
+    on: () => on,
+    switchTo: (switched) => {
+      on = switched
+    },
+    gmail: () => stands,
+    askGmail: () => {
+      asked += 1
+      if (refuses !== null) return Promise.reject(new Error(refuses))
+      stands = 'held'
+      return Promise.resolve()
+    },
+  }
+}
+
 /** The chat over a Company store: its refs, the cards it was shown, and its proposer and acceptance with the ports given. */
 export interface CompanyChat {
   readonly reads: ChatReads
@@ -98,6 +123,7 @@ export interface DeskPorts {
   readonly readStatementFile?: (fileName: string, bytes: ArrayBuffer) => Promise<LoadedImportFile>
   readonly heldStatements?: () => readonly StatementReading[]
   readonly pack?: CompanyOperationPorts['pack']
+  readonly mailDrafts?: MailDraftsSwitch
 }
 
 /** The ports a test hands Company's proposer: no file is read and nothing was held unless given, and the pack's changes as installed. */
@@ -110,6 +136,7 @@ export function deskPorts(given: DeskPorts = {}): CompanyOperationPorts {
       }),
     heldStatements: given.heldStatements ?? (() => []),
     setUpAnswers: setUpAnswersHeld(),
+    mailDrafts: given.mailDrafts ?? mailDraftsHeld(),
     pack: given.pack === undefined ? hrDooOperations(() => false) : given.pack,
   }
 }

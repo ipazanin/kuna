@@ -50,22 +50,29 @@ describe('the bank step across devices', () => {
   it('holds on a second device within six hours of a fetch on another, though this device never fetched', async () => {
     stubStorage()
     openedWithOtpFetchedAt(NOW - HOUR)
-    expect(await BANK_SYNC_STEP.run(() => undefined, '')).toEqual({ kind: 'done', line: 'Asked the banks less than six hours ago, so they are left alone for now.', writeId: null, link: null })
+    expect(await BANK_SYNC_STEP.run(() => undefined, '', 'due')).toEqual({ kind: 'done', line: 'Asked the banks less than six hours ago, so they are left alone for now.', writeId: null, link: null })
     expect(fetchAndImport).not.toHaveBeenCalled()
   })
 
   it('fetches once six hours have passed since any device asked', async () => {
     stubStorage()
     openedWithOtpFetchedAt(NOW - 6 * HOUR)
-    await BANK_SYNC_STEP.run(() => undefined, '')
+    await BANK_SYNC_STEP.run(() => undefined, '', 'due')
     expect(fetchAndImport).toHaveBeenCalledWith(false)
+  })
+
+  it('asks the banks inside six hours as a person, when the run asks now', async () => {
+    stubStorage()
+    openedWithOtpFetchedAt(NOW - HOUR)
+    await BANK_SYNC_STEP.run(() => undefined, '', 'now')
+    expect(fetchAndImport).toHaveBeenCalledWith(true)
   })
 
   it('keeps saying what the last fetch on this device left, so a failure is not hidden for six hours', async () => {
     stubStorage()
     openedWithOtpFetchedAt(NOW - HOUR)
     saveLastFetch({ problems: ['OTP did not answer, so its rows wait for a later sync: HTTP 503'], linked: [] })
-    const result = await BANK_SYNC_STEP.run(() => undefined, '')
+    const result = await BANK_SYNC_STEP.run(() => undefined, '', 'due')
     expect(result).toMatchObject({ kind: 'waits', link: { to: '/spending/settings?tab=bank-sync' } })
     expect('line' in result && result.line).toContain('OTP did not answer')
   })

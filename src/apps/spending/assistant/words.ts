@@ -78,6 +78,11 @@ export const en = {
     photoStays: 'The photo stays in the Receipts folder on Drive after Undo.',
   },
   statementRead: (account: string, from: string, to: string) => `${account}, statement read in the chat, ${from} to ${to}`,
+  startingAccount: {
+    thisDevice: 'This device',
+    field: 'New entries start on',
+    changedSince: 'The account new entries start on changed in this browser since the card was made, so nothing was set.',
+  },
   quickActions: {
     sort: { label: 'Sort what is waiting', prompt: 'Sort the rows waiting on To review, and propose rules where the same payee keeps coming.' },
     rules: { label: 'Check my rules', prompt: 'Read my rules and rows, and propose fixing or deleting any rule that files rows wrongly.' },
@@ -92,6 +97,8 @@ export const en = {
     receipt: 'Fiscal receipts and the entry each split.',
     line: 'The parts of an entry a receipt split, which the figures count instead of the entry.',
     waiting: 'The rows waiting on To review for a category, which count nowhere until filed.',
+    bankAccount:
+      "Each currency of each account the linked banks gave at this page's last bank sync, against your Spending accounts, as Settings, Bank sync lists them. A new sync or a reload changes them, and after a reload no rows are held.",
   },
   reports: {
     month: { title: "a month's totals", about: "A month's spending, income, money saved and savings rate, as the Overview shows them." },
@@ -128,6 +135,7 @@ export const en = {
           `The bank sync brings booked rows from OTP and Revolut through a script of your own, into the same review as a statement. It lives on ${labels.settings}, ${labels.bankSync}.`,
           `1. Deploy the script and save its ${labels.deployment} there. Without it the sync stays off.`,
           '2. Link each bank. Its approval runs out on a date the card shows, and then you link it again.',
+          "3. After a sync, Bank accounts there lists every account the banks give. Add each, update it, keep yours or leave it out there, or ask the chat, which can also fix an opening the bank's balance disagrees with.",
         ].join('\n'),
     },
     limits: {
@@ -209,6 +217,11 @@ export const hr: Translation<typeof en> = {
     photoStays: 'Fotografija ostaje u mapi Receipts na Driveu i nakon poništavanja.',
   },
   statementRead: (account, from, to) => `${account}, izvod pročitan u razgovoru, od ${from} do ${to}`,
+  startingAccount: {
+    thisDevice: 'Ovaj uređaj',
+    field: 'Novi unosi počinju na',
+    changedSince: 'Račun na kojem počinju novi unosi promijenio se u ovom pregledniku otkako je kartica napravljena, pa ništa nije postavljeno.',
+  },
   quickActions: {
     sort: { label: 'Razvrstaj ono što čeka', prompt: 'Razvrstaj retke koji čekaju na kartici Za pregled i predloži pravila gdje se isti primatelj ponavlja.' },
     rules: { label: 'Provjeri moja pravila', prompt: 'Pročitaj moja pravila i retke te predloži ispravak ili brisanje pravila koje pogrešno razvrstava.' },
@@ -223,6 +236,8 @@ export const hr: Translation<typeof en> = {
     receipt: 'Fiskalni računi i unos koji je svaki podijelio.',
     line: 'Dijelovi unosa koji je račun podijelio, a iznosi broje njih umjesto unosa.',
     waiting: 'Retci koji na Za pregled čekaju kategoriju i ne broje se nigdje dok se ne razvrstaju.',
+    bankAccount:
+      'Svaka valuta svakog računa koji su povezane banke dale pri zadnjoj sinkronizaciji na ovoj stranici, uz vaše račune u Potrošnji, kako ih navodi Postavke, Sinkronizacija s bankom. Nova sinkronizacija ili ponovno učitavanje ih mijenja, a nakon ponovnog učitavanja nijedan redak nije zadržan.',
   },
   reports: {
     month: { title: 'zbroj mjeseca', about: 'Potrošnja, prihodi, ušteđeni novac i stopa štednje u mjesecu, kako ih prikazuje Pregled.' },
@@ -259,6 +274,7 @@ export const hr: Translation<typeof en> = {
           `Sinkronizacija s bankom donosi proknjižene retke iz OTP-a i Revoluta preko vaše vlastite skripte, u isti pregled kao i izvod. Nalazi se na zaslonu ${labels.settings}, na kartici ${labels.bankSync}.`,
           `1. Objavite skriptu (Deploy u uređivaču skripte) pa tamo spremite ${labels.deployment}. Bez toga sinkronizacija ostaje isključena.`,
           '2. Povežite svaku banku. Odobrenje istječe na datum s kartice i tada banku ponovno povežite.',
+          '3. Nakon sinkronizacije ondje Bankovni računi navode svaki račun koji banke daju. Svaki ondje dodajte, ažurirajte, zadržite svoje podatke ili ga izostavite, ili zamolite razgovor, koji može i ispraviti početno stanje s kojim se stanje u banci ne slaže.',
         ].join('\n'),
     },
     limits: {
