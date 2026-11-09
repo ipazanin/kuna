@@ -8,6 +8,7 @@ import type { RuledChange } from '../src/shared/storage/application/recordWrites
 import { EXAMPLE_RECORDS, loansDesk } from './fixtures/loansDesk'
 import type { LoansDesk } from './fixtures/loansDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -60,6 +61,7 @@ describe('every Loans operation', () => {
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)
       const [card] = desk.cards
+      expectCountsOfChanges(card!)
       const { changes } = card!.held as { readonly changes: readonly RuledChange[] }
       const linesTaken = new Map<string, number>()
       for (const { change } of changes) {

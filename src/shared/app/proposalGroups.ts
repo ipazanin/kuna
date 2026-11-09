@@ -1,6 +1,6 @@
 import type { CheckedWrite } from '../storage/application/recordWrites'
 import type { RecordKind, RecordNoun } from '../storage/domain/recordKind'
-import type { ProposalField, ProposalGroup, ProposalLine } from './assistantOperations'
+import type { CardNote, ProposalField, ProposalGroup, ProposalLine } from './assistantOperations'
 import { words } from './words'
 
 /** A record of a change as the storage holds it, read field by field. */
@@ -44,11 +44,11 @@ function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallbac
  * read by its describer. A repaired row shows as a change with every field it will hold, and a discarded one as a removal by its label.
  */
 export function proposalGroups(checked: CheckedWrite, describerOf: (kind: RecordKind<unknown>) => ProposalDescriber): readonly ProposalGroup[] {
-  const groups = new Map<string, { verb: ProposalGroup['verb']; noun: RecordNoun; lines: ProposalLine[] }>()
+  const groups = new Map<string, { verb: ProposalGroup['verb']; noun: RecordNoun; notes: readonly []; lines: ProposalLine[] }>()
   checked.changes.forEach(({ change }, at) => {
     const verb = change.verb === 'repair' ? 'change' : change.verb === 'discard' ? 'remove' : change.verb
     const key = `${verb}/${change.kind.name}`
-    const group = groups.get(key) ?? { verb, noun: change.kind.noun, lines: [] }
+    const group = groups.get(key) ?? { verb, noun: change.kind.noun, notes: [], lines: [] }
     groups.set(key, group)
     const fallback = checked.written[at]?.label ?? checked.found[at]?.label ?? ('refused' in change ? change.refused.label : '')
     const before = change.verb === 'change' || change.verb === 'remove' ? (change.before as ProposedRecord) : null
@@ -56,4 +56,12 @@ export function proposalGroups(checked: CheckedWrite, describerOf: (kind: Record
     group.lines.push(lineOf(describerOf(change.kind), change.kind, fallback, before, after))
   })
   return [...groups.values()]
+}
+
+/** The notes on the first group of their kind, in the order given, or on a group of their own with no lines when the card writes nothing of that kind. */
+export function withNotes(groups: readonly ProposalGroup[], notes: readonly CardNote[]): readonly ProposalGroup[] {
+  return notes.reduce((shown, { noun, note }) => {
+    const at = shown.findIndex((group) => group.noun === noun)
+    return at < 0 ? [...shown, { verb: 'change', noun, notes: [note], lines: [] }] : shown.map((group, place) => (place === at ? { ...group, notes: [...group.notes, note] } : group))
+  }, groups)
 }

@@ -195,8 +195,8 @@ function groupsOf(device: KunaDevice, changes: readonly DeviceChange[]): readonl
   })
   const added = changes.flatMap((change) => (isAdding(change) ? change.added.map((id) => ({ label: device.apps().find((app) => app.id === id)?.name ?? id, fields: [], warning: null })) : []))
   return [
-    ...(fields.length === 0 ? [] : [{ verb: 'change' as const, noun: DEVICE_SETTING, lines: [{ label: words.thisDevice, fields, warning: null }] }]),
-    ...(added.length === 0 ? [] : [{ verb: 'add' as const, noun: APP_IN_USE, lines: added }]),
+    ...(fields.length === 0 ? [] : [{ verb: 'change' as const, noun: DEVICE_SETTING, notes: [], lines: [{ label: words.thisDevice, fields, warning: null }] }]),
+    ...(added.length === 0 ? [] : [{ verb: 'add' as const, noun: APP_IN_USE, notes: [], lines: added }]),
   ]
 }
 
@@ -253,7 +253,7 @@ export function kunaProposer(device: KunaDevice): AppProposer {
       if (changes.some((change) => sameValue(change.before, change.after))) return Promise.resolve({ refused: [words.refused.same] })
       const reloads = changes.some((change) => change.setting === 'language')
       const held: HeldChanges = { changes }
-      const proposal: CheckedProposal = { title, count: steps.length, groups: groupsOf(device, changes), outside: reloads ? [words.outside.reloads] : [], undoable: !reloads, held }
+      const proposal: CheckedProposal = { title, count: steps.length, groups: groupsOf(device, changes), outside: reloads ? [words.outside.reloads] : [], undoable: !reloads, heldBack: null, held }
       return Promise.resolve(proposal)
     },
   }

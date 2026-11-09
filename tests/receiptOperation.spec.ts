@@ -88,8 +88,8 @@ describe('a receipt from the chat', () => {
 
     const held = bookOf(desk).receipts.find((candidate) => candidate.transaction === PHARMACY)!
     expect([held.total, held.issuedOn, held.issuedTime, held.jir]).toEqual([3100, '2026-10-21', '18:42', '1a2b3c4d-0000-4000-8000-1234567890ab'])
-    const warned = desk.cards[0]!.groups.flatMap((group) => group.lines).filter((shown) => shown.warning !== null)
-    expect(warned.map((shown) => shown.warning)).toEqual([expect.stringContaining('The QR code says €31.00')])
+    const warned = desk.cards[0]!.groups.flatMap((group) => group.notes)
+    expect(warned.map((shown) => shown.text)).toEqual([expect.stringContaining('The QR code says €31.00')])
   })
 
   it('keeps where the photo was taken, read from the photo as attached', async () => {

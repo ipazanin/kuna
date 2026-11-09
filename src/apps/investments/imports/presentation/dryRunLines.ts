@@ -12,7 +12,7 @@ import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { decimalOfNumber } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { formatCurrencyAmount, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
+import { formatCurrencyAmount, formatMoney, formatQuantity, formatUnitPrice } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { AskedRow, AskedWhy } from '../../../../shared/recipes/domain/runRecipe'
@@ -94,7 +94,12 @@ export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates
   const rowsOfRecord = new Map(dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'new' ? [[entry.outcome.imported.record.id, entry.rows] as const] : [])))
   return {
     fresh: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'new' ? [recordLine(key, outcome.imported, plannedOf, rows)] : [])),
-    waiting: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'waiting' ? [rowLine(key, rows[0], rowsLabelOf(rows), accountName, waitText(outcome.reason))] : [])),
+    waiting: dryRun.entries.flatMap(({ key, rows, outcome }) => {
+      if (outcome.kind !== 'waiting') return []
+      const { reason } = outcome
+      const note = reason.kind === 'looks-in-kuna' ? words.dryRun.looksLike(likeParts(reason.like, keptOf).join(', ')) : waitText(reason)
+      return [rowLine(key, rows[0], rowsLabelOf(rows), accountName, note)]
+    }),
     inKuna: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'in-kuna' ? [rowLine(key, rows[0], rowsLabelOf(rows), accountName, '')] : [])),
     asked: (dryRun.report?.asked ?? []).map(askedLine),
     skipped: dryRun.skipped.map((row) => ({
@@ -156,8 +161,7 @@ function listedById(book: InvestmentBook, rates: RateBook): Map<RecordId, Listed
 
 /** A row as the workbook books it: its type, what it is about, and its amount or units. */
 function rowLine(key: string, row: WorkbookRow, rowsWords: string, accountName: (row: WorkbookRow) => string, note: string): ImportLine {
-  const amount = row.netCash ?? row.gross
-  const figure = amount !== null && row.currency !== null ? formatCurrencyAmount(amount, row.currency) : row.quantity !== null ? words.dryRun.units(formatQuantity(row.quantity, QUANTITY_PLACES)) : ''
+  const figure = rowFigure(row)
   return {
     key,
     title: [words.types[row.type], row.yahooSymbol || row.brokerSymbol].filter((part) => part !== '').join(' · '),
@@ -183,6 +187,41 @@ function askedText(why: AskedWhy): string {
     case 'changed':
       return words.dryRun.askedChanged
   }
+}
+
+/** A waiting row beside the record Kuna has from another file that it looks like, each as its parts. */
+export interface LookAlike {
+  readonly fileRow: number
+  readonly row: readonly string[]
+  readonly record: readonly string[]
+}
+
+/** The waiting rows that look like a record Kuna has, in the workbook's order. */
+export function lookAlikesOf(dryRun: WorkbookDryRun, book: InvestmentBook, rates: RateBook, accountName: (row: WorkbookRow) => string): LookAlike[] {
+  const keptOf = listedById(book, rates)
+  return dryRun.entries.flatMap(({ rows, outcome }) => {
+    if (outcome.kind !== 'waiting' || outcome.reason.kind !== 'looks-in-kuna') return []
+    const row = rows[0]!
+    return [{ fileRow: row.fileRow, row: [capitalised(words.dryRun.row(row.fileRow)), ...rowParts(row, accountName)], record: likeParts(outcome.reason.like, keptOf) }]
+  })
+}
+
+/** A record Kuna has: what it is, what it moved, and its day and account. */
+function likeParts(record: ImportedRecord, listed: ReadonlyMap<RecordId, ListedTransaction>): string[] {
+  const entry = listed.get(record.record.id)
+  if (entry === undefined) return []
+  const line = transactionLine(entry)
+  return [line.kind, line.subject, line.euros === null ? '' : formatMoney(line.euros), line.moved, dayLabel(entry.record.date), line.account].filter((part) => part !== '')
+}
+
+function rowParts(row: WorkbookRow, accountName: (row: WorkbookRow) => string): string[] {
+  return [words.types[row.type], row.yahooSymbol || row.brokerSymbol, rowFigure(row), dayLabel(row.date), accountName(row)].filter((part) => part !== '')
+}
+
+function rowFigure(row: WorkbookRow): string {
+  const amount = row.netCash ?? row.gross
+  if (amount !== null && row.currency !== null) return formatCurrencyAmount(amount, row.currency)
+  return row.quantity !== null ? words.dryRun.units(formatQuantity(row.quantity, QUANTITY_PLACES)) : ''
 }
 
 function rowsLabel(rows: readonly WorkbookRow[]): string {

@@ -20,19 +20,21 @@ const PROMPTS = {
   copy: { en: 'Copy these rows into my first account', hr: 'Prepiši ove retke u moj prvi račun' },
   copyAgain: { en: 'Copy them again with one more', hr: 'Prepiši ih ponovno s još jednim' },
   zero: { en: 'Import this statement', hr: 'Uvezi ovaj izvod' },
+  file: { en: 'Copy the rows of this file into my first account', hr: 'Prepiši retke ove datoteke u moj prvi račun' },
+  lookAlike: { en: 'Import the look-alike too, it is another deposit', hr: 'Uvezi i onaj sličan, to je druga uplata' },
   valuation: { en: 'Valuation of my newest asset at 210,000 today', hr: 'Procjena moje najnovije imovine na 210.000 danas' },
 }
 
 /** What the import card of the made-up workbook without its split says, as each language writes it. */
 const WORKBOOK_IMPORT = {
-  en: ['23 changes', '4 investment accounts'],
-  hr: ['23 promjene', '4 investicijska računa'],
+  en: ['23 changes', '3 investment accounts'],
+  hr: ['23 promjene', '3 investicijska računa'],
 }
 
-/** What the Investments copy cards say, as each language writes it: the cash adding up to the printed balances, and a row Kuna has already. */
+/** What the Investments copy cards say, as each language writes it: the cash adding up to the printed balances, a row Kuna has already, and the waiting row that looks like a record Kuna has. */
 const COPY_WORDS = {
-  en: { ties: 'cash adds up to the balances', inKuna: 'is in Kuna already' },
-  hr: { ties: 'zbraja se do stanja', inKuna: 'već je u Kuni' },
+  en: { ties: 'cash adds up to the balances', inKuna: 'is in Kuna already', lookAlike: ['not imported', 'Say in the chat whether'] },
+  hr: { ties: 'zbraja se do stanja', inKuna: 'već je u Kuni', lookAlike: ['uvez', 'Recite u razgovoru'] },
 }
 
 /** The amounts the fake chats propose, as each language writes them. */
@@ -117,7 +119,7 @@ const CARDS = {
     attach: 'withoutSplit',
     accept: true,
     shows: async (page, card, language) => {
-      await elementSays(page, '[data-testid="chat-proposal"]', WORKBOOK_IMPORT[language], "the import card does not add the workbook's four accounts in 23 changes")
+      await elementSays(page, '[data-testid="chat-proposal"]', WORKBOOK_IMPORT[language], "the import card does not add the workbook's three accounts in 23 changes")
     },
   },
   report: {
@@ -146,6 +148,37 @@ const CARDS = {
     },
     shows: async (page, card, language) => {
       await elementSays(page, '[data-testid="chat-proposal"]', [COPY_WORDS[language].ties], 'the copy card does not say the cash adds up to the printed balances')
+    },
+  },
+  file: {
+    name: 'investments-chat-file-copy',
+    attach: 'deposits',
+    answersBefore: 1,
+    before: async (page, press, language) => {
+      await ask(page, press, PROMPTS.copy[language])
+      await proposedCard(page, 1, 'the chat proposed no card for the typed rows')
+      await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
+      await page.waitForSelector('[data-testid="chat-proposal-undo"]', { visible: true, timeout: 15_000 })
+    },
+    shows: async (page, card, language) => {
+      await elementSays(page, '[data-testid="chat-proposal-note"][data-tone="info"]', COPY_WORDS[language].lookAlike, 'the file card does not ask about the waiting row that looks like one Kuna has')
+      await elementSays(
+        page,
+        '[data-testid="chat-proposal-read-files"]',
+        [ASSIST_WORDS[language].proposal.madeAfterReading('chat-sample-deposits.csv')],
+        'the file card does not say it was made after reading the file',
+      )
+    },
+    after: async (page, press, language, shoot, inspect) => {
+      await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
+      await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-proposal-undo"]').length >= 2, { timeout: 15_000 })
+      await ask(page, press, PROMPTS.lookAlike[language])
+      await proposedCard(page, 3, 'the chat proposed no card for the look-alike')
+      await elementSays(page, '[data-testid="chat-proposal"][data-state="open"]', [COPY_WORDS[language].inKuna], 'the look-alike card does not say the other row is in Kuna already')
+      await delay(300)
+      await acceptLooksReady(page)
+      await inspect?.('the look-alike imported once the person says it is another deposit')
+      await shoot('investments-chat-look-alike')
     },
   },
   zero: {
@@ -185,9 +218,10 @@ export function appChatCardFlowIn(language, card, files = {}) {
     try {
       await keepAiKey(page)
       await openChat(page, press)
+      await shape.before?.(page, press, language)
       if (shape.attach !== undefined) await attachToChat(page, files[shape.attach])
       await ask(page, press, PROMPTS[card][language])
-      const proposed = await proposedCard(page, 1, `the chat proposed no card for "${PROMPTS[card].en}"`)
+      const proposed = await proposedCard(page, (shape.answersBefore ?? 0) + 1, `the chat proposed no card for "${PROMPTS[card].en}"`)
       await shape.shows?.(page, proposed, language)
       await delay(300)
       await acceptLooksReady(page)

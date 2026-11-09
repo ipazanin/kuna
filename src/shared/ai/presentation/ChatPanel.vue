@@ -34,6 +34,7 @@ import {
   clearChat,
   loadCatalogue,
   promptPdfsRefused,
+  promptCellsNotes,
   promptSendsDocument,
   restoreChat,
   sendChatMessage,
@@ -97,10 +98,13 @@ const switchApp = computed(() => (props.app?.assist === undefined ? null : props
 const asksAlways = computed(() => props.apps.find((app) => app.id === chatAsking.value?.app)?.assist !== undefined)
 const aliasLine = computed(() => (anonymisingNow() ? words.chat.aliases : words.chat.noAliases(provider.value?.name ?? '')))
 const sendLines = computed(() => {
-  const files = promptSendsDocument.value
+  const files = promptSendsDocument.value || promptCellsNotes.value.length > 0
   const sends = readsHere.value && props.app !== null ? (files ? words.chat.sendsAndReadsWithFiles : words.chat.sendsAndReads)(props.app.name) : files ? words.chat.sendsWithFiles : words.chat.sends
-  return [words.consent.sends(sends), ...(readsHere.value && props.app !== null ? [aliasLine.value] : [])]
+  const cells = promptCellsNotes.value.filter((note) => !note.warns).map((note) => note.text)
+  return [words.consent.sends(sends), ...(readsHere.value && props.app !== null ? [aliasLine.value] : []), ...cells]
 })
+/** The warnings under the card's lines: each file of cells whose names go as written, then that photos and PDFs go whole. */
+const sendCautions = computed(() => [...promptCellsNotes.value.filter((note) => note.warns).map((note) => note.text), ...(promptSendsDocument.value ? [words.files.goesWhole] : [])])
 const readLines = computed(() => (chatAsking.value === null ? [] : [words.consent.sends(words.chat.reads(chatAsking.value.name)), aliasLine.value]))
 const held = computed(() => asking.value !== null || chatAsking.value !== null)
 const readingFiles = computed(() => chatPromptFiles.value.some((file) => file.state === 'reading'))
@@ -276,7 +280,7 @@ function dropped(event: DragEvent): void {
           :provider="provider"
           :title="words.consent.title(provider.name)"
           :lines="sendLines"
-          :caution="promptSendsDocument ? words.files.goesWhole : undefined"
+          :cautions="sendCautions"
           :offers-always="switchApp !== null"
           @allow="allowInChat"
           @always="allowAlways"
@@ -298,7 +302,7 @@ function dropped(event: DragEvent): void {
         </div>
         <UChatPrompt v-model="chatDraft" :placeholder="placeholder" :autofocus="!phone" :disabled="held" variant="subtle" :maxrows="6" class="chat-prompt" data-testid="chat-prompt" @submit="submit">
           <template #header>
-            <PromptFiles :says-goes-whole="asking === null" />
+            <PromptFiles :says-how-files-go="asking === null" />
           </template>
           <template #footer>
             <div class="flex items-center gap-1">

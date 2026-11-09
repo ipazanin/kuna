@@ -47,7 +47,15 @@ export function setUpAnswerCheck(title: string, steps: readonly ProposalStep[], 
   if (answer === undefined) return { refused: [`answer is one of ${SET_UP_ANSWERS.join(', ')}.`] }
   if (answers.given(answer)) return { refused: ['That is answered on this device already.'] }
   const held: HeldAnswer = { setUpAnswer: answer }
-  return { title, count: 1, groups: [{ verb: 'add', noun: SET_UP_NOUN, lines: [{ label: words.setUp[answer], fields: [], warning: null }] }], outside: [], undoable: true, held }
+  return {
+    title,
+    count: 1,
+    groups: [{ verb: 'add', noun: SET_UP_NOUN, notes: [], lines: [{ label: words.setUp[answer], fields: [], warning: null }] }],
+    outside: [],
+    undoable: true,
+    heldBack: null,
+    held,
+  }
 }
 
 /** Keeps the answer of an answer's card, with an Undo that asks the question again. Null for any other card. */

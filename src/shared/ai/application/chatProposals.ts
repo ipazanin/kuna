@@ -119,5 +119,7 @@ export async function proposeChanges(
     return { text: sent, isError: true, read: { kind: 'refusal', app: reads.readers.get(input.app)?.name ?? input.app } }
   }
   showProposal(input.app, checked)
-  return { text: `The card shows ${checked.count} changes. Say so in one short line and stop. Nothing is written until the person accepts.`, isError: false }
+  const shown = `The card shows ${checked.count} changes. Nothing is written until the person accepts.`
+  if (checked.heldBack === null) return { text: `${shown} Say so in one short line and stop.`, isError: false }
+  return { text: `${shown} ${checked.heldBack} Say so in one or two short lines and stop.`, isError: false }
 }

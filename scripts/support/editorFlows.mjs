@@ -9138,6 +9138,36 @@ export function chatConsentFilesFlow(samples, language = 'en') {
   }
 }
 
+/**
+ * The card before the first send says what a file of cells sends, in the chip's own words: beside a photo, the CSV's line
+ * among the lines and the photo's warning under them, and with Anonymise off, the CSV's line as a warning. The prompt's
+ * own lines wait while the card says them.
+ */
+export function chatConsentCellsFlow(samples, language = 'en', anonymise = true) {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page, anonymise ? {} : { 'kuna.assist-anonymise': 'anthropic' })
+      await openChat(page, press)
+      await attachToChat(page, ...(anonymise ? [samples.deposits, samples.photo] : [samples.deposits]))
+      await sendInChat(page, press, language === 'en' ? 'What is in these?' : 'Što je u ovima?')
+      await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
+      const cells = anonymise ? words.files.goesAsCells('chat-sample-deposits.csv') : words.files.goesAsCellsPlain('chat-sample-deposits.csv')
+      await elementSays(page, anonymise ? CHAT_CONSENT : '[data-testid="chat-consent-caution"]', [cells], 'the card does not say how the CSV goes')
+      if (anonymise) await elementSays(page, '[data-testid="chat-consent-caution"]', [words.files.goesWhole], 'the card does not warn that photos and PDFs go whole')
+      if (await page.$('[data-testid="chat-file-note"]')) throw new Error('the files under the prompt say how they go while the card says it too')
+      await delay(400)
+      await inspect?.(`the card before a send with a CSV${anonymise ? ' and a photo' : ' and Anonymise off'}`)
+      await shoot(anonymise ? 'chat-consent-cells' : 'chat-consent-cells-plain')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
 /** A sent message with a file lists it under the text, and one without lists nothing. */
 export function chatQuestionFilesFlow(samples, language = 'en') {
   return async (page, { press, shoot: shootAs, inspect }) => {

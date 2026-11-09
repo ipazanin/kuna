@@ -31,6 +31,7 @@ const {
   attachFiles,
   chatAsking,
   chatPromptFiles,
+  promptCellsNotes,
   promptFilesCost,
   removePromptFile,
   chatFigure,
@@ -390,7 +391,7 @@ describe('a card in the chat', () => {
   const TIDY: AppProposer = {
     operations: [{ name: 'tidy', about: 'Tidies.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
     readsBooks: true,
-    check: async (title) => ({ title, count: 1, groups: [], outside: [], undoable: true, held: {} }),
+    check: async (title) => ({ title, count: 1, groups: [], outside: [], undoable: true, heldBack: null, held: {} }),
   }
   const WITH_TIDY: Catalogue = { ...CATALOGUE, proposers: new Map([['spending', TIDY]]) }
 
@@ -408,6 +409,32 @@ describe('a card in the chat', () => {
     await sendChatMessage('And now?', CONTEXT, async () => WITH_TIDY)
     expect(JSON.stringify(model.requests[2]!.turns)).toContain('tried to undo the card \\"Tidy up\\"')
   })
+
+  it('names the files the model read in the turn that made a card, and none on a card of a later turn or without a read', async () => {
+    allowThisChat('anthropic', 'spending')
+    const tidy = (id: string) => lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }] }, id)
+    await attachFiles([picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv'), picked('notes.csv', new TextEncoder().encode('note\nhello'), 'text/csv')])
+    const [october] = chatPromptFiles.value as readonly Extract<PromptFile, { readonly state: 'ready' }>[]
+    port.current = scripted([
+      tidy('before'),
+      lookup('read_attachment', { attachment: october!.attachment.id, pages: null, sheet: null, rows: '1-2' }, 'read'),
+      tidy('after'),
+      answer('Card shown.'),
+      tidy('later'),
+      answer('Another card.'),
+    ])
+
+    await sendChatMessage('Tidy after reading the file', CONTEXT, async () => WITH_TIDY)
+    await sendChatMessage('Once more', CONTEXT, async () => WITH_TIDY)
+
+    const cards = chatLines.flatMap((line) => line.proposals)
+    expect(cards.map((card) => card.readFiles)).toEqual([[], ['october.csv'], []])
+    clearChat()
+    allowThisChat('anthropic', 'spending')
+    port.current = scripted([tidy('fresh'), answer('Card shown.')])
+    await sendChatMessage('Tidy', CONTEXT, async () => WITH_TIDY)
+    expect(chatLines.at(-1)!.proposals[0]!.readFiles).toEqual([])
+  })
 })
 
 describe('files on the prompt', () => {
@@ -421,6 +448,18 @@ describe('files on the prompt', () => {
     expect(photo).toMatchObject({ attachment: { kind: 'photo', sent: { width: 1092, height: 1092 } } })
     removePromptFile(pdf!.key)
     expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['notes.docx', 'receipt.jpg'])
+  })
+
+  it('words a file sent as cells once for its chip and the card before the first send, warning while Anonymise is off', async () => {
+    await attachFiles([picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv'), statementPdf()])
+    const [csv] = chatPromptFiles.value
+    expect(promptCellsNotes.value).toEqual([{ key: csv!.key, text: words.files.goesAsCells('october.csv'), warns: false }])
+    switchAnonymise('anthropic', false)
+    try {
+      expect(promptCellsNotes.value).toEqual([{ key: csv!.key, text: words.files.goesAsCellsPlain('october.csv'), warns: true }])
+    } finally {
+      switchAnonymise('anthropic', true)
+    }
   })
 
   it('says what photos, PDFs and a file sent as cells add to the cost', async () => {
@@ -522,7 +561,7 @@ describe('what a card says it leaves outside the books', () => {
   const proposerWith = (outside: readonly string[], undoable: boolean): AppProposer => ({
     operations: [{ name: 'fetch', about: 'Fetches.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
     readsBooks: false,
-    check: async (title) => ({ title, count: 1, groups: [], outside, undoable, held: {} }),
+    check: async (title) => ({ title, count: 1, groups: [], outside, undoable, heldBack: null, held: {} }),
   })
 
   async function shownCard(proposer: AppProposer): Promise<ChatProposal> {

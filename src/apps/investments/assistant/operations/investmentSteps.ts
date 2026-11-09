@@ -1,13 +1,12 @@
 import type { PricesFile } from '../../prices/domain/pricesFile'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
-import type { AcceptResult, AssistantOperation, CheckedProposal, ProposalLine, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { AcceptResult, AssistantOperation, CardNote, CheckedProposal, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { decimalOfText } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { REGIONS, countryOf } from '../../workbook/domain/mixGroup'
 import type { Country } from '../../workbook/domain/mixGroup'
 
@@ -47,14 +46,10 @@ export interface StepWritten {
   readonly made: string | null
   /** The priced holdings the step adds or reprices, by name, whose closes Accept fetches as the holding dialog and the import do. */
   readonly fetchesPricesOf: readonly string[]
-  /** Warned lines the card shows beside the changes, such as rows an import leaves waiting. */
-  readonly notes: readonly StepNote[]
-}
-
-/** A warned line on the card's group of the records its step writes, named by their noun. */
-export interface StepNote {
-  readonly noun: RecordNoun
-  readonly line: ProposalLine
+  /** Notes the card shows beside the changes, such as rows an import leaves waiting. */
+  readonly notes: readonly CardNote[]
+  /** What the step holds back from the write, each a sentence for the model. */
+  readonly heldBack: readonly string[]
 }
 
 /** A part of the operations and how it writes one of its steps into the card's one write, through the screens' own write functions. */
@@ -65,7 +60,7 @@ export interface InvestmentSteps {
 
 /** A step that leaves the books as they were for the steps after it. */
 export function unchanged(card: CardBooks): StepWritten {
-  return { book: card.book, made: null, fetchesPricesOf: [], notes: [] }
+  return { book: card.book, made: null, fetchesPricesOf: [], notes: [], heldBack: [] }
 }
 
 /** Operations whose card writes nothing to the books, such as an answer this device keeps or a run of the prices file. Each goes alone on its card. */

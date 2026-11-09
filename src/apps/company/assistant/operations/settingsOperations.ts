@@ -453,7 +453,7 @@ function setSetting(card: CompanyCard, step: ProposalStep): void {
   const value = String(field['value'])
   if (!proposedKeys().includes(key)) throw new StepRefused('Only a person sets that key, on its own screen.')
   setSettings(card.unit, card.records().settings, [{ key, value: value.trim() === '' ? '' : savedValue(card, key, value) }])
-  if (key === 'currency' || key === 'number_locale') card.note({ noun: SETTING_RECORDS.noun, line: { label: settingName(key, {}), fields: [], warning: words.everyFigure[key] } })
+  if (key === 'currency' || key === 'number_locale') card.note({ noun: SETTING_RECORDS.noun, note: { label: settingName(key, {}), text: words.everyFigure[key], tone: 'warning' } })
 }
 
 /** Refuses the card when its settings together break a rule the settings forms keep across fields, such as an amount with no item, unless the books broke it already. */

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import type { Catalogue } from '../src/shared/ai/application/catalogue'
+import type { AppProposer } from '../src/shared/app/assistantOperations'
 import type { ModelPort, ModelReply, ModelTurn } from '../src/shared/ai/application/modelPort'
 import { forgetSavedChat, readSavedChat, saveChat } from '../src/shared/ai/application/savedChat'
 import type { SavedLine } from '../src/shared/ai/application/savedChat'
@@ -97,6 +98,35 @@ describe('a chat kept in this browser', () => {
     expect(texts).toContain('Person 1 got -45.30 EUR. The month spent 645.30 EUR.')
     expect(second.shownOnScreen('Person 1')).toBe('Person 1')
     expect(second.chatLines.at(-1)!.sent).toEqual([])
+  })
+
+  it('keeps the names of the files a card was made after reading, so its line comes back after a reload', async () => {
+    const tidy: AppProposer = {
+      operations: [{ name: 'tidy', about: 'Tidies.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
+      readsBooks: false,
+      check: async (title) => ({ title, count: 1, groups: [], outside: [], undoable: true, heldBack: null, held: {} }),
+    }
+    const first = await loadSession()
+    const { pickProvider } = await import('../src/shared/ai/application/assistSettings')
+    pickProvider('anthropic')
+    first.allowThisChat('anthropic')
+    const bytes = new TextEncoder().encode('date,amount\n2026-10-01,-12.00')
+    const sheet = new File([bytes], 'October.csv', { type: 'text/csv' })
+    Object.defineProperty(sheet, 'arrayBuffer', { value: async () => bytes.slice().buffer })
+    await first.attachFiles([sheet])
+    const [attached] = first.chatPromptFiles.value as readonly { readonly attachment: { readonly id: string } }[]
+    port.current = scripted([
+      { kind: 'tool-calls', calls: [{ id: 'r', name: 'read_attachment', args: { attachment: attached!.attachment.id, pages: null, sheet: null, rows: '1-2' } }], raw: [], tokens: TOKENS },
+      { kind: 'tool-calls', calls: [{ id: 'p', name: 'propose_changes', args: { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }] } }], raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'Card shown.', raw: [], tokens: TOKENS },
+    ])
+    await first.sendChatMessage('Tidy after reading it', CONTEXT, async () => ({ ...CATALOGUE, proposers: new Map([['spending', tidy]]) }))
+    await settled()
+    expect(first.chatLines.flatMap((line) => line.proposals).map((card) => card.readFiles)).toEqual([['October.csv']])
+
+    const second = await loadSession()
+    await second.restoreChat()
+    expect(second.chatLines.flatMap((line) => line.proposals).map((card) => card.readFiles)).toEqual([['October.csv']])
   })
 
   it('keeps only the names of the files a message went with, never the files', async () => {

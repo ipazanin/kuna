@@ -25,6 +25,7 @@ import { companyDesk, deskPorts } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 import { forgetCaches } from './fixtures/writeBack'
+import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -97,13 +98,13 @@ describe('every Company operation', () => {
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)
       const [card] = desk.cards
+      expectCountsOfChanges(card!)
       const { changes } = (card!.held as { readonly changes?: readonly RuledChange[] }).changes === undefined ? { changes: [] } : (card!.held as { readonly changes: readonly RuledChange[] })
       const linesTaken = new Map<string, number>()
       for (const { change } of changes) {
         if (change.verb === 'repair' || change.verb === 'discard') continue
         const group = card!.groups.find((candidate) => candidate.verb === change.verb && candidate.noun === change.kind.noun)!
-        const notes = group.lines.filter((line) => line.fields.length === 0 && line.warning !== null).length
-        const at = (linesTaken.get(`${change.verb}/${change.kind.name}`) ?? notes) + 0
+        const at = linesTaken.get(`${change.verb}/${change.kind.name}`) ?? 0
         linesTaken.set(`${change.verb}/${change.kind.name}`, at + 1)
         if (change.verb === 'remove') continue
         const before = change.verb === 'change' ? (change.before as Readonly<Record<string, unknown>>) : null
@@ -146,8 +147,8 @@ describe('filing rows against a rule', () => {
   it('says on the card when a rule files rows like this one elsewhere, as Change category does', async () => {
     const desk = await companyDesk(used)
     await desk.propose([{ op: 'file-row', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-5').id), category: desk.ref(CATEGORY_RECORDS.name, 'office') } }])
-    const warnings = desk.cards[0]!.groups.flatMap((group) => group.lines).map((line) => line.warning)
-    expect(warnings.some((warning) => warning?.includes('merchant-model') === true)).toBe(true)
+    const warnings = desk.cards[0]!.groups.flatMap((group) => group.notes).map((note) => note.text)
+    expect(warnings.some((warning) => warning.includes('merchant-model'))).toBe(true)
   })
 })
 
@@ -193,9 +194,9 @@ describe('rules', () => {
   it('warns on a confirmed row another rule now decides, and leaves it filed', async () => {
     const desk = await companyDesk(used)
     await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'Desk', confidence: 'review' }) }])
-    const warned = desk.cards[0]!.groups.flatMap((group) => group.lines).filter((line) => line.warning !== null)
-    expect(warned.map((line) => line.label)).toEqual(['Desk Co'])
-    expect(warned[0]!.warning).toBe(words.ruleDisagrees('Office'))
+    const warned = desk.cards[0]!.groups.flatMap((group) => group.notes)
+    expect(warned.map((note) => note.label)).toEqual(['Desk Co'])
+    expect(warned[0]!.text).toBe(words.ruleDisagrees('Office'))
     await desk.accept()
     expect(desk.row('REF-6').category).toBe('equipment')
   })
@@ -319,7 +320,7 @@ describe('settings, categories and accounts', () => {
     ])
     const lines = desk.cards[0]!.groups.flatMap((group) => group.lines)
     expect(lines.filter((line) => line.fields.some((field) => field.warns)).map((line) => line.label)).toEqual(['IBAN', 'Currency'])
-    expect(lines.find((line) => line.fields.length === 0)!.warning).toBe(words.everyFigure.currency)
+    expect(desk.cards[0]!.groups.flatMap((group) => group.notes).map((note) => note.text)).toEqual([words.everyFigure.currency])
   })
 
   it('names every key it may set as its screen does, never by the key the settings tab stores', () => {

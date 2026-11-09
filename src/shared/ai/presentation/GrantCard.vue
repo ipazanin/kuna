@@ -16,8 +16,8 @@ defineProps<{
   title: string
   /** What leaves this device, each sentence as the case at hand words it. */
   lines: readonly string[]
-  /** What goes past the usual care, such as photos sent whole, as a warning under the lines. */
-  caution?: string | undefined
+  /** What goes past the usual care, such as photos sent whole, each as a warning under the lines. */
+  cautions?: readonly string[]
   offersAlways: boolean
 }>()
 
@@ -30,9 +30,9 @@ onMounted(() => allow.value?.$el.focus())
 <template>
   <AppCard :title="title" heading="h3" data-testid="chat-consent">
     <div class="flex flex-col gap-3 px-4 pt-2 pb-4 sm:px-5">
-      <div class="flex flex-col gap-1 type-caption">
+      <div class="flex flex-col gap-1 type-caption wrap-anywhere">
         <p v-for="line in lines" :key="line">{{ line }}</p>
-        <p v-if="caution !== undefined" class="flex items-start gap-1 text-warning" data-testid="chat-consent-caution">
+        <p v-for="caution in cautions" :key="caution" class="flex items-start gap-1 text-warning" data-testid="chat-consent-caution">
           <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           {{ caution }}
         </p>

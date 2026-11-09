@@ -309,7 +309,7 @@ describe('a proposal of another app', () => {
       readsBooks,
       check: async (title, steps) => {
         seen.push([...steps])
-        return { title, count: 1, groups: [], outside: [], undoable: true, held: {} }
+        return { title, count: 1, groups: [], outside: [], undoable: true, heldBack: null, held: {} }
       },
     }
   }

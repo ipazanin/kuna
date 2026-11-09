@@ -6,8 +6,8 @@ import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
 import type { CardStatement, CopiedRows } from './statementImport'
-import type { ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
-import { proposalGroups } from '../../../../shared/app/proposalGroups'
+import type { CardNote, ProposalGroup, ProposalNote } from '../../../../shared/app/assistantOperations'
+import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { swatchOf } from '../../../../shared/charts/swatches'
@@ -99,34 +99,23 @@ export function statementLeftOut({ statement, copied }: CardStatement, run: Pick
   }
 }
 
-/** A warned line on the statement, since the card shows only what the import writes. Null when it leaves nothing out and nothing was copied. */
-function leftOutLine({ label, rows, fileNotes, copied }: StatementLeftOut): ProposalLine | null {
+/** A warning on the statement, since the card shows only what the import writes. Null when it leaves nothing out and nothing was copied. */
+function leftOutNote({ label, rows, fileNotes, copied }: StatementLeftOut): ProposalNote | null {
   const warnings = [
     ...(copied === null ? [] : [copiedStatementRowsWarning(copied.count, copied.file, copied.tied)]),
     ...(rows === 0 ? [] : [plural(words.proposals.rowsLeftOut(rows), rows)]),
     ...(fileNotes ? [words.proposals.fileNotes] : []),
   ]
-  return warnings.length === 0 ? null : { label, fields: [], warning: warnings.join(' ') }
+  return warnings.length === 0 ? null : { label, text: warnings.join(' '), tone: 'warning' }
 }
 
-/** Lines that warn on what a card writes beyond its changes, and the kind whose group shows them first. */
+/** What a card warns on beyond its changes: what its import leaves out, and each receipt whose read failed a check or that may be a payment already on the file. */
 export interface CardWarnings {
   readonly leftOut: StatementLeftOut | null
-  /** One line for each receipt whose read failed a check or that may be a payment already on the file. */
-  readonly receipts: readonly ProposalLine[]
+  readonly receipts: readonly ProposalNote[]
 }
 
-/** The lines put first in the first group of a kind, or the groups as they are when that kind has none or no line is given. */
-function withLinesFirst(groups: readonly ProposalGroup[], noun: ProposalGroup['noun'], lines: readonly ProposalLine[]): readonly ProposalGroup[] {
-  if (lines.length === 0) return groups
-  const at = Math.max(
-    0,
-    groups.findIndex((group) => group.noun === noun),
-  )
-  return groups.map((group, place) => (place === at ? { ...group, lines: [...lines, ...group.lines] } : group))
-}
-
-/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its first group of entries, and a receipt on its group of receipts. */
+/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its group of entries, and a receipt on its group of receipts. */
 export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { leftOut, receipts }: CardWarnings = { leftOut: null, receipts: [] }): readonly ProposalGroup[] {
   const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts].map((record) => [record.id, record.name]))
   checked.changes.forEach(({ change }) => {
@@ -139,7 +128,10 @@ export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { le
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf),
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),
   }
-  const groups = proposalGroups(checked, () => describer)
-  const line = leftOut === null ? null : leftOutLine(leftOut)
-  return withLinesFirst(withLinesFirst(groups, TRANSACTION_RECORDS.noun, line === null ? [] : [line]), RECEIPT_RECORDS.noun, receipts)
+  const note = leftOut === null ? null : leftOutNote(leftOut)
+  const notes: CardNote[] = [...(note === null ? [] : [{ noun: TRANSACTION_RECORDS.noun, note }]), ...receipts.map((receipt) => ({ noun: RECEIPT_RECORDS.noun, note: receipt }))]
+  return withNotes(
+    proposalGroups(checked, () => describer),
+    notes,
+  )
 }

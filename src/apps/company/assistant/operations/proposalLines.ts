@@ -1,4 +1,3 @@
-import type { CardNote } from './companyCard'
 import { settingName } from './settingNames'
 import { WARNED_SETTING_KEYS } from './settingsOperations'
 import { INVOICING_KINDS, invoicingDescriber } from './invoicingLines'
@@ -17,8 +16,8 @@ import type { DisplayNames } from '../../workbook/domain/displayName'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import { moneyFormatOf } from '../../settings/domain/settings'
 import type { Workbook } from '../../workbook/domain/workbook'
-import type { ProposalGroup } from '../../../../shared/app/assistantOperations'
-import { proposalGroups } from '../../../../shared/app/proposalGroups'
+import type { CardNote, ProposalGroup } from '../../../../shared/app/assistantOperations'
+import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
@@ -127,8 +126,5 @@ export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, note
   }
   const invoicing = invoicingDescriber(workbook)
   const groups = proposalGroups(checked, (kind) => (packs?.kinds.has(kind.name) === true ? packs : INVOICING_KINDS.has(kind.name) ? invoicing : core))
-  return notes.reduce((shown, { noun, line }) => {
-    const at = shown.findIndex((group) => group.noun === noun)
-    return at < 0 ? [...shown, { verb: 'change', noun, lines: [line] }] : shown.map((group, place) => (place === at ? { ...group, lines: [line, ...group.lines] } : group))
-  }, groups)
+  return withNotes(groups, notes)
 }

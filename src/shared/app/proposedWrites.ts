@@ -12,6 +12,17 @@ import { sameRecord } from '../storage/domain/recordsRead'
 /** Says why a step cannot be planned, in words the model can act on. */
 export class StepRefused extends Error {}
 
+/**
+ * Refuses an import card that holds a step of another kind, since the card holds only the rows it imports. The other
+ * steps go on a card of their own first. `importing` names the steps that import, and `allowed` any step that may share the card.
+ */
+export function refuseBesideImport(steps: readonly ProposalStep[], importing: ReadonlySet<string>, allowed: ReadonlySet<string> = new Set()): void {
+  if (!steps.some((step) => importing.has(step.operation))) return
+  const others = [...new Set(steps.filter((step) => !importing.has(step.operation) && !allowed.has(step.operation)).map((step) => step.operation))]
+  if (others.length > 0)
+    throw new StepRefused(`An import card holds only the rows it imports. Propose ${others.join(', ')} on a card of its own first, and the import on the next card once that one is accepted.`)
+}
+
 /** The most changes a card may hold. Larger ones go as several cards, so a person can still read them. */
 const MOST_CHANGES = 200
 
@@ -45,6 +56,8 @@ export interface ProposalWork<Books extends BooksRead, Kept> {
   outside?(steps: readonly ProposalStep[]): readonly string[]
   /** What the model should do with steps that make more changes than a card holds, when proposing fewer is no way out, or null for that. */
   overLimit?(steps: readonly ProposalStep[]): string | null
+  /** What the checked card holds back from the write, as a sentence for the model, or null. It reads the plan the check just made. */
+  heldBack?(): string | null
 }
 
 /** What a proposal holds for Accept, which only this file reads: the checked changes, and the books and steps they were planned from. */
@@ -131,7 +144,15 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
         return { refused: [`That is ${checked.changes.length} changes. A card holds ${MOST_CHANGES}.`, work.overLimit?.(steps) ?? 'Propose fewer, and then the rest.'] }
       }
       const held: HeldWrite<Books> = { title, changes: checked.changes, books, steps }
-      return { title, count: checked.changes.length, groups: work.groups(checked, books), outside: work.outside?.(steps) ?? [], undoable: isUndoable(checked.changes), held }
+      return {
+        title,
+        count: checked.changes.length,
+        groups: work.groups(checked, books),
+        outside: work.outside?.(steps) ?? [],
+        undoable: isUndoable(checked.changes),
+        heldBack: work.heldBack?.() ?? null,
+        held,
+      }
     },
 
     async accept(proposal) {

@@ -65,12 +65,11 @@ function cellsFile(name: string, text: string): ChatAttachment {
 }
 
 /** The warned lines of the last card. */
-function warnings(desk: CompanyDesk): readonly (string | null)[] {
+function warnings(desk: CompanyDesk): readonly string[] {
   return desk.cards
     .at(-1)!
-    .groups.flatMap((group) => group.lines)
-    .filter((line) => line.warning !== null)
-    .map((line) => line.warning)
+    .groups.flatMap((group) => group.notes)
+    .map((note) => note.text)
 }
 
 const rowsOf = (desk: CompanyDesk, account: string) => desk.store.state.workbook!.transactions.filter((row) => row.account === account)
@@ -163,17 +162,24 @@ describe('a statement read off a page', () => {
   })
 })
 
-describe('one card', () => {
-  it('imports into an account an earlier step on the card adds, by its $ name', async () => {
+describe('an import card', () => {
+  it('holds only the rows it imports, so a new account goes on a card before it', async () => {
     const desk = await companyDesk(used)
     const statement = transcribed(desk, 70, [{ date: '2026-11-02', amount: -30 }], 100)
+    const addAccount = { op: 'add-account', input: { account: 'savings', label: 'Savings', iban: 'HR1210010051863000160', currency: '' } }
 
-    const answer = await desk.propose([
-      { op: 'add-account', input: { account: 'savings', label: 'Savings', iban: 'HR1210010051863000160', currency: '' }, as: '$savings' },
+    const together = await desk.propose([
+      { ...addAccount, as: '$savings' },
       { ...statement, input: { ...statement.input, account: '$savings' } },
     ])
+    expect(together.isError).toBe(true)
+    expect(together.text).toContain('Propose add-account on a card of its own first')
+    expect(desk.cards).toEqual([])
 
-    expect(answer.isError, answer.text).toBe(false)
+    expect((await desk.propose([addAccount])).isError).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+    const imported = await desk.propose([{ ...statement, input: { ...statement.input, account: desk.ref(ACCOUNT_RECORDS.name, 'savings') } }])
+    expect(imported.isError, imported.text).toBe(false)
     expect((await desk.accept()).kind).toBe('done')
     expect(rowsOf(desk, 'savings').map((row) => row.statement)).toEqual(['savings 2026-11-02/2026-11-02'])
   })
@@ -184,8 +190,7 @@ describe('an attached file', () => {
     const desk = await companyDesk(used, { readStatementFile: loadImportFile })
     const input = { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], newAccount: null, part: 1 }
     expect((await desk.propose([{ op: 'import-statement', input }], [attached('xml', 'camt.xml')])).isError).toBe(false)
-    const warnings = desk.cards[0]!.groups.flatMap((group) => group.lines).map((line) => line.warning)
-    expect(warnings).toContain(words.accountStarted('fresh'))
+    expect(warnings(desk)).toContain(words.accountStarted('fresh'))
     await desk.accept()
     expect(rowsOf(desk, 'fresh').length).toBeGreaterThan(0)
   })

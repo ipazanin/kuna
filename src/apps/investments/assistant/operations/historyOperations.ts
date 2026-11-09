@@ -68,7 +68,7 @@ export function historyCards(history: HistoryAnswer): SideCards {
       if (given === complete) return Promise.resolve({ refused: [complete ? 'That is answered on this device already.' : 'The history is not confirmed on this device.'] })
       const held: HeldAnswer = { historyComplete: complete, file }
       const line = { label: words.cards.historyComplete, fields: [], warning: null }
-      return Promise.resolve({ title, count: 1, groups: [{ verb: complete ? 'add' : 'remove', noun: ANSWER_NOUN, lines: [line] }], outside: [], undoable: true, held })
+      return Promise.resolve({ title, count: 1, groups: [{ verb: complete ? 'add' : 'remove', noun: ANSWER_NOUN, notes: [], lines: [line] }], outside: [], undoable: true, heldBack: null, held })
     },
     acceptOwn(proposal: CheckedProposal): Promise<AcceptResult> | null {
       const { held } = proposal

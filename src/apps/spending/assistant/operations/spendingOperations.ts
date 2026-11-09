@@ -25,8 +25,8 @@ import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/
 import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
-import type { AppAcceptance, AppProposer, AssistantOperation, ProposalLine, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { StepRefused, proposedWrites } from '../../../../shared/app/proposedWrites'
+import type { AppAcceptance, AppProposer, AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
+import { StepRefused, proposedWrites, refuseBesideImport } from '../../../../shared/app/proposedWrites'
 import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -329,21 +329,25 @@ function legsOf(book: SpendingBook, row: Transaction): readonly [Transaction, Tr
   return row.amount < 0 ? [row, other] : [other, row]
 }
 
+const IMPORTING: ReadonlySet<string> = new Set([IMPORT_STATEMENT.name])
+
+/** The rule steps an import card may hold, since the rules on its card file its new rows. */
+const FILING_IMPORTED_ROWS: ReadonlySet<string> = new Set(['add-rule', 'change-rule', 'delete-rule'])
+
 /**
  * Plans the steps into one write, in order. A `$` name stands for what an earlier step made, and the rules are re-run once,
  * over all of them, and file a statement's new rows. `kept` holds the Drive id of each receipt photo Accept kept. Gives what
  * the card warns on: what the import leaves out of its statement, and each receipt's checks that failed.
  */
 function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: readonly ProposalStep[], receipts: ReceiptPorts, kept: KeptPhotos | undefined): CardWarnings {
-  if (steps.some((step) => step.operation === IMPORT_STATEMENT.name) && steps.some((step) => step.operation === 'add-category'))
-    throw new StepRefused('A new category goes on a card before the import, and the import card files into it once that card is accepted.')
+  refuseBesideImport(steps, IMPORTING, FILING_IMPORTED_ROWS)
   if (steps.some((step) => step.operation === ADD_RECEIPT.name) && steps.some((step) => step.operation === 'add-category'))
     throw new StepRefused('A new category goes on a card before the receipt, and the receipt card files into it once that card is accepted.')
   let book = books.workbook
   const made = new Map<string, string>()
   const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
   let imported: CardStatement | null = null
-  const receiptWarnings: ProposalLine[] = []
+  const receiptWarnings: ProposalNote[] = []
   const idOf = (value: unknown): string => {
     const text = String(value)
     return made.get(text) ?? text
@@ -579,6 +583,15 @@ function spendingWork(receipts: ReceiptPorts): ProposalWork<SpendingBooks, KeptP
     },
     groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, warnings),
     outside: receiptsOutside,
+    heldBack: () => {
+      const rows = warnings.leftOut?.rows ?? 0
+      if (rows === 0) return null
+      const leftOut =
+        rows === 1
+          ? '1 row of the statement is left out, as it falls before the account opened or the bank sync covers its day.'
+          : `${rows} rows of the statement are left out, as they fall before the account opened or the bank sync covers their day.`
+      return `${leftOut} Tell the person, and ask before proposing them another way.`
+    },
     overLimit: (steps) =>
       steps.some((step) => step.operation === IMPORT_STATEMENT.name)
         ? 'A part of a statement cannot shrink, so put the rules on a card of their own before the import, then propose the import again.'

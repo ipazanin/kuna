@@ -20,6 +20,7 @@ import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { companyChat, deskPorts } from './fixtures/companyDesk'
 import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
+import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -142,6 +143,7 @@ describe('every operation of the d.o.o. pack', () => {
 
       expect(answer.text).toContain('The card shows')
       const [card] = desk.cards
+      expectCountsOfChanges(card!)
       expect(card!.undoable).toBe(true)
       for (const { shown, set } of fieldsOnCard(card!)) expect(shown).toEqual(expect.arrayContaining([...set]))
       const accepted = await desk.accept()

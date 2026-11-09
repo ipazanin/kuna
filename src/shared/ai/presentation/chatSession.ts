@@ -28,7 +28,7 @@ import { anonymiseOn, assistOn, modelOf, switchAssist } from '../application/ass
 import type { ProviderId, ProviderPreset } from '../domain/providerPresets'
 import type { KunaChat } from './chatApps'
 import { imagePartOf } from './imagePartOf'
-import { costWords, providerInUse, resultLine } from './aiProvider'
+import { anonymisingNow, costWords, providerInUse, resultLine } from './aiProvider'
 import { words } from './words'
 
 export interface ChatLine {
@@ -64,6 +64,8 @@ export interface ChatProposal extends SavedProposal {
   warning: DoneWarning | null
   /** Puts back what Accept wrote, while this page lives. */
   undo: (() => Promise<UndoResult>) | null
+  /** The files the model read in the turn that made the card, by name, so a change a file asked for is recognisable. */
+  readonly readFiles: readonly string[]
 }
 
 /** The chat wants to read an app and waits for the person. */
@@ -222,7 +224,7 @@ function savedLine(line: ChatLine): SavedLine {
     chips: [...line.chips],
     strayFigure: line.strayFigure,
     failure: line.failure,
-    proposals: line.proposals.map(({ id, app, title, count, state }) => ({ id, app, title, count, state })),
+    proposals: line.proposals.map(({ id, app, title, count, state, readFiles }) => ({ id, app, title, count, state, ...(readFiles.length === 0 ? {} : { readFiles: [...readFiles] }) })),
     ...(line.attachments.length === 0 ? {} : { attachments: [...line.attachments] }),
   }
 }
@@ -256,7 +258,15 @@ function restored(saved: SavedChat): void {
     shown.chips = [...line.chips]
     shown.strayFigure = line.strayFigure
     shown.failure = line.failure
-    shown.proposals = line.proposals.map((proposal) => ({ ...proposal, checked: null, state: restoredState(proposal.state), reason: null, warning: null, undo: null }))
+    shown.proposals = line.proposals.map((proposal) => ({
+      ...proposal,
+      checked: null,
+      state: restoredState(proposal.state),
+      reason: null,
+      warning: null,
+      undo: null,
+      readFiles: [...(proposal.readFiles ?? [])],
+    }))
     shown.attachments = [...(line.attachments ?? [])]
   }
   Object.assign(spent, saved.spent)
@@ -419,6 +429,21 @@ export const promptPdfsRefused = computed(() => chatPromptFiles.value.some((file
 /** Whether a photo or a PDF on the prompt goes to the model whole. */
 export const promptSendsDocument = computed(() => chatPromptFiles.value.some((file) => file.state === 'ready' && file.attachment.reading.kind === 'whole'))
 
+/** What a file of cells on the prompt sends, in the words its chip and the card before the first send both show. It warns while Anonymise is off, as names then go as written. */
+export interface CellsNote {
+  readonly key: string
+  readonly text: string
+  readonly warns: boolean
+}
+
+export const promptCellsNotes = computed<readonly CellsNote[]>(() =>
+  chatPromptFiles.value.flatMap((file) => {
+    if (file.state !== 'ready' || file.attachment.reading.kind !== 'cells') return []
+    const aliased = anonymisingNow()
+    return [{ key: file.key, text: aliased ? words.files.goesAsCells(file.name) : words.files.goesAsCellsPlain(file.name), warns: !aliased }]
+  }),
+)
+
 /** The files that go with a message leave the prompt, with any refused, and the chat holds them for the model's reads. */
 function sentFiles(): readonly ChatAttachment[] {
   const going = promptFiles.flatMap((file) => (file.state === 'ready' ? [file.attachment] : []))
@@ -460,6 +485,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
     const elementNow = elementLine(where.element, attached, catalogue, reads)
     const heard = outcomes.splice(0).map((outcome) => `<context>${outcome}</context>`)
     const changed = [...(contextNow === lastContext ? [] : [contextNow]), ...(elementNow === lastElement ? [] : [elementNow ?? NOTHING_TAGGED]), ...heard]
+    const readThisTurn = new Set<string>()
     const end = await runChatTurn({
       model,
       catalogue,
@@ -479,12 +505,25 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
         if (current === controller) line.chips.push(chip)
       },
       onSent: (sent) => {
-        if (current === controller) line.sent.push(sent)
+        if (current !== controller) return
+        line.sent.push(sent)
+        if (sent.read.kind === 'document' || sent.read.kind === 'cells') readThisTurn.add(sent.read.name)
       },
       showProposal: (app, proposal) => {
         if (current !== controller) return
         nextId += 1
-        line.proposals.push({ id: `card-${nextId}`, app, title: proposal.title, count: proposal.count, checked: markRaw(proposal), state: 'open', reason: null, warning: null, undo: null })
+        line.proposals.push({
+          id: `card-${nextId}`,
+          app,
+          title: proposal.title,
+          count: proposal.count,
+          checked: markRaw(proposal),
+          state: 'open',
+          reason: null,
+          warning: null,
+          undo: null,
+          readFiles: [...readThisTurn],
+        })
       },
     })
     if (current !== controller) return

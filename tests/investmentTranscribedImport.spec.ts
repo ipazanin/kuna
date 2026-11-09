@@ -70,7 +70,7 @@ function transcribed(desk: InvestmentsDesk, rows: readonly unknown[], fields: Re
 const warningsOf = (desk: InvestmentsDesk): string =>
   desk.cards
     .at(-1)!
-    .groups.flatMap((group) => group.lines.map((line) => line.warning ?? ''))
+    .groups.flatMap((group) => group.notes.map((note) => note.text))
     .join(' ')
 
 describe('rows the AI copied from a file', () => {
@@ -111,7 +111,7 @@ describe('rows the AI copied from a file', () => {
     const day = [deposit('2026-04-01'), deposit('2026-04-01', '250'), deposit('2026-04-01', '250'), deposit('2026-04-01', '100')]
     expect((await desk.propose([transcribed(desk, day)])).isError).toBe(false)
     expect(warningsOf(desk)).toContain('2 rows are in Kuna already and are skipped.')
-    expect(warningsOf(desk)).toContain('1 row looks like a record Kuna has from another file')
+    expect(warningsOf(desk)).toContain('Say in the chat whether')
     expect((await desk.propose([transcribed(desk, day, { lookAlikes: 'import' })])).isError).toBe(false)
     await desk.accept()
     expect(
@@ -138,13 +138,23 @@ describe('rows the AI copied from a file', () => {
     expect(answer.text).toContain('name it in account')
   })
 
-  it('asks about a trade that looks like one Kuna has from another file, with a count on the card, and imports it when told to', async () => {
+  it('asks about a trade that looks like one Kuna has from another file, with the waiting row on the card, and imports it when told to', async () => {
     const desk = await statementDesk(DOLLAR_RATES)
     const trades = bookOf(desk).trades.length
     const rows = [shareTrade('BUY', '2026-01-10', '10', '-1000'), deposit('2026-04-01')]
 
-    expect((await desk.propose([transcribed(desk, rows)])).isError).toBe(false)
-    expect(warningsOf(desk)).toContain('1 row looks like a record Kuna has from another file')
+    const asked = await desk.propose([transcribed(desk, rows)])
+    expect(asked.isError).toBe(false)
+    const [group] = desk.cards.at(-1)!.groups
+    expect(group!.notes.map((note) => note.tone)).toEqual(['info', 'warning'])
+    expect(group!.notes[0]).toMatchObject({
+      label: '1 row waits, not imported',
+      text: 'Say in the chat whether it is another record.',
+      items: [{ row: 'Row 1, Buy, SHARE, −$1,000.00, 10 Jan 2026, Broker One', record: 'Buy, Example Tech, −€926.85, 10 Jan 2026, Broker One' }],
+    })
+    expect(group!.notes[1]!.text).toContain('Kuna could not check that the file adds up')
+    expect(group!.lines).toHaveLength(1)
+    expect(asked.text).toContain('Row 1 looks like a record Kuna has from another file and waits. Ask the person whether each is another record')
     await desk.accept()
     expect(bookOf(desk).trades).toHaveLength(trades)
 
@@ -160,7 +170,7 @@ describe('rows the AI copied from a file', () => {
   it('compares a trade for a new account with the trades of every account', async () => {
     const desk = await statementDesk(DOLLAR_RATES)
     await desk.propose([transcribed(desk, [shareTrade('BUY', '2026-01-10', '10', '-1000'), deposit('2026-04-01', '77')], { account: null, broker: 'Other Broker' })])
-    expect(warningsOf(desk)).toContain('1 row looks like a record Kuna has from another file')
+    expect(warningsOf(desk)).toContain('Say in the chat whether')
   })
 
   it('asks about income and a deposit that look like ones Kuna has, instead of taking them as new from another file', async () => {

@@ -18,6 +18,12 @@ const ANSWERS = {
     copyTitle: 'Import the copied rows',
     copyProposed: 'The card imports the rows as I copied them. The balances the file prints add up with them.',
     copyRefused: 'Kuna refused the rows. Check them against the file.',
+    fileTitle: 'Import the new row of the file',
+    fileProposed:
+      'The card imports one row I copied from the file. The other looks like a deposit Kuna has, so tell me whether it is a second one. The file prints no balances, so check the row against it.',
+    lookAlikeTitle: 'Import the row that looks like one Kuna has',
+    lookAlikeProposed: 'The card imports the row that looked like one Kuna has. Kuna skips the row it has already.',
+    noFile: 'Attach the file with the paperclip, and I will copy its rows.',
     noWorkbook: 'Attach the portfolio workbook with the paperclip, and I will propose its import.',
     reportTitle: 'Import the IBKR report',
     reportProposed: 'Kuna read the report itself, through the same review as the mailed one. The card below shows what it adds.',
@@ -36,6 +42,12 @@ const ANSWERS = {
     copyTitle: 'Uvezi prepisane retke',
     copyProposed: 'Kartica uvozi retke kako sam ih prepisao. Stanja koja datoteka ispisuje zbrajaju se s njima.',
     copyRefused: 'Kuna je odbila retke. Provjerite ih s datotekom.',
+    fileTitle: 'Uvezi novi redak datoteke',
+    fileProposed:
+      'Kartica uvozi jedan redak koji sam prepisao iz datoteke. Drugi izgleda kao uplata koju Kuna ima, pa mi recite je li to druga uplata. Datoteka ne ispisuje stanja, pa redak usporedite s njom.',
+    lookAlikeTitle: 'Uvezi sličan redak',
+    lookAlikeProposed: 'Kartica uvozi redak koji je izgledao kao onaj koji Kuna ima. Kuna preskače redak koji već ima.',
+    noFile: 'Priložite datoteku spajalicom i prepisat ću njezine retke.',
     noWorkbook: 'Priložite radnu knjigu portfelja spajalicom i predložit ću njezin uvoz.',
     reportTitle: 'Uvezi izvješće IBKR-a',
     reportProposed: 'Kuna je sama pročitala izvješće, istim pregledom kao ono poslano poštom. Kartica ispod pokazuje što dodaje.',
@@ -81,6 +93,27 @@ function tradeReply({ request, tokens }: FakeChatTurn, says: Says, side: 'buy' |
   return answered(request, answers[2]!.isError ? says.sellRefused : says.buyProposed, tokens)
 }
 
+/** A deposit row as a model copies it into the workbook's columns. */
+function deposit(date: string, cash: string) {
+  return {
+    date,
+    type: 'DEPOSIT',
+    symbol: '',
+    isin: '',
+    name: '',
+    quantity: null,
+    price: null,
+    currency: 'EUR',
+    gross: null,
+    commission: null,
+    commissionCurrency: null,
+    netCash: cash,
+    counterCurrency: null,
+    counterAmount: null,
+    note: '',
+  }
+}
+
 /**
  * Reads the first account and copies deposit rows onto it with the balances they lead between: one deposit, or with
  * `again` that deposit and a later one, which Kuna has the first of once the first card is accepted.
@@ -92,23 +125,6 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says, again: boolean
   if (answers.length === 1) {
     const account = firstRef(answers[0]!.text)
     if (account === null) return answered(request, says.notRead, tokens)
-    const deposit = (date: string, cash: string) => ({
-      date,
-      type: 'DEPOSIT',
-      symbol: '',
-      isin: '',
-      name: '',
-      quantity: null,
-      price: null,
-      currency: 'EUR',
-      gross: null,
-      commission: null,
-      commissionCurrency: null,
-      netCash: cash,
-      counterCurrency: null,
-      counterAmount: null,
-      note: '',
-    })
     const first = deposit(addDays(today(), -9), '500')
     const rows = again ? [first, deposit(addDays(today(), -8), '200')] : [first]
     const balances = [{ currency: 'EUR', opening: '0', closing: again ? '700' : '500' }]
@@ -118,8 +134,33 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says, again: boolean
   return answered(request, answers[1]!.isError ? says.copyRefused : says.copyProposed, tokens)
 }
 
+/**
+ * Reads the CSV attached to the chat and the first account, and copies the file's two deposits onto it. The first is the
+ * deposit the typed copy imports, so it looks like a record Kuna has from another file and the card asks about it. With
+ * `lookAlikes` import, once the person says it is another deposit, the same rows go again without a second read.
+ */
+function fileCopyReply(turn: FakeChatTurn, says: Says, lookAlikes: 'ask' | 'import'): ModelReply {
+  const { request, tokens } = turn
+  const file = attached(turn, 'csv')
+  if (file === null) return answered(request, says.noFile, tokens)
+  const reads = lookAlikes === 'ask' ? 1 : 0
+  const answers = answersSince(request)
+  if (answers.length === 0 && reads === 1) return lookup(0, 'read_attachment', { attachment: file, pages: null, sheet: null, rows: '1-3' }, tokens)
+  if (answers.length === reads) return lookup(reads, 'find_records', { app: 'investments', kind: 'investment-account', ...FIND }, tokens)
+  if (answers[reads]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === reads + 1) {
+    const account = firstRef(answers[reads]!.text)
+    if (account === null) return answered(request, says.notRead, tokens)
+    const input = { file, account, broker: 'Example Broker', lookAlikes, rows: [deposit(addDays(today(), -9), '500'), deposit(addDays(today(), -6), '300')], balances: [] }
+    const title = lookAlikes === 'ask' ? says.fileTitle : says.lookAlikeTitle
+    return lookup(reads + 1, 'propose_changes', { app: 'investments', title, steps: [{ op: 'import-transcribed', input: JSON.stringify(input), as: null }] }, tokens)
+  }
+  if (answers.at(-1)!.isError) return answered(request, says.copyRefused, tokens)
+  return answered(request, lookAlikes === 'ask' ? says.fileProposed : says.lookAlikeProposed, tokens)
+}
+
 /** The last file of this kind attached to the chat, by the id its context line gives, or null for none. */
-function attached({ request }: FakeChatTurn, kind: 'sheet' | 'xml'): string | null {
+function attached({ request }: FakeChatTurn, kind: 'sheet' | 'xml' | 'csv'): string | null {
   const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : []))
   const ids = said.flatMap((text) => [...text.matchAll(new RegExp(`\\b(a\\d+) \\(${kind}\\b`, 'g'))].map((match) => match[1]!))
   return ids.at(-1) ?? null
@@ -149,11 +190,18 @@ function reportReply(turn: FakeChatTurn, says: Says, file: string): ModelReply {
   return answered(request, answers[0]!.isError ? says.reportRefused : says.reportProposed, tokens)
 }
 
-/** Investments' part of the fake chat: one that starts with buy or sell proposes a trade, one that starts with copy imports deposit rows onto the first account, one about the workbook imports the sheet attached, one about importing with an XML attached imports that Flex report, and a question about the portfolio reads its figures. */
+/**
+ * Investments' part of the fake chat: one that starts with buy or sell proposes a trade, one that starts with copy imports
+ * deposit rows onto the first account, from the attached CSV when it names the file, one about a look-alike imports the
+ * file's rows again with it, one about the workbook imports the sheet attached, one about importing with an XML attached
+ * imports that Flex report, and a question about the portfolio reads its figures.
+ */
 function investmentsChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
   if (/^buy|^kupi/i.test(turn.typed)) return tradeReply(turn, says, 'buy')
   if (/^sell|^prodaj/i.test(turn.typed)) return tradeReply(turn, says, 'sell')
+  if (/^copy|^prepi/i.test(turn.typed) && /file|datotek/i.test(turn.typed)) return fileCopyReply(turn, says, 'ask')
+  if (/look-alike|sličan/i.test(turn.typed)) return fileCopyReply(turn, says, 'import')
   if (/^copy|^prepi/i.test(turn.typed)) return copyReply(turn, says, /again|ponovno/i.test(turn.typed))
   if (/workbook|radn\w* knjig/i.test(turn.typed)) return workbookReply(turn, says)
   const report = attached(turn, 'xml')

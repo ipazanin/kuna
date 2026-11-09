@@ -132,6 +132,7 @@ function savedInstrument(unit: Parameters<InvestmentSteps['write']>[0], card: Ca
     made: before === null ? id : null,
     fetchesPricesOf: startsAPriceSeries(before, record) ? [record.name] : [],
     notes: [],
+    heldBack: [],
   }
 }
 

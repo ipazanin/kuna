@@ -4,8 +4,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { formatCount } from '../../money/moneyFormat'
 import RemovableChip from '../../ui/RemovableChip.vue'
-import { anonymisingNow } from './aiProvider'
-import { chatPromptFiles, promptFilesCost, promptSendsDocument, removePromptFile } from './chatSession'
+import { chatPromptFiles, promptCellsNotes, promptFilesCost, promptSendsDocument, removePromptFile } from './chatSession'
 import type { FileRefusal, PromptFile } from './chatSession'
 import { words } from './words'
 
@@ -13,9 +12,9 @@ import { words } from './words'
  * The files on the prompt as chips, with a line for each that does not go whole: refused with why, read by Kuna alone,
  * or sent as cells, with a warning when Anonymise is off. Under them it says that photos and PDFs go whole, and about what reading them costs.
  */
-defineProps<{
-  /** False while the card asking before a send says it instead. */
-  saysGoesWhole: boolean
+const props = defineProps<{
+  /** False while the card asking before a send says how the files go instead. */
+  saysHowFilesGo: boolean
 }>()
 
 const MEGABYTE = 1024 * 1024
@@ -50,19 +49,17 @@ function iconOf(file: PromptFile): string {
   return file.attachment.kind === 'pdf' ? 'i-lucide-file-text' : 'i-lucide-file-spreadsheet'
 }
 
-const notes = computed(() =>
-  chatPromptFiles.value.flatMap((file) => {
+const notes = computed(() => {
+  const cells = props.saysHowFilesGo ? promptCellsNotes.value : []
+  return chatPromptFiles.value.flatMap((file) => {
     if (file.state === 'refused') return [{ key: file.key, tone: 'refused', icon: 'i-lucide-circle-alert', text: words.files.refused(file.name, refusalWords(file.refusal)) }]
     if (file.state !== 'ready') return []
     if (file.attachment.reading.kind === 'kuna') return [{ key: file.key, tone: 'plain', icon: 'i-lucide-hard-drive', text: words.files.readByKuna(file.name) }]
-    if (file.attachment.reading.kind === 'cells') {
-      return anonymisingNow()
-        ? [{ key: file.key, tone: 'plain', icon: 'i-lucide-send', text: words.files.goesAsCells(file.name) }]
-        : [{ key: file.key, tone: 'warning', icon: 'i-lucide-send', text: words.files.goesAsCellsPlain(file.name) }]
-    }
-    return []
-  }),
-)
+    return cells
+      .filter((note) => note.key === file.key)
+      .map((note) => ({ key: note.key, tone: note.warns ? 'warning' : 'plain', icon: note.warns ? 'i-lucide-triangle-alert' : 'i-lucide-send', text: note.text }))
+  })
+})
 </script>
 
 <template>
@@ -90,7 +87,7 @@ const notes = computed(() =>
       <UIcon :name="note.icon" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       {{ note.text }}
     </p>
-    <p v-if="saysGoesWhole && promptSendsDocument" class="flex items-start gap-1 type-caption text-warning" data-testid="chat-files-whole">
+    <p v-if="saysHowFilesGo && promptSendsDocument" class="flex items-start gap-1 type-caption text-warning" data-testid="chat-files-whole">
       <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       {{ words.files.goesWhole }}
     </p>

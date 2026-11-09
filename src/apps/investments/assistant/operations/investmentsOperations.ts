@@ -4,16 +4,16 @@ import { ACCOUNT_STEPS } from './accountOperations'
 import { HOLDING_STEPS } from './holdingOperations'
 import { HISTORY_OPERATIONS, historyCards } from './historyOperations'
 import type { HistoryAnswer } from './historyOperations'
-import { IMPORT_STEPS, importTooLarge, withRowsRead } from './importOperations'
+import { IMPORTING, IMPORT_STEPS, importTooLarge, withRowsRead } from './importOperations'
 import { INSTRUMENT_STEPS } from './instrumentOperations'
-import type { CardBooks, InvestmentSteps, SideCards, StepNote } from './investmentSteps'
+import type { CardBooks, InvestmentSteps, SideCards } from './investmentSteps'
 import { PRICES_OPERATIONS, pricesCards } from './pricesOperations'
 import type { PricesPorts } from './pricesOperations'
 import { proposalGroupsOf } from './proposalLines'
 import { TRANSACTION_STEPS } from './transactionOperations'
 import type { WorkbookRows } from '../../imports/domain/importDryRun'
-import type { AppAcceptance, AppProposer, AssistantOperation, CheckedProposal, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { StepRefused, proposedWrites } from '../../../../shared/app/proposedWrites'
+import type { AppAcceptance, AppProposer, AssistantOperation, CardNote, CheckedProposal, ProposalStep } from '../../../../shared/app/assistantOperations'
+import { StepRefused, proposedWrites, refuseBesideImport } from '../../../../shared/app/proposedWrites'
 import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWrites'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
@@ -50,18 +50,21 @@ const PART_OF = new Map(PARTS.flatMap((part) => part.operations.map((operation) 
 /** The cards whose Accept starts a price fetch, as the holding dialog starts one after saving a priced holding. */
 const FETCHING = new WeakSet<CheckedProposal>()
 
-/** What a plan leaves beside the write: the holdings whose prices Accept fetches, and the card's warned lines. */
+/** What a plan leaves beside the write: the holdings whose prices Accept fetches, the card's notes, and what it holds back, for the model. */
 interface Planned {
   readonly fetches: readonly string[]
-  readonly notes: readonly StepNote[]
+  readonly notes: readonly CardNote[]
+  readonly heldBack: readonly string[]
 }
 
 /** Plans the steps into one write, in order, each on the books the steps before it leave. */
 function planned(unit: UnitOfWork, books: OpenBooks<InvestmentsBooks>, steps: readonly ProposalStep[], ports: InvestmentsPorts): Planned {
+  refuseBesideImport(steps, IMPORTING)
   let book = books.workbook.book
   const made = new Map<string, string>()
   const fetches: string[] = []
-  const notes: StepNote[] = []
+  const notes: CardNote[] = []
+  const heldBack: string[] = []
   for (const step of steps) {
     const part = PART_OF.get(step.operation)
     if (part === undefined) throw new StepRefused('There is no such operation.')
@@ -71,13 +74,14 @@ function planned(unit: UnitOfWork, books: OpenBooks<InvestmentsBooks>, steps: re
     if (step.as !== null && written.made !== null) made.set(step.as, written.made)
     fetches.push(...written.fetchesPricesOf)
     notes.push(...written.notes)
+    heldBack.push(...written.heldBack)
   }
-  return { fetches, notes }
+  return { fetches, notes, heldBack }
 }
 
 /** How the chat's steps become one write of the Investments file. The card says which holdings' prices Accept fetches and what an import leaves, so each check keeps its own. */
 function investmentsWork(ports: InvestmentsPorts): ProposalWork<InvestmentsBooks, never> {
-  let last: Planned = { fetches: [], notes: [] }
+  let last: Planned = { fetches: [], notes: [], heldBack: [] }
   return {
     notOpen: 'The Investments file is not open on this device.',
     plan: (unit, books, steps) => {
@@ -86,6 +90,7 @@ function investmentsWork(ports: InvestmentsPorts): ProposalWork<InvestmentsBooks
     groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook.book, last.notes),
     outside: () => (last.fetches.length === 0 ? [] : [words.proposals.pricesFetched([...new Set(last.fetches)])]),
     overLimit: importTooLarge,
+    heldBack: () => (last.heldBack.length === 0 ? null : last.heldBack.join(' ')),
   }
 }
 

@@ -17,7 +17,7 @@ import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from '../../wo
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words } from '../words'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
-import type { AssistantOperation, ProposalLine, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -244,8 +244,8 @@ function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, rec
 }
 
 /** What the card warns on for one receipt: the read's checks that failed. */
-function warningOf(notes: readonly string[], split: ReceiptSplit): ProposalLine | null {
-  return notes.length === 0 ? null : { label: split.receipt.merchant, fields: [], warning: notes.map(sentence).join(' ') }
+function warningOf(notes: readonly string[], split: ReceiptSplit): ProposalNote | null {
+  return notes.length === 0 ? null : { label: split.receipt.merchant, text: notes.map(sentence).join(' '), tone: 'warning' }
 }
 
 /**
@@ -259,7 +259,7 @@ export function writeReceiptStep(
   idOf: (value: unknown) => string,
   ports: Pick<ReceiptPorts, 'keepsOnDrive' | 'mayKeepNow' | 'reader'>,
   photoId: string,
-): { readonly split: ReceiptSplit; readonly warning: ProposalLine | null } {
+): { readonly split: ReceiptSplit; readonly warning: ProposalNote | null } {
   const photo = photoOf(field)
   if (field['keepPhoto'] === true && !ports.keepsOnDrive()) throw new StepRefused('The photo is kept only beside a Spending file on Drive. Propose it with keepPhoto false.')
   if (field['keepPhoto'] === true && !ports.mayKeepNow())

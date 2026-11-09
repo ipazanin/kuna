@@ -18,6 +18,7 @@ import type { AssistantOperation } from '../src/shared/app/assistantOperations'
 import { companyChat, deskPorts } from './fixtures/companyDesk'
 import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
+import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -83,6 +84,7 @@ describe('every invoicing operation', () => {
 
       expect(answer.isError, answer.text).toBe(false)
       const card = company.cards[0]!
+      expectCountsOfChanges(card!)
       expect(card.undoable).toBe(true)
       expect(card.outside).toEqual([])
       expect(card.groups.flatMap((group) => group.lines).length).toBeGreaterThan(0)
@@ -240,8 +242,8 @@ describe('the invoicing terms and the money format, through set-setting', () => 
 
     await company.propose([{ op: 'set-setting', input: { key: 'currency', value: 'USD' } }])
 
-    const lines = company.cards[0]!.groups.flatMap((group) => group.lines)
-    expect(lines.map((line) => line.warning)).toContain(companyWords.everyFigure.currency)
+    const notes = company.cards[0]!.groups.flatMap((group) => group.notes)
+    expect(notes.map((note) => note.text)).toContain(companyWords.everyFigure.currency)
   })
 })
 

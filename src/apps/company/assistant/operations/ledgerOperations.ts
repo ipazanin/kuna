@@ -202,7 +202,7 @@ function fileRow(card: CompanyCard, step: ProposalStep): void {
     if (against !== null) {
       const names = displayNamesOf(card.workbook)
       const warning = `${transactionWords.changeDialog.ruleAgainst.before} ${against.ruleId} ${transactionWords.changeDialog.ruleAgainst.after(names.category(against.category), names.category(category.slug))}`
-      card.note({ noun: LEDGER_RECORDS.noun, line: { label: row.counterparty || names.category(row.category), fields: [], warning } })
+      card.note({ noun: LEDGER_RECORDS.noun, note: { label: row.counterparty || names.category(row.category), text: warning, tone: 'warning' } })
     }
   }
   fileRows(card.unit, card.records().ledger, [verdict], card.workbook.categories)
@@ -263,10 +263,10 @@ function writeRules(card: CompanyCard, change: RulesTabChange, settledBy: string
   const names = displayNamesOf(workbook)
   const label = (row: Transaction) => row.counterparty || names.category(row.category)
   for (const { transaction, after } of preview.backtest.humanConflicts.filter(({ transaction }) => !refiled.some((verdict) => verdict.id === transaction.id))) {
-    card.note({ noun: LEDGER_RECORDS.noun, line: { label: label(transaction), fields: [], warning: words.ruleDisagrees(names.category(after.category)) } })
+    card.note({ noun: LEDGER_RECORDS.noun, note: { label: label(transaction), text: words.ruleDisagrees(names.category(after.category)), tone: 'warning' } })
   }
   for (const { transaction, after } of preview.backtest.brokenAgreements) {
-    card.note({ noun: LEDGER_RECORDS.noun, line: { label: label(transaction), fields: [], warning: words.ruleBreaksAgreement(names.category(after.category)) } })
+    card.note({ noun: LEDGER_RECORDS.noun, note: { label: label(transaction), text: words.ruleBreaksAgreement(names.category(after.category)), tone: 'warning' } })
   }
 }
 

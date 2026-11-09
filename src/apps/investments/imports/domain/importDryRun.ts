@@ -100,8 +100,8 @@ export type WaitReason =
   | { readonly kind: 'beyond-held' }
   /** A rolling report now gives other figures for a record Kuna has, such as tax withheld a day after its dividend. */
   | { readonly kind: 'differs-from-kuna' }
-  /** A copied row like a record Kuna has from elsewhere, which may be the same record or a second one. */
-  | { readonly kind: 'looks-in-kuna' }
+  /** A copied row like a record Kuna has from elsewhere, which may be the same record or a second one. `like` is that record. */
+  | { readonly kind: 'looks-in-kuna'; readonly like: ImportedRecord }
 
 export type ImportedRecord =
   | { readonly kind: 'trade'; readonly record: Trade }
@@ -324,7 +324,8 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     }
     try {
       const imported = importedRecord(entry, mapping)
-      if (reading.transcribed?.lookAlikes === 'ask' && looksInKuna(imported, book)) return [{ entry, outcome: { kind: 'waiting', reason: { kind: 'looks-in-kuna' } } }]
+      const like = reading.transcribed?.lookAlikes === 'ask' ? recordLike(imported, book) : null
+      if (like !== null) return [{ entry, outcome: { kind: 'waiting', reason: { kind: 'looks-in-kuna', like } } }]
       return [{ entry, outcome: { kind: 'new', imported } }]
     } catch (failure) {
       if (failure instanceof EntryWaits) {
@@ -516,29 +517,34 @@ function recordOf(entry: RowEntry, mapping: Mapping): ImportedRecord {
 }
 
 /**
- * Whether Kuna has a record like it: a trade of the same holding, day, side and units, income of the same holding, day and
+ * The record Kuna has that it looks like, or null: a trade of the same holding, day, side and units, income of the same holding, day and
  * gross, a cash movement of the same day, kind, currency and amount, or an exchange of the same day and both amounts. Each
  * in the same account, or in any account when the record's account is new, since a new account has nothing to compare.
  */
-function looksInKuna(imported: ImportedRecord, book: InvestmentBook): boolean {
+function recordLike(imported: ImportedRecord, book: InvestmentBook): ImportedRecord | null {
   const newAccount = (account: RecordId): boolean => !book.accounts.some((known) => known.id === account)
   const sameAccount = (record: { readonly account: RecordId }, account: RecordId): boolean => newAccount(account) || record.account === account
   switch (imported.kind) {
     case 'trade': {
       const { account, instrument, date, side, quantity } = imported.record
-      return book.trades.some((trade) => sameAccount(trade, account) && trade.instrument === instrument && trade.date === date && trade.side === side && trade.quantity === quantity)
+      const like = book.trades.find((trade) => sameAccount(trade, account) && trade.instrument === instrument && trade.date === date && trade.side === side && trade.quantity === quantity)
+      return like === undefined ? null : { kind: 'trade', record: like }
     }
     case 'income': {
       const { account, instrument, date, currency, gross } = imported.record
-      return book.income.some((income) => sameAccount(income, account) && income.instrument === instrument && income.date === date && income.currency === currency && income.gross === gross)
+      const like = book.income.find((income) => sameAccount(income, account) && income.instrument === instrument && income.date === date && income.currency === currency && income.gross === gross)
+      return like === undefined ? null : { kind: 'income', record: like }
     }
     case 'cash-movement': {
       const { account, kind, date, currency, amount } = imported.record
-      return book.cashMovements.some((movement) => sameAccount(movement, account) && movement.kind === kind && movement.date === date && movement.currency === currency && movement.amount === amount)
+      const like = book.cashMovements.find(
+        (movement) => sameAccount(movement, account) && movement.kind === kind && movement.date === date && movement.currency === currency && movement.amount === amount,
+      )
+      return like === undefined ? null : { kind: 'cash-movement', record: like }
     }
     case 'exchange': {
       const { account, date, sold, soldCurrency, bought, boughtCurrency } = imported.record
-      return book.exchanges.some(
+      const like = book.exchanges.find(
         (exchange) =>
           sameAccount(exchange, account) &&
           exchange.date === date &&
@@ -547,9 +553,10 @@ function looksInKuna(imported: ImportedRecord, book: InvestmentBook): boolean {
           exchange.bought === bought &&
           exchange.boughtCurrency === boughtCurrency,
       )
+      return like === undefined ? null : { kind: 'exchange', record: like }
     }
     default:
-      return false
+      return null
   }
 }
 

@@ -245,6 +245,7 @@ import {
   savesWaitingFlow,
   syncRunningFlow,
   chatAttachRefusedFlow,
+  chatConsentCellsFlow,
 } from './support/editorFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
@@ -3180,6 +3181,7 @@ async function checkWidth(width) {
     ['chat-propose-croatian', 'drive&spending=people&lang=hr', chatProposeFlowIn('hr'), '#/spending', 'Pregled'],
     ['chat-tag', 'drive', chatTagFlowIn('en'), '#/gallery', 'Gallery'],
     ['chat-attach-refused', 'drive', chatAttachRefusedFlow(CHAT_ATTACHMENT_SAMPLES), '#/gallery', 'Gallery'],
+    ['chat-consent-cells', 'drive', chatConsentCellsFlow(CHAT_ATTACHMENT_SAMPLES), '#/gallery', 'Gallery'],
     ['owner-figure-ask', 'browser', figureAskFlowIn('en', 'owner'), '#/company/owner?p=all', 'Owner'],
     ['salaries-figure-ask', 'five-employees', figureAskFlowIn('en', 'salaries'), '#/company/salaries', 'Salaries'],
     ['pay-figure-ask', 'browser', figureAskFlowIn('en', 'pay'), '#/company/year?year=2027&tab=pay', 'Year'],
@@ -3195,6 +3197,7 @@ async function checkWidth(width) {
     // Loans', Investments' and Assets' cards in the chat.
     ['chat-offer', 'drive&loans=sample', appChatCardFlowIn('en', 'offer'), '#/loans/scenarios', 'Scenarios'],
     ['investments-chat-trade', 'drive&investments=sample', appChatCardFlowIn('en', 'buy'), '#/investments', 'Overview'],
+    ['investments-chat-file-copy', 'drive&investments=sample', appChatCardFlowIn('en', 'file', CHAT_ATTACHMENT_SAMPLES), '#/investments', 'Overview'],
     ['assets-chat-valuation', 'drive&assets=sample&loans=sample', appChatCardFlowIn('en', 'valuation'), '#/assets', 'Overview'],
     ['assist-key', 'drive', assistKeyFlow, '#/settings', 'Kuna settings'],
     ['assist-switch', 'drive', assistSwitchFlow, '#/company/settings?tab=assistant', 'Settings'],

@@ -11,7 +11,7 @@ import { removeSettings, setSettings } from '../../settings/application/settingW
 import { heldSettingValue } from '../../settings/domain/settings'
 import { ACCOUNT_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
-import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { ROWS_A_PART, StepRefused } from '../../../../shared/app/proposedWrites'
 import { ZERO, moneyFromAmount } from '../../../../shared/money/money'
@@ -30,11 +30,14 @@ const START_FIELDS = {
   part: { type: 'integer', description: `Which ${ROWS_A_PART} rows of each statement this card imports, from 1.` },
 } as const
 
+/** The operations that import rows, whose card holds nothing else. */
+export const IMPORTING: ReadonlySet<string> = new Set(['import-statement', 'file-held-statements'])
+
 const IMPORT_STATEMENT: AssistantOperation = {
   name: 'import-statement',
   about: [
     "Imports a bank statement through Import's own dry run: rows already on the ledger are skipped, the rules file the new rows, and each account's rows must run on from its balance.",
-    'file names the attached file by its id, or null for a statement pasted as text. For a camt XML file or a bank sheet, account, opening and closing are null and rows empty, and Kuna reads it itself. A sheet reads by a saved import profile, by its name in profile or null for the one that fits. save-import-profile earlier on the same card saves one for a sheet no profile reads.',
+    'file names the attached file by its id, or null for a statement pasted as text. For a camt XML file or a bank sheet, account, opening and closing are null and rows empty, and Kuna reads it itself. A sheet reads by a saved import profile, by its name in profile or null for the one that fits. save-import-profile on a card before saves one for a sheet no profile reads.',
     'For any other file or a pasted statement, profile is null. Read every row and copy each as written, oldest first, money out below zero. Give the opening and closing balances only when the statement prints both, and the rows must then lead from the one to the other. Never work out a balance. Without them the balances run on from the ledger and the card warns that Kuna could not check the rows.',
     `An account with no rows yet starts at the statement's opening, and the card says so. A statement over ${ROWS_A_PART} rows goes in parts, part 1 first, each its own card.`,
   ].join(' '),
@@ -177,7 +180,7 @@ function fileReadings(card: CompanyCard, loaded: LoadedImportFile, profileName: 
     if (profile === null) {
       throw new StepRefused(
         fitting.length === 0
-          ? 'No saved import profile reads this sheet. Read it with read_attachment, and put save-import-profile from its header row on this card before the import, or copy its rows into rows.'
+          ? 'No saved import profile reads this sheet. Read it with read_attachment, and propose save-import-profile from its header row on a card of its own before the import, or copy its rows into rows.'
           : `Name the profile that reads it: ${fitting.map((candidate) => candidate.name).join(', ')}.`,
       )
     }
@@ -253,12 +256,14 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   if (run.newRows === 0) throw new StepRefused('Every row of the statement is on the ledger already.')
   writeImport(card.unit, run)
   for (const account of starts.keys()) {
-    const warning = startedAtZero.has(account) ? words.accountStartsAtZero(formatMoney(ZERO)) : words.accountStarted(account)
-    card.note({ noun: LEDGER_RECORDS.noun, line: { label: account, fields: [], warning } })
+    const note: ProposalNote = startedAtZero.has(account)
+      ? { label: account, text: words.accountStartsAtZero(formatMoney(ZERO)), tone: 'warning' }
+      : { label: account, text: words.accountStarted(account), tone: 'neutral' }
+    card.note({ noun: LEDGER_RECORDS.noun, note })
   }
-  for (const { slug } of run.accounts) card.note({ noun: LEDGER_RECORDS.noun, line: { label: slug, fields: [], warning: words.accountAdded(slug) } })
+  for (const { slug } of run.accounts) card.note({ noun: LEDGER_RECORDS.noun, note: { label: slug, text: words.accountAdded(slug), tone: 'neutral' } })
   for (const statement of run.statements) {
-    for (const note of statement.notes) card.note({ noun: LEDGER_RECORDS.noun, line: { label: statement.label, fields: [], warning: note } })
+    for (const note of statement.notes) card.note({ noun: LEDGER_RECORDS.noun, note: { label: statement.label, text: note, tone: 'warning' } })
   }
 }
 
@@ -276,9 +281,8 @@ function importStatement(card: CompanyCard, step: ProposalStep): void {
   const rows = (field['rows'] as readonly unknown[]).length
   const onCard = Math.min(part * ROWS_A_PART, rows) - (part - 1) * ROWS_A_PART
   const label = 'statement' in readings[0]! ? readings[0].statement.label : ''
+  card.note({ noun: LEDGER_RECORDS.noun, note: { label, text: copiedStatementRowsWarning(onCard, file === null ? null : file.name, field['opening'] !== null), tone: 'warning' } })
   writeStatements(card, readings, field['newAccount'], true)
-  // A note goes above the ones before it, so the copied rows' warning, written last, reads first.
-  card.note({ noun: LEDGER_RECORDS.noun, line: { label, fields: [], warning: copiedStatementRowsWarning(onCard, file === null ? null : file.name, field['opening'] !== null) } })
 }
 
 /** The statements the last sync of the statements folder held back for a person, which `app.ts` hands in. */

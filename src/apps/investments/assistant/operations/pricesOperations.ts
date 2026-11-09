@@ -92,7 +92,7 @@ function refusalText(reason: ClosesCsvRefusal): string {
 type Checked = CheckedProposal | { readonly refused: readonly string[] }
 
 function cardOf(title: string, line: ProposalLine, outside: string, held: HeldRun): Checked {
-  return { title, count: 1, groups: [{ verb: 'change', noun: PRICES_NOUN, lines: [line] }], outside: [outside], undoable: false, held }
+  return { title, count: 1, groups: [{ verb: 'change', noun: PRICES_NOUN, notes: [], lines: [line] }], outside: [outside], undoable: false, heldBack: null, held }
 }
 
 /** The holdings a file of closes may be for, as the Prices tab offers them: each priced by a vendor, held or sold. */

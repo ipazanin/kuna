@@ -1,16 +1,9 @@
 import type { CompanyBooks, WorkbookRecords } from '../../workbook/domain/readWorkbook'
 import type { Category, Transaction, Workbook } from '../../workbook/domain/workbook'
-import type { AssistantOperation, ProposalLine, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { AssistantOperation, CardNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { OpenBooks } from '../../../../shared/app/proposedWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
-
-/** A line the card shows beside the records it writes, such as a confirmed row a rule now disagrees with, on the group of its kind. */
-export interface CardNote {
-  readonly noun: RecordNoun
-  readonly line: ProposalLine
-}
 
 /** What one step of a Company card plans with: the books as read, the books as the card's earlier steps left them, and the write. */
 export interface CompanyCard {
@@ -26,7 +19,7 @@ export interface CompanyCard {
   idOf(value: unknown): string
   /** Names what a step made, so a later step may use its `$` name. */
   made(as: string | null, id: string): void
-  /** Shows a line on the card beside what the write does. */
+  /** Shows a note on the card beside what the write does, such as a confirmed row a rule now disagrees with. */
   note(note: CardNote): void
 }
 

@@ -9,6 +9,7 @@ import { ATTACHMENT_REF } from '../src/shared/app/assistantOperations'
 import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -66,6 +67,7 @@ describe('every Spending operation', () => {
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)
       const [card] = desk.cards
+      expectCountsOfChanges(card!)
       const { changes } = card!.held as { readonly changes: readonly RuledChange[] }
       const linesTaken = new Map<string, number>()
       const checked = changes.flatMap(({ change }) => {

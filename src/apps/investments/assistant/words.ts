@@ -103,10 +103,8 @@ export const en = {
       one: `The AI read 1 row ${source}. Its cash adds up to the balances the file prints, but check the rest against the file.`,
       other: `The AI read ${count} rows ${source}. Their cash adds up to the balances the file prints, but check the rest against the file.`,
     }),
-    lookAlikes: (count: number): EnglishForms => ({
-      one: '1 row looks like a record Kuna has from another file and is not imported. Say in the chat whether to import it.',
-      other: `${count} rows look like records Kuna has from another file and are not imported. Say in the chat whether to import them.`,
-    }),
+    lookAlikesWaiting: (count: number): EnglishForms => ({ one: `${count} row waits, not imported`, other: `${count} rows wait, not imported` }),
+    lookAlikeAsk: (): EnglishForms => ({ one: 'Say in the chat whether it is another record.', other: 'Say in the chat whether each is another record.' }),
     rowsInKuna: (count: number): EnglishForms => ({ one: '1 row is in Kuna already and is skipped.', other: `${count} rows are in Kuna already and are skipped.` }),
     transcribedWaiting: (count: number, reasons: string): EnglishForms => ({
       one: `1 row waits and is not imported. ${reasons}.`,
@@ -272,10 +270,15 @@ export const hr: Translation<typeof en> = {
       few: `AI je ${source} pročitao ${count} retka. Novac u njima zbraja se do stanja koja datoteka ispisuje, ali ostalo usporedite s datotekom.`,
       other: `AI je ${source} pročitao ${count} redaka. Novac u njima zbraja se do stanja koja datoteka ispisuje, ali ostalo usporedite s datotekom.`,
     }),
-    lookAlikes: (count): CroatianForms => ({
-      one: `${count} redak izgleda kao zapis koji Kuna ima iz druge datoteke i nije uvezen. Recite u razgovoru treba li ga uvesti.`,
-      few: `${count} retka izgledaju kao zapisi koje Kuna ima iz druge datoteke i nisu uvezena. Recite u razgovoru treba li ih uvesti.`,
-      other: `${count} redaka izgleda kao zapisi koje Kuna ima iz druge datoteke i nije uvezeno. Recite u razgovoru treba li ih uvesti.`,
+    lookAlikesWaiting: (count): CroatianForms => ({
+      one: `${count} redak čeka, nije uvezen`,
+      few: `${count} retka čekaju, nisu uvezena`,
+      other: `${count} redaka čeka, nije uvezeno`,
+    }),
+    lookAlikeAsk: (): CroatianForms => ({
+      one: 'Recite u razgovoru je li to drugi zapis.',
+      few: 'Recite u razgovoru je li svaki od njih drugi zapis.',
+      other: 'Recite u razgovoru je li svaki od njih drugi zapis.',
     }),
     rowsInKuna: (count): CroatianForms => ({
       one: `${count} redak već je u Kuni i preskočen je.`,

@@ -102,9 +102,9 @@ export const en = {
     placeholderReads: 'Ask about your figures',
     sends: 'what you type here, the screen you are on and the name of anything you tagged. Nothing from your books.',
     sendsAndReads: (app: string) => `what you type here, the screen you are on, the name of anything you tagged and, when a question needs them, records and figures from ${app}.`,
-    sendsWithFiles: 'what you type here, the screen you are on, the name of anything you tagged and the photos and PDFs you attached. Nothing else from your books.',
+    sendsWithFiles: 'what you type here, the screen you are on, the name of anything you tagged and the files you attached. Nothing else from your books.',
     sendsAndReadsWithFiles: (app: string) =>
-      `what you type here, the screen you are on, the name of anything you tagged, the photos and PDFs you attached and, when a question needs them, records and figures from ${app}.`,
+      `what you type here, the screen you are on, the name of anything you tagged, the files you attached and, when a question needs them, records and figures from ${app}.`,
     reads: (app: string) => `the records and figures from ${app} this chat asks for.`,
     readTitle: (app: string) => `Let the chat read ${app}?`,
     aliases:
@@ -129,7 +129,7 @@ export const en = {
     dropKinds: 'Photos, PDFs, sheets, CSV, XML, JSON and text files',
     remove: (name: string) => `Remove ${name}`,
     readByKuna: (name: string) => `${name}: read by Kuna, not sent`,
-    goesAsCells: (name: string) => `${name}: goes to the AI as text, cell by cell, with names as aliases and IBANs and card numbers hidden`,
+    goesAsCells: (name: string) => `${name}: goes to the AI as text, cell by cell, with names as aliases and IBANs and card numbers hidden.`,
     goesAsCellsPlain: (name: string) => `${name}: goes to the AI as text, cell by cell. Names go as written, IBANs and card numbers hidden.`,
     goesWhole: 'Photos and PDFs go whole, with every name and amount on them, even with Anonymise on.',
     cost: (toRead: string, eachLater: string) => `Reading them costs ${toRead}, then ${eachLater} with each later message.`,
@@ -174,6 +174,7 @@ export const en = {
     refused: 'Kuna refused it, and nothing was written.',
     noUndo: 'No Undo',
     noUndoNote: 'This card has no Undo. What it does stays.',
+    madeAfterReading: (files: string) => `Made after reading ${files}`,
   },
   history: {
     restored: 'Since the reload the assistant no longer sees these messages, and names show as aliases such as Person 1.',
@@ -302,9 +303,8 @@ export const hr: Translation<typeof en> = {
     placeholderReads: 'Pitajte o svojim iznosima',
     sends: 'ono što ovdje upišete, zaslon na kojem ste i naziv onoga što ste označili. Ništa iz vaših podataka.',
     sendsAndReads: (app) => `ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili i, kad pitanje to traži, zapisi i iznosi iz aplikacije ${app}.`,
-    sendsWithFiles: 'ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili te priložene fotografije i PDF-ovi. Ništa drugo iz vaših podataka.',
-    sendsAndReadsWithFiles: (app) =>
-      `ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili, priložene fotografije i PDF-ovi i, kad pitanje to traži, zapisi i iznosi iz aplikacije ${app}.`,
+    sendsWithFiles: 'ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili te priložene datoteke. Ništa drugo iz vaših podataka.',
+    sendsAndReadsWithFiles: (app) => `ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili, priložene datoteke i, kad pitanje to traži, zapisi i iznosi iz aplikacije ${app}.`,
     reads: (app) => `zapisi i iznosi iz aplikacije ${app} koje ovaj razgovor zatraži.`,
     readTitle: (app) => `Dopustiti razgovoru da čita aplikaciju ${app}?`,
     aliases:
@@ -329,7 +329,7 @@ export const hr: Translation<typeof en> = {
     dropKinds: 'Fotografije, PDF-ovi, tablice, CSV, XML, JSON i tekstne datoteke',
     remove: (name) => `Ukloni ${name}`,
     readByKuna: (name) => `${name}: čita ga Kuna, ne šalje se`,
-    goesAsCells: (name) => `${name}: ide AI-ju kao tekst, ćeliju po ćeliju, s imenima kao pseudonimima te sakrivenim IBAN-ima i brojevima kartica`,
+    goesAsCells: (name) => `${name}: ide AI-ju kao tekst, ćeliju po ćeliju, sa zamjenskim nazivima umjesto imena te sakrivenim IBAN-ima i brojevima kartica.`,
     goesAsCellsPlain: (name) => `${name}: ide AI-ju kao tekst, ćeliju po ćeliju. Imena idu kako su napisana, IBAN-i i brojevi kartica sakriveni su.`,
     goesWhole: 'Fotografije i PDF-ovi šalju se cijeli, sa svim imenima i iznosima na njima, i kad je anonimizacija uključena.',
     cost: (toRead, eachLater) => `Čitanje stoji ${toRead}, zatim ${eachLater} uz svaku sljedeću poruku.`,
@@ -374,6 +374,7 @@ export const hr: Translation<typeof en> = {
     refused: 'Kuna je to odbila i ništa nije zapisano.',
     noUndo: 'Bez poništavanja',
     noUndoNote: 'Ova kartica nema poništavanje. Ono što napravi ostaje.',
+    madeAfterReading: (files) => `Napravljeno nakon čitanja: ${files}`,
   },
   history: {
     restored: 'Nakon ponovnog učitavanja asistent više ne vidi ove poruke, a imena se prikazuju kao zamjenski nazivi poput Osoba 1.',

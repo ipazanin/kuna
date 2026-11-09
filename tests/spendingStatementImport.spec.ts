@@ -77,12 +77,11 @@ function copiedFrom(kind: ChatAttachment['kind'], name: string, bytes: Uint8Arra
 }
 
 /** The warned lines of the last card. */
-function warnings(desk: SpendingDesk): readonly (string | null)[] {
+function warnings(desk: SpendingDesk): readonly string[] {
   return desk.cards
     .at(-1)!
-    .groups.flatMap((group) => group.lines)
-    .filter((line) => line.warning !== null)
-    .map((line) => line.warning)
+    .groups.flatMap((group) => group.notes)
+    .map((note) => note.text)
 }
 
 const rowsOn = (desk: SpendingDesk, account: string) => desk.store.state.workbook!.transactions.filter((row) => row.account === account)
@@ -172,7 +171,7 @@ describe('a statement read off a page', () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([{ op: 'add-category', input: { name: 'Pets', kind: 'spending', parent: null }, as: '$pets' }, transcribed(desk, 'statement-ties.pdf')])
     expect(answer.isError).toBe(true)
-    expect(answer.text).toContain('before the import')
+    expect(answer.text).toContain('Propose add-category on a card of its own first, and the import on the next card')
     expect(desk.cards).toEqual([])
   })
 
@@ -180,11 +179,11 @@ describe('a statement read off a page', () => {
     const desk = await spendingDesk(used)
     const step = transcribed(desk, 'statement-ties.pdf')
     const early = { date: '2025-12-31', amount: -3, payee: 'Before the account', iban: null }
-    await desk.propose([{ ...step, input: { ...step.input, closing: step.input.closing - 3, rows: [early, ...step.input.rows] } }])
-    const lines = desk.cards[0]!.groups.flatMap((group) => group.lines)
-    expect(lines.filter((line) => line.warning !== null)).toEqual([
-      { label: expect.any(String), fields: [], warning: 'The AI read 7 rows from the chat. Check them against the statement. 1 row of the statement is left out.' },
+    const answer = await desk.propose([{ ...step, input: { ...step.input, closing: step.input.closing - 3, rows: [early, ...step.input.rows] } }])
+    expect(desk.cards[0]!.groups.flatMap((group) => group.notes)).toEqual([
+      { label: expect.any(String), text: 'The AI read 7 rows from the chat. Check them against the statement. 1 row of the statement is left out.', tone: 'warning' },
     ])
+    expect(answer.text).toContain('1 row of the statement is left out, as it falls before the account opened')
   })
 
   it('writes a row once that a rule on the card files and the import pairs, and one Undo puts it back', async () => {

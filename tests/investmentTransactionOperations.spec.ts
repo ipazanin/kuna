@@ -10,6 +10,7 @@ import { DESK, EXAMPLE_RECORDS, investmentsDesk } from './fixtures/investmentsDe
 import type { InvestmentsDesk } from './fixtures/investmentsDesk'
 import { USD, rateBookOf } from './fixtures/investments'
 import { forgetCaches } from './fixtures/writeBack'
+import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -60,6 +61,7 @@ describe('every Investments operation', () => {
 
       expect(answer.text).toContain('The card shows')
       const [card] = desk.cards
+      expectCountsOfChanges(card!)
       expect(card!.groups.length).toBeGreaterThan(0)
       expect(card!.groups.flatMap((group) => group.lines).every((line) => line.label !== '')).toBe(true)
       const result = await desk.accept()

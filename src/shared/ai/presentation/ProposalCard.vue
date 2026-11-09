@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, ref } from 'vue'
 import type { DeepReadonly } from 'vue'
+import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { CheckedProposal, ProposalGroup } from '../../app/assistantOperations'
 import { formatCount } from '../../money/moneyFormat'
 import { language } from '../../text/language'
+import { listInWords } from '../../text/listInWords'
 import { plural } from '../../text/translation'
 import AppCard from '../../ui/AppCard.vue'
 import { CHAT_APPS } from './chatApps'
@@ -25,7 +27,7 @@ const props = defineProps<{
 const SHOWN = 3
 const apps = inject(CHAT_APPS, [])
 const working = ref(false)
-const allShown = ref<ReadonlySet<number>>(new Set())
+const allShown = ref<ReadonlySet<string>>(new Set())
 
 const held = computed(() => props.proposal as ChatProposal)
 const groups = computed(() => held.value.checked?.groups ?? [])
@@ -36,6 +38,7 @@ const outside = computed(() => (props.proposal.state === 'open' || props.proposa
 const noUndo = computed(() => held.value.checked?.undoable === false)
 const summary = computed(() => plural(words.proposal.changes(props.proposal.count), props.proposal.count))
 const title = computed(() => shownOnScreen(props.proposal.title))
+const readFiles = computed(() => (props.proposal.readFiles.length === 0 ? null : words.proposal.madeAfterReading(listInWords(props.proposal.readFiles))))
 const endedWords = computed(() => {
   switch (props.proposal.state) {
     case 'undone':
@@ -56,13 +59,16 @@ function countedNoun(group: ProposalGroup): string {
   return `${words.proposal.verb[group.verb]}: ${formatCount(count)} ${noun}`
 }
 
-function linesOf(group: ProposalGroup, at: number): ProposalGroup['lines'] {
-  return allShown.value.has(at) || group.lines.length <= SHOWN + 1 ? group.lines : group.lines.slice(0, SHOWN)
+/** The first few of a list, or all of it once a person asked or when hiding the rest would save a single row. */
+function shownOf<Row>(rows: readonly Row[], place: string): readonly Row[] {
+  return allShown.value.has(place) || rows.length <= SHOWN + 1 ? rows : rows.slice(0, SHOWN)
 }
 
-function showAll(at: number): void {
-  allShown.value = new Set([...allShown.value, at])
+function showAll(place: string): void {
+  allShown.value = new Set([...allShown.value, place])
 }
+
+const NOTE_ICONS = { info: 'i-lucide-message-circle-question', warning: 'i-lucide-triangle-alert', neutral: 'i-lucide-info' } as const
 
 /** A real tap only, so nothing a page script fires can accept. */
 async function accept(event: Event): Promise<void> {
@@ -103,10 +109,43 @@ async function undo(event: Event): Promise<void> {
         <p class="type-label" data-testid="chat-proposal-count">{{ summary }}</p>
         <p class="type-caption wrap-anywhere">{{ title }}</p>
       </div>
+      <p v-if="readFiles !== null" class="flex items-start gap-1.5 type-caption wrap-anywhere" data-testid="chat-proposal-read-files">
+        <UIcon name="i-lucide-file-search" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        {{ readFiles }}
+      </p>
       <div v-for="(group, at) in shownGroups" :key="at" class="flex flex-col gap-1.5" data-testid="chat-proposal-group">
-        <p class="type-caption">{{ countedNoun(group) }}</p>
+        <p v-if="group.lines.length > 0" class="type-caption" data-testid="chat-proposal-group-count">{{ countedNoun(group) }}</p>
+        <UAlert
+          v-for="(note, noteAt) in group.notes"
+          :key="noteAt"
+          :icon="NOTE_ICONS[note.tone]"
+          :color="note.tone"
+          variant="subtle"
+          :title="note.label"
+          :description="note.text"
+          :ui="{ title: 'wrap-anywhere', description: 'wrap-anywhere' }"
+          data-testid="chat-proposal-note"
+          :data-tone="note.tone"
+        >
+          <template v-if="(note.items ?? []).length > 0" #description>
+            <p class="wrap-anywhere">{{ note.text }}</p>
+            <ul class="mt-1.5 flex flex-col gap-1" data-testid="chat-proposal-note-items">
+              <li v-for="(item, itemAt) in shownOf(note.items ?? [], `note-${at}-${noteAt}`)" :key="itemAt" class="wrap-anywhere">{{ item.row }} → {{ item.record }}</li>
+            </ul>
+            <UButton
+              v-if="shownOf(note.items ?? [], `note-${at}-${noteAt}`).length < (note.items ?? []).length"
+              :label="words.proposal.showAll(formatCount((note.items ?? []).length))"
+              color="neutral"
+              variant="link"
+              size="sm"
+              class="mt-1 px-0"
+              data-testid="chat-proposal-note-all"
+              @click="showAll(`note-${at}-${noteAt}`)"
+            />
+          </template>
+        </UAlert>
         <ul class="flex flex-col gap-1.5">
-          <li v-for="(line, lineAt) in linesOf(group, at)" :key="lineAt" class="flex min-w-0 flex-col" data-testid="chat-proposal-line">
+          <li v-for="(line, lineAt) in shownOf(group.lines, `lines-${at}`)" :key="lineAt" class="flex min-w-0 flex-col" data-testid="chat-proposal-line">
             <p class="type-body wrap-anywhere text-highlighted">{{ line.label }}</p>
             <p v-if="line.warning !== null" class="flex items-start gap-1 type-caption text-warning" data-testid="chat-proposal-line-warning">
               <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
@@ -124,14 +163,14 @@ async function undo(event: Event): Promise<void> {
           </li>
         </ul>
         <UButton
-          v-if="linesOf(group, at).length < group.lines.length"
+          v-if="shownOf(group.lines, `lines-${at}`).length < group.lines.length"
           :label="words.proposal.showAll(formatCount(group.lines.length))"
           color="neutral"
           variant="link"
           size="sm"
           class="self-start px-0"
           data-testid="chat-proposal-all"
-          @click="showAll(at)"
+          @click="showAll(`lines-${at}`)"
         />
       </div>
       <ul v-if="outside.length > 0 || (noUndo && proposal.state === 'open')" class="flex flex-col gap-1" data-testid="chat-proposal-outside">

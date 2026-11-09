@@ -50,11 +50,33 @@ export interface ProposalLine {
   readonly warning: string | null
 }
 
-/** The lines of one kind and one verb. */
+/** What the card says about its records beside what it writes, such as rows an import leaves waiting. A note is never a change, so the card does not count it. */
+export interface ProposalNote {
+  readonly label: string
+  readonly text: string
+  /** `info` for a question waiting on the person, `warning` for something that may be wrong, `neutral` for what the card only reports. */
+  readonly tone: 'info' | 'warning' | 'neutral'
+  /** Rows the note lists under its text, each as what it is beside what it looks like. */
+  readonly items?: readonly ProposalNoteItem[]
+}
+
+export interface ProposalNoteItem {
+  readonly row: string
+  readonly record: string
+}
+
+/** The lines of one kind and one verb, with the notes on that kind above them. */
 export interface ProposalGroup {
   readonly verb: 'add' | 'change' | 'remove'
   readonly noun: RecordNoun
+  readonly notes: readonly ProposalNote[]
   readonly lines: readonly ProposalLine[]
+}
+
+/** A note on the card's group of the records named by their noun. */
+export interface CardNote {
+  readonly noun: RecordNoun
+  readonly note: ProposalNote
 }
 
 /**
@@ -69,6 +91,8 @@ export interface CheckedProposal {
   readonly outside: readonly string[]
   /** False when Undo could not put the write back, as for a kind that keeps no Undo or a repaired row. The card then says it has no Undo. */
   readonly undoable: boolean
+  /** What the card holds back from the write, such as rows that look like records Kuna has, as a sentence for the model with the count and what to ask, or null. It holds counts and row numbers, never what the rows say. */
+  readonly heldBack: string | null
   readonly held: object
 }
 

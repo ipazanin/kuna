@@ -36,9 +36,8 @@ import type { Trade } from '../../workbook/domain/trade'
 import type { Transfer } from '../../workbook/domain/transfer'
 import { words as recordWords } from '../../workbook/domain/words'
 import { words } from '../words'
-import type { StepNote } from './investmentSteps'
-import type { ProposalGroup } from '../../../../shared/app/assistantOperations'
-import { proposalGroups } from '../../../../shared/app/proposalGroups'
+import type { CardNote, ProposalGroup } from '../../../../shared/app/assistantOperations'
+import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -278,8 +277,8 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   return fallback
 }
 
-/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. Each step's warned lines lead the group of its records. */
-export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook, notes: readonly StepNote[] = []): readonly ProposalGroup[] {
+/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. Each step's notes sit on the group of its records. */
+export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook, notes: readonly CardNote[] = []): readonly ProposalGroup[] {
   const namesOf = new Map<unknown, string>([...book.accounts, ...book.instruments].map((record) => [record.id, record.name]))
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && (change.kind.name === INVESTMENT_ACCOUNT_RECORDS.name || change.kind.name === INSTRUMENT_RECORDS.name)) {
@@ -297,11 +296,8 @@ export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook, no
     label: (kind, record, fallback) => labelOf(kind, original(record), fallback, namesOf),
     warns: (kind, field) => kind.name === MAIL_READER_RECORDS.name && WARNS.has(field),
   }
-  return notes.reduce(
-    (groups, { noun, line }) => {
-      const at = groups.findIndex((group) => group.noun === noun)
-      return at < 0 ? [...groups, { verb: 'change', noun, lines: [line] }] : groups.map((group, place) => (place === at ? { ...group, lines: [line, ...group.lines] } : group))
-    },
+  return withNotes(
     proposalGroups(comparableWrite, () => describer),
+    notes,
   )
 }

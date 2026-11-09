@@ -1,6 +1,6 @@
 import { cardRecords } from './cardRecords'
-import type { CardNote, CompanyCard, CompanyOperationSet } from './companyCard'
-import { importOperations, withStatementFilesRead } from './importOperations'
+import type { CompanyCard, CompanyOperationSet } from './companyCard'
+import { IMPORTING, importOperations, withStatementFilesRead } from './importOperations'
 import { INVOICING_OPERATIONS } from './invoicingOperations'
 import type { HeldStatements, StatementFileReader } from './importOperations'
 import { LEDGER_OPERATIONS } from './ledgerOperations'
@@ -13,8 +13,8 @@ import { installedPack } from '../../packs/packContribution'
 import { readWorkbook } from '../../workbook/domain/readWorkbook'
 import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
 import type { Workbook } from '../../workbook/domain/workbook'
-import type { AppAcceptance, AppProposer, AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { StepRefused, proposedWrites } from '../../../../shared/app/proposedWrites'
+import type { AppAcceptance, AppProposer, AssistantOperation, CardNote, ProposalStep } from '../../../../shared/app/assistantOperations'
+import { StepRefused, proposedWrites, refuseBesideImport } from '../../../../shared/app/proposedWrites'
 import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWrites'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -51,6 +51,7 @@ function operationSets(ports: CompanyOperationPorts): readonly CompanyOperationS
  * left them. A `$` name stands for what an earlier step made. Gives the lines the card shows beside what it writes.
  */
 function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonly CompanyOperationSet[], steps: readonly ProposalStep[]): readonly CardNote[] {
+  refuseBesideImport(steps, IMPORTING)
   const records = cardRecords(books.records)
   const names = new Map<string, string>()
   const notes: CardNote[] = []
@@ -86,10 +87,6 @@ function companyWork(sets: readonly CompanyOperationSet[], pack: PackOperations 
       notes = planned(unit, books, sets, steps)
     },
     groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, notes, pack),
-    overLimit: (steps) =>
-      steps.some((step) => step.operation === 'import-statement' || step.operation === 'file-held-statements')
-        ? 'A part of a statement cannot shrink, so put other changes on a card of their own before the import, then propose the import again.'
-        : null,
   }
 }
 

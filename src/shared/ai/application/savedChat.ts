@@ -13,6 +13,8 @@ export interface SavedProposal {
   readonly title: string
   readonly count: number
   readonly state: ProposalState
+  /** The names of the files the model read in the turn that made the card, absent when none. */
+  readonly readFiles?: readonly string[]
 }
 
 export interface SavedLine {

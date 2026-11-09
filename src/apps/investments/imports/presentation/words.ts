@@ -166,6 +166,7 @@ export const en = {
     listedSplits: 'Splits found',
   },
   dryRun: {
+    looksLike: (record: string) => `Looks like a record Kuna has from another file: ${record}`,
     askedIntro: 'Rows Kuna has not seen before. None of them goes in.',
     askedNoKind: 'Kuna has not seen a row like this',
     askedUnreadable: (field: string, text: string) => `Its ${field} cannot be read${text === '' ? ', as it is blank' : `: "${text}"`}`,
@@ -424,6 +425,7 @@ export const hr: Translation<typeof en> = {
     listedSplits: 'Pronađene podjele',
   },
   dryRun: {
+    looksLike: (record) => `Izgleda kao zapis koji Kuna ima iz druge datoteke: ${record}`,
     askedIntro: 'Retci kakve Kuna još nije vidjela. Nijedan od njih ne ulazi.',
     askedNoKind: 'Kuna još nije vidjela ovakav redak',
     askedUnreadable: (field, text) => `Polje ${field} ne može se pročitati${text === '' ? ' jer je prazno' : `: „${text}”`}`,

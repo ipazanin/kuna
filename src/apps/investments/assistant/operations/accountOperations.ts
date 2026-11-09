@@ -53,7 +53,7 @@ export const ACCOUNT_STEPS: InvestmentSteps = {
       case 'add-account': {
         const account: InvestmentAccount = { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, newRecordId()), name: nameOf(field['name']), note: (field['note'] as string).trim() }
         unit.of(INVESTMENT_ACCOUNT_WRITES).add(account)
-        return { book: { ...card.book, accounts: [...card.book.accounts, account] }, made: account.id, fetchesPricesOf: [], notes: [] }
+        return { book: { ...card.book, accounts: [...card.book.accounts, account] }, made: account.id, fetchesPricesOf: [], notes: [], heldBack: [] }
       }
       case 'change-account': {
         const before = accountOf(field['account'])

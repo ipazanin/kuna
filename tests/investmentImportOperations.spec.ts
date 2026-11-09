@@ -76,7 +76,7 @@ describe('the portfolio workbook', () => {
     )
     await desk.propose([{ op: 'import-workbook', input: { file: 'a7', gone: 'keep' } }])
     const kept = desk.cards.at(-1)!
-    expect(kept.groups[0]!.lines[0]!.warning).toContain('gone from the workbook')
+    expect(kept.groups[0]!.notes[0]!.text).toContain('gone from the workbook')
 
     await desk.propose([{ op: 'import-workbook', input: { file: 'a7', gone: 'delete' } }])
     const deleting = desk.cards.at(-1)!
@@ -126,19 +126,16 @@ describe('the portfolio workbook', () => {
     expect(bookOf(desk).spinOffs.map((spinOff) => decimalText(spinOff.costShare))).toContain('0.1')
   })
 
-  it('puts its warned line on the group of what it writes, whatever steps go before it', async () => {
+  it('refuses another step on its card, which goes on a card of its own first', async () => {
     const desk = await investmentsDesk(used)
     desk.attachments.push(await workbookAttachment('a6', TWO_DEPOSITS))
-    await desk.propose([{ op: 'import-workbook', input: { file: 'a6', gone: 'keep' } }])
-    await desk.accept()
-    desk.attachments.push(await workbookAttachment('a7', [...DEPOSIT_WORKBOOK, ...workbookGrid([['2026-03-10', { ...BROKER, type: 'FEE', currency: 'EUR', netCash: -2 }]]).slice(1)]))
-    await desk.propose([
+    const answer = await desk.propose([
       { op: 'add-account', input: { name: 'Broker, long term', note: '' } },
-      { op: 'import-workbook', input: { file: 'a7', gone: 'keep' } },
+      { op: 'import-workbook', input: { file: 'a6', gone: 'keep' } },
     ])
-    const [accounts, movements] = desk.cards.at(-1)!.groups
-    expect(accounts!.lines.every((line) => line.warning === null)).toBe(true)
-    expect(movements!.lines[0]!.warning).toContain('gone from the workbook')
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('Propose add-account on a card of its own first')
+    expect(desk.cards).toEqual([])
   })
 
   it('links Overview, Import for a workbook larger than a card holds', async () => {
@@ -169,7 +166,7 @@ describe("IBKR's mailed report", () => {
     const desk = await investmentsDesk(used)
     await desk.propose([{ op: 'accept-mail-report', input: { asked: 'hold' } }])
     const card = desk.cards[0]!
-    expect(card.groups[0]!.lines[0]!.warning).toContain('1 row the report asks about')
+    expect(card.groups[0]!.notes[0]!.text).toContain('1 row the report asks about')
     await desk.accept()
     expect(bookOf(desk).mailReaders[0]!.leftOut).toEqual([])
   })
@@ -217,7 +214,7 @@ describe('an attached IBKR Flex report', () => {
     const desk = await investmentsDesk(used, DOLLAR_RATES)
     desk.attachments.push(flexAttachment('a6', ['2026-10-12'], 'unseen'))
     await desk.propose([{ op: 'import-flex-report', input: { file: 'a6', asked: 'hold' } }])
-    expect(desk.cards[0]!.groups[0]!.lines[0]!.warning).toContain('rows the report asks about stay waiting')
+    expect(desk.cards[0]!.groups[0]!.notes[0]!.text).toContain('rows the report asks about stay waiting')
 
     await desk.propose([{ op: 'import-flex-report', input: { file: 'a6', asked: 'leave-out' } }])
     const result = await desk.accept()

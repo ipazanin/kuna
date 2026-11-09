@@ -3,12 +3,13 @@ import { writeWorkbookImport } from '../../imports/application/workbookImport'
 import { LOOK_ALIKES, importableRecords } from '../../imports/domain/importDryRun'
 import type { ImportedRecord, WorkbookRows } from '../../imports/domain/importDryRun'
 import { WORKBOOK_TYPES } from '../../imports/domain/portfolioWorkbook'
+import type { WorkbookRow } from '../../imports/domain/portfolioWorkbook'
 import { copiedRowRefusal, daysPartlyOnCard, transcribedRows } from '../../imports/domain/transcribedRows'
 import type { CashOff, CopiedRowRefusal, TranscribedBalance, TranscribedRow } from '../../imports/domain/transcribedRows'
 import { ratesWanted } from '../../imports/domain/workbookRates'
 import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/presentation/importChoices'
 import type { AskedChoice, ClosesOf, ImportChoices, SettledImport } from '../../imports/presentation/importChoices'
-import { waitText } from '../../imports/presentation/dryRunLines'
+import { lookAlikesOf, waitText } from '../../imports/presentation/dryRunLines'
 import { MAIL_READER_WRITES, heldOrNewReader, writeLeftOut, writeUploadLeftOut } from '../../mail/application/mailReaderWrites'
 import { pickedReport } from '../../mail/application/mailReports'
 import { IBKR_FLEX_RECIPE, ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
@@ -23,7 +24,7 @@ import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS, MAIL_READER_RECORDS } from '../../workbook/domain/investmentKinds'
 import { words } from '../words'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
-import type { ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { CardNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { copiedRowsSource } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { FLAG_OR_NULL, NOT_READ_OFF_A_PAGE, TEXT, TEXT_OR_NULL, choiceOf, found, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
@@ -37,12 +38,15 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { readRecipeFile } from '../../../../shared/recipes/infrastructure/recipeFile'
 import { fold } from '../../../../shared/text/fold'
 import { plural } from '../../../../shared/text/translation'
-import type { CardBooks, InvestmentSteps, StepNote, StepWritten } from './investmentSteps'
+import type { CardBooks, InvestmentSteps, StepWritten } from './investmentSteps'
 
 const IMPORT_WORKBOOK = 'import-workbook'
 const ACCEPT_MAIL_REPORT = 'accept-mail-report'
 const IMPORT_FLEX_REPORT = 'import-flex-report'
 const IMPORT_TRANSCRIBED = 'import-transcribed'
+
+/** The operations that import rows, whose card holds nothing else. */
+export const IMPORTING: ReadonlySet<string> = new Set([IMPORT_WORKBOOK, ACCEPT_MAIL_REPORT, IMPORT_FLEX_REPORT, IMPORT_TRANSCRIBED])
 const GONE = ['keep', 'delete'] as const
 const ASKED: readonly AskedChoice[] = ['hold', 'leave-out']
 const MAIL_FIELDS: readonly MailReaderField[] = ['senders', 'subject', 'contents', 'since']
@@ -162,10 +166,10 @@ function firstNounOf(added: InvestmentBook, deleting: readonly ImportedRecord[])
   return first === undefined ? MAIL_READER_RECORDS.noun : transactionRecordKind(first.kind).noun
 }
 
-/** A warned line on the card, since the card shows only what the import writes. */
-function noteOf(label: string, noun: RecordNoun, counts: readonly (readonly [number, (count: number) => Parameters<typeof plural>[0]])[], lead: string | null = null): StepNote[] {
+/** A warning on the card, since the card shows only what the import writes. */
+function noteOf(label: string, noun: RecordNoun, counts: readonly (readonly [number, (count: number) => Parameters<typeof plural>[0]])[], lead: string | null = null): CardNote[] {
   const warnings = [...(lead === null ? [] : [lead]), ...counts.flatMap(([count, forms]) => (count === 0 ? [] : [plural(forms(count), count)]))]
-  return warnings.length === 0 ? [] : [{ noun, line: { label, fields: [], warning: warnings.join(' ') } }]
+  return warnings.length === 0 ? [] : [{ noun, note: { label, text: warnings.join(' '), tone: 'warning' } }]
 }
 
 /** The holdings whose split or spin-off the Import dialog would ask about, by name: a split no vendor lists, and a spin-off its row does not answer whole. */
@@ -232,20 +236,50 @@ function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { a
   const kept = gone === 'keep' ? dryRun.gone.length : 0
   const place = where.place
   const inKuna = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'in-kuna' ? entry.rows : [])).length
-  const notes = noteOf(
+  const noun = firstNounOf(dryRun.added, deleting)
+  const warned = noteOf(
     where.label,
-    firstNounOf(dryRun.added, deleting),
+    noun,
     [
       [waiting.length, (count) => (place === null ? words.proposals.transcribedWaiting(count, reasons) : words.proposals.rowsWaiting(count, place))],
-      [lookAlikes, words.proposals.lookAlikes],
-      place === null ? [inKuna, words.proposals.rowsInKuna] : [dryRun.skipped.length, (count: number) => words.proposals.rowsSkipped(count, place)],
+      ...(place === null ? [] : ([[dryRun.skipped.length, (count: number) => words.proposals.rowsSkipped(count, place)]] as const)),
       [held, words.proposals.rowsAsked],
       [kept, words.proposals.goneKept],
     ],
     where.lead,
   )
+  const skippedInKuna: CardNote[] = place === null && inKuna > 0 ? [{ noun, note: { label: where.label, text: plural(words.proposals.rowsInKuna(inKuna), inKuna), tone: 'neutral' } }] : []
+  const accountName = (row: WorkbookRow): string => card.book.accounts.find((account) => account.id === row.account)?.name ?? row.account
+  const waitingLookAlikes = lookAlikesOf(dryRun, card.book, rates, accountName)
+  const lookAlikeRows = waitingLookAlikes.map((lookAlike) => lookAlike.fileRow)
+  const questions: CardNote[] =
+    waitingLookAlikes.length === 0
+      ? []
+      : [
+          {
+            noun,
+            note: {
+              label: plural(words.proposals.lookAlikesWaiting(waitingLookAlikes.length), waitingLookAlikes.length),
+              text: plural(words.proposals.lookAlikeAsk(), waitingLookAlikes.length),
+              tone: 'info',
+              items: waitingLookAlikes.map((lookAlike) => ({ row: lookAlike.row.join(', '), record: lookAlike.record.join(', ') })),
+            },
+          },
+        ]
+  const heldBack = [
+    ...(lookAlikeRows.length === 0
+      ? []
+      : [
+          `${lookAlikeRows.length === 1 ? `Row ${lookAlikeRows[0]} looks like a record Kuna has from another file and waits.` : `Rows ${lookAlikeRows.join(', ')} look like records Kuna has from another file and wait.`} Ask the person whether each is another record, and if so propose the same rows again with lookAlikes import once this card is answered.`,
+        ]),
+    ...(waiting.length === 0 ? [] : [`${waiting.length} ${waiting.length === 1 ? 'row waits' : 'rows wait'} and ${waiting.length === 1 ? 'is' : 'are'} not imported: ${reasons}.`]),
+    ...(place === null && inKuna > 0 ? [`${inKuna} ${inKuna === 1 ? 'row is' : 'rows are'} in Kuna already and skipped.`] : []),
+    ...(place !== null && dryRun.skipped.length > 0
+      ? [`${dryRun.skipped.length} ${dryRun.skipped.length === 1 ? 'row' : 'rows'} Kuna cannot read ${dryRun.skipped.length === 1 ? 'stays' : 'stay'} out.`]
+      : []),
+  ]
   const fetchesPricesOf = dryRun.added.instruments.filter((instrument) => instrument.prices !== 'manual').map((instrument) => instrument.name)
-  return { written: { book: dryRun.planned, made: null, fetchesPricesOf, notes }, leftOut }
+  return { written: { book: dryRun.planned, made: null, fetchesPricesOf, notes: [...questions, ...skippedInKuna, ...warned], heldBack }, leftOut }
 }
 
 /** Why copied rows cannot go in, row by row and by field, so the AI can copy them again. It quotes nothing that was copied. */
@@ -387,7 +421,7 @@ export const IMPORT_STEPS: InvestmentSteps = {
         "commission is above zero, and commissionCurrency names its currency: the row's currency, or for an FX row its counterCurrency. A commission in any other currency is a FEE row of its own.",
         "balances gives the cash balance the file prints for a currency before this card's first row and after its last, and each must add up with the rows' netCash in that currency. Give [] when the file prints none.",
         "Keep a day's rows on one card, with a dividend beside its tax and both sides of a transfer together. Propose the next rows once the card before is accepted.",
-        'lookAlikes says what becomes of a row that looks like a record Kuna has from another file: a trade of the same holding, day, side and units, income of the same holding, day and gross, a cash movement of the same day, kind, currency and amount, or an exchange of the same day and amounts, each in the same account or, for a new account, in any. ask keeps it waiting and counts it on the card, import imports it once the person says it is another record.',
+        'lookAlikes says what becomes of a row that looks like a record Kuna has from another file: a trade of the same holding, day, side and units, income of the same holding, day and gross, a cash movement of the same day, kind, currency and amount, or an exchange of the same day and amounts, each in the same account or, for a new account, in any. ask keeps it waiting and counts it on the card, which asks the person to say in the chat. import imports it once the person says it is another record: once the card is answered, propose the same rows again with import, and Kuna skips the rows it has.',
       ].join(' '),
       input: inputOf({
         file: TEXT_OR_NULL,
@@ -484,6 +518,6 @@ export const IMPORT_STEPS: InvestmentSteps = {
     const after = { ...typed, on }
     if (held === null) unit.of(MAIL_READER_WRITES).add(after)
     else unit.of(MAIL_READER_WRITES).change(held, after)
-    return { book: { ...card.book, mailReaders: [...card.book.mailReaders.filter((reader) => reader.id !== after.id), after] }, made: null, fetchesPricesOf: [], notes: [] }
+    return { book: { ...card.book, mailReaders: [...card.book.mailReaders.filter((reader) => reader.id !== after.id), after] }, made: null, fetchesPricesOf: [], notes: [], heldBack: [] }
   },
 }
