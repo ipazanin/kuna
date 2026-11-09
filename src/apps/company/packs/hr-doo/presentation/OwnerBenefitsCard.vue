@@ -124,8 +124,8 @@ const dialogOpen = ref(false)
           </p>
         </template>
         <p v-else-if="comparison.state === 'unregistered'" class="note text-sm text-toned">
-          {{ words.benefits.dividendNeeds }}<span class="identifier">hr_company_registered</span>{{ words.benefits.dividendNeedsAfter }}
-          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">{{ words.benefits.setOnSettings }}</DrillLink>
+          {{ words.benefits.dividendNeeds }}
+          <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" class="inline-target text-highlighted">{{ words.benefits.setOnSettings }}</DrillLink>
         </p>
         <p v-else class="note text-sm text-toned">{{ words.benefits.notWorkedOut(comparison.failure) }}</p>
         <div class="note flex flex-col items-start gap-1 text-xs">

@@ -1,5 +1,6 @@
 import { language } from '../../../shared/text/language'
 import type { Translation } from '../../../shared/text/translation'
+import { en as scenariosEn, hr as scenariosHr } from '../scenarios/presentation/words'
 
 // Croatian addresses the reader as vi. A bank loan is kredit, a loan between people pozajmica, and an offer ponuda.
 
@@ -46,8 +47,7 @@ export const en = {
     offer: (lender: string, principal: string, span: string, payout: string) => `${lender === '' ? '' : `${lender}, `}${principal} over ${span}, paid out ${payout}`,
     costs: (upfront: string, monthly: string, yearly: string) => `${upfront} up front, ${monthly} a month, ${yearly} a year`,
     every: { month: 'month', year: 'year' },
-    eksDiffers: (estimated: string, printed: string) =>
-      `Kuna works the EKS out at ${estimated}, and the bank printed ${printed}. Check the amount, rate, term and costs against the offer before you accept.`,
+    eksDiffers: scenariosEn.editor.eksDiffers,
     notWorkedOut: (why: string) => `Kuna cannot work this offer out: ${why}`,
   },
   quickActions: {
@@ -114,7 +114,7 @@ export const hr: Translation<typeof en> = {
     offer: (lender, principal, span, payout) => `${lender === '' ? '' : `${lender}, `}${principal} na ${span}, isplata ${payout}`,
     costs: (upfront, monthly, yearly) => `${upfront} unaprijed, ${monthly} mjesečno, ${yearly} godišnje`,
     every: { month: 'mjesec', year: 'godinu' },
-    eksDiffers: (estimated, printed) => `Kuna izračunava EKS od ${estimated}, a banka je navela ${printed}. Prije prihvaćanja provjerite iznos, stopu, rok i troškove prema ponudi.`,
+    eksDiffers: scenariosHr.editor.eksDiffers,
     notWorkedOut: (why) => `Kuna ne može izračunati ovu ponudu: ${why}`,
   },
   quickActions: {

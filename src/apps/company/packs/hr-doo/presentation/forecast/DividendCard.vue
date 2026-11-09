@@ -50,7 +50,7 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
             <UIcon name="i-lucide-scale" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
             <span>
               {{ words.dividend.deterioration }}
-              <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" in-prose class="text-highlighted">{{ words.dividend.openRule }}</DrillLink>
+              <DrillLink :to="rule.to" :label="packWords.figure.openRule(rule.title)" class="inline-target text-highlighted">{{ words.dividend.openRule }}</DrillLink>
             </span>
           </p>
         </section>

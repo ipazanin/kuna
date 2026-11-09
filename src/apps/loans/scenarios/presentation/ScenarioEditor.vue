@@ -16,8 +16,10 @@ export interface ScenarioDraft {
 import { computed, ref, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { newLoanScenario, saveScenario } from '../application/scenarioWrites'
+import { eksAgreement } from '../domain/eksAgreement'
 import { offerBase, scenarioPlan } from '../domain/scenarioPlan'
 import ChangeBlock from './ChangeBlock.vue'
 import { blankChange, changeTextsOf, typedChange } from './changeTexts'
@@ -33,6 +35,7 @@ import type { ScenarioMarking } from './scenariosView'
 import { words } from './words'
 import { dueDateOf } from '../../bankLoans/domain/loanPlan'
 import { fractionOf } from '../../bankLoans/domain/yearlyRate'
+import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import { provideLoanWords } from '../../bankLoans/presentation/useLoanWords'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { words as loansWords } from '../../words'
@@ -165,8 +168,16 @@ const facts = computed((): Fact[] => {
     { label: words.lines.payoff, value: outcome.payoff === null ? '–' : monthLabel(monthOf(outcome.payoff)) },
     { label: words.lines.interest, value: formatMoney(outcome.interest) },
     { label: words.lines.total, value: formatMoney(outcome.total) },
-    { label: words.lines.eks, value: eks === null ? '–' : formatRate(fractionOf(eks)) },
+    { label: words.lines.eks, value: eks === null ? '–' : rateShown(eks) },
   ]
+})
+
+const rateShown = (rate: YearlyRate): string => formatRate(fractionOf(rate))
+
+/** The warning the chat's offer card gives too, when Kuna's EKS strays from the one the bank printed. */
+const eksWarning = computed(() => {
+  const agreement = eksAgreement(live.value?.eks ?? null, typed.value.terms?.bankEks ?? null)
+  return agreement.kind === 'differs' ? words.editor.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed)) : null
 })
 
 const owed = computed(() => (live.value === null || 'refused' in live.value.plan ? [] : scenarioMonths(live.value.plan, null).map((month) => month.owed)))
@@ -262,6 +273,7 @@ async function save(): Promise<void> {
           <template v-else-if="facts.length > 0">
             <SparkLine :points="owed" :colour="`var(${mark?.colour ?? '--scenario-1'})`" fill :height="56" />
             <FactGrid :facts="facts" />
+            <UAlert v-if="eksWarning" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :description="eksWarning" data-testid="scenario-eks-differs" />
           </template>
           <p v-else class="type-caption">{{ words.editor.noPlan }}</p>
         </div>
@@ -270,6 +282,9 @@ async function save(): Promise<void> {
     <template #start>
       <p v-if="headline" class="basis-full text-xs text-toned lg:hidden" data-testid="scenario-headline">
         <span v-if="mark" class="font-semibold text-highlighted">{{ mark.letter }}</span> {{ headline }}
+        <span v-if="eksWarning" class="ms-1 inline-flex items-center gap-1 font-medium text-warning" data-testid="scenario-eks-flag">
+          <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" aria-hidden="true" />{{ words.editor.eksFlag }}
+        </span>
       </p>
     </template>
     <template #end>

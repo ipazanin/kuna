@@ -254,6 +254,8 @@ async function documentOfInput() {
 }
 
 const groups = []
+/** What a group holds when the books lack hr_company_registered, as the screen says what it needs instead of figures. */
+const UNREGISTERED = { needs: 'hr_company_registered' }
 const group = (name, figures) => groups.push([name, figures])
 
 if (companyAsked) {
@@ -268,6 +270,8 @@ if (companyAsked) {
   const rows = [...scoped, ...scopeOwnerAdvances(cash.ownerAdvances, DEFAULT_FILTERS).map(bookingOfAdvance)]
   const context = categorisationContextOf(cash)
   const forecastOf = (year) => forecastYear(books, year, asOf)
+  // Without the registration day Year shows what it needs in place of the forecast and the pay scenarios.
+  const unregistered = books.companyFacts.companyRegistered === null
 
   group('read.records', records)
   // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
@@ -355,10 +359,11 @@ if (companyAsked) {
     const yearPeriod = { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }
     group(`year.${year}.taxes`, () => [taxByType(bookings, books.categories, yearPeriod, window), effectiveTaxRate(bookings, books.categories, yearPeriod, window)])
     group(`year.${year}.forecast`, () => {
+      if (unregistered) return UNREGISTERED
       const forecast = forecastOf(year)
       return [forecast, dividendCapacity(year, forecast, books), planAgainstActual(forecast), planDefaults(books, year, asOf)]
     })
-    group(`year.${year}.pay-scenarios`, () => payScenarios(books, year, asOf))
+    group(`year.${year}.pay-scenarios`, () => (unregistered ? UNREGISTERED : payScenarios(books, year, asOf)))
     group(`year.${year}.accrual`, () => {
       const accrual = accrualYear(books, year, { depreciation: books.companyFacts, citAdvancesPaid: null })
       return view === 'closed' ? [accrual, compareYearEnd(books, accrual), yearEndOpenItems(books, accrual)] : accrual
@@ -753,12 +758,14 @@ function digestOf(value) {
   return digests.get(value)
 }
 
+const threw = []
 for (const [name, figures] of groups) {
   let value
   try {
     value = typeof figures === 'function' ? figures() : figures
   } catch (failure) {
     value = { threw: failure.name, message: failure.message }
+    threw.push(`${name}: ${failure.message}`)
   }
   const count = Array.isArray(value)
     ? value.length
@@ -770,4 +777,9 @@ for (const [name, figures] of groups) {
           ? Object.keys(value).length
           : 1
   console.log(`${name.padEnd(42)} ${(value?.threw === undefined ? String(count) : 'threw').padStart(6)}  ${digestOf(value).slice(0, 16)}`)
+}
+
+if (threw.length > 0) {
+  console.error(`${threw.length} group(s) threw, so their figures are not compared:\n${threw.join('\n')}`)
+  process.exitCode = 1
 }

@@ -229,14 +229,14 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
             <UIcon name="i-lucide-receipt" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               {{ words.noVatBefore }}<span class="identifier">vat</span>{{ words.noVatAfter }}
-              <DrillLink to="/company/settings?tab=categories" in-prose class="text-highlighted">{{ words.setOnCategories }}</DrillLink>
+              <DrillLink to="/company/settings?tab=categories" class="inline-target text-highlighted">{{ words.setOnCategories }}</DrillLink>
             </p>
           </div>
           <div v-if="unregistered" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>
               <span class="identifier">hr_company_registered</span>{{ words.unregistered(shown.year) }}
-              <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">{{ words.setOnSettings }}</DrillLink>
+              <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" class="inline-target text-highlighted">{{ words.setOnSettings }}</DrillLink>
             </p>
           </div>
         </div>

@@ -3376,7 +3376,8 @@ async function expect(valuePromise, holds, message) {
 }
 
 /**
- * Every visible control at least 44 by 44 px, its label counted when the label toggles it too, and no sideways page scroll.
+ * Every visible control at least 44 by 44 px, its label counted when the label toggles it too, no two links in running text
+ * sharing a tap area, and no sideways page scroll.
  * With `within`, a selector, only the controls inside it are measured.
  */
 async function inspect(page, scope, within = null) {
@@ -3399,35 +3400,25 @@ async function inspect(page, scope, within = null) {
           right = Math.max(right, labelBox.right)
           bottom = Math.max(bottom, labelBox.bottom)
         }
-        // A link in running text keeps the line height and reaches 44 px through an invisible margin, measured where a finger lands.
-        if (element.dataset.hitArea === 'extended' && extendedHitHeight(element) >= smallest - 0.5 && right - left >= smallest - 0.5) continue
         if (right - left < smallest - 0.5 || bottom - top < smallest - 0.5) {
           const name = (element.getAttribute('aria-label') || element.textContent || element.getAttribute('placeholder') || '').trim().slice(0, 30)
           tooSmall.push(`${element.tagName.toLowerCase()} "${name}" ${Math.round(right - left)}x${Math.round(bottom - top)}`)
         }
       }
+      const inText = [...document.querySelectorAll('a.in-prose')]
+        .filter((link) => within === null || link.closest(within) !== null)
+        .map((link) => ({ name: link.textContent.trim().slice(0, 30), box: link.getBoundingClientRect() }))
+        .filter(({ box }) => box.width > 1)
+      const meets = (one, other) => Math.min(one.right, other.right) - Math.max(one.left, other.left) > 0.5 && Math.min(one.bottom, other.bottom) - Math.max(one.top, other.top) > 0.5
+      const crowded = inText.flatMap((one, index) => inText.slice(index + 1).flatMap((other) => (meets(one.box, other.box) ? [`"${one.name}" and "${other.name}"`] : [])))
       const root = document.documentElement
-      return { tooSmall: [...new Set(tooSmall)], scrollWidth: root.scrollWidth, clientWidth: root.clientWidth }
-
-      /** How tall the strip is, through the middle of the link, where a tap reaches the link. The page scrolls back after. */
-      function extendedHitHeight(element) {
-        const scrolledTo = window.scrollY
-        element.scrollIntoView({ block: 'center' })
-        const box = element.getBoundingClientRect()
-        const x = box.left + Math.min(box.width / 2, 8)
-        const reaches = (y) => element.contains(document.elementFromPoint(x, y))
-        let top = box.top + box.height / 2
-        while (reaches(top - 1)) top -= 1
-        let bottom = box.top + box.height / 2
-        while (reaches(bottom + 1)) bottom += 1
-        window.scrollTo(0, scrolledTo)
-        return bottom - top + 1
-      }
+      return { tooSmall: [...new Set(tooSmall)], crowded, scrollWidth: root.scrollWidth, clientWidth: root.clientWidth }
     },
     SMALLEST_TARGET,
     within,
   )
   if (report.tooSmall.length) throw new Error(`${report.tooSmall.length} control(s) under 44 px: ${report.tooSmall.slice(0, 6).join(', ')}`)
+  if (report.crowded.length) throw new Error(`links in running text share a tap area: ${report.crowded.slice(0, 6).join(', ')}`)
   if (report.scrollWidth > report.clientWidth + 1) throw new Error(`page scrolls sideways: ${report.scrollWidth} > ${report.clientWidth}`)
   const overlaps = await textOverlapsOn(page)
   if (overlaps.length > 0) throw new Error(overlaps.join('. '))

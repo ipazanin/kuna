@@ -1,3 +1,4 @@
+import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { Mix } from '../../workbook/domain/mixGroup'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -11,6 +12,7 @@ export const en = {
   saleBeyond: (instrument: string, date: CivilDate) => `The sale of "${instrument}" on ${dayLabel(date)} would sell more than its account holds that day.`,
   transferBeyond: (instrument: string, date: CivilDate) => `The transfer of "${instrument}" on ${dayLabel(date)} would move more units than its account holds that day.`,
   splitEmpties: (instrument: string, date: CivilDate) => `The split of "${instrument}" on ${dayLabel(date)} would leave a lot with no units.`,
+  quoteCurrencyKept: (instrument: string, currency: CurrencyCode) => `"${instrument}" stays quoted in ${currency} while records name it, since they are all in that currency.`,
   byMix: { sector: 'by sector', currency: 'by currency', country: 'by country', class: 'by class', account: 'by account' } satisfies Record<Mix, string>,
   targetsOfTwoMixes: (added: string, kept: string) => `Targets are set for one mix at a time, so targets ${added} cannot stay beside targets ${kept}.`,
 }
@@ -19,6 +21,7 @@ export const hr: Translation<typeof en> = {
   saleBeyond: (instrument, date) => `Prodaja instrumenta „${instrument}” ${dayLabel(date)} prodala bi više nego što račun toga dana ima.`,
   transferBeyond: (instrument, date) => `Prijenos instrumenta „${instrument}” ${dayLabel(date)} prenio bi više jedinica nego što račun toga dana ima.`,
   splitEmpties: (instrument, date) => `Podjela instrumenta „${instrument}” ${dayLabel(date)} ostavila bi partiju bez ijedne jedinice.`,
+  quoteCurrencyKept: (instrument, currency) => `„${instrument}” i dalje kotira u ${currency} dok ga zapisi navode, jer su svi u toj valuti.`,
   byMix: { sector: 'po sektoru', currency: 'po valuti', country: 'po državi', class: 'po klasi', account: 'po računu' },
   targetsOfTwoMixes: (added, kept) => `Ciljevi se postavljaju za jednu raspodjelu odjednom, pa ciljevi ${added} ne mogu stajati uz ciljeve ${kept}.`,
 }

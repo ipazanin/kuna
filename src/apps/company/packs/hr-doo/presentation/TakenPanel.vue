@@ -232,8 +232,8 @@ const taken = computed(() => {
             </span>
           </template>
           <p v-if="net.unregistered" class="mt-1.5 text-xs text-muted" data-testid="owner-net-unregistered">
-            {{ words.taken.profitNeeds }}<span class="identifier break-all">hr_company_registered</span>.
-            <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" in-prose class="text-highlighted">{{ words.taken.setOnSettings }}</DrillLink>
+            {{ words.taken.profitNeeds }}
+            <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" class="inline-target text-highlighted">{{ words.taken.setOnSettings }}</DrillLink>
           </p>
           <p v-else-if="net.detail && net.periodOnly" class="mt-1.5 text-xs text-muted" data-testid="owner-net-period-only">{{ words.taken.profitFollowsPeriod }}</p>
         </KpiTile>

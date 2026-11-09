@@ -145,6 +145,9 @@ export const en = {
     fixedForError: 'Whole years shorter than the term',
     thenVariable: 'Then variable, %',
     changes: 'Extra payments and later changes',
+    eksDiffers: (estimated: string, printed: string) =>
+      `Kuna works the EKS out at ${estimated}, and the bank printed ${printed}. Check the amount, rate, term and costs against the offer before you accept.`,
+    eksFlag: "EKS differs from the bank's",
     kinds: {
       'extra-payment': 'Extra payment',
       'regular-extra-payment': 'Regular extra payment',
@@ -329,6 +332,8 @@ export const hr: Translation<typeof en> = {
     fixedForError: 'Cijele godine, kraće od roka otplate',
     thenVariable: 'Zatim promjenjiva, %',
     changes: 'Prijevremene otplate i kasnije promjene',
+    eksDiffers: (estimated, printed) => `Kuna izračunava EKS od ${estimated}, a banka je navela ${printed}. Prije prihvaćanja provjerite iznos, stopu, rok i troškove prema ponudi.`,
+    eksFlag: 'EKS se razlikuje od bankina',
     kinds: {
       'extra-payment': 'Prijevremena otplata',
       'regular-extra-payment': 'Redovita prijevremena otplata',

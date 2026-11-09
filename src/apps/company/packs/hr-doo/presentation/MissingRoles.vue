@@ -18,7 +18,7 @@ defineProps<{
         {{ words.missingRoles.before }}<span class="identifier">{{ entry.role }}</span
         >{{ words.missingRoles.after(entry.leftOut) }}
       </p>
-      <DrillLink to="/company/settings?tab=categories" in-prose class="self-start text-highlighted">{{ words.missingRoles.addRoles }}</DrillLink>
+      <DrillLink to="/company/settings?tab=categories" class="self-start text-highlighted">{{ words.missingRoles.addRoles }}</DrillLink>
     </div>
   </div>
 </template>

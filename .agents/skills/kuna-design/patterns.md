@@ -109,7 +109,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Phone
 
-- Below 640 px every control is at least 44 px. The rule is in `app.css`. A switch, checkbox or radio stays its size and its label carries the height. A link at the end of a sentence uses `inline-target` or `DrillLink in-prose`.
+- Below 640 px every control is at least 44 px. The rule is in `app.css`. A switch, checkbox or radio stays its size and its label carries the height. A link that ends a sentence goes on its own line with `inline-target`. `DrillLink in-prose` is only for a link in the middle of a sentence, and it is underlined on a phone.
 - A sheet that rises from the bottom is `.phone-sheet`. The navigation drawer is `.phone-drawer`. Both clear the safe areas.
 - The top bar's one action, Sync or Export, uses `.top-bar-action`.
 - Check Croatian copy at 360 px. Croatian labels run a third longer.

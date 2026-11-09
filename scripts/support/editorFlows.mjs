@@ -7052,7 +7052,8 @@ async function typeTheExample(page, press) {
 
 /**
  * New scenario: the amount, the rate, the years and the months typed, the foot reading the annuity,
- * then Equal principal picked and the foot reading the first instalment falling to the last. Interim
+ * then Equal principal picked and the foot reading the first instalment falling to the last. A printed
+ * EKS a point above Kuna's warns in the outcome until it is cleared. Interim
  * interest without its date, left under a closed More terms, makes Save open the section on its
  * error. Cleared and saved without a name it is named from its figures, listed, and deleted again.
  */
@@ -7067,6 +7068,14 @@ export async function loansScenarioEditorFlow(page, { press, shoot, inspect }) {
   await inspect?.('the new scenario with equal principal')
   await shoot('loans-scenario-editor-equal-principal')
   await pressSelector(page, press, '[data-testid="offer-more-toggle"]')
+  await fill(page, 'offer-bank-eks', '5')
+  await elementSays(page, '[data-testid="scenario-eks-differs"]', ['and the bank printed 5'], 'a printed EKS a point above Kuna’s does not warn in the outcome')
+  await inspect?.('the new scenario whose printed EKS differs')
+  await shoot('loans-scenario-editor-eks-differs')
+  await fill(page, 'offer-bank-eks', '')
+  await page.waitForSelector('[data-testid="scenario-eks-differs"]', { hidden: true, timeout: 5_000 }).catch(() => {
+    throw new Error('the EKS warning stays once the printed EKS is cleared')
+  })
   await fill(page, 'offer-interim', '120')
   await pressSelector(page, press, '[data-testid="offer-more-toggle"]')
   await page.waitForSelector('[data-testid="offer-interim"]', { hidden: true, timeout: 5_000 })

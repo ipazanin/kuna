@@ -17,3 +17,15 @@ export async function settleCharts(page) {
     CHART_CANVASES,
   )
 }
+
+/**
+ * Waits until every chart has redrawn at the width its card now has. A chart resizes on a throttled observer, so for a
+ * moment after the window changes size its canvas keeps the old width and widens the page.
+ */
+export async function chartsFollowWidth(page) {
+  await page.waitForFunction(
+    (selector) => [...document.querySelectorAll(selector)].every((canvas) => canvas.getBoundingClientRect().width <= canvas.closest('.chart-body, .donut-ring').clientWidth + 0.5),
+    { polling: 'raf', timeout: 5_000 },
+    CHART_CANVASES,
+  )
+}

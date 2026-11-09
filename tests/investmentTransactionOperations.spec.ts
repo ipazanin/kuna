@@ -95,10 +95,10 @@ describe('trades', () => {
 
   it("names each field the dialog would mark, in the dialog's words", async () => {
     const desk = await investmentsDesk(used)
-    const answer = await desk.propose([addTrade(desk, { quantity: '0', fees: '1.234' })])
+    const answer = await desk.propose([addTrade(desk, { quantity: '0', rate: '0' })])
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain(`quantity: ${transactionWords.errors.units}`)
-    expect(answer.text).toContain(`fees: ${transactionWords.errors.fees}`)
+    expect(answer.text).toContain(`rate: ${transactionWords.errors.rate}`)
   })
 
   it('reads a decimal only with a point and no grouping, so 1,5 is refused rather than read', async () => {

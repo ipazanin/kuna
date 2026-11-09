@@ -137,7 +137,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
         <UIcon name="i-lucide-receipt-text" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
         <span>
           {{ words.plan.revenue }}
-          <DrillLink :to="{ path: '/company/invoicing', query: { tab: 'plan', year: String(year) } }" in-prose class="text-highlighted">{{ words.plan.invoicingPlan(year) }}</DrillLink>
+          <DrillLink :to="{ path: '/company/invoicing', query: { tab: 'plan', year: String(year) } }" class="inline-target text-highlighted">{{ words.plan.invoicingPlan(year) }}</DrillLink>
         </span>
       </p>
       <section class="flex flex-col gap-2" data-testid="plan-owner-pay">

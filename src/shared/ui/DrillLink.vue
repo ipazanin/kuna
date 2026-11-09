@@ -8,7 +8,7 @@ withDefaults(
     to: RouteLocationRaw | null
     /** Accessible name when the visible text alone does not say what opens, such as a bare amount. */
     label?: string
-    /** A link inside running text, which keeps the line height and takes its tap height from an invisible margin. */
+    /** A link in the middle of a sentence. On a phone it makes its own line 44 px tall and is underlined. A link that ends a sentence goes on its own line with `inline-target` instead. */
     inProse?: boolean
   }>(),
   { inProse: false },
@@ -16,7 +16,7 @@ withDefaults(
 </script>
 
 <template>
-  <RouterLink v-if="to !== null" :to="to" :aria-label="label" class="drill-link" :class="{ 'in-prose': inProse }" :data-hit-area="inProse ? 'extended' : undefined">
+  <RouterLink v-if="to !== null" :to="to" :aria-label="label" class="drill-link" :class="{ 'in-prose': inProse }">
     <slot />
   </RouterLink>
   <span v-else><slot /></span>
@@ -48,22 +48,18 @@ withDefaults(
 
 /* On a phone the figure is a tap target, so the link takes the 44 px height app.css sets. */
 @media (max-width: 639px) {
-  .drill-link:not(.in-prose) {
+  .drill-link:not(.in-prose, .inline-target) {
     display: inline-flex;
     max-width: 100%;
     align-items: center;
   }
 
-  /* In a sentence the link stays inline, and a transparent margin above and below makes the 44 px target. */
+  /* In a sentence the link stays on the text's baseline and is 44 px tall, which only the lines holding a link grow to. */
   .drill-link.in-prose {
-    position: relative;
+    display: inline-block;
+    line-height: 44px;
     white-space: nowrap;
-  }
-
-  .drill-link.in-prose::after {
-    content: '';
-    position: absolute;
-    inset: -14px -4px;
+    text-decoration-color: currentcolor;
   }
 }
 </style>

@@ -63,7 +63,7 @@ const chart = computed(() => (view.value === null ? null : forecastChart(view.va
           <UIcon name="i-lucide-file-clock" class="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
           <span>
             {{ plural(words.panel.rowsToInvoice(view.rowsToInvoice, year), view.rowsToInvoice) }}
-            <DrillLink :to="{ path: '/company/invoicing', query: { tab: 'plan', year: String(year) } }" in-prose class="text-highlighted">{{ words.panel.invoicingPlan }}</DrillLink>
+            <DrillLink :to="{ path: '/company/invoicing', query: { tab: 'plan', year: String(year) } }" class="inline-target text-highlighted">{{ words.panel.invoicingPlan }}</DrillLink>
           </span>
         </p>
       </div>

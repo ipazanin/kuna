@@ -1064,7 +1064,7 @@ const SCREENS = [
       'Monthly net, profit included',
       'Benefits from company costs',
       'of it from company costs',
-      'needs hr_company_registered',
+      'needs the “Company registered on” setting',
     ],
     cards: false,
   },

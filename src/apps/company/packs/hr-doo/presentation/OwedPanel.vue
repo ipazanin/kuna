@@ -185,7 +185,7 @@ const shownAdvances = computed(() => (showAllAdvances.value ? owed.value.advance
       <UIcon name="i-lucide-inbox" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
       <span>
         {{ plural(words.owed.unaccounted(owed.unaccounted), owed.unaccounted) }}
-        <DrillLink :to="REVIEW_LINK" in-prose class="font-medium text-highlighted">{{ words.owed.openReview }}</DrillLink>
+        <DrillLink :to="REVIEW_LINK" class="inline-target font-medium text-highlighted">{{ words.owed.openReview }}</DrillLink>
       </span>
     </p>
 

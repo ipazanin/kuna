@@ -19,6 +19,7 @@ import { ENGLISH_FIREFOX_PREFS, firefoxPath } from './support/browsers.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { keepAiKey, openChat, sendInChat } from './support/chatFlows.mjs'
 import { pressSelector } from './support/pressing.mjs'
+import { chartsFollowWidth } from './support/settleCharts.mjs'
 
 const BASE = process.argv[2] ?? 'http://localhost:4173/kuna/'
 const VISIBLE = { visible: true, timeout: 15_000 }
@@ -81,6 +82,8 @@ await step('sidebar', async (page) => {
   ]) {
     await page.setViewport({ width, height })
     await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
+    // A chart that never fits keeps the page too wide, which the next line names.
+    await chartsFollowWidth(page).catch(() => {})
     await pageFits(page, `the page at ${width} by ${height}`)
     const list = await page.$eval('[data-testid="nav-apps"]', (apps) => {
       const scroller = apps.parentElement

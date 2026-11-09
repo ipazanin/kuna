@@ -25,7 +25,7 @@ import { WorkbookWriteRefused } from '../src/shared/storage/application/workbook
 import { EURO } from '../src/shared/money/currencyCode'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { settingRow } from '../src/shared/storage/domain/settingRows'
-import { BROKER, USD, account, book, cashMovement, cashTransfer, decimal, dividend, exchange, instrument, rateBookOf, spinOff, split, trade, unitTransfer } from './fixtures/investments'
+import { BROKER, GBP, USD, account, book, cashMovement, cashTransfer, decimal, dividend, exchange, instrument, rateBookOf, spinOff, split, trade, unitTransfer } from './fixtures/investments'
 import { civil, euros } from './fixtures/ledger'
 import { INVESTMENTS, browserHarness, forgetCaches } from './fixtures/writeBack'
 
@@ -198,12 +198,15 @@ describe('the refusals the dialogs show', () => {
     )
   })
 
-  it('refuses to delete an account or a holding that records name, or to move a holding into another currency', async () => {
+  it('refuses to delete an account or a holding that records name, or to change the quote currency of a holding that records name', async () => {
     const store = await storeWithBuys()
 
     await expect(store.write('Deleted', (unit) => unit.of(INVESTMENT_ACCOUNT_WRITES).remove(ONE))).rejects.toThrow('account names no investment account in the file')
     await expect(store.write('Deleted', (unit) => unit.of(INSTRUMENT_WRITES).remove(SHARE))).rejects.toThrow('instrument names no instrument in the file')
     await expect(store.write('Changed', (unit) => unit.of(INSTRUMENT_WRITES).change(SHARE, { ...SHARE, currency: EURO }))).rejects.toThrow('rate is filled, but "Example Tech" is quoted in EUR')
+
+    await expect(store.write('Changed', (unit) => unit.of(INSTRUMENT_WRITES).change(SHARE, { ...SHARE, currency: GBP }))).rejects.toThrow('"Example Tech" stays quoted in USD while records name it')
+    await store.write('Changed', (unit) => unit.of(INSTRUMENT_WRITES).change(SPUN, { ...SPUN, currency: GBP }))
 
     await store.write('Deleted', (unit) => unit.of(INVESTMENT_ACCOUNT_WRITES).remove(TWO))
     expect(bookOf(store).accounts).toEqual([ONE])
@@ -245,7 +248,7 @@ describe('the transaction form', () => {
   it('says what each field of a buy lacks, keeps a blank fee as not entered, and needs no rate in euros', () => {
     expect(Object.keys(transactionDraft(typedBuy({ account: '', instrument: '', date: '' }), BOOK, 'k').errors).sort()).toEqual(['account', 'date', 'instrument', 'price', 'quantity'])
     expect(transactionDraft(typedBuy({ quantity: '1', price: '10', rate: '' }), BOOK, 'k').errors).toEqual({ rate: 'A rate above zero, such as 1.0850' })
-    expect(transactionDraft(typedBuy({ quantity: '1', price: '10', fees: '1.234' }), BOOK, 'k').errors.fees).toBe('An amount with at most two decimals, or blank')
+    expect(transactionDraft(typedBuy({ quantity: '1', price: '10', fees: 'one' }), BOOK, 'k').errors.fees).toBe('An amount, or blank')
     const fundBuy = transactionDraft(typedBuy({ instrument: FUND.id, quantity: '1', price: '10' }), BOOK, 'k').record
     expect(fundBuy?.kind === 'trade' && [fundBuy.record.fees, fundBuy.record.rate]).toEqual([null, null])
   })
@@ -279,14 +282,15 @@ describe('the transaction form', () => {
     expect(read('0,125')).toMatchObject({ quantity: decimal('0.125') })
   })
 
-  it('shows a changed record’s amounts with their cents, and one with more than two decimals as stored, which the form refuses', () => {
-    const trade3 = trade('buy', ONE, SHARE, '2026-01-10', '10', '100', '1.234', '1.08')
+  it('shows a changed record’s amounts with their cents, and one finer than a cent as stored, which a save rounds half away from zero to the cent', () => {
+    const trade3 = trade('buy', ONE, SHARE, '2026-01-10', '10', '100', '1.235', '1.08')
     const fees = textsOf({ kind: 'trade', record: trade3 }, { happened: 'buy', instrument: null, today: civil('2026-10-21') }, BOOK)
-    const income = textsOf({ kind: 'income', record: dividend(ONE, SHARE, '2026-06-15', '12.345', '1234.5', '1.1') }, { happened: 'buy', instrument: null, today: civil('2026-10-21') }, BOOK)
+    const income = textsOf({ kind: 'income', record: dividend(ONE, SHARE, '2026-06-15', '1234.5', '12.345', '1.1') }, { happened: 'buy', instrument: null, today: civil('2026-10-21') }, BOOK)
 
-    expect([fees.fees, income.amount, income.withheld]).toEqual(['1.234', '12.345', '1,234.50'])
-    expect(transactionDraft(fees, BOOK, 'k').errors.fees).toBe('An amount with at most two decimals, or blank')
-    expect(transactionDraft(income, BOOK, 'k').errors.amount).toBe('An amount above zero with at most two decimals')
+    expect([fees.fees, income.amount, income.withheld]).toEqual(['1.235', '1,234.50', '12.345'])
+    expect(transactionDraft(fees, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('1.24') })
+    expect(transactionDraft(income, BOOK, 'k').record?.record).toMatchObject({ gross: decimal('1234.5'), withheld: decimal('12.35') })
+    expect(transactionDraft({ ...fees, fees: '1.2x' }, BOOK, 'k').errors.fees).toBe('An amount, or blank')
   })
 
   it('shows a reversal’s amounts above zero and keeps them below zero, with a note saying what it reverses', () => {
@@ -309,7 +313,7 @@ describe('the transaction form', () => {
 
     expect(croatian.transactionDraft(typed, BOOK, 'k').record?.record).toMatchObject({ quantity: decimal('1000'), price: decimal('158.96'), fees: decimal('1000'), rate: decimal('1.085') })
     expect([changed.quantity, changed.fees, changed.rate]).toEqual(['1,5', '1,234', '1,08'])
-    expect(croatian.transactionDraft(changed, BOOK, 'k').errors.fees).toBeDefined()
+    expect(croatian.transactionDraft(changed, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('1.23') })
   })
 
   it('shows a record it changes as typed, and keeps its id and its own kinds', () => {

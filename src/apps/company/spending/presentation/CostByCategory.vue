@@ -83,7 +83,7 @@ function changeText(change: CostChange | null): string {
         <h3 class="cost-row cost-heading">
           <span class="cost-name">
             {{ section.title }}
-            <DrillLink v-if="section.link" :to="section.link.to" in-prose class="ms-1.5 text-xs font-normal text-muted">{{ section.link.label }}</DrillLink>
+            <DrillLink v-if="section.link" :to="section.link.to" class="ms-1.5 text-xs font-normal text-muted">{{ section.link.label }}</DrillLink>
           </span>
           <span class="cost-amount figure">{{ formatMoney(section.total) }}</span>
           <span v-if="compared" class="cost-change figure">{{ changeText(section.change) }}</span>

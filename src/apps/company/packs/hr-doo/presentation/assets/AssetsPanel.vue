@@ -340,7 +340,7 @@ function employmentState(until: CivilDate | null): string | null {
         />
         <p v-if="view.doublingAllowed" class="max-w-[60ch] text-xs text-muted">
           {{ words.panel.doublingAllowed }}
-          <DrillLink :to="ruleLink('hr.cit.depreciation-rates')" in-prose class="text-highlighted">{{ words.panel.openRule }}</DrillLink>
+          <DrillLink :to="ruleLink('hr.cit.depreciation-rates')" class="inline-target text-highlighted">{{ words.panel.openRule }}</DrillLink>
         </p>
       </div>
 
@@ -405,7 +405,7 @@ function employmentState(until: CivilDate | null): string | null {
               </ul>
             </div>
           </div>
-          <DrillLink :to="{ query: route.query, hash: '#asset-rows' }" in-prose class="self-start text-sm text-highlighted">{{ words.panel.openAssetRows }}</DrillLink>
+          <DrillLink :to="{ query: route.query, hash: '#asset-rows' }" class="self-start text-sm text-highlighted">{{ words.panel.openAssetRows }}</DrillLink>
         </div>
       </AppCard>
 

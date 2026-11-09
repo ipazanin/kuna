@@ -10,7 +10,19 @@ import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { DECIMAL_ZERO, decimalOfMoney, decimalOfText, decimalShown, decimalText, magnitude, negateDecimal, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
+import {
+  DECIMAL_ZERO,
+  decimalOfMoney,
+  decimalOfText,
+  decimalShown,
+  decimalText,
+  magnitude,
+  negateDecimal,
+  roundedDecimal,
+  scaledDecimal,
+  timesDecimal,
+  typedDecimal,
+} from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { amountShown } from '../../../../shared/money/amountTyping'
 import { typedAmount } from '../../../../shared/money/typedAmount'
@@ -242,10 +254,17 @@ export interface TransactionDraft {
 
 const EXAMPLE_DAY = civilDate(2026, 10, 12)
 
-/** An amount typed into a money field as an exact decimal, null for anything that is not one. */
+const CENT_PLACES = 2
+
+/**
+ * An amount in a money field as an exact decimal in whole cents, null for anything that is not one. An imported amount
+ * finer than a cent, which the field shows at its stored scale, is rounded once to the cent.
+ */
 function amountOf(text: string): Decimal | null {
   const cents = typedAmount(text)
-  return cents === null ? null : decimalOfMoney(cents)
+  if (cents !== null) return decimalOfMoney(cents)
+  const finer = typedDecimal(text)
+  return finer === null ? null : roundedDecimal(finer, CENT_PLACES)
 }
 
 function positiveAmount(text: string): Decimal | null {
