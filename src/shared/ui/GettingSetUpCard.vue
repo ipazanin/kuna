@@ -4,7 +4,7 @@ import AppCard from './AppCard.vue'
 import DrillLink from './DrillLink.vue'
 import { words } from './words'
 
-/** What an app still lacks, with the screen that does each line. The card goes once nothing is left. A line's action slot holds what settles it where it stands. */
+/** What an app still lacks, with the screen that does each line. The card goes once nothing is left. A line's action slot holds what settles it where it stands, and the card's actions what settles several. */
 defineProps<{
   lines: readonly SetUpLine[]
 }>()
@@ -12,6 +12,7 @@ defineProps<{
 
 <template>
   <AppCard v-if="lines.length > 0" :title="words.setUp.title" :subtitle="words.setUp.subtitle" data-testid="getting-set-up">
+    <template v-if="$slots.actions" #actions><slot name="actions" /></template>
     <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
       <li v-for="line in lines" :key="line.key" class="flex min-h-10 flex-wrap items-center gap-x-2.5 gap-y-1 border-t border-default py-1 first:border-t-0" :data-line="line.key">
         <span class="size-2.5 flex-none rounded-full border-2 border-primary" aria-hidden="true" />

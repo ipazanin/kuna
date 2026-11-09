@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { askChat } from '../../../../shared/ai/presentation/chatDock'
+import { words as chatWords } from '../../../../shared/ai/presentation/words'
+import { stillNew } from '../../../../shared/app/setUpLines'
+import { words as assistantWords } from '../../assistant/words'
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -79,13 +84,18 @@ const importing = ref(false)
             <div class="flex flex-wrap justify-center gap-2">
               <UButton :label="words.empty.addHoldings" icon="i-lucide-plus" data-testid="investments-add-held" @click="addingHeld = true" />
               <UButton :label="words.empty.importHistory" icon="i-lucide-file-input" color="neutral" variant="outline" data-testid="investments-import" @click="importing = true" />
+              <AskChatButton :text="chatWords.ask.setUp" size="md" data-testid="set-up-chat" @ask="askChat(assistantWords.guides.setUp.title)" />
             </div>
             <span class="type-caption">{{ fileNote }}</span>
           </div>
         </template>
       </EmptyState>
       <template v-else-if="sources !== null && figures !== null">
-        <GettingSetUpCard :lines="setUpLines" />
+        <GettingSetUpCard :lines="setUpLines">
+          <template v-if="stillNew(setUpLines)" #actions>
+            <AskChatButton :text="chatWords.ask.setUp" data-testid="set-up-chat" @ask="askChat(assistantWords.guides.setUp.title)" />
+          </template>
+        </GettingSetUpCard>
         <PricesNotice :book="sources.book" :figures="figures" />
         <OverviewTiles :sources="sources" :figures="figures" />
         <PortfolioChecksCard :sources="sources" :figures="figures" :facts="facts" />

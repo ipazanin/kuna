@@ -3,6 +3,8 @@ import type { ComputedRef, Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { kunaStart } from '../../../../shared/app/kunaStart'
+import { CHAT_QUERY, askChat } from '../../../../shared/ai/presentation/chatDock'
+import { words as assistantWords } from '../../assistant/words'
 import type { WorkbookChoice } from '../../../../shared/storage/application/workbookPorts'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { ImportPreview } from '../../workbook/presentation/workbookFiles'
@@ -37,6 +39,8 @@ export interface Onboarding {
   back(): Promise<void>
   /** Onboarding is over: Overview. */
   finish(): Promise<void>
+  /** Onboarding is over: Overview with the chat open, which takes over the setup. Overview takes onboarding's place in the history and the chat goes on top, so closing the chat leaves Overview. */
+  finishIntoChat(): Promise<void>
 }
 
 export function useOnboarding(): Onboarding {
@@ -53,6 +57,13 @@ export function useOnboarding(): Onboarding {
   async function finish(): Promise<void> {
     heldFile.value = null
     await router.push('/company')
+  }
+
+  async function finishIntoChat(): Promise<void> {
+    heldFile.value = null
+    askChat(assistantWords.guides.setUp.title)
+    await router.replace('/company')
+    await router.push({ path: '/company', query: { [CHAT_QUERY]: '1' } })
   }
 
   async function next(): Promise<void> {
@@ -84,6 +95,7 @@ export function useOnboarding(): Onboarding {
       if (step !== null) await go({ step })
     },
     finish,
+    finishIntoChat,
   }
 }
 

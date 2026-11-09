@@ -1,4 +1,5 @@
 import { companyAcceptance, companyProposer } from '../../src/apps/company/assistant/operations/companyOperations'
+import { FILE_OPEN } from './browserFile'
 import type { CompanyOperationPorts } from '../../src/apps/company/assistant/operations/companyOperations'
 import { hrDooOperations } from '../../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
 import type { MailDraftsSwitch } from '../../src/apps/company/assistant/operations/mailDraftsOperation'
@@ -145,7 +146,7 @@ export function deskPorts(given: DeskPorts = {}): CompanyOperationPorts {
 export function companyChat(store: WorkbookStore<CompanyBooks>, ports: CompanyOperationPorts, anonymising = true): CompanyChat {
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => anonymising, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['company', companyProposer(store, ports)]])
+  const proposers = new Map([['company', companyProposer(store, ports, FILE_OPEN)]])
   return {
     reads,
     cards,
@@ -159,7 +160,7 @@ export function companyChat(store: WorkbookStore<CompanyBooks>, ports: CompanyOp
         attachments,
         (_app, card) => cards.push(card),
       ),
-    accept: (at = cards.length - 1) => companyAcceptance(store, ports).accept(cards[at]!),
+    accept: (at = cards.length - 1) => companyAcceptance(store, ports, FILE_OPEN).accept(cards[at]!),
   }
 }
 

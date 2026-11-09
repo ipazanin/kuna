@@ -1,4 +1,5 @@
 import { investmentsAcceptance, investmentsProposer } from '../../src/apps/investments/assistant/operations/investmentsOperations'
+import { FILE_OPEN } from './browserFile'
 import type { InvestmentsPorts } from '../../src/apps/investments/assistant/operations/investmentsOperations'
 import { INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../../src/apps/investments/holdings/application/holdingWrites'
 import { TARGET_WRITES, replaceRows } from '../../src/apps/investments/holdings/application/mixWrites'
@@ -240,7 +241,7 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
   const attachments = [await workbookAttachment('a1', DEPOSIT_WORKBOOK), closesAttachment('a2', 'SHARE.csv', 'Date,Close\n2026-10-01,101.5\n2026-10-02,102\n'), flexAttachment('a3', ['2026-10-12'])]
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['investments', investmentsProposer(typed, ports)]])
+  const proposers = new Map([['investments', investmentsProposer(typed, ports, FILE_OPEN)]])
   return {
     store: typed,
     reads,
@@ -259,6 +260,6 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
         attachments,
         (_app, card) => cards.push(card),
       ),
-    accept: (at = cards.length - 1) => investmentsAcceptance(typed, ports).accept(cards[at]!),
+    accept: (at = cards.length - 1) => investmentsAcceptance(typed, ports, FILE_OPEN).accept(cards[at]!),
   }
 }

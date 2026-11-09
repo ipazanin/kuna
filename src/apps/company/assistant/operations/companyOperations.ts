@@ -1,4 +1,6 @@
 import { cardRecords } from './cardRecords'
+import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
+import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
 import { IMPORTING, importOperations, withStatementFilesRead } from './importOperations'
 import { INVOICING_OPERATIONS } from './invoicingOperations'
@@ -100,26 +102,29 @@ export function companyOperations(ports: CompanyOperationPorts): readonly Assist
 }
 
 /** The changes the chat can propose in Company and their dry run, over the company's store, which `app.ts` hands in with the ports. An attached file is read before the dry run. */
-export function companyProposer(store: CompanyStore, ports: CompanyOperationPorts): AppProposer {
+export function companyProposer(store: CompanyStore, ports: CompanyOperationPorts, file: BrowserFile): AppProposer {
   const sets = operationSets(ports)
-  return {
-    operations: companyOperations(ports),
-    readsBooks: true,
-    async check(title, steps) {
-      if (steps.some((step) => step.operation === SET_UP_ANSWER.name)) return setUpAnswerCheck(title, steps, ports.setUpAnswers)
-      if (steps.some((step) => step.operation === SWITCH_MAIL_DRAFTS.name)) return mailDraftsCheck(title, steps, ports.mailDrafts)
-      const read = await withStatementFilesRead(steps, ports.readStatementFile)
-      if ('refused' in read) return read
-      const checked = await proposedWrites(store, companyWork(sets, ports.pack)).check(title, read)
-      return 'refused' in checked || checked.undoable || steps.length === 1
-        ? checked
-        : { refused: ['A change with no Undo goes alone on a card, so propose it first and the rest once it is answered.'] }
+  return withBrowserFileCards(
+    {
+      operations: companyOperations(ports),
+      readsBooks: true,
+      async check(title, steps) {
+        if (steps.some((step) => step.operation === SET_UP_ANSWER.name)) return setUpAnswerCheck(title, steps, ports.setUpAnswers)
+        if (steps.some((step) => step.operation === SWITCH_MAIL_DRAFTS.name)) return mailDraftsCheck(title, steps, ports.mailDrafts)
+        const read = await withStatementFilesRead(steps, ports.readStatementFile)
+        if ('refused' in read) return read
+        const checked = await proposedWrites(store, companyWork(sets, ports.pack)).check(title, read)
+        return 'refused' in checked || checked.undoable || steps.length === 1
+          ? checked
+          : { refused: ['A change with no Undo goes alone on a card, so propose it first and the rest once it is answered.'] }
+      },
     },
-  }
+    file,
+  )
 }
 
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone, and the file's other writes go on. */
-export function companyAcceptance(store: CompanyStore, ports: CompanyOperationPorts): AppAcceptance {
+export function companyAcceptance(store: CompanyStore, ports: CompanyOperationPorts, file: BrowserFile): AppAcceptance {
   const accept = proposedWrites(store, companyWork(operationSets(ports), ports.pack)).accept
-  return { accept: async (proposal) => setUpAnswerAccept(proposal, ports.setUpAnswers) ?? mailDraftsAccept(proposal, ports.mailDrafts) ?? accept(proposal) }
+  return acceptingBrowserFileCards({ accept: async (proposal) => setUpAnswerAccept(proposal, ports.setUpAnswers) ?? mailDraftsAccept(proposal, ports.mailDrafts) ?? accept(proposal) }, file)
 }

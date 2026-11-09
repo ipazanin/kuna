@@ -567,12 +567,16 @@ function localValue(identifier: ts.Identifier): ts.Node | null {
  * Whether the chat reaches a path a screen writes through. A path through shared code, such as `investments: src/shared/...`, counts only
  * when that app's operations reach it, and one on a shared screen when any app's do. A write function the chat does not name is still reached
  * when it writes nothing itself and only goes through write functions and file actions the chat reaches, as `deleteRule` goes through `writeRules`. A helper its
- * file keeps to itself does not carry that on, and neither does a function the chat reaches only by running the page's sync.
+ * file keeps to itself does not carry that on, and neither does a function the chat reaches only by running the page's sync. A store action in
+ * `narrow` counts as never reached, as the chat calls it for one use of its own that covers no screen's.
  */
-export function chatCovers(graph: WriteGraph, reaches: ReadonlyMap<string, ChatReach>, path: WritePath): boolean {
+export function chatCovers(graph: WriteGraph, reaches: ReadonlyMap<string, ChatReach>, path: WritePath, narrow: ReadonlySet<string> = new Set()): boolean {
   const scoped = /^([a-z-]+): (.*)$/.exec(path)
   const app = scoped?.[1] ?? SHARED
-  const within = app === SHARED ? [...reaches.values()] : [reaches.get(app)].filter((reach) => reach !== undefined)
+  const within = (app === SHARED ? [...reaches.values()] : [reaches.get(app)].filter((reach) => reach !== undefined)).map((reach) => ({
+    ...reach,
+    fileActions: new Set([...reach.fileActions].filter((action) => !narrow.has(action))),
+  }))
   return within.some((reach) => reachedBy(graph, reach, scoped?.[2] ?? path, new Set()))
 }
 

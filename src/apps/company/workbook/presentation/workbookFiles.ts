@@ -21,6 +21,7 @@ import { localDayAt, today } from '../../../../shared/calendar/civilDate'
 import { installedPack } from '../../packs/packContribution'
 import { documentOfTabs, recordCountsOf, tabsOfDocument } from '../infrastructure/spreadsheetDocument'
 import { readWorkbookFile, writeWorkbookFile } from '../infrastructure/workbookFile'
+import { STATEMENTS_BY_HAND } from '../../onboarding/domain/statementsChoice'
 import { words } from './words'
 
 /** What a file input takes for a workbook: an xlsx file, or a Kuna file such as a backup. */
@@ -98,6 +99,11 @@ export const NEW_BOOKS_TITLE = 'New books'
  */
 export function newBooksDocument(choices: Partial<Settings>, savedAt: string): WorkbookDocument {
   return documentOfTabs(COMPANY_APP, emptyWorkbookTabs(localDayAt(Date.parse(savedAt)), { ...DEFAULT_SETTINGS, ...choices }), savedAt)
+}
+
+/** The books a new company starts with, from the first run or the chat. Statements come in by hand until the person says how they arrive. */
+export function newCompanyBooks(): { readonly contents: WorkbookDocument; readonly title: string } {
+  return { contents: newBooksDocument(STATEMENTS_BY_HAND, new Date().toISOString()), title: NEW_BOOKS_TITLE }
 }
 
 /** Whether the categories are the ones new books start with, none added, removed or renamed. */

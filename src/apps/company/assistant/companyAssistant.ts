@@ -112,7 +112,10 @@ export function companyAssistant(
       { key: 'invoice_mail_drafts', note: words.settings.mailDrafts },
       ...pack.settings,
     ],
-    guides: [{ id: 'review', title: words.guides.review.title, body: words.guides.review.body(LABELS), places: [REVIEW_LINK, CATEGORY_RULES_LINK] }],
+    guides: [
+      { id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [GENERAL_SETTINGS_LINK, CATEGORY_RULES_LINK, '/company/transactions?tab=import'] },
+      { id: 'review', title: words.guides.review.title, body: words.guides.review.body(LABELS), places: [REVIEW_LINK, CATEGORY_RULES_LINK] },
+    ],
     automations: [
       {
         id: 'statements-from-mail',
@@ -126,6 +129,19 @@ export function companyAssistant(
         what: words.automations.statementsOnSync.what(AUTOMATION_LABELS),
         setUpRoute: GENERAL_SETTINGS_LINK,
       },
+    ],
+    setUp: [
+      { key: 'first-statement', about: 'No statement row is in yet.', operations: ['import-statement'] },
+      { key: 'first-rules', about: 'Rows a rule could file wait, and fewer than five rules of the person file them.', operations: ['add-rule'] },
+      { key: 'statements-folder', about: 'Filing statements on sync is on, with no statements folder.', operations: [] },
+      {
+        key: 'categories',
+
+        about: 'The categories are still the ones new books start with, until the person says they look right.',
+        operations: ['add-category', 'change-category', 'answer-set-up'],
+      },
+      { key: 'invoice-terms', about: 'There is a client to invoice, and an invoice issuer field is empty.', operations: ['set-setting'] },
+      { key: 'statement-delivery', about: 'How later statements arrive is not set up.', operations: ['answer-set-up'] },
     ],
     reader: companyReader(reading, pack.reader(reading)),
     proposer: changes?.proposer ?? null,

@@ -15,7 +15,7 @@ import { words } from './words'
  * the value adds the cash, then the word that the history is complete, then a price for each holding.
  */
 export function investmentsSetUp(book: InvestmentBook, figures: PortfolioFigures | null, historyComplete: boolean): SetUpLine[] {
-  if (!hasTransactions(book)) return [{ key: 'first-holdings', text: words.setUp.firstHoldings }]
+  if (!hasTransactions(book)) return [{ key: 'first-holdings', text: words.setUp.firstHoldings, whileEmpty: true }]
   const cashBelowZero = figures !== null && figures.cash.some((held) => held.balance < DECIMAL_ZERO)
   const unpriced = figures === null ? 0 : heldHoldings(figures).filter((holding) => holding.valuation === null).length
   return [

@@ -10,14 +10,18 @@ import { words } from './words'
  */
 withDefaults(
   defineProps<{
-    /** The element's name as the page shows it, which the icon-only button's name and every button's tooltip hold. */
-    label: string
+    /** The element's name as the page shows it, which an icon-only button's name and the tooltip of a button without `text` hold. */
+    label?: string
     /** An icon alone, for a dense row. Otherwise it reads "Ask the chat", or `text`. */
     iconOnly?: boolean
     /** The page's own name for what the chat does here, such as Suggest categories, in place of "Ask the chat". */
     text?: string | null
+    /** The button's size, small beside a row's own controls, or the size of the step buttons it sits among. */
+    size?: 'sm' | 'md'
+    /** The action the button started is under way, so it spins and waits. */
+    loading?: boolean
   }>(),
-  { iconOnly: false, text: null },
+  { label: '', iconOnly: false, text: null, size: 'sm', loading: false },
 )
 
 const emit = defineEmits<{ ask: [] }>()
@@ -30,8 +34,9 @@ const emit = defineEmits<{ ask: [] }>()
     icon="i-lucide-sparkles"
     color="neutral"
     :variant="iconOnly ? 'ghost' : 'outline'"
-    size="sm"
-    :title="words.ask.about(label)"
+    :size="size"
+    :title="text === null ? words.ask.about(label) : undefined"
+    :loading="loading"
     data-testid="ask-chat"
     @click="emit('ask')"
   />

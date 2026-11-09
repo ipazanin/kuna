@@ -148,7 +148,7 @@ function openSplit(row: Transaction): void {
           v-bind="queueMarked"
         >
           <template #actions>
-            <AskChatButton :label="words.tabs.review" :text="words.review.suggestCategories" data-testid="review-queue-ask" @ask="askAboutQueue" />
+            <AskChatButton :text="words.review.suggestCategories" data-testid="review-queue-ask" @ask="askAboutQueue" />
           </template>
           <ul class="mt-3 border-t border-default">
             <ReviewQueueItem

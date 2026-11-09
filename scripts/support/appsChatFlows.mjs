@@ -13,6 +13,7 @@ const INVESTMENTS_NAME = { en: investmentsEnglish.name, hr: investmentsCroatian.
 const PROMPTS = {
   offer: { en: 'Offer from Example Bank, add it to my scenarios', hr: 'Ponuda banke Example Bank, dodaj je u scenarije' },
   extra: { en: 'Extra payment of 1,000 on my bank loan next week', hr: 'Prijevremena otplata od 1.000 na moj kredit idući tjedan' },
+  contract: { en: 'Contract of my car loan, add the loan', hr: 'Ugovor o kreditu za automobil, dodaj kredit' },
   buy: { en: 'Buy one unit of my first instrument', hr: 'Kupi jednu jedinicu mog prvog instrumenta' },
   sell: { en: 'Sell a million units of it', hr: 'Prodaj milijun jedinica toga' },
   workbook: { en: 'Import this portfolio workbook', hr: 'Uvezi ovu radnu knjigu portfelja' },
@@ -85,9 +86,24 @@ const CARDS = {
     accept: true,
     shows: async (page, card, language) => {
       const fields = LOANS_WORDS[language].proposals.fields
-      await elementSays(page, '[data-testid="chat-proposal"]', [fields.kunaEks, fields.bankEks], "the offer card does not set Kuna's EKS beside the printed one")
+      await elementSays(
+        page,
+        '[data-testid="chat-proposal"]',
+        [fields.kunaEks, fields.bankEks, fields.kunaInstalment, fields.bankInstalment],
+        "the offer card does not set Kuna's EKS and first instalment beside the printed ones",
+      )
       if ((await card.$('[data-testid="chat-proposal-line-warning"], [data-testid="chat-proposal-warning"]')) === null)
         throw new Error('the offer card does not warn that its EKS differs from the printed one')
+    },
+  },
+  contract: {
+    name: 'loans-chat-bank-loan',
+    accept: true,
+    shows: async (page, card, language) => {
+      const fields = LOANS_WORDS[language].proposals.fields
+      await elementSays(page, '[data-testid="chat-proposal"]', [fields.kunaInstalment, fields.bankInstalment], "the loan card does not set Kuna's first instalment beside the printed one")
+      if ((await card.$('[data-testid="chat-proposal-line-warning"], [data-testid="chat-proposal-warning"]')) === null)
+        throw new Error('the loan card does not warn that its first instalment differs from the printed one')
     },
   },
   extra: {
@@ -206,8 +222,8 @@ async function attachToChat(page, path) {
 }
 
 /**
- * A chat in Loans, Investments or Assets with a made-up key kept: a loan offer is a card that sets Kuna's EKS beside the
- * printed one and warns where they differ, an extra payment on a bank loan, a buy of one unit and an Assets valuation are
+ * A chat in Loans, Investments or Assets with a made-up key kept: a loan offer is a card that sets Kuna's EKS and first instalment beside the
+ * printed ones and warns where they differ, a bank loan from its contract warns where its first instalment differs, an extra payment on a bank loan, a buy of one unit and an Assets valuation are
  * cards with one Undo, a sale over the units held is refused, and an attached portfolio workbook or IBKR Flex report,
  * which Kuna reads itself, becomes an import card with Undo. `files` holds the paths a card puts on the prompt.
  */

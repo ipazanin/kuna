@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { FILE_OPEN } from './browserFile'
 
 import type { ReceiptPorts } from '../../src/apps/spending/assistant/operations/receiptOperation'
 import { spendingAcceptance, spendingProposer } from '../../src/apps/spending/assistant/operations/spendingOperations'
@@ -210,8 +211,8 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
   const typed = store as unknown as WorkbookStore<SpendingBooks>
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['spending', spendingProposer(typed, ports)]])
-  const acceptance = spendingAcceptance(typed, ports)
+  const proposers = new Map([['spending', spendingProposer(typed, ports, FILE_OPEN)]])
+  const acceptance = spendingAcceptance(typed, ports, FILE_OPEN)
   return {
     store: typed,
     reads,

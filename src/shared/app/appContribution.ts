@@ -56,6 +56,8 @@ export interface HomeFigures {
 export interface SetUpLine {
   readonly key: string
   readonly text: string
+  /** The file shows this line only while it holds none of what the app keeps. While such a line is left, the app counts as new. */
+  readonly whileEmpty?: true
   /** The screen that does it, or none for a line only the home card shows, whose screen already leads with it. */
   readonly link?: { readonly label: string; readonly to: RouteLocationRaw }
 }
@@ -141,6 +143,13 @@ export interface AssistantAutomation {
   readonly guide?: string
 }
 
+/** A set-up line the chat may see by its key, with what the line means and the operations that settle it. */
+export interface AssistantSetUpStep {
+  readonly key: string
+  readonly about: string
+  readonly operations: readonly string[]
+}
+
 /** What the app tells the chat about itself. All but `reader` is built from what the code declares and holds nothing from a person's books. */
 export interface AppAssistant {
   readonly kinds: readonly RecordKind[]
@@ -148,6 +157,8 @@ export interface AppAssistant {
   readonly settings: readonly AssistantSetting[]
   readonly guides: readonly AssistantGuide[]
   readonly automations: readonly AssistantAutomation[]
+  /** Every key the app's set-up lines can have. The chat hears only the keys still left, never a line's text, as a line may name payees. */
+  readonly setUp: readonly AssistantSetUpStep[]
   /** What the chat can read of the app once allowed, or null for an app it cannot read yet. */
   readonly reader: AppReader | null
   /** The changes the chat can propose, or null for an app that takes none yet. */

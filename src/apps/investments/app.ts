@@ -1,4 +1,5 @@
 import type { AppContribution, AppScreen } from '../../shared/app/appContribution'
+import { LOCAL_INVESTMENTS_TITLE } from './workbook/domain/investmentsBooks'
 import { isFirstRun } from '../../shared/app/isFirstRun'
 import { investmentsData } from './workbook/presentation/investmentsData'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
@@ -90,6 +91,8 @@ export const investmentsApp: AppContribution = {
       import('./prices/presentation/pricesStep'),
     ])
     const store = useInvestmentsBooks()
+    const [{ browserFileOf }, { newInvestmentsFileContents }] = await Promise.all([import('../../shared/app/browserFileCards'), import('./workbook/presentation/investmentsFile')])
+    const file = browserFileOf(store, { id: 'investments', name: words.name }, () => ({ contents: newInvestmentsFileContents(store), title: LOCAL_INVESTMENTS_TITLE }))
     const prices = usePrices()
     const { reading } = useMailReports()
     const ports: InvestmentsPorts = {
@@ -108,7 +111,7 @@ export const investmentsApp: AppContribution = {
         sources: () => sources.value,
         taxShown: () => taxShown.value,
       },
-      { proposer: investmentsProposer(store, ports), acceptance: investmentsAcceptance(store, ports) },
+      { proposer: investmentsProposer(store, ports, file), acceptance: investmentsAcceptance(store, ports, file) },
     )
   },
   assist: INVESTMENTS_ASSIST,

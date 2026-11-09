@@ -7,6 +7,7 @@ import { words as appWords } from '../../words'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { LOANS_FILE_NAME, LOCAL_LOANS_TITLE, newLoansFileContents } from '../../workbook/presentation/loansFile'
 import { words as fileWords } from '../../workbook/presentation/words'
+import { words as assistantWords } from '../../assistant/words'
 import { words } from './words'
 
 /** The Loans first run at `#/loans/start?step=…`. */
@@ -20,6 +21,7 @@ const firstRun: FileFirstRun = {
   store,
   fileName: LOANS_FILE_NAME,
   localTitle: LOCAL_LOANS_TITLE,
+  chatTask: assistantWords.guides.setUp.title,
   newContents: () => newLoansFileContents(store),
   findFile: useFindFile(store, fileWords),
   words,

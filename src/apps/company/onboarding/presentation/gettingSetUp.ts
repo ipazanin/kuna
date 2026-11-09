@@ -52,7 +52,7 @@ export function gettingSetUp(workbook: Workbook, categoriesLookRight = false, of
   const firstRules = firstRulesLine(workbook)
   const lines: SetUpLine[] = firstRules === null ? [] : [firstRules]
   if (workbook.transactions.length === 0) {
-    lines.push({ key: 'first-statement', text: words.setUp.firstStatement, link: { label: words.setUp.importLink, to: { path: '/company/transactions', query: { tab: 'import' } } } })
+    lines.push({ key: 'first-statement', text: words.setUp.firstStatement, whileEmpty: true, link: { label: words.setUp.importLink, to: { path: '/company/transactions', query: { tab: 'import' } } } })
   }
   if (workbook.settings.statementsSync && workbook.settings.statementsFolder.length === 0) {
     lines.push({ key: 'statements-folder', text: words.setUp.statementsFolder, link: { label: words.setUp.settingsLink, to: '/company/settings' } })

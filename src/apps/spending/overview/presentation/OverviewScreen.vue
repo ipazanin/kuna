@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { askChat } from '../../../../shared/ai/presentation/chatDock'
+import { words as chatWords } from '../../../../shared/ai/presentation/words'
+import { stillNew } from '../../../../shared/app/setUpLines'
+import { words as assistantWords } from '../../assistant/words'
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { RouteLocationRaw } from 'vue-router'
@@ -125,13 +130,20 @@ function openGroupMonth(selection: ChartPointSelection): void {
         </template>
         <template #actions>
           <div class="flex flex-col items-center gap-4">
-            <UButton :label="words.empty.addAccount" icon="i-lucide-plus" data-testid="spending-overview-add-account" @click="addingAccount = true" />
+            <div class="flex flex-wrap justify-center gap-2">
+              <UButton :label="words.empty.addAccount" icon="i-lucide-plus" data-testid="spending-overview-add-account" @click="addingAccount = true" />
+              <AskChatButton :text="chatWords.ask.setUp" size="md" data-testid="set-up-chat" @ask="askChat(assistantWords.guides.setUp.title)" />
+            </div>
             <span class="type-caption">{{ fileNote }}</span>
           </div>
         </template>
       </EmptyState>
       <template v-else>
-        <GettingSetUpCard :lines="spendingSetUp(state.workbook)" />
+        <GettingSetUpCard :lines="spendingSetUp(state.workbook)">
+          <template v-if="stillNew(spendingSetUp(state.workbook))" #actions>
+            <AskChatButton :text="chatWords.ask.setUp" data-testid="set-up-chat" @ask="askChat(assistantWords.guides.setUp.title)" />
+          </template>
+        </GettingSetUpCard>
         <DashboardGrid layout="tiles" data-testid="spending-tiles">
           <KpiTile :label="figureWords.spent" :value="formatMoney(totals.spent)" :caption="monthLabel(month)" :to="transactionsLink(month)" data-testid="spending-spent">
             <template v-if="waiting" #value>

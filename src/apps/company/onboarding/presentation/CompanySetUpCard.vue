@@ -2,6 +2,11 @@
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { askChat } from '../../../../shared/ai/presentation/chatDock'
+import { words as chatWords } from '../../../../shared/ai/presentation/words'
+import { stillNew } from '../../../../shared/app/setUpLines'
+import { words as assistantWords } from '../../assistant/words'
 import GettingSetUpCard from '../../../../shared/ui/GettingSetUpCard.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import StatementDeliveryDialog from './StatementDeliveryDialog.vue'
@@ -21,6 +26,9 @@ const lines = computed(() => (state.workbook === null ? [] : gettingSetUp(state.
 
 <template>
   <GettingSetUpCard :lines="lines">
+    <template v-if="stillNew(lines)" #actions>
+      <AskChatButton :text="chatWords.ask.setUp" data-testid="set-up-chat" @ask="askChat(assistantWords.guides.setUp.title)" />
+    </template>
     <template #action="{ line }">
       <UButton
         v-if="line.key === CATEGORIES_LINE"

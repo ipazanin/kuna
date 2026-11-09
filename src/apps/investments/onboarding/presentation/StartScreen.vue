@@ -8,6 +8,7 @@ import { useInvestmentsBooks } from '../../workbook/application/investmentsStore
 import { LOCAL_INVESTMENTS_TITLE } from '../../workbook/domain/investmentsBooks'
 import { INVESTMENTS_FILE_NAME, newInvestmentsFileContents } from '../../workbook/presentation/investmentsFile'
 import { words as fileWords } from '../../workbook/presentation/words'
+import { words as assistantWords } from '../../assistant/words'
 import { words } from './words'
 
 /** The Investments first run at `#/investments/start?step=…`. */
@@ -21,6 +22,7 @@ const firstRun: FileFirstRun = {
   store,
   fileName: INVESTMENTS_FILE_NAME,
   localTitle: LOCAL_INVESTMENTS_TITLE,
+  chatTask: assistantWords.guides.setUp.title,
   newContents: () => newInvestmentsFileContents(store),
   findFile: useFindFile(store, fileWords),
   words,

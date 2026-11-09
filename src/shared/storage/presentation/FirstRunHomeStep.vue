@@ -5,6 +5,8 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import { answerFromFirstRun, kunaStart } from '../../app/kunaStart'
+import AskChatButton from '../../ai/presentation/AskChatButton.vue'
+import { words as chatWords } from '../../ai/presentation/words'
 import StepCard from '../../ui/StepCard.vue'
 import type { FileFirstRun } from './fileFirstRun'
 import type { FirstRunMoves } from './useFirstRun'
@@ -29,12 +31,17 @@ const CHOICES: { label: string; description: string; value: FileHome }[] = [
 const answered = computed(() => kunaStart()?.home === 'browser' && store.state.choice === null)
 const chosen = ref<FileHome>(answered.value ? 'browser' : 'drive')
 const starting = ref(false)
+/** The file being made goes on into the chat, so its button spins, not Continue. */
+const startingWithChat = ref(false)
 const failure = ref<string | null>(null)
 
 /** Opening another file lets go of the one kept in this browser, which a new file would carry along. */
 const dropsBrowserFile = computed(() => chosen.value === 'open' && store.state.choice?.source === 'browser')
 
-async function proceed(): Promise<void> {
+/** The file is made here, so the chat can take over the setup on the overview. */
+const intoChat = computed(() => chosen.value === 'browser')
+
+async function proceed(withChat = false): Promise<void> {
   if (chosen.value !== 'open') answerFromFirstRun(chosen.value, props.firstRun.appId, store.state.choice !== null)
   if (chosen.value === 'drive') {
     await props.steps.go('folder')
@@ -45,6 +52,7 @@ async function proceed(): Promise<void> {
     return
   }
   starting.value = true
+  startingWithChat.value = withChat
   failure.value = null
   await store.replaceLocalWorkbook(props.firstRun.newContents(), props.firstRun.localTitle)
   starting.value = false
@@ -52,7 +60,7 @@ async function proceed(): Promise<void> {
     failure.value = store.state.error
     return
   }
-  await props.steps.finish()
+  await (withChat ? props.steps.finishIntoChat() : props.steps.finish())
 }
 </script>
 
@@ -66,7 +74,15 @@ async function proceed(): Promise<void> {
     <UAlert v-if="dropsBrowserFile" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="appWords.dropsTitle" :description="words.firstRun.home.drops" />
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="appWords.notMade" :description="failure" />
     <template #actions>
-      <UButton :label="words.firstRun.home.continue" trailing-icon="i-lucide-arrow-right" :loading="starting" :data-testid="`${firstRun.testId}-continue`" @click="proceed" />
+      <AskChatButton v-if="intoChat" :text="chatWords.ask.setUp" size="md" :loading="starting && startingWithChat" :disabled="starting" :data-testid="`${firstRun.testId}-chat`" @ask="proceed(true)" />
+      <UButton
+        :label="words.firstRun.home.continue"
+        trailing-icon="i-lucide-arrow-right"
+        :loading="starting && !startingWithChat"
+        :disabled="starting"
+        :data-testid="`${firstRun.testId}-continue`"
+        @click="proceed()"
+      />
     </template>
   </StepCard>
 </template>

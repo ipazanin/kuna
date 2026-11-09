@@ -21,8 +21,10 @@ const props = withDefaults(
     compact?: boolean
     /** On the icon sidebar: the icon alone, with its name as a tooltip. */
     rail?: boolean
+    /** The app's name, which leads the row in a list of the files kept in this browser, in place of saying where it is kept. */
+    name?: string | null
   }>(),
-  { compact: false, rail: false },
+  { compact: false, rail: false, name: null },
 )
 
 const emit = defineEmits<{ export: [] }>()
@@ -40,9 +42,13 @@ const reminder = computed(() => {
 </script>
 
 <template>
-  <div class="flex min-w-0 items-center gap-2" :class="rail ? 'justify-center' : compact ? 'justify-end' : 'flex-wrap justify-between'" data-testid="local-status">
+  <div
+    class="flex min-w-0 gap-2"
+    :class="rail ? 'items-center justify-center' : compact ? 'items-center justify-end' : name !== null ? 'flex-col items-start' : 'flex-wrap items-center justify-between'"
+    data-testid="local-status"
+  >
     <div v-if="!compact" class="min-w-0">
-      <p class="truncate text-xs text-toned">{{ words.localFile.kept }}</p>
+      <p class="truncate text-xs text-toned">{{ name ?? words.localFile.kept }}</p>
       <p class="figure truncate text-xs text-muted">{{ exportedText }}</p>
     </div>
     <UTooltip :text="words.localFile.export" :disabled="!rail" :content="{ side: 'right' }">

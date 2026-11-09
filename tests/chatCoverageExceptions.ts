@@ -57,14 +57,20 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
       'src/shell/settings/deleteAllOfKuna.ts#forgetBrowserSettings',
       'company: store.dropWorkbook',
       'shared: store.dropWorkbook',
-      'shared: store.trashBackups',
-      'shared: store.moveIntoKuna',
       'company: store.replaceLocalWorkbook',
       'shared: store.replaceLocalWorkbook',
+      'shared: store.trashBackups',
+      'shared: store.moveIntoKuna',
     ],
   },
   {
-    reason: 'First run. Choosing where the books live and making them happens before an app has a chat.',
-    paths: ['company: src/shared/app/kunaStart.ts#answerFromFirstRun', 'shared: store.keepOnDrive'],
+    reason: "Making a file on Drive. Google's own step needs the person, so the chat links the app's start screen, and makes a file only in this browser.",
+    paths: ['shared: store.keepOnDrive'],
   },
 ]
+
+/**
+ * Store actions the chat calls for one narrow use of its own, which covers no screen that calls them: it makes an app's new file in this
+ * browser and removes only that file again.
+ */
+export const NARROW_CHAT_ACTIONS: ReadonlySet<string> = new Set(['replaceLocalWorkbook', 'dropWorkbook'])

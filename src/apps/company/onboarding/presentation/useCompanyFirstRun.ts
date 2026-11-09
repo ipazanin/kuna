@@ -4,8 +4,7 @@ import type { DriveFirstRun } from '../../../../shared/storage/presentation/file
 import type { FirstRunMoves } from '../../../../shared/storage/presentation/useFirstRun'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useFindDriveFile } from '../../workbook/presentation/useFindDriveFile'
-import { BOOKS_FILE_NAME, newBooksDocument } from '../../workbook/presentation/workbookFiles'
-import { STATEMENTS_BY_HAND } from '../domain/statementsChoice'
+import { BOOKS_FILE_NAME, newCompanyBooks } from '../../workbook/presentation/workbookFiles'
 import { onboardingStart, useOnboarding } from './useOnboarding'
 import { words } from './words'
 
@@ -26,7 +25,7 @@ export function useCompanyFirstRun(): CompanyFirstRun {
     testId: 'company-start',
     store,
     fileName: BOOKS_FILE_NAME,
-    newContents: () => newBooksDocument(STATEMENTS_BY_HAND, new Date().toISOString()),
+    newContents: () => newCompanyBooks().contents,
     findFile: findDriveFile,
     words: {
       folder: {
@@ -51,6 +50,9 @@ export function useCompanyFirstRun(): CompanyFirstRun {
         // Books the new and bring paths made stay named in the route, so going back finds them made.
         const path = onboarding.place.value.path
         await (path === 'new' || path === 'bring' ? onboarding.made() : onboarding.finish())
+      },
+      async finishIntoChat() {
+        await onboarding.finishIntoChat()
       },
     },
   }

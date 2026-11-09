@@ -68,11 +68,16 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
     { key: COMPANY_OIB_KEY, note: words.settings.companyOib },
   ],
   guides: [
+    { id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [SPENDING_OVERVIEW_ROUTE, SPENDING_ACCOUNTS_ROUTE, IMPORT_LINK] },
     { id: 'first-rules', title: words.guides.rules.title, body: words.guides.rules.body(LABELS), places: [SPENDING_REVIEW_LINK, IMPORT_LINK, RULES_LINK] },
     { id: 'first-import', title: words.guides.import.title, body: words.guides.import.body(LABELS), places: [IMPORT_LINK, SPENDING_REVIEW_LINK] },
     { id: 'link-a-bank', title: words.guides.bankSync.title, body: words.guides.bankSync.body(LABELS), places: [SPENDING_BANK_SYNC_LINK] },
     { id: 'first-limit', title: words.guides.limits.title, body: words.guides.limits.body(LABELS), places: [SPENDING_BUDGETS_ROUTE] },
     { id: 'categories', title: words.guides.categories.title, body: words.guides.categories.body(LABELS), places: [SPENDING_SETTINGS_ROUTE] },
+  ],
+  setUp: [
+    { key: 'first-account', about: 'The file has no account yet.', operations: ['add-account'] },
+    { key: 'first-entries', about: 'No entry is in yet.', operations: ['import-statement', 'add-entry'] },
   ],
   reader: spendingReader(reading),
   proposer: changes?.proposer ?? null,

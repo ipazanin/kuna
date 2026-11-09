@@ -34,6 +34,8 @@ export interface SavedLine {
   readonly attachments?: readonly string[]
   /** The person stopped this answer while it was written, so the model never had it. Absent otherwise. */
   readonly stopped?: true
+  /** Kuna sent this message for the person, from a button or as Go on. Absent for one they typed. */
+  readonly byKuna?: true
 }
 
 /**

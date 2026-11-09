@@ -15,6 +15,18 @@ export interface AutomationLabels {
 }
 
 export const en = {
+  guides: {
+    setUp: {
+      title: 'Set up Investments with the chat',
+      body: [
+        "Have ready each broker's statements. An IBKR Flex report and the portfolio workbook stay on this device. Any other statement goes as a file of cells, a PDF or a photo.",
+        'The cards, in this order:',
+        '1. The accounts, one for each broker account.',
+        '2. The import, in parts. Opening positions go as holdings when the person says the history is not complete.',
+        "Tax treatment, split ratios, exchange rates, whether two accounts are one person's and whether the history is complete stay with the person.",
+      ].join('\n'),
+    },
+  },
   settings: {
     surtaxCity2023:
       "Porezna's code of the city or municipality the owner lived in during 2023, or none for one with no surtax. Its city surtax goes on the 2023 capital gains tax. Look the place up by name with find_records in surtax-city-2023 first, and propose its code with set-setting. Two places of one name differ by their office, so ask which when both match.",
@@ -176,6 +188,18 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  guides: {
+    setUp: {
+      title: 'Postavite Ulaganja kroz razgovor',
+      body: [
+        'Pripremite izvode svakog brokera. IBKR-ov Flex izvještaj i radna knjiga portfelja ostaju na ovom uređaju. Svaki drugi izvod ide kao datoteka ćelija, PDF ili fotografija.',
+        'Kartice, ovim redom:',
+        '1. Računi, po jedan za svaki račun kod brokera.',
+        '2. Uvoz, u dijelovima. Početne pozicije idu kao pozicije kad osoba kaže da povijest nije cijela.',
+        'Porezni tretman, omjeri podjele dionica, tečajevi, jesu li dva računa iste osobe i je li povijest cijela ostaju osobi.',
+      ].join('\n'),
+    },
+  },
   settings: {
     surtaxCity2023:
       'Šifra Porezne za grad ili općinu u kojoj je vlasnik živio 2023., ili none za onu bez prireza. Njezin prirez ide na porez na kapitalne dobitke za 2023. Najprije potražite mjesto po imenu s find_records u surtax-city-2023, a zatim predložite njegovu šifru sa set-setting. Dva mjesta istog imena razlikuju se po ispostavi, pa pitajte koje kad se oba podudaraju.',

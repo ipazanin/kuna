@@ -131,3 +131,6 @@ export interface AssistantQuickAction {
   readonly label: string
   readonly prompt: string
 }
+
+/** What the model may do for an app with no file yet, after it hears the file is not open. */
+export const NO_FILE_YET = "While the app has no file on this device, propose make-file alone on a card for a person who keeps their files in this browser, and otherwise link the app's start screen."

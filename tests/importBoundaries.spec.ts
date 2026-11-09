@@ -451,6 +451,7 @@ describe('import boundaries', () => {
       const declares = (file: string): boolean =>
         file === 'src/shared/app/appContribution.ts' ||
         file === 'src/shared/app/assistantOperations.ts' ||
+        file === 'src/shared/app/browserFileCards.ts' ||
         file === 'src/shell/assistant/kunaAssistant.ts' ||
         /^src\/apps\/[^/]+\/(app\.ts$|assistant\/)/.test(file)
       expect(linesHolding(/\bacceptance\b|\.accept\(/, (file) => file === 'src/shared/ai/presentation/ProposalCard.vue' || declares(file))).toEqual([])

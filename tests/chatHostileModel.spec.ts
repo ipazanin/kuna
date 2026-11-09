@@ -14,7 +14,7 @@ import { CHAT_TOOLS, runChatTool } from '../src/shared/ai/application/chatTools'
 import type { ChatChip, ChatTools } from '../src/shared/ai/application/chatTools'
 import { guardedModel } from '../src/shared/ai/application/egressGuard'
 import type { ModelPort, ModelReply, ModelRequest, ToolCall } from '../src/shared/ai/application/modelPort'
-import { contextLine, elementLine, runChatTurn } from '../src/shared/ai/application/runChatTurn'
+import { appSetUpOf, contextLine, elementLine, runChatTurn } from '../src/shared/ai/application/runChatTurn'
 import { attachedFile } from '../src/shared/ai/application/chatFiles'
 import { attachmentKindOf, nextAttachmentId } from '../src/shared/ai/domain/chatAttachments'
 import type { AttachedFile, ChatAttachment, FormatFound } from '../src/shared/ai/domain/chatAttachments'
@@ -57,6 +57,7 @@ const CATALOGUE: Catalogue = catalogueOf(
         settings: [],
         guides: [{ id: 'first-rules', title: 'Rules', body: 'How rules work.', places: [] }],
         automations: [],
+        setUp: [],
         reader: spendingReader(CHAT_READING),
         proposer: null,
         acceptance: null,
@@ -313,19 +314,48 @@ describe('a chat run by a hostile model', () => {
 
 describe('the context line', () => {
   it('names the app, the screen, the address and the day, and nothing else', () => {
-    expect(contextLine({ app: 'Spending', screen: 'Entries', place: null, path: '/spending/transactions', today: '2026-11-07' })).toBe(
+    expect(contextLine({ app: 'Spending', screen: 'Entries', place: null, path: '/spending/transactions', today: '2026-11-07', setUp: [] })).toBe(
       '<context>The person is in Spending, on the screen Entries (/spending/transactions). Today is 2026-11-07.</context>',
     )
   })
 
   it('names the tab after the screen, with its address', () => {
-    expect(contextLine({ app: 'Company', screen: 'Transactions', place: 'To review', path: '/company/transactions?tab=review', today: '2026-11-07' })).toBe(
+    expect(contextLine({ app: 'Company', screen: 'Transactions', place: 'To review', path: '/company/transactions?tab=review', today: '2026-11-07', setUp: [] })).toBe(
       '<context>The person is in Company, on the screen Transactions, tab To review (/company/transactions?tab=review). Today is 2026-11-07.</context>',
     )
   })
 
   it('says Kuna outside the apps', () => {
-    expect(contextLine({ app: null, screen: null, place: null, path: '/', today: '2026-11-07' })).toBe('<context>The person is in Kuna (/). Today is 2026-11-07.</context>')
+    expect(contextLine({ app: null, screen: null, place: null, path: '/', today: '2026-11-07', setUp: [] })).toBe('<context>The person is in Kuna (/). Today is 2026-11-07.</context>')
+  })
+
+  it('counts an app as new only while it has no file or a line left that only an empty file shows', () => {
+    const app = (firstRun: boolean, lines: readonly { readonly key: string; readonly whileEmpty?: true }[]) => ({
+      id: 'investments',
+      name: 'Investments',
+      firstRun: () => firstRun,
+      setUpLines: () => lines.map((line) => ({ ...line, text: `Line ${line.key}` })),
+    })
+
+    expect(appSetUpOf(app(true, []))).toEqual({ app: 'investments', name: 'Investments', hasFile: false, starting: [], others: [] })
+    expect(appSetUpOf(app(false, [{ key: 'first-holdings', whileEmpty: true }, { key: 'history' }]))).toEqual({
+      app: 'investments',
+      name: 'Investments',
+      hasFile: true,
+      starting: ['first-holdings'],
+      others: ['history'],
+    })
+    expect(appSetUpOf(app(false, [{ key: 'prices' }, { key: 'cash-below-zero' }]))).toBeNull()
+  })
+
+  it('names an app that is not set up by the keys of its set-up lines, never by their text', () => {
+    const setUp = [
+      { app: 'company', name: 'Company', hasFile: true, starting: ['first-statement'], others: ['categories'] },
+      { app: 'loans', name: 'Loans', hasFile: false, starting: [], others: [] },
+    ]
+    expect(contextLine({ app: 'Company', screen: 'Overview', place: null, path: '/company', today: '2026-11-07', setUp })).toBe(
+      '<context>The person is in Company, on the screen Overview (/company). Today is 2026-11-07. Company is new. Set-up lines left: first-statement, categories. Loans has no file on this device yet.</context>',
+    )
   })
 })
 

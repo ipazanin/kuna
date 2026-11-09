@@ -98,6 +98,8 @@ export const companyApp: AppContribution = {
       import('./invoicing/application/invoiceGoogle'),
     ])
     const store = useWorkbook()
+    const [{ browserFileOf }, { newCompanyBooks }] = await Promise.all([import('../../shared/app/browserFileCards'), import('./workbook/presentation/workbookFiles')])
+    const file = browserFileOf(store, { id: 'company', name: words.name }, newCompanyBooks)
     const statementSync = useStatementSync()
     const ports = {
       readStatementFile: loadImportFile,
@@ -128,7 +130,7 @@ export const companyApp: AppContribution = {
         records: () => state.records,
       },
       () => [...(state.records === null ? [] : installedPack().employees(state.records)), ...(state.workbook?.settings.personPayees ?? []).map((name) => ({ name, employee: false, ibans: [] }))],
-      { proposer: companyProposer(store, ports), acceptance: companyAcceptance(store, ports) },
+      { proposer: companyProposer(store, ports, file), acceptance: companyAcceptance(store, ports, file) },
     )
   },
   // Nothing chosen and nothing kept: onboarding takes it, whatever screen the address names.

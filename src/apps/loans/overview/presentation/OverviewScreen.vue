@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { askChat } from '../../../../shared/ai/presentation/chatDock'
+import { words as chatWords } from '../../../../shared/ai/presentation/words'
+import { words as assistantWords } from '../../assistant/words'
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -89,6 +93,7 @@ const addingInformal = ref(false)
             <div class="flex flex-wrap justify-center gap-2">
               <UButton :label="words.addBankLoan" icon="i-lucide-landmark" data-testid="add-bank-loan" @click="addingBank = true" />
               <UButton :label="words.addInformalLoan" icon="i-lucide-handshake" color="neutral" variant="outline" data-testid="add-informal-loan" @click="addingInformal = true" />
+              <AskChatButton :text="chatWords.ask.setUp" size="md" data-testid="set-up-chat" @ask="askChat(assistantWords.guides.setUp.title)" />
             </div>
             <span class="type-caption">{{ fileNote }}</span>
           </div>

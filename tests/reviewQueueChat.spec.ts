@@ -16,7 +16,7 @@ describe("asking the chat from Company's To review", () => {
   const queue = presentation('ReviewQueue.vue')
 
   it('keeps the queue’s own words on its header button and tags the queue as the To review place', () => {
-    expect(queue).toContain('<AskChatButton :label="words.tabs.review" :text="words.review.suggestCategories"')
+    expect(queue).toContain('<AskChatButton :text="words.review.suggestCategories"')
     expect(queue).toMatch(/about: \{ kind: 'place', app: COMPANY_APP, route: REVIEW_LINK \}/)
     expect([en.review.suggestCategories, hr.review.suggestCategories]).toEqual(['Suggest categories', 'Predloži kategorije'])
     expect(queue).toContain("'card',\n  words.review.suggestCategoriesTask,")

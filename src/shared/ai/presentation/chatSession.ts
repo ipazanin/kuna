@@ -2,6 +2,7 @@ import { computed, markRaw, reactive, readonly, shallowReactive, shallowRef } fr
 
 import type { AppContribution } from '../../app/appContribution'
 import type { CheckedProposal, DoneWarning, UndoResult } from '../../app/assistantOperations'
+import { removesFile } from '../../app/browserFileStep'
 import { plainAmount } from '../../money/money'
 import { catalogueOf, placeAt } from '../application/catalogue'
 import type { Catalogue } from '../application/catalogue'
@@ -54,7 +55,15 @@ export interface ChatLine {
   attachments: string[]
   /** The person stopped this answer while it was written, so it is not part of what the model said. */
   stopped: boolean
+  /** Kuna sent this message for the person, from a button that names a task or as Go on, so it is not what they typed. */
+  byKuna: boolean
 }
+
+/**
+ * Who a message comes from: what the person typed, a task a button named such as Suggest categories, or Go on after a card accepted
+ * during a setup. Only Go on counts toward the messages the chat sends in a row, and leaves the files on the prompt.
+ */
+export type MessageOrigin = 'person' | 'task' | 'goOn'
 
 /** A card in the chat. `checked` is gone after a reload, and with it Accept and Undo. */
 export interface ChatProposal extends SavedProposal {
@@ -68,6 +77,8 @@ export interface ChatProposal extends SavedProposal {
   undo: (() => Promise<UndoResult>) | null
   /** The files the model read in the turn that made the card, by name, so a change a file asked for is recognisable. */
   readonly readFiles: readonly string[]
+  /** The card came while its app was being set up, so Accept sends the chat on to the next step by itself. */
+  readonly goesOn: boolean
 }
 
 /** The chat wants to read an app and waits for the person. */
@@ -98,6 +109,8 @@ interface Spent {
 /** The chat kept in memory for this visit: it follows the person across apps and goes with a reload. */
 /** How long one message may take, its rounds together, which also ends a stream that stalls. A wait for the person's answer pauses it. */
 const MOST_RUN_MILLISECONDS = 5 * 60_000
+/** The most messages the chat sends by itself, one after each card accepted during a setup, before it waits for the person to write. */
+const MOST_GOING_ON = 10
 
 const lines = reactive<ChatLine[]>([])
 const spent = reactive<Spent>({ dollars: 0, unknown: false, any: false })
@@ -135,6 +148,12 @@ const asking = shallowRef<ReadAsk | null>(null)
 const refusedThisMessage = new Set<string>()
 /** What the model has not heard yet of how its cards ended, which goes at the start of the next message. */
 const outcomes: string[] = []
+/** How many messages the chat sent by itself since the person last wrote one. */
+let wentOnBySelf = 0
+/** A card was accepted while a message was still under way, so Go on waits for it to end. */
+let goOnWaiting = false
+/** Sends a message as the open panel sends one, from where the person is then. Null while no panel is open. */
+let sendFromPanel: ((message: string, origin: MessageOrigin) => void) | null = null
 /** People go out as aliases in the screen's language, so the person reads the same word the model writes. */
 const PERSON_WORD: PersonWord = language === 'hr' ? 'Osoba' : 'Person'
 
@@ -144,7 +163,7 @@ let refs = chatRefs()
 
 function added(role: ChatLine['role'], text: string, note = false, at = Date.now()): ChatLine {
   nextId += 1
-  lines.push({ id: `chat-${nextId}`, role, at, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [], attachments: [], stopped: false })
+  lines.push({ id: `chat-${nextId}`, role, at, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [], attachments: [], stopped: false, byKuna: false })
   return lines[lines.length - 1]!
 }
 
@@ -207,9 +226,16 @@ export interface ChatWhere extends Omit<ChatContext, 'place'> {
   readonly element: ChatElementAbout | null
 }
 
-function contextAt(where: ChatWhere, known: Catalogue): ChatContext {
+/** Whether the chat may read the app's books now without asking: its switch is on, or this chat has a yes for it on the provider. */
+function readsWithoutAsking(app: string, provider: ProviderId): boolean {
+  return assistOn(app) || (allowedFor === provider && appsAllowed.has(app))
+}
+
+/** A new app's other set-up lines tell facts about its books, so they go only for an app the chat may already read. */
+function contextAt(where: ChatWhere, known: Catalogue, provider: ProviderId): ChatContext {
   const place = placeAt(known, where.path, where.query)
-  return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, today: where.today }
+  const setUp = where.setUp.map((app) => (readsWithoutAsking(app.app, provider) ? app : { ...app, others: [] }))
+  return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, today: where.today, setUp }
 }
 
 /** An answer as this browser keeps it: aliases stay as the model wrote them, and a figure ref is written out, as its figure goes with the page. */
@@ -232,6 +258,7 @@ function savedLine(line: ChatLine): SavedLine {
     proposals: line.proposals.map(({ id, app, title, count, state, readFiles }) => ({ id, app, title, count, state, ...(readFiles.length === 0 ? {} : { readFiles: [...readFiles] }) })),
     ...(line.attachments.length === 0 ? {} : { attachments: [...line.attachments] }),
     ...(line.stopped ? { stopped: true as const } : {}),
+    ...(line.byKuna ? { byKuna: true as const } : {}),
   }
 }
 
@@ -291,9 +318,11 @@ function restored(saved: SavedChat): void {
       warning: null,
       undo: null,
       readFiles: [...(proposal.readFiles ?? [])],
+      goesOn: false,
     }))
     shown.attachments = [...(line.attachments ?? [])]
     shown.stopped = line.stopped === true
+    shown.byKuna = line.byKuna === true
   }
   pseudonyms = newPseudonyms(PERSON_WORD, saved.aliases)
   refs = chatRefs(saved.refsHandedOut)
@@ -333,6 +362,24 @@ export function settleProposal(proposal: ChatProposal, state: ProposalState, rea
   }[state as 'done' | 'undone' | 'declined' | 'refused']
   if (outcome !== undefined) outcomes.push(outcome)
   keepChat()
+  if (state === 'declined') goOnWaiting = false
+  else if (state === 'done' && held.goesOn) goOn()
+}
+
+/** The panel's way to send a message, which the chat's own Go on takes, or null once the panel closes. */
+export function sendChatFrom(send: ((message: string, origin: MessageOrigin) => void) | null): void {
+  sendFromPanel = send
+}
+
+/** Sends Go on once nothing is under way, unless no panel is open to send it. */
+function goOn(): void {
+  if (sendFromPanel === null) return
+  if (status.value !== 'ready') {
+    goOnWaiting = true
+    return
+  }
+  goOnWaiting = false
+  sendFromPanel(words.chat.goOn, 'goOn')
 }
 
 /**
@@ -409,7 +456,7 @@ function readsOf(catalogue: Catalogue, provider: ProviderId, pauseClock: () => (
     anonymising: () => anonymiseOn(provider),
     persons: () => catalogue.persons(),
     mayRead: async (app) => {
-      if (assistOn(app) || (allowedFor === provider && appsAllowed.has(app))) return true
+      if (readsWithoutAsking(app, provider)) return true
       const name = catalogue.readers.get(app)?.name
       if (refusedThisMessage.has(app) || name === undefined) return false
       return readAnswered({ app, name }, provider, pauseClock)
@@ -484,11 +531,18 @@ function sentFiles(): readonly ChatAttachment[] {
 }
 
 /** Sends one message and writes what comes back on its line. A failed message leaves the turns as they were, so the next one goes on from the last answer. */
-export async function sendChatMessage(message: string, where: ChatWhere, knowledge: () => Promise<Catalogue>): Promise<void> {
+export async function sendChatMessage(message: string, where: ChatWhere, knowledge: () => Promise<Catalogue>, origin: MessageOrigin = 'person'): Promise<void> {
   const preset = providerInUse()
   if (promptPdfsRefused.value) return
+  if (origin === 'goOn') wentOnBySelf += 1
+  else {
+    wentOnBySelf = 0
+    goOnWaiting = false
+  }
   if (preset !== null) startChainOn(`${preset.id}/${modelOf(preset.id).id}`)
-  added('user', message).attachments = sentFiles().map((attachment) => attachment.name)
+  const question = added('user', message)
+  question.byKuna = origin !== 'person'
+  question.attachments = origin === 'goOn' ? [] : sentFiles().map((attachment) => attachment.name)
   const line = added('assistant', '')
   current?.abort()
   const controller = new AbortController()
@@ -512,7 +566,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
     }
     const catalogue = await knowledge()
     const reads = readsOf(catalogue, preset.id, pauseClock)
-    const contextNow = contextLine(contextAt(where, catalogue))
+    const contextNow = contextLine(contextAt(where, catalogue, preset.id))
     const elementNow = elementLine(where.element, attached, catalogue, reads)
     const heard = outcomes.splice(0).map((outcome) => `<context>${outcome}</context>`)
     const changed = [...(contextNow === lastContext ? [] : [contextNow]), ...(elementNow === lastElement ? [] : [elementNow ?? NOTHING_TAGGED]), ...heard]
@@ -554,6 +608,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
           warning: null,
           undo: null,
           readFiles: [...readThisTurn],
+          goesOn: wentOnBySelf < MOST_GOING_ON && !removesFile(proposal) && where.setUp.some((setUp) => setUp.app === app),
         })
       },
     })
@@ -582,6 +637,8 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       if (stoppedByPerson && line.text === '' && line.chips.length === 0 && line.sent.length === 0 && line.proposals.length === 0) lines.splice(lines.indexOf(line), 1)
       else line.stopped = stoppedByPerson
       keepChat()
+      if (goOnWaiting && !stoppedByPerson && line.failure === null) goOn()
+      else goOnWaiting = false
     }
   }
 }
@@ -601,6 +658,7 @@ export function allowedThisChat(provider: ProviderId): boolean {
 /** Stops the message under way. What it spent so far is lost to the count, as the provider reports it only at the end. */
 export function stopChatMessage(): void {
   stoppedByPerson = true
+  goOnWaiting = false
   current?.abort()
   while (asks.length > 0) answerReadAsk('no')
 }
@@ -624,6 +682,8 @@ export function clearChat(): void {
   dropPromptFiles()
   attached.splice(0)
   outcomes.splice(0)
+  wentOnBySelf = 0
+  goOnWaiting = false
   void forgetSavedChat()
   chatDraft.value = ''
   Object.assign(spent, { dollars: 0, unknown: false, any: false })

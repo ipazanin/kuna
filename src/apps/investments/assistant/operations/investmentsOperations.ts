@@ -1,4 +1,6 @@
 import type { InvestmentsBooks } from '../../workbook/domain/investmentsBooks'
+import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
+import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { words } from '../words'
 import { ACCOUNT_STEPS } from './accountOperations'
 import { HOLDING_STEPS } from './holdingOperations'
@@ -101,38 +103,44 @@ function investmentsWork(ports: InvestmentsPorts): ProposalWork<InvestmentsBooks
 }
 
 /** The changes the chat can propose and their dry run, over the app's own store, which `app.ts` hands in. */
-export function investmentsProposer(store: InvestmentsStore, ports: InvestmentsPorts): AppProposer {
+export function investmentsProposer(store: InvestmentsStore, ports: InvestmentsPorts, file: BrowserFile): AppProposer {
   const sides = sideCards(ports)
-  return {
-    operations: INVESTMENTS_OPERATIONS,
-    readsBooks: true,
-    async check(title, steps) {
-      const sideStep = steps.find((step) => !PART_OF.has(step.operation))
-      const side = sides.find((cards) => cards.operations.some((operation) => operation.name === sideStep?.operation))
-      if (sideStep !== undefined && side !== undefined) {
-        if (steps.length !== 1) return { refused: [`${sideStep.operation} goes alone on a card.`] }
-        return side.check(title, sideStep, store.state.workbook?.book ?? null)
-      }
-      const read = await withRowsRead(steps, ports.mailReport)
-      if ('refused' in read) return read
-      const checked = await proposedWrites(store, investmentsWork(ports)).check(title, read)
-      if ('held' in checked && checked.outside.length > 0) FETCHING.add(checked)
-      return checked
+  return withBrowserFileCards(
+    {
+      operations: INVESTMENTS_OPERATIONS,
+      readsBooks: true,
+      async check(title, steps) {
+        const sideStep = steps.find((step) => !PART_OF.has(step.operation))
+        const side = sides.find((cards) => cards.operations.some((operation) => operation.name === sideStep?.operation))
+        if (sideStep !== undefined && side !== undefined) {
+          if (steps.length !== 1) return { refused: [`${sideStep.operation} goes alone on a card.`] }
+          return side.check(title, sideStep, store.state.workbook?.book ?? null)
+        }
+        const read = await withRowsRead(steps, ports.mailReport)
+        if ('refused' in read) return read
+        const checked = await proposedWrites(store, investmentsWork(ports)).check(title, read)
+        if ('held' in checked && checked.outside.length > 0) FETCHING.add(checked)
+        return checked
+      },
     },
-  }
+    file,
+  )
 }
 
 /** Writes a proposal as it was checked, in one write with one Undo, then starts the price fetch its card names. A card beside the books runs its own work. */
-export function investmentsAcceptance(store: InvestmentsStore, ports: InvestmentsPorts): AppAcceptance {
+export function investmentsAcceptance(store: InvestmentsStore, ports: InvestmentsPorts, file: BrowserFile): AppAcceptance {
   const { accept } = proposedWrites(store, investmentsWork(ports))
   const sides = sideCards(ports)
-  return {
-    async accept(proposal) {
-      const side = sides.map((cards) => cards.acceptOwn(proposal)).find((accepted) => accepted !== null)
-      if (side !== undefined) return side
-      const result = await accept(proposal)
-      if (result.kind === 'done' && FETCHING.has(proposal)) ports.fetchAddedPrices()
-      return result
+  return acceptingBrowserFileCards(
+    {
+      async accept(proposal) {
+        const side = sides.map((cards) => cards.acceptOwn(proposal)).find((accepted) => accepted !== null)
+        if (side !== undefined) return side
+        const result = await accept(proposal)
+        if (result.kind === 'done' && FETCHING.has(proposal)) ports.fetchAddedPrices()
+        return result
+      },
     },
-  }
+    file,
+  )
 }

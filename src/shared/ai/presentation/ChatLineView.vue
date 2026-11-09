@@ -29,6 +29,10 @@ const emit = defineEmits<{ retry: [message: string] }>()
   <p v-if="line.note" class="type-caption" data-testid="chat-note">{{ line.text }}</p>
   <UChatShimmer v-else-if="line.text === '' && line.failure === null && streaming" :text="words.chat.thinking" class="type-body" data-testid="chat-thinking" />
   <template v-else-if="line.role === 'user'">
+    <p v-if="line.byKuna" class="mb-0.5 flex items-center gap-1 type-caption" data-testid="chat-question-by-kuna">
+      <UIcon name="i-lucide-sparkles" class="size-3.5 shrink-0" aria-hidden="true" />
+      {{ words.chat.sentByKuna }}
+    </p>
     <ChatMessageText v-if="line.text !== ''" :text="line.text" data-testid="chat-question" />
     <ul v-if="line.attachments.length > 0" class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5" :aria-label="words.files.sentWith" data-testid="chat-question-files">
       <li v-for="(name, at) in line.attachments" :key="at" class="flex min-w-0 items-center gap-1 type-caption">

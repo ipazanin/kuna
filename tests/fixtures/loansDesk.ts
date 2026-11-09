@@ -1,4 +1,5 @@
 import { loansAcceptance, loansProposer } from '../../src/apps/loans/assistant/operations/loansOperations'
+import { FILE_OPEN } from './browserFile'
 import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES } from '../../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../../src/apps/loans/informalLoans/application/informalLoanWrites'
 import { saveScenario } from '../../src/apps/loans/scenarios/application/scenarioWrites'
@@ -88,7 +89,7 @@ export async function loansDesk(used: Set<string>): Promise<LoansDesk> {
   })
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['loans', loansProposer(store)]])
+  const proposers = new Map([['loans', loansProposer(store, FILE_OPEN)]])
   return {
     store,
     cards,
@@ -97,6 +98,6 @@ export async function loansDesk(used: Set<string>): Promise<LoansDesk> {
       proposeChanges({ app: 'loans', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })) }, proposers, reads, [], (_app, card) =>
         cards.push(card),
       ),
-    accept: (at = cards.length - 1) => loansAcceptance(store).accept(cards[at]!),
+    accept: (at = cards.length - 1) => loansAcceptance(store, FILE_OPEN).accept(cards[at]!),
   }
 }

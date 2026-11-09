@@ -7,6 +7,8 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 
 import { withGoogleAccess } from '../../google/withGoogleAccess'
 import { plural } from '../../text/translation'
+import AskChatButton from '../../ai/presentation/AskChatButton.vue'
+import { words as chatWords } from '../../ai/presentation/words'
 import StepCard from '../../ui/StepCard.vue'
 import { BooksAlreadyOnDrive } from '../application/booksAlreadyOnDrive'
 import type { WorkbookDocument } from '../infrastructure/documentFormat'
@@ -36,6 +38,8 @@ const toast = useToast()
 const kunaFolder = useKunaFolderHome(store)
 
 const keeping = ref(false)
+/** The keep under way goes on into the chat, so its button spins, not Create. */
+const keepingWithChat = ref(false)
 const failure = ref<string | null>(null)
 const alreadyOnDrive = ref<BooksAlreadyOnDrive | null>(null)
 
@@ -66,13 +70,14 @@ function keptToast(name: string, document: WorkbookDocument, moved: boolean): { 
   return { title: plural(words.firstRun.folder.moved(records), records), description: words.firstRun.folder.movedNote(name, where.value) }
 }
 
-async function create(): Promise<void> {
+async function create(withChat = false): Promise<void> {
   // Read before the keep, since the page stops holding the moved records once the file is on Drive.
   const moved = props.moving !== undefined
   const document = props.moving === undefined ? props.firstRun.newContents() : props.moving
   if (document === null) return
   const before = store.state.choice
   keeping.value = true
+  keepingWithChat.value = withChat
   failure.value = null
   alreadyOnDrive.value = null
   try {
@@ -85,7 +90,7 @@ async function create(): Promise<void> {
   const chosen = store.state.choice
   if (chosen !== before && chosen?.source === 'drive') {
     toast.add({ ...keptToast(chosen.name, document, moved), icon: 'i-lucide-check', color: 'success' })
-    await props.steps.finish()
+    await (withChat ? props.steps.finishIntoChat() : props.steps.finish())
   } else if (store.state.status === 'error') {
     failure.value = store.state.error
   }
@@ -107,6 +112,31 @@ async function create(): Promise<void> {
       </p>
     </div>
     <p v-if="moving === undefined && !alreadyOnDrive" class="text-sm text-toned" :data-testid="`${firstRun.testId}-have-one`">{{ words.firstRun.folder.haveOne }}</p>
+    <div v-if="!alreadyOnDrive && moving !== null && (moving === undefined || kunaFolder.canChoose.value)" class="flex flex-col items-start gap-1">
+      <UButton
+        v-if="moving === undefined"
+        :label="words.firstRun.folder.openExisting"
+        icon="i-lucide-file-search"
+        color="neutral"
+        variant="link"
+        class="inline-target quiet-link px-0"
+        :disabled="keeping"
+        :data-testid="`${firstRun.testId}-open-existing`"
+        @click="steps.go('find')"
+      />
+      <UButton
+        v-if="kunaFolder.canChoose.value"
+        :label="words.firstRun.folder.elsewhere"
+        icon="i-lucide-folder-search"
+        color="neutral"
+        variant="link"
+        class="inline-target quiet-link px-0"
+        :loading="kunaFolder.picking.value"
+        :disabled="keeping"
+        :data-testid="`${firstRun.testId}-elsewhere`"
+        @click="chooseElsewhere"
+      />
+    </div>
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.firstRun.folder.failed" :description="failure" :data-testid="`${firstRun.testId}-failure`" />
     <UAlert
       v-if="alreadyOnDrive"
@@ -121,34 +151,22 @@ async function create(): Promise<void> {
     <template #actions>
       <UButton v-if="alreadyOnDrive" :label="appWords.openOnDrive" icon="i-lucide-folder-open" :data-testid="`${firstRun.testId}-open-on-drive`" @click="steps.go('find')" />
       <template v-else-if="moving !== null">
-        <UButton
+        <AskChatButton
           v-if="moving === undefined"
-          :label="words.firstRun.folder.openExisting"
-          icon="i-lucide-file-search"
-          color="neutral"
-          variant="outline"
-          :disabled="keeping"
-          :data-testid="`${firstRun.testId}-open-existing`"
-          @click="steps.go('find')"
-        />
-        <UButton
-          v-if="kunaFolder.canChoose.value"
-          :label="words.firstRun.folder.elsewhere"
-          icon="i-lucide-folder-search"
-          color="neutral"
-          variant="outline"
-          :loading="kunaFolder.picking.value"
-          :disabled="keeping"
-          :data-testid="`${firstRun.testId}-elsewhere`"
-          @click="chooseElsewhere"
+          :text="chatWords.ask.setUp"
+          size="md"
+          :loading="keeping && keepingWithChat"
+          :disabled="keeping || kunaFolder.picking.value"
+          :data-testid="`${firstRun.testId}-chat`"
+          @ask="create(true)"
         />
         <UButton
           :label="words.firstRun.folder.create"
           icon="i-lucide-hard-drive-upload"
-          :loading="keeping"
-          :disabled="kunaFolder.picking.value"
+          :loading="keeping && !keepingWithChat"
+          :disabled="keeping || kunaFolder.picking.value"
           :data-testid="`${firstRun.testId}-create`"
-          @click="create"
+          @click="create()"
         />
       </template>
     </template>

@@ -74,9 +74,11 @@ export const loansApp: AppContribution = {
   assistant: async () => {
     const [{ loansAssistant }, { loansProposer, loansAcceptance }] = await Promise.all([import('./assistant/loansAssistant'), import('./assistant/operations/loansOperations')])
     const store = useLoansBooks()
+    const [{ browserFileOf }, { newLoansFileContents, LOCAL_LOANS_TITLE }] = await Promise.all([import('../../shared/app/browserFileCards'), import('./workbook/presentation/loansFile')])
+    const file = browserFileOf(store, { id: 'loans', name: words.name }, () => ({ contents: newLoansFileContents(store), title: LOCAL_LOANS_TITLE }))
     return loansAssistant(
       { status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'), book: () => state.workbook },
-      { proposer: loansProposer(store), acceptance: loansAcceptance(store) },
+      { proposer: loansProposer(store, file), acceptance: loansAcceptance(store, file) },
     )
   },
   homeCard: LOANS_HOME_CARD,

@@ -1,6 +1,8 @@
 import { OFFER_OPERATIONS, planOfferStep } from './offerOperation'
-import { RATE, RATE_OR_NULL } from './operationTexts'
-import { proposalGroupsOf } from './proposalLines'
+import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
+import type { BrowserFile } from '../../../../shared/app/browserFileCards'
+import { BANK_INSTALMENT, RATE, RATE_OR_NULL, printedInstalmentOf } from './operationTexts'
+import { loansCardOf } from './proposalLines'
 import {
   BANK_LOAN_WRITES,
   EXTRA_PAYMENT_WRITES,
@@ -58,7 +60,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-bank-loan',
     about:
-      'A bank loan you have, with its first rate from the first instalment, as the contract gives it. principal is in euros. instalments counts every monthly payment. interimAmount and interimDate are the interest charged before repayment, both or neither. subsidyMonthly and the next two fields add a subsidy, or are null for none. Later rates go as add-rate-period.',
+      "A bank loan you have, with its first rate from the first instalment, as the contract gives it. principal is in euros. instalments counts every monthly payment. interimAmount and interimDate are the interest charged before repayment, both or neither. subsidyMonthly and the next two fields add a subsidy, or are null for none. bankInstalment is the first instalment the contract or repayment plan prints, which the card sets beside Kuna's own and the file does not keep. Later rates go as add-rate-period.",
     input: inputOf({
       name: TEXT,
       lender: TEXT,
@@ -74,6 +76,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
       rateNote: TEXT,
       ...SUBSIDY_FIELDS,
       note: TEXT,
+      bankInstalment: BANK_INSTALMENT,
     }),
     refs: {},
     creates: BANK_LOAN_RECORDS.name,
@@ -96,6 +99,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
       subsidyFirstInstalment: null,
       subsidyInstalments: null,
       note: '',
+      bankInstalment: 279.65,
     },
   },
   {
@@ -421,10 +425,14 @@ function triedChangeOf(book: BankLoanBook, field: Readonly<Record<string, never>
   return { kind: 'term-change', from: date, instalments }
 }
 
-/** Plans the steps into one write, in order, through the screens' own write functions. A `$` name stands for a loan an earlier step added. */
-function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>, steps: readonly ProposalStep[]): void {
+/**
+ * Plans the steps into one write, in order, through the screens' own write functions. A `$` name stands for a loan an earlier step added.
+ * It gives the instalment each new loan or offer printed, by the id of what the card writes, for the card to set beside Kuna's.
+ */
+function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>, steps: readonly ProposalStep[]): ReadonlyMap<string, Money> {
   const book: LoanBook = workbook
   const made = new Map<string, string>()
+  const printed = new Map<string, Money>()
   const addedLoans: BankLoan[] = []
   const addedInformal: InformalLoan[] = []
   const idOf = (value: unknown): string => {
@@ -469,6 +477,8 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
         unit.of(RATE_PERIOD_WRITES).add(newRatePeriod({ loan: loan.id, from: loan.firstInstalment, rate: rateOf(field['rate']), rateType: field['rateType'], note: field['rateNote'] }))
         addedLoans.push(loan)
         if (as !== null) made.set(as, loan.id)
+        const instalment = printedInstalmentOf(field['bankInstalment'])
+        if (instalment !== null) printed.set(loan.id, instalment)
         break
       }
       case 'change-bank-loan': {
@@ -630,27 +640,49 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
       case 'delete-movement':
         unit.of(MOVEMENT_WRITES).remove(found(book.readings.movements.facts, idOf(field['movement']), 'movement'))
         break
-      default:
-        if (!planOfferStep(unit, records, book, operation, field, day, idOf)) throw new StepRefused('There is no such operation.')
+      default: {
+        const offer = planOfferStep(unit, records, book, operation, field, day, idOf)
+        if (offer === null) throw new StepRefused('There is no such operation.')
+        if (offer.printedInstalment !== null) printed.set(offer.scenario, offer.printedInstalment)
+      }
     }
   }
+  return printed
 }
 
-/** How the chat's steps become one write of the Loans file. */
-const LOANS_WORK: ProposalWork<LoansBooks, never> = {
-  notOpen: 'The Loans file is not open on this device.',
-  plan: (unit, books, steps) => planned(unit, books, steps),
-  groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook),
+/**
+ * How the chat's steps become one write of the Loans file. Each plan adds its printed instalments under the new ids it writes, so two checks
+ * at once keep each other's. The model hears when a first instalment differs, as the card's warning never reaches it.
+ */
+function loansWork(): ProposalWork<LoansBooks, never> {
+  let printed: ReadonlyMap<string, Money> = new Map()
+  let instalmentsDiffering = 0
+  return {
+    notOpen: 'The Loans file is not open on this device.',
+    plan: (unit, books, steps) => {
+      printed = new Map([...printed, ...planned(unit, books, steps)])
+    },
+    groups: (checked, { workbook }) => {
+      const card = loansCardOf(checked, workbook, printed)
+      instalmentsDiffering = card.instalmentsDiffering
+      return card.groups
+    },
+    heldBack: () => {
+      if (instalmentsDiffering === 0) return null
+      const loans = instalmentsDiffering === 1 ? '1 loan or offer' : `${instalmentsDiffering} loans or offers`
+      return `Kuna's first instalment is not the printed one on ${loans}. Tell the person to check the amount, rate, term and days against the document before accepting.`
+    },
+  }
 }
 
 type LoansStore = Pick<WorkbookStore<LoansBooks>, 'state' | 'check' | 'write' | 'undo'>
 
 /** The changes the chat can propose and their dry run, over the app's own store, which `app.ts` hands in. */
-export function loansProposer(store: LoansStore): AppProposer {
-  return { operations: LOANS_OPERATIONS, readsBooks: true, check: proposedWrites(store, LOANS_WORK).check }
+export function loansProposer(store: LoansStore, file: BrowserFile): AppProposer {
+  return withBrowserFileCards({ operations: LOANS_OPERATIONS, readsBooks: true, check: proposedWrites(store, loansWork()).check }, file)
 }
 
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone. */
-export function loansAcceptance(store: LoansStore): AppAcceptance {
-  return { accept: proposedWrites(store, LOANS_WORK).accept }
+export function loansAcceptance(store: LoansStore, file: BrowserFile): AppAcceptance {
+  return acceptingBrowserFileCards({ accept: proposedWrites(store, loansWork()).accept }, file)
 }

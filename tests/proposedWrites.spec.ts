@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { CATEGORY_WRITES } from '../src/apps/spending/categories/application/categoryWrites'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
+import { NO_FILE_YET } from '../src/shared/app/assistantOperations'
 import type { CheckedProposal, ProposalStep } from '../src/shared/app/assistantOperations'
 import { words } from '../src/shared/app/words'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
@@ -231,9 +232,9 @@ describe('a proposed write', () => {
     expect(drive).toEqual(['photo.jpg'])
   })
 
-  it('refuses while the file is not open', async () => {
+  it('refuses while the file is not open, and says how an app with no file gets one', async () => {
     const store = await spendingStore()
     const closed = { ...store, state: { ...store.state, workbook: null } }
-    expect(await proposedWrites(closed, renaming()).check('A title', [])).toEqual({ refused: ['Not open.'] })
+    expect(await proposedWrites(closed, renaming()).check('A title', [])).toEqual({ refused: ['Not open.', NO_FILE_YET] })
   })
 })

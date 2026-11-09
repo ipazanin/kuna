@@ -40,6 +40,8 @@ export const en = {
       costs: 'Costs',
       kunaEks: "Kuna's EKS estimate",
       bankEks: 'EKS the bank printed',
+      kunaInstalment: "Kuna's first instalment",
+      bankInstalment: 'First instalment the bank printed',
     },
     interim: (amount: string, day: string) => `${amount} on ${day}`,
     subsidy: (monthly: string, first: number, last: number, payer: string) => `${monthly} a month, instalments ${first} to ${last}${payer === '' ? '' : `, ${payer}`}`,
@@ -48,7 +50,23 @@ export const en = {
     costs: (upfront: string, monthly: string, yearly: string) => `${upfront} up front, ${monthly} a month, ${yearly} a year`,
     every: { month: 'month', year: 'year' },
     eksDiffers: scenariosEn.editor.eksDiffers,
+    instalmentDiffers: (planned: string, printed: string) =>
+      `Kuna works the first instalment out at ${planned}, and the bank printed ${printed}. Check the amount, rate, term and days against the bank's document before you accept.`,
     notWorkedOut: (why: string) => `Kuna cannot work this offer out: ${why}`,
+  },
+  guides: {
+    setUp: {
+      title: 'Set up Loans with the chat',
+      body: [
+        'Have ready the loan contract or its repayment plan, each notice of a rate change since, and any offer being weighed. A PDF or photo goes to the AI provider whole.',
+        'The cards, in this order:',
+        "1. Each bank loan as add-bank-loan, from its contract or plan: the amount, payout day, first instalment day, number of instalments, repayment, the first rate as printed, interest before the first instalment if charged, the subsidy fields when the contract states a subsidy, and bankInstalment, the first regular instalment as printed. The card sets Kuna's first instalment beside it. When the two differ, say so and ask before the person accepts. Never change a figure to make them meet.",
+        "2. Each later rate from a notice as add-rate-period, from the due date it names. It may go on the loan's card, naming the loan by its $ name.",
+        '3. Each offer being weighed as add-offer, with bankEks and bankInstalment as it prints them. An offer is never counted as a loan.',
+        'set-subsidy is for a later document that starts, changes or ends a subsidy.',
+        'Ask the person, and never take from a document: whether the contract is still the loan as it stands, rate changes with no notice, extra payments, late instalments, a subsidy no document states, and money lent between people.',
+      ].join('\n'),
+    },
   },
   quickActions: {
     next: { label: 'What do I pay next?', prompt: 'What are my next loan payments, and how much do I still owe on each loan?' },
@@ -107,6 +125,8 @@ export const hr: Translation<typeof en> = {
       costs: 'Troškovi',
       kunaEks: 'EKS prema Kuni',
       bankEks: 'EKS koji je banka navela',
+      kunaInstalment: 'Prva rata prema Kuni',
+      bankInstalment: 'Prva rata koju je banka navela',
     },
     interim: (amount, day) => `${amount} na dan ${day}`,
     subsidy: (monthly, first, last, payer) => `${monthly} mjesečno, rate od ${first} do ${last}${payer === '' ? '' : `, ${payer}`}`,
@@ -115,7 +135,22 @@ export const hr: Translation<typeof en> = {
     costs: (upfront, monthly, yearly) => `${upfront} unaprijed, ${monthly} mjesečno, ${yearly} godišnje`,
     every: { month: 'mjesec', year: 'godinu' },
     eksDiffers: scenariosHr.editor.eksDiffers,
+    instalmentDiffers: (planned, printed) => `Kuna izračunava prvu ratu od ${planned}, a banka je navela ${printed}. Prije prihvaćanja provjerite iznos, stopu, rok i datume prema dokumentu banke.`,
     notWorkedOut: (why) => `Kuna ne može izračunati ovu ponudu: ${why}`,
+  },
+  guides: {
+    setUp: {
+      title: 'Postavite Kredite kroz razgovor',
+      body: [
+        'Pripremite ugovor o kreditu ili otplatni plan, svaku obavijest o promjeni kamatne stope od tada i svaku ponudu koju razmatrate. PDF ili fotografija šalje se pružatelju umjetne inteligencije cijela.',
+        'Kartice, ovim redom:',
+        '1. Svaki kredit kao add-bank-loan, iz ugovora ili plana: iznos, dan isplate, dan prve rate, broj rata, način otplate, prvu stopu kako je ispisana, interkalarnu kamatu ako je naplaćena, polja subvencije kad je ugovor navodi i bankInstalment, prvu redovnu ratu kako je ispisana. Kartica uz nju stavlja prvu ratu prema Kuni. Kad se razlikuju, recite to i pitajte prije nego što osoba prihvati. Nikad ne mijenjajte iznos da bi se poklopili.',
+        '2. Svaku kasniju stopu iz obavijesti kao add-rate-period, od dospijeća koje obavijest navodi. Može ići na karticu kredita, a kredit navodi njegovim imenom sa $.',
+        '3. Svaku ponudu koju razmatrate kao add-offer, s bankEks i bankInstalment kako ih ispisuje. Ponuda se nikad ne broji kao kredit.',
+        'set-subsidy služi za kasniji dokument koji subvenciju uvodi, mijenja ili ukida.',
+        'Pitajte osobu i nikad ne uzimajte iz dokumenta: je li ugovor i dalje kredit kakav jest, promjene stope bez obavijesti, prijevremene otplate, zakašnjele rate, subvenciju koju nijedan dokument ne navodi i pozajmice među ljudima.',
+      ].join('\n'),
+    },
   },
   quickActions: {
     next: { label: 'Što plaćam sljedeće?', prompt: 'Koje su moje sljedeće rate i koliko još dugujem na svakom kreditu?' },

@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
 import { KEPT_BY_KUNA, proposalFieldName } from '../src/apps/loans/assistant/operations/proposalLines'
 import { words } from '../src/apps/loans/assistant/words'
+import { BANK_LOAN_RECORDS, LOAN_SCENARIO_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
+import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { EXAMPLE_RECORDS, loansDesk } from './fixtures/loansDesk'
 import type { LoansDesk } from './fixtures/loansDesk'
 import { forgetCaches } from './fixtures/writeBack'
@@ -43,9 +45,31 @@ function namesSet(before: Readonly<Record<string, unknown>> | null, after: Reado
 }
 
 /** The add-offer example with other terms, as an offer the document fixtures print. */
-function printedOffer(bankEks: string | null): Record<string, unknown> {
+function printedOffer(bankEks: string | null, bankInstalment: number | null = null): Record<string, unknown> {
   const example = LOANS_OPERATIONS.find((operation) => operation.name === 'add-offer')!.example
-  return { ...example, lender: 'Example Bank d.d.', principal: 150000, rate: '3.18', instalments: 360, payout: '2026-11-07', fixedYears: null, thenVariable: null, upfrontCost: 1000, bankEks }
+  return {
+    ...example,
+    lender: 'Example Bank d.d.',
+    principal: 150000,
+    rate: '3.18',
+    instalments: 360,
+    payout: '2026-11-07',
+    fixedYears: null,
+    thenVariable: null,
+    upfrontCost: 1000,
+    bankEks,
+    bankInstalment,
+  }
+}
+
+/** The add-bank-loan example with the instalment its contract prints. */
+function printedLoan(bankInstalment: number | null): Record<string, unknown> {
+  return { ...LOANS_OPERATIONS.find((operation) => operation.name === 'add-bank-loan')!.example, bankInstalment }
+}
+
+/** The one line of the card's group that adds records of the noun. */
+function addedLine(desk: LoansDesk, noun: RecordNoun) {
+  return desk.cards[0]!.groups.find((group) => group.verb === 'add' && group.noun === noun)!.lines[0]!
 }
 
 describe('every Loans operation', () => {
@@ -108,6 +132,97 @@ describe('an offer from the bank', () => {
     const change = LOANS_OPERATIONS.find((operation) => operation.name === 'change-offer')!
     const onTry = { ...exampleInput(desk, change), scenario: desk.ref('loan-scenario', EXAMPLE_RECORDS['loan-scenario-try']!) }
     expect((await desk.propose([{ op: 'change-offer', input: onTry }])).text).toContain('not an offer')
+  })
+})
+
+describe('the first instalment the bank printed', () => {
+  // 15,000 at 4.5% over 60 months: 15,000 x 0.00375 / (1 - 1.00375^-60) = 279.65.
+  it("sets Kuna's first instalment beside the contract's and says nothing more when they agree within a cent", async () => {
+    const desk = await loansDesk(used)
+    await desk.propose([{ op: 'add-bank-loan', input: printedLoan(279.66) }])
+    const line = addedLine(desk, BANK_LOAN_RECORDS.noun)
+    expect(line.warning).toBeNull()
+    const shown = Object.fromEntries(line.fields.map((field) => [field.name, field.after]))
+    expect(shown[words.proposals.fields.kunaInstalment]).toMatch(/279[,.]65/)
+    expect(shown[words.proposals.fields.bankInstalment]).toMatch(/279[,.]66/)
+  })
+
+  it("warns on a loan whose printed instalment is more than a cent from Kuna's, names both, and keeps neither in the file", async () => {
+    const desk = await loansDesk(used)
+    await desk.propose([{ op: 'add-bank-loan', input: printedLoan(285) }])
+    const line = addedLine(desk, BANK_LOAN_RECORDS.noun)
+    expect(line.warning).toMatch(/279[,.]65/)
+    expect(line.warning).toMatch(/285[,.]00/)
+    expect((await desk.accept()).kind).toBe('done')
+    expect(recordsOf(desk)).not.toContain('bankInstalment')
+  })
+
+  it("shows only Kuna's instalment when the contract prints none, and refuses one of zero", async () => {
+    const desk = await loansDesk(used)
+    await desk.propose([{ op: 'add-bank-loan', input: printedLoan(null) }])
+    const names = addedLine(desk, BANK_LOAN_RECORDS.noun).fields.map((field) => field.name)
+    expect(names).toContain(words.proposals.fields.kunaInstalment)
+    expect(names).not.toContain(words.proposals.fields.bankInstalment)
+    expect((await desk.propose([{ op: 'add-bank-loan', input: printedLoan(0) }])).isError).toBe(true)
+  })
+
+  it("warns on an offer whose printed instalment is not Kuna's, beside an EKS that agrees", async () => {
+    const desk = await loansDesk(used)
+    await desk.propose([{ op: 'add-offer', input: printedOffer('3.28', 600) }])
+    const line = addedLine(desk, LOAN_SCENARIO_RECORDS.noun)
+    expect(line.warning).toMatch(/600[,.]00/)
+    expect(line.warning).not.toContain('EKS')
+    expect(line.fields.map((field) => field.name)).toEqual(expect.arrayContaining([words.proposals.fields.kunaInstalment, words.proposals.fields.bankInstalment]))
+  })
+
+  it('gives both warnings on an offer whose EKS and instalment both disagree', async () => {
+    const desk = await loansDesk(used)
+    await desk.propose([{ op: 'add-offer', input: printedOffer('2.28', 600) }])
+    const { warning } = addedLine(desk, LOAN_SCENARIO_RECORDS.noun)
+    expect(warning).toContain('2.28')
+    expect(warning).toMatch(/600[,.]00/)
+  })
+})
+
+describe('the printed instalment heard by the model', () => {
+  const bankFigure = (line: { readonly fields: readonly { readonly name: string; readonly after: string | null }[] }) =>
+    line.fields.find((field) => field.name === words.proposals.fields.bankInstalment)?.after ?? null
+
+  it('tells the model when a first instalment differs, and nothing when they agree', async () => {
+    const desk = await loansDesk(used)
+    expect((await desk.propose([{ op: 'add-bank-loan', input: printedLoan(285) }])).text).toContain("Kuna's first instalment is not the printed one on 1 loan or offer.")
+    expect((await desk.propose([{ op: 'add-bank-loan', input: printedLoan(279.66) }])).text).not.toContain('not the printed one')
+  })
+
+  it('gives each of two loans on one card its own printed figure', async () => {
+    const desk = await loansDesk(used)
+    const answer = await desk.propose([
+      { op: 'add-bank-loan', input: printedLoan(285) },
+      { op: 'add-bank-loan', input: { ...printedLoan(600), name: 'Second car loan', principal: 30000 } },
+    ])
+    const lines = desk.cards[0]!.groups.find((group) => group.verb === 'add' && group.noun === BANK_LOAN_RECORDS.noun)!.lines
+
+    expect(lines.map(bankFigure).map((figure) => figure?.replace(/\D/g, ''))).toEqual(['28500', '60000'])
+    expect(lines[0]!.warning).toMatch(/285[,.]00/)
+    expect(lines[1]!.warning).toMatch(/600[,.]00/)
+    expect(answer.text).toContain('on 2 loans or offers')
+  })
+
+  it('keeps the printed figure of each card when two are checked at once', async () => {
+    const desk = await loansDesk(used)
+    await Promise.all([desk.propose([{ op: 'add-bank-loan', input: printedLoan(285) }]), desk.propose([{ op: 'add-offer', input: printedOffer('3.28', 600) }])])
+
+    const figures = desk.cards.map((card) => bankFigure(card.groups.find((group) => group.verb === 'add')!.lines[0]!)?.replace(/\D/g, ''))
+    expect(figures.sort()).toEqual(['28500', '60000'])
+  })
+
+  it('shows no first instalment on a card that changes an offer', async () => {
+    const desk = await loansDesk(used)
+    const change = LOANS_OPERATIONS.find((operation) => operation.name === 'change-offer')!
+    await desk.propose([{ op: 'change-offer', input: exampleInput(desk, change) }])
+
+    const names = desk.cards[0]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.map((field) => field.name)))
+    expect(names).not.toContain(words.proposals.fields.kunaInstalment)
   })
 })
 

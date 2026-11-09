@@ -1,4 +1,6 @@
 import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
+import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
+import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { BANK_SETUP_OPERATIONS, isBankSetupStep, planBankSetup } from './bankSetupOperations'
 import { proposalGroupsOf, statementLeftOut } from './proposalLines'
 import type { CardWarnings } from './proposalLines'
@@ -626,35 +628,38 @@ export interface SpendingPorts {
  * The changes the chat can propose and their dry run, over the app's own store and the ports `app.ts` hands in. An attached
  * sheet and a receipt photo are read before the dry run. A card that sets the starting account changes this device alone.
  */
-export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>, ports: SpendingPorts): AppProposer {
-  return {
-    operations: SPENDING_OPERATIONS,
-    readsBooks: true,
-    async check(title, steps) {
-      if (setsStartingAccount(steps)) {
-        const accounts = store.state.workbook?.accounts
-        if (accounts === undefined) return { refused: [NOT_OPEN] }
-        try {
-          return startingAccountCheck(title, steps, accounts, ports.device)
-        } catch (failure) {
-          if (failure instanceof StepRefused) return { refused: [failure.message] }
-          throw failure
+export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>, ports: SpendingPorts, file: BrowserFile): AppProposer {
+  return withBrowserFileCards(
+    {
+      operations: SPENDING_OPERATIONS,
+      readsBooks: true,
+      async check(title, steps) {
+        if (setsStartingAccount(steps)) {
+          const accounts = store.state.workbook?.accounts
+          if (accounts === undefined) return { refused: [NOT_OPEN] }
+          try {
+            return startingAccountCheck(title, steps, accounts, ports.device)
+          } catch (failure) {
+            if (failure instanceof StepRefused) return { refused: [failure.message] }
+            throw failure
+          }
         }
-      }
-      const sheetsRead = await withSheetsRead(steps)
-      if ('refused' in sheetsRead) return sheetsRead
-      const read = await withPhotosRead(sheetsRead, ports.receipts)
-      return 'refused' in read ? read : proposedWrites(store, spendingWork(ports)).check(title, read)
+        const sheetsRead = await withSheetsRead(steps)
+        if ('refused' in sheetsRead) return sheetsRead
+        const read = await withPhotosRead(sheetsRead, ports.receipts)
+        return 'refused' in read ? read : proposedWrites(store, spendingWork(ports)).check(title, read)
+      },
     },
-  }
+    file,
+  )
 }
 
 /**
  * Writes a proposal as it was checked, in one write with one Undo, after keeping any receipt photo it asks to keep. A record
  * changed since refuses this proposal alone, and the file's other writes go on. A starting account card sets this device instead.
  */
-export function spendingAcceptance(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>, ports: SpendingPorts): AppAcceptance {
+export function spendingAcceptance(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>, ports: SpendingPorts, file: BrowserFile): AppAcceptance {
   const keptBefore = new WeakMap<Blob, string>()
   const { accept } = proposedWrites(store, { ...spendingWork(ports), beforeWrite: (steps) => keptPhotos(steps, ports.receipts, keptBefore) })
-  return { accept: async (proposal) => acceptStartingAccount(proposal, ports.device) ?? accept(proposal) }
+  return acceptingBrowserFileCards({ accept: async (proposal) => acceptStartingAccount(proposal, ports.device) ?? accept(proposal) }, file)
 }

@@ -107,6 +107,17 @@ export const en = {
     balances: { title: 'the account balances', about: 'What each account holds at the end of a day, and all of them in euros.' },
   },
   guides: {
+    setUp: {
+      title: 'Set up Spending with the chat',
+      body: [
+        'Have a statement of each account ready. A Revolut export stays on this device. Any other statement goes as a file of cells, a PDF or a photo.',
+        'The cards, in this order:',
+        '1. The accounts, on one card, each with the opening balance and the day the statement prints.',
+        '2. Each new category, on a card of its own.',
+        '3. The rules and the import together, in parts of 150 rows.',
+        'Linking a bank stays with the person, on Settings, Bank sync. Limits wait until a month of entries is in.',
+      ].join('\n'),
+    },
     rules: {
       title: 'Set up rules for your bank',
       body: (labels: GuideLabels) =>
@@ -246,6 +257,17 @@ export const hr: Translation<typeof en> = {
     balances: { title: 'stanja računa', about: 'Koliko svaki račun ima na kraju dana i svi zajedno u eurima.' },
   },
   guides: {
+    setUp: {
+      title: 'Postavite Potrošnju kroz razgovor',
+      body: [
+        'Pripremite izvod svakog računa. Revolutov izvoz ostaje na ovom uređaju. Svaki drugi izvod ide kao datoteka ćelija, PDF ili fotografija.',
+        'Kartice, ovim redom:',
+        '1. Računi, na jednoj kartici, svaki s početnim stanjem i danom koje izvod ispisuje.',
+        '2. Svaka nova kategorija, na svojoj kartici.',
+        '3. Pravila i uvoz zajedno, u dijelovima od 150 redaka.',
+        'Povezivanje banke ostaje osobi, u Postavkama, na kartici Banke. Limiti čekaju dok ne uđe mjesec unosa.',
+      ].join('\n'),
+    },
     rules: {
       title: 'Postavite pravila za svoju banku',
       body: (labels) =>

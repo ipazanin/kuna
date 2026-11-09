@@ -99,7 +99,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
     <EmptyState v-if="queue.waiting.length === 0" icon="i-lucide-inbox" :title="words.review.empty" :description="words.review.emptyDescription" data-testid="spending-review-empty" />
     <AppCard v-else :title="words.review.title" :subtitle="words.review.subtitle" v-bind="queueMarked" data-testid="spending-review">
       <template #actions>
-        <AskChatButton :label="words.review.title" :text="words.review.suggestCategories" data-testid="spending-review-ask" @ask="askAboutQueue" />
+        <AskChatButton :text="words.review.suggestCategories" data-testid="spending-review-ask" @ask="askAboutQueue" />
       </template>
       <ul class="divide-y divide-default pt-1 pb-1">
         <ReviewRow

@@ -39,6 +39,9 @@ function storedWidth(): number {
   }
 }
 
+/** The query that opens the chat on the page it names, as the shell reads it. */
+export const CHAT_QUERY = 'chat'
+
 const open = ref(false)
 const width = ref(storedWidth())
 const element = shallowRef<AskedElement | null>(null)
@@ -83,6 +86,12 @@ export function chatWidthIn(asked: number, room: number): number | null {
 }
 
 export function openChat(): void {
+  open.value = true
+}
+
+/** Opens the chat and leaves `task` for it to send by itself, as a button that names a task does. */
+export function askChat(task: string): void {
+  request.value = task
   open.value = true
 }
 

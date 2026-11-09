@@ -89,6 +89,9 @@ export const en = {
   addKey: 'Add a key in Kuna settings to use the assistant.',
   chat: {
     open: 'Chat',
+    goOn: 'Go on with the setup.',
+    sentByKuna: 'Sent by Kuna',
+    newAppNames: 'Kuna knows nobody in this app yet, so names in the file go as written. IBANs and card numbers stay hidden.',
     close: 'Close the chat',
     panel: 'Chat with the assistant',
     newChat: 'New chat',
@@ -119,6 +122,7 @@ export const en = {
   },
   ask: {
     button: 'Ask the chat',
+    setUp: 'Set up with the chat',
     about: (label: string) => `Ask the chat about this: ${label}`,
   },
   files: {
@@ -175,6 +179,7 @@ export const en = {
     noUndo: 'No Undo',
     noUndoNote: 'This card has no Undo. What it does stays.',
     madeAfterReading: (files: string) => `Made after reading ${files}`,
+    goesOn: 'Once you accept, the chat goes on with the next step.',
   },
   history: {
     clear: 'Clear chat history',
@@ -289,6 +294,9 @@ export const hr: Translation<typeof en> = {
   addKey: 'Dodajte ključ u postavkama Kune da biste koristili asistenta.',
   chat: {
     open: 'Razgovor',
+    goOn: 'Nastavi s postavljanjem.',
+    sentByKuna: 'Poslala Kuna',
+    newAppNames: 'Kuna u ovoj aplikaciji još ne poznaje nikoga, pa imena u datoteci idu kako su zapisana. IBAN-i i brojevi kartica ostaju sakriveni.',
     close: 'Zatvori razgovor',
     panel: 'Razgovor s asistentom',
     newChat: 'Novi razgovor',
@@ -318,6 +326,7 @@ export const hr: Translation<typeof en> = {
   },
   ask: {
     button: 'Pitaj u razgovoru',
+    setUp: 'Postavi kroz razgovor',
     about: (label) => `Pitaj u razgovoru o ovome: ${label}`,
   },
   files: {
@@ -374,6 +383,7 @@ export const hr: Translation<typeof en> = {
     noUndo: 'Bez poništavanja',
     noUndoNote: 'Ova kartica nema poništavanje. Ono što napravi ostaje.',
     madeAfterReading: (files) => `Napravljeno nakon čitanja: ${files}`,
+    goesOn: 'Kad prihvatite, razgovor nastavlja sa sljedećim korakom.',
   },
   history: {
     clear: 'Obriši povijest razgovora',

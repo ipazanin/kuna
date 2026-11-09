@@ -5,7 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
 import UTooltip from '@nuxt/ui/components/Tooltip.vue'
 
-import { chatOpen, chatWidth, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
+import { CHAT_QUERY, chatOpen, chatWidth, closeChat, openChat } from '../../shared/ai/presentation/chatDock'
 import { words as chatWords } from '../../shared/ai/presentation/words'
 import CompanyFooter from '../../shared/app/CompanyFooter.vue'
 import { words as sharedWords } from '../../shared/app/words'
@@ -126,7 +126,6 @@ function keepFocusAfterNavigation(event: Event): void {
 
 useStickyBandPart(useTemplateRef<HTMLElement>('topBar'))
 
-const CHAT_QUERY = 'chat'
 const router = useRouter()
 
 /**

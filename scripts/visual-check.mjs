@@ -36,8 +36,11 @@
  * opened row asks about itself. An invoice asked of the chat is a link to the Invoices tab, dollars are a currency card with a
  * warned line, a rule for Laptop Store re-files a confirmed row with a warning, a category for training is a card that names its
  * tax class, and Kuna's dark look is a card with Undo.
- * In Loans a loan offer is a card that sets Kuna's EKS beside the printed one and warns where they differ, and an extra
- * payment is a card. In Investments a buy is a card, a sale over the units held is refused, and an attached workbook with no
+ * In Loans a loan offer is a card that sets Kuna's EKS and first instalment beside the printed ones and warns where they differ, a bank loan
+ * from its contract warns where its first instalment differs from the printed one, and an extra
+ * payment is a card. Setting an app up with the chat: each first run's home and folder steps offer it, it makes one file and opens the
+ * chat on the overview, the overview and the set-up card offer it too, a card made while Loans is new says the chat goes on and Accept
+ * sends Go on, and the first send of a new app with a file of cells says the app knows no names yet. In Investments a buy is a card, a sale over the units held is refused, and an attached workbook with no
  * split or spin-off is an import card. In Assets a valuation is a card. Each card is accepted and undone, in Croatian too.
  * A text note put beside a photo on the prompt is a refused chip that names the kinds Kuna takes. On Salaries with Anonymise
  * off for Anthropic, Explain on a salary figure reads its build-up, and after a switch to OpenAI and back the same Explain is
@@ -478,6 +481,15 @@ import {
   spendingReviewAskFlowIn,
 } from './support/editorFlows.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
+import {
+  setUpCardHeaderFlowIn,
+  setUpChatCompanyFolderFlowIn,
+  setUpChatCompanyHomeFlowIn,
+  setUpChatFolderFlowIn,
+  setUpChatGoesOnFlowIn,
+  setUpChatHomeFlowIn,
+  setUpChatNamesFlowIn,
+} from './support/setUpChatFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
@@ -5178,6 +5190,24 @@ const FLOWS = [
     queries: { drive: '&loans=sample&lang=hr' },
   },
   {
+    name: 'loans-chat-bank-loan',
+    hash: '#/loans',
+    title: 'Overview',
+    run: appChatCardFlowIn('en', 'contract'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&loans=sample' },
+  },
+  {
+    name: 'loans-chat-bank-loan-croatian',
+    hash: '#/loans',
+    title: 'Pregled',
+    run: appChatCardFlowIn('hr', 'contract'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&loans=sample&lang=hr' },
+  },
+  {
     name: 'loans-chat-extra-payment',
     hash: '#/loans',
     title: 'Overview',
@@ -5202,7 +5232,7 @@ const FLOWS = [
     run: appChatCardFlowIn('en', 'buy'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-chat-trade-croatian',
@@ -5211,7 +5241,7 @@ const FLOWS = [
     run: appChatCardFlowIn('hr', 'buy'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   {
     name: 'investments-chat-workbook',
@@ -5238,7 +5268,7 @@ const FLOWS = [
     run: appChatCardFlowIn('en', 'report', FLEX_REPORT_SAMPLES),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-chat-flex-report-croatian',
@@ -5247,7 +5277,7 @@ const FLOWS = [
     run: appChatCardFlowIn('hr', 'report', FLEX_REPORT_SAMPLES),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   {
     name: 'investments-chat-copy',
@@ -5256,7 +5286,7 @@ const FLOWS = [
     run: appChatCardFlowIn('en', 'copy'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-chat-copy-croatian',
@@ -5265,7 +5295,7 @@ const FLOWS = [
     run: appChatCardFlowIn('hr', 'copy'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   {
     name: 'investments-chat-file-copy',
@@ -5274,7 +5304,7 @@ const FLOWS = [
     run: appChatCardFlowIn('en', 'file', CHAT_ATTACHMENT_SAMPLES),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-chat-file-copy-croatian',
@@ -5283,7 +5313,7 @@ const FLOWS = [
     run: appChatCardFlowIn('hr', 'file', CHAT_ATTACHMENT_SAMPLES),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   {
     name: 'company-chat-statement-zero',
@@ -5803,6 +5833,233 @@ const FLOWS = [
     queries: { browser: '&fake=browser-beside-drive&lang=hr' },
   },
   { name: 'loans-drive', hash: '#/loans', title: 'Loans', run: loansDriveFlow, modes: ['drive'] },
+  // Setting an app up with the chat: the first run's buttons, the overview's, the goes-on line and the names line on the first send.
+  {
+    name: 'set-up-chat-home-spending',
+    hash: '#/spending',
+    title: 'Spending',
+    run: setUpChatHomeFlowIn('spending', 'en'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty' },
+  },
+  {
+    name: 'set-up-chat-folder-spending',
+    hash: '#/spending/start?step=folder',
+    title: 'Spending',
+    run: setUpChatFolderFlowIn('spending', 'en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '' },
+  },
+  {
+    name: 'set-up-chat-home-spending-croatian',
+    hash: '#/spending',
+    title: 'Potrošnja',
+    run: setUpChatHomeFlowIn('spending', 'hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-folder-spending-croatian',
+    hash: '#/spending/start?step=folder',
+    title: 'Potrošnja',
+    run: setUpChatFolderFlowIn('spending', 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-home-loans',
+    hash: '#/loans',
+    title: 'Loans',
+    run: setUpChatHomeFlowIn('loans', 'en'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty' },
+  },
+  {
+    name: 'set-up-chat-folder-loans',
+    hash: '#/loans/start?step=folder',
+    title: 'Loans',
+    run: setUpChatFolderFlowIn('loans', 'en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '' },
+  },
+  {
+    name: 'set-up-chat-home-loans-croatian',
+    hash: '#/loans',
+    title: 'Krediti',
+    run: setUpChatHomeFlowIn('loans', 'hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-folder-loans-croatian',
+    hash: '#/loans/start?step=folder',
+    title: 'Krediti',
+    run: setUpChatFolderFlowIn('loans', 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-home-assets',
+    hash: '#/assets',
+    title: 'Assets',
+    run: setUpChatHomeFlowIn('assets', 'en'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty' },
+  },
+  {
+    name: 'set-up-chat-folder-assets',
+    hash: '#/assets/start?step=folder',
+    title: 'Assets',
+    run: setUpChatFolderFlowIn('assets', 'en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '' },
+  },
+  {
+    name: 'set-up-chat-home-assets-croatian',
+    hash: '#/assets',
+    title: 'Imovina',
+    run: setUpChatHomeFlowIn('assets', 'hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-folder-assets-croatian',
+    hash: '#/assets/start?step=folder',
+    title: 'Imovina',
+    run: setUpChatFolderFlowIn('assets', 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-home-investments',
+    hash: '#/investments',
+    title: 'Investments',
+    run: setUpChatHomeFlowIn('investments', 'en'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty' },
+  },
+  {
+    name: 'set-up-chat-folder-investments',
+    hash: '#/investments/start?step=folder',
+    title: 'Investments',
+    run: setUpChatFolderFlowIn('investments', 'en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '' },
+  },
+  {
+    name: 'set-up-chat-home-investments-croatian',
+    hash: '#/investments',
+    title: 'Ulaganja',
+    run: setUpChatHomeFlowIn('investments', 'hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-folder-investments-croatian',
+    hash: '#/investments/start?step=folder',
+    title: 'Ulaganja',
+    run: setUpChatFolderFlowIn('investments', 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-home-company',
+    hash: '#/company/start',
+    title: 'Company',
+    run: setUpChatCompanyHomeFlowIn('en'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty' },
+  },
+  {
+    name: 'set-up-chat-folder-company',
+    hash: '#/company/start',
+    title: 'Company',
+    run: setUpChatCompanyFolderFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&fake=empty' },
+  },
+  {
+    name: 'set-up-chat-home-company-croatian',
+    hash: '#/company/start',
+    title: 'Tvrtka',
+    run: setUpChatCompanyHomeFlowIn('hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-folder-company-croatian',
+    hash: '#/company/start',
+    title: 'Tvrtka',
+    run: setUpChatCompanyFolderFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&fake=empty&lang=hr' },
+  },
+  { name: 'set-up-chat-goes-on', hash: '#/loans', title: 'Loans', run: setUpChatGoesOnFlowIn('en'), modes: ['browser'], viewports: DESIGN_REVIEW_VIEWPORTS, queries: { browser: '&fake=empty' } },
+  {
+    name: 'set-up-chat-goes-on-croatian',
+    hash: '#/loans',
+    title: 'Krediti',
+    run: setUpChatGoesOnFlowIn('hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-names',
+    hash: '#/spending',
+    title: 'Spending',
+    run: setUpChatNamesFlowIn('en', CHAT_ATTACHMENT_SAMPLES.deposits),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty' },
+  },
+  {
+    name: 'set-up-chat-names-croatian',
+    hash: '#/spending',
+    title: 'Potrošnja',
+    run: setUpChatNamesFlowIn('hr', CHAT_ATTACHMENT_SAMPLES.deposits),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-card-investments',
+    hash: '#/investments',
+    title: 'Overview',
+    run: setUpCardHeaderFlowIn('investments', 'en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&investments=partial-history' },
+  },
+  {
+    name: 'set-up-chat-card-investments-croatian',
+    hash: '#/investments',
+    title: 'Pregled',
+    run: setUpCardHeaderFlowIn('investments', 'hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&investments=partial-history&lang=hr' },
+  },
   { name: 'loans-browser', hash: '#/loans', title: 'Loans', run: firstRunBrowserFlowIn('loans', 'en'), modes: ['browser'] },
   { name: 'loans-open', hash: '#/loans', title: 'Loans', run: loansOpenFlow, modes: ['drive'], queries: { drive: '&loans=other-device' } },
   { name: 'loans-start-on-drive', hash: '#/loans/start?step=folder', title: 'Loans', run: firstRunOnDriveFlowIn('loans', 'en'), modes: ['drive'], queries: { drive: '&loans=other-device' } },
@@ -6498,7 +6755,7 @@ const FLOWS = [
   },
   { name: 'dialogs-loans', hash: '#/loans', title: 'Overview', run: loansDialogsFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
   { name: 'dialogs-loans-croatian', hash: '#/loans', title: 'Pregled', run: loansDialogsFlowIn('hr'), viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&loans=sample&lang=hr' } },
-  { name: 'investments-editor', hash: '#/investments/transactions', title: 'Transactions', run: investmentsEditorFlow, modes: ['drive'], queries: { drive: '&investments=sample' } },
+  { name: 'investments-editor', hash: '#/investments/transactions', title: 'Transactions', run: investmentsEditorFlow, modes: ['drive'], queries: { drive: '&investments=partial-history' } },
   {
     name: 'dialogs-investments',
     hash: '#/investments/transactions',
@@ -6506,7 +6763,7 @@ const FLOWS = [
     run: investmentsDialogsFlow,
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-import',
@@ -6587,7 +6844,7 @@ const FLOWS = [
     run: investmentsMailCardFlowIn('en'),
     viewports: MENU_VIEWPORTS,
     modes: ['drive'],
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-mail-upload',
@@ -6596,7 +6853,7 @@ const FLOWS = [
     run: investmentsMailUploadFlowIn('en', FLEX_REPORT_SAMPLES),
     viewports: MENU_VIEWPORTS,
     modes: ['drive'],
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-mail-upload-croatian',
@@ -6605,7 +6862,7 @@ const FLOWS = [
     run: investmentsMailUploadFlowIn('hr', FLEX_REPORT_SAMPLES),
     viewports: MENU_VIEWPORTS,
     modes: ['drive'],
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   {
     name: 'investments-mail-card-croatian',
@@ -6614,7 +6871,7 @@ const FLOWS = [
     run: investmentsMailCardFlowIn('hr'),
     viewports: MENU_VIEWPORTS,
     modes: ['drive'],
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   {
     name: 'investments-closes-import',
@@ -6623,7 +6880,7 @@ const FLOWS = [
     run: investmentsClosesImportFlowIn('en', CLOSES_SAMPLES),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-closes-import-croatian',
@@ -6632,7 +6889,7 @@ const FLOWS = [
     run: investmentsClosesImportFlowIn('hr', CLOSES_SAMPLES),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   {
     name: 'delete-data-drive',
@@ -6659,7 +6916,7 @@ const FLOWS = [
     run: deleteDataCopyFlow,
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'delete-data-given',
@@ -6731,7 +6988,7 @@ const FLOWS = [
     run: investmentsHoldingDotHoverFlow,
     viewports: ['desktop'],
     modes: ['drive'],
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   { name: 'investments-binned', hash: '#/investments', title: 'Overview', run: investmentsBinnedFlow, viewports: EVERY_VIEWPORT, modes: ['drive'], queries: { drive: '&investments=binned' } },
   {
@@ -6741,7 +6998,7 @@ const FLOWS = [
     run: investmentsInstrumentSearchFlowIn('en'),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'investments-instrument-search-croatian',
@@ -6750,7 +7007,7 @@ const FLOWS = [
     run: investmentsInstrumentSearchFlowIn('hr'),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   {
     name: 'dialogs-investments-croatian',
@@ -6759,7 +7016,7 @@ const FLOWS = [
     run: investmentsDialogsFlowIn('hr'),
     viewports: EVERY_VIEWPORT,
     modes: ['drive'],
-    queries: { drive: '&investments=sample&lang=hr' },
+    queries: { drive: '&investments=partial-history&lang=hr' },
   },
   { name: 'category-picker', hash: '#/company/transactions?tab=review', title: 'Transactions', run: categoryPickerFlowIn('en'), viewports: MENU_VIEWPORTS, modes: ['drive'] },
   {
@@ -6812,7 +7069,7 @@ const FLOWS = [
     ]),
     viewports: MENU_VIEWPORTS,
     modes: ['drive'],
-    queries: { drive: '&investments=sample' },
+    queries: { drive: '&investments=partial-history' },
   },
   {
     name: 'menus-loans',

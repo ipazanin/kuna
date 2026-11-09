@@ -7,6 +7,7 @@ import { words as appWords } from '../../words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { LOCAL_SPENDING_TITLE, SPENDING_FILE_NAME, newSpendingFileContents } from '../../workbook/presentation/spendingFile'
 import { words as fileWords } from '../../workbook/presentation/words'
+import { words as assistantWords } from '../../assistant/words'
 import { words } from './words'
 
 /** The Spending first run at `#/spending/start?step=…`. */
@@ -20,6 +21,7 @@ const firstRun: FileFirstRun = {
   store,
   fileName: SPENDING_FILE_NAME,
   localTitle: LOCAL_SPENDING_TITLE,
+  chatTask: assistantWords.guides.setUp.title,
   newContents: () => newSpendingFileContents(store),
   findFile: useFindFile(store, fileWords),
   words,

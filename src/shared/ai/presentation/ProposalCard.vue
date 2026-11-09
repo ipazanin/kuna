@@ -183,6 +183,10 @@ async function undo(event: Event): Promise<void> {
           {{ words.proposal.noUndoNote }}
         </li>
       </ul>
+      <p v-if="proposal.state === 'open' && proposal.goesOn" class="flex items-start gap-1.5 type-caption wrap-anywhere" data-testid="chat-proposal-goes-on">
+        <UIcon name="i-lucide-arrow-right" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        {{ words.proposal.goesOn }}
+      </p>
       <div v-if="proposal.state === 'open'" class="flex flex-wrap justify-end gap-2">
         <UButton :label="words.proposal.notNow" color="neutral" variant="ghost" size="sm" :disabled="working" data-testid="chat-proposal-decline" @click="settleProposal(held, 'declined')" />
         <UButton :label="words.proposal.accept" size="sm" :loading="working" :disabled="working" data-testid="chat-proposal-accept" @click="accept" />

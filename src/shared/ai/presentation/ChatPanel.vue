@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, provide, ref, toRaw, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, toRaw, useTemplateRef, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UChatMessages from '@nuxt/ui/components/ChatMessages.vue'
 import UChatPrompt from '@nuxt/ui/components/ChatPrompt.vue'
@@ -8,6 +8,9 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { AppContribution } from '../../app/appContribution'
 import type { AssistantQuickAction } from '../../app/assistantOperations'
+import { kunaStart } from '../../app/kunaStart'
+import { appSetUpOf } from '../application/runChatTurn'
+import type { AppSetUp } from '../application/runChatTurn'
 import { usePhoneLayout } from '../../layout/viewport'
 import AppMark from '../../ui/AppMark.vue'
 import RemovableChip from '../../ui/RemovableChip.vue'
@@ -37,9 +40,11 @@ import {
   promptCellsNotes,
   promptSendsDocument,
   restoreChat,
+  sendChatFrom,
   sendChatMessage,
   stopChatMessage,
 } from './chatSession'
+import type { MessageOrigin } from './chatSession'
 import { anonymisingNow, providerInUse } from './aiProvider'
 import { words } from './words'
 
@@ -64,7 +69,8 @@ const props = defineProps<{
 
 const phone = usePhoneLayout()
 const provider = computed(() => providerInUse())
-const asking = ref<string | null>(null)
+/** A message waiting on the person's yes before it goes, with who it comes from. */
+const asking = ref<{ readonly message: string; readonly origin: MessageOrigin } | null>(null)
 /** Whether the chat can read the app on screen, which the app's lazy assistant says. */
 const readsHere = ref(false)
 const quickActions = ref<readonly AssistantQuickAction[]>([])
@@ -73,7 +79,9 @@ provide(CHAT_APPS, [...props.apps, props.kuna])
 onMounted(() => {
   void restoreChat()
   void loadCatalogue(props.apps, props.kuna)
+  sendChatFrom((message, origin) => run(message, origin))
 })
+onUnmounted(() => sendChatFrom(null))
 const panel = useTemplateRef<HTMLElement>('panel')
 
 /** The card's buttons leave with the card, so focus goes back to the prompt. A phone keeps its keyboard down. */
@@ -95,13 +103,24 @@ watch(
 /** An app with no Assistant tab has no switch a person could see or take back, so outside Company and Spending only a yes for this chat stops the asking. */
 const switchApp = computed(() => (props.app?.assist === undefined ? null : props.app.id))
 
+/** The app on screen and the apps the person said they use, each while it is new. */
+function setUpNow(): readonly AppSetUp[] {
+  const inUse = new Set(kunaStart()?.apps ?? [])
+  return props.apps.filter((app) => app.id === props.app?.id || inUse.has(app.id)).flatMap((app) => appSetUpOf(app) ?? [])
+}
+
+/** The app on screen is new, so it knows no names yet to put aliases on. */
+const appOnScreenNew = computed(() => props.app !== null && appSetUpOf(props.app) !== null)
+
 const asksAlways = computed(() => props.apps.find((app) => app.id === chatAsking.value?.app)?.assist !== undefined)
 const aliasLine = computed(() => (anonymisingNow() ? words.chat.aliases : words.chat.noAliases(provider.value?.name ?? '')))
 const sendLines = computed(() => {
   const files = promptSendsDocument.value || promptCellsNotes.value.length > 0
   const sends = readsHere.value && props.app !== null ? (files ? words.chat.sendsAndReadsWithFiles : words.chat.sendsAndReads)(props.app.name) : files ? words.chat.sendsWithFiles : words.chat.sends
+  // A new app knows nobody to put an alias on, so its files of cells get one line that says names go as written.
   const cells = promptCellsNotes.value.filter((note) => !note.warns).map((note) => note.text)
-  return [words.consent.sends(sends), ...(readsHere.value && props.app !== null ? [aliasLine.value] : []), ...cells]
+  const cellLines = appOnScreenNew.value && cells.length > 0 ? [words.chat.newAppNames] : cells
+  return [words.consent.sends(sends), ...(readsHere.value && props.app !== null ? [aliasLine.value] : []), ...cellLines]
 })
 /** The warnings under the card's lines: each file of cells whose names go as written, then that photos and PDFs go whole. */
 const sendCautions = computed(() => [...promptCellsNotes.value.filter((note) => note.warns).map((note) => note.text), ...(promptSendsDocument.value ? [words.files.goesWhole] : [])])
@@ -123,28 +142,34 @@ function allowed(): boolean {
   return (app !== null && assistOn(app)) || (preset !== null && allowedThisChat(preset.id))
 }
 
-function send(message: string): void {
-  if (allowed()) run(message)
-  else asking.value = message
+/** A message waiting on the yes stays in the prompt, so a task a button named shows there as a typed one does. */
+function send(message: string, origin: MessageOrigin = 'person'): void {
+  if (allowed()) {
+    run(message, origin)
+    return
+  }
+  asking.value = { message, origin }
+  if (origin === 'task') chatDraft.value = message
 }
 
 /** The tagged element goes as the object the screen gave, so the chat names it by the same ref with each message. */
-function run(message: string): void {
+function run(message: string, origin: MessageOrigin = 'person'): void {
   const tagged = chatElement.value
   void sendChatMessage(
     message,
-    { app: props.app?.name ?? null, screen: props.screen, path: props.path, query: props.query, element: tagged === null ? null : toRaw(tagged.about), today: today() },
+    { app: props.app?.name ?? null, screen: props.screen, path: props.path, query: props.query, element: tagged === null ? null : toRaw(tagged.about), today: today(), setUp: setUpNow() },
     () => loadCatalogue(props.apps, props.kuna),
+    origin,
   )
 }
 
-/** A button that names a task sends it as the person's message, through the same yes as a typed one. While a message runs it waits in the prompt. */
+/** A button that names a task sends it as Kuna's message for the person, through the same yes as a typed one. While a message runs it waits in the prompt. */
 watch(
   chatRequest,
   (task) => {
     if (task === null) return
     takeChatRequest()
-    if (chatStatus.value === 'ready') send(task)
+    if (chatStatus.value === 'ready') send(task, 'task')
     else chatDraft.value = task
   },
   { immediate: true },
@@ -159,12 +184,12 @@ function submit(): void {
 }
 
 function allowInChat(): void {
-  const message = asking.value
+  const waiting = asking.value
   asking.value = null
   if (provider.value !== null) allowThisChat(provider.value.id, readsHere.value && props.app !== null ? props.app.id : null)
-  if (message === null) return
-  if (chatDraft.value.trim() === message) chatDraft.value = ''
-  run(message)
+  if (waiting === null) return
+  if (chatDraft.value.trim() === waiting.message) chatDraft.value = ''
+  run(waiting.message, waiting.origin)
 }
 
 function allowAlways(): void {
@@ -255,7 +280,7 @@ function dropped(event: DragEvent): void {
       <div class="mx-auto w-full max-w-2xl">
         <div v-if="chatLines.length === 0" class="flex flex-col items-start gap-3">
           <p class="type-body text-muted" data-testid="chat-empty">{{ readsHere && app ? words.chat.emptyReads(app.name) : words.chat.empty }}</p>
-          <div v-if="quickActions.length > 0" class="flex flex-wrap gap-1.5">
+          <div v-if="quickActions.length > 0 && !appOnScreenNew" class="flex flex-wrap gap-1.5">
             <UButton
               v-for="action in quickActions"
               :key="action.label"

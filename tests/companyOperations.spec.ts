@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import { FILE_OPEN } from './fixtures/browserFile'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { companyAssistant } from '../src/apps/company/assistant/companyAssistant'
@@ -524,7 +525,7 @@ describe('one card', () => {
 describe("the catalogue of Company's operations", () => {
   it('lists every operation of the ledger, import, settings, invoicing and the pack once, each with a page of its own', async () => {
     const desk = await companyDesk(used)
-    const assistant = { ...companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => []), proposer: companyProposer(desk.store, desk.ports) }
+    const assistant = { ...companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => []), proposer: companyProposer(desk.store, desk.ports, FILE_OPEN) }
     const names = assistant.proposer.operations.map((operation) => operation.name)
 
     const catalogue = catalogueOf([{ id: 'company', name: 'Company', purpose: 'The company books.', screens: [{ path: '/company', title: 'Company' }], assistant }], {

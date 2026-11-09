@@ -1,4 +1,6 @@
+import type { AppContribution } from '../../app/appContribution'
 import type { CheckedProposal } from '../../app/assistantOperations'
+import { stillNew } from '../../app/setUpLines'
 import type { ChatAttachment } from '../domain/chatAttachments'
 import type { ChatElementAbout } from '../domain/chatElement'
 import { placeAt } from './catalogue'
@@ -15,7 +17,28 @@ import type { LoopEnd } from './runModelLoop'
 /** The most lookups one message may take. */
 const MOST_ROUNDS = 8
 
-/** Where the person is, in names only: an app, a screen, a declared place such as a tab and an address, with today's date. */
+/**
+ * An app the person uses that is still new: it has no file on this device, or its file has a set-up line left that only an empty file shows.
+ * `starting` holds the keys of those lines, and `others` the keys of the other lines left, which tell facts about the books.
+ */
+export interface AppSetUp {
+  readonly app: string
+  readonly name: string
+  readonly hasFile: boolean
+  readonly starting: readonly string[]
+  readonly others: readonly string[]
+}
+
+/** The app as the chat hears of it while it is new, or null once its file holds what the app keeps. */
+export function appSetUpOf(app: Pick<AppContribution, 'id' | 'name' | 'firstRun' | 'setUpLines'>): AppSetUp | null {
+  if (app.firstRun()) return { app: app.id, name: app.name, hasFile: false, starting: [], others: [] }
+  const lines = app.setUpLines()
+  if (!stillNew(lines)) return null
+  const keysOf = (whileEmpty: boolean) => lines.filter((line) => (line.whileEmpty === true) === whileEmpty).map((line) => line.key)
+  return { app: app.id, name: app.name, hasFile: true, starting: keysOf(true), others: keysOf(false) }
+}
+
+/** Where the person is, in names only: an app, a screen, a declared place such as a tab and an address, with today's date and the apps not set up yet. */
 export interface ChatContext {
   readonly app: string | null
   readonly screen: string | null
@@ -24,14 +47,22 @@ export interface ChatContext {
   /** The screen's address, or the declared place's when one matches. Never the rest of the query. */
   readonly path: string
   readonly today: string
+  readonly setUp: readonly AppSetUp[]
 }
 
-/** The line that tells the model where the person is. It holds names and the date, and it goes at the start of a person's turn, never inside a tool loop. */
+function setUpText({ name, hasFile, starting, others }: AppSetUp): string {
+  return hasFile ? ` ${name} is new. Set-up lines left: ${[...starting, ...others].join(', ')}.` : ` ${name} has no file on this device yet.`
+}
+
+/**
+ * The line that tells the model where the person is. It holds names, the date and the keys of set-up lines, never a line's text, as one may
+ * name payees. It goes at the start of a person's turn, never inside a tool loop.
+ */
 export function contextLine(context: ChatContext): string {
   const app = context.app === null ? 'Kuna' : context.app
   const screen = context.screen === null ? '' : `, on the screen ${context.screen}`
   const place = context.place === null ? '' : `, tab ${context.place}`
-  return `<context>The person is in ${app}${screen}${place} (${context.path}). Today is ${context.today}.</context>`
+  return `<context>The person is in ${app}${screen}${place} (${context.path}). Today is ${context.today}.${context.setUp.map(setUpText).join('')}</context>`
 }
 
 /**

@@ -1,3 +1,4 @@
+import { NO_FILE_YET } from '../../app/assistantOperations'
 import type { AppReader, AssistantReport, ReadableField, ReadableKind, ReadableRow } from '../../app/assistantReader'
 import { accountMoneyFromCents } from '../../money/accountMoney'
 import { currencyCodeOf } from '../../money/currencyCode'
@@ -78,9 +79,7 @@ export function refusal(text: string): ChatToolAnswer {
 
 function fileNotOpen(status: 'opening' | 'none'): ChatToolAnswer {
   return refusal(
-    status === 'opening'
-      ? 'This app is still opening its file. Ask the person to try again in a moment.'
-      : 'This app has no file open on this device, so there is nothing to read. Say so, and link its screen.',
+    status === 'opening' ? 'This app is still opening its file. Ask the person to try again in a moment.' : `This app has no file open on this device, so there is nothing to read. ${NO_FILE_YET}`,
   )
 }
 

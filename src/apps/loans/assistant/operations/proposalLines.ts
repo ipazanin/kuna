@@ -1,4 +1,7 @@
 import { words as bankWords } from '../../bankLoans/presentation/words'
+import { firstInstalmentOf, instalmentAgreement } from '../../bankLoans/domain/instalmentAgreement'
+import { loanPlan } from '../../bankLoans/domain/loanPlan'
+import type { PlanRow } from '../../bankLoans/domain/loanPlan'
 import { fractionOf } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import { MOVEMENT_KIND_NAMES } from '../../informalLoans/presentation/informalLoanView'
@@ -12,7 +15,8 @@ import { changeSummary } from '../../scenarios/presentation/scenariosView'
 import { words as scenarioWords } from '../../scenarios/presentation/words'
 import type { BankLoan, InterimInterest, LoanSubsidy } from '../../workbook/domain/bankLoan'
 import type { ExpectedPlan } from '../../workbook/domain/informalLoan'
-import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, LOAN_SCENARIO_RECORDS, MOVEMENT_RECORDS, SCENARIO_CHANGE_RECORDS } from '../../workbook/domain/loanKinds'
+import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, LOAN_SCENARIO_RECORDS, MOVEMENT_RECORDS, RATE_PERIOD_RECORDS, SCENARIO_CHANGE_RECORDS } from '../../workbook/domain/loanKinds'
+import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import type { LoanBook } from '../../workbook/domain/readLoanBook'
 import { words } from '../words'
 import type { ProposalField, ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
@@ -118,27 +122,74 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   return namesOf.get(record['loan']) ?? namesOf.get(record['scenario']) ?? fallback
 }
 
-/** The EKS lines of an offer the card writes: Kuna's estimate and the bank's, and a warning when they disagree or Kuna cannot work the offer out. */
-function eksLine(line: ProposalLine, scenario: LoanScenario, changes: readonly LoanChange[]): ProposalLine {
+/** Kuna's first instalment and the printed one, when the document printed one, and a warning when they disagree. */
+function instalmentLines(rows: readonly PlanRow[], printed: Money | null): { readonly fields: ProposalField[]; readonly warning: string | null; readonly differs: boolean } {
+  const planned = firstInstalmentOf(rows)
+  const field = (name: string, amount: Money | null): ProposalField[] => (amount === null ? [] : [{ name, before: null, after: formatMoney(amount), warns: false }])
+  const agreement = instalmentAgreement(planned, printed)
+  return {
+    fields: [...field(words.proposals.fields.kunaInstalment, planned), ...field(words.proposals.fields.bankInstalment, printed)],
+    warning: agreement.kind === 'differs' ? words.proposals.instalmentDiffers(formatMoney(agreement.planned), formatMoney(agreement.printed)) : null,
+    differs: agreement.kind === 'differs',
+  }
+}
+
+/** A line of the card, and whether Kuna's first instalment on it differs from the printed one. */
+interface CheckedLine {
+  readonly line: ProposalLine
+  readonly differs: boolean
+}
+
+/** The warnings a line gives, as one text, or null for none. */
+function warningOf(...warnings: readonly (string | null)[]): string | null {
+  const given = warnings.filter((warning): warning is string => warning !== null)
+  return given.length === 0 ? null : given.join(' ')
+}
+
+/**
+ * The EKS lines of an offer the card writes, Kuna's figure and the bank's, and a warning when they disagree or Kuna cannot work the offer out.
+ * A new offer also shows its first instalment beside `printedInstalment`, which `adding` says.
+ */
+function offerLine(line: ProposalLine, scenario: LoanScenario, changes: readonly LoanChange[], adding: boolean, printedInstalment: Money | null): CheckedLine {
   const { start } = scenario
-  if (start.kind !== 'offer') return line
+  if (start.kind !== 'offer') return { line, differs: false }
   const base = offerBase(scenario.name, start.terms)
   const plan = scenarioPlan(base, changes, null)
-  if ('refused' in plan) return { ...line, warning: words.proposals.notWorkedOut(refusalText(plan)) }
+  if ('refused' in plan) return { line: { ...line, warning: words.proposals.notWorkedOut(refusalText(plan)) }, differs: false }
   const estimated = offerEks(base, changes)
   const printed = start.terms.bankEks
   const field = (name: string, rate: YearlyRate | null): ProposalField[] => (rate === null ? [] : [{ name, before: null, after: rateShown(rate), warns: false }])
   const agreement = eksAgreement(estimated, printed)
-  const fields = [...field(words.proposals.fields.kunaEks, estimated), ...field(words.proposals.fields.bankEks, printed)]
+  const instalment = adding ? instalmentLines(plan.rows, printedInstalment) : { fields: [], warning: null, differs: false }
   return {
-    ...line,
-    fields: [...line.fields, ...fields],
-    warning: agreement.kind === 'differs' ? words.proposals.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed)) : line.warning,
+    line: {
+      ...line,
+      fields: [...line.fields, ...field(words.proposals.fields.kunaEks, estimated), ...field(words.proposals.fields.bankEks, printed), ...instalment.fields],
+      warning: warningOf(agreement.kind === 'differs' ? words.proposals.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed)) : line.warning, instalment.warning),
+    },
+    differs: instalment.differs,
   }
 }
 
-/** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. Each offer the card writes says how Kuna's EKS stands against the printed one. */
-export function proposalGroupsOf(checked: CheckedWrite, book: LoanBook): readonly ProposalGroup[] {
+/** The first instalment lines of a bank loan the card adds, worked out from its first rate period on the same card. */
+function bankLoanLine(line: ProposalLine, loan: BankLoan, periods: readonly RatePeriod[], printedInstalment: Money | null): CheckedLine {
+  const own = periods.filter((period) => period.loan === loan.id)
+  if (!own.some((period) => period.from === loan.firstInstalment)) return { line, differs: false }
+  const instalment = instalmentLines(loanPlan(loan, own, []), printedInstalment)
+  return { line: { ...line, fields: [...line.fields, ...instalment.fields], warning: warningOf(line.warning, instalment.warning) }, differs: instalment.differs }
+}
+
+/** What the card shows, and how many of its new loans and offers have a first instalment that differs from the printed one. */
+export interface LoansCard {
+  readonly groups: readonly ProposalGroup[]
+  readonly instalmentsDiffering: number
+}
+
+/**
+ * What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. Each offer the card writes
+ * says how Kuna's EKS stands against the printed one, and each new loan or offer how its first instalment stands against `printed`, by its id.
+ */
+export function loansCardOf(checked: CheckedWrite, book: LoanBook, printed: ReadonlyMap<string, Money>): LoansCard {
   const named = [...book.readings.bankLoans.facts, ...book.readings.informalLoans.facts, ...book.readings.loanScenarios.facts]
   const namesOf = new Map<unknown, string>(named.map((record) => [record.id, record.name]))
   const written = checked.changes.flatMap(({ change }) =>
@@ -156,22 +207,37 @@ export function proposalGroupsOf(checked: CheckedWrite, book: LoanBook): readonl
   }
   const groups = proposalGroups(checked, () => describer)
   const addedChanges = written.flatMap(({ verb, kind, record }) => (verb === 'add' && kind === SCENARIO_CHANGE_RECORDS.name ? [record as unknown as ScenarioChange] : []))
-  const offersOf = (verb: string): LoanScenario[] => written.flatMap((entry) => (entry.verb === verb && entry.kind === LOAN_SCENARIO_RECORDS.name ? [entry.record as unknown as LoanScenario] : []))
-  return groups.map((group) => {
+  const recordsOf = <R>(verb: string, kind: RecordKind<R>): R[] => written.flatMap((entry) => (entry.verb === verb && entry.kind === kind.name ? [entry.record as unknown as R] : []))
+  const addedPeriods = recordsOf('add', RATE_PERIOD_RECORDS)
+  let instalmentsDiffering = 0
+  const shown = (checkedLine: CheckedLine): ProposalLine => {
+    if (checkedLine.differs) instalmentsDiffering += 1
+    return checkedLine.line
+  }
+  const loans = recordsOf('add', BANK_LOAN_RECORDS)
+  const cardGroups = groups.map((group) => {
+    if (group.verb === 'add' && group.noun === BANK_LOAN_RECORDS.noun) {
+      return { ...group, lines: group.lines.map((line, at) => (loans[at] === undefined ? line : shown(bankLoanLine(line, loans[at], addedPeriods, printed.get(loans[at].id) ?? null)))) }
+    }
     if (group.noun !== LOAN_SCENARIO_RECORDS.noun || group.verb === 'remove') return group
-    const scenarios = offersOf(group.verb)
+    const scenarios = recordsOf(group.verb, LOAN_SCENARIO_RECORDS)
     return {
       ...group,
       lines: group.lines.map((line, at) => {
         const scenario = scenarios[at]
         return scenario === undefined
           ? line
-          : eksLine(
-              line,
-              scenario,
-              addedChanges.filter((change) => change.scenario === scenario.id),
+          : shown(
+              offerLine(
+                line,
+                scenario,
+                addedChanges.filter((change) => change.scenario === scenario.id),
+                group.verb === 'add',
+                printed.get(scenario.id) ?? null,
+              ),
             )
       }),
     }
   })
+  return { groups: cardGroups, instalmentsDiffering }
 }

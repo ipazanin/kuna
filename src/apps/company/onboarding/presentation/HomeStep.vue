@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import { answerFromFirstRun } from '../../../../shared/app/kunaStart'
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { words as chatWords } from '../../../../shared/ai/presentation/words'
 import StepCard from '../../../../shared/ui/StepCard.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { NEW_BOOKS_TITLE, newBooksDocument } from '../../workbook/presentation/workbookFiles'
+import { newCompanyBooks } from '../../workbook/presentation/workbookFiles'
 import { nextStep } from '../domain/onboardingSteps'
 import type { BooksHome } from '../domain/onboardingSteps'
-import { STATEMENTS_BY_HAND } from '../domain/statementsChoice'
 import { useOnboarding } from './useOnboarding'
 import { words } from './words'
 
@@ -25,9 +26,14 @@ const CHOICES: { label: string; description: string; value: BooksHome }[] = [
 
 const chosen = ref<BooksHome>(onboarding.place.value.home)
 const starting = ref(false)
+/** The books being made go on into the chat, so its button spins, not Continue. */
+const startingWithChat = ref(false)
 const failure = ref<string | null>(null)
 
-async function proceed(): Promise<void> {
+/** New books kept here are made on this step, so the chat can take over the setup on the overview. */
+const intoChat = computed(() => chosen.value === 'browser' && onboarding.place.value.path === 'new')
+
+async function proceed(withChat = false): Promise<void> {
   const place = { ...onboarding.place.value, home: chosen.value }
   answerFromFirstRun(chosen.value, 'company', store.state.choice !== null)
   if (place.path !== 'new' || place.home !== 'browser') {
@@ -35,14 +41,16 @@ async function proceed(): Promise<void> {
     return
   }
   starting.value = true
+  startingWithChat.value = withChat
   failure.value = null
-  await store.replaceLocalWorkbook(newBooksDocument(STATEMENTS_BY_HAND, new Date().toISOString()), NEW_BOOKS_TITLE)
+  const { contents, title } = newCompanyBooks()
+  await store.replaceLocalWorkbook(contents, title)
   starting.value = false
   if (store.state.status === 'error') {
     failure.value = store.state.error
     return
   }
-  await onboarding.made({ home: chosen.value })
+  await (withChat ? onboarding.finishIntoChat() : onboarding.made({ home: chosen.value }))
 }
 </script>
 
@@ -55,7 +63,8 @@ async function proceed(): Promise<void> {
     <URadioGroup v-else v-model="chosen" :items="CHOICES" :legend="words.home.title" variant="card" :ui="{ legend: 'sr-only', fieldset: 'gap-2' }" data-testid="onboarding-home" />
     <UAlert v-if="failure" icon="i-lucide-triangle-alert" color="error" variant="subtle" :title="words.home.notMade" :description="failure" />
     <template #actions>
-      <UButton :label="words.continue" trailing-icon="i-lucide-arrow-right" :loading="starting" data-testid="onboarding-continue" @click="proceed" />
+      <AskChatButton v-if="intoChat" :text="chatWords.ask.setUp" size="md" :loading="starting && startingWithChat" :disabled="starting" data-testid="onboarding-chat" @ask="proceed(true)" />
+      <UButton :label="words.continue" trailing-icon="i-lucide-arrow-right" :loading="starting && !startingWithChat" :disabled="starting" data-testid="onboarding-continue" @click="proceed()" />
     </template>
   </StepCard>
 </template>

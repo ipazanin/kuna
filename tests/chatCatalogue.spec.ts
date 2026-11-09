@@ -235,7 +235,7 @@ describe('the catalogue', () => {
     const labels = { entries: 'E', review: 'R', import: 'I', always: 'A', settings: 'S', rules: 'U', bankSync: 'B', limits: 'L', general: 'G', deployment: 'D' }
     for (const words of [spendingWords, spendingCroatian]) {
       expect(words.guides.rules.body(labels)).toContain('A')
-      expect(Object.keys(words.guides)).toEqual(['rules', 'import', 'bankSync', 'limits', 'categories'])
+      expect(Object.keys(words.guides)).toEqual(['setUp', 'rules', 'import', 'bankSync', 'limits', 'categories'])
     }
   })
 })

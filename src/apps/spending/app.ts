@@ -106,6 +106,8 @@ export const spendingApp: AppContribution = {
       import('./entries/infrastructure/lastAccount'),
     ])
     const store = useSpendingBooks()
+    const [{ browserFileOf }, { newSpendingFileContents, LOCAL_SPENDING_TITLE }] = await Promise.all([import('../../shared/app/browserFileCards'), import('./workbook/presentation/spendingFile')])
+    const file = browserFileOf(store, { id: 'spending', name: words.name }, () => ({ contents: newSpendingFileContents(store), title: LOCAL_SPENDING_TITLE }))
     const receipts: ReceiptPorts = {
       qrTextOn,
       keepsOnDrive: () => store.state.choice?.source === 'drive',
@@ -124,7 +126,7 @@ export const spendingApp: AppContribution = {
         rates: () => ratesIn(rates.value),
         bankSetup: heldBankSetup,
       },
-      { proposer: spendingProposer(store, ports), acceptance: spendingAcceptance(store, ports) },
+      { proposer: spendingProposer(store, ports, file), acceptance: spendingAcceptance(store, ports, file) },
     )
   },
   homeCard: SPENDING_HOME_CARD,

@@ -1,3 +1,4 @@
+import { NO_FILE_YET } from './assistantOperations'
 import type { AcceptResult, CheckedProposal, ProposalGroup, ProposalStep, UndoResult } from './assistantOperations'
 import { words } from './words'
 import { withGoogleAccess } from '../google/withGoogleAccess'
@@ -131,7 +132,7 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
   return {
     async check(title, steps) {
       const { workbook, records } = store.state
-      if (workbook === null || workbook === undefined || records === null || records === undefined) return { refused: [work.notOpen] }
+      if (workbook === null || workbook === undefined || records === null || records === undefined) return { refused: [work.notOpen, NO_FILE_YET] }
       const books: OpenBooks<Books> = { workbook, records }
       let check: WriteCheck
       try {

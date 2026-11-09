@@ -58,10 +58,12 @@ export const assetsApp: AppContribution = {
   assistant: async () => {
     const [{ assetsAssistant }, { assetsProposer, assetsAcceptance }] = await Promise.all([import('./assistant/assetsAssistant'), import('./assistant/operations/assetsOperations')])
     const store = useAssetsBooks()
+    const [{ browserFileOf }, { newAssetsFileContents, LOCAL_ASSETS_TITLE }] = await Promise.all([import('../../shared/app/browserFileCards'), import('./workbook/presentation/assetsFile')])
+    const file = browserFileOf(store, { id: 'assets', name: words.name }, () => ({ contents: newAssetsFileContents(store), title: LOCAL_ASSETS_TITLE }))
     const loansToday = () => assetLoans(today())
     return assetsAssistant(
       { status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'), book: () => state.workbook, index: () => index.value, loans: assetLoans },
-      { proposer: assetsProposer(store, loansToday), acceptance: assetsAcceptance(store, loansToday) },
+      { proposer: assetsProposer(store, loansToday, file), acceptance: assetsAcceptance(store, loansToday, file) },
     )
   },
   homeCard: ASSETS_HOME_CARD,

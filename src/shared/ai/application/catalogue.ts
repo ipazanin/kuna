@@ -106,6 +106,10 @@ function appPage(app: CatalogueApp): string {
       assistant.guides.map((guide) => `- ${app.id}/guide/${guide.id}: ${guide.title}`),
     ),
     ...section(
+      'Set-up lines',
+      assistant.setUp.map((step) => `- ${step.key}: ${step.about}${step.operations.length === 0 ? '' : ` Settled by ${step.operations.map((operation) => `${app.id}/op/${operation}`).join(', ')}.`}`),
+    ),
+    ...section(
       'Automations',
       assistant.automations.map((automation) => `- ${automation.title}: ${automation.what} Set up: ${automation.setUpRoute}`),
     ),
@@ -189,6 +193,7 @@ function systemOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): string {
     "- The tool propose_changes shows the person a card with what would change, in Kuna's words. Only their tap writes it, as one write with one Undo. Read the operation's page first, and the records you mean, as a step names records by ref.",
     '- One card is one app. Put rules into existing categories together on one card. A new category goes one to a card. Fill in an IBAN only if you read it or the person gave it: the card warns on that line.',
     '- If Kuna refuses a proposal it says why, and you may fix it and try again. Once a card shows, say so in one short line and stop. The next message tells you what the person did.',
+    '- While the context line says an app is new, read its guide set-up before the first card, say in a sentence which cards come in what order, and propose one card at a time. An app with no file on this device starts with make-file for a person who keeps their files in this browser, and otherwise you link its start screen. Once the person accepts, Kuna sends you Go on, and you propose the next card. Once Not now, wait for the person.',
     '',
     '# How you answer',
     '- Answer in the language the person writes in, in short plain sentences. You may use short lists, **bold** and `code`, and nothing else from Markdown.',

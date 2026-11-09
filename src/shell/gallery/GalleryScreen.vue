@@ -723,7 +723,11 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
       </PageTabs>
     </GallerySection>
 
-    <GallerySection id="getting-set-up-card" title="GettingSetUpCard" description="What an app still lacks, with the screen that does each line. An action can settle a line where it stands.">
+    <GallerySection
+      id="getting-set-up-card"
+      title="GettingSetUpCard"
+      description="What an app still lacks, with the screen that does each line. An action can settle a line where it stands, and the header's actions what settles several, such as Set up with the chat."
+    >
       <GettingSetUpCard
         :lines="[
           { key: 'first-statement', text: 'Import your first bank statement', link: { label: 'Import', to: '/gallery' } },
@@ -733,6 +737,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
         <template #action="{ line }">
           <UButton v-if="line.key === 'first-statement'" label="Not now" color="neutral" variant="outline" size="sm" class="shrink-0" />
         </template>
+        <template #actions><AskChatButton text="Set up with the chat" /></template>
       </GettingSetUpCard>
     </GallerySection>
 
@@ -832,7 +837,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
     <GallerySection
       id="chat-tag"
       title="Asking the chat about an element"
-      description="A page calls useChatElement with a key, a label and what the element is. AskChatButton calls its ask, which opens the chat about it, and the element binds its marked, with the shape it draws on. While the open chat is about it, a card keeps its surface under the accent wash with its border in accent, and a row takes the selected sidebar row's wash and bar. A dense row takes the icon alone. It shows with a key kept."
+      description="A page calls useChatElement with a key, a label and what the element is. AskChatButton calls its ask, which opens the chat about it, and the element binds its marked, with the shape it draws on. While the open chat is about it, a card keeps its surface under the accent wash with its border in accent, and a row takes the selected sidebar row's wash and bar. A dense row takes the icon alone. A button that names a task, such as Set up with the chat, sends it by itself, at md size beside a step's buttons and spinning while its action runs. It shows with a key kept."
     >
       <div v-if="assistKeyKept" class="flex flex-col gap-4">
         <DashboardGrid layout="tiles">
@@ -850,6 +855,10 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
             <AskChatButton label="Groceries" icon-only />
           </li>
         </ul>
+        <div class="flex flex-wrap items-center gap-2">
+          <AskChatButton text="Set up with the chat" size="md" />
+          <AskChatButton text="Set up with the chat" size="md" loading />
+        </div>
       </div>
     </GallerySection>
 

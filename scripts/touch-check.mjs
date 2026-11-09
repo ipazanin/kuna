@@ -26,7 +26,8 @@
  * Ask the chat beside a build-up amount on Owner, Salaries, Year's Pay tab and a closed year's open items opening the chat with the figure's build-up as the tag,
  * Spending's To review asking the chat from its header and from a waiting row, a receipt photo from Entries read by the chat into a
  * category card and then a receipt card, accepted and undone, Company's queue sorted by the chat from Suggest categories, and an
- * invoice asked of the chat answered with a link to the Invoices tab, a loan offer, a buy and an Assets valuation each proposed
+ * Set up with the chat on a first run's home step and the empty overview of a device that keeps nothing, a goes-on card accepted that sends Go on,
+ * invoice asked of the chat answered with a link to the Invoices tab, a loan offer, a bank loan from its contract, a buy and an Assets valuation each proposed
  * on a card, accepted and undone, and a sale over the units held refused, a text note beside a photo refused on the chat's
  * prompt, a salary figure's build-up read with Anonymise off and refused with nothing sent once Anonymise is on again,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
@@ -251,6 +252,7 @@ import {
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { companyChatAcceptLapsedFlowIn, companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
+import { onFreshDevice, setUpChatGoesOnFlowIn, setUpChatHomeFlowIn } from './support/setUpChatFlows.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
@@ -3201,6 +3203,7 @@ async function checkWidth(width) {
     ['company-chat-anonymise', 'five-employees', companyChatAnonymiseFlowIn('en'), '#/company/salaries', 'Salaries'],
     // Loans', Investments' and Assets' cards in the chat.
     ['chat-offer', 'drive&loans=sample', appChatCardFlowIn('en', 'offer'), '#/loans/scenarios', 'Scenarios'],
+    ['loans-chat-bank-loan', 'drive&loans=sample', appChatCardFlowIn('en', 'contract'), '#/loans', 'Overview'],
     ['investments-chat-trade', 'drive&investments=sample', appChatCardFlowIn('en', 'buy'), '#/investments', 'Overview'],
     ['investments-chat-file-copy', 'drive&investments=sample', appChatCardFlowIn('en', 'file', CHAT_ATTACHMENT_SAMPLES), '#/investments', 'Overview'],
     ['assets-chat-valuation', 'drive&assets=sample&loans=sample', appChatCardFlowIn('en', 'valuation'), '#/assets', 'Overview'],
@@ -3241,6 +3244,9 @@ async function checkWidth(width) {
     ['delete-kuna', 'drive&investments=browser&backups', deleteKunaFlowIn('en'), '#/settings', 'Kuna settings'],
     ['delete-kuna-croatian', 'drive&investments=browser&backups&lang=hr', deleteKunaFlowIn('hr'), '#/settings', 'Postavke Kune'],
     ['investments-binned', 'drive&investments=binned', investmentsBinnedFlow, '#/investments', 'Overview'],
+    // Setting an app up with the chat on a device that keeps nothing yet: the first run's button and the empty overview's, then a card that goes on.
+    ['set-up-chat-home', 'empty', onFreshDevice(setUpChatHomeFlowIn('investments', 'en'), '#/investments'), '#/settings', 'Kuna settings'],
+    ['set-up-chat-goes-on', 'empty', onFreshDevice(setUpChatGoesOnFlowIn('en'), '#/loans'), '#/settings', 'Kuna settings'],
   ]) {
     await step(name, async () => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })

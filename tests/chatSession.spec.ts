@@ -40,6 +40,7 @@ const {
   chatStatus,
   clearChat,
   loadCatalogue,
+  sendChatFrom,
   sendChatMessage,
   settleProposal,
   shownOnScreen,
@@ -64,7 +65,7 @@ const CATALOGUE: Catalogue = {
 }
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
-const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', query: {}, element: null, today: '2026-11-07' }
+const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', query: {}, element: null, today: '2026-11-07', setUp: [] }
 const READ_ROWS = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
 const lookup = (name: string, args: unknown, id = 'call'): ModelReply => ({ kind: 'tool-calls', calls: [{ id, name, args }], raw: [], tokens: TOKENS })
 
@@ -133,6 +134,19 @@ describe('a chat in memory', () => {
     const text = first.role === 'user' ? first.parts.map((part) => (part.kind === 'text' ? part.text : '')).join('') : ''
     expect(text).toContain('on the screen Entries, tab To review (/spending/transactions?tab=review)')
     expect(text).not.toContain('Shop on the corner')
+  })
+
+  it("names a new app's other set-up lines only for an app the chat may read already", async () => {
+    const model = scripted([answer('Hi.'), answer('Hi again.')])
+    port.current = model
+    const where = { ...CONTEXT, setUp: [{ app: 'spending', name: 'Spending', hasFile: true, starting: ['first-entries'], others: ['categories'] }] }
+    allowThisChat('anthropic')
+    await sendChatMessage('Hi', where, knowledge)
+    allowThisChat('anthropic', 'spending')
+    await sendChatMessage('Hi', where, knowledge)
+
+    expect(JSON.stringify(model.requests[0]!.turns)).toContain('Set-up lines left: first-entries.')
+    expect(JSON.stringify(model.requests[1]!.turns)).toContain('Set-up lines left: first-entries, categories.')
   })
 
   it('shows a cost that adds up and never stops on it', async () => {
@@ -434,6 +448,139 @@ describe('a card in the chat', () => {
     port.current = scripted([tidy('fresh'), answer('Card shown.')])
     await sendChatMessage('Tidy', CONTEXT, async () => WITH_TIDY)
     expect(chatLines.at(-1)!.proposals[0]!.readFiles).toEqual([])
+  })
+})
+
+describe('the chat going on with a setup', () => {
+  const TIDY: AppProposer = {
+    operations: [{ name: 'tidy', about: 'Tidies.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
+    readsBooks: false,
+    check: async (title) => ({ title, count: 1, groups: [], outside: [], undoable: true, heldBack: null, held: {} }),
+  }
+  const WITH_TIDY: Catalogue = { ...CATALOGUE, proposers: new Map([['spending', TIDY]]) }
+  const SETTING_UP = { ...CONTEXT, setUp: [{ app: 'spending', name: 'Spending', hasFile: true, starting: ['first-account'], others: [] }] }
+  const tidy = (id = 'tidy'): ModelReply => lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }] }, id)
+  /** Every message the panel would send by itself, sent as the panel sends it. */
+  const wentOn: string[] = []
+
+  beforeEach(() => {
+    wentOn.splice(0)
+    allowThisChat('anthropic', 'spending')
+    sendChatFrom((message, origin) => {
+      wentOn.push(message)
+      void sendChatMessage(message, SETTING_UP, async () => WITH_TIDY, origin)
+    })
+  })
+
+  async function cardShown(where = SETTING_UP): Promise<ChatProposal> {
+    port.current = scripted([tidy(), answer('Card shown.'), tidy('next'), answer('Next card.')])
+    await sendChatMessage('Set up Spending', where, async () => WITH_TIDY)
+    return chatLines.at(-1)!.proposals[0]! as ChatProposal
+  }
+
+  it('sends Go on once a card made while its app is new is accepted, and says so on the card', async () => {
+    const card = await cardShown()
+    expect(card.goesOn).toBe(true)
+
+    settleProposal(card, 'done')
+
+    expect(wentOn).toEqual([words.chat.goOn])
+  })
+
+  it('does not go on for a card of an app that is set up, or after Not now', async () => {
+    const card = await cardShown(CONTEXT)
+    expect(card.goesOn).toBe(false)
+    settleProposal(card, 'done')
+    const declined = await cardShown()
+    settleProposal(declined, 'declined')
+
+    expect(wentOn).toEqual([])
+  })
+
+  /** A reply the test hands over once it has done what happens while the message is under way, with the request's arrival to wait on. */
+  function heldReply(): { readonly reply: (request: ModelRequest) => Promise<ModelReply>; readonly asked: Promise<void>; finish(reply: ModelReply): void } {
+    let arrived: () => void = () => undefined
+    const asked = new Promise<void>((resolve) => (arrived = resolve))
+    let finish: (reply: ModelReply) => void = () => undefined
+    const given = new Promise<ModelReply>((resolve) => (finish = resolve))
+    return {
+      asked,
+      finish: (reply) => finish(reply),
+      reply: (request) => {
+        arrived()
+        return new Promise<ModelReply>((resolve, reject) => {
+          request.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+          void given.then(resolve)
+        })
+      },
+    }
+  }
+
+  it('waits for a message under way, then goes on once it ends', async () => {
+    const card = await cardShown()
+    const held = heldReply()
+    port.current = scripted([held.reply, tidy('next'), answer('Next card.')])
+    const running = sendChatMessage('Is the account right?', SETTING_UP, async () => WITH_TIDY)
+    await held.asked
+
+    settleProposal(card, 'done')
+    expect(wentOn).toEqual([])
+    held.finish(answer('It is.'))
+    await running
+
+    expect(wentOn).toEqual([words.chat.goOn])
+  })
+
+  it('does not go on when the person stops the message under way', async () => {
+    const card = await cardShown()
+    const held = heldReply()
+    port.current = scripted([held.reply])
+    const running = sendChatMessage('Wait', SETTING_UP, async () => WITH_TIDY)
+    await held.asked
+
+    settleProposal(card, 'done')
+    stopChatMessage()
+    await running
+
+    expect(wentOn).toEqual([])
+  })
+
+  it('does not go on after a message that failed', async () => {
+    const card = await cardShown()
+    const held = heldReply()
+    port.current = scripted([held.reply])
+    const running = sendChatMessage('Check it', SETTING_UP, async () => WITH_TIDY)
+    await held.asked
+
+    settleProposal(card, 'done')
+    held.finish({ kind: 'refused', reason: 'Overloaded.', tokens: TOKENS })
+    await running
+
+    expect(wentOn).toEqual([])
+  })
+
+  it('goes on at most ten times in a row, and counts again once the person writes', async () => {
+    sendChatFrom((message) => wentOn.push(message))
+    port.current = scripted(Array.from({ length: 24 }, (_, at) => (at % 2 === 0 ? tidy(`card-${at}`) : answer('Card shown.'))))
+    await sendChatMessage('Set up Spending', SETTING_UP, async () => WITH_TIDY)
+    for (let sent = 0; sent < 10; sent += 1) await sendChatMessage(words.chat.goOn, SETTING_UP, async () => WITH_TIDY, 'goOn')
+    expect(chatLines.at(-1)!.proposals[0]!.goesOn).toBe(false)
+
+    await sendChatMessage('Next please', SETTING_UP, async () => WITH_TIDY)
+
+    expect(chatLines.at(-1)!.proposals[0]!.goesOn).toBe(true)
+  })
+
+  it('leaves the files on the prompt when it goes on by itself, as the person never sent them', async () => {
+    const card = await cardShown()
+    await attachFiles([picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv')])
+    await vi.waitFor(() => expect(chatPromptFiles.value[0]?.state).toBe('ready'))
+
+    settleProposal(card, 'done')
+    await vi.waitFor(() => expect(chatStatus.value).toBe('ready'))
+
+    expect(chatLines.at(-2)!).toMatchObject({ role: 'user', text: words.chat.goOn, attachments: [], byKuna: true })
+    expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['october.csv'])
   })
 })
 

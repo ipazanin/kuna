@@ -1,4 +1,6 @@
 import { proposalGroupsOf } from './proposalLines'
+import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
+import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { ASSET_WRITES, VALUATION_WRITES, newAsset, newValuation, removeAsset } from '../../asset/application/assetWrites'
 import { NO_REGION, typedAssetTerms } from '../../asset/presentation/assetTexts'
 import type { AssetTexts } from '../../asset/presentation/assetTexts'
@@ -240,11 +242,11 @@ function assetsWork(loans: () => LoansOnScreen): ProposalWork<AssetsBooks, never
 }
 
 /** The changes the chat can propose and their dry run, over the app's own store and the Loans it reads, which `app.ts` hands in. */
-export function assetsProposer(store: AssetsStore, loans: () => LoansOnScreen): AppProposer {
-  return { operations: ASSETS_OPERATIONS, readsBooks: true, check: proposedWrites(store, assetsWork(loans)).check }
+export function assetsProposer(store: AssetsStore, loans: () => LoansOnScreen, file: BrowserFile): AppProposer {
+  return withBrowserFileCards({ operations: ASSETS_OPERATIONS, readsBooks: true, check: proposedWrites(store, assetsWork(loans)).check }, file)
 }
 
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone. */
-export function assetsAcceptance(store: AssetsStore, loans: () => LoansOnScreen): AppAcceptance {
-  return { accept: proposedWrites(store, assetsWork(loans)).accept }
+export function assetsAcceptance(store: AssetsStore, loans: () => LoansOnScreen, file: BrowserFile): AppAcceptance {
+  return acceptingBrowserFileCards({ accept: proposedWrites(store, assetsWork(loans)).accept }, file)
 }

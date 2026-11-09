@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-import { CHAT_EXCEPTIONS } from './chatCoverageExceptions'
+import { CHAT_EXCEPTIONS, NARROW_CHAT_ACTIONS } from './chatCoverageExceptions'
 import { FILE_ACTIONS, NOT_FILE_ACTIONS, appOf, chatCovers, chatReach, screenWrites, writeGraph } from './support/writePaths'
 
 const GRAPH = writeGraph()
@@ -12,7 +12,7 @@ const REACH = chatReach(GRAPH)
 const EXCEPTED = new Map(CHAT_EXCEPTIONS.flatMap((exception) => exception.paths.map((path) => [path, exception] as const)))
 
 /** Each path a screen writes through that no operation reaches, with where the screens name it. */
-const UNCOVERED = [...SCREEN_WRITES].filter(([path]) => !chatCovers(GRAPH, REACH, path))
+const UNCOVERED = [...SCREEN_WRITES].filter(([path]) => !chatCovers(GRAPH, REACH, path, NARROW_CHAT_ACTIONS))
 
 describe('every action on a screen has a chat action or a listed exception', () => {
   it('finds the write paths of every app and Kuna', () => {
@@ -27,8 +27,13 @@ describe('every action on a screen has a chat action or a listed exception', () 
   })
 
   it('lists no exception the chat reaches or no screen writes through', () => {
-    const stale = [...EXCEPTED.keys()].filter((path) => !SCREEN_WRITES.has(path) || chatCovers(GRAPH, REACH, path))
+    const stale = [...EXCEPTED.keys()].filter((path) => !SCREEN_WRITES.has(path) || chatCovers(GRAPH, REACH, path, NARROW_CHAT_ACTIONS))
     expect(stale, 'Take these out of tests/chatCoverageExceptions.ts').toEqual([])
+  })
+
+  it('lists as narrow only store actions the chat calls', () => {
+    const reached = new Set([...REACH.values()].flatMap((reach) => [...reach.fileActions]))
+    expect([...NARROW_CHAT_ACTIONS].filter((action) => !reached.has(action))).toEqual([])
   })
 
   it('lists each path once', () => {

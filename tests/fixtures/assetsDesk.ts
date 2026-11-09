@@ -1,4 +1,5 @@
 import { assetsAcceptance, assetsProposer } from '../../src/apps/assets/assistant/operations/assetsOperations'
+import { FILE_OPEN } from './browserFile'
 import { ASSET_WRITES, VALUATION_WRITES } from '../../src/apps/assets/asset/application/assetWrites'
 import type { AssetLoan } from '../../src/apps/assets/loans/application/assetLoans'
 import type { Asset } from '../../src/apps/assets/workbook/domain/asset'
@@ -80,7 +81,7 @@ export async function assetsDesk(used: Set<string>, loans: () => AssetLoan[] | '
   })
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['assets', assetsProposer(store, loans)]])
+  const proposers = new Map([['assets', assetsProposer(store, loans, FILE_OPEN)]])
   return {
     store,
     cards,
@@ -89,6 +90,6 @@ export async function assetsDesk(used: Set<string>, loans: () => AssetLoan[] | '
       proposeChanges({ app: 'assets', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })) }, proposers, reads, [], (_app, card) =>
         cards.push(card),
       ),
-    accept: (at = cards.length - 1) => assetsAcceptance(store, loans).accept(cards[at]!),
+    accept: (at = cards.length - 1) => assetsAcceptance(store, loans, FILE_OPEN).accept(cards[at]!),
   }
 }

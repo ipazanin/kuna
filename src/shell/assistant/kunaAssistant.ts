@@ -70,6 +70,7 @@ export function kunaAssistant(): AppAssistant {
     ],
     guides: [],
     automations: [],
+    setUp: [],
     reader: null,
     proposer: kunaProposer(DEVICE),
     acceptance: kunaAcceptance(DEVICE),

@@ -1,4 +1,4 @@
-import { RATE, RATE_OR_NULL } from './operationTexts'
+import { BANK_INSTALMENT, RATE, RATE_OR_NULL, printedInstalmentOf } from './operationTexts'
 import { dueDateOf } from '../../bankLoans/domain/loanPlan'
 import { newLoanScenario, saveScenario } from '../../scenarios/application/scenarioWrites'
 import { REPEATS } from '../../scenarios/domain/loanScenario'
@@ -19,6 +19,7 @@ import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import type { Money } from '../../../../shared/money/money'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 
 /** The changes an offer's editor adds under More terms. A move an offer holds stays as it is. */
@@ -75,8 +76,8 @@ export const OFFER_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-offer',
     about:
-      "A loan offer to weigh on the Scenarios screen, transcribed as the offer prints it. name is blank for the name Kuna gives it. principal and costs are in euros. instalments counts every monthly payment. rate is the first rate, fixed, and fixedYears with thenVariable give a variable rate after whole years, or are null. firstInstalment null is a month after the payout. The card sets Kuna's estimate of the EKS beside bankEks.",
-    input: inputOf({ name: TEXT, ...OFFER_TERMS, changes: CHANGES }),
+      "A loan offer to weigh on the Scenarios screen, transcribed as the offer prints it. name is blank for the name Kuna gives it. principal and costs are in euros. instalments counts every monthly payment. rate is the first rate, fixed, and fixedYears with thenVariable give a variable rate after whole years, or are null. firstInstalment null is a month after the payout. The card sets Kuna's estimate of the EKS beside bankEks, and Kuna's first instalment beside bankInstalment, which the file does not keep.",
+    input: inputOf({ name: TEXT, ...OFFER_TERMS, bankInstalment: BANK_INSTALMENT, changes: CHANGES }),
     refs: {},
     creates: null,
     alone: false,
@@ -101,6 +102,7 @@ export const OFFER_OPERATIONS: readonly AssistantOperation[] = [
       monthlyCost: 0,
       yearlyCost: 0,
       bankEks: '3.95',
+      bankInstalment: 579.96,
       changes: [],
     },
   },
@@ -226,8 +228,8 @@ function listedChanges(listed: readonly Field[], base: ReturnType<typeof offerBa
   })
 }
 
-/** Writes the offer the texts give, with its rates and the changes, through the editor's own check and its save. */
-function writeOffer(unit: UnitOfWork, records: LoansRecords, texts: OfferTexts, field: Field, kept: readonly LoanChange[], editing: LoanScenario | null): void {
+/** Writes the offer the texts give, with its rates and the changes, through the editor's own check and its save, and gives the id of the scenario it writes. */
+function writeOffer(unit: UnitOfWork, records: LoansRecords, texts: OfferTexts, field: Field, kept: readonly LoanChange[], editing: LoanScenario | null): string {
   const typed = typedOffer(texts)
   refuseOnErrors(typed.errors)
   if (typed.terms === null) throw new StepRefused('Those terms are not an offer the Scenarios screen can take.')
@@ -237,14 +239,22 @@ function writeOffer(unit: UnitOfWork, records: LoansRecords, texts: OfferTexts, 
   const start = { kind: 'offer', terms: typed.terms } as const
   const scenario: LoanScenario = editing === null ? newLoanScenario({ name, start }) : { ...editing, name, start }
   saveScenario(unit, records, scenario, changes, editing)
+  return scenario.id
 }
 
-/** Plans an offer's step, and says whether the step was one. */
-export function planOfferStep(unit: UnitOfWork, records: LoansRecords, book: LoanBook, operation: string, field: Field, day: CivilDate, idOf: (value: unknown) => string): boolean {
+/** The offer an offer's step writes, by its scenario's id, with the instalment its document printed, which only the card reads. */
+export interface OfferStep {
+  readonly scenario: string
+  readonly printedInstalment: Money | null
+}
+
+/** Plans an offer's step, or gives null for a step that is no offer's. */
+export function planOfferStep(unit: UnitOfWork, records: LoansRecords, book: LoanBook, operation: string, field: Field, day: CivilDate, idOf: (value: unknown) => string): OfferStep | null {
   switch (operation) {
-    case 'add-offer':
-      writeOffer(unit, records, newTexts(field, day), field, [], null)
-      return true
+    case 'add-offer': {
+      const printedInstalment = printedInstalmentOf(field['bankInstalment'])
+      return { scenario: writeOffer(unit, records, newTexts(field, day), field, [], null), printedInstalment }
+    }
     case 'change-offer': {
       const id = idOf(field['scenario'])
       const kept = book.scenarios.find((candidate) => candidate.scenario.id === id)
@@ -254,10 +264,10 @@ export function planOfferStep(unit: UnitOfWork, records: LoansRecords, book: Loa
       const { texts, later } = offerTexts(kept.scenario.name, start.terms, kept.changes, day)
       const replaced = field['laterTerms'] === 'replace'
       if (!replaced && (field['changes'] as readonly Field[]).length > 0) throw new StepRefused('changes is [] with laterTerms keep.')
-      writeOffer(unit, records, textsOver(texts, field), field, replaced ? later.filter((change) => change.kind === 'move' || change.kind === 'term-change') : later, kept.scenario)
-      return true
+      const scenario = writeOffer(unit, records, textsOver(texts, field), field, replaced ? later.filter((change) => change.kind === 'move' || change.kind === 'term-change') : later, kept.scenario)
+      return { scenario, printedInstalment: null }
     }
     default:
-      return false
+      return null
   }
 }

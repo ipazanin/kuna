@@ -1,4 +1,5 @@
 import 'fake-indexeddb/auto'
+import { FILE_OPEN } from './fixtures/browserFile'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { spendingAcceptance, spendingProposer } from '../src/apps/spending/assistant/operations/spendingOperations'
@@ -35,7 +36,7 @@ async function desk(): Promise<Desk> {
   const typed = store as unknown as WorkbookStore<SpendingBooks>
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
-  const proposers = new Map([['spending', spendingProposer(typed, deskPorts())]])
+  const proposers = new Map([['spending', spendingProposer(typed, deskPorts(), FILE_OPEN)]])
   return {
     store: typed,
     reads,
@@ -55,7 +56,7 @@ async function desk(): Promise<Desk> {
 const bookOf = ({ store }: Desk) => store.state.workbook!
 const named = (desk: Desk, name: string) => bookOf(desk).categories.find((category) => category.name === name)!
 const rowOf = (desk: Desk, payee: string) => bookOf(desk).transactions.find((row) => row.payee === payee)!
-const accept = (desk: Desk, at = 0) => spendingAcceptance(desk.store, deskPorts()).accept(desk.cards[at]!)
+const accept = (desk: Desk, at = 0) => spendingAcceptance(desk.store, deskPorts(), FILE_OPEN).accept(desk.cards[at]!)
 
 describe('a proposal', () => {
   it('writes nothing until it is accepted, and then one write with one Undo', async () => {
@@ -227,7 +228,7 @@ describe('a proposal', () => {
     d.reads.pseudonyms.know(['Ana Horvat'])
     const answer = await proposeChanges(
       { app: 'spending', title: 'Rules for Person 1', steps: [{ op: 'set-setting', input: JSON.stringify({ key: COMPANY_OIB_KEY, value: '12345678903' }), as: null }] },
-      new Map([['spending', spendingProposer(d.store, deskPorts())]]),
+      new Map([['spending', spendingProposer(d.store, deskPorts(), FILE_OPEN)]]),
       d.reads,
       [],
       (_app, card) => d.cards.push(card),

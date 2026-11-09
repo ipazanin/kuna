@@ -7,6 +7,7 @@ import { words as appWords } from '../../words'
 import { useAssetsBooks } from '../../workbook/application/assetsStore'
 import { ASSETS_FILE_NAME, LOCAL_ASSETS_TITLE, newAssetsFileContents } from '../../workbook/presentation/assetsFile'
 import { words as fileWords } from '../../workbook/presentation/words'
+import { words as assistantWords } from '../../assistant/words'
 import { words } from './words'
 
 /** The Assets first run at `#/assets/start?step=…`. */
@@ -20,6 +21,7 @@ const firstRun: FileFirstRun = {
   store,
   fileName: ASSETS_FILE_NAME,
   localTitle: LOCAL_ASSETS_TITLE,
+  chatTask: assistantWords.guides.setUp.title,
   newContents: () => newAssetsFileContents(store),
   findFile: useFindFile(store, fileWords),
   words,

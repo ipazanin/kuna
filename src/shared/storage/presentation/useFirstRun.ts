@@ -3,6 +3,7 @@ import type { ComputedRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { kunaStart } from '../../app/kunaStart'
+import { CHAT_QUERY, askChat } from '../../ai/presentation/chatDock'
 import type { FileFirstRun } from './fileFirstRun'
 
 export type FirstRunStep = 'home' | 'folder' | 'find'
@@ -15,6 +16,8 @@ export interface FirstRunMoves {
   go(step: FirstRunStep): Promise<void>
   /** The step's file is on screen: the app's overview, or the next step of a first run with more steps. */
   finish(): Promise<void>
+  /** Ends on the app's overview with the chat open, so the chat takes over the setup. The overview takes the first run's place in the history and the chat goes on top, so closing the chat leaves the overview. */
+  finishIntoChat(): Promise<void>
 }
 
 /** The steps of one app's first run and the moves between them. */
@@ -29,7 +32,12 @@ export interface FirstRunSteps extends FirstRunMoves {
  * The first run of an app's file, on its start route with the step in the query. Someone who said at the start that the files live on Drive
  * skips the home step, unless a file is open already and they came here to change where it lives.
  */
-export function useFirstRun({ startRoute, overviewRoute, store }: Pick<FileFirstRun, 'startRoute' | 'overviewRoute'> & { readonly store: Pick<FileFirstRun['store'], 'state'> }): FirstRunSteps {
+export function useFirstRun({
+  startRoute,
+  overviewRoute,
+  chatTask,
+  store,
+}: Pick<FileFirstRun, 'startRoute' | 'overviewRoute' | 'chatTask'> & { readonly store: Pick<FileFirstRun['store'], 'state'> }): FirstRunSteps {
   const route = useRoute()
   const router = useRouter()
   // Read once, so the file this first run makes does not turn the step on screen into the question.
@@ -46,6 +54,11 @@ export function useFirstRun({ startRoute, overviewRoute, store }: Pick<FileFirst
     },
     async finish() {
       await router.push(overviewRoute)
+    },
+    async finishIntoChat() {
+      askChat(chatTask)
+      await router.replace(overviewRoute)
+      await router.push({ path: overviewRoute, query: { [CHAT_QUERY]: '1' } })
     },
   }
 }

@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
+import { askChat } from '../../../../shared/ai/presentation/chatDock'
+import { words as chatWords } from '../../../../shared/ai/presentation/words'
+import { words as assistantWords } from '../../assistant/words'
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -59,7 +63,10 @@ const adding = ref(false)
         </template>
         <template #actions>
           <div class="flex flex-col items-center gap-4">
-            <UButton :label="words.addAsset" icon="i-lucide-plus" data-testid="add-asset" @click="adding = true" />
+            <div class="flex flex-wrap justify-center gap-2">
+              <UButton :label="words.addAsset" icon="i-lucide-plus" data-testid="add-asset" @click="adding = true" />
+              <AskChatButton :text="chatWords.ask.setUp" size="md" data-testid="set-up-chat" @ask="askChat(assistantWords.guides.setUp.title)" />
+            </div>
             <span class="type-caption">{{ fileNote }}</span>
           </div>
         </template>

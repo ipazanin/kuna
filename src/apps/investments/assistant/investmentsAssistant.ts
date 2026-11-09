@@ -69,10 +69,19 @@ export const investmentsAssistant = (reading: InvestmentsReading, changes: { rea
   kinds: Object.values(investmentKinds),
   places: PLACES,
   settings: [{ key: SURTAX_CITY_2023_KEY, note: words.settings.surtaxCity2023 }],
-  guides: [{ id: 'ibkr-mail', title: mailWords.guide.title, body: mailWords.guide.body, places: [INVESTMENTS_GENERAL_ROUTE] }],
+  guides: [
+    { id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [INVESTMENTS_GENERAL_ROUTE, TRANSACTIONS_ROUTE] },
+    { id: 'ibkr-mail', title: mailWords.guide.title, body: mailWords.guide.body, places: [INVESTMENTS_GENERAL_ROUTE] },
+  ],
   automations: [
     { id: 'daily-closes', title: words.automations.dailyCloses.title, what: words.automations.dailyCloses.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_PRICES_ROUTE },
     { id: 'ibkr-mail', title: words.automations.ibkrMail.title, what: words.automations.ibkrMail.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_GENERAL_ROUTE, guide: 'ibkr-mail' },
+  ],
+  setUp: [
+    { key: 'first-holdings', about: 'The file has no transaction yet.', operations: ['add-account', 'import-flex-report', 'import-workbook', 'import-transcribed', 'add-holding'] },
+    { key: 'cash-below-zero', about: 'Cash is below zero, so a deposit is missing.', operations: ['import-transcribed'] },
+    { key: 'history', about: 'The person has not said the history is complete.', operations: ['confirm-history'] },
+    { key: 'prices', about: 'Some holdings have no price.', operations: ['fetch-prices'] },
   ],
   reader: investmentsReader(reading),
   proposer: changes?.proposer ?? null,

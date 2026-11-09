@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createApp, shallowReactive } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { answerKunaStart, forgetKunaStart } from '../src/shared/app/kunaStart'
+import { takeChatRequest } from '../src/shared/ai/presentation/chatDock'
 import { useFirstRun } from '../src/shared/storage/presentation/useFirstRun'
 
 const screen = { render: () => null }
@@ -18,7 +19,7 @@ async function startAt(startRoute: string, overviewRoute: string, address: strin
   })
   await router.push(address)
   const app = createApp(screen).use(router)
-  const steps = app.runWithContext(() => useFirstRun({ startRoute, overviewRoute, store: { state: state as never } }))
+  const steps = app.runWithContext(() => useFirstRun({ startRoute, overviewRoute, chatTask: 'Set up with the chat', store: { state: state as never } }))
   return { router, steps }
 }
 
@@ -54,6 +55,15 @@ describe('the shared first run routing', () => {
 
     await steps.finish()
     expect(router.currentRoute.value.fullPath).toBe('/one')
+  })
+
+  it('finishes into the chat on the overview of its own app, for the Set up with the chat button', async () => {
+    const { router, steps } = await startAt('/one/start', '/one', '/one/start')
+    await steps.finishIntoChat()
+    expect(router.currentRoute.value.fullPath).toBe('/one?chat=1')
+    expect(takeChatRequest()).toBe('Set up with the chat')
+    router.back()
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/one'))
   })
 
   it('keeps the step on screen when the file it made arrives, so the question does not flash', async () => {

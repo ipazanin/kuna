@@ -52,5 +52,7 @@ export interface FileFirstRun extends DriveFirstRun {
   readonly store: Pick<WorkbookStore<BooksRead, DocumentCopy, WorkbookDocument>, 'state' | 'pickDriveFolder' | 'hasKunaFolder' | 'driveHomeOfApp' | 'keepOnDrive' | 'replaceLocalWorkbook'>
   /** The title of a file made in this browser, which is stored with it. */
   readonly localTitle: string
+  /** What the chat sends by itself once Set up with the chat has made the file: the title of the app's set-up guide. */
+  readonly chatTask: string
   readonly words: FirstRunWords
 }

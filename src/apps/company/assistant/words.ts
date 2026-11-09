@@ -60,6 +60,19 @@ export const en = {
     receivables: { title: 'what clients owe', about: 'What the invoices still have unpaid on a day, how much of it is late, and how late.' },
   },
   guides: {
+    setUp: {
+      title: 'Set up Company with the chat',
+      body: [
+        'Have ready the court register extract, an issued invoice and a bank statement. A camt.053 statement stays on this device. Any other document goes as a file of cells, a PDF or a photo.',
+        'The cards, in this order:',
+        '1. The settings: company_name, the currency, the number style, owner_pay_module and the invoice issuer fields the extract or the invoice prints.',
+        '2. The accounts.',
+        '3. Each new category, on a card of its own, with its tax class.',
+        '4. The rules.',
+        '5. The import, which holds only its rows, in parts of 150 rows.',
+        'The tax class and VAT treatment of a category are proposed one at a time and decided by the person. Payroll stays out.',
+      ].join('\n'),
+    },
     review: {
       title: 'Sort the rows waiting for review',
       body: (labels: GuideLabels) =>
@@ -121,6 +134,19 @@ export const hr: Translation<typeof en> = {
     receivables: { title: 'što klijenti duguju', about: 'Što je na dan još neplaćeno po računima, koliko od toga kasni i koliko.' },
   },
   guides: {
+    setUp: {
+      title: 'Postavite Tvrtku kroz razgovor',
+      body: [
+        'Pripremite izvadak iz sudskog registra, jedan izdani račun i bankovni izvod. Izvod camt.053 ostaje na ovom uređaju. Svaki drugi dokument ide kao datoteka ćelija, PDF ili fotografija.',
+        'Kartice, ovim redom:',
+        '1. Postavke: company_name, valuta, zapis brojeva, owner_pay_module i podaci izdavatelja računa koje ispisuje izvadak ili račun.',
+        '2. Računi.',
+        '3. Svaka nova kategorija, na svojoj kartici, s poreznim razredom.',
+        '4. Pravila.',
+        '5. Uvoz, koji drži samo svoje retke, u dijelovima od 150 redaka.',
+        'Porezni razred i PDV kategorije predlažu se jedan po jedan, a odlučuje osoba. Plaće ostaju izvan.',
+      ].join('\n'),
+    },
     review: {
       title: 'Razvrstajte retke koji čekaju provjeru',
       body: (labels) =>

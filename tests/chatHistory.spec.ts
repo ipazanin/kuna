@@ -29,7 +29,7 @@ const CATALOGUE: Catalogue = {
   persons: () => CHAT_PERSONS,
   formatOf: async () => 'none',
 }
-const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending', query: {}, element: null, today: '2026-11-07' }
+const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending', query: {}, element: null, today: '2026-11-07', setUp: [] }
 const TOKENS = { input: 1, cacheRead: 0, cacheWrite: 0, output: 1 }
 const DAY = 86_400_000
 const NOTHING_SPENT = { dollars: 0, unknown: false, any: false }
@@ -320,6 +320,25 @@ describe('a chat kept in this browser', () => {
 
     expect(second.chatLines[1]!.stopped).toBe(true)
     expect(model.turns[0]).toHaveLength(1)
+  })
+
+  it('marks a message Kuna sent for the person, from a button or as Go on, and keeps the mark after a reload', async () => {
+    const first = await loadSession()
+    port.current = scripted([
+      { kind: 'answer', text: 'Sorted.', raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'Typed.', raw: [], tokens: TOKENS },
+    ])
+    await first.sendChatMessage('Suggest categories', CONTEXT, async () => CATALOGUE, 'task')
+    await first.sendChatMessage('Thanks', CONTEXT, async () => CATALOGUE)
+    await first.chatKept()
+    expect((await readSavedChat())!.lines.filter((line) => line.role === 'user').map(({ text, byKuna }) => ({ text, byKuna }))).toEqual([
+      { text: 'Suggest categories', byKuna: true },
+      { text: 'Thanks', byKuna: undefined },
+    ])
+
+    const second = await loadSession()
+    await second.restoreChat()
+    expect(second.chatLines.filter((line) => line.role === 'user').map((line) => line.byKuna)).toEqual([true, false])
   })
 
   it('tells the model with the first message after a reload that the cards and refs from before it are gone, and only then', async () => {
