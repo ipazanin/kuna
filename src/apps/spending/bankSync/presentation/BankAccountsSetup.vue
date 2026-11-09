@@ -9,7 +9,7 @@ import { bankAccountKey, setupLines } from '../domain/bankAccountSetup'
 import type { AccountProposal, SetupLine } from '../domain/bankAccountSetup'
 import type { LinkedAccount } from '../domain/bankAnswer'
 import type { BalanceDifference } from '../domain/bankBalance'
-import { differenceLine, olderRowsLine } from './bankStepResult'
+import { differenceLine, olderRowsLine, pendingCaption, pendingLine } from './bankStepResult'
 import { useBankSync } from './useBankSync'
 import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
@@ -40,6 +40,8 @@ const leftOut = computed(() => lines.value.flatMap((line) => (line.kind === 'not
 const differences = computed(() =>
   props.outcome.differences.filter((difference) => book.value?.accounts.find((account) => account.id === difference.account.id)?.opening === difference.account.opening),
 )
+const explained = computed(() => differences.value.filter((difference) => difference.explained))
+const unexplained = computed(() => differences.value.filter((difference) => !difference.explained))
 const addable = computed(() => lines.value.flatMap((line) => (line.kind === 'missing' && line.proposal !== null ? [line.proposal] : [])))
 
 function title(bank: LinkableBank, currency: string): string {
@@ -215,15 +217,24 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
           </span>
         </li>
       </ul>
-      <p v-else-if="differences.length === 0 && outcome.olderRows.length === 0" class="text-sm text-muted" data-testid="spending-bank-sync-nothing-to-set">{{ words.setup.nothingToSet }}</p>
+      <p v-else-if="unexplained.length === 0 && outcome.olderRows.length === 0" class="text-sm text-muted" data-testid="spending-bank-sync-nothing-to-set">{{ words.setup.nothingToSet }}</p>
       <UAlert
-        v-for="difference in differences"
+        v-for="difference in explained"
+        :key="difference.account.id"
+        icon="i-lucide-info"
+        color="neutral"
+        variant="subtle"
+        :title="pendingLine(difference)"
+        data-testid="spending-bank-sync-pending"
+      />
+      <UAlert
+        v-for="difference in unexplained"
         :key="difference.account.id"
         icon="i-lucide-triangle-alert"
         color="warning"
         variant="subtle"
         :title="differenceLine(difference)"
-        :description="difference.fixedOpening === null ? words.pendingNoFix : words.setOpeningCaption"
+        :description="difference.pending === null ? words.setOpeningCaption : pendingCaption({ ...difference, pending: difference.pending })"
         data-testid="spending-bank-sync-difference"
       >
         <template v-if="difference.fixedOpening !== null" #actions>

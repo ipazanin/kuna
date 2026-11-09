@@ -6,7 +6,8 @@ import type { StatementRow, StatementRows } from '../../statements/domain/statem
 import type { Account } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
-import { accountMoneyFromAmount, negateAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
+import { accountMoneyFromAmount, negateAccountMoney, sumAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { decimalOfText } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { decimalOf } from '../../../../shared/storage/domain/storedFields'
@@ -30,17 +31,24 @@ export interface SyncedRows extends StatementRows {
 /** What a row would be, before its key. */
 type KeylessRow = Omit<StatementRow, 'importKey'>
 
+/** The transaction's money, below zero when it goes out. Null when its amount or direction cannot be read. */
+function signedAmountOf(transaction: BankTransaction): AccountMoney | null {
+  const number = decimalOf(transaction.amount)
+  if (number === null || !KNOWN_DIRECTIONS.includes(transaction.direction)) return null
+  const money = accountMoneyFromAmount(Math.abs(number))
+  return transaction.direction === 'DBIT' ? negateAccountMoney(money) : money
+}
+
 function rowOf(transaction: BankTransaction, account: Account): KeylessRow | null {
   const date = parseCivilDate((transaction.madeOn ?? transaction.bookedOn ?? transaction.valueOn ?? '').slice(0, 10))
-  const number = decimalOf(transaction.amount)
-  if (date === null || number === null || !KNOWN_DIRECTIONS.includes(transaction.direction)) return null
-  const money = accountMoneyFromAmount(Math.abs(number))
+  const amount = signedAmountOf(transaction)
+  if (date === null || amount === null) return null
   const out = transaction.direction === 'DBIT'
   const description = transaction.remittance.join(' ').trim()
   return {
     account: account.id,
     date,
-    amount: out ? negateAccountMoney(money) : money,
+    amount,
     payee: (out ? transaction.creditorName : transaction.debtorName) ?? description,
     category: null,
     description,
@@ -95,9 +103,14 @@ export function bankSyncRows(answer: readonly BankTransaction[], account: Accoun
   }
 }
 
-/** Whether the answer holds money in the currency that may still book, which a bank's balance may already count. */
-export function hasPendingRows(answer: readonly BankTransaction[], currency: string): boolean {
-  return answer.some((transaction) => transaction.currency === currency && PENDING_STATUSES.includes(transaction.status))
+/**
+ * What the answer's rows in the currency that may still book add up to, which a bank's balance may already count. Null when
+ * it holds none. A row whose amount cannot be read adds nothing.
+ */
+export function pendingMoney(answer: readonly BankTransaction[], currency: string): AccountMoney | null {
+  const pending = answer.filter((transaction) => transaction.currency === currency && PENDING_STATUSES.includes(transaction.status))
+  if (pending.length === 0) return null
+  return sumAccountMoney(pending.flatMap((transaction) => signedAmountOf(transaction) ?? []))
 }
 
 /** The bank's exchange rate as a plain multiplier, so `0.8` is 0.8. Null when it gives none, or one that is not above zero. */

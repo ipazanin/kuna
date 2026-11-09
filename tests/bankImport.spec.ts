@@ -6,13 +6,13 @@ import { bankImporter, BankScriptFailure, finishBankLink } from '../src/apps/spe
 import type { BankImportPorts, BankSyncPort, PendingLinks } from '../src/apps/spending/bankSync/application/bankSync'
 import type { BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import type { PendingLink } from '../src/apps/spending/bankSync/domain/bankReturn'
-import { loadLastFetch, saveLastFetch } from '../src/apps/spending/bankSync/infrastructure/bankBrowserState'
-import { bankHeldResult, bankStepResult } from '../src/apps/spending/bankSync/presentation/bankStepResult'
-import { BANK_SYNC_STEP } from '../src/apps/spending/bankSync/presentation/bankSyncStep'
+import { bankHeldResult, bankStepResult, pendingCaption, pendingLine } from '../src/apps/spending/bankSync/presentation/bankStepResult'
+import { hr } from '../src/apps/spending/bankSync/presentation/words'
 import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
 import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, row } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
@@ -36,8 +36,15 @@ const BANK: BankTransaction = {
   exchangeRate: null,
 }
 
-function bookOf(transactions: readonly Transaction[], otpLink: string | null = '2027-01-01'): SpendingBooks {
-  const links = otpLink === null ? [] : [{ id: 'x', key: 'bank_link_otp', value: otpLink }]
+const NOW = Date.parse('2026-10-30T12:00:00.000Z')
+const HOUR = 3_600_000
+
+function bookOf(transactions: readonly Transaction[], otpLink: string | null = '2027-01-01', otpFetchedAt: number | null = null): SpendingBooks {
+  const links = [
+    { id: 'w', key: 'bank_sync_deployment', value: 'AKfycb-made-up' },
+    ...(otpLink === null ? [] : [{ id: 'x', key: 'bank_link_otp', value: otpLink }]),
+    ...(otpFetchedAt === null ? [] : [{ id: 'y', key: 'bank_sync_fetched_otp', value: new Date(otpFetchedAt).toISOString() }]),
+  ]
   return {
     title: 'made-up',
     accounts: ACCOUNTS,
@@ -92,7 +99,7 @@ function portOf(fields: Partial<BankSyncPort> = {}): BankSyncPort {
 }
 
 function importerOver(port: BankSyncPort, store: BankImportPorts['store'], asked: (read: BankRead) => void = () => undefined) {
-  return bankImporter({ script: async () => port, store, asked, day: () => DAY })
+  return bankImporter({ script: async () => port, store, asked, day: () => DAY, now: () => NOW })
 }
 
 afterEach(() => {
@@ -120,7 +127,7 @@ describe('a fetch', () => {
   it('tells the script a person is there only when a tap started the fetch', async () => {
     const fake = storeOver(bookOf([]))
     const script = vi.fn(async () => portOf())
-    const importer = bankImporter({ script, store: fake.store, asked: () => undefined, day: () => DAY })
+    const importer = bankImporter({ script, store: fake.store, asked: () => undefined, day: () => DAY, now: () => NOW })
 
     await importer.run(true)
     await importer.run(false)
@@ -144,7 +151,7 @@ describe('a fetch', () => {
       const fake = storeOver(bookOf([]))
       const outcome = await importerOver(portOf({ balances: stated('1.00') }), fake.store).run(false)
       // The bank says 1.00 where Kuna works out the opening less 6.50, so the opening moves by 1.00 − (opening − 6.50).
-      expect(outcome.differences).toEqual([{ account: OTP, stated: 100, worked: OTP.opening - 650, fixedOpening: 750 }])
+      expect(outcome.differences).toEqual([{ account: OTP, stated: 100, worked: OTP.opening - 650, pending: null, explained: false, fixedOpening: 750 }])
       expect(fake.added).toHaveLength(1)
       const line = bankStepResult(outcome, null, null, 0)
       expect('line' in line && line.line).toMatch(/OTP current: the bank says .*1\.00 and Kuna works out .*, so a row may be missing or the opening balance may be wrong\./)
@@ -154,6 +161,51 @@ describe('a fetch', () => {
       const pending: BankTransaction = { ...BANK, reference: 'ref-2', status: 'PDNG' }
       const { differences } = await importerOver(portOf({ balances: stated('1.00', 'ITAV'), transactions: async () => [BANK, pending] }), storeOver(bookOf([])).store).run(false)
       expect(differences.map((difference) => difference.fixedOpening)).toEqual([null])
+    })
+
+    describe('with a pending card payment', () => {
+      const card: BankTransaction = { ...BANK, reference: null, amount: '0.80', status: 'PDNG' }
+      // The available balance counts the pending 0.80 on top of the opening less the booked 6.50.
+      const available = ((OTP.opening - 650 - 80) / 100).toFixed(2)
+
+      it('says the pending payments explain the difference as information, and the step stays done without a warning', async () => {
+        const outcome = await importerOver(portOf({ balances: stated(available, 'ITAV'), transactions: async () => [BANK, card] }), storeOver(bookOf([])).store).run(false)
+        expect(outcome.differences).toMatchObject([{ pending: -80, explained: true, fixedOpening: null }])
+        expect(pendingLine(outcome.differences[0]!)).toBe('OTP current: €0.80 of payments are still pending. They come once they are booked.')
+        const result = bankStepResult(outcome, null, null, 0)
+        expect(result.kind).toBe('done')
+        expect('line' in result && result.line).not.toContain('the bank says')
+      })
+
+      it('says pending money coming in, not payments, when it lifts the balance', () => {
+        const incoming = {
+          account: OTP,
+          stated: accountMoneyFromCents(1500),
+          worked: accountMoneyFromCents(1000),
+          pending: accountMoneyFromCents(500),
+          explained: true,
+          fixedOpening: null,
+        }
+        expect(pendingLine(incoming)).toBe('OTP current: €5.00 coming in is still pending. It comes once it is booked.')
+      })
+
+      it('keeps the warning when the pending payments explain only part of the difference, and says how much is pending and how much is not explained', async () => {
+        // 2.10 below what the pending 0.80 explains.
+        const short = ((OTP.opening - 650 - 80 - 210) / 100).toFixed(2)
+        const outcome = await importerOver(portOf({ balances: stated(short, 'ITAV'), transactions: async () => [BANK, card] }), storeOver(bookOf([])).store).run(false)
+        const [difference] = outcome.differences
+        expect(difference).toMatchObject({ pending: -80, explained: false, fixedOpening: null })
+        const result = bankStepResult(outcome, null, null, 0)
+        expect('line' in result && result.line).toMatch(/OTP current: the bank says .* and Kuna works out .*, so a row may be missing or the opening balance may be wrong\./)
+        expect(pendingCaption({ ...difference!, pending: difference!.pending! })).toBe(
+          'The bank still has €0.80 of payments pending, which its balance may count, so wait until they are booked before changing the opening. That leaves €2.10 they do not explain.',
+        )
+      })
+
+      it('says the same in Croatian, with the account first and money in in the plural', () => {
+        expect(hr.pendingPayments('Revolut EUR', '0,80 €')).toBe('Revolut EUR: plaćanja od 0,80 € još su na čekanju. Stižu kad se proknjiže.')
+        expect(hr.pendingIncoming('Revolut EUR', '5,00 €')).toBe('Revolut EUR: uplate od 5,00 € još su na čekanju. Stižu kad se proknjiže.')
+      })
     })
 
     it('reads a booked balance before an available one', async () => {
@@ -353,33 +405,51 @@ describe('what the step says', () => {
   })
 })
 
-describe('the step while it holds back', () => {
-  function stubStorage(): void {
-    const stored = new Map<string, string>()
-    vi.stubGlobal('localStorage', { getItem: (key: string) => stored.get(key) ?? null, setItem: (key: string, text: string) => stored.set(key, text), removeItem: (key: string) => stored.delete(key) })
-  }
+describe('the six hours every device shares', () => {
+  const transactions = vi.fn(async () => [BANK])
 
-  it('is done when the last fetch left nothing', async () => {
-    stubStorage()
-    saveLastFetch({ at: Date.now() - 1000, problems: [], linked: [] })
-    expect(await BANK_SYNC_STEP.run(() => undefined, '')).toMatchObject({ kind: 'done', writeId: null })
+  afterEach(() => {
+    transactions.mockClear()
   })
 
-  it("keeps of each account only what names it, never the bank's product or the description you set", () => {
-    stubStorage()
-    const described = { ...linked('u', 'HR0000000000000000077', 'EUR'), product: 'Standard', details: 'Holiday money', cashAccountType: 'CACC', usage: 'PRIV', identificationHash: 'hash-1' }
-    saveLastFetch({ at: 1, problems: [], linked: [{ bank: 'otp', account: described }] })
-    expect(JSON.parse(localStorage.getItem('kuna.bank-sync-fetched')!).linked).toEqual([
-      { bank: 'otp', account: { uid: 'u', iban: 'HR0000000000000000077', currency: 'EUR', identificationHash: 'hash-1' } },
-    ])
-    expect(loadLastFetch()?.linked[0]?.account).toEqual({ ...described, product: null, details: null, cashAccountType: null, usage: null })
+  it('leaves a bank alone on a second device within six hours of a fetch on another', async () => {
+    const fake = storeOver(bookOf([], '2027-01-01', NOW - 6 * HOUR + 1))
+    const { linked: reached } = await importerOver(portOf({ transactions }), fake.store).run(false)
+    expect(transactions).not.toHaveBeenCalled()
+    expect(reached.map((account) => account.bank)).toEqual(['otp'])
+    expect(fake.titles).toEqual([])
   })
 
-  it('keeps saying what the last fetch left, so a failure is not hidden for six hours', async () => {
-    stubStorage()
-    saveLastFetch({ at: Date.now() - 1000, problems: ['OTP did not answer, so its rows wait for a later sync: HTTP 503'], linked: [] })
-    const result = await BANK_SYNC_STEP.run(() => undefined, '')
-    expect(result).toMatchObject({ kind: 'waits', link: { to: '/spending/settings?tab=bank-sync' } })
-    expect('line' in result && result.line).toContain('OTP did not answer')
+  it('asks again once six hours have passed, and writes the time in the same write as the rows', async () => {
+    const fake = storeOver(bookOf([], '2027-01-01', NOW - 6 * HOUR))
+    await importerOver(portOf({ transactions }), fake.store).run(false)
+    expect(transactions).toHaveBeenCalledOnce()
+    expect(fake.titles).toEqual(['Bank rows imported'])
+    expect(fake.settings).toMatchObject([{ key: 'bank_sync_fetched_otp', value: '2026-10-30T12:00:00.000Z' }])
+  })
+
+  it('asks on Sync now within the six hours, and starts them again', async () => {
+    const fake = storeOver(bookOf([], '2027-01-01', NOW - HOUR))
+    await importerOver(portOf({ transactions }), fake.store).run(true)
+    expect(transactions).toHaveBeenCalledOnce()
+    expect(fake.settings).toMatchObject([{ key: 'bank_sync_fetched_otp', value: '2026-10-30T12:00:00.000Z' }])
+  })
+
+  it('writes the time alone when the fetch brought nothing new', async () => {
+    const fake = storeOver(bookOf([]))
+    await importerOver(portOf({ transactions: async () => [] }), fake.store).run(false)
+    expect(fake.titles).toEqual(['Banks asked'])
+    expect(fake.settings).toMatchObject([{ key: 'bank_sync_fetched_otp' }])
+  })
+
+  it('writes no time when the bank did not answer, so the next sync asks again', async () => {
+    const fake = storeOver(bookOf([]))
+    const failing = portOf({
+      transactions: async () => {
+        throw new BankScriptFailure('HTTP 503')
+      },
+    })
+    await importerOver(failing, fake.store).run(false)
+    expect(fake.settings).toEqual([])
   })
 })

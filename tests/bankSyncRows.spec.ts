@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { BankTransaction } from '../src/apps/spending/bankSync/domain/bankAnswer'
-import { bankSyncRows, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
+import { bankSyncRows, pendingMoney, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import { fakeBankTransactions } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
@@ -70,6 +70,17 @@ describe('bankSyncRows', () => {
     const { rows, notes } = statementOf([TRANSACTION, { ...TRANSACTION, reference: null, status: 'PDNG' }])
     expect(rows).toHaveLength(1)
     expect(notes).toEqual([`1 pending row of ${OTP.name} left out. It comes once it is booked.`])
+  })
+
+  it('adds up the pending rows in the currency in cents, money out below zero', () => {
+    const pending = (amount: string, direction: 'CRDT' | 'DBIT', currency = 'EUR') => ({ ...TRANSACTION, reference: null, amount, direction, currency, status: 'PDNG' })
+    // 0.10 and 0.20 go out and 0.05 comes in, so −0.25, never a float's −0.25000000000000006.
+    const answer = [TRANSACTION, pending('0.10', 'DBIT'), { ...pending('0.20', 'DBIT'), status: 'HOLD' }, pending('0.05', 'CRDT'), pending('9.00', 'DBIT', 'USD')]
+    expect(pendingMoney(answer, 'EUR')).toBe(-25)
+  })
+
+  it('gives no pending money when the answer holds no pending rows in the currency', () => {
+    expect(pendingMoney([TRANSACTION, { ...TRANSACTION, status: 'PDNG', currency: 'USD' }], 'EUR')).toBeNull()
   })
 
   it('leaves a row of no amount out, since an entry is never zero', () => {

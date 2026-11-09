@@ -6,7 +6,7 @@ import type { BankBalance, BankTransaction, LinkedAccount } from '../domain/bank
 import { statedBalance } from '../domain/bankBalance'
 import type { StatedBalance } from '../domain/bankBalance'
 import { accountsOfLinked, fetchFrom, linkableBankNamed, olderRowsMissing } from '../domain/bankLinks'
-import { BANK_SYNC_LABEL, bankSyncRows, hasPendingRows, rowsWithMoves } from '../domain/bankSyncRows'
+import { BANK_SYNC_LABEL, bankSyncRows, pendingMoney, rowsWithMoves } from '../domain/bankSyncRows'
 import { words } from '../domain/words'
 import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
@@ -45,6 +45,8 @@ export interface BankRead {
   readonly problems: readonly string[]
   /** The banks whose approval is over, whatever day the file holds. */
   readonly ended: readonly LinkableBank[]
+  /** The banks that answered for at least one account's rows, which starts their six hours. */
+  readonly fetched: readonly LinkableBank[]
   /** What the banks say the accounts they answered for hold. */
   readonly stated: readonly StatedBalance[]
   readonly olderRows: readonly OlderRowsMissing[]
@@ -77,6 +79,7 @@ function currenciesLeft(linked: LinkedAccount, kept: readonly Account[], answer:
  * link. One you said is not in Kuna is not fetched unless you keep an account under its IBAN. A bank or an account that
  * fails is a problem line and leaves the others' rows. Google turning the token away ends it all, since no later call
  * would go through. `freshLinks` are the banks linked just before this fetch, whose missing older rows a new link cannot bring.
+ * `leftAlone` are banks asked too recently, whose accounts are listed from the session and none of them read.
  */
 export async function readBanks(
   port: BankSyncPort,
@@ -84,6 +87,7 @@ export async function readBanks(
   day: CivilDate,
   freshLinks: readonly LinkableBank[] = [],
   newId: () => RecordId = () => recordIdOf(ACCOUNT_RECORDS, newRecordId()),
+  leftAlone: readonly LinkableBank[] = [],
 ): Promise<BankRead> {
   const rows: StatementRow[] = []
   const exchangeRates = new Map<StatementRow, Decimal>()
@@ -92,6 +96,7 @@ export async function readBanks(
   const proposals: AccountProposal[] = []
   const problems: string[] = []
   const ended = new Set<LinkableBank>()
+  const fetched = new Set<LinkableBank>()
   const stated: StatedBalance[] = []
   const olderRows: OlderRowsMissing[] = []
   const endedAt = (bank: LinkableBank, name: string): void => {
@@ -110,6 +115,7 @@ export async function readBanks(
       continue
     }
     linkedAll.push(...session.accounts.map((account) => ({ bank, account })))
+    if (leftAlone.includes(bank)) continue
     const offered = session.accounts.filter((linked) => !leftOutOfKuna(linked, book.accounts, book.settings.bankAccountsNotInKuna))
     const fitTwice = accountsFitTwice(offered, book.accounts)
     fitTwice.forEach((account) => problems.push(words.sameAccountTwice(session.bank, account.name)))
@@ -132,6 +138,7 @@ export async function readBanks(
         problems.push(words.bankFailed(words.banks[bank], reason))
         continue
       }
+      fetched.add(bank)
       accounts.forEach((account, place) => {
         const statement = bankSyncRows(answer, account)
         rows.push(...statement.rows)
@@ -149,7 +156,7 @@ export async function readBanks(
       }
       for (const account of accounts) {
         const balance = statedBalance(balances, account.currency)
-        if (balance !== null) stated.push({ account, balance, pending: hasPendingRows(answer, account.currency) })
+        if (balance !== null) stated.push({ account, balance, pending: pendingMoney(answer, account.currency) })
       }
       for (const currency of currenciesLeft(linked, accounts, answer, balances)) {
         const code = currencyCodeOf(currency)
@@ -173,6 +180,7 @@ export async function readBanks(
     proposals: proposals.map((proposal) => ({ ...proposal, rows: { ...proposal.rows, rows: proposal.rows.rows.map((row) => movedOf.get(row) ?? row) } })),
     problems,
     ended: [...ended],
+    fetched: [...fetched],
     stated,
     olderRows,
   }

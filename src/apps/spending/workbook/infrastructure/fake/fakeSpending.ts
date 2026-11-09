@@ -280,6 +280,7 @@ const LINKED_VARIANTS: readonly string[] = [
   'ended',
   'balance-differs',
   'opening-off',
+  'card-pending',
   'exchange',
   'pocket',
   'multi-currency',

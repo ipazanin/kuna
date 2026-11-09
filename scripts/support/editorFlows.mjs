@@ -6142,11 +6142,34 @@ export function spendingBankSyncBalanceFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-difference"]')
-    await waitForTextIn(page, '[data-testid="spending-bank-sync-difference"]', words.spendingBankSync.pendingNoFix)
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-difference"]', aroundAmount(words.spendingBankSync.pendingPaymentsCaption('\u0000', '\u0000')))
     if ((await page.$('[data-testid="spending-bank-sync-set-opening"]')) !== null) throw new Error('the opening is offered while pending rows may explain the difference')
     await delay(300)
     await inspect?.('the bank sync when a balance differs')
     await shoot('spending-bank-sync-balance')
+  }
+}
+
+/** The longest stretch of a line around the amount it names, which is the same in every build whatever the amount reads as. */
+function aroundAmount(line) {
+  return line.split('\u0000').reduce((longest, part) => (part.trim().length > longest.length ? part.trim() : longest), '')
+}
+
+/** On Settings, Bank sync when pending card payments make up the whole difference: a plain line, with no warning and no opening offered. */
+export function spendingBankSyncPendingFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-pending"]')
+    await waitForTextIn(page, '[data-testid="spending-bank-sync-pending"]', aroundAmount(words.spendingBankSync.pendingPayments('Revolut EUR', '\u0000')))
+    if ((await page.$('[data-testid="spending-bank-sync-difference"]')) !== null) throw new Error('a difference pending rows explain shows as a warning')
+    if ((await page.$('[data-testid="spending-bank-sync-set-opening"]')) !== null) throw new Error('the opening is offered while pending rows explain the difference')
+    await dismissToasts(page)
+    // Below the top bar and the tabs, which stay on screen.
+    await page.$eval('[data-testid="spending-bank-sync-setup"]', (card) => window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - 140 }))
+    await delay(300)
+    await inspect?.('the bank sync when pending rows explain a balance')
+    await shoot('spending-bank-sync-pending')
   }
 }
 

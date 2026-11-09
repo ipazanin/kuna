@@ -4,6 +4,7 @@ import type { AccountProposal, LinkedOfBank } from '../domain/bankAccountSetup'
 import type { BankBalance, BankSession, BankTransaction } from '../domain/bankAnswer'
 import { balanceDifferences } from '../domain/bankBalance'
 import type { BalanceDifference } from '../domain/bankBalance'
+import { heldBanks } from '../domain/bankLinks'
 import type { PendingLink } from '../domain/bankReturn'
 import { words } from '../domain/words'
 import { writeDryRun } from '../../statements/application/statementWrites'
@@ -13,7 +14,7 @@ import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { setSetting } from '../../../../shared/storage/application/settingWrites'
 import type { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../workbook/domain/spendingSettings'
+import { BANK_SYNC_DEPLOYMENT_KEY, bankFetchedKey, bankLinkKey } from '../../workbook/domain/spendingSettings'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -42,6 +43,11 @@ export function saveDeployment(unit: UnitOfWork, book: Pick<SpendingBook, 'readi
   setSetting(unit, SETTING_WRITES, book.readings.settings.facts, BANK_SYNC_DEPLOYMENT_KEY, deployment.trim())
 }
 
+/** When a bank last answered, which every device sharing the file reads to leave it alone for six hours. */
+function saveFetched(unit: UnitOfWork, book: Pick<SpendingBook, 'readings'>, bank: LinkableBank, at: number): void {
+  setSetting(unit, SETTING_WRITES, book.readings.settings.facts, bankFetchedKey(bank), new Date(at).toISOString())
+}
+
 /** The day a bank's approval runs out. */
 export function saveLink(unit: UnitOfWork, book: Pick<SpendingBook, 'readings'>, bank: LinkableBank, validUntil: string): void {
   setSetting(unit, SETTING_WRITES, book.readings.settings.facts, bankLinkKey(bank), validUntil.slice(0, 10))
@@ -66,15 +72,18 @@ export interface BankImportPorts {
   /** The script, told when a person started the fetch, which lifts the banks' limit on unattended reads. */
   script(deployment: string, personHere: boolean): Promise<BankSyncPort>
   readonly store: SpendingStore
-  /** The banks answered, so the hold on the next automatic fetch starts from here. A call that never reached them holds nothing. */
+  /** The banks answered, with what this device keeps to repeat while the step holds back. A call that never reached them keeps nothing. */
   asked(read: BankRead): void
   day(): CivilDate
+  /** Epoch milliseconds. */
+  now(): number
 }
 
 export interface BankImporter {
   /**
-   * Asks the banks and imports what is new in one write, so one Undo takes it all back. A second call while one runs gets
-   * the same fetch, since each uses up one of a bank's few fetches a day. `freshLink` is the bank linked just before it.
+   * Asks the banks and imports what is new in one write, so one Undo takes it all back, with the time each bank answered.
+   * A second call while one runs gets the same fetch, since each uses up one of a bank's few fetches a day. Without a person
+   * there it leaves alone each bank any device asked within six hours. `freshLink` is the bank linked just before it.
    */
   run(personHere: boolean, freshLink?: LinkableBank): Promise<BankSyncOutcome>
 }
@@ -92,7 +101,9 @@ export function bankImporter(ports: BankImportPorts): BankImporter {
   async function fetchOnce(personHere: boolean, freshLink: LinkableBank | undefined): Promise<BankSyncOutcome> {
     const day = ports.day()
     const asking = openBook(store)
-    const read = await readBanks(await ports.script(asking.settings.bankSyncDeployment, personHere), asking, day, freshLink === undefined ? [] : [freshLink])
+    const held = personHere ? [] : heldBanks(asking.settings, ports.now())
+    const read = await readBanks(await ports.script(asking.settings.bankSyncDeployment, personHere), asking, day, freshLink === undefined ? [] : [freshLink], undefined, held)
+    const answeredAt = ports.now()
     ports.asked(read)
     await store.settled()
     const stillLive = read.ended.filter((bank) => (openBook(store).settings.bankLinks[bank] ?? '') >= day)
@@ -107,7 +118,15 @@ export function bankImporter(ports: BankImportPorts): BankImporter {
     const dryRun = statementDryRun(book, read.statement, day)
     const differences = balanceDifferences(read.stated, rowsAfterDryRun(book.transactions, dryRun), day)
     const changes = dryRun.added.length + dryRun.changed.length
-    const receipt = changes === 0 ? null : await store.write(words.imported, (unit) => writeDryRun(unit, dryRun))
+    const stamp = (unit: UnitOfWork): void => read.fetched.forEach((bank) => saveFetched(unit, book, bank, answeredAt))
+    const receipt =
+      changes === 0
+        ? null
+        : await store.write(words.imported, (unit) => {
+            writeDryRun(unit, dryRun)
+            stamp(unit)
+          })
+    if (changes === 0 && read.fetched.length > 0) await store.write(words.fetched, stamp)
     const { linked, proposals, problems, olderRows } = read
     return { dryRun, problems, linked, proposals, differences, olderRows, receipt }
   }

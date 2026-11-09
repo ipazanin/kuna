@@ -10,11 +10,12 @@ import { decimalOf } from '../../../../shared/storage/domain/storedFields'
 /** The booked balances, newest kind first. Kuna leaves pending rows out, so these are the ones it should agree with. */
 const BOOKED_TYPES: readonly string[] = ['ITBD', 'CLBD']
 
-/** What a bank says one Spending account holds, and whether the fetch held pending rows, which a balance of another kind may already count. */
+/** What a bank says one Spending account holds, and what the fetch's pending rows add up to, which a balance of another kind may already count. */
 export interface StatedBalance {
   readonly account: Account
   readonly balance: AccountMoney
-  readonly pending: boolean
+  /** Null when the fetch held no pending rows. */
+  readonly pending: AccountMoney | null
 }
 
 /** An account whose balance on the day differs from what its bank says. */
@@ -22,6 +23,10 @@ export interface BalanceDifference {
   readonly account: Account
   readonly stated: AccountMoney
   readonly worked: AccountMoney
+  /** What the bank's pending rows add up to, or null when it holds none. */
+  readonly pending: AccountMoney | null
+  /** Whether the pending rows make up the whole difference, so nothing is wrong and the rows come in once they book. */
+  readonly explained: boolean
   /** The opening that would make the two agree, or null when pending rows may explain the difference, so changing the opening could be wrong. */
   readonly fixedOpening: AccountMoney | null
 }
@@ -39,6 +44,7 @@ export function balanceDifferences(stated: readonly StatedBalance[], rows: reado
   return stated.flatMap(({ account, balance, pending }) => {
     const worked = accountBalance(account, rows, day)
     if (worked === balance) return []
-    return [{ account, stated: balance, worked, fixedOpening: pending ? null : addAccountMoney(account.opening, subtractAccountMoney(balance, worked)) }]
+    const difference = subtractAccountMoney(balance, worked)
+    return [{ account, stated: balance, worked, pending, explained: difference === pending, fixedOpening: pending === null ? addAccountMoney(account.opening, difference) : null }]
   })
 }

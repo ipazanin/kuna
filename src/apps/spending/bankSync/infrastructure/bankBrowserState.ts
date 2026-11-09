@@ -40,13 +40,12 @@ export function savePendingLink(pending: PendingLink | null): void {
 }
 
 /**
- * When this device's last fetch got an answer, and what it left wanting, which the step repeats while it holds back. The
- * linked accounts are kept apart from the lines, so the step can leave out one that has been added since. Of each account
- * the browser keeps only what names it, so the bank's product and the description the person set stay out.
+ * What this device's last fetch left wanting, which the step repeats while it holds back. When it ran is in the Spending
+ * file, which every device shares. The linked accounts are kept apart from the lines, so the step can leave out one that
+ * has been added since. Of each account the browser keeps only what names it, so the bank's product and the description
+ * the person set stay out.
  */
 export interface LastFetch {
-  /** Epoch milliseconds. */
-  readonly at: number
   readonly problems: readonly string[]
   readonly linked: readonly LinkedOfBank[]
 }
@@ -61,9 +60,8 @@ function linkedOf(candidate: unknown): LinkedOfBank | null {
 
 export function loadLastFetch(): LastFetch | null {
   const candidate = read(FETCHED_KEY) as Partial<LastFetch> | null
-  if (candidate === null || typeof candidate.at !== 'number') return null
+  if (candidate === null || typeof candidate !== 'object') return null
   return {
-    at: candidate.at,
     problems: Array.isArray(candidate.problems) ? candidate.problems.map(String) : [],
     linked: Array.isArray(candidate.linked) ? candidate.linked.flatMap((linked) => linkedOf(linked) ?? []) : [],
   }

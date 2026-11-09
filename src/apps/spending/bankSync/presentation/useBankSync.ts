@@ -23,8 +23,9 @@ const busy = ref(false)
 const importer = bankImporter({
   script: bankSyncPort,
   store,
-  asked: (read: BankRead) => saveLastFetch({ at: Date.now(), problems: bankProblemLines(read), linked: read.linked }),
+  asked: (read: BankRead) => saveLastFetch({ problems: bankProblemLines(read), linked: read.linked }),
   day: today,
+  now: Date.now,
 })
 
 function messageOf(reason: unknown): string {

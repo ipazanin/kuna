@@ -53,6 +53,7 @@ function revolutEuroRows(day: CivilDate, variant: string | null): readonly BankT
     // The euro leg of an exchange carries the rate on the money out.
     ...(variant === 'exchange' ? [{ ...transaction(day, 1, 'rev-2101', '50.00', 'DBIT', 'Exchanged to USD'), exchangeRate: '1.0850' }] : []),
     ...(variant === 'pocket' ? [transaction(day, 1, 'rev-2201', '20.00', 'DBIT', 'To pocket Summer trip')] : []),
+    ...(variant === 'card-pending' ? [transaction(day, 0, null, '0.80', 'DBIT', 'Newspaper kiosk', 'PDNG')] : []),
   ]
 }
 
@@ -100,6 +101,8 @@ function fakeBalances(accountUid: string, variant: string | null): readonly Bank
   // OTP holds a pending row, which an available balance may count.
   if (variant === 'balance-differs' && accountUid === OTP_UID) return [{ amount: '1.00', currency: 'EUR', type: 'ITAV' }]
   if (variant === 'opening-off' && accountUid === REVOLUT_UID) return [{ amount: '1.00', currency: 'EUR', type: 'ITBD' }]
+  // Kuna works out 306.20 on the euro account once the rows are in, and the available balance counts the pending 0.80 card payment.
+  if (variant === 'card-pending' && accountUid === REVOLUT_UID) return [{ amount: '305.40', currency: 'EUR', type: 'ITAV' }]
   // The dollar account's rows add up to its balance, so it opened empty. The savings account held 250.00 before its one row.
   if (accountUid === NEW_USD_UID) return [{ amount: '27.50', currency: 'USD', type: 'ITAV' }]
   if (accountUid === NEW_SAVINGS_UID) return [{ amount: '350.00', currency: 'EUR', type: 'ITAV' }]
@@ -149,7 +152,7 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
 /**
  * The fake build's script as `?banksync=` names it, which answers from the page and sends nothing away. `failed` answers an
  * error, `balance-differs` has OTP state a balance Kuna does not reach while it holds a pending row, `opening-off` has
- * Revolut's euro account do so with none, `iban-blank` reaches the dollar account the fake file keeps without an IBAN,
+ * Revolut's euro account do so with none, `card-pending` has it state an available balance its one pending card payment explains, `iban-blank` reaches the dollar account the fake file keeps without an IBAN,
  * `exchange` and `pocket` bring a move between your accounts, and a link's trip comes straight back to this address.
  */
 export function fakeBankSync(variant: string | null, day: CivilDate = today()): BankSyncPort {

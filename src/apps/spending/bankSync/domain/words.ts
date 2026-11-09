@@ -28,6 +28,7 @@ export const en = {
   sessionEnded: (bank: string) => `The link to ${bank} ended early. Link it again.`,
   noFile: 'The Spending file is not open yet.',
   imported: 'Bank rows imported',
+  fetched: 'Banks asked',
   linked: 'Bank linked',
   linkEndedTitle: 'Bank link ended',
 }
@@ -62,6 +63,7 @@ export const hr: Translation<typeof en> = {
   sessionEnded: (bank) => `Veza s bankom ${bank} prekinuta je prije roka. Povežite je ponovno.`,
   noFile: 'Datoteka potrošnje još nije otvorena.',
   imported: 'Retci iz banke uvezeni',
+  fetched: 'Banke pitane',
   linked: 'Banka povezana',
   linkEndedTitle: 'Veza s bankom završena',
 }

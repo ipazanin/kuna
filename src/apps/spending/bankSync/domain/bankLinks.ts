@@ -18,8 +18,8 @@ const OVERLAP_DAYS = 14
 /** The FAQ says many banks restrict transactions to the past 90 days. */
 const PERIOD_A_BANK_GIVES_DAYS = 89
 
-/** How often the step asks the banks by itself. Enable Banking says many banks allow four background fetches a day and says to retry after six hours. */
-export const FETCH_INTERVAL_MS = 6 * 3_600_000
+/** How often the step asks a bank by itself. Enable Banking says many banks allow four background fetches a day and says to retry after six hours. */
+const FETCH_INTERVAL_MS = 6 * 3_600_000
 
 export interface EndingLink {
   readonly bank: LinkableBank
@@ -39,6 +39,20 @@ export function endingLinks(settings: SpendingSettings, day: CivilDate): readonl
 /** Whether a sync has anything to ask: a saved deployment and a link still good on the day. */
 export function hasLiveLink(settings: SpendingSettings, day: CivilDate): boolean {
   return settings.bankSyncDeployment !== '' && LINKABLE_BANKS.some((bank) => (settings.bankLinks[bank] ?? '') >= day)
+}
+
+/** The banks any device sharing the file asked within the last six hours, which the step leaves alone. */
+export function heldBanks(settings: SpendingSettings, now: number): readonly LinkableBank[] {
+  return LINKABLE_BANKS.filter((bank) => {
+    const fetchedAt = settings.bankFetchedAt[bank]
+    return fetchedAt !== null && now - fetchedAt < FETCH_INTERVAL_MS
+  })
+}
+
+/** Whether the step has a bank to ask by itself: a live link that no device asked within the last six hours. */
+export function hasDueLink(settings: SpendingSettings, day: CivilDate, now: number): boolean {
+  const held = heldBanks(settings, now)
+  return settings.bankSyncDeployment !== '' && LINKABLE_BANKS.some((bank) => (settings.bankLinks[bank] ?? '') >= day && !held.includes(bank))
 }
 
 /** The link a session of Enable Banking belongs to, or null for a bank Kuna does not link. */

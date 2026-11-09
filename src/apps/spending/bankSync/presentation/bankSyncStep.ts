@@ -1,4 +1,4 @@
-import { FETCH_INTERVAL_MS, hasLiveLink } from '../domain/bankLinks'
+import { hasDueLink, hasLiveLink } from '../domain/bankLinks'
 import { loadLastFetch } from '../infrastructure/bankBrowserState'
 import { bankHeldResult, bankStepResult } from './bankStepResult'
 import { BANK_SYNC_SCOPE } from './bankSyncPort'
@@ -11,7 +11,10 @@ import type { SyncStep } from '../../../../shared/sync/application/sync'
 
 const store = useSpendingBooks()
 
-/** The Spending sync's bank step while a link is live. It imports what is new, and leaves the banks alone for six hours after one answered, as many banks allow four background fetches a day. */
+/**
+ * The Spending sync's bank step while a link is live. It imports what is new, and leaves each bank alone for six hours
+ * after it answered any device sharing the file, as many banks allow four background fetches a day.
+ */
 export const BANK_SYNC_STEP: SyncStep = {
   id: 'bank-sync',
   label: words.step.label,
@@ -20,8 +23,11 @@ export const BANK_SYNC_STEP: SyncStep = {
   leftOutWhenOff: true,
   on: () => store.state.workbook !== null && hasLiveLink(store.state.workbook.settings, today()),
   async run() {
-    const last = loadLastFetch()
-    if (last !== null && Date.now() - last.at < FETCH_INTERVAL_MS) return bankHeldResult(last.problems, last.linked, store.state.workbook)
+    const book = store.state.workbook
+    if (book !== null && !hasDueLink(book.settings, today(), Date.now())) {
+      const last = loadLastFetch()
+      return bankHeldResult(last?.problems ?? [], last?.linked ?? [], book)
+    }
     const outcome = await fetchAndImport(false)
     const writeId = store.state.writes.find((written) => written.receipt === outcome.receipt)?.id ?? null
     return bankStepResult(outcome, store.state.workbook, writeId, store.state.workbook === null ? 0 : reviewCount(store.state.workbook))

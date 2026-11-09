@@ -4,7 +4,7 @@ import { statedBalance } from './bankBalance'
 import { accountsOfLinked } from './bankLinks'
 import { openingFromBank } from './bankOpening'
 import type { BankOpening } from './bankOpening'
-import { bankSyncRows, hasPendingRows } from './bankSyncRows'
+import { bankSyncRows, pendingMoney } from './bankSyncRows'
 import type { SyncedRows } from './bankSyncRows'
 import { words } from './words'
 import type { Account, AccountKind } from '../../workbook/domain/account'
@@ -88,7 +88,7 @@ export function proposeAccount(
 ): AccountProposal {
   const draft = draftAccount(linked, bank, currency, id, day, accounts)
   const rows = bankSyncRows(answer, draft)
-  const opening = openingFromBank(rows.rows, statedBalance(balances, currency), day, hasPendingRows(answer, currency))
+  const opening = openingFromBank(rows.rows, statedBalance(balances, currency), day, pendingMoney(answer, currency) !== null)
   return { bank, linked, account: { ...draft, opening: opening.opening, openedOn: opening.openedOn }, opening, rows }
 }
 

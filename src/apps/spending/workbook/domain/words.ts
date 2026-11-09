@@ -64,6 +64,7 @@ export const en = {
   siblingLineLeftOut: 'another line of its entry is left out, so the entry counts under its own category',
   linesDoNotAddUp: (sum: string, amount: string) => `the lines of its entry add up to ${sum}, and the entry says ${amount}`,
   settingNotADay: (key: string, text: string) => `${key} "${text}" is not a date such as 2027-05-03`,
+  settingNotATime: (key: string, text: string) => `${key} "${text}" is not a UTC time such as 2026-11-09T07:40:00.000Z`,
   settingNotABankAccount: (key: string, line: string) => `${key} line "${line}" is not an IBAN and a currency such as LT000000000000000001 USD`,
 }
 
@@ -108,6 +109,7 @@ export const hr: Translation<typeof en> = {
   siblingLineLeftOut: 'druga stavka njezina unosa je izostavljena, pa se unos broji pod svojom kategorijom',
   linesDoNotAddUp: (sum, amount) => `stavke njezina unosa daju ${sum}, a na unosu piše ${amount}`,
   settingNotADay: (key, text) => `${key} „${text}” nije datum kao 2027-05-03`,
+  settingNotATime: (key, text) => `${key} „${text}” nije UTC vrijeme kao 2026-11-09T07:40:00.000Z`,
   settingNotABankAccount: (key, line) => `${key} redak „${line}” nije IBAN i valuta kao LT000000000000000001 USD`,
 }
 

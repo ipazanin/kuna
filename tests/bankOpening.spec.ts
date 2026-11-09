@@ -48,18 +48,25 @@ describe('the opening a bank gives', () => {
 
 describe('a balance that differs', () => {
   const coffee = row(OTP, '2026-10-20', -6.5, 'Food/Coffee')
+  // Kuna works out the opening less 6.50.
+  const worked = accountMoneyFromCents(OTP.opening - 650)
+  const stated = (balance: number, pending: number | null) => [{ account: OTP, balance: accountMoneyFromCents(balance), pending: pending === null ? null : accountMoneyFromCents(pending) }]
 
-  it('offers the opening that makes the bank and Kuna agree', () => {
-    // Kuna works out the opening less 6.50, so the opening moves by what the bank says above that.
-    const worked = OTP.opening - 650
-    expect(balanceDifferences([{ account: OTP, balance: money(1), pending: false }], [coffee], DAY)).toEqual([{ account: OTP, stated: 100, worked, fixedOpening: OTP.opening + 100 - worked }])
+  it('offers the opening that makes the bank and Kuna agree when the bank holds no pending rows', () => {
+    // The opening moves by what the bank says above what Kuna works out.
+    expect(balanceDifferences(stated(100, null), [coffee], DAY)).toEqual([{ account: OTP, stated: 100, worked, pending: null, explained: false, fixedOpening: OTP.opening + 100 - worked }])
   })
 
-  it('offers no opening while pending rows may explain the difference', () => {
-    expect(balanceDifferences([{ account: OTP, balance: money(1), pending: true }], [coffee], DAY).map((difference) => difference.fixedOpening)).toEqual([null])
+  it('reads a difference the pending rows make up in full as explained, with no opening to change', () => {
+    // An available balance 0.80 below Kuna's, with a pending 0.80 card payment.
+    expect(balanceDifferences(stated(worked - 80, -80), [coffee], DAY)).toEqual([{ account: OTP, stated: worked - 80, worked, pending: -80, explained: true, fixedOpening: null }])
+  })
+
+  it('keeps a difference the pending rows do not make up unexplained, still with no opening while they may count', () => {
+    expect(balanceDifferences(stated(worked - 100, -80), [coffee], DAY)).toEqual([{ account: OTP, stated: worked - 100, worked, pending: -80, explained: false, fixedOpening: null }])
   })
 
   it('says nothing when they agree', () => {
-    expect(balanceDifferences([{ account: OTP, balance: accountMoneyFromCents(OTP.opening - 650), pending: false }], [coffee], DAY)).toEqual([])
+    expect(balanceDifferences(stated(worked, -80), [coffee], DAY)).toEqual([])
   })
 })

@@ -11,6 +11,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A screen whose books are still opening shows `ScreenSkeleton` below its header.
 - A card with nothing to show uses `EmptyState`, dashed. A card that failed uses `EmptyState` with `tone="error"`. Nothing hand-draws either.
 - Cards that fold, such as a chart or a table, remember their state per device through `cardCollapse.ts`.
+- A notice in a card is a subtle `UAlert` with an icon: `neutral` with `i-lucide-info` for something with nothing to do, `info` for something waiting on the person, and `warning` for something that may be wrong.
 
 ## Tiles and rows of figures
 
