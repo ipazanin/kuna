@@ -19,7 +19,7 @@ import type { KunaChat } from './chatApps'
 import GrantCard from './GrantCard.vue'
 import ChatLineView from './ChatLineView.vue'
 import PromptFiles from './PromptFiles.vue'
-import { chatElement, closeChat, removeChatElement } from './chatDock'
+import { chatElement, chatRequest, closeChat, removeChatElement, takeChatRequest } from './chatDock'
 import {
   allowThisChat,
   allowedThisChat,
@@ -137,6 +137,18 @@ function run(message: string): void {
     () => loadCatalogue(props.apps, props.kuna),
   )
 }
+
+/** A button that names a task sends it as the person's message, through the same yes as a typed one. While a message runs it waits in the prompt. */
+watch(
+  chatRequest,
+  (task) => {
+    if (task === null) return
+    takeChatRequest()
+    if (chatStatus.value === 'ready') send(task)
+    else chatDraft.value = task
+  },
+  { immediate: true },
+)
 
 /** The question stays in the prompt until it goes, so Cancel on the card loses nothing. */
 function submit(): void {

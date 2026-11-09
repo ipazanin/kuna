@@ -251,8 +251,12 @@ function restoredState(state: ProposalState): ProposalState {
   return state === 'done' ? 'undo-ended' : state
 }
 
+/** What the model hears with the first message after a restore, since the earlier turns are not sent again. */
+const RESTORED_CONTEXT =
+  'The page reloaded. The person still sees the chat from before it, which this conversation does not hold, and its cards can no longer be accepted. If they refer to it, ask them to say again what they need.'
+
+/** Shows the saved lines, then the note that the model no longer sees them, beside the prompt where the next message is typed. */
 function restored(saved: SavedChat): void {
-  restoredNote = added('assistant', words.history.restored, true).id
   for (const line of saved.lines) {
     const shown = added(line.role, line.text, line.note, line.at)
     shown.chips = [...line.chips]
@@ -269,6 +273,8 @@ function restored(saved: SavedChat): void {
     }))
     shown.attachments = [...(line.attachments ?? [])]
   }
+  restoredNote = added('assistant', words.history.restored, true).id
+  outcomes.push(RESTORED_CONTEXT)
   Object.assign(spent, saved.spent)
 }
 
@@ -298,7 +304,7 @@ export function settleProposal(proposal: ChatProposal, state: ProposalState, rea
     done: `The person accepted the card "${proposal.title}", and it is written.`,
     undone: `The person undid the card "${proposal.title}".`,
     declined: `The person did not accept the card "${proposal.title}".`,
-    refused: `Kuna refused the card "${proposal.title}" when the person answered it, as a record changed since.`,
+    refused: `Kuna did not write the card "${proposal.title}" when the person accepted it, as a record changed since or the save failed. The card shows the person why.`,
   }[state as 'done' | 'undone' | 'declined' | 'refused']
   if (outcome !== undefined) outcomes.push(outcome)
   keepChat()

@@ -36,7 +36,7 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
 const book = computed(() => store.state.workbook)
-const { ask: askAboutQueue, marked: queueMarked } = useChatElement(REVIEW_ASKED, 'card')
+const { ask: askAboutQueue, marked: queueMarked } = useChatElement(REVIEW_ASKED, 'card', words.review.suggestCategoriesTask)
 const queue = computed(() => (book.value === null ? null : reviewQueue(book.value, today())))
 const accounts = computed(() => book.value?.accounts ?? [])
 /** What your rules would file a row under, which To review only suggests for a row that may be the same money as a typed one. */

@@ -42,11 +42,22 @@ function storedWidth(): number {
 const open = ref(false)
 const width = ref(storedWidth())
 const element = shallowRef<AskedElement | null>(null)
+const request = shallowRef<string | null>(null)
 
 /** Whether the panel shows. The shell's layout follows this, and the address in the pane. */
 export const chatOpen = readonly(open)
 /** The element the chat is about, or null. */
 export const chatElement = readonly(element)
+
+/** What a button that names a task asked the chat to do, which the panel sends once it shows. Null once taken. */
+export const chatRequest = readonly(request)
+
+/** Takes the request a button left, so it goes once. */
+export function takeChatRequest(): string | null {
+  const taken = request.value
+  request.value = null
+  return taken
+}
 
 /** The chat's width in px as a person last set it on this device. A window too narrow for it draws less and keeps this. */
 export const chatWidth = readonly(width)
@@ -89,17 +100,20 @@ export type ChatElementShape = 'card' | 'row'
 /**
  * For an element a person can ask the chat about. `ask` opens the chat about it, in place of any element before. The
  * element binds `marked` with `v-bind`, so it takes the highlight while the open chat is about it. The looks are in `app.css`.
- * While `asked` is null, as for a row with nothing to ask about, `ask` does nothing and `marked` stays empty.
+ * While `asked` is null, as for a row with nothing to ask about, `ask` does nothing and `marked` stays empty. A button that
+ * names a task, such as Suggest categories, gives its `task`, which the chat sends by itself. Without one the chat waits for the person.
  */
 export function useChatElement(
   asked: MaybeRefOrGetter<AskedElement | null>,
   shape: ChatElementShape,
+  task: string | null = null,
 ): { readonly ask: () => void; readonly marked: ComputedRef<{ readonly 'data-chat-tagged'?: ChatElementShape }> } {
   return {
     ask: () => {
       const about = toValue(asked)
       if (about === null) return
       element.value = about
+      request.value = task
       open.value = true
     },
     marked: computed(() => {

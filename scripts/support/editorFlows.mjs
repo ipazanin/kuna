@@ -9286,7 +9286,8 @@ export function chatStatementCardFlowIn(language) {
 
 /**
  * Spending's To review with a made-up key kept. `queue`: the card's header offers Suggest categories, which opens the chat about
- * To review with the card outlined. `row`: a waiting row's Ask the chat tags that row alone, named by its day and account, never its payee.
+ * To review with the card outlined and sends the request by itself. `row`: a waiting row's Ask the chat tags that row alone, named by its day
+ * and account, never its payee, and sends nothing.
  */
 export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
   const words = SCREEN_WORDS[language]
@@ -9306,9 +9307,13 @@ export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
         await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
         await elementSays(page, '[data-testid="chat-tag"]', [review.title], 'the chat is not about To review')
         if ((await page.$('[data-testid="spending-review"][data-chat-tagged="card"]')) === null) throw new Error('the To review card takes no outline while the chat is about it')
+        await allowIfAsked(page, press)
+        await elementSays(page, '[data-testid="chat-question"]', [review.suggestCategoriesTask], 'Suggest categories did not send its request by itself')
+        await page.waitForSelector('[data-testid="chat-answer"], [data-testid="chat-failure"]', { visible: true, timeout: 15_000 })
         await delay(300)
         await inspect?.('the chat about To review')
         await shoot('spending-review-tagged')
+        await newChat(page, press)
         await giveThePageBack(page, press)
       }
       if (parts.includes('row')) {
@@ -9325,6 +9330,7 @@ export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
             throw new Error('the chat about the row shows no chip')
           })
         if (payee !== '' && tag.includes(payee)) throw new Error(`the chip names the row by its payee ${payee}`)
+        if (await page.$('[data-testid="chat-question"]')) throw new Error("a row's Ask the chat sent a message by itself")
         await delay(300)
         await inspect?.('the chat about one waiting row')
         await shoot('spending-review-row-tagged')

@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import type { Ref } from 'vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { GoogleApiError } from '../../google/googleApi'
+import { withGoogleAccess } from '../../google/withGoogleAccess'
 import { canUndo } from '../application/createWorkbookStore'
 import type { BooksRead, SessionWrite, WorkbookStore } from '../application/createWorkbookStore'
 import type { WriteReceipt } from '../application/recordWrites'
@@ -10,6 +10,7 @@ import type { UnitOfWork } from '../application/repository'
 import { WorkbookWriteRefused } from '../application/workbookWriteRefused'
 import { recordsChangeInWords } from './recordsChangeInWords'
 import { words } from './words'
+import { failedOnDrive, writeFailureInWords } from './writeFailureInWords'
 
 /** How long a toast with Undo stays, so there is time to reach the button. */
 const UNDO_TOAST_DURATION = 10_000
@@ -38,11 +39,6 @@ let composablesMade = 0
 const DRIVE_FAILED_TOAST = 'drive-failed'
 let titlesFailedOnDrive: readonly string[] = []
 
-/** A refusal from Drive or a request that never reached it, whose own text is no use to a person. */
-function failedOnDrive(failure: unknown): boolean {
-  return failure instanceof GoogleApiError || failure instanceof TypeError
-}
-
 export interface RecordWrites {
   /** True while a write of this composable waits or runs. */
   readonly busy: Readonly<Ref<boolean>>
@@ -60,7 +56,10 @@ export interface RecordWrites {
   undo(write: SessionWrite): Promise<void>
 }
 
-/** Record writes to the store's file with their toasts: what was written with Undo beside it, or why nothing was. */
+/**
+ * Record writes to the store's file with their toasts: what was written with Undo beside it, or why nothing was. A write or an undo
+ * that finds the page's Google access lapsed, as on a phone, asks Google and goes again.
+ */
 export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>): RecordWrites {
   const toast = useToast()
   const running = ref(0)
@@ -82,14 +81,14 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
       toast.add({ ...shared, id: DRIVE_FAILED_TOAST, description: `${titlesFailedOnDrive.join(', ')}: ${words.driveFailed}` })
       return
     }
-    const reason = failure instanceof Error ? failure.message : String(failure)
+    const reason = writeFailureInWords(failure)
     toast.add({ ...shared, description: naming === 'always' ? `${writeTitle}: ${reason}` : reason })
   }
 
   async function undo(write: SessionWrite): Promise<void> {
     running.value += 1
     try {
-      await store.undo(write)
+      await withGoogleAccess([], () => store.undo(write))
       const undone = store.state.writes.find((written) => written.undid === write.receipt)
       const description = write.shownAtOnce ? write.receipt.title : undone === undefined ? null : recordsChangeInWords(undone.receipt, undone.undid)
       toast.add({ title: words.undone, ...(description === null ? {} : { description }), icon: 'i-lucide-undo-2', color: 'neutral' })
@@ -120,7 +119,7 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
   async function write(title: string, work: (unit: UnitOfWork) => void, options: RecordWriteOptions = {}): Promise<boolean> {
     running.value += 1
     try {
-      const receipt = await store.write(title, work, { key: queueKey(options.key ?? SAVE_KEY), shownAtOnce: options.shownAtOnce ?? false })
+      const receipt = await withGoogleAccess([], () => store.write(title, work, { key: queueKey(options.key ?? SAVE_KEY), shownAtOnce: options.shownAtOnce ?? false }))
       if (receipt === null) {
         toast.add({ title: words.nothingChanged, description: words.alreadyHeld, icon: 'i-lucide-info', color: 'neutral' })
         return true

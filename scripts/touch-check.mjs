@@ -249,7 +249,7 @@ import {
   chatConsentCellsFlow,
 } from './support/editorFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
-import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
+import { companyChatAcceptLapsedFlowIn, companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
 import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
@@ -3169,6 +3169,8 @@ async function checkWidth(width) {
     ['spending-receipt-place', 'drive&spending=receipts', spendingReceiptPlaceFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-review-near', 'drive&spending=statements', spendingReviewNearFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    // The same saves and Undo once the page's Google token has lapsed, as on a phone after an hour: each asks Google and goes again.
+    ['spending-review-lapsed', 'drive&spending=statements&google=expired', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],
     ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings?tab=prices', 'Settings'],
@@ -3195,6 +3197,7 @@ async function checkWidth(width) {
     // Company's ways into the chat.
     ['company-review-sort', 'drive', companyReviewAskFlowIn('en'), '#/company/transactions?tab=review', 'Transactions'],
     ['company-chat-invoice', 'drive', companyChatCardFlowIn('en', 'invoice'), '#/company', 'Overview'],
+    ['company-chat-accept-lapsed', 'drive&google=expired', companyChatAcceptLapsedFlowIn('en'), '#/company', 'Overview'],
     ['company-chat-anonymise', 'five-employees', companyChatAnonymiseFlowIn('en'), '#/company/salaries', 'Salaries'],
     // Loans', Investments' and Assets' cards in the chat.
     ['chat-offer', 'drive&loans=sample', appChatCardFlowIn('en', 'offer'), '#/loans/scenarios', 'Scenarios'],

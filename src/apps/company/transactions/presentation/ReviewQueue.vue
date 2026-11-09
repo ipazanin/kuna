@@ -62,8 +62,12 @@ function toggle(id: RecordId): void {
   expandedRow.value = expandedRow.value === id ? null : id
 }
 
-/** The queue as a place, so the chat reads the rows waiting on it. Nothing is typed for the person. */
-const { ask: askAboutQueue, marked: queueMarked } = useChatElement({ key: 'company-review-queue', label: words.tabs.review, about: { kind: 'place', app: COMPANY_APP, route: REVIEW_LINK } }, 'card')
+/** The queue as a place, so the chat reads the rows waiting on it. Suggest categories sends its request by itself. */
+const { ask: askAboutQueue, marked: queueMarked } = useChatElement(
+  { key: 'company-review-queue', label: words.tabs.review, about: { kind: 'place', app: COMPANY_APP, route: REVIEW_LINK } },
+  'card',
+  words.review.suggestCategoriesTask,
+)
 
 function file(title: string, verdict: RowVerdict, options: RecordWriteOptions): Promise<boolean> {
   return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], state.workbook?.categories ?? []), { failedTitle: words.review.notWritten, ...options })

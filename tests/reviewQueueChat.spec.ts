@@ -19,6 +19,11 @@ describe("asking the chat from Company's To review", () => {
     expect(queue).toContain('<AskChatButton :label="words.tabs.review" :text="words.review.suggestCategories"')
     expect(queue).toMatch(/about: \{ kind: 'place', app: COMPANY_APP, route: REVIEW_LINK \}/)
     expect([en.review.suggestCategories, hr.review.suggestCategories]).toEqual(['Suggest categories', 'Predloži kategorije'])
+    expect(queue).toContain("'card',\n  words.review.suggestCategoriesTask,")
+    expect([en.review.suggestCategoriesTask, hr.review.suggestCategoriesTask]).toEqual([
+      'Suggest categories for the rows waiting on To review.',
+      'Predloži kategorije za retke koji čekaju na kartici Za provjeru.',
+    ])
   })
 
   it('names the To review place for the chat, so a tag on the queue reaches the model', () => {

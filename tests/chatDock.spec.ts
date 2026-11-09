@@ -9,11 +9,13 @@ import {
   CHAT_MIN_WIDTH,
   chatElement,
   chatOpen,
+  chatRequest,
   chatWidth,
   chatWidthIn,
   closeChat,
   removeChatElement,
   resizeChat,
+  takeChatRequest,
   useChatElement,
 } from '../src/shared/ai/presentation/chatDock'
 
@@ -30,6 +32,16 @@ describe('asking the chat about one element', () => {
     useChatElement(CASH, 'card').ask()
     expect(chatOpen.value).toBe(true)
     expect(chatElement.value).toEqual(CASH)
+  })
+
+  it('leaves the task a named button asks for, for the panel to send once, and none for a plain ask', () => {
+    useChatElement(CASH, 'card', 'Suggest categories for the rows waiting on To review.').ask()
+    expect(chatRequest.value).toBe('Suggest categories for the rows waiting on To review.')
+    expect(takeChatRequest()).toBe('Suggest categories for the rows waiting on To review.')
+    expect(chatRequest.value).toBeNull()
+    useChatElement(RENT, 'row').ask()
+    expect(chatRequest.value).toBeNull()
+    expect(chatElement.value).toEqual(RENT)
   })
 
   it('replaces the last element, as a chat is about one', () => {

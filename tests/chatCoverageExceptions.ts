@@ -20,13 +20,8 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     reason: "Google sign-in and consent. Google's consent window needs the person, so signing in or out and allowing access stay on the screen.",
     paths: [
       'company: src/shared/google/googleAuth.ts#needScopes',
-      'company: src/shared/google/googleAuth.ts#requestAccess',
-      'company: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
       'kuna: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
-      'spending: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
       'shared: src/shared/google/googleAuth.ts#needScopes',
-      'shared: src/shared/google/googleAuth.ts#requestAccess',
-      'shared: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
       'kuna: src/shared/google/googleAuth.ts#signOutOfGoogle',
     ],
   },

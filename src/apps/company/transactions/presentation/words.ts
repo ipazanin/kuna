@@ -29,6 +29,8 @@ export const en = {
         : 'Newest first, from every month of the ledger. Open a row to see what the rules say about it. Confirm or recategorise one and the app keeps its category and flagged_by in this browser.',
     queueSummary: 'Each waits for a confirmation or another category.',
     suggestCategories: 'Suggest categories',
+    /** What Suggest categories sends the chat by itself. */
+    suggestCategoriesTask: 'Suggest categories for the rows waiting on To review.',
     confirmed: (category: string) => `Confirmed ${category}`,
     filedAs: (category: string) => `Filed as ${category}`,
     noCounterpartyRow: 'A row with no counterparty',
@@ -209,6 +211,7 @@ export const hr: Translation<typeof en> = {
         : 'Najnovije prvo, iz svih mjeseci evidencije. Otvorite stavku da vidite što o njoj kažu pravila. Kad potvrdite stavku ili joj promijenite kategoriju, aplikacija čuva kategoriju i flagged_by u ovom pregledniku.',
     queueSummary: 'Svaka čeka potvrdu ili drugu kategoriju.',
     suggestCategories: 'Predloži kategorije',
+    suggestCategoriesTask: 'Predloži kategorije za retke koji čekaju na kartici Za provjeru.',
     confirmed: (category) => `Potvrđeno: ${category}`,
     filedAs: (category) => `Razvrstano: ${category}`,
     noCounterpartyRow: 'Stavka bez partnera',

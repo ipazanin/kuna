@@ -1,5 +1,6 @@
 import { shallowRef } from 'vue'
 
+import { GoogleAccessNeeded } from './googleAccessNeeded'
 import { googleConfig } from './googleConfig'
 import { REDIRECT_SIGN_IN_QUERY, authorizationUrl, redirectFragmentOf, savePendingRedirect, settleRedirect, takePendingRedirect } from './googleRedirect'
 import type { GoogleToken, RedirectAsk, RedirectResume, RedirectReturn } from './googleRedirect'
@@ -164,9 +165,10 @@ export function askSilentlyOnOpen(): boolean {
   if (!scopes.includes('drive.file')) {
     return false
   }
-  // Inline, not hoisted, so a production build folds the fake away.
+  // Inline, not hoisted, so a production build folds the fake away. `?google=expired` opens with a token that has already lapsed.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    keepToken({ value: 'fake-token', scopes, expiresAt: Date.now() + 3_600_000 }, scopes, 'silent')
+    const lapsed = new URLSearchParams(window.location.search).get('google') === 'expired'
+    keepToken({ value: 'fake-token', scopes, expiresAt: lapsed ? Date.now() : Date.now() + 3_600_000 }, scopes, 'silent')
     return false
   }
   if (!saveSilentRefusal(SILENT_UNDER_WAY)) {
@@ -191,17 +193,22 @@ export function askSilentlyOnOpen(): boolean {
  */
 export async function requestAccess(scopes: readonly GoogleScope[], then: RedirectResume | null): Promise<void> {
   const asked = scopesOf(['drive.file', ...(needed ?? []), ...scopes])
-  // Inline, not hoisted, so a production build folds the fake away. The fake build's Google grants everything asked, unless `?fake=google-closed` closes its window.
+  // Inline, not hoisted, so a production build folds the fake away. The fake build's Google grants everything asked, unless `?fake=google-closed` closes its window
+  // or, with `?google=expired`, a phone asks with nothing to resume, which the real one refuses so as not to leave the page.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    if (new URLSearchParams(window.location.search).get('fake') === 'google-closed') {
+    const query = new URLSearchParams(window.location.search)
+    if (query.get('fake') === 'google-closed') {
       throw new Error(POPUP_FAILURES.popup_closed)
+    }
+    if (query.get('google') === 'expired' && then === null && signsInByRedirect()) {
+      throw new GoogleAccessNeeded(asked)
     }
     keepToken({ value: 'fake-token', scopes: asked, expiresAt: Date.now() + 3_600_000 }, asked, 'tap')
     return
   }
   if (signsInByRedirect()) {
     if (then === null) {
-      throw new Error(words.staysOnPage)
+      throw new GoogleAccessNeeded(asked)
     }
     return redirectToGoogle(asked, then, 'tap')
   }

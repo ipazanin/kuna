@@ -1,5 +1,6 @@
 import type { AcceptResult, CheckedProposal, ProposalGroup, ProposalStep, UndoResult } from './assistantOperations'
 import { words } from './words'
+import { withGoogleAccess } from '../google/withGoogleAccess'
 import { canUndo } from '../storage/application/createWorkbookStore'
 import type { BooksRead, WorkbookStore, WriteCheck } from '../storage/application/createWorkbookStore'
 import { changesOf, isUndoable, workOf } from '../storage/application/recordWrites'
@@ -8,6 +9,7 @@ import type { RecordChange } from '../storage/application/recordStorage'
 import type { UnitOfWork } from '../storage/application/repository'
 import { WorkbookWriteRefused } from '../storage/application/workbookWriteRefused'
 import { sameRecord } from '../storage/domain/recordsRead'
+import { writeFailureInWords } from '../storage/presentation/writeFailureInWords'
 
 /** Says why a step cannot be planned, in words the model can act on. */
 export class StepRefused extends Error {}
@@ -70,9 +72,9 @@ interface HeldWrite<Books extends BooksRead> {
 
 type Refused = { readonly kind: 'refused'; readonly reason: string }
 
+/** Why the card's write or undo did not go: the store's refusal, or the failure in plain words, so the card never hides the cause. */
 function refusedBy(failure: unknown): Refused {
-  if (failure instanceof WorkbookWriteRefused) return { kind: 'refused', reason: failure.message }
-  throw failure
+  return { kind: 'refused', reason: failure instanceof WorkbookWriteRefused ? failure.message : writeFailureInWords(failure) }
 }
 
 /** The record as read that a change starts from, or null for an add, a repair or a discard. */
@@ -96,6 +98,7 @@ function touchesSameRecords(planned: readonly RuledChange[], shown: readonly Rul
  * An app's dry run of the chat's steps over its own store, and the one write with one Undo that Accept makes of it.
  * The write holds the changes as they were checked, so a record changed since is refused rather than overwritten, and the file's other writes go on.
  * When the steps keep a file outside the books, `beforeWrite` keeps it and the steps are planned again with what it kept, and that plan must touch the records the card showed.
+ * Accept and Undo ask Google for the books file's access as the screens' writes do, and a failure comes back as its reason rather than thrown.
  */
 export function proposedWrites<Books extends BooksRead, Kept = never>(
   store: Pick<WorkbookStore<Books>, 'state' | 'check' | 'write' | 'undo'>,
@@ -160,12 +163,12 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
       const written = await writtenChanges(held)
       if ('kind' in written) return written
       try {
-        const receipt = await store.write(held.title, workOf(written))
+        const receipt = await withGoogleAccess([], () => store.write(held.title, workOf(written)))
         const undo = async (): Promise<UndoResult> => {
           const write = store.state.writes.find((candidate) => candidate.receipt === receipt)
           if (write === undefined || !canUndo(write, store.state.writes)) return { kind: 'refused', reason: words.proposalUndoEnded }
           try {
-            await store.undo(write)
+            await withGoogleAccess([], () => store.undo(write))
             return { kind: 'undone' }
           } catch (failure) {
             return refusedBy(failure)

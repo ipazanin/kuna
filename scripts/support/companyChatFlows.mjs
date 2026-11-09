@@ -12,7 +12,6 @@ const CLASS_WORDS = { en: classEnglish, hr: classCroatian }
 
 /** What the person types for each card, which the fake Company chat and Kuna's fake reply answer. */
 const PROMPTS = {
-  sort: { en: 'Suggest categories for the rows waiting', hr: 'Predloži kategorije za retke koji čekaju' },
   invoice: { en: 'Invoice Lumen for October', hr: 'Izdaj fakturu Lumenu za listopad' },
   currency: { en: 'Show my figures in US dollars', hr: 'Prikaži moje iznose u američkim dolarima' },
   refile: { en: 'Always file Laptop Store under office supplies', hr: 'Uvijek stavi Laptop Store pod uredski materijal' },
@@ -29,8 +28,8 @@ async function ask(page, press, text) {
 
 /**
  * Company's To review with a made-up key kept: the queue's header keeps Suggest categories, which opens the chat about the
- * queue with its card outlined. The chat files the row it is sure of on a card, which Accept writes with one Undo. An opened
- * row's Ask the chat then tags that row alone.
+ * queue with its card outlined and sends the request by itself. The chat files the row it is sure of on a card, which Accept
+ * writes with one Undo. An opened row's Ask the chat then tags that row alone and sends nothing.
  */
 export function companyReviewAskFlowIn(language) {
   const words = TRANSACTIONS_WORDS[language]
@@ -50,7 +49,8 @@ export function companyReviewAskFlowIn(language) {
       await inspect?.('the chat about the queue')
       await shoot('company-review-tagged')
 
-      await ask(page, press, PROMPTS.sort[language])
+      await allowIfAsked(page, press)
+      await elementSays(page, '[data-testid="chat-question"]', [words.review.suggestCategoriesTask], 'Suggest categories did not send its request by itself')
       await page.waitForSelector('[data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the chat proposed no card for the rows waiting')
       })
@@ -80,6 +80,7 @@ export function companyReviewAskFlowIn(language) {
       })
       const tag = await page.$eval('[data-testid="chat-tag"]', (element) => element.textContent ?? '')
       if (tag.includes('SNACK')) throw new Error('the chip names the row by its counterparty')
+      if (await page.$('[data-testid="chat-question"]')) throw new Error("a row's Ask the chat sent a message by itself")
       await delay(300)
       await inspect?.('the chat about one row')
       await shoot('company-review-row-tagged')
@@ -130,6 +131,38 @@ export function companyChatCardFlowIn(language, card) {
       await inspect?.(`the chat's answer to ${PROMPTS[card].en}`)
       await shoot(`company-chat-${card}`)
       if (card !== 'invoice') await pressSelector(page, press, '[data-testid="chat-proposal-decline"]')
+      await newChat(page, press)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/**
+ * Company with Drive books whose token lapsed, as on a phone after an hour: Accept on an add-category card asks Google for
+ * access, which the fake build's Google gives at once, and writes the card. Undo puts it back.
+ */
+export function companyChatAcceptLapsedFlowIn(language) {
+  const assist = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await ask(page, press, PROMPTS.category[language])
+      await page.waitForSelector('[data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the chat proposed no category card')
+      })
+      await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
+      await page.waitForSelector('[data-testid="chat-proposal-undo"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent?.trim())
+        throw new Error(`Accept with a lapsed token did not write the card: ${refused}`)
+      })
+      await delay(300)
+      await inspect?.('the card written after Google gave access again')
+      await shoot('company-chat-accept-lapsed')
+      await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
+      await elementSays(page, '[data-testid="chat-proposal-over"]', [assist.proposal.undone], 'Undo did not say it was undone')
       await newChat(page, press)
     } finally {
       await forgetAssist(page)

@@ -1,6 +1,6 @@
 import { FOLDER_MIME_TYPE } from '../../../google/driveClient'
 import { GoogleApiError } from '../../../google/googleApi'
-import { currentToken } from '../../../google/googleAuth'
+import { currentToken, tokenFor } from '../../../google/googleAuth'
 import type { DriveAccess } from '../documentStorePorts'
 import { APP_PROPERTY, BACKUPS_FOLDER } from '../driveDocument'
 import { createFakeDrive } from './fakeDrive'
@@ -114,7 +114,10 @@ export function fakeDriveAccess(app: string): DriveAccess {
         return drive.upload(fileId, text)
       },
     },
-    signIn: async () => {},
+    // As the real one, so a token that lapsed asks Google again. The fake build's page holds one from the start.
+    async signIn(then) {
+      if (currentToken('drive.file') === null) await tokenFor('drive.file', then)
+    },
     signedIn: () => true,
     async pickFolder() {
       const id = await fakeBooksFolder()

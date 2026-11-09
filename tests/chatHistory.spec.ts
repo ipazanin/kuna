@@ -94,7 +94,7 @@ describe('a chat kept in this browser', () => {
     const second = await loadSession()
     await second.restoreChat()
     const texts = second.chatLines.map((line) => line.text)
-    expect(texts[0]).toContain('names show as aliases')
+    expect(texts.at(-1)).toContain('Names above show as aliases')
     expect(texts).toContain('Person 1 got -45.30 EUR. The month spent 645.30 EUR.')
     expect(second.shownOnScreen('Person 1')).toBe('Person 1')
     expect(second.chatLines.at(-1)!.sent).toEqual([])
@@ -175,6 +175,49 @@ describe('a chat kept in this browser', () => {
     expect(model.turns[0]).toHaveLength(1)
   })
 
+  it('tells the model with the first message after a reload that the person sees an earlier chat it does not hold, and never resends that chat', async () => {
+    const first = await loadSession()
+    port.current = scripted([{ kind: 'answer', text: 'One', raw: [], tokens: TOKENS }])
+    await first.sendChatMessage('Add a category for training courses', CONTEXT, async () => CATALOGUE)
+    await settled()
+    const second = await loadSession()
+    await second.restoreChat()
+    const model = scripted([
+      { kind: 'answer', text: 'Two', raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'Three', raw: [], tokens: TOKENS },
+    ])
+    port.current = model
+    await second.sendChatMessage('Sorry, retry now please', CONTEXT, async () => CATALOGUE)
+    await second.sendChatMessage('And now?', CONTEXT, async () => CATALOGUE)
+
+    const sent = (at: number) => JSON.stringify(model.turns[at]![model.turns[at]!.length - 1])
+    expect(sent(0)).toContain('The page reloaded. The person still sees the chat from before it')
+    expect(sent(0)).not.toContain('training courses')
+    expect(sent(1)).not.toContain('The page reloaded')
+  })
+
+  it('brings back a card that was open or failed before the reload as one from before it, never as one Kuna refused', async () => {
+    const now = Date.now()
+    const card = (id: string, state: 'open' | 'refused') => ({ id, app: 'company', title: 'Add a category', count: 1, state })
+    const line: SavedLine = { role: 'assistant', at: now, text: 'Here it is', note: false, chips: [], strayFigure: false, failure: null, proposals: [card('a', 'open'), card('b', 'refused')] }
+    await saveChat({ lines: [line], spent: NOTHING_SPENT }, now)
+    const session = await loadSession()
+    await session.restoreChat()
+    const { words } = await import('../src/shared/ai/presentation/words')
+    const { readFileSync } = await import('node:fs')
+    const shown = session.chatLines.flatMap((kept) => kept.proposals).map(({ state, reason, checked }) => ({ state, reason, checked }))
+
+    expect(shown).toEqual([
+      { state: 'ended', reason: null, checked: null },
+      { state: 'refused', reason: null, checked: null },
+    ])
+    expect(readFileSync('src/shared/ai/presentation/ProposalCard.vue', 'utf8')).toContain('{{ proposal.reason ?? words.proposal.refusedBeforeReload }}')
+    expect([words.proposal.ended, words.proposal.refusedBeforeReload]).toEqual([
+      'Not accepted before the page reloaded. Ask the chat again to make it anew.',
+      'Not written before the page reloaded. Ask the chat again to try it.',
+    ])
+  })
+
   it('goes after 30 days', async () => {
     const first = await loadSession()
     port.current = scripted([{ kind: 'answer', text: 'One', raw: [], tokens: TOKENS }])
@@ -228,7 +271,7 @@ describe('a chat kept in this browser', () => {
     await third.restoreChat()
     const { words } = await import('../src/shared/ai/presentation/words')
     expect(third.chatLines.filter((shown) => shown.text === words.history.restored)).toHaveLength(1)
-    expect(third.chatLines.map((shown) => shown.text)).toEqual([words.history.restored, 'First', 'One', 'Second', 'Two'])
+    expect(third.chatLines.map((shown) => shown.text)).toEqual(['First', 'One', 'Second', 'Two', words.history.restored])
   })
 
   it('goes with Clear and with a new chat', async () => {

@@ -65,7 +65,7 @@ export const en = {
       body: (labels: GuideLabels) =>
         [
           `Rows no rule decides wait on ${labels.transactions}, ${labels.review}. Open one to see its counterparty, description, amount and what the rules say about it.`,
-          `1. To have the chat suggest categories, press ${labels.suggest} on that tab. The chat opens about the rows waiting. Ask it to sort them, and it proposes a card that files the rows it is sure of and asks about the rest. Nothing changes until you accept the card.`,
+          `1. To have the chat suggest categories, press ${labels.suggest} on that tab. The chat opens about the rows waiting and asks for categories by itself. It proposes a card that files the rows it is sure of and asks about the rest. Nothing changes until you accept the card.`,
           `2. To ask about one row, open it and press ${labels.ask}.`,
           `3. Or pick a category yourself with ${labels.recategorise} on the row.`,
           `4. The toast after a recategorise offers ${labels.makeRule}, so the same kind of row is sorted on its own next time. Every rule is listed on ${labels.settings}, ${labels.categoryRules}.`,
@@ -126,7 +126,7 @@ export const hr: Translation<typeof en> = {
       body: (labels) =>
         [
           `Retci koje nijedno pravilo ne razvrsta čekaju na zaslonu ${labels.transactions}, na kartici ${labels.review}. Otvorite redak da vidite partnera, opis, iznos i što pravila kažu o njemu.`,
-          `1. Da vam razgovor predloži kategorije, pritisnite ${labels.suggest} na toj kartici. Razgovor se otvara o retcima koji čekaju. Zamolite ga da ih razvrsta, pa predloži karticu koja razvrstava retke u koje je siguran i pita za ostale. Ništa se ne mijenja dok ne prihvatite karticu.`,
+          `1. Da vam razgovor predloži kategorije, pritisnite ${labels.suggest} na toj kartici. Razgovor se otvara o retcima koji čekaju i sam traži kategorije. Predlaže karticu koja razvrstava retke u koje je siguran i pita za ostale. Ništa se ne mijenja dok ne prihvatite karticu.`,
           `2. Da pitate o jednom retku, otvorite ga i pritisnite ${labels.ask}.`,
           `3. Ili sami odaberite kategoriju gumbom ${labels.recategorise} na retku.`,
           `4. Poruka nakon promjene kategorije nudi ${labels.makeRule}, pa se ista vrsta retka sljedeći put razvrsta sama. Sva pravila navedena su na zaslonu ${labels.settings}, na kartici ${labels.categoryRules}.`,

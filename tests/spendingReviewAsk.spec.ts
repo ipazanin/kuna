@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { spendingAssistant } from '../src/apps/spending/assistant/spendingAssistant'
 import { REVIEW_ASKED, waitingRowAsked } from '../src/apps/spending/statements/presentation/reviewAsks'
+import { en, hr } from '../src/apps/spending/statements/presentation/words'
 import { chatElement, closeChat, removeChatElement, useChatElement } from '../src/shared/ai/presentation/chatDock'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -21,6 +23,14 @@ describe("asking the chat from Spending's To review", () => {
 
     expect(REVIEW_ASKED.about).toMatchObject({ kind: 'place', app: 'spending' })
     expect(places).toContain(REVIEW_ASKED.about.kind === 'place' ? REVIEW_ASKED.about.route : null)
+  })
+
+  it('sends Suggest categories as its own request from the header, in both languages', () => {
+    expect(readFileSync('src/apps/spending/statements/presentation/ReviewPanel.vue', 'utf8')).toContain("useChatElement(REVIEW_ASKED, 'card', words.review.suggestCategoriesTask)")
+    expect([en.review.suggestCategoriesTask, hr.review.suggestCategoriesTask]).toEqual([
+      'Suggest categories for the rows waiting on To review.',
+      'Predloži kategorije za retke koji čekaju na kartici Za pregled.',
+    ])
   })
 
   it('asks about a waiting row as its record, named by day and account, never by its payee or amount', () => {
