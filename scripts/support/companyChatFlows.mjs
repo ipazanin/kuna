@@ -99,8 +99,8 @@ const CARDS = {
     if (await page.$('[data-testid="chat-proposal"]')) throw new Error('the chat proposed a card for an invoice it cannot make')
   },
   currency: async (page) => {
-    await page.waitForSelector('[data-testid="chat-proposal-line-warning"]', { visible: true, timeout: 15_000 }).catch(() => {
-      throw new Error('the currency card warns on no line')
+    await page.waitForSelector('[data-testid="chat-proposal-note"][data-tone="warning"]', { visible: true, timeout: 15_000 }).catch(() => {
+      throw new Error('the currency card carries no warning that every figure reads differently')
     })
   },
   refile: async (page, language) => {
