@@ -78,4 +78,18 @@ describe('the pseudonyms of one chat', () => {
     expect(pseudonyms.spellingsOf('Person 1')).toEqual(['Ana Horvat', 'Ani Horvat'])
     expect(pseudonyms.valueOf('Osoba 1')).toBe('Ana Horvat')
   })
+
+  it('takes its alias map back after a reload, so each alias and token stands for the same person or identifier and the next one goes on counting', () => {
+    const before = knowing('Mia Primjer', 'Ivo Kovač')
+    expect(before.pseudonymised(`Ivo Kovaču paid from ${FIRST_IBAN}`, 'books')).toBe('Person 2 paid from HR•• ••••0160')
+    const kept = JSON.parse(JSON.stringify(before.aliasMap()))
+
+    const after = newPseudonyms('Person', kept)
+    after.know(['Ivo Kovač', 'Mia Primjer', 'Eva Novak'])
+
+    expect(after.restored('Person 2 and HR•• ••••0160')).toBe(`Ivo Kovač and ${FIRST_IBAN}`)
+    expect(after.spellingsOf('Person 2')).toEqual(['Ivo Kovač', 'Ivo Kovaču'])
+    expect(after.pseudonymised(`Eva Novak, Mia Primjer, ${SECOND_IBAN} and ${FIRST_IBAN}`, 'books')).toBe('Person 3, Person 1, HR•• ••••0160 #2 and HR•• ••••0160')
+    expect(before.aliasMap().persons).toHaveLength(2)
+  })
 })

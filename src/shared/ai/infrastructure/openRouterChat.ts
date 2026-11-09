@@ -77,6 +77,9 @@ function messages(turn: ModelTurn): object[] {
     case 'assistant': {
       return [turn.raw as object]
     }
+    case 'earlier-answer': {
+      return [{ role: 'assistant', content: turn.text }]
+    }
     case 'tool-results': {
       return turn.results.map((result) => ({ role: 'tool', tool_call_id: result.callId, content: resultContent(result) }))
     }

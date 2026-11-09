@@ -106,6 +106,9 @@ function inputItems(turn: ModelTurn): readonly object[] {
     case 'assistant': {
       return turn.raw as readonly object[]
     }
+    case 'earlier-answer': {
+      return [{ role: 'assistant', content: turn.text }]
+    }
     case 'tool-results': {
       return turn.results.map((result) => ({ type: 'function_call_output', call_id: result.callId, output: resultOutput(result) }))
     }

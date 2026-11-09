@@ -164,6 +164,22 @@ describe('the Chat Completions request', () => {
     ])
   })
 
+  it('sends an answer from before a reload as an assistant message of its text', async () => {
+    const requests = stubFetch(completion('stop', { content: 'Five percent.' }))
+
+    await openRouterChat(BASE_URL, KEY, SOL).send(
+      request({
+        turns: [
+          { role: 'user', parts: [{ kind: 'text', text: 'Which rate applies?' }] },
+          { role: 'earlier-answer', text: 'PDV is 25 percent.' },
+          { role: 'user', parts: [{ kind: 'text', text: 'And for books?' }] },
+        ],
+      }),
+    )
+
+    expect((requests[0]!.body!.messages as unknown[]).slice(2, 3)).toEqual([{ role: 'assistant', content: 'PDV is 25 percent.' }])
+  })
+
   it('sends a tool result with a photo as a list, its envelope first, and one with text only as a string', async () => {
     const requests = stubFetch(completion('stop', { content: 'Read.' }))
 

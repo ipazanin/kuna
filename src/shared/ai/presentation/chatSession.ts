@@ -52,6 +52,8 @@ export interface ChatLine {
   proposals: ChatProposal[]
   /** The names of the files a message went with. */
   attachments: string[]
+  /** The person stopped this answer while it was written, so it is not part of what the model said. */
+  stopped: boolean
 }
 
 /** A card in the chat. `checked` is gone after a reload, and with it Accept and Undo. */
@@ -115,7 +117,10 @@ let history: readonly ModelTurn[] = []
 let lastContext: string | null = null
 /** The line naming the tag and the files that the model last read, or null when it read none. */
 let lastElement: string | null = null
-/** The provider and model `history` belongs to, since a provider's turns mean nothing to another and thinking blocks are tied to the model. */
+/**
+ * The provider and model `history` belongs to, since a provider's turns mean nothing to another and thinking blocks are
+ * tied to the model. Null before the first message, when `history` holds at most a restored chat's text, which any provider reads.
+ */
 let chain: string | null = null
 let current: AbortController | null = null
 let stoppedByPerson = false
@@ -133,13 +138,13 @@ const outcomes: string[] = []
 /** People go out as aliases in the screen's language, so the person reads the same word the model writes. */
 const PERSON_WORD: PersonWord = language === 'hr' ? 'Osoba' : 'Person'
 
-/** The aliases, tokens and refs of this chat, held in memory only, and gone with it. */
+/** The aliases and tokens of this chat, kept in this browser with it, and its refs, held in memory only. All go with the chat. */
 let pseudonyms = newPseudonyms(PERSON_WORD)
 let refs = chatRefs()
 
 function added(role: ChatLine['role'], text: string, note = false, at = Date.now()): ChatLine {
   nextId += 1
-  lines.push({ id: `chat-${nextId}`, role, at, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [], attachments: [] })
+  lines.push({ id: `chat-${nextId}`, role, at, text, chips: [], failure: null, retry: null, note, sent: [], strayFigure: false, proposals: [], attachments: [], stopped: false })
   return lines[lines.length - 1]!
 }
 
@@ -151,8 +156,8 @@ function addSpending(end: LoopEnd): void {
 }
 
 function startChainOn(next: string): void {
-  if (chain !== null && chain !== next && lines.length > 0) added('assistant', words.chat.chainChanged, true)
-  if (chain !== next) {
+  if (chain !== null && chain !== next) {
+    if (lines.length > 0) added('assistant', words.chat.chainChanged, true)
     history = []
     lastContext = null
     lastElement = null
@@ -207,7 +212,7 @@ function contextAt(where: ChatWhere, known: Catalogue): ChatContext {
   return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, today: where.today }
 }
 
-/** An answer as this browser keeps it: no alias is turned back, as the map is never stored, and a figure ref is written out, as its figure goes with the page. */
+/** An answer as this browser keeps it: aliases stay as the model wrote them, and a figure ref is written out, as its figure goes with the page. */
 function storedText(text: string): string {
   return text.replace(/\[(f\d+)\]/g, (written, ref: string) => {
     const figure = refs.figureOf(ref)
@@ -226,18 +231,16 @@ function savedLine(line: ChatLine): SavedLine {
     failure: line.failure,
     proposals: line.proposals.map(({ id, app, title, count, state, readFiles }) => ({ id, app, title, count, state, ...(readFiles.length === 0 ? {} : { readFiles: [...readFiles] }) })),
     ...(line.attachments.length === 0 ? {} : { attachments: [...line.attachments] }),
+    ...(line.stopped ? { stopped: true as const } : {}),
   }
 }
-
-/** The line that says a chat came back, which shows once per restore and is never kept. */
-let restoredNote: string | null = null
 
 /** The latest save of the chat to this browser. */
 let lastKept: Promise<void> = Promise.resolve()
 
-/** Keeps the chat in this browser: what was said and how cards ended, with no tool result, no alias map and nothing to accept. */
+/** Keeps the chat in this browser: what was said, how cards ended and the alias map, with no tool result and nothing to accept. */
 function keepChat(): void {
-  lastKept = saveChat({ lines: lines.filter((line) => line.id !== restoredNote).map(savedLine), spent: { ...spent } })
+  lastKept = saveChat({ lines: lines.map(savedLine), spent: { ...spent }, aliases: pseudonyms.aliasMap(), refsHandedOut: refs.handedOut() })
 }
 
 /** Resolves once the chat as it stands is written to this browser, so a reload keeps how each card ended. */
@@ -251,11 +254,29 @@ function restoredState(state: ProposalState): ProposalState {
   return state === 'done' ? 'undo-ended' : state
 }
 
-/** What the model hears with the first message after a restore, since the earlier turns are not sent again. */
-const RESTORED_CONTEXT =
-  'The page reloaded. The person still sees the chat from before it, which this conversation does not hold, and its cards can no longer be accepted. If they refer to it, ask them to say again what they need.'
+/** What the model hears with the first message after a restore, as what it read before the reload is not sent again and new refs number on. */
+const RESTORED_CONTEXT = 'The page reloaded. Its cards can no longer be accepted, and the refs handed out before it no longer reach anything, so read again what you need.'
 
-/** Shows the saved lines, then the note that the model no longer sees them, beside the prompt where the next message is typed. */
+/**
+ * The messages a restored chat sends the model again: each one the model answered, with its answer, since the last change
+ * of model, as the person sees it. A message that failed or that the person stopped never reached the model's turns, so it stays out.
+ */
+function earlierTurns(saved: readonly SavedLine[]): readonly ModelTurn[] {
+  const since = saved.slice(saved.map((line) => line.note).lastIndexOf(true) + 1)
+  return since.flatMap((line, at): ModelTurn[] => {
+    const answer = since[at + 1]
+    if (line.role !== 'user' || answer?.role !== 'assistant' || answer.text === '' || answer.failure !== null || answer.stopped === true) return []
+    return [
+      { role: 'user', parts: [{ kind: 'text', text: line.text }] },
+      { role: 'earlier-answer', text: answer.text },
+    ]
+  })
+}
+
+/**
+ * Shows the saved lines and takes back their alias map, so the model hears them again under the same aliases. New refs
+ * number on from the old ones, and the amounts of an answer that held no stray figure count as known again.
+ */
 function restored(saved: SavedChat): void {
   for (const line of saved.lines) {
     const shown = added(line.role, line.text, line.note, line.at)
@@ -272,15 +293,19 @@ function restored(saved: SavedChat): void {
       readFiles: [...(proposal.readFiles ?? [])],
     }))
     shown.attachments = [...(line.attachments ?? [])]
+    shown.stopped = line.stopped === true
   }
-  restoredNote = added('assistant', words.history.restored, true).id
+  pseudonyms = newPseudonyms(PERSON_WORD, saved.aliases)
+  refs = chatRefs(saved.refsHandedOut)
+  for (const answer of saved.lines.filter((line) => line.role === 'assistant' && !line.strayFigure)) refs.noteFiguresIn(answer.text)
+  history = earlierTurns(saved.lines)
   outcomes.push(RESTORED_CONTEXT)
   Object.assign(spent, saved.spent)
 }
 
 let restoring: Promise<void> | null = null
 
-/** Brings back the last chat of this browser, once a visit, unless one was begun. The model starts fresh from here, so what it read last time does not come back. */
+/** Brings back the last chat of this browser, once a visit, unless one was begun. The model hears the messages again but not what its tools read last time. */
 export function restoreChat(): Promise<void> {
   restoring ??= readSavedChat().then((saved) => {
     if (saved !== null && lines.length === 0) restored(saved)
@@ -555,6 +580,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       current = null
       status.value = 'ready'
       if (stoppedByPerson && line.text === '' && line.chips.length === 0 && line.sent.length === 0 && line.proposals.length === 0) lines.splice(lines.indexOf(line), 1)
+      else line.stopped = stoppedByPerson
       keepChat()
     }
   }

@@ -126,6 +126,9 @@ function message(turn: ModelTurn): object {
     case 'assistant': {
       return { role: 'assistant', content: turn.raw }
     }
+    case 'earlier-answer': {
+      return { role: 'assistant', content: [{ type: 'text', text: turn.text }] }
+    }
     case 'tool-results': {
       return {
         role: 'user',

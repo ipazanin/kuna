@@ -108,6 +108,20 @@ describe('the Responses request', () => {
     ])
   })
 
+  it('sends an answer from before a reload as an assistant message of its text', async () => {
+    const requests = stubFetch(streamResponse(streamFixture('openai/answer')))
+    await openAiResponses(BASE_URL, KEY, SOL).send(
+      request({
+        turns: [
+          { role: 'user', parts: [{ kind: 'text', text: 'Which rate applies?' }] },
+          { role: 'earlier-answer', text: 'PDV is 25 percent.' },
+          { role: 'user', parts: [{ kind: 'text', text: 'And for books?' }] },
+        ],
+      }),
+    )
+    expect((requests[0]!.body.input as unknown[])[1]).toEqual({ role: 'assistant', content: 'PDV is 25 percent.' })
+  })
+
   it('sends a tool output with a photo or a PDF as a list, its envelope first, and one with text only as a string', async () => {
     const requests = stubFetch(streamResponse(streamFixture('openai/answer')))
     await openAiResponses(BASE_URL, KEY, SOL).send(

@@ -8874,7 +8874,7 @@ export function chatReadFlowIn(language) {
 
 /**
  * A proposal from a quick action: the card shows what would change and writes nothing, Accept is one write with Undo, and
- * a reload leaves the outcome and aliases with a line that says so.
+ * a reload leaves the outcome and aliases with no note, as the chat goes on with the assistant still seeing the messages.
  */
 export function chatProposeFlowIn(language) {
   const words = ASSIST_WORDS[language]
@@ -8911,7 +8911,8 @@ export function chatProposeFlowIn(language) {
 
       await page.reload({ waitUntil: 'networkidle0' })
       if ((await page.$('[data-testid="chat-panel"]')) === null) await pressSelector(page, press, '[data-testid="chat-open"]')
-      await elementSays(page, '[data-testid="chat-note"]', [words.history.restored], 'a reloaded chat does not say what changed')
+      await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.undone], 'a reloaded card does not say how it ended')
+      if (await page.$('[data-testid="chat-note"]')) throw new Error('a reloaded chat shows a note, though the assistant still sees its messages')
       if (await page.$('[data-testid="chat-proposal-accept"], [data-testid="chat-proposal-undo"]')) throw new Error('a reloaded card can still write')
       await inspect?.('a chat after a reload')
       await shoot('chat-restored')

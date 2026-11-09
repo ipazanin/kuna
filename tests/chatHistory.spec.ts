@@ -34,6 +34,24 @@ const TOKENS = { input: 1, cacheRead: 0, cacheWrite: 0, output: 1 }
 const DAY = 86_400_000
 const NOTHING_SPENT = { dollars: 0, unknown: false, any: false }
 const FIND = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+/** A map in which the chat's one known person is Person 2, as no fresh map would make them, so a test can tell the kept map was taken back. */
+const ANA_SECOND = {
+  identifiers: [],
+  persons: [
+    { number: 1, alias: 'Person 1', name: 'Eva Novak', spellings: ['Eva Novak'] },
+    { number: 2, alias: 'Person 2', name: 'Ana Horvat', spellings: ['Ana Horvat'] },
+  ],
+}
+
+function said(role: SavedLine['role'], text: string, fields: Partial<SavedLine> = {}): SavedLine {
+  return { role, at: Date.now(), text, note: false, chips: [], strayFigure: false, failure: null, proposals: [], ...fields }
+}
+
+async function allowSpending(session: Awaited<ReturnType<typeof loadSession>>): Promise<void> {
+  const { pickProvider } = await import('../src/shared/ai/application/assistSettings')
+  pickProvider('anthropic')
+  session.allowThisChat('anthropic', 'spending')
+}
 
 function scripted(replies: readonly ModelReply[]): ModelPort & { readonly turns: (readonly ModelTurn[])[] } {
   let at = 0
@@ -69,7 +87,7 @@ beforeEach(async () => {
 })
 
 describe('a chat kept in this browser', () => {
-  it('comes back after a reload with aliases, written-out figures, no tool result and a line that says so', async () => {
+  it('comes back after a reload with its alias map, written-out figures, no tool result and no note', async () => {
     const first = await loadSession()
     first.allowThisChat('anthropic', 'spending')
     const { pickProvider } = await import('../src/shared/ai/application/assistSettings')
@@ -84,19 +102,22 @@ describe('a chat kept in this browser', () => {
     expect(first.shownOnScreen('Person 1')).toContain('Horvat')
     await settled()
 
-    const stored = JSON.stringify(await readSavedChat())
+    const saved = (await readSavedChat())!
+    const stored = JSON.stringify(saved.lines)
     expect(stored).not.toMatch(/Horvat|HORVAT|Corner market|untrusted/)
     expect(stored).toContain('Person 1')
     expect(stored).toContain('-45.30 EUR')
     expect(stored).toContain('645.30 EUR')
     expect(stored).not.toMatch(/\[f\d+\]/)
+    expect(saved.aliases!.persons.map(({ alias, name }) => ({ alias, name }))).toEqual([{ alias: 'Person 1', name: 'Ana Horvat' }])
+    expect(JSON.stringify(saved.aliases)).not.toMatch(/Corner market|untrusted/)
 
     const second = await loadSession()
     await second.restoreChat()
     const texts = second.chatLines.map((line) => line.text)
-    expect(texts.at(-1)).toContain('Names above show as aliases')
-    expect(texts).toContain('Person 1 got -45.30 EUR. The month spent 645.30 EUR.')
-    expect(second.shownOnScreen('Person 1')).toBe('Person 1')
+    expect(texts).toEqual(['Who got the rent?', 'Person 1 got -45.30 EUR. The month spent 645.30 EUR.'])
+    expect(second.chatLines.some((line) => line.note)).toBe(false)
+    expect(second.shownOnScreen('Person 1')).toBe('Ana Horvat')
     expect(second.chatLines.at(-1)!.sent).toEqual([])
   })
 
@@ -162,20 +183,146 @@ describe('a chat kept in this browser', () => {
     expect(JSON.stringify(await storedChat())).toContain('Keep this')
   })
 
-  it('starts the model fresh after a reload', async () => {
-    const first = await loadSession()
-    port.current = scripted([{ kind: 'answer', text: 'One', raw: [], tokens: TOKENS }])
-    await first.sendChatMessage('First', CONTEXT, async () => CATALOGUE)
-    await settled()
-    const second = await loadSession()
-    await second.restoreChat()
+  it('sends the earlier messages again after a reload, and a new read names each person by the alias the kept map gave them', async () => {
+    await saveChat({ lines: [said('user', 'Who got the rent?'), said('assistant', 'Person 2 got -45.30 EUR.')], spent: NOTHING_SPENT, aliases: ANA_SECOND })
+    const session = await loadSession()
+    await session.restoreChat()
+    await allowSpending(session)
+    const model = scripted([
+      { kind: 'tool-calls', calls: [{ id: 'a', name: 'find_records', args: FIND }], raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'Person 2 again.', raw: [], tokens: TOKENS },
+    ])
+    port.current = model
+    await session.sendChatMessage('Who was that?', CONTEXT, async () => CATALOGUE)
+
+    const [user, answer, asked] = model.turns[0]!
+    expect(user).toEqual({ role: 'user', parts: [{ kind: 'text', text: 'Who got the rent?' }] })
+    expect(answer).toEqual({ role: 'earlier-answer', text: 'Person 2 got -45.30 EUR.' })
+    expect(JSON.stringify(asked)).toContain('Who was that?')
+    const read = JSON.stringify(model.turns[1]!.at(-1))
+    expect(read).toContain('Person 2')
+    expect(read).not.toMatch(/Horvat|Person 1/)
+    expect(session.shownOnScreen('Person 2 again.')).toBe('Ana Horvat again.')
+  })
+
+  it('sends again only the messages the model answered since the last change of model', async () => {
+    const lines = [
+      said('user', 'Before the change'),
+      said('assistant', 'Old answer'),
+      said('assistant', 'You changed the AI company or model.', { note: true }),
+      said('user', 'This one failed'),
+      said('assistant', '', { failure: 'The provider could not be reached.' }),
+      said('user', 'Asked after'),
+      said('assistant', 'Answered after'),
+    ]
+    await saveChat({ lines, spent: NOTHING_SPENT, aliases: ANA_SECOND })
+    const session = await loadSession()
+    await session.restoreChat()
+    const model = scripted([{ kind: 'answer', text: 'Now', raw: [], tokens: TOKENS }])
+    port.current = model
+    await session.sendChatMessage('And now?', CONTEXT, async () => CATALOGUE)
+
+    expect(model.turns[0]!.slice(0, -1)).toEqual([
+      { role: 'user', parts: [{ kind: 'text', text: 'Asked after' }] },
+      { role: 'earlier-answer', text: 'Answered after' },
+    ])
+  })
+
+  it('sends a chat kept before its alias map was again, with a fresh map', async () => {
+    await saveChat({ lines: [said('user', 'First'), said('assistant', 'Person 1 got it.')], spent: NOTHING_SPENT })
+    const session = await loadSession()
+    await session.restoreChat()
     const model = scripted([{ kind: 'answer', text: 'Two', raw: [], tokens: TOKENS }])
     port.current = model
-    await second.sendChatMessage('Second', CONTEXT, async () => CATALOGUE)
+    await session.sendChatMessage('Second', CONTEXT, async () => CATALOGUE)
+
+    expect(model.turns[0]!.slice(0, -1)).toEqual([
+      { role: 'user', parts: [{ kind: 'text', text: 'First' }] },
+      { role: 'earlier-answer', text: 'Person 1 got it.' },
+    ])
+    expect(session.shownOnScreen('Person 1')).toBe('Person 1')
+  })
+
+  it('numbers record refs on after a reload, so a ref in an earlier answer never stands for a record read since', async () => {
+    const first = await loadSession()
+    await allowSpending(first)
+    const before = scripted([
+      { kind: 'tool-calls', calls: [{ id: 'a', name: 'find_records', args: FIND }], raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'Read.', raw: [], tokens: TOKENS },
+    ])
+    port.current = before
+    await first.sendChatMessage('Find the rows', CONTEXT, async () => CATALOGUE)
+    await first.chatKept()
+    const second = await loadSession()
+    await second.restoreChat()
+    await allowSpending(second)
+    const after = scripted([
+      { kind: 'tool-calls', calls: [{ id: 'b', name: 'find_records', args: FIND }], raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'Read again.', raw: [], tokens: TOKENS },
+    ])
+    port.current = after
+    await second.sendChatMessage('Find them again', CONTEXT, async () => CATALOGUE)
+
+    const refsIn = (port: typeof before) => new Set(JSON.stringify(port.turns[1]!.at(-1)).match(/transaction-\d+/g))
+    const old = refsIn(before)
+    const fresh = refsIn(after)
+    expect(old.size).toBeGreaterThan(0)
+    expect(fresh.size).toBe(old.size)
+    expect([...fresh].filter((ref) => old.has(ref))).toEqual([])
+  })
+
+  it('counts the amounts of an answer from before a reload as known, unless that answer held a stray figure itself', async () => {
+    const lines = [said('user', 'How much this month?'), said('assistant', 'The month spent 645.30 EUR.'), said('user', 'And the café?'), said('assistant', 'About 99.99 EUR.', { strayFigure: true })]
+    await saveChat({ lines, spent: NOTHING_SPENT, aliases: ANA_SECOND })
+    const session = await loadSession()
+    await session.restoreChat()
+    port.current = scripted([
+      { kind: 'answer', text: 'Still 645.30 EUR.', raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'Still 99.99 EUR.', raw: [], tokens: TOKENS },
+    ])
+    await session.sendChatMessage('Same as before?', CONTEXT, async () => CATALOGUE)
+    await session.sendChatMessage('And the café?', CONTEXT, async () => CATALOGUE)
+
+    expect(session.chatLines.slice(-3).map(({ text, strayFigure }) => ({ text, strayFigure }))).toEqual([
+      { text: 'Still 645.30 EUR.', strayFigure: false },
+      { text: 'And the café?', strayFigure: false },
+      { text: 'Still 99.99 EUR.', strayFigure: true },
+    ])
+  })
+
+  it('marks an answer the person stopped, and never sends it again after a reload', async () => {
+    const first = await loadSession()
+    const writing: ModelPort = {
+      model: { name: 'Fake', price: null },
+      readsPdf: false,
+      send: (request) =>
+        new Promise((_resolve, reject) => {
+          request.onDelta?.('Half an ans')
+          request.signal?.addEventListener('abort', () => reject(new Error('stopped')))
+        }),
+    }
+    port.current = writing
+    const sending = first.sendChatMessage('Tell me everything', CONTEXT, async () => CATALOGUE)
+    await settled()
+    first.stopChatMessage()
+    await sending
+    await first.chatKept()
+    expect((await readSavedChat())!.lines.map(({ text, stopped }) => ({ text, stopped }))).toEqual([
+      { text: 'Tell me everything', stopped: undefined },
+      { text: 'Half an ans', stopped: true },
+    ])
+
+    const second = await loadSession()
+    await second.restoreChat()
+    const model = scripted([{ kind: 'answer', text: 'Here.', raw: [], tokens: TOKENS }])
+    port.current = model
+    await second.sendChatMessage('Again, shorter', CONTEXT, async () => CATALOGUE)
+
+    expect(second.chatLines[1]!.stopped).toBe(true)
     expect(model.turns[0]).toHaveLength(1)
   })
 
-  it('tells the model with the first message after a reload that the person sees an earlier chat it does not hold, and never resends that chat', async () => {
+  it('tells the model with the first message after a reload that the cards and refs from before it are gone, and only then', async () => {
     const first = await loadSession()
     port.current = scripted([{ kind: 'answer', text: 'One', raw: [], tokens: TOKENS }])
     await first.sendChatMessage('Add a category for training courses', CONTEXT, async () => CATALOGUE)
@@ -191,8 +338,8 @@ describe('a chat kept in this browser', () => {
     await second.sendChatMessage('And now?', CONTEXT, async () => CATALOGUE)
 
     const sent = (at: number) => JSON.stringify(model.turns[at]![model.turns[at]!.length - 1])
-    expect(sent(0)).toContain('The page reloaded. The person still sees the chat from before it')
-    expect(sent(0)).not.toContain('training courses')
+    expect(sent(0)).toContain('The page reloaded. Its cards can no longer be accepted')
+    expect(JSON.stringify(model.turns[0])).toContain('training courses')
     expect(sent(1)).not.toContain('The page reloaded')
   })
 
@@ -254,7 +401,7 @@ describe('a chat kept in this browser', () => {
     expect(await readSavedChat(now)).toBeNull()
   })
 
-  it('says once per restore that the chat came back, and never keeps that line', async () => {
+  it('shows no note after a reload, however often it comes back', async () => {
     const first = await loadSession()
     port.current = scripted([{ kind: 'answer', text: 'One', raw: [], tokens: TOKENS }])
     await first.sendChatMessage('First', CONTEXT, async () => CATALOGUE)
@@ -269,19 +416,26 @@ describe('a chat kept in this browser', () => {
 
     const third = await loadSession()
     await third.restoreChat()
-    const { words } = await import('../src/shared/ai/presentation/words')
-    expect(third.chatLines.filter((shown) => shown.text === words.history.restored)).toHaveLength(1)
-    expect(third.chatLines.map((shown) => shown.text)).toEqual(['First', 'One', 'Second', 'Two', words.history.restored])
+    expect(third.chatLines.map((shown) => shown.text)).toEqual(['First', 'One', 'Second', 'Two'])
   })
 
-  it('goes with Clear and with a new chat', async () => {
+  it('goes with Clear and with a new chat, its alias map with it', async () => {
+    await saveChat({ lines: [said('user', 'Who got the rent?'), said('assistant', 'Person 2 got it.')], spent: NOTHING_SPENT, aliases: ANA_SECOND })
     const first = await loadSession()
+    await first.restoreChat()
     port.current = scripted([{ kind: 'answer', text: 'One', raw: [], tokens: TOKENS }])
     await first.sendChatMessage('First', CONTEXT, async () => CATALOGUE)
-    await settled()
-    expect(await readSavedChat()).not.toBeNull()
+    await first.chatKept()
+    expect(first.shownOnScreen('Person 2')).toBe('Ana Horvat')
     first.clearChat()
     await settled()
-    expect(await readSavedChat()).toBeNull()
+    const { storedChat } = await import('../src/shared/ai/infrastructure/chatHistory')
+    expect(await storedChat()).toBeNull()
+    expect(first.shownOnScreen('Person 2')).toBe('Person 2')
+
+    const second = await loadSession()
+    await second.restoreChat()
+    expect(second.chatLines).toEqual([])
+    expect(second.shownOnScreen('Person 2')).toBe('Person 2')
   })
 })

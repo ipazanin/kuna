@@ -195,6 +195,22 @@ describe('the Anthropic Messages request', () => {
     })
   })
 
+  it('sends an answer from before a reload as an assistant message of its text', async () => {
+    const requests = stubFetch(message({ content: [{ type: 'text', text: 'Five percent.' }], stop_reason: 'end_turn' }))
+
+    await anthropicMessages(KEY, SONNET).send(
+      request({
+        turns: [
+          { role: 'user', parts: [{ kind: 'text', text: 'Which rate applies?' }] },
+          { role: 'earlier-answer', text: 'PDV is 25 percent.' },
+          { role: 'user', parts: [{ kind: 'text', text: 'And for books?' }] },
+        ],
+      }),
+    )
+
+    expect((requests[0]!.body.messages as unknown[])[1]).toEqual({ role: 'assistant', content: [{ type: 'text', text: 'PDV is 25 percent.' }] })
+  })
+
   it('sends a tool result with a photo or a PDF as a list, its envelope first, and one with text only as a string', async () => {
     const requests = stubFetch(message({ content: [{ type: 'text', text: 'Read.' }], stop_reason: 'end_turn' }))
 

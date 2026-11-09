@@ -1,3 +1,5 @@
+import type { AliasMap } from '../../privacy/domain/pseudonyms'
+import type { RefsHandedOut } from '../domain/chatRefs'
 import type { ChatChip } from './chatTools'
 
 /** How long a line stays in this browser, as long as what a provider may keep. */
@@ -30,12 +32,21 @@ export interface SavedLine {
   readonly proposals: readonly SavedProposal[]
   /** The names of the files a message went with, absent when none. The files themselves are never kept. */
   readonly attachments?: readonly string[]
+  /** The person stopped this answer while it was written, so the model never had it. Absent otherwise. */
+  readonly stopped?: true
 }
 
-/** What this browser keeps of a chat. No tool result, no alias map and no ref, so a hostile row does not come back into a later chat. */
+/**
+ * What this browser keeps of a chat. No tool result and no ref, so a hostile row does not come back into a later chat.
+ * The alias map holds real names and identifiers, so it stays in this browser and goes whenever the chat goes.
+ */
 export interface SavedChat {
   readonly lines: readonly SavedLine[]
   readonly spent: { readonly dollars: number; readonly unknown: boolean; readonly any: boolean }
+  /** Which person or identifier each alias in the lines stands for. Absent in a chat kept before the map was. */
+  readonly aliases?: AliasMap
+  /** How many refs the chat handed out, which a restored chat numbers on from. Absent in a chat kept before the count was. */
+  readonly refsHandedOut?: RefsHandedOut
 }
 
 /** The last write to this browser's chat, so writes land in the order they were made and a Clear is never undone by a save made before it. */

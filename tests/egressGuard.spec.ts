@@ -64,6 +64,11 @@ describe('the egress guard', () => {
     expect(await refuses(modelNoting(), requestWith(`Please use ${shape} for this.`), [])).toBe(true)
   })
 
+  it('reads the shape of a key in an answer from before a reload, which goes back as text', async () => {
+    const earlier = requestWith('x', { turns: [{ role: 'earlier-answer', text: 'Use sk-ant-api03-madeUpMadeUpMadeUpMadeUp for this.' }] })
+    expect(await refuses(modelNoting(), earlier, [])).toBe(true)
+  })
+
   it('refuses a key typed in the model field, whose text leaves with every request', async () => {
     expect(await refuses(modelNoting('sk-ant-api03-madeUpMadeUpMadeUpMadeUp'), requestWith('x'), [])).toBe(true)
   })

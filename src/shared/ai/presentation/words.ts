@@ -177,7 +177,6 @@ export const en = {
     madeAfterReading: (files: string) => `Made after reading ${files}`,
   },
   history: {
-    restored: 'The page reloaded, so the assistant no longer sees the messages above. Say again what you need. Names above show as aliases such as Person 1.',
     clear: 'Clear chat history',
     cleared: 'Chat history cleared.',
     confirmTitle: 'Clear chat history?',
@@ -377,7 +376,6 @@ export const hr: Translation<typeof en> = {
     madeAfterReading: (files) => `Napravljeno nakon čitanja: ${files}`,
   },
   history: {
-    restored: 'Stranica je ponovno učitana, pa asistent više ne vidi poruke iznad. Recite ponovno što trebate. Imena iznad prikazuju se kao zamjenski nazivi poput Osoba 1.',
     clear: 'Obriši povijest razgovora',
     cleared: 'Povijest razgovora je obrisana.',
     confirmTitle: 'Obrisati povijest razgovora?',

@@ -27,11 +27,13 @@ export function resultParts(text: string, parts: readonly WholePart[]): readonly
 
 /**
  * One turn of a run as the loop keeps it. An assistant turn keeps the provider's own message in `raw`, which only the
- * adapter that made it reads, so it goes back unchanged on the next request, whatever kinds of block it holds.
+ * adapter that made it reads, so it goes back unchanged on the next request, whatever kinds of block it holds. An answer
+ * from before a reload has only its text, as its message went with the page, and every provider takes it as the model's.
  */
 export type ModelTurn =
   | { readonly role: 'user'; readonly parts: readonly AiPart[] }
   | { readonly role: 'assistant'; readonly calls: readonly ToolCall[]; readonly raw: unknown }
+  | { readonly role: 'earlier-answer'; readonly text: string }
   | { readonly role: 'tool-results'; readonly results: readonly ({ readonly callId: string } & ToolResult)[] }
 
 /** A tool the model may call. The title and readOnly are Kuna's own and never go to a provider. */

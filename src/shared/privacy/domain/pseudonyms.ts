@@ -32,7 +32,15 @@ interface PersonPseudonym {
   readonly spellings: string[]
 }
 
-/** The tokens and aliases one conversation hands out, held in memory only, so the same identifier or person always reads the same and can be read back. */
+/** Which real name, IBAN or OIB each alias and token of a conversation stands for, as the chat keeps it in this browser between reloads. */
+export interface AliasMap {
+  readonly identifiers: readonly IdentifierPseudonym[]
+  readonly persons: readonly PersonPseudonym[]
+}
+
+const NO_ALIASES: AliasMap = { identifiers: [], persons: [] }
+
+/** The tokens and aliases one conversation hands out, so the same identifier or person always reads the same and can be read back. */
 export interface Pseudonyms {
   /** Gives each name an alias, unless it has one or cannot be matched. Aliases follow the order names are first known. */
   know(names: readonly string[]): void
@@ -53,6 +61,8 @@ export interface Pseudonyms {
   spellingsOf(token: string): readonly string[]
   /** The text with each token and alias Kuna handed out back as what it stands for, and any other left as written. */
   restored(text: string): string
+  /** Every alias and token handed out so far, with what it stands for, which `newPseudonyms` takes back after a reload. */
+  aliasMap(): AliasMap
 }
 
 function compactOf(written: string): string {
@@ -63,10 +73,13 @@ function escaped(token: string): string {
   return token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-/** The pseudonyms of one conversation, whose people go out as `Person 1` or, on a Croatian screen, `Osoba 1`. */
-export function newPseudonyms(personWord: PersonWord = 'Person'): Pseudonyms {
-  const identifiers: IdentifierPseudonym[] = []
-  const persons: PersonPseudonym[] = []
+/**
+ * The pseudonyms of one conversation, whose people go out as `Person 1` or, on a Croatian screen, `Osoba 1`. A chat
+ * brought back after a reload passes its map, so each alias still stands for the same person or identifier.
+ */
+export function newPseudonyms(personWord: PersonWord = 'Person', kept: AliasMap = NO_ALIASES): Pseudonyms {
+  const identifiers: IdentifierPseudonym[] = [...kept.identifiers]
+  const persons: PersonPseudonym[] = kept.persons.map((person) => ({ ...person, spellings: [...person.spellings] }))
 
   /**
    * The token an IBAN or an OIB already has, or a new one shaped like its mask, with ` #2` and on when another identifier
@@ -158,6 +171,9 @@ export function newPseudonyms(personWord: PersonWord = 'Person'): Pseudonyms {
       const tokens = [...real.keys()].sort((one, other) => other.length - one.length).map(escaped)
       const handedOut = new RegExp(`(?<![\\p{L}\\p{N}])(?:${tokens.join('|')})(?![\\p{L}\\p{N}]| #\\d)`, 'gu')
       return text.replace(handedOut, (token) => real.get(token) ?? token)
+    },
+    aliasMap() {
+      return { identifiers: [...identifiers], persons: persons.map((person) => ({ ...person, spellings: [...person.spellings] })) }
     },
   }
 }

@@ -48,6 +48,8 @@ function readableText(modelName: string, request: ModelRequest): readonly string
           return turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : []))
         case 'tool-results':
           return turn.results.map((result) => result.text)
+        case 'earlier-answer':
+          return [turn.text]
         case 'assistant':
           return []
       }

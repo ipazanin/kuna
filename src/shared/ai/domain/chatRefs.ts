@@ -20,6 +20,14 @@ export interface RecordOfRef {
   readonly id: string
 }
 
+/** How many record refs of each kind and how many build-up refs a chat handed out, which a chat restored after a reload numbers on from. */
+export interface RefsHandedOut {
+  readonly records: Readonly<Record<string, number>>
+  readonly buildUps: number
+}
+
+const NONE_HANDED_OUT: RefsHandedOut = { records: {}, buildUps: 0 }
+
 /**
  * The refs and the figures of one chat, held in memory only. A model names a record only by a ref it was handed and
  * quotes an amount only if a tool gave it, so a ref it makes up reaches nothing and an amount it makes up gets flagged.
@@ -35,20 +43,26 @@ export interface ChatRefs {
   /** An amount a tool returned without a ref, such as a record's. */
   noteAmount(cents: number): void
   noteRate(basisPoints: number): void
-  /** The figures in a text Kuna wrote itself, such as a page of the catalogue. Never for a record's free text, which a stranger wrote. */
+  /**
+   * The figures in a text Kuna wrote itself, such as a page of the catalogue, or in an answer from before a reload that held
+   * no stray figure. Never for a record's free text, which a stranger wrote.
+   */
   noteFiguresIn(text: string): void
   /** Whether an answer writes an amount or a rate no tool returned, or names a figure ref no tool gave. */
   holdsStrayFigure(answer: string): boolean
+  /** How many refs it handed out, so a chat restored after a reload never hands out a ref an earlier answer used for something else. */
+  handedOut(): RefsHandedOut
 }
 
 /** Aliases, masked identifiers and record refs hold digits that are no amounts, as in `Person 3 €40`, so they leave the text before it is read for figures. */
 const NOT_A_FIGURE = /(?<![\p{L}\p{N}])(?:(?:Person|Osoba) \d+|[A-Z]{2}•• ••••[A-Z0-9]{4}(?: #\d+)?|[a-z]+-\d+)(?![\p{L}\p{N}])|\[OIB\](?: #\d+)?/gu
 const FIGURE_REF = /\[(f\d+)\]/g
 
-export function chatRefs(): ChatRefs {
+export function chatRefs(numberedFrom: RefsHandedOut = NONE_HANDED_OUT): ChatRefs {
   const records = new Map<string, RecordOfRef>()
   const recordRefs = new Map<string, string>()
-  const counts = new Map<string, number>()
+  const counts = new Map<string, number>(Object.entries(numberedFrom.records))
+  let buildUpCount = numberedFrom.buildUps
   const buildUps = new Map<string, ChatBuildUp>()
   const figures = new Map<string, ChatFigure>()
   const figureRefs = new Map<string, string>()
@@ -70,7 +84,8 @@ export function chatRefs(): ChatRefs {
     buildUpRef(buildUp) {
       const known = [...buildUps].find(([, held]) => held === buildUp)?.[0]
       if (known !== undefined) return known
-      const ref = `build-up-${buildUps.size + 1}`
+      buildUpCount += 1
+      const ref = `build-up-${buildUpCount}`
       buildUps.set(ref, buildUp)
       return ref
     },
@@ -97,5 +112,6 @@ export function chatRefs(): ChatRefs {
       const namesUnknown = [...answer.matchAll(FIGURE_REF)].some((match) => !figures.has(match[1] ?? ''))
       return namesUnknown || holdsStrayFigure(answer.replace(FIGURE_REF, '').replace(NOT_A_FIGURE, ''), amounts, rates)
     },
+    handedOut: () => ({ records: Object.fromEntries(counts), buildUps: buildUpCount }),
   }
 }
