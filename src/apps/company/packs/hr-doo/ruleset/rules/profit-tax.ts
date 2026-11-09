@@ -351,7 +351,7 @@ export const profitTaxRules: readonly RuleIn<ProfitTaxValues>[] = [
         },
         sources: [zpdSource('7(1)(4), 7(2), 7(3)', ['115/16']), amendingActSource('ZPD', '115/16', '4, 15'), pravPdSource('25')],
         confidence: 'confirmed-nn',
-        note: `The share has been 50% since 1 January 2018. The zakon.hr consolidated text still prints 30% with a remark that 50% applies after that date. Insurance, interest, vehicle tax and registration fees are left out of the base of the add-back. ${ASSUMED_FOR_2027}`,
+        note: `The share has been 50% since 1 January 2018. The zakon.hr consolidated text still prints 30% with a remark that 50% applies after that date. The costs include the depreciation of an owned or finance-leased car, after the cost cap. Insurance, interest, vehicle tax and registration fees are left out of the base of the add-back. A registration fee here is a fee or charge the law requires at registration. A paid service at the station, such as the technical inspection, stays in, which is a reading. ${ASSUMED_FOR_2027}`,
       },
     ],
   },

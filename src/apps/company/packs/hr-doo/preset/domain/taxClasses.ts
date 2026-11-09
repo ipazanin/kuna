@@ -91,17 +91,17 @@ export const TAX_CLASSES: readonly TaxClass[] = [
   carriedBy(PACK_ROLES.personalTransport, {
     rules: ['hr.cit.personal-transport-add-back', 'hr.vat.input-deduction'],
     addBack: 'hr.cit.personal-transport-add-back',
-    // A registration fee carries no VAT. It stays last, after the treatments a car's running costs carry.
+    // A supplier outside the VAT system charges none. It stays last, after the treatments a car's running costs carry.
     vat: ['car-50', 'foreign-vat', 'none'],
     buckets: ['operating'],
     law: 'company/tax-classes.md#personal-transport',
   }),
-  carriedBy(PACK_ROLES.vehicleInsuranceAndInterest, {
+  carriedBy(PACK_ROLES.vehicleInsuranceInterestTaxAndFees, {
     rules: ['hr.cit.personal-transport-add-back', 'hr.cit.base'],
     addBack: null,
     vat: ['none'],
     buckets: ['operating'],
-    law: 'company/tax-classes.md#vehicle-insurance-and-interest',
+    law: 'company/tax-classes.md#vehicle-insurance-interest-tax-and-fees',
   }),
   carriedBy(PACK_ROLES.nonDeductible, {
     rules: ['hr.cit.fines-add-back', 'hr.cit.private-cost-add-back'],

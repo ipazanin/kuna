@@ -16,28 +16,28 @@ The percentages are not copied here from the law alone. Each one is the value of
 
 `From` is the day the percentages are read from the ruleset. `CIT add-back` is the share of the cost Kuna adds back to the profit tax base. `Input VAT back` is the share of the VAT inside a purchase that Kuna counts as a claim on the state, for each kind of VAT the class allows, and `none` where the class carries no VAT Kuna splits out.
 
-| Class                            | CIT add-back | Input VAT back | VAT treatments                                                                                      | Buckets              | From       |
-| -------------------------------- | ------------ | -------------- | --------------------------------------------------------------------------------------------------- | -------------------- | ---------- |
-| `revenue`                        | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `client-refund`                  | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `grant`                          | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `other-income`                   | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `deductible-cost`                | 0%           | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `none`           | operating, taxes     | 2026-01-01 |
-| `representation`                 | 50%          | 0%             | `representation`                                                                                    | operating            | 2026-01-01 |
-| `personal-transport`             | 50%          | 50%            | `car-50`, `foreign-vat`, `none`                                                                     | operating            | 2026-01-01 |
-| `vehicle-insurance-and-interest` | 0%           | none           | `none`                                                                                              | operating            | 2026-01-01 |
-| `non-deductible`                 | 100%         | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
-| `capital-purchase`               | 0%           | 100% or 50%    | `deductible-25`, `deductible-13`, `deductible-5`, `car-50`, `reverse-charge`, `foreign-vat`, `none` | operating            | 2026-01-01 |
-| `corporate-income-tax`           | 0%           | none           | `none`                                                                                              | taxes                | 2026-01-01 |
-| `vat-settlement`                 | 0%           | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
-| `profit-distribution`            | 0%           | none           | `none`                                                                                              | owner-pay, taxes     | 2026-01-01 |
-| `salary`                         | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `tax-free:*`                     | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-rent`                     | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-benefit`                  | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-loan-out`                 | 0%           | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
-| `owner-loan-repaid`              | 0%           | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
-| `outside-profit`                 | 0%           | none           | `none`                                                                                              | financing, neutral   | 2026-01-01 |
+| Class                                     | CIT add-back | Input VAT back | VAT treatments                                                                                      | Buckets              | From       |
+| ----------------------------------------- | ------------ | -------------- | --------------------------------------------------------------------------------------------------- | -------------------- | ---------- |
+| `revenue`                                 | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
+| `client-refund`                           | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
+| `grant`                                   | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
+| `other-income`                            | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
+| `deductible-cost`                         | 0%           | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `none`           | operating, taxes     | 2026-01-01 |
+| `representation`                          | 50%          | 0%             | `representation`                                                                                    | operating            | 2026-01-01 |
+| `personal-transport`                      | 50%          | 50%            | `car-50`, `foreign-vat`, `none`                                                                     | operating            | 2026-01-01 |
+| `vehicle-insurance-interest-tax-and-fees` | 0%           | none           | `none`                                                                                              | operating            | 2026-01-01 |
+| `non-deductible`                          | 100%         | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
+| `capital-purchase`                        | 0%           | 100% or 50%    | `deductible-25`, `deductible-13`, `deductible-5`, `car-50`, `reverse-charge`, `foreign-vat`, `none` | operating            | 2026-01-01 |
+| `corporate-income-tax`                    | 0%           | none           | `none`                                                                                              | taxes                | 2026-01-01 |
+| `vat-settlement`                          | 0%           | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
+| `profit-distribution`                     | 0%           | none           | `none`                                                                                              | owner-pay, taxes     | 2026-01-01 |
+| `salary`                                  | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
+| `tax-free:*`                              | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
+| `owner-rent`                              | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
+| `owner-benefit`                           | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
+| `owner-loan-out`                          | 0%           | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
+| `owner-loan-repaid`                       | 0%           | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
+| `outside-profit`                          | 0%           | none           | `none`                                                                                              | financing, neutral   | 2026-01-01 |
 
 The modifiers `arrears`, `prepaid-annual`, `watched`, `owner-pay-tax` and `reimbursement` are no class. They say when a cost is paid, which tax Kuna waits for, which cost counts in the owner's cost and which balance an advance settles. A category takes any of them beside its class.
 
@@ -87,17 +87,21 @@ Mark: `confirmed-nn`.
 
 Kuna counts this as personal car running costs: half added back to the profit tax base, and half of the VAT back.
 
-ZPD Art. 7(1)(4) adds back the share of the costs of a car the company owns or leases, "osim troškova osiguranja i kamata", "ako se na osnovi korištenja sredstava za osobni prijevoz ne utvrđuje plaća". The consolidated text on zakon.hr prints "za 30% troškova" with "(nakon 01.01.2018. za 50%)" after it, and the ruleset records the 50% under NN 115/16. ZPD Art. 7(3) counts the costs with their VAT and names them: for a car the company owns "troškovi goriva i ulja, održavanja i popravaka, registracije i amortizacije" (point 1), and for a leased car the rent, fuel and upkeep, "a kod financijskog najma trošak amortizacije" (point 3). ZPDV Art. 61(2): the company "ne može odbiti 50% pretporeza obračunanog za nabavu ili najam osobnih automobila, uključujući nabavu svih dobara i usluga u vezi s tim dobrima". A personal car has at most eight seats besides the driver's. VAT paid abroad is never reclaimed in Croatia, so `foreign-vat` stays a cost. A registration fee carries no VAT, so the class takes `none` too.
+ZPD Art. 7(1)(4) adds back the share of the costs of a car the company owns or leases, "osim troškova osiguranja i kamata", "ako se na osnovi korištenja sredstava za osobni prijevoz ne utvrđuje plaća". The consolidated text on zakon.hr prints "za 30% troškova" with "(nakon 01.01.2018. za 50%)" after it, and the ruleset records the 50% under NN 115/16. ZPD Art. 7(3) counts the costs with their VAT and names them: for a car the company owns "troškovi goriva i ulja, održavanja i popravaka, registracije i amortizacije" (point 1), and for a leased car the rent, fuel and upkeep, "a kod financijskog najma trošak amortizacije" (point 3). ZPDV Art. 61(2): the company "ne može odbiti 50% pretporeza obračunanog za nabavu ili najam osobnih automobila, uključujući nabavu svih dobara i usluga u vezi s tim dobrima". A personal car has at most eight seats besides the driver's. VAT paid abroad is never reclaimed in Croatia, so `foreign-vat` stays a cost. A supplier outside the VAT system charges none, so the class takes `none` too.
+
+PravPD Art. 25(1) leaves some car costs out of the add-back: "U troškove iz članka 7. stavak 1. točka 4. Zakona za koje se povećava porezna osnovica ne spadaju troškovi osiguranja, kamata povezana s nabavom imovine (sredstva) i plaćeni porez na cestovna motorna vozila i porez na plovila, te naknade i pristojbe koje se obvezno prema posebnim propisima plaćaju pri registraciji sredstva za osobni prijevoz." Those go in a category of the class under [Vehicle insurance, interest, tax and fees](#vehicle-insurance-interest-tax-and-fees), not here. ZPD Art. 7(3)(1) still names "registracije" among the costs, so Kuna reads the paid registration service, such as the technical inspection with its VAT, as a running cost of this class, and only the fees and charges the law requires at registration as left out. That split is a `reading`. Text read on 9 November 2026 in the consolidated PravPD on zakon.hr, through NN 39/26. NN 16/25 and 39/26 leave Art. 25 alone.
+
+A car's depreciation is a running cost too, by Art. 7(3)(1) and 7(3)(3). Kuna adds half of it back from the asset books, as under [Capital purchase](#capital-purchase).
 
 Mark: `confirmed-nn`. Kuna adds back half of the cost that remains after the deductible VAT, which reads ZPD Art. 7(3)'s VAT as the VAT that stays a cost. That base is a `reading`.
 
 Where the private use of the car is taxed as the employee's salary, the add-back does not apply. A class cannot say whether that is so, so Kuna adds the half back on every personal transport category. Whether it should for a given car is the accountant's call.
 
-## Vehicle insurance and interest
+## Vehicle insurance, interest, tax and fees
 
-Kuna counts this as car insurance and car loan interest: allowed in full, with no VAT. ZPD Art. 7(1)(4) leaves insurance and interest out of the car add-back. Insurance and credit are exempt from VAT (ZPDV Art. 40(1)(a) and 40(1)(b)), so the class allows no VAT treatment but `none`.
+Kuna counts this as car insurance, car loan interest, vehicle tax and registration fees: allowed in full, with no VAT. ZPD Art. 7(1)(4) leaves insurance and interest out of the car add-back, and PravPD Art. 25(1) adds the road motor vehicle tax (_porez na cestovna motorna vozila_) and the fees and charges the law requires at registration (_naknade i pristojbe koje se obvezno prema posebnim propisima plaćaju pri registraciji_), as quoted under [Personal transport](#personal-transport). Insurance and credit are exempt from VAT (ZPDV Art. 40(1)(a) and 40(1)(b)). A tax and a fee the state charges carry no VAT, so the class allows no VAT treatment but `none`.
 
-Mark: `confirmed-consolidated`.
+Mark: `confirmed-consolidated`. Which registration costs are fees the law requires and which are a paid service is a `reading`, as under [Personal transport](#personal-transport).
 
 ## Non-deductible
 
@@ -111,7 +115,9 @@ Kuna counts this as an asset above the threshold, depreciated over its life. An 
 
 Mark: `confirmed-nn`.
 
-Kuna adds back nothing of the depreciation of a personal car kept as a capital purchase, although ZPD Art. 7(3)(1) and 7(3)(3) count it among the car's costs that Art. 7(1)(4) adds half of back. Kuna's profit tax estimate for such a car comes out too low. That is a known gap, listed on the [watch list](../sources/watch-list.md#where-the-screen-and-the-docs-differ).
+A personal car's depreciation counts only up to a cost of 54,000.00 per car (ZPD Art. 12(13), PravPD Art. 22(3)), and Kuna adds the rest back in full on PD line 18. ZPD Art. 7(3)(1) and 7(3)(3) count the depreciation of an owned or finance-leased car among the costs of which Art. 7(1)(4) adds half back, and PravPD Art. 25(3) keeps a car whose depreciation the cap cuts in that count: "U obračun troškova iz stavka 1. ovoga članka uključuju se i troškovi prijevoznih sredstava za koje se ne priznaje trošak amortizacije u smislu članka 22. stavak 3. ovoga Pravilnika." So Kuna adds back half of the depreciation the cap allows on PD line 7, beside the car's running costs, for every asset in the car group. Text read on 9 November 2026 in the consolidated ZPD and PravPD on zakon.hr, through NN 128/26 for the database, NN 151/25 for the act and NN 39/26 for the Pravilnik.
+
+Mark: `confirmed-consolidated`. Taking the half from the allowed depreciation alone, and not from the part above the cap that is already added back in full, is a `reading`. So is adding it back for every car: PravPD Art. 25(2) leaves out a car used only for an activity such as a driving school, a taxi or rental, and ZPD Art. 7(1)(4) a car whose private use is taxed as salary, and the assets tab says neither.
 
 ## Corporate income tax
 
@@ -179,12 +185,14 @@ Made-up figures, on the rules of 2026:
 
 - A client dinner of 100.00 in a representation category. Kuna counts the whole 100.00 as a cost with no VAT back, and adds 50.00 back to the tax base.
 - A fuel bill of 125.00 in a personal transport category, with 25.00 of VAT inside. Kuna counts 12.50 as input VAT, 112.50 as the cost, and adds 56.25 back.
-- An insurance policy of 400.00 for the same car, in a vehicle insurance and interest category. Kuna counts the whole 400.00 as an allowed cost and adds nothing back.
+- An insurance policy of 400.00 and a registration fee of 60.00 for the same car, in a vehicle insurance, interest, tax and fees category. Kuna counts the whole 460.00 as an allowed cost and adds nothing back.
+- The same car on the assets tab at a cost of 40,000.00, put in use in December 2025. At 20% it depreciates 8,000.00 in 2026, all of it under the 54,000.00 cap. Kuna adds 4,000.00 back on PD line 7, which is 400.00 of profit tax at 10%.
 
 ## Open points
 
 - The owner's private share, as under [Owner benefit](#owner-benefit).
-- A personal car's depreciation. The law settles it: ZPD Art. 7(3)(1) and 7(3)(3) name "amortizacije" among the costs of an owned or finance-leased car. Kuna adds back none of it for a car kept as a capital purchase, as under [Capital purchase](#capital-purchase). That is a known gap in Kuna, not an open point of the law.
+- Half of a personal car's depreciation, taken from what the cap allows and for every car, as under [Capital purchase](#capital-purchase).
+- Which registration costs the add-back leaves out, as under [Personal transport](#personal-transport).
 - The car add-back where private use is taxed as salary, as under [Personal transport](#personal-transport). The class cannot express it.
 - The base of the car add-back, as under [Personal transport](#personal-transport).
 - Gifts in kind inside the 700.00 a year, as under [Tax-free payments](#tax-free-payments).
@@ -192,6 +200,8 @@ Made-up figures, on the rules of 2026:
 ## Sources
 
 - Zakon o porezu na dobit (ZPD), consolidated, "na snazi od 01.01.2026.", NN 177/04 to 151/25: Art. 5(1), 6(6), 6(7), 7(1)(3), 7(1)(4), 7(1)(7), 7(1)(13), 7(2), 7(3), 7(6), 12(3), 14(3), 34(1) and 35. https://www.zakon.hr/z/99/zakon-o-porezu-na-dobit, loaded on 4 November 2026.
+- Zakon o porezu na dobit (ZPD), consolidated, same text: Art. 7(1)(4), 7(3) and 12(13), and NN 151/25, which changes Art. 7 only in paragraph 9. Reloaded on 9 November 2026, the database "ažurirana 08.11.2026. zaključno sa NN 128/26".
+- Pravilnik o porezu na dobit (PravPD), consolidated, NN 95/05 to 39/26: Art. 22(3), 25(1), 25(2) and 25(3). https://www.zakon.hr/cms.htm?id=60061, loaded on 9 November 2026. NN 16/25 (https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_151.html) and NN 39/26 (https://narodne-novine.nn.hr/clanci/sluzbeni/2026_04_39_469.html) were read for the articles they amend, and touch neither Art. 22 nor 25. No 2026 issue through NN 129/26 carries a further amendment of the act or the Pravilnik, by an NN title search of 9 November 2026.
 - Zakon o porezu na dodanu vrijednost (ZPDV), consolidated, "na snazi od 30.03.2026.": Art. 40(1)(a) and (b), 57(1), 58(1), 61(1), 61(2), 66(1), 66(2) and 75(1)(6). https://www.zakon.hr/z/1455/zakon-o-porezu-na-dodanu-vrijednost, loaded on 4 November 2026.
 - Zakon o porezu na dohodak (ZPDoh): Art. 9(1)(9), 19, 21(3), 24(3), 57(1), 62(1), 66(1), 69 and 70. https://www.zakon.hr/z/85/zakon-o-porezu-na-dohodak
 - Pravilnik o izmjenama i dopunama Pravilnika o porezu na dohodak, NN 16/25, Art. 2 replacing Art. 7(2). https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_148.html

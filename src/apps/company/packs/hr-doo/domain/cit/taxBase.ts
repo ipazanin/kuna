@@ -26,7 +26,10 @@ export interface TaxBaseInput {
   readonly expenses: TracedFigure
   /** Representation costs with their VAT, which is never deductible. */
   readonly representation: TracedFigure
+  /** Running costs of personal cars, with their VAT that is not deducted. */
   readonly personalTransport: TracedFigure
+  /** The depreciation the tax allows on personal cars, after the cost cap, which the personal transport add-back also takes its share of. */
+  readonly carDepreciationAllowed: TracedFigure
   /** Fines, forced collection and private or non-business costs, which the tax never allows. */
   readonly nonDeductible: TracedFigure
   /** Depreciation charged above what the tax allows, such as a car above the cost cap. */
@@ -74,7 +77,7 @@ export function taxBase(input: TaxBaseInput, rules: RuleSource = ruleValue): Tax
   const privateCosts = rules('hr.cit.private-cost-add-back', period)
   const ordinaryIncreases = [
     addBack(words.base.representation, input.representation, representation.value.addBackShare.basisPoints, [representation.citation]),
-    addBack(words.base.personalTransport, input.personalTransport, transport.value.addBackShare.basisPoints, [transport.citation]),
+    addBack(words.base.personalTransport, personalTransportCosts(input), transport.value.addBackShare.basisPoints, [transport.citation]),
     addBack(words.base.nonDeductible, input.nonDeductible, privateCosts.value.addBackShare.basisPoints, [fines.citation, privateCosts.citation]),
     tracedFigure(words.base.depreciationAbove, input.depreciationAboveAllowed.amount, 'assets', input.depreciationAboveAllowed.rules, [input.depreciationAboveAllowed]),
   ]
@@ -136,6 +139,14 @@ export function lossesCarriedInto(year: number, yearEnd: readonly YearEndLine[],
   }
   const carryForward = rules('hr.cit.loss-carry-forward', civilDate(year, 1, 1)).value.carryForwardYears.count
   return open.filter((loss) => year - loss.year <= carryForward)
+}
+
+/** A year with no car depreciated keeps the running costs as the line's only source. */
+function personalTransportCosts(input: TaxBaseInput): TracedFigure {
+  if (input.carDepreciationAllowed.steps.length === 0) {
+    return input.personalTransport
+  }
+  return summed(words.base.personalTransportWithCars, [input.personalTransport, input.carDepreciationAllowed], 'ledger')
 }
 
 /**

@@ -41,7 +41,7 @@ const FAMILIES: readonly Family[] = [
       ['travel', [PACK_ROLES.deductibleCost]],
       ['representation', [PACK_ROLES.representation], 'representation'],
       ['car-costs', [PACK_ROLES.personalTransport], 'car-50'],
-      ['car-insurance-and-interest', [PACK_ROLES.vehicleInsuranceAndInterest]],
+      ['car-insurance-interest-tax-and-fees', [PACK_ROLES.vehicleInsuranceInterestTaxAndFees]],
       ['insurance', [PACK_ROLES.deductibleCost, PACK_ROLES.prepaidAnnual]],
       ['training', [PACK_ROLES.deductibleCost], 'deductible-25'],
       ['marketing', [PACK_ROLES.deductibleCost], 'deductible-25'],

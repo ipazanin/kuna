@@ -41,6 +41,7 @@ function company(changes: Partial<ScenarioCompany> = {}): ScenarioCompany {
       expenses: figure('PD line 2, expenses without owner pay', 40_000),
       representation: figure('Representation', 0),
       personalTransport: figure('Personal transport', 0),
+      carDepreciationAllowed: figure('Car depreciation allowed', 0),
       nonDeductible: figure('Non-deductible', 0),
       depreciationAboveAllowed: figure('Depreciation above allowed', 0),
       relatedPartyInterestShortfall: figure('Related-party interest', 0),

@@ -6,7 +6,8 @@ import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { slugProblem } from '../../workbook/domain/slug'
 import { slugOf, storedFieldOfValue, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
-import { isVatTreatment } from '../../workbook/domain/vatTreatment'
+import type { CategoryClass } from '../../workbook/domain/packPart'
+import { isVatTreatment, vatCell } from '../../workbook/domain/vatTreatment'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
 import { sameClassedFields } from './categoryClasses'
 import type { ClassedFields } from './categoryClasses'
@@ -50,6 +51,18 @@ export function categoryDraftsOf(stored: readonly StoredRecord<unknown>[]): Cate
       ownerShare: text('owner_share'),
     }
   })
+}
+
+/**
+ * The draft with the class in place of any other, keeping its other roles and the one VAT treatment a class with one allows.
+ * A role the class replaces goes with the class it stood for, while any other unknown role stays for the owner to see.
+ */
+export function draftWithClass(draft: CategoryDraft, classes: readonly CategoryClass[], role: string): CategoryDraft {
+  const picked = classes.find((taxClass) => taxClass.role === role)
+  const classRoles = new Set(classes.map((taxClass) => taxClass.role))
+  const replaced = new Set(picked?.replaces ?? [])
+  const kept = rolesOfText(draft.roles).filter((other) => !classRoles.has(other) && !replaced.has(other))
+  return { ...draft, roles: [role, ...kept].join(', '), vat: picked?.vat.length === 1 ? vatCell(picked.vat[0]!) : draft.vat }
 }
 
 /** The colour a draft takes from the picker. Bucket colour on a row stored with a colour outside the palette keeps that colour, since it draws in the bucket's colour too. */

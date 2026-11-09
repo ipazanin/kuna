@@ -29,7 +29,6 @@ List each new difference here, with the owning file, until the code picks it up.
 | Item                          | What Kuna does and the law says                                                                                                                                                       | Owning file                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | 2023 surtax on foreign income | Kuna adds the owner's 2023 city surtax to capital gains only. Dividends and interest of 2023 still show before surtax, since how the foreign credit met the surtax was not researched | [Capital gains](../investments/capital-gains.md#city-surtax-of-2023) |
-| A personal car's depreciation | Kuna adds back nothing for a car kept as a capital purchase. ZPD Art. 7(3)(1) and 7(3)(3) count its depreciation among the car costs of which Art. 7(1)(4) adds half back             | [Tax classes](../company/tax-classes.md#capital-purchase)            |
 
 ## Readings a Porezna uprava answer would settle
 
@@ -55,14 +54,16 @@ OPZ Art. 10 provides a paid binding opinion only for future transactions, so a p
 
 Readings and unloaded texts behind the [tax classes](../company/tax-classes.md) and the [state payments](../company/state-payments.md) of the Company app.
 
-| Item                         | What is unknown                                                                                     | Mark          | Owning file                                                 |
-| ---------------------------- | --------------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------- |
-| The owner's private share    | Whether ZPD Art. 7(1)(13) adds it back, which turns on the income tax paid on it under Art. 7(2)    | `reading`     | [Tax classes](../company/tax-classes.md#owner-benefit)      |
-| The base of the car add-back | Whether ZPD Art. 7(3)'s VAT is the VAT that stays a cost                                            | `reading`     | [Tax classes](../company/tax-classes.md#personal-transport) |
-| The car add-back and salary  | Whether a car's private use is taxed as salary, which ZPD Art. 7(1)(4) says takes the add-back away | `reading`     | [Tax classes](../company/tax-classes.md#personal-transport) |
-| Gifts in kind                | Whether they count inside the 700.00 a year of PravPDoh Art. 7(2) item 25                           | `unconfirmed` | [Tax classes](../company/tax-classes.md#tax-free-payments)  |
-| The profit tax advance       | Whether the monthly advance is paid under code 1651                                                 | `unconfirmed` | [State payments](../company/state-payments.md#open-points)  |
-| The Naputak's amendment      | Whether NN 39/26 changes a code                                                                     | `unconfirmed` | [State payments](../company/state-payments.md#open-points)  |
+| Item                                 | What is unknown                                                                                                                                                   | Mark          | Owning file                                                 |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------- |
+| The owner's private share            | Whether ZPD Art. 7(1)(13) adds it back, which turns on the income tax paid on it under Art. 7(2)                                                                  | `reading`     | [Tax classes](../company/tax-classes.md#owner-benefit)      |
+| The base of the car add-back         | Whether ZPD Art. 7(3)'s VAT is the VAT that stays a cost                                                                                                          | `reading`     | [Tax classes](../company/tax-classes.md#personal-transport) |
+| The car add-back and salary          | Whether a car's private use is taxed as salary, which ZPD Art. 7(1)(4) says takes the add-back away                                                               | `reading`     | [Tax classes](../company/tax-classes.md#personal-transport) |
+| A car's depreciation in the add-back | Whether half is taken from the depreciation the cap allows alone, and whether every car on the assets tab is a car for personal transport under PravPD Art. 25(2) | `reading`     | [Tax classes](../company/tax-classes.md#capital-purchase)   |
+| Registration costs                   | Which registration costs are the fees and charges PravPD Art. 25(1) leaves out, and which are the paid registration service ZPD Art. 7(3)(1) keeps in             | `reading`     | [Tax classes](../company/tax-classes.md#personal-transport) |
+| Gifts in kind                        | Whether they count inside the 700.00 a year of PravPDoh Art. 7(2) item 25                                                                                         | `unconfirmed` | [Tax classes](../company/tax-classes.md#tax-free-payments)  |
+| The profit tax advance               | Whether the monthly advance is paid under code 1651                                                                                                               | `unconfirmed` | [State payments](../company/state-payments.md#open-points)  |
+| The Naputak's amendment              | Whether NN 39/26 changes a code                                                                                                                                   | `unconfirmed` | [State payments](../company/state-payments.md#open-points)  |
 
 ## Not loaded
 

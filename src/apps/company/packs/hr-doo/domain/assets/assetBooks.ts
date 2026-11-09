@@ -91,6 +91,22 @@ export function depreciationAboveAllowed(schedules: readonly DepreciationSchedul
 }
 
 /**
+ * The depreciation the corporate tax allows on the year's personal cars, one step per car, after the
+ * cost cap. The personal transport add-back takes its share of it, as it does of a car's running costs.
+ */
+export function carDepreciationAllowed(schedules: readonly DepreciationSchedule[], year: number): TracedFigure {
+  return summed(
+    words.books.carsAllowed,
+    schedules
+      .filter((schedule) => schedule.asset.group === 'car')
+      .flatMap((schedule) =>
+        schedule.years.filter((entry) => entry.year === year).map((entry) => tracedFigure(schedule.asset.name, entry.deductible.amount, 'assets', entry.deductible.rules, [entry.deductible])),
+      ),
+    'assets',
+  )
+}
+
+/**
  * The same assets and grants at doubled rates, and the change in each year's depreciation, grant
  * release, profit before tax and profit tax. The profit tax change is the profit change at the
  * corporate tax rate of that year, picked by `rateTestRevenue`. Nothing here is saved.

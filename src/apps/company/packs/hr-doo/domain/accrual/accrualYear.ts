@@ -13,7 +13,7 @@ import type { Money } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleId } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { assetBooks, depreciationAboveAllowed, depreciationByYear } from '../assets/assetBooks'
+import { assetBooks, carDepreciationAllowed, depreciationAboveAllowed, depreciationByYear } from '../assets/assetBooks'
 import type { DepreciationSettings } from '../assets/depreciationSchedule'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import type { CitLiability, TaxPeriod } from '../cit/citLiability'
@@ -325,6 +325,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
       expenses: tracedFigure(words.year.pdExpenses, expenses.amount, 'ledger', expenses.rules, [expenses]),
       representation: representationJudgement === null ? representationOurs : summed(words.year.representationAsBooked, [representationOurs, representationJudgement.figure], 'ledger'),
       personalTransport: costOfRole(PACK_ROLES.personalTransport, words.year.personalTransport),
+      carDepreciationAllowed: carDepreciationAllowed(books.schedules, year),
       nonDeductible: costOfRole(PACK_ROLES.nonDeductible, words.year.neverAllowed),
       depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
       relatedPartyInterestShortfall: relatedPartyInterest(workbook, year, profitBeforeTax.amount, lossesBroughtForward, rules),

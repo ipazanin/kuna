@@ -28,6 +28,7 @@ export const en = {
   books: {
     depreciationIn: (year: number) => `Depreciation in ${year}`,
     aboveAllowed: 'Depreciation above what the tax allows',
+    carsAllowed: 'Depreciation the tax allows on personal cars',
     moreDepreciation: (year: number) => `More depreciation in ${year}`,
     moreGrant: (year: number) => `More grant released in ${year}`,
     atDoubled: 'at doubled rates',
@@ -61,6 +62,7 @@ export const hr: Translation<typeof en> = {
   books: {
     depreciationIn: (year) => `Amortizacija u ${year}.`,
     aboveAllowed: 'Amortizacija iznad onoga što porez priznaje',
+    carsAllowed: 'Amortizacija osobnih automobila koju porez priznaje',
     moreDepreciation: (year) => `Veća amortizacija u ${year}.`,
     moreGrant: (year) => `Više priznate potpore u ${year}.`,
     atDoubled: 'po udvostručenim stopama',

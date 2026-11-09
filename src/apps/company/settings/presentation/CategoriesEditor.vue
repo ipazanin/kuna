@@ -22,7 +22,7 @@ import { displayName } from '../../workbook/domain/displayName'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { classOf } from '../domain/categoryClasses'
-import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName, pickedColour, rolesOfText } from '../domain/categoryDrafts'
+import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, draftWithClass, keepsItsName, pickedColour, rolesOfText } from '../domain/categoryDrafts'
 import { categoryClassMessages } from './categoryClassMessages'
 import { vatTreatmentLabel } from './vatTreatmentLabel'
 import type { CategoryDraft } from '../domain/categoryDrafts'
@@ -160,14 +160,9 @@ function vatItems(draft: CategoryDraft, taxClass: CategoryClass | null): { value
   return withValue(allowed, draft.vat.trim().toLowerCase() || 'none').map((treatment) => ({ value: treatment, label: vatTreatmentLabel(treatment) }))
 }
 
-/** Gives the row the class in place of any other, keeping its other roles, and the one VAT treatment a class with one allows. */
+/** Gives the row the class in place of any other. */
 function pickClass(index: number, role: string): void {
-  const draft = drafts.value[index]!
-  const picked = props.classes.find((taxClass) => taxClass.role === role)
-  const kept = rolesOfText(draft.roles).filter((other) => !classRoles.value.has(other))
-  drafts.value = drafts.value.map((other, position) =>
-    position === index ? { ...other, roles: [role, ...kept].join(', '), vat: picked?.vat.length === 1 ? vatCell(picked.vat[0]!) : other.vat } : other,
-  )
+  drafts.value = drafts.value.map((draft, position) => (position === index ? draftWithClass(draft, props.classes, role) : draft))
 }
 
 /** The row's roles that carry no class, which the roles menu edits. */

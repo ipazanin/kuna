@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import type { Asset, AssetGroup } from '../src/apps/company/packs/hr-doo/domain/assets/assets'
 import type { Grant } from '../src/apps/company/packs/hr-doo/domain/grants/grants'
-import { assetBooks, depreciationByYear, doubledRatesEffect } from '../src/apps/company/packs/hr-doo/domain/assets/assetBooks'
+import { assetBooks, carDepreciationAllowed, depreciationAboveAllowed, depreciationByYear, doubledRatesEffect } from '../src/apps/company/packs/hr-doo/domain/assets/assetBooks'
 import type { DoubledRatesEffect } from '../src/apps/company/packs/hr-doo/domain/assets/assetBooks'
+import { taxBase } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
+import type { TaxBase } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
+import { tracedFigure } from '../src/apps/company/packs/hr-doo/domain/payroll/payrollArithmetic'
 import { ZERO } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import { civil, euros } from './fixtures/ledger'
@@ -82,6 +85,55 @@ describe('depreciationByYear', () => {
     expect(years[0]?.byAsset.map((charge) => charge.schedule.asset.name)).toEqual(['Example laptop', 'Example press'])
     expect(years[0]?.total.steps.map((step) => step.amount)).toEqual([euros(900), euros(458.33)])
     expect(years[0]?.total.rules.map((citation) => citation.ruleId)).toEqual(['hr.cit.depreciation-rates', 'hr.cit.depreciation-start'])
+  })
+})
+
+function carYear(assets: readonly Asset[], year: number): TaxBase {
+  const books = assetBooks(assets, [], SINGLE)
+  const none = tracedFigure('None', ZERO, 'ledger', [])
+  return taxBase({
+    year,
+    revenue: tracedFigure('Revenue', euros(100000), 'ledger', []),
+    expenses: tracedFigure('Expenses', euros(60000), 'ledger', []),
+    representation: none,
+    personalTransport: none,
+    carDepreciationAllowed: carDepreciationAllowed(books.schedules, year),
+    nonDeductible: none,
+    depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
+    relatedPartyInterestShortfall: none,
+    lossesBroughtForward: [],
+  })
+}
+
+function increase(base: TaxBase, label: string): Money | undefined {
+  return base.increases.steps.find((step) => step.label.startsWith(label))?.amount
+}
+
+describe('carDepreciationAllowed', () => {
+  it("adds back half of a personal car's depreciation on PD line 7", () => {
+    // 40,000.00 at 20% from January 2026 is 8,000.00 a year, all allowed under the 54,000.00 cap. Half is 4,000.00, or 400.00 of tax at 10%.
+    const base = carYear([asset({ name: 'Example car', cost: 40000, inUse: '2025-12-05', group: 'car' })], 2026)
+
+    expect(increase(base, 'PD line 7')).toBe(euros(4000))
+    expect(increase(base, 'PD line 18')).toBe(euros(0))
+    expect(base.increases.rules.map((citation) => citation.ruleId)).toEqual(expect.arrayContaining(['hr.cit.personal-transport-add-back', 'hr.cit.depreciation-rates']))
+  })
+
+  it('takes the half from the depreciation left after the cost cap, and adds back all of what the cap disallows', () => {
+    // 60,000.00 at 20% is 12,000.00 a year. 54,000 / 60,000 of it is 10,800.00 allowed, half of that 5,400.00, and the 1,200.00 above goes on line 18.
+    const base = carYear([asset({ name: 'Example car', cost: 60000, inUse: '2025-12-05', group: 'car' })], 2026)
+
+    expect(increase(base, 'PD line 7')).toBe(euros(5400))
+    expect(increase(base, 'PD line 18')).toBe(euros(1200))
+    expect(base.increases.rules.map((citation) => citation.ruleId)).toContain('hr.cit.car-depreciation-cap')
+  })
+
+  it('counts only cars, and nothing in a year no car is depreciated', () => {
+    const books = assetBooks([asset(PRESS), asset({ name: 'Example car', cost: 40000, inUse: '2025-12-05', group: 'car' })], [], SINGLE)
+
+    expect(carDepreciationAllowed(books.schedules, 2025).steps).toEqual([])
+    expect(carDepreciationAllowed(books.schedules, 2026).steps.map((step) => [step.label, step.amount])).toEqual([['Example car', euros(8000)]])
+    expect(increase(carYear([asset(PRESS)], 2026), 'PD line 7')).toBe(euros(0))
   })
 })
 

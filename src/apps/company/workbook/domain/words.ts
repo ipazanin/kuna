@@ -57,7 +57,7 @@ const SEEDED_NAMES: ReadonlyMap<string, string> = new Map([
   ['travel', 'Putovanja'],
   ['representation', 'Reprezentacija'],
   ['car-costs', 'Troškovi automobila'],
-  ['car-insurance-and-interest', 'Osiguranje i kamate za automobil'],
+  ['car-insurance-interest-tax-and-fees', 'Osiguranje, kamate i pristojbe za automobil'],
   ['insurance', 'Osiguranje'],
   ['training', 'Edukacija'],
   ['marketing', 'Marketing'],

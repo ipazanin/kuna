@@ -29,7 +29,7 @@ import { COST_LINES, COST_LINE_LABELS, costLineOf } from '../accrual/costLines'
 import type { CostLine } from '../accrual/costLines'
 import { revenueByDelivery } from '../accrual/revenueByDelivery'
 import type { DeliveredRevenue, UninvoicedMonth } from '../accrual/revenueByDelivery'
-import { assetBooks, depreciationAboveAllowed } from '../assets/assetBooks'
+import { assetBooks, carDepreciationAllowed, depreciationAboveAllowed } from '../assets/assetBooks'
 import type { AssetBooks } from '../assets/assetBooks'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import type { CitLiability, TaxPeriod } from '../cit/citLiability'
@@ -348,6 +348,7 @@ function forecastOne(context: ForecastContext): YearForecast {
     expenses: tracedFigure(words.figures.pdExpenses, expenses.amount, 'ledger', expenses.rules, [expenses]),
     representation: costOfRole(PACK_ROLES.representation, words.figures.representation),
     personalTransport: costOfRole(PACK_ROLES.personalTransport, words.figures.personalTransport),
+    carDepreciationAllowed: carDepreciationAllowed(books.schedules, year),
     nonDeductible: costOfRole(PACK_ROLES.nonDeductible, words.figures.neverAllowed),
     depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
     relatedPartyInterestShortfall: relatedPartyInterest(known, year, subtractMoney(revenueTotal.amount, expenses.amount), lossesBroughtForward, rules),

@@ -35,8 +35,8 @@ export const PACK_ROLES = {
   otherIncome: 'other-income',
   /** Money that never enters profit: transfers, bank loans, capital and reimbursements. */
   outsideProfit: 'outside-profit',
-  /** Car insurance and car loan interest, which the personal transport add-back leaves out. */
-  vehicleInsuranceAndInterest: 'vehicle-insurance-and-interest',
+  /** Car insurance, car loan interest, vehicle tax and registration fees, which the personal transport add-back leaves out. */
+  vehicleInsuranceInterestTaxAndFees: 'vehicle-insurance-interest-tax-and-fees',
 } as const
 
 export type PackRole = (typeof PACK_ROLES)[keyof typeof PACK_ROLES]

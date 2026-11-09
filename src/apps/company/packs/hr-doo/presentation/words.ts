@@ -140,7 +140,7 @@ export const en = {
     corporateIncomeTax: 'corporate tax paid counts as a cost beside the tax of the year',
     profitDistribution: 'dividends and their tax count as costs',
     representation: 'no representation is added back to the tax base',
-    personalTransport: 'PD line 7 adds back no personal transport',
+    personalTransport: 'PD line 7 adds back no running costs of a personal car',
     nonDeductible: 'PD lines 9, 11 and 24 add back no fine or private cost',
   },
   ownerPayOff: {
@@ -587,7 +587,7 @@ export const hr: Translation<typeof en> = {
     corporateIncomeTax: 'plaćeni porez na dobit broji se kao trošak uz porez za godinu',
     profitDistribution: 'dividende i porez na njih broje se kao troškovi',
     representation: 'poreznoj osnovici ne dodaje se nikakva reprezentacija',
-    personalTransport: 'redak 7 obrasca PD ne dodaje osnovici nikakav osobni prijevoz',
+    personalTransport: 'redak 7 obrasca PD ne dodaje osnovici troškove korištenja osobnog automobila',
     nonDeductible: 'retci 9, 11 i 24 obrasca PD ne dodaju osnovici nikakvu kaznu ni privatni trošak',
   },
   ownerPayOff: {

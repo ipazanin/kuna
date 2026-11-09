@@ -14,6 +14,7 @@ import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { civilDate, parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
+import { anchorOf } from './support/headingAnchor'
 
 const root = join(import.meta.dirname, '..')
 const lawDir = join(root, 'docs/law')
@@ -37,14 +38,6 @@ function proseLines(path: string): string[] {
       }
       return !fenced
     })
-}
-
-/** The anchor GitHub gives a heading. */
-function anchorOf(heading: string): string {
-  return heading
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .replace(/\s/g, '-')
 }
 
 /** The anchors GitHub gives a file's headings. */

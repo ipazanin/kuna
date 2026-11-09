@@ -25,7 +25,7 @@ export const en = {
     deductibleCost: 'A cost the profit tax allows',
     representation: (share: string) => `Representation: ${share} added back to the profit tax base, no VAT back`,
     personalTransport: (share: string, vatShare: string) => `Personal car costs: ${share} added back, ${vatShare} of the VAT back`,
-    vehicleInsuranceAndInterest: 'Car insurance and loan interest: allowed, no VAT',
+    vehicleInsuranceInterestTaxAndFees: 'Car insurance, loan interest, vehicle tax and registration fees: allowed, no VAT',
     nonDeductible: 'Fines and private costs: all added back',
     capitalPurchase: (threshold: string) => `An asset above ${threshold}, depreciated`,
     corporateIncomeTax: 'Profit tax paid or refunded, not a cost',
@@ -65,7 +65,7 @@ export const hr: Translation<typeof en> = {
     deductibleCost: 'Trošak koji porez na dobit priznaje',
     representation: (share) => `Reprezentacija: ${share} se dodaje poreznoj osnovici, bez odbitka PDV-a`,
     personalTransport: (share, vatShare) => `Troškovi osobnog automobila: ${share} se dodaje osnovici, odbija se ${vatShare} PDV-a`,
-    vehicleInsuranceAndInterest: 'Osiguranje i kamate za automobil: priznati, bez PDV-a',
+    vehicleInsuranceInterestTaxAndFees: 'Osiguranje, kamate, porez na vozila i registracijske naknade za automobil: priznati, bez PDV-a',
     nonDeductible: 'Kazne i privatni troškovi: sve se dodaje osnovici',
     capitalPurchase: (threshold) => `Imovina iznad ${threshold}, amortizira se`,
     corporateIncomeTax: 'Plaćeni ili vraćeni porez na dobit, nije trošak',
@@ -117,8 +117,8 @@ export function classNameOf(taxClass: TaxClass, role: string, day: CivilDate): s
       return names.representation(addBackShare())
     case PACK_ROLES.personalTransport:
       return names.personalTransport(addBackShare(), percentText(ruleValue('hr.vat.input-deduction', on).value.personalCarDeductibleShare.basisPoints))
-    case PACK_ROLES.vehicleInsuranceAndInterest:
-      return names.vehicleInsuranceAndInterest
+    case PACK_ROLES.vehicleInsuranceInterestTaxAndFees:
+      return names.vehicleInsuranceInterestTaxAndFees
     case PACK_ROLES.nonDeductible:
       return names.nonDeductible
     case PACK_ROLES.capitalPurchase:

@@ -46,6 +46,7 @@ function ours2026(liability: number, advancesPaid: number | null) {
     expenses: figure(20000),
     representation: figure(0),
     personalTransport: figure(0),
+    carDepreciationAllowed: figure(0),
     nonDeductible: figure(0),
     depreciationAboveAllowed: figure(0),
     relatedPartyInterestShortfall: figure(0),

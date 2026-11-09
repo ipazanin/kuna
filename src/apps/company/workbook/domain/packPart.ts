@@ -41,6 +41,8 @@ export interface CategoryClass {
   readonly role: string
   readonly vat: readonly VatTreatment[]
   readonly buckets: readonly DefinedBucket[]
+  /** Roles an earlier version of the pack gave this class, which picking the class takes off the category. */
+  readonly replaces?: readonly string[]
 }
 
 /** A category new books start with, as its row on the categories tab holds it. */
