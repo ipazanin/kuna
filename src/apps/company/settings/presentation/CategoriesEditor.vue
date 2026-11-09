@@ -36,7 +36,7 @@ import { words } from './words'
 const props = defineProps<{
   /** The categories as stored, refused ones included, so they can be fixed here. */
   records: RecordsRead<CategoryRecord>
-  /** What names each category outside the tab. A category in use keeps its name and its row. */
+  /** What names each category outside the tab. A category in use keeps its name, and deleting it moves what names it to another. */
   uses: SlugUses
   /** The roles core and the pack pick categories by. */
   roles: readonly string[]
@@ -51,6 +51,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   save: [made: readonly { readonly saved: number | null; readonly record: CategoryRecord }[]]
+  /** A category in use, by its name as saved, to delete with what names it moved to another. */
+  moveAndDelete: [slug: string]
 }>()
 
 const stored = computed(() => storedOf(props.records))
@@ -224,7 +226,13 @@ async function addCategory(): Promise<void> {
   row?.querySelector('input')?.focus({ preventScroll: true })
 }
 
+/** A category in use moves what names it to another as it goes, in a write of its own. Any other row leaves with the next save. */
 function remove(index: number): void {
+  const draft = drafts.value[index]!
+  if (locked(draft)) {
+    emit('moveAndDelete', draft.savedName.trim().toLowerCase())
+    return
+  }
   drafts.value = drafts.value.filter((_, position) => position !== index)
   listed.value = listed.value.filter((position) => position !== index).map((position) => (position > index ? position - 1 : position))
 }
@@ -399,8 +407,8 @@ function save(): void {
               color="neutral"
               variant="ghost"
               size="xs"
-              :disabled="locked(draft)"
-              :title="locked(draft) ? inUse(draft) : undefined"
+              :disabled="locked(draft) && dirty"
+              :title="locked(draft) && dirty ? words.saveBeforeDelete : undefined"
               :aria-label="draft.saved === null ? words.categories.removeNew : words.categories.deleteName(shownName(draft))"
               data-testid="remove-category"
               @click="remove(index)"

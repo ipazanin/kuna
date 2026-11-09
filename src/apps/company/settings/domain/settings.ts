@@ -14,9 +14,11 @@ import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
+import { ownId, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredField } from '../../../../shared/storage/domain/storedFields'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
+import { ANY_VALUE } from '../../../../shared/storage/domain/settingRows'
+import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
 import { BOOKS_FOLDER, folderPathOf } from '../../../../shared/text/folderPath'
@@ -205,13 +207,7 @@ const BILLING_ITEM_MAX_LENGTH = 60
 /** What a setting's value holds: a day, a number, TRUE or FALSE, or text. */
 export type SettingType = 'date' | 'number' | 'flag' | 'text'
 
-/** One setting as stored, its value as the text of its key's type, blank when the setting holds none. */
-export interface SettingRow {
-  readonly key: string
-  readonly value: string
-}
-
-/** A key and the value to store for it, as `SettingDefinition.valueOf` gives it. */
+/** A setting's key and its value as text of the key's type, blank when it holds none: as stored, or to store as `SettingDefinition.valueOf` gives it. */
 export interface SettingEntry {
   readonly key: string
   readonly value: string
@@ -532,7 +528,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
 
 const DEFINITION_BY_KEY = new Map(SETTING_DEFINITIONS.map((definition) => [definition.key, definition]))
 
-function keyOfRow(row: SettingRow): string {
+function keyOfRow(row: SettingEntry): string {
   return row.key.trim().toLowerCase()
 }
 
@@ -559,7 +555,7 @@ export function settingCodec(packSettings: () => PackSettings<unknown> | null): 
     kind: SETTING_RECORDS,
     key: (fields) => filledKey(slugOf(fields.key)),
     label: (fields) => labelWords([slugOf(fields.key)]),
-    make: (fields) => ({ key: textOf(fields.key), value: settingValueOf(fields.value, typeOf(textOf(fields.key))) }),
+    make: (fields, id) => ({ id: ownId(id), key: textOf(fields.key), value: settingValueOf(fields.value, typeOf(textOf(fields.key))) }),
     fieldsOf: (setting) => {
       const flag = typeOf(setting.key) === 'flag' && (setting.value === 'TRUE' || setting.value === 'FALSE')
       return filledFields({ key: setting.key, value: flag ? setting.value === 'TRUE' : setting.value })
@@ -573,7 +569,7 @@ export function settingCodec(packSettings: () => PackSettings<unknown> | null): 
  */
 function applySettingRow<Values>(
   values: Values,
-  row: SettingRow,
+  row: SettingEntry,
   definition: SettingDefinition<Values>,
   shared: ReadonlySet<string>,
 ): { readonly values: Values; readonly problem: RecordProblem | null } {
@@ -594,7 +590,24 @@ function applySettingRow<Values>(
  * the default and is reported. A key set on more than one row takes its default. The keys a pack
  * reads or retired are left to it, so they are neither read nor reported here.
  */
-export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet<string> = new Set()): { readonly settings: Settings; readonly problems: RecordProblem[] } {
+export function parseSettings(rows: readonly SettingEntry[], packKeys: ReadonlySet<string> = new Set()): { readonly settings: Settings; readonly problems: RecordProblem[] } {
+  const { settings, problems } = readCoreKeys(rows, packKeys)
+  const clash = labelClash(settings.bucketLabels)
+  if (clash === null) {
+    return { settings, problems }
+  }
+  const key = rows.map(keyOfRow).find((candidate) => candidate.startsWith('label_')) ?? null
+  const reset = { id: key === null ? null : recordIdOf(SETTING_RECORDS, key), label: key ?? 'label_', reason: words.settings.labelsReset(clash) }
+  return { settings: { ...settings, bucketLabels: DEFAULT_BUCKET_LABELS }, problems: [...problems, reset] }
+}
+
+/** Why the bucket labels the settings hold would be reset, two of them being the same, or null when each is its own. */
+export function bucketLabelsClash(rows: readonly SettingEntry[]): string | null {
+  return labelClash(readCoreKeys(rows, new Set()).settings.bucketLabels)
+}
+
+/** Core's settings from each key's row, before the bucket labels are checked against each other. */
+function readCoreKeys(rows: readonly SettingEntry[], packKeys: ReadonlySet<string>): { readonly settings: Settings; readonly problems: RecordProblem[] } {
   const problems: RecordProblem[] = []
   const shared = sharedKeys(rows, keyOfRow)
   let settings = DEFAULT_SETTINGS
@@ -631,12 +644,6 @@ export function parseSettings(rows: readonly SettingRow[], packKeys: ReadonlySet
       settings = { ...settings, importProfiles: [...settings.importProfiles, profile] }
     }
   }
-  const clash = labelClash(settings.bucketLabels)
-  if (clash !== null) {
-    const key = rows.map(keyOfRow).find((candidate) => candidate.startsWith('label_')) ?? null
-    problems.push({ id: key === null ? null : recordIdOf(SETTING_RECORDS, key), label: key ?? 'label_', reason: words.settings.labelsReset(clash) })
-    settings = { ...settings, bucketLabels: DEFAULT_BUCKET_LABELS }
-  }
   return { settings, problems }
 }
 
@@ -650,7 +657,7 @@ function isUnknownSettingKey(key: string, packKeys: ReadonlySet<string>): boolea
  * and import profiles, each with how many rows hold it. A person may take one off the tab while one row holds it,
  * since a write refuses a key on two rows.
  */
-export function unreadSettingKeys(rows: readonly SettingRow[], pack: PackSettings<unknown> | null): ReadonlyMap<string, number> {
+export function unreadSettingKeys(rows: readonly SettingEntry[], pack: PackSettings<unknown> | null): ReadonlyMap<string, number> {
   const packKeys = packSettingKeys(pack)
   const holding = new Map<string, number>()
   for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
@@ -660,7 +667,7 @@ export function unreadSettingKeys(rows: readonly SettingRow[], pack: PackSetting
 }
 
 /** The values a pack's settings keys hold, read the way `parseSettings` reads core's, and what in them could not be used. */
-export function readPackSettings<Values>(rows: readonly SettingRow[], pack: PackSettings<Values>): { readonly values: Values; readonly problems: RecordProblem[] } {
+export function readPackSettings<Values>(rows: readonly SettingEntry[], pack: PackSettings<Values>): { readonly values: Values; readonly problems: RecordProblem[] } {
   const definitions = new Map(pack.definitions.map((definition) => [definition.key, definition]))
   const shared = sharedKeys(rows, keyOfRow)
   const problems: RecordProblem[] = []
@@ -677,12 +684,43 @@ export function readPackSettings<Values>(rows: readonly SettingRow[], pack: Pack
 
 /** Core's settings and a pack's values from one settings tab, and what in either could not be used. Each reads its own keys. */
 export function readSettingsTab<Values>(
-  rows: readonly SettingRow[],
+  rows: readonly SettingEntry[],
   pack: PackSettings<Values> | null,
 ): { readonly settings: Settings; readonly packValues: Values | null; readonly problems: RecordProblem[] } {
   const core = parseSettings(rows, packSettingKeys(pack))
   const packRead = pack === null ? null : readPackSettings(rows, pack)
   return { settings: core.settings, packValues: packRead?.values ?? null, problems: [...core.problems, ...(packRead?.problems ?? [])] }
+}
+
+/**
+ * The check the value of each of these keys must pass for a write to keep its row: core's and the pack's keys as they read,
+ * and an import profile by the columns it names. A key the pack retired, and one nothing reads, which the settings keep
+ * unused, take any value.
+ */
+export function companySettingChecks(keys: readonly string[], pack: PackSettings<unknown> | null): SettingChecks {
+  return new Map(keys.map((key) => [key, settingCheckOf(key.trim().toLowerCase(), pack)]))
+}
+
+function settingCheckOf(key: string, pack: PackSettings<unknown> | null): SettingValueCheck {
+  const core = DEFINITION_BY_KEY.get(key)
+  if (core !== undefined) return definitionCheck(core, DEFAULT_SETTINGS)
+  const packDefinition = pack?.definitions.find((definition) => definition.key === key)
+  if (pack !== null && packDefinition !== undefined) return definitionCheck(packDefinition, pack.defaults)
+  if (key.startsWith(IMPORT_PROFILE_PREFIX)) {
+    return (value) => {
+      const profile = value.trim() === '' ? null : readProfile(key.slice(IMPORT_PROFILE_PREFIX.length), value)
+      return typeof profile === 'string' ? [words.settings.profileNotOffered(profile)] : []
+    }
+  }
+  return ANY_VALUE
+}
+
+/** A blank value means the default, and any other must read by the key's definition. */
+function definitionCheck<Values>(definition: SettingDefinition<Values>, defaults: Values): SettingValueCheck {
+  return (value) => {
+    const applied = value.trim() === '' ? defaults : definition.apply(defaults, value)
+    return typeof applied === 'string' ? [applied] : []
+  }
 }
 
 /** The value the settings hold for a key, which a write of it checks is still there, or null when no setting has the key. */

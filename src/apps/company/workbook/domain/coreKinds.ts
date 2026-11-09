@@ -1,5 +1,5 @@
 import type { RuleTabRow } from '../../rules/domain/readRules'
-import type { SettingRow } from '../../settings/domain/settings'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import type { AccountRecord } from './accountsReading'
 import type { BillingItem } from './billingPlan'
 import type { CategoryRecord } from './categoriesReading'

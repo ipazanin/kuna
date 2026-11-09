@@ -1,4 +1,4 @@
-import { fieldsOf } from './companyCard'
+import { categoryOf, fieldsOf } from './companyCard'
 import { settingName } from './settingNames'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
 import { words } from './words'
@@ -6,7 +6,8 @@ import { fillShares } from '../../owner-share/application/ownerShareWrites'
 import { shareFillsOf } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
 import { writeDrafts } from '../../settings/application/draftWrites'
-import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryUses } from '../../settings/application/namedRecordWrites'
+import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryUses, categoryUsesAfterMove, deleteCategoryInto } from '../../settings/application/namedRecordWrites'
+import type { RecordsOfKind } from '../../settings/application/namedRecordWrites'
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { accountDraftErrors, accountDraftsOf, accountsOfDrafts } from '../../settings/domain/accountDrafts'
 import type { AccountDraft } from '../../settings/domain/accountDrafts'
@@ -188,12 +189,16 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
     },
     {
       name: 'delete-category',
-      about: 'Deletes a category nothing names: no ledger row, rule, split part or owner advance. One that something names is refused.',
-      input: inputOf({ category: TEXT }),
-      refs: { category: CATEGORY },
+      about: [
+        'Deletes a category, as Settings, Categories deletes it.',
+        "into is the category its ledger rows, split parts and rules move to in the same change, each row keeping who filed it and taking that category's owner share, or null for a category nothing names.",
+        "A category the pack's records name, such as an owner advance, a plan row or a year-end konto line, is refused until those name another.",
+      ].join(' '),
+      input: inputOf({ category: TEXT, into: TEXT_OR_NULL }),
+      refs: { category: CATEGORY, into: CATEGORY },
       creates: null,
       alone: false,
-      example: { category: 'category-unused' },
+      example: { category: 'category', into: 'category-other' },
     },
     {
       name: 'add-account',
@@ -355,10 +360,23 @@ function changeCategory(card: CompanyCard, step: ProposalStep): void {
 }
 
 function deleteCategory(card: CompanyCard, step: ProposalStep): void {
-  const slug = card.idOf(fieldsOf(step)['category']).toLowerCase()
-  const uses = categoryUses((kind) => recordsOfKindIn(card.records(), kind)).get(slug)
-  if (uses !== undefined) throw new StepRefused(`That category is still named by ${uses.join(', ')}. File those elsewhere first.`)
-  writeCategories(card, (drafts) => drafts.filter((_, place) => place !== draftAt(drafts, slug)), false)
+  const field = fieldsOf(step)
+  const slug = card.idOf(field['category']).toLowerCase()
+  const records = card.records()
+  const recordsOfKind: RecordsOfKind = (kind) => recordsOfKindIn(records, kind)
+  if (field['into'] === null) {
+    const uses = categoryUses(recordsOfKind).get(slug)
+    if (uses !== undefined) throw new StepRefused(`That category is still named by ${uses.join(', ')}. Give into to move them, or file those elsewhere first.`)
+    writeCategories(card, (drafts) => drafts.filter((_, place) => place !== draftAt(drafts, slug)), false)
+    return
+  }
+  const into = categoryOf(card, field['into'])
+  if (into.slug === slug) throw new StepRefused('into is another category than the one deleted.')
+  const kept = categoryUsesAfterMove(recordsOfKind).get(slug)
+  if (kept !== undefined) throw new StepRefused(`That category is still named by ${kept.join(', ')}, which a move leaves. Change those first.`)
+  const category = recordsOf(records.categories).find((record) => record.slug === slug)
+  if (category === undefined) throw new StepRefused('That category is no longer in the books.')
+  deleteCategoryInto(card.unit, records, category, into.slug, card.workbook.categories)
 }
 
 /** Saves the accounts as Settings, Accounts saves its editor's rows, after its checks. */

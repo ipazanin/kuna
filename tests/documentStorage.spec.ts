@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { SETTING_WRITES } from '../src/apps/company/settings/application/settingWrites'
+import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { settingRow } from '../src/shared/storage/domain/settingRows'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
@@ -132,7 +134,7 @@ describe.each([
   it('keeps the hr_company_registered date through a save of the settings', async () => {
     const { store, held } = await harnessOf(used, books({ setting: [{ key: 'hr_company_registered', value: '2025-05-12' }] }))
 
-    await store.write('Settings saved', (unit) => unit.of(SETTING_WRITES).add({ key: 'company_name', value: 'Example Studio' }))
+    await store.write('Settings saved', (unit) => unit.of(SETTING_WRITES).add(settingRow(SETTING_RECORDS, 'company_name', 'Example Studio')))
 
     expect((await held()).records.setting).toEqual([
       { key: 'hr_company_registered', value: '2025-05-12' },

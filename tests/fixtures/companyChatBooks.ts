@@ -4,7 +4,9 @@ import { HR_DOO_ASSISTANT } from '../../src/apps/company/packs/hr-doo/assistant/
 import { fakeStaffOf } from '../../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff'
 import { installedPack } from '../../src/apps/company/packs/packContribution'
 import type { CompanyBooks } from '../../src/apps/company/workbook/domain/readWorkbook'
-import type { SettingRow } from '../../src/apps/company/settings/domain/settings'
+import type { SettingEntry } from '../../src/apps/company/settings/domain/settings'
+import { SETTING_RECORDS } from '../../src/apps/company/workbook/domain/coreKinds'
+import { settingRow } from '../../src/shared/storage/domain/settingRows'
 import { readDocument } from '../../src/apps/company/workbook/infrastructure/companyDocument'
 import { fakeWorkbookDocument } from '../../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import type { ChatReads } from '../../src/shared/ai/application/chatReads'
@@ -21,8 +23,8 @@ export function fakeCompanyBooks(): CompanyBooks {
 }
 
 /** The books with these settings rows added, as a file someone edited by hand could hold. */
-export function withSettings(books: CompanyBooks, rows: readonly SettingRow[]): CompanyBooks {
-  const added = rows.map((record) => ({ record, id: null, label: record.key, fields: {} }))
+export function withSettings(books: CompanyBooks, entries: readonly SettingEntry[]): CompanyBooks {
+  const added = entries.map(({ key, value }) => ({ record: settingRow(SETTING_RECORDS, key, value), id: null, label: key, fields: {} }))
   return { ...books, records: { ...books.records, settings: { ...books.records.settings, records: [...books.records.settings.records, ...added] } } }
 }
 

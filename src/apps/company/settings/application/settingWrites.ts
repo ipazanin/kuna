@@ -3,36 +3,32 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 import { SETTING_RECORDS } from '../../workbook/domain/coreKinds'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { recordsOf, storedOf } from '../../../../shared/storage/domain/recordsRead'
-import type { RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { slugOf } from '../../../../shared/storage/domain/storedFields'
+import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
+import { readSettingRows, settingRow } from '../../../../shared/storage/domain/settingRows'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import { personPayeesOf, personPayeesText, withPayeeAsPerson } from '../../../../shared/privacy/domain/personPayees'
+import { slugOf } from '../../../../shared/storage/domain/storedFields'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
-import { PERSON_PAYEES_KEY, heldSettingValue, readSettingsTab } from '../domain/settings'
-import type { SettingEntry, SettingRow } from '../domain/settings'
-import { words as settingWords } from '../domain/words'
+import { PERSON_PAYEES_KEY, bucketLabelsClash, companySettingChecks, heldSettingValue } from '../domain/settings'
+import type { SettingEntry } from '../domain/settings'
 import { words } from './words'
 
-/** What the settings reader reports of the records, which a write may not add to. A key nothing reads is kept and not used, so putting one back, as Undo of its removal does, is left out. */
-function readProblems(read: RecordsRead<SettingRow>): RecordProblem[] {
-  return readSettingsTab(recordsOf(read), installedPack().workbook?.settings ?? null).problems.filter((problem) => problem.reason !== settingWords.settings.unknownKey)
-}
-
-function problemsOf(read: RecordsRead<SettingRow>): string[] {
-  return readProblems(read).map((problem) => `${problem.label}: ${problem.reason}`)
-}
-
 /**
- * Settings, core's keys and the installed pack's. A key set on two records, or a value the settings
- * reader would not use, is refused.
+ * Settings, core's keys and the installed pack's. A value the key's check refuses, a key on two rows,
+ * and bucket labels that would clash are refused. A key nothing reads is kept, so Undo can put one back.
  */
 export const SETTING_WRITES: WriteRules<SettingRow> = {
   kind: SETTING_RECORDS,
   reads: [],
   undoable: true,
-  read: (read) => ({
-    facts: read.records.flatMap((stored) => (stored.id === null ? [] : [{ id: stored.id }])),
-    problems: readProblems(read),
-  }),
+  read: (read) =>
+    readSettingRows(
+      read,
+      companySettingChecks(
+        read.records.map((stored) => stored.record.key),
+        installedPack().workbook?.settings ?? null,
+      ),
+    ),
   refusals: (change) => {
     const stored = storedOf(change.before)
     const twice = change.edits.flatMap((edit) => {
@@ -43,9 +39,8 @@ export const SETTING_WRITES: WriteRules<SettingRow> = {
     if (twice.length > 0) {
       return twice
     }
-    const before = problemsOf(change.before)
-    const introduced = problemsOf(change.after).filter((problem) => !before.includes(problem))
-    return introduced.length === 0 ? [] : [words.settings.wouldNotRead(introduced.join('. '))]
+    const clash = bucketLabelsClash(recordsOf(change.after))
+    return clash !== null && bucketLabelsClash(recordsOf(change.before)) === null ? [clash] : []
   },
 }
 
@@ -61,7 +56,7 @@ export function setSettings(unit: UnitOfWork, held: RecordsRead<SettingRow>, val
     if (stored !== undefined) {
       settings.change(stored.record, { ...stored.record, value })
     } else if (value.trim() !== '') {
-      settings.add({ key: key.trim().toLowerCase(), value })
+      settings.add(settingRow(SETTING_RECORDS, key.trim().toLowerCase(), value))
     }
   }
 }

@@ -8,7 +8,6 @@ export const en = {
   /** Why a write to the settings tab is refused. */
   settings: {
     keyOnRows: (key: string, rows: number) => `The settings tab sets "${key}" on ${rows} rows. Keep one of them in an export and open that file again.`,
-    wouldNotRead: (problems: string) => `The settings would not read cleanly: ${problems}.`,
   },
   /** What names a category, an account or a client outside its tab, as a refusal and the editor's lock say it. */
   uses: {
@@ -27,7 +26,6 @@ export const hr: Translation<typeof en> = {
   settings: {
     keyOnRows: (key, rows) =>
       `Postavka „${key}” postavljena je u ${rows} ${plural({ one: 'retku', few: 'retka', other: 'redaka' }, rows)} kartice postavki. U izvozu zadržite jedan od njih i ponovno otvorite tu datoteku.`,
-    wouldNotRead: (problems) => `Postavke se ne bi ispravno čitale: ${problems}.`,
   },
   uses: {
     ledgerRows: (count) => ({ one: `${count} stavka evidencije`, few: `${count} stavke evidencije`, other: `${count} stavki evidencije` }),

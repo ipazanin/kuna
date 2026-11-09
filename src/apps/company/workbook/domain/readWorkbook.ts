@@ -1,7 +1,7 @@
 import { readRules } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import { readSettingsTab } from '../../settings/domain/settings'
-import type { SettingRow } from '../../settings/domain/settings'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import type { AccountRecord } from './accountsReading'
 import { readAccounts } from './accountsReading'
 import type { BillingItem } from './billingPlan'

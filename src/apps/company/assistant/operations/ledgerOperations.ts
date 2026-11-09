@@ -6,7 +6,7 @@ import { typedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { ShareTarget } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
 import { DISMISSAL_WRITES, dismissalOfGroup } from '../../rules/application/dismissalWrites'
-import { writeRulesChange } from '../../rules/application/ruleWrites'
+import { writeRuleSave, writeRulesChange } from '../../rules/application/ruleWrites'
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
 import { withoutDismissed } from '../../rules/domain/dismissedSuggestions'
 import { unusedId } from '../../rules/domain/proposeRule'
@@ -15,7 +15,6 @@ import { ruleAgainst, ruleCoverage } from '../../rules/domain/ruleCoverage'
 import { blankDraft, draftChange, draftForRow, draftOfRule } from '../../rules/domain/ruleDraft'
 import type { ConditionColumn, DraftCondition, RuleDraft } from '../../rules/domain/ruleDraft'
 import { previewRulesChange } from '../../rules/domain/rulesChangePreview'
-import { rulesTabAfter } from '../../rules/domain/rulesTabChange'
 import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import { treatPayeeAsPerson } from '../../settings/application/settingWrites'
 import { fileRows } from '../../transactions/application/fileRows'
@@ -23,11 +22,11 @@ import { words as transactionWords } from '../../transactions/presentation/words
 import { writeSplit } from '../../transactions/application/splitWrites'
 import type { SplitPartDraft } from '../../transactions/application/splitWrites'
 import { fitsPairSide, pairSidesWith } from '../../transactions/domain/pairSides'
-import { confirmation, confirmedRowsRefiledBy, recategorisation, waitingRowsSettledBy } from '../../transactions/domain/verdictChanges'
+import { confirmation, confirmedRowsRefiledBy, recategorisation } from '../../transactions/domain/verdictChanges'
 import type { RowVerdict } from '../../transactions/domain/verdictChanges'
 import { CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../workbook/domain/displayName'
-import { isHumanConfirmed, needsReview } from '../../workbook/domain/needsReview'
+import { needsReview } from '../../workbook/domain/needsReview'
 import type { SplitTabRow } from '../../workbook/domain/splitsReading'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -255,8 +254,12 @@ function writeRules(card: CompanyCard, change: RulesTabChange, settledBy: string
   const context = categorisationContextOf(workbook)
   const preview = previewRulesChange(rows, change, defined, readRules(rows, defined).rules, workbook.transactions, context)
   if (preview.refusals.length > 0) throw new StepRefused(preview.refusals.join(' '))
-  writeRulesChange(card.unit, change)
   const refiled = settledBy === null ? [] : confirmedRowsRefiledBy(settledBy, preview.backtest.humanConflicts)
+  if (settledBy === null) {
+    writeRulesChange(card.unit, change)
+  } else {
+    writeRuleSave(card.unit, workbook, card.records(), change, settledBy, refiled)
+  }
   const names = displayNamesOf(workbook)
   const label = (row: Transaction) => row.counterparty || names.category(row.category)
   for (const { transaction, after } of preview.backtest.humanConflicts.filter(({ transaction }) => !refiled.some((verdict) => verdict.id === transaction.id))) {
@@ -265,14 +268,6 @@ function writeRules(card: CompanyCard, change: RulesTabChange, settledBy: string
   for (const { transaction, after } of preview.backtest.brokenAgreements) {
     card.note({ noun: LEDGER_RECORDS.noun, line: { label: label(transaction), fields: [], warning: words.ruleBreaksAgreement(names.category(after.category)) } })
   }
-  if (settledBy === null) return
-  const proposed = readRules(rulesTabAfter(rows, change).rows, defined).rules
-  const ledger = card.records().ledger
-  const stillWaiting = (verdict: RowVerdict) => {
-    const held = recordWithId(ledger, verdict.id)?.record
-    return held !== undefined && !isHumanConfirmed(held)
-  }
-  fileRows(card.unit, ledger, [...waitingRowsSettledBy(settledBy, workbook.transactions, proposed, context).filter(stillWaiting), ...refiled], workbook.categories)
 }
 
 function addRule(card: CompanyCard, step: ProposalStep): void {

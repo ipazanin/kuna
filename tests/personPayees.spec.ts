@@ -4,7 +4,6 @@ import { companyAssistant } from '../src/apps/company/assistant/companyAssistant
 import { HR_DOO_ASSISTANT } from '../src/apps/company/packs/hr-doo/assistant/hrDooAssistant'
 import { SETTING_WRITES as COMPANY_SETTING_WRITES, treatPayeeAsPerson as treatCounterpartyAsPerson } from '../src/apps/company/settings/application/settingWrites'
 import { DEFAULT_SETTINGS, PERSON_PAYEES_KEY as COMPANY_PERSON_PAYEES_KEY, parseSettings, settingsTabEntries } from '../src/apps/company/settings/domain/settings'
-import type { SettingRow as CompanySettingRow } from '../src/apps/company/settings/domain/settings'
 import { SETTING_RECORDS as COMPANY_SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { treatPayeeAsPerson } from '../src/apps/spending/workbook/application/settingWrites'
@@ -12,7 +11,6 @@ import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKi
 import { PERSON_PAYEES_KEY, SPENDING_SETTING_CHECKS, spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { flaggedAsPerson, personPayeesOf, withPayeeAsPerson } from '../src/shared/privacy/domain/personPayees'
 import { changesOf } from '../src/shared/storage/application/recordWrites'
-import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { readSettingRows, settingRow } from '../src/shared/storage/domain/settingRows'
 import type { SettingRow } from '../src/shared/storage/domain/settingRows'
 import type { RecordsRead } from '../src/shared/storage/domain/recordsRead'
@@ -22,11 +20,8 @@ function spendingRead(rows: readonly SettingRow[]): RecordsRead<SettingRow> {
   return { records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: { key: storedFieldOf(row.key), value: storedFieldOf(row.value) } })), refused: [] }
 }
 
-function companyRead(rows: readonly CompanySettingRow[]): RecordsRead<CompanySettingRow> {
-  return {
-    records: rows.map((row) => ({ record: row, id: recordIdOf(COMPANY_SETTING_RECORDS, row.key), label: row.key, fields: { key: storedFieldOf(row.key), value: storedFieldOf(row.value) } })),
-    refused: [],
-  }
+function companyRow(value: string): SettingRow {
+  return settingRow(COMPANY_SETTING_RECORDS, COMPANY_PERSON_PAYEES_KEY, value)
 }
 
 describe('the payees flagged as people', () => {
@@ -109,22 +104,22 @@ describe("Company's person_payees setting", () => {
   })
 
   it('adds a counterparty to the list, and a first one as a new row', () => {
-    const first = changesOf((unit) => treatCounterpartyAsPerson(unit, companyRead([]), 'Ana Horvat', true))
+    const first = changesOf((unit) => treatCounterpartyAsPerson(unit, spendingRead([]), 'Ana Horvat', true))
     expect(first.map(({ change }) => change)).toMatchObject([{ verb: 'add', after: { key: 'person_payees', value: 'Ana Horvat' } }])
 
-    const held = { key: 'person_payees', value: 'Ana Horvat' }
-    const second = changesOf((unit) => treatCounterpartyAsPerson(unit, companyRead([held]), 'Marko Kovač', true))
+    const held = companyRow('Ana Horvat')
+    const second = changesOf((unit) => treatCounterpartyAsPerson(unit, spendingRead([held]), 'Marko Kovač', true))
     expect(second.map(({ change }) => change)).toMatchObject([{ verb: 'change', before: held, after: { key: 'person_payees', value: 'Ana Horvat\nMarko Kovač' } }])
   })
 
   it('removes a counterparty by the same words, and the row with the last one', () => {
-    const two = { key: 'person_payees', value: 'Ana Horvat\nMarko Kovač' }
-    expect(changesOf((unit) => treatCounterpartyAsPerson(unit, companyRead([two]), 'HORVAT ANA', false)).map(({ change }) => change)).toMatchObject([
+    const two = companyRow('Ana Horvat\nMarko Kovač')
+    expect(changesOf((unit) => treatCounterpartyAsPerson(unit, spendingRead([two]), 'HORVAT ANA', false)).map(({ change }) => change)).toMatchObject([
       { verb: 'change', before: two, after: { key: 'person_payees', value: 'Marko Kovač' } },
     ])
 
-    const one = { key: 'person_payees', value: 'Ana Horvat' }
-    expect(changesOf((unit) => treatCounterpartyAsPerson(unit, companyRead([one]), 'ana horvat', false)).map(({ change }) => change)).toMatchObject([{ verb: 'remove', before: one }])
+    const one = companyRow('Ana Horvat')
+    expect(changesOf((unit) => treatCounterpartyAsPerson(unit, spendingRead([one]), 'ana horvat', false)).map(({ change }) => change)).toMatchObject([{ verb: 'remove', before: one }])
   })
 
   it('keeps an Undo, as every write to the settings does', () => {

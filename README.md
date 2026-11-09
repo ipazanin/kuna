@@ -1890,8 +1890,10 @@ nothing.
 Each table checks its rows as the reader would before it lets a save go: a row the reader would
 leave out is marked and blocks the save. A row the tab holds that the app cannot read at all, such
 as a category with a misspelt bucket, is listed after the rows it reads, as stored, so it can be
-fixed here. A category or account in use keeps its name, so its name
-field and its bin are locked, and the tooltip says what uses it. A client or grant in use is refused
+fixed here. A category or account in use keeps its name, so its name field is locked and the tooltip
+says what uses it. An account's bin is locked too. A category's bin opens a dialog that deletes it and
+moves its ledger rows, split parts and rules to another category in one write with one Undo, once
+the pack's records no longer name it. A client or grant in use is refused
 when the save renames or deletes it, with what uses it.
 
 ## Language

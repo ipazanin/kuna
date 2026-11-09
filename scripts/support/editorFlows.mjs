@@ -538,6 +538,110 @@ export function categoryFlowIn(language) {
 
 export const categoryFlow = categoryFlowIn('en')
 
+/** Presses the category picker under `trigger` and picks the option that names `slug`. */
+async function pickCategoryNamed(page, press, trigger, slug) {
+  await pressSelector(page, press, trigger)
+  const option = await page
+    .waitForFunction((wanted) => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.includes(wanted)) ?? null, { timeout: 5_000 }, slug)
+    .catch(() => {
+      throw new Error(`the picker offers no category ${slug}`)
+    })
+  await option.asElement().evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await press(option.asElement())
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  await delay(300)
+}
+
+/**
+ * On Settings, Categories: the bin of a category in use opens the move dialog. It shows nothing picked, a target in the same
+ * bucket with what moves, a target in another bucket with the warning, and the save lands with a toast and Undo. A category
+ * a pack record still names gets the warning and Close only, and the bin of a category in use waits while the table has unsaved edits.
+ */
+export function categoryMoveFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.settings.categories
+  const moved = said.moveAndDelete
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const dialog = '[role="dialog"] [data-testid="category-move"]'
+    const openMove = async (slug) => {
+      const row = await rowNamed(page, '[data-testid="category-row"]', slug)
+      await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await press(await row.$('[data-testid="remove-category"]'))
+    }
+
+    await openMove('bank-fees')
+    await page.waitForSelector(dialog, { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('category move, nothing picked')
+    await shoot('category-move')
+
+    await pickCategoryNamed(page, press, '[data-testid="category-move-into"]', 'software-subscriptions')
+    await elementSays(page, dialog, [moved.moves('').split('.')[0].split(' ')[0]], 'the move dialog does not say what moves')
+    if ((await page.$('[data-testid="category-move-buckets"]')) !== null) throw new Error('a target in the same bucket shows the bucket warning')
+    await inspect?.('category move, same bucket')
+    await shoot('category-move-picked')
+
+    await pickCategoryNamed(page, press, '[data-testid="category-move-into"]', 'internal-transfer')
+    await page.waitForSelector('[data-testid="category-move-buckets"]', { visible: true, timeout: 5_000 })
+    await inspect?.('category move, other bucket')
+    await shoot('category-move-buckets')
+
+    await pickCategoryNamed(page, press, '[data-testid="category-move-into"]', 'software-subscriptions')
+    await pressSelector(page, press, '[data-testid="confirm-category-move"]')
+    await dialogGone(page, '[data-testid="category-move"]')
+    await page.waitForFunction(
+      (selector, start) => [...document.querySelectorAll(`${selector} [data-slot="title"]`)].some((element) => element.textContent?.trim().startsWith(start)),
+      { timeout: 10_000 },
+      TOAST,
+      moved.deleted('', '').slice(0, 7),
+    )
+    await delay(400)
+    await shoot('category-moved')
+    await rowGone(page, '[data-testid="category-row"]', 'bank-fees')
+    await undoIn(page, press, words)
+    await rowNamed(page, '[data-testid="category-row"]', 'bank-fees')
+    await shoot('category-move-undone')
+    await dismissToasts(page)
+
+    await openMove('travel')
+    await page.waitForSelector('[role="dialog"] [data-testid="category-move-kept"]', { visible: true, timeout: 10_000 })
+    if ((await page.$('[data-testid="confirm-category-move"]')) !== null || (await page.$('[data-testid="category-move-into"]')) !== null)
+      throw new Error('the blocked move dialog still offers a move')
+    await delay(300)
+    await inspect?.('category move, blocked')
+    await shoot('category-move-blocked')
+    await pressButton(page, press, '[role="dialog"] button', moved.close)
+    await dialogGone(page, '[data-testid="category-move-kept"]')
+
+    const named = await rowNamed(page, '[data-testid="category-row"]', 'telecom')
+    await setField(await fieldIn(named, said.columns.label), 'Phone and internet')
+    const bin = await (await rowNamed(page, '[data-testid="category-row"]', 'bank-fees')).$('[data-testid="remove-category"]')
+    const waits = await bin.evaluate((button) => button.hasAttribute('disabled') || button.getAttribute('data-disabled') !== null)
+    if (!waits) throw new Error('the bin of a category in use stays on while the table has unsaved edits')
+    await pressButton(page, press, 'button', said.discard)
+  }
+}
+
+export const categoryMoveFlow = categoryMoveFlowIn('en')
+
+/** On a phone, the rule editor opened from a review row shows the box that says Save files the rows it settles. */
+export function ruleWaitingFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await press(await queueRow(page, 'GADGET CORNER'))
+    await pressSelector(page, press, '[data-testid="make-rule"]')
+    await page.waitForSelector('[data-testid="rule-files-waiting"]', { visible: true, timeout: 10_000 })
+    await page.$eval('[data-testid="rule-files-waiting"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await delay(400)
+    await inspect?.('rule editor waiting box')
+    await shoot('rule-waiting')
+  }
+}
+
+export const ruleWaitingFlow = ruleWaitingFlowIn('en')
+
 /** The names of the categories rows on screen, in their order. */
 function categoriesShown(page) {
   return page.$$eval('[data-testid="category-row"]', (rows) => rows.map((row) => row.querySelector('input')?.value ?? ''))
@@ -2940,16 +3044,6 @@ export function rulesEditorFlowIn(language) {
     await page.keyboard.type(added)
     await acceptBacktest(page, press)
     await pressSelector(page, press, '[data-testid="save-rule"]')
-    await page.waitForSelector('[role="dialog"] [data-testid="rule-saved"]', { visible: true, timeout: 10_000 })
-    await inspect?.('rule saved')
-    const early = await page.evaluate((selector) => [...document.querySelectorAll(`${selector} [data-slot="title"]`)].map((title) => title.textContent?.trim()), TOAST)
-    if (early.includes(edited)) throw new Error('the save toast shows while the saved rule editor is still open')
-    const done = await page.waitForFunction(
-      (label) => [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.trim() === label) ?? null,
-      {},
-      words.rules.editor.done,
-    )
-    await press(done.asElement())
     await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
     await toast(page, edited)
     await ruleNoteReads(page, id, added, 'after the save')

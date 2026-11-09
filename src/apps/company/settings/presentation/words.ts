@@ -18,6 +18,7 @@ export const en = {
   booksFile: 'Books file',
   /** Why a category or an account in use cannot be renamed or deleted, as its locked field says. */
   inUse: (users: string) => `Used by ${users}, so it keeps its name and its row`,
+  saveBeforeDelete: 'Save or discard your changes first, because deleting a category in use saves right away.',
   saved: 'Settings saved',
   notSaved: 'Not saved',
   /** Settings, General: the settings tab's keys as cards, with one Save under them. */
@@ -102,7 +103,8 @@ export const en = {
   categories: {
     title: 'Categories',
     count: (count: number): EnglishForms => ({ one: `${count} category`, other: `${count} categories` }),
-    subtitle: 'The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name and its row.',
+    subtitle:
+      'The bucket decides where a row counts. Each category once, with category, family and bucket filled. A category in use keeps its name, and deleting it moves its rows and rules to another.',
     saved: 'Categories saved',
     notSaved: 'Not saved',
     filled: (count: number): EnglishForms => ({ one: `${count} row without a share took the new default.`, other: `${count} rows without a share took the new default.` }),
@@ -174,6 +176,21 @@ export const en = {
     onlyOperating: 'Only an operating category holds a share',
     removeNew: 'Remove this new category',
     deleteName: (name: string) => `Delete ${name || 'this category'}`,
+    /** Deleting a category in use, whose rows and rules move to another in the same write. */
+    moveAndDelete: {
+      title: (name: string) => `Delete ${name}`,
+      into: 'Move its rows and rules to',
+      pick: 'Choose a category',
+      moves: (uses: string) => `Moves ${uses}. Each row keeps who filed it and takes the owner share of the category it moves to.`,
+      kept: (uses: string) => `Still named by ${uses}. Change those first, then delete it here.`,
+      savesAtOnce: 'This saves right away, not with Save categories. Undo in the toast takes it back.',
+      bucketsMove: (from: string, to: string) => `The category is in ${from} and the one you picked is in ${to}, so the figures of the rows it moves leave one line of the reports and join another.`,
+      cancel: 'Cancel',
+      close: 'Close',
+      confirm: 'Delete and move',
+      deleted: (name: string, into: string) => `Deleted ${name}, moved into ${into}`,
+      notDeleted: 'Not deleted',
+    },
     add: 'Add category',
     discard: 'Discard changes',
     save: 'Save categories',
@@ -217,6 +234,7 @@ export const hr: Translation<typeof en> = {
   tabs: 'Dijelovi postavki',
   booksFile: 'Datoteka',
   inUse: (users) => `U upotrebi je (${users}), pa zadržava naziv i svoj redak`,
+  saveBeforeDelete: 'Najprije spremite ili odbacite promjene, jer se brisanje kategorije u upotrebi sprema odmah.',
   saved: 'Postavke su spremljene',
   notSaved: 'Nije spremljeno',
   general: {
@@ -298,7 +316,8 @@ export const hr: Translation<typeof en> = {
   categories: {
     title: 'Kategorije',
     count: (count) => ({ one: `${count} kategorija`, few: `${count} kategorije`, other: `${count} kategorija` }),
-    subtitle: 'Skupina određuje gdje se stavka broji. Svaka kategorija samo jednom, s popunjenom kategorijom, grupom i skupinom. Kategorija koja se koristi zadržava naziv i svoj redak.',
+    subtitle:
+      'Skupina određuje gdje se stavka broji. Svaka kategorija samo jednom, s popunjenom kategorijom, grupom i skupinom. Kategorija koja se koristi zadržava naziv, a njezinim brisanjem stavke i pravila prelaze u drugu.',
     saved: 'Kategorije su spremljene',
     notSaved: 'Nije spremljeno',
     filled: (count) => ({
@@ -372,6 +391,20 @@ export const hr: Translation<typeof en> = {
     onlyOperating: `Udio može imati samo kategorija skupine ${croatianBucket('operating')}`,
     removeNew: 'Ukloni ovu novu kategoriju',
     deleteName: (name) => (name === '' ? 'Obriši ovu kategoriju' : `Obriši „${name}”`),
+    moveAndDelete: {
+      title: (name) => `Obriši „${name}”`,
+      into: 'Premjesti njezine stavke i pravila u',
+      pick: 'Odaberite kategoriju',
+      moves: (uses) => `Premješta: ${uses}. Svaka stavka zadržava onoga tko ju je razvrstao i preuzima udio vlasnika kategorije u koju prelazi.`,
+      kept: (uses) => `Na nju se još odnosi: ${uses}. Najprije to promijenite, a zatim je obrišite ovdje.`,
+      savesAtOnce: 'Ovo se sprema odmah, bez gumba Spremi kategorije. Poništi u obavijesti vraća promjenu.',
+      bucketsMove: (from, to) => `Kategorija je u skupini „${from}”, a odabrana u skupini „${to}”, pa iznosi premještenih stavki napuštaju jedan redak izvješća i prelaze u drugi.`,
+      cancel: 'Odustani',
+      close: 'Zatvori',
+      confirm: 'Obriši i premjesti',
+      deleted: (name, into) => `Obrisano: „${name}”, premješteno u „${into}”`,
+      notDeleted: 'Nije obrisano',
+    },
     add: 'Dodaj kategoriju',
     discard: 'Odbaci promjene',
     save: 'Spremi kategorije',

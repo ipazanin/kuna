@@ -3,7 +3,7 @@ import { computed, inject, ref } from 'vue'
 
 import { LINKED_SETTINGS_TAB } from './settingsTabs'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import { NO_RECORDS, storedOf } from '../../../../shared/storage/domain/recordsRead'
+import { NO_RECORDS, recordsOf, storedOf } from '../../../../shared/storage/domain/recordsRead'
 import { fillShares } from '../../owner-share/application/ownerShareWrites'
 import { shareFillsOf } from '../../owner-share/domain/ownerShare'
 import type { ShareFill } from '../../owner-share/domain/ownerShare'
@@ -15,10 +15,11 @@ import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
-import { CATEGORY_WRITES, categoryUses } from '../application/namedRecordWrites'
+import { CATEGORY_WRITES, categoryUses, categoryUsesAfterMove } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import { knownRoles } from '../domain/categoryGuards'
 import CategoriesEditor from './CategoriesEditor.vue'
+import CategoryMoveDialog from './CategoryMoveDialog.vue'
 import { storedCount } from './settingsCounts'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
@@ -31,12 +32,21 @@ const writes = useRecordWrites(useWorkbook())
 
 const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, kind))
 const categoriesInUse = computed(() => categoryUses(recordsOnScreen))
+const keptAfterMove = computed(() => categoryUsesAfterMove(recordsOnScreen))
 const roles = knownRoles(installedPack().workbook?.categoryRoles ?? [])
 const classes = installedPack().workbook?.categoryClasses ?? []
 const sharesOn = computed(() => classSharesDay(state.workbook))
 const classHelp = (role: string) => installedPack().categoryClassHelp(role, sharesOn.value)
 const categories = computed(() => state.records?.categories ?? NO_RECORDS)
 const saving = computed(() => writes.busy.value)
+
+const moved = ref<CategoryRecord | null>(null)
+const moveOpen = ref(false)
+
+function moveAndDelete(slug: string): void {
+  moved.value = recordsOf(categories.value).find((category) => category.slug === slug) ?? null
+  moveOpen.value = moved.value !== null
+}
 
 type MadeCategories = readonly { readonly saved: number | null; readonly record: CategoryRecord }[]
 
@@ -98,7 +108,9 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
       :shares="settings.ownerPayModule"
       :saving="saving"
       @save="saveCategories"
+      @move-and-delete="moveAndDelete"
     />
   </AppCard>
+  <CategoryMoveDialog v-model:open="moveOpen" :category="moved" :uses="categoriesInUse" :kept="keptAfterMove" />
   <ShareFillDialog v-if="filling" v-model:open="fillOpen" :fills="filling.fills" @answer="answerFill" />
 </template>

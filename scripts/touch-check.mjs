@@ -1890,13 +1890,13 @@ async function checkWidth(width) {
     await page.evaluate(() => document.querySelector('[data-testid="backtest-conflicts"]').scrollIntoView({ block: 'center' }))
     await delay(200)
     await shoot('rule-backtest')
-    await page.tap('[data-testid="save-rule"]')
-    const apply = await waitForText(page, '[data-testid="apply-rule"]', 'Apply to the 1 row still waiting')
+    await page.evaluate(() => document.querySelector('[data-testid="rule-files-waiting"]').scrollIntoView({ block: 'center' }))
+    await waitForText(page, '[data-testid="rule-files-waiting"]', 'Saving files them')
     await delay(300)
-    await inspect(page, `${width}px rule saved`)
-    await apply.tap()
-    await waitForText(page, '[data-slot="title"]', 'Filed 1 row by')
-    await page.waitForFunction(() => !document.querySelector('[role="dialog"] [data-testid="rule-saved"]'))
+    await inspect(page, `${width}px rule files waiting`)
+    await page.tap('[data-testid="save-rule"]')
+    await waitForText(page, '[data-slot="description"]', 'Filed 1 row by')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"] [data-testid="rule-editor"]'))
     await expect(reviewCount(page), (count) => count === 1, 'the row the new rule settles is still waiting')
   })
 
@@ -1932,9 +1932,8 @@ async function checkWidth(width) {
     await delay(300)
     await accept.tap()
     await page.tap('[data-testid="save-rule"]')
-    await (await waitForText(page, '[role="dialog"] button', 'Done')).tap()
     await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
-    // The save's toast shows once the editor closes and would take the taps below.
+    // The save closes the editor, and its toast would take the taps below.
     await waitForText(page, '[data-slot="title"]', 'Added merchant-laptop-store')
     await closeToasts(page)
 
@@ -1961,6 +1960,36 @@ async function checkWidth(width) {
     await shoot('rule-highlighted')
   })
 
+  await step('category-move-delete', async () => {
+    await openFreshBrowser(page, '#/company/settings?tab=categories', 'Settings')
+    const row = await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="category-row"]')].find((candidate) => candidate.querySelector('input')?.value === 'bank-fees') ?? null)
+    await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await (await row.asElement().$('[data-testid="remove-category"]')).tap()
+    await page.waitForSelector('[role="dialog"] [data-testid="category-move"]')
+    await delay(300)
+    await inspect(page, `${width}px category move`)
+    await shoot('category-move')
+    await page.tap('[data-testid="category-move-into"]')
+    await page.waitForSelector('[role="listbox"] [role="option"]')
+    await (await waitForText(page, '[role="option"]', 'Software')).tap()
+    await delay(300)
+    await shoot('category-move-picked')
+    await page.tap('[data-testid="confirm-category-move"]')
+    await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
+    await waitForText(page, '[data-slot="title"]', 'Deleted Bank fees, moved into')
+    await shoot('category-moved')
+    await expect(
+      page.evaluate(() => [...document.querySelectorAll('[data-testid="category-row"] input')].some((input) => input.value === 'bank-fees')),
+      (present) => !present,
+      'the deleted category is still on the tab',
+    )
+    await (await waitForText(page, 'button', 'Undo')).tap()
+    await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="category-row"] input')].some((input) => input.value === 'bank-fees'), { timeout: 10_000 })
+    await shoot('category-move-undone')
+    await closeToasts(page)
+  })
+
   await step('rules-tab-edit', async () => {
     await openFreshBrowser(page, '#/company/settings?tab=category-rules', 'Settings')
     await page.waitForSelector('[data-testid="rule-row"]')
@@ -1973,8 +2002,6 @@ async function checkWidth(width) {
     await delay(300)
     await inspect(page, `${width}px rule edit`)
     await page.tap('[data-testid="save-rule"]')
-    await waitForText(page, '[role="dialog"] [data-slot="title"]', 'Saved own-account')
-    await (await waitForText(page, '[role="dialog"] button', 'Done')).tap()
     await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
     await waitForText(page, '[data-slot="title"]', 'Edited own-account: note')
     await closeToasts(page)

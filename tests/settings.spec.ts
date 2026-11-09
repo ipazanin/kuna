@@ -14,7 +14,8 @@ import {
   settingsTabEntries,
   unreadSettingKeys,
 } from '../src/apps/company/settings/domain/settings'
-import type { PackSettings, SettingRow } from '../src/apps/company/settings/domain/settings'
+import type { PackSettings } from '../src/apps/company/settings/domain/settings'
+import type { SettingRow } from '../src/shared/storage/domain/settingRows'
 import { costLabelsInSentence, inSentence, lineLabel, presentedTransactions, shownLines } from '../src/apps/company/settings/domain/profitAndLossLabels'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
@@ -32,7 +33,7 @@ const SETTINGS = settingCodec(() => COMPANY_FACT_SETTINGS as PackSettings<unknow
 
 /** The settings rows a tab of these cells holds, each value typed by its key as reading the workbook types it. */
 function rows(...entries: [string, Cell][]): SettingRow[] {
-  return entries.map(([key, value]) => SETTINGS.make(value === undefined ? { key: storedFieldOf(key) } : { key: storedFieldOf(key), value: storedFieldOf(value) }, null))
+  return entries.map(([key, value]) => SETTINGS.make(value === undefined ? { key: storedFieldOf(key) } : { key: storedFieldOf(key), value: storedFieldOf(value) }, recordIdOf(SETTING_RECORDS, key)))
 }
 
 function settingProblem(key: string, reason: string) {
@@ -272,15 +273,15 @@ describe('company facts', () => {
   })
 
   it('are stored typed by their key: a date cell as its day, a flag the app wrote as a flag, and anything else as text', () => {
-    expect(rows(['hr_company_registered', 45789], ['hr_depreciation_doubled', false], ['hr_owner_loan_interest', 0.02])).toEqual([
+    expect(rows(['hr_company_registered', 45789], ['hr_depreciation_doubled', false], ['hr_owner_loan_interest', 0.02])).toMatchObject([
       { key: 'hr_company_registered', value: '2025-05-12' },
       { key: 'hr_depreciation_doubled', value: 'FALSE' },
       { key: 'hr_owner_loan_interest', value: '0.02' },
     ])
-    expect(SETTINGS.fieldsOf({ key: 'hr_depreciation_doubled', value: 'TRUE' })).toEqual({ key: 'hr_depreciation_doubled', value: true })
-    expect(SETTINGS.fieldsOf({ key: 'hr_depreciation_doubled', value: 'yes' })).toEqual({ key: 'hr_depreciation_doubled', value: 'yes' })
-    expect(SETTINGS.fieldsOf({ key: 'company_name', value: 'TRUE' })).toEqual({ key: 'company_name', value: 'TRUE' })
-    expect(SETTINGS.fieldsOf({ key: 'hr_company_registered', value: '' })).toEqual({ key: 'hr_company_registered' })
+    expect(SETTINGS.fieldsOf({ id: recordIdOf(SETTING_RECORDS, 'x'), key: 'hr_depreciation_doubled', value: 'TRUE' })).toEqual({ key: 'hr_depreciation_doubled', value: true })
+    expect(SETTINGS.fieldsOf({ id: recordIdOf(SETTING_RECORDS, 'x'), key: 'hr_depreciation_doubled', value: 'yes' })).toEqual({ key: 'hr_depreciation_doubled', value: 'yes' })
+    expect(SETTINGS.fieldsOf({ id: recordIdOf(SETTING_RECORDS, 'x'), key: 'company_name', value: 'TRUE' })).toEqual({ key: 'company_name', value: 'TRUE' })
+    expect(SETTINGS.fieldsOf({ id: recordIdOf(SETTING_RECORDS, 'x'), key: 'hr_company_registered', value: '' })).toEqual({ key: 'hr_company_registered' })
   })
 
   it('are left to the pack by the core parser, which neither reads nor reports them', () => {

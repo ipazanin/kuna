@@ -14,7 +14,7 @@ import { storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { clientChangeRefusals } from '../domain/clientGuards'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
-import { storedFieldsOf } from '../../../../shared/storage/domain/recordsRead'
+import { recordsOf, storedFieldsOf } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { AccountRecord } from '../../workbook/domain/accountsReading'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
@@ -22,6 +22,13 @@ import type { ClientRecord } from '../../workbook/domain/clientsReading'
 import { pickedEdits, pickedUntouched } from '../../../../shared/storage/domain/writeRules'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { installedPack } from '../../packs/packContribution'
+import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
+import { RULE_WRITES } from '../../rules/application/ruleWrites'
+import { SPLIT_WRITES } from '../../transactions/application/splitWrites'
+import type { ShareDefault } from '../../owner-share/domain/ownerShare'
+import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
+import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import { categoryMove } from '../domain/categoryMove'
 import { words } from './words'
 
 /** The records of a kind, from a fresh read or from the records on screen. */
@@ -43,8 +50,29 @@ export function categoryUses(records: RecordsOfKind): SlugUses {
     countedBy(storedFieldsOf(records(LEDGER_RECORDS)), (fields) => [slugOf(fields.category)], counted(words.uses.ledgerRows)),
     rulesNaming(storedFieldsOf(records(RULE_RECORDS))),
     countedBy(storedFieldsOf(records(SPLIT_PART_RECORDS)), (fields) => [slugOf(fields.category)], counted(words.uses.splitParts)),
-    ...(installedPack().workbook?.categoryNaming ?? []).map((naming) => countedBy(storedFieldsOf(records(naming.kind)), (fields) => naming.categoriesOf(fields), naming.counted)),
+    ...packNaming(records),
   ])
+}
+
+/** What a move into another category leaves naming each category: the pack's records, which a person changes on their own screens. */
+export function categoryUsesAfterMove(records: RecordsOfKind): SlugUses {
+  return usesOf(packNaming(records))
+}
+
+function packNaming(records: RecordsOfKind): ReadonlyMap<string, string>[] {
+  return (installedPack().workbook?.categoryNaming ?? []).map((naming) => countedBy(storedFieldsOf(records(naming.kind)), (fields) => naming.categoriesOf(fields), naming.counted))
+}
+
+/**
+ * Deletes the category and moves its ledger rows, split parts and rules into another, all in one write, so one Undo puts it all
+ * back. A pack record that still names the category keeps it, so the write is refused.
+ */
+export function deleteCategoryInto(unit: UnitOfWork, records: WorkbookRecords, category: CategoryRecord, into: string, categories: readonly ShareDefault[]): void {
+  const move = categoryMove(category.slug, into, { ledger: recordsOf(records.ledger), splits: recordsOf(records.splits), rules: recordsOf(records.rules) }, categories)
+  move.ledger.forEach(({ before, after }) => unit.of(LEDGER_WRITES).change(before, after))
+  move.splits.forEach(({ before, after }) => unit.of(SPLIT_WRITES).change(before, after))
+  move.rules.forEach(({ before, after }) => unit.of(RULE_WRITES).change(before, after))
+  unit.of(CATEGORY_WRITES).remove(category)
 }
 
 /** What names each account outside its tab, which is the ledger's rows. */
@@ -96,7 +124,7 @@ function categoryFieldsOf(fields: StoredFields): {
 }
 
 /**
- * A category keeps to the slug format, once on its tab, keeps its name while anything names it, and
+ * A category keeps to the slug format, once on its tab, keeps its name while anything the write leaves names it, and
  * keeps owner advances in an operating or taxes bucket. Unless Undo puts them back, a colour it is
  * given comes from the palette, a role it is given is one the app knows, an owner share it holds
  * keeps to the share guards, and roles, VAT or a bucket it is given keep to the pack's classes.
@@ -108,8 +136,8 @@ export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
   },
   undoable: true,
   read: (read) => readCategories(read),
-  refusals: (change, fresh) => {
-    const recordsOfKind: RecordsOfKind = (kind) => fresh.of(kind)
+  refusals: (change, _fresh, after) => {
+    const recordsOfKind: RecordsOfKind = (kind) => after.of(kind)
     const edits = pickedEdits(change, categoryFieldsOf)
     return [
       ...categoryChangeRefusals(

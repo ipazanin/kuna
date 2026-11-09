@@ -317,6 +317,10 @@ describe('import boundaries', () => {
     expect(linesHolding(/\bas RecordId\b/, (file) => file === 'src/shared/storage/domain/recordId.ts')).toEqual([])
   })
 
+  it("keeps every app's settings rows in the shared settings module", () => {
+    expect(linesHolding(/\b(interface|type) SettingRow\b/, (file) => file === 'src/shared/storage/domain/settingRows.ts')).toEqual([])
+  })
+
   it('declares a brand only in the files that own one', () => {
     const brand = /\breadonly __[a-zA-Z]+\??:/
     expect(linesHolding(brand, (file) => BRAND_OWNERS.includes(file))).toEqual([])
