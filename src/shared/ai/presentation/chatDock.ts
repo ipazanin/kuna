@@ -18,13 +18,61 @@ export interface AskedElement {
 /** Wide enough for a 56 px sidebar, a screen's smallest 784 px and a 384 px chat, so no screen gets less than a 1024 px window gives it. */
 export const CHAT_DOCK_QUERY = '(min-width: 1224px)'
 
+/** The chat's smallest width in px, beside a screen's smallest. */
+export const CHAT_MIN_WIDTH = 384
+/** The width the chat opens at until a person drags it, and the one a reset gives back. */
+export const CHAT_DEFAULT_WIDTH = CHAT_MIN_WIDTH
+/** Where the chat's own column stops growing, so a wider chat would only add margins. */
+export const CHAT_MAX_WIDTH = 704
+/** The least a screen gets beside the chat, which is what a 1024 px window gives it beside the icon sidebar. */
+export const PAGE_MIN_WIDTH = 784
+
+const CHAT_WIDTH_KEY = 'kuna.chat-width'
+
+function withinLimits(px: number): number {
+  return Math.min(CHAT_MAX_WIDTH, Math.max(CHAT_MIN_WIDTH, Math.round(px)))
+}
+
+function storedWidth(): number {
+  try {
+    const stored = localStorage.getItem(CHAT_WIDTH_KEY)
+    return stored === null || !Number.isFinite(Number(stored)) ? CHAT_DEFAULT_WIDTH : withinLimits(Number(stored))
+  } catch {
+    return CHAT_DEFAULT_WIDTH
+  }
+}
+
 const open = ref(false)
+const width = ref(storedWidth())
 const element = shallowRef<AskedElement | null>(null)
 
 /** Whether the panel shows. The shell's layout follows this, and the address in the pane. */
 export const chatOpen = readonly(open)
 /** The element the chat is about, or null. */
 export const chatElement = readonly(element)
+
+/** The chat's width in px as a person last set it on this device. A window too narrow for it draws less and keeps this. */
+export const chatWidth = readonly(width)
+
+/** Sets the chat's width within its limits and keeps it on this device. The default forgets the choice. */
+export function resizeChat(px: number): void {
+  const asked = withinLimits(px)
+  try {
+    if (asked === CHAT_DEFAULT_WIDTH) {
+      localStorage.removeItem(CHAT_WIDTH_KEY)
+    } else {
+      localStorage.setItem(CHAT_WIDTH_KEY, String(asked))
+    }
+  } catch {
+    // Storage denied: the width still holds for this visit.
+  }
+  width.value = asked
+}
+
+/** The width the chat is drawn at when `room` px are left beside the page: the asked width, or less to fit. Null when not even the smallest fits. */
+export function chatWidthIn(asked: number, room: number): number | null {
+  return room < CHAT_MIN_WIDTH ? null : Math.min(asked, room)
+}
 
 export function openChat(): void {
   open.value = true

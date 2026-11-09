@@ -31,7 +31,9 @@ export function createAppRouter(): Router {
   apps.forEach(refuseScreensOutside)
   const routes: RouteRecordRaw[] = [
     { path: HOME_SCREEN.path, component: HOME_SCREEN.component, meta: { bare: false } },
-    ...apps.flatMap((app) => app.screens.map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true, title: screen.title, app: app.name } }))),
+    ...apps.flatMap((app) =>
+      app.screens.map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: screen.bare === true, title: screen.title, app: app.name, under: screen.under } })),
+    ),
     ...[NET_WORTH_SCREEN, KUNA_SETTINGS_SCREEN].map((screen) => ({ path: screen.path, component: screen.component, meta: { bare: false, title: screen.title } })),
     // Written inline so the production build folds it to false and drops the gallery chunk entirely.
     // The fake build keeps it, because the visual check screenshots the gallery from that build.

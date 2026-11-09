@@ -1,8 +1,21 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { AskedElement } from '../src/shared/ai/presentation/chatDock'
 
-import { chatElement, chatOpen, closeChat, removeChatElement, useChatElement } from '../src/shared/ai/presentation/chatDock'
+import {
+  CHAT_DEFAULT_WIDTH,
+  CHAT_MAX_WIDTH,
+  CHAT_MIN_WIDTH,
+  chatElement,
+  chatOpen,
+  chatWidth,
+  chatWidthIn,
+  closeChat,
+  removeChatElement,
+  resizeChat,
+  useChatElement,
+} from '../src/shared/ai/presentation/chatDock'
 
 const CASH: AskedElement = { key: 'cash', label: 'Cash on hand', about: { kind: 'figure', app: 'company', report: 'overview', period: null, label: 'Cash on hand' } }
 const RENT: AskedElement = { key: 'rent', label: 'Rent', about: { kind: 'record', app: 'spending', recordKind: 'transaction', id: 't-12' } }
@@ -53,5 +66,61 @@ describe('the highlight', () => {
     const rent = useChatElement(RENT, 'row')
     rent.ask()
     expect(rent.marked.value).toEqual({ 'data-chat-tagged': 'row' })
+  })
+})
+
+describe("the chat's width", () => {
+  beforeEach(() => {
+    localStorage.clear()
+    resizeChat(CHAT_DEFAULT_WIDTH)
+  })
+
+  it('opens at its smallest, 384 px, and grows to 704 px at most', () => {
+    expect(chatWidth.value).toBe(384)
+    resizeChat(500)
+    expect(chatWidth.value).toBe(500)
+    resizeChat(900)
+    expect(chatWidth.value).toBe(CHAT_MAX_WIDTH)
+    resizeChat(100)
+    expect(chatWidth.value).toBe(CHAT_MIN_WIDTH)
+  })
+
+  it('keeps a dragged width on this device and forgets it on a reset to the default', () => {
+    resizeChat(600.4)
+    expect(localStorage.getItem('kuna.chat-width')).toBe('600')
+    resizeChat(CHAT_DEFAULT_WIDTH)
+    expect(localStorage.getItem('kuna.chat-width')).toBeNull()
+  })
+
+  it('reads the kept width as the page loads, within its limits, and the default for anything else', async () => {
+    const loaded = async (stored: string | null): Promise<number> => {
+      if (stored === null) localStorage.removeItem('kuna.chat-width')
+      else localStorage.setItem('kuna.chat-width', stored)
+      vi.resetModules()
+      const { chatWidth: read } = await import('../src/shared/ai/presentation/chatDock')
+      return read.value
+    }
+    expect(await loaded('640')).toBe(640)
+    expect(await loaded('9000')).toBe(704)
+    expect(await loaded('wide')).toBe(384)
+    expect(await loaded(null)).toBe(384)
+  })
+})
+
+describe('the width drawn in the room beside the page', () => {
+  it.each([
+    { asked: 384, room: 384, drawn: 384 },
+    { asked: 600, room: 900, drawn: 600 },
+    { asked: 704, room: 600, drawn: 600 },
+    { asked: 500, room: 383, drawn: null },
+    { asked: 384, room: -200, drawn: null },
+  ])('draws $drawn px for $asked px asked in $room px', ({ asked, room, drawn }) => {
+    expect(chatWidthIn(asked, room)).toBe(drawn)
+  })
+
+  it('keeps the asked width while a narrow window draws less', () => {
+    resizeChat(704)
+    expect(chatWidthIn(chatWidth.value, 600)).toBe(600)
+    expect(chatWidth.value).toBe(704)
   })
 })

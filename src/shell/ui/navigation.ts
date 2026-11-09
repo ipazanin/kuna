@@ -12,6 +12,8 @@ export interface NavigationEntry {
   readonly icon: string
   /** What waits on the screen, such as the rows to review. Left out at zero. */
   readonly count?: number
+  /** Lit as the current page while a screen opened from it shows, such as a holding under Holdings. */
+  readonly lit?: true
 }
 
 /** An app's row in the menu, its icon on a tile in its colour, and the pages it shows while open. */
@@ -40,18 +42,19 @@ export interface Navigation {
   readonly kunaSettings: NavigationEntry
 }
 
-function entryOf(screen: AppScreen): NavigationEntry {
-  return { to: screen.path, label: screen.title, icon: screen.icon }
+function entryOf(screen: AppScreen, under: string | null = null): NavigationEntry {
+  const entry = { to: screen.path, label: screen.title, icon: screen.icon }
+  return screen.path === under ? { ...entry, lit: true } : entry
 }
 
-function menuEntriesOf(app: AppContribution): NavigationEntry[] {
+function menuEntriesOf(app: AppContribution, under: string | null): NavigationEntry[] {
   return app.menu().map((screen) => {
     const waiting = app.menuCount?.(screen) ?? null
-    return waiting === null ? entryOf(screen) : { ...entryOf(screen), to: waiting.opens ?? screen.path, count: waiting.count }
+    return waiting === null ? entryOf(screen, under) : { ...entryOf(screen, under), to: waiting.opens ?? screen.path, count: waiting.count }
   })
 }
 
-function navigationAppOf(app: AppContribution, openAppId: string | null): NavigationApp {
+function navigationAppOf(app: AppContribution, openAppId: string | null, under: string | null): NavigationApp {
   return {
     id: app.id,
     to: entryPath(app),
@@ -61,19 +64,20 @@ function navigationAppOf(app: AppContribution, openAppId: string | null): Naviga
     open: app.id === openAppId,
     waiting: waitingIn(app),
     subtitle: app.subtitle(),
-    entries: [...menuEntriesOf(app), entryOf(app.settings)],
+    entries: [...menuEntriesOf(app, under), entryOf(app.settings, under)],
   }
 }
 
 /**
  * The whole menu: Net worth, the apps in use with the open one showing its pages, and Kuna settings. An app in its first
  * run has no file, so it stays out, and `firstRun` stays false for a file still opening or one whose read failed.
+ * `under` is the path of the menu screen the shown screen opens from, which the menu lights, or null.
  */
-export function navigationOf(apps: readonly AppContribution[], openAppId: string | null): Navigation {
+export function navigationOf(apps: readonly AppContribution[], openAppId: string | null, under: string | null = null): Navigation {
   const inUse = apps.filter((app) => !app.firstRun())
   return {
     netWorth: inUse.length === 0 ? null : entryOf(NET_WORTH_SCREEN),
-    apps: inUse.map((app) => navigationAppOf(app, openAppId)),
+    apps: inUse.map((app) => navigationAppOf(app, openAppId, under)),
     addApp: kunaStart() === null || inUse.length === apps.length ? null : { to: HOME_SCREEN.path, label: words.navigation.addApp, icon: 'i-lucide-plus' },
     kunaSettings: entryOf(KUNA_SETTINGS_SCREEN),
   }

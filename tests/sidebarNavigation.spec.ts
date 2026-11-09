@@ -112,3 +112,26 @@ describe('the menu', () => {
     expect(kunaSettings).toMatchObject({ to: '/settings', label: 'Kuna settings' })
   })
 })
+
+describe('the menu item a record opens from', () => {
+  it("lights the screen it is under by the screen's path, even while its count points at a tab", () => {
+    const app = appWith(new Map([[ROWS, { count: 2, opens: '/books/rows?tab=review' }]]))
+    const [books] = navigationOf([app], 'books', '/books/rows').apps
+
+    expect(books?.entries.filter((entry) => entry.lit === true)).toEqual([{ to: '/books/rows?tab=review', label: 'Rows', icon: 'i-lucide-circle', count: 2, lit: true }])
+  })
+
+  it('lights a screen without a count', () => {
+    const [books] = navigationOf([appWith(new Map())], 'books', '/books/limits').apps
+
+    expect(books?.entries.find((entry) => entry.lit === true)?.label).toBe('Limits')
+  })
+
+  it('lights nothing on a screen that is not under another', () => {
+    const { apps, netWorth, kunaSettings } = navigationOf([appWith(new Map())], 'books', null)
+
+    expect(apps.flatMap((app) => app.entries).some((entry) => entry.lit === true)).toBe(false)
+    expect(netWorth?.lit).toBeUndefined()
+    expect(kunaSettings.lit).toBeUndefined()
+  })
+})

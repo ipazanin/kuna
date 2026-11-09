@@ -21,6 +21,8 @@ export interface AppScreen {
   readonly bare?: true
   /** Opens one record named in its address, such as one account, so no link can lead here without that record. */
   readonly needsRecord?: true
+  /** The menu's screen this one opens from, such as an account's list, which the menu lights while this one shows. */
+  readonly under?: `/${string}`
 }
 
 /** What waits on a screen, shown beside its menu item. */

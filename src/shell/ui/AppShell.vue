@@ -14,6 +14,7 @@ import { writesInFlight } from '../../shared/storage/application/writesInFlight'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import HomeLink from '../../shared/ui/HomeLink.vue'
 import WriteProgress from '../../shared/ui/WriteProgress.vue'
+import { SIDEBAR_FROM_WIDTH } from './sidebarLayout'
 import { words } from './words'
 
 const props = withDefaults(
@@ -38,7 +39,7 @@ defineSlots<{
   sync(props: { compact: boolean; rail: boolean }): unknown
 }>()
 
-const wide = useMediaQuery('(min-width: 1024px)')
+const wide = useMediaQuery(`(min-width: ${SIDEBAR_FROM_WIDTH}px)`)
 const phone = usePhoneLayout()
 
 const menuOpen = ref(false)

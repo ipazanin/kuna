@@ -23,8 +23,10 @@ withDefaults(
     marksCurrent?: boolean
     /** On the icon sidebar: the icon alone, with the name for a screen reader and as its tooltip. */
     rail?: boolean
+    /** Looks current while a screen opened from it shows, without telling a screen reader it is the page. */
+    lit?: boolean
   }>(),
-  { marksCurrent: true, rail: false },
+  { marksCurrent: true, rail: false, lit: false },
 )
 </script>
 
@@ -34,7 +36,7 @@ withDefaults(
       v-bind="$attrs"
       :to="to"
       class="nav-link"
-      :class="{ 'in-rail': rail }"
+      :class="{ 'in-rail': rail, 'is-active': lit }"
       :active-class="marksCurrent ? 'is-active' : 'router-link-active'"
       :aria-current-value="marksCurrent ? 'page' : 'false'"
     >

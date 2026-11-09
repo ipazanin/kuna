@@ -43,7 +43,7 @@ function showWhereToAddApp(): void {
 }
 
 function currentPage(): Element | null {
-  return list.value?.querySelector('[aria-current="page"]') ?? null
+  return list.value?.querySelector('.is-active') ?? null
 }
 
 function showCurrentPage(): void {
