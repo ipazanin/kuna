@@ -344,6 +344,27 @@ describe('a proposal of another app', () => {
     expect(seen[0]![0]!.input['rows']).toEqual([{ payee: 'Ana Horvat, rent' }])
   })
 
+  it('sends a refusal with a known person under their alias, one naming an employee as a sentence that names nobody, and both as written with Anonymise off', async () => {
+    const refusing: AppProposer = { ...stubProposer(false, []), check: async () => ({ refused: ['Ana Horvat has no account here.', 'Iva Kovač left in October.'] }) }
+    const persons = [
+      { name: 'Ana Horvat', employee: false, ibans: [] },
+      { name: 'Iva Kovač', employee: true, ibans: [] },
+    ]
+    const refusedWith = (anonymising: boolean) =>
+      proposeChanges(
+        { app: 'kuna', title: 'Import', steps: [{ op: 'import-statement', input: JSON.stringify({ file: 'a1' }), as: null }] },
+        new Map([['kuna', refusing]]),
+        { ...reads, pseudonyms: newPseudonyms(), persons: () => persons, anonymising: () => anonymising },
+        [STATEMENT],
+        () => undefined,
+      )
+    const on = await refusedWith(true)
+    expect(on.isError).toBe(true)
+    expect(on.text).toMatch(/^Person 1 has no account here\. Kuna refused a step for a reason that names an employee/)
+    expect(on.text).not.toMatch(/Horvat|Kova|October/)
+    expect((await refusedWith(false)).text).toBe('Ana Horvat has no account here. Iva Kovač left in October.')
+  })
+
   it('asks for no yes to read when the proposer reads no books, and still needs it when it does', async () => {
     expect((await propose(stubProposer(false, []), 'a1')).isError).toBe(false)
     const seen: ProposalStep[][] = []

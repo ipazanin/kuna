@@ -86,6 +86,7 @@ describe('an offer from the bank', () => {
     await desk.propose([{ op: 'add-offer', input: printedOffer('2.28') }])
     const [line] = desk.cards[0]!.groups.find((group) => group.verb === 'add' && group.lines.some((candidate) => candidate.warning !== null))!.lines
     expect(line!.warning).toContain('2.28')
+    expect(line!.warning).toContain(', 1 point apart.')
     expect(line!.fields.map((field) => field.name)).toEqual(expect.arrayContaining([words.proposals.fields.kunaEks, words.proposals.fields.bankEks]))
   })
 

@@ -3,7 +3,7 @@ import type { AppProposer, CheckedProposal, ProposalStep } from '../../app/assis
 import type { ChatAttachment } from '../domain/chatAttachments'
 import { schemaProblems } from '../domain/strictSchema'
 import type { Pseudonyms } from '../../privacy/domain/pseudonyms'
-import { refusal } from './chatReads'
+import { labelLeaving, refusal } from './chatReads'
 import type { ChatReads, ChatToolAnswer } from './chatReads'
 
 export interface ProposeInput {
@@ -13,6 +13,7 @@ export interface ProposeInput {
 }
 
 const TEMPORARY_NAME = /^\$[a-z0-9]+$/i
+const REFUSED_ABOUT_AN_EMPLOYEE = 'Kuna refused a step for a reason that names an employee, which stays on this device while Anonymise is on. Say so.'
 
 function parsed(input: string): Readonly<Record<string, unknown>> | null {
   try {
@@ -114,8 +115,7 @@ export async function proposeChanges(
   if (proposer.readsBooks && !(await reads.mayRead(input.app))) return refusal('The person did not allow this app. Say what to do and link its screen.')
   const checked = await proposer.check(input.title, steps)
   if ('refused' in checked) {
-    const reasons = checked.refused.join(' ')
-    const sent = reads.anonymising() ? reads.pseudonyms.pseudonymised(reasons) : reasons
+    const sent = checked.refused.map((reason) => labelLeaving(reason, reads) ?? REFUSED_ABOUT_AN_EMPLOYEE).join(' ')
     return { text: sent, isError: true, read: { kind: 'refusal', app: reads.readers.get(input.app)?.name ?? input.app } }
   }
   showProposal(input.app, checked)

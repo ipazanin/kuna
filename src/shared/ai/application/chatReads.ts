@@ -271,26 +271,29 @@ export async function getRecord(appId: string, ref: string, reads: ChatReads): P
   }
 }
 
-function shownFigures(appId: string, report: AssistantReport, period: string | null, reads: ChatReads): readonly Readonly<Record<string, unknown>>[] {
-  return report.figures(period).map((figure) => {
+/** The figures of a report as they leave, each label through `labelLeaving`, and how many were left out for naming an employee kept home. */
+function shownFigures(appId: string, report: AssistantReport, period: string | null, reads: ChatReads): { readonly figures: readonly Readonly<Record<string, unknown>>[]; readonly leftOut: number } {
+  const figures = report.figures(period)
+  const leaving = figures.flatMap((figure) => {
+    const label = labelLeaving(figure.label, reads)
+    return label === null ? [] : [{ figure, label }]
+  })
+  const shown = leaving.map(({ figure, label }): Readonly<Record<string, unknown>> => {
     reads.refs.noteFiguresIn(figure.label)
     if ('cents' in figure) {
-      return {
-        ref: reads.refs.figureRef(`${appId}/${report.id}/${period ?? ''}/${figure.label}`, figure),
-        label: figure.label,
-        amount: `${plainAmount(figure.cents)} ${figure.currency}`,
-      }
+      return { ref: reads.refs.figureRef(`${appId}/${report.id}/${period ?? ''}/${figure.label}`, figure), label, amount: `${plainAmount(figure.cents)} ${figure.currency}` }
     }
     if ('basisPoints' in figure) {
       const points = Math.abs(figure.basisPoints)
       reads.refs.noteRate(points)
-      return { label: figure.label, rate: `${figure.basisPoints < 0 ? '-' : ''}${percentText(percentFromBasisPoints(points))}` }
+      return { label, rate: `${figure.basisPoints < 0 ? '-' : ''}${percentText(percentFromBasisPoints(points))}` }
     }
-    return { label: figure.label, count: figure.count }
+    return { label, count: figure.count }
   })
+  return { figures: shown, leftOut: figures.length - shown.length }
 }
 
-/** Figures Kuna computed with its own functions, each amount with a ref the answer can quote. */
+/** Figures Kuna computed with its own functions, each amount with a ref the answer can quote. A figure whose label names an employee stays out while Anonymise is on, and the answer counts them. */
 export async function readFigures(appId: string, reportId: string, period: string | null, reads: ChatReads): Promise<ChatToolAnswer> {
   const app = reads.readers.get(appId)
   if (app === undefined) return refusal(NO_APP)
@@ -302,8 +305,9 @@ export async function readFigures(appId: string, reportId: string, period: strin
   const status = app.reader.status()
   if (status !== 'open') return fileNotOpen(status)
   try {
-    const figures = shownFigures(appId, report, period, reads)
-    return { text: JSON.stringify({ source: `${appId}/${report.id}`, computedBy: 'Kuna', period, figures }), isError: false, read: { kind: 'figures', app: app.name, title: report.title } }
+    const { figures, leftOut } = shownFigures(appId, report, period, reads)
+    const text = JSON.stringify({ source: `${appId}/${report.id}`, computedBy: 'Kuna', period, ...(leftOut > 0 ? { leftOutAboutEmployees: leftOut } : {}), figures })
+    return { text, isError: false, read: { kind: 'figures', app: app.name, title: report.title } }
   } catch (failure) {
     if (failure instanceof RangeError) return refusal(report.period === 'month' ? 'A month reads as 2026-10.' : 'A day reads as 2026-10-31.')
     throw failure
@@ -312,8 +316,13 @@ export async function readFigures(appId: string, reportId: string, period: strin
 
 /** A label Kuna shows, such as a tagged figure's, as it leaves: null when it names an employee kept home, and otherwise with known people under their alias while Anonymise is on. */
 export function labelLeaving(label: string, reads: ChatReads): string | null {
-  if (employeesKeptHome(knownPersons(reads), reads).some((employee) => nameIn(label, employee.name))) return null
-  return sentText(label, reads)
+  return namesAnEmployeeKeptHome([label], reads) ? null : sentText(label, reads)
+}
+
+/** Whether any of the texts names an employee, which keeps it home while Anonymise is on. */
+function namesAnEmployeeKeptHome(texts: readonly string[], reads: ChatReads): boolean {
+  const employees = employeesKeptHome(knownPersons(reads), reads)
+  return texts.some((text) => employees.some((employee) => nameIn(text, employee.name)))
 }
 
 /** Text Kuna builds from the books, such as a step of a build-up or a figure's label, as it leaves: known people under their alias while Anonymise is on. */
@@ -342,17 +351,21 @@ function ruleIdsOf(step: FigureTrace): readonly string[] {
   return [...new Set(step.rules.map((rule) => rule.id))]
 }
 
+function textsOfStep(step: FigureTrace): readonly string[] {
+  return [step.label, step.basis, ...step.steps.flatMap(textsOfStep)]
+}
+
 function allRuleIds(step: FigureTrace): readonly string[] {
   return [...new Set([...ruleIdsOf(step), ...step.steps.flatMap(allRuleIds)])]
 }
 
-/** How Kuna built a figure a person tagged, with the terms of the rule versions it rests on. A build-up of an employee's pay stays home while Anonymise is on. */
+/** How Kuna built a figure a person tagged, with the terms of the rule versions it rests on. A build-up of an employee's pay, or one whose text names an employee, stays home while Anonymise is on. */
 export async function readBuildUp(ref: string, reads: ChatReads): Promise<ChatToolAnswer> {
   const buildUp = reads.refs.buildUpOf(ref)
   if (buildUp === null) return refusal('That ref is not a build-up Kuna handed out in this chat.')
   const app = reads.readers.get(buildUp.app)
   if (app === undefined) return refusal(NO_APP)
-  if (buildUp.employees && reads.anonymising()) return refusal(aboutEmployeesPay('build-up'))
+  if ((buildUp.employees && reads.anonymising()) || namesAnEmployeeKeptHome([buildUp.subtitle, ...textsOfStep(buildUp.trace)], reads)) return refusal(aboutEmployeesPay('build-up'))
   if (!(await reads.mayRead(buildUp.app))) return refusal(NOT_ALLOWED)
   const rules = app.reader.traceRules
   const versions = rules?.versionsOf(buildUp.trace) ?? []

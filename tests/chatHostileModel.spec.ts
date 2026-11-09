@@ -636,6 +636,26 @@ describe('a build-up read', () => {
     expect(answer.text).not.toContain('Horvat')
   })
 
+  it('keeps a build-up home while Anonymise is on when a step names an employee, though it is not marked as about pay', async () => {
+    const employee: KnownPerson = { name: 'Iva Kovač', employee: true, ibans: [] }
+    const naming: ChatBuildUp = { ...BUILD_UP, trace: { ...TRACE, steps: [{ ...TRACE.steps[0]!, basis: 'Paid to Iva Kovač' }] } }
+    const reads: ChatReads = { ...buildUpReads(true), persons: () => [...CHAT_PERSONS, employee] }
+    const answer = await runChatTool(
+      tools(() => undefined, reads),
+      call('read_build_up', { ref: reads.refs.buildUpRef(naming) }),
+    )
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('turn Anonymise off')
+    expect(answer.text).not.toMatch(/Kova|1320/)
+    const off: ChatReads = { ...buildUpReads(false), persons: () => [...CHAT_PERSONS, employee] }
+    const sent = await runChatTool(
+      tools(() => undefined, off),
+      call('read_build_up', { ref: off.refs.buildUpRef(naming) }),
+    )
+    expect(sent.isError).toBe(false)
+    expect(sent.text).toContain('Paid to Iva Kovač')
+  })
+
   it('reads nothing while the gate says no', async () => {
     const reads = { ...buildUpReads(false), mayRead: async () => false }
     const answer = await runChatTool(
@@ -684,5 +704,52 @@ describe("a report of employees' pay", () => {
         ).isError,
       ).toBe(false)
     }
+  })
+})
+
+describe('the labels of a report', () => {
+  const EMPLOYEE: KnownPerson = { name: 'Iva Kovač', employee: true, ibans: [] }
+  const PAYEES: AssistantReport = {
+    id: 'payees',
+    title: 'Payees',
+    about: 'Spent by payee.',
+    period: 'month',
+    figures: () => [
+      { label: 'Rent to Ana Horvat', of: 'app', cents: moneyFromCents(60_000), currency: EURO },
+      { label: 'Lunches with Iva Kovač', count: 3 },
+      { label: 'Corner market', of: 'app', cents: moneyFromCents(4_530), currency: EURO },
+    ],
+  }
+
+  function payeeReads(anonymising: boolean, persons: readonly KnownPerson[]): ChatReads {
+    const reader = { ...spendingReader(CHAT_READING), reports: [PAYEES] }
+    return { ...readsOf(true), readers: new Map([['spending', { name: 'Spending', reader }]]), anonymising: () => anonymising, persons: () => persons }
+  }
+
+  async function sent(reads: ChatReads) {
+    const answer = await runChatTool(
+      tools(() => undefined, reads),
+      call('read_figures', { app: 'spending', report: 'payees', period: null }),
+    )
+    expect(answer.isError).toBe(false)
+    return { answer, ...(JSON.parse(answer.text) as { readonly figures: readonly { readonly label: string }[]; readonly leftOutAboutEmployees?: number }) }
+  }
+
+  it("sends a known person's name in a label as their alias while Anonymise is on, and as written with it off", async () => {
+    const on = await sent(payeeReads(true, CHAT_PERSONS))
+    expect(on.figures.map((figure) => figure.label)).toEqual(['Rent to Person 1', 'Lunches with Iva Kovač', 'Corner market'])
+    expect(on.answer.text).not.toContain('Horvat')
+    const off = await sent(payeeReads(false, CHAT_PERSONS))
+    expect(off.figures.map((figure) => figure.label)).toEqual(['Rent to Ana Horvat', 'Lunches with Iva Kovač', 'Corner market'])
+  })
+
+  it('leaves out a figure whose label names an employee while Anonymise is on, and says how many', async () => {
+    const on = await sent(payeeReads(true, [...CHAT_PERSONS, EMPLOYEE]))
+    expect(on.figures.map((figure) => figure.label)).toEqual(['Rent to Person 1', 'Corner market'])
+    expect(on.leftOutAboutEmployees).toBe(1)
+    expect(on.answer.text).not.toMatch(/Kova|Lunches/)
+    const off = await sent(payeeReads(false, [...CHAT_PERSONS, EMPLOYEE]))
+    expect(off.figures).toHaveLength(3)
+    expect(off.leftOutAboutEmployees).toBeUndefined()
   })
 })

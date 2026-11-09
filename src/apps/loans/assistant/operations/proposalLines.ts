@@ -23,6 +23,7 @@ import { formatMoney, formatPoints, formatRate } from '../../../../shared/money/
 import type { Money } from '../../../../shared/money/money'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
+import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
 export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id'])
@@ -125,7 +126,8 @@ function eksLine(line: ProposalLine, scenario: LoanScenario, changes: readonly L
   return {
     ...line,
     fields: [...line.fields, ...fields],
-    warning: agreement.kind === 'differs' ? words.proposals.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed), formatPoints(agreement.points)) : line.warning,
+    warning:
+      agreement.kind === 'differs' ? plural(words.proposals.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed), formatPoints(agreement.points)), agreement.points) : line.warning,
   }
 }
 
