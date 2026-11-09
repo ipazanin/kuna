@@ -165,10 +165,22 @@ async function undo(event: Event): Promise<void> {
           @click="undo"
         />
         <p v-else-if="noUndo" class="type-caption" data-testid="chat-proposal-no-undo">{{ words.proposal.noUndo }}</p>
-        <p v-if="proposal.warning !== null" class="flex basis-full items-start gap-1.5 type-caption wrap-anywhere text-warning" role="status" data-testid="chat-proposal-done-warning">
-          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {{ proposal.warning }}
-        </p>
+        <div v-if="proposal.warning !== null" class="flex basis-full flex-col items-start gap-1.5">
+          <p class="flex items-start gap-1.5 type-caption wrap-anywhere text-warning" role="status" data-testid="chat-proposal-done-warning">
+            <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+            {{ proposal.warning.text }}
+          </p>
+          <UButton
+            v-if="proposal.warning.link !== null"
+            :to="proposal.warning.link.to"
+            :label="proposal.warning.link.label"
+            trailing-icon="i-lucide-arrow-right"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            data-testid="chat-proposal-done-link"
+          />
+        </div>
         <p v-if="proposal.reason !== null" class="flex basis-full items-start gap-1.5 type-caption wrap-anywhere text-error" role="status" data-testid="chat-proposal-undo-refused">
           <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
           {{ proposal.reason }}

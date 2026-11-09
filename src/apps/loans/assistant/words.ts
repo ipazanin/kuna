@@ -1,5 +1,5 @@
 import { language } from '../../../shared/text/language'
-import type { EnglishForms, Translation } from '../../../shared/text/translation'
+import type { Translation } from '../../../shared/text/translation'
 
 // Croatian addresses the reader as vi. A bank loan is kredit, a loan between people pozajmica, and an offer ponuda.
 
@@ -29,6 +29,7 @@ export const en = {
       direction: 'Who owes',
       openingBalance: 'Owed at the start',
       start: 'Starts',
+      offer: 'Offer',
       expected: 'Expected repayments',
       kind: 'Kind',
       scenario: 'Scenario',
@@ -42,16 +43,11 @@ export const en = {
     interim: (amount: string, day: string) => `${amount} on ${day}`,
     subsidy: (monthly: string, first: number, last: number, payer: string) => `${monthly} a month, instalments ${first} to ${last}${payer === '' ? '' : `, ${payer}`}`,
     expected: (monthly: string, day: number, from: string) => `${monthly} a month on day ${day}, from ${from}`,
-    offer: (lender: string, principal: string, span: string, payout: string) => `${lender === '' ? 'An offer' : lender}: ${principal} over ${span}, paid out ${payout}`,
+    offer: (lender: string, principal: string, span: string, payout: string) => `${lender === '' ? '' : `${lender}, `}${principal} over ${span}, paid out ${payout}`,
     costs: (upfront: string, monthly: string, yearly: string) => `${upfront} up front, ${monthly} a month, ${yearly} a year`,
     every: { month: 'month', year: 'year' },
-    eksDiffers: (estimated: string, printed: string, points: string): EnglishForms => {
-      const check = 'Check the amount, rate, term and costs against the offer before you accept.'
-      return {
-        one: `Kuna works the EKS out at ${estimated}, and the bank printed ${printed}, ${points} point apart. ${check}`,
-        other: `Kuna works the EKS out at ${estimated}, and the bank printed ${printed}, ${points} points apart. ${check}`,
-      }
-    },
+    eksDiffers: (estimated: string, printed: string) =>
+      `Kuna works the EKS out at ${estimated}, and the bank printed ${printed}. Check the amount, rate, term and costs against the offer before you accept.`,
     notWorkedOut: (why: string) => `Kuna cannot work this offer out: ${why}`,
   },
   quickActions: {
@@ -101,6 +97,7 @@ export const hr: Translation<typeof en> = {
       direction: 'Tko duguje',
       openingBalance: 'Dug na početku',
       start: 'Početak',
+      offer: 'Ponuda',
       expected: 'Očekivane otplate',
       kind: 'Vrsta',
       scenario: 'Scenarij',
@@ -114,14 +111,10 @@ export const hr: Translation<typeof en> = {
     interim: (amount, day) => `${amount} na dan ${day}`,
     subsidy: (monthly, first, last, payer) => `${monthly} mjesečno, rate od ${first} do ${last}${payer === '' ? '' : `, ${payer}`}`,
     expected: (monthly, day, from) => `${monthly} mjesečno, ${day}. u mjesecu, od ${from}`,
-    offer: (lender, principal, span, payout) => `${lender === '' ? 'Ponuda' : lender}: ${principal} na ${span}, isplata ${payout}`,
+    offer: (lender, principal, span, payout) => `${lender === '' ? '' : `${lender}, `}${principal} na ${span}, isplata ${payout}`,
     costs: (upfront, monthly, yearly) => `${upfront} unaprijed, ${monthly} mjesečno, ${yearly} godišnje`,
     every: { month: 'mjesec', year: 'godinu' },
-    eksDiffers: (estimated, printed, points) => {
-      const lead = `Kuna izračunava EKS od ${estimated}, a banka je navela ${printed}, razlika je ${points}`
-      const check = 'Prije prihvaćanja provjerite iznos, stopu, rok i troškove prema ponudi.'
-      return { one: `${lead} postotni bod. ${check}`, few: `${lead} postotna boda. ${check}`, other: `${lead} postotnih bodova. ${check}` }
-    },
+    eksDiffers: (estimated, printed) => `Kuna izračunava EKS od ${estimated}, a banka je navela ${printed}. Prije prihvaćanja provjerite iznos, stopu, rok i troškove prema ponudi.`,
     notWorkedOut: (why) => `Kuna ne može izračunati ovu ponudu: ${why}`,
   },
   quickActions: {

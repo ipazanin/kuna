@@ -123,7 +123,7 @@ export const hr: Translation<typeof en> = {
       body: (labels) =>
         [
           `Retci koje nijedno pravilo ne razvrsta čekaju na zaslonu ${labels.transactions}, na kartici ${labels.review}. Otvorite redak da vidite partnera, opis, iznos i što pravila kažu o njemu.`,
-          `1. Da vam asistent predloži kategorije, pritisnite ${labels.suggest} na toj kartici. Asistent se otvara o retcima koji čekaju. Zamolite ga da ih razvrsta, pa predloži karticu koja razvrstava retke u koje je siguran i pita za ostale. Ništa se ne mijenja dok ne prihvatite karticu.`,
+          `1. Da vam razgovor predloži kategorije, pritisnite ${labels.suggest} na toj kartici. Razgovor se otvara o retcima koji čekaju. Zamolite ga da ih razvrsta, pa predloži karticu koja razvrstava retke u koje je siguran i pita za ostale. Ništa se ne mijenja dok ne prihvatite karticu.`,
           `2. Da pitate o jednom retku, otvorite ga i pritisnite ${labels.ask}.`,
           `3. Ili sami odaberite kategoriju gumbom ${labels.recategorise} na retku.`,
           `4. Poruka nakon promjene kategorije nudi ${labels.makeRule}, pa se ista vrsta retka sljedeći put razvrsta sama. Sva pravila navedena su na zaslonu ${labels.settings}, na kartici ${labels.categoryRules}.`,

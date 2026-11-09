@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../shared/calendar/dayLabel'
 import { language } from '../../../shared/text/language'
+import { listInWords } from '../../../shared/text/listInWords'
 import type { CroatianForms, EnglishForms, Translation } from '../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. IBKR's report is izvješće, and the Investments app is Ulaganja.
@@ -71,7 +72,7 @@ export const en = {
     no: 'no',
     units: (quantity: string, instrument: string) => `${quantity} of ${instrument}`,
     percent: (value: string) => `${value}%`,
-    pricesFetched: (instrument: string) => `Kuna fetches the prices of ${instrument} after Accept. Undo leaves the prices it fetched.`,
+    pricesFetched: (instruments: readonly string[]) => `Kuna fetches the prices of ${listInWords(instruments)} after Accept. Undo leaves the prices it fetched.`,
     ratesMissing: (currencies: string, from: CivilDate, place: string) =>
       `The prices file lacks the ECB rates of ${currencies} from ${dayLabel(from)}, which the rows need. Import with ${place}, which fetches them first.`,
     holdingsAsked: (holdings: string, place: string) =>
@@ -146,7 +147,7 @@ export const en = {
     vendorsOutside: 'Kuna asks the price vendors with the keys of this browser and writes what they send to the prices file beside the books.',
     closes: 'Closes',
     closesOutside: 'The closes go into the prices file beside the books, and Kuna then fetches only the days after the last one.',
-    failuresListed: 'Settings, Prices lists each with what to do.',
+    failuresListed: 'Each is listed there with what to do.',
   },
 }
 
@@ -208,7 +209,8 @@ export const hr: Translation<typeof en> = {
     no: 'ne',
     units: (quantity, instrument) => `${quantity} instrumenta ${instrument}`,
     percent: (value) => `${value}\u00a0%`,
-    pricesFetched: (instrument) => `Kuna nakon prihvaćanja dohvaća cijene instrumenta ${instrument}. Poništavanje ostavlja dohvaćene cijene.`,
+    pricesFetched: (instruments) =>
+      `Kuna nakon prihvaćanja dohvaća cijene ${instruments.length === 1 ? 'instrumenta' : 'instrumenata'} ${listInWords(instruments)}. Poništavanje ostavlja dohvaćene cijene.`,
     ratesMissing: (currencies, from, place) =>
       `Datoteci cijena nedostaju tečajevi ESB-a za ${currencies} od ${dayLabel(from)}, a trebaju ih redci. Uvezite ondje, putem: ${place}, što ih najprije dohvati.`,
     holdingsAsked: (holdings, place) => `Uvoz pita o podjeli ili izdvajanju za ${holdings}, a odgovor određuje trošak, pa time i porez. Povežite ovo mjesto: ${place}, i odgovor prepustite osobi.`,
@@ -289,7 +291,7 @@ export const hr: Translation<typeof en> = {
     vendorsOutside: 'Kuna pita izvore cijena ključevima ovog preglednika i ono što pošalju zapisuje u datoteku cijena pokraj knjiga.',
     closes: 'Zaključne cijene',
     closesOutside: 'Zaključne cijene idu u datoteku cijena pokraj knjiga, a Kuna zatim dohvaća samo dane nakon posljednje.',
-    failuresListed: 'Postavke, Cijene navode svaki niz i što učiniti.',
+    failuresListed: 'Ondje je svaki niz naveden sa savjetom što učiniti.',
   },
 }
 

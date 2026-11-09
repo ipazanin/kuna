@@ -36,6 +36,7 @@ import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
+import MenuButton from '../../../../shared/ui/MenuButton.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
@@ -128,6 +129,16 @@ const editing = ref<Transaction | null>(null)
 
 const receiptPicker = useTemplateRef<HTMLInputElement>('receiptPicker')
 
+const receiptChoices = [
+  { value: 'type', label: words.receipt.typeIn, icon: 'i-lucide-keyboard' },
+  { value: 'chat', label: words.receipt.readInChat, icon: 'i-lucide-camera' },
+] as const
+
+function addReceipt(way: (typeof receiptChoices)[number]['value']): void {
+  if (way === 'type') receiptOpen.value = true
+  else receiptPicker.value?.click()
+}
+
 /** Puts the photo picked or taken on the chat's prompt and opens the chat, where the person asks for it to be read. The chat's code loads only then. */
 async function receiptToChat(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
@@ -149,11 +160,11 @@ function openEntry(entry: Transaction | null): void {
   <section class="flex max-w-measure flex-col gap-6">
     <PageHeader :title="screenWords.entries">
       <template v-if="canAdd" #actions>
-        <UButton v-if="canAddReceipt" :label="receiptWords.add" icon="i-lucide-receipt" color="neutral" variant="outline" data-testid="spending-add-receipt" @click="receiptOpen = true" />
         <template v-if="canAddReceipt && assistKeyKept">
-          <UButton :label="words.receiptToChat" icon="i-lucide-sparkles" color="neutral" variant="outline" data-testid="spending-receipt-to-chat" @click="receiptPicker?.click()" />
-          <input ref="receiptPicker" type="file" accept="image/*" class="hidden" data-testid="spending-receipt-to-chat-input" @change="receiptToChat" />
+          <MenuButton :label="receiptWords.add" icon="i-lucide-receipt" :choices="receiptChoices" data-testid="spending-add-receipt" @pick="addReceipt" />
+          <input ref="receiptPicker" type="file" accept="image/*" capture="environment" class="hidden" data-testid="spending-receipt-to-chat-input" @change="receiptToChat" />
         </template>
+        <UButton v-else-if="canAddReceipt" :label="receiptWords.add" icon="i-lucide-receipt" color="neutral" variant="outline" data-testid="spending-add-receipt" @click="receiptOpen = true" />
         <UButton :label="words.add" icon="i-lucide-plus" data-testid="spending-add-entry" @click="openEntry(null)" />
       </template>
     </PageHeader>

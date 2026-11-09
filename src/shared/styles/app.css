@@ -194,7 +194,7 @@ section + section > .group-row:not(tr) {
  * so it wins over the Tailwind sizes of Nuxt UI's small buttons, but only below the phone breakpoint.
  */
 @media (max-width: 639px) {
-  :where(button:not([role='switch'], [role='checkbox'], [role='radio']), a[href], select, textarea, [role='button'], [role='combobox'], [role='tab']),
+  :where(button:not([role='switch'], [role='checkbox'], [role='radio']), a[href], select, textarea, [role='button'], [role='combobox'], [role='tab'], [role='menuitem']),
   :where(input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='file'])) {
     min-height: 44px;
     min-width: 44px;

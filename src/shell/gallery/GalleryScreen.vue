@@ -19,6 +19,7 @@ import ChartCard from '../../shared/ui/ChartCard.vue'
 import type { ChartPointSelection } from '../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../shared/ui/ChartLegend.vue'
 import ChoiceButtons from '../../shared/ui/ChoiceButtons.vue'
+import MenuButton from '../../shared/ui/MenuButton.vue'
 import ColourSwatchPicker from '../../shared/ui/ColourSwatchPicker.vue'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import DonutCard from '../../shared/ui/DonutCard.vue'
@@ -218,6 +219,11 @@ const GALLERY_PERIODS = [
   { value: 'all', label: 'All' },
 ] as const
 const galleryPeriod = ref<(typeof GALLERY_PERIODS)[number]['value']>('all')
+const GALLERY_RECEIPT_WAYS = [
+  { value: 'type', label: 'Type it in', icon: 'i-lucide-keyboard' },
+  { value: 'photo', label: 'Read the photo', icon: 'i-lucide-camera', description: 'Opens the camera on a phone' },
+] as const
+const galleryReceiptWay = ref<(typeof GALLERY_RECEIPT_WAYS)[number]['value'] | null>(null)
 const GALLERY_RANGES: readonly ChartRange[] = ['1y', '3y', 'next-5y', 'all']
 const galleryRange = ref<ChartRange>('all')
 const GALLERY_CHIPS = ['EXQ', 'Category: Software subscriptions', 'Counterparty: A supplier whose name runs far past the width of a chip']
@@ -841,7 +847,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
       </div>
     </GallerySection>
 
-    <GallerySection id="controls" title="Small controls" description="InfoPopover, ChoiceButtons, RemovableChip, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
+    <GallerySection id="controls" title="Small controls" description="InfoPopover, ChoiceButtons, MenuButton, RemovableChip, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
       <DashboardGrid>
         <AppCard title="InfoPopover" subtitle="A definition, or richer content such as a legend.">
           <div class="flex items-center gap-2 px-4 pt-3 pb-4 type-body sm:px-5">
@@ -856,6 +862,12 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
           <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
             <ChoiceButtons v-model="galleryPeriod" :options="GALLERY_PERIODS" label="Period" />
             <span class="identifier">{{ galleryPeriod }}</span>
+          </div>
+        </AppCard>
+        <AppCard title="MenuButton" subtitle="One button for a few ways to do one thing. The menu says which way was picked.">
+          <div class="flex flex-wrap items-center gap-3 px-4 pt-3 pb-4 sm:px-5">
+            <MenuButton label="Add a receipt" icon="i-lucide-receipt" :choices="GALLERY_RECEIPT_WAYS" data-testid="gallery-menu-button" @pick="galleryReceiptWay = $event" />
+            <span class="identifier">{{ galleryReceiptWay ?? 'Nothing picked yet' }}</span>
           </div>
         </AppCard>
         <AppCard title="RemovableChip" subtitle="Names something picked, such as a filter or a ticker to compare with. A press anywhere on it removes it.">

@@ -1,7 +1,7 @@
 import { computed, markRaw, reactive, readonly, shallowReactive, shallowRef } from 'vue'
 
 import type { AppContribution } from '../../app/appContribution'
-import type { CheckedProposal, UndoResult } from '../../app/assistantOperations'
+import type { CheckedProposal, DoneWarning, UndoResult } from '../../app/assistantOperations'
 import { plainAmount } from '../../money/money'
 import { catalogueOf, placeAt } from '../application/catalogue'
 import type { Catalogue } from '../application/catalogue'
@@ -61,7 +61,7 @@ export interface ChatProposal extends SavedProposal {
   /** Why Kuna refused it, in a sentence that can name a record, so it stays out of what this browser keeps. */
   reason: string | null
   /** What the person should know of a write that went through, kept out of what this browser keeps as the reason is. */
-  warning: string | null
+  warning: DoneWarning | null
   /** Puts back what Accept wrote, while this page lives. */
   undo: (() => Promise<UndoResult>) | null
 }
@@ -269,7 +269,7 @@ function heldProposal(id: string): ChatProposal | undefined {
 }
 
 /** How a card ended, kept in this browser and told to the model with the next message. */
-export function settleProposal(proposal: ChatProposal, state: ProposalState, reason: string | null = null, undo: ChatProposal['undo'] = null, warning: string | null = null): void {
+export function settleProposal(proposal: ChatProposal, state: ProposalState, reason: string | null = null, undo: ChatProposal['undo'] = null, warning: DoneWarning | null = null): void {
   const held = heldProposal(proposal.id)
   if (held === undefined) return
   held.state = state

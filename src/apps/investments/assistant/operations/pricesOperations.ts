@@ -1,5 +1,6 @@
 import { holdingsWithFactProblems } from '../../holdings/domain/factProblems'
 import { words as holdingsWords } from '../../holdings/presentation/words'
+import { INVESTMENTS_PRICES_ROUTE } from '../../overview/presentation/investmentLinks'
 import type { PricesFetchRun, PricesUpdate } from '../../prices/application/pricesUpdate'
 import { readClosesCsv } from '../../prices/domain/closesCsv'
 import type { ClosesCsvRefusal } from '../../prices/domain/closesCsv'
@@ -10,6 +11,7 @@ import { emptyPricesFile } from '../../prices/domain/pricesFile'
 import type { PricesFile } from '../../prices/domain/pricesFile'
 import { runProblem } from '../../prices/presentation/runProblem'
 import { words as pricesWords } from '../../prices/presentation/words'
+import { words as settingsWords } from '../../settings/presentation/words'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS } from '../../workbook/domain/investmentKinds'
@@ -129,7 +131,9 @@ const DONE: AcceptResult = { kind: 'done', undo: null }
 /** A fetch that wrote the prices file, warning of the series it got nothing for, as the Prices tab's toast does. */
 function fetched(file: PricesFile): AcceptResult {
   const missed = file.failures.length
-  return missed === 0 ? DONE : { kind: 'done', undo: null, warning: `${plural(pricesWords.failures.title(missed), missed)}. ${words.cards.failuresListed}` }
+  if (missed === 0) return DONE
+  const link = { label: `${settingsWords.title}, ${settingsWords.tabs.prices}`, to: INVESTMENTS_PRICES_ROUTE }
+  return { kind: 'done', undo: null, warning: { text: `${plural(pricesWords.failures.title(missed), missed)}. ${words.cards.failuresListed}`, link } }
 }
 
 /** Fetch now, the import of closes and Ask again, each a card with no Undo, since each writes the prices file beside the books. */

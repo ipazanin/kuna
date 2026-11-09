@@ -32,6 +32,7 @@ export const en = {
   },
   review: {
     title: 'Rows to review',
+    suggestCategories: 'Suggest categories',
     subtitle: 'Pick a category for each, and it counts from then on.',
     empty: 'Nothing to review',
     emptyDescription: 'Rows a statement brings that no rule files wait here.',
@@ -100,6 +101,7 @@ export const hr: Translation<typeof en> = {
   },
   review: {
     title: 'Stavke za pregled',
+    suggestCategories: 'Predloži kategorije',
     subtitle: 'Svakoj odaberite kategoriju i od tada se broji.',
     empty: 'Nema ničega za pregled',
     emptyDescription: 'Ovdje čekaju stavke iz izvoda koje nijedno pravilo ne razvrsta.',

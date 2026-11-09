@@ -84,7 +84,7 @@ import { starterCategories } from '../../src/apps/spending/categories/domain/sta
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
 import { openEachMenuIn } from './menuFlows.mjs'
 import { settleCharts } from './settleCharts.mjs'
-import { MADE_UP_ANTHROPIC_KEY, TWO_KEYS_ANONYMISE_OFF, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, savedChatGone, sendInChat } from './chatFlows.mjs'
+import { MADE_UP_ANTHROPIC_KEY, TWO_KEYS_ANONYMISE_OFF, acceptLooksReady, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, savedChatGone, sendInChat } from './chatFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
@@ -5815,9 +5815,33 @@ export function spendingImportFlowIn(language, paths) {
 
 const SPENDING_RECEIPT_FORM = '[data-testid="spending-receipt-form"]'
 
+/** The choice of Entries' Add a receipt menu, which shows only with a key kept. */
+async function receiptMenuChoice(page, label) {
+  const choice = await page
+    .waitForFunction(
+      (text) => [...document.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent?.trim() === text && item.getClientRects().length > 0) ?? null,
+      { timeout: 10_000 },
+      label,
+    )
+    .catch(() => {
+      throw new Error(`the Add a receipt menu offers no "${label}"`)
+    })
+  return choice.asElement()
+}
+
+/** Presses Add a receipt on Entries and, where it opens a menu because a key is kept, picks typing it in, the menu's first choice. */
+async function openReceiptDialog(page, press) {
+  const button = await pressSelector(page, press, '[data-testid="spending-add-receipt"]')
+  if ((await button.evaluate((element) => element.getAttribute('aria-haspopup'))) !== 'menu') return
+  const typeIn = await page.waitForSelector('[role="menuitem"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('Add a receipt opened no menu')
+  })
+  await press(typeIn)
+}
+
 /** Opens the receipt dialog on Entries and uploads a photo, then waits for its QR code to be read or found missing. */
 async function uploadReceiptPhoto(page, press, path, reading = 'read') {
-  await pressSelector(page, press, '[data-testid="spending-add-receipt"]')
+  await openReceiptDialog(page, press)
   const input = await page.waitForSelector('[data-testid="spending-receipt-upload"] input[type="file"]', { timeout: 10_000 }).catch(() => {
     throw new Error('the receipt dialog offers no file input')
   })
@@ -5889,7 +5913,7 @@ export function spendingReceiptFlowIn(language, photos) {
   const receipt = words.spendingReceipts
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await pressSelector(page, press, '[data-testid="spending-add-receipt"]')
+    await openReceiptDialog(page, press)
     await page.waitForSelector('[data-testid="spending-receipt-take"]', { visible: true, timeout: 10_000 })
     await delay(300)
     const capture = await page.$eval('[data-testid="spending-receipt-camera"] input[type="file"]', (input) => input.getAttribute('capture'))
@@ -8949,6 +8973,7 @@ export function chatStatementCardFlowIn(language) {
       })
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
       await elementSays(page, '[data-testid="chat-sent"]', [words.sent.refusal(appName)], 'the refused first try is not shown')
+      await acceptLooksReady(page)
       await inspect?.('the import card after a refused first try')
       await shoot('chat-statement-card')
       await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
@@ -8968,8 +8993,8 @@ export function chatStatementCardFlowIn(language) {
 }
 
 /**
- * Spending's To review with a made-up key kept. `queue`: the card's header offers Ask the chat, which opens the chat about To
- * review with the card outlined. `row`: a waiting row's Ask the chat tags that row alone, named by its day and account, never its payee.
+ * Spending's To review with a made-up key kept. `queue`: the card's header offers Suggest categories, which opens the chat about
+ * To review with the card outlined. `row`: a waiting row's Ask the chat tags that row alone, named by its day and account, never its payee.
  */
 export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
   const words = SCREEN_WORDS[language]
@@ -8980,9 +9005,10 @@ export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
       await keepAiKey(page)
       if (parts.includes('queue')) {
         await page.waitForSelector('[data-testid="spending-review-ask"]', { visible: true, timeout: 10_000 }).catch(() => {
-          throw new Error('To review offers no Ask the chat on its header')
+          throw new Error('To review offers no Suggest categories on its header')
         })
-        await inspect?.('To review with Ask the chat on its header')
+        await elementSays(page, '[data-testid="spending-review-ask"]', [review.suggestCategories], 'the To review header button does not read Suggest categories')
+        await inspect?.('To review with Suggest categories on its header')
         await shoot('spending-review-ask')
         await pressSelector(page, press, '[data-testid="spending-review-ask"]')
         await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
@@ -9069,8 +9095,8 @@ async function rowHasLines(page, title, cents) {
 }
 
 /**
- * On the receipts set's Entries with a made-up key kept: Read a receipt in the chat puts the photo on the prompt and fills in
- * nothing. Asked to read it, the chat proposes the Pet food category alone, and asked again once that is accepted, the receipt
+ * On the receipts set's Entries with a made-up key kept: Add a receipt opens a menu, and its Read the photo in the chat opens
+ * the rear camera's file picker and puts the photo on the prompt, filling in nothing. Asked to read it, the chat proposes the Pet food category alone, and asked again once that is accepted, the receipt
  * card that splits the Corner market payment and says the photo stays on Drive after Undo. With `accept`, Accept splits the
  * row and Undo takes it back.
  */
@@ -9082,11 +9108,17 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
       await keepAiKey(page)
-      await page.waitForSelector('[data-testid="spending-receipt-to-chat"]', { visible: true, timeout: 10_000 }).catch(() => {
-        throw new Error('Entries offers no Read a receipt in the chat with a key kept')
-      })
-      const input = await page.$('[data-testid="spending-receipt-to-chat-input"]')
-      await input.uploadFile(photos.oneMatch)
+      const capture = await page.$eval('[data-testid="spending-receipt-to-chat-input"]', (input) => input.getAttribute('capture')).catch(() => null)
+      if (capture !== 'environment') throw new Error(`Read the photo in the chat opens the camera "${capture}", not the rear one`)
+      await pressSelector(page, press, '[data-testid="spending-add-receipt"]')
+      const toChat = await receiptMenuChoice(page, SCREEN_WORDS[language].spendingEntries.receipt.readInChat)
+      if (!accept) {
+        await delay(300)
+        await inspect?.('the Add a receipt menu open')
+        await shoot('spending-receipt-menu')
+      }
+      const [chooser] = await Promise.all([page.waitForFileChooser({ timeout: 10_000 }), press(toChat)])
+      await chooser.accept([photos.oneMatch])
       await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
       await page.waitForSelector('[data-testid="chat-file"][data-state="ready"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the photo is not ready on the chat prompt')
@@ -9105,6 +9137,7 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
       if (!(await category.evaluate((card, name) => card.textContent?.includes(name) ?? false, petFood))) throw new Error(`the first card does not add ${petFood}`)
       if (!accept) {
+        await acceptLooksReady(page)
         await inspect?.('the category card before the receipt')
         await shoot('chat-category-card')
       }
@@ -9122,6 +9155,7 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
       if (outside === null || !(await outside.evaluate((line, text) => line.textContent?.includes(text) ?? false, photoStays)))
         throw new Error('the receipt card does not say the photo stays on Drive after Undo')
       await delay(300)
+      await acceptLooksReady(page)
       if (!accept) {
         await inspect?.('the receipt card after the category card')
         await shoot('chat-category-then-receipt')

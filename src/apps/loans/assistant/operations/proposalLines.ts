@@ -8,6 +8,7 @@ import { eksAgreement } from '../../scenarios/domain/eksAgreement'
 import type { LoanChange, LoanCosts, LoanScenario, ScenarioChange } from '../../scenarios/domain/loanScenario'
 import { offerBase, scenarioPlan } from '../../scenarios/domain/scenarioPlan'
 import { refusalText, spanOf } from '../../scenarios/presentation/scenarioComparison'
+import { changeSummary } from '../../scenarios/presentation/scenariosView'
 import { words as scenarioWords } from '../../scenarios/presentation/words'
 import type { BankLoan, InterimInterest, LoanSubsidy } from '../../workbook/domain/bankLoan'
 import type { ExpectedPlan } from '../../workbook/domain/informalLoan'
@@ -19,18 +20,20 @@ import { proposalGroups } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { formatMoney, formatPoints, formatRate } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
-import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
 export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id'])
 
 const DAY_FIELDS: ReadonlySet<string> = new Set(['drawdown', 'firstInstalment', 'from', 'date', 'due', 'paid', 'until', 'on'])
 
-function fieldName(field: string): string {
+/** A field's name on the card. A scenario's start reads as the offer it weighs or the loan it tries something on, and an informal loan's as the day it starts. */
+export function proposalFieldName(field: string, record: ProposedRecord): string {
+  const start = record['start']
+  if (field === 'start' && typeof start === 'object' && start !== null) return (start as LoanScenario['start']).kind === 'offer' ? words.proposals.fields.offer : words.proposals.fields.loan
   return (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field
 }
 
@@ -105,9 +108,13 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   }
 }
 
-/** What the record is called on screen: a loan or scenario by its name, and what belongs to one by the name of what it belongs to. */
-function labelOf(record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>): string {
+/**
+ * What the record is called on screen: a loan or scenario by its name, a scenario's change in the Scenarios screen's sentence,
+ * since its Scenario field names the scenario, and what else belongs to one by the name of what it belongs to.
+ */
+function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>): string {
   if (typeof record['name'] === 'string' && record['name'] !== '') return record['name']
+  if (kind.name === SCENARIO_CHANGE_RECORDS.name) return changeSummary(record as unknown as ScenarioChange, bankWords.extraDialog.effects)
   return namesOf.get(record['loan']) ?? namesOf.get(record['scenario']) ?? fallback
 }
 
@@ -126,8 +133,7 @@ function eksLine(line: ProposalLine, scenario: LoanScenario, changes: readonly L
   return {
     ...line,
     fields: [...line.fields, ...fields],
-    warning:
-      agreement.kind === 'differs' ? plural(words.proposals.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed), formatPoints(agreement.points)), agreement.points) : line.warning,
+    warning: agreement.kind === 'differs' ? words.proposals.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed)) : line.warning,
   }
 }
 
@@ -143,9 +149,9 @@ export function proposalGroupsOf(checked: CheckedWrite, book: LoanBook): readonl
   }
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
-    fieldName,
+    fieldName: proposalFieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, namesOf),
-    label: (_kind, record, fallback) => labelOf(record, fallback, namesOf),
+    label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf),
     warns: () => false,
   }
   const groups = proposalGroups(checked, () => describer)

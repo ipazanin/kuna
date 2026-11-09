@@ -44,7 +44,7 @@ export const hr: Translation<typeof en> = {
   off: 'Isključeno',
   thisDevice: 'Ovaj uređaj',
   outside: {
-    reloads: 'Ova kartica nema poništavanje. Kuna se ponovno učitava na novom jeziku, a chat ostaje.',
+    reloads: 'Ova kartica nema poništavanje. Kuna se ponovno učitava na novom jeziku, a razgovor ostaje.',
   },
   home: {
     drive: 'Google Drive',
@@ -64,10 +64,10 @@ export const hr: Translation<typeof en> = {
     language: 'Jezik na ovom uređaju: „browser”, „en” ili „hr”. Promjena ponovno učitava Kunu.',
     autoSync: 'Sinkronizira li se ovaj uređaj kad se Kuna otvori i kad joj se vratite nakon deset minuta.',
     apps: 'Aplikacije za koje je osoba rekla da ih koristi. Izostavljena aplikacija čeka pod Ostale aplikacije na početnoj stranici dok ne dobije datoteku.',
-    filesHome: 'Gdje idu nove datoteke, Google Drive ili ovaj preglednik. Chat smije samo zaboraviti odgovor, pa Kuna ponovno pita.',
+    filesHome: 'Gdje idu nove datoteke, Google Drive ili ovaj preglednik. Razgovor smije samo zaboraviti odgovor, pa Kuna ponovno pita.',
     neverProvider: 'AI tvrtka, njezin ključ i model te dohvat ili brisanje ključeva spremljenih na Google računu.',
-    neverAnonymise: 'Anonimiziraj za svaku AI tvrtku i Šalji bez pitanja svake aplikacije. Oni čuvaju ono što chat šalje.',
-    neverHistory: 'Brisanje povijesti chata.',
+    neverAnonymise: 'Anonimiziraj za svaku AI tvrtku i Šalji bez pitanja svake aplikacije. Oni čuvaju ono što razgovor šalje.',
+    neverHistory: 'Brisanje povijesti razgovora.',
     neverSync: 'Sinkroniziraj sada i dopuštanje Google pristupa koji sinkronizaciji nedostaje. Googleov prozor za privolu traži osobu, a sinkronizacija se pokreće s gornje trake.',
     neverGoogle: 'Odjava s Googlea i brisanje cijele Kune.',
   },

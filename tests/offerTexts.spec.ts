@@ -67,7 +67,7 @@ describe("Kuna's EKS against the printed one", () => {
   })
 
   it('names both rates and the points between them when they differ', () => {
-    expect(eksAgreement(rate('4.4'), rate('3.4'))).toEqual({ kind: 'differs', estimated: rate('4.4'), printed: rate('3.4'), points: 1 })
+    expect(eksAgreement(rate('4.4'), rate('3.4'))).toEqual({ kind: 'differs', estimated: rate('4.4'), printed: rate('3.4') })
   })
 
   it('compares nothing while either is missing', () => {
@@ -92,6 +92,6 @@ describe("Kuna's EKS against the printed one", () => {
     const estimated = offerEks(offerBase('Offer', terms), [{ kind: 'rate-change', from: terms.firstInstalment, rate: rate(offer['rate']!), rateType: 'fixed' }])
 
     expect(estimated).toBe(rate(offer['kunaEks']!))
-    expect(eksAgreement(estimated, terms.bankEks)).toMatchObject({ kind: 'differs', points: 1 })
+    expect(eksAgreement(estimated, terms.bankEks)).toMatchObject({ kind: 'differs' })
   })
 })

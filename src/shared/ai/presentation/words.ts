@@ -290,8 +290,8 @@ export const hr: Translation<typeof en> = {
     allowAlways: 'Uvijek dopusti',
     inApp: (app) => `U aplikaciji ${app}`,
     inKuna: 'U Kuni',
-    empty: 'Asistent još ne vidi podatke ove aplikacije.',
-    emptyReads: (app) => `Pitajte o svojim iznosima ili o tome kako Kuna radi. Asistent čita aplikaciju ${app} tek kad to dopustite.`,
+    empty: 'Razgovor još ne vidi podatke ove aplikacije.',
+    emptyReads: (app) => `Pitajte o svojim iznosima ili o tome kako Kuna radi. Razgovor čita aplikaciju ${app} tek kad to dopustite.`,
     placeholder: 'Pitajte kako nešto radi',
     placeholderReads: 'Pitajte o svojim iznosima',
     sends: 'ono što ovdje upišete, zaslon na kojem ste i naziv onoga što ste označili. Ništa iz vaših podataka.',
@@ -300,7 +300,7 @@ export const hr: Translation<typeof en> = {
     sendsAndReadsWithFiles: (app) =>
       `ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili, priložene fotografije i PDF-ovi i, kad pitanje to traži, zapisi i iznosi iz aplikacije ${app}.`,
     reads: (app) => `zapisi i iznosi iz aplikacije ${app} koje ovaj razgovor zatraži.`,
-    readTitle: (app) => `Dopustiti asistentu da čita aplikaciju ${app}?`,
+    readTitle: (app) => `Dopustiti razgovoru da čita aplikaciju ${app}?`,
     aliases:
       'Retci o zaposlenicima ostaju na ovom uređaju. Neformalni zajmodavci i primatelji koje označite kao osobu šalju se kao zamjenski nazivi poput Osoba 1, a vi ovdje vidite prava imena. Trgovine, primatelji koje niste označili, iznosi i datumi šalju se kako su zapisani, a ono što upišete šalje se kako ste upisali.',
     noAliases: (company) => `Anonimizacija je isključena za tvrtku ${company}, pa se retci o zaposlenicima i sva imena šalju kako su zapisani. IBAN-ovi i OIB-ovi i dalje su skriveni.`,
@@ -312,8 +312,8 @@ export const hr: Translation<typeof en> = {
     placeholderAbout: (label) => `Pitajte o ovome: ${label}`,
   },
   ask: {
-    button: 'Pitaj asistenta',
-    about: (label) => `Pitaj asistenta o ovome: ${label}`,
+    button: 'Pitaj u razgovoru',
+    about: (label) => `Pitaj u razgovoru o ovome: ${label}`,
   },
   files: {
     attach: 'Priloži fotografiju, PDF ili izvod',

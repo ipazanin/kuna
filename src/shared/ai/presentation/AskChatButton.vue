@@ -10,7 +10,7 @@ import { words } from './words'
  */
 withDefaults(
   defineProps<{
-    /** The element's name as the page shows it, which the button's name for a screen reader holds. */
+    /** The element's name as the page shows it, which the icon-only button's name and every button's tooltip hold. */
     label: string
     /** An icon alone, for a dense row. Otherwise it reads "Ask the chat", or `text`. */
     iconOnly?: boolean
@@ -26,12 +26,11 @@ const emit = defineEmits<{ ask: [] }>()
 <template>
   <UButton
     v-if="assistKeyKept"
-    v-bind="iconOnly ? {} : { label: text ?? words.ask.button }"
+    v-bind="iconOnly ? { 'aria-label': words.ask.about(label) } : { label: text ?? words.ask.button }"
     icon="i-lucide-sparkles"
     color="neutral"
     :variant="iconOnly ? 'ghost' : 'outline'"
     size="sm"
-    :aria-label="text ?? words.ask.about(label)"
     :title="words.ask.about(label)"
     data-testid="ask-chat"
     @click="emit('ask')"

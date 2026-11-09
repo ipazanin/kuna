@@ -1,6 +1,6 @@
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
-import { TWO_KEYS_ANONYMISE_OFF, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
+import { TWO_KEYS_ANONYMISE_OFF, acceptLooksReady, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
 import { ASSIST_WORDS, elementSays, goToRoute, openCompanies, pickCompany, queueRow } from './editorFlows.mjs'
 import { FIGURE_ASKS } from './figureAskFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
@@ -119,6 +119,7 @@ export function companyChatCardFlowIn(language, card) {
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
       await CARDS[card](page, language)
       await delay(300)
+      await acceptLooksReady(page)
       await inspect?.(`the chat's answer to ${PROMPTS[card].en}`)
       await shoot(`company-chat-${card}`)
       if (card !== 'invoice') await pressSelector(page, press, '[data-testid="chat-proposal-decline"]')
@@ -143,6 +144,7 @@ export function kunaChatThemeFlowIn(language) {
         throw new Error('the chat proposed no card for the look')
       })
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await acceptLooksReady(page)
       await inspect?.('the card for the dark look')
       await shoot('kuna-chat-theme')
       await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')

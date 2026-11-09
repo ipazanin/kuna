@@ -24,7 +24,7 @@ export const hr: Translation<typeof en> = {
   saving: 'Spremanje…',
   confirmedRowMoves: 'Ovaj ste redak potvrdili. Ova ga promjena razvrstava u drugu kategoriju.',
   proposalUndoEnded: 'Poništavanje je isteklo jer je u međuvremenu promijenjeno nešto drugo.',
-  proposalChangedOnAccept: 'Ništa nije upisano. Promjena više ne bi bila ona s ove kartice. Pitajte chat ponovno.',
+  proposalChangedOnAccept: 'Ništa nije upisano. Promjena više ne bi bila ona s ove kartice. Pitajte ponovno u razgovoru.',
 }
 
 /** The maker's name and contact read the same in both languages. */

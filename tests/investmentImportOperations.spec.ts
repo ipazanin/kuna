@@ -5,6 +5,7 @@ import { words as mailWords } from '../src/apps/investments/mail/presentation/wo
 import { words as pricesWords } from '../src/apps/investments/prices/presentation/words'
 import { words } from '../src/apps/investments/assistant/words'
 import { emptyPricesFile } from '../src/apps/investments/prices/domain/pricesFile'
+import { INVESTMENTS_PRICES_ROUTE } from '../src/apps/investments/overview/presentation/investmentLinks'
 import { plural } from '../src/shared/text/translation'
 import { NOT_READ_OFF_A_PAGE } from '../src/shared/app/operationInput'
 import { decimalText } from '../src/shared/money/decimal'
@@ -217,13 +218,14 @@ describe('prices', () => {
     expect(desk.runs.asked).toEqual(['now'])
   })
 
-  it('warns of the series a fetch got nothing for, as the Prices tab does', async () => {
+  it('warns of the series a fetch got nothing for, as the Prices tab does, and links Settings, Prices', async () => {
     const desk = await investmentsDesk(used)
     desk.runs.answer = { kind: 'written', file: { ...emptyPricesFile(), failures: [{ series: 'twelvedata:SHARE', day: '2026-11-07', reason: 'unknown-symbol' }] } }
     await desk.propose([{ op: 'fetch-prices', input: {} }])
     const result = await desk.accept()
     expect(result).toMatchObject({ kind: 'done', undo: null })
-    expect(result.kind === 'done' && result.warning).toContain(plural(pricesWords.failures.title(1), 1))
+    expect(result.kind === 'done' && result.warning?.text).toContain(plural(pricesWords.failures.title(1), 1))
+    expect(result.kind === 'done' && result.warning?.link?.to).toBe(INVESTMENTS_PRICES_ROUTE)
   })
 
   it("says why a run wrote nothing, in the Prices tab's words", async () => {

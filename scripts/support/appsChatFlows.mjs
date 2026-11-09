@@ -1,6 +1,6 @@
 import { en as investmentsEnglish, hr as investmentsCroatian } from '../../src/apps/investments/words.ts'
 import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/assistant/words.ts'
-import { allowIfAsked, forgetAssist, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
+import { acceptLooksReady, allowIfAsked, forgetAssist, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
 import { ASSIST_WORDS, elementSays } from './editorFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 
@@ -144,6 +144,7 @@ export function appChatCardFlowIn(language, card, files = {}) {
       const proposed = await proposedCard(page, 1, `the chat proposed no card for "${PROMPTS[card].en}"`)
       await shape.shows?.(page, proposed, language)
       await delay(300)
+      await acceptLooksReady(page)
       await inspect?.(`the card for "${PROMPTS[card].en}"`)
       await shoot(shape.name)
       if (shape.accept) await acceptAndUndo(page, press, language, shoot, inspect, shape.name)

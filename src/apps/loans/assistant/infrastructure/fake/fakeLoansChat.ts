@@ -25,7 +25,7 @@ const ANSWERS = {
 
 type Says = (typeof ANSWERS)['en']
 
-/** The made-up offer of the document fixtures, as a model would transcribe it, whose printed EKS Kuna's estimate does not match. */
+/** The made-up offer of the document fixtures, as a model would transcribe it, fixed for five years and variable after, whose printed EKS Kuna's estimate does not match. */
 function offerInput(): Readonly<Record<string, unknown>> {
   return {
     name: '',
@@ -38,8 +38,8 @@ function offerInput(): Readonly<Record<string, unknown>> {
     firstInstalment: null,
     interimAmount: null,
     interimDate: null,
-    fixedYears: null,
-    thenVariable: null,
+    fixedYears: 5,
+    thenVariable: '3.9',
     subsidyMonthly: null,
     subsidyPayer: '',
     subsidyFirstInstalment: null,

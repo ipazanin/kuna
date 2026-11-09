@@ -209,7 +209,7 @@ export const hr: Translation<typeof en> = {
     keepNoAccess: 'Kuna sada na ovom uređaju ne može doći do Drivea, pa ništa nije spremljeno. Dodajte fiskalni račun na zaslonu Unosi nakon sinkronizacije.',
     photoStays: 'Fotografija ostaje u mapi Receipts na Driveu i nakon poništavanja.',
   },
-  statementRead: (account, from, to) => `${account}, izvod pročitan u chatu, od ${from} do ${to}`,
+  statementRead: (account, from, to) => `${account}, izvod pročitan u razgovoru, od ${from} do ${to}`,
   sheetNotRead: 'Kuna tu datoteku ne može pročitati kao izvoz iz Revoluta.',
   quickActions: {
     sort: { label: 'Razvrstaj ono što čeka', prompt: 'Razvrstaj retke koji čekaju na kartici Za pregled i predloži pravila gdje se isti primatelj ponavlja.' },
@@ -249,7 +249,7 @@ export const hr: Translation<typeof en> = {
       body: (labels) =>
         [
           `Na zaslonu ${labels.entries}, na kartici ${labels.import} ispustite izvoz iz Revoluta, kao datoteku .xlsx ili .csv. Za druge banke ovdje još nema čitača datoteka, a njihovi retci dolaze sinkronizacijom s bankom.`,
-          'U chatu priložite datoteku iz Revoluta ili zalijepite izvod bilo koje banke, ili ga priložite kao PDF ili fotografiju. Chat čita retke kako su ispisani i uvozi ih samo ako se od početnog stanja zbrajaju do završnog.',
+          'U razgovoru priložite datoteku iz Revoluta ili zalijepite izvod bilo koje banke, ili ga priložite kao PDF ili fotografiju. Razgovor čita retke kako su ispisani i uvozi ih samo ako se od početnog stanja zbrajaju do završnog.',
           'Kuna najprije pokaže što bi datoteka učinila i ne zapisuje ništa dok je ne uvezete. Uvoz možete poništiti iz poruke koja slijedi.',
           `Retci koje nijedno pravilo ne razvrsta zatim čekaju na kartici ${labels.review}.`,
         ].join('\n'),

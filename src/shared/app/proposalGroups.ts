@@ -10,8 +10,8 @@ export type ProposedRecord = Readonly<Record<string, unknown>>
 export interface ProposalDescriber {
   /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
   readonly keptByKuna: ReadonlySet<string>
-  /** A field's name on the card. */
-  fieldName(field: string): string
+  /** A field's name on the card, which may depend on the record, as it will be held or as it was for a removal. */
+  fieldName(field: string, record: ProposedRecord): string
   /** A value as a person reads it on screen, or null for none. */
   shown(kind: RecordKind<unknown>, field: string, record: ProposedRecord): string | null
   /** What the record is called on screen, or the write's own label when the app has no better one. */
@@ -25,12 +25,12 @@ export interface ProposalDescriber {
 function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallback: string, before: ProposedRecord | null, after: ProposedRecord | null): ProposalLine {
   const names = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter((field) => !describer.keptByKuna.has(field))
   const altered = before !== null && after !== null ? names.filter((field) => JSON.stringify(before[field]) !== JSON.stringify(after[field])) : after !== null ? names : []
+  const shown = after ?? before
   const fields = altered.flatMap((field): ProposalField[] => {
     const was = before === null ? null : describer.shown(kind, field, before)
     const will = after === null ? null : describer.shown(kind, field, after)
-    return was === null && will === null ? [] : [{ name: describer.fieldName(field), before: was, after: will, warns: describer.warns(kind, field, after, before) }]
+    return was === null && will === null ? [] : [{ name: describer.fieldName(field, shown ?? {}), before: was, after: will, warns: describer.warns(kind, field, after, before) }]
   })
-  const shown = after ?? before
   const movesConfirmed = before !== null && after !== null && describer.movesConfirmed?.(kind, before, after) === true
   return {
     label: shown === null ? fallback : describer.label(kind, shown, fallback),

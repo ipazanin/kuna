@@ -84,7 +84,7 @@ function investmentsWork(ports: InvestmentsPorts): ProposalWork<InvestmentsBooks
       last = planned(unit, books, steps, ports)
     },
     groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook.book, last.notes),
-    outside: () => last.fetches.map(words.proposals.pricesFetched),
+    outside: () => (last.fetches.length === 0 ? [] : [words.proposals.pricesFetched([...new Set(last.fetches)])]),
     overLimit: importTooLarge,
   }
 }

@@ -2781,9 +2781,9 @@ const SOURCE_SCREENS = [
     hash: '#/spending/transactions',
     title: 'Entries',
     charts: 0,
-    ready: '[data-testid="spending-receipt-to-chat"]',
+    ready: '[data-testid="spending-add-receipt"][aria-haspopup="menu"]',
     stored: { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY },
-    shows: ['Add a receipt', 'Read a receipt in the chat'],
+    shows: ['Add a receipt', 'Add an entry'],
     cards: false,
   },
   {
@@ -2792,9 +2792,9 @@ const SOURCE_SCREENS = [
     hash: '#/spending/transactions',
     title: 'Unosi',
     charts: 0,
-    ready: '[data-testid="spending-receipt-to-chat"]',
+    ready: '[data-testid="spending-add-receipt"][aria-haspopup="menu"]',
     stored: { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY },
-    shows: ['Dodaj fiskalni račun', 'Pročitaj fiskalni račun u chatu'],
+    shows: ['Dodaj fiskalni račun', 'Dodaj unos'],
     cards: false,
   },
   {

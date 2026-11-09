@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
-import { KEPT_BY_KUNA } from '../src/apps/loans/assistant/operations/proposalLines'
+import { KEPT_BY_KUNA, proposalFieldName } from '../src/apps/loans/assistant/operations/proposalLines'
 import { words } from '../src/apps/loans/assistant/words'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
 import { EXAMPLE_RECORDS, loansDesk } from './fixtures/loansDesk'
@@ -38,7 +38,7 @@ function said(value: unknown): unknown {
 function namesSet(before: Readonly<Record<string, unknown>> | null, after: Readonly<Record<string, unknown>>): string[] {
   const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field))
   const altered = fields.filter((field) => JSON.stringify(said(before?.[field])) !== JSON.stringify(said(after[field])))
-  return altered.filter((field) => said(after[field]) !== null || said(before?.[field]) !== null).map((field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field)
+  return altered.filter((field) => said(after[field]) !== null || said(before?.[field]) !== null).map((field) => proposalFieldName(field, after))
 }
 
 /** The add-offer example with other terms, as an offer the document fixtures print. */
@@ -86,7 +86,7 @@ describe('an offer from the bank', () => {
     await desk.propose([{ op: 'add-offer', input: printedOffer('2.28') }])
     const [line] = desk.cards[0]!.groups.find((group) => group.verb === 'add' && group.lines.some((candidate) => candidate.warning !== null))!.lines
     expect(line!.warning).toContain('2.28')
-    expect(line!.warning).toContain(', 1 point apart.')
+    expect(line!.warning).toContain('3.28%')
     expect(line!.fields.map((field) => field.name)).toEqual(expect.arrayContaining([words.proposals.fields.kunaEks, words.proposals.fields.bankEks]))
   })
 

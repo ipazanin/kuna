@@ -52,6 +52,23 @@ export async function sendInChat(page, press, text) {
   await pressSelector(page, press, '[data-testid="chat-send"]')
 }
 
+/**
+ * Moves the pointer off the page, where a press may have left it over Accept, waits until Accept's colour has settled,
+ * and checks that every open card's Accept is neither disabled nor hovered, so a screenshot never catches it faded.
+ */
+export async function acceptLooksReady(page) {
+  await page.mouse.move(0, 0)
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('[data-testid="chat-proposal-accept"]')].every((button) => button.getAnimations().length === 0), { timeout: 5_000 })
+    .catch(() => {
+      throw new Error("a card's Accept is still changing colour")
+    })
+  const faded = await page.$$eval('[data-testid="chat-proposal"][data-state="open"] [data-testid="chat-proposal-accept"]', (buttons) =>
+    buttons.flatMap((button) => [...(button.disabled ? ['disabled'] : []), ...(button.matches(':hover') ? ['hovered'] : [])]),
+  )
+  if (faded.length > 0) throw new Error(`a card's Accept shows ${faded.join(' and ')} just before the screenshot`)
+}
+
 /** Allows the read when the chat asks first, and goes on when it does not ask within five seconds. */
 export async function allowIfAsked(page, press) {
   const allow = await page.waitForSelector('[data-testid="chat-allow"]', { visible: true, timeout: 5_000 }).catch(() => null)
