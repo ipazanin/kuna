@@ -281,7 +281,7 @@ describe('the year-end tab', () => {
     expect(problemsOn(workbook, 'year-end')).toEqual([
       ['last year pl sales', 'year "last year" is not a year'],
       ['2025 notes sales', '"notes" is not a statement. Use pl, balance, tax, distribution, grant, konto'],
-      ['2025 pl turnover', '"turnover" is not a line of pl'],
+      ['2025 pl turnover', expect.stringContaining('"turnover" is not a line of pl, which has sales, own-use')],
       ['2025 konto', 'no konto number in line'],
       ['2025 tax rate', 'amount 10 reads as 1,000%. Enter the rate as a percentage cell, such as 10%'],
       ['2025 tax paid-on', 'amount "April" is not a date cell, and this line is a date'],

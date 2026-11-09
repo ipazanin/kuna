@@ -93,6 +93,7 @@ export const en = {
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row left out', other: `${count} rows left out` }),
     workbook: { label: 'Portfolio workbook', place: 'Import on the Overview' },
     mailReport: { label: 'IBKR report by mail', place: 'the review on Settings, General' },
+    flexReport: { label: 'IBKR report file', place: 'Upload a report on Settings, General' },
     fields: {
       name: 'Name',
       note: 'Note',
@@ -237,6 +238,7 @@ export const hr: Translation<typeof en> = {
     rowsLeftOut: (count): CroatianForms => ({ one: `${count} izostavljen redak`, few: `${count} izostavljena retka`, other: `${count} izostavljenih redaka` }),
     workbook: { label: 'Radna knjiga portfelja', place: 'Uvoz na Pregledu' },
     mailReport: { label: 'Izvješće IBKR-a poštom', place: 'pregled u Postavkama, Općenito' },
+    flexReport: { label: 'Datoteka izvješća IBKR-a', place: 'Učitaj izvješće u Postavkama, Općenito' },
     fields: {
       name: 'Naziv',
       note: 'Bilješka',

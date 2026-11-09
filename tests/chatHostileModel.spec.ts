@@ -156,6 +156,10 @@ describe('a chat run by a hostile model', () => {
     expect(CHAT_TOOLS.map((tool) => tool.name)).toEqual(['kuna_docs', 'show_screen', 'find_records', 'get_record', 'read_figures', 'propose_changes', 'read_attachment', 'read_build_up'])
   })
 
+  it('gives each of the eight tools a title and marks it read-only, as none of them writes', () => {
+    expect(CHAT_TOOLS.filter((tool) => tool.title.trim() === '' || !tool.readOnly).map((tool) => tool.name)).toEqual([])
+  })
+
   it.each(HOSTILE_PATHS)('opens no page at %j and repeats nothing of it', async (path) => {
     const answer = await runChatTool(tools(), call('kuna_docs', { path }))
     expect(answer.isError).toBe(true)

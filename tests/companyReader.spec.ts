@@ -70,12 +70,20 @@ describe("what the chat reads of the company's books", () => {
     expect(kind(coreKinds.CLIENT_RECORDS.name).fields.find((field) => field.name === 'invoiceMail')?.exposure).toBe('never')
   })
 
-  it('says who filed a row as person, rule or ai, so the review label never leaves', () => {
+  it('says who filed a row as person, rule or no-rule, so the review label never leaves', () => {
     const labelled = { ...BOOKS, workbook: { ...BOOKS.workbook, transactions: BOOKS.workbook.transactions.map((row, index) => (index === 0 ? { ...row, flaggedBy: 'Ivo Ivić' } : row)) } }
     const rows = companyReaderOf(labelled).kinds[0]!.rows()
     const filedBy = new Set(rows.flatMap((row) => row.fields.filter((field) => field.name === 'filedBy').map((field) => ('value' in field ? field.value : null))))
-    expect([...filedBy].every((value) => ['person', 'rule', 'ai', ''].includes(String(value)))).toBe(true)
+    expect([...filedBy].every((value) => ['person', 'rule', 'no-rule', ''].includes(String(value)))).toBe(true)
+    expect(filedBy).toContain('no-rule')
     expect(JSON.stringify(rows)).not.toContain('Ivo Ivić')
+  })
+
+  it('tells the chat a row the categoriser left as ai waits because no rule filed it, and that no AI filed it', () => {
+    const meaning = kind(coreKinds.LEDGER_RECORDS.name).fields.find((field) => field.name === 'filedBy')!.meaning
+
+    expect(meaning).toContain('no-rule when no rule settled it')
+    expect(meaning).toContain('No AI filed it')
   })
 
   it('holds the rows waiting on To review in its waiting set', () => {

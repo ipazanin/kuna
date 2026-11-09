@@ -43,7 +43,7 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
   const input = parsed(step.input)
   if (input === null) return `The input of ${operation.name} is not a JSON object.`
   const problems = schemaProblems(input, operation.input)
-  if (problems.length > 0) return `${operation.name}: ${problems.join('. ')}`
+  if (problems.length > 0) return `${operation.name}: ${problems.join('. ')}. Its page ${app}/op/${operation.name} shows its input and an example that works.`
   /** The id a ref stands for, a `$` name as it is, or null for neither. */
   const idOf = (value: unknown, kind: string): string | null => {
     if (typeof value === 'string' && names.has(value)) return value

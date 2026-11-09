@@ -8,7 +8,11 @@ import { categoryColourOf, isPaletteColour } from '../src/apps/company/workbook/
 import { readCategories } from '../src/apps/company/workbook/domain/categoriesReading'
 import { CATEGORY_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { storedOf } from '../src/shared/storage/domain/recordsRead'
+import { SWATCHES } from '../src/shared/charts/swatches'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
+
+/** The palette's codes, which a refused colour lists. */
+const CODES = SWATCHES.map((swatch) => swatch.hex).join(', ')
 import { recordsOfRows, spreadsheetTabOfKind } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 import { addRows as add, editRow as edit } from './fixtures/recordWrites'
 import { browserHarness, forgetCaches, driveHarness, workbookGrids } from './fixtures/writeBack'
@@ -62,8 +66,8 @@ describe('CategoryColour', () => {
         { before: null, after: { ...cells('blue'), slug: 'paper' } },
       ]),
     ).toEqual([
-      '"equipment" takes one of the nine colours of the palette, or none for its bucket\'s colour, not "#12345".',
-      '"paper" takes one of the nine colours of the palette, or none for its bucket\'s colour, not "blue".',
+      `"equipment" takes one of the nine colours of the palette, ${CODES}, or none for its bucket's colour, not "#12345".`,
+      `"paper" takes one of the nine colours of the palette, ${CODES}, or none for its bucket's colour, not "blue".`,
     ])
     expect(
       categoryColourRefusals([

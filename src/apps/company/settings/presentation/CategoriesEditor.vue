@@ -24,6 +24,7 @@ import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { classOf } from '../domain/categoryClasses'
 import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, keepsItsName, pickedColour, rolesOfText } from '../domain/categoryDrafts'
 import { categoryClassMessages } from './categoryClassMessages'
+import { vatTreatmentLabel } from './vatTreatmentLabel'
 import type { CategoryDraft } from '../domain/categoryDrafts'
 import { NO_FILTERS, categoryListing, matchesFilters } from '../domain/categoryListing'
 import type { CategoryFilters, CategorySort, CategorySortColumn } from '../domain/categoryListing'
@@ -61,7 +62,7 @@ const dirty = computed(() => JSON.stringify(drafts.value) !== JSON.stringify(bas
 const classMessages = computed(() =>
   categoryClassMessages(drafts.value, baseline.value, props.classes, {
     className: (role) => props.classHelp(role)?.name ?? role,
-    treatment: vatLabel,
+    treatment: vatTreatmentLabel,
     bucket: words.categories.bucketChoice,
   }),
 )
@@ -154,11 +155,7 @@ function bucketItems(draft: CategoryDraft, taxClass: CategoryClass | null): { va
 /** The VAT treatments the row's class allows, or all of them while it has none. */
 function vatItems(draft: CategoryDraft, taxClass: CategoryClass | null): { value: string; label: string }[] {
   const allowed: readonly VatTreatment[] = taxClass?.vat ?? VAT_TREATMENTS
-  return withValue(allowed, draft.vat.trim().toLowerCase() || 'none').map((treatment) => ({ value: treatment, label: vatLabel(treatment) }))
-}
-
-function vatLabel(treatment: string): string {
-  return Object.entries(words.categories.vatTreatments).find(([value]) => value === treatment)?.[1] ?? treatment
+  return withValue(allowed, draft.vat.trim().toLowerCase() || 'none').map((treatment) => ({ value: treatment, label: vatTreatmentLabel(treatment) }))
 }
 
 /** Gives the row the class in place of any other, keeping its other roles, and the one VAT treatment a class with one allows. */

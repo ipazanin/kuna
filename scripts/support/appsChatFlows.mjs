@@ -14,6 +14,7 @@ const PROMPTS = {
   buy: { en: 'Buy one unit of my first instrument', hr: 'Kupi jednu jedinicu mog prvog instrumenta' },
   sell: { en: 'Sell a million units of it', hr: 'Prodaj milijun jedinica toga' },
   workbook: { en: 'Import this portfolio workbook', hr: 'Uvezi ovu radnu knjigu portfelja' },
+  report: { en: 'Import the new transactions from this report', hr: 'Uvezi nove transakcije iz ovog izvješća' },
   valuation: { en: 'Valuation of my newest asset at 210,000 today', hr: 'Procjena moje najnovije imovine na 210.000 danas' },
 }
 
@@ -108,6 +109,14 @@ const CARDS = {
       await elementSays(page, '[data-testid="chat-proposal"]', WORKBOOK_IMPORT[language], "the import card does not add the workbook's four accounts in 23 changes")
     },
   },
+  report: {
+    name: 'investments-chat-flex-report',
+    attach: 'flexReport',
+    accept: true,
+    shows: async (page) => {
+      await elementSays(page, '[data-testid="chat-proposal"]', ['552'], "the import card does not show the report's conversions of 552 USD")
+    },
+  },
   valuation: {
     name: 'assets-chat-valuation',
     accept: true,
@@ -129,8 +138,8 @@ async function attachToChat(page, path) {
 /**
  * A chat in Loans, Investments or Assets with a made-up key kept: a loan offer is a card that sets Kuna's EKS beside the
  * printed one and warns where they differ, an extra payment on a bank loan, a buy of one unit and an Assets valuation are
- * cards with one Undo, a sale over the units held is refused, and an attached portfolio workbook, which Kuna reads itself,
- * becomes an import card with Undo. `files` holds the paths a card puts on the prompt.
+ * cards with one Undo, a sale over the units held is refused, and an attached portfolio workbook or IBKR Flex report,
+ * which Kuna reads itself, becomes an import card with Undo. `files` holds the paths a card puts on the prompt.
  */
 export function appChatCardFlowIn(language, card, files = {}) {
   const shape = CARDS[card]

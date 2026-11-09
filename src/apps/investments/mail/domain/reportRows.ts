@@ -4,6 +4,7 @@ import type { WorkbookRow, WorkbookType } from '../../imports/domain/portfolioWo
 import { reportRowKey } from '../../imports/domain/reportKey'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { words } from './words'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, addDecimal, magnitude, negateDecimal, roundedDecimal, subtractDecimal } from '../../../../shared/money/decimal'
@@ -174,4 +175,21 @@ export function reportRows(recipe: Recipe, files: readonly ReportFile[], reader:
       beforeStart: rows.size - inPeriod.length + asked.size - askedInPeriod.length,
     },
   }
+}
+
+/** The earliest day a report's rows or questions are dated, or null for a report with none. */
+export function firstReportDay(file: ReportFile): CivilDate | null {
+  const days = [...file.run.rows, ...file.run.asked].flatMap((row) => (row.dates.date === null || row.dates.date === undefined ? [] : [row.dates.date]))
+  return days.length === 0 ? null : days.reduce((first, day) => (day < first ? day : first))
+}
+
+/** A start day before any broker's report, so an uploaded report is read from its first row. */
+const BEFORE_ANY_REPORT = parseCivilDate('1900-01-01')!
+
+/**
+ * The rows of one report the person uploaded. The reader's first day does not apply, so every row not already in Kuna
+ * counts, and only the questions the person said to stop asking are left out.
+ */
+export function uploadedReportRows(recipe: Recipe, file: ReportFile, reader: Pick<MailReader, 'leftOut'> | null): WorkbookRows {
+  return reportRows(recipe, [file], { since: BEFORE_ANY_REPORT, leftOut: reader?.leftOut ?? [] })
 }

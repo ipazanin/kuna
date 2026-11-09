@@ -25,6 +25,16 @@ describe('the figures an answer writes', () => {
     expect(stray('The rate is 13%.')).toBe(true)
   })
 
+  it.each([
+    'The row from RK "CETINA RAFT (HR7323600001102926207) on 2026-10-14 € 4.224,00 waits.',
+    'RK "CETINA RAFT (HR73 2360 0001 1029 2620 7) EUR 4224 waits.',
+    'RK "CETINA RAFT, OIB 12345678903 EUR 4224, waits.',
+    'Poziv na broj HR00 2026-0142 € 4.224,00.',
+    'Plaćeno 14. 10. 2026. € 4.224,00.',
+  ])('reads no figure in the digits of an IBAN, an OIB, a reference or a date: %s', (text) => {
+    expect(stray(text)).toBe(false)
+  })
+
   it('leaves years, days, dates and counts alone', () => {
     expect(figuresIn('In 2026, by 30.10.2026. or 2026-10-30, for 12 months and 3 employees.')).toEqual([])
   })

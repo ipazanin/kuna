@@ -16,6 +16,10 @@ const ANSWERS = {
     ruleTitle: 'A rule for Laptop Store',
     rule: 'The card adds the rule and files the Laptop Store rows you confirmed under Equipment under Office supplies instead. Each of their lines is warned, since you filed them yourself.',
     noCategory: 'I found no category for office supplies. Add one on Settings, Categories first.',
+    categoryTitle: 'Add a category for training',
+    trainingLabel: 'Training',
+    trainingFamily: 'operating',
+    category: 'The card adds Training to the operating costs. Kuna counts it as a cost the profit tax allows, and its VAT is deducted.',
     noBuildUp: 'Tag a figure with its ask button first, and I will read how Kuna built it.',
     explained: (label: string, amount: string, steps: string) => `${label} is ${amount}. Kuna builds it from ${steps}. The link opens the tax rule it rests on.`,
     keptByAnonymise:
@@ -32,6 +36,10 @@ const ANSWERS = {
     ruleTitle: 'Pravilo za Laptop Store',
     rule: 'Kartica dodaje pravilo i stavke Laptop Store koje ste potvrdili pod Opremom razvrstava pod Uredski materijal. Svaki njihov redak je označen jer ste ih sami razvrstali.',
     noCategory: 'Nisam našao kategoriju za uredski materijal. Najprije je dodajte na Postavkama, Kategorije.',
+    categoryTitle: 'Dodaj kategoriju za edukaciju',
+    trainingLabel: 'Edukacija',
+    trainingFamily: 'poslovanje',
+    category: 'Kartica dodaje Edukaciju među troškove poslovanja. Kuna je broji kao trošak koji porez na dobit priznaje, a PDV se odbija.',
     noBuildUp: 'Najprije označite iznos njegovim gumbom za pitanje, pa ću pročitati kako ga je Kuna izračunala.',
     explained: (label: string, amount: string, steps: string) => `${label} iznosi ${amount}. Kuna ga računa iz ${steps}. Poveznica otvara porezno pravilo na kojem počiva.`,
     keptByAnonymise:
@@ -132,6 +140,25 @@ function ruleReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   return answered(request, says.rule, tokens)
 }
 
+/** Proposes a new operating category for training with its tax class, a cost the profit tax allows, and VAT deducted at the full rate. */
+function categoryReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) {
+    const input = {
+      category: 'training',
+      label: says.trainingLabel,
+      family: says.trainingFamily,
+      bucket: 'operating',
+      taxClass: 'deductible-cost',
+      roles: [],
+      vat: 'deductible-25',
+      ownerShare: '',
+    }
+    return lookup(0, 'propose_changes', { app: 'company', title: says.categoryTitle, steps: [{ op: 'add-category', input: JSON.stringify(input), as: null }] }, tokens)
+  }
+  return answered(request, says.category, tokens)
+}
+
 interface ReadStep {
   readonly label: string
   readonly amount: string
@@ -157,7 +184,8 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
 /**
  * Company's part of the fake chat, only while the person is on a Company screen: one that asks to suggest categories or sort
  * reads the rows waiting and files the sure ones, one about an invoice links the Invoices tab, one about dollars proposes the
- * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, and one that asks to explain reads the tagged build-up.
+ * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one about training proposes a category with its tax
+ * class, and one that asks to explain reads the tagged build-up.
  */
 function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (!inCompany(turn.request)) return null
@@ -167,6 +195,7 @@ function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (/invoice|faktur/i.test(typed)) return invoiceReply(turn, says)
   if (/dollar|dolar/i.test(typed)) return currencyReply(turn, says)
   if (/laptop store/i.test(typed)) return ruleReply(turn, says)
+  if (/training|edukacij/i.test(typed)) return categoryReply(turn, says)
   if (/explain|objasni/i.test(typed)) return buildUpReply(turn, says)
   return null
 }

@@ -8,12 +8,21 @@ import type { Decimal } from '../../../../shared/money/decimal'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
+import { REGIONS, countryOf } from '../../workbook/domain/mixGroup'
+import type { Country } from '../../workbook/domain/mixGroup'
 
 /** A decimal as the model writes it: text with a point and no grouping, so 1.234 never reads as a thousand in Croatian. */
 export const DECIMAL: StrictSchema = { type: 'string', description: 'An exact decimal with a point and no grouping, such as 12.5.' }
 export const DECIMAL_OR_NULL: StrictSchema = { type: ['string', 'null'], description: 'An exact decimal with a point and no grouping, such as 12.5, "" for none, or null to leave it.' }
 
 /** The decimal a step names, or a refusal that says how to write one. */
+/** The country or region a step names, refused with the regions when it is neither. */
+export function countryOfStep(text: string, field: string): Country {
+  const country = countryOf(text)
+  if (country === null) throw new StepRefused(`${field} is a country code such as US, or a region: ${REGIONS.join(', ')}.`)
+  return country
+}
+
 export function decimalOf(text: string, field: string): Decimal {
   const value = decimalOfText(text.trim())
   if (value === null) throw new StepRefused(`${field} is a decimal with a point and no grouping, such as 12.5.`)

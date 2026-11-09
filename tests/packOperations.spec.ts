@@ -292,6 +292,14 @@ describe('what the write check refuses for the chat as for the screens', () => {
     expect(desk.cards).toEqual([])
   })
 
+  it('refuses a year-end line its statement lacks by naming the lines it has', async () => {
+    const desk = await packDesk()
+
+    const answer = await desk.propose([{ op: 'add-year-end-line', input: editorRow('add-year-end-line', { year: '2026', statement: 'pl', line: 'made-up', amount: '5' }) }])
+
+    expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('"made-up" is not a line of pl, which has sales, own-use') })
+  })
+
   it('refuses a year-end line under a year, statement and line another line holds', async () => {
     const desk = await packDesk()
     const [line] = recordsOfKind(desk, YEAR_END_RECORDS)

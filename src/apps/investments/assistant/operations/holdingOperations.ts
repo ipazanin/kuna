@@ -8,7 +8,7 @@ import { CHECKS, CHECK_DEFAULTS } from '../../workbook/domain/checkSetting'
 import type { CheckName } from '../../workbook/domain/checkSetting'
 import { HUNDRED_PERCENT, fitsPercent } from '../../workbook/domain/investmentFields'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from '../../workbook/domain/investmentKinds'
-import { CLASS_GROUPS, MIXES, SECTORS, countryOf } from '../../workbook/domain/mixGroup'
+import { CLASS_GROUPS, MIXES, REGIONS, SECTORS } from '../../workbook/domain/mixGroup'
 import type { Mix, MixGroup } from '../../workbook/domain/mixGroup'
 import type { Target } from '../../workbook/domain/target'
 import { FLAG_OR_NULL, TEXT_OR_NULL, choiceOf, found, inputOf } from '../../../../shared/app/operationInput'
@@ -16,7 +16,7 @@ import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { DECIMAL, DECIMAL_OR_NULL, decimalOf, unchanged } from './investmentSteps'
+import { DECIMAL, DECIMAL_OR_NULL, countryOfStep, decimalOf, unchanged } from './investmentSteps'
 import type { CardBooks, InvestmentSteps } from './investmentSteps'
 
 /** One line of the targets as the model writes it: a group of the mix, or an account for the account mix, and its percent. */
@@ -49,9 +49,7 @@ function groupOf(mix: Mix, line: TargetLine, card: CardBooks, at: number): MixGr
       return { mix, group }
     }
     case 'country': {
-      const group = countryOf(text)
-      if (group === null) throw new StepRefused(`${field}.group is a country code such as US, or a region: world, europe, north-america, asia-pacific, emerging-markets.`)
-      return { mix, group }
+      return { mix, group: countryOfStep(text, `${field}.group`) }
     }
   }
 }
@@ -87,7 +85,10 @@ export const HOLDING_STEPS: InvestmentSteps = {
         targets: {
           type: 'array',
           items: inputOf({
-            group: { type: ['string', 'null'], description: `A class (${CLASS_GROUPS.join(', ')}), a sector, a currency code such as USD, or a country code or region. Null for the account mix.` },
+            group: {
+              type: ['string', 'null'],
+              description: `A class (${CLASS_GROUPS.join(', ')}), a sector (${SECTORS.join(', ')}), a currency code such as USD, or a country code such as US or a region (${REGIONS.join(', ')}). Null for the account mix.`,
+            },
             account: { type: ['string', 'null'], description: 'For the account mix, the account by its ref. Null for every other mix.' },
             percent: DECIMAL,
           }),

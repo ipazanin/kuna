@@ -7,18 +7,18 @@ import type { FundMix, FundMixTexts } from '../../holdings/presentation/instrume
 import { FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, PRICE_SOURCES } from '../../workbook/domain/instrument'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { INSTRUMENT_RECORDS } from '../../workbook/domain/investmentKinds'
-import { FUND_MIXES, SECTORS } from '../../workbook/domain/mixGroup'
+import { FUND_MIXES, REGIONS, SECTORS } from '../../workbook/domain/mixGroup'
 import { TEXT, TEXT_OR_NULL, choiceOf, found, inputOf } from '../../../../shared/app/operationInput'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { decimalShown } from '../../../../shared/money/decimal'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { decimalOf, unchanged } from './investmentSteps'
+import { countryOfStep, decimalOf, unchanged } from './investmentSteps'
 import type { CardBooks, InvestmentSteps, StepWritten } from './investmentSteps'
 
 function choices(values: readonly string[], blank: string): StrictSchema {
-  return { type: ['string', 'null'], description: `One of ${values.join(', ')}, ${blank}` }
+  return { type: ['string', 'null'], enum: [...values, '', null], description: `One of these, ${blank}` }
 }
 
 /** One fund's lines of a mix, each a group and its percent of the fund. */
@@ -43,12 +43,12 @@ const INSTRUMENT_FIELDS: Readonly<Record<string, StrictSchema>> = {
   prices: choices(PRICE_SOURCES, 'where its daily closes come from, manual for prices typed by hand, or null to leave it.'),
   sourceSymbol: { type: ['string', 'null'], description: 'Its symbol at the price source, "" for the ticker, or null to leave it.' },
   sector: choices(SECTORS, '"" for none, or null to leave it.'),
-  country: { type: ['string', 'null'], description: 'A country code such as US, or a region: world, europe, north-america, asia-pacific, emerging-markets. "" for none, or null to leave it.' },
+  country: { type: ['string', 'null'], description: `A country code such as US, or a region: ${REGIONS.join(', ')}. "" for none, or null to leave it.` },
   ter: { type: ['string', 'null'], description: 'A fund\'s yearly cost in percent with a point, such as 0.2, "" for none, or null to leave it.' },
   distribution: choices(FUND_DISTRIBUTIONS, 'for a fund only, "" for none, or null to leave it.'),
   note: TEXT_OR_NULL,
   sectors: MIX_LINES(`A sector: ${SECTORS.join(', ')}.`),
-  countries: MIX_LINES('A country code such as US, or a region such as world.'),
+  countries: MIX_LINES(`A country code such as US, or a region: ${REGIONS.join(', ')}.`),
 }
 
 const MIX_FIELDS: Readonly<Record<FundMix, string>> = { sector: 'sectors', country: 'countries' }
@@ -73,11 +73,22 @@ function textsOfStep(before: Instrument | null, field: Readonly<Record<string, u
     prices: (pick('prices', PRICE_SOURCES) || null) ?? texts.prices,
     sourceSymbol: text('sourceSymbol') ?? texts.sourceSymbol,
     sector: pick('sector', SECTORS) ?? texts.sector,
-    country: text('country') ?? texts.country,
+    country: countryText(text('country')) ?? texts.country,
     ter: ter === null ? texts.ter : ter === '' ? '' : decimalShown(decimalOf(ter, 'ter')),
     distribution: pick('distribution', FUND_DISTRIBUTIONS) ?? texts.distribution,
     note: text('note') ?? texts.note,
   }
+}
+
+/** A country a step sets, refused when it is no country code or region, "" for none, or null to keep it. */
+function countryText(text: string | null): string | null {
+  return text === null || text.trim() === '' ? text : countryOfStep(text, 'country')
+}
+
+/** A mix line's group, a sector of the list or a country or region, refused with the accepted values, as the dialog's menus offer only those. A blank one is left to the dialog's own check. */
+function mixGroupOf(mix: FundMix, group: string, field: string): string {
+  if (group === '') return group
+  return mix === 'sector' ? choiceOf(SECTORS, group, field)! : countryOfStep(group, field)
 }
 
 /** The mix lines of the dialog, or the step's lists in their place. */
@@ -85,7 +96,7 @@ function mixTextsOfStep(held: FundMixTexts, field: Readonly<Record<string, unkno
   if (field['mix'] === 'keep') return held
   const of = (mix: FundMix) => {
     const lines = field[MIX_FIELDS[mix]] as readonly { readonly group: string; readonly percent: string }[]
-    return lines.map((line) => mixLineTexts(line.group.trim(), decimalShown(decimalOf(line.percent, `${MIX_FIELDS[mix]}.percent`))))
+    return lines.map((line, at) => mixLineTexts(mixGroupOf(mix, line.group.trim(), `${MIX_FIELDS[mix]}.${at}.group`), decimalShown(decimalOf(line.percent, `${MIX_FIELDS[mix]}.percent`))))
   }
   return { sector: of('sector'), country: of('country') }
 }

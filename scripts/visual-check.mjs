@@ -34,7 +34,8 @@
  * Accept splits the payment with one Undo. The receipt dialog shows no part of the assistant.
  * Company's To review keeps Suggest categories, which opens the chat about the queue and files the sure rows on a card, and an
  * opened row asks about itself. An invoice asked of the chat is a link to the Invoices tab, dollars are a currency card with a
- * warned line, a rule for Laptop Store re-files a confirmed row with a warning, and Kuna's dark look is a card with Undo.
+ * warned line, a rule for Laptop Store re-files a confirmed row with a warning, a category for training is a card that names its
+ * tax class, and Kuna's dark look is a card with Undo.
  * In Loans a loan offer is a card that sets Kuna's EKS beside the printed one and warns where they differ, and an extra
  * payment is a card. In Investments a buy is a card, a sale over the units held is refused, and an attached workbook with no
  * split or spin-off is an import card. In Assets a valuation is a card. Each card is accepted and undone, in Croatian too.
@@ -365,6 +366,7 @@ import {
   investmentsEditorFlow,
   investmentsImportFlowIn,
   investmentsMailCardFlowIn,
+  investmentsMailUploadFlowIn,
   investmentsMailFlowIn,
   loansDriveFlow,
   loansDriveFlowIn,
@@ -472,7 +474,7 @@ import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { MADE_UP_ANTHROPIC_KEY } from './support/chatFlows.mjs'
-import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
+import { writeFlexReportSamples, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
@@ -4691,6 +4693,7 @@ const SPENDING_IMPORT_SAMPLES = writeSpendingImportSamples(SCREENSHOT_DIR)
 const SPENDING_RECEIPT_SAMPLES = writeSpendingReceiptSamples(SCREENSHOT_DIR)
 const CHAT_ATTACHMENT_SAMPLES = await writeChatAttachmentSamples(SCREENSHOT_DIR)
 const WORKBOOK_SAMPLES = await writeWorkbookSamples(SCREENSHOT_DIR)
+const FLEX_REPORT_SAMPLES = writeFlexReportSamples(SCREENSHOT_DIR)
 const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 
 /** The dialog flows run at every width, so the uneven form row rule sees each dialog as every width lays it out. */
@@ -5019,6 +5022,23 @@ const FLOWS = [
     queries: { drive: '&lang=hr' },
   },
   {
+    name: 'company-chat-category',
+    hash: '#/company',
+    title: 'Overview',
+    run: companyChatCardFlowIn('en', 'category'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+  },
+  {
+    name: 'company-chat-category-croatian',
+    hash: '#/company',
+    title: 'Pregled',
+    run: companyChatCardFlowIn('hr', 'category'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
     name: 'kuna-chat-theme',
     hash: '#/',
     title: 'All apps',
@@ -5125,6 +5145,24 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&investments=drive&prices=sample&lang=hr' },
+  },
+  {
+    name: 'investments-chat-flex-report',
+    hash: '#/investments',
+    title: 'Overview',
+    run: appChatCardFlowIn('en', 'report', FLEX_REPORT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-chat-flex-report-croatian',
+    hash: '#/investments',
+    title: 'Pregled',
+    run: appChatCardFlowIn('hr', 'report', FLEX_REPORT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&investments=sample&lang=hr' },
   },
   {
     name: 'assets-chat-valuation',
@@ -6352,6 +6390,24 @@ const FLOWS = [
     viewports: MENU_VIEWPORTS,
     modes: ['drive'],
     queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-mail-upload',
+    hash: '#/investments/settings?tab=general#mail',
+    title: 'Settings',
+    run: investmentsMailUploadFlowIn('en', FLEX_REPORT_SAMPLES),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample' },
+  },
+  {
+    name: 'investments-mail-upload-croatian',
+    hash: '#/investments/settings?tab=general#mail',
+    title: 'Postavke',
+    run: investmentsMailUploadFlowIn('hr', FLEX_REPORT_SAMPLES),
+    viewports: MENU_VIEWPORTS,
+    modes: ['drive'],
+    queries: { drive: '&investments=sample&lang=hr' },
   },
   {
     name: 'investments-mail-card-croatian',

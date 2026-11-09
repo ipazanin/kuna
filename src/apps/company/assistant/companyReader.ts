@@ -194,7 +194,11 @@ const LEDGER_FIELDS: FieldDocs<LedgerRowView> = {
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'Its category, or none while it waits.' },
   family: { exposure: 'plain', meaning: "Its category's family." },
   bucket: { exposure: 'plain', meaning: 'Where profit and loss counts it: income, operating, taxes, owner-pay, financing, neutral or unclassified.' },
-  filedBy: { exposure: 'plain', meaning: 'person, rule or ai for who set its category, or empty when nobody has.' },
+  filedBy: {
+    exposure: 'plain',
+    meaning:
+      'person or rule for who settled its category. no-rule when no rule settled it, so it waits on To review: no rule matched it, or the rule that matched only suggests a category. No AI filed it. Empty when nothing has filed it yet.',
+  },
   waits: { exposure: 'plain', meaning: 'It waits on To review.' },
   reviewReasons: { exposure: 'plain', meaning: 'Why the statement wants a person to look at it, such as reversal.' },
   signals: { exposure: 'plain', meaning: "The bank's codes for the row." },
@@ -278,6 +282,13 @@ function settingOf(key: string, value: string): SettingView {
   return { ...setting, value }
 }
 
+/** Who settled a row's category as the chat reads it. The categoriser's `ai` means no rule settled it, so it reads as no-rule. */
+function filedByOf(flaggedBy: string): string {
+  if (flaggedBy === '') return ''
+  if (isHumanConfirmed({ flaggedBy })) return 'person'
+  return flaggedBy === 'ai' ? 'no-rule' : 'rule'
+}
+
 function ledgerRowOf(row: Workbook['transactions'][number]): LedgerRowView {
   return {
     id: row.id,
@@ -293,7 +304,7 @@ function ledgerRowOf(row: Workbook['transactions'][number]): LedgerRowView {
     category: row.category,
     family: row.family,
     bucket: row.bucket,
-    filedBy: row.flaggedBy === '' ? '' : isHumanConfirmed(row) ? 'person' : row.flaggedBy,
+    filedBy: filedByOf(row.flaggedBy),
     waits: needsReview(row),
     reviewReasons: row.reviewReasons.join(', '),
     signals: Object.values(row.signals)

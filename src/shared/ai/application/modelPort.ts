@@ -34,8 +34,13 @@ export type ModelTurn =
   | { readonly role: 'assistant'; readonly calls: readonly ToolCall[]; readonly raw: unknown }
   | { readonly role: 'tool-results'; readonly results: readonly ({ readonly callId: string } & ToolResult)[] }
 
+/** A tool the model may call. The title and readOnly are Kuna's own and never go to a provider. */
 export interface ModelTool {
   readonly name: string
+  /** The tool's name in a few words, as a person would read it. */
+  readonly title: string
+  /** True when the tool writes nothing to the books or Drive. Every chat tool is, so a change waits on the person's Accept on a card. */
+  readonly readOnly: boolean
   readonly description: string
   readonly input: StrictSchema
 }

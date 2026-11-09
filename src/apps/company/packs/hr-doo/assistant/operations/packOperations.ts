@@ -4,6 +4,7 @@ import type { CompanyBooks } from '../../../../workbook/domain/readWorkbook'
 import { slugProblem } from '../../../../workbook/domain/slug'
 import { draftsOfRecords, fieldsOfDrafts } from '../../../../settings/domain/recordDrafts'
 import type { DraftColumn, DraftFactory } from '../../../../settings/domain/recordDrafts'
+import type { EditorColumn } from '../../../../settings/presentation/factTabColumns'
 import { typedOwnerShare } from '../../../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../../../owner-share/domain/ownerShare'
 import { ownerAdvanceOfDraft } from '../../application/ownerAdvanceWrites'
@@ -54,7 +55,7 @@ const DAY: StrictSchema = { type: 'string', description: 'A day such as 2026-10-
 /** A kind a person keeps in an editor on its screen, which the chat changes one row at a time through the editor's own columns and factory. */
 interface EditorKind<R> {
   readonly rules: WriteRules<R>
-  readonly columns: readonly DraftColumn[]
+  readonly columns: readonly EditorColumn[]
   readonly make: DraftFactory<R>
   /** The record a ref names, as the app read it, by the id the chat reads the kind by. */
   held(read: RecordsRead<R>, id: string): ReadRecord<R> | undefined
@@ -85,9 +86,22 @@ const COLUMN_HINTS: Readonly<Record<DraftColumn['kind'], string>> = {
   'iban-list': 'IBANs separated by commas.',
 }
 
-/** The editor's columns as fields of an operation, each text as the editor takes it. Null leaves a field as it is, and "" blanks it. */
-function columnFields(columns: readonly DraftColumn[]): Readonly<Record<string, StrictSchema>> {
-  return Object.fromEntries(columns.map((column) => [column.name, { type: ['string', 'null'], description: COLUMN_HINTS[column.kind] } satisfies StrictSchema]))
+/**
+ * The editor's columns as fields of an operation, each text as the editor takes it. Null leaves a field as it is, and "" blanks
+ * it. A column whose menu offers a fixed list takes only one of those values.
+ */
+function columnFields(columns: readonly EditorColumn[]): Readonly<Record<string, StrictSchema>> {
+  return Object.fromEntries(
+    columns.map((column): [string, StrictSchema] => {
+      const choices = column.choices?.map((choice) => choice.value) ?? []
+      return [
+        column.name,
+        choices.length === 0
+          ? { type: ['string', 'null'], description: COLUMN_HINTS[column.kind] }
+          : { type: ['string', 'null'], enum: [...choices, '', null], description: 'One of these, "" to blank it, or null to leave it.' },
+      ]
+    }),
+  )
 }
 
 /** An unreadable row of an editor, by its place among the rows Kuna cannot read, as the editor lists them from the top. */

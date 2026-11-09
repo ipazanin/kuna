@@ -10,21 +10,24 @@ import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryUses } from '../.
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { accountDraftErrors, accountDraftsOf, accountsOfDrafts } from '../../settings/domain/accountDrafts'
 import type { AccountDraft } from '../../settings/domain/accountDrafts'
-import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf } from '../../settings/domain/categoryDrafts'
+import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, rolesOfText } from '../../settings/domain/categoryDrafts'
 import type { CategoryDraft } from '../../settings/domain/categoryDrafts'
 import { knownRoles } from '../../settings/domain/categoryGuards'
 import type { MadeDraft } from '../../settings/domain/recordDrafts'
 import { PERSON_PAYEES_KEY, SETTING_DEFINITIONS, readSettingsTab, settingsErrors, unreadSettingKeys } from '../../settings/domain/settings'
 import { IMPORT_PROFILE_PREFIX } from '../../imports/domain/importProfile'
 import { BUCKETS } from '../../workbook/domain/bucket'
+import type { CategoryClass } from '../../workbook/domain/packPart'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, SETTING_RECORDS } from '../../workbook/domain/coreKinds'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
 import { VAT_TREATMENTS } from '../../workbook/domain/vatTreatment'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { FLAG_OR_NULL, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { SWATCHES } from '../../../../shared/charts/swatches'
+import { today } from '../../../../shared/calendar/civilDate'
 import { recordsOf, storedOf } from '../../../../shared/storage/domain/recordsRead'
 import type { StoredRecord } from '../../../../shared/storage/domain/recordsRead'
 
@@ -58,18 +61,55 @@ function proposedKeys(): readonly string[] {
 }
 
 const SHARE_OR_NULL = { type: ['string', 'null'], description: 'A whole number from 0 to 100, "" for none, or null to leave it.' } as const
-const COLOUR_OR_NULL = {
+const COLOUR_OR_NULL: StrictSchema = {
   type: ['string', 'null'],
   description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, or "" for its bucket's colour, or null to leave it.`,
-} as const
-const BUCKET = { type: 'string', enum: [...BUCKETS] } as const
-const BUCKET_OR_NULL = { type: ['string', 'null'], description: `${BUCKETS.join(', ')}, or null to leave it.` } as const
-const VAT = { type: 'string', description: `${VAT_TREATMENTS.join(', ')}, or "" for none.` } as const
-const VAT_OR_NULL = { type: ['string', 'null'], description: `${VAT_TREATMENTS.join(', ')}, "" for none, or null to leave it.` } as const
-const ROLES = { type: 'string', description: 'The roles, comma separated, such as revenue. A tax class the pack knows is one of them.' } as const
-const ROLES_OR_NULL = { type: ['string', 'null'], description: 'The roles, comma separated, "" for none, or null to leave them.' } as const
+}
+const BUCKET: StrictSchema = { type: 'string', enum: [...BUCKETS] }
+const BUCKET_OR_NULL: StrictSchema = { type: ['string', 'null'], enum: [...BUCKETS, null], description: 'Null leaves it.' }
+const VAT: StrictSchema = { type: 'string', enum: [...VAT_TREATMENTS, ''], description: '"" for none.' }
+const VAT_OR_NULL: StrictSchema = { type: ['string', 'null'], enum: [...VAT_TREATMENTS, '', null], description: '"" for none, or null to leave it.' }
 
-function operationsOf(keys: readonly string[]): readonly AssistantOperation[] {
+/** The classes of the installed pack, one of which a category carries among its roles. None means a category needs no class. */
+function packClasses(): readonly CategoryClass[] {
+  return installedPack().workbook?.categoryClasses ?? []
+}
+
+/** The roles a category may carry beside its class: core's and the installed pack's that carry no class. */
+function otherRoles(classes: readonly CategoryClass[]): readonly string[] {
+  const classRoles = new Set(classes.map((taxClass) => taxClass.role))
+  return knownRoles(installedPack().workbook?.categoryRoles ?? []).filter((role) => !classRoles.has(role))
+}
+
+/** Each class by its role, with the name the categories editor gives it and the VAT treatments and buckets it allows. */
+function classesInWords(classes: readonly CategoryClass[]): string {
+  const on = today()
+  return classes
+    .map((taxClass) => `${taxClass.role}: ${installedPack().categoryClassHelp(taxClass.role, on)?.name ?? taxClass.role} (VAT ${taxClass.vat.join(' or ')}, bucket ${taxClass.buckets.join(' or ')}).`)
+    .join(' ')
+}
+
+/** The tax class field, an enum of the pack's classes, each explained as the categories editor names it. None while the pack has no classes. */
+function taxClassField(classes: readonly CategoryClass[], keeps: boolean): Readonly<Record<string, StrictSchema>> {
+  if (classes.length === 0) return {}
+  const roles = classes.map((taxClass) => taxClass.role)
+  const about = `How Kuna counts the category for profit tax and VAT, as Settings, Categories offers it under Counts as. ${classesInWords(classes)}`
+  return { taxClass: keeps ? { type: ['string', 'null'], enum: [...roles, null], description: `${about} Null keeps the class it has.` } : { type: 'string', enum: roles, description: about } }
+}
+
+/** A class an operating category with no VAT may carry, for the example, or null while the pack has none. */
+function exampleClass(classes: readonly CategoryClass[]): string | null {
+  return classes.find((taxClass) => taxClass.buckets.includes('operating') && taxClass.vat.includes('none'))?.role ?? null
+}
+
+function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]): readonly AssistantOperation[] {
+  const exampleTaxClass = exampleClass(classes)
+  const others = otherRoles(classes)
+  const roles: StrictSchema = { type: 'array', items: { type: 'string', enum: others }, description: 'The roles that carry no tax class, or an empty list for none.' }
+  const rolesOrNull: StrictSchema = {
+    type: ['string', 'null'],
+    description: `The roles that carry no tax class, comma separated, from ${others.join(', ')}. "" for none, or null to leave them.`,
+  }
   return [
     {
       name: 'set-setting',
@@ -93,17 +133,26 @@ function operationsOf(keys: readonly string[]): readonly AssistantOperation[] {
     {
       name: 'add-category',
       about:
-        'A new category as Settings, Categories adds it: a short name in lower case with hyphens, a family, a bucket, roles, VAT, and an owner share while owner pay is on. It goes one to a card, and a later card files rows into it.',
-      input: inputOf({ category: TEXT, label: TEXT, family: TEXT, bucket: BUCKET, roles: ROLES, vat: VAT, ownerShare: TEXT }),
+        'A new category as Settings, Categories adds it: a short name in lower case with hyphens, a family, a bucket, its tax class while the pack has classes, the other roles, VAT, and an owner share while owner pay is on. The class decides which VAT and buckets fit. It goes one to a card, and a later card files rows into it.',
+      input: inputOf({ category: TEXT, label: TEXT, family: TEXT, bucket: BUCKET, ...taxClassField(classes, false), roles, vat: VAT, ownerShare: TEXT }),
       refs: {},
       creates: CATEGORY,
       alone: true,
-      example: { category: 'software', label: 'Software', family: 'operating', bucket: 'operating', roles: '', vat: '', ownerShare: '' },
+      example: {
+        category: 'software',
+        label: 'Software',
+        family: 'operating',
+        bucket: 'operating',
+        ...(exampleTaxClass === null ? {} : { taxClass: exampleTaxClass }),
+        roles: [],
+        vat: '',
+        ownerShare: '',
+      },
     },
     {
       name: 'change-category',
       about: [
-        "Changes a category's name on screen, family, bucket, roles, VAT, colour or owner share. A category rows name keeps its short name. Null leaves a field as it is.",
+        "Changes a category's name on screen, family, bucket, tax class, other roles, VAT, colour or owner share. A category rows name keeps its short name. Null leaves a field as it is.",
         'fillRows yes also gives a new owner share to the rows filed in it that hold none, as the categories tab offers on save.',
         'A change of bucket counts its rows elsewhere, such as owner loans as pay or financing.',
       ].join(' '),
@@ -113,7 +162,8 @@ function operationsOf(keys: readonly string[]): readonly AssistantOperation[] {
         label: TEXT_OR_NULL,
         family: TEXT_OR_NULL,
         bucket: BUCKET_OR_NULL,
-        roles: ROLES_OR_NULL,
+        ...taxClassField(classes, true),
+        roles: rolesOrNull,
         vat: VAT_OR_NULL,
         colour: COLOUR_OR_NULL,
         ownerShare: SHARE_OR_NULL,
@@ -122,7 +172,19 @@ function operationsOf(keys: readonly string[]): readonly AssistantOperation[] {
       refs: { category: CATEGORY },
       creates: null,
       alone: false,
-      example: { category: 'category', name: null, label: 'Hardware', family: null, bucket: null, roles: null, vat: null, colour: SWATCHES[0]!.hex, ownerShare: null, fillRows: null },
+      example: {
+        category: 'category',
+        name: null,
+        label: 'Hardware',
+        family: null,
+        bucket: null,
+        ...(classes.length === 0 ? {} : { taxClass: null }),
+        roles: null,
+        vat: null,
+        colour: SWATCHES[0]!.hex,
+        ownerShare: null,
+        fillRows: null,
+      },
     },
     {
       name: 'delete-category',
@@ -204,6 +266,46 @@ function draftAt(drafts: readonly CategoryDraft[], slug: string): number {
   return at
 }
 
+/** Why a category would not count one way, with every class the pack has, so the next step can name one. */
+function noClass(slug: string, classes: readonly CategoryClass[]): StepRefused {
+  return new StepRefused(`Pick how Kuna counts "${slug}" in taxClass, one of these. ${classesInWords(classes)}`)
+}
+
+/**
+ * A category's roles as the categories editor keeps them: its one class first, then the roles that carry none. A class among
+ * the other roles is refused, since taxClass names it. A step that leaves the class as it is keeps the category's own.
+ */
+function rolesWithClass(slug: string, taxClass: string | null | undefined, roles: readonly string[], kept: readonly string[]): string {
+  const classes = packClasses()
+  const classRoles = classes.map((candidate) => candidate.role)
+  const carried = taxClass === null || taxClass === undefined ? kept.filter((role) => classRoles.includes(role)) : [taxClass]
+  if (classes.length > 0 && carried.length === 0) throw noClass(slug, classes)
+  return [...carried, ...roles].join(', ')
+}
+
+/** The roles a change-category step names beside the class, refused with the roles it may name when one is a class or unknown. */
+function stepRoles(text: string): readonly string[] {
+  const classes = packClasses()
+  const roles = rolesOfText(text)
+  const misplaced = roles.filter((role) => classes.some((taxClass) => taxClass.role === role))
+  if (misplaced.length > 0) throw new StepRefused(`roles holds ${misplaced.join(', ')}, a tax class. Name it in taxClass and keep roles for the roles that carry no class.`)
+  const allowed = otherRoles(classes)
+  const unknown = roles.filter((role) => !allowed.includes(role))
+  if (unknown.length > 0) throw new StepRefused(`roles holds ${unknown.join(', ')}, which Kuna does not know. It takes ${allowed.join(', ')}, or "" for none.`)
+  return roles
+}
+
+/** Whether a change-category step sets a field a class constrains, so the category must carry a class after it. */
+function classedFieldsTouched(field: Readonly<Record<string, string | null | undefined>>): boolean {
+  return ['taxClass', 'roles', 'vat', 'bucket'].some((name) => field[name] !== null && field[name] !== undefined)
+}
+
+/** The roles as they were written when the change holds the same ones, so the card shows no change of order. */
+function sameRolesKept(before: string, after: string): string {
+  const sorted = (text: string) => rolesOfText(text).sort().join(',')
+  return sorted(before) === sorted(after) ? before : after
+}
+
 function addCategory(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const slug = String(field['category']).trim().toLowerCase()
@@ -215,7 +317,7 @@ function addCategory(card: CompanyCard, step: ProposalStep): void {
     family: field['family'],
     bucket: field['bucket'],
     colour: '',
-    roles: field['roles'],
+    roles: rolesWithClass(slug, field['taxClass'], field['roles'] as readonly string[], []),
     vat: field['vat'],
     ownerShare: field['ownerShare'],
   }
@@ -231,13 +333,17 @@ function changeCategory(card: CompanyCard, step: ProposalStep): void {
     (drafts) => {
       const at = draftAt(drafts, slug)
       const before = drafts[at]!
+      const keptRoles = rolesOfText(before.roles)
+      const classRoles = new Set(packClasses().map((taxClass) => taxClass.role))
+      const rolesText: string | null = field['roles']
+      const besideClass = rolesText === null ? keptRoles.filter((role) => !classRoles.has(role)) : stepRoles(rolesText)
       const after: CategoryDraft = {
         ...before,
         category: textOrKept(field['name'], before.category),
         label: textOrKept(field['label'], before.label),
         family: textOrKept(field['family'], before.family),
         bucket: textOrKept(field['bucket'], before.bucket),
-        roles: textOrKept(field['roles'], before.roles),
+        roles: classedFieldsTouched(field) ? sameRolesKept(before.roles, rolesWithClass(slug, field['taxClass'], besideClass, keptRoles)) : before.roles,
         vat: textOrKept(field['vat'], before.vat),
         colour: textOrKept(field['colour'], before.colour),
         ownerShare: textOrKept(field['ownerShare'], before.ownerShare),
@@ -362,7 +468,7 @@ const PLANS: Readonly<Record<string, (card: CompanyCard, step: ProposalStep) => 
 /** What the chat can do to Company's settings, categories and accounts, through the settings screens' own drafts and writes. */
 export function settingsOperations(): CompanyOperationSet {
   return {
-    operations: operationsOf(proposedKeys()),
+    operations: operationsOf(proposedKeys(), packClasses()),
     planStep: (card, step) => PLANS[step.operation]!(card, step),
     finish: refuseWhatTheFormsRefuse,
   }

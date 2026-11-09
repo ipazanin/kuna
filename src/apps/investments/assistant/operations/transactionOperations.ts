@@ -21,7 +21,7 @@ import {
   TRANSFER_RECORDS,
 } from '../../workbook/domain/investmentKinds'
 import { TRADE_SIDES } from '../../workbook/domain/trade'
-import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
+import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
@@ -235,14 +235,14 @@ function schemaOf(field: FormField, nullable: boolean): StrictSchema {
   const { shape } = field
   switch (shape.is) {
     case 'choice':
-      return described(nullable ? { type: ['string', 'null'], description: `One of ${shape.choices.join(', ')}, or null to leave it.` } : { type: 'string', enum: shape.choices })
+      return described(nullable ? { type: ['string', 'null'], enum: [...shape.choices, null], description: 'Null leaves it.' } : { type: 'string', enum: shape.choices })
     case 'decimal':
     case 'amount':
       return described(nullable ? (field.optional === true ? DECIMAL_OR_NULL : DECIMAL_NULL) : DECIMAL)
     case 'whole':
       return described(nullable ? NUMBER_OR_NULL : NUMBER)
     case 'flag':
-      return described({ type: ['string', 'null'], description: '"yes", "no", or null to leave it.' })
+      return described(FLAG_OR_NULL)
     case 'currency':
       return described({ type: nullable ? ['string', 'null'] : 'string', description: nullable ? 'A currency code such as USD, or null to leave it.' : 'A currency code such as USD.' })
     default:

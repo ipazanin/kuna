@@ -1,10 +1,8 @@
 import { IBKR_FLEX_RECIPE } from '../domain/ibkrFlexRecipe'
 import { words } from './words'
-import { MAIL_READER_RECORDS } from '../../workbook/domain/investmentKinds'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { mailAddressesOf, mailAddressesProblem, mailContentsProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
-import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 
 /** The fields of the mail card a person types. */
 export interface MailReaderTexts {
@@ -31,22 +29,6 @@ export function mailReaderErrors(texts: MailReaderTexts, on: boolean): Readonly<
     contents: mailContentsProblem(texts.contents),
     since: parseCivilDate(texts.since) === null ? words.card.sinceMissing : null,
   }
-}
-
-/** The reader the file holds, or a new one, switched off, with IBKR's own terms from today. */
-export function heldOrNewReader(held: MailReader | null): MailReader {
-  return (
-    held ?? {
-      id: recordIdOf(MAIL_READER_RECORDS, newRecordId()),
-      recipe: IBKR_FLEX_RECIPE.id,
-      on: false,
-      senders: IBKR_FLEX_RECIPE.mail.senders,
-      subject: IBKR_FLEX_RECIPE.mail.subject,
-      contents: IBKR_FLEX_RECIPE.mail.contents,
-      since: today(),
-      leftOut: [],
-    }
-  )
 }
 
 /** The reader with one field as typed, once it reads. */

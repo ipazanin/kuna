@@ -5,10 +5,14 @@ import type { ImportedRecord, WorkbookRows } from '../../imports/domain/importDr
 import { ratesWanted } from '../../imports/domain/workbookRates'
 import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/presentation/importChoices'
 import type { AskedChoice, ClosesOf, SettledImport } from '../../imports/presentation/importChoices'
-import { MAIL_READER_WRITES, writeLeftOut } from '../../mail/application/mailReaderWrites'
-import { ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
-import { heldOrNewReader, mailReaderErrors, mailReaderTexts, withMailField } from '../../mail/presentation/mailReaderForm'
+import { MAIL_READER_WRITES, heldOrNewReader, writeLeftOut, writeUploadLeftOut } from '../../mail/application/mailReaderWrites'
+import { pickedReport } from '../../mail/application/mailReports'
+import { IBKR_FLEX_RECIPE, ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
+import { uploadedReportRows } from '../../mail/domain/reportRows'
+import type { ReportFile } from '../../mail/domain/reportRows'
+import { mailReaderErrors, mailReaderTexts, withMailField } from '../../mail/presentation/mailReaderForm'
 import type { MailReaderField, MailReaderTexts } from '../../mail/presentation/mailReaderForm'
+import { misfitLine } from '../../mail/presentation/useMailReports'
 import { seriesKey } from '../../prices/domain/pricesFile'
 import { transactionRecordKind } from '../../transactions/application/transactionWrites'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -23,11 +27,13 @@ import { NO_RATES } from '../../../../shared/money/rateBook'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
+import { readRecipeFile } from '../../../../shared/recipes/infrastructure/recipeFile'
 import { plural } from '../../../../shared/text/translation'
 import type { CardBooks, InvestmentSteps, StepNote, StepWritten } from './investmentSteps'
 
 const IMPORT_WORKBOOK = 'import-workbook'
 const ACCEPT_MAIL_REPORT = 'accept-mail-report'
+const IMPORT_FLEX_REPORT = 'import-flex-report'
 const GONE = ['keep', 'delete'] as const
 const ASKED: readonly AskedChoice[] = ['hold', 'leave-out']
 const MAIL_FIELDS: readonly MailReaderField[] = ['senders', 'subject', 'contents', 'since']
@@ -41,6 +47,15 @@ function isRowsRead(value: unknown): value is RowsRead {
   return typeof value === 'object' && value !== null && 'rows' in value
 }
 
+/** An attached Flex report Kuna ran through IBKR's recipe before the dry run, which stands in the step for the file. */
+interface ReportPicked {
+  readonly picked: ReportFile
+}
+
+function isReportPicked(value: unknown): value is ReportPicked {
+  return typeof value === 'object' && value !== null && 'picked' in value
+}
+
 function isAttachment(file: unknown): file is ChatAttachment {
   return typeof file === 'object' && file !== null && 'kind' in file && 'bytes' in file
 }
@@ -49,6 +64,7 @@ function isAttachment(file: unknown): file is ChatAttachment {
 async function workbookOf(file: unknown): Promise<RowsRead | string> {
   if (!isAttachment(file)) return 'file is not a file attached to this chat.'
   if (file.kind === 'photo' || file.kind === 'pdf') return NOT_READ_OFF_A_PAGE
+  if (file.kind === 'xml') return `The portfolio workbook is a spreadsheet. An XML file of IBKR's Activity Flex report goes through ${IMPORT_FLEX_REPORT}.`
   if (file.kind !== 'sheet') return 'The portfolio workbook is a spreadsheet with a Transactions tab, such as an xlsx file.'
   const read = await readPortfolioWorkbookFile(file.bytes).catch(() => null)
   if (read === null) return 'Kuna could not read that file as a spreadsheet.'
@@ -56,8 +72,17 @@ async function workbookOf(file: unknown): Promise<RowsRead | string> {
   return { rows: read }
 }
 
+/** An attached Flex report run through IBKR's recipe, as the mail step runs a mailed one, or why not, naming the file to the model only by its id. Its records keep the file's name, as a mailed one's do. */
+function flexReportOf(file: unknown): ReportPicked | string {
+  if (!isAttachment(file)) return 'file is not a file attached to this chat.'
+  if (file.kind === 'photo' || file.kind === 'pdf') return NOT_READ_OFF_A_PAGE
+  if (file.kind !== 'xml') return "IBKR's Activity Flex report is an XML file."
+  const read = pickedReport(IBKR_FLEX_RECIPE, file.name, readRecipeFile(IBKR_FLEX_RECIPE, file.bytes.slice().buffer))
+  return read.kind === 'misfit' ? misfitLine(file.id, read.misfit) : { picked: read.file }
+}
+
 /**
- * The steps with each attached workbook read and the mailed report the last sync read in place, since a dry run cannot
+ * The steps with each attached workbook and Flex report read and the mailed report the last sync read in place, since a dry run cannot
  * wait for a file. Or why a step cannot be checked.
  */
 export async function withRowsRead(steps: readonly ProposalStep[], mailReport: () => WorkbookRows | null): Promise<readonly ProposalStep[] | { readonly refused: readonly string[] }> {
@@ -67,6 +92,10 @@ export async function withRowsRead(steps: readonly ProposalStep[], mailReport: (
       const workbook = await workbookOf(step.input['file'])
       if (typeof workbook === 'string') return { refused: [workbook] }
       read.push({ ...step, input: { ...step.input, file: workbook } })
+    } else if (step.operation === IMPORT_FLEX_REPORT) {
+      const report = flexReportOf(step.input['file'])
+      if (typeof report === 'string') return { refused: [report] }
+      read.push({ ...step, input: { ...step.input, file: report } })
     } else if (step.operation === ACCEPT_MAIL_REPORT) {
       const rows = mailReport()
       if (rows === null) return { refused: ['No mailed report waits. A sync reads it from Gmail while the IBKR report reader is on.'] }
@@ -88,6 +117,8 @@ export function importTooLarge(steps: readonly ProposalStep[]): string | null {
   if (steps.some((step) => step.operation === IMPORT_WORKBOOK)) return `A workbook import cannot shrink.${first || ' So'} link Overview, Import, which imports a workbook this size in one write.`
   if (steps.some((step) => step.operation === ACCEPT_MAIL_REPORT))
     return `A report cannot shrink.${first || ' So'} link the review on Settings, General, which accepts a report this size in one write.`
+  if (steps.some((step) => step.operation === IMPORT_FLEX_REPORT))
+    return `A report cannot shrink.${first || ' So'} link Upload a report on Settings, General, which accepts a report this size in one write.`
   return null
 }
 
@@ -175,7 +206,7 @@ function importedRows(
   return { written: { book: dryRun.planned, made: null, fetchesPricesOf, notes }, leftOut }
 }
 
-/** The IBKR mail reader's plain settings, the review of its report, and the portfolio workbook, as the mail card and the Import dialog write them. Turning the reader on needs Google's consent, so only the person does it. Switching it off needs none. */
+/** The IBKR mail reader's plain settings, the review of its mailed or uploaded report, and the portfolio workbook, as the mail card and the Import dialog write them. Turning the reader on needs Google's consent, so only the person does it. Switching it off needs none. */
 export const IMPORT_STEPS: InvestmentSteps = {
   operations: [
     {
@@ -205,6 +236,16 @@ export const IMPORT_STEPS: InvestmentSteps = {
       example: { asked: 'hold' },
     },
     {
+      name: IMPORT_FLEX_REPORT,
+      about:
+        "Imports an attached IBKR Activity Flex report in XML through the same recipe and review as the mailed report: rows already in Kuna are skipped, rows before the mail reader's first day are left out, and accounts and holdings are named as Kuna proposes them. Kuna reads the file itself, so file names its id. asked says what becomes of the rows the report asks about: hold keeps them waiting, leave-out stops asking for good. Rows that still wait, and a split or a spin-off the card cannot answer, are answered by Upload a report on Settings, General.",
+      input: inputOf({ file: TEXT, asked: { type: 'string', enum: [...ASKED] } }),
+      refs: { file: ATTACHMENT_REF },
+      creates: null,
+      alone: true,
+      example: { file: 'a3', asked: 'hold' },
+    },
+    {
       name: IMPORT_WORKBOOK,
       about:
         'Imports an attached portfolio workbook through the same dry run as Overview, Import: rows already in are skipped, and accounts and holdings are matched or named as Kuna proposes them. Kuna reads the file itself, so file names its id. gone says what becomes of records an earlier import wrote that the workbook no longer has: keep leaves them, delete deletes them. Rows that still wait, and a split or a spin-off its row does not answer, are answered in the Import dialog.',
@@ -223,6 +264,14 @@ export const IMPORT_STEPS: InvestmentSteps = {
       return importedRows(unit, card, read.rows, 'hold', field['gone'] === 'delete' ? 'delete' : 'keep', words.proposals.workbook).written
     }
     const held = ibkrMailReader(card.book)
+    if (operation === IMPORT_FLEX_REPORT) {
+      const read = field['file']
+      if (!isReportPicked(read)) throw new StepRefused('file is not a report Kuna read.')
+      const rows = uploadedReportRows(IBKR_FLEX_RECIPE, read.picked, held)
+      const { written, leftOut } = importedRows(unit, card, rows, field['asked'] === 'leave-out' ? 'leave-out' : 'hold', 'keep', words.proposals.flexReport)
+      if (leftOut.length > 0) writeUploadLeftOut(unit, held, leftOut, read.picked)
+      return written
+    }
     if (operation === ACCEPT_MAIL_REPORT) {
       const read = field['report']
       if (!isRowsRead(read) || held === null) throw new StepRefused('No mailed report waits.')

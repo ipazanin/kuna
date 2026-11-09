@@ -6,11 +6,12 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
-import { MAIL_READER_WRITES } from '../application/mailReaderWrites'
+import { MAIL_READER_WRITES, heldOrNewReader } from '../application/mailReaderWrites'
 import type { ReportMail } from '../application/mailReports'
-import { heldOrNewReader, mailReaderErrors, mailReaderTexts, withMailField } from './mailReaderForm'
+import { mailReaderErrors, mailReaderTexts, withMailField } from './mailReaderForm'
 import type { MailReaderField } from './mailReaderForm'
 import MailReportReview from './MailReportReview.vue'
+import MailReportUpload from './MailReportUpload.vue'
 import { MAIL_SCOPE, misfitLine, useMailReports } from './useMailReports'
 import { words } from './words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
@@ -27,7 +28,7 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
 /**
  * Where each sync looks in Gmail for IBKR's report, written when a field is left or the switch turns, with Undo, what the
- * last sync found, and the way to its review. A link to `#mail`, as the step's line gives, opens it.
+ * last sync found, the way to its review, and the upload of a report saved by hand. A link to `#mail`, as the step's line gives, opens it.
  */
 const store = useInvestmentsBooks()
 const writes = useRecordWrites(store)
@@ -160,6 +161,7 @@ function rowOf(entry: ReportMail, index: number): MailResultRow {
           <p v-if="state.plan.mails.length === 0" class="type-body" data-testid="investments-mail-none">{{ words.card.noMailFound }}</p>
         </template>
       </div>
+      <MailReportUpload />
     </div>
   </AppCard>
 </template>

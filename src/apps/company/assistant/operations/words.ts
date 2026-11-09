@@ -31,7 +31,7 @@ export const en = {
   filedBy: {
     person: 'you',
     rule: 'a rule',
-    ai: 'the AI',
+    ai: 'nobody yet, it waits on To review',
   },
   rule: (conditions: string, category: string) => `${conditions}, filed under ${category}`,
   ruleOff: 'switched off',
@@ -86,7 +86,7 @@ export const hr: Translation<typeof en> = {
   filedBy: {
     person: 'vi',
     rule: 'pravilo',
-    ai: 'AI',
+    ai: 'još nitko, čeka na kartici Za provjeru',
   },
   rule: (conditions, category) => `${conditions}, razvrstava u ${category}`,
   ruleOff: 'isključeno',

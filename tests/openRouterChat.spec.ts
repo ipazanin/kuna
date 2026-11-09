@@ -66,7 +66,7 @@ function request(fields: Partial<ModelRequest> = {}): ModelRequest {
   }
 }
 
-const WITH_TOOLS: Partial<ModelRequest> = { tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }] }
+const WITH_TOOLS: Partial<ModelRequest> = { tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule by its id.', input: RULE_INPUT }] }
 
 describe('the Chat Completions request', () => {
   it('posts to the base address with the bearer key, and joins the system parts into one message', async () => {
@@ -291,7 +291,7 @@ describe('the Chat Completions reply', () => {
       model: openRouterChat(BASE_URL, KEY, typed),
       system: [],
       turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Row' }] }],
-      tools: [{ name: 'rule', description: 'Reads one rule.', input: RULE_INPUT }],
+      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule.', input: RULE_INPUT }],
       runTool: async () => ({ text: 'A rule.', parts: [], isError: false }),
       effort: 'low',
       rounds: 6,
@@ -404,7 +404,7 @@ describe('a model loop over the OpenRouter adapter', () => {
       model: openRouterChat(BASE_URL, KEY, SOL),
       system: [{ kind: 'text', text: 'You answer which VAT rate applies, citing the rule.' }],
       turns: [{ role: 'user', parts: [{ kind: 'text', text: question }] }],
-      tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }],
+      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule by its id.', input: RULE_INPUT }],
       runTool: async () => ({ text: 'Rule pdv-25: the standard rate is 25 percent.', parts: [], isError: false }),
       effort: 'medium',
       rounds: 6,

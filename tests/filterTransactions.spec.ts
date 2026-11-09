@@ -47,7 +47,7 @@ describe('filterTransactions', () => {
     expect(amountsFor({ amount: { min: euros(0.01), max: null } })).toEqual([euros(7200)])
   })
 
-  it('keeps the rows the AI guessed and the unclassified ones when asked for the review queue', () => {
+  it('keeps the rows no rule settled and the unclassified ones when asked for the review queue', () => {
     expect(amountsFor({ needsReview: true })).toEqual([euros(-6.4), euros(-150)])
   })
 

@@ -91,7 +91,8 @@ export const en = {
   refusals: {
     advancesBucket: (slug: string, advances: number) =>
       `"${slug}" stays in the operating or taxes bucket, since ${advances === 1 ? 'an owner advance carries it' : `${advances} owner advances carry it`} and an advance counts only as an operating cost or a tax.`,
-    colour: (slug: string, colour: string) => `"${slug}" takes one of the nine colours of the palette, or none for its bucket's colour, not "${colour}".`,
+    colour: (slug: string, colour: string, codes: readonly string[]) =>
+      `"${slug}" takes one of the nine colours of the palette, ${codes.join(', ')}, or none for its bucket's colour, not "${colour}".`,
     roleBucket: (slug: string, bucket: string, role: string) =>
       `"${slug}" is in the ${bucket} bucket, and only an owner-pay category carries the ${role} role, since the owner's part of a shared cost counts there.`,
     roleOnce: (slug: string, role: string, count: number, others: string) => `"${slug}" takes the ${role} role only once no other category carries it, and ${others} ${count === 1 ? 'does' : 'do'}.`,
@@ -171,7 +172,7 @@ export const hr: Translation<typeof en> = {
   refusals: {
     advancesBucket: (slug, advances) =>
       `„${slug}” ostaje u skupini ${croatianBucket('operating')} ili ${croatianBucket('taxes')} jer ${plural({ one: `je nosi ${advances} predujam vlasnika`, few: `je nose ${advances} predujma vlasnika`, other: `je nosi ${advances} predujmova vlasnika` }, advances)}, a predujam se broji samo kao poslovni rashod ili porez.`,
-    colour: (slug, colour) => `„${slug}” uzima jednu od devet boja palete ili nijednu za boju svoje skupine, a ne „${colour}”.`,
+    colour: (slug, colour, codes) => `„${slug}” uzima jednu od devet boja palete, ${codes.join(', ')}, ili nijednu za boju svoje skupine, a ne „${colour}”.`,
     roleBucket: (slug, bucket, role) =>
       `„${slug}” je u skupini ${croatianBucket(bucket)}, a ulogu ${role} ima samo kategorija skupine ${croatianBucket('owner-pay')} jer se ondje broji vlasnikov dio zajedničkog troška.`,
     roleOnce: (slug, role, count, others) =>

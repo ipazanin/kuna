@@ -16,6 +16,9 @@ const ANSWERS = {
     workbookProposed: 'Kuna read the workbook itself. The card below shows what its import adds, and what waits for an answer in Overview, Import.',
     workbookRefused: 'Kuna could not import that file. Check that it is the portfolio workbook with its Transactions tab.',
     noWorkbook: 'Attach the portfolio workbook with the paperclip, and I will propose its import.',
+    reportTitle: 'Import the IBKR report',
+    reportProposed: 'Kuna read the report itself, through the same review as the mailed one. The card below shows what it adds.',
+    reportRefused: 'Kuna could not import that file. Check that it is an Activity Flex report in XML.',
   },
   hr: {
     worth: (value: string, gain: string) => `Vaš portfelj vrijedi ${value}, uz ukupnu dobit od ${gain} na uloženo.`,
@@ -28,6 +31,9 @@ const ANSWERS = {
     workbookProposed: 'Kuna je sama pročitala radnu knjigu. Kartica ispod pokazuje što uvoz dodaje i što čeka odgovor u Uvozu na Pregledu.',
     workbookRefused: 'Kuna nije mogla uvesti tu datoteku. Provjerite je li to radna knjiga portfelja s karticom Transactions.',
     noWorkbook: 'Priložite radnu knjigu portfelja spajalicom i predložit ću njezin uvoz.',
+    reportTitle: 'Uvezi izvješće IBKR-a',
+    reportProposed: 'Kuna je sama pročitala izvješće, istim pregledom kao ono poslano poštom. Kartica ispod pokazuje što dodaje.',
+    reportRefused: 'Kuna nije mogla uvesti tu datoteku. Provjerite je li to izvješće Activity Flex u formatu XML.',
   },
 }
 
@@ -69,17 +75,17 @@ function tradeReply({ request, tokens }: FakeChatTurn, says: Says, side: 'buy' |
   return answered(request, answers[2]!.isError ? says.sellRefused : says.buyProposed, tokens)
 }
 
-/** The last spreadsheet attached to the chat, by the id its context line gives, or null for none. */
-function attachedSheet({ request }: FakeChatTurn): string | null {
+/** The last file of this kind attached to the chat, by the id its context line gives, or null for none. */
+function attached({ request }: FakeChatTurn, kind: 'sheet' | 'xml'): string | null {
   const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : []))
-  const ids = said.flatMap((text) => [...text.matchAll(/\b(a\d+) \(sheet\b/g)].map((match) => match[1]!))
+  const ids = said.flatMap((text) => [...text.matchAll(new RegExp(`\\b(a\\d+) \\(${kind}\\b`, 'g'))].map((match) => match[1]!))
   return ids.at(-1) ?? null
 }
 
 /** Proposes the import of the spreadsheet attached last, which Kuna reads itself, keeping records gone from it. */
 function workbookReply(turn: FakeChatTurn, says: Says): ModelReply {
   const { request, tokens } = turn
-  const file = attachedSheet(turn)
+  const file = attached(turn, 'sheet')
   if (file === null) return answered(request, says.noWorkbook, tokens)
   const answers = answersSince(request)
   if (answers.length === 0) {
@@ -89,12 +95,25 @@ function workbookReply(turn: FakeChatTurn, says: Says): ModelReply {
   return answered(request, answers[0]!.isError ? says.workbookRefused : says.workbookProposed, tokens)
 }
 
-/** Investments' part of the fake chat: one that starts with buy or sell proposes a trade, one about the workbook imports the sheet attached, and a question about the portfolio reads its figures. */
+/** Proposes the import of the Flex report attached last, which Kuna reads itself, keeping the rows it asks about waiting. */
+function reportReply(turn: FakeChatTurn, says: Says, file: string): ModelReply {
+  const { request, tokens } = turn
+  const answers = answersSince(request)
+  if (answers.length === 0) {
+    const step = { op: 'import-flex-report', input: JSON.stringify({ file, asked: 'hold' }), as: null }
+    return lookup(0, 'propose_changes', { app: 'investments', title: says.reportTitle, steps: [step] }, tokens)
+  }
+  return answered(request, answers[0]!.isError ? says.reportRefused : says.reportProposed, tokens)
+}
+
+/** Investments' part of the fake chat: one that starts with buy or sell proposes a trade, one about the workbook imports the sheet attached, one about importing with an XML attached imports that Flex report, and a question about the portfolio reads its figures. */
 function investmentsChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
   if (/^buy|^kupi/i.test(turn.typed)) return tradeReply(turn, says, 'buy')
   if (/^sell|^prodaj/i.test(turn.typed)) return tradeReply(turn, says, 'sell')
   if (/workbook|radn\w* knjig/i.test(turn.typed)) return workbookReply(turn, says)
+  const report = attached(turn, 'xml')
+  if (report !== null && /import|uvez/i.test(turn.typed)) return reportReply(turn, says, report)
   if (/portfolio|portfelj/i.test(turn.typed)) return worthReply(turn, says)
   return null
 }

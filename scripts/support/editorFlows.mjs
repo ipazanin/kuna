@@ -7955,6 +7955,43 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
   }
 }
 
+/**
+ * A Flex report saved by hand, dropped on Upload a report in the report's card: one that no longer fits says why, and the
+ * made-up report opens the same review as a mailed one, whose Accept writes it with one Undo.
+ */
+export function investmentsMailUploadFlowIn(language, { flexReport, misfit }) {
+  const croatian = language === 'hr'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    const upload = await page.waitForSelector('[data-testid="mail-report-upload"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the card of the report offers no upload')
+    })
+    const input = await upload.$('input[type="file"]')
+    await input.uploadFile(misfit)
+    const failed = await page.waitForSelector('[data-testid="mail-report-upload-failed"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('a report that does not fit did not say why')
+    })
+    await failed.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.('an uploaded report that does not fit')
+    await shoot('investments-mail-upload-misfit')
+    await input.uploadFile(flexReport)
+    await page.waitForSelector('[data-testid="workbook-import"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the uploaded report opened no review')
+    })
+    await delay(300)
+    await inspect?.('the review of an uploaded report')
+    await shoot('investments-mail-upload-review')
+    await toDryRun(page, press)
+    if ((await page.$('[data-testid="import-group-new"]')) === null) throw new Error('the review of the uploaded report shows nothing new')
+    await shoot('investments-mail-upload-dry-run')
+    await pressSelector(page, press, '[data-testid="workbook-import-confirm"]')
+    await dialogGone(page, '[data-testid="workbook-import"]')
+    await undoIn(page, press, { writes: croatian ? writesCroatian : writesEnglish })
+    await dismissToasts(page)
+  }
+}
+
 /** The report's card on the sample with the reader off: switched on, it says its filters are not confirmed. */
 export function investmentsMailCardFlowIn(language) {
   const croatian = language === 'hr'
@@ -8385,12 +8422,19 @@ export function chatPanelFlowIn(language) {
       await shoot('chat-answer')
 
       await send(language === 'en' ? 'crypto?' : 'kripto?')
-      const issues = await page.waitForSelector('[data-testid="chat-issues"]', { visible: true, timeout: 15_000 })
+      await page
+        .waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
+        .catch(() => {
+          throw new Error('the chat gave no answer about what Kuna cannot do')
+        })
       if (await page.$(CHAT_CONSENT)) throw new Error('a second message of a chat asked again')
+      if ((await page.$('[data-testid="chat-issues"]')) !== null) throw new Error('the chat linked the issues page for what Kuna cannot do, unasked')
+      await send(language === 'en' ? 'How do I ask for a feature?' : 'Kako zatražiti novu značajku?')
+      const issues = await page.waitForSelector('[data-testid="chat-issues"]', { visible: true, timeout: 15_000 })
       const address = await issues.evaluate((element) => element.getAttribute('href'))
       if (address !== 'https://github.com/ipazanin/kuna/issues') throw new Error(`the issues link goes to ${address}`)
       if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('a yes for this chat changed the switch')
-      await inspect?.('what Kuna cannot do, with the issues link')
+      await inspect?.('asked how to request a feature, with the issues link')
       await shoot('chat-issues')
 
       await pressSelector(page, press, '[data-testid="chat-new"]')

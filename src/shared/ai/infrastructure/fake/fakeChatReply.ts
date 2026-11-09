@@ -4,11 +4,13 @@ import { language } from '../../../text/language'
 
 const ANSWERS = {
   en: {
-    cannot: "Kuna can't do that yet. You can write it down on its issues page.",
+    cannot: "Kuna doesn't track crypto.",
+    feature: 'You can ask for it on the issues page linked below.',
     other: 'Kuna keeps each app in a file of its own, and I can tell you how any of them works.',
   },
   hr: {
-    cannot: 'Kuna to još ne može. Možete to zapisati na njezinoj stranici s prijavama.',
+    cannot: 'Kuna ne prati kriptovalute.',
+    feature: 'Možete to zatražiti na stranici s prijavama, poveznica je ispod.',
     other: 'Kuna svaku aplikaciju čuva u zasebnoj datoteci i mogu vam reći kako koja radi.',
   },
 }
@@ -61,7 +63,8 @@ export function answered(request: ModelRequest, text: string, tokens: ModelToken
 
 /**
  * The fake build's chat, which walks the tools as a real model would. Each app's fake seed answers what is about the app,
- * one about something Kuna lacks links the issues page, and anything else gets a line.
+ * one about something Kuna lacks says so and stops, one asking how to request a feature links the issues page, and anything
+ * else gets a line.
  */
 export function fakeChatReply(request: ModelRequest, tokens: ModelTokens, invents: boolean): ModelReply {
   const { typed, lookups } = whereTheTurnIs(request)
@@ -70,9 +73,10 @@ export function fakeChatReply(request: ModelRequest, tokens: ModelTokens, invent
     if (reply !== null) return reply
   }
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
-  if (/crypto|kripto/i.test(typed)) {
+  if (/crypto|kripto/i.test(typed)) return answered(request, says.cannot, tokens)
+  if (/feature|značajk/i.test(typed)) {
     if (lookups === 0) return lookup(lookups, 'show_screen', { route: 'issues', params: [] }, tokens)
-    return answered(request, says.cannot, tokens)
+    return answered(request, says.feature, tokens)
   }
   return answered(request, says.other, tokens)
 }

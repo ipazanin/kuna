@@ -39,11 +39,12 @@ import { moneyFromAmount } from '../../../../shared/money/money'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { setSetting } from '../../../../shared/storage/application/settingWrites'
+import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 
-const COLOUR_OR_NULL = {
+const COLOUR_OR_NULL: StrictSchema = {
   type: ['string', 'null'],
   description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, or "" for its group's colour, or null to leave it.`,
-} as const
+}
 
 /** Every change the chat can propose in Spending. Each calls the write functions the screens use. A setting that is not listed here cannot be proposed, whatever a model asks. */
 export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
@@ -270,7 +271,7 @@ function colourOf(text: string | null, kept: string): string {
   if (text === null) return kept
   if (text.trim() === '') return ''
   const swatch = swatchOf(text)
-  if (swatch === null) throw new StepRefused('colour is a swatch code from the list, or "".')
+  if (swatch === null) throw new StepRefused(`colour is a swatch code, ${SWATCHES.map((choice) => choice.hex).join(', ')}, or "".`)
   return swatch.hex
 }
 
@@ -408,7 +409,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       }
       case 'add-account': {
         const currency = currencyCodeOf(field['currency'])
-        if (currency === null) throw new StepRefused('That currency is not one Kuna knows.')
+        if (currency === null) throw new StepRefused('That currency is not one Kuna knows. Write its three-letter ISO code, such as EUR or USD.')
         const account = newAccount({
           name: field['name'],
           kind: field['kind'] as AccountKind,
@@ -427,7 +428,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       case 'change-account': {
         const before = accountOf(field['account'])
         const currency = field['currency'] === null ? before.currency : currencyCodeOf(field['currency'])
-        if (currency === null) throw new StepRefused('That currency is not one Kuna knows.')
+        if (currency === null) throw new StepRefused('That currency is not one Kuna knows. Write its three-letter ISO code, such as EUR or USD.')
         const bank: AccountBank | 'none' | null = choiceOf([...ACCOUNT_BANKS, 'none'], field['bank'], 'bank')
         unit.of(ACCOUNT_WRITES).change(
           before,

@@ -8,7 +8,7 @@ import { fillShares } from '../../owner-share/application/ownerShareWrites'
 import { shareFillsOf } from '../../owner-share/domain/ownerShare'
 import type { ShareFill } from '../../owner-share/domain/ownerShare'
 import ShareFillDialog from '../../owner-share/presentation/ShareFillDialog.vue'
-import { installedPack } from '../../packs/packContribution'
+import { classSharesDay, installedPack } from '../../packs/packContribution'
 import { useSettings } from '../application/useSettings'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
@@ -18,8 +18,6 @@ import { writeDrafts } from '../application/draftWrites'
 import { CATEGORY_WRITES, categoryUses } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import { knownRoles } from '../domain/categoryGuards'
-import { newestBookingOf } from '../../workbook/domain/workbook'
-import { today } from '../../../../shared/calendar/civilDate'
 import CategoriesEditor from './CategoriesEditor.vue'
 import { storedCount } from './settingsCounts'
 import { words } from './words'
@@ -35,8 +33,7 @@ const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RE
 const categoriesInUse = computed(() => categoryUses(recordsOnScreen))
 const roles = knownRoles(installedPack().workbook?.categoryRoles ?? [])
 const classes = installedPack().workbook?.categoryClasses ?? []
-/** The day the classes' shares are read on: the newest booking's, or today's in books with none yet. */
-const sharesOn = computed(() => newestBookingOf(state.workbook?.transactions ?? []) ?? today())
+const sharesOn = computed(() => classSharesDay(state.workbook))
 const classHelp = (role: string) => installedPack().categoryClassHelp(role, sharesOn.value)
 const categories = computed(() => state.records?.categories ?? NO_RECORDS)
 const saving = computed(() => writes.busy.value)

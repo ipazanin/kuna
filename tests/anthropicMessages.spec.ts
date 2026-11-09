@@ -128,7 +128,7 @@ describe('the Anthropic Messages request', () => {
   it('sends each tool as a strict tool with an automatic choice, and no server tool', async () => {
     const requests = stubFetch(message({ content: [{ type: 'text', text: '{"category":"office"}' }], stop_reason: 'end_turn' }))
 
-    await anthropicMessages(KEY, SONNET).send(request({ tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }] }))
+    await anthropicMessages(KEY, SONNET).send(request({ tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule by its id.', input: RULE_INPUT }] }))
 
     expect(requests[0]!.body.tools).toEqual([{ name: 'rule', description: 'Reads one rule by its id.', input_schema: RULE_INPUT, strict: true }])
     expect(requests[0]!.body.tool_choice).toEqual({ type: 'auto' })
@@ -405,7 +405,7 @@ describe('a model loop over the Anthropic adapter', () => {
       model: anthropicMessages(KEY, SONNET),
       system: [{ kind: 'text', text: 'You answer which VAT rate applies, citing the rule.' }],
       turns: [{ role: 'user', parts: [{ kind: 'text', text: question }] }],
-      tools: [{ name: 'rule', description: 'Reads one rule by its id.', input: RULE_INPUT }],
+      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule by its id.', input: RULE_INPUT }],
       runTool: async () => ({ text: 'Rule pdv-25: the standard rate is 25 percent.', parts: [], isError: false }),
       effort: 'medium',
       rounds: 6,

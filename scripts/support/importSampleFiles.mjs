@@ -9,7 +9,8 @@ import { join } from 'node:path'
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtXml, sampleTableFile } from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
 import { SAMPLE_REFUSED_FILE_NAME, SAMPLE_REVOLUT_FILE_NAME, sampleRefusedCsv, sampleRevolutCsv } from '../../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
 import { SAMPLE_RECEIPT_TOTALS, jpegWithMadeUpPlace, sampleFiscalQrText, sampleReceiptPng } from '../../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
-import { today } from '../../src/shared/calendar/civilDate.ts'
+import { sampleFlexReport } from '../../src/apps/investments/mail/infrastructure/fake/sampleFlexReport.ts'
+import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
 
 export async function writeImportSamples(folder) {
   const camt = join(folder, SAMPLE_CAMT_FILE_NAME)
@@ -17,6 +18,16 @@ export async function writeImportSamples(folder) {
   writeFileSync(camt, sampleCamtXml())
   writeFileSync(table, await sampleTableFile())
   return { camt, table }
+}
+
+/** Writes a made-up IBKR Activity Flex report of the three days before yesterday, as a person saves it from IBKR, and one that no longer fits its recipe. */
+export function writeFlexReportSamples(folder) {
+  const days = [-4, -3, -2].map((day) => addDays(today(), day))
+  const flexReport = join(folder, 'kuna-daily.xml')
+  const misfit = join(folder, 'kuna-daily-misfit.xml')
+  writeFileSync(flexReport, sampleFlexReport(days))
+  writeFileSync(misfit, sampleFlexReport(days, 'no-trades-section'))
+  return { flexReport, misfit }
 }
 
 /** Writes the made-up Revolut exports of the day, one the fake Spending statements set pairs with and one the reader refuses. */

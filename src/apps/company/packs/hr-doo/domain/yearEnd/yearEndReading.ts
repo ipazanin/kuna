@@ -13,7 +13,7 @@ import { ownId, refuse, requiredChoice, requiredYear, slugListOf, slugOf, textOf
 import type { StoredField, StoredFields } from '../../../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../../../shared/storage/domain/words'
 import { YEAR_END_RECORDS } from '../hrDooKinds'
-import { YEAR_END_STATEMENTS, yearEndLineDefinition } from './yearEnd'
+import { YEAR_END_LINES, YEAR_END_STATEMENTS, yearEndLineDefinition } from './yearEnd'
 import type { YearEndFigure, YearEndFigureKind, YearEndLine, YearEndLineDefinition } from './yearEnd'
 import { words } from '../words'
 
@@ -28,7 +28,14 @@ export function yearEndLineOf(fields: StoredFields, id: RecordId | null): YearEn
   const line = statement === 'konto' ? textOf(fields.line) : slugOf(fields.line)
   if (line === '') refuse(statement === 'konto' ? words.reading.noKonto : words.reading.noLine)
   const definition = statement === 'konto' ? null : yearEndLineDefinition(statement, line)
-  if (statement !== 'konto' && definition === null) refuse(words.reading.notALine(line, statement))
+  if (statement !== 'konto' && definition === null)
+    refuse(
+      words.reading.notALine(
+        line,
+        statement,
+        YEAR_END_LINES.filter((definition) => definition.statement === statement).map((definition) => definition.line),
+      ),
+    )
   return {
     year,
     statement,

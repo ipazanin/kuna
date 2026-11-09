@@ -391,6 +391,12 @@ describe('import boundaries', () => {
     ).toEqual([])
   })
 
+  it("reaches an app's acceptance in the AI module only from the proposal card, so no tool writes without a person's Accept", () => {
+    const reaching = linesHolding(/\.acceptance\b|\bacceptance\?*\./, (file) => !file.startsWith('src/shared/ai/') || file === 'src/shared/ai/presentation/ProposalCard.vue')
+    expect(reaching).toEqual([])
+    expect(linesHolding(/\.acceptance\b|\bacceptance\?*\./, (file) => file !== 'src/shared/ai/presentation/ProposalCard.vue')).not.toEqual([])
+  })
+
   it('reads a key in the AI module only through its one door', () => {
     expect(linesHolding(/\bstoredSecret(Changes)?\b/, (file) => !file.startsWith('src/shared/ai/') || file === 'src/shared/ai/application/modelAccess.ts')).toEqual([])
   })

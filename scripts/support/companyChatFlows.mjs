@@ -1,3 +1,4 @@
+import { en as classEnglish, hr as classCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
 import { TWO_KEYS_ANONYMISE_OFF, acceptLooksReady, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
@@ -7,6 +8,7 @@ import { delay, pressSelector } from './pressing.mjs'
 
 const TRANSACTIONS_WORDS = { en: transactionsEnglish, hr: transactionsCroatian }
 const SHARED_WORDS = { en: sharedEnglish, hr: sharedCroatian }
+const CLASS_WORDS = { en: classEnglish, hr: classCroatian }
 
 /** What the person types for each card, which the fake Company chat and Kuna's fake reply answer. */
 const PROMPTS = {
@@ -14,6 +16,7 @@ const PROMPTS = {
   invoice: { en: 'Invoice Lumen for October', hr: 'Izdaj fakturu Lumenu za listopad' },
   currency: { en: 'Show my figures in US dollars', hr: 'Prikaži moje iznose u američkim dolarima' },
   refile: { en: 'Always file Laptop Store under office supplies', hr: 'Uvijek stavi Laptop Store pod uredski materijal' },
+  category: { en: 'Add a category for training courses', hr: 'Dodaj kategoriju za edukacije' },
   theme: { en: 'Switch Kuna to the dark look', hr: 'Prebaci Kunu na tamni izgled' },
   explain: { en: 'Explain this figure', hr: 'Objasni ovaj iznos' },
 }
@@ -103,11 +106,15 @@ const CARDS = {
   refile: async (page, language) => {
     await elementSays(page, '[data-testid="chat-proposal-line-warning"]', [SHARED_WORDS[language].confirmedRowMoves], 'the rule card does not warn on the confirmed row it re-files')
   },
+  category: async (page, language) => {
+    await elementSays(page, '[data-testid="chat-proposal"]', [CLASS_WORDS[language].classes.deductibleCost], 'the category card does not name its tax class as the categories editor does')
+  },
 }
 
 /**
  * A chat on Company's Overview with a made-up key kept: an invoice is a link to the Invoices tab with the client picked, not a
- * card, dollars are a set-setting card with its line warned, and a rule for Laptop Store re-files the rows the owner confirmed, each on a warned line.
+ * card, dollars are a set-setting card with its line warned, a rule for Laptop Store re-files the rows the owner confirmed, each on a warned
+ * line, and a category for training is an add-category card that names its tax class as the categories editor does.
  */
 export function companyChatCardFlowIn(language, card) {
   return async (page, { press, shoot: shootAs, inspect }) => {

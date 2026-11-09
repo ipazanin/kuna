@@ -1,3 +1,4 @@
+import { SWATCHES } from '../../../../shared/charts/swatches'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { OWNER_SHARE_ROLES } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
@@ -53,7 +54,15 @@ export function categoryChangeRefusals(
  */
 export function categoryColourRefusals(edits: readonly CategoryEdit<{ readonly slug: string; readonly colour: string }>[]): string[] {
   return edits.flatMap((edit) =>
-    edit.after === null || edit.after.colour === edit.before?.colour || isPaletteColour(edit.after.colour) ? [] : [words.refusals.colour(edit.after.slug, edit.after.colour)],
+    edit.after === null || edit.after.colour === edit.before?.colour || isPaletteColour(edit.after.colour)
+      ? []
+      : [
+          words.refusals.colour(
+            edit.after.slug,
+            edit.after.colour,
+            SWATCHES.map((swatch) => swatch.hex),
+          ),
+        ],
   )
 }
 

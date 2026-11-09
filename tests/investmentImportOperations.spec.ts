@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { MAIL_READER_WRITES } from '../src/apps/investments/mail/application/mailReaderWrites'
 import { words as mailWords } from '../src/apps/investments/mail/presentation/words'
 import { words as pricesWords } from '../src/apps/investments/prices/presentation/words'
 import { words } from '../src/apps/investments/assistant/words'
@@ -9,7 +11,8 @@ import { INVESTMENTS_PRICES_ROUTE } from '../src/apps/investments/overview/prese
 import { plural } from '../src/shared/text/translation'
 import { NOT_READ_OFF_A_PAGE } from '../src/shared/app/operationInput'
 import { decimalText } from '../src/shared/money/decimal'
-import { DEPOSIT_WORKBOOK, DESK, closesAttachment, investmentsDesk, workbookAttachment, workbookGrid } from './fixtures/investmentsDesk'
+import { DEPOSIT_WORKBOOK, DESK, closesAttachment, flexAttachment, investmentsDesk, workbookAttachment, workbookGrid } from './fixtures/investmentsDesk'
+import { USD, rateBookOf } from './fixtures/investments'
 import type { InvestmentsDesk } from './fixtures/investmentsDesk'
 import { forgetCaches } from './fixtures/writeBack'
 
@@ -60,47 +63,54 @@ describe('the portfolio workbook', () => {
 
   it('lists the records gone from the workbook, and deletes them only when asked', async () => {
     const desk = await investmentsDesk(used)
-    desk.attachments.push(await workbookAttachment('a3', TWO_DEPOSITS))
-    await desk.propose([{ op: 'import-workbook', input: { file: 'a3', gone: 'keep' } }])
+    desk.attachments.push(await workbookAttachment('a6', TWO_DEPOSITS))
+    await desk.propose([{ op: 'import-workbook', input: { file: 'a6', gone: 'keep' } }])
     await desk.accept()
     const deposits = bookOf(desk).cashMovements.length
 
     desk.attachments.push(
-      await workbookAttachment('a4', [
+      await workbookAttachment('a7', [
         ...DEPOSIT_WORKBOOK,
         ...workbookGrid([['2026-03-10', { broker: 'IBKR', account: 'U0000009', sourceFile: 'activity.csv', type: 'FEE', currency: 'EUR', netCash: -2 }]]).slice(1),
       ]),
     )
-    await desk.propose([{ op: 'import-workbook', input: { file: 'a4', gone: 'keep' } }])
+    await desk.propose([{ op: 'import-workbook', input: { file: 'a7', gone: 'keep' } }])
     const kept = desk.cards.at(-1)!
     expect(kept.groups[0]!.lines[0]!.warning).toContain('gone from the workbook')
 
-    await desk.propose([{ op: 'import-workbook', input: { file: 'a4', gone: 'delete' } }])
+    await desk.propose([{ op: 'import-workbook', input: { file: 'a7', gone: 'delete' } }])
     const deleting = desk.cards.at(-1)!
     expect(deleting.groups.map((group) => group.verb)).toContain('remove')
     await desk.accept()
     expect(bookOf(desk).cashMovements).toHaveLength(deposits)
   })
 
+  it('sends an attached Flex report to its own operation', async () => {
+    const desk = await investmentsDesk(used)
+    const answer = await desk.propose([{ op: 'import-workbook', input: { file: 'a3', gone: 'keep' } }])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('import-flex-report')
+  })
+
   it('refuses a photo, a CSV or a sheet with no Transactions tab, naming nothing of the file', async () => {
     const desk = await investmentsDesk(used)
-    desk.attachments.push({ ...desk.attachments[0]!, id: 'a3', kind: 'photo' }, closesAttachment('a4', 'Ana Horvat.csv', 'Date,Close\n'))
-    desk.attachments.push(await workbookAttachment('a5', [['Date', 'Close']], 'Ana Horvat.xlsx'))
-    expect((await desk.propose([{ op: 'import-workbook', input: { file: 'a3', gone: 'keep' } }])).text).toBe(NOT_READ_OFF_A_PAGE)
-    expect((await desk.propose([{ op: 'import-workbook', input: { file: 'a4', gone: 'keep' } }])).text).not.toContain('Ana')
-    const sheet = await desk.propose([{ op: 'import-workbook', input: { file: 'a5', gone: 'keep' } }])
+    desk.attachments.push({ ...desk.attachments[0]!, id: 'a6', kind: 'photo' }, closesAttachment('a7', 'Ana Horvat.csv', 'Date,Close\n'))
+    desk.attachments.push(await workbookAttachment('a8', [['Date', 'Close']], 'Ana Horvat.xlsx'))
+    expect((await desk.propose([{ op: 'import-workbook', input: { file: 'a6', gone: 'keep' } }])).text).toBe(NOT_READ_OFF_A_PAGE)
+    expect((await desk.propose([{ op: 'import-workbook', input: { file: 'a7', gone: 'keep' } }])).text).not.toContain('Ana')
+    const sheet = await desk.propose([{ op: 'import-workbook', input: { file: 'a8', gone: 'keep' } }])
     expect(sheet.isError).toBe(true)
     expect(sheet.text).not.toContain('Ana')
   })
 
   it('refuses a split or a spin-off the Import dialog would ask about, naming the holdings and linking the dialog', async () => {
     const desk = await investmentsDesk(used)
-    desk.attachments.push(await workbookAttachment('a3', workbookGrid([...HELD_ABC, ['2026-06-10', { ...BROKER, ...ABC, type: 'SPLIT', quantity: 30 }]])))
-    desk.attachments.push(await workbookAttachment('a4', workbookGrid([...HELD_ABC, ['2026-07-01', { ...BROKER, ...NEWCO, type: 'SPINOFF', quantity: 4, price: 12, currency: 'EUR' }]])))
-    for (const file of ['a3', 'a4']) {
+    desk.attachments.push(await workbookAttachment('a6', workbookGrid([...HELD_ABC, ['2026-06-10', { ...BROKER, ...ABC, type: 'SPLIT', quantity: 30 }]])))
+    desk.attachments.push(await workbookAttachment('a7', workbookGrid([...HELD_ABC, ['2026-07-01', { ...BROKER, ...NEWCO, type: 'SPINOFF', quantity: 4, price: 12, currency: 'EUR' }]])))
+    for (const file of ['a6', 'a7']) {
       const answer = await desk.propose([{ op: 'import-workbook', input: { file, gone: 'keep' } }])
       expect(answer.isError).toBe(true)
-      expect(answer.text).toContain(file === 'a3' ? 'ABC' : 'NEWCO')
+      expect(answer.text).toContain(file === 'a6' ? 'ABC' : 'NEWCO')
       expect(answer.text).toContain(words.proposals.workbook.place)
     }
     expect(desk.cards).toHaveLength(0)
@@ -109,22 +119,22 @@ describe('the portfolio workbook', () => {
   it('imports a spin-off whose row names its parent and cost share, which the dialog does not ask about', async () => {
     const desk = await investmentsDesk(used)
     desk.attachments.push(
-      await workbookAttachment('a3', workbookGrid([...HELD_ABC, ['2026-07-01', { ...BROKER, ...NEWCO, type: 'SPINOFF', quantity: 4, price: 12, currency: 'EUR', spinOffFrom: 'ABC', costShare: 10 }]])),
+      await workbookAttachment('a6', workbookGrid([...HELD_ABC, ['2026-07-01', { ...BROKER, ...NEWCO, type: 'SPINOFF', quantity: 4, price: 12, currency: 'EUR', spinOffFrom: 'ABC', costShare: 10 }]])),
     )
-    expect((await desk.propose([{ op: 'import-workbook', input: { file: 'a3', gone: 'keep' } }])).isError).toBe(false)
+    expect((await desk.propose([{ op: 'import-workbook', input: { file: 'a6', gone: 'keep' } }])).isError).toBe(false)
     await desk.accept()
     expect(bookOf(desk).spinOffs.map((spinOff) => decimalText(spinOff.costShare))).toContain('0.1')
   })
 
   it('puts its warned line on the group of what it writes, whatever steps go before it', async () => {
     const desk = await investmentsDesk(used)
-    desk.attachments.push(await workbookAttachment('a3', TWO_DEPOSITS))
-    await desk.propose([{ op: 'import-workbook', input: { file: 'a3', gone: 'keep' } }])
+    desk.attachments.push(await workbookAttachment('a6', TWO_DEPOSITS))
+    await desk.propose([{ op: 'import-workbook', input: { file: 'a6', gone: 'keep' } }])
     await desk.accept()
-    desk.attachments.push(await workbookAttachment('a4', [...DEPOSIT_WORKBOOK, ...workbookGrid([['2026-03-10', { ...BROKER, type: 'FEE', currency: 'EUR', netCash: -2 }]]).slice(1)]))
+    desk.attachments.push(await workbookAttachment('a7', [...DEPOSIT_WORKBOOK, ...workbookGrid([['2026-03-10', { ...BROKER, type: 'FEE', currency: 'EUR', netCash: -2 }]]).slice(1)]))
     await desk.propose([
       { op: 'add-account', input: { name: 'Broker, long term', note: '' } },
-      { op: 'import-workbook', input: { file: 'a4', gone: 'keep' } },
+      { op: 'import-workbook', input: { file: 'a7', gone: 'keep' } },
     ])
     const [accounts, movements] = desk.cards.at(-1)!.groups
     expect(accounts!.lines.every((line) => line.warning === null)).toBe(true)
@@ -137,8 +147,8 @@ describe('the portfolio workbook', () => {
       { length: 201 },
       (_, day) => [civilDay(day), { broker: 'IBKR', account: 'U0000009', sourceFile: 'activity.csv', type: 'DEPOSIT', currency: 'EUR', netCash: 10 }] as const,
     )
-    desk.attachments.push(await workbookAttachment('a3', workbookGrid(deposits)))
-    const answer = await desk.propose([{ op: 'import-workbook', input: { file: 'a3', gone: 'keep' } }])
+    desk.attachments.push(await workbookAttachment('a6', workbookGrid(deposits)))
+    const answer = await desk.propose([{ op: 'import-workbook', input: { file: 'a6', gone: 'keep' } }])
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain('link Overview, Import')
     expect(answer.text).not.toContain('Propose fewer')
@@ -146,8 +156,8 @@ describe('the portfolio workbook', () => {
 
   it('refuses while the prices file lacks an ECB rate the rows need, as the dialog fetches it first', async () => {
     const desk = await investmentsDesk(used)
-    desk.attachments.push(await workbookAttachment('a3', workbookGrid([['2026-03-02', { broker: 'IBKR', account: 'U0000009', sourceFile: 'a.csv', type: 'DEPOSIT', currency: 'USD', netCash: 100 }]])))
-    const answer = await desk.propose([{ op: 'import-workbook', input: { file: 'a3', gone: 'keep' } }])
+    desk.attachments.push(await workbookAttachment('a6', workbookGrid([['2026-03-02', { broker: 'IBKR', account: 'U0000009', sourceFile: 'a.csv', type: 'DEPOSIT', currency: 'USD', netCash: 100 }]])))
+    const answer = await desk.propose([{ op: 'import-workbook', input: { file: 'a6', gone: 'keep' } }])
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain('USD')
     expect(answer.text).toContain(words.proposals.workbook.place)
@@ -171,6 +181,84 @@ describe("IBKR's mailed report", () => {
     expect(bookOf(desk).mailReaders[0]!.leftOut).toEqual(['asked-1'])
     if (result.kind === 'done') await result.undo!()
     expect(bookOf(desk).mailReaders[0]!.leftOut).toEqual([])
+  })
+})
+
+/** The ECB's dollar rate from before the made-up reports' days. */
+const DOLLAR_RATES = rateBookOf(new Map([[USD, [['2026-01-02', '1.10']] as const]]))
+
+const FLEX = { op: 'import-flex-report', input: { file: 'a3', asked: 'hold' } }
+
+describe('an attached IBKR Flex report', () => {
+  it('imports what the review of a mailed report would, in one write with one Undo, and adds nothing a second time', async () => {
+    const desk = await investmentsDesk(used, DOLLAR_RATES)
+    const accounts = bookOf(desk).accounts.length
+    const proposed = await desk.propose([FLEX])
+    expect(proposed.isError).toBe(false)
+    expect(proposed.text).not.toContain('kuna-daily')
+    const result = await desk.accept()
+    expect(bookOf(desk).accounts).toHaveLength(accounts + 1)
+    expect(bookOf(desk).trades.some((trade) => trade.importKey !== null)).toBe(true)
+
+    expect((await desk.propose([FLEX])).text).toContain('Nothing would change')
+    if (result.kind === 'done') await result.undo!()
+    expect(bookOf(desk).accounts).toHaveLength(accounts)
+  })
+
+  it("brings the rows before the reader's first day, as the first day is for the mailed report", async () => {
+    const desk = await investmentsDesk(used, rateBookOf(new Map([[USD, [['2025-12-29', '1.10']] as const]])))
+    desk.attachments.push(flexAttachment('a6', ['2025-12-30']))
+    const proposed = await desk.propose([{ op: 'import-flex-report', input: { file: 'a6', asked: 'hold' } }])
+    expect(proposed.isError).toBe(false)
+    expect(proposed.text).not.toContain('Nothing would change')
+  })
+
+  it('holds the rows it asks about with a warned line, or stops asking for good in the same write', async () => {
+    const desk = await investmentsDesk(used, DOLLAR_RATES)
+    desk.attachments.push(flexAttachment('a6', ['2026-10-12'], 'unseen'))
+    await desk.propose([{ op: 'import-flex-report', input: { file: 'a6', asked: 'hold' } }])
+    expect(desk.cards[0]!.groups[0]!.lines[0]!.warning).toContain('rows the report asks about stay waiting')
+
+    await desk.propose([{ op: 'import-flex-report', input: { file: 'a6', asked: 'leave-out' } }])
+    const result = await desk.accept()
+    expect(bookOf(desk).mailReaders[0]!.leftOut.length).toBeGreaterThan(0)
+    if (result.kind === 'done') await result.undo!()
+    expect(bookOf(desk).mailReaders[0]!.leftOut).toEqual([])
+  })
+
+  it("starts a reader, switched off, from the report's first day, for a row left out while the file holds none", async () => {
+    const desk = await investmentsDesk(used, DOLLAR_RATES)
+    await desk.store.write('No reader', (unit) => unit.of(MAIL_READER_WRITES).remove(bookOf(desk).mailReaders[0]!))
+    desk.attachments.push(flexAttachment('a6', ['2026-01-05'], 'unseen'))
+    await desk.propose([{ op: 'import-flex-report', input: { file: 'a6', asked: 'leave-out' } }])
+    await desk.accept()
+    const [reader] = bookOf(desk).mailReaders
+    expect(reader).toMatchObject({ on: false, since: '2026-01-05' })
+    expect(reader!.leftOut.length).toBeGreaterThan(0)
+  })
+
+  it('refuses a workbook, a page or an XML that is not a Flex report, naming the file only by its id', async () => {
+    const desk = await investmentsDesk(used, DOLLAR_RATES)
+    desk.attachments.push({ ...desk.attachments[0]!, id: 'a6', kind: 'pdf' }, flexAttachment('a7', ['2026-10-12'], 'no-trades-section', 'Ana Horvat.xml'))
+    expect((await desk.propose([{ op: 'import-flex-report', input: { file: 'a1', asked: 'hold' } }])).text).toContain('XML')
+    expect((await desk.propose([{ op: 'import-flex-report', input: { file: 'a6', asked: 'hold' } }])).text).toBe(NOT_READ_OFF_A_PAGE)
+    const misfit = await desk.propose([{ op: 'import-flex-report', input: { file: 'a7', asked: 'hold' } }])
+    expect(misfit.isError).toBe(true)
+    expect(misfit.text).toContain('Trades')
+    expect(misfit.text).not.toContain('Ana')
+  })
+
+  it('links Upload a report for a report larger than a card holds', async () => {
+    const desk = await investmentsDesk(used, DOLLAR_RATES)
+    desk.attachments.push(
+      flexAttachment(
+        'a6',
+        Array.from({ length: 30 }, (_, day) => civilDay(day + 30)),
+      ),
+    )
+    const answer = await desk.propose([{ op: 'import-flex-report', input: { file: 'a6', asked: 'hold' } }])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain(`link ${words.proposals.flexReport.place}`)
   })
 })
 
@@ -248,10 +336,10 @@ describe('prices', () => {
 
   it('refuses a file named after no holding, a holding priced by hand, and a page', async () => {
     const desk = await investmentsDesk(used)
-    desk.attachments.push(closesAttachment('a3', 'NOPE.csv', 'Date,Close\n2026-10-01,1\n'), { ...desk.attachments[1]!, id: 'a4', kind: 'pdf' })
-    expect((await desk.propose([{ op: 'import-closes', input: { file: 'a3', instrument: null } }])).text).toContain(pricesWords.closesImport.noMatch)
-    expect((await desk.propose([{ op: 'import-closes', input: { file: 'a3', instrument: desk.ref('instrument', DESK.FUND.id) } }])).text).toContain('priced by hand')
-    expect((await desk.propose([{ op: 'import-closes', input: { file: 'a4', instrument: null } }])).text).toBe(NOT_READ_OFF_A_PAGE)
+    desk.attachments.push(closesAttachment('a6', 'NOPE.csv', 'Date,Close\n2026-10-01,1\n'), { ...desk.attachments[1]!, id: 'a7', kind: 'pdf' })
+    expect((await desk.propose([{ op: 'import-closes', input: { file: 'a6', instrument: null } }])).text).toContain(pricesWords.closesImport.noMatch)
+    expect((await desk.propose([{ op: 'import-closes', input: { file: 'a6', instrument: desk.ref('instrument', DESK.FUND.id) } }])).text).toContain('priced by hand')
+    expect((await desk.propose([{ op: 'import-closes', input: { file: 'a7', instrument: null } }])).text).toBe(NOT_READ_OFF_A_PAGE)
   })
 
   it('asks again only for a holding whose page warns of a missing fact', async () => {

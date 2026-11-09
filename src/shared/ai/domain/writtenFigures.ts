@@ -1,6 +1,7 @@
 import { CURRENCY_CODES } from '../../money/currencyCode'
 import { moneyFromAmount } from '../../money/money'
 import { nearestBasisPoints } from '../../money/percent'
+import { eachIdentifier } from '../../privacy/domain/maskIdentifiers'
 
 /** Whether the text writes an amount or a rate equal to none of those, in cents and basis points. */
 export function holdsStrayFigure(text: string, amounts: ReadonlySet<number>, rates: ReadonlySet<number>): boolean {
@@ -19,6 +20,17 @@ const EURO_OR_KUNA = /^(?:[€$£]|eur(?:o|a|e|i|u|os|ima)?|kn)$/i
 /** Upper case only, since in lower case `all`, `top` and `try` are ordinary words. */
 const CODES: ReadonlySet<string> = new Set(CURRENCY_CODES)
 const DAY_AND_MONTH = /^(\d{1,2})\.(\d{2})$/
+/** A day as `2026-11-07` or `7.11.2026.`, with or without spaces after the dots. */
+const DATE = /(?<!\d)(?:\d{4}-\d{2}-\d{2}|\d{1,2}\.\s?\d{1,2}\.\s?\d{4}\.?)(?!\d)/g
+/** A payment reference with its model, such as `HR00 2026-0142` or `HR01 123-456`, its parts digits and hyphens. */
+const REFERENCE = /(?<![\p{L}\p{N}])(?:HR|SI)\d{2}\s?\d+(?:-\d+)*(?![\p{L}\p{N}])/gu
+
+/** The text with its IBANs, OIBs, payment references and dates blanked out, as their digits are no figures. */
+function withoutIdentifiers(text: string): string {
+  return eachIdentifier(text, () => ' ')
+    .replace(REFERENCE, ' ')
+    .replace(DATE, ' ')
+}
 
 function isCurrency(word: string | undefined): boolean {
   return word !== undefined && (EURO_OR_KUNA.test(word) || CODES.has(word))
@@ -34,8 +46,10 @@ function isDayAndMonth(written: string): boolean {
  * The amounts and rates in a text. A number counts as an amount when a currency stands on either side of it, or when it
  * has a thousands separator or two decimals and does not read as a day and a month. It counts as a rate before a percent
  * sign, `posto` or `percent`. Years, days and counts are left alone, and so is an amount written with none of these marks.
+ * The digits of an IBAN, an OIB, a payment reference or a date are never read.
  */
-export function figuresIn(text: string): WrittenFigure[] {
+export function figuresIn(written: string): WrittenFigure[] {
+  const text = withoutIdentifiers(written)
   return [...text.matchAll(NUMBER)].flatMap((match): WrittenFigure[] => {
     const written = match[0].replace(/\s/g, '')
     const after = text.slice(match.index + match[0].length)

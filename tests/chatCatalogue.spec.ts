@@ -156,8 +156,10 @@ describe('the catalogue', () => {
     expect(whole).not.toMatch(/kuna\.secret|kuna-secrets|kuna-investments-keys|made-up-|sk-[a-z]+-|ya29\.|AIza/)
   })
 
-  it('tells the model to name what Kuna cannot do, link the issues page and write no report', () => {
-    expect(catalogue.system).toContain('call show_screen with the route "issues"')
+  it('tells the model to say plainly what Kuna cannot do and stop, and to link the issues page only when asked how to request a feature', () => {
+    expect(catalogue.system).toContain('When Kuna cannot do what the person wants, say so plainly in a sentence and stop.')
+    expect(catalogue.system).toContain('Only when the person asks how to ask for a feature or report a problem, call show_screen with the route "issues"')
+    expect(catalogue.system).not.toMatch(/cannot do[^\n]*then call show_screen/)
     expect(catalogue.system).toContain('Do not write that report for them')
     expect(catalogue.system).not.toContain('github.com')
   })

@@ -12,6 +12,8 @@ const ROUNDS = 6
 
 const LOOKUP: ModelTool = {
   name: 'lookup',
+  title: 'Look up',
+  readOnly: true,
   description: 'Looks one thing up.',
   input: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string' } } },
 }

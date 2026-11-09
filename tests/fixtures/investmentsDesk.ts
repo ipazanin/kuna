@@ -6,6 +6,8 @@ import type { WorkbookRows } from '../../src/apps/investments/imports/domain/imp
 import { OPTIONAL_COLUMNS, WORKBOOK_COLUMNS, readPortfolioWorkbook } from '../../src/apps/investments/imports/domain/portfolioWorkbook'
 import { MAIL_READER_WRITES } from '../../src/apps/investments/mail/application/mailReaderWrites'
 import { IBKR_FLEX_RECIPE } from '../../src/apps/investments/mail/domain/ibkrFlexRecipe'
+import { sampleFlexReport } from '../../src/apps/investments/mail/infrastructure/fake/sampleFlexReport'
+import type { SampleFlexShape } from '../../src/apps/investments/mail/infrastructure/fake/sampleFlexReport'
 import type { PricesFetchRun } from '../../src/apps/investments/prices/application/pricesUpdate'
 import type { ClosesImportLine } from '../../src/apps/investments/prices/domain/closesImport'
 import { NO_FETCHED_FACTS, emptyPricesFile } from '../../src/apps/investments/prices/domain/pricesFile'
@@ -87,6 +89,11 @@ export function closesAttachment(id: string, name: string, text: string): ChatAt
   return { id, kind: 'csv', name, bytes: new TextEncoder().encode(text), original: new Blob(), pages: 1, sent: null }
 }
 
+/** A made-up IBKR Activity Flex report over the days given as an attached XML file, which Kuna reads itself. */
+export function flexAttachment(id: string, days: readonly string[], shape: SampleFlexShape = 'plain', name = 'kuna-daily.xml'): ChatAttachment {
+  return { id, kind: 'xml', name, bytes: new TextEncoder().encode(sampleFlexReport(days.map(civil), shape)), original: new Blob(), pages: 1, sent: null }
+}
+
 /** A deposit at a broker account Kuna has not seen, the smallest workbook an import adds something from. */
 export const DEPOSIT_WORKBOOK = workbookGrid([['2026-03-02', { broker: 'IBKR', account: 'U0000009', sourceFile: 'activity.csv', type: 'DEPOSIT', currency: 'EUR', netCash: 1000 }]])
 
@@ -155,7 +162,7 @@ export interface InvestmentsDesk {
   readonly runs: PricesRuns
   /** This device's answer, and the id of the file on screen it belongs to. */
   readonly history: { complete: boolean; file: string | null }
-  /** The files attached to the chat: a1 a workbook and a2 closes of the share. */
+  /** The files attached to the chat: a1 a workbook, a2 closes of the share and a3 a Flex report of a day in October. */
   readonly attachments: ChatAttachment[]
   ref(kind: string, id: string): string
   propose(steps: readonly { readonly op: string; readonly input: unknown; readonly as?: string }[]): ReturnType<typeof proposeChanges>
@@ -199,7 +206,7 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
     mailReport: () => mailedReport(),
     history: { file: () => history.file, given: () => history.complete, give: () => (history.complete = true), takeBack: () => (history.complete = false) },
   }
-  const attachments = [await workbookAttachment('a1', DEPOSIT_WORKBOOK), closesAttachment('a2', 'SHARE.csv', 'Date,Close\n2026-10-01,101.5\n2026-10-02,102\n')]
+  const attachments = [await workbookAttachment('a1', DEPOSIT_WORKBOOK), closesAttachment('a2', 'SHARE.csv', 'Date,Close\n2026-10-01,101.5\n2026-10-02,102\n'), flexAttachment('a3', ['2026-10-12'])]
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['investments', investmentsProposer(typed, ports)]])

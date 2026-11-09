@@ -9,11 +9,11 @@ import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { INVOICING_OPERATIONS } from '../src/apps/company/assistant/operations/invoicingOperations'
 import { KEPT_BY_KUNA } from '../src/apps/company/assistant/operations/proposalLines'
+import { installedPack } from '../src/apps/company/packs/packContribution'
 import { settingName } from '../src/apps/company/assistant/operations/settingNames'
 import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
 import { packDescriber } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
 import { words } from '../src/apps/company/assistant/operations/words'
-import { installedPack } from '../src/apps/company/packs/packContribution'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { AssistantOperation } from '../src/shared/app/assistantOperations'
@@ -55,15 +55,9 @@ function exampleRecords(desk: CompanyDesk): Readonly<Record<string, string>> {
   }
 }
 
-/** A class of the installed pack an operating category with no VAT may carry, since a new category carries one. */
-function classForOperatingCost(): string {
-  return installedPack().workbook!.categoryClasses.find((taxClass) => taxClass.buckets.includes('operating') && taxClass.vat.includes('none'))!.role
-}
-
 /** The example's input with each record it names as a ref the chat handed out, inside a list of parts too. */
 function exampleInput(desk: CompanyDesk, operation: AssistantOperation): Record<string, unknown> {
   const records = exampleRecords(desk)
-  if (operation.name === 'add-category') return { ...operation.example, roles: classForOperatingCost() }
   const refOf = (kind: string | undefined, value: unknown) => (kind !== undefined && typeof value === 'string' && records[value] !== undefined ? desk.ref(kind, records[value]) : value)
   return Object.fromEntries(
     Object.entries(operation.example).map(([field, value]) => {
@@ -338,6 +332,73 @@ describe('settings, categories and accounts', () => {
     expect(keys.filter((proposed) => settingName(proposed, names) === proposed)).toEqual([])
   })
 
+  it("lists the pack's tax classes as add-category's taxClass, each with the name the categories editor gives it, and keeps them out of roles", () => {
+    const addCategory = OPERATIONS.find((operation) => operation.name === 'add-category')!
+    const fields = addCategory.input.type === 'object' ? addCategory.input.properties : {}
+    const taxClass = fields['taxClass']!
+    const roles = fields['roles']!
+    const classes = installedPack().workbook!.categoryClasses.map((candidate) => candidate.role)
+
+    const otherRoles = roles.type === 'array' && 'enum' in roles.items ? (roles.items.enum ?? []) : []
+
+    expect('enum' in taxClass ? taxClass.enum : []).toEqual(classes)
+    expect(taxClass.description).toContain(`deductible-cost: ${installedPack().categoryClassHelp('deductible-cost', parseCivilDate('2026-11-07')!)!.name}`)
+    expect(otherRoles).toContain('watched')
+    expect(otherRoles.filter((role) => role !== null && classes.includes(role))).toEqual([])
+  })
+
+  it('adds a category with its tax class first among its roles, and the card names the class as the categories editor does', async () => {
+    const desk = await companyDesk(used)
+
+    const answer = await desk.propose([
+      {
+        op: 'add-category',
+        input: { category: 'client-lunches', label: 'Client lunches', family: 'operating', bucket: 'operating', taxClass: 'representation', roles: ['watched'], vat: 'representation', ownerShare: '' },
+      },
+    ])
+
+    expect(answer.isError, answer.text).toBe(false)
+    const roles = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.filter((field) => field.name === words.fields.roles))
+    expect(roles[0]!.after).toMatch(/^Representation: .+, watched$/)
+  })
+
+  it('refuses a tax class the pack lacks by naming every class, and points at the operation page', async () => {
+    const desk = await companyDesk(used)
+
+    const answer = await desk.propose([
+      { op: 'add-category', input: { category: 'donations', label: 'Donations', family: 'operating', bucket: 'operating', taxClass: 'donation', roles: [], vat: '', ownerShare: '' } },
+    ])
+
+    expect(answer.isError).toBe(true)
+    for (const role of installedPack().workbook!.categoryClasses.map((candidate) => candidate.role)) expect(answer.text).toContain(role)
+    expect(answer.text).toContain('company/op/add-category')
+  })
+
+  it('refuses a class among the other roles of a change, and a role Kuna does not know by naming those it does', async () => {
+    const desk = await companyDesk(used)
+    const change = (roles: string) => ({
+      op: 'change-category',
+      input: {
+        category: desk.ref(CATEGORY_RECORDS.name, 'equipment'),
+        name: null,
+        label: null,
+        family: null,
+        bucket: null,
+        taxClass: null,
+        roles,
+        vat: null,
+        colour: null,
+        ownerShare: null,
+        fillRows: null,
+      },
+    })
+
+    expect((await desk.propose([change('revenue')])).text).toContain('Name it in taxClass')
+    const unknown = await desk.propose([change('made-up')])
+    expect(unknown.isError).toBe(true)
+    expect(unknown.text).toContain('watched')
+  })
+
   it('refuses to delete a category or an account something names', async () => {
     const desk = await companyDesk(used)
     expect((await desk.propose([{ op: 'delete-category', input: { category: desk.ref(CATEGORY_RECORDS.name, 'equipment') } }])).isError).toBe(true)
@@ -349,7 +410,19 @@ describe('settings, categories and accounts', () => {
     await desk.propose([
       {
         op: 'change-category',
-        input: { category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), name: null, label: null, family: null, bucket: null, roles: null, vat: null, colour: null, ownerShare: '20', fillRows: 'yes' },
+        input: {
+          category: desk.ref(CATEGORY_RECORDS.name, 'equipment'),
+          name: null,
+          label: null,
+          family: null,
+          bucket: null,
+          taxClass: null,
+          roles: null,
+          vat: null,
+          colour: null,
+          ownerShare: '20',
+          fillRows: 'yes',
+        },
       },
     ])
     const accepted = await desk.accept()

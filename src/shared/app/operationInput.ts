@@ -8,7 +8,7 @@ export const TEXT: StrictSchema = { type: 'string' }
 export const TEXT_OR_NULL: StrictSchema = { type: ['string', 'null'] }
 export const NUMBER: StrictSchema = { type: 'number' }
 export const NUMBER_OR_NULL: StrictSchema = { type: ['number', 'null'] }
-export const FLAG_OR_NULL: StrictSchema = { type: ['string', 'null'], description: '"yes", "no", or null to leave it.' }
+export const FLAG_OR_NULL: StrictSchema = { type: ['string', 'null'], enum: ['yes', 'no', null], description: '"yes", "no", or null to leave it.' }
 
 /** An operation's input: an object with every field required, where null leaves a field as it is. */
 export function inputOf(properties: Readonly<Record<string, StrictSchema>>): StrictSchema {

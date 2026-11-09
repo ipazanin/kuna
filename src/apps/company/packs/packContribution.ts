@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import type { AppScreen } from '../../../shared/app/appContribution'
 import type { KnownPerson } from '../../../shared/privacy/domain/pseudonyms'
+import { today } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
 import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
@@ -10,6 +11,7 @@ import type { SettingsTab } from '../settings/presentation/settingsTabs'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
 import type { PackPart } from '../workbook/domain/packPart'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
+import { newestBookingOf } from '../workbook/domain/workbook'
 import type { Category, Workbook } from '../workbook/domain/workbook'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 import type { Money } from '../../../shared/money/money'
@@ -62,6 +64,11 @@ export interface CategoryClassHelp {
   /** Such as "Kuna counts this as representation". */
   readonly sentence: string
   readonly link: { readonly label: string; readonly to: RouteLocationRaw }
+}
+
+/** The day a class's help reads the law's shares on: the newest booking's, or today's in books with none yet. */
+export function classSharesDay(workbook: Workbook | null): CivilDate {
+  return newestBookingOf(workbook?.transactions ?? []) ?? today()
 }
 
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */

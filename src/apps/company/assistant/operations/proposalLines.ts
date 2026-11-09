@@ -5,6 +5,9 @@ import { INVOICING_KINDS, invoicingDescriber } from './invoicingLines'
 import { words } from './words'
 import type { PackOperations } from '../companyAssistant'
 import { ownerShareText } from '../../owner-share/domain/ownerShare'
+import { classSharesDay, installedPack } from '../../packs/packContribution'
+import { vatTreatmentLabel } from '../../settings/presentation/vatTreatmentLabel'
+import { words as settingsWords } from '../../settings/presentation/words'
 import { readRules } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import { conditionInWords } from '../../rules/domain/ruleSummary'
@@ -58,7 +61,7 @@ function ruleInWords(row: RuleTabRow, workbook: Workbook, names: DisplayNames): 
   ].join(', ')
 }
 
-/** A value as a person reads it on screen: money in the books' format, days in words, categories and accounts by their names. */
+/** A value as a person reads it on screen: money in the books' format, days in words, categories and accounts by their names, and a category's bucket, VAT and tax class as the categories editor names them. */
 function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, workbook: Workbook, names: DisplayNames): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
@@ -77,6 +80,10 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (field === 'account' && !isKind(kind, ACCOUNT_RECORDS, record)) return names.account(String(value))
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return record.colour.swatch?.name ?? words.bucketColour
   if (isKind(kind, DISMISSAL_RECORDS, record) && field === 'kind') return words.suggestion[record.kind]
+  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'bucket') return settingsWords.categories.bucketChoice(record.bucket)
+  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'vat') return vatTreatmentLabel(record.vat)
+  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'roles')
+    return record.roles.length === 0 ? null : record.roles.map((role) => installedPack().categoryClassHelp(role, classSharesDay(workbook))?.name ?? role).join(', ')
   if (Array.isArray(value)) return value.length === 0 ? null : value.join(', ')
   return String(value)
 }

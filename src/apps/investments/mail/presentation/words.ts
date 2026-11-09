@@ -58,6 +58,12 @@ export const en = {
     accepted: 'IBKR report accepted',
     notAccepted: 'Nothing accepted',
   },
+  upload: {
+    title: 'Upload a report',
+    intro: 'Choose an Activity Flex report in XML that you saved from IBKR or from its mail. You check every row before anything goes in. Rows already in Kuna are skipped.',
+    drop: 'Drop the IBKR report here',
+    orChoose: 'or choose an XML file',
+  },
   guide: {
     title: 'IBKR report by mail',
     body: `IBKR can mail its Activity Flex report each day, so trades, dividends, tax withheld, conversions, deposits, interest and fees reach Investments with no upload. In IBKR's Client Portal, make an Activity Flex Query in XML for the last 7 to 14 days with the sections ${SECTIONS}, and turn on its delivery by email. In Investments, Settings, General, turn on IBKR report by mail. Each sync reads what arrived, and new records wait for a review with one tap to accept and an Undo. A row Kuna has not seen, such as a corporate action or a corrected trade, is asked about and never guessed. It helps most for someone adding broker trades by hand or importing a statement.`,
@@ -121,6 +127,12 @@ export const hr: Translation<typeof en> = {
     accept: 'Prihvati',
     accepted: 'Izvješće IBKR-a je prihvaćeno',
     notAccepted: 'Ništa nije prihvaćeno',
+  },
+  upload: {
+    title: 'Učitaj izvješće',
+    intro: 'Odaberite izvješće Activity Flex u formatu XML koje ste spremili iz IBKR-a ili iz njegove poruke. Svaki redak provjerite prije nego što išta uđe. Retci koji su već u Kuni preskaču se.',
+    drop: 'Ispustite izvješće IBKR-a ovdje',
+    orChoose: 'ili odaberite datoteku XML',
   },
   guide: {
     title: 'Izvješće IBKR-a poštom',

@@ -157,6 +157,43 @@ describe('the benchmark', () => {
   })
 })
 
+describe('an instrument', () => {
+  const fund = (fields: Readonly<Record<string, unknown>>) => ({
+    op: 'add-instrument',
+    input: {
+      name: 'Example Fund',
+      symbol: 'EXF',
+      type: 'fund',
+      class: null,
+      isin: '',
+      exchange: '',
+      currency: 'EUR',
+      prices: 'manual',
+      sourceSymbol: '',
+      sector: '',
+      country: '',
+      ter: '',
+      distribution: '',
+      note: '',
+      sectors: [],
+      countries: [],
+      ...fields,
+    },
+  })
+
+  it.each([
+    ['a country', { country: 'Atlantis' }, 'country is a country code such as US, or a region: world, europe'],
+    ['a country line', { countries: [{ group: 'Atlantis', percent: '100' }] }, 'countries.0.group is a country code such as US, or a region: world, europe'],
+    ['a sector line', { sectors: [{ group: 'shipping', percent: '100' }] }, 'sectors.0.group is one of information-technology, financials'],
+  ])('refuses %s outside the list by naming what it takes', async (_what, fields, refusal) => {
+    const desk = await investmentsDesk(used)
+
+    const answer = await desk.propose([fund(fields)])
+
+    expect(answer).toMatchObject({ isError: true, text: expect.stringContaining(refusal) })
+  })
+})
+
 describe('the history answer', () => {
   it('is given and taken back on this device, each a card alone with an Undo that restores it', async () => {
     const desk = await investmentsDesk(used)
