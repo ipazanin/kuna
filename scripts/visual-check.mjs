@@ -4370,11 +4370,12 @@ const failures = []
 const overflowSeen = []
 
 /**
- * A dashboard grid has to rearrange as the screen widens from one of these widths to the next, unless
- * all its cards already sit in one row at the wider one.
+ * A dashboard grid has to rearrange as the screen widens from one of these widths to the next, unless all its cards
+ * already sit in one row at the wider one, or its room stays between the same container steps. A docked chat takes part
+ * of the window, so the room is the grid's container and not the window.
  */
 const REFLOW_WIDTHS = [768, 1440, 1920]
-/** The dashboard grids each screen showed, by its name and the width, such as `overview 1440`. */
+/** The dashboard grids each screen showed and the container steps its styles had, by its name and the width, such as `overview 1440`. */
 const dashboardGridsSeen = new Map()
 
 /** Whether a visit's query pins Croatian, so the screen is scanned for English left on it. */
@@ -4429,6 +4430,7 @@ function readPage(page) {
       cardOverflow: overflowingCards(cardSelector),
       unevenFieldRows: unevenFieldRows(),
       dashboardGrids: dashboardGrids(),
+      containerSteps: containerSteps(),
       handBuiltGrids: handBuiltGrids(cardSelector),
       crowdedDonuts: crowdedDonuts(cardSelector),
     }
@@ -4509,9 +4511,16 @@ function readPage(page) {
 
     /**
      * Each dashboard grid laid out as a grid, in page order, with how many of its parts sit in each
-     * of its rows. Below @8xl a pair is not a grid, its parts stacking in the screen's column.
+     * of its rows and the width of the container its steps answer to. Below @8xl a pair is not a grid, its parts stacking in the screen's column.
      */
     function dashboardGrids() {
+      const roomOf = (grid) => {
+        for (let box = grid.parentElement; box !== null; box = box.parentElement) {
+          const style = getComputedStyle(box)
+          if (style.containerType !== 'normal') return Math.round(box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight))
+        }
+        return window.innerWidth
+      }
       const grids = []
       for (const grid of document.querySelectorAll('[data-layout]')) {
         if (getComputedStyle(grid).display !== 'grid') continue
@@ -4522,9 +4531,25 @@ function readPage(page) {
           rows.set(row, (rows.get(row) ?? 0) + 1)
         }
         const name = (grid.dataset.testid ?? grid.querySelector('h2, h3, p')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 32)
-        grids.push({ name, layout: grid.dataset.layout, rows: [...rows.entries()].sort(([first], [second]) => first - second).map(([, count]) => count) })
+        grids.push({ name, layout: grid.dataset.layout, room: roomOf(grid), rows: [...rows.entries()].sort(([first], [second]) => first - second).map(([, count]) => count) })
       }
       return grids
+    }
+
+    /** The widths in px at which the page's container queries change something, read from its stylesheets. */
+    function containerSteps() {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize)
+      const steps = new Set()
+      const visit = (rules) => {
+        for (const rule of rules) {
+          if (rule instanceof CSSContainerRule) {
+            for (const [, amount, unit] of rule.conditionText.matchAll(/(?:width\s*>=?|min-width:)\s*([\d.]+)(rem|px)/g)) steps.add(Math.round(Number(amount) * (unit === 'rem' ? rem : 1)))
+          }
+          if (rule.cssRules) visit(rule.cssRules)
+        }
+      }
+      for (const sheet of document.styleSheets) visit(sheet.cssRules)
+      return [...steps].sort((first, second) => first - second)
     }
 
     /**
@@ -7074,7 +7099,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
     for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
     for (const donut of report.crowdedDonuts) fail(scope, donut)
-    if (REFLOW_WIDTHS.includes(viewport.width)) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, report.dashboardGrids)
+    if (REFLOW_WIDTHS.includes(viewport.width)) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
     if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
       for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
     }
@@ -7131,10 +7156,15 @@ if (REFLOW_WIDTHS.every((width) => selection.takesWidth(width))) {
   const keyed = (grids) => grids.map((grid, index) => [`${grid.name} ${grids.slice(0, index).filter((other) => other.name === grid.name).length}`, grid])
   for (const name of new Set(visits.map((visit) => visit.name))) {
     for (const [narrow, wide] of REFLOW_WIDTHS.slice(1).map((width, index) => [REFLOW_WIDTHS[index], width])) {
-      const before = new Map(keyed(dashboardGridsSeen.get(`${name} ${narrow}`) ?? []))
-      for (const [key, grid] of keyed(dashboardGridsSeen.get(`${name} ${wide}`) ?? [])) {
-        if (grid.rows.length > 1 && before.get(key)?.rows.join() === grid.rows.join()) {
-          fail(`${name} ${wide}px`, `the ${grid.layout} grid "${grid.name}" keeps ${grid.rows.join(', ')} cards a row from ${narrow} px, so it does not rearrange for the wider screen`)
+      const before = new Map(keyed(dashboardGridsSeen.get(`${name} ${narrow}`)?.grids ?? []))
+      const after = dashboardGridsSeen.get(`${name} ${wide}`) ?? { grids: [], steps: [] }
+      for (const [key, grid] of keyed(after.grids)) {
+        const earlier = before.get(key)
+        if (grid.rows.length > 1 && earlier?.rows.join() === grid.rows.join() && after.steps.some((step) => earlier.room < step && step <= grid.room)) {
+          fail(
+            `${name} ${wide}px`,
+            `the ${grid.layout} grid "${grid.name}" keeps ${grid.rows.join(', ')} cards a row from ${narrow} px, though its room grows from ${earlier.room} to ${grid.room} px, so it does not rearrange for the wider screen`,
+          )
         }
       }
     }

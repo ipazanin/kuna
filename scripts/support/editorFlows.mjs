@@ -8571,12 +8571,16 @@ export function chatPanelFlowIn(language) {
       await send(language === 'en' ? 'And the rules?' : 'A pravila?')
       await page.waitForSelector('[data-testid="chat-chip"]', { visible: true, timeout: 15_000 })
       if (await page.$(CHAT_CONSENT)) throw new Error("a new chat asked with Don't ask again on")
+      // The link shows with the tool call, before the answer's text lands above it and moves it down on a phone.
+      await page.waitForSelector('[data-status="ready"] [data-testid="chat-answer"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the answer with the link did not finish')
+      })
 
       await pressSelector(page, press, '[data-testid="chat-chip"]')
       await page
         .waitForFunction(() => window.location.hash.startsWith('#/spending/settings?tab=rules'), { timeout: 10_000 })
-        .catch(() => {
-          throw new Error('the link did not lead to the rules')
+        .catch(async () => {
+          throw new Error(`the link did not lead to the rules but to ${await page.evaluate(() => window.location.hash)}`)
         })
       if (await wide()) {
         await page.waitForSelector('[data-testid="chat-dock"]', { visible: true, timeout: 5_000 })

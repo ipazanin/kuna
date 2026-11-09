@@ -47,7 +47,7 @@ function barStyle(change: number): Record<string, string> {
         <th scope="col" class="text-start">{{ words.typicalMonth.perMonth }}</th>
         <th v-for="column in columns" :key="column" scope="col" class="text-end">{{ column }}</th>
         <th scope="col" class="hidden text-end @md:table-cell">{{ words.typicalMonth.last3Against12 }}</th>
-        <th scope="col" class="hidden w-32 @xl:table-cell">
+        <th scope="col" class="hidden w-32 @2xl:table-cell">
           <span class="sr-only">{{ words.typicalMonth.scale }}</span>
         </th>
       </tr>
@@ -68,7 +68,7 @@ function barStyle(change: number): Record<string, string> {
         <td class="figure hidden text-end text-toned @md:table-cell">
           {{ row.recentChange === null ? '–' : formatPercent(row.recentChange, 'always') }}
         </td>
-        <td class="hidden @xl:table-cell">
+        <td class="hidden @2xl:table-cell">
           <span class="change-scale" aria-hidden="true">
             <span v-if="row.recentChange !== null" class="change-bar" :style="barStyle(row.recentChange)" />
           </span>
