@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { companyFileFormats } from '../src/apps/company/assistant/fileFormats'
+import { SPENDING_FILE_FORMATS } from '../src/apps/spending/assistant/fileFormats'
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import { catalogueOf, ISSUES_ROUTE } from '../src/shared/ai/application/catalogue'
 import type { Catalogue } from '../src/shared/ai/application/catalogue'
@@ -13,8 +15,9 @@ import type { ChatChip, ChatTools } from '../src/shared/ai/application/chatTools
 import { guardedModel } from '../src/shared/ai/application/egressGuard'
 import type { ModelPort, ModelReply, ModelRequest, ToolCall } from '../src/shared/ai/application/modelPort'
 import { contextLine, elementLine, runChatTurn } from '../src/shared/ai/application/runChatTurn'
-import { attachmentKindOf, nextAttachmentId, sendsToModel } from '../src/shared/ai/domain/chatAttachments'
-import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
+import { attachedFile } from '../src/shared/ai/application/chatFiles'
+import { attachmentKindOf, nextAttachmentId } from '../src/shared/ai/domain/chatAttachments'
+import type { AttachedFile, ChatAttachment, FormatFound } from '../src/shared/ai/domain/chatAttachments'
 import type { FigureTrace } from '../src/shared/ai/domain/chatElement'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import type { ChatBuildUp } from '../src/shared/ai/domain/chatRefs'
@@ -59,6 +62,7 @@ const CATALOGUE: Catalogue = catalogueOf(
         acceptance: null,
         quickActions: [],
         persons: () => CHAT_PERSONS,
+        fileFormats: SPENDING_FILE_FORMATS,
       },
     },
   ],
@@ -383,22 +387,34 @@ describe('the tagged element and the files', () => {
     const line = elementLine(null, files, CATALOGUE, readsOf())!
     for (const file of files) expect(line).not.toContain(file.name)
     expect(line).toContain('(pdf, 30 pages)')
-    expect(line).toMatch(/a\d+ \(sheet, read by Kuna, never sent\)/)
-    expect(line).toMatch(/a\d+ \(xml, read by Kuna, never sent\)/)
+    expect(line).toMatch(/a\d+ \(sheet, Revolut's statement export, read by Kuna and never sent, which spending import-statement imports\)/)
+    expect(line).toMatch(/a\d+ \(xml, ISO 20022 bank statement, read by Kuna and never sent/)
+    expect(line).toMatch(/a\d+ \(json, \d+ sheets?|a\d+ \(json, \d+ rows, which read_attachment hands as cells\)/)
   })
 })
 
-/** Every fixture a person could attach, each under the id the chat would hand out, as Kuna holds it in memory. */
+/** Every fixture a person could attach, each under the id the chat would hand out, read on the device as the chat reads it, with Spending's and Company's formats known. */
 async function fixtureAttachments(): Promise<readonly ChatAttachment[]> {
   const names = readdirSync(DOCUMENTS)
     .filter((name) => attachmentKindOf(name, '') !== null)
     .sort()
+  const formats = [...SPENDING_FILE_FORMATS.map((format) => ({ app: 'spending', format })), ...companyFileFormats(() => null).map((format) => ({ app: 'company', format }))]
+  const knownFormatOf = async (file: AttachedFile): Promise<FormatFound> => {
+    for (const { app, format } of formats) if (await format.recognises(file)) return { app, name: format.name, operation: format.operation }
+    return 'none'
+  }
+  const read = await Promise.all(
+    names.map(async (name, index) => attachedFile(new File([readFileSync(join(DOCUMENTS, name))], name), nextAttachmentId(index), 0, () => Promise.reject(new Error('no photos here')), knownFormatOf)),
+  )
+  // A PDF Kuna refuses on its chip still reaches a read here, as a hostile model may name any id.
   return Promise.all(
     names.map(async (name, index) => {
+      const held = read[index]!
+      if (!('reason' in held)) return held
       const bytes = new Uint8Array(readFileSync(join(DOCUMENTS, name)))
-      const kind = attachmentKindOf(name, '')!
-      const reading = kind === 'pdf' ? await pdfPages(bytes) : { pages: 1 }
-      return { id: nextAttachmentId(index), kind, name, bytes, original: new Blob([bytes]), pages: 'pages' in reading ? reading.pages : 1, sent: null }
+      const counted = await pdfPages(bytes)
+      const pages = 'pages' in counted ? counted.pages : 1
+      return { id: nextAttachmentId(index), kind: attachmentKindOf(name, '')!, name, bytes, original: new Blob([bytes]), pages, sent: null, reading: { kind: 'whole' } } as const
     }),
   )
 }
@@ -411,6 +427,7 @@ const PHOTO: ChatAttachment = {
   original: new Blob(),
   pages: 1,
   sent: { width: 10, height: 20 },
+  reading: { kind: 'whole' },
 }
 
 describe('a hostile model and the attached files', () => {
@@ -419,18 +436,27 @@ describe('a hostile model and the attached files', () => {
     const bodies: string[] = []
     // A message takes at most eight rounds, so the files go seven to a message.
     for (let start = 0; start < files.length; start += 7) {
-      const model = { ...hijackedModel(files.slice(start, start + 7).map((file) => call('read_attachment', { attachment: file.id, pages: file.pages > 20 ? '1-20' : null }))), readsPdf: true }
+      const model = {
+        ...hijackedModel(files.slice(start, start + 7).map((file) => call('read_attachment', { attachment: file.id, pages: file.pages > 20 ? '1-20' : null, sheet: null, rows: null }))),
+        readsPdf: true,
+      }
       const end = await runChatTurn({ ...TURN, attachments: files, model: guardedModel(model, () => [CANARY]), reads: readsOf(), message: 'Read them all', signal: new AbortController().signal })
       expect(end.kind).toBe('answer')
       bodies.push(...model.bodies)
     }
     const sent = bodies.join('\n')
+    // A file sent as cells may itself name another file, as a fixture's notes name its PDF. That is the file's text, not a name Kuna sent.
+    const cellText = files.flatMap((file) => (file.reading.kind === 'cells' ? [new TextDecoder().decode(file.bytes)] : [])).join('\n')
     for (const file of files) {
-      expect(sent).not.toContain(file.name)
-      expect(sent).not.toContain(file.name.replace(/\.[a-z]+$/, ''))
-      if (!sendsToModel(file.kind)) expect(sent).not.toContain(Buffer.from(file.bytes).toString('base64'))
+      const stem = file.name.replace(/\.[a-z]+$/, '')
+      if (!cellText.includes(stem)) {
+        expect(sent).not.toContain(stem)
+        expect(sent).not.toContain(file.name)
+      }
+      if (file.reading.kind !== 'whole') expect(sent).not.toContain(Buffer.from(file.bytes).toString('base64'))
     }
-    expect(sent).toContain('Kuna reads a file of this kind itself and never sends it.')
+    expect(sent).toContain('Kuna reads this file itself, as ISO 20022 bank statement, and never sends it.')
+    expect(sent).toContain('\\"kind\\":\\"json\\",\\"untrusted\\":true')
     expect(sent).toContain('"kind":"pdf"')
     expect(sent).toContain('"kind":"image"')
   })
@@ -439,7 +465,7 @@ describe('a hostile model and the attached files', () => {
     const file = (await fixtureAttachments()).find((held) => held.name === name)!
     const answer = await runChatTool(
       tools(() => undefined, readsOf(), [{ ...file, pages: 1 }]),
-      call('read_attachment', { attachment: file.id, pages: null }),
+      call('read_attachment', { attachment: file.id, pages: null, sheet: null, rows: null }),
     )
     expect(answer).toEqual({ text: 'Kuna could not read those pages of the file. Say so.', isError: true })
   })
@@ -449,7 +475,7 @@ describe('a hostile model and the attached files', () => {
     const range = files.find((file) => file.name === 'pages-30.pdf')!
     const answer = await runChatTool(
       tools(() => undefined, readsOf(), files),
-      call('read_attachment', { attachment: range.id, pages: '2-4' }),
+      call('read_attachment', { attachment: range.id, pages: '2-4', sheet: null, rows: null }),
     )
     expect(JSON.parse(answer.text)).toEqual({ attachment: range.id, kind: 'pdf', untrusted: true, pages: '2-4', of: 30 })
     expect(answer.parts).toHaveLength(1)
@@ -459,7 +485,7 @@ describe('a hostile model and the attached files', () => {
     const opening = files.find((file) => file.name === 'open-action.pdf')!
     const sent = await runChatTool(
       tools(() => undefined, readsOf(), files),
-      call('read_attachment', { attachment: opening.id, pages: null }),
+      call('read_attachment', { attachment: opening.id, pages: null, sheet: null, rows: null }),
     )
     expect(Buffer.from((sent.parts![0] as { base64: string }).base64, 'base64').toString('latin1')).not.toContain('/OpenAction')
   })
@@ -471,7 +497,7 @@ describe('a hostile model and the attached files', () => {
   ])('refuses %j with pages %j and repeats nothing', async (attachment, pages) => {
     const answer = await runChatTool(
       tools(() => undefined, readsOf(), [PHOTO]),
-      call('read_attachment', { attachment, pages }),
+      call('read_attachment', { attachment, pages, sheet: null, rows: null }),
     )
     expect(answer.isError).toBe(true)
     expect(answer.text).not.toContain(attachment)
@@ -479,7 +505,7 @@ describe('a hostile model and the attached files', () => {
 
   it('refuses a PDF for a provider that reads none, before any request carries it', async () => {
     const file = (await fixtureAttachments()).find((held) => held.name === 'statement-ties.pdf')!
-    const answer = await runChatTool({ ...tools(() => undefined, readsOf(), [file]), readsPdf: false }, call('read_attachment', { attachment: file.id, pages: null }))
+    const answer = await runChatTool({ ...tools(() => undefined, readsOf(), [file]), readsPdf: false }, call('read_attachment', { attachment: file.id, pages: null, sheet: null, rows: null }))
     expect(answer.isError).toBe(true)
     expect(answer.parts).toBeUndefined()
   })

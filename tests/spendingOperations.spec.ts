@@ -75,7 +75,12 @@ describe('every Spending operation', () => {
         linesTaken.set(`${change.verb}/${change.kind.name}`, at + 1)
         if (change.verb === 'remove') return []
         const before = change.verb === 'change' ? (change.before as Readonly<Record<string, unknown>>) : null
-        return [{ shown: group.lines[at]!.fields.map((field) => field.name), set: namesSet(before, change.after as Readonly<Record<string, unknown>>) }]
+        return [
+          {
+            shown: group.lines.filter((line) => line.fields.length > 0 || line.warning === null)[at]!.fields.map((field) => field.name),
+            set: namesSet(before, change.after as Readonly<Record<string, unknown>>),
+          },
+        ]
       })
       for (const { shown, set } of checked) expect(shown).toEqual(expect.arrayContaining(set))
       expect((await desk.accept()).kind).toBe('done')

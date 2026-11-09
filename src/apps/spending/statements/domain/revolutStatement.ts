@@ -116,6 +116,12 @@ function pocketMoves(rows: readonly CompletedRow[]): ReadonlyMap<CompletedRow, s
   return times
 }
 
+/** Whether the first row that is not blank heads every column of Revolut's export, which `revolutStatement` reads. */
+export function isRevolutExport(grid: readonly (readonly SheetCell[])[]): boolean {
+  const header = (grid.find((row) => !isBlank(row)) ?? []).map((cell) => cellText(cell).toLowerCase())
+  return COLUMNS.every((column) => header.includes(column.toLowerCase()))
+}
+
 /**
  * Reads a Revolut export, its columns found by the header's names. Only completed rows count, and what it leaves out is
  * counted in a note. A row goes to the open Revolut account of its currency, or a closed one when no other fits, or a

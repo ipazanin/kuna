@@ -1,3 +1,4 @@
+import { accountMoneyFromCents } from './accountMoney'
 import type { AccountMoney } from './accountMoney'
 import { moneyFromCents } from './money'
 import type { Money } from './money'
@@ -143,6 +144,11 @@ export function decimalCentParts(total: Decimal, weights: readonly bigint[]): De
 /** The same split of euros to the cent, so a €1.00 fee over three equal lots is €0.33, €0.34 and €0.33. */
 export function moneyParts(total: Money, weights: readonly bigint[]): Money[] {
   return proportionalParts(BigInt(total), weights, 1n).map((cents) => moneyFromCents(Number(cents)))
+}
+
+/** An amount of an account's own currency, rounded half away from zero to the cent. */
+export function accountMoneyOfDecimal(amount: Decimal): AccountMoney {
+  return accountMoneyFromCents(Number(dividedHalfAwayFromZero(amount, STEPS_PER_CENT)))
 }
 
 /** The amount in euros at a rate of units per euro, rounded half away from zero to the cent. A null rate is for an amount already in euros. */

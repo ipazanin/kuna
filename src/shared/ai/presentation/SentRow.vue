@@ -7,7 +7,7 @@ import { language } from '../../text/language'
 import { formatCount } from '../../money/moneyFormat'
 import { plural } from '../../text/translation'
 import type { SentRead } from '../application/runChatTurn'
-import { pageRangeText } from '../domain/chatAttachments'
+import { readRangeText } from '../domain/chatAttachments'
 import { words } from './words'
 
 /** One read of a chat, closed to a line that says what went, and one tap from the exact text a provider got: aliases, masks and all. */
@@ -21,10 +21,14 @@ const summary = computed(() => {
   const { read } = props.sent
   if (read.kind === 'figures') return words.sent.figures(read.title, read.app)
   if (read.kind === 'refusal') return words.sent.refusal(read.app)
+  if (read.kind === 'cells') {
+    if (read.rows.first === read.rows.last) return words.sent.cellsRow(readRangeText(read.rows), read.name)
+    return words.sent.cellsRows(readRangeText(read.rows), read.name)
+  }
   if (read.kind === 'document') {
     if (read.pages === null) return words.sent.documentPhoto(read.name)
-    if (read.pages.first === read.pages.last) return words.sent.documentPage(pageRangeText(read.pages), read.name)
-    return words.sent.documentPages(pageRangeText(read.pages), read.name)
+    if (read.pages.first === read.pages.last) return words.sent.documentPage(readRangeText(read.pages), read.name)
+    return words.sent.documentPages(readRangeText(read.pages), read.name)
   }
   const { en, hr } = read.noun
   const noun = language === 'hr' ? plural({ one: hr.one, few: hr.few, other: hr.other }, read.count) : plural({ one: en.one, other: en.many }, read.count)

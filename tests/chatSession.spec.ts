@@ -11,6 +11,7 @@ import type { ChatProposal, PromptFile } from '../src/shared/ai/presentation/cha
 import type { ChatElementAbout } from '../src/shared/ai/domain/chatElement'
 import { NOTHING_TAGGED } from '../src/shared/ai/application/runChatTurn'
 import { moneyFromCents } from '../src/shared/money/money'
+import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
 
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
@@ -37,12 +38,15 @@ const {
   chatSpent,
   chatStatus,
   clearChat,
+  loadCatalogue,
   sendChatMessage,
   settleProposal,
   shownOnScreen,
   stopChatMessage,
   undoProposal,
 } = await import('../src/shared/ai/presentation/chatSession')
+// No app's reader is in this chat, so every file that is not a photo or a PDF goes as cells.
+void loadCatalogue([], KUNA_CHAT)
 const { assistOn, pickProvider, pickModel, switchAnonymise, switchAssist } = await import('../src/shared/ai/application/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
 
@@ -55,6 +59,7 @@ const CATALOGUE: Catalogue = {
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
   persons: () => CHAT_PERSONS,
+  formatOf: async () => 'none',
 }
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
@@ -418,9 +423,9 @@ describe('files on the prompt', () => {
     expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['notes.docx', 'receipt.jpg'])
   })
 
-  it('says what photos and PDFs add to the cost, and nothing for a sheet Kuna reads alone', async () => {
-    await attachFiles([picked('october.csv', new Uint8Array([1]), 'text/csv')])
-    expect(promptFilesCost.value).toBeNull()
+  it('says what photos, PDFs and a file sent as cells add to the cost', async () => {
+    await attachFiles([picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv')])
+    expect(promptFilesCost.value).toMatch(/^Reading them costs .+, then .+ with each later message\.$/)
     await attachFiles([picked('receipt.jpg', new Uint8Array([1]), 'image/jpeg')])
     expect(promptFilesCost.value).toMatch(/^Reading them costs .+, then .+ with each later message\.$/)
   })

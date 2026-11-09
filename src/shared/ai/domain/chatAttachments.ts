@@ -1,8 +1,38 @@
 import type { AiPdfPart } from './aiPart'
 import type { DocumentSize } from './modelUsage'
 
-/** What a file attached to the chat is. Only a photo or a PDF reaches the model. A sheet, XML or CSV reaches only an operation that names it. */
-export type AttachmentKind = 'photo' | 'pdf' | 'sheet' | 'xml' | 'csv'
+/** What a file attached to the chat is. `text` is any other file that decodes as text, such as OFX, QIF, MT940 or TXT, read as lines. */
+export type AttachmentKind = 'photo' | 'pdf' | 'sheet' | 'xml' | 'csv' | 'json' | 'text'
+
+/** A format an app's own reader takes, found on this device when the file is attached, with the operation that imports it. */
+export interface KnownFormat {
+  readonly app: string
+  /** What the format is called, such as `IBKR Activity Flex report`. */
+  readonly name: string
+  readonly operation: string
+}
+
+/** What the apps' readers make of a file: a format one of them takes, none, or no answer yet as some app's books are still opening. */
+export type FormatFound = KnownFormat | 'none' | 'books-opening'
+
+/** A sheet of a file read on this device as cells, each cell as text, cleaned and cut but not yet aliased. */
+export interface CellSheet {
+  /** The sheet's name, a path of XML elements or JSON keys, or null for a file of one sheet. File text, so it leaves only inside a read. */
+  readonly name: string | null
+  /**
+   * How its rows read: a table under a header row, `path, value` rows of the XML or JSON values that do not repeat, or
+   * one line of text a row.
+   */
+  readonly layout: 'table' | 'paths' | 'lines'
+  readonly rows: readonly (readonly string[])[]
+}
+
+/**
+ * How a file reaches the model: never, as Kuna reads its format itself; as cells, each through Anonymise, with the
+ * characters the whole file weighs; or whole, a photo or a PDF.
+ */
+export type AttachmentReading =
+  { readonly kind: 'kuna'; readonly format: KnownFormat } | { readonly kind: 'cells'; readonly sheets: readonly CellSheet[]; readonly characters: number } | { readonly kind: 'whole' }
 
 /**
  * A file attached to a chat, held in memory with the chat and gone with it. Its id is the only name the model gets. Saved
@@ -22,7 +52,11 @@ export interface ChatAttachment {
   readonly pages: number
   /** A photo's size as sent, after downscaling, which its image part and its cost read. Null for every other kind. */
   readonly sent: { readonly width: number; readonly height: number } | null
+  readonly reading: AttachmentReading
 }
+
+/** What an app's recogniser reads of a file before it is attached. */
+export type AttachedFile = Pick<ChatAttachment, 'kind' | 'name' | 'bytes'>
 
 const MEGABYTE = 1024 * 1024
 
@@ -35,6 +69,17 @@ export const MOST_PDF_PAGES = 100
 /** The most pages one read hands the model. */
 export const MOST_PAGES_A_READ = 20
 
+/** The most rows one read of a file's cells hands the model. */
+export const MOST_ROWS_A_READ = 200
+
+/** The most characters one read of a file's cells hands the model, so one read stays a few cents. */
+export const MOST_CHARACTERS_A_READ = 40_000
+
+const MOST_INFLATED_MEGABYTES = 100
+
+/** The most a sheet may inflate to, as its zip says, so a small file cannot fill the memory before Kuna reads a cell. */
+export const MOST_INFLATED_BYTES = MOST_INFLATED_MEGABYTES * MEGABYTE
+
 /** The largest file of each kind, before a photo is downscaled. Each stays under every provider's request limit with base64's third added. */
 export const MOST_BYTES: Readonly<Record<AttachmentKind, number>> = {
   photo: 20 * MEGABYTE,
@@ -42,6 +87,8 @@ export const MOST_BYTES: Readonly<Record<AttachmentKind, number>> = {
   sheet: 10 * MEGABYTE,
   xml: 10 * MEGABYTE,
   csv: 10 * MEGABYTE,
+  json: 10 * MEGABYTE,
+  text: 10 * MEGABYTE,
 }
 
 const KIND_OF_MEDIA_TYPE: Readonly<Record<string, AttachmentKind>> = {
@@ -57,6 +104,9 @@ const KIND_OF_MEDIA_TYPE: Readonly<Record<string, AttachmentKind>> = {
   'application/xml': 'xml',
   'text/xml': 'xml',
   'text/csv': 'csv',
+  'text/tab-separated-values': 'csv',
+  'application/json': 'json',
+  'text/plain': 'text',
 }
 
 const KIND_OF_EXTENSION: Readonly<Record<string, AttachmentKind>> = {
@@ -72,6 +122,13 @@ const KIND_OF_EXTENSION: Readonly<Record<string, AttachmentKind>> = {
   ods: 'sheet',
   xml: 'xml',
   csv: 'csv',
+  tsv: 'csv',
+  json: 'json',
+  txt: 'text',
+  ofx: 'text',
+  qif: 'text',
+  mt940: 'text',
+  sta: 'text',
 }
 
 /** What a file picker offers, as its `accept` takes it: every extension Kuna knows a kind of. */
@@ -88,16 +145,12 @@ export function attachmentKindOf(name: string, mediaType: string): AttachmentKin
   return KIND_OF_EXTENSION[extension] ?? KIND_OF_MEDIA_TYPE[mediaType.toLowerCase()] ?? null
 }
 
-/** Whether a file of this kind may be sent to the model. */
-export function sendsToModel(kind: AttachmentKind): boolean {
-  return kind === 'photo' || kind === 'pdf'
-}
-
-/** What an attachment weighs once sent, for its cost, or null for a kind that never reaches the model. */
+/** What an attachment weighs once sent, for its cost, or null for a file Kuna reads itself. A file's cells are weighed before aliasing, which changes a few characters. */
 export function documentSizeOf(attachment: ChatAttachment): DocumentSize | null {
+  if (attachment.reading.kind === 'kuna') return null
+  if (attachment.reading.kind === 'cells') return { kind: 'text', characters: attachment.reading.characters }
   if (attachment.kind === 'pdf') return { kind: 'pdf', pages: attachment.pages }
-  if (attachment.kind === 'photo' && attachment.sent !== null) return { kind: 'photo', ...attachment.sent }
-  return null
+  return attachment.sent === null ? null : { kind: 'photo', ...attachment.sent }
 }
 
 /** Why a file is refused on its chip. A PDF's `encrypted` and `unreadable` come from reading it. */
@@ -108,6 +161,10 @@ export type AttachmentRefusal =
   | { readonly reason: 'too-many-pages'; readonly most: number }
   | { readonly reason: 'encrypted' }
   | { readonly reason: 'unreadable' }
+  /** A sheet that inflates past what Kuna reads, or XML that declares its own entities, refused before it is parsed. */
+  | { readonly reason: 'unsafe' }
+  /** An app's books are still opening, so Kuna cannot yet tell whether its reader takes the file or whose names to alias. */
+  | { readonly reason: 'books-opening' }
 
 /** Why a file of this kind and size cannot wait beside the ones already waiting, or null when it can. */
 export function attachRefusal(kind: AttachmentKind | null, size: number, waiting: number): AttachmentRefusal | null {
@@ -132,29 +189,29 @@ export function pdfPartOf(attachment: ChatAttachment, base64: string): AiPdfPart
   return { kind: 'pdf', base64, name: attachment.id }
 }
 
-/** Pages of a document, from `first` to `last`, both counted from 1. */
-export interface PageRange {
+/** Pages of a document or rows of a sheet, from `first` to `last`, both counted from 1. */
+export interface ReadRange {
   readonly first: number
   readonly last: number
 }
 
-/** Why a read's pages were refused. */
-export type PageRangeRefusal = { readonly reason: 'not-a-range' } | { readonly reason: 'outside'; readonly pages: number } | { readonly reason: 'too-many-a-read'; readonly most: number }
+/** Why a read's pages or rows were refused. */
+export type ReadRangeRefusal = { readonly reason: 'not-a-range' } | { readonly reason: 'outside'; readonly count: number } | { readonly reason: 'too-many-a-read'; readonly most: number }
 
 /**
- * The pages a read asks for, as `"2"`, `"1-3"` or null for all of them, in a document of this many pages. A range past the
- * last page or longer than one read takes is refused, never cut to fit.
+ * The pages or rows a read asks for, as `"2"`, `"1-3"` or null for all of them, of `count` in all, at most `most` a read.
+ * A range past the last one or longer than one read takes is refused, never cut to fit.
  */
-export function pageRangeOf(asked: string | null, pages: number): PageRange | PageRangeRefusal {
-  const range = asked === null ? { first: 1, last: pages } : rangeOfText(asked)
+export function readRangeOf(asked: string | null, count: number, most: number): ReadRange | ReadRangeRefusal {
+  const range = asked === null ? { first: 1, last: count } : rangeOfText(asked)
   if (range === null) return { reason: 'not-a-range' }
-  if (range.first < 1 || range.last > pages) return { reason: 'outside', pages }
-  if (range.last - range.first + 1 > MOST_PAGES_A_READ) return { reason: 'too-many-a-read', most: MOST_PAGES_A_READ }
+  if (range.first < 1 || range.last > count) return { reason: 'outside', count }
+  if (range.last - range.first + 1 > most) return { reason: 'too-many-a-read', most }
   return range
 }
 
-function rangeOfText(text: string): PageRange | null {
-  const match = /^\s*(\d{1,4})\s*(?:-\s*(\d{1,4})\s*)?$/.exec(text)
+function rangeOfText(text: string): ReadRange | null {
+  const match = /^\s*(\d{1,6})\s*(?:-\s*(\d{1,6})\s*)?$/.exec(text)
   if (match === null) return null
   const first = Number(match[1])
   const last = match[2] === undefined ? first : Number(match[2])
@@ -162,6 +219,6 @@ function rangeOfText(text: string): PageRange | null {
 }
 
 /** A range as a read names it back, `"2"` or `"1-3"`. */
-export function pageRangeText(range: PageRange): string {
+export function readRangeText(range: ReadRange): string {
   return range.first === range.last ? String(range.first) : `${range.first}-${range.last}`
 }

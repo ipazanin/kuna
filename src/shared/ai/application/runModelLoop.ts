@@ -29,7 +29,7 @@ export type LoopEnd =
 /** Masks what it was given, sends it, runs the tools the model asks for and adds up what the requests spent. */
 export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
   const { model } = loop
-  const system = loop.system.map((part) => ({ ...part, text: maskIdentifiers(part.text) }))
+  const system = loop.system.map((part) => ({ ...part, text: maskIdentifiers(part.text, 'books') }))
   const turns = loop.turns.map(maskedTurn)
   let used: ModelTokens = NO_TOKENS
   let listDollars = 0
@@ -71,7 +71,7 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
         const results = await Promise.all(
           reply.calls.map(async (call) => {
             const answer = await loop.runTool(call)
-            return { callId: call.id, text: maskIdentifiers(answer.text), parts: answer.parts, isError: answer.isError }
+            return { callId: call.id, text: maskIdentifiers(answer.text, 'books'), parts: answer.parts, isError: answer.isError }
           }),
         )
         turns.push({ role: 'assistant', calls: reply.calls, raw: reply.raw }, { role: 'tool-results', results })
@@ -86,5 +86,5 @@ function maskedTurn(turn: ModelTurn): ModelTurn {
 }
 
 function maskedPart(part: AiPart): AiPart {
-  return part.kind === 'text' ? { kind: 'text', text: maskIdentifiers(part.text) } : part
+  return part.kind === 'text' ? { kind: 'text', text: maskIdentifiers(part.text, 'written') } : part
 }

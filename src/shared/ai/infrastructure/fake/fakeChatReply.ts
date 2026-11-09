@@ -7,11 +7,15 @@ const ANSWERS = {
     cannot: "Kuna doesn't track crypto.",
     feature: 'You can ask for it on the issues page linked below.',
     other: 'Kuna keeps each app in a file of its own, and I can tell you how any of them works.',
+    readFile: 'I read the first rows of the file.',
+    noFile: 'Attach a file with the paperclip first.',
   },
   hr: {
     cannot: 'Kuna ne prati kriptovalute.',
     feature: 'Možete to zatražiti na stranici s prijavama, poveznica je ispod.',
     other: 'Kuna svaku aplikaciju čuva u zasebnoj datoteci i mogu vam reći kako koja radi.',
+    readFile: 'Pročitao sam prve retke datoteke.',
+    noFile: 'Najprije priložite datoteku spajalicom.',
   },
 }
 
@@ -61,6 +65,15 @@ export function answered(request: ModelRequest, text: string, tokens: ModelToken
   return { kind: 'answer', text, raw: [{ text }], tokens }
 }
 
+/** Reads the first rows of the sheet attached last, by the id its context line gives, and says so. */
+function readFileReply(request: ModelRequest, tokens: ModelTokens, lookups: number, says: (typeof ANSWERS)['en']): ModelReply {
+  const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : []))
+  const attachment = said.flatMap((text) => [...text.matchAll(/\b(a\d+) \(sheet\b/g)].map((match) => match[1]!)).at(-1)
+  if (attachment === undefined) return answered(request, says.noFile, tokens)
+  if (lookups === 0) return lookup(lookups, 'read_attachment', { attachment, pages: null, sheet: null, rows: '1-3' }, tokens)
+  return answered(request, says.readFile, tokens)
+}
+
 /**
  * The fake build's chat, which walks the tools as a real model would. Each app's fake seed answers what is about the app,
  * one about something Kuna lacks says so and stops, one asking how to request a feature links the issues page, and anything
@@ -73,6 +86,7 @@ export function fakeChatReply(request: ModelRequest, tokens: ModelTokens, invent
     if (reply !== null) return reply
   }
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
+  if (/^read the file|^pročitaj datoteku/i.test(typed)) return readFileReply(request, tokens, lookups, says)
   if (/crypto|kripto/i.test(typed)) return answered(request, says.cannot, tokens)
   if (/feature|značajk/i.test(typed)) {
     if (lookups === 0) return lookup(lookups, 'show_screen', { route: 'issues', params: [] }, tokens)

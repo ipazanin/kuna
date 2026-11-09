@@ -44,6 +44,7 @@ export const en = {
   ruleDisagrees: (category: string) => `You confirmed this row. The rules now say ${category}. The row keeps its category, and rows filed after the change follow the rule.`,
   ruleBreaksAgreement: (category: string) => `A rule filed this row. The rules now say ${category}. The row keeps its category.`,
   accountStarted: (account: string) => `Starts ${account} at the statement's opening balance.`,
+  accountStartsAtZero: (zero: string) => `The account had no rows in Kuna, so its balance starts at ${zero} before the first row. Fix the opening if it held money before.`,
   accountAdded: (account: string) => `Adds the account ${account} for the statement's IBAN.`,
   everyFigure: {
     currency: 'Every amount in Company reads in the new currency, and none is converted.',
@@ -99,6 +100,7 @@ export const hr: Translation<typeof en> = {
   ruleDisagrees: (category) => `Ovaj ste redak potvrdili. Pravila sada kažu ${category}. Redak zadržava kategoriju, a retke razvrstane nakon promjene pravilo prati.`,
   ruleBreaksAgreement: (category) => `Ovaj je redak razvrstalo pravilo. Pravila sada kažu ${category}. Redak zadržava kategoriju.`,
   accountStarted: (account) => `Račun ${account} počinje od početnog stanja izvoda.`,
+  accountStartsAtZero: (zero) => `Račun nije imao redaka u Kuni, pa mu stanje prije prvog retka počinje od ${zero}. Ispravite početno stanje ako je na njemu prije bilo novca.`,
   accountAdded: (account) => `Dodaje račun ${account} za IBAN s izvoda.`,
   everyFigure: {
     currency: 'Svaki iznos u Tvrtki čita se u novoj valuti, a nijedan se ne preračunava.',

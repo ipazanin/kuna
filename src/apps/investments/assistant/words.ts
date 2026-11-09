@@ -94,6 +94,28 @@ export const en = {
     workbook: { label: 'Portfolio workbook', place: 'Import on the Overview' },
     mailReport: { label: 'IBKR report by mail', place: 'the review on Settings, General' },
     flexReport: { label: 'IBKR report file', place: 'Upload a report on Settings, General' },
+    transcribed: 'Rows read by the AI',
+    transcribedRead: (count: number, source: string): EnglishForms => ({
+      one: `The AI read 1 row ${source}. Kuna could not check that the file adds up, so check it against the file.`,
+      other: `The AI read ${count} rows ${source}. Kuna could not check that the file adds up, so check them against the file.`,
+    }),
+    transcribedTied: (count: number, source: string): EnglishForms => ({
+      one: `The AI read 1 row ${source}. Its cash adds up to the balances the file prints, but check the rest against the file.`,
+      other: `The AI read ${count} rows ${source}. Their cash adds up to the balances the file prints, but check the rest against the file.`,
+    }),
+    lookAlikes: (count: number): EnglishForms => ({
+      one: '1 row looks like a record Kuna has from another file and is not imported. Say in the chat whether to import it.',
+      other: `${count} rows look like records Kuna has from another file and are not imported. Say in the chat whether to import them.`,
+    }),
+    rowsInKuna: (count: number): EnglishForms => ({ one: '1 row is in Kuna already and is skipped.', other: `${count} rows are in Kuna already and are skipped.` }),
+    transcribedWaiting: (count: number, reasons: string): EnglishForms => ({
+      one: `1 row waits and is not imported. ${reasons}.`,
+      other: `${count} rows wait and are not imported. ${reasons}.`,
+    }),
+    transcribedRatesMissing: (currencies: string, from: CivilDate) =>
+      `The prices file lacks the ECB rates of ${currencies} from ${dayLabel(from)}, which the rows need. Propose fetch-prices on a card of its own, then these rows again.`,
+    transcribedHoldingsAsked: (holdings: string) =>
+      `The rows hold a split or a spin-off of ${holdings}, whose answer sets the cost and so the tax. Propose the rows without it, and add-split or add-spin-off once the person gives the ratio or the share of the cost.`,
     fields: {
       name: 'Name',
       note: 'Note',
@@ -239,6 +261,36 @@ export const hr: Translation<typeof en> = {
     workbook: { label: 'Radna knjiga portfelja', place: 'Uvoz na Pregledu' },
     mailReport: { label: 'Izvješće IBKR-a poštom', place: 'pregled u Postavkama, Općenito' },
     flexReport: { label: 'Datoteka izvješća IBKR-a', place: 'Učitaj izvješće u Postavkama, Općenito' },
+    transcribed: 'Redci koje je pročitao AI',
+    transcribedRead: (count, source): CroatianForms => ({
+      one: `AI je ${source} pročitao ${count} redak. Kuna nije mogla provjeriti zbraja li se datoteka, pa ga usporedite s njom.`,
+      few: `AI je ${source} pročitao ${count} retka. Kuna nije mogla provjeriti zbraja li se datoteka, pa ih usporedite s njom.`,
+      other: `AI je ${source} pročitao ${count} redaka. Kuna nije mogla provjeriti zbraja li se datoteka, pa ih usporedite s njom.`,
+    }),
+    transcribedTied: (count, source): CroatianForms => ({
+      one: `AI je ${source} pročitao ${count} redak. Novac u njemu zbraja se do stanja koja datoteka ispisuje, ali ostalo usporedite s datotekom.`,
+      few: `AI je ${source} pročitao ${count} retka. Novac u njima zbraja se do stanja koja datoteka ispisuje, ali ostalo usporedite s datotekom.`,
+      other: `AI je ${source} pročitao ${count} redaka. Novac u njima zbraja se do stanja koja datoteka ispisuje, ali ostalo usporedite s datotekom.`,
+    }),
+    lookAlikes: (count): CroatianForms => ({
+      one: `${count} redak izgleda kao zapis koji Kuna ima iz druge datoteke i nije uvezen. Recite u razgovoru treba li ga uvesti.`,
+      few: `${count} retka izgledaju kao zapisi koje Kuna ima iz druge datoteke i nisu uvezena. Recite u razgovoru treba li ih uvesti.`,
+      other: `${count} redaka izgleda kao zapisi koje Kuna ima iz druge datoteke i nije uvezeno. Recite u razgovoru treba li ih uvesti.`,
+    }),
+    rowsInKuna: (count): CroatianForms => ({
+      one: `${count} redak već je u Kuni i preskočen je.`,
+      few: `${count} retka već su u Kuni i preskočena su.`,
+      other: `${count} redaka već je u Kuni i preskočeno je.`,
+    }),
+    transcribedWaiting: (count, reasons): CroatianForms => ({
+      one: `${count} redak čeka i nije uvezen. ${reasons}.`,
+      few: `${count} retka čekaju i nisu uvezena. ${reasons}.`,
+      other: `${count} redaka čeka i nije uvezeno. ${reasons}.`,
+    }),
+    transcribedRatesMissing: (currencies, from) =>
+      `Datoteci cijena nedostaju tečajevi ESB-a za ${currencies} od ${dayLabel(from)}, a trebaju ih redci. Predložite fetch-prices na zasebnoj kartici, a zatim ponovno ove retke.`,
+    transcribedHoldingsAsked: (holdings) =>
+      `Redci sadrže podjelu ili izdvajanje za ${holdings}, a odgovor određuje trošak, pa time i porez. Predložite retke bez toga, a add-split ili add-spin-off kad osoba navede omjer ili udio troška.`,
     fields: {
       name: 'Naziv',
       note: 'Bilješka',

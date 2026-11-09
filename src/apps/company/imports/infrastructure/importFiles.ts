@@ -1,4 +1,5 @@
 import { sha256Hex } from '../../../../shared/files/sha256'
+import { decodedText } from '../../../../shared/text/decodedText'
 import { readFirstSheet } from '../../../../shared/xlsx/sheetGrids'
 import type { LoadedImportFile } from '../application/importStatements'
 import type { CellGrid } from '../domain/tabularStatement'
@@ -21,18 +22,9 @@ export async function loadImportFile(fileName: string, bytes: ArrayBuffer): Prom
   }
   let grid: CellGrid
   try {
-    grid = await readFirstSheet(/\.(csv|txt)$/i.test(fileName) ? csvText(bytes) : bytes)
+    grid = await readFirstSheet(/\.(csv|txt)$/i.test(fileName) ? decodedText(bytes) : bytes)
   } catch (failure) {
     throw new Error(words.notSpreadsheet(fileName), { cause: failure })
   }
   return { kind: 'table', fileName, fileHash: await sha256Hex(bytes), grid }
-}
-
-/** A csv's text: UTF-8 when it decodes as such, else Windows-1250, which Croatian banks' older exports use. */
-function csvText(bytes: ArrayBuffer): string {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  } catch {
-    return new TextDecoder('windows-1250').decode(bytes)
-  }
 }

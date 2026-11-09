@@ -46,4 +46,16 @@ describe('the privacy page', () => {
     const { en } = (await import(`../src/apps/${app}/words.ts`)) as { en: { name: string } }
     expect(section('The assistant')).toMatch(new RegExp(`<li>\\s*${en.name}:`))
   })
+
+  it("states the limits a file read keeps to, as the chat's code sets them", async () => {
+    const { MOST_CHARACTERS_A_READ, MOST_INFLATED_BYTES, MOST_PAGES_A_READ, MOST_ROWS_A_READ, MOST_WAITING } = await import('../src/shared/ai/domain/chatAttachments')
+    const { MOST_CELL_CHARACTERS, KEY_REMOVED } = await import('../src/shared/ai/domain/fileCells')
+    const text = section('The assistant').replace(/\s+/g, ' ')
+    expect(text).toContain(`at most ${MOST_ROWS_A_READ} rows and ${MOST_CHARACTERS_A_READ.toLocaleString('en')} characters a read`)
+    expect(text).toContain(`cuts a cell past ${MOST_CELL_CHARACTERS} characters`)
+    expect(text).toContain(`<code>${KEY_REMOVED}</code>`)
+    expect(text).toContain(`unpacks past ${MOST_INFLATED_BYTES / 1024 / 1024} MB`)
+    expect(text).toContain(`up to ${MOST_PAGES_A_READ} pages a read`)
+    expect(text).toContain(`up to ${['', 'one', 'two', 'three', 'four'][MOST_WAITING]} files`)
+  })
 })

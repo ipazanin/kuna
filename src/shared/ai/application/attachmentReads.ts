@@ -1,35 +1,76 @@
 import { base64OfBytes } from '../../text/base64'
-import { pageRangeOf, pageRangeText, pdfPartOf, sendsToModel } from '../domain/chatAttachments'
-import type { ChatAttachment, PageRangeRefusal } from '../domain/chatAttachments'
+import { MOST_CHARACTERS_A_READ, MOST_PAGES_A_READ, MOST_ROWS_A_READ, pdfPartOf, readRangeOf, readRangeText } from '../domain/chatAttachments'
+import type { CellSheet, ChatAttachment, ReadRangeRefusal } from '../domain/chatAttachments'
 import { refusal } from './chatReads'
-import type { ChatToolAnswer } from './chatReads'
+import type { ChatReads, ChatToolAnswer } from './chatReads'
+import { cellsLeaving, fileTextLeaving } from './fileCells'
 
-/** What `read_attachment` asks for: a file attached to this chat by its id, and the pages of a PDF, or null for all of them. */
+/** What `read_attachment` asks for: a file attached to this chat by its id, the pages of a PDF, and the sheet and rows of a file read as cells, each null for all or the first. */
 export interface AttachmentRead {
   readonly attachment: string
   readonly pages: string | null
+  readonly sheet: number | null
+  readonly rows: string | null
 }
 
-function rangeRefusal(refused: PageRangeRefusal): string {
+function rangeRefusal(refused: ReadRangeRefusal, noun: 'pages' | 'rows'): string {
   switch (refused.reason) {
     case 'not-a-range':
-      return 'Pages read as "2" or "1-3", or null for all of them.'
+      return `${noun === 'pages' ? 'Pages' : 'Rows'} read as "2" or "1-3", or null for all of them.`
     case 'outside':
-      return `That file has ${refused.pages} pages.`
+      return `That ${noun === 'pages' ? 'file' : 'sheet'} has ${refused.count} ${noun}.`
     default:
-      return `One read takes at most ${refused.most} pages. Ask for them by range, such as "1-${refused.most}".`
+      return `One read takes at most ${refused.most} ${noun}. Ask for them by range, such as "1-${refused.most}".`
   }
 }
 
+/** The rows of one sheet, each cell through Anonymise, refused past the rows or the characters one read takes, never cut to fit. The file's sheets are listed only on a read that names no rows. */
+function cellsRead(attachment: ChatAttachment, sheets: readonly CellSheet[], input: AttachmentRead, reads: ChatReads): ChatToolAnswer {
+  if (input.pages !== null) return refusal('A file read as cells has no pages, so pages is null. Ask for rows.')
+  const number = input.sheet ?? 1
+  const sheet = Number.isInteger(number) ? sheets[number - 1] : undefined
+  if (sheet === undefined) return refusal(`That file has ${sheets.length} sheets, counted from 1.`)
+  if (sheet.rows.length === 0) return refusal('That sheet is empty.')
+  const range = readRangeOf(input.rows, sheet.rows.length, MOST_ROWS_A_READ)
+  if ('reason' in range) return refusal(rangeRefusal(range, 'rows'))
+  const leaving = cellsLeaving(sheet, range, reads)
+  const index = input.rows === null ? { sheets: sheets.map((each, at) => ({ sheet: at + 1, name: each.name === null ? null : fileTextLeaving(each.name, reads), rows: each.rows.length })) } : {}
+  const text = JSON.stringify({
+    attachment: attachment.id,
+    kind: attachment.kind,
+    untrusted: true,
+    sheet: number,
+    ...index,
+    rows: leaving.rows,
+    range: readRangeText(range),
+    of: sheet.rows.length,
+    keysRemoved: leaving.keysRemoved,
+  })
+  if (text.length > MOST_CHARACTERS_A_READ) {
+    if (range.first === range.last)
+      return refusal(
+        `Row ${range.first} alone comes to more than ${MOST_CHARACTERS_A_READ} characters, which one read takes at most, so Kuna cannot send it. Read the rows around it, and tell the person which row you could not read.`,
+      )
+    const fewer = Math.max(1, Math.floor(((range.last - range.first + 1) * MOST_CHARACTERS_A_READ) / text.length))
+    return refusal(`Those rows come to more than ${MOST_CHARACTERS_A_READ} characters, which one read takes at most. Ask for fewer, such as "${range.first}-${range.first + fewer - 1}".`)
+  }
+  return { text, isError: false, read: { kind: 'cells', name: attachment.name, rows: range } }
+}
+
 /**
- * Hands the model a photo or the pages of a PDF attached to this chat, whole, named only by its id. The pages always go as
- * a copy, so the file's metadata and open action stay behind. A sheet, XML or CSV never goes: Kuna reads it with the app's
- * own reader, through an operation that names it.
+ * Hands the model a file attached to this chat, named only by its id. A photo or the pages of a PDF go whole, the pages
+ * always as a copy so the file's metadata and open action stay behind. Any other file Kuna does not read itself goes as
+ * rows of cells, each through Anonymise. A file in a format Kuna reads never goes: an operation that names it imports it.
  */
-export async function readAttachment(input: AttachmentRead, held: readonly ChatAttachment[], readsPdf: boolean): Promise<ChatToolAnswer> {
+export async function readAttachment(input: AttachmentRead, held: readonly ChatAttachment[], readsPdf: boolean, reads: ChatReads): Promise<ChatToolAnswer> {
   const attachment = held.find((candidate) => candidate.id === input.attachment)
   if (attachment === undefined) return refusal('That is not the id of a file attached to this chat. Take it from the context line.')
-  if (!sendsToModel(attachment.kind)) return refusal('Kuna reads a file of this kind itself and never sends it. Propose the operation that takes it, with its id.')
+  const { reading } = attachment
+  if (reading.kind === 'kuna') {
+    return refusal(`Kuna reads this file itself, as ${reading.format.name}, and never sends it. Propose ${reading.format.operation} in ${reading.format.app} with its id.`)
+  }
+  if (reading.kind === 'cells') return cellsRead(attachment, reading.sheets, input, reads)
+  if (input.sheet !== null || input.rows !== null) return refusal('A photo or a PDF has no sheets or rows, so sheet and rows are null.')
   const about = { attachment: attachment.id, kind: attachment.kind, untrusted: true }
   if (attachment.kind === 'photo') {
     if (input.pages !== null) return refusal('A photo has no pages, so pages is null.')
@@ -42,8 +83,8 @@ export async function readAttachment(input: AttachmentRead, held: readonly ChatA
     }
   }
   if (!readsPdf) return refusal('This AI company does not read PDFs. Say so, and ask the person to attach a photo of each page or paste the text.')
-  const range = pageRangeOf(input.pages, attachment.pages)
-  if ('reason' in range) return refusal(rangeRefusal(range))
+  const range = readRangeOf(input.pages, attachment.pages, MOST_PAGES_A_READ)
+  if ('reason' in range) return refusal(rangeRefusal(range, 'pages'))
   let bytes: Uint8Array
   try {
     bytes = await (await import('../infrastructure/pdfPages')).pdfPagesCut(attachment.bytes, range)
@@ -51,7 +92,7 @@ export async function readAttachment(input: AttachmentRead, held: readonly ChatA
     return refusal('Kuna could not read those pages of the file. Say so.')
   }
   return {
-    text: JSON.stringify({ ...about, pages: pageRangeText(range), of: attachment.pages }),
+    text: JSON.stringify({ ...about, pages: readRangeText(range), of: attachment.pages }),
     isError: false,
     read: { kind: 'document', name: attachment.name, pages: range },
     parts: [pdfPartOf(attachment, base64OfBytes(bytes))],

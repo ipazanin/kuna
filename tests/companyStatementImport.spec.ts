@@ -21,9 +21,17 @@ afterEach(async () => forgetCaches(used))
 
 const DOCUMENTS = join(import.meta.dirname, 'fixtures', 'documents')
 
-function attached(kind: ChatAttachment['kind'], file: string): ChatAttachment {
-  const bytes = new Uint8Array(readFileSync(join(DOCUMENTS, file)))
-  return { id: 'a1', kind, name: file, bytes, original: new Blob([bytes]), pages: 1, sent: null }
+function attached(kind: ChatAttachment['kind'], file: string, bytes = new Uint8Array(readFileSync(join(DOCUMENTS, file)))): ChatAttachment {
+  return {
+    id: 'a1',
+    kind,
+    name: file,
+    bytes,
+    original: new Blob([bytes]),
+    pages: 1,
+    sent: null,
+    reading: { kind: 'kuna', format: { app: 'company', name: 'ISO 20022 bank statement', operation: 'import-statement' } },
+  }
 }
 
 /** A statement of the main account as the model transcribes it off a page, which runs on from the account's balance of 760. */
@@ -51,6 +59,20 @@ function transcribed(
   }
 }
 
+/** A file Kuna reads no format of, which goes to the AI as cells. */
+function cellsFile(name: string, text: string): ChatAttachment {
+  return { ...attached('csv', name, new TextEncoder().encode(text)), reading: { kind: 'cells', sheets: [], characters: text.length } }
+}
+
+/** The warned lines of the last card. */
+function warnings(desk: CompanyDesk): readonly (string | null)[] {
+  return desk.cards
+    .at(-1)!
+    .groups.flatMap((group) => group.lines)
+    .filter((line) => line.warning !== null)
+    .map((line) => line.warning)
+}
+
 const rowsOf = (desk: CompanyDesk, account: string) => desk.store.state.workbook!.transactions.filter((row) => row.account === account)
 
 describe('a statement read off a page', () => {
@@ -71,6 +93,46 @@ describe('a statement read off a page', () => {
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain('does not add up')
     expect(answer.text).toContain('0.50')
+  })
+
+  it('refuses one printed balance without the other', async () => {
+    const desk = await companyDesk(used)
+    for (const missing of [{ opening: null }, { closing: null }]) {
+      const step = transcribed(desk, 720.5)
+      const answer = await desk.propose([{ ...step, input: { ...step.input, ...missing } }])
+      expect(answer.isError).toBe(true)
+      expect(answer.text).toContain('or neither')
+    }
+    expect(desk.cards).toEqual([])
+  })
+
+  it('imports rows without printed balances, running them on from the ledger, and warns that Kuna could not check them', async () => {
+    const desk = await companyDesk(used)
+    const step = transcribed(desk, 720.5)
+    expect((await desk.propose([{ ...step, input: { ...step.input, opening: null, closing: null } }])).isError).toBe(false)
+    const [copied, ...notes] = warnings(desk)
+    expect(copied).toBe('The AI read 2 rows from the chat. Kuna could not check that the statement adds up, so check them against it.')
+    expect(notes.join(' ')).toContain('gives no balances')
+    await desk.accept()
+    expect(rowsOf(desk, 'main').find((row) => row.amount === -2700)!.balance).toBe(72050)
+  })
+
+  it('tells to check rows whose printed balances tie against the statement', async () => {
+    const desk = await companyDesk(used)
+    await desk.propose([transcribed(desk, 720.5)])
+    expect(warnings(desk)).toEqual(['The AI read 2 rows from the chat. Check them against the statement.'])
+  })
+
+  it('starts an account with no rows at zero for copied rows without balances, and says so on the card', async () => {
+    const desk = await companyDesk(used)
+    const step = transcribed(desk, 720.5)
+    const answer = await desk.propose([{ ...step, input: { ...step.input, account: desk.ref(ACCOUNT_RECORDS.name, 'fresh'), opening: null, closing: null } }])
+    expect(answer.isError).toBe(false)
+    expect(warnings(desk)).toContain('The account had no rows in Kuna, so its balance starts at €0.00 before the first row. Fix the opening if it held money before.')
+    await desk.accept()
+    // The two copied rows are -12.50 and -27.00 from a start of zero, so the later one leaves -39.50.
+    expect(rowsOf(desk, 'fresh').map((row) => row.balance)).toEqual(expect.arrayContaining([-1250, -3950]))
+    expect(rowsOf(desk, 'fresh').find((row) => row.amount === -2700)!.balance).toBe(-3950)
   })
 
   it('refuses a statement whose opening is not where the account stands', async () => {
@@ -128,11 +190,34 @@ describe('an attached file', () => {
     expect(rowsOf(desk, 'fresh').length).toBeGreaterThan(0)
   })
 
-  it('sends a photo back to be transcribed', async () => {
+  const ATTACHED = { op: 'import-statement', input: { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], newAccount: null, part: 1 } }
+
+  it('sends the AI to read a photo, and a sheet no saved profile reads, with read_attachment', async () => {
     const desk = await companyDesk(used, { readStatementFile: loadImportFile })
-    const input = { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], newAccount: null, part: 1 }
-    const answer = await desk.propose([{ op: 'import-statement', input }], [attached('pdf', 'statement-ties.pdf')])
-    expect(answer.text).toContain('transcribe')
+    const photo = await desk.propose([ATTACHED], [attached('pdf', 'statement-ties.pdf')])
+    expect(photo.isError).toBe(true)
+    expect(photo.text).toContain('read_attachment')
+    const sheet = await desk.propose([ATTACHED], [cellsFile('bank-export.csv', 'Booked,Value,Text\n2026-11-02,-12.50,Paper\n')])
+    expect(sheet.isError).toBe(true)
+    expect(sheet.text).toContain('read_attachment')
+    expect(sheet.text).toContain('save-import-profile')
+    expect(desk.cards).toEqual([])
+  })
+
+  it('imports rows the AI copied from a file of cells by its id, and names the file on the card', async () => {
+    const desk = await companyDesk(used, { readStatementFile: loadImportFile })
+    const step = transcribed(desk, 720.5)
+    const answer = await desk.propose([{ ...step, input: { ...step.input, file: 'a1', opening: null, closing: null } }], [cellsFile('bank-export.csv', 'Booked,Value\n')])
+    expect(answer.isError, answer.text).toBe(false)
+    expect(warnings(desk)[0]).toBe('The AI read 2 rows from bank-export.csv. Kuna could not check that the statement adds up, so check them against it.')
+  })
+
+  it('refuses copied rows beside a file Kuna reads itself', async () => {
+    const desk = await companyDesk(used, { readStatementFile: loadImportFile })
+    const step = transcribed(desk, 720.5)
+    const answer = await desk.propose([{ ...step, input: { ...step.input, file: 'a1' } }], [attached('xml', 'camt.xml')])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('Kuna reads this file itself')
   })
 })
 

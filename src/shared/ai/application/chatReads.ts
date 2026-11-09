@@ -8,7 +8,7 @@ import type { KnownPerson, Pseudonyms } from '../../privacy/domain/pseudonyms'
 import type { RecordNoun } from '../../storage/domain/recordKind'
 import { fold, normaliseIban } from '../../text/fold'
 import type { StoredValue } from '../../privacy/domain/exposure'
-import type { PageRange } from '../domain/chatAttachments'
+import type { ReadRange } from '../domain/chatAttachments'
 import type { FigureTrace } from '../domain/chatElement'
 import type { ChatRefs, FigureAmount } from '../domain/chatRefs'
 import type { WholePart } from './modelPort'
@@ -35,7 +35,9 @@ export type ReadSent =
   | { readonly kind: 'figures'; readonly app: string; readonly title: string }
   | { readonly kind: 'refusal'; readonly app: string }
   /** A photo, with null pages, or pages of a PDF that went whole. `name` is the file's own name, which shows on the row and never leaves. */
-  | { readonly kind: 'document'; readonly name: string; readonly pages: PageRange | null }
+  | { readonly kind: 'document'; readonly name: string; readonly pages: ReadRange | null }
+  /** Rows of a file's cells, each cell through Anonymise. `name` is the file's own name, shown on the row and never sent. */
+  | { readonly kind: 'cells'; readonly name: string; readonly rows: ReadRange }
 
 export interface ChatToolAnswer {
   readonly text: string
@@ -128,7 +130,7 @@ function aboutAnEmployee(row: ReadableRow, employees: readonly KnownPerson[]): b
 /** A text as it leaves while Anonymise is on: an identifier under its token, and known people under their alias in what a person wrote. */
 function pseudonymisedText(field: ValueOfRow, text: string, pseudonyms: Pseudonyms): string {
   if (text === '' || field.exposure === 'plain') return text
-  return field.exposure === 'identifier' ? pseudonyms.identifierToken(text) : pseudonyms.pseudonymised(text)
+  return field.exposure === 'identifier' ? pseudonyms.identifierToken(text) : pseudonyms.pseudonymised(text, 'books')
 }
 
 /** A field's value as it leaves: pseudonymised while Anonymise is on, each text of a list on its own, or as stored otherwise. The model loop masks IBANs and OIBs either way. */
@@ -329,7 +331,7 @@ function namesAnEmployeeKeptHome(texts: readonly string[], reads: ChatReads): bo
 export function sentText(text: string, reads: ChatReads): string {
   if (!reads.anonymising()) return text
   knownPersons(reads)
-  return reads.pseudonyms.pseudonymised(text)
+  return reads.pseudonyms.pseudonymised(text, 'books')
 }
 
 /** A step of a build-up as the model reads it, and the steps below it. Each amount and each figure its label writes is noted, so an answer may quote it. */

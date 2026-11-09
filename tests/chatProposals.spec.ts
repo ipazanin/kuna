@@ -155,7 +155,7 @@ describe('a proposal', () => {
   it('turns an alias back into what it stands for in what it writes, and marks an IBAN', async () => {
     const d = await desk()
     d.reads.pseudonyms.know(['Ana Horvat'])
-    const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat')
+    const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const iban = d.reads.pseudonyms.identifierToken('HR1210010051863000160')
     await d.propose([
       { op: 'add-rule', input: { row: null, fragment: alias, category: d.ref('category', named(d, 'Rent').id) } },
@@ -171,8 +171,8 @@ describe('a proposal', () => {
   it('makes a rule from an alias cover every way its person was written', async () => {
     const d = await desk()
     d.reads.pseudonyms.know(['Ana Horvat'])
-    d.reads.pseudonyms.pseudonymised('HORVAT ANA')
-    const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat')
+    d.reads.pseudonyms.pseudonymised('HORVAT ANA', 'books')
+    const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const rulesBefore = bookOf(d).rules.length
     await d.propose([{ op: 'add-rule', input: { row: null, fragment: alias, category: d.ref('category', named(d, 'Rent').id) } }])
     await accept(d)
@@ -189,7 +189,7 @@ describe('a proposal', () => {
   it('writes an ordinary word that only looks like an alias as the model wrote it', async () => {
     const d = await desk()
     d.reads.pseudonyms.know(['Ana Horvat'])
-    d.reads.pseudonyms.pseudonymised('Ana Horvat')
+    d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     await d.propose([
       { op: 'add-rule', input: { row: null, fragment: 'Osobnu 1', category: d.ref('category', named(d, 'Rent').id) } },
       { op: 'add-rule', input: { row: null, fragment: 'Adresama 1', category: d.ref('category', named(d, 'Rent').id) } },
@@ -283,7 +283,16 @@ describe('a proposal', () => {
 })
 
 describe('a proposal of another app', () => {
-  const STATEMENT: ChatAttachment = { id: 'a1', kind: 'sheet', name: 'Statement of Ana Horvat.xlsx', bytes: new Uint8Array([1, 2, 3]), original: new Blob(), pages: 1, sent: null }
+  const STATEMENT: ChatAttachment = {
+    id: 'a1',
+    kind: 'sheet',
+    name: 'Statement of Ana Horvat.xlsx',
+    bytes: new Uint8Array([1, 2, 3]),
+    original: new Blob(),
+    pages: 1,
+    sent: null,
+    reading: { kind: 'kuna', format: { app: 'spending', name: "Revolut's statement export", operation: 'import-statement' } },
+  }
   const IMPORT: AssistantOperation = {
     name: 'import-statement',
     about: 'Imports an attached statement.',
@@ -328,7 +337,7 @@ describe('a proposal of another app', () => {
     const seen: ProposalStep[][] = []
     const anonymised: ChatReads = { ...reads, pseudonyms: newPseudonyms() }
     anonymised.pseudonyms.know(['Ana Horvat'])
-    const alias = anonymised.pseudonyms.pseudonymised('Ana Horvat')
+    const alias = anonymised.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const ROWS: AssistantOperation = {
       ...IMPORT,
       input: {

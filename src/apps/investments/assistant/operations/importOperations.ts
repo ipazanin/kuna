@@ -1,10 +1,14 @@
 import { readPortfolioWorkbookFile } from '../../imports/application/portfolioWorkbookFile'
 import { writeWorkbookImport } from '../../imports/application/workbookImport'
-import { importableRecords } from '../../imports/domain/importDryRun'
+import { LOOK_ALIKES, importableRecords } from '../../imports/domain/importDryRun'
 import type { ImportedRecord, WorkbookRows } from '../../imports/domain/importDryRun'
+import { WORKBOOK_TYPES } from '../../imports/domain/portfolioWorkbook'
+import { copiedRowRefusal, daysPartlyOnCard, transcribedRows } from '../../imports/domain/transcribedRows'
+import type { CashOff, CopiedRowRefusal, TranscribedBalance, TranscribedRow } from '../../imports/domain/transcribedRows'
 import { ratesWanted } from '../../imports/domain/workbookRates'
 import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/presentation/importChoices'
-import type { AskedChoice, ClosesOf, SettledImport } from '../../imports/presentation/importChoices'
+import type { AskedChoice, ClosesOf, ImportChoices, SettledImport } from '../../imports/presentation/importChoices'
+import { waitText } from '../../imports/presentation/dryRunLines'
 import { MAIL_READER_WRITES, heldOrNewReader, writeLeftOut, writeUploadLeftOut } from '../../mail/application/mailReaderWrites'
 import { pickedReport } from '../../mail/application/mailReports'
 import { IBKR_FLEX_RECIPE, ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
@@ -18,22 +22,27 @@ import { transactionRecordKind } from '../../transactions/application/transactio
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS, MAIL_READER_RECORDS } from '../../workbook/domain/investmentKinds'
 import { words } from '../words'
-import type { ChatAttachment } from '../../../../shared/ai/domain/chatAttachments'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { ProposalStep } from '../../../../shared/app/assistantOperations'
-import { FLAG_OR_NULL, NOT_READ_OFF_A_PAGE, TEXT, TEXT_OR_NULL, choiceOf, inputOf } from '../../../../shared/app/operationInput'
+import { copiedRowsSource } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { FLAG_OR_NULL, NOT_READ_OFF_A_PAGE, TEXT, TEXT_OR_NULL, choiceOf, found, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { decimalOfAccountMoney, decimalText } from '../../../../shared/money/decimal'
 import { NO_RATES } from '../../../../shared/money/rateBook'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { readRecipeFile } from '../../../../shared/recipes/infrastructure/recipeFile'
+import { fold } from '../../../../shared/text/fold'
 import { plural } from '../../../../shared/text/translation'
 import type { CardBooks, InvestmentSteps, StepNote, StepWritten } from './investmentSteps'
 
 const IMPORT_WORKBOOK = 'import-workbook'
 const ACCEPT_MAIL_REPORT = 'accept-mail-report'
 const IMPORT_FLEX_REPORT = 'import-flex-report'
+const IMPORT_TRANSCRIBED = 'import-transcribed'
 const GONE = ['keep', 'delete'] as const
 const ASKED: readonly AskedChoice[] = ['hold', 'leave-out']
 const MAIL_FIELDS: readonly MailReaderField[] = ['senders', 'subject', 'contents', 'since']
@@ -54,10 +63,6 @@ interface ReportPicked {
 
 function isReportPicked(value: unknown): value is ReportPicked {
   return typeof value === 'object' && value !== null && 'picked' in value
-}
-
-function isAttachment(file: unknown): file is ChatAttachment {
-  return typeof file === 'object' && file !== null && 'kind' in file && 'bytes' in file
 }
 
 /** The rows of an attached portfolio workbook, read by the Import dialog's own reader, or why not, in fixed words that quote nothing of the file. */
@@ -119,13 +124,31 @@ export function importTooLarge(steps: readonly ProposalStep[]): string | null {
     return `A report cannot shrink.${first || ' So'} link the review on Settings, General, which accepts a report this size in one write.`
   if (steps.some((step) => step.operation === IMPORT_FLEX_REPORT))
     return `A report cannot shrink.${first || ' So'} link Upload a report on Settings, General, which accepts a report this size in one write.`
+  if (steps.some((step) => step.operation === IMPORT_TRANSCRIBED))
+    return `Rows copied from a file go in parts.${first ? ' If other changes share its card, propose them on a card of their own first.' : ''} Put the rows of fewer days on this card, keeping a dividend with its tax and both sides of a transfer together, and propose the rest on the next card once this one is accepted. A day that alone makes more changes than a card holds goes in parts too: put its first rows on this card, and give the next card every row of that day again from its first, since Kuna skips the rows it has.`
   return null
 }
 
-/** Where an import's rows are answered, and what its warned line is called. */
+/** Where a person answers an import's rows, null for rows the AI copied, which no screen answers, what its warned line is called and what the line says first. */
 interface ImportPlace {
   readonly label: string
-  readonly place: string
+  readonly place: string | null
+  readonly lead: string | null
+}
+
+/** What an import does with the questions the card cannot ask. */
+interface ImportAnswers {
+  readonly asked: AskedChoice
+  readonly gone: (typeof GONE)[number]
+  /** The Kuna account a file's account goes to, by the file's account text. */
+  readonly accounts: ImportChoices['accounts']
+  readonly where: ImportPlace
+}
+
+const ANSWERED_BY_DEFAULTS: Omit<ImportAnswers, 'where'> = { asked: 'hold', gone: 'keep', accounts: {} }
+
+function askedOf(field: Readonly<Record<string, unknown>>): AskedChoice {
+  return field['asked'] === 'leave-out' ? 'leave-out' : 'hold'
 }
 
 /**
@@ -140,8 +163,8 @@ function firstNounOf(added: InvestmentBook, deleting: readonly ImportedRecord[])
 }
 
 /** A warned line on the card, since the card shows only what the import writes. */
-function noteOf(label: string, noun: RecordNoun, counts: readonly (readonly [number, (count: number) => Parameters<typeof plural>[0]])[]): StepNote[] {
-  const warnings = counts.flatMap(([count, forms]) => (count === 0 ? [] : [plural(forms(count), count)]))
+function noteOf(label: string, noun: RecordNoun, counts: readonly (readonly [number, (count: number) => Parameters<typeof plural>[0]])[], lead: string | null = null): StepNote[] {
+  const warnings = [...(lead === null ? [] : [lead]), ...counts.flatMap(([count, forms]) => (count === 0 ? [] : [plural(forms(count), count)]))]
   return warnings.length === 0 ? [] : [{ noun, line: { label, fields: [], warning: warnings.join(' ') } }]
 }
 
@@ -165,19 +188,17 @@ function holdingsAskedAbout(settled: SettledImport, book: InvestmentBook): strin
  * What the Import dialog writes with every other question left at its default: an account or holding an earlier import
  * wrote to, else a new one as proposed. Refused while the dialog would ask about a split or a spin-off, since their
  * answers set a holding's cost and so its tax, and while the prices file lacks an ECB rate the rows need, which the
- * dialog fetches first. The rows that still wait, and those Kuna cannot read, are counted on a warned line.
+ * dialog fetches first. The rows that still wait, and those Kuna cannot read, are counted on a warned line. Rows the AI
+ * copied have no screen to answer them, so a row Kuna cannot read is refused, and a trade that looks like one Kuna has
+ * is counted on its own, or refused when nothing else is new so the model asks the person.
  */
-function importedRows(
-  unit: UnitOfWork,
-  card: CardBooks,
-  rows: WorkbookRows,
-  asked: AskedChoice,
-  gone: (typeof GONE)[number],
-  where: ImportPlace,
-): { readonly written: StepWritten; readonly leftOut: readonly string[] } {
+function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { asked, gone, accounts, where }: ImportAnswers): { readonly written: StepWritten; readonly leftOut: readonly string[] } {
   const rates = card.rates ?? NO_RATES
   const lacking = ratesWanted(rows.rows, rates)
-  if (lacking !== null) throw new StepRefused(words.proposals.ratesMissing(lacking.currencies.join(', '), lacking.from, where.place))
+  if (lacking !== null) {
+    const currencies = lacking.currencies.join(', ')
+    throw new StepRefused(where.place === null ? words.proposals.transcribedRatesMissing(currencies, lacking.from) : words.proposals.ratesMissing(currencies, lacking.from, where.place))
+  }
   const ids = new Map<string, string>()
   const newIds = (key: string): string => {
     const id = ids.get(key) ?? newRecordId()
@@ -186,27 +207,129 @@ function importedRows(
   }
   const closesOf: ClosesOf = (instrument) => card.pricesFile?.series[seriesKey(instrument.prices, instrument.sourceSymbol)]?.closes ?? []
   const leftOut = asked === 'leave-out' ? (rows.report?.asked ?? []).map((row) => row.key) : []
-  const choices = { ...NO_CHOICES, asked: Object.fromEntries(leftOut.map((key) => [key, asked])) }
+  const choices = { ...NO_CHOICES, accounts, asked: Object.fromEntries(leftOut.map((key) => [key, asked])) }
   const settled = settledImport(rows, card.book, rates, choices, newIds, NO_SPLIT_LOOKUP, closesOf)
   const askedAbout = holdingsAskedAbout(settled, card.book)
-  if (askedAbout.length > 0) throw new StepRefused(words.proposals.holdingsAsked(askedAbout.join(', '), where.place))
+  if (askedAbout.length > 0) {
+    const holdings = askedAbout.join(', ')
+    throw new StepRefused(where.place === null ? words.proposals.transcribedHoldingsAsked(holdings) : words.proposals.holdingsAsked(holdings, where.place))
+  }
   const { dryRun } = settled
+  if (where.place === null && dryRun.skipped.length > 0) throw new StepRefused(copiedRowsText(dryRun.skipped.map(copiedRowRefusal)))
+  const waits = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'waiting' ? [entry.outcome.reason] : []))
+  const lookAlikes = waits.filter((reason) => reason.kind === 'looks-in-kuna').length
+  if (lookAlikes > 0 && importableRecords(dryRun.added).length === 0) {
+    const lookAlikeRows = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'waiting' && entry.outcome.reason.kind === 'looks-in-kuna' ? [entry.rows[0].fileRow] : []))
+    throw new StepRefused(
+      `Rows ${lookAlikeRows.join(', ')} look like records Kuna has from another file and nothing else is new. Ask the person whether they are other records, and if so propose them with lookAlikes import.`,
+    )
+  }
   const deleting = gone === 'delete' ? dryRun.gone : []
   writeWorkbookImport(unit, dryRun.added, deleting)
-  const waiting = dryRun.entries.filter((entry) => entry.outcome.kind === 'waiting').length
+  const waiting = waits.filter((reason) => reason.kind !== 'looks-in-kuna')
+  const reasons = [...new Set(waiting.map(waitText))].join('. ')
   const held = asked === 'hold' ? (rows.report?.asked.length ?? 0) : 0
   const kept = gone === 'keep' ? dryRun.gone.length : 0
-  const notes = noteOf(where.label, firstNounOf(dryRun.added, deleting), [
-    [waiting, (count) => words.proposals.rowsWaiting(count, where.place)],
-    [dryRun.skipped.length, (count) => words.proposals.rowsSkipped(count, where.place)],
-    [held, words.proposals.rowsAsked],
-    [kept, words.proposals.goneKept],
-  ])
+  const place = where.place
+  const inKuna = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'in-kuna' ? entry.rows : [])).length
+  const notes = noteOf(
+    where.label,
+    firstNounOf(dryRun.added, deleting),
+    [
+      [waiting.length, (count) => (place === null ? words.proposals.transcribedWaiting(count, reasons) : words.proposals.rowsWaiting(count, place))],
+      [lookAlikes, words.proposals.lookAlikes],
+      place === null ? [inKuna, words.proposals.rowsInKuna] : [dryRun.skipped.length, (count: number) => words.proposals.rowsSkipped(count, place)],
+      [held, words.proposals.rowsAsked],
+      [kept, words.proposals.goneKept],
+    ],
+    where.lead,
+  )
   const fetchesPricesOf = dryRun.added.instruments.filter((instrument) => instrument.prices !== 'manual').map((instrument) => instrument.name)
   return { written: { book: dryRun.planned, made: null, fetchesPricesOf, notes }, leftOut }
 }
 
-/** The IBKR mail reader's plain settings, the review of its mailed or uploaded report, and the portfolio workbook, as the mail card and the Import dialog write them. Turning the reader on needs Google's consent, so only the person does it. Switching it off needs none. */
+/** Why copied rows cannot go in, row by row and by field, so the AI can copy them again. It quotes nothing that was copied. */
+function copiedRowsText(refusals: readonly CopiedRowRefusal[]): string {
+  return refusals.map(({ fileRow, problem }) => `Row ${fileRow}: ${copiedProblemText(problem)}.`).join(' ')
+}
+
+function copiedProblemText(problem: CopiedRowRefusal['problem']): string {
+  switch (problem.kind) {
+    case 'unreadable':
+      return `${problem.field} cannot be read`
+    case 'missing':
+      return `${problem.field} is missing`
+    case 'commission-below-zero':
+      return 'commission is below zero, and a commission is copied above zero'
+    case 'commission-currency':
+      return "commissionCurrency is neither the row's currency nor, for an FX row, its counterCurrency, so copy the commission as a FEE row of its own"
+    case 'against-sign':
+      return 'its amount is signed against its type, and Kuna has no record for that'
+    case 'below-a-cent':
+      return 'it exchanges less than a cent'
+    case 'unknown-type':
+      return 'type is not one Kuna reads'
+    case 'refused':
+      return problem.reason
+  }
+}
+
+/** The printed cash balances the rows do not reach, with how far off each ends. */
+function cashOffText(off: readonly CashOff[]): string {
+  const amount = (cents: AccountMoney): string => decimalText(decimalOfAccountMoney(cents))
+  const lines = off.map(
+    ({ currency, tie }) =>
+      `Cash in ${currency} does not add up: from the opening ${amount(tie.statement.opening)} the rows reach ${amount(tie.reached)}, but the closing is ${amount(tie.statement.closing)}, a gap of ${amount(tie.gap)}.`,
+  )
+  return `${lines.join(' ')} Copy the rows of that currency again, or give the balances the file prints before this card's first row and after its last.`
+}
+
+/**
+ * The account the copied rows go to: the one named, or a new one the import names after the broker. A new one is refused
+ * while Kuna has an account of that name, so the rows of a broker Kuna knows never land in a second account unasked.
+ */
+function transcribedAccount(card: CardBooks, named: unknown, broker: string): RecordId | null {
+  if (named !== null) return found(card.book.accounts, card.idOf(named), 'account').id
+  const same = card.book.accounts.find((account) => fold(account.name) === fold(broker))
+  if (same !== undefined)
+    throw new StepRefused(`Kuna has an account called ${same.name}. If the rows are on it, name it in account. If the person says they are on another account, give broker a name no account has.`)
+  return null
+}
+
+/**
+ * Rows the AI copied from a file Kuna does not read, through the same dry run as a workbook, with a warned line that the
+ * AI read them, and that Kuna could not check that they add up unless the file's printed cash balances tie. Refused with
+ * the rows Kuna cannot read or keep, so the AI copies them again, and when the card holds only part of a day Kuna has
+ * rows of from the same file.
+ */
+function importedTranscribed(unit: UnitOfWork, card: CardBooks, field: Readonly<Record<string, unknown>>): StepWritten {
+  const file = field['file']
+  if (isAttachment(file) && file.reading.kind === 'kuna')
+    throw new StepRefused(`That file is a ${file.reading.format.name}, which Kuna reads itself. Propose ${file.reading.format.operation} with it.`)
+  const fileName = isAttachment(file) ? file.name : ''
+  const rows = field['rows'] as readonly TranscribedRow[]
+  if (rows.length === 0) throw new StepRefused('rows is empty. Copy the rows of the file onto the card.')
+  const broker = String(field['broker']).trim()
+  const account = transcribedAccount(card, field['account'], broker)
+  if (account === null && broker === '') throw new StepRefused('A new account is named after its broker, so broker is not blank.')
+  const accountText = account ?? broker
+  const balances = field['balances'] as readonly TranscribedBalance[]
+  const read = transcribedRows({ fileName, broker, account: accountText, rows, balances }, choiceOf(LOOK_ALIKES, field['lookAlikes'] as string, 'lookAlikes')!)
+  if (read.kind === 'refused') throw new StepRefused(copiedRowsText(read.rows))
+  if (read.kind === 'balance-unread') throw new StepRefused(`${read.field} cannot be read.`)
+  if (read.kind === 'cash-off') throw new StepRefused(cashOffText(read.off))
+  const partDays = daysPartlyOnCard(read.rows, card.book, fileName)
+  if (partDays.length > 0)
+    throw new StepRefused(
+      `Kuna has rows of ${partDays.join(', ')} from this file that this card does not give, so the card holds only part of those days. Give every row of a day on one card, the ones Kuna has too, since Kuna skips them.`,
+    )
+  const source = copiedRowsSource(fileName || null)
+  const lead = plural(read.cashChecked ? words.proposals.transcribedTied(rows.length, source) : words.proposals.transcribedRead(rows.length, source), rows.length)
+  const accounts: ImportChoices['accounts'] = account === null ? {} : { [accountText]: { kind: 'existing', account } }
+  return importedRows(unit, card, read.rows, { ...ANSWERED_BY_DEFAULTS, accounts, where: { label: words.proposals.transcribed, place: null, lead } }).written
+}
+
+/** The IBKR mail reader's plain settings, the review of its mailed or uploaded report, the portfolio workbook and rows the AI copied from another file, as the mail card and the Import dialog write them. Turning the reader on needs Google's consent, so only the person does it. Switching it off needs none. */
 export const IMPORT_STEPS: InvestmentSteps = {
   operations: [
     {
@@ -238,7 +361,7 @@ export const IMPORT_STEPS: InvestmentSteps = {
     {
       name: IMPORT_FLEX_REPORT,
       about:
-        "Imports an attached IBKR Activity Flex report in XML through the same recipe and review as the mailed report: rows already in Kuna are skipped, rows before the mail reader's first day are left out, and accounts and holdings are named as Kuna proposes them. Kuna reads the file itself, so file names its id. asked says what becomes of the rows the report asks about: hold keeps them waiting, leave-out stops asking for good. Rows that still wait, and a split or a spin-off the card cannot answer, are answered by Upload a report on Settings, General.",
+        "Imports an attached IBKR Activity Flex report in XML through the same recipe and review as the mailed report: rows already in Kuna are skipped, rows before the mail reader's first day come in too, and accounts and holdings are named as Kuna proposes them. Kuna reads the file itself, so file names its id. asked says what becomes of the rows the report asks about: hold keeps them waiting, leave-out stops asking for good. Rows that still wait, and a split or a spin-off the card cannot answer, are answered by Upload a report on Settings, General.",
       input: inputOf({ file: TEXT, asked: { type: 'string', enum: [...ASKED] } }),
       refs: { file: ATTACHMENT_REF },
       creates: null,
@@ -255,27 +378,96 @@ export const IMPORT_STEPS: InvestmentSteps = {
       alone: true,
       example: { file: 'a1', gone: 'keep' },
     },
+    {
+      name: IMPORT_TRANSCRIBED,
+      about: [
+        'Imports rows you copied from a broker file Kuna does not read, such as a CSV, a PDF statement or a photo, through the same dry run as Overview, Import: rows already in Kuna are skipped, a sale beyond the units held waits, and accounts and holdings are matched or named as Kuna proposes them.',
+        'file names the file by its id, or null for rows typed in the chat. A file Kuna reads itself goes through its own operation. account names the Kuna account the rows are on, or null for a new one named after broker, which is refused while Kuna has an account of that name. A later card of the same file names the account the first card made.',
+        'Copy every row as the file prints it, one card at a time: a type of the workbook, numbers with a dot for decimals and no thousands separators, money out below zero in netCash, and blank fields as null. An FX row gives the currency sold in currency and netCash, and the one bought in counterCurrency and counterAmount.',
+        "commission is above zero, and commissionCurrency names its currency: the row's currency, or for an FX row its counterCurrency. A commission in any other currency is a FEE row of its own.",
+        "balances gives the cash balance the file prints for a currency before this card's first row and after its last, and each must add up with the rows' netCash in that currency. Give [] when the file prints none.",
+        "Keep a day's rows on one card, with a dividend beside its tax and both sides of a transfer together. Propose the next rows once the card before is accepted.",
+        'lookAlikes says what becomes of a row that looks like a record Kuna has from another file: a trade of the same holding, day, side and units, income of the same holding, day and gross, a cash movement of the same day, kind, currency and amount, or an exchange of the same day and amounts, each in the same account or, for a new account, in any. ask keeps it waiting and counts it on the card, import imports it once the person says it is another record.',
+      ].join(' '),
+      input: inputOf({
+        file: TEXT_OR_NULL,
+        account: TEXT_OR_NULL,
+        broker: TEXT,
+        lookAlikes: { type: 'string', enum: [...LOOK_ALIKES] },
+        rows: {
+          type: 'array',
+          items: inputOf({
+            date: TEXT,
+            type: { type: 'string', enum: [...WORKBOOK_TYPES] },
+            symbol: TEXT,
+            isin: TEXT,
+            name: TEXT,
+            quantity: TEXT_OR_NULL,
+            price: TEXT_OR_NULL,
+            currency: TEXT_OR_NULL,
+            gross: TEXT_OR_NULL,
+            commission: TEXT_OR_NULL,
+            commissionCurrency: TEXT_OR_NULL,
+            netCash: TEXT_OR_NULL,
+            counterCurrency: TEXT_OR_NULL,
+            counterAmount: TEXT_OR_NULL,
+            note: TEXT,
+          }),
+        },
+        balances: { type: 'array', items: inputOf({ currency: TEXT, opening: TEXT, closing: TEXT }) },
+      }),
+      refs: { file: ATTACHMENT_REF, account: INVESTMENT_ACCOUNT_RECORDS.name },
+      creates: null,
+      alone: true,
+      example: {
+        file: null,
+        account: 'account',
+        broker: 'Example Broker',
+        lookAlikes: 'ask',
+        rows: [
+          {
+            date: '2026-10-12',
+            type: 'DEPOSIT',
+            symbol: '',
+            isin: '',
+            name: '',
+            quantity: null,
+            price: null,
+            currency: 'EUR',
+            gross: null,
+            commission: null,
+            commissionCurrency: null,
+            netCash: '500',
+            counterCurrency: null,
+            counterAmount: null,
+            note: 'Top-up',
+          },
+        ],
+        balances: [],
+      },
+    },
   ],
   write(unit, card, { operation, input }) {
     const field = input as Readonly<Record<string, unknown>>
+    if (operation === IMPORT_TRANSCRIBED) return importedTranscribed(unit, card, field)
     if (operation === IMPORT_WORKBOOK) {
       const read = field['file']
       if (!isRowsRead(read)) throw new StepRefused('file is not a workbook Kuna read.')
-      return importedRows(unit, card, read.rows, 'hold', field['gone'] === 'delete' ? 'delete' : 'keep', words.proposals.workbook).written
+      return importedRows(unit, card, read.rows, { ...ANSWERED_BY_DEFAULTS, gone: field['gone'] === 'delete' ? 'delete' : 'keep', where: { ...words.proposals.workbook, lead: null } }).written
     }
     const held = ibkrMailReader(card.book)
     if (operation === IMPORT_FLEX_REPORT) {
       const read = field['file']
       if (!isReportPicked(read)) throw new StepRefused('file is not a report Kuna read.')
       const rows = uploadedReportRows(IBKR_FLEX_RECIPE, read.picked, held)
-      const { written, leftOut } = importedRows(unit, card, rows, field['asked'] === 'leave-out' ? 'leave-out' : 'hold', 'keep', words.proposals.flexReport)
+      const { written, leftOut } = importedRows(unit, card, rows, { ...ANSWERED_BY_DEFAULTS, asked: askedOf(field), where: { ...words.proposals.flexReport, lead: null } })
       if (leftOut.length > 0) writeUploadLeftOut(unit, held, leftOut, read.picked)
       return written
     }
     if (operation === ACCEPT_MAIL_REPORT) {
       const read = field['report']
       if (!isRowsRead(read) || held === null) throw new StepRefused('No mailed report waits.')
-      const { written, leftOut } = importedRows(unit, card, read.rows, field['asked'] === 'leave-out' ? 'leave-out' : 'hold', 'keep', words.proposals.mailReport)
+      const { written, leftOut } = importedRows(unit, card, read.rows, { ...ANSWERED_BY_DEFAULTS, asked: askedOf(field), where: { ...words.proposals.mailReport, lead: null } })
       if (leftOut.length > 0) writeLeftOut(unit, held, leftOut)
       return written
     }

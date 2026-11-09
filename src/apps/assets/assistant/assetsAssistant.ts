@@ -34,5 +34,6 @@ export function assetsAssistant(reading: AssetsReading, changes: { readonly prop
     acceptance: changes?.acceptance ?? null,
     quickActions: [words.quickActions.worth, words.quickActions.valuation],
     persons: () => [],
+    fileFormats: [],
   }
 }

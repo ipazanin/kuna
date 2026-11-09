@@ -295,14 +295,15 @@
             The assistant is a chat inside the page. It runs only with your own key for one company, Anthropic, OpenAI or OpenRouter, chosen in Kuna settings and kept like the price vendor keys, and
             the page sends to that company straight from this browser and to no one else. It sends only when you send a message. Each message carries what you type, Kuna's own description of its apps,
             screens and settings, which holds nothing from your books, and, when they changed since the last message, the app, screen and tab you are on with their address, today's date, what you
-            tagged with Ask the chat and each attached file's id and kind. A record or a build-up you tag goes as Kuna's reference to it, without its name, a figure as its label and a place as its
-            title and address. Kuna offers no model the web, and a model id that would turn web search on runs as the default model instead. A model you type by hand on OpenRouter may still search the
-            web on its own side, which Kuna cannot see. Testing a key sends nothing from your books.
+            tagged with Ask the chat, and each attached file's id, kind, pages, rows or sheets, and the format Kuna reads it as. A record or a build-up you tag goes as Kuna's reference to it, without
+            its name, a figure as its label and a place as its title and address. Kuna offers no model the web, and a model id that would turn web search on runs as the default model instead. A model
+            you type by hand on OpenRouter may still search the web on its own side, which Kuna cannot see. Testing a key sends nothing from your books.
           </p>
           <p>
             The chat reads an app's books only once you allow it, on a card in the chat, for that chat or always. Always switches on Send without asking under Assistant in that app's Settings, and
             switching it off there makes the chat ask again. Then, when a question needs them, the chat asks Kuna for records, a page at a time, and for figures Kuna computes with the same code as its
-            screens. Each read shows above its answer, one tap from the exact text that went. IBANs and OIBs go masked. What each app lets it read:
+            screens. Each read shows above its answer, one tap from the exact text that went. IBANs and OIBs go masked, and in what you type card numbers and old domestic account numbers too. What
+            each app lets it read:
           </p>
           <ul>
             <li>
@@ -331,12 +332,25 @@
             for a company, employees' records and every name Kuna knows go to that company as written, and to no other. IBANs and OIBs stay masked. Changing company turns Anonymise back on.
           </p>
           <p>
-            A message can carry up to four files. A photo goes whole, downscaled to a JPEG in this browser, which drops its camera data and the place it was taken. A PDF's pages go whole, as a copy
-            without the file's own metadata, up to 20 pages a read, and never to OpenRouter, which does not read PDFs in Kuna. Kuna cannot mask or alias what a photo or a PDF shows, even with
-            Anonymise on: a receipt can show a masked card number, a loyalty card and the shop, and a statement or a loan offer shows every name, IBAN and amount printed on it. The file's chip and the
-            card before its first send say so. The AI company gets the file's id, never its name. A sheet, an XML file or a CSV file stays on this device. Kuna reads it with the same readers as its
-            import screens, such as a Revolut sheet, a camt statement, a bank sheet with a saved profile, the Investments workbook or a file of daily closes, and shows what it holds only on a card in
-            the chat. The chat hears how many changes the card holds, or why Kuna refused it, never a cell.
+            A message can carry up to four files, and Kuna reads each one in this browser first. A file in a format Kuna reads itself stays on this device: a Revolut sheet or CSV, a camt.053
+            statement, a bank sheet one of your saved import profiles reads, the Investments workbook, IBKR's Activity Flex report or a CSV of daily closes. Kuna reads it with the same readers as its
+            import screens and shows what it holds only on a card in the chat. The chat hears the file's format, how many changes the card holds, or why Kuna refused it, never a cell.
+          </p>
+          <p>
+            Any other sheet, CSV, XML, JSON or text file, such as OFX, QIF or MT940, goes to the AI company as text, one cell at a time, and only when the chat reads it, at most 200 rows and 40,000
+            characters a read. Before a cell leaves, Kuna strips the characters you cannot see, takes a sheet's formulas as their values, replaces a cell shaped like an API key with
+            <code>[key removed]</code> and cuts a cell past 200 characters. Each IBAN and OIB goes as a token, with Anonymise on or off, and Kuna puts the real one back on a card. A cell shaped like
+            an account number goes as a token whole when its column is headed as an account, IBAN, OIB or card, or its XML or JSON path or its OFX or MT940 tag names an account. Amounts, balances and
+            dates under such a header go as written. Card numbers and old domestic account numbers go masked to their last four digits. With Anonymise on, every person Kuna knows by name goes as an
+            alias, employees too, so a row that pays an employee goes with the employee's alias and the amount. Shops, other payees, people Kuna does not know, amounts and dates go as written. The
+            file's chip says it goes as text, and about what reading it costs. Kuna refuses a sheet whose zip says it unpacks past 100 MB, and an XML file that declares its own entities, before
+            anything reads them. It also refuses a file while your books are still opening, or when one of its readers fails, so a format it reads never goes by mistake.
+          </p>
+          <p>
+            A photo goes whole, downscaled to a JPEG in this browser, which drops its camera data and the place it was taken. A PDF's pages go whole, as a copy without the file's own metadata, up to
+            20 pages a read, and never to OpenRouter, which does not read PDFs in Kuna. Kuna cannot mask or alias what a photo or a PDF shows, even with Anonymise on: a receipt can show a masked card
+            number, a loyalty card and the shop, and a statement or a loan offer shows every name, IBAN and amount printed on it. The file's chip and the card before its first send say so. The AI
+            company gets each file's id, never its name. What a file holds reaches the chat only as data from a read, and a change it suggests is a card like any other.
           </p>
           <p>
             The chat writes nothing itself. A change it proposes shows as a card in the chat, checked by the same rules as the app's screens and worded by Kuna, and only your tap on Accept writes it,

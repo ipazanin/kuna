@@ -3,8 +3,10 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import { transcribedImportKeys } from '../src/apps/spending/statements/domain/statementRows'
-import { statementTies, tieRefusal } from '../src/apps/spending/statements/domain/statementTies'
-import type { PrintedStatement } from '../src/apps/spending/statements/domain/statementTies'
+import { tieRefusal } from '../src/apps/spending/assistant/operations/statementImport'
+import type { AccountMoney } from '../src/shared/money/accountMoney'
+import { statementTies } from '../src/shared/money/statementTies'
+import type { PrintedStatement } from '../src/shared/money/statementTies'
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import { EURO } from '../src/shared/money/currencyCode'
 import { civil } from './fixtures/ledger'
@@ -25,7 +27,7 @@ function transcription(file: string): Transcription {
   return found
 }
 
-function printed(file: string): PrintedStatement {
+function printed(file: string): PrintedStatement<AccountMoney> {
   const { opening, closing, rows } = transcription(file)
   return { opening: accountMoneyFromCents(opening), amounts: rows.map((row) => accountMoneyFromCents(row.cents)), closing: accountMoneyFromCents(closing) }
 }

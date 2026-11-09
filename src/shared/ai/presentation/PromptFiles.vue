@@ -4,14 +4,14 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { formatCount } from '../../money/moneyFormat'
 import RemovableChip from '../../ui/RemovableChip.vue'
-import { sendsToModel } from '../domain/chatAttachments'
+import { anonymisingNow } from './aiProvider'
 import { chatPromptFiles, promptFilesCost, promptSendsDocument, removePromptFile } from './chatSession'
 import type { FileRefusal, PromptFile } from './chatSession'
 import { words } from './words'
 
 /**
- * The files on the prompt as chips, with a line for each that does not go as sent: refused with why, or read by Kuna
- * alone. Under them it says that photos and PDFs go whole, and about what reading them costs.
+ * The files on the prompt as chips, with a line for each that does not go whole: refused with why, read by Kuna alone,
+ * or sent as cells, with a warning when Anonymise is off. Under them it says that photos and PDFs go whole, and about what reading them costs.
  */
 defineProps<{
   /** False while the card asking before a send says it instead. */
@@ -34,6 +34,10 @@ function refusalWords(refusal: FileRefusal): string {
       return words.files.encrypted
     case 'unreadable':
       return words.files.unreadable
+    case 'unsafe':
+      return words.files.unsafe
+    case 'books-opening':
+      return words.files.booksOpening
     case 'no-pdf':
       return words.result.noPdf(refusal.provider)
   }
@@ -48,8 +52,14 @@ function iconOf(file: PromptFile): string {
 
 const notes = computed(() =>
   chatPromptFiles.value.flatMap((file) => {
-    if (file.state === 'refused') return [{ key: file.key, refused: true, text: words.files.refused(file.name, refusalWords(file.refusal)) }]
-    if (file.state === 'ready' && !sendsToModel(file.attachment.kind)) return [{ key: file.key, refused: false, text: words.files.readByKuna(file.name) }]
+    if (file.state === 'refused') return [{ key: file.key, tone: 'refused', icon: 'i-lucide-circle-alert', text: words.files.refused(file.name, refusalWords(file.refusal)) }]
+    if (file.state !== 'ready') return []
+    if (file.attachment.reading.kind === 'kuna') return [{ key: file.key, tone: 'plain', icon: 'i-lucide-hard-drive', text: words.files.readByKuna(file.name) }]
+    if (file.attachment.reading.kind === 'cells') {
+      return anonymisingNow()
+        ? [{ key: file.key, tone: 'plain', icon: 'i-lucide-send', text: words.files.goesAsCells(file.name) }]
+        : [{ key: file.key, tone: 'warning', icon: 'i-lucide-send', text: words.files.goesAsCellsPlain(file.name) }]
+    }
     return []
   }),
 )
@@ -70,8 +80,14 @@ const notes = computed(() =>
         @remove="removePromptFile(file.key)"
       />
     </div>
-    <p v-for="note in notes" :key="note.key" class="flex items-start gap-1 type-caption wrap-anywhere" :class="{ 'text-error': note.refused }" data-testid="chat-file-note">
-      <UIcon :name="note.refused ? 'i-lucide-circle-alert' : 'i-lucide-hard-drive'" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+    <p
+      v-for="note in notes"
+      :key="note.key"
+      class="flex items-start gap-1 type-caption wrap-anywhere"
+      :class="{ 'text-error': note.tone === 'refused', 'text-warning': note.tone === 'warning' }"
+      data-testid="chat-file-note"
+    >
+      <UIcon :name="note.icon" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       {{ note.text }}
     </p>
     <p v-if="saysGoesWhole && promptSendsDocument" class="flex items-start gap-1 type-caption text-warning" data-testid="chat-files-whole">

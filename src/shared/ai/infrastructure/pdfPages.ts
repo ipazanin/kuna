@@ -1,6 +1,6 @@
 import type { PDFDocument } from 'pdf-lib'
 
-import type { PageRange } from '../domain/chatAttachments'
+import type { ReadRange } from '../domain/chatAttachments'
 
 /** Why a PDF cannot be read: a password, or a structure `pdf-lib` refuses, such as a page tree that holds itself. */
 type PdfRefusal = { readonly refused: 'encrypted' | 'unreadable' }
@@ -39,7 +39,7 @@ export async function pdfPages(bytes: Uint8Array): Promise<PdfReading> {
  * A new PDF holding only the pages of the range, copied from the file. The file's catalogue, such as an open action, and
  * its metadata stay behind. Throws for a file `pdfPages` refuses or a range outside it.
  */
-export async function pdfPagesCut(bytes: Uint8Array, range: PageRange): Promise<Uint8Array> {
+export async function pdfPagesCut(bytes: Uint8Array, range: ReadRange): Promise<Uint8Array> {
   const reading = await loaded(bytes)
   if ('refused' in reading) throw new Error(`The PDF cannot be cut: it is ${reading.refused}.`)
   if (range.first < 1 || range.last > reading.pages || range.first > range.last) throw new RangeError(`Pages ${range.first} to ${range.last} are outside a PDF of ${reading.pages}.`)

@@ -12,7 +12,7 @@ import { NOTHING_TAGGED, contextLine, elementLine, runChatTurn } from '../applic
 import type { ChatContext, SentRead } from '../application/runChatTurn'
 import type { LoopEnd } from '../application/runModelLoop'
 import { chatRefs } from '../domain/chatRefs'
-import { documentSizeOf, nextAttachmentId, sendsToModel } from '../domain/chatAttachments'
+import { documentSizeOf, nextAttachmentId } from '../domain/chatAttachments'
 import type { AttachmentRefusal, ChatAttachment } from '../domain/chatAttachments'
 import { costOfDocument } from '../domain/modelUsage'
 import { attachedFile } from '../application/chatFiles'
@@ -159,9 +159,16 @@ function startChainOn(next: string): void {
 }
 
 let catalogue: Promise<Catalogue> | null = null
+let catalogueLoaded: (loading: Promise<Catalogue>) => void = () => undefined
+/** The catalogue once the chat's panel loads it, which a file waits for so each app's reader can say whether it takes it. A catalogue that fails to load refuses the file. */
+const catalogueWhenLoaded = new Promise<Catalogue>((resolve, reject) => {
+  catalogueLoaded = (loading) => void loading.then(resolve, reject)
+})
+// A file that comes later still sees the failure. Until then it is no unhandled rejection.
+void catalogueWhenLoaded.catch(() => undefined)
 
 /**
- * What a chat knows, built once as the first message goes and kept for the visit. It reads what each app declares and
+ * What a chat knows, built once when the chat's panel mounts and kept for the visit. It reads what each app declares and
  * none of what a person's books decide, so it takes every screen but a first run. A screen that opens one record is
  * taken only when the app declares it as a place, whose parameters a link fills from a record's ref.
  */
@@ -182,6 +189,7 @@ export function loadCatalogue(apps: readonly AppContribution[], kuna: KunaChat):
       }),
     ),
   ]).then(([kunaAssistant, catalogueApps]) => catalogueOf(catalogueApps, { id: kuna.id, name: kuna.name, purpose: kuna.purpose, screens: kuna.screens, assistant: kunaAssistant }))
+  catalogueLoaded(catalogue)
   return catalogue
 }
 
@@ -377,7 +385,7 @@ export async function attachFiles(files: readonly File[]): Promise<void> {
       idsHandedOut += 1
       const key = `file-${id}`
       promptFiles.push({ key, name: file.name, state: 'reading' })
-      const read = await attachedFile(file, id, waiting, imagePartOf)
+      const read = await attachedFile(file, id, waiting, imagePartOf, async (attached) => (await catalogueWhenLoaded).formatOf(attached))
       const at = promptFiles.findIndex((shown) => shown.key === key)
       if (at === -1) return
       promptFiles[at] = 'reason' in read ? { key, name: file.name, state: 'refused', refusal: read } : { key, name: file.name, state: 'ready', attachment: markRaw(read) }
@@ -409,7 +417,7 @@ export const chatPromptFiles = computed<readonly PromptFile[]>(() => {
 export const promptPdfsRefused = computed(() => chatPromptFiles.value.some((file) => file.state === 'refused' && file.refusal.reason === 'no-pdf'))
 
 /** Whether a photo or a PDF on the prompt goes to the model whole. */
-export const promptSendsDocument = computed(() => chatPromptFiles.value.some((file) => file.state === 'ready' && sendsToModel(file.attachment.kind)))
+export const promptSendsDocument = computed(() => chatPromptFiles.value.some((file) => file.state === 'ready' && file.attachment.reading.kind === 'whole'))
 
 /** The files that go with a message leave the prompt, with any refused, and the chat holds them for the model's reads. */
 function sentFiles(): readonly ChatAttachment[] {

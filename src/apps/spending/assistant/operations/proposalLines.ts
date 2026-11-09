@@ -1,11 +1,11 @@
 import { words as accountWords } from '../../accounts/presentation/words'
 import { words as categoryWords } from '../../categories/presentation/words'
 import type { StatementDryRun } from '../../statements/domain/statementDryRun'
-import type { StatementRows } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
+import type { CardStatement, CopiedRows } from './statementImport'
 import type { ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
 import { proposalGroups } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
@@ -16,6 +16,7 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import { DEFAULT_MONEY_FORMAT, formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
+import { copiedStatementRowsWarning } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
@@ -80,25 +81,31 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   return fallback
 }
 
-/** What a card's import leaves out of its statement: the rows its dry run skips for their day, and whether the file's reader left out more or noted its balance. */
+/** What a card's import leaves out of its statement or cannot vouch for: the rows its dry run skips for their day, whether the file's reader left out more or noted its balance, and the rows the AI copied. */
 export interface StatementLeftOut {
   readonly label: string
   readonly rows: number
   readonly fileNotes: boolean
+  readonly copied: CopiedRows | null
 }
 
 /** What the import leaves out, from its statement and its dry run. A row already on the file is not left out, since it is there. */
-export function statementLeftOut(statement: StatementRows, run: Pick<StatementDryRun, 'lines'>): StatementLeftOut {
+export function statementLeftOut({ statement, copied }: CardStatement, run: Pick<StatementDryRun, 'lines'>): StatementLeftOut {
   return {
     label: statement.label,
     rows: run.lines.filter((line) => line.outcome === 'before-opening' || line.outcome === 'other-source').length,
     fileNotes: statement.notes.length > 0,
+    copied,
   }
 }
 
-/** A warned line on the statement, since the card shows only what the import writes. Null when it leaves nothing out. */
-function leftOutLine({ label, rows, fileNotes }: StatementLeftOut): ProposalLine | null {
-  const warnings = [...(rows === 0 ? [] : [plural(words.proposals.rowsLeftOut(rows), rows)]), ...(fileNotes ? [words.proposals.fileNotes] : [])]
+/** A warned line on the statement, since the card shows only what the import writes. Null when it leaves nothing out and nothing was copied. */
+function leftOutLine({ label, rows, fileNotes, copied }: StatementLeftOut): ProposalLine | null {
+  const warnings = [
+    ...(copied === null ? [] : [copiedStatementRowsWarning(copied.count, copied.file, copied.tied)]),
+    ...(rows === 0 ? [] : [plural(words.proposals.rowsLeftOut(rows), rows)]),
+    ...(fileNotes ? [words.proposals.fileNotes] : []),
+  ]
   return warnings.length === 0 ? null : { label, fields: [], warning: warnings.join(' ') }
 }
 

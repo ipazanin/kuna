@@ -8,12 +8,25 @@ export function reportRowKey(recipe: string, account: string, id: string): strin
   return `${recipe}:${factKey([account])}:${id}`
 }
 
-/** Whether a record's import key came from a rolling report. A workbook's keys hold no colon. */
-export function isReportKey(key: string): boolean {
-  return key.includes(':')
+/** What starts the key of a row the AI copied from a file Kuna does not read. */
+const TRANSCRIBED = 'transcribed'
+
+/** The key of a row the AI copied: its file, account and day, then its facts with its count among the card's rows with the same facts. */
+export function transcribedRowKey(dayScope: string, occurrenceKey: string): string {
+  return `${TRANSCRIBED}:${dayScope}:${occurrenceKey}`
 }
 
-/** The recipe and the account of a report's key, so an account known from one row answers for the rest. */
+/** Whether a record's import key came from the portfolio workbook. Its keys hold no colon. */
+export function isWorkbookKey(key: string): boolean {
+  return !key.includes(':')
+}
+
+/** Whether a record's import key came from a rolling report. */
+export function isReportKey(key: string): boolean {
+  return !isWorkbookKey(key) && !key.startsWith(`${TRANSCRIBED}:`)
+}
+
+/** What a key holds before its last colon: a report's recipe and account, so an account known from one row answers for the rest, or a copied row's file, account and day. */
 export function accountScopeOf(key: string): string {
   return key.slice(0, key.lastIndexOf(':'))
 }

@@ -78,7 +78,6 @@ export const en = {
     photoStays: 'The photo stays in the Receipts folder on Drive after Undo.',
   },
   statementRead: (account: string, from: string, to: string) => `${account}, statement read in the chat, ${from} to ${to}`,
-  sheetNotRead: 'Kuna could not read that file as a Revolut export.',
   quickActions: {
     sort: { label: 'Sort what is waiting', prompt: 'Sort the rows waiting on To review, and propose rules where the same payee keeps coming.' },
     rules: { label: 'Check my rules', prompt: 'Read my rules and rows, and propose fixing or deleting any rule that files rows wrongly.' },
@@ -210,7 +209,6 @@ export const hr: Translation<typeof en> = {
     photoStays: 'Fotografija ostaje u mapi Receipts na Driveu i nakon poništavanja.',
   },
   statementRead: (account, from, to) => `${account}, izvod pročitan u razgovoru, od ${from} do ${to}`,
-  sheetNotRead: 'Kuna tu datoteku ne može pročitati kao izvoz iz Revoluta.',
   quickActions: {
     sort: { label: 'Razvrstaj ono što čeka', prompt: 'Razvrstaj retke koji čekaju na kartici Za pregled i predloži pravila gdje se isti primatelj ponavlja.' },
     rules: { label: 'Provjeri moja pravila', prompt: 'Pročitaj moja pravila i retke te predloži ispravak ili brisanje pravila koje pogrešno razvrstava.' },

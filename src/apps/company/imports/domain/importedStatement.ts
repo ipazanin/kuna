@@ -1,9 +1,11 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
-import { addMoney } from '../../../../shared/money/money'
+import { absMoney, addMoney } from '../../../../shared/money/money'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
-import { statementTies, tieRefusal } from './statementTies'
+import { statementTies } from '../../../../shared/money/statementTies'
+import type { StatementTie } from '../../../../shared/money/statementTies'
+import { words } from './words'
 
 /** The bank's codes of a row whose file gives none. */
 export const NO_SIGNALS: TransactionSignals = { purpose: '', txDomain: '', txFamily: '', txSubFamily: '', creditorReference: '', instructedCurrency: '' }
@@ -86,17 +88,27 @@ export function transcribedReferences(account: string, rows: readonly Pick<Impor
 export type TranscribedRow = Pick<ImportedRow, 'date' | 'amount' | 'counterparty' | 'counterpartyIban' | 'description'>
 
 /**
- * A statement read off a page, its entries oldest first, each with the balance it leaves from the printed opening. It is refused
- * unless its entries lead from the printed opening to the printed closing balance, since nothing is filled in to close the gap.
+ * A statement the AI copied off a page, a file or the chat, its entries oldest first. With both printed balances, each entry carries
+ * the balance it leaves from the opening, and the statement is refused unless its entries lead to the closing, since nothing is
+ * filled in to close the gap. Without them no entry carries a balance, and the dry run works them out from the ledger. One balance
+ * without the other is refused.
  */
-export function transcribedStatement(account: string, label: string, opening: Money, closing: Money, rows: readonly TranscribedRow[]): ImportedStatement {
-  const tie = statementTies({ opening, amounts: rows.map((row) => row.amount), closing })
-  if (tie.kind === 'off') throw new StatementRefused(tieRefusal(tie))
+export function transcribedStatement(account: string, label: string, opening: Money | null, closing: Money | null, rows: readonly TranscribedRow[]): ImportedStatement {
+  if ((opening === null) !== (closing === null)) throw new StatementRefused(words.transcribed.oneBalance)
+  if (opening !== null && closing !== null) {
+    const tie = statementTies({ opening, amounts: rows.map((row) => row.amount), closing })
+    if (tie.kind === 'off') throw new StatementRefused(tieRefusal(tie))
+  }
   const references = transcribedReferences(account, rows)
   let balance = opening
   const entries = rows.map((row, at): ImportedRow => {
-    balance = addMoney(balance, row.amount)
+    balance = balance === null ? null : addMoney(balance, row.amount)
     return { ...row, balance, reference: references[at]!, signals: NO_SIGNALS, reviewReasons: [] }
   })
   return { fileName: label, source: { kind: 'transcribed' }, label, account, opening, closing, rows: entries, notes: [] }
+}
+
+/** Why a statement that does not tie is refused, with the gap. */
+export function tieRefusal(tie: Extract<StatementTie<Money>, { kind: 'off' }>): string {
+  return words.transcribed.doesNotTie(tie.statement.opening, tie.rows, tie.reached, tie.statement.closing, absMoney(tie.gap))
 }

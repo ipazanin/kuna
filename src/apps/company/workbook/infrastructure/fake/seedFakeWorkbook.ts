@@ -25,6 +25,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
   ['no-billing-plan', 'billing-item'],
   ['no-scenarios', 'hr-doo.scenario-component'],
   ['no-plan', 'hr-doo.plan-line'],
+  ['no-ledger', 'ledger-row'],
 ]
 
 /**
@@ -32,7 +33,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * on the fake build's Drive, or with `?fake=browser` a workbook kept in this browser with changes nine
  * days past their last export, and `?fake=mail-move` books whose statements folder on the fake Drive holds a mix for a move, `?fake=browser-beside-drive` that workbook with a file another
  * device made on the fake Drive too. `?fake=empty` keeps nothing, which is a first run. A variant that ends
- * in `no-billing-plan`, `no-scenarios` or `no-plan` starts without those records. `?fake=newer-file`
+ * in `no-billing-plan`, `no-scenarios`, `no-plan` or `no-ledger` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
  * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. A variant that starts with `mail` names the bank's mail, which the
  * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of

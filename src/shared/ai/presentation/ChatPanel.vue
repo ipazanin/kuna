@@ -69,7 +69,10 @@ const readsHere = ref(false)
 const quickActions = ref<readonly AssistantQuickAction[]>([])
 
 provide(CHAT_APPS, [...props.apps, props.kuna])
-onMounted(() => void restoreChat())
+onMounted(() => {
+  void restoreChat()
+  void loadCatalogue(props.apps, props.kuna)
+})
 const panel = useTemplateRef<HTMLElement>('panel')
 
 /** The card's buttons leave with the card, so focus goes back to the prompt. A phone keeps its keyboard down. */

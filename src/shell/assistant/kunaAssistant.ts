@@ -47,5 +47,6 @@ export function kunaAssistant(): AppAssistant {
     acceptance: kunaAcceptance(DEVICE),
     quickActions: [],
     persons: () => [],
+    fileFormats: [],
   }
 }

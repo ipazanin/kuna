@@ -17,6 +17,7 @@ import type { CompanyBooks } from '../workbook/domain/readWorkbook'
 import type { Workbook } from '../workbook/domain/workbook'
 import type { KnownPerson } from '../../../shared/privacy/domain/pseudonyms'
 import { companyReader } from './companyReader'
+import { companyFileFormats } from './fileFormats'
 import type { CompanyReading, PackReader } from './companyReader'
 import { words } from './words'
 import type { AutomationLabels, GuideLabels } from './words'
@@ -127,5 +128,6 @@ export function companyAssistant(
     acceptance: changes?.acceptance ?? null,
     quickActions: [words.quickActions.sort, words.quickActions.month, words.quickActions.rules],
     persons,
+    fileFormats: companyFileFormats(() => reading.workbook()),
   }
 }

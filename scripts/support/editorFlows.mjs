@@ -8951,7 +8951,7 @@ async function attachToChat(page, ...paths) {
 
 /**
  * One file of a kind on the chat's prompt: its chip, and under it the line that photos and PDFs go whole with the cost
- * line, or for a sheet the line that Kuna reads it alone.
+ * line, or for a sheet Kuna does not read itself the line that it goes as text, cell by cell.
  */
 export function chatAttachFlow(kind, samples, language = 'en') {
   const words = ASSIST_WORDS[language]
@@ -8964,7 +8964,7 @@ export function chatAttachFlow(kind, samples, language = 'en') {
       const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => chip.getAttribute('data-state')))
       if (states.join() !== 'ready') throw new Error(`the ${kind} chip is ${states.join() || 'missing'}, not ready`)
       if (kind === 'sheet') {
-        await elementSays(page, '[data-testid="chat-file-note"]', [words.files.readByKuna('chat-sample-turnover.xlsx')], 'the sheet is not said to be read by Kuna alone')
+        await elementSays(page, '[data-testid="chat-file-note"]', [words.files.goesAsCells('chat-sample-turnover.xlsx')], 'the sheet is not said to go as text, cell by cell')
         if (await page.$('[data-testid="chat-files-whole"]')) throw new Error('a sheet is said to go whole')
       } else {
         await elementSays(page, '[data-testid="chat-files-whole"]', [words.files.goesWhole], 'the files do not say photos and PDFs go whole')
@@ -8991,9 +8991,51 @@ export function chatAttachRefusedFlow(samples, language = 'en') {
       await attachToChat(page, samples.photo, samples.note)
       const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => chip.getAttribute('data-state')).sort())
       if (states.join() !== 'ready,refused') throw new Error(`the photo and the note are ${states.join() || 'missing'}, not one ready and one refused`)
-      await elementSays(page, '[data-testid="chat-file-note"]', [words.files.refused('chat-sample-note.txt', words.files.unknownKind)], 'the refused note does not say which kinds Kuna takes')
+      await elementSays(page, '[data-testid="chat-file-note"]', [words.files.refused('chat-sample-note.docx', words.files.unknownKind)], 'the refused note does not say which kinds Kuna takes')
       await inspect?.('a note refused beside a photo on the prompt')
       await shoot('chat-attach-refused')
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** An XML file that declares its own entities waits refused as one Kuna does not open, in the error colour, with the photo beside it ready. */
+export function chatAttachUnsafeFlow(samples, language = 'en') {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await attachToChat(page, samples.photo, samples.unsafe)
+      const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => chip.getAttribute('data-state')).sort())
+      if (states.join() !== 'ready,refused') throw new Error(`the photo and the XML are ${states.join() || 'missing'}, not one ready and one refused`)
+      await elementSays(page, '[data-testid="chat-file-note"]', [words.files.refused('chat-sample-entities.xml', words.files.unsafe)], 'the refused XML does not say Kuna does not open it')
+      await inspect?.('an XML with its own entities refused on the prompt')
+      await shoot('chat-attach-unsafe')
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** A sheet sent as cells: the read is a closed row under the answer, which says the rows went cell by cell. */
+export function chatSheetSentFlow(samples, language = 'en') {
+  const words = ASSIST_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await attachToChat(page, samples.sheet)
+      await sendInChat(page, press, language === 'en' ? 'Read the file' : 'Pročitaj datoteku')
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await elementSays(page, '[data-testid="chat-sent"]', [words.sent.cellsRows('1-3', 'chat-sample-turnover.xlsx')], 'the read is not shown as rows sent cell by cell')
+      await delay(300)
+      await inspect?.('the sheet sent cell by cell')
+      await shoot('chat-sent-cells')
     } finally {
       await forgetAssist(page)
     }

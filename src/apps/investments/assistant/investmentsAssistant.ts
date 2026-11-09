@@ -23,6 +23,7 @@ import { INSTRUMENT_RECORDS } from '../workbook/domain/investmentKinds'
 import { SURTAX_CITY_2023_KEY } from '../workbook/domain/investmentSettings'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
+import { INVESTMENTS_FILE_FORMATS } from './fileFormats'
 import { investmentsReader } from './investmentsReader'
 import type { InvestmentsReading } from './investmentsReader'
 import { words } from './words'
@@ -78,4 +79,5 @@ export const investmentsAssistant = (reading: InvestmentsReading, changes: { rea
   acceptance: changes?.acceptance ?? null,
   quickActions: [words.quickActions.doing, words.quickActions.income],
   persons: () => [],
+  fileFormats: INVESTMENTS_FILE_FORMATS,
 })

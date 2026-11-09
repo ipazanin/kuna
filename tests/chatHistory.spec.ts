@@ -7,6 +7,7 @@ import type { Catalogue } from '../src/shared/ai/application/catalogue'
 import type { ModelPort, ModelReply, ModelTurn } from '../src/shared/ai/application/modelPort'
 import { forgetSavedChat, readSavedChat, saveChat } from '../src/shared/ai/application/savedChat'
 import type { SavedLine } from '../src/shared/ai/application/savedChat'
+import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { CHAT_PERSONS, CHAT_READING } from './fixtures/chatBook'
 
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
@@ -25,6 +26,7 @@ const CATALOGUE: Catalogue = {
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
   persons: () => CHAT_PERSONS,
+  formatOf: async () => 'none',
 }
 const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending', query: {}, element: null, today: '2026-11-07' }
 const TOKENS = { input: 1, cacheRead: 0, cacheWrite: 0, output: 1 }
@@ -49,7 +51,9 @@ function scripted(replies: readonly ModelReply[]): ModelPort & { readonly turns:
 
 const loadSession = async () => {
   vi.resetModules()
-  return import('../src/shared/ai/presentation/chatSession')
+  const session = await import('../src/shared/ai/presentation/chatSession')
+  void session.loadCatalogue([], KUNA_CHAT)
+  return session
 }
 
 async function settled(): Promise<void> {

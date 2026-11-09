@@ -5,7 +5,7 @@ import { ZERO, addMoney, moneyFromAmount, negateMoney, sumMoney } from '../../..
 import type { Money } from '../../../../shared/money/money'
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
 import { StatementRefused } from './importedStatement'
-import { statementTies } from './statementTies'
+import { statementTies } from '../../../../shared/money/statementTies'
 import type { ImportedRow, ImportedStatement, StatementReading } from './importedStatement'
 import { words } from './words'
 

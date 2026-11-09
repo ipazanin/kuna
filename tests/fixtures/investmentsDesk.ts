@@ -81,17 +81,44 @@ export async function workbookAttachment(id: string, grid: (string | number)[][]
   const book = xlsx.utils.book_new()
   xlsx.utils.book_append_sheet(book, xlsx.utils.aoa_to_sheet(grid), 'Transactions')
   const bytes = new Uint8Array(xlsx.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
-  return { id, kind: 'sheet', name, bytes, original: new Blob(), pages: 1, sent: null }
+  return {
+    id,
+    kind: 'sheet',
+    name,
+    bytes,
+    original: new Blob(),
+    pages: 1,
+    sent: null,
+    reading: { kind: 'kuna', format: { app: 'investments', name: 'portfolio workbook', operation: 'import-workbook' } },
+  }
 }
 
 /** A CSV of daily closes as an attached file. */
 export function closesAttachment(id: string, name: string, text: string): ChatAttachment {
-  return { id, kind: 'csv', name, bytes: new TextEncoder().encode(text), original: new Blob(), pages: 1, sent: null }
+  return {
+    id,
+    kind: 'csv',
+    name,
+    bytes: new TextEncoder().encode(text),
+    original: new Blob(),
+    pages: 1,
+    sent: null,
+    reading: { kind: 'kuna', format: { app: 'investments', name: 'CSV of daily closes', operation: 'import-closes' } },
+  }
 }
 
 /** A made-up IBKR Activity Flex report over the days given as an attached XML file, which Kuna reads itself. */
 export function flexAttachment(id: string, days: readonly string[], shape: SampleFlexShape = 'plain', name = 'kuna-daily.xml'): ChatAttachment {
-  return { id, kind: 'xml', name, bytes: new TextEncoder().encode(sampleFlexReport(days.map(civil), shape)), original: new Blob(), pages: 1, sent: null }
+  return {
+    id,
+    kind: 'xml',
+    name,
+    bytes: new TextEncoder().encode(sampleFlexReport(days.map(civil), shape)),
+    original: new Blob(),
+    pages: 1,
+    sent: null,
+    reading: { kind: 'kuna', format: { app: 'investments', name: 'IBKR Activity Flex report', operation: 'import-flex-report' } },
+  }
 }
 
 /** A deposit at a broker account Kuna has not seen, the smallest workbook an import adds something from. */

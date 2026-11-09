@@ -2,12 +2,22 @@
 const IBAN_RUN = /(?<![a-z0-9])(?:iban)?[a-z]{2}[\s-]*\d{2}(?:[\s-]*[a-z0-9]+)*/gi
 /** Eleven digits that are not part of a longer number, in one run or grouped as `123 456 789 01`, as an OIB stands in a description or a reference. */
 const OIB = /(?<!\d)\d{3}[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{2}(?!\d)/g
+/** A Croatian account number as written before IBANs, the bank's seven digits and the account's ten, as `2360000-1101234567`. */
+const DOMESTIC_ACCOUNT = /(?<![\d-])\d{7}-\d{10}(?![\d-])/g
+/** Thirteen to nineteen digits, in one run or in groups split by a space or a hyphen, as a card number stands in a description. */
+const CARD_RUN = /(?<!\d)\d(?:[ -]?\d){12,18}(?!\d)/g
 
 const IBAN_SHAPE = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/
 
-/** An IBAN or an OIB found in a text. */
+/**
+ * Which identifiers a text is searched for. The books hold IBANs and OIBs only, since a reference in the books can pass
+ * the card check by chance. Typed text and file cells also hold card and old domestic account numbers.
+ */
+export type IdentifierReach = 'books' | 'written'
+
+/** An IBAN, an OIB, a card or a domestic account number found in a text. */
 export interface FoundIdentifier {
-  readonly kind: 'iban' | 'oib'
+  readonly kind: 'iban' | 'oib' | 'account' | 'card'
   /** The identifier as the text writes it. */
   readonly written: string
   /** The identifier in upper case without spaces, hyphens or the word IBAN, so two ways of writing it compare equal. */
@@ -50,23 +60,53 @@ function replacedIbans(text: string, replace: (identifier: FoundIdentifier) => s
   return text.replace(IBAN_RUN, (run) => replacedRun(run, replace))
 }
 
-/** The text with each IBAN, then each OIB, swapped for what `replace` gives for it. */
-export function eachIdentifier(text: string, replace: (identifier: FoundIdentifier) => string): string {
-  return replacedIbans(text, replace).replace(OIB, (written) => replace({ kind: 'oib', written, compact: written.replace(/[\s-]/g, '') }))
+/** Whether the digits pass the Luhn check every card number passes, which leaves most other long numbers readable. */
+function passesLuhn(digits: string): boolean {
+  const sum = [...digits].reverse().reduce((total, digit, at) => {
+    const value = Number(digit) * (at % 2 === 1 ? 2 : 1)
+    return total + (value > 9 ? value - 9 : value)
+  }, 0)
+  return sum % 10 === 0
 }
 
-/** An IBAN cut to its country code and last four characters, as `HR•• ••••1234`, or an OIB as `[OIB]`. */
+function replacedCards(text: string, replace: (identifier: FoundIdentifier) => string): string {
+  return text.replace(CARD_RUN, (written) => {
+    const compact = written.replace(/[\s-]/g, '')
+    return passesLuhn(compact) ? replace({ kind: 'card', written, compact }) : written
+  })
+}
+
+/** The text with each IBAN, then each domestic account number and card number the reach covers, then each OIB, swapped for what `replace` gives for it. */
+export function eachIdentifier(text: string, replace: (identifier: FoundIdentifier) => string, reach: IdentifierReach): string {
+  const ibansDone = replacedIbans(text, replace)
+  const cardsDone =
+    reach === 'books'
+      ? ibansDone
+      : replacedCards(
+          ibansDone.replace(DOMESTIC_ACCOUNT, (written) => replace({ kind: 'account', written, compact: written.replace('-', '') })),
+          replace,
+        )
+  return cardsDone.replace(OIB, (written) => replace({ kind: 'oib', written, compact: written.replace(/[\s-]/g, '') }))
+}
+
+/** An IBAN cut to its country code and last four characters, as `HR•• ••••1234`, an OIB as `[OIB]`, and a card or a domestic account number by its last four digits. */
 export function maskedIdentifier(identifier: FoundIdentifier): string {
-  if (identifier.kind === 'oib') {
-    return '[OIB]'
+  switch (identifier.kind) {
+    case 'oib':
+      return '[OIB]'
+    case 'card':
+      return `[card ••••${identifier.compact.slice(-4)}]`
+    case 'account':
+      return `[account ••••${identifier.compact.slice(-4)}]`
+    default:
+      return `${identifier.compact.slice(0, 2)}•• ••••${identifier.compact.slice(-4)}`
   }
-  return `${identifier.compact.slice(0, 2)}•• ••••${identifier.compact.slice(-4)}`
 }
 
 /**
- * The text with each IBAN cut to its country code and last four characters, as `HR•• ••••1234`, and each OIB replaced
- * by `[OIB]`, so no identifier Kuna built a row from leaves the device.
+ * The text with each IBAN cut to its country code and last four characters, as `HR•• ••••1234`, each OIB replaced by
+ * `[OIB]`, and, in written text, each card and domestic account number cut to its last four digits.
  */
-export function maskIdentifiers(text: string): string {
-  return eachIdentifier(text, maskedIdentifier)
+export function maskIdentifiers(text: string, reach: IdentifierReach): string {
+  return eachIdentifier(text, maskedIdentifier, reach)
 }

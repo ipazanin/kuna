@@ -5,6 +5,7 @@ import { ADD_RECEIPT, keptPhotos, receiptsOutside, withPhotosRead, writeReceiptS
 import type { KeptPhotos, ReceiptPorts } from './receiptOperation'
 import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'
 import { IMPORT_STATEMENT, importedStatement, withSheetsRead } from './statementImport'
+import type { CardStatement } from './statementImport'
 import { ACCOUNT_WRITES, keptAccount, newAccount } from '../../accounts/application/accountWrites'
 import { setLimit } from '../../budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/application/categoryWrites'
@@ -13,7 +14,6 @@ import { TRANSACTION_WRITES, newEntry, newTransfer, removeEntry, writeEntry, wri
 import { removeReceiptOf } from '../../receipts/application/receiptRecords'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
-import type { StatementRows } from '../../statements/domain/statementRows'
 import { SETTING_WRITES, treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
@@ -342,7 +342,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
   let book = books.workbook
   const made = new Map<string, string>()
   const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
-  let imported: StatementRows | null = null
+  let imported: CardStatement | null = null
   const receiptWarnings: ProposalLine[] = []
   const idOf = (value: unknown): string => {
     const text = String(value)
@@ -564,7 +564,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         throw new StepRefused('There is no such operation.')
     }
   }
-  if (imported !== null) return { leftOut: statementLeftOut(imported, importWithRules(unit, book, edits, imported, today())), receipts: receiptWarnings }
+  if (imported !== null) return { leftOut: statementLeftOut(imported, importWithRules(unit, book, edits, imported.statement, today())), receipts: receiptWarnings }
   if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits)
   return { leftOut: null, receipts: receiptWarnings }
 }

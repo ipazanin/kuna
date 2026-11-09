@@ -42,5 +42,6 @@ export function loansAssistant(reading: LoansReading, changes: { readonly propos
     acceptance: changes?.acceptance ?? null,
     quickActions: [words.quickActions.next, words.quickActions.offers, words.quickActions.extra],
     persons: () => informalCounterparties(reading.book()),
+    fileFormats: [],
   }
 }

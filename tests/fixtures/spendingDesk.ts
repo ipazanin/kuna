@@ -136,7 +136,7 @@ export function receiptPorts(fields: Partial<ReceiptPorts> = {}): ReceiptPorts {
 /** A photo attached to the chat, of a few made-up bytes with no QR code and no place in them. */
 export function attachedPhoto(id = 'a1'): ChatAttachment {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
-  return { id, kind: 'photo', name: 'receipt.jpg', bytes, original: new Blob([bytes], { type: 'image/jpeg' }), pages: 1, sent: { width: 1, height: 1 } }
+  return { id, kind: 'photo', name: 'receipt.jpg', bytes, original: new Blob([bytes], { type: 'image/jpeg' }), pages: 1, sent: { width: 1, height: 1 }, reading: { kind: 'whole' } }
 }
 
 /** A Spending file where every operation's example has what it needs, with the chat's refs and the cards it was shown. */

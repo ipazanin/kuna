@@ -96,15 +96,30 @@ export function sameName(one: string, other: string): boolean {
   return ones.size > 0 && ones.size === others.size && [...ones].every((word) => others.has(word))
 }
 
-/** The runs of the text that name the person, each word of the name with what stands between them, such as `HORVAT, ANA`. */
-export function nameRuns(text: string, name: string): readonly NameRun[] {
-  return wordsOfName(text, name).reduce<NameRun[]>((joined, word) => {
+/** The words of the text in some form of a word of the name, whether or not the rest of the name stands there too. */
+function wordsOfNamePart(text: string, name: string): readonly Word[] {
+  const nameForms = formsOfName(name)
+  return wordsOf(text).filter((word) => nameForms.some((forms) => forms.has(word.folded)))
+}
+
+function joinedRuns(text: string, words: readonly Word[]): readonly NameRun[] {
+  return words.reduce<NameRun[]>((joined, word) => {
     const last = joined.at(-1)
     if (last !== undefined && /^[\s,-]+$/.test(text.slice(last.end, word.start))) {
       return [...joined.slice(0, -1), { start: last.start, end: word.end }]
     }
     return [...joined, { start: word.start, end: word.end }]
   }, [])
+}
+
+/** The runs of the text that name the person, each word of the name with what stands between them, such as `HORVAT, ANA`. */
+export function nameRuns(text: string, name: string): readonly NameRun[] {
+  return joinedRuns(text, wordsOfName(text, name))
+}
+
+/** The runs of the text that hold words of the name, for a name split across cells such as `Ana` and `Horvat`, once the whole row is known to name the person. */
+export function namePartRuns(text: string, name: string): readonly NameRun[] {
+  return joinedRuns(text, wordsOfNamePart(text, name))
 }
 
 /** The text with each run that names the person swapped for the alias. */

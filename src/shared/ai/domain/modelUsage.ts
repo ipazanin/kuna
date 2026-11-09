@@ -65,8 +65,9 @@ export function costOfRequest(tokens: ModelTokens, price: ModelPrice): number {
   )
 }
 
-/** A photo as it is sent, by its pixels, or a PDF by its pages. */
-export type DocumentSize = { readonly kind: 'photo'; readonly width: number; readonly height: number } | { readonly kind: 'pdf'; readonly pages: number }
+/** A photo as it is sent, by its pixels, a PDF by its pages, or a file's cells by the characters of their text. */
+export type DocumentSize =
+  { readonly kind: 'photo'; readonly width: number; readonly height: number } | { readonly kind: 'pdf'; readonly pages: number } | { readonly kind: 'text'; readonly characters: number }
 
 /** What reading a document adds to the request that reads it, and to each later request while it stays in the chat. */
 export interface DocumentCost {
@@ -79,10 +80,13 @@ const PHOTO_SQUARE_PIXELS = 28
 const MOST_PHOTO_TOKENS = 4_784
 /** A PDF page goes as a picture of the page plus its text, which Anthropic puts at 3,000 to 5,000 tokens. OpenAI gives no figure, so the top of that range stands for every provider. */
 const PDF_PAGE_TOKENS = 5_000
+/** A statement's text is mostly digits and punctuation, which tokenizers split finely. One token to three characters is an estimate not checked against any provider's tokenizer. */
+const CHARACTERS_A_TOKEN = 3
 
 /** About how many tokens a document weighs once sent. */
 export function documentTokens(document: DocumentSize): number {
   if (document.kind === 'pdf') return document.pages * PDF_PAGE_TOKENS
+  if (document.kind === 'text') return Math.ceil(document.characters / CHARACTERS_A_TOKEN)
   return Math.min(MOST_PHOTO_TOKENS, Math.ceil(document.width / PHOTO_SQUARE_PIXELS) * Math.ceil(document.height / PHOTO_SQUARE_PIXELS))
 }
 

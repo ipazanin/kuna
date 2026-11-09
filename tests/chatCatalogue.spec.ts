@@ -264,7 +264,7 @@ describe('what a page says a link and a search take', () => {
 
   it('tells the model how files, statements and build-ups are read', () => {
     expect(catalogue.system).toContain('read_attachment')
-    expect(catalogue.system).toContain('Never fill in a balance')
+    expect(catalogue.system).toContain('Never fill in a row or a balance')
     expect(catalogue.system).toContain('read_build_up')
     expect(catalogue.system).not.toContain('by its label only')
   })

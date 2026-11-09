@@ -1,4 +1,5 @@
 import type { WorkbookRow, WorkbookType } from './portfolioWorkbook'
+import { accountScopeOf, isWorkbookKey } from './reportKey'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import { magnitude } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
@@ -37,6 +38,8 @@ export function sameInstrument(first: WorkbookRow, second: WorkbookRow): boolean
  * none to lower stays alone. A transfer out joins a transfer in of another account with the same
  * instrument and quantity, and an internal cash transfer out its opposite in the same currency, the nearest by date.
  * Split rows of one instrument and day are one split. A row that needs a partner and has none stays alone.
+ *
+ * A joined entry of copied rows keeps what its lead row's key starts with, so a workbook never counts it as its own.
  *
  * In a rolling report a withholding row instead joins the income that shares its action id, or with neither an ISIN nor a
  * partner by id, the interest of its account, day and currency. An entry keeps its lead row's key there, so a partner that
@@ -105,7 +108,9 @@ export function workbookEntries(rows: readonly WorkbookRow[], rolling = false): 
     .filter((row) => !taken.has(row))
     .map((row) => {
       const joined = (partners.get(row) ?? []).sort((first, second) => position.get(first)! - position.get(second)!)
-      return { rows: [row, ...joined], key: joined.length === 0 || rolling ? row.key : factKey([row, ...joined].map((member) => member.key)) }
+      if (joined.length === 0 || rolling) return { rows: [row, ...joined], key: row.key }
+      const key = factKey([row, ...joined].map((member) => member.key))
+      return { rows: [row, ...joined], key: isWorkbookKey(row.key) ? key : `${accountScopeOf(row.key)}:${key}` }
     })
 }
 

@@ -1,9 +1,11 @@
 import { en as investmentsEnglish, hr as investmentsCroatian } from '../../src/apps/investments/words.ts'
+import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/assistant/operations/words.ts'
 import { en as loansEnglish, hr as loansCroatian } from '../../src/apps/loans/assistant/words.ts'
 import { acceptLooksReady, allowIfAsked, forgetAssist, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
 import { ASSIST_WORDS, elementSays } from './editorFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 
+const COMPANY_WORDS = { en: companyEnglish, hr: companyCroatian }
 const LOANS_WORDS = { en: loansEnglish, hr: loansCroatian }
 const INVESTMENTS_NAME = { en: investmentsEnglish.name, hr: investmentsCroatian.name }
 
@@ -15,6 +17,9 @@ const PROMPTS = {
   sell: { en: 'Sell a million units of it', hr: 'Prodaj milijun jedinica toga' },
   workbook: { en: 'Import this portfolio workbook', hr: 'Uvezi ovu radnu knjigu portfelja' },
   report: { en: 'Import the new transactions from this report', hr: 'Uvezi nove transakcije iz ovog izvješća' },
+  copy: { en: 'Copy these rows into my first account', hr: 'Prepiši ove retke u moj prvi račun' },
+  copyAgain: { en: 'Copy them again with one more', hr: 'Prepiši ih ponovno s još jednim' },
+  zero: { en: 'Import this statement', hr: 'Uvezi ovaj izvod' },
   valuation: { en: 'Valuation of my newest asset at 210,000 today', hr: 'Procjena moje najnovije imovine na 210.000 danas' },
 }
 
@@ -22,6 +27,12 @@ const PROMPTS = {
 const WORKBOOK_IMPORT = {
   en: ['23 changes', '4 investment accounts'],
   hr: ['23 promjene', '4 investicijska računa'],
+}
+
+/** What the Investments copy cards say, as each language writes it: the cash adding up to the printed balances, and a row Kuna has already. */
+const COPY_WORDS = {
+  en: { ties: 'cash adds up to the balances', inKuna: 'is in Kuna already' },
+  hr: { ties: 'zbraja se do stanja', inKuna: 'već je u Kuni' },
 }
 
 /** The amounts the fake chats propose, as each language writes them. */
@@ -115,6 +126,32 @@ const CARDS = {
     accept: true,
     shows: async (page) => {
       await elementSays(page, '[data-testid="chat-proposal"]', ['552'], "the import card does not show the report's conversions of 552 USD")
+    },
+  },
+  copy: {
+    name: 'investments-chat-copy',
+    after: async (page, press, language, shoot, inspect) => {
+      await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
+      await page.waitForSelector('[data-testid="chat-proposal-undo"]', { visible: true, timeout: 15_000 })
+      await ask(page, press, PROMPTS.copyAgain[language])
+      await page
+        .waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
+        .catch(() => {
+          throw new Error('the chat gave no answer to the second copy')
+        })
+      await elementSays(page, '[data-testid="chat-proposal"]', [COPY_WORDS[language].inKuna], 'the second card does not say a row is in Kuna already')
+      await delay(300)
+      await inspect?.('the second copy with a row already in Kuna')
+      await shoot('investments-chat-copy-in-kuna')
+    },
+    shows: async (page, card, language) => {
+      await elementSays(page, '[data-testid="chat-proposal"]', [COPY_WORDS[language].ties], 'the copy card does not say the cash adds up to the printed balances')
+    },
+  },
+  zero: {
+    name: 'company-chat-statement-zero',
+    shows: async (page, card, language) => {
+      await elementSays(page, '[data-testid="chat-proposal"]', [COMPANY_WORDS[language].accountStartsAtZero('').slice(0, 24)], 'the statement card does not say the account starts at zero')
     },
   },
   valuation: {

@@ -113,6 +113,7 @@ export const en = {
   transcribed: {
     doesNotTie: (opening: Money, rows: Money, reached: Money, closing: Money, gap: Money) =>
       `The statement does not add up: the opening balance ${plainAmount(opening)} and its entries ${plainAmount(rows)} reach ${plainAmount(reached)}, but the printed closing balance is ${plainAmount(closing)}, ${plainAmount(gap)} apart.`,
+    oneBalance: 'Give both the opening and the closing balance the statement prints, or neither when it prints none. Never work one out.',
   },
 }
 
@@ -220,6 +221,7 @@ export const hr: Translation<typeof en> = {
   transcribed: {
     doesNotTie: (opening, rows, reached, closing, gap) =>
       `Izvod se ne slaže: početno stanje ${formatMoney(opening)} i njegove stavke ${formatMoney(rows)} daju ${formatMoney(reached)}, a ispisano završno stanje je ${formatMoney(closing)}, razlika ${formatMoney(gap)}.`,
+    oneBalance: 'Navedite i početno i završno stanje koje izvod ispisuje, ili nijedno kad ih ne ispisuje. Stanje nikad ne izračunavajte sami.',
   },
 }
 

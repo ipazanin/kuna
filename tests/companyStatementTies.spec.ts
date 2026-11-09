@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { transcribedReferences } from '../src/apps/company/imports/domain/importedStatement'
-import { statementTies, tieRefusal } from '../src/apps/company/imports/domain/statementTies'
+import { tieRefusal, transcribedReferences } from '../src/apps/company/imports/domain/importedStatement'
+import { statementTies } from '../src/shared/money/statementTies'
 import { moneyFromCents } from '../src/shared/money/money'
 import { civil } from './fixtures/ledger'
 

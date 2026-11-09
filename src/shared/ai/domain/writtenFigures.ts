@@ -27,7 +27,7 @@ const REFERENCE = /(?<![\p{L}\p{N}])(?:HR|SI)\d{2}\s?\d+(?:-\d+)*(?![\p{L}\p{N}]
 
 /** The text with its IBANs, OIBs, payment references and dates blanked out, as their digits are no figures. */
 function withoutIdentifiers(text: string): string {
-  return eachIdentifier(text, () => ' ')
+  return eachIdentifier(text, () => ' ', 'written')
     .replace(REFERENCE, ' ')
     .replace(DATE, ' ')
 }

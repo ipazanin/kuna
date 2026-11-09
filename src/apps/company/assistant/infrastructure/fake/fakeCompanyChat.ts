@@ -2,6 +2,7 @@ import { answered, answersSince, lookup, registerFakeChat } from '../../../../..
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply, ModelRequest } from '../../../../../shared/ai/application/modelPort'
 import { aboutEmployeesPay } from '../../../../../shared/ai/application/chatReads'
+import { addDays, today } from '../../../../../shared/calendar/civilDate'
 import { language } from '../../../../../shared/text/language'
 
 const ANSWERS = {
@@ -20,6 +21,9 @@ const ANSWERS = {
     trainingLabel: 'Training',
     trainingFamily: 'operating',
     category: 'The card adds Training to the operating costs. Kuna counts it as a cost the profit tax allows, and its VAT is deducted.',
+    statementTitle: 'Import the pasted statement',
+    statementProposed: 'The card imports the rows as I copied them. The statement printed no balances, so the account starts at zero.',
+    statementRefused: 'Kuna refused the statement. Check the rows I copied against it.',
     noBuildUp: 'Tag a figure with its ask button first, and I will read how Kuna built it.',
     explained: (label: string, amount: string, steps: string) => `${label} is ${amount}. Kuna builds it from ${steps}. The link opens the tax rule it rests on.`,
     keptByAnonymise:
@@ -40,6 +44,9 @@ const ANSWERS = {
     trainingLabel: 'Edukacija',
     trainingFamily: 'poslovanje',
     category: 'Kartica dodaje Edukaciju među troškove poslovanja. Kuna je broji kao trošak koji porez na dobit priznaje, a PDV se odbija.',
+    statementTitle: 'Uvezi zalijepljeni izvod',
+    statementProposed: 'Kartica uvozi retke kako sam ih prepisao. Izvod ne ispisuje stanja, pa račun počinje od nule.',
+    statementRefused: 'Kuna je odbila izvod. Usporedite retke koje sam prepisao s njim.',
     noBuildUp: 'Najprije označite iznos njegovim gumbom za pitanje, pa ću pročitati kako ga je Kuna izračunala.',
     explained: (label: string, amount: string, steps: string) => `${label} iznosi ${amount}. Kuna ga računa iz ${steps}. Poveznica otvara porezno pravilo na kojem počiva.`,
     keptByAnonymise:
@@ -159,6 +166,26 @@ function categoryReply({ request, tokens }: FakeChatTurn, says: Says): ModelRepl
   return answered(request, says.category, tokens)
 }
 
+/** Reads the accounts and copies a pasted statement that prints no balances onto the first, which has no rows yet, so Kuna starts it at zero. */
+function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findIn('account', null, 5), tokens)
+  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 1) {
+    const [account] = recordsOf(answers[0]!.text)
+    if (account === undefined) return answered(request, says.notRead, tokens)
+    const day = today()
+    const rows = [
+      { date: addDays(day, -6), amount: -12.5, counterparty: 'Corner market', iban: null, description: 'REF 1001' },
+      { date: addDays(day, -5), amount: -40, counterparty: 'Harbour bistro', iban: null, description: 'REF 1002' },
+      { date: addDays(day, -4), amount: 100, counterparty: 'Northwind', iban: null, description: 'REF 1003' },
+    ]
+    const input = { file: null, profile: null, account: account.ref, opening: null, closing: null, rows, newAccount: null, part: 1 }
+    return lookup(1, 'propose_changes', { app: 'company', title: says.statementTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }] }, tokens)
+  }
+  return answered(request, answers[1]!.isError ? says.statementRefused : says.statementProposed, tokens)
+}
+
 interface ReadStep {
   readonly label: string
   readonly amount: string
@@ -185,7 +212,7 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
  * Company's part of the fake chat, only while the person is on a Company screen: one that asks to suggest categories or sort
  * reads the rows waiting and files the sure ones, one about an invoice links the Invoices tab, one about dollars proposes the
  * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one about training proposes a category with its tax
- * class, and one that asks to explain reads the tagged build-up.
+ * class, one that starts with import copies a pasted statement onto the first account, and one that asks to explain reads the tagged build-up.
  */
 function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (!inCompany(turn.request)) return null
@@ -196,6 +223,7 @@ function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (/dollar|dolar/i.test(typed)) return currencyReply(turn, says)
   if (/laptop store/i.test(typed)) return ruleReply(turn, says)
   if (/training|edukacij/i.test(typed)) return categoryReply(turn, says)
+  if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
   if (/explain|objasni/i.test(typed)) return buildUpReply(turn, says)
   return null
 }

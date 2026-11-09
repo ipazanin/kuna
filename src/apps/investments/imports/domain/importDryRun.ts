@@ -1,5 +1,5 @@
 import type { RoundedCell, SkipReason, SkippedRow, WorkbookColumn, WorkbookRow, WorkbookType } from './portfolioWorkbook'
-import { accountScopeOf, isReportKey } from './reportKey'
+import { accountScopeOf, isReportKey, isWorkbookKey } from './reportKey'
 import { isIncomeReversal, isWithheldRefund, workbookEntries } from './workbookEntries'
 import type { RowEntry } from './workbookEntries'
 import { words } from './words'
@@ -100,6 +100,8 @@ export type WaitReason =
   | { readonly kind: 'beyond-held' }
   /** A rolling report now gives other figures for a record Kuna has, such as tax withheld a day after its dividend. */
   | { readonly kind: 'differs-from-kuna' }
+  /** A copied row like a record Kuna has from elsewhere, which may be the same record or a second one. */
+  | { readonly kind: 'looks-in-kuna' }
 
 export type ImportedRecord =
   | { readonly kind: 'trade'; readonly record: Trade }
@@ -218,12 +220,19 @@ export interface ReportFacts {
   readonly beforeStart: number
 }
 
+/** What a copied row that looks like a record Kuna has from elsewhere becomes: it waits for the person, or it is imported as they said. */
+export const LOOK_ALIKES = ['ask', 'import'] as const
+
+export type LookAlikes = (typeof LOOK_ALIKES)[number]
+
 export interface WorkbookRows {
   readonly rows: readonly WorkbookRow[]
   readonly skipped: readonly SkippedRow[]
   readonly rounded: readonly RoundedCell[]
   /** Set for rows of a rolling report, whose files overlap and leave out almost everything, so absence from them means nothing. */
   readonly report?: ReportFacts
+  /** Set for rows the AI copied from a file Kuna does not read, which cover only what one card holds, so absence from them means nothing either. */
+  readonly transcribed?: { readonly lookAlikes: LookAlikes }
 }
 
 const CENT = decimalOfText('0.01')!
@@ -288,6 +297,7 @@ class EntrySkipped extends Error {
  * goes the other way from its units, and a row whose record the write rules of its kind would refuse, is skipped. A record an earlier import wrote, of an account
  * and dates the file covers, whose key the file no longer gives, is listed as gone. A rolling report lists nothing as
  * gone, and a record of one is never gone from a workbook. A record a report's row now gives other figures for waits.
+ * Copied rows list nothing as gone either, and a copied row that looks like a record Kuna has waits unless the person said to import it.
  */
 export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): WorkbookDryRun {
   const { book, answers } = inputs
@@ -313,7 +323,9 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
       return [{ entry, outcome: rolling && differsFromKuna(entry, keyed.get(entry.key)!, mapping) ? { kind: 'waiting', reason: { kind: 'differs-from-kuna' } } : { kind: 'in-kuna' } }]
     }
     try {
-      return [{ entry, outcome: { kind: 'new', imported: importedRecord(entry, mapping) } }]
+      const imported = importedRecord(entry, mapping)
+      if (reading.transcribed?.lookAlikes === 'ask' && looksInKuna(imported, book)) return [{ entry, outcome: { kind: 'waiting', reason: { kind: 'looks-in-kuna' } } }]
+      return [{ entry, outcome: { kind: 'new', imported } }]
     } catch (failure) {
       if (failure instanceof EntryWaits) {
         return [{ entry, outcome: { kind: 'waiting', reason: failure.reason } }]
@@ -345,7 +357,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     entries: outcomes,
     skipped: skipped.sort((first, second) => first.fileRow - second.fileRow),
     rounded: reading.rounded,
-    gone: rolling ? [] : goneRecords(reading.rows, entries, keyed, accountOf),
+    gone: rolling || reading.transcribed !== undefined ? [] : goneRecords(reading.rows, entries, keyed, accountOf),
     questions: {
       accounts: accountQuestions(toImport, knownAccounts, book.accounts),
       instruments: instrumentQuestions(toImport, book, knownInstruments, identityOf),
@@ -500,6 +512,44 @@ function recordOf(entry: RowEntry, mapping: Mapping): ImportedRecord {
     default:
       // A transfer in that pairing left alone.
       throw new EntryWaits({ kind: 'no-partner' })
+  }
+}
+
+/**
+ * Whether Kuna has a record like it: a trade of the same holding, day, side and units, income of the same holding, day and
+ * gross, a cash movement of the same day, kind, currency and amount, or an exchange of the same day and both amounts. Each
+ * in the same account, or in any account when the record's account is new, since a new account has nothing to compare.
+ */
+function looksInKuna(imported: ImportedRecord, book: InvestmentBook): boolean {
+  const newAccount = (account: RecordId): boolean => !book.accounts.some((known) => known.id === account)
+  const sameAccount = (record: { readonly account: RecordId }, account: RecordId): boolean => newAccount(account) || record.account === account
+  switch (imported.kind) {
+    case 'trade': {
+      const { account, instrument, date, side, quantity } = imported.record
+      return book.trades.some((trade) => sameAccount(trade, account) && trade.instrument === instrument && trade.date === date && trade.side === side && trade.quantity === quantity)
+    }
+    case 'income': {
+      const { account, instrument, date, currency, gross } = imported.record
+      return book.income.some((income) => sameAccount(income, account) && income.instrument === instrument && income.date === date && income.currency === currency && income.gross === gross)
+    }
+    case 'cash-movement': {
+      const { account, kind, date, currency, amount } = imported.record
+      return book.cashMovements.some((movement) => sameAccount(movement, account) && movement.kind === kind && movement.date === date && movement.currency === currency && movement.amount === amount)
+    }
+    case 'exchange': {
+      const { account, date, sold, soldCurrency, bought, boughtCurrency } = imported.record
+      return book.exchanges.some(
+        (exchange) =>
+          sameAccount(exchange, account) &&
+          exchange.date === date &&
+          exchange.sold === sold &&
+          exchange.soldCurrency === soldCurrency &&
+          exchange.bought === bought &&
+          exchange.boughtCurrency === boughtCurrency,
+      )
+    }
+    default:
+      return false
   }
 }
 
@@ -1089,7 +1139,7 @@ function goneRecords(
     return range !== undefined && date >= range.from && date <= range.to
   }
   return [...keyed]
-    .filter(([key]) => !fileKeys.has(key) && !isReportKey(key))
+    .filter(([key]) => !fileKeys.has(key) && isWorkbookKey(key))
     .map(([, imported]) => imported)
     .filter((imported) => {
       const record = imported.record

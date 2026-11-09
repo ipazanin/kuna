@@ -243,6 +243,7 @@ export const en = {
     'same-account': 'Moves between two workbook accounts that are one account in Kuna',
     'beyond-held': 'Sells or moves more units than its account holds on its day',
     'differs-from-kuna': 'The report now gives other figures for this record. Open it in Transactions and put them right, and this goes away.',
+    'looks-in-kuna': 'Looks like a record Kuna has from another file, of the same account, day and amounts',
   } satisfies { readonly [Kind in WaitReason['kind']]: string | ((currency: string) => string) },
   skips: {
     unknownType: (text: string) => `Its type ${text} is not one Kuna reads`,
@@ -518,6 +519,7 @@ export const hr: Translation<typeof en> = {
     'same-account': 'Prenosi između dva računa radne knjige koji su u Kuni jedan račun',
     'beyond-held': 'Prodaje ili prenosi više jedinica nego što račun drži na taj dan',
     'differs-from-kuna': 'Izvješće sada daje druge iznose za ovaj zapis. Otvorite ga u Transakcijama i ispravite ih, pa će ovo nestati.',
+    'looks-in-kuna': 'Izgleda kao zapis koji Kuna ima iz druge datoteke, s istim računom, danom i iznosima',
   },
   skips: {
     unknownType: (text) => `Vrsta „${text}” nije ona koju Kuna čita`,

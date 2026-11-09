@@ -1,7 +1,8 @@
 import { fold } from '../../text/fold'
 import { eachIdentifier, maskedIdentifier } from './maskIdentifiers'
-import type { FoundIdentifier } from './maskIdentifiers'
-import { isName, nameRuns, sameName } from './names'
+import type { FoundIdentifier, IdentifierReach } from './maskIdentifiers'
+import { isName, nameIn, namePartRuns, nameRuns, sameName } from './names'
+import type { NameRun } from './names'
 
 /** A person an app knows by name. Their name goes under an alias, and an employee's rows stay on the device while Anonymise is on. */
 export interface KnownPerson {
@@ -35,8 +36,15 @@ interface PersonPseudonym {
 export interface Pseudonyms {
   /** Gives each name an alias, unless it has one or cannot be matched. Aliases follow the order names are first known. */
   know(names: readonly string[]): void
-  /** The text with each IBAN and OIB under its token and each known person under their alias. */
-  pseudonymised(text: string): string
+  /** The text with each IBAN and OIB under its token, each card and domestic account number the reach covers masked, and each known person under their alias. */
+  pseudonymised(text: string, reach: IdentifierReach): string
+  /**
+   * A file's row with each IBAN and OIB under its token, each card and domestic account number masked, and each known
+   * person under their alias, a name split across cells such as `Ana` and `Horvat` included.
+   */
+  pseudonymisedRow(cells: readonly string[]): readonly string[]
+  /** The text with each IBAN and OIB under its token, each card and domestic account number masked, and every name as written, as a file's text leaves while Anonymise is off. */
+  identifiersTokened(text: string): string
   /** A field that holds one identifier, under its token whatever its shape. */
   identifierToken(value: string): string
   /** What a token or an alias stands for, or null for text Kuna never handed out. */
@@ -60,8 +68,14 @@ export function newPseudonyms(personWord: PersonWord = 'Person'): Pseudonyms {
   const identifiers: IdentifierPseudonym[] = []
   const persons: PersonPseudonym[] = []
 
-  /** The token an identifier already has, or a new one shaped like its mask, with ` #2` and on when another identifier holds that mask. */
+  /**
+   * The token an IBAN or an OIB already has, or a new one shaped like its mask, with ` #2` and on when another identifier
+   * holds that mask. A card or a domestic account number goes masked, with no way back.
+   */
   function tokenOf(identifier: FoundIdentifier): string {
+    if (identifier.kind === 'card' || identifier.kind === 'account') {
+      return maskedIdentifier(identifier)
+    }
     const known = identifiers.find((pseudonym) => pseudonym.compact === identifier.compact)
     if (known !== undefined) {
       return known.token
@@ -73,14 +87,18 @@ export function newPseudonyms(personWord: PersonWord = 'Person'): Pseudonyms {
     return token
   }
 
-  function aliasedRuns(text: string, person: PersonPseudonym): string {
-    return nameRuns(text, person.name).reduceRight((replaced, run) => {
+  function aliasedRuns(text: string, person: PersonPseudonym, runsOf: (text: string, name: string) => readonly NameRun[]): string {
+    return runsOf(text, person.name).reduceRight((replaced, run) => {
       const written = text.slice(run.start, run.end)
       if (!person.spellings.some((spelling) => fold(spelling) === fold(written))) {
         person.spellings.push(written)
       }
       return `${replaced.slice(0, run.start)}${person.alias}${replaced.slice(run.end)}`
     }, text)
+  }
+
+  function longestNameFirst(): readonly PersonPseudonym[] {
+    return [...persons].sort((one, other) => other.name.length - one.name.length)
   }
 
   function realValues(): ReadonlyMap<string, string> {
@@ -101,10 +119,18 @@ export function newPseudonyms(personWord: PersonWord = 'Person'): Pseudonyms {
         }
       }
     },
-    pseudonymised(text) {
-      const tokened = eachIdentifier(text, tokenOf)
-      const longestNameFirst = [...persons].sort((one, other) => other.name.length - one.name.length)
-      return longestNameFirst.reduce(aliasedRuns, tokened)
+    pseudonymised(text, reach) {
+      const tokened = eachIdentifier(text, tokenOf, reach)
+      return longestNameFirst().reduce((aliased, person) => aliasedRuns(aliased, person, nameRuns), tokened)
+    },
+    pseudonymisedRow(cells) {
+      const tokened = cells.map((cell) => eachIdentifier(cell, tokenOf, 'written'))
+      const row = tokened.join('\n')
+      const named = longestNameFirst().filter((person) => nameIn(row, person.name))
+      return tokened.map((cell) => named.reduce((aliased, person) => aliasedRuns(aliased, person, namePartRuns), cell))
+    },
+    identifiersTokened(text) {
+      return eachIdentifier(text, tokenOf, 'written')
     },
     identifierToken(value) {
       const compact = compactOf(value)

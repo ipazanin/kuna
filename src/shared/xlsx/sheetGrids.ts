@@ -19,8 +19,8 @@ export async function sheetJs(): Promise<typeof import('xlsx')> {
   return import('xlsx')
 }
 
-/** The cells from A1, so row numbers match the sheet's even when its used range starts lower. */
-function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet): (SheetCell | undefined)[][] {
+/** The cells from A1, so row numbers match the sheet's even when its used range starts lower. Raw cells are values, the others the text the sheet shows. */
+function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet, raw = true): (SheetCell | undefined)[][] {
   const reference = sheet['!ref']
   if (reference === undefined) {
     return []
@@ -28,7 +28,7 @@ function gridOf(XLSX: typeof import('xlsx'), sheet: WorkSheet): (SheetCell | und
   const range = XLSX.utils.decode_range(reference)
   range.s.r = 0
   range.s.c = 0
-  return XLSX.utils.sheet_to_json<(SheetCell | undefined)[]>(sheet, { header: 1, raw: true, blankrows: true, range })
+  return XLSX.utils.sheet_to_json<(SheetCell | undefined)[]>(sheet, { header: 1, raw, blankrows: true, range })
 }
 
 /** Every tab of an xlsx, xls or ods file, in the file's order. */
@@ -38,6 +38,16 @@ export async function readEveryTab(bytes: ArrayBuffer | Uint8Array): Promise<She
   return book.SheetNames.flatMap((name) => {
     const sheet = book.Sheets[name]
     return sheet === undefined ? [] : [{ name, grid: gridOf(XLSX, sheet) }]
+  })
+}
+
+/** Every tab of an xlsx, xls or ods file, each cell as the sheet shows it, so a date reads as its format writes it rather than as a serial number. */
+export async function readEveryTabAsShown(bytes: ArrayBuffer | Uint8Array): Promise<SheetTab[]> {
+  const XLSX = await sheetJs()
+  const book = XLSX.read(bytes, { type: 'array' })
+  return book.SheetNames.flatMap((name) => {
+    const sheet = book.Sheets[name]
+    return sheet === undefined ? [] : [{ name, grid: gridOf(XLSX, sheet, false) }]
   })
 }
 

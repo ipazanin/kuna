@@ -1,5 +1,4 @@
 import type { CheckedProposal } from '../../app/assistantOperations'
-import { sendsToModel } from '../domain/chatAttachments'
 import type { ChatAttachment } from '../domain/chatAttachments'
 import type { ChatElementAbout } from '../domain/chatElement'
 import { placeAt } from './catalogue'
@@ -61,10 +60,15 @@ function elementText(element: ChatElementAbout, catalogue: Catalogue, reads: Cha
   }
 }
 
-/** A file by its id and kind, with a PDF's pages, and whether only Kuna reads it. */
+/** A file by its id and kind, with a PDF's pages, a file of cells by its sheets, and a file Kuna reads by its format and the operation that imports it. Nothing of the file's own text. */
 function fileText(file: ChatAttachment): string {
-  if (file.kind === 'pdf') return `${file.id} (pdf, ${file.pages} pages)`
-  return sendsToModel(file.kind) ? `${file.id} (${file.kind})` : `${file.id} (${file.kind}, read by Kuna, never sent)`
+  const { reading } = file
+  if (reading.kind === 'kuna') return `${file.id} (${file.kind}, ${reading.format.name}, read by Kuna and never sent, which ${reading.format.app} ${reading.format.operation} imports)`
+  if (reading.kind === 'cells') {
+    const sheets = reading.sheets.length === 1 ? `${reading.sheets[0]!.rows.length} rows` : `${reading.sheets.length} sheets`
+    return `${file.id} (${file.kind}, ${sheets}, which read_attachment hands as cells)`
+  }
+  return file.kind === 'pdf' ? `${file.id} (pdf, ${file.pages} pages)` : `${file.id} (${file.kind})`
 }
 
 /** What a chat says once a tag it named is removed and no file is attached. */
@@ -96,7 +100,7 @@ export interface ChatTurn {
   readonly history: readonly ModelTurn[]
   /** The context lines, each only when it differs from the one the model last read. */
   readonly context: string | null
-  /** Every file attached to this chat, held in memory with it. Only `read_attachment` sends a photo or a PDF, and nothing sends another kind. */
+  /** Every file attached to this chat, held in memory with it. Only `read_attachment` sends one: a photo or a PDF whole, any other file as cells unless Kuna reads its format. */
   readonly attachments: readonly ChatAttachment[]
   readonly message: string
   readonly signal: AbortSignal

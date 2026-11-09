@@ -12,11 +12,14 @@ import { heldSettingValue } from '../../settings/domain/settings'
 import { ACCOUNT_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { NOT_READ_OFF_A_PAGE, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
+import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { ROWS_A_PART, StepRefused } from '../../../../shared/app/proposedWrites'
-import { moneyFromAmount } from '../../../../shared/money/money'
+import { ZERO, moneyFromAmount } from '../../../../shared/money/money'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import { normaliseIban } from '../../../../shared/text/fold'
+import { copiedStatementRowsWarning } from '../../../../shared/ai/presentation/copiedRowsWords'
+import type { ChatAttachment } from '../../../../shared/ai/domain/chatAttachments'
 
 /** What the import reads an attached file with, which `app.ts` hands in: Import's own reader of a camt document or a bank's sheet. */
 export type StatementFileReader = (fileName: string, bytes: ArrayBuffer) => Promise<LoadedImportFile>
@@ -31,8 +34,8 @@ const IMPORT_STATEMENT: AssistantOperation = {
   name: 'import-statement',
   about: [
     "Imports a bank statement through Import's own dry run: rows already on the ledger are skipped, the rules file the new rows, and each account's rows must run on from its balance.",
-    'For an attached camt XML file or a bank sheet, file names it, account, opening and closing are null and rows empty. Kuna reads that file itself. A sheet reads by a saved import profile, by its name in profile or null for the one that fits.',
-    'For a statement pasted as text or attached as a PDF or photo, file and profile are null. Transcribe each row as printed, oldest first, money out below zero, with the opening and closing balances the statement prints. Never work out a balance. The rows must lead from the opening to the closing balance, or the import is refused.',
+    'file names the attached file by its id, or null for a statement pasted as text. For a camt XML file or a bank sheet, account, opening and closing are null and rows empty, and Kuna reads it itself. A sheet reads by a saved import profile, by its name in profile or null for the one that fits. save-import-profile earlier on the same card saves one for a sheet no profile reads.',
+    'For any other file or a pasted statement, profile is null. Read every row and copy each as written, oldest first, money out below zero. Give the opening and closing balances only when the statement prints both, and the rows must then lead from the one to the other. Never work out a balance. Without them the balances run on from the ledger and the card warns that Kuna could not check the rows.',
     `An account with no rows yet starts at the statement's opening, and the card says so. A statement over ${ROWS_A_PART} rows goes in parts, part 1 first, each its own card.`,
   ].join(' '),
   input: inputOf({
@@ -123,18 +126,27 @@ const OPERATIONS: readonly AssistantOperation[] = [
   },
 ]
 
+/** Why Company reads no statement from an attached file by itself, which sends the AI to read and copy it. */
+const COPY_IT = 'Kuna does not read this file as a camt statement or a bank sheet. Read it with read_attachment and copy every row into rows as written, with file naming it.'
+
+const KUNA_READS_IT = 'Kuna reads this file itself, so account, opening and closing are null and rows empty.'
+
 function isLoaded(file: unknown): file is LoadedImportFile {
   return typeof file === 'object' && file !== null && 'fileName' in file && ('document' in file || 'grid' in file)
 }
 
-/** An attached file as Import reads it, or why Company reads no statement from it. */
-async function loadedOf(file: unknown, read: StatementFileReader): Promise<LoadedImportFile | string> {
+/**
+ * What an import step's file stands for once read: Import's reader takes a camt file or a sheet whose rows the AI left empty, and a
+ * file whose rows the AI copied stays as attached. Or why the file cannot be imported.
+ */
+async function loadedOf(file: unknown, copied: boolean, read: StatementFileReader): Promise<LoadedImportFile | ChatAttachment | string> {
   if (!isAttachment(file)) return 'file is not a file attached to this chat.'
-  if (file.kind === 'photo' || file.kind === 'pdf') return NOT_READ_OFF_A_PAGE
+  if (copied) return file.reading.kind === 'kuna' ? KUNA_READS_IT : file
+  if (file.kind !== 'xml' && file.kind !== 'sheet' && file.kind !== 'csv') return COPY_IT
   try {
     return await read(file.name, file.bytes.slice().buffer)
   } catch {
-    return 'Kuna could not read that file as a camt statement or a sheet.'
+    return COPY_IT
   }
 }
 
@@ -147,7 +159,8 @@ export async function withStatementFilesRead(steps: readonly ProposalStep[], rea
       done.push(step)
       continue
     }
-    const loaded = await loadedOf(file, read)
+    const rows = step.input['rows']
+    const loaded = await loadedOf(file, Array.isArray(rows) && rows.length > 0, read)
     if (typeof loaded === 'string') return { refused: [loaded] }
     done.push({ ...step, input: { ...step.input, file: loaded } })
   }
@@ -164,7 +177,7 @@ function fileReadings(card: CompanyCard, loaded: LoadedImportFile, profileName: 
     if (profile === null) {
       throw new StepRefused(
         fitting.length === 0
-          ? 'No saved import profile reads this sheet. Save one with save-import-profile from its header row first.'
+          ? 'No saved import profile reads this sheet. Read it with read_attachment, and put save-import-profile from its header row on this card before the import, or copy its rows into rows.'
           : `Name the profile that reads it: ${fitting.map((candidate) => candidate.name).join(', ')}.`,
       )
     }
@@ -172,11 +185,10 @@ function fileReadings(card: CompanyCard, loaded: LoadedImportFile, profileName: 
   return statementReadings(loaded, workbook, profile)
 }
 
-/** A statement the model read off a page, refused unless it prints both balances and ties. */
+/** A statement the AI copied off a page, a file or the chat, refused when its printed balances do not tie or only one is given. */
 function transcribedReadings(card: CompanyCard, field: Readonly<Record<string, never>>): readonly StatementReading[] {
   const rows = field['rows'] as readonly { readonly date: string; readonly amount: number; readonly counterparty: string; readonly iban: string | null; readonly description: string }[]
-  if (field['account'] === null) throw new StepRefused('A transcribed statement names the account its rows are on.')
-  if (field['opening'] === null || field['closing'] === null) throw new StepRefused('A statement is imported only with the opening and closing balances it prints. Never work one out.')
+  if (field['account'] === null) throw new StepRefused('Copied rows name the account they are on.')
   if (rows.length === 0) throw new StepRefused('The statement has no rows to import.')
   const account = card.idOf(field['account']).toLowerCase()
   if (!card.workbook.accounts.some((candidate) => candidate.slug === account)) throw new StepRefused('That account is no longer in the books.')
@@ -191,8 +203,9 @@ function transcribedReadings(card: CompanyCard, field: Readonly<Record<string, n
   const days = entries.map((entry) => entry.date).sort()
   // The label goes into each row's statement column, so it is built from the account and the days, never from words of one language.
   const label = `${account} ${days[0]!}/${days.at(-1)!}`
+  const printed = (amount: number | null): Money | null => (amount === null ? null : moneyFromAmount(amount))
   try {
-    return [{ statement: transcribedStatement(account, label, moneyFromAmount(field['opening']), moneyFromAmount(field['closing']), entries) }]
+    return [{ statement: transcribedStatement(account, label, printed(field['opening']), printed(field['closing']), entries) }]
   } catch (failure) {
     if (failure instanceof StatementRefused) throw new StepRefused(failure.message)
     throw failure
@@ -208,10 +221,10 @@ function upToPart(readings: readonly StatementReading[], part: number): readonly
 }
 
 /**
- * Writes the statements as Import does once a person confirms: each account with no rows started at its statement's opening, and a
- * statement of a new IBAN under the account the step names. A statement the dry run refuses refuses the card, with its reason.
+ * Writes the statements as Import does once a person confirms: each account with no rows started at its statement's opening, or
+ * at zero for copied rows that print no balances, and a statement of a new IBAN under the account the step names. A statement the dry run refuses refuses the card, with its reason.
  */
-function writeStatements(card: CompanyCard, readings: readonly StatementReading[], newAccount: string | null): void {
+function writeStatements(card: CompanyCard, readings: readonly StatementReading[], newAccount: string | null, copied: boolean): void {
   const { workbook } = card
   const offers = [...new Set(readings.flatMap((reading) => ('newAccount' in reading ? [reading.newAccount.iban] : [])))]
   if (offers.length > 1) throw new StepRefused('The file names several IBANs the books lack. Import it on Import, which names each account.')
@@ -219,9 +232,18 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   const names = new Map(offers.map((iban) => [iban, newAccount!.trim().toLowerCase()]))
   const waiting = dryRunFor(readings, workbook, new Map(), names)
   const starts = new Map<string, Money>()
+  const startedAtZero = new Set<string>()
   for (const statement of waiting.statements) {
     if (statement.start === null || statement.newAccount !== null) continue
-    if (statement.start.opening === null) throw new StepRefused(`${statement.label} gives no balances, so the opening of ${statement.start.account} is typed on Import.`)
+    if (statement.start.opening === null && copied) {
+      starts.set(statement.start.account, ZERO)
+      startedAtZero.add(statement.start.account)
+      continue
+    }
+    if (statement.start.opening === null)
+      throw new StepRefused(
+        `${statement.label} gives no balances, and ${statement.start.account} has no rows on the ledger yet to run on from. Give the opening and closing balances the statement prints, or type the opening on Import.`,
+      )
     starts.set(statement.start.account, statement.start.opening)
   }
   const run = starts.size === 0 ? waiting : dryRunFor(readings, workbook, starts, names)
@@ -230,7 +252,10 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   if (run.statements.some((statement) => statement.newAccount !== null && statement.account === '')) throw new StepRefused(`${newAccount} cannot be an account's short name.`)
   if (run.newRows === 0) throw new StepRefused('Every row of the statement is on the ledger already.')
   writeImport(card.unit, run)
-  for (const account of starts.keys()) card.note({ noun: LEDGER_RECORDS.noun, line: { label: account, fields: [], warning: words.accountStarted(account) } })
+  for (const account of starts.keys()) {
+    const warning = startedAtZero.has(account) ? words.accountStartsAtZero(formatMoney(ZERO)) : words.accountStarted(account)
+    card.note({ noun: LEDGER_RECORDS.noun, line: { label: account, fields: [], warning } })
+  }
   for (const { slug } of run.accounts) card.note({ noun: LEDGER_RECORDS.noun, line: { label: slug, fields: [], warning: words.accountAdded(slug) } })
   for (const statement of run.statements) {
     for (const note of statement.notes) card.note({ noun: LEDGER_RECORDS.noun, line: { label: statement.label, fields: [], warning: note } })
@@ -240,11 +265,20 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
 function importStatement(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const file: unknown = field['file']
-  const transcribedToo = field['account'] !== null || field['opening'] !== null || field['closing'] !== null || (field['rows'] as readonly unknown[]).length > 0
-  if (file !== null && !isLoaded(file)) throw new StepRefused('file is not a file attached to this chat.')
-  if (file !== null && transcribedToo) throw new StepRefused('Kuna reads an attached file itself, so account, opening and closing are null and rows empty.')
-  const readings = file === null ? transcribedReadings(card, field) : fileReadings(card, file, field['profile'])
-  writeStatements(card, upToPart(readings, field['part']), field['newAccount'])
+  const part: number = field['part']
+  if (isLoaded(file)) {
+    if (field['account'] !== null || field['opening'] !== null || field['closing'] !== null) throw new StepRefused(KUNA_READS_IT)
+    writeStatements(card, upToPart(fileReadings(card, file, field['profile']), part), field['newAccount'], false)
+    return
+  }
+  if (file !== null && !isAttachment(file)) throw new StepRefused('file is not a file attached to this chat.')
+  const readings = upToPart(transcribedReadings(card, field), part)
+  const rows = (field['rows'] as readonly unknown[]).length
+  const onCard = Math.min(part * ROWS_A_PART, rows) - (part - 1) * ROWS_A_PART
+  const label = 'statement' in readings[0]! ? readings[0].statement.label : ''
+  writeStatements(card, readings, field['newAccount'], true)
+  // A note goes above the ones before it, so the copied rows' warning, written last, reads first.
+  card.note({ noun: LEDGER_RECORDS.noun, line: { label, fields: [], warning: copiedStatementRowsWarning(onCard, file === null ? null : file.name, field['opening'] !== null) } })
 }
 
 /** The statements the last sync of the statements folder held back for a person, which `app.ts` hands in. */
@@ -254,7 +288,7 @@ function fileHeldStatements(card: CompanyCard, step: ProposalStep, held: HeldSta
   const readings = held()
   if (readings.length === 0) throw new StepRefused('The last sync held back no statement.')
   const field = fieldsOf(step)
-  writeStatements(card, upToPart(readings, field['part']), field['newAccount'])
+  writeStatements(card, upToPart(readings, field['part']), field['newAccount'], false)
 }
 
 function saveImportProfile(card: CompanyCard, step: ProposalStep): void {
