@@ -5991,7 +5991,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-setup', {
       waitFor: '[data-testid="spending-bank-account-add-all"]',
       tap: '[data-testid="spending-bank-account-add-all"]',
-      done: (bank) => bank.setup.added(2).other,
+      done: (screen) => screen.spendingAccounts.addedCount(2).other,
       after: 'spending-bank-sync-setup-added',
     }),
     modes: ['drive'],
@@ -6005,7 +6005,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('hr', 'spending-bank-sync-setup', {
       waitFor: '[data-testid="spending-bank-account-add-all"]',
       tap: '[data-testid="spending-bank-account-add-all"]',
-      done: (bank) => bank.setup.added(2).few,
+      done: (screen) => screen.spendingAccounts.addedCount(2).few,
       after: 'spending-bank-sync-setup-added',
     }),
     modes: ['drive'],
@@ -6019,7 +6019,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-setup-not-in-kuna', {
       waitFor: '[data-testid="spending-bank-sync-not-in-kuna"]',
       tap: '[data-testid="spending-bank-account-leave-out"]',
-      done: (bank) => bank.setup.markedOut,
+      done: (screen) => screen.spendingBankSync.setup.markedOut,
     }),
     modes: ['drive'],
     queries: { drive: '&spending=statements&banksync=not-in-kuna' },
@@ -6032,7 +6032,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('hr', 'spending-bank-sync-setup-not-in-kuna', {
       waitFor: '[data-testid="spending-bank-sync-not-in-kuna"]',
       tap: '[data-testid="spending-bank-account-leave-out"]',
-      done: (bank) => bank.setup.markedOut,
+      done: (screen) => screen.spendingBankSync.setup.markedOut,
     }),
     modes: ['drive'],
     queries: { drive: '&spending=statements&banksync=not-in-kuna&lang=hr' },
@@ -6045,7 +6045,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-setup-iban', {
       waitFor: '[data-testid="spending-bank-account"][data-kind="fits"]',
       tap: '[data-testid="spending-bank-account-update"]',
-      done: (bank) => bank.setup.updated,
+      done: (screen) => screen.spendingBankSync.setup.updated,
     }),
     modes: ['drive'],
     queries: { drive: '&spending=statements&banksync=iban-blank' },
@@ -6058,7 +6058,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('hr', 'spending-bank-sync-setup-iban', {
       waitFor: '[data-testid="spending-bank-account"][data-kind="fits"]',
       tap: '[data-testid="spending-bank-account-update"]',
-      done: (bank) => bank.setup.updated,
+      done: (screen) => screen.spendingBankSync.setup.updated,
     }),
     modes: ['drive'],
     queries: { drive: '&spending=statements&banksync=iban-blank&lang=hr' },
@@ -6089,7 +6089,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-nothing-to-set', {
       waitFor: '[data-testid="spending-bank-account-keep-mine"]',
       tap: '[data-testid="spending-bank-account-keep-mine"]',
-      done: (bank) => bank.setup.keptMine,
+      done: (screen) => screen.spendingBankSync.setup.keptMine,
       after: 'spending-bank-sync-nothing-to-set-kept',
     }),
     modes: ['drive'],
@@ -6103,7 +6103,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('hr', 'spending-bank-sync-nothing-to-set', {
       waitFor: '[data-testid="spending-bank-account-keep-mine"]',
       tap: '[data-testid="spending-bank-account-keep-mine"]',
-      done: (bank) => bank.setup.keptMine,
+      done: (screen) => screen.spendingBankSync.setup.keptMine,
       after: 'spending-bank-sync-nothing-to-set-kept',
     }),
     modes: ['drive'],
@@ -6135,7 +6135,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-opening-fix', {
       waitFor: '[data-testid="spending-bank-sync-set-opening"]',
       tap: '[data-testid="spending-bank-sync-set-opening"]',
-      done: (bank) => bank.openingSet,
+      done: (screen) => screen.spendingBankSync.openingSet,
     }),
     modes: ['drive'],
     queries: { drive: '&spending=statements&banksync=opening-off' },
@@ -6148,7 +6148,7 @@ const FLOWS = [
     run: spendingBankSyncSetupFlowIn('hr', 'spending-bank-sync-opening-fix', {
       waitFor: '[data-testid="spending-bank-sync-set-opening"]',
       tap: '[data-testid="spending-bank-sync-set-opening"]',
-      done: (bank) => bank.openingSet,
+      done: (screen) => screen.spendingBankSync.openingSet,
     }),
     modes: ['drive'],
     queries: { drive: '&spending=statements&banksync=opening-off&lang=hr' },

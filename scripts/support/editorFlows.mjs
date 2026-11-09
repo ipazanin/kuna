@@ -6328,7 +6328,7 @@ export function spendingBankSyncSetupFlowIn(language, shot, { waitFor, tap = nul
     await shoot(shot)
     if (tap === null) return
     await pressSelector(page, press, tap)
-    await toast(page, done(words.spendingBankSync))
+    await toast(page, done(words))
     if (after !== null) {
       await delay(300)
       await shoot(after)

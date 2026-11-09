@@ -3101,7 +3101,7 @@ async function checkWidth(width) {
       spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-add', {
         waitFor: '[data-testid="spending-bank-account-add"]',
         tap: '[data-testid="spending-bank-account-add"]',
-        done: (bank) => bank.setup.added(1).one,
+        done: (screen) => screen.spendingAccounts.addedCount(1).one,
       }),
       '#/spending/settings?tab=bank-sync',
       'Settings',
@@ -3112,7 +3112,7 @@ async function checkWidth(width) {
       spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-add-all', {
         waitFor: '[data-testid="spending-bank-account-add-all"]',
         tap: '[data-testid="spending-bank-account-add-all"]',
-        done: (bank) => bank.setup.added(2).other,
+        done: (screen) => screen.spendingAccounts.addedCount(2).other,
       }),
       '#/spending/settings?tab=bank-sync',
       'Settings',
@@ -3123,7 +3123,7 @@ async function checkWidth(width) {
       spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-not-in-kuna', {
         waitFor: '[data-testid="spending-bank-account-leave-out"]',
         tap: '[data-testid="spending-bank-account-leave-out"]',
-        done: (bank) => bank.setup.markedOut,
+        done: (screen) => screen.spendingBankSync.setup.markedOut,
       }),
       '#/spending/settings?tab=bank-sync',
       'Settings',
@@ -3134,7 +3134,7 @@ async function checkWidth(width) {
       spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-update', {
         waitFor: '[data-testid="spending-bank-account-update"]',
         tap: '[data-testid="spending-bank-account-update"]',
-        done: (bank) => bank.setup.updated,
+        done: (screen) => screen.spendingBankSync.setup.updated,
       }),
       '#/spending/settings?tab=bank-sync',
       'Settings',
@@ -3145,7 +3145,7 @@ async function checkWidth(width) {
       spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-keep-mine', {
         waitFor: '[data-testid="spending-bank-account-keep-mine"]',
         tap: '[data-testid="spending-bank-account-keep-mine"]',
-        done: (bank) => bank.setup.keptMine,
+        done: (screen) => screen.spendingBankSync.setup.keptMine,
       }),
       '#/spending/settings?tab=bank-sync',
       'Settings',
@@ -3156,7 +3156,7 @@ async function checkWidth(width) {
       spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-set-opening', {
         waitFor: '[data-testid="spending-bank-sync-set-opening"]',
         tap: '[data-testid="spending-bank-sync-set-opening"]',
-        done: (bank) => bank.openingSet,
+        done: (screen) => screen.spendingBankSync.openingSet,
       }),
       '#/spending/settings?tab=bank-sync',
       'Settings',
