@@ -82,3 +82,15 @@ export function layoutOf(asked: { readonly choice: SidebarChoice; readonly windo
   const expandedFits = spare >= (drawn === 'icons' ? EXPANDED_RETURN_SLACK : 0)
   return { sidebar: sidebar === 'expanded' && !expandedFits ? 'icons' : sidebar, chat: { at: 'dock', width, widest: Math.min(CHAT_MAX_WIDTH, room) } }
 }
+
+/** What the room rule does to a sidebar choice while the chat is open: the chat takes the page's place, or an expanded sidebar shows as icons. */
+export type RoomEffect = 'chat-takes-page' | 'icons-while-chat'
+
+/** What choosing `picked` would change in how the shell draws, beside the choice in force, for a window `windowWidth` px wide and the chat's asked width `chat` while it is open, or null. */
+export function roomEffectOf(asked: { readonly picked: SidebarChoice; readonly inForce: SidebarChoice; readonly windowWidth: number; readonly chat: number | null }): RoomEffect | null {
+  const { picked, inForce, windowWidth, chat } = asked
+  const docked = layoutOf({ choice: inForce, windowWidth, chat }).chat.at === 'dock'
+  const pickedLayout = layoutOf({ choice: picked, windowWidth, chat })
+  if (docked && pickedLayout.chat.at === 'page') return 'chat-takes-page'
+  return picked === 'expanded' && pickedLayout.sidebar === 'icons' ? 'icons-while-chat' : null
+}

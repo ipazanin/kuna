@@ -29,6 +29,7 @@ export const en = {
     noneFolded: 'No card is folded on this device.',
     syncAlone: 'A sync goes on a card of its own. Propose it alone.',
     nothingOnDrive: 'No app keeps its file on Google Drive, so there is nothing to sync.',
+    chatWidthRange: (least: number, most: number) => `The chat is between ${least} and ${most} px wide.`,
   },
   settings: {
     theme: 'The look on this device: system, light or dark.',
@@ -38,6 +39,8 @@ export const en = {
     filesHome: 'Where new files go, Google Drive or this browser. The chat may only forget the answer, so Kuna asks again.',
     syncNow: 'Sync now, of every app whose file is on Drive, with the banks asked once six hours have passed or at once.',
     foldedCards: 'The cards the person folded on this device. The chat may only open them all.',
+    sidebarLayout: 'How the sidebar shows from 1024 px: expanded, icons or hidden. While the chat is open, expanded shows as icons when the window is short of room.',
+    chatWidth: 'The chat panel’s width in px on this device, or its default.',
     neverProvider: 'The AI company, its key and its model, and fetching or deleting keys kept in the Google account.',
     neverAnonymise: 'Anonymise for each AI company, and each app’s Send without asking. They guard what the chat sends.',
     neverHistory: 'Clearing the chat history.',
@@ -73,6 +76,7 @@ export const hr: Translation<typeof en> = {
     noneFolded: 'Na ovom uređaju nijedna kartica nije sklopljena.',
     syncAlone: 'Sinkronizacija ide na zasebnu karticu. Predložite je samu.',
     nothingOnDrive: 'Nijedna aplikacija ne drži datoteku na Google Driveu, pa nema što sinkronizirati.',
+    chatWidthRange: (least, most) => `Razgovor je širok od ${least} do ${most} px.`,
   },
   settings: {
     theme: 'Izgled na ovom uređaju: „system”, „light” ili „dark”.',
@@ -82,6 +86,8 @@ export const hr: Translation<typeof en> = {
     filesHome: 'Gdje idu nove datoteke, Google Drive ili ovaj preglednik. Razgovor smije samo zaboraviti odgovor, pa Kuna ponovno pita.',
     syncNow: 'Sinkroniziraj sada, za svaku aplikaciju čija je datoteka na Driveu, s bankama upitanima nakon šest sati ili odmah.',
     foldedCards: 'Kartice koje je osoba sklopila na ovom uređaju. Razgovor ih smije samo sve otvoriti.',
+    sidebarLayout: 'Kako se bočna traka prikazuje od 1024 px: proširena, ikone ili skrivena. Dok je razgovor otvoren, proširena se prikazuje kao ikone kad prozoru nedostaje mjesta.',
+    chatWidth: 'Širina ploče razgovora u px na ovom uređaju ili zadana širina.',
     neverProvider: 'AI tvrtka, njezin ključ i model te dohvat ili brisanje ključeva spremljenih na Google računu.',
     neverAnonymise: 'Anonimiziraj za svaku AI tvrtku i Šalji bez pitanja svake aplikacije. Oni čuvaju ono što razgovor šalje.',
     neverHistory: 'Brisanje povijesti razgovora.',

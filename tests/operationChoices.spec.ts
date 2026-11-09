@@ -13,7 +13,7 @@ import { kunaOperations } from '../src/shell/assistant/kunaOperations'
 import type { KunaDevice } from '../src/shell/assistant/kunaOperations'
 import { deskPorts } from './fixtures/companyDesk'
 
-const DEVICE = { apps: () => [{ id: 'company', name: 'Company' }] } as unknown as KunaDevice
+const DEVICE = { apps: () => [{ id: 'company', name: 'Company' }], chatWidths: { least: 384, most: 704, reset: 384 } } as unknown as KunaDevice
 
 /** Every app's operations, Company's with the pack's, by the app's id. */
 const APPS: readonly (readonly [string, readonly AssistantOperation[]])[] = [

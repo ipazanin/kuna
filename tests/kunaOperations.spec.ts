@@ -15,6 +15,8 @@ import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { kunaAcceptance, kunaOperations, kunaProposer } from '../src/shell/assistant/kunaOperations'
 import type { KunaDevice } from '../src/shell/assistant/kunaOperations'
 import { words } from '../src/shell/assistant/words'
+import type { RoomEffect, SidebarChoice } from '../src/shell/ui/sidebarLayout'
+import { words as shellWords } from '../src/shell/ui/words'
 import { words as settingsWords } from '../src/shell/settings/words'
 
 /** A device as Kuna settings and the home keep it, in memory, with a file on Drive and two cards folded. A sync ends in `warning`. */
@@ -28,6 +30,9 @@ function fakeDevice(start: KunaStart | null = { home: 'drive', apps: ['company']
     onDrive: true,
     syncs: [] as SyncAsking[],
     folded: new Set(['assets.list', 'billing.rows']),
+    sidebar: 'expanded' as SidebarChoice,
+    chatWidth: 384,
+    roomEffect: null as RoomEffect | null,
   }
   const device: KunaDevice = {
     theme: () => held.theme,
@@ -54,6 +59,12 @@ function fakeDevice(start: KunaStart | null = { home: 'drive', apps: ['company']
     },
     foldedCards: () => [...held.folded].sort(),
     foldCard: (cardId, folded) => (folded ? held.folded.add(cardId) : held.folded.delete(cardId)),
+    sidebar: () => held.sidebar,
+    chooseSidebar: (choice) => (held.sidebar = choice),
+    roomEffect: () => held.roomEffect,
+    chatWidths: { least: 384, most: 704, reset: 384 },
+    chatWidth: () => held.chatWidth,
+    resizeChat: (px) => (held.chatWidth = px),
   }
   return { held, device }
 }
@@ -211,6 +222,38 @@ describe("Kuna's own operations", () => {
     expect((await answer).text).toBe(words.refused.noneFolded)
   })
 
+  it('sets the sidebar layout, says when the room rule draws it differently, and Undo puts the old layout back', async () => {
+    const { held, device } = fakeDevice()
+    held.sidebar = 'hidden'
+    held.roomEffect = 'icons-while-chat'
+    const { answer, cards } = propose(device, [{ op: 'set-sidebar-layout', input: { layout: 'expanded' } }])
+    await answer
+
+    expect(cards[0]!.groups[0]!.notes).toEqual([{ label: shellWords.sidebarLayout.name, text: shellWords.sidebarLayout.iconsWhileChat, tone: 'neutral' }])
+    const done = await kunaAcceptance(device).accept(cards[0]!)
+    expect(held.sidebar).toBe('expanded')
+    if (done.kind !== 'done' || done.undo === null) throw new Error('No Undo')
+    expect((await done.undo()).kind).toBe('undone')
+    expect(held.sidebar).toBe('hidden')
+  })
+
+  it('sets the chat width, resets it with null, and refuses a width outside the range naming it', async () => {
+    const { held, device } = fakeDevice()
+    held.chatWidth = 500
+    const reset = propose(device, [{ op: 'set-chat-width', input: { width: null } }])
+    const tooWide = propose(device, [{ op: 'set-chat-width', input: { width: 705 } }])
+    const tooNarrow = propose(device, [{ op: 'set-chat-width', input: { width: 383 } }])
+    await reset.answer
+
+    expect((await tooWide.answer).text).toBe(words.refused.chatWidthRange(384, 704))
+    expect((await tooNarrow.answer).text).toBe(words.refused.chatWidthRange(384, 704))
+    const done = await kunaAcceptance(device).accept(reset.cards[0]!)
+    expect(held.chatWidth).toBe(384)
+    if (done.kind !== 'done' || done.undo === null) throw new Error('No Undo')
+    await done.undo()
+    expect(held.chatWidth).toBe(500)
+  })
+
   it('refuses what would change nothing, a setting twice, an app in use, and an app before the home asked', async () => {
     const same = propose(fakeDevice().device, [{ op: 'set-theme', input: { theme: 'system' } }])
     const twice = propose(fakeDevice().device, [
@@ -235,7 +278,7 @@ describe("Kuna's own operations", () => {
     const catalogue = catalogueOf([], { ...KUNA_CHAT, assistant: kunaAssistant() })
     const page = catalogue.pages.get('kuna')!
 
-    expect(operations).toEqual(['set-theme', 'set-language', 'switch-auto-sync', 'add-app', 'sync-now', 'open-folded-cards', 'forget-files-home'])
+    expect(operations).toEqual(['set-theme', 'set-language', 'switch-auto-sync', 'add-app', 'sync-now', 'open-folded-cards', 'set-sidebar-layout', 'set-chat-width', 'forget-files-home'])
     for (const key of ['ai_provider', 'anonymise', 'chat_history', 'google_sign_in']) expect(page.split(`- ${key}: `)[1]!.split('\n')[0]).toContain('Only a person sets it')
     expect(page).toContain('- Kuna settings: /settings')
     expect(catalogue.proposers.has('kuna')).toBe(true)

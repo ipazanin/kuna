@@ -69,10 +69,6 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     ],
   },
   {
-    reason: "The page's layout. The chat panel's width and how the sidebar shows follow the person's pointer and screen, so they stay on the screen.",
-    paths: ['kuna: src/shared/ai/presentation/chatDock.ts#resizeChat', 'src/shell/ui/sidebarLayout.ts#chooseSidebar'],
-  },
-  {
     reason: 'First run. Choosing where the books live and making them happens before an app has a chat.',
     paths: ['company: src/shared/app/kunaStart.ts#answerFromFirstRun', 'shared: store.keepOnDrive'],
   },

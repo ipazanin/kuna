@@ -1,3 +1,4 @@
+import { CHAT_DEFAULT_WIDTH, CHAT_MAX_WIDTH, CHAT_MIN_WIDTH, chatOpen, chatWidth, resizeChat } from '../../shared/ai/presentation/chatDock'
 import { chatKept } from '../../shared/ai/presentation/chatSession'
 import type { AppAssistant } from '../../shared/app/appContribution'
 import { answerKunaStart, forgetKunaStart, kunaStart } from '../../shared/app/kunaStart'
@@ -9,6 +10,7 @@ import { foldedCards, rememberCollapse } from '../../shared/ui/cardCollapse'
 import { installedApps } from '../routing/appRegistry'
 import { kunaAcceptance, kunaProposer } from './kunaOperations'
 import type { KunaDevice } from './kunaOperations'
+import { chooseSidebar, roomEffectOf, sidebarChoice } from '../ui/sidebarLayout'
 import { words } from './words'
 
 const DEVICE: KunaDevice = {
@@ -38,6 +40,12 @@ const DEVICE: KunaDevice = {
   },
   foldedCards,
   foldCard: rememberCollapse,
+  sidebar: () => sidebarChoice.value,
+  chooseSidebar,
+  roomEffect: (picked) => roomEffectOf({ picked, inForce: sidebarChoice.value, windowWidth: window.innerWidth, chat: chatOpen.value ? chatWidth.value : null }),
+  chatWidths: { least: CHAT_MIN_WIDTH, most: CHAT_MAX_WIDTH, reset: CHAT_DEFAULT_WIDTH },
+  chatWidth: () => chatWidth.value,
+  resizeChat,
 }
 
 /** What Kuna itself tells the chat: the settings of this device it may change, the page's sync, and the settings only the person changes on Kuna settings. */
@@ -53,6 +61,8 @@ export function kunaAssistant(): AppAssistant {
       { key: 'files_home', note: words.settings.filesHome },
       { key: 'sync_now', note: words.settings.syncNow },
       { key: 'folded_cards', note: words.settings.foldedCards },
+      { key: 'sidebar_layout', note: words.settings.sidebarLayout },
+      { key: 'chat_width', note: words.settings.chatWidth },
       { key: 'ai_provider', note: words.settings.neverProvider, neverPropose: true },
       { key: 'anonymise', note: words.settings.neverAnonymise, neverPropose: true },
       { key: 'chat_history', note: words.settings.neverHistory, neverPropose: true },

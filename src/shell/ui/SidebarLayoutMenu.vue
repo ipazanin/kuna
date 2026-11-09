@@ -3,7 +3,7 @@ import { computed } from 'vue'
 
 import MenuButton from '../../shared/ui/MenuButton.vue'
 import type { SidebarChoice } from './sidebarLayout'
-import { chooseSidebar, layoutOf, sidebarChoice } from './sidebarLayout'
+import { chooseSidebar, roomEffectOf, sidebarChoice } from './sidebarLayout'
 import { words } from './words'
 
 /** The one control that picks the sidebar. An item says what the chat's room does to it before a person picks it. */
@@ -21,15 +21,12 @@ const CHOICES: readonly { readonly value: SidebarChoice; readonly label: string;
 
 const inForce = computed(() => CHOICES.find((shown) => shown.value === sidebarChoice.value) ?? CHOICES[0])
 
-const choices = computed(() => {
-  const docked = layoutOf({ choice: sidebarChoice.value, windowWidth: props.windowWidth, chat: props.chat }).chat.at === 'dock'
-  return CHOICES.map((shown) => {
-    const picked = layoutOf({ choice: shown.value, windowWidth: props.windowWidth, chat: props.chat })
-    if (docked && picked.chat.at === 'page') return { ...shown, description: words.sidebarLayout.chatTakesPage }
-    if (shown.value === 'expanded' && picked.sidebar === 'icons') return { ...shown, description: words.sidebarLayout.iconsWhileChat }
-    return shown
-  })
-})
+const choices = computed(() =>
+  CHOICES.map((shown) => {
+    const effect = roomEffectOf({ picked: shown.value, inForce: sidebarChoice.value, windowWidth: props.windowWidth, chat: props.chat })
+    return effect === null ? shown : { ...shown, description: effect === 'chat-takes-page' ? words.sidebarLayout.chatTakesPage : words.sidebarLayout.iconsWhileChat }
+  }),
+)
 </script>
 
 <template>

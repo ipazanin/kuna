@@ -1,7 +1,7 @@
 import { DEVICE_SETTING } from '../../shared/app/assistantOperations'
 import type { AcceptResult, AppAcceptance, AppProposer, AssistantOperation, CheckedProposal, DoneWarning, ProposalGroup, ProposalStep, UndoResult } from '../../shared/app/assistantOperations'
 import type { FilesHome, KunaStart } from '../../shared/app/kunaStart'
-import { inputOf } from '../../shared/app/operationInput'
+import { inputOf, NUMBER_OR_NULL } from '../../shared/app/operationInput'
 import { StepRefused } from '../../shared/app/proposedWrites'
 import { words as sharedWords } from '../../shared/app/words'
 import { formatCount } from '../../shared/money/moneyFormat'
@@ -9,6 +9,8 @@ import type { SyncAsking } from '../../shared/sync/application/sync'
 import type { LanguageChoice } from '../../shared/text/language'
 import type { ThemeChoice } from '../../shared/theme/theme'
 import { words as settingsWords } from '../settings/words'
+import type { RoomEffect, SidebarChoice } from '../ui/sidebarLayout'
+import { words as shellWords } from '../ui/words'
 import { words } from './words'
 import type { RecordNoun } from '../../shared/storage/domain/recordKind'
 
@@ -35,6 +37,15 @@ export interface KunaDevice {
   /** The cards this device keeps folded, by id. */
   foldedCards(): readonly string[]
   foldCard(cardId: string, folded: boolean): void
+  sidebar(): SidebarChoice
+  chooseSidebar(choice: SidebarChoice): void
+  /** What the room rule does right now to the sidebar if `choice` were chosen, or null when it draws as chosen. */
+  roomEffect(choice: SidebarChoice): RoomEffect | null
+  /** The widths in px the chat may take, and the one a reset gives back. */
+  readonly chatWidths: { readonly least: number; readonly most: number; readonly reset: number }
+  /** The chat's width in px as set on this device. */
+  chatWidth(): number
+  resizeChat(px: number): void
 }
 
 /** An app the person said they use, as a card counts it. */
@@ -45,6 +56,7 @@ const APP_IN_USE: RecordNoun = {
 
 const THEMES: readonly ThemeChoice[] = ['system', 'light', 'dark']
 const LANGUAGES: readonly LanguageChoice[] = ['browser', 'en', 'hr']
+const SIDEBARS: readonly SidebarChoice[] = ['expanded', 'icons', 'hidden']
 const SWITCH = ['on', 'off'] as const
 const ASKING: readonly SyncAsking[] = ['due', 'now']
 
@@ -56,12 +68,15 @@ type DeviceChange =
   | { readonly setting: 'start'; readonly before: KunaStart; readonly after: KunaStart; readonly added: readonly string[] }
   | { readonly setting: 'start'; readonly before: KunaStart; readonly after: null }
   | { readonly setting: 'folded'; readonly before: readonly string[]; readonly after: readonly string[] }
+  | { readonly setting: 'sidebar'; readonly before: SidebarChoice; readonly after: SidebarChoice; readonly effect: RoomEffect | null }
+  | { readonly setting: 'chatWidth'; readonly before: number; readonly after: number }
 
 /** What a Kuna card holds for Accept, which only this file reads: settings to change, or a sync to run. */
 type HeldChanges = { readonly kind: 'settings'; readonly changes: readonly DeviceChange[] } | { readonly kind: 'sync'; readonly asking: SyncAsking }
 
 /** The changes the chat can propose on this device, and the page's sync. Nothing that guards what the chat sends or holds a key is among them. */
 export function kunaOperations(device: KunaDevice): readonly AssistantOperation[] {
+  const { least, most, reset } = device.chatWidths
   const apps = device.apps().map((app) => app.id)
   return [
     {
@@ -120,6 +135,25 @@ export function kunaOperations(device: KunaDevice): readonly AssistantOperation[
       example: {},
     },
     {
+      name: 'set-sidebar-layout',
+      about:
+        'How the sidebar shows on this device from 1024 px. expanded shows page names beside the icons. icons shows only icons. hidden leaves the sidebar out and puts its menu behind a button on the top bar. While the chat is open and the window is short of room, expanded shows as icons, and the card says so.',
+      input: inputOf({ layout: { type: 'string', enum: SIDEBARS, description: 'expanded, icons or hidden.' } }),
+      refs: {},
+      creates: null,
+      alone: false,
+      example: { layout: 'icons' },
+    },
+    {
+      name: 'set-chat-width',
+      about: `The chat panel's width on this device, in px from ${least} to ${most}. null puts back the default of ${reset}.`,
+      input: inputOf({ width: { ...NUMBER_OR_NULL, description: `Pixels from ${least} to ${most}, or null for the default.` } }),
+      refs: {},
+      creates: null,
+      alone: false,
+      example: { width: most },
+    },
+    {
       name: 'forget-files-home',
       about: 'Forgets where new files go and which apps the person said they use, as Ask me again on Kuna settings does, so the home and the next app set up on this device ask again.',
       input: inputOf({}),
@@ -156,6 +190,16 @@ function changeOf(device: KunaDevice, { operation, input }: ProposalStep, earlie
       const added = earlier.flatMap((change) => (isAdding(change) ? change.added : []))
       if (start.apps.includes(app) || added.includes(app)) throw new StepRefused(words.refused.inUse)
       return { setting: 'start', before: start, after: { ...start, apps: [...start.apps, ...added, app] }, added: [...added, app] }
+    }
+    case 'set-sidebar-layout': {
+      const after = choiceOf(SIDEBARS, input['layout'])
+      return { setting: 'sidebar', before: device.sidebar(), after, effect: device.roomEffect(after) }
+    }
+    case 'set-chat-width': {
+      const asked = input['width']
+      const { least, most, reset } = device.chatWidths
+      if (asked !== null && (typeof asked !== 'number' || !Number.isFinite(asked) || asked < least || asked > most)) throw new StepRefused(words.refused.chatWidthRange(least, most))
+      return { setting: 'chatWidth', before: device.chatWidth(), after: asked === null ? reset : Math.round(asked) }
     }
     case 'forget-files-home': {
       const start = device.start()
@@ -199,6 +243,14 @@ function languageName(choice: LanguageChoice): string {
   return choice === 'browser' ? settingsWords.language.browser : choice === 'en' ? 'English' : 'Hrvatski'
 }
 
+function sidebarName(choice: SidebarChoice): string {
+  return shellWords.sidebarLayout[choice]
+}
+
+function roomEffectText(effect: RoomEffect): string {
+  return effect === 'chat-takes-page' ? shellWords.sidebarLayout.chatTakesPage : shellWords.sidebarLayout.iconsWhileChat
+}
+
 function homeName(home: FilesHome): string {
   return home === 'drive' ? words.home.drive : words.home.browser
 }
@@ -221,11 +273,18 @@ function groupsOf(device: KunaDevice, changes: readonly DeviceChange[]): readonl
         return change.after === null ? [{ name: settingsWords.filesHome.title, before: homeName(change.before.home), after: words.home.askAgain, warns: false }] : []
       case 'folded':
         return [{ name: words.foldedCards, before: formatCount(change.before.length), after: formatCount(change.after.length), warns: false }]
+      case 'sidebar':
+        return [{ name: shellWords.sidebarLayout.name, before: sidebarName(change.before), after: sidebarName(change.after), warns: false }]
+      case 'chatWidth':
+        return [{ name: shellWords.chatWidth, before: `${change.before} px`, after: `${change.after} px`, warns: false }]
     }
   })
   const added = changes.flatMap((change) => (isAdding(change) ? change.added.map((id) => ({ label: device.apps().find((app) => app.id === id)?.name ?? id, fields: [], warning: null })) : []))
+  const notes = changes.flatMap((change) =>
+    change.setting === 'sidebar' && change.effect !== null ? [{ label: shellWords.sidebarLayout.name, text: roomEffectText(change.effect), tone: 'neutral' as const }] : [],
+  )
   return [
-    ...(fields.length === 0 ? [] : [{ verb: 'change' as const, noun: DEVICE_SETTING, notes: [], lines: [{ label: words.thisDevice, fields, warning: null }] }]),
+    ...(fields.length === 0 ? [] : [{ verb: 'change' as const, noun: DEVICE_SETTING, notes, lines: [{ label: words.thisDevice, fields, warning: null }] }]),
     ...(added.length === 0 ? [] : [{ verb: 'add' as const, noun: APP_IN_USE, notes: [], lines: added }]),
   ]
 }
@@ -242,6 +301,10 @@ function valueOf(device: KunaDevice, setting: DeviceChange['setting']): unknown 
       return device.start()
     case 'folded':
       return device.foldedCards()
+    case 'sidebar':
+      return device.sidebar()
+    case 'chatWidth':
+      return device.chatWidth()
   }
 }
 
@@ -268,6 +331,12 @@ function set(device: KunaDevice, change: DeviceChange, to: 'before' | 'after'): 
     }
     case 'folded':
       change.before.forEach((cardId) => device.foldCard(cardId, to === 'before'))
+      return
+    case 'sidebar':
+      device.chooseSidebar(change[to])
+      return
+    case 'chatWidth':
+      device.resizeChat(change[to])
       return
   }
 }

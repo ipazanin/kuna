@@ -469,6 +469,7 @@ describe('import boundaries', () => {
         IMPORTS.filter((entry) => entry.from === 'src/shell/assistant/kunaOperations.ts' && entry.target !== null && !entry.typeOnly && /^src\/shared\/(secrets|google|sync|ai)\//.test(entry.target)),
       ).toEqual([])
       const handedIn = [
+        'src/shared/ai/presentation/chatDock.ts',
         'src/shared/ai/presentation/chatSession.ts',
         'src/shared/app/kunaStart.ts',
         'src/shared/sync/infrastructure/autoSyncSwitch.ts',
@@ -477,6 +478,7 @@ describe('import boundaries', () => {
         'src/shared/theme/theme.ts',
         'src/shared/ui/cardCollapse.ts',
         'src/shell/routing/appRegistry.ts',
+        'src/shell/ui/sidebarLayout.ts',
         'src/shell/assistant/kunaOperations.ts',
         'src/shell/assistant/words.ts',
       ]
