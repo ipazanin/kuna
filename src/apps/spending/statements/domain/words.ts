@@ -5,7 +5,11 @@ import type { CroatianForms, EnglishForms, Translation } from '../../../../share
 
 export const en = {
   noColumn: (column: string) => `The file has no ${column} column`,
-  noRevolutAccount: (currency: string) => `The file is in ${currency}, and no Revolut account keeps ${currency}`,
+  addToBringIn: (accounts: string) => `Add ${accounts} to bring in this file`,
+  addToBringInSavings: (accounts: string) => `Add ${accounts} to bring in the savings rows left out`,
+  revolutBankAccounts: (_count: number, currencies: string): EnglishForms => ({ one: `a Revolut bank account in ${currencies}`, other: `Revolut bank accounts in ${currencies}` }),
+  revolutSavingsAccounts: (_count: number, currencies: string): EnglishForms => ({ one: `a Revolut savings account in ${currencies}`, other: `Revolut savings accounts in ${currencies}` }),
+  notACurrency: (text: string) => `The file has rows in "${text}", which is not a currency code such as EUR or USD`,
   manyRevolutAccounts: (names: string, currency: string) => `More than one open Revolut account keeps ${currency}: ${names}. Close the one the file is not for`,
   notADay: (fileRow: number, text: string) => `Row ${fileRow} of the file starts on "${text}", which is not a date`,
   notAnAmount: (fileRow: number, text: string) => `Row ${fileRow} of the file holds "${text}", which is not an amount`,
@@ -38,7 +42,19 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   noColumn: (column) => `Datoteka nema stupac ${column}`,
-  noRevolutAccount: (currency) => `Datoteka je u valuti ${currency}, a nijedan Revolutov račun ne vodi tu valutu`,
+  addToBringIn: (accounts) => `Dodajte ${accounts} da biste uvezli ovu datoteku`,
+  addToBringInSavings: (accounts) => `Dodajte ${accounts} da biste uvezli izostavljene retke štednje`,
+  revolutBankAccounts: (_count, currencies): CroatianForms => ({
+    one: `Revolutov bankovni račun u valuti ${currencies}`,
+    few: `Revolutove bankovne račune u valutama ${currencies}`,
+    other: `Revolutove bankovne račune u valutama ${currencies}`,
+  }),
+  revolutSavingsAccounts: (_count, currencies): CroatianForms => ({
+    one: `Revolutov štedni račun u valuti ${currencies}`,
+    few: `Revolutove štedne račune u valutama ${currencies}`,
+    other: `Revolutove štedne račune u valutama ${currencies}`,
+  }),
+  notACurrency: (text) => `Datoteka ima retke u „${text}”, što nije oznaka valute kao EUR ili USD`,
   manyRevolutAccounts: (names, currency) => `Valutu ${currency} vodi više otvorenih Revolutovih računa: ${names}. Zatvorite onaj za koji datoteka nije`,
   notADay: (fileRow, text) => `Redak ${fileRow} datoteke počinje s „${text}”, što nije datum`,
   notAnAmount: (fileRow, text) => `Redak ${fileRow} datoteke sadrži „${text}”, što nije iznos`,

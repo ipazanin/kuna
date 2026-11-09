@@ -1,13 +1,11 @@
-import type { LinkableBank } from '../../workbook/domain/spendingSettings'
+import { en as accountsEn, hr as accountsHr } from '../../accounts/domain/words'
 import { language } from '../../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence.
 
 export const en = {
-  banks: { otp: 'OTP', revolut: 'Revolut' } satisfies Record<LinkableBank, string>,
-  /** The name a drafted account is stored under. */
-  draftName: (bank: LinkableBank, currency: string, savings: boolean) => `${en.banks[bank]} ${currency}${savings ? ' savings' : ''}`,
+  banks: accountsEn.banks,
   pendingLeftOut: (count: number, account: string): EnglishForms => ({
     one: `1 pending row of ${account} left out. It comes once it is booked.`,
     other: `${count} pending rows of ${account} left out. They come once they are booked.`,
@@ -34,8 +32,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  banks: { otp: 'OTP', revolut: 'Revolut' },
-  draftName: (bank, currency, savings) => `${hr.banks[bank]} ${currency}${savings ? ' štednja' : ''}`,
+  banks: accountsHr.banks,
   pendingLeftOut: (count, account): CroatianForms => ({
     one: `Izostavljeno transakcija na čekanju računa ${account}: ${count}. Stiže kad se proknjiži.`,
     few: `Izostavljeno transakcija na čekanju računa ${account}: ${count}. Stižu kad se proknjiže.`,

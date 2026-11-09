@@ -5,6 +5,7 @@ const HEADER = ['Type', 'Product', 'Started Date', 'Completed Date', 'Descriptio
 
 export const SAMPLE_REVOLUT_FILE_NAME = 'account-statement-sample.csv'
 export const SAMPLE_REFUSED_FILE_NAME = 'account-statement-no-fee.csv'
+export const SAMPLE_MISSING_FILE_NAME = 'account-statement-gbp-chf.csv'
 
 /** One row of the made-up export, `back` days before the day. */
 function row(day: CivilDate, back: number, type: string, description: string, amount: string, fee: string, currency: string, state: string, product = 'Current'): string[] {
@@ -48,4 +49,19 @@ export function sampleRevolutCsv(day: CivilDate): string {
 export function sampleRefusedCsv(day: CivilDate): string {
   const fee = HEADER.indexOf('Fee')
   return csvOf(sampleRevolutRows(day).map((cells) => cells.filter((_cell, place) => place !== fee)))
+}
+
+/** A made-up export in GBP and CHF, which no account of the statements set keeps, with the balances Revolut prints after each row. */
+export function sampleMissingAccountsRows(day: CivilDate): string[][] {
+  const withBalance = (cells: string[], balance: string): string[] => [...cells.slice(0, -1), balance]
+  return [
+    HEADER,
+    withBalance(row(day, 6, 'CARD_PAYMENT', 'Book shop', '-18.50', '0.00', 'GBP', 'COMPLETED'), '231.50'),
+    withBalance(row(day, 4, 'TOPUP', 'Top-up from OTP', '100.00', '0.00', 'GBP', 'COMPLETED'), '331.50'),
+    withBalance(row(day, 3, 'CARD_PAYMENT', 'Mountain railway', '-42.00', '0.50', 'CHF', 'COMPLETED'), '57.50'),
+  ]
+}
+
+export function sampleMissingAccountsCsv(day: CivilDate): string {
+  return csvOf(sampleMissingAccountsRows(day))
 }

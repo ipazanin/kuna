@@ -72,7 +72,7 @@
  * file beside the other samples, alone, and while the ECB rates load (`?rates=opening`). At every width it opens the
  * entry dialog for money out and for a move between two currencies. Its flows add, change and delete money out and undo
  * the delete, move money between two accounts and read both balances, rename, move and delete a category into another
- * and undo it, set and end a limit and undo that, read a Revolut export as a dry run, import it and undo it, refuse an export
+ * and undo it, set and end a limit and undo that, read a Revolut export as a dry run, import it and undo it, add the accounts an export in two currencies needs and undo that, refuse an export
  * with a column missing, send a pair back to review and undo it, make a rule from To review and delete it, find the Spending file another device made on Drive and keep a new
  * one in this browser, in English and Croatian.
  *
@@ -296,6 +296,8 @@ import {
   spendingBankSyncRowsFlowIn,
   spendingBankSyncSetupFlowIn,
   spendingImportFlowIn,
+  spendingImportMissingFlowIn,
+  spendingImportMissingSavingsFlowIn,
   spendingImportRefusedFlowIn,
   spendingReceiptFlowIn,
   spendingReceiptPickFlowIn,
@@ -5901,6 +5903,24 @@ const FLOWS = [
     queries: { drive: '&spending=statements' },
   },
   {
+    name: 'spending-import-missing',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions?tab=import',
+    title: 'Entries',
+    run: spendingImportMissingFlowIn('en', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements' },
+  },
+  {
+    name: 'spending-import-missing-savings',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions?tab=import',
+    title: 'Entries',
+    run: spendingImportMissingSavingsFlowIn('en', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements' },
+  },
+  {
     name: 'spending-bank-sync-link',
     viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
     hash: '#/spending/settings?tab=bank-sync',
@@ -6336,6 +6356,24 @@ const FLOWS = [
     hash: '#/spending/transactions?tab=import',
     title: 'Unosi',
     run: spendingImportRefusedFlowIn('hr', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements&lang=hr' },
+  },
+  {
+    name: 'spending-import-missing-croatian',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions?tab=import',
+    title: 'Unosi',
+    run: spendingImportMissingFlowIn('hr', SPENDING_IMPORT_SAMPLES),
+    modes: ['drive'],
+    queries: { drive: '&spending=statements&lang=hr' },
+  },
+  {
+    name: 'spending-import-missing-savings-croatian',
+    viewports: ['phone', 'small-tablet', 'tablet-wide', 'desktop'],
+    hash: '#/spending/transactions?tab=import',
+    title: 'Unosi',
+    run: spendingImportMissingSavingsFlowIn('hr', SPENDING_IMPORT_SAMPLES),
     modes: ['drive'],
     queries: { drive: '&spending=statements&lang=hr' },
   },

@@ -22,6 +22,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { readSettingRows } from '../../../../shared/storage/domain/settingRows'
 import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
+import { listInWords } from '../../../../shared/text/listInWords'
 
 /** What the Spending file holds of each kind. */
 export interface SpendingRecords {
@@ -99,19 +100,13 @@ function doubted<R>(reading: Reading<R>, read: RecordsRead<R>, reasonOf: (record
 
 function readAccounts(read: RecordsRead<Account>): Reading<Account> {
   const ibanOf = (account: Account): string | null => (account.iban === '' ? null : `${ibanKey(account.iban)} ${account.currency}`)
-  const shared = sharedKeys(
-    read.records.flatMap((stored) => {
-      const key = ibanOf(stored.record)
-      return key === null ? [] : [key]
-    }),
-    (key) => key,
-  )
   return doubted(
     readEach(read, () => []),
     read,
     (account) => {
       const key = ibanOf(account)
-      return key !== null && shared.has(key) ? words.ibanShared(account.iban, account.currency) : null
+      const others = key === null ? [] : read.records.filter((stored) => stored.record !== account && ibanOf(stored.record) === key).map((stored) => stored.record.name.trim())
+      return others.length === 0 ? null : words.ibanShared(listInWords(others), ibanKey(account.iban), account.currency)
     },
   )
 }

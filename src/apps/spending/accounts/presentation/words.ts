@@ -1,13 +1,14 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
-import type { Translation } from '../../../../shared/text/translation'
+import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // An account is račun, masculine, and an entry unos.
 
 export const en = {
   add: 'Add an account',
+  addedCount: (count: number): EnglishForms => ({ one: 'Account added', other: `${count} accounts added` }),
   allAccounts: 'All accounts',
   closedAccounts: 'Closed accounts',
   closed: 'Closed',
@@ -59,6 +60,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  addedCount: (count): CroatianForms => ({ one: `Dodan ${count} račun`, few: `Dodana ${count} računa`, other: `Dodano ${count} računa` }),
   add: 'Dodaj račun',
   allAccounts: 'Svi računi',
   closedAccounts: 'Zatvoreni računi',

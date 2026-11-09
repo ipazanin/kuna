@@ -14,6 +14,7 @@ import { differenceLine, olderRowsLine, pendingCaption, pendingLine } from './ba
 import { useBankSync } from './useBankSync'
 import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
+import { words as spendingWords } from '../../words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
@@ -91,7 +92,7 @@ function stateLine(line: SetupLine): string {
 async function add(proposals: readonly AccountProposal[], key: string): Promise<void> {
   const open = book.value
   if (open === null) return
-  await writes.write(plural(words.setup.added(proposals.length), proposals.length), (unit) => addBankAccounts(unit, open, proposals, today()), { key, failedTitle: words.setup.notAdded })
+  await writes.write(plural(accountWords.addedCount(proposals.length), proposals.length), (unit) => addBankAccounts(unit, open, proposals, today()), { key, failedTitle: spendingWords.form.notAdded })
 }
 
 async function update(account: Account, updated: Account, proposal: AccountProposal | null, key: string): Promise<void> {

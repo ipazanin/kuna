@@ -2,11 +2,11 @@ import { NO_SINGLE_CURRENCY } from './bankAnswer'
 import type { BankBalance, BankTransaction, LinkedAccount } from './bankAnswer'
 import { statedBalance } from './bankBalance'
 import { accountsOfLinked } from './bankLinks'
-import { openingFromBank } from './bankOpening'
-import type { BankOpening } from './bankOpening'
+import { openingFromBank } from '../../accounts/domain/bankOpening'
+import type { BankOpening } from '../../accounts/domain/bankOpening'
 import { bankSyncRows, pendingMoney } from './bankSyncRows'
 import type { SyncedRows } from './bankSyncRows'
-import { words } from './words'
+import { draftedAccount } from '../../accounts/domain/accountDraft'
 import type { Account, AccountKind } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import type { LinkableBank, SpendingSettings } from '../../workbook/domain/spendingSettings'
@@ -64,16 +64,9 @@ export function kindOfBankAccount(linked: Pick<LinkedAccount, 'cashAccountType' 
   return linked.cashAccountType === null ? null : 'bank'
 }
 
-/**
- * A new account as its bank describes it, named from the bank and the currency, opening at zero on the day. A name another
- * account already has gains the IBAN's last four characters. The holder's name never comes into it.
- */
+/** A new account as its bank describes it, opening at zero on the day. */
 export function draftAccount(linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode, id: RecordId, day: CivilDate, accounts: readonly Pick<Account, 'name'>[]): Account {
-  const kind = kindOfBankAccount(linked) ?? 'bank'
-  const iban = ibanKey(linked.iban)
-  const plain = words.draftName(bank, currency, kind === 'savings')
-  const name = iban !== '' && accounts.some((account) => account.name.trim() === plain) ? `${plain} ${iban.slice(-4)}` : plain
-  return { id, name, kind, bank, currency, opening: ZERO_ACCOUNT_MONEY, openedOn: day, iban, closed: false }
+  return { id, ...draftedAccount({ kind: kindOfBankAccount(linked) ?? 'bank', bank, currency, iban: ibanKey(linked.iban), opening: ZERO_ACCOUNT_MONEY, openedOn: day }, accounts) }
 }
 
 /** The draft with the opening the bank's rows and balance give, and the answer held for when it is added. */

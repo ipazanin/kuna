@@ -7,7 +7,14 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtXml, sampleTableFile } from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
-import { SAMPLE_REFUSED_FILE_NAME, SAMPLE_REVOLUT_FILE_NAME, sampleRefusedCsv, sampleRevolutCsv } from '../../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
+import {
+  SAMPLE_MISSING_FILE_NAME,
+  SAMPLE_REFUSED_FILE_NAME,
+  SAMPLE_REVOLUT_FILE_NAME,
+  sampleMissingAccountsCsv,
+  sampleRefusedCsv,
+  sampleRevolutCsv,
+} from '../../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
 import { SAMPLE_RECEIPT_TOTALS, jpegWithMadeUpPlace, sampleFiscalQrText, sampleReceiptPng } from '../../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
 import { sampleFlexReport } from '../../src/apps/investments/mail/infrastructure/fake/sampleFlexReport.ts'
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
@@ -30,13 +37,15 @@ export function writeFlexReportSamples(folder) {
   return { flexReport, misfit }
 }
 
-/** Writes the made-up Revolut exports of the day, one the fake Spending statements set pairs with and one the reader refuses. */
+/** Writes the made-up Revolut exports of the day: one the fake Spending statements set pairs with, one the reader refuses, and one in currencies no account keeps. */
 export function writeSpendingImportSamples(folder) {
   const revolut = join(folder, SAMPLE_REVOLUT_FILE_NAME)
   const refused = join(folder, SAMPLE_REFUSED_FILE_NAME)
   writeFileSync(revolut, sampleRevolutCsv(today()))
+  const missing = join(folder, SAMPLE_MISSING_FILE_NAME)
   writeFileSync(refused, sampleRefusedCsv(today()))
-  return { revolut, refused }
+  writeFileSync(missing, sampleMissingAccountsCsv(today()))
+  return { revolut, refused, missing }
 }
 
 /** Writes the made-up receipt photos of the day, each with a real QR code for the fake receipts set's payments, and one with no code. */

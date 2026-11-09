@@ -5,9 +5,10 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { writeDryRun } from '../application/statementWrites'
-import { revolutStatement } from '../domain/revolutStatement'
+import { addRevolutAccounts, revolutStatement } from '../domain/revolutStatement'
 import { statementDryRun } from '../domain/statementDryRun'
 import DryRunLines from './DryRunLines.vue'
+import MissingAccountsOffer from './MissingAccountsOffer.vue'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -48,6 +49,7 @@ const reading = computed(() => {
   return book === null || loaded.value === null ? null : revolutStatement(loaded.value.grid, loaded.value.name, book)
 })
 const refusal = computed(() => (reading.value !== null && 'refusal' in reading.value ? reading.value.refusal : null))
+const missing = computed(() => reading.value?.missing ?? [])
 const dryRun = computed(() => {
   const book = store.state.workbook
   return book === null || reading.value === null || !('statement' in reading.value) ? null : statementDryRun(book, reading.value.statement, today())
@@ -69,7 +71,8 @@ async function confirm(): Promise<void> {
           <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" aria-hidden="true" />
           {{ words.import.reading }}
         </p>
-        <UAlert v-if="unreadable !== null || refusal !== null" icon="i-lucide-file-x" color="error" variant="subtle" :title="unreadable ?? refusal ?? ''" data-testid="spending-import-refused" />
+        <MissingAccountsOffer v-if="refusal !== null && missing.length > 0" :title="refusal" :missing="missing" />
+        <UAlert v-else-if="unreadable !== null || refusal !== null" icon="i-lucide-file-x" color="error" variant="subtle" :title="unreadable ?? refusal ?? ''" data-testid="spending-import-refused" />
       </div>
     </AppCard>
     <AppCard v-if="dryRun !== null && loaded !== null" :title="loaded.name" data-testid="spending-dry-run">
@@ -78,6 +81,7 @@ async function confirm(): Promise<void> {
         <ul v-if="dryRun.notes.length > 0" class="flex flex-col gap-1 text-sm text-muted" data-testid="spending-dry-run-notes">
           <li v-for="note in dryRun.notes" :key="note">{{ note }}</li>
         </ul>
+        <MissingAccountsOffer v-if="missing.length > 0" :title="addRevolutAccounts(missing, 'savings')" :missing="missing" />
         <DryRunLines :lines="dryRun.lines" />
         <UButton
           v-if="changes > 0"

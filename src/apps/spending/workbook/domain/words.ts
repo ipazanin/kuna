@@ -29,8 +29,8 @@ export const en = {
   ibanOnCash: 'iban is for a bank or savings account, not cash',
   notAFlag: (name: string, text: string) => `${name} "${text}" is neither true nor false`,
   notAWholeNumber: (name: string, text: string) => `${name} "${text}" is not a whole number`,
-  ibanShared: (iban: string, currency: string) =>
-    `another account in ${currency} has the IBAN ${iban} too. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds`,
+  ibanShared: (accounts: string, iban: string, currency: string) =>
+    `your account ${accounts} already has the IBAN ${iban} in ${currency}. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds`,
   fixedWithParent: 'a fixed category has no parent',
   fixedShared: (kind: string) => `another category is of kind ${kind} too. Each of transfer, saving and company is one category`,
   noParent: 'names a parent that is not in the file',
@@ -76,8 +76,8 @@ export const hr: Translation<typeof en> = {
   ibanOnCash: 'iban vrijedi za bankovni ili štedni račun, ne za gotovinu',
   notAFlag: (name, text) => `${name} „${text}” nije ni true ni false`,
   notAWholeNumber: (name, text) => `${name} „${text}” nije cijeli broj`,
-  ibanShared: (iban, currency) =>
-    `i drugi račun u valuti ${currency} ima IBAN ${iban}. Banka kao Revolut daje svakoj valuti zaseban račun pod istim IBAN-om, pa postavite valutu u kojoj se ovaj račun vodi`,
+  ibanShared: (accounts, iban, currency) =>
+    `vaš račun ${accounts} već ima IBAN ${iban} u valuti ${currency}. Banka kao Revolut daje svakoj valuti zaseban račun pod istim IBAN-om, pa postavite valutu u kojoj se ovaj račun vodi`,
   fixedWithParent: 'stalna kategorija nema nadređenu',
   fixedShared: (kind) => `i druga kategorija je vrste „${kind}”. Svaka od vrsta „transfer”, „saving” i „company” jedna je kategorija`,
   noParent: 'navodi nadređenu kategoriju koje nema u datoteci',

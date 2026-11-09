@@ -1,6 +1,9 @@
 import type { StatementReading, StatementRow } from './statementRows'
 import { words } from './words'
+import { draftedAccount } from '../../accounts/domain/accountDraft'
+import { openingFromBank } from '../../accounts/domain/bankOpening'
 import { bankFeesCategory } from '../../categories/domain/starterCategories'
+import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { civilDateFromSerial, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -12,7 +15,9 @@ import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { decimalOf } from '../../../../shared/storage/domain/storedFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
+import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
+import type { CroatianForms, EnglishForms } from '../../../../shared/text/translation'
 
 /** A cell of a spreadsheet file: text, a number, a date as a serial number, or a flag. */
 type SheetCell = string | number | boolean | undefined
@@ -127,21 +132,49 @@ export function isRevolutExport(grid: readonly (readonly SheetCell[])[]): boolea
  * counted in a note. A row goes to the open Revolut account of its currency, or a closed one when no other fits, or a
  * `Savings` row to the Revolut savings account of that currency, left out with a note when there is none. A row of any other
  * product is left out with a note naming it. A current row and a savings row of the opposite amount in the same second are
- * a pocket move, whose legs share a time, as an exchange's do. A currency no
- * Revolut account keeps refuses the file, and so do two open accounts it could go to, and so
- * does a date or an amount that cannot be read, since a row left out would throw every balance after it. A fee becomes a
- * row of its own in Bank fees. A last balance its rows do not add up to is a note, per product.
+ * a pocket move, whose legs share a time, as an exchange's do. A current row of a currency no Revolut account keeps refuses
+ * the file, and so do two open accounts a row could go to, and so does a date or an amount that cannot be read, since a row
+ * left out would throw every balance after it. A fee becomes a row of its own in Bank fees. A last balance its rows do not
+ * add up to is a note, per product. Each account the file needs and Kuna does not keep comes drafted, every currency at once.
  */
 export function revolutStatement(grid: readonly (readonly SheetCell[])[], fileName: string, book: Pick<SpendingBook, 'accounts' | 'categories'>): StatementReading {
   try {
-    return { statement: readRows(grid, fileName, book) }
+    return readRows(grid, fileName, book)
   } catch (failure) {
-    if (failure instanceof Refused) return { refusal: failure.message }
+    if (failure instanceof Refused) return { refusal: failure.message, missing: [] }
     throw failure
   }
 }
 
-function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, book: Pick<SpendingBook, 'accounts' | 'categories'>): { label: string; rows: StatementRow[]; notes: string[] } {
+/**
+ * The Revolut account a product's rows in one currency need, opening on their first day at their first balance as their
+ * last balance and the rows give it, or at zero where the file prints no balance. Null for a currency Kuna does not keep.
+ */
+function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Account, 'name'>[]): Omit<Account, 'id'> | null {
+  const first = chain[0]!
+  const currency = currencyCodeOf(first.currency)
+  if (currency === null) return null
+  const rows = chain.map((row) => ({ date: row.started.date, amount: subtractAccountMoney(row.amount, absAccountMoney(row.fee)) }))
+  const stated =
+    chain
+      .filter((row) => row.balance !== null && row.completedAt !== '')
+      .sort((earlier, next) => earlier.completedAt.localeCompare(next.completedAt))
+      .at(-1)?.balance ?? null
+  const { opening, openedOn } = openingFromBank(rows, stated, first.started.date, false)
+  return draftedAccount({ kind: first.onSavings ? 'savings' : 'bank', bank: 'revolut', currency, iban: '', opening, openedOn }, accounts)
+}
+
+/** What to add to bring in the rows the drafted accounts would keep: the whole file when it was refused for them, else the savings rows left out. */
+export function addRevolutAccounts(missing: readonly Pick<Account, 'kind' | 'currency'>[], rows: 'file' | 'savings'): string {
+  const phrase = (kind: Account['kind'], forms: (count: number, currencies: string) => EnglishForms | CroatianForms): string[] => {
+    const currencies = missing.filter((account) => account.kind === kind).map((account) => account.currency)
+    return currencies.length === 0 ? [] : [plural(forms(currencies.length, listInWords(currencies)), currencies.length)]
+  }
+  const accounts = listInWords([...phrase('bank', words.revolutBankAccounts), ...phrase('savings', words.revolutSavingsAccounts)])
+  return rows === 'file' ? words.addToBringIn(accounts) : words.addToBringInSavings(accounts)
+}
+
+function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, book: Pick<SpendingBook, 'accounts' | 'categories'>): StatementReading {
   const headerAt = grid.findIndex((row) => !isBlank(row))
   const header = (grid[headerAt] ?? []).map((cell) => cellText(cell).toLowerCase())
   const place = new Map<Column, number>(COLUMNS.map((column) => [column, header.indexOf(column.toLowerCase())]))
@@ -190,6 +223,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
   const kept: Omit<StatementRow, 'importKey'>[] = []
   const facts: string[][] = []
   const fees: AccountMoney[] = []
+  const unkept = new Map<string, CompletedRow[]>()
 
   for (const row of completed) {
     const fitting = revolut.filter((candidate) => candidate.currency === row.currency && candidate.kind === (row.onSavings ? 'savings' : 'bank'))
@@ -197,8 +231,10 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
     if (open.length > 1) throw new Refused(words.manyRevolutAccounts(open.map((candidate) => candidate.name).join(', '), row.currency))
     const account = open[0] ?? fitting[0]
     if (account === undefined) {
-      if (!row.onSavings) throw new Refused(words.noRevolutAccount(row.currency))
-      savingsLeftOut.push(row.currency)
+      if (!row.onSavings && currencyCodeOf(row.currency) === null) throw new Refused(words.notACurrency(row.currency))
+      if (row.onSavings) savingsLeftOut.push(row.currency)
+      const product = `${row.onSavings ? 'Savings' : 'Current'} ${row.currency}`
+      unkept.set(product, [...(unkept.get(product) ?? []), row])
       continue
     }
     const pocketAt = pocketTimes.get(row)
@@ -216,6 +252,9 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
     facts.push([account.id, row.started.at, amountText(row.amount), amountText(row.fee), row.description])
     fees.push(row.fee)
   }
+
+  const missing = [...unkept.values()].flatMap((chain) => draftFor(chain, book.accounts) ?? [])
+  if (missing.some((account) => account.kind === 'bank')) return { refusal: addRevolutAccounts(missing, 'file'), missing }
 
   const keys = occurrenceKeys(facts)
   const rows = kept.flatMap((row, index): StatementRow[] => {
@@ -239,12 +278,17 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
           ]),
     ]
   })
+  const draftedSavings = new Set<string>(missing.filter((account) => account.kind === 'savings').map((account) => account.currency))
+  const undraftedSavings = savingsLeftOut.filter((currency) => !draftedSavings.has(currency))
   const notes = [
     ...(pending === 0 ? [] : [plural(words.pendingLeftOut(pending), pending)]),
     ...(otherStates === 0 ? [] : [plural(words.otherStatesLeftOut(otherStates), otherStates)]),
-    ...(savingsLeftOut.length === 0 ? [] : [plural(words.savingsLeftOut(savingsLeftOut.length, [...new Set(savingsLeftOut)].join(', ')), savingsLeftOut.length)]),
+    ...(undraftedSavings.length === 0 ? [] : [plural(words.savingsLeftOut(undraftedSavings.length, [...new Set(undraftedSavings)].join(', ')), undraftedSavings.length)]),
   ]
-  return { label: fileName, rows, notes: [...notes, ...balanceNotes(completed), ...[...otherProducts].map(([product, count]) => plural(words.otherProductLeftOut(count, product), count))] }
+  return {
+    statement: { label: fileName, rows, notes: [...notes, ...balanceNotes(completed), ...[...otherProducts].map(([product, count]) => plural(words.otherProductLeftOut(count, product), count))] },
+    missing,
+  }
 }
 
 function refuseRow(reason: string): never {

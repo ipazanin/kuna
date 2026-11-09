@@ -1,5 +1,5 @@
 import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
-import { revolutStatement } from '../../statements/domain/revolutStatement'
+import { addRevolutAccounts, revolutStatement } from '../../statements/domain/revolutStatement'
 import { transcribedImportKeys } from '../../statements/domain/statementRows'
 import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
@@ -17,6 +17,7 @@ import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { statementTies } from '../../../../shared/money/statementTies'
 import type { StatementTie } from '../../../../shared/money/statementTies'
+import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { decodedText } from '../../../../shared/text/decodedText'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { readFirstSheet } from '../../../../shared/xlsx/sheetGrids'
@@ -153,11 +154,19 @@ function copiedStatement(account: Account | null, opening: number | null, closin
   }
 }
 
-/** A sheet read by Spending's own reader, with nothing copied beside it. Its refusal quotes the file's cells, so the chat hears a fixed sentence and Entries, Import shows the reason. */
+/** Why an export is refused for the accounts it needs, with each drafted from the file for the chat to propose first. Each value is a currency code, a day or an amount Kuna worked out, never a cell's text. */
+function addAccountsFirst(missing: readonly Omit<Account, 'id'>[]): string {
+  const drafts = missing.map(
+    (account) => `name ${JSON.stringify(account.name)}, kind ${account.kind}, bank ${account.bank}, currency ${account.currency}, opening ${amountText(account.opening)}, openedOn ${account.openedOn}`,
+  )
+  return `${addRevolutAccounts(missing, 'file')}. Propose add-account on a card of its own first, once for each of these, and the import on the next card once that one is accepted: ${drafts.map((draft) => `(${draft})`).join(', ')}.`
+}
+
+/** A sheet read by Spending's own reader, with nothing copied beside it. Its refusal quotes the file's cells, so the chat hears a fixed sentence and Entries, Import shows the reason, unless it was refused for want of accounts. */
 function fromSheet(sheet: SheetRead, book: SpendingBook, copiedToo: boolean): StatementRows {
   if (copiedToo) throw new StepRefused(KUNA_READS_IT)
   const reading = revolutStatement(sheet.grid, sheet.name, book)
-  if ('refusal' in reading) throw new StepRefused(COPY_IT)
+  if ('refusal' in reading) throw new StepRefused(reading.missing.length > 0 ? addAccountsFirst(reading.missing) : COPY_IT)
   return reading.statement
 }
 

@@ -74,6 +74,7 @@ import { en as spendingReceiptsEnglish, hr as spendingReceiptsCroatian } from '.
 import { en as spendingReceiptNotesEnglish, hr as spendingReceiptNotesCroatian } from '../../src/apps/spending/receipts/domain/words.ts'
 import { en as spendingStatementsEnglish, hr as spendingStatementsCroatian } from '../../src/apps/spending/statements/presentation/words.ts'
 import { en as spendingStatementReadingEnglish, hr as spendingStatementReadingCroatian } from '../../src/apps/spending/statements/domain/words.ts'
+import { en as spendingAccountsEnglish, hr as spendingAccountsCroatian } from '../../src/apps/spending/accounts/presentation/words.ts'
 import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '../../src/apps/spending/bankSync/presentation/words.ts'
 import { en as spendingBankSyncReadingEnglish, hr as spendingBankSyncReadingCroatian } from '../../src/apps/spending/bankSync/domain/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
@@ -176,6 +177,7 @@ const SCREEN_WORDS = {
     spendingReceipts: spendingReceiptsEnglish,
     spendingReceiptNotes: spendingReceiptNotesEnglish,
     spendingStatementReading: spendingStatementReadingEnglish,
+    spendingAccounts: spendingAccountsEnglish,
     spendingBankSync: spendingBankSyncEnglish,
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
     spendingBudgets: spendingBudgetsEnglish,
@@ -260,6 +262,7 @@ const SCREEN_WORDS = {
     spendingReceipts: spendingReceiptsCroatian,
     spendingReceiptNotes: spendingReceiptNotesCroatian,
     spendingStatementReading: spendingStatementReadingCroatian,
+    spendingAccounts: spendingAccountsCroatian,
     spendingBankSync: spendingBankSyncCroatian,
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
     spendingBudgets: spendingBudgetsCroatian,
@@ -6378,6 +6381,56 @@ export function spendingImportRefusedFlowIn(language, paths) {
     await delay(300)
     await inspect?.('the refused Revolut export')
     await shoot('spending-import-refused')
+  }
+}
+
+/**
+ * Drops an export in currencies no account keeps: Import says which two accounts to add, drafted from the file, and adds
+ * both with one tap, after which the file's dry run shows. Undo takes both away and the offer comes back.
+ */
+export function spendingImportMissingFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  const reading = words.spendingStatementReading
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const offer = '[data-testid="spending-import-missing-accounts"]'
+    const wanted = reading.addToBringIn(language === 'en' ? 'Revolut bank accounts in GBP and CHF' : 'Revolutove bankovne račune u valutama GBP i CHF')
+    await dropSpendingFile(page, paths.missing)
+    await waitForTextIn(page, offer, wanted)
+    await countOf(page, '[data-testid="spending-import-missing-account"]', 2, 'the offer for the missing accounts')
+    if ((await page.$('[data-testid="spending-dry-run"]')) !== null) throw new Error('a file refused for its accounts still shows a dry run')
+    await delay(300)
+    await inspect?.('the accounts a Revolut export needs')
+    await shoot('spending-import-missing')
+    await pressSelector(page, press, '[data-testid="spending-import-add-accounts"]')
+    const added = words.spendingAccounts.addedCount(2)
+    await toast(page, language === 'en' ? added.other : added.few)
+    await spendingDryRunSays(page, words.spendingStatements.import.summary(4, 0, 0))
+    await delay(300)
+    await inspect?.('the dry run once its accounts are added')
+    await shoot('spending-import-missing-added')
+    await undoIn(page, press, words)
+    await waitForTextIn(page, offer, wanted)
+    await dismissToasts(page)
+  }
+}
+
+/** Drops the export whose pocket moves have no savings account: the dry run shows once, with the offer to add that account under its notes and no second note for the same gap. */
+export function spendingImportMissingSavingsFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const offer = '[data-testid="spending-dry-run"] [data-testid="spending-import-missing-accounts"]'
+    await dropSpendingFile(page, paths.revolut)
+    await spendingDryRunSays(page, words.spendingStatements.import.summary(8, 1, 1))
+    await page.waitForSelector(offer, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the dry run offers no savings account')
+    })
+    const notes = await page.$eval('[data-testid="spending-dry-run-notes"]', (element) => element.textContent ?? '')
+    if (/savings rows? left out|redaka štednje/i.test(notes)) throw new Error(`the dry run notes repeat the savings gap: ${notes}`)
+    await delay(300)
+    await inspect?.('the dry run with its savings offer')
+    await shoot('spending-import-missing-savings')
   }
 }
 

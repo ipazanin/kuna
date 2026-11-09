@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
+import { addRevolutAccounts, revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
 import type { StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { account, ACCOUNTS, CATEGORIES, category, REVOLUT_EUR, REVOLUT_USD } from './fixtures/spending'
@@ -34,7 +34,7 @@ describe("Revolut's export", () => {
     const place = HEADER.indexOf(column)
     const without = [HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Corner market', '-5.00')].map((row) => row.filter((_cell, index) => index !== place))
 
-    expect(revolutStatement(without, 'export.csv', BOOK)).toEqual({ refusal: `The file has no ${column} column` })
+    expect(revolutStatement(without, 'export.csv', BOOK)).toEqual({ refusal: `The file has no ${column} column`, missing: [] })
   })
 
   it('finds the columns by their names, in any order', () => {
@@ -122,16 +122,63 @@ describe("Revolut's export", () => {
     const second = account(8, { ...REVOLUT_EUR, name: 'Second Revolut' })
     const reading = revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00')], 'export.csv', { accounts: [REVOLUT_EUR, second], categories: CATEGORIES })
 
-    expect(reading).toEqual({ refusal: 'More than one open Revolut account keeps EUR: Revolut EUR, Second Revolut. Close the one the file is not for' })
+    expect(reading).toEqual({ refusal: 'More than one open Revolut account keeps EUR: Revolut EUR, Second Revolut. Close the one the file is not for', missing: [] })
   })
 
-  it('refuses a file in a currency no Revolut account keeps', () => {
-    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'GBP')], 'export.csv', BOOK)).toEqual({
-      refusal: 'The file is in GBP, and no Revolut account keeps GBP',
+  it('refuses a file in currencies no Revolut account keeps, saying what to add for every currency at once, each drafted from the file', () => {
+    const at = (started: string, amount: string, fee: string, currency: string, balance: string, product = 'Current') => {
+      const row = line('CARD_PAYMENT', started, 'Pub', amount, fee, currency, 'COMPLETED', product)
+      row[9] = balance
+      return row
+    }
+    const reading = revolutStatement(
+      [
+        HEADER,
+        // GBP opens at 100.00: the last balance 85.00 less the rows, -10.00 and -5.00 with a 0.00 and a 0.00 fee.
+        at('2026-10-02 10:00:00', '-10.00', '0.00', 'GBP', '90.00'),
+        at('2026-10-04 10:00:00', '-5.00', '0.00', 'GBP', '85.00'),
+        // CHF reaches back to an empty account, so it opens at zero the day before its first row.
+        at('2026-10-03 10:00:00', '20.00', '0.00', 'CHF', '20.00'),
+        at('2026-10-05 10:00:00', '7.00', '0.00', 'GBP', '7.00', 'Savings'),
+        line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Kept', '-1.00'),
+      ],
+      'export.csv',
+      BOOK,
+    )
+
+    expect(reading).toEqual({
+      refusal: 'Add Revolut bank accounts in GBP and CHF and a Revolut savings account in GBP to bring in this file',
+      missing: [
+        { name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(100), openedOn: civil('2026-10-02'), closed: false },
+        { name: 'Revolut CHF', kind: 'bank', bank: 'revolut', currency: 'CHF', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-02'), closed: false },
+        { name: 'Revolut GBP savings', kind: 'savings', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-04'), closed: false },
+      ],
     })
   })
 
-  it('leaves a Savings row out with a note without a Revolut savings account, and sends it to one when there is', () => {
+  it('drafts a missing account at zero on its first day when the file prints no balance', () => {
+    const reading = revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'GBP')], 'export.csv', BOOK)
+
+    expect(reading).toEqual({
+      refusal: 'Add a Revolut bank account in GBP to bring in this file',
+      missing: [{ name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-01'), closed: false }],
+    })
+  })
+
+  it('refuses a currency Kuna does not know, naming it', () => {
+    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'XYZ')], 'export.csv', BOOK)).toEqual({
+      refusal: 'The file has rows in "XYZ", which is not a currency code such as EUR or USD',
+      missing: [],
+    })
+  })
+
+  it('keeps the savings note for a currency Kuna cannot draft an account for', () => {
+    const row = line('TRANSFER', '2026-10-01 10:00:00', 'To pocket', '-5.00', '0.00', 'XYZ', 'COMPLETED', 'Savings')
+
+    expect(read([row]).notes).toEqual(['1 savings row left out, since no Revolut savings account keeps XYZ.'])
+  })
+
+  it('leaves a Savings row out without a note when it drafts the savings account, and sends it to one when there is', () => {
     const row = line('TRANSFER', '2026-10-01 10:00:00', 'To pocket', '-5.00', '0.00', 'EUR', 'COMPLETED', 'Savings')
     const left = read([row])
     const savings = account(9, {
@@ -146,7 +193,11 @@ describe("Revolut's export", () => {
     })
 
     expect(left.rows).toEqual([])
-    expect(left.notes).toEqual(['1 savings row left out, since no Revolut savings account keeps EUR.'])
+    expect(left.notes).toEqual([])
+    expect(revolutStatement([HEADER, row], 'export.csv', BOOK).missing).toEqual([
+      { name: 'Revolut EUR savings', kind: 'savings', bank: 'revolut', currency: 'EUR', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-01'), closed: false },
+    ])
+    expect(addRevolutAccounts(revolutStatement([HEADER, row], 'export.csv', BOOK).missing, 'savings')).toBe('Add a Revolut savings account in EUR to bring in the savings rows left out')
     expect(read([row], { accounts: [...ACCOUNTS, savings], categories: CATEGORIES }).rows[0]?.account).toBe(savings.id)
   })
 
@@ -188,7 +239,7 @@ describe("Revolut's export", () => {
       const { rows, notes } = read([current('-20.00'), savingsRow('20.00')])
 
       expect(rows).toMatchObject([{ account: REVOLUT_EUR.id, movedAt: POCKET_AT, pocket: true }])
-      expect(notes).toEqual(['1 savings row left out, since no Revolut savings account keeps EUR.'])
+      expect(notes).toEqual([])
     })
 
     it('finds the legs across a serial and a text', () => {
@@ -280,12 +331,18 @@ describe("Revolut's export", () => {
   })
 
   it('refuses a date or an amount it cannot read, since a row left out would throw the balance', () => {
-    expect(revolutStatement([HEADER, line('CARD_PAYMENT', 'soon', 'Pub', '-5.00')], 'export.csv', BOOK)).toEqual({ refusal: 'Row 2 of the file starts on "soon", which is not a date' })
-    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5,00')], 'export.csv', BOOK)).toEqual({ refusal: 'Row 2 of the file holds "-5,00", which is not an amount' })
+    expect(revolutStatement([HEADER, line('CARD_PAYMENT', 'soon', 'Pub', '-5.00')], 'export.csv', BOOK)).toEqual({ refusal: 'Row 2 of the file starts on "soon", which is not a date', missing: [] })
+    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5,00')], 'export.csv', BOOK)).toEqual({
+      refusal: 'Row 2 of the file holds "-5,00", which is not an amount',
+      missing: [],
+    })
   })
 
   it('refuses a blank amount, and reads a blank fee as none', () => {
-    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '')], 'export.csv', BOOK)).toEqual({ refusal: 'Row 2 of the file holds "", which is not an amount' })
+    expect(revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '')], 'export.csv', BOOK)).toEqual({
+      refusal: 'Row 2 of the file holds "", which is not an amount',
+      missing: [],
+    })
     expect(read([line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '')]).rows).toHaveLength(1)
   })
 

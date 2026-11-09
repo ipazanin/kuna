@@ -154,12 +154,12 @@ describe('problems in the Spending file, listed by kind', () => {
       [
         'account',
         'Revolut EUR',
-        'another account in EUR has the IBAN LT000000000000000001 too. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds',
+        'your account Revolut EUR again already has the IBAN LT000000000000000001 in EUR. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds',
       ],
       [
         'account',
         'Revolut EUR again',
-        'another account in EUR has the IBAN LT000000000000000001 too. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds',
+        'your account Revolut EUR already has the IBAN LT000000000000000001 in EUR. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds',
       ],
     ])
   })

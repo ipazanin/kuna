@@ -5,7 +5,7 @@ import { subtractAccountMoney, sumAccountMoney, ZERO_ACCOUNT_MONEY } from '../..
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 
 /**
- * Where an opening drafted from a bank comes from: `start` when the rows reach back to an empty account, `worked` when it is
+ * Where an opening drafted from a bank or its file comes from: `start` when the rows reach back to an empty account, `worked` when it is
  * the bank's balance less the rows, `pending` when it is worked out the same way but the bank's balance may count rows that
  * have not booked, and `guess` when the bank gave no balance, so it is zero until you check it.
  */
@@ -20,7 +20,7 @@ export interface BankOpening {
 }
 
 /**
- * What an account held at the start of the first day its bank gave a row, which is the bank's balance less every row from
+ * What an account held at the start of the first day its bank or its file gave a row, which is the bank's balance less every row from
  * that day on. A zero means the rows reach back to an empty account, so it opens at zero the day before. With no rows it
  * opens on the day at the balance. While the bank holds pending rows a zero proves nothing, since its balance may count them.
  */

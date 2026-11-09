@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { balanceDifferences } from '../src/apps/spending/bankSync/domain/bankBalance'
-import { openingFromBank } from '../src/apps/spending/bankSync/domain/bankOpening'
+import { openingFromBank } from '../src/apps/spending/accounts/domain/bankOpening'
 import { accountMoneyFromAmount, accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import { civil } from './fixtures/ledger'
 import { OTP, row } from './fixtures/spending'

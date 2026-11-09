@@ -5,7 +5,13 @@ import { spendingFigures } from '../src/apps/spending/analytics/presentation/spe
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
-import { SAMPLE_REVOLUT_FILE_NAME, sampleRefusedCsv, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
+import {
+  SAMPLE_MISSING_FILE_NAME,
+  SAMPLE_REVOLUT_FILE_NAME,
+  sampleMissingAccountsCsv,
+  sampleRefusedCsv,
+  sampleRevolutCsv,
+} from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
 import { readFirstSheet } from '../src/shared/xlsx/sheetGrids'
 import { fakeSpendingDocument, fakeStarterDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import type { FakeSpendingSet } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
@@ -14,6 +20,7 @@ import type { WorkbookDocument } from '../src/shared/storage/infrastructure/docu
 import { monthOf } from '../src/shared/calendar/monthKey'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { civil, euros } from './fixtures/ledger'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 
 const SAVED_AT = '2026-11-04T09:00:00.000Z'
 
@@ -81,11 +88,7 @@ describe("the fake build's Spending sets", () => {
 
     const run = statementDryRun(book, reading.statement, civil(day))
 
-    expect(reading.statement.notes).toEqual([
-      '1 pending row left out. It comes with the next export.',
-      '1 reverted or declined row left out.',
-      '2 savings rows left out, since no Revolut savings account keeps EUR.',
-    ])
+    expect(reading.statement.notes).toEqual(['1 pending row left out. It comes with the next export.', '1 reverted or declined row left out.'])
     expect(run).toMatchObject({ newRows: 8, alreadyIn: 1, filled: 1 })
     expect(run.notes).toContain('1 pocket move counts as a transfer and waits for a Revolut savings account.')
     expect(run.added.map((row) => row.payee)).toEqual([
@@ -103,7 +106,20 @@ describe("the fake build's Spending sets", () => {
   it('refuse the sample export without its Fee column', async () => {
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil('2026-11-04')))
 
-    expect(revolutStatement(await readFirstSheet(sampleRefusedCsv(civil('2026-11-04'))), SAMPLE_REVOLUT_FILE_NAME, book)).toEqual({ refusal: 'The file has no Fee column' })
+    expect(revolutStatement(await readFirstSheet(sampleRefusedCsv(civil('2026-11-04'))), SAMPLE_REVOLUT_FILE_NAME, book)).toEqual({ refusal: 'The file has no Fee column', missing: [] })
+  })
+
+  it('offer the two accounts the sample export in GBP and CHF needs, each opening at the balance before its first row', async () => {
+    const day = civil('2026-11-04')
+    const reading = revolutStatement(await readFirstSheet(sampleMissingAccountsCsv(day)), SAMPLE_MISSING_FILE_NAME, bookOf(fakeSpendingDocument(SAVED_AT, 'statements', day)))
+
+    expect('refusal' in reading && reading.refusal).toBe('Add Revolut bank accounts in GBP and CHF to bring in this file')
+    expect(reading.missing.map((account) => [account.name, account.openedOn, account.opening])).toEqual([
+      // 331.50 less the rows, -18.50 and 100.00.
+      ['Revolut GBP', civil('2026-10-29'), accountMoneyFromAmount(250)],
+      // 57.50 less the row of -42.00 and its fee of 0.50.
+      ['Revolut CHF', civil('2026-11-01'), accountMoneyFromAmount(100)],
+    ])
   })
 
   it('hold only the dollar account and its row in the foreign set', () => {

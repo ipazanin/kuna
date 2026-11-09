@@ -20,6 +20,9 @@ export const en = {
     nothing: 'Nothing here is new.',
     imported: 'Statement imported',
     notImported: 'Not imported',
+    addAccount: 'Add this account',
+    addAccounts: 'Add these accounts',
+    draftLine: (name: string, day: CivilDate, opening: string) => `${name}, opening on ${dayLabel(day)} with ${opening}`,
     outcome: {
       alreadyIn: 'Already in',
       coveredByFile: 'A file covers this day',
@@ -89,6 +92,9 @@ export const hr: Translation<typeof en> = {
     nothing: 'Ovdje nema ničega novog.',
     imported: 'Izvod je uvezen',
     notImported: 'Nije uvezeno',
+    addAccount: 'Dodaj ovaj račun',
+    addAccounts: 'Dodaj ove račune',
+    draftLine: (name, day, opening) => `${name}, otvara se ${dayLabel(day)} sa stanjem ${opening}`,
     outcome: {
       alreadyIn: 'Već uneseno',
       coveredByFile: 'Ovaj dan pokriva datoteka',

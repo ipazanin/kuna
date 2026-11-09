@@ -1,3 +1,4 @@
+import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
@@ -37,5 +38,8 @@ export interface StatementRows {
   readonly notes: readonly string[]
 }
 
-/** A file a reader could read, or why it could not. */
-export type StatementReading = { readonly statement: StatementRows } | { readonly refusal: string }
+/**
+ * A file a reader could read, or why it could not, with the accounts its rows need that Kuna does not keep, drafted from the
+ * file. A file read without them leaves their rows out with a note. A refusal names them when they are why.
+ */
+export type StatementReading = ({ readonly statement: StatementRows } | { readonly refusal: string }) & { readonly missing: readonly Omit<Account, 'id'>[] }
