@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 
 import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
@@ -196,10 +197,10 @@ describe('the run', () => {
 })
 
 describe('the PDF', () => {
-  const files = 'node_modules/@fontsource/inter/files/'
+  const fontFile = (name: string) => readFileSync(createRequire(import.meta.url).resolve(`@fontsource/inter/files/${name}.woff`))
   const pair = (weight: number, style: string) => ({
-    latin: readFileSync(`${files}inter-latin-${weight}-${style}.woff`),
-    extended: readFileSync(`${files}inter-latin-ext-${weight}-${style}.woff`),
+    latin: fontFile(`inter-latin-${weight}-${style}`),
+    extended: fontFile(`inter-latin-ext-${weight}-${style}`),
   })
   const fonts: InvoiceFontFiles = { regular: pair(400, 'normal'), bold: pair(600, 'normal'), italic: pair(400, 'italic') }
 
