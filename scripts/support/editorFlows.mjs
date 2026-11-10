@@ -86,7 +86,20 @@ import { starterCategories } from '../../src/apps/spending/categories/domain/sta
 import { formatMoney } from '../../src/shared/money/moneyFormat.ts'
 import { openEachMenuIn } from './menuFlows.mjs'
 import { settleCharts } from './settleCharts.mjs'
-import { MADE_UP_ANTHROPIC_KEY, TWO_KEYS_ANONYMISE_OFF, acceptLooksReady, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, savedChatGone, sendInChat } from './chatFlows.mjs'
+import {
+  MADE_UP_ANTHROPIC_KEY,
+  TWO_KEYS_ANONYMISE_OFF,
+  acceptLooksReady,
+  allowIfAsked,
+  forgetAssist,
+  giveThePageBack,
+  keepAiKey,
+  newChat,
+  openChat,
+  savedCardEnded,
+  savedChatGone,
+  sendInChat,
+} from './chatFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
@@ -8908,6 +8921,7 @@ export function chatProposeFlowIn(language) {
       await shoot('chat-proposal-done')
       await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
       await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.undone], 'Undo did not say it was undone')
+      await savedCardEnded(page, 'undone')
 
       await page.reload({ waitUntil: 'networkidle0' })
       if ((await page.$('[data-testid="chat-panel"]')) === null) await pressSelector(page, press, '[data-testid="chat-open"]')

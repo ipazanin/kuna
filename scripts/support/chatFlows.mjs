@@ -76,14 +76,14 @@ export async function allowIfAsked(page, press) {
 }
 
 /**
- * Waits until this browser keeps no chat, as New chat forgets it in the background. A reload must not race that, and
- * neither must the next flow of a touch session, or that flow opens on the chat brought back instead of an empty one.
+ * Waits until this browser keeps the chat a reload should bring back: none at all when `cardState` is null, or one whose
+ * card ended in `cardState`. The chat is kept in the background, so a reload that does not wait can race it.
  */
-export async function savedChatGone(page) {
+async function savedChatSettled(page, cardState, failure) {
   await page
     .waitForFunction(
-      async () => {
-        if (!(await indexedDB.databases()).some((database) => database.name === 'kuna-chat')) return true
+      async (wanted) => {
+        if (!(await indexedDB.databases()).some((database) => database.name === 'kuna-chat')) return wanted === null
         return new Promise((resolve) => {
           const opening = indexedDB.open('kuna-chat')
           opening.onerror = () => resolve(false)
@@ -92,16 +92,28 @@ export async function savedChatGone(page) {
             const reading = database.transaction('chat').objectStore('chat').get('last')
             reading.onsuccess = () => {
               database.close()
-              resolve(reading.result === undefined)
+              const kept = reading.result
+              resolve(wanted === null ? kept === undefined : (kept?.lines ?? []).some((line) => line.proposals.some((proposal) => proposal.state === wanted)))
             }
           }
         })
       },
       { timeout: 5_000, polling: 100 },
+      cardState,
     )
     .catch(() => {
-      throw new Error('New chat left the chat kept in this browser')
+      throw new Error(failure)
     })
+}
+
+/** Waits until this browser keeps no chat, so neither a reload nor the next flow of a touch session opens on the chat brought back. */
+export async function savedChatGone(page) {
+  await savedChatSettled(page, null, 'New chat left the chat kept in this browser')
+}
+
+/** Waits until this browser keeps a card that ended in `state`, so a reload brings it back as it ended. */
+export async function savedCardEnded(page, state) {
+  await savedChatSettled(page, state, `this browser never kept a card that ended ${state}`)
 }
 
 /** Starts a new chat, unless the chat is empty, and waits until this browser keeps none, so the next flow opens on an empty chat. */
