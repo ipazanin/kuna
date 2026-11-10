@@ -1,6 +1,6 @@
 /**
  * The few things Chrome cannot show, run in real Firefox against the fake build: the sidebar and a
- * dialog with classic scrollbars taking room, focus shown by a call and by the keyboard, the chat, a
+ * dialog with classic scrollbars taking room, focus shown by a call and by the keyboard, the chat, the chat's prompt keeping a new line in view past six rows, a
  * photo and a sheet picked through the chat's file input, a streamed answer read through the app's
  * own reader, Cmd+K or Ctrl+K taken from Firefox's search bar, the chat's edge by drag and keyboard, and the warning on leaving during a save.
  *
@@ -142,6 +142,33 @@ await step('chat', async (page) => {
   await page.waitForSelector('[data-testid="chat-answer"]', VISIBLE).catch(() => {
     throw new Error('the chat gave no answer')
   })
+})
+
+await step('prompt', async (page) => {
+  await open(page, 'fake=drive&spending=sample', '/spending')
+  await page.waitForSelector('[data-testid="nav-apps"]', VISIBLE)
+  await keepAiKey(page)
+  await openChat(page, click)
+  const prompt = await pressSelector(page, click, 'textarea[data-testid="chat-prompt"]')
+  for (let line = 1; line <= 9; line++) {
+    await prompt.type(`Line ${line}`)
+    await page.keyboard.down('Shift')
+    await page.keyboard.press('Enter')
+    await page.keyboard.up('Shift')
+  }
+  await page
+    .waitForFunction(
+      () => {
+        const field = document.querySelector('textarea[data-testid="chat-prompt"]')
+        const style = getComputedStyle(field)
+        const lines = field.value.slice(0, field.selectionStart).split('\n').length
+        return parseFloat(style.paddingTop) + lines * parseFloat(style.lineHeight) - field.scrollTop <= field.clientHeight
+      },
+      { timeout: 3_000 },
+    )
+    .catch(() => {
+      throw new Error('the new line is below what the prompt shows')
+    })
 })
 
 await step('attach', async (page) => {

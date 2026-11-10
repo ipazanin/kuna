@@ -44,6 +44,7 @@ import {
 } from './chatSession'
 import type { MessageOrigin } from './chatSession'
 import { anonymisingNow, providerInUse } from './aiProvider'
+import { useCaretInView } from './useCaretInView'
 import { words } from './words'
 
 /**
@@ -80,6 +81,7 @@ onMounted(() => {
 })
 onUnmounted(() => sendChatFrom(null))
 const panel = useTemplateRef<HTMLElement>('panel')
+useCaretInView(() => panel.value?.querySelector('textarea'), chatDraft)
 
 /** The card's buttons leave with the card, so focus goes back to the prompt. A phone keeps its keyboard down. */
 watch(asking, (message) => {
