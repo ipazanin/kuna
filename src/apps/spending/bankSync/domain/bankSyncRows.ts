@@ -1,8 +1,7 @@
 import type { BankTransaction } from './bankAnswer'
-import { words } from './words'
 import { syncMoves } from '../../pairing/domain/syncMoves'
 import { BANK_SYNC_KEY_PREFIX } from '../../statements/domain/statementRows'
-import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
+import type { StatementRow } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import { ibanKey } from '../../workbook/domain/accountReading'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
@@ -12,7 +11,6 @@ import { decimalOfText } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
 import { decimalOf } from '../../../../shared/storage/domain/storedFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
-import { plural } from '../../../../shared/text/translation'
 
 /** The label each row the sync brings carries. */
 export const BANK_SYNC_LABEL = 'Enable Banking'
@@ -24,8 +22,21 @@ const PENDING_STATUSES: readonly string[] = ['PDNG', 'HOLD']
 const KNOWN_DIRECTIONS: readonly string[] = ['CRDT', 'DBIT']
 
 /** The rows of one account a sync read, and the exchange rate the bank gave on those that carry one. */
-export interface SyncedRows extends StatementRows {
+export interface SyncedRows {
+  readonly label: string
+  readonly rows: readonly StatementRow[]
   readonly exchangeRates: ReadonlyMap<StatementRow, Decimal>
+  readonly leftOut: LeftOutRows
+}
+
+/** How many rows of the answer a sync did not read, by why. */
+export interface LeftOutRows {
+  /** Rows that may still book or change, which come with a later sync. */
+  readonly pending: number
+  /** Rows of no amount, since an entry is never zero. */
+  readonly zero: number
+  /** Rows whose day or amount cannot be read. */
+  readonly unreadable: number
 }
 
 /** What a row would be, before its key. */
@@ -69,7 +80,7 @@ function keyFacts(transaction: BankTransaction, row: KeylessRow): readonly strin
 
 /**
  * The booked transactions in the account's currency as statement rows on the account. A pending one may still change or go
- * away, so it is left out with a note, as in Revolut's files, and comes with a later sync once booked. One of no amount is
+ * away, so it is left out and counted, as in Revolut's files, and comes with a later sync once booked. One of no amount is
  * left out too, since an entry is never zero, and so is one whose day or amount cannot be read, so that one row the bank
  * keeps sending never stops the rest.
  */
@@ -95,11 +106,7 @@ export function bankSyncRows(answer: readonly BankTransaction[], account: Accoun
         return rate === null ? [] : [[row, rate] as const]
       }),
     ),
-    notes: [
-      ...(pending === 0 ? [] : [plural(words.pendingLeftOut(pending, account.name), pending)]),
-      ...(zero === 0 ? [] : [plural(words.zeroLeftOut(zero, account.name), zero)]),
-      ...(unreadable === 0 ? [] : [plural(words.unreadableLeftOut(unreadable, account.name), unreadable)]),
-    ],
+    leftOut: { pending, zero, unreadable },
   }
 }
 

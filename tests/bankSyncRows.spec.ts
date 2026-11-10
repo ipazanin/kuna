@@ -31,10 +31,10 @@ const TRANSACTION: BankTransaction = {
 const statementOf = (answer: readonly BankTransaction[], account: Account = OTP): SyncedRows => bankSyncRows(answer, account)
 
 describe('bankSyncRows', () => {
-  it('leaves out a row with no direction with the note for rows it cannot read, since it might be money in or out', () => {
-    const { rows, notes } = statementOf([{ ...TRANSACTION, direction: '' }])
+  it('leaves out a row with no direction and counts it among the rows it cannot read, since it might be money in or out', () => {
+    const { rows, leftOut } = statementOf([{ ...TRANSACTION, direction: '' }])
     expect(rows).toEqual([])
-    expect(notes).toEqual(['1 row of OTP current left out, since its day or amount cannot be read.'])
+    expect(leftOut).toEqual({ pending: 0, zero: 0, unreadable: 1 })
   })
 
   it('turns a debit into money out, dated on the day of the transaction and keyed by the bank reference', () => {
@@ -67,9 +67,9 @@ describe('bankSyncRows', () => {
   })
 
   it('leaves a pending row out with a note', () => {
-    const { rows, notes } = statementOf([TRANSACTION, { ...TRANSACTION, reference: null, status: 'PDNG' }])
+    const { rows, leftOut } = statementOf([TRANSACTION, { ...TRANSACTION, reference: null, status: 'PDNG' }])
     expect(rows).toHaveLength(1)
-    expect(notes).toEqual([`1 pending row of ${OTP.name} left out. It comes once it is booked.`])
+    expect(leftOut).toEqual({ pending: 1, zero: 0, unreadable: 0 })
   })
 
   it('adds up the pending rows in the currency in cents, money out below zero', () => {
@@ -84,9 +84,9 @@ describe('bankSyncRows', () => {
   })
 
   it('leaves a row of no amount out, since an entry is never zero', () => {
-    const { rows, notes } = statementOf([{ ...TRANSACTION, amount: '0.00' }])
+    const { rows, leftOut } = statementOf([{ ...TRANSACTION, amount: '0.00' }])
     expect(rows).toEqual([])
-    expect(notes).toEqual([`1 row of ${OTP.name} without an amount left out.`])
+    expect(leftOut).toEqual({ pending: 0, zero: 1, unreadable: 0 })
   })
 
   it('takes only the rows in the currency of the account', () => {
@@ -129,9 +129,9 @@ describe('bankSyncRows', () => {
   })
 
   it('leaves out a row whose day or amount it cannot read, with a note, and keeps the rest', () => {
-    const { rows, notes } = statementOf([TRANSACTION, { ...TRANSACTION, madeOn: 'soon' }, { ...TRANSACTION, amount: 'a lot' }])
+    const { rows, leftOut } = statementOf([TRANSACTION, { ...TRANSACTION, madeOn: 'soon' }, { ...TRANSACTION, amount: 'a lot' }])
     expect(rows).toHaveLength(1)
-    expect(notes).toEqual([`2 rows of ${OTP.name} left out, since their day or amount cannot be read.`])
+    expect(leftOut).toEqual({ pending: 0, zero: 0, unreadable: 2 })
   })
 
   it.each([

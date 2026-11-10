@@ -35,6 +35,8 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ['a scale in a template', SCREEN, '<script setup lang="ts">\nconst a = 1\n</script>\n<template><p>{{ a * 100 }}</p></template>', 'kuna/money-scale'],
     ['Math.round', DOMAIN, 'export const a = (b: number) => Math.round(b)', 'kuna/domain-rounding'],
     ['Math.round in a ruleset', 'src/apps/company/packs/planted/ruleset/planted.ts', 'export const a = (b: number) => Math.round(b)', 'kuna/domain-rounding'],
+    ['a words import in domain code', DOMAIN, "import { words } from './words'", 'kuna/domain-words'],
+    ['a words import from another feature', DOMAIN, "import { words } from '../../shared/text/words'", 'kuna/domain-words'],
     ['a class', DOMAIN, 'export class Loan {}', 'kuna/domain-classes'],
     ['a class expression', DOMAIN, 'export const Loan = class {}', 'kuna/domain-classes'],
   ])('refuses %s', async (_name, file, code, rule) => {
@@ -50,6 +52,8 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ['a rule row at 100%', 'src/apps/company/packs/planted/ruleset/rules/planted.ts', 'export const a = basisPoints(10_000)'],
     ['a duration of ten seconds', DOMAIN, 'export const UNDO_DURATION = 10_000'],
     ['Math.round on a screen', 'src/apps/loans/planted/presentation/planted.ts', 'export const a = (b: number) => Math.round(b)'],
+    ['a words import beside a screen', 'src/apps/loans/planted/presentation/planted.ts', "import { words } from './words'"],
+    ['an import of a file that only ends in words', DOMAIN, "import { swords } from './swords'"],
     ['an Error subclass', DOMAIN, 'export class Refused extends Error {}'],
     ['a class on a screen', 'src/apps/loans/planted/presentation/planted.ts', 'export class Loan {}'],
   ])('allows %s', async (_name, file, code) => {

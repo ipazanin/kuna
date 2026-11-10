@@ -163,6 +163,12 @@ describe('a fetch', () => {
       expect(differences.map((difference) => difference.fixedOpening)).toEqual([null])
     })
 
+    it('notes the pending rows it left out, by account', async () => {
+      const pending: BankTransaction = { ...BANK, reference: 'ref-2', status: 'PDNG' }
+      const { dryRun } = await importerOver(portOf({ balances: stated('1.00', 'ITAV'), transactions: async () => [BANK, pending] }), storeOver(bookOf([])).store).run(false)
+      expect(dryRun.notes).toContain('1 pending row of OTP current left out. It comes once it is booked.')
+    })
+
     describe('with a pending card payment', () => {
       const card: BankTransaction = { ...BANK, reference: null, amount: '0.80', status: 'PDNG' }
       // The available balance counts the pending 0.80 on top of the opening less the booked 6.50.

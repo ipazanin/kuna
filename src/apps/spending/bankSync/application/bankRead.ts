@@ -143,7 +143,10 @@ export async function readBanks(
         const statement = bankSyncRows(answer, account)
         rows.push(...statement.rows)
         statement.exchangeRates.forEach((rate, row) => exchangeRates.set(row, rate))
-        notes.push(...statement.notes)
+        const { pending, zero, unreadable } = statement.leftOut
+        if (pending > 0) notes.push(plural(words.pendingLeftOut(pending, account.name), pending))
+        if (zero > 0) notes.push(plural(words.zeroLeftOut(zero, account.name), zero))
+        if (unreadable > 0) notes.push(plural(words.unreadableLeftOut(unreadable, account.name), unreadable))
         const missing = freshLinks.includes(bank) ? null : olderRowsMissing(account, starts[place]!, statement.rows, book.transactions, day)
         if (missing !== null) olderRows.push({ bank, account, reached: missing.reached })
       })

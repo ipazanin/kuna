@@ -78,6 +78,7 @@ A change that means to move a figure states it. Land it in a commit of its own, 
 | No cast to a money brand            | `kuna/money-casts`               | `moneyCasts` in `scripts/lint-baseline.json`, empty |
 | No hand scaling by 100 or 10,000    | `kuna/money-scale`               | `moneyScale`, empty                                 |
 | No `Math.round` in domain code      | `kuna/domain-rounding`           | `domainRounding`, empty                             |
+| No `words` import in domain code    | `kuna/domain-words`              | `domainWords`, only shrinks                         |
 | Formatters take a brand             | `npm run typecheck`              | None                                                |
 | No class in domain code             | `kuna/domain-classes`            | None                                                |
 | Brands declared by their owners     | `tests/importBoundaries.spec.ts` | `BRAND_OWNERS`                                      |

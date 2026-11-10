@@ -64,7 +64,10 @@ const BANK: BankTransaction = {
   exchangeRate: null,
 }
 
-const syncOf = (answer: readonly BankTransaction[]): StatementRows => bankSyncRows(answer, OTP)
+function syncOf(answer: readonly BankTransaction[]): StatementRows {
+  const { label, rows } = bankSyncRows(answer, OTP)
+  return { label, rows, notes: [] }
+}
 
 function fileRow(place: number, date = '2026-10-28', amount = -6.5): Transaction {
   return row(OTP, date, amount, null, { payee: 'Corner bakery', source: 'statement', importKey: `0123456789abcdef-${place}`, statement: 'statement.csv' })

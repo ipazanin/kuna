@@ -152,6 +152,10 @@ const kunaPlugin = {
       ["CallExpression[callee.object.name='Math'][callee.property.name='round']"],
       'Domain code rounds through src/shared/money, half away from zero. Math.round rounds a tie up on both signs.',
     ),
+    'domain-words': refusedSyntax(
+      ['ImportDeclaration[source.value=/(?:^|\\/)words$/]'],
+      'Domain code returns facts and presentation words them. Move the sentence to a words file beside the screen that shows it.',
+    ),
     'domain-classes': refusedSyntax(
       ['ClassDeclaration:not([superClass.name=/Error$/])', 'ClassExpression:not([superClass.name=/Error$/])'],
       'A domain model is an immutable record with pure functions beside it. check:figures reads object shapes, so a class can hide a figure from it. Only an Error subclass stays.',
@@ -198,6 +202,10 @@ const baselineRules = {
   domainRounding: {
     ...domainCode,
     rules: { 'kuna/domain-rounding': 'error' },
+  },
+  domainWords: {
+    ...domainCode,
+    rules: { 'kuna/domain-words': 'error' },
   },
 }
 
