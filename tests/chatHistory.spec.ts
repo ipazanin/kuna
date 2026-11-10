@@ -11,6 +11,12 @@ import type { SavedLine } from '../src/shared/ai/application/savedChat'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { CHAT_PERSONS, CHAT_READING } from './fixtures/chatBook'
 
+const signedOut = vi.hoisted(() => ({ times: 0 }))
+vi.mock('../src/shared/google/googleAuth', () => ({
+  signOutOfGoogle: async () => {
+    signedOut.times += 1
+  },
+}))
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
 vi.mock('../src/shared/ai/application/modelAccess', () => ({ modelPort: async () => port.current, keyKept: () => true }))
 vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
@@ -408,6 +414,27 @@ describe('a chat kept in this browser', () => {
     await saveChat({ lines: [line('New', 1)], spent: NOTHING_SPENT }, now)
     await saveChat({ lines: [line('Old', 31)], spent: NOTHING_SPENT }, now)
     expect(await readSavedChat(now)).toBeNull()
+  })
+
+  it('is cleared with its alias list when the person signs out of Google', async () => {
+    const session = await loadSession()
+    await allowSpending(session)
+    port.current = scripted([
+      { kind: 'tool-calls', calls: [{ id: 'a', name: 'find_records', args: FIND }], raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'Person 1 got it.', raw: [], tokens: TOKENS },
+    ])
+    await session.sendChatMessage('Who got the rent?', CONTEXT, async () => CATALOGUE)
+    await session.chatKept()
+    expect(await readSavedChat()).not.toBeNull()
+    expect(session.shownOnScreen('Person 1')).toContain('Horvat')
+
+    const { signOutAndForgetChat } = await import('../src/shell/settings/signOutOfKuna')
+    await signOutAndForgetChat()
+
+    expect(signedOut.times).toBe(1)
+    expect(session.chatLines).toHaveLength(0)
+    expect(session.shownOnScreen('Person 1')).toBe('Person 1')
+    expect(await readSavedChat()).toBeNull()
   })
 
   it('keeps a Clear made while a save is still on its way, so a cleared chat never comes back', async () => {

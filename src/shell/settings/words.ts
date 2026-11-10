@@ -39,7 +39,7 @@ export const en = {
     autoNote: 'On this device only. The app syncs as it opens and when you come back to it after ten minutes, while the Google sign-in is good. Off waits for your tap on Sync.',
     signOut: 'Sign out of Google',
     signedOut: 'Signed out of Google',
-    signedOutNote: 'The next sync asks Google to sign you in again.',
+    signedOutNote: 'The chat in this browser is cleared, and the next sync asks Google to sign you in again.',
   },
   deleteData: {
     title: 'Delete data',
@@ -119,7 +119,7 @@ export const hr: Translation<typeof en> = {
     autoNote: 'Samo na ovom uređaju. Aplikacija se sinkronizira kad se otvori i kad joj se vratite nakon deset minuta, dok Google prijava vrijedi. Isključeno čeka da dodirnete „Sinkroniziraj”.',
     signOut: 'Odjava s Googlea',
     signedOut: 'Odjavljeni ste s Googlea',
-    signedOutNote: 'Sljedeća sinkronizacija traži od Googlea da vas ponovno prijavi.',
+    signedOutNote: 'Razgovor u ovom pregledniku je obrisan, a sljedeća sinkronizacija traži od Googlea da vas ponovno prijavi.',
   },
   deleteData: {
     title: 'Brisanje podataka',

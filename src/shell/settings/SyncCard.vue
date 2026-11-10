@@ -4,11 +4,11 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { signOutOfGoogle } from '../../shared/google/googleAuth'
 import { autoSyncOn, switchAutoSync } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import SyncStepList from '../../shared/sync/presentation/SyncStepList.vue'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import AppCard from '../../shared/ui/AppCard.vue'
+import { signOutAndForgetChat } from './signOutOfKuna'
 import { words } from './words'
 
 /** Kuna settings: the steps of the last sync of this page, whether this device syncs by itself, and the one Google sign-in every file on Drive goes through. */
@@ -18,7 +18,7 @@ const signingOut = ref(false)
 
 async function signOut(): Promise<void> {
   signingOut.value = true
-  await signOutOfGoogle()
+  await signOutAndForgetChat()
   signingOut.value = false
   toast.add({ title: words.sync.signedOut, description: words.sync.signedOutNote, icon: 'i-lucide-log-out', color: 'success' })
 }
