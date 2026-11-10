@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('../src/shared/google/loadScript', () => ({ loadScript: async () => {} }))
 
+import { invoiceDrafts } from '../src/apps/company/invoicing/application/invoiceGoogle'
 import { askSilentlyOnOpen, currentToken, forgetGoogleSignIn, googleAccess, needScopes, requestAccess, signsInByRedirect, takeGoogleRedirect, tokenFor } from '../src/shared/google/googleAuth'
 import { REDIRECT_SIGN_IN_QUERY, authorizationUrl, redirectFragmentOf, resumedBy, savePendingRedirect, settleRedirect, takePendingRedirect } from '../src/shared/google/googleRedirect'
 import type { PendingRedirect } from '../src/shared/google/googleRedirect'
@@ -431,6 +432,18 @@ describe('asking in a tap', () => {
 
     await expect(tokenFor('gmail.compose', null)).rejects.toThrow('asking for it on a phone would leave the page')
     expect(takePendingRedirect()).toBeNull()
+  })
+
+  it('on a phone, leaves the page for Gmail when the invoice dialog needs drafts, and resumes nothing', async () => {
+    configureGoogle()
+    onPhone(true)
+    needScopes(['drive.file'])
+
+    void invoiceDrafts()
+    await Promise.resolve()
+    const left = askLeftWith()!
+
+    expect(left).toMatchObject({ scopes: ['drive.file', 'gmail.compose'], resume: 'none', ask: 'tap' })
   })
 
   it("on a desktop, holds the popup's one token, and says when it lacks the scope the action needs", async () => {

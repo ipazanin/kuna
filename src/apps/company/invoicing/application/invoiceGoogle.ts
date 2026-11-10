@@ -16,13 +16,13 @@ export async function invoiceDrive(): Promise<InvoiceDrive> {
   return googleInvoiceDrive(await tokenFor('drive.file', null))
 }
 
-/** Gmail drafts with the page's token, which carries Gmail while drafts are on, or with a new grant, which opens Google's popup. Call it first in a click handler. */
+/** Gmail drafts with the page's token, which carries Gmail while drafts are on, or with a new grant, which opens Google's popup. Call it first in a click handler. A phone leaves the page for Google's consent and resumes nothing, so the person opens the invoice again once back. */
 export async function invoiceDrafts(): Promise<MailDrafts> {
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const { fakeInvoiceGoogleSession } = await import('../infrastructure/fake/fakeInvoiceGoogle')
     return fakeInvoiceGoogleSession().drafts
   }
-  return gmailDrafts(await tokenFor('gmail.compose', null))
+  return gmailDrafts(await tokenFor('gmail.compose', { resume: 'none' }))
 }
 
 /** How Gmail stands for turning invoice drafts on: held, a tap here can ask Google for it, or asking would leave the page. */
