@@ -64,7 +64,7 @@ export const en = {
     setUp: {
       title: 'Set up Company with the chat',
       body: [
-        'Have ready the court register extract, an issued invoice and a bank statement. A camt.053 statement stays on this device. Any other document goes as a file of cells, a PDF or a photo.',
+        'Have ready the court register extract, an issued invoice and a bank statement. Each goes to the AI company as text cell by cell, as a PDF or as a photo, a camt.053 statement included.',
         'The cards, in this order:',
         '1. The settings: company_name, the currency, the number style, owner_pay_module and the invoice issuer fields the extract or the invoice prints.',
         '2. The accounts.',
@@ -138,7 +138,7 @@ export const hr: Translation<typeof en> = {
     setUp: {
       title: 'Postavite Tvrtku kroz razgovor',
       body: [
-        'Pripremite izvadak iz sudskog registra, jedan izdani račun i bankovni izvod. Izvod camt.053 ostaje na ovom uređaju. Svaki drugi dokument ide kao datoteka ćelija, PDF ili fotografija.',
+        'Pripremite izvadak iz sudskog registra, jedan izdani račun i bankovni izvod. Svaki ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija, i izvod camt.053.',
         'Kartice, ovim redom:',
         '1. Postavke: company_name, valuta, zapis brojeva, owner_pay_module i podaci izdavatelja računa koje ispisuje izvadak ili račun.',
         '2. Računi.',

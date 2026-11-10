@@ -18,7 +18,7 @@ describe("a printed statement's balances, in Company's ledger", () => {
     if (tie.kind !== 'off') throw new Error('expected the statement to be off')
 
     expect(tie.gap).toBe(moneyFromCents(-1))
-    expect(tieRefusal(tie)).toBe('The statement does not add up: the opening balance 9050.00 and its entries 1567.50 reach 10617.50, but the printed closing balance is 10617.49, 0.01 apart.')
+    expect(tieRefusal(tie)).toBe('The statement does not add up: the opening balance €9,050.00 and its entries €1,567.50 reach €10,617.50, but the printed closing balance is €10,617.49, €0.01 apart.')
   })
 })
 

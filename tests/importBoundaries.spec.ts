@@ -185,7 +185,6 @@ const OPERATIONS_ON_PRESENTATION = [
   'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/imports/presentation/dryRunLines.ts',
   'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/imports/presentation/importChoices.ts',
   'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/mail/presentation/mailReaderForm.ts',
-  'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/mail/presentation/useMailReports.ts',
   'src/apps/investments/assistant/operations/pricesOperations.ts -> src/apps/investments/overview/presentation/investmentLinks.ts',
   'src/apps/investments/assistant/operations/pricesOperations.ts -> src/apps/investments/prices/presentation/runProblem.ts',
   'src/apps/investments/assistant/operations/proposalLines.ts -> src/apps/investments/holdings/presentation/holdingText.ts',

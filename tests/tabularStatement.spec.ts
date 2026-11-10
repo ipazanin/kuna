@@ -127,7 +127,7 @@ describe('reading a bank’s spreadsheet export by its profile', () => {
     [
       'a balance that does not follow the row before',
       CROATIAN.map((row) => (row[4] === 'Kartično plaćanje' ? [...row.slice(0, 7), '6.682,20'] : row)),
-      /Row 6 says the balance is 6682\.20, but row 7's 6685\.50 plus -3\.40 is 6682\.10/,
+      /Row 6 says the balance is €6,682\.20, but row 7's €6,685\.50 plus .€3\.40 is €6,682\.10/,
     ],
     ['a date the format does not read', CROATIAN.map((row) => (row[0] === '01.03.2031' ? ['2031-03-01', '2031-03-01', ...row.slice(2)] : row)), /row 8: "2031-03-01" is not a dd\.mm\.yyyy date/],
     [

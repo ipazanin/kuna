@@ -284,10 +284,12 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   return namesOf.get(value) ?? String(value)
 }
 
-/** What the record is called on screen: an account or an instrument by its name, a trade by its side and holding, a line of a fund's mix by its fund, the 2023 city by its card, and the rest by the write's own words. */
+/** What the record is called on screen: an account or an instrument by its name, a trade by its side and holding, a cash movement or income by its day, kind and amount as the card writes them, a line of a fund's mix by its fund, the 2023 city by its card, and the rest by the write's own words. */
 function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>): string {
   if (isKind(kind, INVESTMENT_ACCOUNT_RECORDS, record) || isKind(kind, INSTRUMENT_RECORDS, record)) return record.name
   if (isKind(kind, TRADE_RECORDS, record)) return `${recordWords.sides[record.side]} ${namesOf.get(record.instrument) ?? ''}`.trim()
+  if (isKind(kind, CASH_MOVEMENT_RECORDS, record)) return [dayLabel(record.date), recordWords.movementKinds[record.kind].toLowerCase(), formatCurrencyAmount(record.amount, record.currency)].join(', ')
+  if (isKind(kind, INCOME_RECORDS, record)) return [dayLabel(record.date), recordWords.incomeKinds[record.kind].toLowerCase(), formatCurrencyAmount(record.gross, record.currency)].join(', ')
   if (isKind(kind, FUND_MIX_RECORDS, record)) return namesOf.get(record.instrument) ?? fallback
   if (isKind(kind, TARGET_RECORDS, record)) return sliceText(record.slice, namesOf)
   if (isKind(kind, CHECK_RECORDS, record)) return overviewWords.checks.labels[record.check]

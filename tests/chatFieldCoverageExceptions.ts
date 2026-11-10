@@ -216,7 +216,6 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/company/imports/application/statementSync.ts#fileNewStatements',
       'src/apps/investments/imports/application/workbookImport.ts#writeWorkbookImport',
       'src/apps/investments/mail/application/mailReaderWrites.ts#writeLeftOut',
-      'src/apps/investments/mail/application/mailReaderWrites.ts#writeUploadLeftOut',
       'src/apps/spending/statements/application/statementWrites.ts#writeDryRun',
       'src/apps/spending/bankSync/application/bankSetupWrites.ts#addBankAccounts',
       'src/apps/spending/bankSync/application/bankSetupWrites.ts#bringBackBankDetails',

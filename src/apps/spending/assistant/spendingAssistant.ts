@@ -18,7 +18,6 @@ import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../workbook/domain/spendingKi
 import { BANK_SYNC_DEPLOYMENT_KEY, COMPANY_OIB_KEY, LINKABLE_BANKS, bankLinkKey } from '../workbook/domain/spendingSettings'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
-import { SPENDING_FILE_FORMATS } from './fileFormats'
 import { spendingReader } from './spendingReader'
 import type { SpendingReading } from './spendingReader'
 import { words } from './words'
@@ -84,5 +83,4 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
   acceptance: changes?.acceptance ?? null,
   quickActions: [words.quickActions.sort, words.quickActions.rules, words.quickActions.higher],
   persons: () => (reading.book()?.settings.personPayees ?? []).map((name) => ({ name, employee: false, ibans: [] })),
-  fileFormats: SPENDING_FILE_FORMATS,
 })

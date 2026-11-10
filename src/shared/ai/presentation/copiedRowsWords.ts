@@ -4,6 +4,16 @@ import { plural } from '../../text/translation'
 import type { CroatianForms, EnglishForms } from '../../text/translation'
 import type { ProposalNote } from '../../app/assistantOperations'
 
+/**
+ * What an app's copied rows look like, as the shared note words it: what one row looks like and what several do, after
+ * "looks like" (in Croatian the dative after "nalikuje"), and what the person says a row may be instead.
+ */
+export interface LookAlikePhrase {
+  readonly one: string
+  readonly many: string
+  readonly another: string
+}
+
 const en = {
   fromFile: (file: string) => `from ${file}`,
   fromChat: 'from the chat',
@@ -20,9 +30,14 @@ const en = {
     other: `The AI read ${count} rows ${source}. Check them against the statement.`,
   }),
   lookAlikesWaiting: (count: number): EnglishForms => ({ one: '1 row waits, not imported', other: `${count} rows wait, not imported` }),
-  lookAlikesWhy: (days: number): EnglishForms => ({
-    one: `It looks like a row Kuna has from another source, with the same amount and at most ${days} days apart. Say in the chat whether it is another payment.`,
-    other: `They look like rows Kuna has from another source, each with the same amount and at most ${days} days apart. Say in the chat whether each is another payment.`,
+  lookAlikesWhy: ({ one, many, another }: LookAlikePhrase): EnglishForms => ({
+    one: `It looks like ${one}. Say in the chat whether it is ${another}.`,
+    other: `They look like ${many}. Say in the chat whether each is ${another}.`,
+  }),
+  bookingLookAlike: (days: number): LookAlikePhrase => ({
+    one: `a row Kuna has from another source, with the same amount and at most ${days} days apart`,
+    many: `rows Kuna has from another source, each with the same amount and at most ${days} days apart`,
+    another: 'another payment',
   }),
   inKuna: (count: number): EnglishForms => ({ one: '1 row is in Kuna already and is skipped.', other: `${count} rows are in Kuna already and are skipped.` }),
   likeCopied: (row: string) => `Looks like a row the AI copied: ${row}`,
@@ -51,10 +66,15 @@ const hr = {
     few: `${count} retka čekaju, nisu uvezena`,
     other: `${count} redaka čeka, nije uvezeno`,
   }),
-  lookAlikesWhy: (days: number): CroatianForms => ({
-    one: `Nalikuje retku koji Kuna ima iz drugog izvora, s istim iznosom i najviše ${days} dana razlike. Recite u razgovoru je li to drugo plaćanje.`,
-    few: `Nalikuju retcima koje Kuna ima iz drugog izvora, svaki s istim iznosom i najviše ${days} dana razlike. Recite u razgovoru je li svaki od njih drugo plaćanje.`,
-    other: `Nalikuju retcima koje Kuna ima iz drugog izvora, svaki s istim iznosom i najviše ${days} dana razlike. Recite u razgovoru je li svaki od njih drugo plaćanje.`,
+  lookAlikesWhy: ({ one, many, another }: LookAlikePhrase): CroatianForms => ({
+    one: `Nalikuje ${one}. Recite u razgovoru je li to ${another}.`,
+    few: `Nalikuju ${many}. Recite u razgovoru je li svaki od njih ${another}.`,
+    other: `Nalikuju ${many}. Recite u razgovoru je li svaki od njih ${another}.`,
+  }),
+  bookingLookAlike: (days: number): LookAlikePhrase => ({
+    one: `retku koji Kuna ima iz drugog izvora, s istim iznosom i najviše ${days} dana razlike`,
+    many: `retcima koje Kuna ima iz drugog izvora, svaki s istim iznosom i najviše ${days} dana razlike`,
+    another: 'drugo plaćanje',
   }),
   inKuna: (count: number): CroatianForms => ({
     one: `${count} redak već je u Kuni i preskočen je.`,
@@ -93,12 +113,15 @@ export interface CopiedLookAlike {
   readonly like: readonly string[]
 }
 
-/** The card's note on copied rows that wait as look-alikes, which asks the person to say in the chat. */
-export function lookAlikesNote(lookAlikes: readonly CopiedLookAlike[]): ProposalNote {
+/** What a copied row looks like when the shared matcher of bookings finds it, as Spending and Company word it. */
+export const BOOKING_LOOK_ALIKE: LookAlikePhrase = words.bookingLookAlike(BOOKING_DAYS_APART)
+
+/** The card's note on copied rows that wait as look-alikes, in the app's phrase for what they look like, which asks the person to say in the chat. */
+export function lookAlikesNote(lookAlikes: readonly CopiedLookAlike[], phrase: LookAlikePhrase): ProposalNote {
   const count = lookAlikes.length
   return {
     label: plural(words.lookAlikesWaiting(count), count),
-    text: plural(words.lookAlikesWhy(BOOKING_DAYS_APART), count),
+    text: plural(words.lookAlikesWhy(phrase), count),
     tone: 'info',
     items: lookAlikes.map(({ row, like }) => ({ row: row.join(', '), record: like.join(', ') })),
   }

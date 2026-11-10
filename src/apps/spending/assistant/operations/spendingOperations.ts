@@ -7,7 +7,7 @@ import type { CardWarnings } from './proposalLines'
 import { ADD_RECEIPT, keptPhotos, receiptsOutside, withPhotosRead, writeReceiptStep } from './receiptOperation'
 import type { KeptPhotos, ReceiptPorts } from './receiptOperation'
 import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'
-import { IMPORT_STATEMENT, importedStatement, withSheetsRead } from './statementImport'
+import { IMPORT_STATEMENT, importedStatement } from './statementImport'
 import type { CardStatement } from './statementImport'
 import { SET_STARTING_ACCOUNT, acceptStartingAccount, setsStartingAccount, startingAccountCheck } from './startingAccountOperation'
 import type { LastAccountPorts } from './startingAccountOperation'
@@ -646,8 +646,8 @@ export interface SpendingPorts {
 }
 
 /**
- * The changes the chat can propose and their dry run, over the app's own store and the ports `app.ts` hands in. An attached
- * sheet and a receipt photo are read before the dry run. A card that sets the starting account changes this device alone.
+ * The changes the chat can propose and their dry run, over the app's own store and the ports `app.ts` hands in. A receipt
+ * photo is read before the dry run. A card that sets the starting account changes this device alone.
  */
 export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>, ports: SpendingPorts, file: BrowserFile): AppProposer {
   return withBrowserFileCards(
@@ -665,9 +665,7 @@ export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'stat
             throw failure
           }
         }
-        const sheetsRead = await withSheetsRead(steps)
-        if ('refused' in sheetsRead) return sheetsRead
-        const read = await withPhotosRead(sheetsRead, ports.receipts)
+        const read = await withPhotosRead(steps, ports.receipts)
         return 'refused' in read ? read : proposedWrites(store, spendingWork(ports)).check(title, read)
       },
     },

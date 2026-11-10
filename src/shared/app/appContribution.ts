@@ -11,7 +11,6 @@ import type { Money } from '../money/money'
 import type { KnownPerson } from '../privacy/domain/pseudonyms'
 import type { AppAcceptance, AppProposer, AssistantQuickAction } from './assistantOperations'
 import type { AppReader } from './assistantReader'
-import type { AttachedFile } from '../ai/domain/chatAttachments'
 
 /** A screen of an app, on a route under the app's id such as `/company/transactions`. Each one loads as its own chunk. */
 export interface AppScreen {
@@ -164,17 +163,6 @@ export interface AppAssistant {
   readonly quickActions: readonly AssistantQuickAction[]
   /** The people the app knows by name, read from its books at each call, whose names go under an alias while Anonymise is on. */
   persons(): readonly KnownPerson[]
-  /** The file formats the app's own readers take, which the chat reads on the device and never sends. */
-  readonly fileFormats: readonly AppFileFormat[]
-}
-
-/** A file format an app's own reader takes. A file in it stays on the device, and `operation` imports it by the attachment's id. */
-export interface AppFileFormat {
-  /** What the format is called, such as `IBKR Activity Flex report`. */
-  readonly name: string
-  readonly operation: string
-  /** Whether the app's reader takes this file, read on this device. False for a file it cannot read. */
-  recognises(file: AttachedFile): Promise<boolean>
 }
 
 /** The app that is better set up first, and what a person gains by it. */

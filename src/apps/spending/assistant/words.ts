@@ -32,7 +32,6 @@ export const en = {
   proposals: {
     ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row of the statement is left out.', other: `${count} rows of the statement are left out.` }),
-    fileNotes: 'The file has notes this card does not show.',
     fields: {
       name: 'Name',
       kind: 'Type',
@@ -108,7 +107,7 @@ export const en = {
     setUp: {
       title: 'Set up Spending with the chat',
       body: [
-        'Have a statement of each account ready. A Revolut export stays on this device. Any other statement goes as a file of cells, a PDF or a photo.',
+        'Have a statement of each account ready. Every statement, a Revolut export included, goes to the AI company as text cell by cell, as a PDF or as a photo.',
         'The cards, in this order:',
         '1. The accounts, on one card, each with the opening balance and the day the statement prints.',
         '2. Each new category, on a card of its own.',
@@ -132,7 +131,7 @@ export const en = {
       body: (labels: GuideLabels) =>
         [
           `On ${labels.entries}, ${labels.import}, drop a Revolut export, as its .xlsx or .csv file. Other banks have no file reader here yet, and their rows come through the bank sync.`,
-          "In the chat, attach the Revolut file, or paste any bank's statement or attach it as a PDF or photo. The chat reads its rows as printed and imports them only when they add up from the opening balance to the closing one.",
+          "In the chat, attach any bank's file, the Revolut export included, or paste a statement or attach it as a PDF or photo. Its rows go to the AI company, which copies them as printed. Kuna checks that they add up when the statement prints its balances, and asks about rows that look like ones it has.",
           'Kuna first shows what the file would do, and writes nothing until you import it. An import can be undone from the message that follows it.',
           `Rows no rule files then wait on ${labels.review}.`,
         ].join('\n'),
@@ -179,7 +178,6 @@ export const hr: Translation<typeof en> = {
       few: `Izostavljena su ${count} retka izvoda.`,
       other: `Izostavljeno je ${count} redaka izvoda.`,
     }),
-    fileNotes: 'Datoteka ima napomene koje ova kartica ne prikazuje.',
     fields: {
       name: 'Naziv',
       kind: 'Vrsta',
@@ -255,7 +253,7 @@ export const hr: Translation<typeof en> = {
     setUp: {
       title: 'Postavite Potrošnju kroz razgovor',
       body: [
-        'Pripremite izvod svakog računa. Revolutov izvoz ostaje na ovom uređaju. Svaki drugi izvod ide kao datoteka ćelija, PDF ili fotografija.',
+        'Pripremite izvod svakog računa. Svaki izvod, i izvoz iz Revoluta, ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija.',
         'Kartice, ovim redom:',
         '1. Računi, na jednoj kartici, svaki s početnim stanjem i danom koje izvod ispisuje.',
         '2. Svaka nova kategorija, na svojoj kartici.',
@@ -279,7 +277,7 @@ export const hr: Translation<typeof en> = {
       body: (labels) =>
         [
           `Na zaslonu ${labels.entries}, na kartici ${labels.import} ispustite izvoz iz Revoluta, kao datoteku .xlsx ili .csv. Za druge banke ovdje još nema čitača datoteka, a njihovi retci dolaze sinkronizacijom s bankom.`,
-          'U razgovoru priložite datoteku iz Revoluta ili zalijepite izvod bilo koje banke, ili ga priložite kao PDF ili fotografiju. Razgovor čita retke kako su ispisani i uvozi ih samo ako se od početnog stanja zbrajaju do završnog.',
+          'U razgovoru priložite datoteku bilo koje banke, i izvoz iz Revoluta, ili zalijepite izvod ili ga priložite kao PDF ili fotografiju. Njegovi retci idu AI tvrtki, koja ih prepisuje kako su ispisani. Kuna provjerava zbrajaju li se kad izvod ispisuje stanja i pita za retke koji nalikuju onima koje već ima.',
           'Kuna najprije pokaže što bi datoteka učinila i ne zapisuje ništa dok je ne uvezete. Uvoz možete poništiti iz poruke koja slijedi.',
           `Retci koje nijedno pravilo ne razvrsta zatim čekaju na kartici ${labels.review}.`,
         ].join('\n'),

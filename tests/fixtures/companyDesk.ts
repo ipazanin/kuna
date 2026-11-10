@@ -5,7 +5,6 @@ import { hrDooOperations } from '../../src/apps/company/packs/hr-doo/assistant/o
 import type { MailDraftsSwitch } from '../../src/apps/company/assistant/operations/mailDraftsOperation'
 import type { SetUpAnswer } from '../../src/apps/company/assistant/operations/setUpAnswers'
 import type { GmailForDrafts } from '../../src/apps/company/invoicing/application/invoiceGoogle'
-import type { LoadedImportFile } from '../../src/apps/company/imports/application/importStatements'
 import type { StatementReading } from '../../src/apps/company/imports/domain/importedStatement'
 import { RULE_COLUMNS } from '../../src/apps/company/rules/domain/readRules'
 import type { CompanyBooks } from '../../src/apps/company/workbook/domain/readWorkbook'
@@ -121,20 +120,14 @@ export interface CompanyDesk extends CompanyChat {
 }
 
 export interface DeskPorts {
-  readonly readStatementFile?: (fileName: string, bytes: ArrayBuffer) => Promise<LoadedImportFile>
   readonly heldStatements?: () => readonly StatementReading[]
   readonly pack?: CompanyOperationPorts['pack']
   readonly mailDrafts?: MailDraftsSwitch
 }
 
-/** The ports a test hands Company's proposer: no file is read and nothing was held unless given, and the pack's changes as installed. */
+/** The ports a test hands Company's proposer: nothing was held unless given, and the pack's changes as installed. */
 export function deskPorts(given: DeskPorts = {}): CompanyOperationPorts {
   return {
-    readStatementFile:
-      given.readStatementFile ??
-      (() => {
-        throw new Error('No file is read in this test.')
-      }),
     heldStatements: given.heldStatements ?? (() => []),
     setUpAnswers: setUpAnswersHeld(),
     mailDrafts: given.mailDrafts ?? mailDraftsHeld(),

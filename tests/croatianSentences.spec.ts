@@ -579,3 +579,22 @@ describe('the dots and the plan line in Croatian', () => {
     )
   })
 })
+
+describe('a row that looks like one Kuna has, in Croatian', () => {
+  it('nalikuje in every app, the shared note with each app’s phrase included', async () => {
+    const imports = await inCroatian(() => import('../src/apps/investments/imports/presentation/words'))
+    const investments = await inCroatian(() => import('../src/apps/investments/assistant/words'))
+    const shared = await inCroatian(() => import('../src/shared/ai/presentation/copiedRowsWords'))
+    const pair = { row: ['Redak 1'], like: ['Uplata'] }
+
+    expect(imports.words.dryRun.looksLike('Uplata')).toBe('Nalikuje zapisu koji Kuna ima: Uplata')
+    expect(imports.words.waits['looks-in-kuna']).toBe('Nalikuje zapisu koji Kuna ima, s istim računom, danom i iznosima')
+    expect(imports.words.questions.lookAlikes).toBe('Retci koji nalikuju zapisima koje Kuna ima')
+    expect(shared.lookAlikesNote([pair], investments.words.proposals.lookAlike).text).toBe(
+      'Nalikuje zapisu koji Kuna ima iz druge datoteke, s istim računom, danom i iznosima. Recite u razgovoru je li to isti zapis ili drugi.',
+    )
+    expect(shared.lookAlikesNote([pair, pair], shared.BOOKING_LOOK_ALIKE).text).toBe(
+      'Nalikuju retcima koje Kuna ima iz drugog izvora, svaki s istim iznosom i najviše 3 dana razlike. Recite u razgovoru je li svaki od njih drugo plaćanje.',
+    )
+  })
+})

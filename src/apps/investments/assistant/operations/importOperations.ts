@@ -1,8 +1,7 @@
-import { readPortfolioWorkbookFile } from '../../imports/application/portfolioWorkbookFile'
 import { writeWorkbookImport } from '../../imports/application/workbookImport'
 import { importableRecords } from '../../imports/domain/importDryRun'
 import { LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
-import type { ImportedRecord, WorkbookRows } from '../../imports/domain/importDryRun'
+import type { WorkbookDryRun, WorkbookRows } from '../../imports/domain/importDryRun'
 import { WORKBOOK_TYPES } from '../../imports/domain/portfolioWorkbook'
 import type { WorkbookRow } from '../../imports/domain/portfolioWorkbook'
 import { copiedRowRefusal, daysPartlyOnCard, transcribedRows } from '../../imports/domain/transcribedRows'
@@ -11,14 +10,10 @@ import { ratesWanted } from '../../imports/domain/workbookRates'
 import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/presentation/importChoices'
 import type { AskedChoice, ClosesOf, ImportChoices, SettledImport } from '../../imports/presentation/importChoices'
 import { lookAlikesOf, waitText } from '../../imports/presentation/dryRunLines'
-import { MAIL_READER_WRITES, heldOrNewReader, writeLeftOut, writeUploadLeftOut } from '../../mail/application/mailReaderWrites'
-import { pickedReport } from '../../mail/application/mailReports'
-import { IBKR_FLEX_RECIPE, ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
-import { uploadedReportRows } from '../../mail/domain/reportRows'
-import type { ReportFile } from '../../mail/domain/reportRows'
+import { MAIL_READER_WRITES, heldOrNewReader, writeLeftOut } from '../../mail/application/mailReaderWrites'
+import { ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
 import { mailReaderErrors, mailReaderTexts, withMailField } from '../../mail/presentation/mailReaderForm'
 import type { MailReaderField, MailReaderTexts } from '../../mail/presentation/mailReaderForm'
-import { misfitLine } from '../../mail/presentation/useMailReports'
 import { seriesKey } from '../../prices/domain/pricesFile'
 import { transactionRecordKind } from '../../transactions/application/transactionWrites'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -26,8 +21,8 @@ import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS, MAIL_READER_RECORDS } f
 import { words } from '../words'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { CardNote, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { copiedRowsSource } from '../../../../shared/ai/presentation/copiedRowsWords'
-import { FLAG_OR_NULL, NOT_READ_OFF_A_PAGE, TEXT, TEXT_OR_NULL, choiceOf, found, inputOf, isAttachment } from '../../../../shared/app/operationInput'
+import { copiedInKunaText, copiedRowsSource, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { FLAG_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, found, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { decimalOfAccountMoney, decimalText } from '../../../../shared/money/decimal'
@@ -36,23 +31,21 @@ import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { readRecipeFile } from '../../../../shared/recipes/infrastructure/recipeFile'
 import { fold } from '../../../../shared/text/fold'
 import { plural } from '../../../../shared/text/translation'
 import type { CardBooks, InvestmentSteps, StepWritten } from './investmentSteps'
 
-const IMPORT_WORKBOOK = 'import-workbook'
 const ACCEPT_MAIL_REPORT = 'accept-mail-report'
-const IMPORT_FLEX_REPORT = 'import-flex-report'
 const IMPORT_TRANSCRIBED = 'import-transcribed'
 
 /** The operations that import rows, whose card holds nothing else. */
-export const IMPORTING: ReadonlySet<string> = new Set([IMPORT_WORKBOOK, ACCEPT_MAIL_REPORT, IMPORT_FLEX_REPORT, IMPORT_TRANSCRIBED])
-const GONE = ['keep', 'delete'] as const
+export const IMPORTING: ReadonlySet<string> = new Set([ACCEPT_MAIL_REPORT, IMPORT_TRANSCRIBED])
 const ASKED: readonly AskedChoice[] = ['hold', 'leave-out']
+/** What the person says of a copied row that looks like a record Kuna has, as the Import dialog's Same record and Another record. */
+const LOOK_ALIKE_ANSWERS = ['same-record', 'another-record'] as const
 const MAIL_FIELDS: readonly MailReaderField[] = ['senders', 'subject', 'contents', 'since']
 
-/** A workbook or a report Kuna read before the dry run, which stands in the step for the file or the mail once read. */
+/** The mailed report the last sync read, which stands in the step for the mail once read. */
 interface RowsRead {
   readonly rows: WorkbookRows
 }
@@ -61,52 +54,11 @@ function isRowsRead(value: unknown): value is RowsRead {
   return typeof value === 'object' && value !== null && 'rows' in value
 }
 
-/** An attached Flex report Kuna ran through IBKR's recipe before the dry run, which stands in the step for the file. */
-interface ReportPicked {
-  readonly picked: ReportFile
-}
-
-function isReportPicked(value: unknown): value is ReportPicked {
-  return typeof value === 'object' && value !== null && 'picked' in value
-}
-
-/** The rows of an attached portfolio workbook, read by the Import dialog's own reader, or why not, in fixed words that quote nothing of the file. */
-async function workbookOf(file: unknown): Promise<RowsRead | string> {
-  if (!isAttachment(file)) return 'file is not a file attached to this chat.'
-  if (file.kind === 'photo' || file.kind === 'pdf') return NOT_READ_OFF_A_PAGE
-  if (file.kind === 'xml') return `The portfolio workbook is a spreadsheet. An XML file of IBKR's Activity Flex report goes through ${IMPORT_FLEX_REPORT}.`
-  if (file.kind !== 'sheet') return 'The portfolio workbook is a spreadsheet with a Transactions tab, such as an xlsx file.'
-  const read = await readPortfolioWorkbookFile(file.bytes).catch(() => null)
-  if (read === null) return 'Kuna could not read that file as a spreadsheet.'
-  if (read.kind === 'refused') return read.refusal.kind === 'no-transactions-tab' ? 'That spreadsheet has no Transactions tab.' : `That workbook lacks the columns ${read.refusal.columns.join(', ')}.`
-  return { rows: read }
-}
-
-/** An attached Flex report run through IBKR's recipe, as the mail step runs a mailed one, or why not, naming the file to the model only by its id. Its records keep the file's name, as a mailed one's do. */
-function flexReportOf(file: unknown): ReportPicked | string {
-  if (!isAttachment(file)) return 'file is not a file attached to this chat.'
-  if (file.kind === 'photo' || file.kind === 'pdf') return NOT_READ_OFF_A_PAGE
-  if (file.kind !== 'xml') return "IBKR's Activity Flex report is an XML file."
-  const read = pickedReport(IBKR_FLEX_RECIPE, file.name, readRecipeFile(IBKR_FLEX_RECIPE, file.bytes.slice().buffer))
-  return read.kind === 'misfit' ? misfitLine(file.id, read.misfit) : { picked: read.file }
-}
-
-/**
- * The steps with each attached workbook and Flex report read and the mailed report the last sync read in place, since a dry run cannot
- * wait for a file. Or why a step cannot be checked.
- */
+/** The steps with the mailed report the last sync read in place, since a dry run cannot wait for the mail. Or why a step cannot be checked. */
 export async function withRowsRead(steps: readonly ProposalStep[], mailReport: () => WorkbookRows | null): Promise<readonly ProposalStep[] | { readonly refused: readonly string[] }> {
   const read: ProposalStep[] = []
   for (const step of steps) {
-    if (step.operation === IMPORT_WORKBOOK) {
-      const workbook = await workbookOf(step.input['file'])
-      if (typeof workbook === 'string') return { refused: [workbook] }
-      read.push({ ...step, input: { ...step.input, file: workbook } })
-    } else if (step.operation === IMPORT_FLEX_REPORT) {
-      const report = flexReportOf(step.input['file'])
-      if (typeof report === 'string') return { refused: [report] }
-      read.push({ ...step, input: { ...step.input, file: report } })
-    } else if (step.operation === ACCEPT_MAIL_REPORT) {
+    if (step.operation === ACCEPT_MAIL_REPORT) {
       const rows = mailReport()
       if (rows === null) return { refused: ['No mailed report waits. A sync reads it from Gmail while the IBKR report reader is on.'] }
       read.push({ ...step, input: { ...step.input, report: { rows } } })
@@ -124,11 +76,8 @@ export async function withRowsRead(steps: readonly ProposalStep[], mailReport: (
  */
 export function importTooLarge(steps: readonly ProposalStep[]): string | null {
   const first = steps.length > 1 ? ' If other changes share its card, propose them on a card of their own first, and if the import alone is too large,' : ''
-  if (steps.some((step) => step.operation === IMPORT_WORKBOOK)) return `A workbook import cannot shrink.${first || ' So'} link Overview, Import, which imports a workbook this size in one write.`
   if (steps.some((step) => step.operation === ACCEPT_MAIL_REPORT))
     return `A report cannot shrink.${first || ' So'} link the review on Settings, General, which accepts a report this size in one write.`
-  if (steps.some((step) => step.operation === IMPORT_FLEX_REPORT))
-    return `A report cannot shrink.${first || ' So'} link Upload a report on Settings, General, which accepts a report this size in one write.`
   if (steps.some((step) => step.operation === IMPORT_TRANSCRIBED))
     return `Rows copied from a file go in parts.${first ? ' If other changes share its card, propose them on a card of their own first.' : ''} Put the rows of fewer days on this card, keeping a dividend with its tax and both sides of a transfer together, and propose the rest on the next card once this one is accepted. A day that alone makes more changes than a card holds goes in parts too: put its first rows on this card, and give the next card every row of that day again from its first, since Kuna skips the rows it has.`
   return null
@@ -141,29 +90,33 @@ interface ImportPlace {
   readonly lead: string | null
 }
 
+/** A person's answer to a copied row that looks like a record Kuna has, by the row's number among the rows copied: whether it is that record. */
+interface LookAlikeRowAnswer {
+  readonly row: number
+  readonly same: boolean
+}
+
 /** What an import does with the questions the card cannot ask. */
 interface ImportAnswers {
   readonly asked: AskedChoice
-  readonly gone: (typeof GONE)[number]
   /** The Kuna account a file's account goes to, by the file's account text. */
   readonly accounts: ImportChoices['accounts']
+  /** What the person said in the chat of copied rows that look like records Kuna has. */
+  readonly lookAlikes: readonly LookAlikeRowAnswer[]
   readonly where: ImportPlace
 }
 
-const ANSWERED_BY_DEFAULTS: Omit<ImportAnswers, 'where'> = { asked: 'hold', gone: 'keep', accounts: {} }
+const ANSWERED_BY_DEFAULTS: Omit<ImportAnswers, 'where'> = { asked: 'hold', accounts: {}, lookAlikes: [] }
 
 function askedOf(field: Readonly<Record<string, unknown>>): AskedChoice {
   return field['asked'] === 'leave-out' ? 'leave-out' : 'hold'
 }
 
-/**
- * The kind of the first record the import writes, whose group on the card carries its warned line. A report that adds
- * nothing changes only the mail reader.
- */
-function firstNounOf(added: InvestmentBook, deleting: readonly ImportedRecord[]): RecordNoun {
+/** The kind of the first record the import writes, whose group on the card carries its warned line. A report that adds nothing changes only the mail reader. */
+function firstNounOf(added: InvestmentBook): RecordNoun {
   if (added.accounts.length > 0) return INVESTMENT_ACCOUNT_RECORDS.noun
   if (added.instruments.length > 0) return INSTRUMENT_RECORDS.noun
-  const first = importableRecords(added)[0] ?? deleting[0]
+  const first = importableRecords(added)[0]
   return first === undefined ? MAIL_READER_RECORDS.noun : transactionRecordKind(first.kind).noun
 }
 
@@ -190,15 +143,44 @@ function holdingsAskedAbout(settled: SettledImport, book: InvestmentBook): strin
 }
 
 /**
+ * The answers the person gave in the chat, as the Import dialog's Questions step takes them: each by the key of its row's
+ * entry and the record it looks like. Refused for a row the dry run does not ask about, or one answered twice.
+ */
+function lookAlikeChoices(dryRun: WorkbookDryRun, answers: readonly LookAlikeRowAnswer[]): ImportChoices['lookAlikes'] {
+  const asked = new Map(dryRun.questions.lookAlikes.map((question) => [question.rows[0]!.fileRow, question]))
+  const twice = answers.filter((answer, at) => answers.findIndex((other) => other.row === answer.row) !== at).map(({ row }) => row)
+  if (twice.length > 0) throw new StepRefused(`lookAlikeAnswers answers row ${twice[0]} twice. Give each row one answer.`)
+  const unasked = answers.filter(({ row }) => !asked.has(row)).map(({ row }) => row)
+  if (unasked.length > 0) {
+    throw new StepRefused(
+      `${unasked.length === 1 ? `Row ${unasked[0]} does not look` : `Rows ${unasked.join(', ')} do not look`} like a record Kuna has, so lookAlikeAnswers takes no answer for it. Answer only the rows a card listed as waiting.`,
+    )
+  }
+  return Object.fromEntries(answers.map(({ row, same }) => [asked.get(row)!.key, { like: asked.get(row)!.like.record.id, same }]))
+}
+
+/** What the model hears of copied rows that still look like records Kuna has, by their number among the rows copied. */
+function lookAlikesWaitText(rows: readonly number[], nothingElse: boolean): string {
+  const named = rows.length === 1 ? `Row ${rows[0]} looks like a record Kuna has from another file` : `Rows ${rows.join(', ')} look like records Kuna has from another file`
+  const ask = 'Ask the person whether each is the same record or another one, and propose the same rows again with lookAlikeAnswers giving each answer'
+  return nothingElse ? `${named} and nothing else is new. ${ask}.` : `${named} and ${rows.length === 1 ? 'waits' : 'wait'}. ${ask} once this card is answered.`
+}
+
+/**
  * What the Import dialog writes with every other question left at its default: an account or holding an earlier import
  * wrote to, else a new one as proposed. Refused while the dialog would ask about a split or a spin-off, since their
  * answers set a holding's cost and so its tax, and while the prices file lacks an ECB rate the rows need, which the
  * dialog fetches first. The rows that still wait, and those Kuna cannot read, are counted on a warned line. A report's
  * row that looks like a record Kuna has waits for its screen with the rest. Rows the AI copied have no screen to answer
- * them, so a row Kuna cannot read is refused, and a row that looks like a record Kuna has is counted on its own, or
- * refused when nothing else is new so the model asks the person.
+ * them, so a row Kuna cannot read is refused, and a row that looks like a record Kuna has takes the person's answer from
+ * the chat, or is listed on its own, or refused when nothing else is new so the model asks the person.
  */
-function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { asked, gone, accounts, where }: ImportAnswers): { readonly written: StepWritten; readonly leftOut: readonly string[] } {
+function importedRows(
+  unit: UnitOfWork,
+  card: CardBooks,
+  rows: WorkbookRows,
+  { asked, accounts, lookAlikes, where }: ImportAnswers,
+): { readonly written: StepWritten; readonly leftOut: readonly string[] } {
   const rates = card.rates ?? NO_RATES
   const lacking = ratesWanted(rows.rows, rates)
   if (lacking !== null) {
@@ -213,8 +195,10 @@ function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { a
   }
   const closesOf: ClosesOf = (instrument) => card.pricesFile?.series[seriesKey(instrument.prices, instrument.sourceSymbol)]?.closes ?? []
   const leftOut = asked === 'leave-out' ? (rows.report?.asked ?? []).map((row) => row.key) : []
-  const choices = { ...NO_CHOICES, accounts, asked: Object.fromEntries(leftOut.map((key) => [key, asked])) }
-  const settled = settledImport(rows, card.book, rates, choices, newIds, NO_SPLIT_LOOKUP, closesOf)
+  const choices: ImportChoices = { ...NO_CHOICES, accounts, asked: Object.fromEntries(leftOut.map((key) => [key, asked])) }
+  const unanswered = settledImport(rows, card.book, rates, choices, newIds, NO_SPLIT_LOOKUP, closesOf)
+  const settled =
+    lookAlikes.length === 0 ? unanswered : settledImport(rows, card.book, rates, { ...choices, lookAlikes: lookAlikeChoices(unanswered.dryRun, lookAlikes) }, newIds, NO_SPLIT_LOOKUP, closesOf)
   const askedAbout = holdingsAskedAbout(settled, card.book)
   if (askedAbout.length > 0) {
     const holdings = askedAbout.join(', ')
@@ -224,22 +208,18 @@ function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { a
   if (where.place === null && dryRun.skipped.length > 0) throw new StepRefused(copiedRowsText(dryRun.skipped.map(copiedRowRefusal)))
   const waits = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'waiting' ? [entry.outcome.reason] : []))
   const copied = where.place === null
-  const lookAlikes = copied ? waits.filter((reason) => reason.kind === 'looks-in-kuna').length : 0
-  if (lookAlikes > 0 && importableRecords(dryRun.added).length === 0) {
-    const lookAlikeRows = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'waiting' && entry.outcome.reason.kind === 'looks-in-kuna' ? [entry.rows[0].fileRow] : []))
-    throw new StepRefused(
-      `Rows ${lookAlikeRows.join(', ')} look like records Kuna has from another file and nothing else is new. Ask the person whether they are other records, and if so propose them with lookAlikes import.`,
-    )
+  const stillLookAlike = new Set(dryRun.entries.flatMap((entry) => (copied && entry.outcome.kind === 'waiting' && entry.outcome.reason.kind === 'looks-in-kuna' ? [entry.key] : [])))
+  if (stillLookAlike.size > 0 && importableRecords(dryRun.added).length === 0 && dryRun.matched.length === 0) {
+    const rowsWaiting = dryRun.questions.lookAlikes.filter((question) => stillLookAlike.has(question.key)).map((question) => question.rows[0]!.fileRow)
+    throw new StepRefused(lookAlikesWaitText(rowsWaiting, true))
   }
-  const deleting = gone === 'delete' ? dryRun.gone : []
-  writeWorkbookImport(unit, dryRun.added, dryRun.matched, deleting)
+  writeWorkbookImport(unit, dryRun.added, dryRun.matched, [])
   const waiting = copied ? waits.filter((reason) => reason.kind !== 'looks-in-kuna') : waits
   const reasons = [...new Set(waiting.map(waitText))].join('. ')
   const held = asked === 'hold' ? (rows.report?.asked.length ?? 0) : 0
-  const kept = gone === 'keep' ? dryRun.gone.length : 0
   const place = where.place
   const inKuna = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'in-kuna' ? entry.rows : [])).length
-  const noun = firstNounOf(dryRun.added, deleting)
+  const noun = firstNounOf(dryRun.added)
   const warned = noteOf(
     where.label,
     noun,
@@ -247,13 +227,12 @@ function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { a
       [waiting.length, (count) => (place === null ? words.proposals.transcribedWaiting(count, reasons) : words.proposals.rowsWaiting(count, place))],
       ...(place === null ? [] : ([[dryRun.skipped.length, (count: number) => words.proposals.rowsSkipped(count, place)]] as const)),
       [held, words.proposals.rowsAsked],
-      [kept, words.proposals.goneKept],
     ],
     where.lead,
   )
-  const skippedInKuna: CardNote[] = place === null && inKuna > 0 ? [{ noun, note: { label: where.label, text: plural(words.proposals.rowsInKuna(inKuna), inKuna), tone: 'neutral' } }] : []
+  const skippedInKuna: CardNote[] = place === null && inKuna > 0 ? [{ noun, note: { label: where.label, text: copiedInKunaText(inKuna), tone: 'neutral' } }] : []
   const accountName = (row: WorkbookRow): string => card.book.accounts.find((account) => account.id === row.account)?.name ?? row.account
-  const waitingLookAlikes = copied ? lookAlikesOf(dryRun, card.book, rates, accountName) : []
+  const waitingLookAlikes = lookAlikesOf(dryRun, card.book, rates, accountName).filter((lookAlike) => stillLookAlike.has(lookAlike.key))
   const lookAlikeRows = waitingLookAlikes.map((lookAlike) => lookAlike.fileRow)
   const questions: CardNote[] =
     waitingLookAlikes.length === 0
@@ -261,20 +240,14 @@ function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { a
       : [
           {
             noun,
-            note: {
-              label: plural(words.proposals.lookAlikesWaiting(waitingLookAlikes.length), waitingLookAlikes.length),
-              text: plural(words.proposals.lookAlikeAsk(), waitingLookAlikes.length),
-              tone: 'info',
-              items: waitingLookAlikes.map((lookAlike) => ({ row: lookAlike.row.join(', '), record: lookAlike.record.join(', ') })),
-            },
+            note: lookAlikesNote(
+              waitingLookAlikes.map(({ row, record }) => ({ row, like: record })),
+              words.proposals.lookAlike,
+            ),
           },
         ]
   const heldBack = [
-    ...(lookAlikeRows.length === 0
-      ? []
-      : [
-          `${lookAlikeRows.length === 1 ? `Row ${lookAlikeRows[0]} looks like a record Kuna has from another file and waits.` : `Rows ${lookAlikeRows.join(', ')} look like records Kuna has from another file and wait.`} Ask the person whether each is another record, and if so propose the same rows again with lookAlikes import once this card is answered.`,
-        ]),
+    ...(lookAlikeRows.length === 0 ? [] : [lookAlikesWaitText(lookAlikeRows, false)]),
     ...(waiting.length === 0 ? [] : [`${waiting.length} ${waiting.length === 1 ? 'row waits' : 'rows wait'} and ${waiting.length === 1 ? 'is' : 'are'} not imported: ${reasons}.`]),
     ...(place === null && inKuna > 0 ? [`${inKuna} ${inKuna === 1 ? 'row is' : 'rows are'} in Kuna already and skipped.`] : []),
     ...(place !== null && dryRun.skipped.length > 0
@@ -334,15 +307,13 @@ function transcribedAccount(card: CardBooks, named: unknown, broker: string): Re
 }
 
 /**
- * Rows the AI copied from a file Kuna does not read, through the same dry run as a workbook, with a warned line that the
+ * Rows the AI copied from a file or the chat, through the same dry run as a workbook, with a warned line that the
  * AI read them, and that Kuna could not check that they add up unless the file's printed cash balances tie. Refused with
  * the rows Kuna cannot read or keep, so the AI copies them again, and when the card holds only part of a day Kuna has
  * rows of from the same file.
  */
 function importedTranscribed(unit: UnitOfWork, card: CardBooks, field: Readonly<Record<string, unknown>>): StepWritten {
   const file = field['file']
-  if (isAttachment(file) && file.reading.kind === 'kuna')
-    throw new StepRefused(`That file is a ${file.reading.format.name}, which Kuna reads itself. Propose ${file.reading.format.operation} with it.`)
   const fileName = isAttachment(file) ? file.name : ''
   const rows = field['rows'] as readonly TranscribedRow[]
   if (rows.length === 0) throw new StepRefused('rows is empty. Copy the rows of the file onto the card.')
@@ -351,7 +322,13 @@ function importedTranscribed(unit: UnitOfWork, card: CardBooks, field: Readonly<
   if (account === null && broker === '') throw new StepRefused('A new account is named after its broker, so broker is not blank.')
   const accountText = account ?? broker
   const balances = field['balances'] as readonly TranscribedBalance[]
-  const read = transcribedRows({ fileName, broker, account: accountText, rows, balances }, choiceOf(LOOK_ALIKES, field['lookAlikes'] as string, 'lookAlikes')!)
+  const lookAlikes = choiceOf(LOOK_ALIKES, field['lookAlikes'] as string, 'lookAlikes')!
+  const answers = (field['lookAlikeAnswers'] as readonly { readonly row: number; readonly answer: string }[]).map(({ row, answer }) => ({
+    row,
+    same: choiceOf(LOOK_ALIKE_ANSWERS, answer, 'answer') === 'same-record',
+  }))
+  if (lookAlikes === 'import' && answers.length > 0) throw new StepRefused('lookAlikes import imports every row without asking, so lookAlikeAnswers is [].')
+  const read = transcribedRows({ fileName, broker, account: accountText, rows, balances }, lookAlikes)
   if (read.kind === 'refused') throw new StepRefused(copiedRowsText(read.rows))
   if (read.kind === 'balance-unread') throw new StepRefused(`${read.field} cannot be read.`)
   if (read.kind === 'cash-off') throw new StepRefused(cashOffText(read.off))
@@ -363,10 +340,10 @@ function importedTranscribed(unit: UnitOfWork, card: CardBooks, field: Readonly<
   const source = copiedRowsSource(fileName || null)
   const lead = plural(read.cashChecked ? words.proposals.transcribedTied(rows.length, source) : words.proposals.transcribedRead(rows.length, source), rows.length)
   const accounts: ImportChoices['accounts'] = account === null ? {} : { [accountText]: { kind: 'existing', account } }
-  return importedRows(unit, card, read.rows, { ...ANSWERED_BY_DEFAULTS, accounts, where: { label: words.proposals.transcribed, place: null, lead } }).written
+  return importedRows(unit, card, read.rows, { ...ANSWERED_BY_DEFAULTS, accounts, lookAlikes: answers, where: { label: words.proposals.transcribed, place: null, lead } }).written
 }
 
-/** The IBKR mail reader's plain settings, the review of its mailed or uploaded report, the portfolio workbook and rows the AI copied from another file, as the mail card and the Import dialog write them. Turning the reader on needs Google's consent, so only the person does it. Switching it off needs none. */
+/** The IBKR mail reader's plain settings, the review of its mailed report and rows the AI copied from any file, as the mail card and the Import dialog write them. Turning the reader on needs Google's consent, so only the person does it. Switching it off needs none. */
 export const IMPORT_STEPS: InvestmentSteps = {
   operations: [
     {
@@ -396,41 +373,23 @@ export const IMPORT_STEPS: InvestmentSteps = {
       example: { asked: 'hold' },
     },
     {
-      name: IMPORT_FLEX_REPORT,
-      about:
-        "Imports an attached IBKR Activity Flex report in XML through the same recipe and review as the mailed report: rows already in Kuna are skipped, rows before the mail reader's first day come in too, and accounts and holdings are named as Kuna proposes them. Kuna reads the file itself, so file names its id. asked says what becomes of the rows the report asks about: hold keeps them waiting, leave-out stops asking for good. Rows that still wait, and a split or a spin-off the card cannot answer, are answered by Upload a report on Settings, General.",
-      input: inputOf({ file: TEXT, asked: { type: 'string', enum: [...ASKED] } }),
-      refs: { file: ATTACHMENT_REF },
-      creates: null,
-      alone: true,
-      example: { file: 'a3', asked: 'hold' },
-    },
-    {
-      name: IMPORT_WORKBOOK,
-      about:
-        'Imports an attached portfolio workbook through the same dry run as Overview, Import: rows already in are skipped, and accounts and holdings are matched or named as Kuna proposes them. Kuna reads the file itself, so file names its id. gone says what becomes of records an earlier import wrote that the workbook no longer has: keep leaves them, delete deletes them. Rows that still wait, and a split or a spin-off its row does not answer, are answered in the Import dialog.',
-      input: inputOf({ file: TEXT, gone: { type: 'string', enum: [...GONE] } }),
-      refs: { file: ATTACHMENT_REF },
-      creates: null,
-      alone: true,
-      example: { file: 'a1', gone: 'keep' },
-    },
-    {
       name: IMPORT_TRANSCRIBED,
       about: [
-        'Imports rows you copied from a broker file Kuna does not read, such as a CSV, a PDF statement or a photo, through the same dry run as Overview, Import: rows already in Kuna are skipped, a sale beyond the units held waits, and accounts and holdings are matched or named as Kuna proposes them.',
-        'file names the file by its id, or null for rows typed in the chat. A file Kuna reads itself goes through its own operation. account names the Kuna account the rows are on, or null for a new one named after broker, which is refused while Kuna has an account of that name. A later card of the same file names the account the first card made.',
+        "Imports rows you copied from any broker file, such as a CSV, a PDF statement, a photo, the portfolio workbook or an IBKR report, through the same dry run as Overview, Import: rows already in Kuna are skipped, a sale beyond the units held waits, and accounts and holdings are matched or named as Kuna proposes them. Copy a workbook's Transactions rows as its columns name them.",
+        'file names the file by its id, or null for rows typed in the chat. account names the Kuna account the rows are on, or null for a new one named after broker, which is refused while Kuna has an account of that name. A later card of the same file names the account the first card made.',
         'Copy every row as the file prints it, one card at a time: a type of the workbook, numbers with a dot for decimals and no thousands separators, money out below zero in netCash, and blank fields as null. An FX row gives the currency sold in currency and netCash, and the one bought in counterCurrency and counterAmount.',
         "commission is above zero, and commissionCurrency names its currency: the row's currency, or for an FX row its counterCurrency. A commission in any other currency is a FEE row of its own.",
         "balances gives the cash balance the file prints for a currency before this card's first row and after its last, and each must add up with the rows' netCash in that currency. Give [] when the file prints none.",
         "Keep a day's rows on one card, with a dividend beside its tax and both sides of a transfer together. Propose the next rows once the card before is accepted.",
-        'lookAlikes says what becomes of a row that looks like a record Kuna has from another file: a trade of the same holding, day, side and units, income of the same holding, day and gross, a cash movement of the same day, kind, currency and amount, or an exchange of the same day and amounts, each in the same account or, for a new account, in any. ask keeps it waiting and counts it on the card, which asks the person to say in the chat. import imports it once the person says it is another record: once the card is answered, propose the same rows again with import, and Kuna skips the rows it has.',
+        'lookAlikes says what becomes of a row that looks like a record Kuna has from another file: a trade of the same holding, day, side and units, income of the same holding, day and gross, a cash movement of the same day, kind, currency and amount, or an exchange of the same day and amounts, each in the same account or, for a new account, in any. ask keeps it waiting and lists it on the card, which asks the person to say in the chat whether it is the same record or another one. import imports every such row without asking.',
+        'lookAlikeAnswers gives what the person said of each row a card listed as waiting, by its number on that card, with lookAlikes ask: same-record when it is the record Kuna has, which keeps that record and adds nothing for the row, and another-record when it is another record, which imports it. Once the card is answered, propose the same rows again with the answers, and Kuna skips the rows it has. Give [] until the person answers, and always with import.',
       ].join(' '),
       input: inputOf({
         file: TEXT_OR_NULL,
         account: TEXT_OR_NULL,
         broker: TEXT,
         lookAlikes: { type: 'string', enum: [...LOOK_ALIKES] },
+        lookAlikeAnswers: { type: 'array', items: inputOf({ row: { type: 'integer' }, answer: { type: 'string', enum: [...LOOK_ALIKE_ANSWERS] } }) },
         rows: {
           type: 'array',
           items: inputOf({
@@ -461,6 +420,7 @@ export const IMPORT_STEPS: InvestmentSteps = {
         account: 'account',
         broker: 'Example Broker',
         lookAlikes: 'ask',
+        lookAlikeAnswers: [],
         rows: [
           {
             date: '2026-10-12',
@@ -487,20 +447,7 @@ export const IMPORT_STEPS: InvestmentSteps = {
   write(unit, card, { operation, input }) {
     const field = input as Readonly<Record<string, unknown>>
     if (operation === IMPORT_TRANSCRIBED) return importedTranscribed(unit, card, field)
-    if (operation === IMPORT_WORKBOOK) {
-      const read = field['file']
-      if (!isRowsRead(read)) throw new StepRefused('file is not a workbook Kuna read.')
-      return importedRows(unit, card, read.rows, { ...ANSWERED_BY_DEFAULTS, gone: field['gone'] === 'delete' ? 'delete' : 'keep', where: { ...words.proposals.workbook, lead: null } }).written
-    }
     const held = ibkrMailReader(card.book)
-    if (operation === IMPORT_FLEX_REPORT) {
-      const read = field['file']
-      if (!isReportPicked(read)) throw new StepRefused('file is not a report Kuna read.')
-      const rows = uploadedReportRows(IBKR_FLEX_RECIPE, read.picked, held)
-      const { written, leftOut } = importedRows(unit, card, rows, { ...ANSWERED_BY_DEFAULTS, asked: askedOf(field), where: { ...words.proposals.flexReport, lead: null } })
-      if (leftOut.length > 0) writeUploadLeftOut(unit, held, leftOut, read.picked)
-      return written
-    }
     if (operation === ACCEPT_MAIL_REPORT) {
       const read = field['report']
       if (!isRowsRead(read) || held === null) throw new StepRefused('No mailed report waits.')

@@ -20,7 +20,7 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import { DEFAULT_MONEY_FORMAT, formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
-import { copiedInKunaText, copiedStatementRowsWarning, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { BOOKING_LOOK_ALIKE, copiedInKunaText, copiedStatementRowsWarning, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
@@ -93,14 +93,13 @@ export interface WaitingLookAlike {
 }
 
 /**
- * What a card's import leaves out of its statement or cannot vouch for: the rows its dry run skips for their day, whether the
- * file's reader left out more or noted its balance, the rows the AI copied, those of them Kuna has already and those that wait as look-alikes.
+ * What a card's import leaves out of its statement or cannot vouch for: the rows its dry run skips for their day, the rows
+ * the AI copied, those of them Kuna has already and those that wait as look-alikes.
  */
 export interface StatementLeftOut {
   readonly label: string
   readonly rows: number
-  readonly fileNotes: boolean
-  readonly copied: CopiedRows | null
+  readonly copied: CopiedRows
   readonly inKuna: number
   readonly lookAlikes: readonly WaitingLookAlike[]
 }
@@ -110,21 +109,16 @@ export function statementLeftOut({ statement, copied }: CardStatement, run: Pick
   return {
     label: statement.label,
     rows: run.lines.filter((line) => line.outcome === 'before-opening' || line.outcome === 'other-source').length,
-    fileNotes: statement.notes.length > 0,
     copied,
-    inKuna: copied === null ? 0 : run.lines.filter((line) => line.outcome === 'already-in').length,
-    lookAlikes: copied === null ? [] : run.lines.flatMap((line) => (line.outcome === 'look-alike' ? [{ number: statement.rows.indexOf(line.row) + 1, line }] : [])),
+    inKuna: run.lines.filter((line) => line.outcome === 'already-in').length,
+    lookAlikes: run.lines.flatMap((line) => (line.outcome === 'look-alike' ? [{ number: statement.rows.indexOf(line.row) + 1, line }] : [])),
   }
 }
 
-/** A warning on the statement, since the card shows only what the import writes. Null when it leaves nothing out and nothing was copied. */
-function leftOutNote({ label, rows, fileNotes, copied }: StatementLeftOut): ProposalNote | null {
-  const warnings = [
-    ...(copied === null ? [] : [copiedStatementRowsWarning(copied.count, copied.file, copied.check)]),
-    ...(rows === 0 ? [] : [plural(words.proposals.rowsLeftOut(rows), rows)]),
-    ...(fileNotes ? [words.proposals.fileNotes] : []),
-  ]
-  return warnings.length === 0 ? null : { label, text: warnings.join(' '), tone: 'warning' }
+/** The warning on the copied rows and what the import leaves out, since the card shows only what the import writes. */
+function leftOutNote({ label, rows, copied }: StatementLeftOut): ProposalNote {
+  const warnings = [copiedStatementRowsWarning(copied.count, copied.file, copied.check), ...(rows === 0 ? [] : [plural(words.proposals.rowsLeftOut(rows), rows)])]
+  return { label, text: warnings.join(' '), tone: 'warning' }
 }
 
 /** The plain line on copied rows Kuna has already, which the import skips. Null when there are none. */
@@ -139,7 +133,10 @@ function lookAlikeNote({ lookAlikes }: StatementLeftOut, book: SpendingBook): Pr
     const currency = currencyOf(row, book)
     return [row.payee || row.description, currency === null ? '' : formatAccountMoney(row.amount, currency), dayLabel(row.date)].filter((part) => part !== '')
   }
-  return lookAlikesNote(lookAlikes.map(({ line }) => ({ row: parts(line.row), like: parts(line.like) })))
+  return lookAlikesNote(
+    lookAlikes.map(({ line }) => ({ row: parts(line.row), like: parts(line.like) })),
+    BOOKING_LOOK_ALIKE,
+  )
 }
 
 /** What a card warns on beyond its changes: what its import leaves out, and each receipt whose read failed a check or that may be a payment already on the file. */

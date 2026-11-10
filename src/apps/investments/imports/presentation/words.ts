@@ -365,9 +365,9 @@ export const hr: Translation<typeof en> = {
     nameHelp: 'Kako ga zovete, na primjer broker i čemu račun služi',
     nameMissing: 'Imenujte račun',
     likely: (count, account) => ({
-      one: `Kuna predlaže ${account}: ${count} redak izgleda kao jedan od njegovih zapisa koji još nije došao iz izvješća.`,
-      few: `Kuna predlaže ${account}: ${count} retka izgledaju kao njegovi zapisi koji još nisu došli iz izvješća.`,
-      other: `Kuna predlaže ${account}: ${count} redaka izgleda kao njegovi zapisi koji još nisu došli iz izvješća.`,
+      one: `Kuna predlaže ${account}: ${count} redak nalikuje jednom od njegovih zapisa koji još nije došao iz izvješća.`,
+      few: `Kuna predlaže ${account}: ${count} retka nalikuju njegovim zapisima koji još nisu došli iz izvješća.`,
+      other: `Kuna predlaže ${account}: ${count} redaka nalikuje njegovim zapisima koji još nisu došli iz izvješća.`,
     }),
   },
   instruments: {
@@ -390,7 +390,7 @@ export const hr: Translation<typeof en> = {
     askedChoice: 'Što s ovim retkom',
     askedHold: 'Zadrži',
     askedLeaveOut: 'Izostavi zauvijek',
-    lookAlikes: 'Retci nalik zapisima koje Kuna ima',
+    lookAlikes: 'Retci koji nalikuju zapisima koje Kuna ima',
     lookAlikesIntro:
       'Nijedan zapis u Kuni nema oznaku izvješća za ove retke, ali svaki ima račun, dan i iznose zapisa koji Kuna ima, možda onog koji ste upisali ručno ili uvezli iz radne knjige. Recite je li to taj zapis.',
     lookAlikeKept: (record) => `U Kuni: ${record}`,
@@ -452,7 +452,7 @@ export const hr: Translation<typeof en> = {
     listedSplits: 'Pronađene podjele',
   },
   dryRun: {
-    looksLike: (record) => `Izgleda kao zapis koji Kuna ima: ${record}`,
+    looksLike: (record) => `Nalikuje zapisu koji Kuna ima: ${record}`,
     sameRecord: (record) => `Isto kao ovaj zapis u Kuni: ${record}. Sada ima oznaku ovog retka.`,
     askedIntro: 'Retci kakve Kuna još nije vidjela. Nijedan od njih ne ulazi.',
     askedNoKind: 'Kuna još nije vidjela ovakav redak',
@@ -554,7 +554,7 @@ export const hr: Translation<typeof en> = {
     'same-account': 'Prenosi između dva računa radne knjige koji su u Kuni jedan račun',
     'beyond-held': 'Prodaje ili prenosi više jedinica nego što račun drži na taj dan',
     'differs-from-kuna': 'Izvješće sada daje druge iznose za ovaj zapis. Otvorite ga u Transakcijama i ispravite ih, pa će ovo nestati.',
-    'looks-in-kuna': 'Izgleda kao zapis koji Kuna ima, s istim računom, danom i iznosima',
+    'looks-in-kuna': 'Nalikuje zapisu koji Kuna ima, s istim računom, danom i iznosima',
   },
   skips: {
     unknownType: (text) => `Vrsta „${text}” nije ona koju Kuna čita`,

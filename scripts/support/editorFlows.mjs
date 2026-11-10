@@ -9386,9 +9386,12 @@ async function attachToChat(page, ...paths) {
   await delay(300)
 }
 
+/** The AI company the flows' made-up key is for, which each file's note names. */
+const AI_COMPANY = 'Anthropic'
+
 /**
- * One file of a kind on the chat's prompt: its chip, and under it the line that photos and PDFs go whole with the cost
- * line, or for a sheet Kuna does not read itself the line that it goes as text, cell by cell.
+ * One file of a kind on the chat's prompt: its chip, and under it the note that names the AI company it goes to, whole for
+ * a photo or a PDF with the cost line, or as text cell by cell for a sheet, with what Anonymise leaves as written.
  */
 export function chatAttachFlow(kind, samples, language = 'en') {
   const words = ASSIST_WORDS[language]
@@ -9401,10 +9404,9 @@ export function chatAttachFlow(kind, samples, language = 'en') {
       const states = await page.$$eval('[data-testid="chat-file"]', (chips) => chips.map((chip) => chip.getAttribute('data-state')))
       if (states.join() !== 'ready') throw new Error(`the ${kind} chip is ${states.join() || 'missing'}, not ready`)
       if (kind === 'sheet') {
-        await elementSays(page, '[data-testid="chat-file-note"]', [words.files.goesAsCells('chat-sample-turnover.xlsx')], 'the sheet is not said to go as text, cell by cell')
-        if (await page.$('[data-testid="chat-files-whole"]')) throw new Error('a sheet is said to go whole')
+        await elementSays(page, '[data-testid="chat-file-note"]', [words.files.goesAsCells(AI_COMPANY)], 'the sheet is not said to go to the AI company as text, cell by cell')
       } else {
-        await elementSays(page, '[data-testid="chat-files-whole"]', [words.files.goesWhole], 'the files do not say photos and PDFs go whole')
+        await elementSays(page, '[data-testid="chat-file-note"]', [words.files.goWhole(1, AI_COMPANY).one], 'the file is not said to go to the AI company whole')
         await page.waitForSelector('[data-testid="chat-files-cost"]', { visible: true, timeout: 5_000 }).catch(() => {
           throw new Error('the files show no cost line')
         })
@@ -9542,8 +9544,8 @@ export function chatConsentFilesFlow(samples, language = 'en') {
       await attachToChat(page, samples.photo)
       await sendInChat(page, press, language === 'en' ? 'What is on this receipt?' : 'Što piše na ovom računu?')
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
-      await elementSays(page, '[data-testid="chat-consent-caution"]', [ASSIST_WORDS[language].files.goesWhole], 'the card does not warn that photos and PDFs go whole')
-      if (await page.$('[data-testid="chat-files-whole"]')) throw new Error('the files under the prompt say they go whole while the card says it too')
+      await elementSays(page, '[data-testid="chat-consent-caution"]', [ASSIST_WORDS[language].files.goWhole(1, AI_COMPANY).one], 'the card does not warn that the photo goes whole')
+      if (await page.$('[data-testid="chat-file-note"]')) throw new Error('the files under the prompt say how they go while the card says it too')
       await delay(400)
       await inspect?.('the card before a send with a photo')
       await shoot('chat-consent-files')
@@ -9556,9 +9558,8 @@ export function chatConsentFilesFlow(samples, language = 'en') {
 }
 
 /**
- * The card before the first send says what a file of cells sends, in the chip's own words: beside a photo, the CSV's line
- * among the lines and the photo's warning under them, and with Anonymise off, the CSV's line as a warning. The prompt's
- * own lines wait while the card says them.
+ * The card before the first send warns how a file of cells goes, in the prompt's own words, with Anonymise on or off, and
+ * beside a photo warns once that it goes whole. The prompt's own lines wait while the card says them.
  */
 export function chatConsentCellsFlow(samples, language = 'en', anonymise = true) {
   const words = ASSIST_WORDS[language]
@@ -9570,9 +9571,9 @@ export function chatConsentCellsFlow(samples, language = 'en', anonymise = true)
       await attachToChat(page, ...(anonymise ? [samples.deposits, samples.photo] : [samples.deposits]))
       await sendInChat(page, press, language === 'en' ? 'What is in these?' : 'Što je u ovima?')
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
-      const cells = anonymise ? words.files.goesAsCells('chat-sample-deposits.csv') : words.files.goesAsCellsPlain('chat-sample-deposits.csv')
-      await elementSays(page, anonymise ? CHAT_CONSENT : '[data-testid="chat-consent-caution"]', [cells], 'the card does not say how the CSV goes')
-      if (anonymise) await elementSays(page, '[data-testid="chat-consent-caution"]', [words.files.goesWhole], 'the card does not warn that photos and PDFs go whole')
+      const cells = anonymise ? words.files.goesAsCells(AI_COMPANY) : words.files.goesAsCellsPlain(AI_COMPANY)
+      await elementSays(page, '[data-testid="chat-consent-caution"]', [cells], 'the card does not warn how the CSV goes')
+      if (anonymise) await elementSays(page, '[data-testid="chat-consent-caution"]', [words.files.goWhole(1, AI_COMPANY).one], 'the card does not warn that the photo goes whole')
       if (await page.$('[data-testid="chat-file-note"]')) throw new Error('the files under the prompt say how they go while the card says it too')
       await delay(400)
       await inspect?.(`the card before a send with a CSV${anonymise ? ' and a photo' : ' and Anonymise off'}`)

@@ -27,7 +27,6 @@ const CATALOGUE: Catalogue = {
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
   persons: () => CHAT_PERSONS,
-  formatOf: async () => 'none',
 }
 const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending', query: {}, element: null, today: '2026-11-07', setUp: [] }
 const TOKENS = { input: 1, cacheRead: 0, cacheWrite: 0, output: 1 }

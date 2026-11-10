@@ -3210,6 +3210,7 @@ async function checkWidth(width) {
     ['company-chat-statement-lookalike', 'drive', chatStatementLookAlikeFlowIn('en', 'company-chat-statement-lookalike'), '#/company', 'Overview'],
     // Spending's ways into the chat.
     ['spending-review-ask', 'drive&spending=statements', spendingReviewAskFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    ['spending-chat-revolut-copy', 'drive&spending=sample', appChatCardFlowIn('en', 'revolut', CHAT_ATTACHMENT_SAMPLES), '#/spending', 'Overview'],
     ['chat-receipt', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { accept: true }), '#/spending/transactions', 'Entries'],
     // Company's ways into the chat.
     ['company-review-sort', 'drive', companyReviewAskFlowIn('en'), '#/company/transactions?tab=review', 'Transactions'],

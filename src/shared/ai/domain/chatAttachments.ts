@@ -4,17 +4,6 @@ import type { DocumentSize } from './modelUsage'
 /** What a file attached to the chat is. `text` is any other file that decodes as text, such as OFX, QIF, MT940 or TXT, read as lines. */
 export type AttachmentKind = 'photo' | 'pdf' | 'sheet' | 'xml' | 'csv' | 'json' | 'text'
 
-/** A format an app's own reader takes, found on this device when the file is attached, with the operation that imports it. */
-export interface KnownFormat {
-  readonly app: string
-  /** What the format is called, such as `IBKR Activity Flex report`. */
-  readonly name: string
-  readonly operation: string
-}
-
-/** What the apps' readers make of a file: a format one of them takes, none, or no answer yet as some app's books are still opening. */
-export type FormatFound = KnownFormat | 'none' | 'books-opening'
-
 /** A sheet of a file read on this device as cells, each cell as text, cleaned and cut but not yet aliased. */
 export interface CellSheet {
   /** The sheet's name, a path of XML elements or JSON keys, or null for a file of one sheet. File text, so it leaves only inside a read. */
@@ -28,11 +17,10 @@ export interface CellSheet {
 }
 
 /**
- * How a file reaches the model: never, as Kuna reads its format itself; as cells, each through Anonymise, with the
- * characters the whole file weighs; or whole, a photo or a PDF.
+ * How a file reaches the model: as cells, each through Anonymise, with the characters the whole file weighs and about how
+ * many reads it takes, or whole, a photo or a PDF.
  */
-export type AttachmentReading =
-  { readonly kind: 'kuna'; readonly format: KnownFormat } | { readonly kind: 'cells'; readonly sheets: readonly CellSheet[]; readonly characters: number } | { readonly kind: 'whole' }
+export type AttachmentReading = { readonly kind: 'cells'; readonly sheets: readonly CellSheet[]; readonly characters: number; readonly reads: number } | { readonly kind: 'whole' }
 
 /**
  * A file attached to a chat, held in memory with the chat and gone with it. Its id is the only name the model gets. Saved
@@ -54,9 +42,6 @@ export interface ChatAttachment {
   readonly sent: { readonly width: number; readonly height: number } | null
   readonly reading: AttachmentReading
 }
-
-/** What an app's recogniser reads of a file before it is attached. */
-export type AttachedFile = Pick<ChatAttachment, 'kind' | 'name' | 'bytes'>
 
 const MEGABYTE = 1024 * 1024
 
@@ -145,9 +130,8 @@ export function attachmentKindOf(name: string, mediaType: string): AttachmentKin
   return KIND_OF_EXTENSION[extension] ?? KIND_OF_MEDIA_TYPE[mediaType.toLowerCase()] ?? null
 }
 
-/** What an attachment weighs once sent, for its cost, or null for a file Kuna reads itself. A file's cells are weighed before aliasing, which changes a few characters. */
+/** What an attachment weighs once sent, for its cost, or null for a photo with no size. A file's cells are weighed before aliasing, which changes a few characters. */
 export function documentSizeOf(attachment: ChatAttachment): DocumentSize | null {
-  if (attachment.reading.kind === 'kuna') return null
   if (attachment.reading.kind === 'cells') return { kind: 'text', characters: attachment.reading.characters }
   if (attachment.kind === 'pdf') return { kind: 'pdf', pages: attachment.pages }
   return attachment.sent === null ? null : { kind: 'photo', ...attachment.sent }
@@ -163,8 +147,6 @@ export type AttachmentRefusal =
   | { readonly reason: 'unreadable' }
   /** A sheet that inflates past what Kuna reads, or XML that declares its own entities, refused before it is parsed. */
   | { readonly reason: 'unsafe' }
-  /** An app's books are still opening, so Kuna cannot yet tell whether its reader takes the file or whose names to alias. */
-  | { readonly reason: 'books-opening' }
 
 /** Why a file of this kind and size cannot wait beside the ones already waiting, or null when it can. */
 export function attachRefusal(kind: AttachmentKind | null, size: number, waiting: number): AttachmentRefusal | null {
@@ -177,6 +159,19 @@ export function attachRefusal(kind: AttachmentKind | null, size: number, waiting
 /** Why a PDF of this many pages is refused, or null when Kuna takes it. */
 export function pagesRefusal(pages: number): AttachmentRefusal | null {
   return pages > MOST_PDF_PAGES ? { reason: 'too-many-pages', most: MOST_PDF_PAGES } : null
+}
+
+/**
+ * About how many reads a file of cells takes: each sheet by the rows or the characters one read hands over, whichever
+ * needs more. Aliasing changes a few characters, so a sheet near the cap may take one read more.
+ */
+export function cellReadsOf(sheets: readonly CellSheet[]): number {
+  return sheets.reduce((reads, sheet) => reads + Math.max(1, Math.ceil(sheet.rows.length / MOST_ROWS_A_READ), Math.ceil(JSON.stringify(sheet.rows).length / MOST_CHARACTERS_A_READ)), 0)
+}
+
+/** How many reads a PDF of this many pages takes. */
+export function pdfReadsOf(pages: number): number {
+  return Math.ceil(pages / MOST_PAGES_A_READ)
 }
 
 /** The id the next attachment of a chat gets, one past the highest handed out, so a removed one's id is never reused. */

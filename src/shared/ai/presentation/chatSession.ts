@@ -31,6 +31,7 @@ import type { KunaChat } from './chatApps'
 import { imagePartOf } from './imagePartOf'
 import { anonymisingNow, costWords, providerInUse, resultLine } from './aiProvider'
 import { words } from './words'
+import { plural } from '../../text/translation'
 
 export interface ChatLine {
   readonly id: string
@@ -170,13 +171,6 @@ function startChainOn(next: string): void {
 }
 
 let catalogue: Promise<Catalogue> | null = null
-let catalogueLoaded: (loading: Promise<Catalogue>) => void = () => undefined
-/** The catalogue once the chat's panel loads it, which a file waits for so each app's reader can say whether it takes it. A catalogue that fails to load refuses the file. */
-const catalogueWhenLoaded = new Promise<Catalogue>((resolve, reject) => {
-  catalogueLoaded = (loading) => void loading.then(resolve, reject)
-})
-// A file that comes later still sees the failure. Until then it is no unhandled rejection.
-void catalogueWhenLoaded.catch(() => undefined)
 
 /**
  * What a chat knows, built once when the chat's panel mounts and kept for the visit. It reads what each app declares and
@@ -200,7 +194,6 @@ export function loadCatalogue(apps: readonly AppContribution[], kuna: KunaChat):
       }),
     ),
   ]).then(([kunaAssistant, catalogueApps]) => catalogueOf(catalogueApps, { id: kuna.id, name: kuna.name, purpose: kuna.purpose, screens: kuna.screens, assistant: kunaAssistant }))
-  catalogueLoaded(catalogue)
   return catalogue
 }
 
@@ -410,7 +403,7 @@ export async function attachFiles(files: readonly File[]): Promise<void> {
       idsHandedOut += 1
       const key = `file-${id}`
       promptFiles.push({ key, name: file.name, state: 'reading' })
-      const read = await attachedFile(file, id, waiting, imagePartOf, async (attached) => (await catalogueWhenLoaded).formatOf(attached))
+      const read = await attachedFile(file, id, waiting, imagePartOf)
       const at = promptFiles.findIndex((shown) => shown.key === key)
       if (at === -1) return
       promptFiles[at] = 'reason' in read ? { key, name: file.name, state: 'refused', refusal: read } : { key, name: file.name, state: 'ready', attachment: markRaw(read) }
@@ -441,23 +434,21 @@ export const chatPromptFiles = computed<readonly PromptFile[]>(() => {
 /** Whether a PDF on the prompt waits for a provider that reads it, which holds the message back. */
 export const promptPdfsRefused = computed(() => chatPromptFiles.value.some((file) => file.state === 'refused' && file.refusal.reason === 'no-pdf'))
 
-/** Whether a photo or a PDF on the prompt goes to the model whole. */
-export const promptSendsDocument = computed(() => chatPromptFiles.value.some((file) => file.state === 'ready' && file.attachment.reading.kind === 'whole'))
-
-/** What a file of cells on the prompt sends, in the words its chip and the card before the first send both show. It warns while Anonymise is off, as names then go as written. */
-export interface CellsNote {
-  readonly key: string
-  readonly text: string
-  readonly warns: boolean
-}
-
-export const promptCellsNotes = computed<readonly CellsNote[]>(() =>
-  chatPromptFiles.value.flatMap((file) => {
-    if (file.state !== 'ready' || file.attachment.reading.kind !== 'cells') return []
-    const aliased = anonymisingNow()
-    return [{ key: file.key, text: aliased ? words.files.goesAsCells(file.name) : words.files.goesAsCellsPlain(file.name), warns: !aliased }]
-  }),
-)
+/**
+ * How the files on the prompt go and to which AI company, as the prompt and the card before the first send both say it:
+ * one warning for the files of cells, with what Anonymise leaves as written, and one naming how many photos and PDFs go
+ * whole. None shows while no AI company is set up, as nothing can go.
+ */
+export const promptFileNotes = computed<readonly string[]>(() => {
+  const company = providerInUse()?.name
+  if (company === undefined) return []
+  const ready = chatPromptFiles.value.flatMap((file) => (file.state === 'ready' ? [file.attachment.reading.kind] : []))
+  const whole = ready.filter((kind) => kind === 'whole').length
+  return [
+    ...(ready.includes('cells') ? [anonymisingNow() ? words.files.goesAsCells(company) : words.files.goesAsCellsPlain(company)] : []),
+    ...(whole === 0 ? [] : [plural(words.files.goWhole(whole, company), whole)]),
+  ]
+})
 
 /** The files that go with a message leave the prompt, with any refused, and the chat holds them for the model's reads. */
 function sentFiles(): readonly ChatAttachment[] {

@@ -7,10 +7,7 @@ import type { WorkbookRows } from '../../src/apps/investments/imports/domain/imp
 import { OPTIONAL_COLUMNS, WORKBOOK_COLUMNS, readPortfolioWorkbook } from '../../src/apps/investments/imports/domain/portfolioWorkbook'
 import { MAIL_READER_WRITES } from '../../src/apps/investments/mail/application/mailReaderWrites'
 import { IBKR_FLEX_RECIPE } from '../../src/apps/investments/mail/domain/ibkrFlexRecipe'
-import { sampleFlexReport } from '../../src/apps/investments/mail/infrastructure/fake/sampleFlexReport'
-import type { SampleFlexShape } from '../../src/apps/investments/mail/infrastructure/fake/sampleFlexReport'
 import type { PricesFetchRun } from '../../src/apps/investments/prices/application/pricesUpdate'
-import type { ClosesImportLine } from '../../src/apps/investments/prices/domain/closesImport'
 import { NO_FETCHED_FACTS, emptyPricesFile } from '../../src/apps/investments/prices/domain/pricesFile'
 import type { PricesFile } from '../../src/apps/investments/prices/domain/pricesFile'
 import { writeTransaction } from '../../src/apps/investments/transactions/application/transactionWrites'
@@ -32,7 +29,6 @@ import { newPseudonyms } from '../../src/shared/privacy/domain/pseudonyms'
 import type { WorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 import type { AskedRow } from '../../src/shared/recipes/domain/runRecipe'
-import { sheetJs } from '../../src/shared/xlsx/sheetGrids'
 import { profileFact } from './facts'
 import { USD, account, cashMovement, cashTransfer, decimal, dividend, exchange, instrument, spinOff, split, trade } from './investments'
 import { civil } from './ledger'
@@ -75,55 +71,6 @@ export function workbookGrid(rows: readonly (readonly [string, WorkbookCells])[]
   const columns = Object.keys(WORKBOOK_HEADERS) as (keyof typeof WORKBOOK_HEADERS)[]
   return [columns.map((column) => WORKBOOK_HEADERS[column]), ...rows.map(([date, cells]) => columns.map((column) => (column === 'date' ? serialFromCivilDate(civil(date)) : (cells[column] ?? ''))))]
 }
-
-/** The workbook as an attached xlsx file, written by Kuna's spreadsheet library. */
-export async function workbookAttachment(id: string, grid: (string | number)[][], name = 'portfolio.xlsx'): Promise<ChatAttachment> {
-  const xlsx = await sheetJs()
-  const book = xlsx.utils.book_new()
-  xlsx.utils.book_append_sheet(book, xlsx.utils.aoa_to_sheet(grid), 'Transactions')
-  const bytes = new Uint8Array(xlsx.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
-  return {
-    id,
-    kind: 'sheet',
-    name,
-    bytes,
-    original: new Blob(),
-    pages: 1,
-    sent: null,
-    reading: { kind: 'kuna', format: { app: 'investments', name: 'portfolio workbook', operation: 'import-workbook' } },
-  }
-}
-
-/** A CSV of daily closes as an attached file. */
-export function closesAttachment(id: string, name: string, text: string): ChatAttachment {
-  return {
-    id,
-    kind: 'csv',
-    name,
-    bytes: new TextEncoder().encode(text),
-    original: new Blob(),
-    pages: 1,
-    sent: null,
-    reading: { kind: 'kuna', format: { app: 'investments', name: 'CSV of daily closes', operation: 'import-closes' } },
-  }
-}
-
-/** A made-up IBKR Activity Flex report over the days given as an attached XML file, which Kuna reads itself. */
-export function flexAttachment(id: string, days: readonly string[], shape: SampleFlexShape = 'plain', name = 'kuna-daily.xml'): ChatAttachment {
-  return {
-    id,
-    kind: 'xml',
-    name,
-    bytes: new TextEncoder().encode(sampleFlexReport(days.map(civil), shape)),
-    original: new Blob(),
-    pages: 1,
-    sent: null,
-    reading: { kind: 'kuna', format: { app: 'investments', name: 'IBKR Activity Flex report', operation: 'import-flex-report' } },
-  }
-}
-
-/** A deposit at a broker account Kuna has not seen, the smallest workbook an import adds something from. */
-export const DEPOSIT_WORKBOOK = workbookGrid([['2026-03-02', { broker: 'IBKR', account: 'U0000009', sourceFile: 'activity.csv', type: 'DEPOSIT', currency: 'EUR', netCash: 1000 }]])
 
 /** What a sync read from mail: one deposit at a new account, and one row the report asks about. */
 export function mailedReport(): WorkbookRows {
@@ -231,14 +178,13 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
     pricesFile: () => PRICES_FILE,
     prices: {
       fetchNow: () => run('now'),
-      importCloses: (lines: readonly ClosesImportLine[]) => run(`closes of ${lines.map((line) => line.instrument.name).join(', ')}`),
       askFactsAgain: (instrument) => run(`facts of ${instrument}`),
     },
     mailReport: () => mailedReport(),
     history: { file: () => history.file, given: () => history.complete, give: () => (history.complete = true), takeBack: () => (history.complete = false) },
     requestCounts: { today: (vendorId) => requests.get(vendorId) ?? 0, set: (vendorId, count) => requests.set(vendorId, count) },
   }
-  const attachments = [await workbookAttachment('a1', DEPOSIT_WORKBOOK), closesAttachment('a2', 'SHARE.csv', 'Date,Close\n2026-10-01,101.5\n2026-10-02,102\n'), flexAttachment('a3', ['2026-10-12'])]
+  const attachments: ChatAttachment[] = []
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['investments', investmentsProposer(typed, ports, FILE_OPEN)]])

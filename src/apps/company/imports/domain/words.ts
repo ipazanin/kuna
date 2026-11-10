@@ -1,6 +1,5 @@
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { EntrySide } from '../../../../shared/categorising/domain/rule'
@@ -30,7 +29,7 @@ export const en = {
     noIban: 'The statement names no Acct/Id/IBAN, so the app cannot tell whose account it is.',
     noCurrency: 'The statement states no Acct/Ccy, so no entry can be checked against it.',
     chainOpen: (opening: Money, credits: Money, debits: Money, expected: Money, closing: Money) =>
-      `The balance chain does not close: opening ${plainAmount(opening)} plus credits ${plainAmount(credits)} less debits ${plainAmount(debits)} is ${plainAmount(expected)}, but CLBD reports ${plainAmount(closing)}.`,
+      `The balance chain does not close: opening ${formatMoney(opening)} plus credits ${formatMoney(credits)} less debits ${formatMoney(debits)} is ${formatMoney(expected)}, but CLBD reports ${formatMoney(closing)}.`,
     summaryRequired: 'The statement carries no TxsSummry, which this bank always sends, so its entries cannot be counted against the totals the bank reports.',
     noSummary: 'The statement carries no TxsSummry, so its entries are checked against its balances only, not against counts and totals from the bank.',
     noBalance: (code: string) => `The statement carries no ${code} balance, so its chain cannot be closed.`,
@@ -45,7 +44,7 @@ export const en = {
     noDate: (entry: string) => `Entry ${entry} carries neither a booking nor a value date.`,
     notADay: (element: string, text: string) => `An entry's ${element} is "${text}", which is not a day.`,
     summaryCount: (element: string, declared: number, read: number, side: EntrySide) => `${element} reports ${declared} entries but ${read} booked ${side} entries were read.`,
-    summarySum: (element: string, declared: Money, summed: Money, side: EntrySide) => `${element} reports ${plainAmount(declared)} but the booked ${side} entries sum to ${plainAmount(summed)}.`,
+    summarySum: (element: string, declared: Money, summed: Money, side: EntrySide) => `${element} reports ${formatMoney(declared)} but the booked ${side} entries sum to ${formatMoney(summed)}.`,
     notANumber: (what: string, text: string) => `${capitalised(what)} is "${text}", which is not a number.`,
     signed: (what: string, text: string) => `${capitalised(what)} is "${text}", but a camt amount is unsigned and its direction is carried by the CdtDbtInd beside it.`,
     finerThanACent: (what: string, text: string) => `${capitalised(what)} is "${text}", which is finer than a cent.`,
@@ -72,7 +71,7 @@ export const en = {
     negativeCredit: (text: string) => `the credit "${text}" is negative, so whether the money came in or went out is unclear`,
     unordered: (fileName: string) => `The dates in ${fileName} run neither oldest first nor newest first, so the rows cannot be put in booking order.`,
     balanceBreak: (row: number, balance: Money, previousRow: number, previous: Money, amount: Money, expected: Money) =>
-      `Row ${row} says the balance is ${plainAmount(balance)}, but row ${previousRow}'s ${plainAmount(previous)} plus ${plainAmount(amount)} is ${plainAmount(expected)}. The rows may be out of order or one may be missing.`,
+      `Row ${row} says the balance is ${formatMoney(balance)}, but row ${previousRow}'s ${formatMoney(previous)} plus ${formatMoney(amount)} is ${formatMoney(expected)}. The rows may be out of order or one may be missing.`,
   },
   dryRun: {
     noEntries: 'The statement has no booked entries, so importing it writes nothing.',
@@ -90,11 +89,11 @@ export const en = {
     noReference: (count: number) =>
       `${count === 1 ? 'An entry carries' : `${count} entries carry`} no bank reference, so a second import could not tell ${count === 1 ? 'it' : 'them'} from others. The whole statement is refused.`,
     beforeNewest: (first: CivilDate, newest: CivilDate, account: string) =>
-      `Its first new entry is dated ${first}, before ${newest}, the newest row of ${account}. Rows are only added after the newest one.`,
+      `Its first new entry is dated ${dayLabel(first)}, before ${dayLabel(newest)}, the newest row of ${account}. Rows are only added after the newest one.`,
     missingBetween: (account: string, balance: Money, day: CivilDate, before: Money) =>
-      `The ledger ends ${account} at ${plainAmount(balance)} on ${day}, but this statement's first new entry starts from ${plainAmount(before)}, so a statement between the two is missing. Import that one first.`,
+      `The ledger ends ${account} at ${formatMoney(balance)} on ${dayLabel(day)}, but this statement's first new entry starts from ${formatMoney(before)}, so a statement between the two is missing. Import that one first.`,
     worksOutBalances: (opening: Money, account: string, day: CivilDate) =>
-      `The file gives no balances, so they are worked out from ${plainAmount(opening)}, where the ledger leaves ${account} on ${day}.`,
+      `The file gives no balances, so they are worked out from ${formatMoney(opening)}, where the ledger leaves ${account} on ${dayLabel(day)}.`,
     sequenceGap: (sequence: number, newest: number, account: string, missing: number) =>
       `It is statement ${sequence}, and the newest on the ledger for ${account} is ${newest}, so ${missing === 1 ? 'one statement is' : `${missing} statements are`} not on the ledger. The balances still join, so ${missing === 1 ? 'it' : 'they'} may have held no entries.`,
     sequenceNotAfter: (sequence: number, newest: number, account: string) => `It is statement ${sequence}, which is not after ${newest}, the newest on the ledger for ${account}.`,
@@ -118,9 +117,9 @@ export const en = {
   },
   transcribed: {
     doesNotTie: (opening: Money, rows: Money, reached: Money, closing: Money, gap: Money) =>
-      `The statement does not add up: the opening balance ${plainAmount(opening)} and its entries ${plainAmount(rows)} reach ${plainAmount(reached)}, but the printed closing balance is ${plainAmount(closing)}, ${plainAmount(gap)} apart.`,
+      `The statement does not add up: the opening balance ${formatMoney(opening)} and its entries ${formatMoney(rows)} reach ${formatMoney(reached)}, but the printed closing balance is ${formatMoney(closing)}, ${formatMoney(gap)} apart.`,
     partDoesNotTie: (account: string, left: Money, rows: Money, reached: Money, closing: Money, gap: Money) =>
-      `The statement does not add up: its earlier parts leave ${account} at ${plainAmount(left)}, and this part's new entries ${plainAmount(rows)} reach ${plainAmount(reached)}, but the printed closing balance is ${plainAmount(closing)}, ${plainAmount(gap)} apart.`,
+      `The statement does not add up: its earlier parts leave ${account} at ${formatMoney(left)}, and this part's new entries ${formatMoney(rows)} reach ${formatMoney(reached)}, but the printed closing balance is ${formatMoney(closing)}, ${formatMoney(gap)} apart.`,
     oneBalance:
       'Give both the opening and the closing balance the statement prints, or neither when it prints none. A statement in parts gives the opening alone on part 1 and both on its last part. Never work one out.',
     partsBeforeMissing: (label: string) => `No row of ${label} is on the ledger yet. Import its parts in order from part 1, each once the one before is accepted.`,

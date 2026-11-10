@@ -41,7 +41,7 @@ describe('the fake build’s sample statement files', () => {
 
     expect(run.statements.map((statement) => [statement.fileName, statement.refusal])).toEqual([
       [SAMPLE_TABLE_FILE_NAME, null],
-      [SAMPLE_CAMT_FILE_NAME, 'Its first new entry is dated 2026-10-12, before 2026-10-14, the newest row of main. Rows are only added after the newest one.'],
+      [SAMPLE_CAMT_FILE_NAME, 'Its first new entry is dated 12 Oct 2026, before 14 Oct 2026, the newest row of main. Rows are only added after the newest one.'],
     ])
     expect(run.newRows).toBe(4)
   })

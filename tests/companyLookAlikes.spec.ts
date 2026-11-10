@@ -90,7 +90,7 @@ describe('a copied statement over a camt import', () => {
   it('leaves a statement Kuna read itself matching by reference alone', () => {
     const [reading] = copied([['2026-10-05', -27, 'Telecom d.d.']])
     const camt = { statement: { ...reading!.statement, source: { kind: 'camt' as const, iban: '', sequence: 2 } } }
-    expect(importDryRun([camt], inputsOf(CAMT_ROWS)).statements[0]!.refusal).toContain('before 2026-10-08')
+    expect(importDryRun([camt], inputsOf(CAMT_ROWS)).statements[0]!.refusal).toContain('before 8 Oct 2026')
   })
 })
 
@@ -116,7 +116,6 @@ describe('copied rows on a card that look like ledger rows', () => {
     op: 'import-statement',
     input: {
       file: null,
-      profile: null,
       account: desk.ref(ACCOUNT_RECORDS.name, 'main'),
       statementName: 'Statement 8',
       opening: 810,
@@ -229,7 +228,7 @@ describe('a camt statement over rows the AI copied', () => {
   it('keeps a near miss new, which the ledger refuses before its newest row', () => {
     const run = importDryRun(camtOf([['2026-10-05', -27.01, 'Telecom d.d.']]), inputsOf(COPIED))
     expect(run.statements[0]!.rows.map((row) => row.inLedger)).toEqual([false])
-    expect(run.statements[0]!.refusal).toContain('before 2026-10-08')
+    expect(run.statements[0]!.refusal).toContain('before 8 Oct 2026')
   })
 
   it('counts only the entries on the ledger in the fact on a copied statement that is partly there, as the card lists the look-alikes', () => {

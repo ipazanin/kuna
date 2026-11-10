@@ -35,8 +35,7 @@ import {
   clearChat,
   loadCatalogue,
   promptPdfsRefused,
-  promptCellsNotes,
-  promptSendsDocument,
+  promptFileNotes,
   restoreChat,
   sendChatFrom,
   sendChatMessage,
@@ -109,15 +108,11 @@ function setUpNow(): readonly AppSetUp[] {
 const appOnScreenNew = computed(() => props.app !== null && appSetUpOf(props.app) !== null)
 
 const aliasLine = computed(() => (anonymisingNow() ? words.chat.aliases : words.chat.noAliases(provider.value?.name ?? '')))
+/** The card says what leaves, and what Anonymise does unless the note on files of cells under it says that already. */
 const sendLines = computed(() => {
-  const files = promptSendsDocument.value || promptCellsNotes.value.length > 0
-  // A new app knows nobody to put an alias on, so its files of cells get one line that says names go as written.
-  const cells = promptCellsNotes.value.filter((note) => !note.warns).map((note) => note.text)
-  const cellLines = appOnScreenNew.value && cells.length > 0 ? [words.chat.newAppNames] : cells
-  return [words.consent.sends(files ? words.chat.sendsWithFiles : words.chat.sends), aliasLine.value, ...cellLines]
+  const ready = chatPromptFiles.value.flatMap((file) => (file.state === 'ready' ? [file.attachment.reading.kind] : []))
+  return [words.consent.sends(ready.length > 0 ? words.chat.sendsWithFiles : words.chat.sends), ...(ready.includes('cells') ? [] : [aliasLine.value])]
 })
-/** The warnings under the card's lines: each file of cells whose names go as written, then that photos and PDFs go whole. */
-const sendCautions = computed(() => [...promptCellsNotes.value.filter((note) => note.warns).map((note) => note.text), ...(promptSendsDocument.value ? [words.files.goesWhole] : [])])
 const held = computed(() => asking.value !== null)
 const readingFiles = computed(() => chatPromptFiles.value.some((file) => file.state === 'reading'))
 const placeholder = computed(() => {
@@ -313,7 +308,7 @@ function dropped(event: DragEvent): void {
           :provider="provider"
           :title="words.consent.title(provider.name)"
           :lines="sendLines"
-          :cautions="sendCautions"
+          :cautions="promptFileNotes"
           @allow="allowInChat"
           @always="allowAlways"
           @cancel="asking = null"

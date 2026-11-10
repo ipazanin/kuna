@@ -20,6 +20,11 @@ const ANSWERS = {
     statementProposed: 'I misread one amount at first, so Kuna refused it as not adding up. The card below now ties from the opening balance to the closing one.',
     copyTitle: 'Import the copied statement',
     copyProposed: 'One row is in Spending already and is skipped. Another looks like a row Kuna has from another source, so it waits on the card. Is it another payment?',
+    noFile: 'Attach the Revolut export with the paperclip, and I will copy its rows.',
+    revolutName: 'Revolut export',
+    revolutTitle: 'Import the Revolut export',
+    revolutProposed: 'The card imports the rows I copied from the Revolut file. The export prints no opening or closing balance, so check the rows against it.',
+    revolutRefused: 'Kuna refused the rows I copied. Check them against the file.',
     noPhoto: 'Attach a photo of the receipt first, and I will read its lines.',
     pharmacy: 'Pharmacy',
     pharmacyTitle: 'A category for the pharmacy',
@@ -53,6 +58,11 @@ const ANSWERS = {
     statementProposed: 'Isprva sam krivo pročitao jedan iznos, pa ga je Kuna odbila jer se ne zbraja. Kartica ispod sada se slaže od početnog do završnog stanja.',
     copyTitle: 'Uvezi prepisani izvod',
     copyProposed: 'Jedan je redak već u Potrošnji i preskočen je. Drugi nalikuje retku koji Kuna ima iz drugog izvora, pa čeka na kartici. Je li to drugo plaćanje?',
+    noFile: 'Priložite izvoz iz Revoluta spajalicom i prepisat ću njegove retke.',
+    revolutName: 'Izvoz iz Revoluta',
+    revolutTitle: 'Uvezi izvoz iz Revoluta',
+    revolutProposed: 'Kartica uvozi retke koje sam prepisao iz datoteke iz Revoluta. Izvoz ne ispisuje početno ni završno stanje, pa retke usporedite s njim.',
+    revolutRefused: 'Kuna je odbila retke koje sam prepisao. Provjerite ih s datotekom.',
     noPhoto: 'Najprije priložite fotografiju fiskalnog računa, pa ću pročitati stavke.',
     pharmacy: 'Ljekarna',
     pharmacyTitle: 'Kategorija za ljekarnu',
@@ -320,6 +330,37 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   return answered(request, says.copyProposed, tokens)
 }
 
+/** The last CSV attached to the chat, by the id its context line gives, or null for none. */
+function attachedCsv(request: FakeChatTurn['request']): string | null {
+  const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : []))
+  return said.flatMap((text) => [...text.matchAll(/\b(a\d+) \(csv\b/g)].map((match) => match[1]!)).at(-1) ?? null
+}
+
+/** The completed rows of a Revolut export as read_attachment hands its cells, under the export's own header row. */
+function revolutRows(read: string): readonly { readonly date: string; readonly amount: number; readonly payee: string; readonly iban: null }[] {
+  const [header = [], ...cells] = (JSON.parse(read) as { readonly rows: readonly (readonly string[])[] }).rows
+  const at = (column: string): number => header.indexOf(column)
+  return cells
+    .filter((row) => row[at('State')] === 'COMPLETED')
+    .map((row) => ({ date: row[at('Completed Date')]!.slice(0, 10), amount: Number(row[at('Amount')]), payee: row[at('Description')]!, iban: null }))
+}
+
+/** Reads the Revolut export attached to the chat as cells, finds the Revolut account and copies the export's completed rows onto it, with no balances since the export prints none. */
+function revolutCopyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const file = attachedCsv(request)
+  if (file === null) return answered(request, says.noFile, tokens)
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: file, pages: null, sheet: null, rows: null }, tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findAccounts, tokens)
+  if (answers.length === 2) {
+    const { records } = JSON.parse(answers[1]!.text) as { readonly records: readonly { readonly ref: string; readonly bank?: string }[] }
+    const account = (records.find((record) => record.bank === 'revolut') ?? records[0]!).ref
+    const input = { file, account, statementName: says.revolutName, opening: null, closing: null, rows: revolutRows(answers[0]!.text), part: 1, lookAlikes: 'ask' }
+    return lookup(2, 'propose_changes', { app: 'spending', title: says.revolutTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
+  }
+  return answered(request, answers[2]!.isError ? says.revolutRefused : says.revolutProposed, tokens)
+}
+
 /** Asks Kuna which rows of the OTP statement Spending has, and says for each whether it is in, looks like a payment there, or is new. */
 function matchReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
@@ -354,7 +395,7 @@ function biggestReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
 
 /**
  * Spending's part of the fake chat: Suggest categories proposes a new category and, at Go on, a rule into it, any other that starts with sort proposes a rule, one that starts with close proposes closing
- * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
+ * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
@@ -365,6 +406,7 @@ function spendingChat(turn: FakeChatTurn): ModelReply | null {
   if (/^close|^zatvori/i.test(typed)) return closeAccountReply(turn, says)
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
   if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)
+  if (/^bring the revolut|^unesi revolut/i.test(typed)) return revolutCopyReply(turn, says)
   if (/^check these rows|^provjeri ove retke/i.test(typed)) return matchReply(turn, says)
   if (/biggest spends|najveći troškovi/i.test(typed)) return biggestReply(turn, says)
   if (/^read (the|this|a) receipt|^pročitaj (fiskalni )?račun/i.test(typed)) return receiptReply(turn, says)

@@ -86,12 +86,11 @@ export const companyApp: AppContribution = {
   homeCard: COMPANY_HOME_CARD,
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
   assistant: async () => {
-    const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { loadImportFile }, { useStatementSync }, { gmailForDrafts }] = await Promise.all([
+    const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { useStatementSync }, { gmailForDrafts }] = await Promise.all([
       import('./assistant/companyAssistant'),
       import('./packs/hr-doo/assistant/hrDooAssistant'),
       import('./assistant/operations/companyOperations'),
       import('./packs/hr-doo/assistant/operations/packOperations'),
-      import('./imports/infrastructure/importFiles'),
       import('./imports/presentation/useStatementSync'),
       import('./invoicing/application/invoiceGoogle'),
     ])
@@ -100,7 +99,6 @@ export const companyApp: AppContribution = {
     const file = browserFileOf(store, { id: 'company', name: words.name }, newCompanyBooks)
     const statementSync = useStatementSync()
     const ports = {
-      readStatementFile: loadImportFile,
       heldStatements: () => statementSync.state.outcome?.held ?? [],
       // The answers are kept per file on this device, as the set-up card keeps them, so with no file open none is given.
       setUpAnswers: {

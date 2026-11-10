@@ -29,5 +29,17 @@ export async function writeChatAttachmentSamples(folder) {
   const deposits = join(folder, 'chat-sample-deposits.csv')
   const daysAgo = (days) => new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
   writeFileSync(deposits, `Booked,Kind,Amount,Currency\n${daysAgo(9)},Deposit,500.00,EUR\n${daysAgo(6)},Deposit,300.00,EUR\n`)
-  return { photo, pdf, sheet, note, unsafe, deposits }
+  const revolut = join(folder, 'chat-sample-revolut.csv')
+  const revolutRow = (type, days, payee, amount, state, balance) => `${type},Current,${daysAgo(days)} 10:00:00,${daysAgo(days)} 10:01:00,${payee},${amount},0.00,EUR,${state},${balance}`
+  writeFileSync(
+    revolut,
+    [
+      'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance',
+      revolutRow('CARD_PAYMENT', 5, 'Corner market', '-12.50', 'COMPLETED', '87.50'),
+      revolutRow('CARD_PAYMENT', 4, 'Harbour bistro', '-25.00', 'COMPLETED', '62.50'),
+      revolutRow('CARD_PAYMENT', 2, 'ZET tram', '-1.60', 'COMPLETED', '60.90'),
+      revolutRow('CARD_PAYMENT', 1, 'Night kiosk', '-3.20', 'PENDING', ''),
+    ].join('\n') + '\n',
+  )
+  return { photo, pdf, sheet, note, unsafe, deposits, revolut }
 }

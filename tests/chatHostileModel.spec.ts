@@ -4,8 +4,6 @@ import { fileURLToPath } from 'node:url'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { companyFileFormats } from '../src/apps/company/assistant/fileFormats'
-import { SPENDING_FILE_FORMATS } from '../src/apps/spending/assistant/fileFormats'
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import { catalogueOf, ISSUES_ROUTE } from '../src/shared/ai/application/catalogue'
 import type { Catalogue } from '../src/shared/ai/application/catalogue'
@@ -17,7 +15,7 @@ import type { ModelPort, ModelReply, ModelRequest, ToolCall } from '../src/share
 import { appSetUpOf, contextLine, elementLine, runChatTurn } from '../src/shared/ai/application/runChatTurn'
 import { attachedFile } from '../src/shared/ai/application/chatFiles'
 import { attachmentKindOf, nextAttachmentId } from '../src/shared/ai/domain/chatAttachments'
-import type { AttachedFile, ChatAttachment, FormatFound } from '../src/shared/ai/domain/chatAttachments'
+import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
 import type { FigureTrace } from '../src/shared/ai/domain/chatElement'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import type { ChatBuildUp } from '../src/shared/ai/domain/chatRefs'
@@ -63,7 +61,6 @@ const CATALOGUE: Catalogue = catalogueOf(
         acceptance: null,
         quickActions: [],
         persons: () => CHAT_PERSONS,
-        fileFormats: SPENDING_FILE_FORMATS,
       },
     },
   ],
@@ -468,29 +465,24 @@ describe('the tagged element and the files', () => {
     )
   })
 
-  it('lists files by id and kind, never by name, and says which Kuna reads itself', async () => {
+  it('lists files by id and kind with their rows or pages and the reads they take, never by name, and a statement in any format as cells', async () => {
     const files = await fixtureAttachments()
     const line = elementLine(null, files, CATALOGUE, readsOf())!
     for (const file of files) expect(line).not.toContain(file.name)
-    expect(line).toContain('(pdf, 30 pages)')
-    expect(line).toMatch(/a\d+ \(sheet, Revolut's statement export, read by Kuna and never sent, which spending import-statement imports\)/)
-    expect(line).toMatch(/a\d+ \(xml, ISO 20022 bank statement, read by Kuna and never sent/)
-    expect(line).toMatch(/a\d+ \(json, \d+ sheets?|a\d+ \(json, \d+ rows, which read_attachment hands as cells\)/)
+    expect(line).toContain('(pdf, 30 pages, 2 reads)')
+    const cells = (kind: string): RegExp => new RegExp(`a\\d+ \\(${kind}, (\\d+ sheets of [\\d, ]+ and )?\\d+ rows?, about \\d+ reads?, which read_attachment hands as cells\\)`)
+    for (const kind of ['sheet', 'json']) expect(line).toMatch(cells(kind))
+    expect(line).not.toMatch(/read by Kuna|never sent/)
   })
 })
 
-/** Every fixture a person could attach, each under the id the chat would hand out, read on the device as the chat reads it, with Spending's and Company's formats known. */
+/** Every fixture a person could attach, each under the id the chat would hand out, read on the device as the chat reads it. */
 async function fixtureAttachments(): Promise<readonly ChatAttachment[]> {
   const names = readdirSync(DOCUMENTS)
     .filter((name) => attachmentKindOf(name, '') !== null)
     .sort()
-  const formats = [...SPENDING_FILE_FORMATS.map((format) => ({ app: 'spending', format })), ...companyFileFormats(() => null).map((format) => ({ app: 'company', format }))]
-  const knownFormatOf = async (file: AttachedFile): Promise<FormatFound> => {
-    for (const { app, format } of formats) if (await format.recognises(file)) return { app, name: format.name, operation: format.operation }
-    return 'none'
-  }
   const read = await Promise.all(
-    names.map(async (name, index) => attachedFile(new File([readFileSync(join(DOCUMENTS, name))], name), nextAttachmentId(index), 0, () => Promise.reject(new Error('no photos here')), knownFormatOf)),
+    names.map(async (name, index) => attachedFile(new File([readFileSync(join(DOCUMENTS, name))], name), nextAttachmentId(index), 0, () => Promise.reject(new Error('no photos here')))),
   )
   // A PDF Kuna refuses on its chip still reaches a read here, as a hostile model may name any id.
   return Promise.all(
@@ -543,7 +535,7 @@ describe('a hostile model and the attached files', () => {
       }
       if (file.reading.kind !== 'whole') expect(sent).not.toContain(Buffer.from(file.bytes).toString('base64'))
     }
-    expect(sent).toContain('Kuna reads this file itself, as ISO 20022 bank statement, and never sends it.')
+    expect(sent).toContain('\\"kind\\":\\"sheet\\",\\"untrusted\\":true')
     expect(sent).toContain('\\"kind\\":\\"json\\",\\"untrusted\\":true')
     expect(sent).toContain('"kind":"pdf"')
     expect(sent).toContain('"kind":"image"')

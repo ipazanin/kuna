@@ -270,7 +270,7 @@ export function setUpChatGoesOnFlowIn(language, accepts = true) {
   }
 }
 
-/** The first send in a new Spending with a file of cells on the prompt asks first, and says the new app knows no names yet. */
+/** The first send in a new Spending with a file of cells on the prompt asks first, and says Anonymise hides only the people Kuna knows. */
 export function setUpChatNamesFlowIn(language, cells) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = named(shootAs, language)
@@ -287,7 +287,7 @@ export function setUpChatNamesFlowIn(language, cells) {
         throw new Error('the first send did not ask first')
       })
       const said = await card.evaluate((element) => element.textContent ?? '')
-      if (!said.includes(words.chat.newAppNames)) throw new Error('the first-send card does not say the new app knows no names yet')
+      if (!said.includes(words.files.goesAsCells('Anthropic'))) throw new Error('the first-send card does not say Anonymise hides only the people Kuna knows')
       await page.mouse.move(0, 0)
       await delay(300)
       await inspect?.('the first-send card of a new Spending with a file of cells')

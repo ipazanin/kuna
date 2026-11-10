@@ -129,8 +129,15 @@ async function undo(event: Event): Promise<void> {
         >
           <template v-if="(note.items ?? []).length > 0" #description>
             <p class="wrap-anywhere">{{ note.text }}</p>
-            <ul class="mt-1.5 flex flex-col gap-1" data-testid="chat-proposal-note-items">
-              <li v-for="(item, itemAt) in shownOf(note.items ?? [], `note-${at}-${noteAt}`)" :key="itemAt" class="wrap-anywhere">{{ item.row }} → {{ item.record }}</li>
+            <ul class="mt-1.5 flex flex-col gap-2" data-testid="chat-proposal-note-items">
+              <li v-for="(item, itemAt) in shownOf(note.items ?? [], `note-${at}-${noteAt}`)" :key="itemAt" class="flex flex-col wrap-anywhere" data-testid="chat-proposal-note-item">
+                <span
+                  ><strong class="font-medium">{{ words.proposal.lookAlikeCopied }}</strong> {{ item.row }}</span
+                >
+                <span
+                  ><strong class="font-medium">{{ words.proposal.lookAlikeInKuna }}</strong> {{ item.record }}</span
+                >
+              </li>
             </ul>
             <UButton
               v-if="shownOf(note.items ?? [], `note-${at}-${noteAt}`).length < (note.items ?? []).length"

@@ -63,7 +63,7 @@ async function statementDesk(rates: Parameters<typeof investmentsDesk>[1] = null
 function transcribed(desk: InvestmentsDesk, rows: readonly unknown[], fields: Readonly<Record<string, unknown>> = {}) {
   return {
     op: 'import-transcribed',
-    input: { file: 'a4', account: desk.ref('investment-account', DESK.ONE.id), broker: 'Example Broker', lookAlikes: 'ask', rows, balances: [], ...fields },
+    input: { file: 'a4', account: desk.ref('investment-account', DESK.ONE.id), broker: 'Example Broker', lookAlikes: 'ask', lookAlikeAnswers: [], rows, balances: [], ...fields },
   }
 }
 
@@ -82,6 +82,7 @@ describe('rows the AI copied from a file', () => {
     expect((await desk.propose([step])).isError).toBe(false)
     expect(warningsOf(desk)).toContain('The AI read 3 rows from statement.pdf')
     expect(warningsOf(desk)).toContain('could not check')
+    expect(desk.cards.at(-1)!.groups.flatMap((group) => group.lines.map((line) => line.label))).toContain('2 Apr 2026, deposit, €250.00')
     await desk.accept()
     const added = bookOf(desk).cashMovements.slice(movements)
     expect(added).toHaveLength(3)
@@ -138,7 +139,7 @@ describe('rows the AI copied from a file', () => {
     expect(answer.text).toContain('name it in account')
   })
 
-  it('asks about a trade that looks like one Kuna has from another file, with the waiting row on the card, and imports it when told to', async () => {
+  it('asks about a trade that looks like one Kuna has from another file, with the waiting row on the card, and imports it once the person says it is another record', async () => {
     const desk = await statementDesk(DOLLAR_RATES)
     const trades = bookOf(desk).trades.length
     const rows = [shareTrade('BUY', '2026-01-10', '10', '-1000'), deposit('2026-04-01')]
@@ -149,22 +150,78 @@ describe('rows the AI copied from a file', () => {
     expect(group!.notes.map((note) => note.tone)).toEqual(['info', 'warning'])
     expect(group!.notes[0]).toMatchObject({
       label: '1 row waits, not imported',
-      text: 'Say in the chat whether it is another record.',
+      text: 'It looks like a record Kuna has from another file, of the same account, day and amounts. Say in the chat whether it is the same record or another one.',
       items: [{ row: 'Row 1, Buy, SHARE, −$1,000.00, 10 Jan 2026, Broker One', record: 'Buy, Example Tech, −€926.85, 10 Jan 2026, Broker One' }],
     })
     expect(group!.notes[1]!.text).toContain('Kuna could not check that the file adds up')
     expect(group!.lines).toHaveLength(1)
-    expect(asked.text).toContain('Row 1 looks like a record Kuna has from another file and waits. Ask the person whether each is another record')
+    expect(asked.text).toContain('Row 1 looks like a record Kuna has from another file and waits. Ask the person whether each is the same record or another one')
     await desk.accept()
     expect(bookOf(desk).trades).toHaveLength(trades)
 
     const alone = await desk.propose([transcribed(desk, rows)])
     expect(alone.isError).toBe(true)
-    expect(alone.text).toContain('lookAlikes import')
+    expect(alone.text).toContain('lookAlikeAnswers')
 
-    expect((await desk.propose([transcribed(desk, rows, { lookAlikes: 'import' })])).isError).toBe(false)
+    expect((await desk.propose([transcribed(desk, rows, { lookAlikeAnswers: [{ row: 1, answer: 'another-record' }] })])).isError).toBe(false)
     await desk.accept()
     expect(bookOf(desk).trades).toHaveLength(trades + 1)
+  })
+
+  it('keeps the record Kuna has for a row the person says is the same record, so the row is in Kuna the next time', async () => {
+    const desk = await statementDesk(DOLLAR_RATES)
+    const trades = bookOf(desk).trades.length
+    const rows = [shareTrade('BUY', '2026-01-10', '10', '-1000'), deposit('2026-04-01')]
+    await desk.propose([transcribed(desk, rows)])
+    await desk.accept()
+
+    expect((await desk.propose([transcribed(desk, rows, { lookAlikeAnswers: [{ row: 1, answer: 'same-record' }] })])).isError).toBe(false)
+    expect(warningsOf(desk)).not.toContain('Say in the chat')
+    await desk.accept()
+    expect(bookOf(desk).trades).toHaveLength(trades)
+    expect((await desk.propose([transcribed(desk, rows)])).text).toContain('Nothing would change')
+  })
+
+  it('answers each look-alike on its own, leaving the rows not answered waiting', async () => {
+    const desk = await statementDesk(DOLLAR_RATES)
+    const movements = bookOf(desk).cashMovements.length
+    const dividend = { ...BLANK, date: '2026-03-15', type: 'DIVIDEND', symbol: 'SHARE', currency: 'USD', gross: '3.2', netCash: '3.2' }
+    await desk.propose([transcribed(desk, [deposit('2026-04-01')])])
+    await desk.accept()
+
+    const answered = await desk.propose([transcribed(desk, [deposit('2026-04-01'), dividend], { file: 'a5', lookAlikeAnswers: [{ row: 1, answer: 'another-record' }] })])
+    expect(answered.isError).toBe(false)
+    expect(answered.text).toContain('Row 2 looks like a record Kuna has from another file and waits')
+    expect(
+      desk.cards
+        .at(-1)!
+        .groups.flatMap((group) => group.notes)
+        .find((note) => note.tone === 'info')!.items,
+    ).toHaveLength(1)
+    await desk.accept()
+    expect(bookOf(desk).cashMovements).toHaveLength(movements + 2)
+  })
+
+  it('refuses an answer for a row that looks like no record, a row answered twice, and answers beside lookAlikes import', async () => {
+    const desk = await statementDesk(DOLLAR_RATES)
+    const rows = [shareTrade('BUY', '2026-01-10', '10', '-1000'), deposit('2026-04-01')]
+    const unasked = await desk.propose([transcribed(desk, rows, { lookAlikeAnswers: [{ row: 2, answer: 'same-record' }] })])
+    expect(unasked.isError).toBe(true)
+    expect(unasked.text).toContain('Row 2 does not look like a record Kuna has')
+    const twice = await desk.propose([
+      transcribed(desk, rows, {
+        lookAlikeAnswers: [
+          { row: 1, answer: 'same-record' },
+          { row: 1, answer: 'another-record' },
+        ],
+      }),
+    ])
+    expect(twice.text).toContain('twice')
+    const beside = await desk.propose([transcribed(desk, rows, { lookAlikes: 'import', lookAlikeAnswers: [{ row: 1, answer: 'same-record' }] })])
+    expect(beside.text).toContain('lookAlikeAnswers is []')
+    const unknown = await desk.propose([transcribed(desk, rows, { lookAlikeAnswers: [{ row: 1, answer: 'maybe' }] })])
+    expect(unknown.text).toContain('same-record')
+    expect(desk.cards).toEqual([])
   })
 
   it('compares a trade for a new account with the trades of every account', async () => {
@@ -225,11 +282,15 @@ describe('rows the AI copied from a file', () => {
     expect(third.text).toContain('FEE row of its own')
   })
 
-  it('refuses a file Kuna reads itself, naming the operation that imports it', async () => {
+  it('takes rows copied off the portfolio workbook or an IBKR report like rows of any other file', async () => {
     const desk = await statementDesk()
-    const answer = await desk.propose([transcribed(desk, [deposit('2026-04-01')], { file: 'a2' })])
-    expect(answer.isError).toBe(true)
-    expect(answer.text).toContain('Propose import-closes with it')
+    for (const [id, kind, name] of [
+      ['a6', 'sheet', 'portfolio.xlsx'],
+      ['a7', 'xml', 'kuna-daily.xml'],
+    ] as const) {
+      desk.attachments.push({ id, kind, name, bytes: new Uint8Array(), original: new Blob(), pages: 1, sent: null, reading: { kind: 'cells', sheets: [], characters: 0, reads: 1 } })
+      expect((await desk.propose([transcribed(desk, [deposit('2026-04-01')], { file: id })])).isError).toBe(false)
+    }
   })
 
   it('keeps a sale beyond the units held waiting, saying why', async () => {

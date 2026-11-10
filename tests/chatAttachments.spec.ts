@@ -8,11 +8,15 @@ import { statementTies as companyStatementTies } from '../src/shared/money/state
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
 import {
   MOST_BYTES,
+  MOST_CHARACTERS_A_READ,
   MOST_PAGES_A_READ,
   MOST_PDF_PAGES,
+  MOST_ROWS_A_READ,
   MOST_WAITING,
   attachRefusal,
   attachmentKindOf,
+  cellReadsOf,
+  pdfReadsOf,
   nextAttachmentId,
   readRangeOf,
   readRangeText,
@@ -20,6 +24,7 @@ import {
   pdfPartOf,
   documentSizeOf,
 } from '../src/shared/ai/domain/chatAttachments'
+import type { CellSheet } from '../src/shared/ai/domain/chatAttachments'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { readFirstSheet } from '../src/shared/xlsx/sheetGrids'
 import { ACCOUNTS, CATEGORIES, REVOLUT_EUR } from './fixtures/spending'
@@ -61,10 +66,28 @@ describe("an attachment's kind", () => {
     expect(attachmentKindOf(name, '')).toBe(kind)
   })
 
-  it('prices a file of cells by its characters, and a file Kuna reads not at all', () => {
+  it('prices a file of cells by its characters', () => {
     const file = { id: 'a1', kind: 'csv', name: 'export.csv', bytes: new Uint8Array(), original: new Blob(), pages: 1, sent: null } as const
-    expect(documentSizeOf({ ...file, reading: { kind: 'cells', sheets: [], characters: 1_200 } })).toEqual({ kind: 'text', characters: 1_200 })
-    expect(documentSizeOf({ ...file, reading: { kind: 'kuna', format: { app: 'spending', name: 'Revolut', operation: 'import-statement' } } })).toBeNull()
+    expect(documentSizeOf({ ...file, reading: { kind: 'cells', sheets: [], characters: 1_200, reads: 0 } })).toEqual({ kind: 'text', characters: 1_200 })
+  })
+})
+
+describe('the reads a file takes', () => {
+  const sheet = (rows: number, cell = 'x'): CellSheet => ({ name: null, layout: 'table', rows: Array.from({ length: rows }, () => [cell]) })
+
+  it('counts a sheet by the rows one read takes, and at least one read for each sheet', () => {
+    expect(cellReadsOf([sheet(MOST_ROWS_A_READ)])).toBe(1)
+    expect(cellReadsOf([sheet(MOST_ROWS_A_READ + 1)])).toBe(2)
+    expect(cellReadsOf([sheet(0), sheet(3)])).toBe(2)
+  })
+
+  it('counts more reads for a sheet whose characters pass what one read takes', () => {
+    expect(cellReadsOf([sheet(10, 'x'.repeat(MOST_CHARACTERS_A_READ / 4))])).toBe(3)
+  })
+
+  it('counts a PDF by the pages one read takes', () => {
+    expect(pdfReadsOf(MOST_PAGES_A_READ)).toBe(1)
+    expect(pdfReadsOf(MOST_PAGES_A_READ + 1)).toBe(2)
   })
 })
 
@@ -133,7 +156,7 @@ describe('the pages a read asks for', () => {
   })
 })
 
-describe('statement files Kuna reads itself', () => {
+describe('statement files the import screens read', () => {
   it("reads the Revolut sheet through Spending's reader, leaving the pending row out", async () => {
     const grid = await readFirstSheet(new Uint8Array(fixture('revolut.xlsx')).buffer)
     const reading = revolutStatement(grid, 'revolut.xlsx', { accounts: ACCOUNTS, categories: CATEGORIES })

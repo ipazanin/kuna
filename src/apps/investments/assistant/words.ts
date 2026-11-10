@@ -19,7 +19,7 @@ export const en = {
     setUp: {
       title: 'Set up Investments with the chat',
       body: [
-        "Have ready each broker's statements. An IBKR Flex report and the portfolio workbook stay on this device. Any other statement goes as a file of cells, a PDF or a photo.",
+        "Have ready each broker's statements. Every statement, an IBKR Flex report and the portfolio workbook included, goes to the AI company as text cell by cell, as a PDF or as a photo.",
         'The cards, in this order:',
         '1. The accounts, one for each broker account.',
         '2. The import, in parts. Opening positions go as holdings when the person says the history is not complete.',
@@ -98,15 +98,14 @@ export const en = {
       other: `${count} rows Kuna cannot read stay out, and ${place} lists them.`,
     }),
     rowsAsked: (count: number): EnglishForms => ({ one: '1 row the report asks about stays waiting.', other: `${count} rows the report asks about stay waiting.` }),
-    goneKept: (count: number): EnglishForms => ({
-      one: '1 record an earlier import wrote is gone from the workbook and stays in Kuna.',
-      other: `${count} records an earlier import wrote are gone from the workbook and stay in Kuna.`,
-    }),
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row left out', other: `${count} rows left out` }),
-    workbook: { label: 'Portfolio workbook', place: 'Import on the Overview' },
     mailReport: { label: 'IBKR report by mail', place: 'the review on Settings, General' },
-    flexReport: { label: 'IBKR report file', place: 'Upload a report on Settings, General' },
     transcribed: 'Rows read by the AI',
+    lookAlike: {
+      one: 'a record Kuna has from another file, of the same account, day and amounts',
+      many: 'records Kuna has from another file, each of the same account, day and amounts',
+      another: 'the same record or another one',
+    },
     transcribedRead: (count: number, source: string): EnglishForms => ({
       one: `The AI read 1 row ${source}. Kuna could not check that the file adds up, so check it against the file.`,
       other: `The AI read ${count} rows ${source}. Kuna could not check that the file adds up, so check them against the file.`,
@@ -115,9 +114,6 @@ export const en = {
       one: `The AI read 1 row ${source}. Its cash adds up to the balances the file prints, but check the rest against the file.`,
       other: `The AI read ${count} rows ${source}. Their cash adds up to the balances the file prints, but check the rest against the file.`,
     }),
-    lookAlikesWaiting: (count: number): EnglishForms => ({ one: `${count} row waits, not imported`, other: `${count} rows wait, not imported` }),
-    lookAlikeAsk: (): EnglishForms => ({ one: 'Say in the chat whether it is another record.', other: 'Say in the chat whether each is another record.' }),
-    rowsInKuna: (count: number): EnglishForms => ({ one: '1 row is in Kuna already and is skipped.', other: `${count} rows are in Kuna already and are skipped.` }),
     transcribedWaiting: (count: number, reasons: string): EnglishForms => ({
       one: `1 row waits and is not imported. ${reasons}.`,
       other: `${count} rows wait and are not imported. ${reasons}.`,
@@ -179,8 +175,6 @@ export const en = {
     historyComplete: 'The file holds every buy and sale since the first, so tax shows',
     everyHolding: "The day's closes and ECB rates of every holding",
     vendorsOutside: 'Kuna asks the price vendors with the keys of this browser and writes what they send to the prices file beside the books.',
-    closes: 'Closes',
-    closesOutside: 'The closes go into the prices file beside the books, and Kuna then fetches only the days after the last one.',
     failuresListed: 'Each is listed there with what to do.',
     requestsToday: 'Requests today',
     countChanged: 'Nothing was changed. Kuna asked the vendor again since the card was made.',
@@ -192,7 +186,7 @@ export const hr: Translation<typeof en> = {
     setUp: {
       title: 'Postavite Ulaganja kroz razgovor',
       body: [
-        'Pripremite izvode svakog brokera. IBKR-ov Flex izvještaj i radna knjiga portfelja ostaju na ovom uređaju. Svaki drugi izvod ide kao datoteka ćelija, PDF ili fotografija.',
+        'Pripremite izvode svakog brokera. Svaki izvod, i IBKR-ov Flex izvještaj i radna knjiga portfelja, ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija.',
         'Kartice, ovim redom:',
         '1. Računi, po jedan za svaki račun kod brokera.',
         '2. Uvoz, u dijelovima. Početne pozicije idu kao pozicije kad osoba kaže da povijest nije cijela.',
@@ -277,16 +271,14 @@ export const hr: Translation<typeof en> = {
       few: `${count} retka o kojima izvješće pita i dalje čekaju.`,
       other: `${count} redaka o kojima izvješće pita i dalje čeka.`,
     }),
-    goneKept: (count): CroatianForms => ({
-      one: `${count} zapis ranijeg uvoza više nije u radnoj knjizi i ostaje u Kuni.`,
-      few: `${count} zapisa ranijeg uvoza više nisu u radnoj knjizi i ostaju u Kuni.`,
-      other: `${count} zapisa ranijeg uvoza više nije u radnoj knjizi i ostaje u Kuni.`,
-    }),
     rowsLeftOut: (count): CroatianForms => ({ one: `${count} izostavljen redak`, few: `${count} izostavljena retka`, other: `${count} izostavljenih redaka` }),
-    workbook: { label: 'Radna knjiga portfelja', place: 'Uvoz na Pregledu' },
     mailReport: { label: 'Izvješće IBKR-a poštom', place: 'pregled u Postavkama, Općenito' },
-    flexReport: { label: 'Datoteka izvješća IBKR-a', place: 'Učitaj izvješće u Postavkama, Općenito' },
-    transcribed: 'Redci koje je pročitao AI',
+    transcribed: 'Retci koje je pročitao AI',
+    lookAlike: {
+      one: 'zapisu koji Kuna ima iz druge datoteke, s istim računom, danom i iznosima',
+      many: 'zapisima koje Kuna ima iz druge datoteke, svaki s istim računom, danom i iznosima',
+      another: 'isti zapis ili drugi',
+    },
     transcribedRead: (count, source): CroatianForms => ({
       one: `AI je ${source} pročitao ${count} redak. Kuna nije mogla provjeriti zbraja li se datoteka, pa ga usporedite s njom.`,
       few: `AI je ${source} pročitao ${count} retka. Kuna nije mogla provjeriti zbraja li se datoteka, pa ih usporedite s njom.`,
@@ -297,21 +289,6 @@ export const hr: Translation<typeof en> = {
       few: `AI je ${source} pročitao ${count} retka. Novac u njima zbraja se do stanja koja datoteka ispisuje, ali ostalo usporedite s datotekom.`,
       other: `AI je ${source} pročitao ${count} redaka. Novac u njima zbraja se do stanja koja datoteka ispisuje, ali ostalo usporedite s datotekom.`,
     }),
-    lookAlikesWaiting: (count): CroatianForms => ({
-      one: `${count} redak čeka, nije uvezen`,
-      few: `${count} retka čekaju, nisu uvezena`,
-      other: `${count} redaka čeka, nije uvezeno`,
-    }),
-    lookAlikeAsk: (): CroatianForms => ({
-      one: 'Recite u razgovoru je li to drugi zapis.',
-      few: 'Recite u razgovoru je li svaki od njih drugi zapis.',
-      other: 'Recite u razgovoru je li svaki od njih drugi zapis.',
-    }),
-    rowsInKuna: (count): CroatianForms => ({
-      one: `${count} redak već je u Kuni i preskočen je.`,
-      few: `${count} retka već su u Kuni i preskočena su.`,
-      other: `${count} redaka već je u Kuni i preskočeno je.`,
-    }),
     transcribedWaiting: (count, reasons): CroatianForms => ({
       one: `${count} redak čeka i nije uvezen. ${reasons}.`,
       few: `${count} retka čekaju i nisu uvezena. ${reasons}.`,
@@ -320,7 +297,7 @@ export const hr: Translation<typeof en> = {
     transcribedRatesMissing: (currencies, from) =>
       `Datoteci cijena nedostaju tečajevi ESB-a za ${currencies} od ${dayLabel(from)}, a trebaju ih redci. Predložite fetch-prices na zasebnoj kartici, a zatim ponovno ove retke.`,
     transcribedHoldingsAsked: (holdings) =>
-      `Redci sadrže podjelu ili izdvajanje za ${holdings}, a odgovor određuje trošak, pa time i porez. Predložite retke bez toga, a add-split ili add-spin-off kad osoba navede omjer ili udio troška.`,
+      `Retci sadrže podjelu ili izdvajanje za ${holdings}, a odgovor određuje trošak, pa time i porez. Predložite retke bez toga, a add-split ili add-spin-off kad osoba navede omjer ili udio troška.`,
     fields: {
       name: 'Naziv',
       note: 'Bilješka',
@@ -367,15 +344,13 @@ export const hr: Translation<typeof en> = {
       threshold: 'Prag',
       off: 'Isključena',
       benchmark: 'Referentni indeks',
-      leftOut: 'Redci o kojima se pita',
+      leftOut: 'Retci o kojima se pita',
     },
   },
   cards: {
     historyComplete: 'Datoteka ima svaku kupnju i prodaju od prve, pa se porez prikazuje',
     everyHolding: 'Današnje zaključne cijene i tečajevi ESB-a svih pozicija',
     vendorsOutside: 'Kuna pita izvore cijena ključevima ovog preglednika i ono što pošalju zapisuje u datoteku cijena pokraj knjiga.',
-    closes: 'Zaključne cijene',
-    closesOutside: 'Zaključne cijene idu u datoteku cijena pokraj knjiga, a Kuna zatim dohvaća samo dane nakon posljednje.',
     failuresListed: 'Ondje je svaki niz naveden sa savjetom što učiniti.',
     requestsToday: 'Današnji zahtjevi',
     countChanged: 'Ništa nije promijenjeno. Kuna je ponovno pitala izvor nakon što je kartica napravljena.',

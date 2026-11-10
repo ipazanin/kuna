@@ -59,17 +59,19 @@ function cellsRead(attachment: ChatAttachment, sheets: readonly CellSheet[], inp
 
 /**
  * Hands the model a file attached to this chat, named only by its id. A photo or the pages of a PDF go whole, the pages
- * always as a copy so the file's metadata and open action stay behind. Any other file Kuna does not read itself goes as
- * rows of cells, each through Anonymise. A file in a format Kuna reads never goes: an operation that names it imports it.
+ * always as a copy so the file's metadata and open action stay behind. Any other file goes as rows of cells, each through
+ * Anonymise, which waits while any app's books are opening, as the books name the people it aliases.
  */
 export async function readAttachment(input: AttachmentRead, held: readonly ChatAttachment[], readsPdf: boolean, reads: ChatReads): Promise<ChatToolAnswer> {
   const attachment = held.find((candidate) => candidate.id === input.attachment)
   if (attachment === undefined) return refusal('That is not the id of a file attached to this chat. Take it from the context line.')
   const { reading } = attachment
-  if (reading.kind === 'kuna') {
-    return refusal(`Kuna reads this file itself, as ${reading.format.name}, and never sends it. Propose ${reading.format.operation} in ${reading.format.app} with its id.`)
+  if (reading.kind === 'cells') {
+    if ([...reads.readers.values()].some(({ reader }) => reader.status() === 'opening')) {
+      return refusal("Kuna is still opening an app's books, which name the people Anonymise hides, so it cannot send the file's cells yet. Ask the person to try again in a moment.")
+    }
+    return cellsRead(attachment, reading.sheets, input, reads)
   }
-  if (reading.kind === 'cells') return cellsRead(attachment, reading.sheets, input, reads)
   if (input.sheet !== null || input.rows !== null) return refusal('A photo or a PDF has no sheets or rows, so sheet and rows are null.')
   const about = { attachment: attachment.id, kind: attachment.kind, untrusted: true }
   if (attachment.kind === 'photo') {

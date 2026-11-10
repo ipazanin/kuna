@@ -16,20 +16,13 @@ const PROMPTS = {
   contract: { en: 'Contract of my car loan, add the loan', hr: 'Ugovor o kreditu za automobil, dodaj kredit' },
   buy: { en: 'Buy one unit of my first instrument', hr: 'Kupi jednu jedinicu mog prvog instrumenta' },
   sell: { en: 'Sell a million units of it', hr: 'Prodaj milijun jedinica toga' },
-  workbook: { en: 'Import this portfolio workbook', hr: 'Uvezi ovu radnu knjigu portfelja' },
-  report: { en: 'Import the new transactions from this report', hr: 'Uvezi nove transakcije iz ovog izvješća' },
   copy: { en: 'Copy these rows into my first account', hr: 'Prepiši ove retke u moj prvi račun' },
   copyAgain: { en: 'Copy them again with one more', hr: 'Prepiši ih ponovno s još jednim' },
   zero: { en: 'Import this statement', hr: 'Uvezi ovaj izvod' },
   file: { en: 'Copy the rows of this file into my first account', hr: 'Prepiši retke ove datoteke u moj prvi račun' },
-  lookAlike: { en: 'Import the look-alike too, it is another deposit', hr: 'Uvezi i onaj sličan, to je druga uplata' },
+  lookAlike: { en: 'Row 1 is another record, a second deposit, so import it too', hr: 'Redak 1 je drugi zapis, druga uplata, pa uvezi i njega' },
   valuation: { en: 'Valuation of my newest asset at 210,000 today', hr: 'Procjena moje najnovije imovine na 210.000 danas' },
-}
-
-/** What the import card of the made-up workbook without its split says, as each language writes it. */
-const WORKBOOK_IMPORT = {
-  en: ['23 changes', '3 investment accounts'],
-  hr: ['23 promjene', '3 investicijska računa'],
+  revolut: { en: 'Bring the Revolut export into Spending', hr: 'Unesi Revolutov izvoz u Potrošnju' },
 }
 
 /** What the Investments copy cards say, as each language writes it: the cash adding up to the printed balances, a row Kuna has already, and the waiting row that looks like a record Kuna has. */
@@ -130,22 +123,6 @@ const CARDS = {
       await shoot('investments-chat-trade-refused')
     },
   },
-  workbook: {
-    name: 'investments-chat-workbook',
-    attach: 'withoutSplit',
-    accept: true,
-    shows: async (page, card, language) => {
-      await elementSays(page, '[data-testid="chat-proposal"]', WORKBOOK_IMPORT[language], "the import card does not add the workbook's three accounts in 23 changes")
-    },
-  },
-  report: {
-    name: 'investments-chat-flex-report',
-    attach: 'flexReport',
-    accept: true,
-    shows: async (page) => {
-      await elementSays(page, '[data-testid="chat-proposal"]', ['552'], "the import card does not show the report's conversions of 552 USD")
-    },
-  },
   copy: {
     name: 'investments-chat-copy',
     after: async (page, press, language, shoot, inspect) => {
@@ -193,7 +170,7 @@ const CARDS = {
       await elementSays(page, '[data-testid="chat-proposal"][data-state="open"]', [COPY_WORDS[language].inKuna], 'the look-alike card does not say the other row is in Kuna already')
       await delay(300)
       await acceptLooksReady(page)
-      await inspect?.('the look-alike imported once the person says it is another deposit')
+      await inspect?.('the look-alike answered as another record, row by row')
       await shoot('investments-chat-look-alike')
     },
   },
@@ -201,6 +178,21 @@ const CARDS = {
     name: 'company-chat-statement-zero',
     shows: async (page, card, language) => {
       await elementSays(page, '[data-testid="chat-proposal"]', [COMPANY_WORDS[language].accountStartsAtZero('').slice(0, 24)], 'the statement card does not say the account starts at zero')
+    },
+  },
+  revolut: {
+    name: 'spending-chat-revolut-copy',
+    attach: 'revolut',
+    accept: true,
+    shows: async (page) => {
+      await elementSays(
+        page,
+        '[data-testid="chat-proposal"]',
+        ['Corner market', 'Harbour bistro', 'ZET tram'],
+        'the import card does not hold the completed rows the AI copied from the Revolut export',
+      )
+      const said = await page.$eval('[data-testid="chat-proposal"][data-state="open"]', (card) => card.textContent ?? '')
+      if (said.includes('Night kiosk')) throw new Error('the import card holds the pending row of the Revolut export')
     },
   },
   valuation: {
@@ -222,10 +214,10 @@ async function attachToChat(page, path) {
 }
 
 /**
- * A chat in Loans, Investments or Assets with a made-up key kept: a loan offer is a card that sets Kuna's EKS and first instalment beside the
+ * A chat in Spending, Loans, Investments or Assets with a made-up key kept: a Revolut export goes to the AI as cells, and its copied rows become an import card with Undo, a loan offer is a card that sets Kuna's EKS and first instalment beside the
  * printed ones and warns where they differ, a bank loan from its contract warns where its first instalment differs, an extra payment on a bank loan, a buy of one unit and an Assets valuation are
- * cards with one Undo, a sale over the units held is refused, and an attached portfolio workbook or IBKR Flex report,
- * which Kuna reads itself, becomes an import card with Undo. `files` holds the paths a card puts on the prompt.
+ * cards with one Undo, a sale over the units held is refused, and rows the AI copied from an attached file ask about a
+ * row that looks like a record Kuna has until the person answers for it. `files` holds the paths a card puts on the prompt.
  */
 export function appChatCardFlowIn(language, card, files = {}) {
   const shape = CARDS[card]

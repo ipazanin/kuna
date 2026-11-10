@@ -173,8 +173,8 @@ describe.each([
     expect(outcome.held.map((reading) => ('statement' in reading ? reading.statement.label : reading.label))).toEqual(['2026-10-06-statement-003', '2026-10-07-statement-004'])
     const held = dryRunFor(outcome.held, store.state.workbook!, new Map()).statements
     expect(held.map((statement) => statement.refusal)).toEqual([
-      "The ledger ends main at 1000.00 on 2026-10-05, but this statement's first new entry starts from 900.00, so a statement between the two is missing. Import that one first.",
-      "The ledger ends main at 1000.00 on 2026-10-05, but this statement's first new entry starts from 1100.00, so a statement between the two is missing. Import that one first.",
+      "The ledger ends main at €1,000.00 on 5 Oct 2026, but this statement's first new entry starts from €900.00, so a statement between the two is missing. Import that one first.",
+      "The ledger ends main at €1,000.00 on 5 Oct 2026, but this statement's first new entry starts from €1,100.00, so a statement between the two is missing. Import that one first.",
     ])
     expect(ledgerOf(store, 'main')[0]).toBe('2026-10-05 REF-4 100000')
     expect(ledgerOf(store, 'savings')).toEqual(['2026-10-06 S2-1 26000', '2026-10-01 SAV-1 25000'])

@@ -2,9 +2,9 @@ import { cardRecords } from './cardRecords'
 import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
 import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
-import { IMPORTING, importOperations, withStatementFilesRead } from './importOperations'
+import { IMPORTING, importOperations } from './importOperations'
 import { INVOICING_OPERATIONS } from './invoicingOperations'
-import type { HeldStatements, StatementFileReader } from './importOperations'
+import type { HeldStatements } from './importOperations'
 import { LEDGER_OPERATIONS } from './ledgerOperations'
 import { SWITCH_MAIL_DRAFTS, mailDraftsAccept, mailDraftsCheck } from './mailDraftsOperation'
 import type { MailDraftsSwitch } from './mailDraftsOperation'
@@ -25,8 +25,6 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 
 /** What Company's operations need beyond its store, which `app.ts` hands in. */
 export interface CompanyOperationPorts {
-  /** Reads an attached statement file as Import reads a dropped one. */
-  readonly readStatementFile: StatementFileReader
   /** The statements the last sync of the statements folder held back. */
   readonly heldStatements: HeldStatements
   /** The answers to Company's set-up questions kept on this device. */
@@ -114,7 +112,7 @@ export function companyOperations(ports: CompanyOperationPorts): readonly Assist
   return [...operationSets(ports).flatMap((set) => set.operations), SET_UP_ANSWER, SWITCH_MAIL_DRAFTS]
 }
 
-/** The changes the chat can propose in Company and their dry run, over the company's store, which `app.ts` hands in with the ports. An attached file is read before the dry run. */
+/** The changes the chat can propose in Company and their dry run, over the company's store, which `app.ts` hands in with the ports. */
 export function companyProposer(store: CompanyStore, ports: CompanyOperationPorts, file: BrowserFile): AppProposer {
   const sets = operationSets(ports)
   return withBrowserFileCards(
@@ -124,9 +122,7 @@ export function companyProposer(store: CompanyStore, ports: CompanyOperationPort
       async check(title, steps) {
         if (steps.some((step) => step.operation === SET_UP_ANSWER.name)) return setUpAnswerCheck(title, steps, ports.setUpAnswers)
         if (steps.some((step) => step.operation === SWITCH_MAIL_DRAFTS.name)) return mailDraftsCheck(title, steps, ports.mailDrafts)
-        const read = await withStatementFilesRead(steps, ports.readStatementFile)
-        if ('refused' in read) return read
-        const checked = await proposedWrites(store, companyWork(sets, ports.pack)).check(title, read)
+        const checked = await proposedWrites(store, companyWork(sets, ports.pack)).check(title, steps)
         return 'refused' in checked || checked.undoable || steps.length === 1
           ? checked
           : { refused: ['A change with no Undo goes alone on a card, so propose it first and the rest once it is answered.'] }

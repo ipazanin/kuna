@@ -23,7 +23,6 @@ import { INSTRUMENT_RECORDS } from '../workbook/domain/investmentKinds'
 import { SURTAX_CITY_2023_KEY } from '../workbook/domain/investmentSettings'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
-import { INVESTMENTS_FILE_FORMATS } from './fileFormats'
 import { investmentsReader } from './investmentsReader'
 import type { InvestmentsReading } from './investmentsReader'
 import { words } from './words'
@@ -78,7 +77,7 @@ export const investmentsAssistant = (reading: InvestmentsReading, changes: { rea
     { id: 'ibkr-mail', title: words.automations.ibkrMail.title, what: words.automations.ibkrMail.what(AUTOMATION_LABELS), setUpRoute: INVESTMENTS_GENERAL_ROUTE, guide: 'ibkr-mail' },
   ],
   setUp: [
-    { key: 'first-holdings', about: 'The file has no transaction yet.', operations: ['add-account', 'import-flex-report', 'import-workbook', 'import-transcribed', 'add-holding'] },
+    { key: 'first-holdings', about: 'The file has no transaction yet.', operations: ['add-account', 'import-transcribed', 'add-holding'] },
     { key: 'cash-below-zero', about: 'Cash is below zero, so a deposit is missing.', operations: ['import-transcribed'] },
     { key: 'history', about: 'The person has not said the history is complete.', operations: ['confirm-history'] },
     { key: 'prices', about: 'Some holdings have no price.', operations: ['fetch-prices'] },
@@ -88,5 +87,4 @@ export const investmentsAssistant = (reading: InvestmentsReading, changes: { rea
   acceptance: changes?.acceptance ?? null,
   quickActions: [words.quickActions.doing, words.quickActions.income],
   persons: () => [],
-  fileFormats: INVESTMENTS_FILE_FORMATS,
 })

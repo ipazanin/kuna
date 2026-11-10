@@ -294,7 +294,7 @@ describe('a proposal of another app', () => {
     original: new Blob(),
     pages: 1,
     sent: null,
-    reading: { kind: 'kuna', format: { app: 'spending', name: "Revolut's statement export", operation: 'import-statement' } },
+    reading: { kind: 'cells', sheets: [], characters: 3, reads: 1 },
   }
   const IMPORT: AssistantOperation = {
     name: 'import-statement',

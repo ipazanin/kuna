@@ -1,6 +1,7 @@
 import type { AppContribution } from '../../app/appContribution'
 import type { CheckedProposal } from '../../app/assistantOperations'
 import { stillNew } from '../../app/setUpLines'
+import { pdfReadsOf } from '../domain/chatAttachments'
 import type { ChatAttachment } from '../domain/chatAttachments'
 import type { ChatElementAbout } from '../domain/chatElement'
 import { placeAt } from './catalogue'
@@ -91,15 +92,20 @@ function elementText(element: ChatElementAbout, catalogue: Catalogue, reads: Cha
   }
 }
 
-/** A file by its id and kind, with a PDF's pages, a file of cells by its sheets, and a file Kuna reads by its format and the operation that imports it. Nothing of the file's own text. */
+/** A count with its English noun, such as `1 read` or `3 reads`. */
+function counted(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`
+}
+
+/** A file by its id and kind, with a PDF's pages and a file of cells' rows by sheet, each with the reads it takes, so the chat can plan its cards. Nothing of the file's own text. */
 function fileText(file: ChatAttachment): string {
   const { reading } = file
-  if (reading.kind === 'kuna') return `${file.id} (${file.kind}, ${reading.format.name}, read by Kuna and never sent, which ${reading.format.app} ${reading.format.operation} imports)`
   if (reading.kind === 'cells') {
-    const sheets = reading.sheets.length === 1 ? `${reading.sheets[0]!.rows.length} rows` : `${reading.sheets.length} sheets`
-    return `${file.id} (${file.kind}, ${sheets}, which read_attachment hands as cells)`
+    const counts = reading.sheets.map((sheet) => sheet.rows.length)
+    const rows = counts.length === 1 ? counted(counts[0]!, 'row') : `${counts.length} sheets of ${counts.slice(0, -1).join(', ')} and ${counted(counts.at(-1)!, 'row')}`
+    return `${file.id} (${file.kind}, ${rows}, about ${counted(reading.reads, 'read')}, which read_attachment hands as cells)`
   }
-  return file.kind === 'pdf' ? `${file.id} (pdf, ${file.pages} pages)` : `${file.id} (${file.kind})`
+  return file.kind === 'pdf' ? `${file.id} (pdf, ${counted(file.pages, 'page')}, ${counted(pdfReadsOf(file.pages), 'read')})` : `${file.id} (${file.kind})`
 }
 
 /** What a chat says once a tag it named is removed and no file is attached. */
@@ -131,7 +137,7 @@ export interface ChatTurn {
   readonly history: readonly ModelTurn[]
   /** The context lines, each only when it differs from the one the model last read. */
   readonly context: string | null
-  /** Every file attached to this chat, held in memory with it. Only `read_attachment` sends one: a photo or a PDF whole, any other file as cells unless Kuna reads its format. */
+  /** Every file attached to this chat, held in memory with it. Only `read_attachment` sends one: a photo or a PDF whole, any other file as cells. */
   readonly attachments: readonly ChatAttachment[]
   readonly message: string
   readonly signal: AbortSignal

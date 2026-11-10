@@ -11,7 +11,6 @@ import type { ChatProposal, PromptFile } from '../src/shared/ai/presentation/cha
 import type { ChatElementAbout } from '../src/shared/ai/domain/chatElement'
 import { NOTHING_TAGGED } from '../src/shared/ai/application/runChatTurn'
 import { moneyFromCents } from '../src/shared/money/money'
-import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, IBAN_OF_ANA } from './fixtures/chatBook'
 
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
@@ -29,7 +28,7 @@ const {
   attachFiles,
   chatAllowed,
   chatPromptFiles,
-  promptCellsNotes,
+  promptFileNotes,
   promptFilesCost,
   removePromptFile,
   chatFigure,
@@ -37,7 +36,6 @@ const {
   chatSpent,
   chatStatus,
   clearChat,
-  loadCatalogue,
   sendChatFrom,
   sendChatMessage,
   settleProposal,
@@ -45,10 +43,9 @@ const {
   stopChatMessage,
   undoProposal,
 } = await import('../src/shared/ai/presentation/chatSession')
-// No app's reader is in this chat, so every file that is not a photo or a PDF goes as cells.
-void loadCatalogue([], KUNA_CHAT)
 const { allowAssist, assistAllowed, pickProvider, pickModel, switchAnonymise } = await import('../src/shared/ai/application/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
+const { providerInUse } = await import('../src/shared/ai/presentation/aiProvider')
 
 const CATALOGUE: Catalogue = {
   system: 'Be Kuna.',
@@ -59,7 +56,6 @@ const CATALOGUE: Catalogue = {
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
   persons: () => CHAT_PERSONS,
-  formatOf: async () => 'none',
 }
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
@@ -567,13 +563,19 @@ describe('files on the prompt', () => {
     expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['notes.docx', 'receipt.jpg'])
   })
 
-  it('words a file sent as cells once for its chip and the card before the first send, warning while Anonymise is off', async () => {
-    await attachFiles([picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv'), statementPdf()])
-    const [csv] = chatPromptFiles.value
-    expect(promptCellsNotes.value).toEqual([{ key: csv!.key, text: words.files.goesAsCells('october.csv'), warns: false }])
+  it('warns once for the files of cells and once for every photo and PDF, naming the AI company and how many go whole', async () => {
+    await attachFiles([
+      picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv'),
+      picked('november.csv', new TextEncoder().encode('date,amount\n2026-11-01,-3.00'), 'text/csv'),
+      statementPdf(),
+      picked('receipt.jpg', new Uint8Array([1]), 'image/jpeg'),
+    ])
+    const company = providerInUse()!.name
+    const whole = `2 photos and PDFs go to ${company} whole, with every name and amount in them. Anonymise does not reach into them.`
+    expect(promptFileNotes.value).toEqual([words.files.goesAsCells(company), whole])
     switchAnonymise('anthropic', false)
     try {
-      expect(promptCellsNotes.value).toEqual([{ key: csv!.key, text: words.files.goesAsCellsPlain('october.csv'), warns: true }])
+      expect(promptFileNotes.value).toEqual([words.files.goesAsCellsPlain(company), whole])
     } finally {
       switchAnonymise('anthropic', true)
     }
@@ -598,7 +600,7 @@ describe('files on the prompt', () => {
     expect(chatLines.find((line) => line.role === 'user')?.attachments).toEqual(['Statement October.pdf'])
     expect(chatPromptFiles.value).toEqual([])
     const sent = JSON.stringify(model.requests[0]!.turns)
-    expect(sent).toContain(`Files attached to this chat: ${id} (pdf, 1 pages).`)
+    expect(sent).toContain(`Files attached to this chat: ${id} (pdf, 1 page, 1 read).`)
     expect(sent).not.toContain('Statement October')
   })
 

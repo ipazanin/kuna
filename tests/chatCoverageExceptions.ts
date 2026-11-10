@@ -63,6 +63,11 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     ],
   },
   {
+    reason:
+      "A format Kuna parses itself. The chat hands every file to the AI as cells or whole and imports the rows it copies, while the screen still reads this format until the screens' imports move off their parsers too.",
+    paths: ['src/apps/investments/mail/application/mailReaderWrites.ts#writeUploadLeftOut'],
+  },
+  {
     reason: "Making a file on Drive. Google's own step needs the person, so the chat links the app's start screen, and makes a file only in this browser.",
     paths: ['shared: store.keepOnDrive'],
   },

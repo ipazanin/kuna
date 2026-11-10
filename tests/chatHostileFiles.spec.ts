@@ -1,14 +1,12 @@
 // @vitest-environment jsdom
 import 'fake-indexeddb/auto'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { companyFileFormats } from '../src/apps/company/assistant/fileFormats'
-import { INVESTMENTS_FILE_FORMATS } from '../src/apps/investments/assistant/fileFormats'
-import { SPENDING_FILE_FORMATS } from '../src/apps/spending/assistant/fileFormats'
 import { readAttachment } from '../src/shared/ai/application/attachmentReads'
 import { attachedFile } from '../src/shared/ai/application/chatFiles'
 import type { ChatReads } from '../src/shared/ai/application/chatReads'
-import type { AttachedFile, AttachmentRefusal, ChatAttachment, FormatFound } from '../src/shared/ai/domain/chatAttachments'
+import type { AttachmentRefusal, ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
+import type { AppReader } from '../src/shared/app/assistantReader'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import { KEY_SHAPE } from '../src/shared/ai/domain/keyShape'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
@@ -20,23 +18,12 @@ import { forgetCaches } from './fixtures/writeBack'
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
 
-const FORMATS = [
-  ...SPENDING_FILE_FORMATS.map((format) => ({ app: 'spending', format })),
-  ...companyFileFormats(() => null).map((format) => ({ app: 'company', format })),
-  ...INVESTMENTS_FILE_FORMATS.map((format) => ({ app: 'investments', format })),
-]
-
-async function knownFormatOf(file: AttachedFile): Promise<FormatFound> {
-  for (const { app, format } of FORMATS) if (await format.recognises(file)) return { app, name: format.name, operation: format.operation }
-  return 'none'
-}
-
 function noPhotos(): Promise<never> {
   return Promise.reject(new Error('no photos here'))
 }
 
-async function attached(name: string, contents: string | Uint8Array<ArrayBuffer>, recognise = knownFormatOf): Promise<ChatAttachment | AttachmentRefusal> {
-  return attachedFile(new File([contents], name), 'a1', 0, noPhotos, recognise)
+async function attached(name: string, contents: string | Uint8Array<ArrayBuffer>): Promise<ChatAttachment | AttachmentRefusal> {
+  return attachedFile(new File([contents], name), 'a1', 0, noPhotos)
 }
 
 async function held(name: string, contents: string | Uint8Array<ArrayBuffer>): Promise<ChatAttachment> {
@@ -106,17 +93,13 @@ describe('a hostile file the chat reads', () => {
     expect(KEY_SHAPE.test(answer.text)).toBe(false)
   })
 
-  it('refuses a sheet whose zip says it inflates past 100 MB before any reader opens it', async () => {
-    const recognise = vi.fn(knownFormatOf)
-    expect(await attached('bomb.xlsx', zipSaying(200 * 1024 * 1024), recognise)).toEqual({ reason: 'unsafe' })
-    expect(recognise).not.toHaveBeenCalled()
+  it('refuses a sheet whose zip says it inflates past 100 MB before it is opened', async () => {
+    expect(await attached('bomb.xlsx', zipSaying(200 * 1024 * 1024))).toEqual({ reason: 'unsafe' })
   })
 
-  it('refuses XML that declares its own entities before any reader parses it', async () => {
+  it('refuses XML that declares its own entities before it is parsed', async () => {
     const laughs = `<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">]><lolz>&lol2;</lolz>`
-    const recognise = vi.fn(knownFormatOf)
-    expect(await attached('report.xml', laughs, recognise)).toEqual({ reason: 'unsafe' })
-    expect(recognise).not.toHaveBeenCalled()
+    expect(await attached('report.xml', laughs)).toEqual({ reason: 'unsafe' })
   })
 
   it('strips bidirectional and zero-width characters from what it sends', async () => {
@@ -249,15 +232,13 @@ describe('a hostile file the chat reads', () => {
     expect((await read(wide, readsOf(true), '2')).text).toMatch(/^Row 2 alone comes to more than 40000 characters/)
   })
 
-  it('refuses a file when a reader fails, so a format Kuna reads never goes as cells', async () => {
-    const failing = async (): Promise<FormatFound> => {
-      throw new Error('the reader did not load')
-    }
-    expect(await attached('report.xml', '<FlexQueryResponse/>', failing)).toEqual({ reason: 'unreadable' })
-  })
-
-  it('refuses a file while some app is still opening its books', async () => {
-    expect(await attached('export.csv', 'A,B\n1,2\n', async () => 'books-opening')).toEqual({ reason: 'books-opening' })
+  it("refuses to send a file's cells while some app is still opening its books, which name the people Anonymise hides", async () => {
+    const file = await held('export.csv', 'A,B\nAna Horvat,2\n')
+    const opening = { name: 'Spending', reader: { status: () => 'opening' } as unknown as AppReader }
+    const answer = await read(file, { ...readsOf(true), readers: new Map([['spending', opening]]) })
+    expect(answer.isError).toBe(true)
+    expect(answer.text).not.toContain('Ana')
+    expect(answer.text).toMatch(/still opening/)
   })
 
   it('reads a file posing as an IBKR Flex report with the wrong sections as cells, never through the report reader', async () => {
@@ -277,11 +258,12 @@ describe('a hostile file the chat reads', () => {
     expect(refused.text).toMatch(/^Those rows come to more than 40000 characters, which one read takes at most\. Ask for fewer, such as "1-\d+"\.$/)
   })
 
-  it('refuses to send a file in a format Kuna reads, naming the operation that imports it', async () => {
-    const revolut = 'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\n'
+  it("sends a file in a format a screen reads, such as Revolut's export, as cells like any other", async () => {
+    const revolut =
+      'Type,Product,Started Date,Completed Date,Description,Amount,Fee,Currency,State,Balance\nCARD_PAYMENT,Current,2026-11-02 10:00:00,2026-11-02 10:01:00,Corner market,-12.50,0.00,EUR,COMPLETED,87.50\n'
     const file = await held('account-statement.csv', revolut)
-    expect(file.reading).toEqual({ kind: 'kuna', format: { app: 'spending', name: "Revolut's statement export", operation: 'import-statement' } })
-    expect((await read(file)).text).toBe("Kuna reads this file itself, as Revolut's statement export, and never sends it. Propose import-statement in spending with its id.")
+    expect(file.reading.kind).toBe('cells')
+    expect(JSON.parse((await read(file)).text)).toMatchObject({ untrusted: true, kind: 'csv', of: 2 })
   })
 })
 
@@ -333,16 +315,16 @@ describe('a card made after a hostile file', () => {
   })
 })
 
-describe('each format an app declares', () => {
-  it('is imported by an operation the app lists', async () => {
+describe('the operations the chat lists', () => {
+  it('take no attached file to a format parser of their own', async () => {
     const [{ SPENDING_OPERATIONS }, { INVESTMENTS_OPERATIONS }, { importOperations }] = await Promise.all([
       import('../src/apps/spending/assistant/operations/spendingOperations'),
       import('../src/apps/investments/assistant/operations/investmentsOperations'),
       import('../src/apps/company/assistant/operations/importOperations'),
     ])
-    const names = (operations: readonly { readonly name: string }[]): readonly string[] => operations.map((operation) => operation.name)
-    for (const format of SPENDING_FILE_FORMATS) expect(names(SPENDING_OPERATIONS)).toContain(format.operation)
-    for (const format of INVESTMENTS_FILE_FORMATS) expect(names(INVESTMENTS_OPERATIONS)).toContain(format.operation)
-    for (const format of companyFileFormats(() => null)) expect(names(importOperations(() => []).operations)).toContain(format.operation)
+    const names = [...SPENDING_OPERATIONS, ...INVESTMENTS_OPERATIONS, ...importOperations(() => []).operations].map((operation) => operation.name)
+    for (const parsed of ['import-workbook', 'import-flex-report', 'import-closes']) expect(names).not.toContain(parsed)
+    const companyImport = importOperations(() => []).operations.find((operation) => operation.name === 'import-statement')!
+    expect(companyImport.input).not.toHaveProperty('properties.profile')
   })
 })

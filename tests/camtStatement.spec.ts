@@ -186,10 +186,10 @@ describe('reading a camt.053 statement', () => {
     [
       'a chain that does not close',
       CREDIT.replace(/(<Cd>CLBD<\/Cd>[\s\S]*?<Amt Ccy="EUR">)9953\.28/, '$19953.29'),
-      /^The balance chain does not close: opening 9030\.13 plus credits 923\.15 less debits 0\.00 is 9953\.28, but CLBD reports 9953\.29\.$/,
+      /^The balance chain does not close: opening €9,030\.13 plus credits €923\.15 less debits €0\.00 is €9,953\.28, but CLBD reports €9,953\.29\.$/,
     ],
     ['a count the summary does not report', CREDIT.replace(/(<TtlCdtNtries>\s*<NbOfNtries>)1/, '$12'), /^TtlCdtNtries reports 2 entries but 1 booked credit entries were read\.$/],
-    ['a sum the summary does not report', CREDIT.replace(/(<TtlCdtNtries>[\s\S]*?<Sum>)923\.15/, '$1923.16'), /^TtlCdtNtries reports 923\.16 but the booked credit entries sum to 923\.15\.$/],
+    ['a sum the summary does not report', CREDIT.replace(/(<TtlCdtNtries>[\s\S]*?<Sum>)923\.15/, '$1923.16'), /^TtlCdtNtries reports €923\.16 but the booked credit entries sum to €923\.15\.$/],
     ['a negative amount', withCreditEntry((entry) => entry.replace('<Amt Ccy="EUR">923.15</Amt>', '<Amt Ccy="EUR">-923.15</Amt>')), /is "-923\.15", but a camt amount is unsigned/],
     ['a localised amount', withCreditEntry((entry) => entry.replace('<Amt Ccy="EUR">923.15</Amt>', '<Amt Ccy="EUR">923,15</Amt>')), /is "923,15", which is not a number/],
     ['an amount finer than a cent', withCreditEntry((entry) => entry.replace('<Amt Ccy="EUR">923.15</Amt>', '<Amt Ccy="EUR">923.155</Amt>')), /which is finer than a cent/],

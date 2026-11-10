@@ -4,13 +4,13 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { formatCount } from '../../money/moneyFormat'
 import RemovableChip from '../../ui/RemovableChip.vue'
-import { chatPromptFiles, promptCellsNotes, promptFilesCost, promptSendsDocument, removePromptFile } from './chatSession'
+import { chatPromptFiles, promptFileNotes, promptFilesCost, removePromptFile } from './chatSession'
 import type { FileRefusal, PromptFile } from './chatSession'
 import { words } from './words'
 
 /**
- * The files on the prompt as chips, with a line for each that does not go whole: refused with why, read by Kuna alone,
- * or sent as cells, with a warning when Anonymise is off. Under them it says that photos and PDFs go whole, and about what reading them costs.
+ * The files on the prompt as chips, with a line for each refused one saying why, and warnings of what goes to which AI
+ * company and what Anonymise leaves as written. Under them it says what reading them costs.
  */
 const props = defineProps<{
   /** False while the card asking before a send says how the files go instead. */
@@ -35,8 +35,6 @@ function refusalWords(refusal: FileRefusal): string {
       return words.files.unreadable
     case 'unsafe':
       return words.files.unsafe
-    case 'books-opening':
-      return words.files.booksOpening
     case 'no-pdf':
       return words.result.noPdf(refusal.provider)
   }
@@ -49,17 +47,8 @@ function iconOf(file: PromptFile): string {
   return file.attachment.kind === 'pdf' ? 'i-lucide-file-text' : 'i-lucide-file-spreadsheet'
 }
 
-const notes = computed(() => {
-  const cells = props.saysHowFilesGo ? promptCellsNotes.value : []
-  return chatPromptFiles.value.flatMap((file) => {
-    if (file.state === 'refused') return [{ key: file.key, tone: 'refused', icon: 'i-lucide-circle-alert', text: words.files.refused(file.name, refusalWords(file.refusal)) }]
-    if (file.state !== 'ready') return []
-    if (file.attachment.reading.kind === 'kuna') return [{ key: file.key, tone: 'plain', icon: 'i-lucide-hard-drive', text: words.files.readByKuna(file.name) }]
-    return cells
-      .filter((note) => note.key === file.key)
-      .map((note) => ({ key: note.key, tone: note.warns ? 'warning' : 'plain', icon: note.warns ? 'i-lucide-triangle-alert' : 'i-lucide-send', text: note.text }))
-  })
-})
+const refusals = computed(() => chatPromptFiles.value.flatMap((file) => (file.state === 'refused' ? [{ key: file.key, text: words.files.refused(file.name, refusalWords(file.refusal)) }] : [])))
+const going = computed(() => (props.saysHowFilesGo ? promptFileNotes.value : []))
 </script>
 
 <template>
@@ -77,19 +66,13 @@ const notes = computed(() => {
         @remove="removePromptFile(file.key)"
       />
     </div>
-    <p
-      v-for="note in notes"
-      :key="note.key"
-      class="flex items-start gap-1 type-caption wrap-anywhere"
-      :class="{ 'text-error': note.tone === 'refused', 'text-warning': note.tone === 'warning' }"
-      data-testid="chat-file-note"
-    >
-      <UIcon :name="note.icon" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-      {{ note.text }}
+    <p v-for="refusal in refusals" :key="refusal.key" class="flex items-start gap-1 type-caption wrap-anywhere text-error" data-testid="chat-file-note">
+      <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+      {{ refusal.text }}
     </p>
-    <p v-if="saysHowFilesGo && promptSendsDocument" class="flex items-start gap-1 type-caption text-warning" data-testid="chat-files-whole">
+    <p v-for="note in going" :key="note" class="flex items-start gap-1 type-caption wrap-anywhere text-warning" data-testid="chat-file-note">
       <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-      {{ words.files.goesWhole }}
+      {{ note }}
     </p>
     <p v-if="promptFilesCost !== null" class="type-caption" data-testid="chat-files-cost">{{ promptFilesCost }}</p>
   </div>
