@@ -65,8 +65,8 @@ describe('a proposal', () => {
     const before = bookOf(d).rules.length
     const writesBefore = d.store.state.writes.length
     await d.propose([
-      { op: 'add-rule', input: { row: null, fragment: 'Corner market', iban: null, category: d.ref('category', groceries.id) } },
-      { op: 'add-rule', input: { row: null, fragment: 'Harbour bistro', iban: null, category: d.ref('category', named(d, 'Restaurants').id) } },
+      { op: 'add-rule', input: { row: null, fragment: 'Corner market', iban: null, category: d.ref('category', groceries.id), withdrawal: null, cash_account: null } },
+      { op: 'add-rule', input: { row: null, fragment: 'Harbour bistro', iban: null, category: d.ref('category', named(d, 'Restaurants').id), withdrawal: null, cash_account: null } },
     ])
     expect(bookOf(d).rules).toHaveLength(before)
     expect(d.store.state.writes).toHaveLength(writesBefore)
@@ -85,7 +85,9 @@ describe('a proposal', () => {
   it('shows the rows a rule files, in one group, in Kuna’s words', async () => {
     const d = await desk()
     const waiting = rowOf(d, 'Corner market')
-    await d.propose([{ op: 'add-rule', input: { row: d.ref('transaction', waiting.id), fragment: null, iban: null, category: d.ref('category', named(d, 'Coffee').id) } }])
+    await d.propose([
+      { op: 'add-rule', input: { row: d.ref('transaction', waiting.id), fragment: null, iban: null, category: d.ref('category', named(d, 'Coffee').id), withdrawal: null, cash_account: null } },
+    ])
     const [card] = d.cards
     expect(card!.groups.map((group) => [group.verb, group.noun.en.one])).toContainEqual(['add', 'rule'])
     const rule = card!.groups.find((group) => group.noun.en.one === 'rule')!.lines[0]!
@@ -115,10 +117,12 @@ describe('a proposal', () => {
 
   it('fixes and deletes a rule, with the rows following', async () => {
     const d = await desk()
-    await d.propose([{ op: 'add-rule', input: { row: null, fragment: 'Corner market', iban: null, category: d.ref('category', named(d, 'Coffee').id) } }])
+    await d.propose([{ op: 'add-rule', input: { row: null, fragment: 'Corner market', iban: null, category: d.ref('category', named(d, 'Coffee').id), withdrawal: null, cash_account: null } }])
     await accept(d)
     const rule = bookOf(d).rules.at(-1)!
-    await d.propose([{ op: 'change-rule', input: { rule: d.ref('rule', rule.id), fragment: null, iban: null, category: d.ref('category', named(d, 'Groceries').id) } }])
+    await d.propose([
+      { op: 'change-rule', input: { rule: d.ref('rule', rule.id), fragment: null, iban: null, category: d.ref('category', named(d, 'Groceries').id), withdrawal: null, cash_account: null } },
+    ])
     expect((await accept(d, 1)).kind).toBe('done')
     expect(bookOf(d).rules.at(-1)!.category).toBe(named(d, 'Groceries').id)
     await d.propose([{ op: 'delete-rule', input: { rule: d.ref('rule', rule.id) } }])
@@ -134,7 +138,7 @@ describe('a proposal', () => {
       (
         await d.propose([
           { ...add, as: '$pets' },
-          { op: 'add-rule', input: { row: null, fragment: 'Vet', iban: null, category: '$pets' } },
+          { op: 'add-rule', input: { row: null, fragment: 'Vet', iban: null, category: '$pets', withdrawal: null, cash_account: null } },
         ])
       ).isError,
     ).toBe(false)
@@ -145,7 +149,10 @@ describe('a proposal', () => {
   it("adds a rule by the other side's IBAN, as the rule form can", async () => {
     const d = await desk()
     const rent = named(d, 'Rent').id
-    expect((await d.propose([{ op: 'add-rule', input: { row: null, fragment: null, iban: 'hr12 1001 0051 8630 0016 0', category: d.ref('category', rent) } }])).isError).toBe(false)
+    expect(
+      (await d.propose([{ op: 'add-rule', input: { row: null, fragment: null, iban: 'hr12 1001 0051 8630 0016 0', category: d.ref('category', rent), withdrawal: null, cash_account: null } }]))
+        .isError,
+    ).toBe(false)
     expect((await accept(d)).kind).toBe('done')
     expect(bookOf(d).rules.at(-1)).toMatchObject({ condition: { column: 'counterparty_iban', iban: 'HR1210010051863000160' }, category: rent })
   })
@@ -154,7 +161,7 @@ describe('a proposal', () => {
     const d = await desk()
     const account = d.ref('account', bookOf(d).accounts[0]!.id)
     for (const category of ['$later', account, 'category-999', '../secrets']) {
-      const answer = await d.propose([{ op: 'add-rule', input: { row: null, fragment: 'Vet', iban: null, category } }])
+      const answer = await d.propose([{ op: 'add-rule', input: { row: null, fragment: 'Vet', iban: null, category, withdrawal: null, cash_account: null } }])
       expect(answer.isError).toBe(true)
       expect(answer.text).not.toContain(category)
     }
@@ -167,7 +174,7 @@ describe('a proposal', () => {
     const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const iban = d.reads.pseudonyms.identifierToken('HR1210010051863000160')
     await d.propose([
-      { op: 'add-rule', input: { row: null, fragment: alias, iban: null, category: d.ref('category', named(d, 'Rent').id) } },
+      { op: 'add-rule', input: { row: null, fragment: alias, iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
       { op: 'change-account', input: { account: d.ref('account', bookOf(d).accounts[0]!.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban, closed: null } },
     ])
     const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
@@ -183,7 +190,7 @@ describe('a proposal', () => {
     d.reads.pseudonyms.pseudonymised('HORVAT ANA', 'books')
     const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const rulesBefore = bookOf(d).rules.length
-    await d.propose([{ op: 'add-rule', input: { row: null, fragment: alias, iban: null, category: d.ref('category', named(d, 'Rent').id) } }])
+    await d.propose([{ op: 'add-rule', input: { row: null, fragment: alias, iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } }])
     await accept(d)
     expect(
       bookOf(d)
@@ -200,8 +207,8 @@ describe('a proposal', () => {
     d.reads.pseudonyms.know(['Ana Horvat'])
     d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     await d.propose([
-      { op: 'add-rule', input: { row: null, fragment: 'Osobnu 1', iban: null, category: d.ref('category', named(d, 'Rent').id) } },
-      { op: 'add-rule', input: { row: null, fragment: 'Adresama 1', iban: null, category: d.ref('category', named(d, 'Rent').id) } },
+      { op: 'add-rule', input: { row: null, fragment: 'Osobnu 1', iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
+      { op: 'add-rule', input: { row: null, fragment: 'Adresama 1', iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
     ])
     await accept(d)
     expect(
@@ -216,7 +223,9 @@ describe('a proposal', () => {
 
   it('tells the model nothing the card holds, and no name when Kuna refuses it', async () => {
     const d = await desk()
-    const answer = await d.propose([{ op: 'add-rule', input: { row: null, fragment: 'Ana Horvat', iban: null, category: d.ref('category', named(d, 'Rent').id) } }])
+    const answer = await d.propose([
+      { op: 'add-rule', input: { row: null, fragment: 'Ana Horvat', iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
+    ])
     expect(answer.text).not.toContain('Ana Horvat')
     const refused = await d.propose([{ op: 'delete-category', input: { category: d.ref('category', named(d, 'Between my accounts').id), into: d.ref('category', named(d, 'Rent').id) } }])
     expect(refused.isError).toBe(true)

@@ -30,7 +30,7 @@ import type { Category } from '../../workbook/domain/category'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
-import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
+import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -98,22 +98,23 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-rule',
     about:
-      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, by words in a payee's name, or by the other side's IBAN. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them. A rule never re-files a row a person filed.",
-    input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT }),
-    refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name },
+      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, by words in a payee's name, or by the other side's IBAN. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them. A rule never re-files a row a person filed. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency.",
+    input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT, withdrawal: FLAG_OR_NULL, cash_account: TEXT_OR_NULL }),
+    refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
     spellings: ['fragment'],
     creates: null,
     alone: false,
-    example: { row: 'transaction', fragment: null, iban: null, category: 'category' },
+    example: { row: 'transaction', fragment: null, iban: null, category: 'category', withdrawal: null, cash_account: null },
   },
   {
     name: 'change-rule',
-    about: 'Fixes a rule: other words, another IBAN or another category. Null leaves a field as it is. Rows follow at once.',
-    input: inputOf({ rule: TEXT, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT_OR_NULL }),
-    refs: { rule: RULE_RECORDS.name, category: CATEGORY_RECORDS.name },
+    about:
+      'Fixes a rule: other words, another IBAN, another category, whether it spots cash taken out, or the cash account the cash goes to. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. Rows follow at once.',
+    input: inputOf({ rule: TEXT, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT_OR_NULL, withdrawal: FLAG_OR_NULL, cash_account: TEXT_OR_NULL }),
+    refs: { rule: RULE_RECORDS.name, category: CATEGORY_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { rule: 'rule', fragment: 'Market', iban: null, category: null },
+    example: { rule: 'rule', fragment: 'Market', iban: null, category: null, withdrawal: null, cash_account: null },
   },
   {
     name: 'delete-rule',
@@ -298,6 +299,13 @@ function flagOf(text: string | null, kept: boolean): boolean {
   return text === null ? kept : text === 'yes'
 }
 
+/** The withdrawal a rule step asks for: none on no, one into the named cash account or none named on yes, and on null the one kept, or one into the cash account named alone. */
+function withdrawalOf(flag: string | null, cashAccount: Account | null, kept: RuleWithdrawal | null): RuleWithdrawal | null {
+  if (flag === 'no') return null
+  if (flag === 'yes') return { cashAccount: cashAccount?.id ?? null }
+  return cashAccount === null ? kept : { cashAccount: cashAccount.id }
+}
+
 function conditionOf(fragment: string | null, iban: string | null, kept: SpendingRuleCondition): SpendingRuleCondition {
   if (iban !== null && iban.trim() !== '') return { column: 'counterparty_iban', iban: iban.replace(/\s+/g, '').toUpperCase() }
   if (fragment !== null && fragment.trim() !== '') return { column: 'counterparty_contains', fragment: fragment.trim() }
@@ -472,16 +480,22 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
               ? [conditionOf(null, iban, { column: 'counterparty_contains', fragment: '' })]
               : fragments.map((fragment) => conditionOf(fragment, null, { column: 'counterparty_contains', fragment: '' }))
         const category = categoryOf(field['category']).id
+        const withdrawal = withdrawalOf(field['withdrawal'], field['cash_account'] === null ? null : accountOf(field['cash_account']), null)
         for (const condition of conditions) {
           if (condition === null || (condition.column === 'counterparty_contains' && condition.fragment === ''))
             throw new StepRefused('A rule needs a row with a payee or an IBAN, words to look for, or an IBAN.')
-          edits.filing.push({ condition, category })
+          edits.filing.push({ condition, category, withdrawal })
         }
         break
       }
       case 'change-rule': {
         const rule = found(book.rules, idOf(field['rule']), 'rule')
-        edits.fixing.push({ rule, condition: conditionOf(field['fragment'], field['iban'], rule.condition), category: field['category'] === null ? rule.category : categoryOf(field['category']).id })
+        edits.fixing.push({
+          rule,
+          condition: conditionOf(field['fragment'], field['iban'], rule.condition),
+          category: field['category'] === null ? rule.category : categoryOf(field['category']).id,
+          withdrawal: withdrawalOf(field['withdrawal'], field['cash_account'] === null ? null : accountOf(field['cash_account']), rule.withdrawal),
+        })
         break
       }
       case 'delete-rule':
@@ -666,7 +680,11 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       case 'join-rows':
       case 'pair-rows':
       case 'unpair-rows':
+      case 'not-cash':
         writeReviewStep(unit, book, operation, rowOf(field['row']))
+        break
+      case 'move-to-cash':
+        writeReviewStep(unit, book, operation, rowOf(field['row']), field['cash_account'] === null ? null : accountOf(field['cash_account']))
         break
       case 'import-statement':
         if (imported !== null) throw new StepRefused('A card imports one statement.')

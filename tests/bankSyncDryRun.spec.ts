@@ -91,6 +91,7 @@ function fileStatement(rows: readonly Partial<StatementRow>[]): StatementRows {
       importKey: `0123456789abcdef-${place}`,
       movedAt: '',
       pocket: false,
+      cashWithdrawal: false,
       ...fields,
     })),
   }
@@ -165,6 +166,7 @@ describe('a synced row against the file', () => {
       order: 1,
       condition: { column: 'counterparty_contains', fragment: 'Corner bakery' },
       category: category('Income').id,
+      withdrawal: null,
     }
     expect(statementDryRun(bookOf([], [rule]), syncOf([BANK]), DAY).added[0]?.category).toBeNull()
     expect(statementDryRun(bookOf([], [rule]), syncOf([{ ...BANK, direction: 'CRDT', creditorName: null, debtorName: 'Corner bakery' }]), DAY).added[0]?.category).toBe(rule.category)
@@ -576,5 +578,21 @@ describe('the fake Spending file', () => {
     const legs = run.added.filter((added) => payees.includes(added.payee))
     const between = workbook.categories.find((each) => each.kind === 'transfer')?.id
     expect(legs.map((added) => [added.payee, added.category === between, added.pair !== null, added.pocket])).toEqual(payees.map((payee) => [payee, true, true, pocket]))
+  })
+
+  it("pairs the withdrawal variant's cash machine row with a leg on the cash account, which its rule spots", async () => {
+    const document = fakeSpendingDocument('2026-10-30T09:00:00.000Z', 'statements', DAY, 'withdrawal')
+    const { workbook } = SPENDING_DOCUMENT.read({
+      meta: { id: 'fake', source: 'browser', title: 'fake', syncedAt: '2026-10-30T09:00:00.000Z', lastExportedAt: null, unexportedSince: null },
+      revision: '1',
+      document,
+    })
+    const { statement } = await readBanks(fakeBankSync('withdrawal', DAY), workbook, DAY)
+    const run = statementDryRun(workbook, statement, DAY)
+    const cash = workbook.accounts.find((each) => each.kind === 'cash')!
+    const line = run.lines.find((each) => each.row.payee === 'Bankomat Ilica')
+
+    expect(line?.outcome === 'new' && line.withdrawal?.cashLeg).toMatchObject({ account: cash.id, amount: accountMoneyFromAmount(50) })
+    expect(run.added.filter((added) => added.payee === 'Bankomat Ilica').map((added) => added.account)).toEqual([line!.row.account, cash.id])
   })
 })

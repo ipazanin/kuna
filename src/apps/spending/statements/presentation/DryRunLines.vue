@@ -7,10 +7,12 @@ import type { DryRunLine } from '../domain/statementDryRun'
 import { isBankSyncKey } from '../domain/statementRows'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import type { Transaction } from '../../workbook/domain/transaction'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
+import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 
 /** Each row of a statement and what importing it would do. */
 const props = defineProps<{ lines: readonly DryRunLine[] }>()
@@ -55,10 +57,18 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
     case 'refiled':
       return { label: words.import.outcome.refiled(named), color: 'info' }
     case 'new':
+      if (line.withdrawal !== null) return cashOutcomeOf(line.withdrawal.cashLeg)
       return wantsSavingsAccount(line.row, state.workbook?.accounts ?? [])
         ? { label: words.review.wantsSavings, color: 'warning' }
         : { label: named, color: line.category === null ? 'warning' : 'success' }
   }
+}
+
+/** Cash taken out: the money its leg brings to the cash account, or that it asks which account. */
+function cashOutcomeOf(cashLeg: Transaction | null): { readonly label: string; readonly color: BadgeColor } {
+  const account = cashLeg === null ? undefined : state.workbook?.accounts.find((candidate) => candidate.id === cashLeg.account)
+  if (cashLeg === null || account === undefined) return { label: words.import.outcome.asksCash, color: 'warning' }
+  return { label: words.review.cash.toCash(formatAccountMoney(cashLeg.amount, account.currency, 'always'), account.name), color: 'success' }
 }
 </script>
 

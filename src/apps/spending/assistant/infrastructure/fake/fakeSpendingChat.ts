@@ -135,7 +135,7 @@ function sortReply({ request, tokens }: FakeChatTurn, says: Says, before = 0): M
     }
     const row = records.find((record) => record.category !== undefined && record.counterpartyIban === undefined && !/^(?:Person|Osoba) \d+$/.test(record.payee ?? ''))
     if (row === undefined) return answered(request, says.nothingToSort, tokens)
-    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, iban: null, category: row.category }), as: null }
+    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, iban: null, category: row.category, withdrawal: null, cash_account: null }), as: null }
     return lookup(before + 1, 'propose_changes', { app: 'spending', title: says.proposalTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.proposed, tokens)
@@ -180,7 +180,7 @@ function sortGoOnReply({ request, tokens }: FakeChatTurn, says: Says): ModelRepl
     const row = waitingRows(answers[0]!.text).find((waiting) => waiting.payee !== undefined)
     const category = recordsIn(answers[1]!.text).find((found) => found.name === says.pharmacy)?.ref
     if (row === undefined || category === undefined) return answered(request, says.nothingToSort, tokens)
-    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, iban: null, category }), as: null }
+    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, iban: null, category, withdrawal: null, cash_account: null }), as: null }
     return lookup(2, 'propose_changes', { app: 'spending', title: says.pharmacyRuleTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.pharmacyRuled, tokens)

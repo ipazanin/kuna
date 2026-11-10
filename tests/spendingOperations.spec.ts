@@ -268,6 +268,58 @@ describe('To review', () => {
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction-joinable']!)).toBeUndefined()
     expect(bookOf(desk).transactions.find((row) => row.payee === 'Pharmacy')!.amount).toBe(-3100)
   })
+
+  it('moves a withdrawal To review lists to cash, and refuses a row it does not list or an account it does not offer', async () => {
+    const desk = await spendingDesk(used)
+    const withdrawal = desk.ref('transaction', EXAMPLE_RECORDS['transaction-withdrawal']!)
+    expect((await desk.propose([{ op: 'move-to-cash', input: { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!), cash_account: null } }])).isError).toBe(true)
+    expect((await desk.propose([{ op: 'move-to-cash', input: { row: withdrawal, cash_account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) } }])).isError).toBe(true)
+
+    await desk.propose([{ op: 'move-to-cash', input: { row: withdrawal, cash_account: null } }])
+    expect((await desk.accept()).kind).toBe('done')
+    const leg = bookOf(desk).transactions.find((row) => row.account === DESK_ACCOUNTS.WALLET.id)
+    expect(leg).toMatchObject({ amount: accountMoneyFromAmount(50), pair: EXAMPLE_RECORDS['transaction-withdrawal'] })
+  })
+})
+
+describe('a withdrawal that is not cash', () => {
+  it('leaves the row where it is filed and off the list, and refuses a row To review does not list', async () => {
+    const desk = await spendingDesk(used)
+    expect((await desk.propose([{ op: 'not-cash', input: { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) } }])).isError).toBe(true)
+
+    await desk.propose([{ op: 'not-cash', input: { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction-withdrawal']!) } }])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowOf(desk, EXAMPLE_RECORDS['transaction-withdrawal']!)).toMatchObject({ categorisedBy: 'person', pair: null })
+  })
+})
+
+describe('a rule that spots cash taken out', () => {
+  it('adds one into Between my accounts with the cash account named, and changes it to the cash account of the currency', async () => {
+    const desk = await spendingDesk(used)
+    const between = categoryNamed(desk, 'Between my accounts')
+    await desk.propose([
+      {
+        op: 'add-rule',
+        input: { row: null, fragment: 'Bankomat', iban: null, category: desk.ref('category', between.id), withdrawal: 'yes', cash_account: desk.ref('account', DESK_ACCOUNTS.WALLET.id) },
+      },
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    const rule = bookOf(desk).rules.find((each) => each.category === between.id)!
+    expect(rule.withdrawal).toEqual({ cashAccount: DESK_ACCOUNTS.WALLET.id })
+
+    await desk.propose([{ op: 'change-rule', input: { rule: desk.ref('rule', rule.id), fragment: null, iban: null, category: null, withdrawal: 'yes', cash_account: null } }])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(bookOf(desk).rules.find((each) => each.id === rule.id)!.withdrawal).toEqual({ cashAccount: null })
+  })
+
+  it('refuses one that spots cash taken out into a spending category', async () => {
+    const desk = await spendingDesk(used)
+    const answer = await desk.propose([
+      { op: 'add-rule', input: { row: null, fragment: 'Bankomat', iban: null, category: desk.ref('category', categoryNamed(desk, 'Rent').id), withdrawal: 'yes', cash_account: null } },
+    ])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('Between my accounts')
+  })
 })
 
 describe('categories and accounts', () => {

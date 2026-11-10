@@ -4,17 +4,19 @@ import { filledByBank, statementDryRun } from '../domain/statementDryRun'
 import type { StatementDryRun } from '../domain/statementDryRun'
 import { rulesRerun } from '../domain/spendingCategorisation'
 import type { StatementRows } from '../domain/statementRows'
+import { isMadeCashLeg, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { legsOfPair } from '../../pairing/domain/transferPairs'
 import { words as receiptWords } from '../../receipts/domain/words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
+import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { EntryPart } from '../../workbook/domain/entryPart'
 import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import { HELD_ROW_RECORDS, RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { sameCondition } from '../../workbook/domain/spendingRule'
-import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
+import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -55,11 +57,30 @@ export function fileRow(unit: UnitOfWork, row: Transaction, category: Category):
 
 /**
  * Both legs back on review, with neither a category nor a pair. `person` on a row with no category says you decided
- * about the pair, so a later import does not pair them again and To review does not offer it.
+ * about the pair, so a later import does not pair them again and To review does not offer it. A cash leg Kuna made goes,
+ * since no money but the withdrawal's was ever there.
  */
 export function notAPair(unit: UnitOfWork, { debit, credit }: TransferPair): void {
   const entries = unit.of(TRANSACTION_WRITES)
-  for (const leg of [debit, credit]) entries.change(leg, { ...leg, pair: null, category: null, categorisedBy: 'person' })
+  for (const leg of [debit, credit]) {
+    if (isMadeCashLeg(leg)) entries.remove(leg)
+    else entries.change(leg, { ...leg, pair: null, category: null, categorisedBy: 'person' })
+  }
+}
+
+/** A row To review took for cash taken out, which the person says is not: it stays where it is filed, as their own decision, so no rule or later list takes it for one again. */
+export function notCash(unit: UnitOfWork, row: Transaction): void {
+  unit.of(TRANSACTION_WRITES).change(row, { ...row, categorisedBy: 'person' })
+}
+
+/** Each withdrawal with its leg on the cash account picked for it, in one write with one Undo. */
+export function writeCashLegs(unit: UnitOfWork, withdrawals: readonly { readonly row: Transaction; readonly cash: Account }[], transferCategory: RecordId): void {
+  const entries = unit.of(TRANSACTION_WRITES)
+  for (const { row, cash } of withdrawals) {
+    const [debit, leg] = withCashLeg(row, cash, transferCategory)
+    entries.change(row, debit)
+    entries.add(leg)
+  }
 }
 
 /** Two rows To review offered as one transfer, paired by your word. */
@@ -91,10 +112,17 @@ function rerun(unit: UnitOfWork, book: SpendingBook, rules: readonly SpendingRul
   rulesRerun(book, rules).forEach(({ before, after }) => unit.of(TRANSACTION_WRITES).change(before, after))
 }
 
-/** The rule this condition makes: new and tried last, or the one it already has on the new category. */
-function ruleFor(rules: readonly SpendingRule[], condition: SpendingRuleCondition, category: RecordId): { readonly held: SpendingRule | null; readonly rule: SpendingRule } {
+/** What a rule files a row as: its category, and whether it spots cash taken out. */
+export interface RuleFiling {
+  readonly category: RecordId
+  readonly withdrawal: RuleWithdrawal | null
+}
+
+/** The rule this condition makes: new and tried last, or the one it already has on the new filing. */
+function ruleFor(rules: readonly SpendingRule[], condition: SpendingRuleCondition, { category, withdrawal }: RuleFiling): { readonly held: SpendingRule | null; readonly rule: SpendingRule } {
   const held = rules.find((rule) => sameCondition(rule.condition, condition)) ?? null
-  const rule = held !== null ? { ...held, category } : { id: recordIdOf(RULE_RECORDS, newRecordId()), order: Math.max(0, ...rules.map((other) => other.order)) + 1, condition, category }
+  const rule =
+    held !== null ? { ...held, category, withdrawal } : { id: recordIdOf(RULE_RECORDS, newRecordId()), order: Math.max(0, ...rules.map((other) => other.order)) + 1, condition, category, withdrawal }
   return { held, rule }
 }
 
@@ -104,15 +132,15 @@ function rulesWith(rules: readonly SpendingRule[], held: SpendingRule | null, ru
 
 /** How many rows the rule would file, for you to read before it is written. */
 export function rowsRuleWouldFile(book: SpendingBook, condition: SpendingRuleCondition, category: RecordId): number {
-  const { held, rule } = ruleFor(book.rules, condition, category)
+  const { held, rule } = ruleFor(book.rules, condition, { category, withdrawal: null })
   return rulesRerun(book, rulesWith(book.rules, held, rule)).length
 }
 
 /** Several changes to the rules, with the rules re-run once over all of them. */
 export interface RuleEdits {
   /** Each made new, or on the rule that already has its condition. */
-  readonly filing?: readonly { readonly condition: SpendingRuleCondition; readonly category: RecordId }[]
-  readonly fixing?: readonly { readonly rule: SpendingRule; readonly condition: SpendingRuleCondition; readonly category: RecordId }[]
+  readonly filing?: readonly (RuleFiling & { readonly condition: SpendingRuleCondition })[]
+  readonly fixing?: readonly (RuleFiling & { readonly rule: SpendingRule; readonly condition: SpendingRuleCondition })[]
   readonly deleting?: readonly SpendingRule[]
 }
 
@@ -121,13 +149,13 @@ function editRules(unit: UnitOfWork, rules: readonly SpendingRule[], { filing = 
   const records = unit.of(RULE_WRITES)
   let after: readonly SpendingRule[] = rules.filter((rule) => !deleting.includes(rule))
   deleting.forEach((rule) => records.remove(rule))
-  for (const { rule, condition, category } of fixing) {
-    const fixed = { ...rule, condition, category }
+  for (const { rule, condition, category, withdrawal } of fixing) {
+    const fixed = { ...rule, condition, category, withdrawal }
     records.change(rule, fixed)
     after = after.map((other) => (other === rule ? fixed : other))
   }
-  for (const { condition, category } of filing) {
-    const { held, rule } = ruleFor(after, condition, category)
+  for (const { condition, ...filed } of filing) {
+    const { held, rule } = ruleFor(after, condition, filed)
     if (held === null) records.add(rule)
     else records.change(held, rule)
     after = rulesWith(after, held, rule)
@@ -157,14 +185,17 @@ export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: Rul
   return run
 }
 
-/** A rule for each condition into one category, tried after the rules there are in the order given, with the rules re-run in the same write. */
-export function writeRulesInto(unit: UnitOfWork, book: SpendingBook, conditions: readonly SpendingRuleCondition[], category: RecordId): void {
-  writeRules(unit, book, { filing: conditions.map((condition) => ({ condition, category })) })
+/**
+ * A rule for each condition into one category, tried after the rules there are in the order given, with the rules re-run in
+ * the same write. A rule into Between my accounts may spot cash taken out, into the cash account it names or none.
+ */
+export function writeRulesInto(unit: UnitOfWork, book: SpendingBook, conditions: readonly SpendingRuleCondition[], category: RecordId, withdrawal: RuleWithdrawal | null): void {
+  writeRules(unit, book, { filing: conditions.map((condition) => ({ condition, category, withdrawal })) })
 }
 
-/** The rule testing another condition or filing into another category, keeping its place, with the rules re-run in the same write. */
-export function changeRule(unit: UnitOfWork, book: SpendingBook, rule: SpendingRule, condition: SpendingRuleCondition, category: RecordId): void {
-  writeRules(unit, book, { fixing: [{ rule, condition, category }] })
+/** The rule testing another condition or filing into another category or cash account, keeping its place, with the rules re-run in the same write. */
+export function changeRule(unit: UnitOfWork, book: SpendingBook, rule: SpendingRule, condition: SpendingRuleCondition, category: RecordId, withdrawal: RuleWithdrawal | null): void {
+  writeRules(unit, book, { fixing: [{ rule, condition, category, withdrawal }] })
 }
 
 /** The rule gone, and the rows it filed follow the rules that are left, in the same write. */

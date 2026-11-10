@@ -41,6 +41,8 @@ export interface Transaction {
   readonly movedAt: string
   /** A move to or from a savings pocket, whose other leg is a savings account's. */
   readonly pocket: boolean
+  /** Cash taken out, as the bank's own row type says, whose other leg is a cash account's. */
+  readonly cashWithdrawal: boolean
 }
 
 /** What tells a row from every other on the file: its account and its import key. */
@@ -49,8 +51,7 @@ export function rowKey(row: Pick<Transaction, 'account' | 'importKey'>): string 
 }
 
 /** What only a bank statement tells about a row. */
-
-export type BankFacts = Pick<Transaction, 'description' | 'counterpartyIban' | 'importKey' | 'statement' | 'movedAt' | 'pocket'>
+export type BankFacts = Pick<Transaction, 'description' | 'counterpartyIban' | 'importKey' | 'statement' | 'movedAt' | 'pocket' | 'cashWithdrawal'>
 
 /** The bank facts of a row no statement brought. */
-export const NO_BANK_FACTS: BankFacts = { description: '', counterpartyIban: '', importKey: '', statement: '', movedAt: '', pocket: false }
+export const NO_BANK_FACTS: BankFacts = { description: '', counterpartyIban: '', importKey: '', statement: '', movedAt: '', pocket: false, cashWithdrawal: false }

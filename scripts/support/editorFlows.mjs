@@ -6299,7 +6299,7 @@ export function spendingImportLookAlikeFlowIn(language, paths) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropSpendingFile(page, paths.revolut)
-    await spendingDryRunSays(page, panel.summary(7, 1, 1))
+    await spendingDryRunSays(page, panel.summary(8, 1, 1))
     await elementSays(page, '[data-testid="question"]', ['UNKNOWN SHOP ZAGREB'], 'the question does not name the copied row the file row looks like')
     if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.lookAlike], 'the look-alike does not say it waits for an answer')
@@ -6315,7 +6315,7 @@ export function spendingImportLookAlikeFlowIn(language, paths) {
     await shoot('spending-import-lookalike-replaced')
     await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
     await toast(page, panel.imported)
-    await spendingDryRunSays(page, panel.summary(0, 10, 0))
+    await spendingDryRunSays(page, panel.summary(0, 11, 0))
     await undoIn(page, press, words)
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replaced], 'Undo did not bring the replacement back to the dry run')
     await dismissToasts(page)
@@ -6349,23 +6349,25 @@ export function spendingImportSyncedLookAlikeFlowIn(language, paths) {
 }
 
 /**
- * On Spending's Import with the statements set: the sample Revolut export read as a dry run of 8 new rows, 1 already in and
- * 1 paired with a typed row, with nothing written. Imported, nothing is new, and one Undo brings the dry run back.
+ * On Spending's Import with the statements set: the sample Revolut export read as a dry run of 9 new rows, 1 already in and
+ * 1 paired with a typed row, its cash withdrawal going to Cash, with nothing written. Imported, nothing is new, and one Undo
+ * brings the dry run back.
  */
 export function spendingImportFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
   const panel = words.spendingStatements.import
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const before = panel.summary(8, 1, 1)
+    const before = panel.summary(9, 1, 1)
     await dropSpendingFile(page, paths.revolut)
     await spendingDryRunSays(page, before)
+    await centreOn(page, '[data-testid="spending-dry-run-outcome"]', aroundAmount(words.spendingStatements.review.cash.toCash('\u0000', 'Cash')))
     await delay(300)
     await inspect?.('the Revolut dry run')
     await shoot('spending-import-revolut')
     await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
     await toast(page, panel.imported)
-    await spendingDryRunSays(page, panel.summary(0, 10, 0))
+    await spendingDryRunSays(page, panel.summary(0, 11, 0))
     await page.waitForSelector('[data-testid="spending-import-nothing"]', { visible: true, timeout: 10_000 })
     await undoIn(page, press, words)
     await spendingDryRunSays(page, before)
@@ -6763,6 +6765,80 @@ export function spendingBankSyncLookAlikeFlowIn(language) {
   }
 }
 
+/**
+ * On Settings, Bank sync with OTP's cash machine row, which the Bankomat rule spots: the last sync's dry run says its money
+ * went to Cash.
+ */
+export function spendingBankSyncWithdrawalFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-result"]')
+    await dismissToasts(page)
+    await centreOn(page, '[data-testid="spending-bank-sync-result"] [data-testid="spending-dry-run-outcome"]', aroundAmount(words.spendingStatements.review.cash.toCash('\u0000', 'Cash')))
+    await delay(300)
+    await inspect?.('the bank sync with cash taken out going to Cash')
+    await shoot('spending-bank-sync-withdrawal')
+  }
+}
+
+/**
+ * On To review with the cash set: the withdrawals with no cash leg, two moving to Cash together, one asking which dollar cash
+ * account and one offering to add a pound one. Move 2 to cash writes both legs in one write that one Undo takes back, Not cash
+ * takes one off the list until Undo, picking a dollar account moves that one, and Add a cash account opens the account dialog
+ * as a pound cash account.
+ */
+export function spendingReviewCashFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const cash = words.spendingStatements.review.cash
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const card = '[data-testid="spending-review-cash"]'
+    await page.waitForSelector(`${card} [data-testid="spending-review-cash-row"]`, { visible: true, timeout: 10_000 })
+    await elementSays(page, card, [cash.title, 'Bankomat Ilica', 'Cash at Boston ATM', 'Dollars at home', cash.noAccount('GBP')], 'the cash card does not list the three kinds of withdrawal')
+    await delay(300)
+    await inspect?.('To review with cash withdrawals')
+    await shoot('spending-review-cash')
+    const rows = async () => page.$$eval(`${card} [data-testid="spending-review-cash-row"]`, (found) => found.length)
+    if ((await rows()) !== 2) throw new Error(`the cash card proposes ${await rows()} withdrawals, not 2`)
+    await pressSelector(page, press, '[data-testid="spending-review-cash-move"]')
+    await toast(page, countedIn(words, cash.moved(2), 2))
+    await page.waitForFunction((where) => document.querySelector(`${where} [data-testid="spending-review-cash-row"]`) === null, { timeout: 10_000 }, card)
+    await undoIn(page, press, words)
+    await page.waitForFunction((where) => document.querySelectorAll(`${where} [data-testid="spending-review-cash-row"]`).length === 2, { timeout: 10_000 }, card)
+    await dismissToasts(page)
+    await pressSelector(page, press, `${card} [data-testid="spending-review-cash-not-cash"]`)
+    await toast(page, cash.leftFiled)
+    await page.waitForFunction((where) => document.querySelectorAll(`${where} [data-testid="spending-review-cash-row"]`).length === 1, { timeout: 10_000 }, card)
+    await undoIn(page, press, words)
+    await page.waitForFunction((where) => document.querySelectorAll(`${where} [data-testid="spending-review-cash-row"]`).length === 2, { timeout: 10_000 }, card)
+    await dismissToasts(page)
+    await pressSelector(page, press, `${card} [data-testid="question-choice"] button:nth-child(1)`)
+    await toast(page, countedIn(words, cash.moved(1), 1))
+    await page.waitForFunction((where) => document.querySelector(`${where} [data-testid="question"]`) === null, { timeout: 10_000 }, card)
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="spending-review-cash-add-account"] button')
+    await page.waitForSelector('[data-testid="spending-account-dialog"]', { visible: true, timeout: 10_000 })
+    await elementSays(page, '[data-testid="spending-account-currency"]', ['GBP'], "the account dialog does not start in the withdrawal's currency")
+    if ((await page.$('[data-testid="spending-account-bank"]')) !== null) throw new Error('the account dialog does not start as a cash account')
+    await delay(300)
+    await inspect?.('the account dialog To review opens for a cash account')
+    await shoot('spending-review-cash-add-account')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => document.querySelector('[data-testid="spending-account-dialog"]') === null, { timeout: 10_000 })
+  }
+}
+
+/** Waits for the element under `selector` that says `text`, and scrolls it to the middle of the screen. */
+async function centreOn(page, selector, text) {
+  await waitForTextIn(page, selector, text)
+  await page.evaluate(
+    (where, wanted) => [...document.querySelectorAll(where)].find((element) => element.textContent?.includes(wanted))?.scrollIntoView({ block: 'center' }),
+    selector,
+    text.trim().replace(/\s+\S*$/, ''),
+  )
+}
+
 /** The longest stretch of a line around the amount it names, which is the same in every build whatever the amount reads as. */
 function aroundAmount(line) {
   return line.split('\u0000').reduce((longest, part) => (part.trim().length > longest.length ? part.trim() : longest), '')
@@ -6935,7 +7011,7 @@ export function spendingImportMissingSavingsFlowIn(language, paths) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const offer = '[data-testid="spending-dry-run"] [data-testid="spending-import-missing-accounts"]'
     await dropSpendingFile(page, paths.revolut)
-    await spendingDryRunSays(page, words.spendingStatements.import.summary(8, 1, 1))
+    await spendingDryRunSays(page, words.spendingStatements.import.summary(9, 1, 1))
     await page.waitForSelector(offer, { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('the dry run offers no savings account')
     })
@@ -7082,16 +7158,16 @@ export function spendingRuleFlowIn(language) {
       window.location.hash = '#/spending/settings?tab=rules'
     })
     await page.waitForSelector('[data-testid="spending-rule"]', { visible: true, timeout: 10_000 })
-    await countOf(page, '[data-testid="spending-rule"]', 2, 'Settings, Rules should list both rules')
+    await countOf(page, '[data-testid="spending-rule"]', 3, 'Settings, Rules should list the three rules')
     await delay(300)
     await inspect?.('Settings, Rules with the new rule')
     await shoot('spending-rule-made')
     const buttons = await page.$$('[data-testid="spending-rule-delete"]')
     await press(buttons.at(-1))
     await toast(page, rules.deleted)
-    await countOf(page, '[data-testid="spending-rule"]', 1, 'Delete should take the rule off')
+    await countOf(page, '[data-testid="spending-rule"]', 2, 'Delete should take the rule off')
     await undoIn(page, press, words)
-    await countOf(page, '[data-testid="spending-rule"]', 2, 'Undo should bring the rule back')
+    await countOf(page, '[data-testid="spending-rule"]', 3, 'Undo should bring the rule back')
     await dismissToasts(page)
   }
 }
@@ -7133,7 +7209,7 @@ export function spendingRulesAddFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const GROUP = '[data-testid="spending-rule-group"]'
     const OVERLAP = '[data-testid="spending-rule-overlap"]'
-    await countOf(page, GROUP, 1, 'the set should start with one rule group')
+    await countOf(page, GROUP, 2, 'the set should start with two rule groups')
     await pressSelector(page, press, '[data-testid="spending-rules-add"]')
     await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
     await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), fuel)
@@ -7150,11 +7226,11 @@ export function spendingRulesAddFlowIn(language) {
     await shoot('spending-rules-add-dialog')
     await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
     await toast(page, countedIn(words, rules.dialog.saved(3), 3))
-    await countOf(page, GROUP, 2, 'Fuel should join as a group')
+    await countOf(page, GROUP, 3, 'Fuel should join as a group')
     const fuelGroup = await ruleGroupOf(page, fuel)
     if ((await fuelGroup.$$('[data-testid="spending-rule"]')).length !== 3) throw new Error('Fuel should hold the three payees')
     await undoIn(page, press, words)
-    await countOf(page, GROUP, 1, 'one Undo should take all three rules back')
+    await countOf(page, GROUP, 2, 'one Undo should take all three rules back')
     await dismissToasts(page)
     await pressSelector(page, press, '[data-testid="spending-rules-add"]')
     await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
@@ -7162,7 +7238,7 @@ export function spendingRulesAddFlowIn(language) {
     await setTextArea(await page.$('[data-testid="spending-rule-dialog-lines"] textarea, textarea[data-testid="spending-rule-dialog-lines"]'), 'Ina Zadar\nIna Pleternica\nIna Kozjak Sjever')
     await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
     await toast(page, countedIn(words, rules.dialog.saved(3), 3))
-    await countOf(page, GROUP, 2, 'Fuel should join as a group')
+    await countOf(page, GROUP, 3, 'Fuel should join as a group')
     await dismissToasts(page)
     await delay(300)
     await inspect?.('Settings, Rules grouped by category')
@@ -7197,6 +7273,36 @@ export function spendingRulesAddFlowIn(language) {
       { timeout: 5_000 },
       rules.contains('Ina Kozjak Sjever'),
     )
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On Settings, Rules with the statements set: the Bankomat rule under Between my accounts says its cash goes to the cash account
+ * of its currency, and its dialog offers where the money goes. Picking Cash names that account, and one Undo puts it back.
+ */
+export function spendingRuleWithdrawalFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { rules } = words.spendingStatements
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const group = await ruleGroupOf(page, words.spendingStarter['Between my accounts'])
+    await elementSays(page, '[data-testid="spending-rule-goes-to"]', [rules.withdrawalByCurrency], 'the Bankomat rule does not say where its cash goes')
+    await group.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.('the rule that spots cash taken out')
+    await shoot('spending-rules-withdrawal')
+    await press(await group.$('[data-testid="spending-rule-edit"]'))
+    await page.waitForSelector('[data-testid="spending-rule-dialog-goes-to"]', { visible: true, timeout: 5_000 })
+    await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-goes-to"]'), 'Cash')
+    await delay(300)
+    await inspect?.('the rule dialog with where the money goes')
+    await shoot('spending-rule-dialog-withdrawal')
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
+    await toast(page, rules.dialog.changed)
+    await elementSays(page, '[data-testid="spending-rule-goes-to"]', [rules.withdrawalTo('Cash')], 'the Bankomat rule does not name Cash')
+    await undoIn(page, press, words)
+    await elementSays(page, '[data-testid="spending-rule-goes-to"]', [rules.withdrawalByCurrency], 'Undo did not put the rule back')
     await dismissToasts(page)
   }
 }

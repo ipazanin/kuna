@@ -8,9 +8,9 @@ import { occurrenceKeys } from '../../../../shared/text/factKey'
 /**
  * One row of a statement as a reader hands it to the dry run, on the account the reader found for it, with its import key
  * unique on that account across exports. A reader may file the row itself, as Revolut's does a fee, and leaves `category`
- * null otherwise.
+ * null otherwise. It marks a withdrawal where the bank's row type says one.
  */
-export type StatementRow = Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'category' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket'>
+export type StatementRow = Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'category' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket' | 'cashWithdrawal'>
 
 /** What starts the import key of a row the bank sync brought, so the dry run can tell it from a row a file brought. A file's key never starts so. */
 export const BANK_SYNC_KEY_PREFIX = 'bank-'

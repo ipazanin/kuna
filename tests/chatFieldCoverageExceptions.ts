@@ -101,6 +101,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'spending: Transaction.categorisedBy',
       'spending: Transaction.movedAt',
       'spending: Transaction.pocket',
+      'spending: Transaction.cashWithdrawal',
       'spending: Receipt.readBy',
       'spending: Receipt.latitude',
       'spending: Receipt.longitude',
@@ -207,6 +208,8 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/statements/application/statementWrites.ts#joinWithTyped',
       'src/apps/spending/statements/application/statementWrites.ts#notAPair',
       'src/apps/spending/statements/application/statementWrites.ts#pairRows',
+      'src/apps/spending/statements/application/statementWrites.ts#writeCashLegs',
+      'src/apps/spending/statements/application/statementWrites.ts#notCash',
     ],
   },
   {

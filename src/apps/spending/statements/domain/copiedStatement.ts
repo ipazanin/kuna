@@ -34,6 +34,7 @@ export function copiedStatementRows(account: Account, name: string, rows: readon
       importKey: keys[at]!,
       movedAt: '',
       pocket: false,
+      cashWithdrawal: false,
     })),
     notes: [],
     transcribed: { lookAlikes },

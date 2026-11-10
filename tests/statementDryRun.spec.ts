@@ -46,6 +46,7 @@ function statementRow(on: typeof OTP, date: string, amount: number, payee: strin
     importKey: `key-${payee}-${date}`,
     movedAt: '',
     pocket: false,
+    cashWithdrawal: false,
     ...fields,
   }
 }
@@ -57,7 +58,13 @@ function counting(): () => string {
   return () => `99000000-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`
 }
 
-const ruleOf = (condition: SpendingRuleCondition, path: string, order = 1): SpendingRule => ({ id: recordIdOf(RULE_RECORDS, `rule-${order}`), order, condition, category: category(path).id })
+const ruleOf = (condition: SpendingRuleCondition, path: string, order = 1): SpendingRule => ({
+  id: recordIdOf(RULE_RECORDS, `rule-${order}`),
+  order,
+  condition,
+  category: category(path).id,
+  withdrawal: null,
+})
 const onFile = (on: typeof OTP, date: string, amount: number, fields: Partial<Transaction> = {}) => row(on, date, amount, null, { source: 'statement', ...fields })
 
 describe('the dry run of a statement', () => {
@@ -418,7 +425,7 @@ describe('a rule change', () => {
     const rule = ruleOf(corner, 'Food/Coffee')
     const { unit, added, changed } = noting()
 
-    writeRulesInto(unit, bookOf([], [rule]), [corner], groceries)
+    writeRulesInto(unit, bookOf([], [rule]), [corner], groceries, null)
 
     expect(added).toEqual([])
     expect(changed).toEqual([[rule, { ...rule, category: groceries }]])
@@ -427,7 +434,7 @@ describe('a rule change', () => {
   it('adds a new rule last', () => {
     const { unit, added } = noting()
 
-    writeRulesInto(unit, bookOf([], [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)]), [corner], groceries)
+    writeRulesInto(unit, bookOf([], [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)]), [corner], groceries, null)
 
     expect(added).toMatchObject([{ order: 5, condition: corner, category: groceries }])
   })
@@ -436,7 +443,7 @@ describe('a rule change', () => {
     const { unit, added } = noting()
     const typed = ['Ina Split', 'Ina Pleternica', 'Ina Kozjak Sjever'].map((fragment): SpendingRuleCondition => ({ column: 'counterparty_contains', fragment }))
 
-    writeRulesInto(unit, bookOf([], [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)]), typed, groceries)
+    writeRulesInto(unit, bookOf([], [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)]), typed, groceries, null)
 
     expect(added).toMatchObject(typed.map((condition, place) => ({ order: 5 + place, condition, category: groceries })))
   })
@@ -445,7 +452,7 @@ describe('a rule change', () => {
     const rule = ruleOf(corner, 'Food/Coffee', 3)
     const { unit, added, changed } = noting()
 
-    changeRule(unit, bookOf([], [rule]), rule, { column: 'counterparty_contains', fragment: 'Corner market' }, groceries)
+    changeRule(unit, bookOf([], [rule]), rule, { column: 'counterparty_contains', fragment: 'Corner market' }, groceries, null)
 
     expect(added).toEqual([])
     expect(changed).toEqual([[rule, { ...rule, condition: { column: 'counterparty_contains', fragment: 'Corner market' }, category: groceries }]])
@@ -559,7 +566,7 @@ describe('what To review and the import write', () => {
 
 describe('a rule-filed bank row near a typed row', () => {
   const corner = { column: 'counterparty_contains', fragment: 'KONZUM' } as const
-  const rule: SpendingRule = { id: recordIdOf(RULE_RECORDS, '5e000000-0000-4000-8000-000000009001'), order: 1, condition: corner, category: category('Food/Groceries').id }
+  const rule: SpendingRule = { id: recordIdOf(RULE_RECORDS, '5e000000-0000-4000-8000-000000009001'), order: 1, condition: corner, category: category('Food/Groceries').id, withdrawal: null }
   const typed = row(OTP, '2026-10-20', -23.49, 'Food/Groceries', { source: 'receipt', categorisedBy: 'person' })
 
   it('waits on review, with no category and no rule mark, so the money does not count twice', () => {

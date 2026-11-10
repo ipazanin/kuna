@@ -16,7 +16,8 @@ function row(day: CivilDate, back: number, type: string, description: string, am
 /**
  * The rows of the fake build's Revolut export, oldest first: one already on the file, a coffee that fills the typed one, a
  * top-up that pairs with OTP's debit, a payment with a fee, a payment a rule files, one that waits on review, an exchange's
- * two legs, a pocket move whose savings side is left out, and a savings, a pending and a reverted row left out. Each one is made up.
+ * two legs, a pocket move whose savings side is left out, cash taken out at a cash machine, and a savings, a pending and a
+ * reverted row left out. Each one is made up.
  */
 export function sampleRevolutRows(day: CivilDate): string[][] {
   return [
@@ -31,6 +32,7 @@ export function sampleRevolutRows(day: CivilDate): string[][] {
     row(day, 1, 'TRANSFER', 'To pocket', '-5.00', '0.00', 'EUR', 'COMPLETED', 'Savings'),
     row(day, 1, 'TRANSFER', 'Pocket Summer trip', '-20.00', '0.00', 'EUR', 'COMPLETED'),
     row(day, 1, 'TRANSFER', 'From current', '20.00', '0.00', 'EUR', 'COMPLETED', 'Savings'),
+    row(day, 0, 'ATM', 'Cash at Ilica ATM', '-40.00', '0.00', 'EUR', 'COMPLETED'),
     row(day, 0, 'CARD_PAYMENT', 'Unknown shop', '-9.99', '0.00', 'EUR', 'COMPLETED'),
     row(day, 0, 'CARD_PAYMENT', 'Waiting bakery', '-3.10', '0.00', 'EUR', 'PENDING'),
     row(day, 0, 'CARD_PAYMENT', 'Returned scarf', '-15.00', '0.00', 'EUR', 'REVERTED'),

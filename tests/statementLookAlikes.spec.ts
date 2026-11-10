@@ -50,7 +50,7 @@ function copied(on: StatementRow['account'], rows: readonly (readonly [string, n
     label: 'Copied statement',
     notes: [],
     transcribed: { lookAlikes },
-    rows: dated.map((fields, at) => ({ ...fields, category: null, description: '', counterpartyIban: '', importKey: keys[at]!, movedAt: '', pocket: false })),
+    rows: dated.map((fields, at) => ({ ...fields, category: null, description: '', counterpartyIban: '', importKey: keys[at]!, movedAt: '', pocket: false, cashWithdrawal: false })),
   }
 }
 

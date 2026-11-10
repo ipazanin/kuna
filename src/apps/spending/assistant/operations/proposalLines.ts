@@ -28,7 +28,20 @@ import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
-export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'categorisedBy', 'source', 'importKey', 'statement', 'movedAt', 'pocket', 'pair', 'description', 'transaction', 'receipt'])
+export const KEPT_BY_KUNA: ReadonlySet<string> = new Set([
+  'id',
+  'categorisedBy',
+  'source',
+  'importKey',
+  'statement',
+  'movedAt',
+  'pocket',
+  'cashWithdrawal',
+  'pair',
+  'description',
+  'transaction',
+  'receipt',
+])
 
 /** The fields that say where money or mail goes, which the owner lets a model fill with a warning on the field. */
 const WARNS: ReadonlySet<string> = new Set(['iban', 'counterpartyIban', 'value'])
@@ -49,13 +62,18 @@ function currencyOf(record: ProposedRecord, book: SpendingBook): Account['curren
 
 /**
  * A value as a person reads it on screen: an account's amount in its own currency, a limit in euros, a day and a month in
- * words, a name for a record it points at, a category's swatch, an account's type and bank, and a rule's words. A place
- * among siblings reads as its number. Where a rule stands in the order rules are tried means nothing to a person, so it stays off.
+ * words, a name for a record it points at, a category's swatch, an account's type and bank, and a rule's words and where
+ * its cash goes. A place among siblings reads as its number. Where a rule stands in the order rules are tried means nothing to
+ * a person, so it stays off.
  */
 function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, book: SpendingBook, namesOf: ReadonlyMap<unknown, string>): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
   if (isKind(kind, RULE_RECORDS, record) && field === 'order') return null
+  if (isKind(kind, RULE_RECORDS, record) && field === 'withdrawal') {
+    const named = record.withdrawal?.cashAccount == null ? undefined : namesOf.get(record.withdrawal.cashAccount)
+    return record.withdrawal === null ? null : named === undefined ? words.proposals.withdrawalByCurrency : words.proposals.withdrawalTo(named)
+  }
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return swatchOf(record.colour)?.name ?? null
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'kind') return categoryWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]

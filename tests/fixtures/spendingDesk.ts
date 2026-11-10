@@ -79,7 +79,7 @@ function row(key: string, date: string, amount: number, payee: string, fields: P
   }
 }
 
-/** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, and a typed row split by hand. */
+/** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, a typed row split by hand, and cash taken out with no cash leg yet. */
 const ROWS: readonly Transaction[] = [
   row('transaction-typed', '2026-10-12', -45.3, 'Corner market', { source: 'typed', category: GROCERIES.id, categorisedBy: 'person' }),
   row('transaction-receipt', '2026-10-14', -20, 'Bakery', { category: GROCERIES.id, categorisedBy: 'rule', importKey: 'made-up-2' }),
@@ -90,6 +90,7 @@ const ROWS: readonly Transaction[] = [
   row('transaction-paired-out', '2026-10-28', -100, '', { importKey: 'made-up-7', category: TRANSFER.id, pair: recordIdOf(TRANSACTION_RECORDS, 'transaction-paired-in') }),
   row('transaction-paired-in', '2026-10-28', 100, '', { account: SAVINGS.id, importKey: 'made-up-8', category: TRANSFER.id, pair: recordIdOf(TRANSACTION_RECORDS, 'transaction-paired-out') }),
   row('transaction-split', '2026-10-30', -60, 'Hardware store', { source: 'typed', category: RENT.id, categorisedBy: 'person' }),
+  row('transaction-withdrawal', '2026-10-29', -50, 'Cash at Ilica ATM', { account: REVOLUT.id, importKey: 'made-up-9', category: TRANSFER.id, cashWithdrawal: true }),
 ]
 
 function handPart(key: string, amount: number, category: Category): EntryPart {
@@ -123,7 +124,7 @@ const RECEIPT: Receipt = {
   longitude: '',
 }
 
-const RULE: SpendingRule = { id: recordIdOf(RULE_RECORDS, 'rule-corner'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner' }, category: GROCERIES.id }
+const RULE: SpendingRule = { id: recordIdOf(RULE_RECORDS, 'rule-corner'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner' }, category: GROCERIES.id, withdrawal: null }
 
 function linkedAccount(uid: string, iban: string, currency: string, described: Partial<LinkedAccount> = {}): LinkedAccount {
   return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null, ...described }
@@ -177,6 +178,7 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'transaction-joinable': recordIdOf(TRANSACTION_RECORDS, 'transaction-pharmacy-bank'),
   'transaction-pairable': recordIdOf(TRANSACTION_RECORDS, 'transaction-out'),
   'transaction-paired': recordIdOf(TRANSACTION_RECORDS, 'transaction-paired-out'),
+  'transaction-withdrawal': recordIdOf(TRANSACTION_RECORDS, 'transaction-withdrawal'),
   account: CURRENT.id,
   'account-other': SAVINGS.id,
   'account-empty': WALLET.id,

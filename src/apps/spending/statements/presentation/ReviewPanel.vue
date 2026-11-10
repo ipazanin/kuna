@@ -7,6 +7,7 @@ import { fileRow, joinWithTyped, notAPair, pairRows, payeeCondition, rowsRuleWou
 import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
+import CashWithdrawalsCard from './CashWithdrawalsCard.vue'
 import ReviewRow from './ReviewRow.vue'
 import { useHeldRows } from '../../bankSync/presentation/useHeldRows'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
@@ -34,7 +35,7 @@ import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 
-/** The rows waiting for a category, the transfers the pairing made and the lone legs waiting for their other side. */
+/** The rows waiting for a category, the withdrawals waiting for their cash leg, the transfers the pairing made and the lone legs waiting for their other side. */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
@@ -70,7 +71,7 @@ async function makeRule(): Promise<void> {
   const current = book.value
   const asked = askedRule.value
   if (current === null || asked === null) return
-  if (await writes.write(words.rules.made, (unit) => writeRulesInto(unit, current, [asked.condition], asked.category.id), { key: 'make-rule', failedTitle: words.review.notWritten }))
+  if (await writes.write(words.rules.made, (unit) => writeRulesInto(unit, current, [asked.condition], asked.category.id, null), { key: 'make-rule', failedTitle: words.review.notWritten }))
     ruleDialogOpen.value = false
 }
 
@@ -105,8 +106,9 @@ async function undoPair(legs: TransferPair): Promise<void> {
         <QuestionList :items="held.items.value" :options="held.options" :label="twinWords.choice" :intro="twinWords.intro.sync" :saving="held.saving.value" @answer="held.answer" />
       </div>
     </AppCard>
+    <CashWithdrawalsCard v-if="queue.withdrawals.length > 0" :withdrawals="queue.withdrawals" />
     <EmptyState
-      v-if="queue.waiting.length === 0 && held.items.value.length === 0"
+      v-if="queue.waiting.length === 0 && held.items.value.length === 0 && queue.withdrawals.length === 0"
       icon="i-lucide-inbox"
       :title="words.review.empty"
       :description="words.review.emptyDescription"

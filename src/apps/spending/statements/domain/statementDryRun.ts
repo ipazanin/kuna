@@ -1,9 +1,10 @@
-import { ruleVerdicts, spendingCategorisationContext } from './spendingCategorisation'
+import { decidingRule, spendingCategorisationContext } from './spendingCategorisation'
 import type { RowChange } from './spendingCategorisation'
 import { isBankSyncKey, isTranscribedKey, rowSource } from './statementRows'
 import type { StatementRow, StatementRows } from './statementRows'
 import { words } from './words'
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
+import { cashAccountsFor, isWithdrawal, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
 import { beforeStartDay } from '../../workbook/domain/account'
@@ -38,9 +39,16 @@ export type DryRunOutcome = 'before-opening' | 'already-in' | 'other-source' | '
 export type DryRunLine =
   | {
       readonly row: StatementRow
-      readonly outcome: Exclude<DryRunOutcome, 'look-alike' | 'replaced'>
+      readonly outcome: Exclude<DryRunOutcome, 'look-alike' | 'replaced' | 'new'>
       /** The category it ends up with, null while it waits on review. */
       readonly category: RecordId | null
+    }
+  | {
+      readonly row: StatementRow
+      readonly outcome: 'new'
+      readonly category: RecordId | null
+      /** For cash taken out, its leg on the cash account, or null while it waits on To review for the account. Null for any other row. */
+      readonly withdrawal: { readonly cashLeg: Transaction | null } | null
     }
   | {
       readonly row: StatementRow
@@ -87,7 +95,7 @@ export interface StatementDryRun {
 /** The row that typed money becomes once the bank booked it. It keeps its id, category, note and your name for the payee. */
 export function filledByBank(
   typed: Transaction,
-  bank: Pick<Transaction, 'date' | 'amount' | 'payee' | 'description' | 'counterpartyIban' | 'importKey' | 'statement' | 'movedAt' | 'pocket'>,
+  bank: Pick<Transaction, 'date' | 'amount' | 'payee' | 'description' | 'counterpartyIban' | 'importKey' | 'statement' | 'movedAt' | 'pocket' | 'cashWithdrawal'>,
 ): Transaction {
   return {
     ...typed,
@@ -100,6 +108,7 @@ export function filledByBank(
     statement: bank.statement,
     movedAt: bank.movedAt,
     pocket: bank.pocket,
+    cashWithdrawal: bank.cashWithdrawal,
   }
 }
 
@@ -175,7 +184,10 @@ function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<Recor
  * A sync's row that looks like one is put on hold on To review, and one already on hold by its key stays there. The rows the days leave out are matched first, so each takes its own twin. Else a row of the same money as a typed row fills it, and any other row is new, filed by the reader or the first rule that holds, or waiting on review. A row near a typed row waits
  * whatever a rule says, since filing it would count that money twice until you noticed. A row that moves money
  * between your accounts fills only a typed transfer leg, and a row the reader filed fills nothing. Then the new rows and the
- * unpaired rows from 30 days back are paired into transfers. `newKey` makes each new row's bare UUID.
+ * unpaired rows from 30 days back are paired into transfers. A new row that takes cash out, as the bank's row type or the rule
+ * that files it says, goes under Between my accounts and comes in paired with its leg on the cash account its rule names or
+ * the one cash account of its currency. With no such account, or several, it waits on To review for the person to say which.
+ * `newKey` makes each new row's bare UUID.
  *
  * Rows the AI copied off a statement carry keys no other source gives, so they are matched against the rows on the file from
  * another source instead, and no day belongs to a source for them. A row of the same day, amount and counterparty as one is
@@ -237,18 +249,20 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const typedOf = new Map(matches.map(({ typed, bank }) => [bank, typed]))
   const filledRows: RowChange[] = matches.map(({ typed, bank }) => ({ before: typed, after: filledByBank(typed, { ...bank, statement: statement.label }) }))
 
-  const categoryByRule = ruleVerdicts(book.rules, book)
+  const ruleOf = decidingRule(book.rules, book)
   const newRowOf = new Map<StatementRow, Transaction>(
     coming
       .filter((row) => !typedOf.has(row))
       .map((row) => {
-        const byRule = row.category === null && !nearTyped.has(row) ? categoryByRule(row) : null
+        const unfiled = row.category === null && !nearTyped.has(row)
+        const byBank = unfiled && row.cashWithdrawal ? transfer : null
+        const byRule = unfiled && byBank === null ? (ruleOf(row)?.category ?? null) : null
         return [
           row,
           {
             ...row,
             id: recordIdOf(TRANSACTION_RECORDS, newKey()),
-            category: row.category ?? byRule,
+            category: row.category ?? byBank ?? byRule,
             note: '',
             source: 'statement' as const,
             pair: null,
@@ -281,7 +295,15 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const onFileToPair = book.transactions.filter((row) => row.date >= since && isPairable(row)).map((row) => replacedOf.get(row) ?? row)
   const asTransfers = transfer === null ? new Map<Transaction, Transaction>() : transferred([...newRowOf.values(), ...onFileToPair], book, transfer)
 
-  const added = [...newRowOf.values()].map((row) => asTransfers.get(row) ?? row)
+  const comingIn = [...newRowOf.values()].map((row) => asTransfers.get(row) ?? row)
+  const withdrawals = comingIn.filter((row) => transfer !== null && row.category === transfer && isWithdrawal(row, ruleOf(row), book.accounts))
+  const cashLegs = new Map(
+    withdrawals.flatMap((row) => {
+      const [cash, ...others] = cashAccountsFor(row, ruleOf(row)?.withdrawal?.cashAccount ?? null, book.accounts)
+      return cash === undefined || others.length > 0 ? [] : [[row, withCashLeg(row, cash, transfer!, newKey)] as const]
+    }),
+  )
+  const added = comingIn.flatMap((row) => cashLegs.get(row) ?? [row])
   const replacedRows: RowChange[] = [...replacedOf].map(([before, replaced]) => ({ before, after: asTransfers.get(replaced) ?? replaced }))
   const replacements = new Set(replacedOf.values())
   const pairedOnFile = onFileToPair.flatMap((before) => {
@@ -302,7 +324,8 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     const typed = typedOf.get(row)
     if (typed !== undefined) return { row, outcome: 'filled', category: typed.category }
     const fresh = newRowOf.get(row)!
-    return { row, outcome: 'new', category: (asTransfers.get(fresh) ?? fresh).category }
+    const after = asTransfers.get(fresh) ?? fresh
+    return { row, outcome: 'new', category: after.category, withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1] ?? null } : null }
   })
   const held = fileLines.flatMap((line): HeldBankRow[] =>
     line.outcome === 'look-alike' && isBankSyncKey(line.row.importKey) && !heldKeys.has(rowKey(line.row))
@@ -324,19 +347,21 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const lines = [...fileLines, ...pairedOnFile.map(({ before, after }): DryRunLine => ({ row: before, outcome: 'refiled', category: after.category }))]
   const leftOut = lines.filter((line) => line.outcome === 'before-opening').length
   const wanting = added.filter((row) => wantsSavingsAccount(row, book.accounts)).length
+  const wantingCash = withdrawals.length - cashLegs.size
   return {
     lines,
     questions,
     added,
     held,
     changed: [...filledRows, ...replacedRows, ...pairedOnFile],
-    newRows: added.length,
+    newRows: comingIn.length,
     alreadyIn: lines.filter((line) => line.outcome === 'already-in').length,
     filled: filledRows.length,
     notes: [
       ...statement.notes,
       ...(leftOut === 0 ? [] : [plural(words.beforeOpeningLeftOut(leftOut), leftOut)]),
       ...(wanting === 0 ? [] : [plural(words.pocketsWaiting(wanting), wanting)]),
+      ...(wantingCash === 0 ? [] : [plural(words.withdrawalsWaiting(wantingCash), wantingCash)]),
       ...otherSourceNotes([...otherSource], sourceDays, accounts),
     ],
   }

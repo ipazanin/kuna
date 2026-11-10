@@ -22,6 +22,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { absAccountMoney, negateAccountMoney, typedAccountAmount, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { CURRENCY_CODES, EURO } from '../../../../shared/money/currencyCode'
+import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -38,6 +39,10 @@ const props = defineProps<{
   account: Account | null
   /** The day a new account's balance starts from, for a screen that says so. Otherwise today, so a balance typed from the bank's screen is not counted twice. */
   openingDay?: CivilDate
+  /** The kind a new account starts as, for a screen that asks for one. Otherwise a bank account. */
+  startingKind?: AccountKind
+  /** The currency a new account starts in, for a screen that asks for one. Otherwise euros. */
+  startingCurrency?: CurrencyCode
 }>()
 
 const store = useSpendingBooks()
@@ -74,9 +79,9 @@ watch(open, (opened) => {
   if (!opened) return
   const account = props.account
   name.value = account?.name ?? ''
-  kind.value = account?.kind ?? 'bank'
+  kind.value = account?.kind ?? props.startingKind ?? 'bank'
   bank.value = account?.bank ?? NONE
-  currency.value = account?.currency ?? EURO
+  currency.value = account?.currency ?? props.startingCurrency ?? EURO
   if (account === null) {
     opening.value = ''
     overdrawn.value = false

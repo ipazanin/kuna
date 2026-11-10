@@ -138,6 +138,7 @@ describe('a statement in the Spending file', () => {
     importKey: `key-${payee}`,
     movedAt: '',
     pocket: false,
+    cashWithdrawal: false,
   })
 
   it('is one write: a new row, a filled typed row and a pair, and one Undo takes it all back', async () => {
@@ -321,7 +322,7 @@ describe('a statement in the Spending file', () => {
     const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -7)], notes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, run))
 
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'shop' }], category('Food/Groceries').id))
+    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'shop' }], category('Food/Groceries').id, null))
 
     expect(store.state.workbook!.rules).toMatchObject([{ order: 1, category: category('Food/Groceries').id }])
     expect(store.state.workbook!.transactions).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule' }])
@@ -329,7 +330,7 @@ describe('a statement in the Spending file', () => {
 
   it('moves a rule with its category when that is deleted into another, and one Undo puts it back', async () => {
     const store = await spendingStore()
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id))
+    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null))
 
     const receipt = await store.write('Deleted', (unit) => deleteInto(unit, store.state.records!, category('Food/Groceries'), category('Food/Restaurants')))
 
@@ -340,7 +341,7 @@ describe('a statement in the Spending file', () => {
 
   it('refuses to delete a category a rule names, which delete-into moves first', async () => {
     const store = await spendingStore()
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id))
+    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null))
 
     await expect(store.write('Deleted', (unit) => unit.of(CATEGORY_WRITES).remove(category('Food/Groceries')))).rejects.toThrow()
   })
@@ -358,6 +359,7 @@ describe('a bank row on hold', () => {
     importKey: '0123456789abcdef-1',
     movedAt: '',
     pocket: false,
+    cashWithdrawal: false,
   }
   const SYNCED = { ...FILE_ROW, date: civil('2026-10-28'), payee: 'CORNER BAKERY D.O.O.', importKey: 'bank-ref-1' }
 
@@ -407,6 +409,7 @@ describe('a bank row on hold whose look-alike is gone', () => {
     importKey: '0123456789abcdef-1',
     movedAt: '',
     pocket: false,
+    cashWithdrawal: false,
   }
   const SYNCED = { ...FILE_ROW, date: civil('2026-10-28'), payee: 'CORNER BAKERY D.O.O.', importKey: 'bank-ref-1' }
 

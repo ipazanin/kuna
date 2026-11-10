@@ -26,6 +26,10 @@ export const en = {
     one: '1 pocket move counts as a transfer and waits for a Revolut savings account.',
     other: `${count} pocket moves count as transfers and wait for a Revolut savings account.`,
   }),
+  withdrawalsWaiting: (count: number): EnglishForms => ({
+    one: '1 cash withdrawal counts as a transfer and waits on To review for its cash account.',
+    other: `${count} cash withdrawals count as transfers and wait on To review for their cash account.`,
+  }),
   balanceDiffers: (product: string, balance: string, worked: string) => `The export's last ${product} balance is ${balance}, but its rows add up to ${worked}, so a row may be missing.`,
   beforeOpeningLeftOut: (count: number): EnglishForms => ({ one: '1 row before its account opened left out.', other: `${count} rows before their accounts opened left out.` }),
   coveredByFile: (count: number, account: string, day: string): EnglishForms => ({
@@ -84,6 +88,11 @@ export const hr: Translation<typeof en> = {
     one: `Prijenos u džep: ${count}. Broji se kao prijenos i čeka Revolutov štedni račun.`,
     few: `Prijenosa u džep: ${count}. Broje se kao prijenosi i čekaju Revolutov štedni račun.`,
     other: `Prijenosa u džep: ${count}. Broje se kao prijenosi i čekaju Revolutov štedni račun.`,
+  }),
+  withdrawalsWaiting: (count): CroatianForms => ({
+    one: `Podizanje gotovine: ${count}. Broji se kao prijenos i na kartici Za pregled čeka račun gotovine.`,
+    few: `Podizanja gotovine: ${count}. Broje se kao prijenosi i na kartici Za pregled čekaju račun gotovine.`,
+    other: `Podizanja gotovine: ${count}. Broje se kao prijenosi i na kartici Za pregled čekaju račun gotovine.`,
   }),
   balanceDiffers: (product, balance, worked) => `Zadnje stanje izvoza za ${product} je ${balance}, a njegovi retci daju ${worked}, pa možda neki redak nedostaje.`,
   beforeOpeningLeftOut: (count): CroatianForms => ({

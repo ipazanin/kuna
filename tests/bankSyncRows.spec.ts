@@ -51,6 +51,7 @@ describe('bankSyncRows', () => {
         counterpartyIban: 'HR1100000000000000009',
         movedAt: '',
         pocket: false,
+        cashWithdrawal: false,
         importKey: only?.importKey,
       },
     ])

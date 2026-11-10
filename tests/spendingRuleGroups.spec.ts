@@ -27,7 +27,7 @@ function words(fragment: string): SpendingRuleCondition {
 }
 
 function rule(key: string, order: number, condition: SpendingRuleCondition, into: Category): SpendingRule {
-  return { id: recordIdOf(RULE_RECORDS, key), order, condition, category: into.id }
+  return { id: recordIdOf(RULE_RECORDS, key), order, condition, category: into.id, withdrawal: null }
 }
 
 describe('rules that can both hold for one payee', () => {

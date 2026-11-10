@@ -12,7 +12,7 @@
  *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-assets <sample, house-and-car or loan-gone> [--today yyyy-mm-dd]
  *   npm run check:figures -- --spending <path to a Kuna Spending file> [--rates <path to a Kuna exchange rates file>] [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-spending <sample, foreign, over, statements or receipts> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-spending <sample, foreign, over, statements, cash or receipts> [--today yyyy-mm-dd]
  *
  * A Loans, an Investments, an Assets or a Spending input goes with the others or alone, and its groups follow the
  * company's, in that order. With two or more, a last group adds them up as Net worth does. An Investments file
@@ -172,6 +172,7 @@ import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatc
 import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
 import { reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue.ts'
+import { withCashLeg } from '../src/apps/spending/pairing/domain/cashWithdrawals.ts'
 import { readBanks } from '../src/apps/spending/bankSync/application/bankRead.ts'
 import { startDays, startedAccount } from '../src/apps/spending/bankSync/domain/bankAccountSetup.ts'
 import { balanceDifferences } from '../src/apps/spending/bankSync/domain/bankBalance.ts'
@@ -231,11 +232,11 @@ if (
   (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone'].includes(options['fake-assets'])) ||
-  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'receipts'].includes(options['fake-spending'])) ||
+  (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts'].includes(options['fake-spending'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements or receipts>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash or receipts>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -656,7 +657,7 @@ async function spendingGroups(add) {
   const { records, workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   // The bank's fields and the kinds only statements use have a group of their own, so a file with none of them keeps this digest.
   const { accounts, categories, transactions, budgets, rules } = records
-  const typedFieldsOf = ({ description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, ...typedFields }) => typedFields
+  const typedFieldsOf = ({ description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, ...typedFields }) => typedFields
   add('spending.read.records', {
     accounts,
     categories,
@@ -665,7 +666,8 @@ async function spendingGroups(add) {
   })
   add('spending.read.statements', {
     rules,
-    bankFields: transactions.records.map(({ record: { description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket } }) => [
+    // A row the bank marks as a withdrawal adds the mark, so a file with none keeps this digest.
+    bankFields: transactions.records.map(({ record: { description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal } }) => [
       description,
       counterpartyIban,
       importKey,
@@ -673,6 +675,7 @@ async function spendingGroups(add) {
       categorisedBy,
       movedAt,
       pocket,
+      ...(cashWithdrawal ? [cashWithdrawal] : []),
     ]),
   })
   add('spending.read.problems', workbook.problems)
@@ -704,6 +707,7 @@ async function spendingGroups(add) {
       ['linked', 'spending.import.bank-sync'],
       ['exchange', 'spending.import.bank-sync.exchange'],
       ['pocket', 'spending.import.bank-sync.pocket'],
+      ['withdrawal', 'spending.import.bank-sync.withdrawal'],
     ]) {
       const book =
         variant === 'pocket'
@@ -725,6 +729,23 @@ async function spendingGroups(add) {
     let row = 0
     const offByRun = statementDryRun(workbook, offBy.statement, today, () => `fa4e3200-0000-4000-8000-${String((row += 1)).padStart(12, '0')}`)
     add('spending.import.bank-sync.opening-off', () => balanceDifferences(offBy.stated, rowsAfterDryRun(workbook.transactions, offByRun), today))
+  }
+  if (options['fake-spending'] === 'cash') {
+    // Each cash account's place, balance and euros on the day once To review's proposed withdrawals have their cash legs, as Move to cash writes them.
+    add('spending.review.cash-legs', () => {
+      const transfer = workbook.categories.find((category) => category.kind === 'transfer').id
+      let place = 0
+      const legs = reviewQueue(workbook, today).withdrawals.flatMap(({ row, cashAccounts }) =>
+        cashAccounts.length === 1 ? [withCashLeg(row, cashAccounts[0], transfer, () => `fa4e3300-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)] : [],
+      )
+      const pairedTo = new Map(legs.map(([debit]) => [debit.id, debit]))
+      const rows = [...workbook.transactions.map((row) => pairedTo.get(row.id) ?? row), ...legs.map(([, leg]) => leg)]
+      return workbook.accounts.flatMap((account, at) => {
+        if (account.kind !== 'cash') return []
+        const { balance, euros } = accountOnDay(account, rows, today, rates.everyday)
+        return [[at + 1, balance, euros]]
+      })
+    })
   }
   if (options['fake-spending'] === 'receipts') {
     add('spending.receipts.matches', () => Object.values(SAMPLE_RECEIPT_TOTALS).map((total) => receiptMatches({ merchant: '', issuedOn: today, total }, workbook)))

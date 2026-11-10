@@ -72,6 +72,8 @@ interface CompletedRow {
   readonly fee: AccountMoney
   readonly onSavings: boolean
   readonly exchange: boolean
+  /** Revolut's type `ATM`, cash taken out at a cash machine. */
+  readonly cashWithdrawal: boolean
   readonly currency: string
   readonly description: string
   /** Empty or null where the file leaves them out. */
@@ -126,7 +128,7 @@ function pocketMoves(rows: readonly CompletedRow[]): ReadonlyMap<CompletedRow, s
  * counted in a note. A row goes to the open Revolut account of its currency, or a closed one when no other fits, or a
  * `Savings` row to the Revolut savings account of that currency, left out with a note when there is none. A row of any other
  * product is left out with a note naming it. A current row and a savings row of the opposite amount in the same second are
- * a pocket move, whose legs share a time, as an exchange's do. A current row of a currency no Revolut account keeps refuses
+ * a pocket move, whose legs share a time, as an exchange's do. A current row of type `ATM` is cash taken out. A current row of a currency no Revolut account keeps refuses
  * the file, and so do two open accounts a row could go to, and so does a date or an amount that cannot be read, since a row
  * left out would throw every balance after it. A fee becomes a row of its own in Bank fees. A last balance its rows do not
  * add up to is a note, per product. Each account the file needs and Kuna does not keep comes drafted, every currency at once.
@@ -207,6 +209,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
       fee,
       onSavings,
       exchange: cellText(cellOf(row, 'Type')).toUpperCase() === 'EXCHANGE',
+      cashWithdrawal: cellText(cellOf(row, 'Type')).toUpperCase() === 'ATM',
       currency: cellText(cellOf(row, 'Currency')).toUpperCase(),
       description: cellText(cellOf(row, 'Description')),
       completedAt: startedOf(cellOf(row, 'Completed Date'))?.at ?? '',
@@ -243,6 +246,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
       counterpartyIban: '',
       movedAt: pocketAt ?? (row.exchange ? row.started.at : ''),
       pocket: pocketAt !== undefined,
+      cashWithdrawal: row.cashWithdrawal && !row.onSavings,
     })
     facts.push([account.id, row.started.at, amountText(row.amount), amountText(row.fee), row.description])
     fees.push(row.fee)
@@ -268,6 +272,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
               description: words.feeOn(row.description),
               movedAt: '',
               pocket: false,
+              cashWithdrawal: false,
               importKey: `${importKey}-fee`,
             },
           ]),

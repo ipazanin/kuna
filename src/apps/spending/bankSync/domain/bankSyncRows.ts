@@ -66,6 +66,7 @@ function rowOf(transaction: BankTransaction, account: Account): KeylessRow | nul
     counterpartyIban: ibanKey((out ? transaction.creditorIban : transaction.debtorIban) ?? ''),
     movedAt: '',
     pocket: false,
+    cashWithdrawal: false,
   }
 }
 

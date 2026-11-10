@@ -181,8 +181,16 @@ function readBudgets(read: RecordsRead<Budget>, categories: readonly Category[])
   })
 }
 
-function readRules(read: RecordsRead<SpendingRule>, categories: ReadonlySet<string>): Reading<SpendingRule> {
-  const reading = readEach(read, ({ record: rule }) => (categories.has(rule.category) ? [] : [words.noCategory]))
+/** Why a rule does not count: it names no category that counts, or it spots a withdrawal off Between my accounts or into an account that is not cash. */
+function readRules(read: RecordsRead<SpendingRule>, categories: readonly Category[], accounts: readonly Account[]): Reading<SpendingRule> {
+  const kindOf = new Map(categories.map((category) => [category.id, category.kind]))
+  const cash = new Set(accounts.filter((account) => account.kind === 'cash').map((account) => account.id))
+  const reading = readEach(read, ({ record: rule }) => {
+    if (!kindOf.has(rule.category)) return [words.noCategory]
+    if (rule.withdrawal === null) return []
+    if (kindOf.get(rule.category) !== 'transfer') return [words.withdrawalNotTransfer]
+    return rule.withdrawal.cashAccount === null || cash.has(rule.withdrawal.cashAccount) ? [] : [words.withdrawalNotCash]
+  })
   return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }
 }
 
@@ -243,7 +251,7 @@ function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, 
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
  * three fixed kinds is one category. An entry names an account that counts, on or after its start day, and a category that counts, and its other leg names it
  * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
- * same months. A rule names a category that counts. A receipt names an entry that counts, which no other receipt names, and no other receipt holds its JIR or ZKI. A part
+ * same months. A rule names a category that counts, and one that spots a withdrawal files into Between my accounts and names a cash account or none. A receipt names an entry that counts, which no other receipt names, and no other receipt holds its JIR or ZKI. A part
  * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. The parts of an entry add up to its amount and count all or none. Two accounts with one IBAN and currency, and a second category of a fixed
  * kind, count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
  * `readHeld` refuses.
@@ -255,7 +263,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const accountsById = new Map(accounts.facts.map((account) => [account.id, account]))
   const transactions = readTransactions(records.transactions, accountsById, categoryIds)
   const budgets = readBudgets(records.budgets, categories.facts)
-  const rules = readRules(records.rules, categoryIds)
+  const rules = readRules(records.rules, categories.facts, accounts.facts)
   const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)))
   const lines = readParts(records.lines, transactions.facts, receipts.facts, categoryIds)
   const held = readHeld(records.held, accountsById, transactions.facts)

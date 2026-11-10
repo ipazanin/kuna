@@ -40,6 +40,7 @@ export function transactionOf(fields: StoredFields, id: RecordId | null): Transa
     categorisedBy: fields.categorised_by === undefined ? null : requiredChoice(fields, 'categorised_by', CATEGORISED_BY),
     movedAt: textOf(fields.moved_at),
     pocket: flagOf(fields, 'pocket'),
+    cashWithdrawal: flagOf(fields, 'cash_withdrawal'),
   }
 }
 
@@ -60,6 +61,7 @@ export const TRANSACTION_CODEC: RecordCodec<Transaction> = withIdField(TRANSACTI
     categorised_by: transaction.categorisedBy,
     moved_at: transaction.movedAt,
     pocket: transaction.pocket ? true : null,
+    cash_withdrawal: transaction.cashWithdrawal ? true : null,
   }),
 )
 

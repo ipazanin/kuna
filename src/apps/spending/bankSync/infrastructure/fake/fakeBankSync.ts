@@ -71,8 +71,8 @@ function revolutDollarRows(day: CivilDate, variant: string | null): readonly Ban
  * The made-up answers the fake build's script gives, built against the `statements` set: on OTP a row a file brought on the
  * same day, two equal payments on one day, a row without a reference and a pending one, on Revolut's euro account a coffee
  * that fills the typed one and a row a rule files, and on its dollar account a row in dollars. `multi-currency` gives both
- * currencies on one account. `exchange` adds an exchange's two legs, and `pocket` a move to a pocket that comes as an
- * account of its own. The two accounts `new-accounts` adds reach further back.
+ * currencies on one account. `exchange` adds an exchange's two legs, `pocket` a move to a pocket that comes as an
+ * account of its own, and `withdrawal` cash taken out at an OTP cash machine. The two accounts `new-accounts` adds reach further back.
  */
 export function fakeBankTransactions(accountUid: string, day: CivilDate, variant: string | null = null): readonly BankTransaction[] {
   if (accountUid === OTP_UID) {
@@ -82,6 +82,7 @@ export function fakeBankTransactions(accountUid: string, day: CivilDate, variant
       transaction(day, 1, 'otp-1003', '6.50', 'DBIT', 'Corner bakery'),
       transaction(day, 1, null, '11.20', 'DBIT', 'Newspaper kiosk'),
       transaction(day, 0, null, '3.10', 'DBIT', 'Waiting bakery', 'PDNG'),
+      ...(variant === 'withdrawal' ? [transaction(day, 1, 'otp-1004', '50.00', 'DBIT', 'Bankomat Ilica')] : []),
     ]
   }
   if (accountUid === REVOLUT_UID) return variant === 'multi-currency' ? [...revolutEuroRows(day, variant), ...revolutDollarRows(day, variant)] : revolutEuroRows(day, variant)

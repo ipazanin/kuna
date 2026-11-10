@@ -334,8 +334,19 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     operations: [{ name: 'add-receipt', prefix: 'lines.', renames: { amount: 'lines.lineTotal' } }],
   },
   { path: 'src/apps/spending/workbook/application/settingWrites.ts#SETTING_WRITES', operations: ['set-setting'] },
-  { path: 'src/apps/spending/statements/application/statementWrites.ts#writeRulesInto', from: ['conditions', 'category'], operations: ['add-rule', 'change-rule'] },
-  { path: 'src/apps/spending/statements/application/statementWrites.ts#changeRule', from: ['condition', 'category'], operations: ['change-rule'] },
+  {
+    path: 'src/apps/spending/statements/application/statementWrites.ts#writeRulesInto',
+    from: ['conditions', 'category', 'withdrawal'],
+    operations: [
+      { name: 'add-rule', renames: { cashAccount: 'cash_account' } },
+      { name: 'change-rule', renames: { cashAccount: 'cash_account' } },
+    ],
+  },
+  {
+    path: 'src/apps/spending/statements/application/statementWrites.ts#changeRule',
+    from: ['condition', 'category', 'withdrawal'],
+    operations: [{ name: 'change-rule', renames: { cashAccount: 'cash_account' } }],
+  },
   { path: 'kuna: src/shared/text/language.ts#chooseLanguage', from: ['choice'], operations: [{ name: 'set-language', renames: { choice: 'language' } }] },
   { path: 'kuna: src/shared/theme/theme.ts#chooseTheme', from: ['choice'], operations: [{ name: 'set-theme', renames: { choice: 'theme' } }] },
   { path: 'kuna: src/shared/sync/infrastructure/autoSyncSwitch.ts#switchAutoSync', from: ['on'], operations: [{ name: 'switch-auto-sync', renames: { on: 'auto' } }] },

@@ -95,6 +95,21 @@ describe("Revolut's export", () => {
     expect(rows[1]?.importKey).toBe(`${rows[0]?.importKey}-fee`)
   })
 
+  it('marks a current row of type ATM as cash taken out, and neither its fee nor any other row', () => {
+    const { rows } = read([
+      line('ATM', '2026-10-01 10:00:00', 'Cash at Ilica ATM', '-50.00', '1.00'),
+      line('CARD_PAYMENT', '2026-10-01 11:00:00', 'Cash and carry', '-20.00'),
+      line('atm', '2026-10-02 10:00:00', 'Cash at Trg ATM', '-30.00'),
+    ])
+
+    expect(rows.map((row) => [row.payee, row.cashWithdrawal])).toEqual([
+      ['Cash at Ilica ATM', true],
+      ['Revolut', false],
+      ['Cash and carry', false],
+      ['Cash at Trg ATM', true],
+    ])
+  })
+
   it('leaves the fee waiting on review once Bank fees was renamed', () => {
     const renamed = CATEGORIES.map((other) => (other.id === category('Money and fees/Bank fees').id ? { ...other, name: 'Charges' } : other))
 

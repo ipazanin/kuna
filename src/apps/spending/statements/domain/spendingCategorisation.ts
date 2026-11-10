@@ -24,31 +24,39 @@ export function spendingCategorisationContext(book: Pick<SpendingBook, 'accounts
   }
 }
 
-/** The rule as the shared core tries it, its text folded as the core reads a row's. A rule on an income category holds only for money in, so a later purchase from that payee waits on review. */
+/**
+ * The rule as the shared core tries it, its text folded as the core reads a row's. A rule on an income category holds only for
+ * money in, so a later purchase from that payee waits on review, and one that spots a withdrawal only for money out.
+ */
 function sharedRuleOf(rule: SpendingRule, incomeCategories: ReadonlySet<RecordId>): Rule {
   const { condition } = rule
   const tested: RuleCondition =
     condition.column === 'counterparty_iban' ? { column: condition.column, iban: normaliseIban(condition.iban) } : { column: condition.column, fragment: foldRuleText(condition.fragment) }
+  const direction: readonly RuleCondition[] = incomeCategories.has(rule.category)
+    ? [{ column: 'direction', direction: 'credit' }]
+    : rule.withdrawal !== null
+      ? [{ column: 'direction', direction: 'debit' }]
+      : []
   return {
     id: rule.id,
     order: rule.order,
     enabled: true,
-    conditions: incomeCategories.has(rule.category) ? [tested, { column: 'direction', direction: 'credit' }] : [tested],
+    conditions: [tested, ...direction],
     category: rule.category,
     confidence: 'rule',
     note: '',
   }
 }
 
-/** Decides rows by a set of rules: the category of the first rule that holds, or null. */
-export function ruleVerdicts(
-  rules: readonly SpendingRule[],
-  book: Pick<SpendingBook, 'accounts' | 'categories'>,
-): (row: Pick<Transaction, 'account' | 'amount' | 'payee' | 'counterpartyIban' | 'description'>) => RecordId | null {
+/** What the rules read of a row. */
+export type RuledRow = Pick<Transaction, 'account' | 'amount' | 'payee' | 'counterpartyIban' | 'description'>
+
+/** Finds the rule that decides a row: the first of a set that holds, or null. */
+export function decidingRule(rules: readonly SpendingRule[], book: Pick<SpendingBook, 'accounts' | 'categories'>): (row: RuledRow) => SpendingRule | null {
   const context = spendingCategorisationContext(book)
   const incomeCategories = new Set(book.categories.filter((category) => category.kind === 'income').map((category) => category.id))
   const shared = inTryingOrder(rules.map((rule) => sharedRuleOf(rule, incomeCategories)))
-  const categoryOf = new Map<string, RecordId>(rules.map((rule) => [rule.id, rule.category]))
+  const ruleOf = new Map<string, SpendingRule>(rules.map((rule) => [rule.id, rule]))
   return (row) => {
     const categorisable: CategorisableRow = {
       account: row.account,
@@ -59,8 +67,14 @@ export function ruleVerdicts(
       signals: NO_SIGNALS,
     }
     const { ruleId } = categorise(categorisable, shared, context)
-    return ruleId === null ? null : (categoryOf.get(ruleId) ?? null)
+    return ruleId === null ? null : (ruleOf.get(ruleId) ?? null)
   }
+}
+
+/** Decides rows by a set of rules: the category of the first rule that holds, or null. */
+export function ruleVerdicts(rules: readonly SpendingRule[], book: Pick<SpendingBook, 'accounts' | 'categories'>): (row: RuledRow) => RecordId | null {
+  const ruleOf = decidingRule(rules, book)
+  return (row) => ruleOf(row)?.category ?? null
 }
 
 /** One row a rule change refiles. */

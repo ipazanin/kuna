@@ -12,7 +12,7 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** An account keeps the entries that name it, so one with entries is closed rather than deleted, and keeps the currency their amounts are in. */
+/** An account keeps the entries that name it, so one with entries is closed rather than deleted, and keeps the currency their amounts are in. A cash account a rule names stays cash. */
 export const ACCOUNT_WRITES: WriteRules<Account> = {
   kind: ACCOUNT_RECORDS,
   reads: SPENDING_KINDS,
@@ -25,7 +25,7 @@ export const ACCOUNT_WRITES: WriteRules<Account> = {
         ? [words.currencyKept(edit.before.label, edit.before.record.currency)]
         : [],
     )
-    return [...currencyChanged, ...dependentRefusals(['transactions', 'held'], fresh, after)]
+    return [...currencyChanged, ...dependentRefusals(['transactions', 'held', 'rules'], fresh, after)]
   },
 }
 

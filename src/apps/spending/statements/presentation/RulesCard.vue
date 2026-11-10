@@ -19,7 +19,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 
-/** Spending's rules under the category each files into, each with Change and Delete, and a group's Add for several payees or IBANs at once. */
+/** Spending's rules under the category each files into, each with Change and Delete and where a withdrawal's cash goes, and a group's Add for several payees or IBANs at once. */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
@@ -29,9 +29,15 @@ const groups = computed(() => {
   const names = new Map(book.categories.map((category) => [category.id, category.name]))
   const testOf = (rule: SpendingRule) => (rule.condition.column === 'counterparty_iban' ? rule.condition.iban : words.rules.quoted(rule.condition.fragment))
   const categoryOf = (rule: SpendingRule) => names.get(rule.category) ?? ''
+  const accounts = new Map(book.accounts.map((account) => [account.id, account.name]))
+  const goesToOf = ({ withdrawal }: SpendingRule): string | null => {
+    if (withdrawal === null) return null
+    const named = withdrawal.cashAccount === null ? undefined : accounts.get(withdrawal.cashAccount)
+    return named === undefined ? words.rules.withdrawalByCurrency : words.rules.withdrawalTo(named)
+  }
   return ruleGroups(book).map((group) => ({
     ...group,
-    rules: group.rules.map((rule) => ({ rule, test: ruleTestOf(rule.condition) })),
+    rules: group.rules.map((rule) => ({ rule, test: ruleTestOf(rule.condition), goesTo: goesToOf(rule) })),
     warnings: sharingOneLater(group.overlaps).map(({ firsts, then, firstOnlyMoneyIn }) =>
       words.rules.overlap({ test: listInWords(firsts.map(testOf)), category: categoryOf(firsts[0]!) }, { test: testOf(then), category: categoryOf(then) }, firstOnlyMoneyIn),
     ),
@@ -112,8 +118,11 @@ async function remove(rule: SpendingRule): Promise<void> {
             </template>
           </UAlert>
           <ul class="flex flex-col">
-            <li v-for="{ rule, test } in group.rules" :key="rule.id" class="flex items-center gap-2 border-b border-default ps-4 pe-4 sm:ps-5 sm:pe-5" data-testid="spending-rule">
-              <span class="min-w-0 flex-1 py-2 text-sm break-words text-highlighted">{{ test }}</span>
+            <li v-for="{ rule, test, goesTo } in group.rules" :key="rule.id" class="flex items-center gap-2 border-b border-default ps-4 pe-4 sm:ps-5 sm:pe-5" data-testid="spending-rule">
+              <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-2">
+                <span class="text-sm break-words text-highlighted">{{ test }}</span>
+                <span v-if="goesTo !== null" class="break-words type-caption" data-testid="spending-rule-goes-to">{{ goesTo }}</span>
+              </span>
               <div class="flex shrink-0 items-center">
                 <UButton
                   icon="i-lucide-pencil"

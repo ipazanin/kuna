@@ -1,15 +1,16 @@
-import { TEXT, inputOf } from '../../../../shared/app/operationInput'
-import { joinWithTyped, notAPair, pairRows } from '../../statements/application/statementWrites'
+import { TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
+import { joinWithTyped, notAPair, notCash, pairRows, writeCashLegs } from '../../statements/application/statementWrites'
 import { reviewQueue } from '../../statements/domain/reviewQueue'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import type { Account } from '../../workbook/domain/account'
+import { ACCOUNT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 
-/** What To review offers for a waiting row: joining it with a typed row, pairing it as a transfer, or undoing a pair. */
+/** What To review offers for a waiting row: joining it with a typed row, pairing it as a transfer, undoing a pair, or moving a withdrawal to cash or saying it is none. */
 export const REVIEW_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'join-rows',
@@ -38,7 +39,40 @@ export const REVIEW_OPERATIONS: readonly AssistantOperation[] = [
     alone: false,
     example: { row: 'transaction-paired' },
   },
+  {
+    name: 'move-to-cash',
+    about:
+      'Gives a cash withdrawal To review lists its other leg on a cash account of its currency, so the cash counts there and not as spending. cash_account null takes the one cash account To review proposes.',
+    input: inputOf({ row: TEXT, cash_account: TEXT_OR_NULL }),
+    refs: { row: TRANSACTION_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { row: 'transaction-withdrawal', cash_account: null },
+  },
+  {
+    name: 'not-cash',
+    about: 'Says a row To review lists as a cash withdrawal is not one. It stays where it is filed, and To review no longer lists it.',
+    input: inputOf({ row: TEXT }),
+    refs: { row: TRANSACTION_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { row: 'transaction-withdrawal' },
+  },
 ]
+
+/** The cash account a withdrawal To review lists goes to: the one named among those it offers, or the one it proposes. */
+function cashFor(book: SpendingBook, row: Transaction, named: Account | null): Account {
+  const withdrawal = reviewQueue(book, today()).withdrawals.find((candidate) => candidate.row.id === row.id)
+  if (withdrawal === undefined) throw new StepRefused('To review lists no cash withdrawal for that row.')
+  const [only, ...others] = withdrawal.cashAccounts
+  if (named !== null) return withdrawal.cashAccounts.find((account) => account.id === named.id) ?? refuseCash()
+  if (only === undefined || others.length > 0) throw new StepRefused('Name the cash account, since the withdrawal’s currency has none or several.')
+  return only
+}
+
+function refuseCash(): never {
+  throw new StepRefused('That is not an open cash account of the withdrawal’s currency.')
+}
 
 /** The other leg of the transfer a statement paired, the money-out leg first, as To review lists it. */
 function statementPair(book: SpendingBook, row: Transaction): { readonly debit: Transaction; readonly credit: Transaction } {
@@ -50,7 +84,18 @@ function statementPair(book: SpendingBook, row: Transaction): { readonly debit: 
 }
 
 /** Writes what To review offers for the row, refused when it offers nothing of the kind. */
-export function writeReviewStep(unit: UnitOfWork, book: SpendingBook, operation: string, row: Transaction): void {
+export function writeReviewStep(unit: UnitOfWork, book: SpendingBook, operation: string, row: Transaction, cashAccount: Account | null = null): void {
+  const transfer = book.categories.find((category) => category.kind === 'transfer')
+  if (operation === 'move-to-cash') {
+    if (transfer === undefined) throw new StepRefused('The file has no Between my accounts category.')
+    writeCashLegs(unit, [{ row, cash: cashFor(book, row, cashAccount) }], transfer.id)
+    return
+  }
+  if (operation === 'not-cash') {
+    if (!reviewQueue(book, today()).withdrawals.some((candidate) => candidate.row.id === row.id)) throw new StepRefused('To review lists no cash withdrawal for that row.')
+    notCash(unit, row)
+    return
+  }
   if (operation === 'unpair-rows') {
     notAPair(unit, statementPair(book, row))
     return
@@ -62,7 +107,6 @@ export function writeReviewStep(unit: UnitOfWork, book: SpendingBook, operation:
     joinWithTyped(unit, waiting.maybeTyped.typed, waiting.maybeTyped.bank, book.lines)
     return
   }
-  const transfer = book.categories.find((category) => category.kind === 'transfer')
   if (waiting.maybeTransfer === null || transfer === undefined) throw new StepRefused('To review offers no row on another account as the other side of that one.')
   pairRows(unit, waiting.maybeTransfer, transfer.id)
 }

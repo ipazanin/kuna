@@ -1,8 +1,8 @@
 import { ibanKey } from './accountReading'
-import { orderOf } from './fieldReading'
-import { requiredReference } from './recordReference'
-import { CATEGORY_RECORDS, RULE_RECORDS } from './spendingKinds'
-import type { SpendingRule, SpendingRuleCondition } from './spendingRule'
+import { flagOf, orderOf } from './fieldReading'
+import { optionalReference, requiredReference } from './recordReference'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS } from './spendingKinds'
+import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from './spendingRule'
 import { words } from './words'
 import { CONDITION_COLUMNS } from '../../../../shared/categorising/domain/rule'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
@@ -23,8 +23,21 @@ function conditionOf(fields: StoredFields): SpendingRuleCondition {
   return fragment === '' ? { column: 'counterparty_iban', iban } : { column: 'counterparty_contains', fragment }
 }
 
+/** A withdrawal flag, with the cash account named only beside it. */
+function withdrawalOf(fields: StoredFields): RuleWithdrawal | null {
+  const cashAccount = optionalReference(fields, 'cash_account', ACCOUNT_RECORDS)
+  if (!flagOf(fields, 'withdrawal')) return cashAccount === null ? null : refuse(words.cashAccountWithoutWithdrawal)
+  return { cashAccount }
+}
+
 function ruleOf(fields: StoredFields, id: RecordId | null): SpendingRule {
-  return { id: ownId(id), order: orderOf(fields, 'order'), condition: conditionOf(fields), category: requiredReference(fields, 'category', CATEGORY_RECORDS) }
+  return {
+    id: ownId(id),
+    order: orderOf(fields, 'order'),
+    condition: conditionOf(fields),
+    category: requiredReference(fields, 'category', CATEGORY_RECORDS),
+    withdrawal: withdrawalOf(fields),
+  }
 }
 
 export const RULE_CODEC: RecordCodec<SpendingRule> = withIdField(RULE_RECORDS, words.ruleLabel, ruleOf, (rule) =>
@@ -33,5 +46,7 @@ export const RULE_CODEC: RecordCodec<SpendingRule> = withIdField(RULE_RECORDS, w
     counterparty_contains: rule.condition.column === 'counterparty_contains' ? rule.condition.fragment : null,
     counterparty_iban: rule.condition.column === 'counterparty_iban' ? rule.condition.iban : null,
     category: keyOfRecordId(CATEGORY_RECORDS, rule.category),
+    withdrawal: rule.withdrawal === null ? null : true,
+    cash_account: rule.withdrawal?.cashAccount == null ? null : keyOfRecordId(ACCOUNT_RECORDS, rule.withdrawal.cashAccount),
   }),
 )

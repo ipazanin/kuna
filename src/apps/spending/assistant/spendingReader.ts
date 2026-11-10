@@ -121,6 +121,7 @@ const TRANSACTION_FIELDS: FieldDocs<Transaction> = {
   categorisedBy: { exposure: 'plain', meaning: 'person or rule, or empty.' },
   movedAt: { exposure: 'plain', meaning: 'When a move between own accounts started.' },
   pocket: { exposure: 'plain', meaning: 'A move to or from a savings pocket.' },
+  cashWithdrawal: { exposure: 'plain', meaning: "Cash taken out, as the bank's row type says." },
 }
 
 const BUDGET_FIELDS: FieldDocs<Budget> = {
@@ -139,6 +140,11 @@ const RULE_FIELDS: FieldDocs<SpendingRule> = {
     read: (rule) => (rule.condition.column === 'counterparty_contains' ? rule.condition.fragment : rule.condition.iban),
   },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category it files into.' },
+  withdrawal: {
+    exposure: 'plain',
+    meaning: 'Whether it spots cash taken out, whose other leg Kuna puts on a cash account.',
+    read: (rule) => rule.withdrawal !== null,
+  },
 }
 
 const RECEIPT_FIELDS: FieldDocs<Receipt> = {

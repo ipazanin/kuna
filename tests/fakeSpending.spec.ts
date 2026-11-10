@@ -90,7 +90,7 @@ describe("the fake build's Spending sets", () => {
     if (!('statement' in reading)) throw new Error(reading.refusal)
 
     expect(day).toBe(SAMPLE_DAY)
-    expect(statementDryRun(book, reading.statement, day)).toMatchObject({ newRows: 8, alreadyIn: 1, filled: 1 })
+    expect(statementDryRun(book, reading.statement, day)).toMatchObject({ newRows: 9, alreadyIn: 1, filled: 1 })
   })
 
   it('takes the day it is when ?day= names none or a day that does not exist', () => {
@@ -105,7 +105,7 @@ describe("the fake build's Spending sets", () => {
     const run = statementDryRun(book, reading.statement, civil(day))
 
     expect(reading.statement.notes).toEqual(['1 pending row left out. It comes with the next export.', '1 reverted or declined row left out.'])
-    expect(run).toMatchObject({ newRows: 8, alreadyIn: 1, filled: 1 })
+    expect(run).toMatchObject({ newRows: 9, alreadyIn: 1, filled: 1 })
     expect(run.notes).toContain('1 pocket move counts as a transfer and waits for a Revolut savings account.')
     expect(run.added.map((row) => row.payee)).toEqual([
       'Top-up from OTP',
@@ -115,8 +115,30 @@ describe("the fake build's Spending sets", () => {
       'Exchanged to USD',
       'Exchanged from EUR',
       'Pocket Summer trip',
+      'Cash at Ilica ATM',
+      'Cash at Ilica ATM',
       'Unknown shop',
     ])
+    const cash = run.lines.find((line) => line.row.payee === 'Cash at Ilica ATM')
+    expect(cash?.outcome === 'new' && cash.withdrawal?.cashLeg).toMatchObject({ amount: accountMoneyFromAmount(40), payee: 'Cash at Ilica ATM' })
+  })
+
+  it('wait in the cash set with two withdrawals for the one euro cash account, one for a choice of two dollar ones and one for a pound one to add', () => {
+    const day = civil('2026-11-04')
+    const book = bookOf(fakeSpendingDocument(SAVED_AT, 'cash', day))
+    const cashOf = (payee: string) =>
+      reviewQueue(book, day)
+        .withdrawals.find(({ row }) => row.payee === payee)
+        ?.cashAccounts.map((account) => account.name)
+
+    expect(book.problems).toEqual([])
+    expect([cashOf('Bankomat Ilica'), cashOf('Bankomat Trg bana Jelačića'), cashOf('Cash at Boston ATM'), cashOf('Cash at London ATM')]).toEqual([
+      ['Cash'],
+      ['Cash'],
+      ['Dollars at home', 'Travel wallet'],
+      [],
+    ])
+    expect(reviewCount(book)).toBe(9)
   })
 
   it('refuse the sample export without its Fee column', async () => {

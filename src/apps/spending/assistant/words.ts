@@ -31,6 +31,8 @@ export const en = {
   },
   proposals: {
     ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
+    withdrawalTo: (account: string) => `Cash taken out, into ${account}`,
+    withdrawalByCurrency: 'Cash taken out, into the cash account in the same currency',
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row of the statement is left out.', other: `${count} rows of the statement are left out.` }),
     fields: {
       name: 'Name',
@@ -69,6 +71,7 @@ export const en = {
       longitude: 'Longitude',
       printed: 'Printed',
       text: 'Note',
+      withdrawal: 'Where the money goes',
     },
   },
   receipts: {
@@ -173,6 +176,8 @@ export const hr: Translation<typeof en> = {
   },
   proposals: {
     ibanRule: (iban) => `Razvrstava svaki redak s ovog IBAN-a: ${iban}`,
+    withdrawalTo: (account) => `Podignuta gotovina, na račun ${account}`,
+    withdrawalByCurrency: 'Podignuta gotovina, na račun gotovine u istoj valuti',
     rowsLeftOut: (count): CroatianForms => ({
       one: `Izostavljen je ${count} redak izvoda.`,
       few: `Izostavljena su ${count} retka izvoda.`,
@@ -215,6 +220,7 @@ export const hr: Translation<typeof en> = {
       longitude: 'Geografska dužina',
       printed: 'Ispisano',
       text: 'Bilješka',
+      withdrawal: 'Kamo ide novac',
     },
   },
   receipts: {

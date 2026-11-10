@@ -39,10 +39,13 @@ import { language } from '../../../../../shared/text/language'
  * sample with two limits overspent, and `statements` the sample with rows of earlier statements waiting on review, a pair,
  * a lone leg, a rule, and typed rows the sample Revolut export pairs with, one of them near a row the rule would file, `copied` the statements
  * set with a row the AI copied that the export's Unknown shop looks like, `synced` the statements set with a row the bank sync
- * brought that the export's Corner market looks like, and `receipts` the sample with the payments the
+ * brought that the export's Corner market looks like, `cash` the statements set with cash withdrawals already on the file
+ * and no cash leg, two dollar cash accounts and a pound account at Revolut, and `receipts` the sample with the payments the
  * sample receipt photos match and a row a receipt split. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'receipts' | 'people'
+export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people'
+
+const GBP = currencyCodeOf('GBP')!
 
 const USD = currencyCodeOf('USD')!
 
@@ -90,9 +93,21 @@ const REVOLUT_EUR = fixedId(ACCOUNT_RECORDS, 1002)
 const REVOLUT_USD = fixedId(ACCOUNT_RECORDS, 1003)
 const CASH = fixedId(ACCOUNT_RECORDS, 1004)
 const REVOLUT_POCKET = fixedId(ACCOUNT_RECORDS, 1005)
+const HOME_DOLLARS = fixedId(ACCOUNT_RECORDS, 1006)
+const TRAVEL_DOLLARS = fixedId(ACCOUNT_RECORDS, 1007)
+const REVOLUT_GBP = fixedId(ACCOUNT_RECORDS, 1008)
 
 /** What each account holds on the day, as the worked example has it. */
-const BALANCES: Readonly<Record<string, number>> = { [OTP]: 1_850, [REVOLUT_EUR]: 320.5, [REVOLUT_USD]: 170, [CASH]: 64, [REVOLUT_POCKET]: 40 }
+const BALANCES: Readonly<Record<string, number>> = {
+  [OTP]: 1_850,
+  [REVOLUT_EUR]: 320.5,
+  [REVOLUT_USD]: 170,
+  [CASH]: 64,
+  [REVOLUT_POCKET]: 40,
+  [HOME_DOLLARS]: 25,
+  [TRAVEL_DOLLARS]: 10,
+  [REVOLUT_GBP]: 80,
+}
 
 /** The rows of a complete month `back` months before the day's: salary, rent, food, fuel, a loan instalment, money saved and a company cost paid back. */
 function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
@@ -207,6 +222,30 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
   ]
 }
 
+/**
+ * What the cash set adds to the statements set: two of OTP's cash machine rows that the Bankomat rule spots, one waiting and one
+ * filed with no cash leg, a dollar withdrawal two cash accounts could take, and a pound one no cash account keeps.
+ */
+function withdrawalRows(day: CivilDate, idOf: (path: string) => RecordId): readonly Transaction[] {
+  const back = (days: number): CivilDate => addDays(day, -days)
+  const between = idOf('Between my accounts')
+  return [
+    statementRow(1717, OTP, back(20), -50, 'Bankomat Ilica'),
+    statementRow(1718, OTP, back(16), -100, 'Bankomat Trg bana Jelačića', { category: between, categorisedBy: 'rule' }),
+    statementRow(1719, REVOLUT_USD, back(11), -60, 'Cash at Boston ATM', { category: between, cashWithdrawal: true }),
+    statementRow(1720, REVOLUT_GBP, back(9), -40, 'Cash at London ATM', { category: between, cashWithdrawal: true }),
+  ]
+}
+
+/** The accounts the cash set adds: two dollar cash accounts and a pound account at Revolut. */
+function cashSetAccounts(openedOn: CivilDate): readonly Account[] {
+  return [
+    { id: HOME_DOLLARS, name: 'Dollars at home', kind: 'cash', bank: null, currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: '', closed: false },
+    { id: TRAVEL_DOLLARS, name: 'Travel wallet', kind: 'cash', bank: null, currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: '', closed: false },
+    { id: REVOLUT_GBP, name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: GBP, opening: ZERO_ACCOUNT_MONEY, openedOn, iban: 'LT000000000000000001', closed: false },
+  ]
+}
+
 /** A row the AI copied off a printed statement a day before the export's Unknown shop, with the same amount and a longer payee. */
 function copiedRow(day: CivilDate, idOf: (path: string) => RecordId): Transaction {
   const date = addDays(day, -1)
@@ -306,6 +345,7 @@ const LINKED_VARIANTS: readonly string[] = [
   'card-pending',
   'exchange',
   'pocket',
+  'withdrawal',
   'multi-currency',
   'new-accounts',
   'new-pending',
@@ -378,6 +418,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
           },
         ]
       : []),
+    ...(set === 'cash' ? cashSetAccounts(openedOn) : []),
   ]
   const shown = set === 'foreign' ? accounts.filter((account) => account.id === REVOLUT_USD) : accounts
   const rows: Row[] = set === 'foreign' ? dollarRows(oneBack, day) : [...monthRows(twoBack, 2, day), ...monthRows(oneBack, 1, day), ...monthSoFar(month), ...dollarRows(oneBack, day)]
@@ -395,7 +436,8 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...NO_BANK_FACTS,
     categorisedBy: null,
   }))
-  if (set === 'statements' || set === 'copied' || set === 'synced') transactions.push(...earlierStatementRows(day, idOf, categories, accounts))
+  if (set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash') transactions.push(...earlierStatementRows(day, idOf, categories, accounts))
+  if (set === 'cash') transactions.push(...withdrawalRows(day, idOf))
   if (set === 'copied') transactions.push(copiedRow(day, idOf))
   if (set === 'synced') transactions.push(syncedRow(day))
   if (set === 'receipts') transactions.push(...receiptRows(day, idOf))
@@ -425,7 +467,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...stored(CATEGORY_RECORDS, categories),
     ...stored(TRANSACTION_RECORDS, transactions),
     ...stored(BUDGET_RECORDS, budgets),
-    ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' ? fakeRules(idOf) : []),
+    ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
     ...(set === 'receipts' ? storedReceipts(splitRowReceipt(day, idOf)) : {}),
     ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
   })
@@ -436,7 +478,10 @@ function storedReceipts({ receipts, lines }: ReturnType<typeof splitRowReceipt>)
 }
 
 function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {
-  return [{ id: fixedId(RULE_RECORDS, 1801), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner market' }, category: idOf('Food/Groceries') }]
+  return [
+    { id: fixedId(RULE_RECORDS, 1801), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner market' }, category: idOf('Food/Groceries'), withdrawal: null },
+    { id: fixedId(RULE_RECORDS, 1802), order: 2, condition: { column: 'counterparty_contains', fragment: 'Bankomat' }, category: idOf('Between my accounts'), withdrawal: { cashAccount: null } },
+  ]
 }
 
 /** The starter categories alone, with fixed keys, as a new file on the fake Drive holds them. */
