@@ -1,3 +1,4 @@
+import type { OpeningEvidence } from '../../accounts/domain/bankOpening'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TwinAnswer, LookAlikes } from '../../../../shared/money/lookAlikeBookings'
@@ -52,8 +53,14 @@ export interface StatementRows {
   readonly twinAnswers?: ReadonlyMap<string, TwinAnswer>
 }
 
+/** An account a file needs that Kuna does not keep, drafted to start on the earliest day its rows allow, with what its opening is worked out from on a later day. */
+export interface DraftedAccount {
+  readonly account: Omit<Account, 'id'>
+  readonly evidence: OpeningEvidence
+}
+
 /**
  * A file a reader could read, or why it could not, with the accounts its rows need that Kuna does not keep, drafted from the
  * file. A file read without them leaves their rows out with a note. A refusal names them when they are why.
  */
-export type StatementReading = ({ readonly statement: StatementRows } | { readonly refusal: string }) & { readonly missing: readonly Omit<Account, 'id'>[] }
+export type StatementReading = ({ readonly statement: StatementRows } | { readonly refusal: string }) & { readonly missing: readonly DraftedAccount[] }

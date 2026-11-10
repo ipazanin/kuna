@@ -27,6 +27,12 @@ export const en = {
   noEntries: 'No entries on this account yet.',
   kinds: { bank: 'Bank account', cash: 'Cash', savings: 'Savings' },
   banks: { otp: 'OTP', revolut: 'Revolut', other: 'Other bank' },
+  /** The day an account drafted from a bank or its file starts on. */
+  startDay: {
+    label: 'Track from',
+    help: 'Rows before this day stay out of Kuna.',
+    between: (earliest: CivilDate, latest: CivilDate) => `Pick a day from ${dayLabel(earliest)} to ${dayLabel(latest)}.`,
+  },
   dialog: {
     addTitle: 'Add an account',
     changeTitle: 'Change the account',
@@ -95,6 +101,11 @@ export const hr: Translation<typeof en> = {
   noEntries: 'Na ovom računu još nema unosa.',
   kinds: { bank: 'Bankovni račun', cash: 'Gotovina', savings: 'Štednja' },
   banks: { otp: 'OTP', revolut: 'Revolut', other: 'Druga banka' },
+  startDay: {
+    label: 'Prati se od',
+    help: 'Retci prije ovog dana ostaju izvan Kune.',
+    between: (earliest, latest) => `Odaberite dan od ${dayLabel(earliest)} do ${dayLabel(latest)}`,
+  },
   dialog: {
     addTitle: 'Dodaj račun',
     changeTitle: 'Promijeni račun',

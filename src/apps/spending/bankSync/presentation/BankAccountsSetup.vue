@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UFormField from '@nuxt/ui/components/FormField.vue'
+import UInput from '@nuxt/ui/components/Input.vue'
 
 import { addBankAccounts, bringBackBankDetails, fixOpening, keepMine, keepOutOfKuna, takeBankDetails } from '../application/bankSetupWrites'
 import type { BankSetup } from '../application/bankSync'
-import { setupActions, setupLineCurrency, setupLineKey, setupLines } from '../domain/bankAccountSetup'
-import type { AccountProposal, SetupLine } from '../domain/bankAccountSetup'
+import { canStartOn, setupActions, setupLineCurrency, setupLineKey, setupLines, startDays, startedAccount } from '../domain/bankAccountSetup'
+import type { AccountProposal, BankAccountStart, SetupLine, StartedAccount } from '../domain/bankAccountSetup'
 import type { LinkedAccount } from '../domain/bankAnswer'
 import { currentDifferences } from '../domain/bankBalance'
 import type { BalanceDifference } from '../domain/bankBalance'
@@ -18,7 +20,7 @@ import { words as spendingWords } from '../../words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
-import { today } from '../../../../shared/calendar/civilDate'
+import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -41,7 +43,44 @@ const leftOut = computed(() => lines.value.flatMap((line) => (line.kind === 'not
 const differences = computed(() => currentDifferences(props.outcome.differences, book.value?.accounts ?? []))
 const explained = computed(() => differences.value.filter((difference) => difference.explained))
 const unexplained = computed(() => differences.value.filter((difference) => !difference.explained))
-const addable = computed(() => lines.value.flatMap((line) => (line.kind === 'missing' && line.proposal !== null ? [line.proposal] : [])))
+/** Each account to add, by its line's key. */
+const addable = computed(() => lines.value.flatMap((line) => (line.kind === 'missing' && line.proposal !== null ? [{ key: setupLineKey(line), proposal: line.proposal }] : [])))
+
+/** The start day typed for each account to add, by its line's key. One not typed starts on the day of the fetch. */
+const typedStarts = ref<Readonly<Record<string, string>>>({})
+/** The lines whose Add was tapped with a day out of range, which show the range. */
+const tried = ref<ReadonlySet<string>>(new Set())
+
+function typedStart(proposal: AccountProposal, key: string): string {
+  return typedStarts.value[key] ?? proposal.fetchedOn
+}
+
+function typeStart(key: string, typed: string): void {
+  typedStarts.value = { ...typedStarts.value, [key]: typed }
+}
+
+/** The start the typed day gives, or null while it is not a day the account can start on. */
+function startOf(proposal: AccountProposal, key: string): BankAccountStart | null {
+  const startsOn = parseCivilDate(typedStart(proposal, key))
+  return startsOn !== null && canStartOn(proposal, startsOn) ? { proposal, startsOn } : null
+}
+
+/** Each account as its typed day starts it, by its line's key, left out while the typed day is out of range so no figure shows for a day nobody picked. */
+const started = computed(
+  () =>
+    new Map(
+      addable.value.flatMap(({ key, proposal }) => {
+        const start = startOf(proposal, key)
+        return start === null ? [] : [[key, startedAccount(start)] as const]
+      }),
+    ),
+)
+
+function startError(proposal: AccountProposal, key: string): string | false {
+  if (!tried.value.has(key) || startOf(proposal, key) !== null) return false
+  const { earliest, latest } = startDays(proposal)
+  return accountWords.startDay.between(earliest, latest)
+}
 
 function title(bank: LinkableBank, currency: string): string {
   return words.setup.account(words.banks[bank], currency)
@@ -51,22 +90,24 @@ function about(linked: LinkedAccount): string {
   return [linked.iban, linked.product, linked.details].filter((part): part is string => part !== null && part.trim() !== '').join(' · ')
 }
 
-function draftLine({ account }: AccountProposal): string {
+function draftLine({ account }: StartedAccount): string {
   const kind = accountWords.kinds[account.kind]
   const named = account.name.toLowerCase().includes(kind.toLowerCase())
   return words.setup.draft(account.name, named ? null : kind, formatAccountMoney(account.opening, account.currency), dayLabel(account.openedOn))
 }
 
 /** How the opening was worked out. Null while the bank holds pending rows, since only the warning about them is worth saying then. */
-function openingLine({ opening }: AccountProposal): string | null {
+function openingLine({ opening }: StartedAccount): string | null {
   if (opening.source === 'start') return words.setup.openingStart
   if (opening.source === 'guess') return words.setup.openingGuess
   if (opening.source === 'pending') return null
+  if (opening.rows === 0) return words.setup.openingBalance
   return plural(words.setup.openingWorked(opening.rows), opening.rows)
 }
 
-function heldLine(proposal: AccountProposal): string {
-  return [openingLine(proposal), words.setup.rowsHeld].filter((part): part is string => part !== null).join(' ')
+/** How the opening was worked out, and that the rows from the day wait on this page while there are any. */
+function heldLine(account: StartedAccount): string {
+  return [openingLine(account), account.opening.rows === 0 ? null : words.setup.rowsHeld].filter((part): part is string => part !== null).join(' ')
 }
 
 /** What Update account changes, and why the IBAN is one another account already has when the bank gives one IBAN for every currency. */
@@ -89,10 +130,19 @@ function stateLine(line: SetupLine): string {
   return words.setup.notKept
 }
 
-async function add(proposals: readonly AccountProposal[], key: string): Promise<void> {
+/** Adds the accounts, each from its typed day, once every typed day is one its account can start on. */
+async function add(adding: readonly { readonly key: string; readonly proposal: AccountProposal }[], key: string): Promise<void> {
   const open = book.value
   if (open === null) return
-  await writes.write(plural(accountWords.addedCount(proposals.length), proposals.length), (unit) => addBankAccounts(unit, open, proposals, today()), { key, failedTitle: spendingWords.form.notAdded })
+  tried.value = new Set([...tried.value, ...adding.map((each) => each.key)])
+  const starts = adding.flatMap((each) => startOf(each.proposal, each.key) ?? [])
+  if (starts.length < adding.length) {
+    // Add all may refuse for a field below the fold on a phone, so the first refused day takes focus.
+    await nextTick()
+    document.querySelector<HTMLInputElement>('[data-testid="spending-bank-account-start"][aria-invalid="true"]')?.focus()
+    return
+  }
+  await writes.write(plural(accountWords.addedCount(starts.length), starts.length), (unit) => addBankAccounts(unit, open, starts, today()), { key, failedTitle: spendingWords.form.notAdded })
 }
 
 async function update(account: Account, updated: Account, proposal: AccountProposal | null, key: string): Promise<void> {
@@ -149,9 +199,28 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
             <span class="text-sm text-muted" data-testid="spending-bank-account-state">{{ stateLine(line) }}</span>
             <template v-if="line.kind === 'missing'">
               <template v-if="line.proposal !== null">
-                <span class="text-sm text-muted" data-testid="spending-bank-account-draft">{{ draftLine(line.proposal) }}</span>
-                <span class="type-caption">{{ heldLine(line.proposal) }}</span>
-                <span v-if="line.proposal.opening.source === 'pending'" class="type-caption" data-testid="spending-bank-account-pending">{{ words.setup.openingPending }}</span>
+                <UFormField
+                  :label="accountWords.startDay.label"
+                  :help="accountWords.startDay.help"
+                  :error="startError(line.proposal, setupLineKey(line))"
+                  class="my-1.5"
+                  data-testid="spending-bank-account-start-field"
+                >
+                  <UInput
+                    :model-value="typedStart(line.proposal, setupLineKey(line))"
+                    type="date"
+                    :min="startDays(line.proposal).earliest"
+                    :max="startDays(line.proposal).latest"
+                    class="w-full max-w-60"
+                    data-testid="spending-bank-account-start"
+                    @update:model-value="typeStart(setupLineKey(line), String($event))"
+                  />
+                </UFormField>
+                <template v-if="started.has(setupLineKey(line))">
+                  <span class="text-sm text-muted" data-testid="spending-bank-account-draft">{{ draftLine(started.get(setupLineKey(line))!) }}</span>
+                  <span class="type-caption">{{ heldLine(started.get(setupLineKey(line))!) }}</span>
+                  <span v-if="started.get(setupLineKey(line))!.opening.source === 'pending'" class="type-caption" data-testid="spending-bank-account-pending">{{ words.setup.openingPending }}</span>
+                </template>
                 <span class="type-caption">{{ words.setup.addBeforeReload }}</span>
               </template>
               <span v-else class="type-caption">{{ words.setup.notFetched }}</span>
@@ -167,7 +236,7 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
               size="sm"
               :loading="writes.saving(`add-${setupLineKey(line)}`)"
               data-testid="spending-bank-account-add"
-              @click="add([line.proposal], `add-${setupLineKey(line)}`)"
+              @click="add([{ key: setupLineKey(line), proposal: line.proposal }], `add-${setupLineKey(line)}`)"
             />
             <UButton
               v-if="(line.kind === 'kept' || line.kind === 'fits') && line.update !== null"

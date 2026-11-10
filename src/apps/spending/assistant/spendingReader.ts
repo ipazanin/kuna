@@ -6,7 +6,7 @@ import { countedAccounts } from '../rates/domain/euroRows'
 import { isWaiting, reviewCount } from '../statements/domain/reviewQueue'
 import { bookingOf } from '../statements/domain/statementDryRun'
 import type { BankSetup } from '../bankSync/application/bankSync'
-import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setupLines } from '../bankSync/domain/bankAccountSetup'
+import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setupLines, startDays } from '../bankSync/domain/bankAccountSetup'
 import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
 import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
@@ -67,6 +67,7 @@ interface BankAccountLine {
   readonly draft: string | null
   readonly opening: AccountMoney | null
   readonly openedOn: CivilDate | null
+  readonly earliestStart: CivilDate | null
   readonly rowsHeld: number | null
   readonly takesBank: string | null
   readonly takesIban: string | null
@@ -238,9 +239,10 @@ const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
   iban: { exposure: 'identifier', meaning: "The bank's IBAN for it." },
   offers: { exposure: 'plain', meaning: 'What the bank account operations can do with it: add, update, keep-mine, leave-out, bring-back or bring-back-mine.' },
   draft: { exposure: 'plain', meaning: 'The name of the account add makes, or none.' },
-  opening: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'The opening the account add makes starts at.' },
-  openedOn: { exposure: 'plain', meaning: 'The day the account add makes opens.' },
-  rowsHeld: { exposure: 'plain', meaning: 'The rows the page holds for the account add makes, which come in with it.' },
+  opening: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'The opening the account add makes starts at when it starts on openedOn.' },
+  openedOn: { exposure: 'plain', meaning: 'The day of the fetch, which the account add makes starts on unless its startsOn names an earlier day, and the latest it can start on.' },
+  earliestStart: { exposure: 'plain', meaning: "The earliest day add can start the account on, where the bank's rows begin." },
+  rowsHeld: { exposure: 'plain', meaning: 'The rows the page holds for the account add makes. Those from the day it starts on come in with it.' },
   takesBank: { exposure: 'plain', meaning: 'The bank update gives the account, when it differs.' },
   takesIban: { exposure: 'identifier', meaning: 'The IBAN update gives the account, when it differs.' },
   takesKind: { exposure: 'plain', meaning: 'The kind update gives the account, when it differs.' },
@@ -273,6 +275,7 @@ function bankAccountLines(setup: BankSetup, book: SpendingBook): readonly BankAc
       draft: proposal?.account.name ?? null,
       opening: proposal?.account.opening ?? null,
       openedOn: proposal?.account.openedOn ?? null,
+      earliestStart: proposal === null ? null : startDays(proposal).earliest,
       rowsHeld: proposal?.rows.rows.length ?? null,
       takesBank: differs('bank'),
       takesIban: differs('iban'),

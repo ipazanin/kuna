@@ -1,7 +1,7 @@
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { ACCOUNT_WRITES } from '../../accounts/application/accountWrites'
-import { bankAccountKey } from '../domain/bankAccountSetup'
-import type { AccountProposal } from '../domain/bankAccountSetup'
+import { bankAccountKey, startedAccount } from '../domain/bankAccountSetup'
+import type { AccountProposal, BankAccountStart } from '../domain/bankAccountSetup'
 import type { LinkedAccount } from '../domain/bankAnswer'
 import { BANK_SYNC_LABEL } from '../domain/bankSyncRows'
 import { writeDryRun } from '../../statements/application/statementWrites'
@@ -24,16 +24,12 @@ function writeHeldRows(unit: UnitOfWork, book: SpendingBook, held: readonly { re
   writeDryRun(unit, statementDryRun({ ...book, accounts }, { label: BANK_SYNC_LABEL, rows, notes: [] }, day))
 }
 
-/** The drafted accounts and their held rows in one write, so one Undo takes it all back. */
-export function addBankAccounts(unit: UnitOfWork, book: SpendingBook, proposals: readonly AccountProposal[], day: CivilDate): void {
+/** The drafted accounts, each starting on its day, and their held rows from that day on in one write, so one Undo takes it all back. */
+export function addBankAccounts(unit: UnitOfWork, book: SpendingBook, starts: readonly BankAccountStart[], day: CivilDate): void {
   const accounts = unit.of(ACCOUNT_WRITES)
-  proposals.forEach((proposal) => accounts.add(proposal.account))
-  writeHeldRows(
-    unit,
-    book,
-    proposals.map(({ account, rows }) => ({ account, rows: rows.rows })),
-    day,
-  )
+  const started = starts.map((start) => ({ account: startedAccount(start).account, rows: start.proposal.rows.rows }))
+  started.forEach(({ account }) => accounts.add(account))
+  writeHeldRows(unit, book, started, day)
 }
 
 /**

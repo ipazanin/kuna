@@ -4,6 +4,7 @@ import { readBanks } from '../src/apps/spending/bankSync/application/bankRead'
 import type { BankRead } from '../src/apps/spending/bankSync/application/bankRead'
 import { BankScriptFailure } from '../src/apps/spending/bankSync/application/bankSync'
 import type { BankSyncPort } from '../src/apps/spending/bankSync/application/bankSync'
+import { startDays, startedAccount } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
 import { accountsOfLinked, fetchFrom } from '../src/apps/spending/bankSync/domain/bankLinks'
 import { bankSyncRows, rowsWithMoves } from '../src/apps/spending/bankSync/domain/bankSyncRows'
 import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRows'
@@ -350,11 +351,17 @@ describe('readBanks', () => {
       ['fake-revolut-new-usd', '2021-10-26', true],
       ['fake-revolut-new-savings', '2021-10-26', true],
     ])
-    expect(proposals.map(({ account, opening }) => [account.name, account.kind, account.openedOn, account.opening, opening.source, opening.rows])).toEqual([
-      // 40.00 in and 12.50 out add up to the 27.50 the bank says, so it opened empty the day before its first row.
+    const fromEarliest = proposals.map((proposal) => startedAccount({ proposal, startsOn: startDays(proposal).earliest }))
+    expect(fromEarliest.map(({ account, opening }) => [account.name, account.kind, account.openedOn, account.opening, opening.source, opening.rows])).toEqual([
+      // 40.00 in and 12.50 out add up to the 27.50 the bank says, so it can start empty the day before its first row.
       ['Revolut USD 0003', 'bank', civil('2026-07-01'), 0, 'start', 2],
       // 350.00 less the one 100.00 row.
       ['Revolut EUR savings', 'savings', civil('2026-09-30'), 25_000, 'worked', 1],
+    ])
+    // Unless the person picks an earlier day, each starts on the day of the fetch at the bank's balance, with no row before it.
+    expect(proposals.map(({ account }) => [account.openedOn, account.opening])).toEqual([
+      [DAY, 2_750],
+      [DAY, 35_000],
     ])
     expect(proposals[0]!.rows.rows.map((statementRow) => statementRow.payee)).toEqual(['Top-up', 'Bookshop in Boston'])
   })

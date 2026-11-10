@@ -6812,6 +6812,43 @@ export function spendingBankSyncSetupFlowIn(language, shot, { waitFor, tap = nul
   }
 }
 
+/**
+ * On Settings, Bank sync with two accounts to add: each starts on the day of the fetch, a day before the bank's first row is
+ * refused with the days it can start on, and the earliest day works the opening back to an empty account and adds it.
+ */
+export function spendingBankSyncStartDayFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const setup = words.spendingBankSync.setup
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const line = '[data-testid="spending-bank-account"][data-kind="missing"]'
+    const start = `${line} input[data-testid="spending-bank-account-start"], ${line} [data-testid="spending-bank-account-start"] input`
+    await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-setup"]')
+    await page.waitForSelector(start, { visible: true, timeout: 5_000 })
+    await dismissToasts(page)
+    const input = await page.$(start)
+    const { value, min, max } = await input.evaluate((element) => ({ value: element.value, min: element.min, max: element.max }))
+    if (value !== max || min >= max) throw new Error(`the first account to add should start on the day of the fetch, ${max}, and reach back to ${min}, not ${value}`)
+    const before = new Date(Date.parse(`${min}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
+    await setField(input, before)
+    await pressSelector(page, press, `${line} [data-testid="spending-bank-account-add"]`)
+    await page.waitForFunction((selector) => document.querySelector(selector)?.getAttribute('aria-invalid') === 'true', { timeout: 5_000 }, start)
+    await page.$eval('[data-testid="spending-bank-sync-setup"]', (card) => window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - 140 }))
+    await delay(300)
+    await inspect?.('a start day before the bank gave rows')
+    await shoot('spending-bank-sync-setup-start-day-refused')
+    await setField(input, min)
+    await waitForTextIn(page, line, setup.openingStart)
+    await delay(300)
+    await inspect?.('the earliest start day')
+    await shoot('spending-bank-sync-setup-start-day')
+    await pressSelector(page, press, `${line} [data-testid="spending-bank-account-add"]`)
+    await toast(page, words.spendingAccounts.addedCount(1).one)
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+  }
+}
+
 /** On Settings, Bank sync when one bank gives no rows: the line about it, with the other bank's rows in. */
 export function spendingBankSyncPartFlowIn(language, shot, line) {
   const words = SCREEN_WORDS[language]

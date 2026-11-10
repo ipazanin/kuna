@@ -130,7 +130,7 @@ describe("the fake build's Spending sets", () => {
     const reading = revolutStatement(await readFirstSheet(sampleMissingAccountsCsv(day)), SAMPLE_MISSING_FILE_NAME, bookOf(fakeSpendingDocument(SAVED_AT, 'statements', day)))
 
     expect('refusal' in reading && reading.refusal).toBe('Add Revolut bank accounts in GBP and CHF to bring in this file')
-    expect(reading.missing.map((account) => [account.name, account.openedOn, account.opening])).toEqual([
+    expect(reading.missing.map(({ account }) => [account.name, account.openedOn, account.opening])).toEqual([
       // 331.50 less the rows, -18.50 and 100.00.
       ['Revolut GBP', civil('2026-10-29'), accountMoneyFromAmount(250)],
       // 57.50 less the row of -42.00 and its fee of 0.50.

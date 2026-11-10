@@ -1,7 +1,7 @@
-import type { StatementReading, StatementRow } from './statementRows'
+import type { DraftedAccount, StatementReading, StatementRow } from './statementRows'
 import { words } from './words'
 import { draftedAccount } from '../../accounts/domain/accountDraft'
-import { openingFromBank } from '../../accounts/domain/bankOpening'
+import { earliestStart, openingOn } from '../../accounts/domain/bankOpening'
 import { bankFeesCategory } from '../../categories/domain/starterCategories'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -144,7 +144,7 @@ export function revolutStatement(grid: readonly (readonly SheetCell[])[], fileNa
  * The Revolut account a product's rows in one currency need, opening on their first day at their first balance as their
  * last balance and the rows give it, or at zero where the file prints no balance. Null for a currency Kuna does not keep.
  */
-function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Account, 'name'>[]): Omit<Account, 'id'> | null {
+function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Account, 'name'>[]): DraftedAccount | null {
   const first = chain[0]!
   const currency = currencyCodeOf(first.currency)
   if (currency === null) return null
@@ -154,14 +154,15 @@ function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Accoun
       .filter((row) => row.balance !== null && row.completedAt !== '')
       .sort((earlier, next) => earlier.completedAt.localeCompare(next.completedAt))
       .at(-1)?.balance ?? null
-  const { opening, openedOn } = openingFromBank(rows, stated, first.started.date, false)
-  return draftedAccount({ kind: first.onSavings ? 'savings' : 'bank', bank: 'revolut', currency, iban: '', opening, openedOn }, accounts)
+  const evidence = { rows, stated, pending: false }
+  const { opening, openedOn } = openingOn(evidence, earliestStart(evidence) ?? first.started.date)
+  return { account: draftedAccount({ kind: first.onSavings ? 'savings' : 'bank', bank: 'revolut', currency, iban: '', opening, openedOn }, accounts), evidence }
 }
 
 /** What to add to bring in the rows the drafted accounts would keep: the whole file when it was refused for them, else the savings rows left out. */
-export function addRevolutAccounts(missing: readonly Pick<Account, 'kind' | 'currency'>[], rows: 'file' | 'savings'): string {
+export function addRevolutAccounts(missing: readonly DraftedAccount[], rows: 'file' | 'savings'): string {
   const phrase = (kind: Account['kind'], forms: (count: number, currencies: string) => EnglishForms | CroatianForms): string[] => {
-    const currencies = missing.filter((account) => account.kind === kind).map((account) => account.currency)
+    const currencies = missing.filter(({ account }) => account.kind === kind).map(({ account }) => account.currency)
     return currencies.length === 0 ? [] : [plural(forms(currencies.length, listInWords(currencies)), currencies.length)]
   }
   const accounts = listInWords([...phrase('bank', words.revolutBankAccounts), ...phrase('savings', words.revolutSavingsAccounts)])
@@ -248,7 +249,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
   }
 
   const missing = [...unkept.values()].flatMap((chain) => draftFor(chain, book.accounts) ?? [])
-  if (missing.some((account) => account.kind === 'bank')) return { refusal: addRevolutAccounts(missing, 'file'), missing }
+  if (missing.some(({ account }) => account.kind === 'bank')) return { refusal: addRevolutAccounts(missing, 'file'), missing }
 
   const keys = occurrenceKeys(facts)
   const rows = kept.flatMap((row, index): StatementRow[] => {
@@ -272,7 +273,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
           ]),
     ]
   })
-  const draftedSavings = new Set<string>(missing.filter((account) => account.kind === 'savings').map((account) => account.currency))
+  const draftedSavings = new Set<string>(missing.filter(({ account }) => account.kind === 'savings').map(({ account }) => account.currency))
   const undraftedSavings = savingsLeftOut.filter((currency) => !draftedSavings.has(currency))
   const notes = [
     ...(pending === 0 ? [] : [plural(words.pendingLeftOut(pending), pending)]),

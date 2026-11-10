@@ -174,6 +174,7 @@ import {
   spendingFoodLimitFlow,
   spendingBankSyncFlowIn,
   spendingBankSyncSetupFlowIn,
+  spendingBankSyncStartDayFlowIn,
   spendingImportFlowIn,
   spendingImportMissingFlowIn,
   spendingImportLookAlikeFlowIn,
@@ -3124,6 +3125,7 @@ async function checkWidth(width) {
       '#/spending/settings?tab=bank-sync',
       'Settings',
     ],
+    ['spending-bank-sync-start-day', 'drive&spending=statements&banksync=new-accounts', spendingBankSyncStartDayFlowIn('en'), '#/spending/settings?tab=bank-sync', 'Settings'],
     [
       'spending-bank-sync-add-all',
       'drive&spending=statements&banksync=new-accounts',

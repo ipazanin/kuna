@@ -2,8 +2,8 @@ import { NO_SINGLE_CURRENCY } from './bankAnswer'
 import type { BankBalance, BankTransaction, LinkedAccount } from './bankAnswer'
 import { statedBalance } from './bankBalance'
 import { accountsOfLinked } from './bankLinks'
-import { openingFromBank } from '../../accounts/domain/bankOpening'
-import type { BankOpening } from '../../accounts/domain/bankOpening'
+import { openingOn, startDays as startDaysOf, startsWithin } from '../../accounts/domain/bankOpening'
+import type { BankOpening, OpeningEvidence } from '../../accounts/domain/bankOpening'
 import { bankSyncRows, pendingMoney } from './bankSyncRows'
 import type { SyncedRows } from './bankSyncRows'
 import { draftedAccount } from '../../accounts/domain/accountDraft'
@@ -13,6 +13,7 @@ import type { LinkableBank, SpendingSettings } from '../../workbook/domain/spend
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -28,11 +29,48 @@ export interface LinkedOfBank {
 export interface AccountProposal {
   readonly bank: LinkableBank
   readonly linked: LinkedAccount
-  /** The draft, opening on the day and at the amount the held rows and the bank's balance give. */
+  /** The draft, starting on the day of the fetch at the bank's balance less that day's rows. */
+  readonly account: Account
+  /** Every row the fetch gave for it, on the draft, held until it is added. */
+  readonly rows: SyncedRows
+  /** The bank's balance at the fetch, or null when it gave none. */
+  readonly stated: AccountMoney | null
+  /** Whether the bank held pending rows its balance may count. */
+  readonly pending: boolean
+  /** The day of the fetch, the latest day the account can start on, since the bank's balance knows nothing after it. */
+  readonly fetchedOn: CivilDate
+}
+
+/** An account to add from a proposal, starting on the day the person chose. Rows before that day stay out of Kuna. */
+export interface BankAccountStart {
+  readonly proposal: AccountProposal
+  readonly startsOn: CivilDate
+}
+
+/** The account a start adds, with how its opening was worked out. */
+export interface StartedAccount {
   readonly account: Account
   readonly opening: BankOpening
-  /** The rows the fetch gave for it, on the draft, held until it is added. */
-  readonly rows: SyncedRows
+}
+
+function evidenceOf(proposal: Pick<AccountProposal, 'rows' | 'stated' | 'pending'>): OpeningEvidence {
+  return { rows: proposal.rows.rows, stated: proposal.stated, pending: proposal.pending }
+}
+
+/** The days a proposed account can start on, from the first day its rows reach to the day of the fetch. */
+export function startDays(proposal: AccountProposal): { readonly earliest: CivilDate; readonly latest: CivilDate } {
+  return startDaysOf(evidenceOf(proposal), proposal.fetchedOn)
+}
+
+/** Whether a proposed account can start on the day. */
+export function canStartOn(proposal: AccountProposal, startsOn: CivilDate): boolean {
+  return startsWithin(evidenceOf(proposal), startsOn, proposal.fetchedOn)
+}
+
+/** The account as it starts on the day: opening at the bank's balance less the rows from that day on. */
+export function startedAccount({ proposal, startsOn }: BankAccountStart): StartedAccount {
+  const opening = openingOn(evidenceOf(proposal), startsOn)
+  return { account: { ...proposal.account, opening: opening.opening, openedOn: opening.openedOn }, opening }
 }
 
 /**
@@ -69,7 +107,7 @@ export function draftAccount(linked: LinkedAccount, bank: LinkableBank, currency
   return { id, ...draftedAccount({ kind: kindOfBankAccount(linked) ?? 'bank', bank, currency, iban: ibanKey(linked.iban), opening: ZERO_ACCOUNT_MONEY, openedOn: day }, accounts) }
 }
 
-/** The draft with the opening the bank's rows and balance give, and the answer held for when it is added. */
+/** The draft starting on the day of the fetch, with the bank's rows and balance held for when it is added. */
 export function proposeAccount(
   linked: LinkedAccount,
   bank: LinkableBank,
@@ -81,9 +119,8 @@ export function proposeAccount(
   accounts: readonly Pick<Account, 'name'>[],
 ): AccountProposal {
   const draft = draftAccount(linked, bank, currency, id, day, accounts)
-  const rows = bankSyncRows(answer, draft)
-  const opening = openingFromBank(rows.rows, statedBalance(balances, currency), day, pendingMoney(answer, currency) !== null)
-  return { bank, linked, account: { ...draft, opening: opening.opening, openedOn: opening.openedOn }, opening, rows }
+  const held = { bank, linked, account: draft, rows: bankSyncRows(answer, draft), stated: statedBalance(balances, currency), pending: pendingMoney(answer, currency) !== null, fetchedOn: day }
+  return { ...held, account: startedAccount({ proposal: held, startsOn: day }).account }
 }
 
 /** The account with the bank's details: its bank, IBAN and currency, and its kind where the bank states one. Its name and opening stay. */
@@ -203,12 +240,12 @@ function sameBankAccount(one: AccountProposal, other: AccountProposal): boolean 
 }
 
 /**
- * A new fetch's drafts, each giving way to the one an earlier fetch held for the same account when that one opens earlier,
+ * A new fetch's drafts, each giving way to the one an earlier fetch held for the same account when that one can start earlier,
  * since only the fetch just after a link brings a bank's older rows and a later sync would otherwise drop them.
  */
 export function withOlderHistory(fetched: readonly AccountProposal[], held: readonly AccountProposal[]): readonly AccountProposal[] {
   return fetched.map((proposal) => {
     const earlier = held.find((each) => sameBankAccount(each, proposal))
-    return earlier !== undefined && earlier.account.openedOn < proposal.account.openedOn ? earlier : proposal
+    return earlier !== undefined && startDays(earlier).earliest < startDays(proposal).earliest ? earlier : proposal
   })
 }

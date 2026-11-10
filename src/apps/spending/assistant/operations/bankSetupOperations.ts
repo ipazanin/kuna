@@ -1,11 +1,11 @@
 import type { BankSetup } from '../../bankSync/application/bankSync'
 import { addBankAccounts, bringBackBankDetails, fixOpening, keepMine, keepOutOfKuna, takeBankDetails } from '../../bankSync/application/bankSetupWrites'
-import { BANK_ACCOUNT_LINES, setupActions, setupLineKey, setupLines } from '../../bankSync/domain/bankAccountSetup'
-import type { AccountProposal, SetupAction, SetupLine } from '../../bankSync/domain/bankAccountSetup'
+import { BANK_ACCOUNT_LINES, canStartOn, setupActions, setupLineKey, setupLines, startDays } from '../../bankSync/domain/bankAccountSetup'
+import type { AccountProposal, BankAccountStart, SetupAction, SetupLine } from '../../bankSync/domain/bankAccountSetup'
 import { currentDifferences } from '../../bankSync/domain/bankBalance'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
-import { TEXT, found, inputOf } from '../../../../shared/app/operationInput'
+import { TEXT, TEXT_OR_NULL, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -19,11 +19,15 @@ function lineStep(name: string, about: string, example: string): AssistantOperat
 
 /** What the chat can do on the bank set-up list, as its buttons on Settings, Bank sync do. */
 export const BANK_SETUP_OPERATIONS: readonly AssistantOperation[] = [
-  lineStep(
-    'add-bank-account',
-    "Adds the account the bank's details draft, with the rows the page holds for it, as Add does. Several on one card add them in one write, as Add all does.",
-    'bank-account-missing',
-  ),
+  {
+    name: 'add-bank-account',
+    about: `Adds the account the bank's details draft, as Add does, starting on startsOn, a day from its line's earliestStart to its openedOn, or null for openedOn, the day of the fetch. Its opening is the bank's balance less the rows from that day on, and only those rows come in. Ask the person from which day to track it. Several on one card add them in one write, as Add all does. ${SETUP_ABOUT}`,
+    input: inputOf({ line: TEXT, startsOn: TEXT_OR_NULL }),
+    refs: { line: BANK_ACCOUNT_LINES.name },
+    creates: null,
+    alone: false,
+    example: { line: 'bank-account-missing', startsOn: '2026-10-01' },
+  },
   lineStep('update-bank-account', "Gives the Spending account the bank's bank, IBAN, currency and kind, as Update account does. Its name and opening stay.", 'bank-account-update'),
   lineStep('keep-my-account-details', "Keeps the Spending account's own details, so the sync stops offering the bank's, as Keep mine does.", 'bank-account-update'),
   lineStep('leave-out-bank-account', 'Marks the linked account as one Kuna does not keep, so the sync stops offering and reading it, as Leave out does.', 'bank-account-missing'),
@@ -71,7 +75,7 @@ export function planBankSetup(unit: UnitOfWork, book: SpendingBook, steps: reado
   if (setup === null) throw new StepRefused('No bank sync ran on this page or device, so there is no list of bank accounts. The person syncs on Settings, Bank sync first.')
   const lines = setupLines(setup.linked, setup.proposals, book)
   bringsRowsOnce(steps, lines)
-  const adding: AccountProposal[] = []
+  const adding: BankAccountStart[] = []
   const marked = new Set<string>()
   const changed = new Set<string>()
   const changing = (id: string): void => {
@@ -98,7 +102,12 @@ export function planBankSetup(unit: UnitOfWork, book: SpendingBook, steps: reado
       if (marked.has(mark)) throw new StepRefused('One card marks one linked account of each sort. Propose the next once it is answered.')
       marked.add(mark)
     }
-    writeAction(unit, book, line, action, adding, changing)
+    if (action === 'add') {
+      const typed = input['startsOn']
+      if (line.kind === 'missing' && line.proposal !== null) adding.push(startOf(line.proposal, typeof typed === 'string' ? typed : null))
+      continue
+    }
+    writeAction(unit, book, line, action, changing)
   }
   if (adding.length > 0) addBankAccounts(unit, book, adding, today())
 }
@@ -113,11 +122,18 @@ function bringsRowsOnce(steps: readonly ProposalStep[], lines: readonly SetupLin
   if (writes.size > 1) throw new StepRefused('Adding accounts and updating an account the fetch holds rows for go on separate cards, so each set of rows is checked against the file as it stands.')
 }
 
-function writeAction(unit: UnitOfWork, book: SpendingBook, line: SetupLine, action: SetupAction, adding: AccountProposal[], changing: (id: string) => void): void {
+/** The start a step names, on the day of the fetch when it names none, refused outside the days the account can start on. */
+function startOf(proposal: AccountProposal, typed: string | null): BankAccountStart {
+  const startsOn = typed === null ? proposal.fetchedOn : dayOf(typed)
+  if (!canStartOn(proposal, startsOn)) {
+    const { earliest, latest } = startDays(proposal)
+    throw new StepRefused(`That account can start from ${earliest} to ${latest}, the days its rows and the bank's balance at the fetch cover.`)
+  }
+  return { proposal, startsOn }
+}
+
+function writeAction(unit: UnitOfWork, book: SpendingBook, line: SetupLine, action: Exclude<SetupAction, 'add'>, changing: (id: string) => void): void {
   switch (action) {
-    case 'add':
-      if (line.kind === 'missing' && line.proposal !== null) adding.push(line.proposal)
-      return
     case 'update':
       if ((line.kind === 'kept' || line.kind === 'fits') && line.update !== null) {
         changing(line.account.id)

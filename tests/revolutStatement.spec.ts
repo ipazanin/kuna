@@ -146,7 +146,7 @@ describe("Revolut's export", () => {
       BOOK,
     )
 
-    expect(reading).toEqual({
+    expect({ ...reading, missing: reading.missing.map(({ account }) => account) }).toEqual({
       refusal: 'Add Revolut bank accounts in GBP and CHF and a Revolut savings account in GBP to bring in this file',
       missing: [
         { name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(100), openedOn: civil('2026-10-02'), closed: false },
@@ -159,7 +159,7 @@ describe("Revolut's export", () => {
   it('drafts a missing account at zero on its first day when the file prints no balance', () => {
     const reading = revolutStatement([HEADER, line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Pub', '-5.00', '0.00', 'GBP')], 'export.csv', BOOK)
 
-    expect(reading).toEqual({
+    expect({ ...reading, missing: reading.missing.map(({ account }) => account) }).toEqual({
       refusal: 'Add a Revolut bank account in GBP to bring in this file',
       missing: [{ name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-01'), closed: false }],
     })
@@ -194,7 +194,7 @@ describe("Revolut's export", () => {
 
     expect(left.rows).toEqual([])
     expect(left.notes).toEqual([])
-    expect(revolutStatement([HEADER, row], 'export.csv', BOOK).missing).toEqual([
+    expect(revolutStatement([HEADER, row], 'export.csv', BOOK).missing.map(({ account }) => account)).toEqual([
       { name: 'Revolut EUR savings', kind: 'savings', bank: 'revolut', currency: 'EUR', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-01'), closed: false },
     ])
     expect(addRevolutAccounts(revolutStatement([HEADER, row], 'export.csv', BOOK).missing, 'savings')).toBe('Add a Revolut savings account in EUR to bring in the savings rows left out')

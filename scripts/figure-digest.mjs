@@ -173,6 +173,7 @@ import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastruct
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
 import { reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue.ts'
 import { readBanks } from '../src/apps/spending/bankSync/application/bankRead.ts'
+import { startDays, startedAccount } from '../src/apps/spending/bankSync/domain/bankAccountSetup.ts'
 import { balanceDifferences } from '../src/apps/spending/bankSync/domain/bankBalance.ts'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync.ts'
 import { rowsAfterDryRun, statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun.ts'
@@ -714,10 +715,12 @@ async function spendingGroups(add) {
         return statementDryRun(book, bankRead.statement, today, () => `fa4e3000-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)
       })
     }
-    // The accounts a link drafts, each with the opening its bank's rows and balance give, and the opening a differing balance offers.
+    // The accounts a link drafts, each starting on the day of the fetch and on the earliest day its bank's rows reach, with the opening its bank's rows and balance give then, and the opening a differing balance offers.
     let drafted = 0
     const proposed = await readBanks(fakeBankSync('new-accounts', today), workbook, today, [], () => `account:fa4e3100-0000-4000-8000-${String((drafted += 1)).padStart(12, '0')}`)
-    add('spending.import.bank-sync.new-accounts', () => proposed.proposals.map(({ account, opening }) => [account, opening]))
+    add('spending.import.bank-sync.new-accounts', () =>
+      proposed.proposals.map((proposal) => [proposal.fetchedOn, startDays(proposal).earliest].map((startsOn) => startedAccount({ proposal, startsOn }))),
+    )
     const offBy = await readBanks(fakeBankSync('opening-off', today), workbook, today)
     let row = 0
     const offByRun = statementDryRun(workbook, offBy.statement, today, () => `fa4e3200-0000-4000-8000-${String((row += 1)).padStart(12, '0')}`)

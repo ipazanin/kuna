@@ -497,7 +497,7 @@ describe('bank account set-up', () => {
     const desk = await spendingDesk(used)
     const line = (name: string) => desk.ref(BANK_ACCOUNT_LINES.name, EXAMPLE_RECORDS[name]!)
     await desk.propose([
-      { op: 'add-bank-account', input: { line: line('bank-account-missing') } },
+      { op: 'add-bank-account', input: { line: line('bank-account-missing'), startsOn: null } },
       { op: 'update-bank-account', input: { line: line('bank-account-update') } },
     ])
     expect((await desk.accept()).kind).toBe('done')
@@ -512,7 +512,7 @@ describe('bank account set-up', () => {
   it('refuses what a line does not offer, a step of another kind beside it, two marks of a sort, and a list nobody fetched', async () => {
     const desk = await spendingDesk(used)
     const line = (name: string) => desk.ref(BANK_ACCOUNT_LINES.name, EXAMPLE_RECORDS[name]!)
-    expect((await desk.propose([{ op: 'add-bank-account', input: { line: line('bank-account-update') } }])).text).toContain('offers update, keep-mine')
+    expect((await desk.propose([{ op: 'add-bank-account', input: { line: line('bank-account-update'), startsOn: null } }])).text).toContain('offers update, keep-mine')
     const other = { op: 'delete-rule', input: { rule: desk.ref('rule', EXAMPLE_RECORDS['rule']!) } }
     expect((await desk.propose([{ op: 'leave-out-bank-account', input: { line: line('bank-account-missing') } }, other])).text).toContain('card of their own')
     const marks = [

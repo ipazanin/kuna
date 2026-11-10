@@ -6,7 +6,7 @@ import { spendingAcceptance, spendingProposer } from '../../src/apps/spending/as
 import type { SpendingPorts } from '../../src/apps/spending/assistant/operations/spendingOperations'
 import type { BankSetup } from '../../src/apps/spending/bankSync/application/bankSync'
 import { proposeAccount } from '../../src/apps/spending/bankSync/domain/bankAccountSetup'
-import type { LinkedAccount } from '../../src/apps/spending/bankSync/domain/bankAnswer'
+import type { BankTransaction, LinkedAccount } from '../../src/apps/spending/bankSync/domain/bankAnswer'
 import { forgetLastAccount, lastAccountId, rememberLastAccount, startingAccount } from '../../src/apps/spending/entries/infrastructure/lastAccount'
 import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY } from '../../src/apps/spending/workbook/domain/spendingSettings'
 import { settingRow } from '../../src/shared/storage/domain/settingRows'
@@ -131,8 +131,13 @@ function linkedAccount(uid: string, iban: string, currency: string, described: P
 
 const LEFT_OUT_IBAN = 'LT000000000000000007'
 
+function poundRow(reference: string, bookedOn: string, amount: string, direction: BankTransaction['direction']): BankTransaction {
+  const party = direction === 'CRDT' ? { debtorName: 'Pay from abroad', creditorName: null } : { debtorName: null, creditorName: 'Bookshop in London' }
+  return { reference, amount, currency: 'GBP', direction, status: 'BOOK', bookedOn, valueOn: null, madeOn: null, creditorIban: null, debtorIban: null, remittance: [], exchangeRate: null, ...party }
+}
+
 /**
- * What the page holds after a made-up bank sync: a Revolut pound account Kuna does not keep, drafted with no rows, the OTP
+ * What the page holds after a made-up bank sync: a Revolut pound account Kuna does not keep, drafted with a row in September and one in October, the OTP
  * account Current kept by its IBAN that the bank calls savings, a Revolut account left out of Kuna, and a balance on Current
  * that the opening would fix.
  */
@@ -144,7 +149,18 @@ export function deskBankSetup(): BankSetup {
       { bank: 'otp', account: linkedAccount('uid-current', CURRENT.iban, 'EUR', { cashAccountType: 'SVGS' }) },
       { bank: 'revolut', account: linkedAccount('uid-left-out', LEFT_OUT_IBAN, 'EUR') },
     ],
-    proposals: [proposeAccount(pounds, 'revolut', currencyCodeOf('GBP')!, [], [], recordIdOf(ACCOUNT_RECORDS, 'account-pounds'), on('2026-11-07'), [])],
+    proposals: [
+      proposeAccount(
+        pounds,
+        'revolut',
+        currencyCodeOf('GBP')!,
+        [poundRow('gbp-in', '2026-09-20', '100.00', 'CRDT'), poundRow('gbp-out', '2026-10-20', '25.00', 'DBIT')],
+        [{ amount: '200.00', currency: 'GBP', type: 'ITAV' }],
+        recordIdOf(ACCOUNT_RECORDS, 'account-pounds'),
+        on('2026-11-07'),
+        [],
+      ),
+    ],
     differences: [{ account: CURRENT, stated: accountMoneyFromAmount(900), worked: accountMoneyFromAmount(1000), pending: null, explained: false, fixedOpening: accountMoneyFromAmount(900) }],
     olderRows: [],
   }

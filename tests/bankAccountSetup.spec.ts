@@ -3,8 +3,18 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { readBanks } from '../src/apps/spending/bankSync/application/bankRead'
 import { addBankAccounts, bringBackBankDetails, fixOpening, keepMine, keepOutOfKuna, takeBankDetails } from '../src/apps/spending/bankSync/application/bankSetupWrites'
-import { bankAccountKey, draftAccount, kindOfBankAccount, proposeAccount, setupLines, withOlderHistory } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
-import type { LinkedOfBank } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
+import {
+  bankAccountKey,
+  canStartOn,
+  draftAccount,
+  kindOfBankAccount,
+  proposeAccount,
+  setupLines,
+  startDays,
+  startedAccount,
+  withOlderHistory,
+} from '../src/apps/spending/bankSync/domain/bankAccountSetup'
+import type { AccountProposal, LinkedOfBank } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
 import type { BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
@@ -31,6 +41,7 @@ function linked(uid: string, iban: string, currency: string, described: Partial<
 }
 
 const revolut = (account: LinkedAccount): LinkedOfBank => ({ bank: 'revolut', account })
+const fromEarliest = (proposals: readonly AccountProposal[]) => proposals.map((proposal) => ({ proposal, startsOn: startDays(proposal).earliest }))
 const book = (accounts = ACCOUNTS, transactions: readonly { account: string }[] = [], marks: { notInKuna?: readonly string[]; keepMine?: readonly string[] } = {}) => ({
   accounts,
   transactions: transactions as never,
@@ -147,7 +158,42 @@ describe('a draft held from an earlier fetch', () => {
 
   it('opens as worked out, never as an empty start, while the bank holds pending rows', () => {
     const proposal = draftFrom([bankRow({}), bankRow({ reference: 'p', status: 'PDNG', amount: '3.00', direction: 'DBIT' })])
-    expect(proposal.opening).toMatchObject({ source: 'pending', opening: 0 })
+    expect(startedAccount({ proposal, startsOn: startDays(proposal).earliest }).opening).toMatchObject({ source: 'pending', opening: 0 })
+  })
+})
+
+describe('the day a drafted account starts on', () => {
+  const usd = linked('usd', 'LT000000000000000003', 'USD')
+  // 100.00 in on 1 October, 30.00 out on 15 October, and the bank says 250.00 at the fetch.
+  const answer = [bankRow({ reference: 'in', amount: '100.00', bookedOn: '2026-10-01' }), bankRow({ reference: 'out', amount: '30.00', direction: 'DBIT', bookedOn: '2026-10-15' })]
+  const proposal = proposeAccount(usd, 'revolut', USD, answer, [{ amount: '250.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
+
+  it("is the day of the fetch unless the person picks one, opening at the bank's balance with no row before it", () => {
+    expect(proposal.account).toMatchObject({ openedOn: DAY, opening: accountMoneyFromAmount(250) })
+    expect(startedAccount({ proposal, startsOn: DAY }).opening).toEqual({ openedOn: DAY, opening: accountMoneyFromAmount(250), source: 'worked', rows: 0 })
+  })
+
+  it("works the opening back from the bank's balance less the rows from that day on", () => {
+    // 250.00 less the 30.00 out on 15 October.
+    expect(startedAccount({ proposal, startsOn: civil('2026-10-10') }).opening).toEqual({ openedOn: civil('2026-10-10'), opening: accountMoneyFromAmount(280), source: 'worked', rows: 1 })
+    // 250.00 less 100.00 in and 30.00 out.
+    expect(startedAccount({ proposal, startsOn: civil('2026-10-01') }).account).toMatchObject({ openedOn: civil('2026-10-01'), opening: accountMoneyFromAmount(180) })
+  })
+
+  it('runs from the first row the bank gave to the day of the fetch', () => {
+    expect(startDays(proposal)).toEqual({ earliest: civil('2026-10-01'), latest: DAY })
+    expect([civil('2026-09-30'), civil('2026-10-01'), DAY, civil('2026-10-31')].map((day) => canStartOn(proposal, day))).toEqual([false, true, true, false])
+  })
+
+  it('can start the day before the first row when the rows reach back to an empty account', () => {
+    const empty = proposeAccount(usd, 'revolut', USD, answer, [{ amount: '70.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
+    expect(startDays(empty).earliest).toBe(civil('2026-09-30'))
+    expect(startedAccount({ proposal: empty, startsOn: civil('2026-09-30') }).opening).toMatchObject({ opening: 0, source: 'start', rows: 2 })
+  })
+
+  it('only starts on the day of the fetch when the bank gave no rows', () => {
+    const bare = proposeAccount(usd, 'revolut', USD, [], [{ amount: '15.00', currency: 'USD', type: 'ITAV' }], recordIdOf(ACCOUNT_RECORDS, 'usd'), DAY, [])
+    expect(startDays(bare)).toEqual({ earliest: DAY, latest: DAY })
   })
 })
 
@@ -205,7 +251,7 @@ describe('the setup writes', () => {
     let place = 0
     const read = await readBanks(fakeBankSync('new-accounts', DAY), store.state.workbook!, DAY, [], () => recordIdOf(ACCOUNT_RECORDS, `5e000000-0000-4000-8000-00000000900${(place += 1)}`))
 
-    const receipt = await store.write('Accounts added', (unit) => addBankAccounts(unit, store.state.workbook!, read.proposals, DAY))
+    const receipt = await store.write('Accounts added', (unit) => addBankAccounts(unit, store.state.workbook!, fromEarliest(read.proposals), DAY))
 
     expect(store.state.workbook!.problems).toEqual([])
     expect(store.state.workbook!.accounts.map((account) => account.name).slice(-2)).toEqual(['Revolut USD 0003', 'Revolut EUR savings'])
@@ -213,6 +259,32 @@ describe('the setup writes', () => {
     await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
     expect(store.state.workbook!.accounts).toEqual(ACCOUNTS)
     expect(store.state.workbook!.transactions).toEqual([])
+  })
+
+  it("writes no held row before the day each account starts on, and opens it at the bank's balance less the rows from then", async () => {
+    const store = await spendingStore()
+    let place = 0
+    const read = await readBanks(fakeBankSync('new-accounts', DAY), store.state.workbook!, DAY, [], () => recordIdOf(ACCOUNT_RECORDS, `5e000000-0000-4000-8000-00000000900${(place += 1)}`))
+    const [usd, savings] = read.proposals
+
+    await store.write('Accounts added', (unit) =>
+      addBankAccounts(
+        unit,
+        store.state.workbook!,
+        [
+          { proposal: usd!, startsOn: civil('2026-08-01') },
+          { proposal: savings!, startsOn: DAY },
+        ],
+        DAY,
+      ),
+    )
+
+    expect(store.state.workbook!.accounts.slice(-2).map((account) => [account.name, account.openedOn, account.opening])).toEqual([
+      // 27.50 at the fetch less the 12.50 out in October, since the 40.00 top-up in July is before the day.
+      ['Revolut USD 0003', civil('2026-08-01'), accountMoneyFromAmount(40)],
+      ['Revolut EUR savings', DAY, accountMoneyFromAmount(350)],
+    ])
+    expect(store.state.workbook!.transactions.map((each) => each.payee)).toEqual(['Bookshop in Boston'])
   })
 
   it('pairs a held exchange leg with the other leg already on the file, under Between my accounts', async () => {
@@ -224,7 +296,7 @@ describe('the setup writes', () => {
     const read = await readBanks({ ...port, sessions, transactions: async (uid) => (uid === 'eur' ? [outLeg] : [inLeg]), balances: async () => [] }, store.state.workbook!, DAY)
     await store.write('Imported', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, read.statement, DAY)))
 
-    await store.write('Account added', (unit) => addBankAccounts(unit, store.state.workbook!, read.proposals, DAY))
+    await store.write('Account added', (unit) => addBankAccounts(unit, store.state.workbook!, fromEarliest(read.proposals), DAY))
 
     const between = category('Between my accounts').id
     expect(store.state.workbook!.transactions.map((each) => [each.payee, each.category === between, each.pair !== null])).toEqual([

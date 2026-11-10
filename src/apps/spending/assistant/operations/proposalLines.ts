@@ -171,7 +171,10 @@ export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
 }
 
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its group of entries, and a receipt on its group of receipts. */
-export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { leftOut, receipts, moves }: CardWarnings = NO_WARNINGS): readonly ProposalGroup[] {
+export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, { leftOut, receipts, moves }: CardWarnings = NO_WARNINGS): readonly ProposalGroup[] {
+  // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
+  const added = checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === ACCOUNT_RECORDS.name ? [change.after as Account] : []))
+  const book = { ...before, accounts: [...before.accounts, ...added] }
   const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts].map((record) => [record.id, record.name]))
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && 'name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
