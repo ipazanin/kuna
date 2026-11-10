@@ -1,7 +1,13 @@
 import { words } from './words'
+import { loneLeg } from '../domain/startDayMove'
+import type { StartDayMove } from '../domain/startDayMove'
+import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
+import { HELD_ROW_WRITES } from '../../statements/application/statementWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { Account } from '../../workbook/domain/account'
 import { ACCOUNT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
@@ -32,4 +38,18 @@ export function keptAccount(account: Account): Account {
 /** A new account as the file keeps it, with an id of its own. */
 export function newAccount(account: Omit<Account, 'id'>): Account {
   return keptAccount({ ...account, id: recordIdOf(ACCOUNT_RECORDS, newRecordId()) })
+}
+
+/**
+ * The account as typed over the one on the file, in one write with one Undo. When its start day moved later, what came before
+ * the new day goes in the same write, and each transfer's other leg stays with no pair.
+ */
+export function changeAccount(unit: UnitOfWork, before: Account, after: Account, move: StartDayMove | null): void {
+  unit.of(ACCOUNT_WRITES).change(before, after)
+  if (move === null) return
+  move.parts.forEach((part) => unit.of(PART_WRITES).remove(part))
+  move.receipts.forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
+  move.held.forEach((held) => unit.of(HELD_ROW_WRITES).remove(held))
+  move.rows.forEach((row) => unit.of(TRANSACTION_WRITES).remove(row))
+  move.loneLegs.forEach((leg) => unit.of(TRANSACTION_WRITES).change(leg, loneLeg(leg)))
 }

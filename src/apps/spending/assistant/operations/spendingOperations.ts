@@ -2,7 +2,7 @@ import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, day
 import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
 import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { BANK_SETUP_OPERATIONS, isBankSetupStep, planBankSetup } from './bankSetupOperations'
-import { proposalGroupsOf, statementLeftOut } from './proposalLines'
+import { NO_WARNINGS, proposalGroupsOf, statementLeftOut } from './proposalLines'
 import type { CardWarnings } from './proposalLines'
 import { ADD_RECEIPT, keptPhotos, receiptsOutside, withPhotosRead, writeReceiptStep } from './receiptOperation'
 import type { KeptPhotos, ReceiptPorts } from './receiptOperation'
@@ -12,7 +12,9 @@ import type { CardStatement } from './statementImport'
 import { SET_STARTING_ACCOUNT, acceptStartingAccount, setsStartingAccount, startingAccountCheck } from './startingAccountOperation'
 import type { LastAccountPorts } from './startingAccountOperation'
 import type { BankSetup } from '../../bankSync/application/bankSync'
-import { ACCOUNT_WRITES, keptAccount, newAccount } from '../../accounts/application/accountWrites'
+import { ACCOUNT_WRITES, changeAccount, keptAccount, newAccount } from '../../accounts/application/accountWrites'
+import { startDayMove } from '../../accounts/domain/startDayMove'
+import type { StartDayMove } from '../../accounts/domain/startDayMove'
 import { setLimit } from '../../budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/application/categoryWrites'
 import { lastOrder, siblingsUnder, swappedPlaces } from '../../categories/domain/categoryPlaces'
@@ -22,7 +24,7 @@ import type { PartDraft, SplitRefusal } from '../../entries/domain/entrySplit'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { SETTING_WRITES, treatPayeeAsPerson } from '../../workbook/application/settingWrites'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, beforeStartDay } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
@@ -142,7 +144,8 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'change-account',
-    about: 'A new name, type, bank, currency, opening balance, opening day or IBAN, or closed or open again. An account with entries keeps its currency. Null leaves a field as it is.',
+    about:
+      "A new name, type, bank, currency, opening balance, opening day or IBAN, or closed or open again. An account with entries keeps its currency. Null leaves a field as it is. A later openedOn deletes the account's entries, receipts and bank rows on hold before it, leaves each transfer's other leg unpaired, and with opening null works out the opening that keeps today's balance. The card shows what goes. An earlier openedOn deletes nothing, and the bank sync reaches back only about 90 days, so older rows come from a statement file.",
     input: inputOf({
       account: TEXT,
       name: TEXT_OR_NULL,
@@ -358,7 +361,7 @@ function changedCategory(book: SpendingBook, before: Category, field: Readonly<R
 
 /** A day on which both accounts were open, as the entry dialog asks. */
 function openedBy(day: CivilDate, accounts: readonly Account[]): CivilDate {
-  if (accounts.some((account) => day < account.openedOn)) throw new StepRefused('That day is before the account opened.')
+  if (accounts.some((account) => beforeStartDay(account, day))) throw new StepRefused('That day is before the account opened.')
   return day
 }
 
@@ -404,7 +407,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
   refuseBesideImport(steps, IMPORTING, FILING_IMPORTED_ROWS)
   if (steps.some(isBankSetupStep)) {
     planBankSetup(unit, books.workbook, steps, ports.device.bankSetup())
-    return { leftOut: null, receipts: [] }
+    return NO_WARNINGS
   }
   if (steps.some((step) => step.operation === ADD_RECEIPT.name) && steps.some((step) => step.operation === 'add-category'))
     throw new StepRefused('A new category goes on a card before the receipt, and the receipt card files into it once that card is accepted.')
@@ -413,6 +416,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
   const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
   let imported: CardStatement | null = null
   const receiptWarnings: ProposalNote[] = []
+  const moves: StartDayMove[] = []
   const idOf = (value: unknown): string => {
     const text = String(value)
     return made.get(text) ?? text
@@ -512,7 +516,10 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         const currency = field['currency'] === null ? before.currency : currencyCodeOf(field['currency'])
         if (currency === null) throw new StepRefused('That currency is not one Kuna knows. Write its three-letter ISO code, such as EUR or USD.')
         const bank: AccountBank | 'none' | null = choiceOf([...ACCOUNT_BANKS, 'none'], field['bank'], 'bank')
-        unit.of(ACCOUNT_WRITES).change(
+        const move = field['openedOn'] === null ? null : startDayMove(book, before, dayOf(field['openedOn']))
+        if (move !== null) moves.push(move)
+        changeAccount(
+          unit,
           before,
           keptAccount({
             ...before,
@@ -520,11 +527,12 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
             kind: choiceOf(ACCOUNT_KINDS, field['kind'], 'kind') ?? before.kind,
             bank: bank === null ? before.bank : bank === 'none' ? null : bank,
             currency,
-            opening: field['opening'] === null ? before.opening : accountMoneyFromAmount(field['opening']),
-            openedOn: field['openedOn'] === null ? before.openedOn : dayOf(field['openedOn']),
+            opening: field['opening'] === null ? (move?.opening ?? before.opening) : accountMoneyFromAmount(field['opening']),
+            openedOn: move?.startsOn ?? before.openedOn,
             iban: (field['iban'] as string | null) ?? before.iban,
             closed: flagOf(field['closed'], before.closed),
           }),
+          move,
         )
         break
       }
@@ -676,15 +684,15 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
     const leftOut = statementLeftOut(imported, run)
     const lookAlikes = leftOut.lookAlikes.map(({ number }) => number)
     if (lookAlikes.length > 0 && run.added.length + run.changed.length === 0) throw new StepRefused(lookAlikesForTheModel(lookAlikes, true))
-    return { leftOut, receipts: receiptWarnings }
+    return { leftOut, receipts: receiptWarnings, moves }
   }
   if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits)
-  return { leftOut: null, receipts: receiptWarnings }
+  return { leftOut: null, receipts: receiptWarnings, moves }
 }
 
 /** How the chat's steps become one write of the Spending file. The card warns on what the plan leaves out or doubts, so each check gets its own. A receipt photo kept on Drive stays there after Undo. */
 function spendingWork(ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPhotos> {
-  let warnings: CardWarnings = { leftOut: null, receipts: [] }
+  let warnings: CardWarnings = NO_WARNINGS
   return {
     notOpen: NOT_OPEN,
     plan: (unit, books, steps, kept) => {

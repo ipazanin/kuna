@@ -306,6 +306,8 @@ import {
   spendingImportRefusedFlowIn,
   spendingReceiptFlowIn,
   spendingSplitFlowIn,
+  spendingAccountDialogFlowIn,
+  spendingAccountStartDayFlowIn,
   spendingReceiptPickFlowIn,
   spendingReceiptPlaceFlowIn,
   spendingReviewNearFlowIn,
@@ -651,6 +653,7 @@ function fakeAssetsShows() {
 
 /** The sample Spending file's USD account, `?spending=sample`, which the made-up ECB rates turn into euros. */
 const SAMPLE_USD_ACCOUNT = 'fa4e3000-0000-4000-8000-000000001003'
+const SAMPLE_OTP_ACCOUNT = 'fa4e3000-0000-4000-8000-000000001001'
 
 /** A fake Spending set as its screens read it on the check's day, with the made-up ECB rates its foreign accounts need, or with the rates failed. */
 async function fakeSpending(set, ratesFailed = false) {
@@ -5230,6 +5233,42 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=receipts&lang=hr' },
+  },
+  {
+    name: 'spending-account-dialog',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    run: spendingAccountDialogFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-account-dialog-croatian',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    run: spendingAccountDialogFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-account-start-day',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    run: spendingAccountStartDayFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-account-start-day-croatian',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    run: spendingAccountStartDayFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
   },
   {
     name: 'spending-split',

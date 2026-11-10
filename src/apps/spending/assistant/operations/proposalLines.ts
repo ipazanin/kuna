@@ -1,3 +1,6 @@
+import { deletesRecords } from '../../accounts/domain/startDayMove'
+import type { StartDayMove } from '../../accounts/domain/startDayMove'
+import { cutoverWords } from '../../accounts/presentation/startDayMoveWords'
 import { words as accountWords } from '../../accounts/presentation/words'
 import { words as cardWords } from '../../../../shared/app/words'
 import { words as categoryWords } from '../../categories/presentation/words'
@@ -21,6 +24,7 @@ import { DEFAULT_MONEY_FORMAT, formatAccountMoney, formatMoney } from '../../../
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import { BOOKING_LOOK_ALIKE, copiedInKunaText, copiedStatementRowsWarning, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
@@ -142,10 +146,23 @@ function lookAlikeNote({ lookAlikes }: StatementLeftOut, book: SpendingBook): Pr
   )
 }
 
-/** What a card warns on beyond its changes: what its import leaves out, and each receipt whose read failed a check or that may be a payment already on the file. */
+/** What a card warns on beyond its changes: what its import leaves out, each receipt whose read failed a check or that may be a payment already on the file, and each start day it moves. */
 export interface CardWarnings {
   readonly leftOut: StatementLeftOut | null
   readonly receipts: readonly ProposalNote[]
+  readonly moves: readonly StartDayMove[]
+}
+
+/** A card that warns on nothing beyond its changes. */
+export const NO_WARNINGS: CardWarnings = { leftOut: null, receipts: [], moves: [] }
+
+/** What moving an account's start day does, as the account dialog says it: what goes and the opening worked out, or that the bank reaches back only about 90 days. */
+function startDayNote(move: StartDayMove, book: SpendingBook): ProposalNote | null {
+  const label = move.account.name
+  if (move.direction === 'earlier') return move.account.kind === 'cash' ? null : { label, text: accountWords.dialog.earlierStart, tone: 'neutral' }
+  if (!deletesRecords(move)) return null
+  const { title, goes, loneLegs, opening } = cutoverWords(move, book)
+  return { label, text: [`${title}: ${listInWords(goes)}.`, ...(loneLegs === null ? [] : [loneLegs]), opening].join(' '), tone: 'warning' }
 }
 
 /** What a new category or account holds unless a person sets it, which a card leaves off its add. */
@@ -154,7 +171,7 @@ export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
 }
 
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its group of entries, and a receipt on its group of receipts. */
-export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { leftOut, receipts }: CardWarnings = { leftOut: null, receipts: [] }): readonly ProposalGroup[] {
+export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { leftOut, receipts, moves }: CardWarnings = NO_WARNINGS): readonly ProposalGroup[] {
   const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts].map((record) => [record.id, record.name]))
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && 'name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
@@ -168,7 +185,14 @@ export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { le
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),
   }
   const statementNotes = leftOut === null ? [] : [lookAlikeNote(leftOut, book), leftOutNote(leftOut), inKunaNote(leftOut)].flatMap((note) => (note === null ? [] : [note]))
-  const notes: CardNote[] = [...statementNotes.map((note) => ({ noun: TRANSACTION_RECORDS.noun, note })), ...receipts.map((receipt) => ({ noun: RECEIPT_RECORDS.noun, note: receipt }))]
+  const notes: CardNote[] = [
+    ...statementNotes.map((note) => ({ noun: TRANSACTION_RECORDS.noun, note })),
+    ...receipts.map((receipt) => ({ noun: RECEIPT_RECORDS.noun, note: receipt })),
+    ...moves.flatMap((move) => {
+      const note = startDayNote(move, book)
+      return note === null ? [] : [{ noun: ACCOUNT_RECORDS.noun, note }]
+    }),
+  ]
   return withNotes(
     proposalGroups(checked, () => describer),
     notes,

@@ -6,6 +6,7 @@ import { words } from './words'
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
+import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
@@ -183,7 +184,10 @@ function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<Recor
 export function statementDryRun(book: SpendingBook, statement: StatementRows, day: CivilDate, newKey: () => string = newRecordId): StatementDryRun {
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
   const onFile = new Set(book.transactions.filter((row) => row.importKey !== '').map(rowKey))
-  const beforeOpening = (row: StatementRow): boolean => row.date < (accounts.get(row.account)?.openedOn ?? row.date)
+  const beforeOpening = (row: StatementRow): boolean => {
+    const account = accounts.get(row.account)
+    return account !== undefined && beforeStartDay(account, row.date)
+  }
   const alreadyIn = (row: StatementRow): boolean => onFile.has(rowKey(row))
   const notOnFile = statement.rows.filter((row) => !beforeOpening(row) && !alreadyIn(row))
   const sourceDays = sourceDaysOf(book.transactions)

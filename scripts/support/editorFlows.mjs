@@ -6046,6 +6046,74 @@ export function spendingSplitFlowIn(language) {
   }
 }
 
+const SPENDING_ACCOUNT_DIALOG = '[data-testid="spending-account-dialog"]'
+
+/** Opens the account dialog from the account's own screen and waits for it to settle. */
+async function openAccountDialog(page, press) {
+  await pressSelector(page, press, '[data-testid="spending-account-edit"]')
+  await page.waitForSelector(SPENDING_ACCOUNT_DIALOG, { visible: true, timeout: 10_000 })
+  await delay(300)
+}
+
+/** The sample OTP account's dialog as it opens, the shot to compare a change of the dialog against. */
+export function spendingAccountDialogFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openAccountDialog(page, press)
+    await inspect?.('the account dialog')
+    await shoot('spending-account-dialog')
+  }
+}
+
+/**
+ * The sample OTP account's start day moved 30 days back from today: the dialog lists what goes and fills in the opening that
+ * keeps today's balance, Delete and save writes it, and Undo puts the rows back. Then a start day moved a year earlier says
+ * the bank sync reaches back only about 90 days.
+ */
+export function spendingAccountStartDayFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const dialog = words.spendingAccounts.dialog
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const balance = () => page.$eval('[data-testid="spending-account-balance-today"]', (element) => element.textContent?.trim() ?? '')
+    const before = await balance()
+    await openAccountDialog(page, press)
+    const opening = () => page.$eval('[data-testid="spending-account-opening"]', (input) => input.value)
+    const typedOpening = await opening()
+    await fill(page, 'spending-account-opened-on', addDays(today(), -30))
+    await page.waitForSelector('[data-testid="spending-account-cutover"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('a later start day does not list what goes')
+    })
+    if ((await opening()) === typedOpening) throw new Error('a later start day leaves the opening as it was')
+    const save = await page.$eval('[data-testid="spending-account-save"]', (button) => button.textContent?.trim() ?? '')
+    if (save !== dialog.cutover.save) throw new Error(`the save button reads "${save}" over a start day that deletes rows`)
+    await delay(300)
+    await inspect?.('the account dialog listing what a later start day deletes')
+    await shoot('spending-account-cutover')
+
+    await pressSelector(page, press, '[data-testid="spending-account-save"]')
+    await toast(page, dialog.saved)
+    await dialogGone(page, SPENDING_ACCOUNT_DIALOG)
+    if ((await balance()) !== before) throw new Error(`today's balance moved from ${before} to ${await balance()} with the start day`)
+    await shoot('spending-account-cutover-done')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+
+    await openAccountDialog(page, press)
+    await fill(page, 'spending-account-opened-on', addDays(today(), -400))
+    await page
+      .waitForFunction((selector, wanted) => document.querySelector(selector)?.textContent?.includes(wanted) ?? false, { timeout: 5_000 }, SPENDING_ACCOUNT_DIALOG, dialog.earlierStart)
+      .catch(() => {
+        throw new Error('an earlier start day does not say how far back the bank reaches')
+      })
+    await delay(300)
+    await inspect?.('the account dialog over an earlier start day')
+    await shoot('spending-account-earlier')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ACCOUNT_DIALOG)
+  }
+}
+
 /**
  * The entry dialog opened on the sample Spending file's Transactions, as money out or as a move between two accounts in two currencies, and closed again.
  * Money out also lists the known payees after two typed letters. Escape closes the list and keeps the letters, so does Enter as the list opens, and Down then Enter picks the newest payee.

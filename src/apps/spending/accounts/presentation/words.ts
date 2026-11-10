@@ -57,6 +57,20 @@ export const en = {
     deleted: 'Account deleted',
     closedToast: 'Account closed',
     reopened: 'Account reopened',
+    earlierStart: 'The bank sync brings only about the last 90 days, so older rows come from a statement file.',
+    cutover: {
+      title: (day: CivilDate) => `Moving the opening balance day to ${dayLabel(day)} deletes what came before it`,
+      rows: (count: number): EnglishForms => ({ one: '1 entry', other: `${count} entries` }),
+      receipts: (count: number): EnglishForms => ({ one: '1 receipt', other: `${count} receipts` }),
+      parts: (count: number): EnglishForms => ({ one: '1 split part', other: `${count} split parts` }),
+      held: (count: number): EnglishForms => ({ one: '1 bank row on hold', other: `${count} bank rows on hold` }),
+      loneLegs: (count: number, accounts: string, category: string): EnglishForms => ({
+        one: `The other leg of 1 transfer stays on ${accounts} as a lone row under ${category}.`,
+        other: `The other legs of ${count} transfers stay on ${accounts} as lone rows under ${category}.`,
+      }),
+      opening: (amount: string) => `The opening balance becomes ${amount}, so today's balance stays. You can change it.`,
+      save: 'Delete and save',
+    },
   },
 }
 
@@ -111,6 +125,21 @@ export const hr: Translation<typeof en> = {
     deleted: 'Račun je obrisan',
     closedToast: 'Račun je zatvoren',
     reopened: 'Račun je ponovno otvoren',
+    earlierStart: 'Sinkronizacija s bankom donosi samo otprilike zadnjih 90 dana, pa stariji unosi dolaze iz datoteke izvoda.',
+    cutover: {
+      title: (day) => `Pomicanjem dana početnog stanja na ${dayLabel(day)} briše se sve što je bilo prije`,
+      rows: (count): CroatianForms => ({ one: `${count} unos`, few: `${count} unosa`, other: `${count} unosa` }),
+      receipts: (count): CroatianForms => ({ one: `${count} fiskalni račun`, few: `${count} fiskalna računa`, other: `${count} fiskalnih računa` }),
+      parts: (count): CroatianForms => ({ one: `${count} dio podjele`, few: `${count} dijela podjele`, other: `${count} dijelova podjele` }),
+      held: (count): CroatianForms => ({ one: `${count} redak iz banke na čekanju`, few: `${count} retka iz banke na čekanju`, other: `${count} redaka iz banke na čekanju` }),
+      loneLegs: (count, accounts, category): CroatianForms => ({
+        one: `Druga strana ${count} prijenosa ostaje na računu ${accounts} kao samostalan unos pod kategorijom ${category}.`,
+        few: `Druge strane ${count} prijenosa ostaju na računu ${accounts} kao samostalni unosi pod kategorijom ${category}.`,
+        other: `Druge strane ${count} prijenosa ostaju na računu ${accounts} kao samostalni unosi pod kategorijom ${category}.`,
+      }),
+      opening: (amount) => `Početno stanje postaje ${amount}, pa današnje stanje ostaje isto. Možete ga promijeniti.`,
+      save: 'Obriši i spremi',
+    },
   },
 }
 

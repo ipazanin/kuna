@@ -19,6 +19,7 @@ import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
 import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
@@ -161,7 +162,7 @@ function positive(text: string): AccountMoney | null {
 const day = computed(() => parseCivilDate(date.value))
 
 function openedAfter(on: CivilDate, onAccount: Account | null): string | null {
-  return onAccount !== null && on < onAccount.openedOn ? words.dialog.beforeOpened(onAccount.openedOn) : null
+  return onAccount !== null && beforeStartDay(onAccount, on) ? words.dialog.beforeOpened(onAccount.openedOn) : null
 }
 
 const errors = computed(() => ({

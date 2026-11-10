@@ -298,6 +298,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/loans/informalLoans/application/informalLoanWrites.ts#MOVEMENT_WRITES.change', operations: ['change-movement'] },
   { path: 'src/apps/spending/accounts/application/accountWrites.ts#ACCOUNT_WRITES.add', operations: ['add-account'] },
   { path: 'src/apps/spending/accounts/application/accountWrites.ts#ACCOUNT_WRITES.change', operations: ['change-account'] },
+  { path: 'src/apps/spending/accounts/application/accountWrites.ts#changeAccount', from: ['after'], operations: ['change-account'] },
   { path: 'src/apps/spending/bankSync/application/bankSetupWrites.ts#fixOpening', from: ['opening'], operations: ['fix-opening'] },
   { path: 'src/apps/spending/budgets/application/budgetWrites.ts#setLimit', from: ['category', 'from', 'amount'], operations: ['set-limit'] },
   { path: 'src/apps/spending/categories/application/categoryWrites.ts#CATEGORY_WRITES.add', operations: [{ name: 'add-category', renames: { order: 'move-category:direction' } }] },

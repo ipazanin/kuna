@@ -11,6 +11,7 @@ import { heldReceiptOf, receiptAccounts, receiptMatches, splittableRows } from '
 import type { ReceiptFacts } from '../../receipts/domain/receiptMatch'
 import { receiptSplit } from '../../receipts/domain/receiptSplit'
 import type { ReceiptPlace, ReceiptSplit } from '../../receipts/domain/receiptSplit'
+import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -239,7 +240,7 @@ function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, rec
     )
   const account: Account = found(book.accounts, idOf(field['account']), 'account')
   if (!receiptAccounts(book.accounts).includes(account)) throw new StepRefused('A fiscal receipt is in euros, so a new entry goes on an open euro account.')
-  if (receipt.issuedOn < account.openedOn) throw new StepRefused('That day is before the account opened.')
+  if (beforeStartDay(account, receipt.issuedOn)) throw new StepRefused('That day is before the account opened.')
   return { account: account.id }
 }
 

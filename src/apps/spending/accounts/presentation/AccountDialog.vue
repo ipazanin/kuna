@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -8,7 +9,9 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { words } from './words'
-import { ACCOUNT_WRITES, newAccount } from '../application/accountWrites'
+import { ACCOUNT_WRITES, changeAccount, newAccount } from '../application/accountWrites'
+import { cutoverWords } from './startDayMoveWords'
+import { deletesRecords, startDayMove } from '../domain/startDayMove'
 import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
@@ -17,6 +20,7 @@ import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { absAccountMoney, negateAccountMoney, typedAccountAmount, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { CURRENCY_CODES, EURO } from '../../../../shared/money/currencyCode'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -60,6 +64,12 @@ const tried = ref(false)
 /** An account that entries name keeps its currency, since their amounts are in it. */
 const hasEntries = computed(() => props.account !== null && (store.state.workbook?.transactions ?? []).some((row) => row.account === props.account?.id))
 
+/** Puts the opening into its field as an amount of zero or more, with the switch saying whether it is below zero. */
+function showOpening(amount: AccountMoney): void {
+  opening.value = amountForTyping(absAccountMoney(amount))
+  overdrawn.value = amount < 0
+}
+
 watch(open, (opened) => {
   if (!opened) return
   const account = props.account
@@ -67,8 +77,12 @@ watch(open, (opened) => {
   kind.value = account?.kind ?? 'bank'
   bank.value = account?.bank ?? NONE
   currency.value = account?.currency ?? EURO
-  opening.value = account === null ? '' : amountForTyping(absAccountMoney(account.opening))
-  overdrawn.value = account !== null && account.opening < 0
+  if (account === null) {
+    opening.value = ''
+    overdrawn.value = false
+  } else {
+    showOpening(account.opening)
+  }
   openedOn.value = account?.openedOn ?? props.openingDay ?? today()
   iban.value = account?.iban ?? ''
   tried.value = false
@@ -79,6 +93,27 @@ const openingAmount = computed(() => {
   return typed !== null && overdrawn.value ? negateAccountMoney(typed) : typed
 })
 const openedDay = computed(() => parseCivilDate(openedOn.value))
+/** What moving the start day to the day typed does, or null for a new account and for the day it starts on now. */
+const move = computed(() => {
+  const book = store.state.workbook
+  return props.account === null || book === null || openedDay.value === null ? null : startDayMove(book, props.account, openedDay.value)
+})
+const cutover = computed(() => (move.value?.direction === 'later' && deletesRecords(move.value) ? move.value : null))
+
+/** Kuna fills in the opening that keeps today's balance whenever the start day moves, and the person may type over it. */
+watch(
+  () => move.value?.opening ?? null,
+  (worked) => {
+    if (props.account !== null) showOpening(worked ?? props.account.opening)
+  },
+)
+
+const shownCutover = computed(() => {
+  const book = store.state.workbook
+  return cutover.value === null || book === null ? null : cutoverWords(cutover.value, book)
+})
+const earlierFromBank = computed(() => move.value?.direction === 'earlier' && kind.value !== 'cash')
+
 const pickedCurrency = computed(() => CURRENCY_CODES.find((code) => code === currency.value) ?? null)
 
 const errors = computed(() => ({
@@ -107,7 +142,7 @@ async function save(): Promise<void> {
   const written =
     before === null
       ? await writes.write(words.dialog.added, (unit) => unit.of(ACCOUNT_WRITES).add(typed), { failedTitle: spendingWords.form.notAdded })
-      : await writes.write(words.dialog.saved, (unit) => unit.of(ACCOUNT_WRITES).change(before, { ...typed, id: before.id }), { failedTitle: spendingWords.form.notSaved })
+      : await writes.write(words.dialog.saved, (unit) => changeAccount(unit, before, { ...typed, id: before.id }, move.value), { failedTitle: spendingWords.form.notSaved })
   if (written) open.value = false
 }
 
@@ -149,9 +184,19 @@ async function remove(): Promise<void> {
         </UFormField>
         <USwitch v-model="overdrawn" :label="words.dialog.overdrawn" class="min-h-11" data-testid="spending-account-overdrawn" />
       </div>
-      <UFormField :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false">
+      <UFormField :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false" v-bind="earlierFromBank ? { help: words.dialog.earlierStart } : {}">
         <UInput v-model="openedOn" type="date" class="w-full" data-testid="spending-account-opened-on" />
       </UFormField>
+      <UAlert v-if="shownCutover !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="shownCutover.title" data-testid="spending-account-cutover">
+        <template #description>
+          <ul v-if="shownCutover.goes.length > 1" class="list-disc ps-5">
+            <li v-for="line in shownCutover.goes" :key="line">{{ line }}</li>
+          </ul>
+          <p v-else>{{ shownCutover.goes[0] }}</p>
+          <p v-if="shownCutover.loneLegs !== null" class="mt-2">{{ shownCutover.loneLegs }}</p>
+          <p class="mt-2">{{ shownCutover.opening }}</p>
+        </template>
+      </UAlert>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.iban" class="sm:col-span-2">
         <UInput v-model="iban" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-iban" />
       </UFormField>
@@ -186,8 +231,9 @@ async function remove(): Promise<void> {
       <UButton
         type="submit"
         form="spending-account"
-        :label="account === null ? words.dialog.add : words.dialog.save"
-        :icon="account === null ? 'i-lucide-plus' : 'i-lucide-save'"
+        :label="account === null ? words.dialog.add : cutover !== null ? words.dialog.cutover.save : words.dialog.save"
+        :icon="account === null ? 'i-lucide-plus' : cutover !== null ? 'i-lucide-trash-2' : 'i-lucide-save'"
+        :color="cutover !== null ? 'error' : 'primary'"
         :loading="writes.saving('save')"
         :disabled="writes.busy.value"
         data-testid="spending-account-save"

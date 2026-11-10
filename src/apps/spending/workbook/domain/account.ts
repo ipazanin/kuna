@@ -31,3 +31,11 @@ export interface Account {
 
 /** What a new account holds unless a person sets it: open. */
 export const NEW_ACCOUNT_DEFAULTS: Pick<Account, 'closed'> = { closed: false }
+
+/**
+ * Whether the day is before the account's start day. Kuna keeps no row of an account from before it, so such a row or bank
+ * row on hold counts nowhere, and a write may not add one.
+ */
+export function beforeStartDay(account: Pick<Account, 'openedOn'>, day: CivilDate): boolean {
+  return day < account.openedOn
+}

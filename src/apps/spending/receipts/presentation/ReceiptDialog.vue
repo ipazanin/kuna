@@ -23,6 +23,7 @@ import { entryCategoryChoices } from '../../entries/presentation/categoryChoices
 import { rememberLastAccount, startingAccount } from '../../entries/infrastructure/lastAccount'
 import { words as entryWords } from '../../entries/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { beforeStartDay } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -153,7 +154,7 @@ const errors = computed(() => ({
       ? null
       : newAccount.value === null
         ? words.pickAccount
-        : issuedOn.value < newAccount.value.openedOn
+        : beforeStartDay(newAccount.value, issuedOn.value)
           ? entryWords.dialog.beforeOpened(newAccount.value.openedOn)
           : null,
   category: !pickable.value.has(category.value) ? words.pickCategory : null,

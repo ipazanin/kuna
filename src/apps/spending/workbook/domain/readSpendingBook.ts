@@ -1,3 +1,4 @@
+import { beforeStartDay } from './account'
 import type { Account } from './account'
 import { ibanKey } from './accountReading'
 import type { Budget } from './budget'
@@ -135,14 +136,22 @@ function readCategories(read: RecordsRead<Category>): Reading<Category> {
   return doubted(reading, read, (category) => (isFixedKind(category.kind) && fixedShared.has(category.kind) ? words.fixedShared(category.kind) : null))
 }
 
-function readTransactions(read: RecordsRead<Transaction>, accounts: ReadonlySet<string>, categories: ReadonlySet<string>): Reading<Transaction> {
+/** Why a row of an account is not on it: the account is not in the file, or the row is from before the account's start day. */
+function accountReason(accounts: ReadonlyMap<string, Account>, row: Pick<Transaction, 'account' | 'date'>): string | null {
+  const account = accounts.get(row.account)
+  if (account === undefined) return words.noAccount
+  return beforeStartDay(account, row.date) ? words.beforeStartDay(account.openedOn) : null
+}
+
+function readTransactions(read: RecordsRead<Transaction>, accounts: ReadonlyMap<string, Account>, categories: ReadonlySet<string>): Reading<Transaction> {
   const byId = new Map(read.records.map((stored) => [stored.id, stored.record]))
   const sharingKey = sharedKeys(
     read.records.filter((stored) => stored.record.importKey !== ''),
     (stored) => rowKey(stored.record),
   )
   const reading = readEach(read, ({ record: transaction }) => {
-    if (!accounts.has(transaction.account)) return [words.noAccount]
+    const onAccount = accountReason(accounts, transaction)
+    if (onAccount !== null) return [onAccount]
     if (transaction.importKey !== '' && sharingKey.has(rowKey(transaction))) return [words.importKeyShared(transaction.importKey)]
     if (transaction.category !== null && !categories.has(transaction.category)) return [words.noCategory]
     if (transaction.pair === null) return []
@@ -214,16 +223,17 @@ function readParts(read: RecordsRead<EntryPart>, transactions: readonly Transact
 }
 
 /**
- * Why a bank row on hold does not count: it carries no import key, it names an account that does not count, or an entry or
- * another held row of its account already has its import key. One whose look-alike is gone still counts, and To review says
- * so. The write of a held row reads the same.
+ * Why a bank row on hold does not count: it carries no import key, it names an account that does not count or is from before
+ * that account's start day, or an entry or another held row of its account already has its import key. One whose look-alike
+ * is gone still counts, and To review says so. The write of a held row reads the same.
  */
-function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlySet<string>, transactions: readonly Transaction[]): Reading<HeldBankRow> {
+function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, Account>, transactions: readonly Transaction[]): Reading<HeldBankRow> {
   const booked = new Set(transactions.filter((row) => row.importKey !== '').map(rowKey))
   const sharingKey = sharedKeys(read.records, (stored) => rowKey(stored.record))
   return readEach(read, ({ record: held }) => {
     if (held.importKey === '') return [words.heldRowNoKey]
-    if (!accounts.has(held.account)) return [words.noAccount]
+    const onAccount = accountReason(accounts, held)
+    if (onAccount !== null) return [onAccount]
     if (booked.has(rowKey(held))) return [words.heldRowBooked(held.importKey)]
     return sharingKey.has(rowKey(held)) ? [words.heldRowShared(held.importKey)] : []
   })
@@ -231,7 +241,7 @@ function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlySet<string>,
 
 /**
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
- * three fixed kinds is one category. An entry names an account and a category that count, and its other leg names it
+ * three fixed kinds is one category. An entry names an account that counts, on or after its start day, and a category that counts, and its other leg names it
  * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
  * same months. A rule names a category that counts. A receipt names an entry that counts, which no other receipt names, and no other receipt holds its JIR or ZKI. A part
  * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. The parts of an entry add up to its amount and count all or none. Two accounts with one IBAN and currency, and a second category of a fixed
@@ -242,12 +252,13 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const accounts = readAccounts(records.accounts)
   const categories = readCategories(records.categories)
   const categoryIds = new Set(categories.facts.map((category) => category.id))
-  const transactions = readTransactions(records.transactions, new Set(accounts.facts.map((account) => account.id)), categoryIds)
+  const accountsById = new Map(accounts.facts.map((account) => [account.id, account]))
+  const transactions = readTransactions(records.transactions, accountsById, categoryIds)
   const budgets = readBudgets(records.budgets, categories.facts)
   const rules = readRules(records.rules, categoryIds)
   const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)))
   const lines = readParts(records.lines, transactions.facts, receipts.facts, categoryIds)
-  const held = readHeld(records.held, new Set(accounts.facts.map((account) => account.id)), transactions.facts)
+  const held = readHeld(records.held, accountsById, transactions.facts)
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS)
   const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, lines, held, settings }
   return {

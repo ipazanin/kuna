@@ -1,3 +1,4 @@
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { parseMonthKey } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
@@ -38,6 +39,7 @@ export const en = {
   parentOfOtherKind: 'names a parent of another kind',
   amountIsZero: 'amount is zero',
   noAccount: 'names no account in the file',
+  beforeStartDay: (day: CivilDate) => `is from before its account's start day ${day}, so it counts nowhere`,
   noCategory: 'names no category in the file',
   pairOnSameAccount: 'names as its other leg a row on the same account',
   pairNotBack: 'names as its other leg a row that does not name it back',
@@ -88,6 +90,7 @@ export const hr: Translation<typeof en> = {
   parentOfOtherKind: 'navodi nadređenu kategoriju druge vrste',
   amountIsZero: 'amount je nula',
   noAccount: 'u datoteci nema računa koji navodi',
+  beforeStartDay: (day) => `je iz vremena prije početnog dana računa, ${dayLabel(day)}, pa se nigdje ne broji`,
   noCategory: 'u datoteci nema kategorije koju navodi',
   pairOnSameAccount: 'kao drugu stranu navodi stavku na istom računu',
   pairNotBack: 'kao drugu stranu navodi stavku koja ne navodi nju',

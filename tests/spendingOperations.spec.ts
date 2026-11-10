@@ -309,6 +309,40 @@ describe('categories and accounts', () => {
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)).toMatchObject({ kind: 'cash', bank: null, iban: '' })
   })
+
+  const moveStart = (desk: SpendingDesk, openedOn: string) => ({
+    op: 'change-account',
+    input: { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn, iban: null, closed: null },
+  })
+
+  it('moves the start day later as the dialog does: the card says what goes, the opening keeps the balance, and the other leg stays alone', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([moveStart(desk, '2026-10-29')])
+    const notes = desk.cards[0]!.groups.flatMap((group) => group.notes)
+    expect(notes).toEqual([
+      {
+        label: 'Current',
+        text: "Moving the opening balance day to 29 Oct 2026 deletes what came before it: 6 entries and 1 receipt. The other leg of 1 transfer stays on Savings as a lone row under Between my accounts. The opening balance becomes €573.70, so today's balance stays. You can change it.",
+        tone: 'warning',
+      },
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    const book = bookOf(desk)
+    expect(book.accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)).toMatchObject({ openedOn: '2026-10-29', opening: accountMoneyFromAmount(573.7) })
+    expect(book.transactions.filter((row) => row.account === DESK_ACCOUNTS.CURRENT.id).map((row) => row.id)).toEqual([EXAMPLE_RECORDS['transaction-split']])
+    expect(book.receipts).toEqual([])
+    expect(rowOf(desk, EXAMPLE_RECORDS['transaction-paired']!.replace('paired-out', 'paired-in'))).toMatchObject({ pair: null, category: categoryNamed(desk, 'Between my accounts').id })
+    expect(book.problems).toEqual([])
+  })
+
+  it('says the bank reaches back only about 90 days when the start day moves earlier, and deletes nothing', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([moveStart(desk, '2025-06-01')])
+    expect(desk.cards[0]!.groups.flatMap((group) => group.notes)).toEqual([
+      { label: 'Current', text: 'The bank sync brings only about the last 90 days, so older rows come from a statement file.', tone: 'neutral' },
+    ])
+    expect(desk.cards[0]!.groups.map((group) => group.verb)).toEqual(['change'])
+  })
 })
 
 describe('an entry split by hand', () => {
