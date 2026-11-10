@@ -190,6 +190,9 @@ const HALVES = sourcesUnder(SOURCE, (path) => path.endsWith('/words.ts')).map((s
 /** The rule titles Croatian screens show, which sit beside the rules rather than in a words file. */
 const CROATIAN_RULE_TITLES = stringLiterals(readFileSync(join(SOURCE, 'apps/company/packs/hr-doo/ruleset/presentation/ruleTitles.ts'), 'utf8'))
 
+/** The names Spending's starter categories take in Croatian, which sit beside the categories rather than in a words file. */
+const CROATIAN_STARTER_CATEGORIES = starterCategories('hr').map((category) => category.name)
+
 /** A Croatian text without what it names as the file stores it: a quoted key, a field after polje or a placeholder. */
 function namedAsStored(text) {
   return text
@@ -199,7 +202,7 @@ function namedAsStored(text) {
 }
 
 const CROATIAN_WORDS = new Set(
-  [...HALVES.flatMap((half) => half.croatian), ...CROATIAN_RULE_TITLES]
+  [...HALVES.flatMap((half) => half.croatian), ...CROATIAN_RULE_TITLES, ...CROATIAN_STARTER_CATEGORIES]
     .map(namedAsStored)
     .flatMap(wordsAsWritten)
     .filter((word) => word !== word.toLowerCase() || !FILE_FIELDS.has(word) || CROATIAN_HOMOGRAPHS.has(word))
