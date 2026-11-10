@@ -4,6 +4,7 @@ import { plural } from '../../../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../../../shared/text/translation'
 import { uncapitalised } from '../../../../../../shared/text/capitalised'
 import { monthCase } from '../../../../../../shared/calendar/monthCase'
+import { en as domainEn, hr as domainHr } from '../../domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // Corporate income tax is porez na dobit, its monthly advance predujam poreza na dobit and its balance due razlika za uplatu. A Croatian year ends in its own full stop.
@@ -31,7 +32,7 @@ export const en = {
     subtitle:
       "Each year's balance due and monthly advances from the first tax period on, filled by the bank rows oldest due date first, since the annual payment and the advances share one payment code. A year whose return is not on the year-end tab sets its advances from our own estimate.",
     seenOn: (day: string) => `Seen on ${day}, the newest booking.`,
-    unregistered: ' is blank, so the tax periods and the schedule of advances are not known.',
+    unregistered: `The “${domainEn.settingNames.registered}” setting is blank, so the tax periods and the schedule of advances are not known.`,
     setOnSettings: 'Set it on Settings',
     overdueBefore: (count: number): EnglishForms => ({ one: `${count} payment is overdue, `, other: `${count} payments are overdue, ` }),
     overdueAfter: ' still owed.',
@@ -116,8 +117,8 @@ export const hr: Translation<typeof en> = {
     subtitle:
       'Razlika za uplatu i mjesečni predujmovi svake godine od prvog poreznog razdoblja, koje bankovne stavke popunjavaju od najstarijeg dospijeća, jer godišnja uplata i predujmovi dijele isti poziv na broj. Godina čija prijava nije na listu „year-end” predujmove određuje iz naše procjene.',
     seenOn: (day) => `Gledano na dan ${day}, dan najnovije stavke.`,
-    unregistered: ' je prazno, pa porezna razdoblja i raspored predujmova nisu poznati.',
-    setOnSettings: 'Postavite ga u Postavkama',
+    unregistered: `Postavka „${domainHr.settingNames.registered}” prazna je, pa porezna razdoblja i raspored predujmova nisu poznati.`,
+    setOnSettings: 'Postavite je u Postavkama',
     overdueBefore: (count) => ({ one: `${count} uplata kasni, a još se duguje `, few: `${count} uplate kasne, a još se duguje `, other: `${count} uplata kasni, a još se duguje ` }),
     overdueAfter: '.',
     unmatched: 'Uplate koje ne pokrivaju nijednu obvezu i povrati:',

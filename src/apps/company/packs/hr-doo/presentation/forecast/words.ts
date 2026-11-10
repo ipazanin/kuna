@@ -3,6 +3,7 @@ import { monthLabel, monthName, shortMonthName } from '../../../../../../shared/
 import { withFullStop } from '../../../../../../shared/text/withFullStop'
 import { language } from '../../../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../../../shared/text/translation'
+import { en as domainEn, hr as domainHr } from '../../domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // Corporate income tax is porez na dobit, its advance predujam poreza na dobit, an interim dividend predujam dobiti and the share capital temeljni kapital.
@@ -91,7 +92,7 @@ export const en = {
   },
   panel: {
     unregisteredTitle: 'The forecast needs the day the company was registered',
-    unregisteredDescription: 'The tax periods, the advances and the balance due all count from it. Set hr_company_registered, such as 2025-05-12.',
+    unregisteredDescription: `The tax periods, the advances and the balance due all count from it. Fill in “${domainEn.settingNames.registered}” on Settings, such as 2025-05-12.`,
     setOnSettings: 'Set it on Settings',
     failedTitle: 'The year could not be forecast',
     openSettings: 'Open Settings',
@@ -339,7 +340,7 @@ export const hr: Translation<typeof en> = {
   },
   panel: {
     unregisteredTitle: 'Za prognozu treba dan registracije tvrtke',
-    unregisteredDescription: 'Od njega se računaju porezna razdoblja, predujmovi i razlika za uplatu. Postavite hr_company_registered, na primjer 2025-05-12.',
+    unregisteredDescription: `Od njega se računaju porezna razdoblja, predujmovi i razlika za uplatu. Upišite ga u postavku „${domainHr.settingNames.registered}”, na primjer 2025-05-12.`,
     setOnSettings: 'Postavite ga u Postavkama',
     failedTitle: 'Za godinu se nije mogla izraditi prognoza',
     openSettings: 'Otvori Postavke',

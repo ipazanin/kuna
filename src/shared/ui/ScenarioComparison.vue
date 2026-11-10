@@ -26,6 +26,8 @@ export interface ComparedLine {
   readonly label: string
   /** A note under the label, such as the date a figure is due. */
   readonly caption?: string | null
+  /** The heading over the run of lines that share it, such as "Taxes by type". Left out, the lines have no heading. */
+  readonly group?: string | null
   /** The line the others add up to, set apart with a stronger rule. */
   readonly total: boolean
   /** One cell per column, in the columns' order. */
@@ -34,9 +36,10 @@ export interface ComparedLine {
 </script>
 
 <script setup lang="ts">
-import UIcon from '@nuxt/ui/components/Icon.vue'
+import { computed } from 'vue'
 
 import { useMediaQuery } from '../layout/viewport'
+import ComparedFigure from './ComparedFigure.vue'
 import FigureTable from './FigureTable.vue'
 
 /**
@@ -45,7 +48,7 @@ import FigureTable from './FigureTable.vue'
  * column is a card of its own with its lines in the same order. With `openable`, a figure is a button
  * that opens how it is built.
  */
-withDefaults(
+const props = withDefaults(
   defineProps<{
     columns: readonly ComparedColumn[]
     lines: readonly ComparedLine[]
@@ -71,7 +74,18 @@ const emit = defineEmits<{
 defineSlots<{
   /** A column's name, in the table's header and at the top of its card on a narrow screen. */
   column?: (scope: { column: ComparedColumn }) => unknown
+  /** A figure in the table, which a screen may draw in its own way, such as with Ask the chat beside it. Left out, the figure is a button with `openable`. */
+  figure?: (scope: { line: ComparedLine; column: ComparedColumn; cell: ComparedCell; index: number; open: () => void; openLabel: string }) => unknown
 }>()
+
+/** The lines in runs that share a heading, in order. */
+const sections = computed(() =>
+  props.lines.reduce<{ readonly group: string | null; readonly lines: readonly ComparedLine[] }[]>((runs, line) => {
+    const group = line.group ?? null
+    const last = runs[runs.length - 1]
+    return last !== undefined && last.group === group ? [...runs.slice(0, -1), { group, lines: [...last.lines, line] }] : [...runs, { group, lines: [line] }]
+  }, []),
+)
 
 /** Below md a card is too narrow for a label and four figures with cents, so each column becomes a card. */
 const narrow = useMediaQuery('(max-width: 767px)')
@@ -90,31 +104,32 @@ function cellOf(line: ComparedLine, index: number): ComparedCell {
           <span v-if="column.isBase" class="type-caption font-normal">{{ baseNote }}</span>
         </h3>
         <dl class="mt-1 flex flex-col">
-          <div v-for="line in lines" :key="line.key" class="flex items-start justify-between gap-3 border-t py-2" :class="line.total ? 'border-accented' : 'border-default'" :data-line="line.key">
-            <dt class="min-w-0 text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'">
-              {{ line.label }}
-              <span v-if="line.caption && cellOf(line, index).captioned !== false" class="block type-caption">{{ line.caption }}</span>
-            </dt>
-            <dd class="shrink-0">
-              <component
-                :is="openable ? 'button' : 'span'"
-                :type="openable ? 'button' : undefined"
-                class="flex flex-col items-end text-sm"
-                :aria-label="openable ? openLabel(line.label, column.label) : undefined"
-                @click="openable && emit('open', line.key, column.key)"
-              >
-                <span class="inline-flex items-center gap-1" :class="cellOf(line, index).best || line.total ? 'font-medium text-highlighted' : 'text-toned'">
-                  <UIcon v-if="cellOf(line, index).best" name="i-lucide-circle-check" class="size-3.5 text-success" aria-hidden="true" />
-                  <span v-if="cellOf(line, index).best" class="sr-only">{{ bestNote }}</span>
-                  <UIcon v-if="cellOf(line, index).warning" name="i-lucide-triangle-alert" class="size-3.5 text-warning" aria-hidden="true" />
-                  <span class="figure">{{ cellOf(line, index).text }}</span>
-                </span>
-                <span v-if="cellOf(line, index).second" class="figure type-caption">{{ cellOf(line, index).second }}</span>
-                <span v-if="cellOf(line, index).difference !== null" class="figure type-caption">{{ cellOf(line, index).difference }}</span>
-                <span v-if="cellOf(line, index).warning" class="type-caption">{{ cellOf(line, index).warning }}</span>
-              </component>
-            </dd>
-          </div>
+          <template v-for="(section, at) in sections" :key="at">
+            <div v-if="section.group" class="group-row -mx-3 px-3 py-1.5 text-xs">{{ section.group }}</div>
+            <div
+              v-for="line in section.lines"
+              :key="line.key"
+              class="flex items-start justify-between gap-3 border-t py-2"
+              :class="line.total ? 'border-accented' : 'border-default'"
+              :data-line="line.key"
+            >
+              <dt class="min-w-0 text-sm" :class="line.total ? 'font-medium text-highlighted' : 'text-toned'">
+                {{ line.label }}
+                <span v-if="line.caption && cellOf(line, index).captioned !== false" class="block type-caption">{{ line.caption }}</span>
+              </dt>
+              <dd class="shrink-0">
+                <component
+                  :is="openable ? 'button' : 'span'"
+                  :type="openable ? 'button' : undefined"
+                  class="text-sm"
+                  :aria-label="openable ? openLabel(line.label, column.label) : undefined"
+                  @click="openable && emit('open', line.key, column.key)"
+                >
+                  <ComparedFigure :cell="cellOf(line, index)" :total="line.total" :best-note="bestNote" />
+                </component>
+              </dd>
+            </div>
+          </template>
         </dl>
       </section>
     </div>
@@ -132,30 +147,35 @@ function cellOf(line: ComparedLine, index: number): ComparedCell {
           </th>
         </tr>
       </thead>
-      <tbody>
-        <tr v-for="line in lines" :key="line.key" :class="{ 'total-row': line.total }" :data-line="line.key">
+      <tbody v-for="(section, at) in sections" :key="at">
+        <tr v-if="section.group" class="group-row">
+          <th :colspan="columns.length + 1" scope="colgroup" class="text-start">{{ section.group }}</th>
+        </tr>
+        <tr v-for="line in section.lines" :key="line.key" :class="{ 'total-row': line.total }" :data-line="line.key">
           <th scope="row" class="cell-wraps text-start align-top" :class="line.total ? 'font-medium text-highlighted' : 'font-normal text-toned'">
             {{ line.label }}
             <span v-if="line.caption" class="block type-caption">{{ line.caption }}</span>
           </th>
           <td v-for="(column, index) in columns" :key="column.key" class="text-end align-top">
-            <component
-              :is="openable ? 'button' : 'span'"
-              :type="openable ? 'button' : undefined"
-              class="inline-flex flex-col items-end"
-              :aria-label="openable ? openLabel(line.label, column.label) : undefined"
-              @click="openable && emit('open', line.key, column.key)"
+            <slot
+              name="figure"
+              :line="line"
+              :column="column"
+              :cell="cellOf(line, index)"
+              :index="index"
+              :open="() => emit('open', line.key, column.key)"
+              :open-label="openLabel(line.label, column.label)"
             >
-              <span class="inline-flex items-center gap-1" :class="cellOf(line, index).best || line.total ? 'font-medium text-highlighted' : 'text-toned'">
-                <UIcon v-if="cellOf(line, index).best" name="i-lucide-circle-check" class="size-3.5 text-success" aria-hidden="true" />
-                <span v-if="cellOf(line, index).best" class="sr-only">{{ bestNote }}</span>
-                <UIcon v-if="cellOf(line, index).warning" name="i-lucide-triangle-alert" class="size-3.5 text-warning" aria-hidden="true" />
-                <span class="figure">{{ cellOf(line, index).text }}</span>
-              </span>
-              <span v-if="cellOf(line, index).second" class="figure type-caption">{{ cellOf(line, index).second }}</span>
-              <span v-if="cellOf(line, index).difference !== null" class="figure type-caption">{{ cellOf(line, index).difference }}</span>
-              <span v-if="cellOf(line, index).warning" class="type-caption">{{ cellOf(line, index).warning }}</span>
-            </component>
+              <component
+                :is="openable ? 'button' : 'span'"
+                :type="openable ? 'button' : undefined"
+                class="inline-flex"
+                :aria-label="openable ? openLabel(line.label, column.label) : undefined"
+                @click="openable && emit('open', line.key, column.key)"
+              >
+                <ComparedFigure :cell="cellOf(line, index)" :total="line.total" :best-note="bestNote" />
+              </component>
+            </slot>
           </td>
         </tr>
       </tbody>

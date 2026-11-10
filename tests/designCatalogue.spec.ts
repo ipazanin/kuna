@@ -10,7 +10,7 @@ const specimens = globSync(['src/shell/gallery/**/*.vue', 'src/apps/*/gallery/**
 const components = globSync('src/shared/ui/*.vue', { cwd: root }).map((file) => basename(file, '.vue'))
 
 /** A component the gallery shows only inside the component that draws it. */
-const SHOWN_THROUGH: Readonly<Record<string, string>> = { ChartCanvas: 'ChartCard' }
+const SHOWN_THROUGH: Readonly<Record<string, string>> = { ChartCanvas: 'ChartCard', ComparedFigure: 'ScenarioComparison' }
 
 /** The areas whose files a catalogue row counts, by the column that holds the count. A gallery specimen is not a use. */
 const AREAS: Readonly<Record<string, string>> = {
@@ -83,6 +83,12 @@ describe('design catalogue', () => {
 
   it.each(rows.map((row) => [row.name, row] as const))('counts the files that use %s', (name, row) => {
     expect(usesOf(name)).toEqual(row.usedBy)
+  })
+
+  it('keeps a component in one place, so no app draws its own copy of a shared one', () => {
+    const appCopies = globSync(['src/apps/**/*.vue', 'src/shell/**/*.vue'], { cwd: root }).filter((file) => components.includes(basename(file, '.vue')) && !file.includes('/gallery/'))
+
+    expect(appCopies).toEqual([])
   })
 
   it('lists only components that exist', () => {

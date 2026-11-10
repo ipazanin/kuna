@@ -3,6 +3,7 @@ import { ref } from 'vue'
 
 import { formatMoney } from '../../shared/money/moneyFormat'
 import AppCard from '../../shared/ui/AppCard.vue'
+import ComparedFigure from '../../shared/ui/ComparedFigure.vue'
 import ScenarioComparison from '../../shared/ui/ScenarioComparison.vue'
 import type { ComparedColumn, ComparedLine } from '../../shared/ui/ScenarioComparison.vue'
 import ScenarioPicker from '../../shared/ui/ScenarioPicker.vue'
@@ -130,6 +131,26 @@ const OWED_SOONER = [108, 96, 84, 72, 60, 47, 34, 21, 8, 0]
         @open="(line: string, column: string) => (opened = `${line} of ${column}`)"
       />
       <p class="type-caption" aria-live="polite">{{ opened === null ? 'Each figure is a button here.' : `Opened ${opened}.` }}</p>
+    </AppCard>
+    <AppCard as="div" class="gap-2 p-4 sm:p-5">
+      <ScenarioComparison
+        :columns="COLUMNS.slice(0, 2)"
+        :lines="LINES.slice(0, 3).map((line, at) => ({ ...line, group: at === 0 ? 'Paid in' : 'Paid out', cells: line.cells.slice(0, 2) }))"
+        label="Two scenarios with headings over their lines and a figure drawn its own way"
+        base-note="The base"
+        best-note="the best"
+        line-heading="Line"
+      >
+        <template #figure="{ cell: figure, line }">
+          <span class="inline-flex items-center gap-2">
+            <ComparedFigure :cell="figure" :total="line.total" best-note="the best" />
+            <span class="type-caption">beside</span>
+          </span>
+        </template>
+      </ScenarioComparison>
+      <p class="type-caption">
+        A line's group is a heading over the lines that share it, in the table and on each card. The figure slot draws a table figure its own way, such as with Ask the chat beside it.
+      </p>
     </AppCard>
     <div class="flex flex-col gap-2 type-caption">
       <SparkLine :points="OWED_SOONER" :against="OWED" colour="var(--scenario-3)" against-colour="var(--scenario-1)" fill :height="56" />

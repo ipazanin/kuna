@@ -18,6 +18,8 @@ function openCards(cards) {
 
 /** The width from which a side-by-side table holds an amount and its ask on one line, the `@4xl` container query on the table. */
 const ROOMY_TABLE = 56 * 16
+/** Below this width the comparison is a card for each scenario and has no table. */
+const NARROW_TABLE = 768
 
 /**
  * Where each page shows a build-up amount with its ask: the element that takes the highlight, the shape it takes, and for
@@ -39,7 +41,7 @@ export const FIGURE_ASKS = {
   pay: {
     figures: [
       { at: '[data-testid="marginal-euro"] [data-figure-ask]', shape: 'row' },
-      { at: '[data-testid="scenario-comparison"] [data-line="net-salary"] [data-figure-ask]', shape: 'row', roomIn: '[data-testid="comparison-table"]' },
+      { at: '[data-testid="scenario-comparison"] [data-line="net-salary"] [data-figure-ask]', shape: 'row', roomIn: '[data-testid="scenario-comparison"] table' },
     ],
     before: openCards(['year.comparison', 'year.marginal']),
   },
@@ -51,7 +53,7 @@ export const FIGURE_ASKS = {
 
 /**
  * A page's build-up amounts with a made-up key kept: each has Ask the chat beside it, which opens the chat with the figure
- * as its tag. A cell of the side-by-side table has it only while the table has room for both on one line. Beside a docked
+ * as its tag. A cell of the side-by-side table has it only while the table has room for both on one line, and the cards drawn below 768 px have none. Beside a docked
  * chat the row takes the highlight, and removing the tag takes it off.
  */
 export function figureAskFlowIn(language, screen) {
@@ -64,6 +66,7 @@ export function figureAskFlowIn(language, screen) {
       await keepAiKey(page)
       await before?.(page, press)
       for (const { at, roomIn } of figures) {
+        if (roomIn !== undefined && (await page.evaluate(() => window.innerWidth)) < NARROW_TABLE) continue
         await page.waitForSelector(at, { timeout: 10_000 }).catch(() => {
           throw new Error(`no build-up amount at ${at}`)
         })

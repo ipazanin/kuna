@@ -1648,17 +1648,17 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
   if (!(await page.evaluate(() => window.location.hash)).includes('year=2026')) throw new Error('the profit of 2026 did not open Year on 2026')
 }
 
-/** Owner, Taken in the fake file on Drive, which has no hr_company_registered: the tile reads – and its link opens the setting. */
+/** Owner, Taken in the fake file on Drive, which has no registration day: the tile reads – and its link opens the setting. */
 export function ownerNetUnregisteredFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const note = '[data-testid="owner-net-unregistered"]'
     await page.waitForSelector(note, { visible: true, timeout: 10_000 }).catch(() => {
-      throw new Error('the tile does not say the profit needs hr_company_registered')
+      throw new Error('the tile does not say the profit needs the registration day')
     })
     const value = await page.$eval('[data-testid="owner-net-with-profit"] .text-figure-lg', (element) => element.textContent?.trim() ?? '')
-    if (value !== '–') throw new Error(`the tile reads "${value}" without hr_company_registered, not –`)
+    if (value !== '–') throw new Error(`the tile reads "${value}" without the registration day, not –`)
     await inspect?.('owner net unregistered')
     await shoot('owner-net-unregistered')
     await pressSelector(page, press, `${note} a`)

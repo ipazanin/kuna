@@ -1,3 +1,4 @@
+import { en } from '../words'
 import { displayName } from '../../../../workbook/domain/displayName'
 import type { Grant } from '../grants/grants'
 import type { HrDooWorkbook } from '../hrDooPart'
@@ -44,7 +45,7 @@ export interface ScenarioCompany {
 export function scenarioCompany(workbook: HrDooWorkbook, year: number, asOf: CivilDate, rules: RuleSource = ruleValue): ScenarioCompany {
   const registered = workbook.companyFacts.companyRegistered
   if (registered === null) {
-    throw new RangeError('A pay scenario needs hr_company_registered, the day the first tax period starts.')
+    throw new RangeError(`A pay scenario needs the “${en.settingNames.registered}” setting, the day the first tax period starts.`)
   }
   const covered = yearOf(asOf) + 1
   const takenFrom = year > covered ? covered : year

@@ -4,7 +4,7 @@ import type { Translation } from '../../../../../../shared/text/translation'
 import { monthCase } from '../../../../../../shared/calendar/monthCase'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// A line of the accountant's statements is pozicija, named as the GFI forms print it, and a row of the PD return redak. A field such as hr_owner_loan_interest stays as the settings tab stores it.
+// A line of the accountant's statements is pozicija, named as the GFI forms print it, and a row of the PD return redak.
 // A title that a day follows ends where the day is written.
 
 export const en = {
@@ -57,7 +57,7 @@ export const en = {
     inWriting: 'Each loan between the owner and the company in writing',
     inWritingSettles: 'A loan contract, or a record of each loan, signed by the owner as member and director.',
     enoughInterest: (carried: string, prescribed: string) => `Loans to the owner carry ${carried}, at least the ${prescribed} a year the income tax law sets`,
-    enoughInterestReopens: (prescribed: string) => `the loans carry less than ${prescribed} a year, as hr_owner_loan_interest says.`,
+    enoughInterestReopens: (prescribed: string) => `the loans carry less than ${prescribed} a year, as Company and owner facts on Settings say.`,
     benefit: (carried: string, prescribed: string) => `Benefit in kind on loans to the owner at ${carried}, below ${prescribed} a year`,
     benefitSettles: (prescribed: string) => `The accountant confirms the benefit was taxed through payroll as pay in kind, or the loans carry ${prescribed} a year.`,
     decision: (share: string, years: number) => `A members’ decision for purchases above ${share} of the share capital in the first ${years} years`,
@@ -125,7 +125,7 @@ export const hr: Translation<typeof en> = {
     inWriting: 'Svaka pozajmica između vlasnika i tvrtke u pisanom obliku',
     inWritingSettles: 'Ugovor o pozajmici ili zapis o svakoj pozajmici koji vlasnik potpiše kao član društva i direktor.',
     enoughInterest: (carried, prescribed) => `Pozajmice vlasniku nose ${carried}, barem ${prescribed} godišnje, koliko određuje Zakon o porezu na dohodak`,
-    enoughInterestReopens: (prescribed) => `pozajmice nose manje od ${prescribed} godišnje, kako navodi hr_owner_loan_interest.`,
+    enoughInterestReopens: (prescribed) => `pozajmice nose manje od ${prescribed} godišnje, kako navode Podaci o tvrtki i vlasniku u Postavkama.`,
     benefit: (carried, prescribed) => `Primitak u naravi na pozajmice vlasniku uz ${carried}, ispod ${prescribed} godišnje`,
     benefitSettles: (prescribed) => `Knjigovođa potvrđuje da je primitak oporezovan kroz plaću kao primitak u naravi, ili pozajmice nose ${prescribed} godišnje.`,
     decision: (share, years) =>

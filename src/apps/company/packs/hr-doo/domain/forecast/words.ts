@@ -10,6 +10,7 @@ import { labelWords, labelled, numberText } from '../../../../../../shared/stora
 import { textOf } from '../../../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../../../shared/storage/domain/storedFields'
 import { moneyInWords } from '../../../../workbook/domain/words'
+import { en as domainEn, hr as domainHr } from '../words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A field and an item keep their names as the plan tab stores them, such as owner_pay_scenario and month. A month on a figure's label is written in full after a comma.
@@ -55,7 +56,7 @@ export const en = {
     outsideProfit: (category: string) => `${category} is taken out of profit and loss, so the forecast does not count it.`,
     setByScenario: 'The owner pay scenario sets the owner pay of the year, so this row is not counted.',
   },
-  needsRegistered: 'The forecast needs hr_company_registered, the day the first tax period starts.',
+  needsRegistered: `The forecast needs the “${domainEn.settingNames.registered}” setting, the day the first tax period starts.`,
   /** The labels of the forecast's figures, which the build-ups name. */
   figures: {
     revenueByDelivery: 'Revenue by delivery period',
@@ -190,7 +191,7 @@ export const hr: Translation<typeof en> = {
     outsideProfit: (category) => `Kategorija „${category}” izuzeta je iz računa dobiti i gubitka, pa je prognoza ne broji.`,
     setByScenario: 'Scenarij isplata vlasniku određuje isplate vlasniku za godinu, pa se ovaj redak ne broji.',
   },
-  needsRegistered: 'Za prognozu treba hr_company_registered, dan kad počinje prvo porezno razdoblje.',
+  needsRegistered: `Za prognozu treba postavka „${domainHr.settingNames.registered}”, dan kad počinje prvo porezno razdoblje.`,
   figures: {
     revenueByDelivery: 'Prihod po razdoblju isporuke',
     deliveredIn: (month) => `Prihod isporučen, ${month}`,

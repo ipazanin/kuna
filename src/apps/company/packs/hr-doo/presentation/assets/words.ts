@@ -5,6 +5,7 @@ import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../../../shared/text/translation'
 import { monthCase } from '../../../../../../shared/calendar/monthCase'
+import { en as domainEn, hr as domainHr } from '../../domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // Long-term assets are dugotrajna imovina and one asset sredstvo, depreciation amortizacija, small inventory sitni inventar and a grant potpora.
@@ -58,7 +59,7 @@ export const en = {
     failed: 'The assets could not be depreciated',
     showDoubled: 'Show doubled rates',
     doubledChanges: 'Every figure on this tab at twice the group rate. Nothing is saved, and the workbook keeps its own setting.',
-    alreadyDoubled: 'Every asset already depreciates at the doubled rate, from its doubled column or hr_depreciation_doubled.',
+    alreadyDoubled: `Every asset already depreciates at the doubled rate, from its doubled column or the “${domainEn.settingNames.doubled}” setting.`,
     noDoubling: 'The depreciation rates in force do not allow doubling.',
     doublingAllowed: 'The profit tax act allows each depreciation rate to be doubled. Whether to do it is a choice to discuss with the accountant.',
     openRule: 'Open the rule',
@@ -225,7 +226,7 @@ export const hr: Translation<typeof en> = {
     failed: 'Sredstva se nisu mogla amortizirati',
     showDoubled: 'Prikaži udvostručene stope',
     doubledChanges: 'Svaka brojka na ovoj kartici po dvostrukoj stopi skupine. Ništa se ne sprema, a datoteka zadržava svoju postavku.',
-    alreadyDoubled: 'Svako se sredstvo već amortizira po udvostručenoj stopi, iz stupca doubled ili postavke hr_depreciation_doubled.',
+    alreadyDoubled: `Svako se sredstvo već amortizira po udvostručenoj stopi, iz stupca doubled ili postavke „${domainHr.settingNames.doubled}”.`,
     noDoubling: 'Važeće stope amortizacije ne dopuštaju udvostručenje.',
     doublingAllowed: 'Zakon o porezu na dobit dopušta udvostručenje svake stope amortizacije. Hoćete li to učiniti, izbor je za razgovor s knjigovođom.',
     openRule: 'Otvori odredbu',

@@ -390,7 +390,7 @@ describe('forecastYear without a registration day', () => {
     const workbook = steadyStudio()
     const unregistered = { ...workbook, companyFacts: { ...workbook.companyFacts, companyRegistered: null } }
 
-    expect(() => forecastYear(unregistered, 2026, civil('2026-10-19'))).toThrow('hr_company_registered')
+    expect(() => forecastYear(unregistered, 2026, civil('2026-10-19'))).toThrow('Company registered on')
   })
 })
 

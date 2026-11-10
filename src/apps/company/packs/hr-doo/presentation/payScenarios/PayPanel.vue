@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
 
 import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
@@ -14,9 +13,12 @@ import { shareFromPercent } from '../../../../../../shared/money/percent'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
+import ComparedFigure from '../../../../../../shared/ui/ComparedFigure.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
+import ScenarioComparison from '../../../../../../shared/ui/ScenarioComparison.vue'
+import ScenarioPicker from '../../../../../../shared/ui/ScenarioPicker.vue'
 import { useFilters } from '../../../../filters/application/filterStore'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
@@ -33,7 +35,6 @@ import type { AskableDetail } from '../tracedFigureView'
 import { comparedScenarios } from './payScenariosView'
 import type { PayState, ScenarioColumn } from './payScenariosView'
 import { scenarioBars } from './scenarioBars'
-import ScenarioComparison from './ScenarioComparison.vue'
 import ScenarioEditor from './ScenarioEditor.vue'
 import { plural } from '../../../../../../shared/text/translation'
 import { words } from './words'
@@ -103,6 +104,8 @@ function pickPayout(picked: PayoutOptionId): void {
   void router.replace({ query: { ...route.query, payout: picked === 'after-adoption' ? undefined : picked } })
 }
 
+const pickerOptions = computed(() => workedOut.value.map((scenario) => ({ value: scenario.slug, label: scenarioName(scenario) })))
+
 const shown = computed(() => (ready.value === null ? null : comparedScenarios(ready.value, chosen.value, base.value, link, staffPay.value)))
 const bars = computed(() => (shown.value === null ? null : scenarioBars(shown.value.splits, chartTokens(), phone.value)))
 
@@ -128,6 +131,15 @@ function badgeOf(column: ScenarioColumn): { readonly label: string; readonly war
   return notes === 0 ? null : { label: plural(words.panel.notes(notes), notes), warns: false }
 }
 
+function detailAt(lineKey: string, columnIndex: number): AskableDetail | null {
+  return shown.value?.lines.find((line) => line.key === lineKey)?.cells[columnIndex]?.detail ?? null
+}
+
+function openCell(lineKey: string, columnKey: string): void {
+  const detailOf = detailAt(lineKey, shown.value?.columns.findIndex((column) => column.key === columnKey) ?? -1)
+  if (detailOf !== null) openDetail(detailOf)
+}
+
 const startingOpen = ref(false)
 const detail = ref<AskableDetail | null>(null)
 const detailOpen = ref(false)
@@ -150,34 +162,30 @@ function openDetail(opened: AskableDetail): void {
       data-testid="scenarios-needs-setting"
     />
     <EmptyState v-else-if="pay.state === 'failed'" icon="i-lucide-triangle-alert" :title="words.panel.failed" :description="pay.failure" tone="error" />
-    <div v-else-if="ready" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between" data-testid="scenario-picker">
-      <div v-if="workedOut.length > 1" class="flex flex-wrap gap-1.5" role="group" :aria-label="words.panel.toCompare(MOST_COMPARED)">
-        <UButton
-          v-for="scenario in workedOut"
-          :key="scenario.slug"
-          :label="scenarioName(scenario)"
-          size="sm"
-          color="neutral"
-          :variant="chosen.includes(scenario.slug) ? 'solid' : 'outline'"
-          :aria-pressed="chosen.includes(scenario.slug)"
-          :disabled="!chosen.includes(scenario.slug) && chosen.length >= MOST_COMPARED"
-          @click="toggle(scenario.slug)"
-        />
-      </div>
-      <div class="flex flex-wrap items-center gap-2 sm:ms-auto">
-        <label v-if="shown && chosen.length > 1" class="flex items-center gap-2 text-sm text-toned">
-          <span class="shrink-0">{{ words.panel.compareAgainst }}</span>
-          <USelect
-            :model-value="base"
-            :items="shown.columns.map((column) => ({ label: column.label, value: column.slug }))"
-            size="sm"
-            class="min-w-48"
-            data-testid="scenario-base"
-            @update:model-value="pickBase(String($event))"
-          />
-        </label>
-        <UButton :label="words.panel.startFrom" icon="i-lucide-list-tree" color="neutral" variant="outline" size="sm" data-testid="open-starting-figures" @click="startingOpen = true" />
-      </div>
+    <div v-else-if="ready" class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+      <ScenarioPicker
+        v-if="workedOut.length > 1"
+        :options="pickerOptions"
+        :picked="chosen"
+        :base="base"
+        :most="MOST_COMPARED"
+        :label="words.panel.toCompare(MOST_COMPARED)"
+        :against-label="words.panel.compareAgainst"
+        :full-note="words.panel.pickedFull(MOST_COMPARED)"
+        class="min-w-0 flex-1"
+        @toggle="toggle"
+        @base="pickBase"
+      />
+      <UButton
+        :label="words.panel.startFrom"
+        icon="i-lucide-list-tree"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        class="self-start sm:ms-auto"
+        data-testid="open-starting-figures"
+        @click="startingOpen = true"
+      />
     </div>
 
     <DividendCard v-if="dividend" v-bind="dividend" :year="year" :chosen="payout" @choose="pickPayout" />
@@ -198,7 +206,7 @@ function openDetail(opened: AskableDetail): void {
           <template #legend><ChartLegend :entries="bars.legend" /></template>
           <template #footer>
             <ul class="flex flex-col border-t border-default px-4 py-2 sm:px-5" :aria-label="words.panel.warningsAndNotes" data-testid="scenario-warnings">
-              <li v-for="{ column, badge } in warningRows" :key="column.slug" class="warning-row" :data-scenario-warnings="column.slug">
+              <li v-for="{ column, badge } in warningRows" :key="column.key" class="warning-row" :data-scenario-warnings="column.key">
                 <span class="min-w-0 text-sm text-toned">{{ column.label }}</span>
                 <UPopover v-if="badge" :content="{ side: 'top', align: 'end', collisionPadding: 12 }">
                   <UButton
@@ -242,7 +250,28 @@ function openDetail(opened: AskableDetail): void {
           start-collapsed
         >
           <div class="px-4 pt-1 pb-4 sm:px-5">
-            <ScenarioComparison :columns="shown.columns" :lines="shown.lines" @open="openDetail" />
+            <ScenarioComparison
+              :columns="shown.columns"
+              :lines="shown.lines"
+              :label="words.comparison.label"
+              :base-note="words.comparison.base"
+              :best-note="words.comparison.best"
+              :line-heading="words.comparison.line"
+              :open-label="words.comparison.openCell"
+              openable
+              @open="openCell"
+            >
+              <template #figure="{ line, cell, index, open, openLabel }">
+                <FigureAsk v-slot="{ ask, askLabel, marked }" :detail="detailAt(line.key, index)">
+                  <div class="flex items-center justify-end" v-bind="marked">
+                    <button type="button" class="inline-flex" :aria-label="openLabel" @click="open">
+                      <ComparedFigure :cell="cell" :total="line.total" :best-note="words.comparison.best" />
+                    </button>
+                    <AskChatButton v-if="askLabel" :label="askLabel" icon-only class="hidden shrink-0 @4xl:inline-flex" @ask="ask" />
+                  </div>
+                </FigureAsk>
+              </template>
+            </ScenarioComparison>
           </div>
         </AppCard>
       </template>

@@ -10,7 +10,7 @@
  * doubled rates, a year's build-up and a payment on Year, Assets, a line's build-up and its rows on Year, Statements, the accountant's lines,
  * asset rows and grant rows on Year, a line's build-up on Year, Forecast, two payout options, the next year and the Plan tab from Year, Pay,
  * a pay scenario's figure, warnings and starting figures on Year, Pay, a paid corporate tax advance on Year, Taxes, a repayment on the Owner loan list, the
- * Taken tab as Owner's default with its net share and monthly net pay tiles, the monthly net with the profit included opening its build-up and Year from it, and reading – without hr_company_registered, Owner's Filters button on the tab row setting the period of both tabs, the owner take under the ring against its tile, a month of the loan balance beside the ring, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header, an advance added outside the period opened from its toast,
+ * Taken tab as Owner's default with its net share and monthly net pay tiles, the monthly net with the profit included opening its build-up and Year from it, and reading – without the registration day, Owner's Filters button on the tab row setting the period of both tabs, the owner take under the ring against its tile, a month of the loan balance beside the ring, the tax the benefits from company costs avoided against a dividend full screen, Compare pay mixes and the Add advance form from Owner's header, an advance added outside the period opened from its toast,
  * the cost of a reimbursement with no cost on file added from the To review tab,
  * Invoicing's next invoice tile opening its month on the Plan tab, the rest of the year filled from a preview with a description edited, a plan row edited and
  * deleted, and the first row added to an empty billing plan, the clients and the billing and invoice terms on the Clients tab, each with Undo where it has one, a category, with
@@ -1397,12 +1397,8 @@ async function checkWidth(width) {
     await delay(200)
     if ((await comparison.evaluate((element) => element.getAttribute('aria-expanded'))) === 'false') await comparison.tap()
     await page.waitForSelector('[data-testid="scenario-comparison"]')
-    const columns = () => page.$$eval('[data-testid="scenario-comparison"] thead th.figure-head', (heads) => heads.length)
-    await expect(columns(), (count) => count === 2, 'the phone comparison does not set the base beside one scenario')
-    const other = await page.waitForSelector('[data-testid="comparison-against"] button[aria-pressed="false"]')
-    const picked = await other.evaluate((element) => element.textContent.trim())
-    await other.tap()
-    await page.waitForFunction((wanted) => document.querySelectorAll('[data-testid="scenario-comparison"] thead th.figure-head')[1]?.textContent.includes(wanted), {}, picked)
+    const cards = await page.$$eval('[data-testid="scenario-comparison"] section[data-column]', (sections) => sections.length)
+    await expect(cards, (count) => count >= 2, 'the phone comparison does not draw one card for each scenario')
     await inspect(page, `${width}px pay scenarios`)
     await shoot('pay-scenarios')
     const figure = await page.waitForSelector('[data-line="net"] button')

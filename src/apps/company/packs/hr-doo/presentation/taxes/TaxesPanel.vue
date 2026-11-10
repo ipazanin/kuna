@@ -229,7 +229,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
       <div v-if="corporateTax.state === 'unregistered'" class="flex items-start gap-2 px-4 py-4 text-sm text-toned sm:px-5">
         <UIcon name="i-lucide-calendar-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
         <p>
-          <span class="identifier">hr_company_registered</span>{{ words.corporate.unregistered }}
+          {{ words.corporate.unregistered }}
           <DrillLink :to="{ path: '/company/settings', hash: '#company-registered' }" class="inline-target text-highlighted">{{ words.corporate.setOnSettings }}</DrillLink>
         </p>
       </div>

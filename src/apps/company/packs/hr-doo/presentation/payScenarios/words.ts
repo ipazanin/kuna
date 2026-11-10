@@ -6,6 +6,7 @@ import { language } from '../../../../../../shared/text/language'
 import { plural } from '../../../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../../../shared/text/translation'
 import { monthCase } from '../../../../../../shared/calendar/monthCase'
+import { en as domainEn, hr as domainHr } from '../../domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A pay mix is scenarij, the director floor najniža plaća direktora, a tax-free item neoporezivi primitak and pillar II II. mirovinski stup.
@@ -14,6 +15,7 @@ import { monthCase } from '../../../../../../shared/calendar/monthCase'
 
 export const en = {
   needs: {
+    registeredSetting: `the “${domainEn.settingNames.registered}” setting`,
     registered: 'The tax periods and the corporate tax count from the day the company was registered.',
     setOnSettings: 'Set it on Settings',
     director: 'a director on the employees tab',
@@ -121,9 +123,8 @@ export const en = {
   },
   comparison: {
     best: ', the best',
-    openCell: (line: string, scenario: string, best: string) => `${line}, ${scenario}${best}: open how it is built`,
-    besideTheBase: 'Scenario beside the base',
-    beside: 'Beside the base',
+    openCell: (line: string, scenario: string) => `${line}, ${scenario}: open how it is built`,
+    label: 'The scenarios side by side',
     line: 'Line',
     base: 'The base, others against it',
   },
@@ -136,6 +137,7 @@ export const en = {
     failed: 'The scenarios could not be worked out',
     toCompare: (most: number) => `Scenarios to compare, up to ${most}`,
     compareAgainst: 'Compare against',
+    pickedFull: (most: number) => `${most} are picked. Unpick one to pick another.`,
     startFrom: 'What the scenarios start from',
     startFromSubtitle: (takenFrom: number) => `What the scenarios start from, the ${takenFrom} forecast`,
     nextHundredOf: (hundred: Money, year: number) => `The next ${plainAmount(hundred)} of company money, ${year}`,
@@ -255,8 +257,9 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   needs: {
+    registeredSetting: `postavka „${domainHr.settingNames.registered}”`,
     registered: 'Porezna razdoblja i porez na dobit računaju se od dana registracije tvrtke.',
-    setOnSettings: 'Postavite ga u Postavkama',
+    setOnSettings: 'Postavite je u Postavkama',
     director: 'direktora na listu „employees”',
     directorWhy: 'Redak direktora čuva gdje živite, II. mirovinski stup i uzdržavane članove, prema kojima se izračunava plaća svakog scenarija.',
     addOnSalaries: 'Dodajte ga na zaslonu Plaće',
@@ -361,9 +364,8 @@ export const hr: Translation<typeof en> = {
   },
   comparison: {
     best: ', najbolje',
-    openCell: (line, scenario, best) => `${line}, ${scenario}${best}: otvori kako je izračunato`,
-    besideTheBase: 'Scenarij uz osnovni',
-    beside: 'Uz osnovni',
+    openCell: (line, scenario) => `${line}, ${scenario}: otvori kako je izračunato`,
+    label: 'Scenariji jedan uz drugi',
     line: 'Pozicija',
     base: 'Osnovni, ostali se uspoređuju s njim',
   },
@@ -376,6 +378,7 @@ export const hr: Translation<typeof en> = {
     failed: 'Scenariji se nisu mogli izračunati',
     toCompare: (most) => `Scenariji za usporedbu, najviše ${most}`,
     compareAgainst: 'Usporedi s',
+    pickedFull: (most) => `Odabrano ih je ${most}. Uklonite jedan da biste odabrali drugi.`,
     startFrom: 'Od čega scenariji polaze',
     startFromSubtitle: (takenFrom) => `Od čega scenariji polaze, prognoza za ${takenFrom}.`,
     nextHundredOf: (hundred, year) => `Sljedećih ${formatMoney(hundred)} novca tvrtke, ${year}.`,

@@ -1,6 +1,7 @@
 import { withFullStop } from '../../../../../../shared/text/withFullStop'
 import { language } from '../../../../../../shared/text/language'
 import type { Translation } from '../../../../../../shared/text/translation'
+import { en as domainEn, hr as domainHr } from '../../domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // The year-end close is zaključak godine, the accountant knjigovođa, and a rule of the ruleset odredba. A Croatian date and year end in their own full stop.
@@ -28,7 +29,7 @@ export const en = {
   noVatBefore: 'No category has a ',
   noVatAfter: ' treatment, so no input VAT leaves the costs.',
   setOnCategories: 'Set it on Settings, Categories',
-  unregistered: (year: number) => ` is blank, so ${year} counts as a full tax period and the advances paid in it are not known.`,
+  unregistered: (year: number) => `The “${domainEn.settingNames.registered}” setting is blank, so ${year} counts as a full tax period and the advances paid in it are not known.`,
   setOnSettings: 'Set it on Settings',
   notWorkedOut: 'The year could not be worked out',
 }
@@ -56,8 +57,8 @@ export const hr: Translation<typeof en> = {
   noVatBefore: 'Nijedna kategorija nema postavljen ',
   noVatAfter: ' tretman, pa se iz troškova ne izdvaja pretporez.',
   setOnCategories: 'Postavite ga u Postavkama, pod Kategorije',
-  unregistered: (year) => ` je prazno, pa se ${year}. broji kao cijelo porezno razdoblje, a predujmovi plaćeni u njoj nisu poznati.`,
-  setOnSettings: 'Postavite ga u Postavkama',
+  unregistered: (year) => `Postavka „${domainHr.settingNames.registered}” prazna je, pa se ${year}. broji kao cijelo porezno razdoblje, a predujmovi plaćeni u njoj nisu poznati.`,
+  setOnSettings: 'Postavite je u Postavkama',
   notWorkedOut: 'Godina se nije mogla izračunati',
 }
 

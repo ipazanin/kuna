@@ -11,6 +11,7 @@ import { croatianBucket } from '../../../settings/domain/words'
 import { uncapitalised } from '../../../../../shared/text/capitalised'
 import { monthCase } from '../../../../../shared/calendar/monthCase'
 import { hr as assetsCroatian } from './assets/words'
+import { en as domainEn, hr as domainHr } from '../domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // The accountant is knjigovođa, a loan to the owner pozajmica vlasniku.
@@ -32,17 +33,17 @@ export const en = {
     subtitle: "What the tax figures need to know beyond the law. They stay in this workbook. The owner's facts for the payroll are on the director's row on Salaries.",
     summary: (registered: CivilDate | null, loanInterest: Percent) =>
       `${registered === null ? 'The registration day is not set' : `Registered on ${dayLabel(registered)}`}. Loans to the owner carry ${percentText(loanInterest)}.`,
-    registered: 'Company registered on',
+    registered: domainEn.settingNames.registered,
     registeredHelp: 'Starts the first tax period.',
-    loanInterest: "Interest the owner's loans carry, % a year",
+    loanInterest: domainEn.settingNames.loanInterest,
     loanInterestHelp: "Below the income tax law's rate, the difference on each day's balance is a benefit in kind, which Year works out.",
-    citReturn: 'Corporate tax return',
+    citReturn: domainEn.settingNames.citReturn,
     pd: 'PD, on the accrual profit',
     pdNn: 'PD-NN, on cash received and paid',
-    vatPrinciple: 'VAT falls due',
+    vatPrinciple: domainEn.settingNames.vatPrinciple,
     onInvoice: 'On the invoice date',
     onPayment: 'When it is paid',
-    doubled: 'Depreciation rates are doubled',
+    doubled: domainEn.settingNames.doubled,
     doubledHelp: 'The default for assets. An asset row can still say otherwise.',
   },
   /** The switch of Settings, General that puts loans to the owner in owner pay or in financing. */
@@ -236,7 +237,7 @@ export const en = {
     noProfitMonth: 'No complete month of profit yet',
     payAndProfit: (pay: string, profit: string, sinceTheStart: boolean) => `${pay} pay and ${profit} from profit, a month${sinceTheStart ? ', since the ledger began' : ''}`,
     notWorkedOut: (reason: string) => `Could not be worked out. ${reason}`,
-    profitNeeds: 'The profit needs the “Company registered on” setting.',
+    profitNeeds: `The profit needs the “${domainEn.settingNames.registered}” setting.`,
     setOnSettings: 'Set it on Settings',
     profitFollowsPeriod: 'The profit follows the period only.',
     ring: {
@@ -389,7 +390,7 @@ export const en = {
     toTheOwner: 'to the owner',
     taxAvoided: 'Tax avoided against a dividend',
     wouldNet: 'As a dividend you would net',
-    dividendNeeds: 'The tax a dividend would cost needs the “Company registered on” setting, the day the first tax period starts.',
+    dividendNeeds: `The tax a dividend would cost needs the “${domainEn.settingNames.registered}” setting, the day the first tax period starts.`,
     setOnSettings: 'Set it on Settings',
     notWorkedOut: (reason: string) => `The tax a dividend would cost could not be worked out. ${reason}`,
   },
@@ -488,17 +489,17 @@ export const hr: Translation<typeof en> = {
     subtitle: 'Što porezni izračuni trebaju znati osim onoga što piše u zakonu. Ostaju u ovoj datoteci. Podaci o vlasniku za plaće nalaze se u retku direktora na zaslonu Plaće.',
     summary: (registered, loanInterest) =>
       `${withFullStop(registered === null ? 'Dan registracije nije postavljen' : `Registrirana ${dayLabel(registered)}`)} Pozajmice vlasniku nose ${percentText(loanInterest)}.`,
-    registered: 'Tvrtka registrirana',
+    registered: domainHr.settingNames.registered,
     registeredHelp: 'Počinje prvo porezno razdoblje.',
-    loanInterest: 'Kamata na pozajmice vlasniku, % godišnje',
+    loanInterest: domainHr.settingNames.loanInterest,
     loanInterestHelp: 'Ako je stopa niža od one iz Zakona o porezu na dohodak, razlika na dnevni saldo primitak je u naravi, koji izračunava zaslon Godina.',
-    citReturn: 'Prijava poreza na dobit',
+    citReturn: domainHr.settingNames.citReturn,
     pd: 'PD, prema načelu nastanka događaja',
     pdNn: 'PD-NN, prema novčanom načelu',
-    vatPrinciple: 'Obračun PDV-a',
+    vatPrinciple: domainHr.settingNames.vatPrinciple,
     onInvoice: 'Prema izdanim računima',
     onPayment: 'Prema naplaćenim naknadama',
-    doubled: 'Stope amortizacije su udvostručene',
+    doubled: domainHr.settingNames.doubled,
     doubledHelp: 'Zadano za sredstva. Redak sredstva i dalje može navesti drukčije.',
   },
   loanBucket: {
@@ -693,7 +694,7 @@ export const hr: Translation<typeof en> = {
     noProfitMonth: 'Još nema cijelog mjeseca dobiti',
     payAndProfit: (pay, profit, sinceTheStart) => `${pay} isplate i ${profit} iz dobiti, mjesečno${sinceTheStart ? ', od početka evidencije' : ''}`,
     notWorkedOut: (reason) => `Nije se moglo izračunati. ${reason}`,
-    profitNeeds: 'Dobit treba postavku „Tvrtka registrirana”.',
+    profitNeeds: `Dobit treba postavku „${domainHr.settingNames.registered}”.`,
     setOnSettings: 'Otvorite Postavke',
     profitFollowsPeriod: 'Dobit slijedi samo razdoblje.',
     ring: {
@@ -844,7 +845,7 @@ export const hr: Translation<typeof en> = {
     toTheOwner: 'vlasniku',
     taxAvoided: 'Ušteda na porezu u odnosu na dividendu',
     wouldNet: 'Kao dividenda neto biste dobili',
-    dividendNeeds: 'Za porez koji bi koštala dividenda treba postavka „Tvrtka registrirana”, dan kad počinje prvo porezno razdoblje.',
+    dividendNeeds: `Za porez koji bi koštala dividenda treba postavka „${domainHr.settingNames.registered}”, dan kad počinje prvo porezno razdoblje.`,
     setOnSettings: 'Otvorite Postavke',
     notWorkedOut: (reason) => `Porez koji bi koštala dividenda nije se mogao izračunati. ${reason}`,
   },

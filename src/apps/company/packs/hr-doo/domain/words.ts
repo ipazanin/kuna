@@ -14,6 +14,14 @@ import { dayInWords, moneyInWords } from '../../../workbook/domain/words'
 // A stored choice such as pd-nn, and TRUE and FALSE, stay as the settings tab writes them.
 
 export const en = {
+  /** What each company fact setting is called on its screen, which every sentence naming a setting uses. */
+  settingNames: {
+    registered: 'Company registered on',
+    loanInterest: "Interest the owner's loans carry, % a year",
+    citReturn: 'Corporate tax return',
+    vatPrinciple: 'VAT falls due',
+    doubled: 'Depreciation rates are doubled',
+  },
   /** The words that name a record of each kind, as its stored fields read. */
   labels: {
     scenarioRow: (fields: StoredFields) => labelWords([textOf(fields.scenario), textOf(fields.component), labelled('from', dayText(fields.from))]),
@@ -133,6 +141,13 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  settingNames: {
+    registered: 'Tvrtka registrirana',
+    loanInterest: 'Kamata na pozajmice vlasniku, % godišnje',
+    citReturn: 'Prijava poreza na dobit',
+    vatPrinciple: 'Obračun PDV-a',
+    doubled: 'Stope amortizacije su udvostručene',
+  },
   labels: {
     scenarioRow: (fields) => labelWords([textOf(fields.scenario), textOf(fields.component), labelled('od', dayInWords(fields.from))]),
     ownerAdvance: (fields) => labelWords([textOf(fields.description), moneyInWords(fields.amount), dayInWords(fields.date)]),
