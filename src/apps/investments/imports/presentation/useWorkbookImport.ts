@@ -2,7 +2,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 
 import { readPortfolioWorkbookFile } from '../application/portfolioWorkbookFile'
-import type { WorkbookRows } from '../domain/importDryRun'
+import type { LookAlikeAnswer, WorkbookRows } from '../domain/importDryRun'
 import { ratesWanted } from '../domain/workbookRates'
 import { NO_CHOICES, settledImport } from './importChoices'
 import type { ClosesOf, ImportChoices, SettledImport, SplitsAnswer } from './importChoices'
@@ -60,6 +60,8 @@ export interface WorkbookImport {
   /** Puts the file and every choice away, as a dialog opened again starts. */
   forget(): void
   choose<Part extends keyof ImportChoices>(part: Part, key: string, choice: ImportChoices[Part][string]): void
+  /** Null takes the answer back, so the row waits again. */
+  answerLookAlike(key: string, answer: LookAlikeAnswer | null): void
   markDeleting(record: RecordId, deleted: boolean): void
 }
 
@@ -243,6 +245,10 @@ export function useWorkbookImport(): WorkbookImport {
     forget,
     choose(part, key, choice) {
       choices.value = { ...choices.value, [part]: { ...choices.value[part], [key]: choice } }
+    },
+    answerLookAlike(key, answer) {
+      const { [key]: _taken, ...others } = choices.value.lookAlikes
+      choices.value = { ...choices.value, lookAlikes: answer === null ? others : { ...others, [key]: answer } }
     },
     markDeleting(record, deleted) {
       const next = new Set(deleting.value)

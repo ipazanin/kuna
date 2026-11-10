@@ -64,7 +64,11 @@ watch(open, (opened) => {
 const steps = computed((): ImportStep[] => {
   const run = settled.value
   if (run === null) return props.report ? ['dry-run'] : ['file', 'accounts', 'instruments', 'questions', 'dry-run']
-  const asks = run.splits.some((split) => split.listed === null) || run.spinOffs.some((spinOff) => !spinOff.answeredByRow) || (run.dryRun.report?.asked.length ?? 0) > 0
+  const asks =
+    run.splits.some((split) => split.listed === null) ||
+    run.spinOffs.some((spinOff) => !spinOff.answeredByRow) ||
+    (run.dryRun.report?.asked.length ?? 0) > 0 ||
+    run.dryRun.questions.lookAlikes.length > 0
   if (props.report) {
     return [
       ...(run.accounts.some(({ question }) => question.known === null) ? ['accounts' as const] : []),
@@ -98,7 +102,8 @@ const toDelete = computed(() => settled.value?.dryRun.gone.filter((gone) => work
 const leftOut = computed(() => Object.entries(workbookImport.choices.value.asked).flatMap(([key, choice]) => (choice === 'leave-out' ? [key] : [])))
 const writesSomething = computed(() => {
   const added = settled.value?.dryRun.added
-  return added !== undefined && (transactionCount(added) > 0 || added.accounts.length > 0 || added.instruments.length > 0 || toDelete.value.length > 0 || leftOut.value.length > 0)
+  const matched = settled.value?.dryRun.matched.length ?? 0
+  return added !== undefined && (transactionCount(added) > 0 || added.accounts.length > 0 || added.instruments.length > 0 || matched > 0 || toDelete.value.length > 0 || leftOut.value.length > 0)
 })
 
 async function importWorkbook(): Promise<void> {
@@ -110,7 +115,7 @@ async function importWorkbook(): Promise<void> {
   const written = await writes.write(
     report?.words.accepted ?? words.imported,
     (unit) => {
-      writeWorkbookImport(unit, run.dryRun.added, deleting)
+      writeWorkbookImport(unit, run.dryRun.added, run.dryRun.matched, deleting)
       if (report && leaving.length > 0) report.writeLeftOut(unit, leaving)
     },
     { failedTitle: report?.words.notAccepted ?? words.notImported },

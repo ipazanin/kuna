@@ -475,9 +475,19 @@ function fakeMailReader(today: CivilDate): MailReader {
 /**
  * `sample` is the whole made-up file, `cash-below-zero` leaves out the second account's deposit, so its euros fall below
  * zero, `young` is a file whose first deposit is seven months old, with no benchmark chosen, and `sale-2023` adds a sale
- * of 2023 whose tax carries a city surtax, with no city chosen yet. `mail` is the sample with IBKR's report by mail switched on.
+ * of 2023 whose tax carries a city surtax, with no city chosen yet. `mail` is the sample with IBKR's report by mail switched on,
+ * and `mail-typed` is that with the first mailed day's deposit and withdrawal typed by hand, so the report's rows look like them.
  */
-export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young' | 'mail' | 'sale-2023'
+export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young' | 'mail' | 'mail-typed' | 'sale-2023'
+
+/** The euro rows of the first day the fake mail's report gives, as typed by hand into the first account, with no import key. */
+function typedReportMovements(today: CivilDate): CashMovement[] {
+  const first = addDays(today, -4)
+  return [
+    { ...cash('deposit', BROKER_ONE, first, '1000.00'), id: fixedId(CASH_MOVEMENT_RECORDS, 905) },
+    { ...cash('withdrawal', BROKER_ONE, first, '200.00'), id: fixedId(CASH_MOVEMENT_RECORDS, 906) },
+  ]
+}
 
 /** The weekday on or before the day. */
 function weekdayBefore(date: CivilDate): CivilDate {
@@ -519,7 +529,8 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
     return { ...emptyInvestmentsDocument(savedAt), records: youngRecords(today) }
   }
   const allMovements = [...CASH_MOVEMENTS, ...LATER_CASH_MOVEMENTS]
-  const movements = variant !== 'cash-below-zero' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
+  const kept = variant !== 'cash-below-zero' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
+  const movements = variant === 'mail-typed' ? [...kept, ...typedReportMovements(today)] : kept
   return {
     ...emptyInvestmentsDocument(savedAt),
     records: {
@@ -536,7 +547,7 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
       ...stored(FUND_MIX_RECORDS, FUND_MIXES),
       ...stored(TARGET_RECORDS, TARGETS),
       ...stored(CHECK_RECORDS, CHECKS),
-      ...(variant === 'mail' ? stored(MAIL_READER_RECORDS, [fakeMailReader(today)]) : {}),
+      ...(variant === 'mail' || variant === 'mail-typed' ? stored(MAIL_READER_RECORDS, [fakeMailReader(today)]) : {}),
     },
   }
 }

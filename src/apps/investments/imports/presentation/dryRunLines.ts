@@ -89,7 +89,7 @@ export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates
   }
   const { edited, removed } = goneFromWorkbook(dryRun)
   // A row already in Kuna was rounded the same way when it was imported, so its cells are not worth a look again.
-  const keptRows = new Set(dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'in-kuna' ? entry.rows.map((row) => row.fileRow) : [])))
+  const keptRows = new Set(dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'in-kuna' || entry.outcome.kind === 'same-record' ? entry.rows.map((row) => row.fileRow) : [])))
   const currencyOfRow = new Map(dryRun.entries.flatMap((entry) => entry.rows.flatMap((row) => (row.currency === null ? [] : [[row.fileRow, row.currency] as const]))))
   const rowsOfRecord = new Map(dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'new' ? [[entry.outcome.imported.record.id, entry.rows] as const] : [])))
   return {
@@ -100,7 +100,10 @@ export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates
       const note = reason.kind === 'looks-in-kuna' ? words.dryRun.looksLike(likeParts(reason.like, keptOf).join(', ')) : waitText(reason)
       return [rowLine(key, rows[0], rowsLabelOf(rows), accountName, note)]
     }),
-    inKuna: dryRun.entries.flatMap(({ key, rows, outcome }) => (outcome.kind === 'in-kuna' ? [rowLine(key, rows[0], rowsLabelOf(rows), accountName, '')] : [])),
+    inKuna: dryRun.entries.flatMap(({ key, rows, outcome }) => {
+      if (outcome.kind === 'same-record') return [rowLine(key, rows[0], rowsLabelOf(rows), accountName, words.dryRun.sameRecord(likeParts(outcome.kept, keptOf).join(', ')))]
+      return outcome.kind === 'in-kuna' ? [rowLine(key, rows[0], rowsLabelOf(rows), accountName, '')] : []
+    }),
     asked: (dryRun.report?.asked ?? []).map(askedLine),
     skipped: dryRun.skipped.map((row) => ({
       key: `skipped-${row.fileRow}`,
@@ -138,7 +141,7 @@ export function dryRunGroups(dryRun: WorkbookDryRun, book: InvestmentBook, rates
 }
 
 /** What Import would do, in a sentence or two. */
-export function dryRunSummary(added: InvestmentBook, records: number, deleting: number): string {
+export function dryRunSummary(added: InvestmentBook, records: number, matching: number, deleting: number): string {
   const parts = [
     added.accounts.length > 0 ? plural(words.dryRun.addsAccounts(added.accounts.length), added.accounts.length) : '',
     added.instruments.length > 0 ? plural(words.dryRun.addsHoldings(added.instruments.length), added.instruments.length) : '',
@@ -152,7 +155,7 @@ export function dryRunSummary(added: InvestmentBook, records: number, deleting: 
             plural(words.dryRun.adds(records), records),
             parts.reduce((joined, part) => words.dryRun.and(joined, part)),
           )
-  return deleting === 0 ? adds : `${adds} ${plural(words.dryRun.deletes(deleting), deleting)}`
+  return [adds, ...(matching === 0 ? [] : [plural(words.dryRun.matches(matching), matching)]), ...(deleting === 0 ? [] : [plural(words.dryRun.deletes(deleting), deleting)])].join(' ')
 }
 
 function listedById(book: InvestmentBook, rates: RateBook): Map<RecordId, ListedTransaction> {
@@ -189,20 +192,34 @@ function askedText(why: AskedWhy): string {
   }
 }
 
-/** A waiting row beside the record Kuna has from another file that it looks like, each as its parts. */
+/** A row beside the record Kuna has that it looks like, each as its parts. */
 export interface LookAlike {
+  /** The key of the row's entry, which the person's answer goes by. */
+  readonly key: string
+  readonly like: RecordId
   readonly fileRow: number
   readonly row: readonly string[]
   readonly record: readonly string[]
+  /** The row as the dry run draws it, with the record under it. */
+  readonly line: ImportLine
 }
 
-/** The waiting rows that look like a record Kuna has, in the workbook's order. */
+/** The rows that look like a record Kuna has, answered or not, in the file's order. */
 export function lookAlikesOf(dryRun: WorkbookDryRun, book: InvestmentBook, rates: RateBook, accountName: (row: WorkbookRow) => string): LookAlike[] {
   const keptOf = listedById(book, rates)
-  return dryRun.entries.flatMap(({ rows, outcome }) => {
-    if (outcome.kind !== 'waiting' || outcome.reason.kind !== 'looks-in-kuna') return []
+  // A report's rows are numbered across its files, so its line names only the file, as the dry run's lines do.
+  const rowsLabelOf = (rows: readonly WorkbookRow[]): string => (dryRun.report === null ? rowsLabel(rows) : '')
+  return dryRun.questions.lookAlikes.map(({ key, rows, like }) => {
     const row = rows[0]!
-    return [{ fileRow: row.fileRow, row: [capitalised(words.dryRun.row(row.fileRow)), ...rowParts(row, accountName)], record: likeParts(outcome.reason.like, keptOf) }]
+    const record = likeParts(like, keptOf)
+    return {
+      key,
+      like: like.record.id,
+      fileRow: row.fileRow,
+      row: [capitalised(words.dryRun.row(row.fileRow)), ...rowParts(row, accountName)],
+      record,
+      line: rowLine(key, row, rowsLabelOf(rows), accountName, words.questions.lookAlikeKept(record.join(', '))),
+    }
   })
 }
 
@@ -211,7 +228,8 @@ function likeParts(record: ImportedRecord, listed: ReadonlyMap<RecordId, ListedT
   const entry = listed.get(record.record.id)
   if (entry === undefined) return []
   const line = transactionLine(entry)
-  return [line.kind, line.subject, line.euros === null ? '' : formatMoney(line.euros), line.moved, dayLabel(entry.record.date), line.account].filter((part) => part !== '')
+  const subject = line.subject === line.account ? '' : line.subject
+  return [line.kind, subject, line.euros === null ? '' : formatMoney(line.euros), line.moved, dayLabel(entry.record.date), line.account].filter((part) => part !== '')
 }
 
 function rowParts(row: WorkbookRow, accountName: (row: WorkbookRow) => string): string[] {

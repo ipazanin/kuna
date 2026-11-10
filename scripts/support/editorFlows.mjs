@@ -8100,10 +8100,34 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
     await shoot(`investments-mail-review-${variant}`)
     await pressSelector(page, press, '[data-testid="mail-report-open"]')
     await importStep(page, 'accounts')
-    await chooseStartingWith(page, press, '[data-testid="import-account-choice"]', 'Broker One')
+    if (variant === 'typed') {
+      // Two of the report's rows are typed by hand into Broker One, so Kuna suggests it.
+      await page.waitForSelector('[data-testid="import-account-likely"]', { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('the accounts step does not say which account the rows look like')
+      })
+    } else {
+      await chooseStartingWith(page, press, '[data-testid="import-account-choice"]', 'Broker One')
+    }
     await inspect?.('the account of the report')
     await shoot(`investments-mail-account-${variant}`)
     await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    if (variant === 'typed') {
+      await importStep(page, 'questions')
+      const rows = await page.$$('[data-testid="import-look-alike"]')
+      if (rows.length !== 2) throw new Error(`the questions step asks about ${rows.length} rows like records Kuna has, not 2`)
+      await inspect?.('the rows like records Kuna has')
+      await shoot('investments-mail-look-alikes')
+      // The first row is the deposit Kuna has, and the second another withdrawal.
+      const answer = async (row, button) => press((await page.$$(`[data-testid="import-look-alike"]:nth-child(${row}) [data-testid="import-look-alike-choice"] button`))[button])
+      await answer(1, 1)
+      await answer(2, 2)
+      await delay(300)
+      const pressed = await page.$$eval('[data-testid="import-look-alike-choice"] button[aria-pressed="true"]', (buttons) => buttons.map((button) => button.textContent.trim()))
+      if (pressed.length !== 2 || pressed[0] === pressed[1]) throw new Error(`the answers to the rows like records Kuna has did not hold: ${pressed.join(', ')}`)
+      await inspect?.('the rows like records Kuna has, answered')
+      await shoot('investments-mail-look-alikes-answered')
+      await pressSelector(page, press, '[data-testid="workbook-import-next"]')
+    }
     if (variant === 'unseen') {
       await importStep(page, 'questions')
       const rows = await page.$$('[data-testid="import-asked-row"]')
@@ -8122,6 +8146,14 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
     if (variant === 'unseen' && (await page.$('[data-testid="import-group-asked"]')) === null) throw new Error('the review does not list the rows held back')
     await inspect?.('the review')
     await shoot(`investments-mail-dry-run-${variant}`)
+    if (variant === 'typed') {
+      const inKuna = await page.waitForSelector('[data-testid="import-group-in-kuna"]', { visible: true, timeout: 5_000 }).catch(() => {
+        throw new Error('the review does not list the row matched to a record Kuna has')
+      })
+      await inKuna.evaluate((element) => element.scrollIntoView({ block: 'start' }))
+      await delay(300)
+      await shoot('investments-mail-dry-run-typed-in-kuna')
+    }
     await pressSelector(page, press, '[data-testid="workbook-import-confirm"]')
     await dialogGone(page, '[data-testid="workbook-import"]')
     if (variant === 'plain') {

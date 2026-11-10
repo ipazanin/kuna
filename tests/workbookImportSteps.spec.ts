@@ -150,8 +150,8 @@ describe('the dry run on screen', () => {
   it('says what an import adds, with the new accounts and holdings', () => {
     const settled = settle(withParent(settle()))
     const { added } = settled.dryRun
-    expect(dryRunSummary(added, transactionCount(added), 0)).toBe('Adds 21 records, with 3 accounts and 4 holdings new.')
-    expect(dryRunSummary(book({}), 0, 1)).toBe('Adds nothing. It deletes 1 record gone from the workbook.')
+    expect(dryRunSummary(added, transactionCount(added), 0, 0)).toBe('Adds 21 records, with 3 accounts and 4 holdings new.')
+    expect(dryRunSummary(book({}), 0, 0, 1)).toBe('Adds nothing. It deletes 1 record gone from the workbook.')
   })
 
   it('lists the new records as transactions read, the rows that wait or are skipped with why, and the cells and rows worth a look', () => {

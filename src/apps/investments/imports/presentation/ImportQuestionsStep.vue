@@ -4,8 +4,10 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import { askedLine } from './dryRunLines'
+import { askedLine, lookAlikesOf } from './dryRunLines'
+import type { LookAlike } from './dryRunLines'
 import ImportLines from './ImportLines.vue'
+import { accountNamer } from './importChoices'
 import type { AskedChoice, SettledImport, SpinOffStep, SplitStep } from './importChoices'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
@@ -17,7 +19,10 @@ import { plural } from '../../../../shared/text/translation'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
-/** What the rows cannot say: the ratio of each split no vendor lists, and the parent and share of cost of a spin-off its row does not give. */
+/**
+ * What the rows cannot say: whether a row like a record Kuna has is that record, the ratio of each split no vendor
+ * lists, and the parent and share of cost of a spin-off its row does not give.
+ */
 const props = defineProps<{
   workbookImport: WorkbookImport
   settled: SettledImport
@@ -52,6 +57,30 @@ const asked = computed(() => ({
 }))
 
 const askedRows = computed(() => (props.settled.dryRun.report?.asked ?? []).map(askedLine))
+
+const lookAlikes = computed(() => {
+  const book = props.workbookImport.book.value
+  return book === null ? [] : lookAlikesOf(props.settled.dryRun, book, props.workbookImport.rates.value, accountNamer(props.settled, book.accounts))
+})
+
+type LookAlikeChoice = 'later' | 'same' | 'another'
+
+const lookAlikeItems: { value: LookAlikeChoice; label: string }[] = [
+  { value: 'later', label: words.questions.lookAlikeLater },
+  { value: 'same', label: words.questions.lookAlikeSame },
+  { value: 'another', label: words.questions.lookAlikeAnother },
+]
+
+/** An answer given against another record, before the account changed, is no answer for this one. */
+function lookAlikeChoice(lookAlike: LookAlike): LookAlikeChoice {
+  const answer = props.workbookImport.choices.value.lookAlikes[lookAlike.key]
+  if (answer === undefined || answer.like !== lookAlike.like) return 'later'
+  return answer.same ? 'same' : 'another'
+}
+
+function answerLookAlike(lookAlike: LookAlike, choice: LookAlikeChoice): void {
+  props.workbookImport.answerLookAlike(lookAlike.key, choice === 'later' ? null : { like: lookAlike.like, same: choice === 'same' })
+}
 
 const askedItems: { value: AskedChoice; label: string }[] = [
   { value: 'hold', label: words.questions.askedHold },
@@ -106,6 +135,23 @@ function shareHelp(step: SpinOffStep): string {
 <template>
   <div class="flex flex-col gap-6" data-testid="import-questions">
     <p class="type-body">{{ words.questions.intro }}</p>
+
+    <section v-if="lookAlikes.length > 0" class="flex flex-col gap-1" data-testid="import-look-alikes">
+      <h3 class="type-card-title">{{ words.questions.lookAlikes }}</h3>
+      <p class="type-caption">{{ words.questions.lookAlikesIntro }}</p>
+      <ul class="flex flex-col">
+        <li v-for="lookAlike in lookAlikes" :key="lookAlike.key" class="flex flex-col gap-1 border-t border-default pb-4 first:border-t-0" data-testid="import-look-alike">
+          <ImportLines :lines="[lookAlike.line]" />
+          <ChoiceButtons
+            :model-value="lookAlikeChoice(lookAlike)"
+            :options="lookAlikeItems"
+            :label="words.questions.lookAlikeChoice"
+            data-testid="import-look-alike-choice"
+            @update:model-value="answerLookAlike(lookAlike, $event as LookAlikeChoice)"
+          />
+        </li>
+      </ul>
+    </section>
 
     <section v-if="askedRows.length > 0" class="flex flex-col gap-1" data-testid="import-asked">
       <h3 class="type-card-title">{{ words.questions.asked }}</h3>

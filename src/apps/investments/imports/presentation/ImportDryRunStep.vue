@@ -5,11 +5,11 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dryRunGroups, dryRunSummary } from './dryRunLines'
 import type { ImportLine } from './dryRunLines'
+import { accountNamer } from './importChoices'
 import type { SettledImport } from './importChoices'
 import ImportLines from './ImportLines.vue'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
-import type { WorkbookRow } from '../domain/portfolioWorkbook'
 import { transactionCount } from '../../transactions/domain/listedTransactions'
 import { formatCount } from '../../../../shared/money/moneyFormat'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -23,27 +23,15 @@ const props = defineProps<{
   deleting: number
 }>()
 
-/** Each workbook account by the name it has in Kuna or will have. */
-const accountNames = computed(() => {
-  const accounts = props.workbookImport.book.value?.accounts ?? []
-  return new Map(
-    props.settled.accounts.map(({ question, choice }) => [
-      question.account,
-      choice.kind === 'new' ? choice.name : (accounts.find((account) => account.id === choice.account)?.name ?? question.account),
-    ]),
-  )
-})
-
 const groups = computed(() => {
   const book = props.workbookImport.book.value
   if (book === null) return null
-  const accountName = (row: WorkbookRow): string => accountNames.value.get(row.account) || [row.broker, row.account].filter((part) => part !== '').join(' ')
-  return dryRunGroups(props.settled.dryRun, book, props.workbookImport.rates.value, accountName)
+  return dryRunGroups(props.settled.dryRun, book, props.workbookImport.rates.value, accountNamer(props.settled, book.accounts))
 })
 
 const summary = computed(() => {
   const { added } = props.settled.dryRun
-  return dryRunSummary(added, transactionCount(added), props.deleting)
+  return dryRunSummary(added, transactionCount(added), props.settled.dryRun.matched.length, props.deleting)
 })
 
 const sections = computed((): { readonly id: string; readonly title: string; readonly intro: string; readonly lines: readonly ImportLine[]; readonly warns: boolean; readonly verbatim: boolean }[] => {

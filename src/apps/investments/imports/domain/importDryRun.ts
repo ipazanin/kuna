@@ -16,7 +16,16 @@ import { INCOME_CODEC } from '../../workbook/domain/incomeReading'
 import type { Instrument, InstrumentType, PriceSource } from '../../workbook/domain/instrument'
 import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
-import { CASH_MOVEMENT_RECORDS, EXCHANGE_RECORDS, INCOME_RECORDS, SPIN_OFF_RECORDS, SPLIT_RECORDS, TRADE_RECORDS, TRANSFER_RECORDS } from '../../workbook/domain/investmentKinds'
+import {
+  CASH_MOVEMENT_RECORDS,
+  EXCHANGE_RECORDS,
+  INCOME_RECORDS,
+  INVESTMENT_ACCOUNT_RECORDS,
+  SPIN_OFF_RECORDS,
+  SPLIT_RECORDS,
+  TRADE_RECORDS,
+  TRANSFER_RECORDS,
+} from '../../workbook/domain/investmentKinds'
 import type { SpinOff } from '../../workbook/domain/spinOff'
 import { SPIN_OFF_CODEC } from '../../workbook/domain/spinOffReading'
 import type { Split } from '../../workbook/domain/split'
@@ -74,9 +83,17 @@ export interface WorkbookAnswers {
   readonly splits: ReadonlyMap<string, SplitRatio>
   /** By the key of the spin-off's entry. */
   readonly spinOffs: ReadonlyMap<string, SpinOffAnswer>
+  /** By the key of the row's entry. */
+  readonly lookAlikes: ReadonlyMap<string, LookAlikeAnswer>
 }
 
-export const NO_ANSWERS: WorkbookAnswers = { accounts: new Map(), instruments: new Map(), splits: new Map(), spinOffs: new Map() }
+/** Whether a row that looks like a record Kuna has is that record. It answers only while the row looks like that same record. */
+export interface LookAlikeAnswer {
+  readonly like: RecordId
+  readonly same: boolean
+}
+
+export const NO_ANSWERS: WorkbookAnswers = { accounts: new Map(), instruments: new Map(), splits: new Map(), spinOffs: new Map(), lookAlikes: new Map() }
 
 export interface DryRunInputs {
   /** The records already in Kuna. */
@@ -100,7 +117,7 @@ export type WaitReason =
   | { readonly kind: 'beyond-held' }
   /** A rolling report now gives other figures for a record Kuna has, such as tax withheld a day after its dividend. */
   | { readonly kind: 'differs-from-kuna' }
-  /** A copied row like a record Kuna has from elsewhere, which may be the same record or a second one. `like` is that record. */
+  /** A row like a record Kuna has from elsewhere, which may be the same record or a second one. `like` is that record. */
   | { readonly kind: 'looks-in-kuna'; readonly like: ImportedRecord }
 
 export type ImportedRecord =
@@ -112,7 +129,12 @@ export type ImportedRecord =
   | { readonly kind: 'split'; readonly record: Split }
   | { readonly kind: 'spin-off'; readonly record: SpinOff }
 
-export type EntryOutcome = { readonly kind: 'new'; readonly imported: ImportedRecord } | { readonly kind: 'in-kuna' } | { readonly kind: 'waiting'; readonly reason: WaitReason }
+export type EntryOutcome =
+  | { readonly kind: 'new'; readonly imported: ImportedRecord }
+  | { readonly kind: 'in-kuna' }
+  /** The person said the row is this record Kuna has, which takes the row's import key. */
+  | { readonly kind: 'same-record'; readonly kept: ImportedRecord }
+  | { readonly kind: 'waiting'; readonly reason: WaitReason }
 
 export interface DryRunEntry extends RowEntry {
   readonly outcome: EntryOutcome
@@ -125,8 +147,24 @@ export interface AccountQuestion {
   /** The account an earlier import of its rows wrote to, which answers the question unless the person says otherwise. */
   readonly known: RecordId | null
   readonly proposedName: string
+  /** For a report's account no earlier import names, the account in Kuna whose records its rows look like most. */
+  readonly likely: LikelyAccount | null
   /** The rows still to import that name it. */
   readonly rows: number
+}
+
+export interface LikelyAccount {
+  readonly account: RecordId
+  /** How many of the rows look like one of its records. */
+  readonly rows: number
+}
+
+/** A row that looks like a record Kuna has, for the person to say whether it is that record. */
+export interface LookAlikeQuestion {
+  /** The key of the row's entry. */
+  readonly key: string
+  readonly rows: readonly WorkbookRow[]
+  readonly like: ImportedRecord
 }
 
 export interface InstrumentQuestion {
@@ -178,6 +216,13 @@ export interface WorkbookQuestions {
   readonly instruments: readonly InstrumentQuestion[]
   readonly splits: readonly SplitQuestion[]
   readonly spinOffs: readonly SpinOffQuestion[]
+  readonly lookAlikes: readonly LookAlikeQuestion[]
+}
+
+/** A record Kuna has that the person said a row is, before and after it takes the row's import key. */
+export interface MatchedRecord {
+  readonly kept: ImportedRecord
+  readonly keyed: ImportedRecord
 }
 
 /** A trade whose fees from its net cash differ from its Commission cell by more than a cent. The fees from the net cash are imported. */
@@ -208,7 +253,9 @@ export interface WorkbookDryRun {
   readonly report: ReportFacts | null
   /** What Import writes in one unit of work: the new accounts and instruments the new entries name, then their records. */
   readonly added: InvestmentBook
-  /** The records in Kuna with those added. */
+  /** The records in Kuna the person said are rows of the file, which Import gives the rows' import keys in the same unit of work. */
+  readonly matched: readonly MatchedRecord[]
+  /** The records in Kuna with those added and matched. */
   readonly planned: InvestmentBook
 }
 
@@ -220,7 +267,7 @@ export interface ReportFacts {
   readonly beforeStart: number
 }
 
-/** What a copied row that looks like a record Kuna has from elsewhere becomes: it waits for the person, or it is imported as they said. */
+/** What a copied row that looks like a record Kuna has from elsewhere becomes: it waits for the person, or every one is imported as they said. */
 export const LOOK_ALIKES = ['ask', 'import'] as const
 
 export type LookAlikes = (typeof LOOK_ALIKES)[number]
@@ -297,13 +344,17 @@ class EntrySkipped extends Error {
  * goes the other way from its units, and a row whose record the write rules of its kind would refuse, is skipped. A record an earlier import wrote, of an account
  * and dates the file covers, whose key the file no longer gives, is listed as gone. A rolling report lists nothing as
  * gone, and a record of one is never gone from a workbook. A record a report's row now gives other figures for waits.
- * Copied rows list nothing as gone either, and a copied row that looks like a record Kuna has waits unless the person said to import it.
+ * Copied rows list nothing as gone either. A report's row or a copied row whose key no record carries, but which looks
+ * like a record Kuna has, waits until the person says whether it is that record or another one. A record that is the
+ * row takes the row's key, so the next file finds it by its key.
  */
 export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): WorkbookDryRun {
   const { book, answers } = inputs
   const rolling = reading.report !== undefined
+  const asksLookAlikes = rolling || reading.transcribed?.lookAlikes === 'ask'
   const entries = workbookEntries(reading.rows, rolling)
   const keyed = importedByKey(book)
+  const offered = lookAlikesOffered(keyed, rolling)
   const identityOf = identities(reading.rows)
   const inKuna = entries.filter((entry) => keyed.has(entry.key))
   const knownAccounts = rolling ? new Map([...knownAccountsOf(inKuna, keyed), ...accountsOfReportScope(reading.rows, keyed)]) : knownAccountsOf(inKuna, keyed)
@@ -317,6 +368,8 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
   const skipped: SkippedRow[] = [...reading.skipped]
   const questions: Mapping['questions'] = { spinOffs: [] }
   const mapping: Mapping = { inputs, accountOf, instrumentOf, identityOf, questions, instruments: instrumentsSoFar }
+  const claimed = new Set<RecordId>()
+  const lookAlikes: LookAlikeQuestion[] = []
 
   const firstPass = entries.flatMap((entry): { entry: RowEntry; outcome: EntryOutcome }[] => {
     if (keyed.has(entry.key)) {
@@ -324,9 +377,13 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     }
     try {
       const imported = importedRecord(entry, mapping)
-      const like = reading.transcribed?.lookAlikes === 'ask' ? recordLike(imported, book) : null
-      if (like !== null) return [{ entry, outcome: { kind: 'waiting', reason: { kind: 'looks-in-kuna', like } } }]
-      return [{ entry, outcome: { kind: 'new', imported } }]
+      const like = asksLookAlikes ? recordLike(imported, book, offered(entry, claimed)) : null
+      if (like === null) return [{ entry, outcome: { kind: 'new', imported } }]
+      claimed.add(like.record.id)
+      lookAlikes.push({ key: entry.key, rows: entry.rows, like })
+      const answer = answers.lookAlikes.get(entry.key)
+      if (answer === undefined || answer.like !== like.record.id) return [{ entry, outcome: { kind: 'waiting', reason: { kind: 'looks-in-kuna', like } } }]
+      return [{ entry, outcome: answer.same ? { kind: 'same-record', kept: like } : { kind: 'new', imported } }]
     } catch (failure) {
       if (failure instanceof EntryWaits) {
         return [{ entry, outcome: { kind: 'waiting', reason: failure.reason } }]
@@ -339,12 +396,16 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     }
   })
 
+  const matched = firstPass.flatMap(({ entry, outcome }): MatchedRecord[] => (outcome.kind === 'same-record' ? [{ kept: outcome.kept, keyed: withImportKey(outcome.kept, entry.key) }] : []))
   const plannedOf = (outcomes: readonly { outcome: EntryOutcome }[]): InvestmentBook =>
-    withRecords(
-      book,
-      outcomes.flatMap(({ outcome }) => (outcome.kind === 'new' ? [outcome.imported] : [])),
-      accountsSoFar,
-      instrumentsSoFar,
+    withImportKeys(
+      withRecords(
+        book,
+        outcomes.flatMap(({ outcome }) => (outcome.kind === 'new' ? [outcome.imported] : [])),
+        accountsSoFar,
+        instrumentsSoFar,
+      ),
+      matched,
     )
   const refused = new Set([...investmentLots(plannedOf(firstPass)).values()].flatMap((lots) => lots.refused.map((record) => record.id)))
   const outcomes = firstPass.map(({ entry, outcome }): DryRunEntry => {
@@ -352,7 +413,9 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     return { ...entry, outcome: beyondHeld ? { kind: 'waiting', reason: { kind: 'beyond-held' } } : outcome }
   })
   const planned = plannedOf(outcomes)
+  // A row the person matched to a record still asks its account, or the answer that made the match would go.
   const toImport = outcomes.filter((entry) => entry.outcome.kind !== 'in-kuna')
+  const likely = rolling ? likelyAccounts(toImport, mapping, book, knownAccounts, offered) : new Map<string, LikelyAccount>()
 
   return {
     entries: outcomes,
@@ -360,15 +423,17 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     rounded: reading.rounded,
     gone: rolling || reading.transcribed !== undefined ? [] : goneRecords(reading.rows, entries, keyed, accountOf),
     questions: {
-      accounts: accountQuestions(toImport, knownAccounts, book.accounts),
+      accounts: accountQuestions(toImport, knownAccounts, likely, book.accounts),
       instruments: instrumentQuestions(toImport, book, knownInstruments, identityOf),
       splits: toImport.filter((entry) => entry.rows[0].type === 'SPLIT').map((entry) => splitQuestion(entry, planned, instrumentOf, identityOf)),
       spinOffs: questions.spinOffs,
+      lookAlikes,
     },
     commissionDifferences: commissionDifferences(outcomes),
     reversals: reversedRows(outcomes),
     report: reading.report ?? null,
     added: addedRecords(book, planned),
+    matched,
     planned,
   }
 }
@@ -520,10 +585,11 @@ function recordOf(entry: RowEntry, mapping: Mapping): ImportedRecord {
  * The record Kuna has that it looks like, or null: a trade of the same holding, day, side and units, income of the same holding, day and
  * gross, a cash movement of the same day, kind, currency and amount, or an exchange of the same day and both amounts. Each
  * in the same account, or in any account when the record's account is new, since a new account has nothing to compare.
+ * Only a record `offered` lets through counts.
  */
-function recordLike(imported: ImportedRecord, book: InvestmentBook): ImportedRecord | null {
+function recordLike(imported: ImportedRecord, book: InvestmentBook, offered: (record: { readonly id: RecordId }) => boolean): ImportedRecord | null {
   const newAccount = (account: RecordId): boolean => !book.accounts.some((known) => known.id === account)
-  const sameAccount = (record: { readonly account: RecordId }, account: RecordId): boolean => newAccount(account) || record.account === account
+  const sameAccount = (record: { readonly account: RecordId; readonly id: RecordId }, account: RecordId): boolean => offered(record) && (newAccount(account) || record.account === account)
   switch (imported.kind) {
     case 'trade': {
       const { account, instrument, date, side, quantity } = imported.record
@@ -557,6 +623,73 @@ function recordLike(imported: ImportedRecord, book: InvestmentBook): ImportedRec
     }
     default:
       return null
+  }
+}
+
+/**
+ * Which records a row may look like: none another row of the file already looks like, and for a report's row none an
+ * earlier report of the same account made, since a report gives each of its rows an id of its own.
+ */
+function lookAlikesOffered(keyed: ReadonlyMap<string, ImportedRecord>, rolling: boolean): (entry: RowEntry, claimed: ReadonlySet<RecordId>) => (record: { readonly id: RecordId }) => boolean {
+  const reportScopes = new Map(rolling ? [...keyed].flatMap(([key, imported]) => (isReportKey(key) ? [[imported.record.id, accountScopeOf(key)] as const] : [])) : [])
+  return (entry, claimed) => (record) => !claimed.has(record.id) && reportScopes.get(record.id) !== accountScopeOf(entry.key)
+}
+
+function withImportKey(imported: ImportedRecord, importKey: string): ImportedRecord {
+  return { kind: imported.kind, record: { ...imported.record, importKey } } as ImportedRecord
+}
+
+/** The book with each matched record holding the import key of its row. */
+function withImportKeys(book: InvestmentBook, matched: readonly MatchedRecord[]): InvestmentBook {
+  if (matched.length === 0) return book
+  const keyOf = new Map(matched.map(({ keyed }) => [keyed.record.id, keyed.record.importKey]))
+  const keyedOf = <Kept extends { readonly id: RecordId; readonly importKey: string | null }>(records: readonly Kept[]): Kept[] =>
+    records.map((record) => (keyOf.has(record.id) ? { ...record, importKey: keyOf.get(record.id)! } : record))
+  return { ...book, trades: keyedOf(book.trades), income: keyedOf(book.income), cashMovements: keyedOf(book.cashMovements), exchanges: keyedOf(book.exchanges) }
+}
+
+/** An account no record is in, so a row of it may look like a record of any account. */
+const ANY_ACCOUNT: InvestmentAccount = { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, 'any-account'), name: '', note: '' }
+
+/**
+ * For each account of a report that no earlier import names, the account in Kuna with the most records its rows look
+ * like, Kuna's first account of those on a tie. None when no row looks like a record.
+ */
+function likelyAccounts(
+  entries: readonly RowEntry[],
+  mapping: Mapping,
+  book: InvestmentBook,
+  known: ReadonlyMap<string, RecordId>,
+  offered: ReturnType<typeof lookAlikesOffered>,
+): Map<string, LikelyAccount> {
+  const anywhere: Mapping = { ...mapping, accountOf: () => ANY_ACCOUNT, questions: { spinOffs: [] } }
+  const claimed = new Set<RecordId>()
+  const votes = new Map<string, Map<RecordId, number>>()
+  for (const entry of entries) {
+    const text = entry.rows[0].account
+    if (known.has(text)) continue
+    const like = recordLikeAnywhere(entry, anywhere, book, offered(entry, claimed))
+    if (like === null || !('account' in like.record)) continue
+    claimed.add(like.record.id)
+    const counts = votes.get(text) ?? new Map<RecordId, number>()
+    counts.set(like.record.account, (counts.get(like.record.account) ?? 0) + 1)
+    votes.set(text, counts)
+  }
+  return new Map(
+    [...votes].map(([text, counts]) => {
+      const rows = Math.max(...counts.values())
+      const account = book.accounts.find((candidate) => counts.get(candidate.id) === rows)!.id
+      return [text, { account, rows }] as const
+    }),
+  )
+}
+
+function recordLikeAnywhere(entry: RowEntry, anywhere: Mapping, book: InvestmentBook, offered: (record: { readonly id: RecordId }) => boolean): ImportedRecord | null {
+  try {
+    return recordLike(recordOf(entry, anywhere), book, offered)
+  } catch (failure) {
+    if (failure instanceof EntryWaits || failure instanceof EntrySkipped) return null
+    throw failure
   }
 }
 
@@ -925,7 +1058,12 @@ function knownInstrumentsOf(inKuna: readonly RowEntry[], keyed: ReadonlyMap<stri
 }
 
 /** A new account is proposed under its broker's name, numbered from 2 when Kuna or another account of the file has that name. The Account text stays out of it. */
-function accountQuestions(entries: readonly DryRunEntry[], known: ReadonlyMap<string, RecordId>, accounts: readonly InvestmentAccount[]): AccountQuestion[] {
+function accountQuestions(
+  entries: readonly DryRunEntry[],
+  known: ReadonlyMap<string, RecordId>,
+  likely: ReadonlyMap<string, LikelyAccount>,
+  accounts: readonly InvestmentAccount[],
+): AccountQuestion[] {
   const rowsOf = new Map<string, WorkbookRow[]>()
   entries.flatMap((entry) => entry.rows).forEach((row) => rowsOf.set(row.account, [...(rowsOf.get(row.account) ?? []), row]))
   const taken = new Set(accounts.map((account) => fold(account.name)))
@@ -945,6 +1083,7 @@ function accountQuestions(entries: readonly DryRunEntry[], known: ReadonlyMap<st
       broker: row.broker,
       known: knownAccount?.id ?? null,
       proposedName: knownAccount?.name ?? freeName(row.broker),
+      likely: knownAccount === undefined ? (likely.get(row.account) ?? null) : null,
       rows: rows.length,
     }
   })

@@ -98,6 +98,10 @@ export const en = {
     name: 'Name',
     nameHelp: 'As you call it, such as the broker and what the account is for',
     nameMissing: 'Name the account',
+    likely: (count: number, account: string): EnglishForms => ({
+      one: `Kuna suggests ${account}: ${count} row looks like one of its records that no report gave yet.`,
+      other: `Kuna suggests ${account}: ${count} rows look like its records that no report gave yet.`,
+    }),
   },
   instruments: {
     intro: 'Each holding the rows name, found by its ISIN or its symbol. A holding Kuna has already comes first, and a new one starts from a guess you can change.',
@@ -119,6 +123,14 @@ export const en = {
     askedChoice: 'What to do with this row',
     askedHold: 'Hold back',
     askedLeaveOut: 'Leave out for good',
+    lookAlikes: 'Rows like records Kuna has',
+    lookAlikesIntro:
+      "No record in Kuna holds the report's id for these rows, but each has the account, day and amounts of a record Kuna has, perhaps one you typed or imported from the workbook. Say whether it is that record.",
+    lookAlikeKept: (record: string) => `In Kuna: ${record}`,
+    lookAlikeChoice: 'Is this row that record',
+    lookAlikeLater: 'Decide later',
+    lookAlikeSame: 'Same record',
+    lookAlikeAnother: 'Another record',
     splits: 'Splits',
     split: (holding: string, day: string) => `${holding}, split on ${day}`,
     splitRows: (_count: number, added: string, held: string): EnglishForms => ({
@@ -166,7 +178,8 @@ export const en = {
     listedSplits: 'Splits found',
   },
   dryRun: {
-    looksLike: (record: string) => `Looks like a record Kuna has from another file: ${record}`,
+    looksLike: (record: string) => `Looks like a record Kuna has: ${record}`,
+    sameRecord: (record: string) => `Same as this record in Kuna: ${record}. It now keeps this row's id.`,
     askedIntro: 'Rows Kuna has not seen before. None of them goes in.',
     askedNoKind: 'Kuna has not seen a row like this',
     askedUnreadable: (field: string, text: string) => `Its ${field} cannot be read${text === '' ? ', as it is blank' : `: "${text}"`}`,
@@ -181,6 +194,7 @@ export const en = {
     addsWith: (records: string, parts: string) => `${records}, with ${parts} new.`,
     addsOnly: (records: string) => `${records}.`,
     addsNothing: 'Adds nothing.',
+    matches: (count: number): EnglishForms => ({ one: `It links ${count} record Kuna has to its row in this file.`, other: `It links ${count} records Kuna has to their rows in this file.` }),
     deletes: (count: number): EnglishForms => ({ one: `It deletes ${count} record gone from the workbook.`, other: `It deletes ${count} records gone from the workbook.` }),
     and: (first: string, second: string) => `${first} and ${second}`,
     groups: {
@@ -244,7 +258,7 @@ export const en = {
     'same-account': 'Moves between two workbook accounts that are one account in Kuna',
     'beyond-held': 'Sells or moves more units than its account holds on its day',
     'differs-from-kuna': 'The report now gives other figures for this record. Open it in Transactions and put them right, and this goes away.',
-    'looks-in-kuna': 'Looks like a record Kuna has from another file, of the same account, day and amounts',
+    'looks-in-kuna': 'Looks like a record Kuna has, of the same account, day and amounts',
   } satisfies { readonly [Kind in WaitReason['kind']]: string | ((currency: string) => string) },
   skips: {
     unknownType: (text: string) => `Its type ${text} is not one Kuna reads`,
@@ -350,6 +364,11 @@ export const hr: Translation<typeof en> = {
     name: 'Naziv',
     nameHelp: 'Kako ga zovete, na primjer broker i čemu račun služi',
     nameMissing: 'Imenujte račun',
+    likely: (count, account) => ({
+      one: `Kuna predlaže ${account}: ${count} redak izgleda kao jedan od njegovih zapisa koji još nije došao iz izvješća.`,
+      few: `Kuna predlaže ${account}: ${count} retka izgledaju kao njegovi zapisi koji još nisu došli iz izvješća.`,
+      other: `Kuna predlaže ${account}: ${count} redaka izgleda kao njegovi zapisi koji još nisu došli iz izvješća.`,
+    }),
   },
   instruments: {
     intro: 'Svaka pozicija koju retci navode, prema ISIN-u ili simbolu. Pozicija koju Kuna već ima dolazi prva, a nova kreće od pretpostavke koju možete promijeniti.',
@@ -371,6 +390,14 @@ export const hr: Translation<typeof en> = {
     askedChoice: 'Što s ovim retkom',
     askedHold: 'Zadrži',
     askedLeaveOut: 'Izostavi zauvijek',
+    lookAlikes: 'Retci nalik zapisima koje Kuna ima',
+    lookAlikesIntro:
+      'Nijedan zapis u Kuni nema oznaku izvješća za ove retke, ali svaki ima račun, dan i iznose zapisa koji Kuna ima, možda onog koji ste upisali ručno ili uvezli iz radne knjige. Recite je li to taj zapis.',
+    lookAlikeKept: (record) => `U Kuni: ${record}`,
+    lookAlikeChoice: 'Je li ovaj redak taj zapis',
+    lookAlikeLater: 'Odluči poslije',
+    lookAlikeSame: 'Isti zapis',
+    lookAlikeAnother: 'Drugi zapis',
     splits: 'Podjele',
     split: (holding, day) => `${holding}: podjela ${day}`,
     splitRows: (_count, added, held) => ({
@@ -425,7 +452,8 @@ export const hr: Translation<typeof en> = {
     listedSplits: 'Pronađene podjele',
   },
   dryRun: {
-    looksLike: (record) => `Izgleda kao zapis koji Kuna ima iz druge datoteke: ${record}`,
+    looksLike: (record) => `Izgleda kao zapis koji Kuna ima: ${record}`,
+    sameRecord: (record) => `Isto kao ovaj zapis u Kuni: ${record}. Sada ima oznaku ovog retka.`,
     askedIntro: 'Retci kakve Kuna još nije vidjela. Nijedan od njih ne ulazi.',
     askedNoKind: 'Kuna još nije vidjela ovakav redak',
     askedUnreadable: (field, text) => `Polje ${field} ne može se pročitati${text === '' ? ' jer je prazno' : `: „${text}”`}`,
@@ -445,6 +473,11 @@ export const hr: Translation<typeof en> = {
     addsWith: (records, parts) => `${records}, a novo je: ${parts}.`,
     addsOnly: (records) => `${records}.`,
     addsNothing: 'Ništa se ne dodaje.',
+    matches: (count) => ({
+      one: `Povezuje ${count} zapis koji Kuna ima s njegovim retkom u ovoj datoteci.`,
+      few: `Povezuje ${count} zapisa koje Kuna ima s njihovim retcima u ovoj datoteci.`,
+      other: `Povezuje ${count} zapisa koje Kuna ima s njihovim retcima u ovoj datoteci.`,
+    }),
     deletes: (count) => ({
       one: `Briše ${count} zapis kojeg više nema u radnoj knjizi.`,
       few: `Briše ${count} zapisa kojih više nema u radnoj knjizi.`,
@@ -521,7 +554,7 @@ export const hr: Translation<typeof en> = {
     'same-account': 'Prenosi između dva računa radne knjige koji su u Kuni jedan račun',
     'beyond-held': 'Prodaje ili prenosi više jedinica nego što račun drži na taj dan',
     'differs-from-kuna': 'Izvješće sada daje druge iznose za ovaj zapis. Otvorite ga u Transakcijama i ispravite ih, pa će ovo nestati.',
-    'looks-in-kuna': 'Izgleda kao zapis koji Kuna ima iz druge datoteke, s istim računom, danom i iznosima',
+    'looks-in-kuna': 'Izgleda kao zapis koji Kuna ima, s istim računom, danom i iznosima',
   },
   skips: {
     unknownType: (text) => `Vrsta „${text}” nije ona koju Kuna čita`,

@@ -1,5 +1,17 @@
 import { NO_ANSWERS, costShareFromCloses, proposedCostShare, workbookDryRun } from '../domain/importDryRun'
-import type { AccountQuestion, InstrumentQuestion, SpinOffAnswer, SpinOffQuestion, SplitQuestion, SplitRatio, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from '../domain/importDryRun'
+import type {
+  AccountQuestion,
+  InstrumentQuestion,
+  LookAlikeAnswer,
+  SpinOffAnswer,
+  SpinOffQuestion,
+  SplitQuestion,
+  SplitRatio,
+  WorkbookAnswers,
+  WorkbookDryRun,
+  WorkbookRows,
+} from '../domain/importDryRun'
+import type { WorkbookRow } from '../domain/portfolioWorkbook'
 import { words } from './words'
 import { instrumentErrors, instrumentOfTexts, instrumentTexts } from '../../holdings/presentation/instrumentForm'
 import type { InstrumentErrors, InstrumentTexts } from '../../holdings/presentation/instrumentForm'
@@ -45,11 +57,13 @@ export interface ImportChoices {
   readonly spinOffs: Readonly<Record<string, SpinOffTexts>>
   /** What to do with a row a report's recipe asks about, by its key. A row not here is held back. */
   readonly asked: Readonly<Record<string, AskedChoice>>
+  /** Whether a row that looks like a record Kuna has is that record, by the key of its entry. A row not here waits. */
+  readonly lookAlikes: Readonly<Record<string, LookAlikeAnswer>>
 }
 
 export type AskedChoice = 'hold' | 'leave-out'
 
-export const NO_CHOICES: ImportChoices = { accounts: {}, instruments: {}, splits: {}, spinOffs: {}, asked: {} }
+export const NO_CHOICES: ImportChoices = { accounts: {}, instruments: {}, splits: {}, spinOffs: {}, asked: {}, lookAlikes: {} }
 
 /** A new random id for each key, the same one every time it is asked for that key. */
 export type NewIds = (key: string) => string
@@ -136,10 +150,11 @@ const SHOWN_PERCENT_PLACES = 2
 
 /**
  * The dry run of the workbook's rows with the person's choices, and a default for every question they left: an account
- * an earlier import wrote to, else a new one named as proposed, a holding an earlier import wrote to or the one Kuna
+ * an earlier import wrote to, else the account whose records a report's rows look like, else a new one named as proposed, a holding an earlier import wrote to or the one Kuna
  * offers, else a new one from the guess, a split at the ratio its vendor lists, else at its proposed ratio, and a
- * spin-off's parent and share as its row gives them, else the share as proposed for the parent picked. Each pass
- * answers what the previous pass asked, until the answers stop changing.
+ * spin-off's parent and share as its row gives them, else the share as proposed for the parent picked. A row that looks
+ * like a record Kuna has waits until the person answers it. Each pass answers what the previous pass asked, until the
+ * answers stop changing.
  */
 export function settledImport(
   reading: WorkbookRows,
@@ -193,6 +208,7 @@ function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: Import
       instruments: new Map(answeredInstruments),
       splits: answered(splits, (question) => question.key),
       spinOffs: answered(spinOffs, (question) => question.key),
+      lookAlikes: new Map(Object.entries(choices.lookAlikes)),
     },
     steps: { accounts: steps(accounts), instruments: steps(instruments), splits: steps(splits), spinOffs: steps(spinOffs), parents },
   }
@@ -206,7 +222,9 @@ function accountStep(question: AccountQuestion, book: InvestmentBook, choices: I
       ? chosen
       : existing(question.known) !== undefined
         ? { kind: 'existing', account: question.known! }
-        : { kind: 'new', name: question.proposedName }
+        : existing(question.likely?.account) !== undefined
+          ? { kind: 'existing', account: question.likely!.account }
+          : { kind: 'new', name: question.proposedName }
   if (choice.kind === 'existing') {
     return { step: { question, choice, problem: null }, answer: existing(choice.account)! }
   }
@@ -328,6 +346,14 @@ function spinOffStep(
     },
     answer: parent === null || fraction === null ? null : { parent, costShare: fraction },
   }
+}
+
+/** Names each of the file's accounts as Kuna has it or will, else by its broker and Account text. */
+export function accountNamer(settled: SettledImport, accounts: readonly InvestmentAccount[]): (row: WorkbookRow) => string {
+  const names = new Map(
+    settled.accounts.map(({ question, choice }) => [question.account, choice.kind === 'new' ? choice.name : (accounts.find((account) => account.id === choice.account)?.name ?? question.account)]),
+  )
+  return (row) => names.get(row.account) || [row.broker, row.account].filter((part) => part !== '').join(' ')
 }
 
 /** The answers as text that two passes with the same answers give alike. */

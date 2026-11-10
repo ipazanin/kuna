@@ -192,9 +192,10 @@ function holdingsAskedAbout(settled: SettledImport, book: InvestmentBook): strin
  * What the Import dialog writes with every other question left at its default: an account or holding an earlier import
  * wrote to, else a new one as proposed. Refused while the dialog would ask about a split or a spin-off, since their
  * answers set a holding's cost and so its tax, and while the prices file lacks an ECB rate the rows need, which the
- * dialog fetches first. The rows that still wait, and those Kuna cannot read, are counted on a warned line. Rows the AI
- * copied have no screen to answer them, so a row Kuna cannot read is refused, and a trade that looks like one Kuna has
- * is counted on its own, or refused when nothing else is new so the model asks the person.
+ * dialog fetches first. The rows that still wait, and those Kuna cannot read, are counted on a warned line. A report's
+ * row that looks like a record Kuna has waits for its screen with the rest. Rows the AI copied have no screen to answer
+ * them, so a row Kuna cannot read is refused, and a row that looks like a record Kuna has is counted on its own, or
+ * refused when nothing else is new so the model asks the person.
  */
 function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { asked, gone, accounts, where }: ImportAnswers): { readonly written: StepWritten; readonly leftOut: readonly string[] } {
   const rates = card.rates ?? NO_RATES
@@ -221,7 +222,8 @@ function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { a
   const { dryRun } = settled
   if (where.place === null && dryRun.skipped.length > 0) throw new StepRefused(copiedRowsText(dryRun.skipped.map(copiedRowRefusal)))
   const waits = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'waiting' ? [entry.outcome.reason] : []))
-  const lookAlikes = waits.filter((reason) => reason.kind === 'looks-in-kuna').length
+  const copied = where.place === null
+  const lookAlikes = copied ? waits.filter((reason) => reason.kind === 'looks-in-kuna').length : 0
   if (lookAlikes > 0 && importableRecords(dryRun.added).length === 0) {
     const lookAlikeRows = dryRun.entries.flatMap((entry) => (entry.outcome.kind === 'waiting' && entry.outcome.reason.kind === 'looks-in-kuna' ? [entry.rows[0].fileRow] : []))
     throw new StepRefused(
@@ -229,8 +231,8 @@ function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { a
     )
   }
   const deleting = gone === 'delete' ? dryRun.gone : []
-  writeWorkbookImport(unit, dryRun.added, deleting)
-  const waiting = waits.filter((reason) => reason.kind !== 'looks-in-kuna')
+  writeWorkbookImport(unit, dryRun.added, dryRun.matched, deleting)
+  const waiting = copied ? waits.filter((reason) => reason.kind !== 'looks-in-kuna') : waits
   const reasons = [...new Set(waiting.map(waitText))].join('. ')
   const held = asked === 'hold' ? (rows.report?.asked.length ?? 0) : 0
   const kept = gone === 'keep' ? dryRun.gone.length : 0
@@ -250,7 +252,7 @@ function importedRows(unit: UnitOfWork, card: CardBooks, rows: WorkbookRows, { a
   )
   const skippedInKuna: CardNote[] = place === null && inKuna > 0 ? [{ noun, note: { label: where.label, text: plural(words.proposals.rowsInKuna(inKuna), inKuna), tone: 'neutral' } }] : []
   const accountName = (row: WorkbookRow): string => card.book.accounts.find((account) => account.id === row.account)?.name ?? row.account
-  const waitingLookAlikes = lookAlikesOf(dryRun, card.book, rates, accountName)
+  const waitingLookAlikes = copied ? lookAlikesOf(dryRun, card.book, rates, accountName) : []
   const lookAlikeRows = waitingLookAlikes.map((lookAlike) => lookAlike.fileRow)
   const questions: CardNote[] =
     waitingLookAlikes.length === 0

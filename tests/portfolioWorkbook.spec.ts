@@ -286,6 +286,7 @@ function fullAnswers(rows: WorkbookRows): WorkbookAnswers {
     ]),
     splits: new Map([[asked.splits[0]!.key, { newUnits: 2, oldUnits: 1 }]]),
     spinOffs: new Map([[asked.spinOffs[0]!.key, { parent: ABC_SHARE.id, costShare: decimal('0.035062089116') }]]),
+    lookAlikes: new Map(),
   }
 }
 
@@ -444,7 +445,7 @@ describe('the dry run with every answer', () => {
   it('imports a dividend Revolut booked net at its net with a note, never asking for the tax', async () => {
     const { dryRun } = await importedBook()
     expect(importedAt(dryRun, 29).record).toMatchObject({ gross: decimal('1.7'), withheld: decimal('0'), note: words.bookedNet })
-    expect(Object.keys(dryRun.questions)).toEqual(['accounts', 'instruments', 'splits', 'spinOffs'])
+    expect(Object.keys(dryRun.questions)).toEqual(['accounts', 'instruments', 'splits', 'spinOffs', 'lookAlikes'])
   })
 
   it('makes two equal referral credits two income records', async () => {
@@ -616,7 +617,7 @@ describe('a row Kuna cannot keep as booked', () => {
 
   async function written(dryRun: WorkbookDryRun): Promise<InvestmentBook> {
     const { store } = await browserHarness(used, emptyInvestmentsDocument('2026-10-30T09:00:00.000Z'), INVESTMENTS)
-    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, []))
+    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, [], []))
     return store.state.workbook!.book
   }
 
@@ -792,7 +793,7 @@ describe('a row signed against its type', () => {
 
   async function written(dryRun: WorkbookDryRun): Promise<InvestmentBook> {
     const { store } = await browserHarness(used, emptyInvestmentsDocument('2026-10-30T09:00:00.000Z'), INVESTMENTS)
-    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, []))
+    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, [], []))
     return store.state.workbook!.book
   }
 })
@@ -806,7 +807,7 @@ describe('the import through the write rules', () => {
 
   it('writes the accounts, holdings and records in one write, after which the same file adds nothing, and one Undo takes it all back', async () => {
     const { store, rows, dryRun } = await emptyStore()
-    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, []))
+    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, [], []))
     const written = store.state.workbook!.book
     expect([written.accounts.length, written.instruments.length, transactionCount(written)]).toEqual([3, 4, 23])
 
@@ -821,15 +822,15 @@ describe('the import through the write rules', () => {
 
   it('keeps a record gone from the workbook, and deletes it only when the person says so', async () => {
     const { store, dryRun } = await emptyStore()
-    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, []))
+    await store.write('Workbook imported', (unit) => writeWorkbookImport(unit, dryRun.added, [], []))
     const withoutRefund = TRANSACTIONS.filter((row) => row.at(-1) !== 'row 15')
     const again = workbookDryRun(await readRows(withoutRefund), { book: store.state.workbook!.book, rates: RATES, answers: NO_ANSWERS })
     const [refund] = again.gone
     expect(refund).toMatchObject({ kind: 'cash-movement', record: { kind: 'fee-refund' } })
 
-    await store.write('Kept', (unit) => writeWorkbookImport(unit, again.added, []))
+    await store.write('Kept', (unit) => writeWorkbookImport(unit, again.added, [], []))
     expect(store.state.workbook!.book.cashMovements.some((movement) => movement.id === refund!.record.id)).toBe(true)
-    await store.write('Deleted', (unit) => writeWorkbookImport(unit, again.added, [refund!]))
+    await store.write('Deleted', (unit) => writeWorkbookImport(unit, again.added, [], [refund!]))
     expect(store.state.workbook!.book.cashMovements.some((movement) => movement.id === refund!.record.id)).toBe(false)
   })
 })

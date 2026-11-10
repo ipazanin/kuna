@@ -29,6 +29,12 @@ function pick(step: AccountStep, value: string): void {
   props.workbookImport.choose('accounts', step.question.account, account === undefined ? { kind: 'new', name: step.question.proposedName } : { kind: 'existing', account: account.id })
 }
 
+function likelyLine(step: AccountStep): string {
+  const likely = step.question.likely
+  const account = props.workbookImport.book.value?.accounts.find((candidate) => candidate.id === likely?.account)
+  return likely === null || account === undefined ? '' : plural(words.accounts.likely(likely.rows, account.name), likely.rows)
+}
+
 function name(step: AccountStep, text: string): void {
   props.workbookImport.choose('accounts', step.question.account, { kind: 'new', name: text })
 }
@@ -45,6 +51,9 @@ function name(step: AccountStep, text: string): void {
         </p>
         <FormGrid>
           <UFormField :label="words.accounts.kunaAccount">
+            <template v-if="likelyLine(step) !== ''" #description>
+              <span data-testid="import-account-likely">{{ likelyLine(step) }}</span>
+            </template>
             <USelect
               :model-value="step.choice.kind === 'new' ? NEW : step.choice.account"
               :items="items"
