@@ -56,7 +56,7 @@
  * the flat deleted and brought back with Undo, a valuation added on the car in place of its estimate, deleted and brought back,
  * the Spending card opening the Spending Overview, Net worth's Bank and cash opening Spending's Accounts and Back,
  * the Spending first run finding the file another device made on Drive and keeping a new one in this browser, money
- * out added by touch with its amount on the number pad and a category and undone, a move between two accounts read in
+ * out added by touch with its amount on the number pad and a category and undone, a payee picked from the list two typed letters open, a move between two accounts read in
  * both balances, deleted and brought back, a group of the spending ring opening its categories and one of them opening
  * Transactions filtered by it and Back, Food's limit raised with its carry kept, a Revolut export dropped, read as a dry
  * run, imported and undone, a receipt photo read by its QR code, split and undone, a pick of two payments, a near one and a new entry, a receipt's place read from its photo,
@@ -182,6 +182,7 @@ import {
   spendingReceiptPlaceFlowIn,
   spendingReviewNearFlowIn,
   spendingMoneyOutFlow,
+  spendingPayeePickFlow,
   spendingReviewFlowIn,
   spendingRuleFlowIn,
   spendingTransferFlow,
@@ -3094,6 +3095,7 @@ async function checkWidth(width) {
     ['spending-start-on-drive', 'drive&spending=other-device', firstRunOnDriveFlowIn('spending', 'en'), '#/spending/start?step=folder', 'Spending'],
     ['spending-start-browser', 'drive', firstRunBrowserFlowIn('spending', 'en'), '#/spending', 'Spending'],
     ['spending-money-out', 'drive&spending=sample', spendingMoneyOutFlow, '#/spending/transactions', 'Entries'],
+    ['spending-payee-pick', 'drive&spending=sample', spendingPayeePickFlow, '#/spending/transactions', 'Entries'],
     ['spending-transfer', 'drive&spending=sample', spendingTransferFlow, '#/spending/accounts', 'Accounts'],
     ['spending-first-account', 'drive&spending=drive', spendingFirstAccountFlow, '#/spending', 'Overview'],
     ['spending-account-opens-today', 'drive&spending=sample', spendingAccountOpensTodayFlow, '#/spending/accounts', 'Accounts'],

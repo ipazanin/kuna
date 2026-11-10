@@ -3,12 +3,14 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import UInputMenu from '@nuxt/ui/components/InputMenu.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { entryCategoryChoices } from './categoryChoices'
 import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
 import { words } from './words'
+import { knownPayees, payeeChoices } from '../domain/knownPayees'
 import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, writeEntry, writeTransfer } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
 import { removeReceiptOf } from '../../receipts/application/receiptRecords'
@@ -95,6 +97,11 @@ const kindOptions = computed(() => [
   { value: 'in' as const, label: words.dialog.kinds.in },
   ...(transferCategory.value !== null && (choosable.value.length > 1 || legs.value !== null) ? [{ value: 'transfer' as const, label: words.dialog.kinds.transfer }] : []),
 ])
+
+const payees = computed(() => knownPayees(store.state.workbook?.transactions ?? []))
+const payeeItems = computed(() => payeeChoices(payees.value, payee.value))
+/** Whether the person has the payee list open, which shows only while a known payee matches, so a new payee brings no empty list. */
+const payeeListOpen = ref(false)
 
 const categoryItems = computed(() => (kind.value === 'transfer' ? [] : entryCategoryChoices(categories.value, kind.value, props.entry?.category ?? null)))
 const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
@@ -262,7 +269,19 @@ async function remove(): Promise<void> {
         <UInput v-model="date" type="date" class="w-full" data-testid="spending-entry-date" />
       </UFormField>
       <UFormField :label="words.dialog.payee">
-        <UInput v-model="payee" class="w-full" data-testid="spending-entry-payee" />
+        <UInputMenu
+          v-model="payee"
+          mode="autocomplete"
+          :items="payeeItems"
+          ignore-filter
+          trailing-icon=""
+          :open="payeeListOpen && payeeItems.length > 0"
+          autocomplete="off"
+          class="w-full"
+          data-testid="spending-entry-payee"
+          @update:open="payeeListOpen = $event"
+          @focusout="payeeListOpen = false"
+        />
       </UFormField>
       <UFormField :label="spendingWords.form.note" class="sm:col-span-2">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />

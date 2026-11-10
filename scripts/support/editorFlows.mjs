@@ -5872,7 +5872,51 @@ async function saveSpendingEntry(page, press, title) {
   await toast(page, title)
 }
 
-/** The entry dialog opened on the sample Spending file's Transactions, as money out or as a move between two accounts in two currencies, and closed again. */
+/** What the sample Spending file's entry dialog lists for `ex`: the text as typed, then the known payees most recently paid first. */
+const SPENDING_PAYEES_EX = ['ex', 'Example Studio d.o.o.', 'Example Broker', 'Example Bank']
+
+/** The payee options the open list shows, once it shows `count` of them. */
+async function payeeOptions(page, count) {
+  return page
+    .waitForFunction(
+      (wanted) => {
+        const shown = [...document.querySelectorAll('[role="listbox"] [role="option"]')].map((option) => option.textContent?.trim() ?? '')
+        return shown.length === wanted ? shown : null
+      },
+      { timeout: 5_000 },
+      count,
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(() => {
+      throw new Error(`the payee field lists no ${count} known payees`)
+    })
+}
+
+/** Types into the entry dialog's payee field from blank, key by key as a person does, which opens the list of known payees. */
+async function typePayee(page, press, text) {
+  const field = await pressSelector(page, press, '[data-testid="spending-entry-payee"]')
+  await field.evaluate((element) => element.select())
+  await page.keyboard.type(text)
+  return field
+}
+
+async function payeeTyped(field, wanted, after) {
+  const shown = await field.evaluate((element) => element.value)
+  if (shown !== wanted) throw new Error(`${after} left "${shown}" in the payee field, not "${wanted}"`)
+}
+
+async function payeeListGone(page) {
+  await page
+    .waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    .catch(() => {
+      throw new Error('the payee list stays open')
+    })
+}
+
+/**
+ * The entry dialog opened on the sample Spending file's Transactions, as money out or as a move between two accounts in two currencies, and closed again.
+ * Money out also lists the known payees after two typed letters. Escape closes the list and keeps the letters, so does Enter as the list opens, and Down then Enter picks the newest payee.
+ */
 export function spendingEntryDialogFlowIn(language, kind) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -5883,9 +5927,53 @@ export function spendingEntryDialogFlowIn(language, kind) {
     await delay(300)
     await inspect?.(kind === 'transfer' ? 'the entry dialog between two currencies' : 'the entry dialog')
     await shoot(kind === 'transfer' ? 'spending-transfer' : 'spending-entry')
+    if (kind === 'out') {
+      if (await page.$('[role="listbox"]')) throw new Error('the payee field lists payees for a new payee')
+      const field = await typePayee(page, press, 'ex')
+      const listed = await payeeOptions(page, SPENDING_PAYEES_EX.length)
+      if (listed.join('|') !== SPENDING_PAYEES_EX.join('|')) throw new Error(`the payee field lists ${listed.join(', ')} for ex`)
+      await delay(250)
+      await inspect?.('the payee list')
+      await shoot('spending-entry-payees')
+      await page.keyboard.press('Escape')
+      await payeeListGone(page)
+      await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 2_000 }).catch(() => {
+        throw new Error('Escape on the payee list closed the entry dialog')
+      })
+      await payeeTyped(field, 'ex', 'Escape on the payee list')
+      await typePayee(page, press, 'ex')
+      await payeeOptions(page, SPENDING_PAYEES_EX.length)
+      await page.keyboard.press('Enter')
+      await payeeListGone(page)
+      await payeeTyped(field, 'ex', 'Enter on the payee list as it opens')
+      await typePayee(page, press, 'ex')
+      await payeeOptions(page, SPENDING_PAYEES_EX.length)
+      await page.keyboard.press('ArrowDown')
+      await page.keyboard.press('Enter')
+      await payeeListGone(page)
+      await payeeTyped(field, SPENDING_PAYEES_EX[1], 'Down and Enter on the payee list')
+    }
     await page.keyboard.press('Escape')
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
   }
+}
+
+/** On the sample Spending file's Transactions: two letters of a payee in a new entry list it, and picking it fills the field with its name as the books spell it. */
+export async function spendingPayeePickFlow(page, { press, shoot, inspect }) {
+  const words = SCREEN_WORDS.en
+  await newSpendingEntry(page, press, words, 'out')
+  const field = await typePayee(page, press, 'ca')
+  const listed = await payeeOptions(page, 2)
+  if (listed[1] !== 'Café on the square') throw new Error(`the payee field lists ${listed.join(', ')} for ca`)
+  await inspect?.('the payee list')
+  await shoot('spending-payee-list')
+  const options = await page.$$('[role="listbox"] [role="option"]')
+  await press(options[1])
+  await payeeListGone(page)
+  await payeeTyped(field, 'Café on the square', 'Picking a payee')
+  await shoot('spending-payee-picked')
+  await page.keyboard.press('Escape')
+  await dialogGone(page, SPENDING_ENTRY_DIALOG)
 }
 
 /**
