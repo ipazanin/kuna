@@ -5,9 +5,10 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
-import { typedLoanTerms } from './loanTermsTexts'
-import type { LoanTermsTexts } from './loanTermsTexts'
+import { typedLoanTerms } from '../domain/loanTermsTexts'
+import type { LoanTermsTexts } from '../domain/loanTermsTexts'
 import { useLoanWords } from './useLoanWords'
+import { loanTermsErrors } from './words'
 
 /** The terms a first figure can do without: the lender and the interest charged before the first instalment. */
 const texts = defineModel<LoanTermsTexts>({ required: true })
@@ -18,7 +19,7 @@ defineProps<{
   tried: boolean
 }>()
 
-const errors = computed(() => typedLoanTerms(texts.value).errors)
+const errors = computed(() => loanTermsErrors(typedLoanTerms(texts.value).faults))
 </script>
 
 <template>

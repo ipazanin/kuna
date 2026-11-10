@@ -6,6 +6,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { LATE_INSTALMENT_WRITES, newLateInstalment } from '../application/bankLoanWrites'
+import { lateDues, paidLate } from '../domain/lateInstalments'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { LateInstalment } from '../../workbook/domain/lateInstalment'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
@@ -37,14 +38,9 @@ const due = ref('')
 const paid = ref('')
 const tried = ref(false)
 
-/** The instalments due by today that no other late instalment names, newest first. */
-const dueItems = computed(() => {
-  const marked = new Set(props.book.lateInstalments.filter((late) => late.id !== props.editing?.id).map((late) => late.due))
-  return (props.book.plan ?? [])
-    .filter((row) => row.kind === 'instalment' && row.date <= props.today && !marked.has(row.date))
-    .map((row): { label: string; value: string } => ({ label: `${dayLabel(row.date)}, ${formatMoney(row.payment)}`, value: row.date }))
-    .reverse()
-})
+const dueItems = computed(() =>
+  lateDues(props.book, props.today, props.editing).map((row): { label: string; value: string } => ({ label: `${dayLabel(row.date)}, ${formatMoney(row.payment)}`, value: row.date })),
+)
 
 watch(open, (opened) => {
   if (!opened) return
@@ -55,9 +51,10 @@ watch(open, (opened) => {
 
 const errors = computed(() => {
   const day = parseCivilDate(paid.value)
+  const dueDay = parseCivilDate(due.value)
   return {
     due: dueItems.value.some((item) => item.value === due.value) ? null : loanWords.value.lateDialog.dueError,
-    paid: day === null ? loansWords.form.aDate(civilDate(2026, 12, 8)) : due.value !== '' && day <= due.value ? loanWords.value.lateDialog.afterDue : null,
+    paid: day === null ? loansWords.form.aDate(civilDate(2026, 12, 8)) : dueDay !== null && !paidLate(dueDay, day) ? loanWords.value.lateDialog.afterDue : null,
   }
 })
 

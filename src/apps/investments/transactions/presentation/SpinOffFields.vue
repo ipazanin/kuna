@@ -4,7 +4,8 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import InstrumentField from './InstrumentField.vue'
-import type { TransactionErrors, TransactionTexts } from './transactionForm'
+import type { TransactionTexts } from '../domain/transactionDraft'
+import type { TransactionErrors } from './words'
 import { words } from './words'
 
 /** Units of a new holding received for holding another, with the share of that holding's cost that moves to them. */

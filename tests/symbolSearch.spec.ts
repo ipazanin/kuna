@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { instrumentTexts, withListing } from '../src/apps/investments/holdings/presentation/instrumentForm'
+import { instrumentTexts } from '../src/apps/investments/holdings/domain/instrumentDraft'
+import { withListing } from '../src/apps/investments/holdings/presentation/instrumentForm'
 import { createSymbolSearch } from '../src/apps/investments/prices/application/symbolSearch'
 import type { SearchedListing } from '../src/apps/investments/prices/application/symbolSearch'
 import type { VendorAnswer } from '../src/apps/investments/prices/application/priceVendor'

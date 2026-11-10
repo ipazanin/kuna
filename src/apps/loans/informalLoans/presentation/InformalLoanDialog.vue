@@ -10,7 +10,8 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 import { INFORMAL_LOAN_WRITES, newInformalLoan, removeInformalLoan } from '../application/informalLoanWrites'
 import { informalLoanLink, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
-import type { ExpectedPlan, InformalLoan } from '../../workbook/domain/informalLoan'
+import { checkedExpectedPlan } from '../domain/expectedPlan'
+import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
 import { civilDate, dayOfMonth, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
@@ -77,17 +78,14 @@ watch(planFrom, (from) => {
 const openingBalance = computed(() => typedAmount(opening.value))
 const startDay = computed(() => parseCivilDate(start.value))
 
-const plan = computed((): { readonly expected: ExpectedPlan | null; readonly errors: { readonly monthly: string | null; readonly from: string | null; readonly day: string | null } } => {
-  const monthly = typedAmount(planMonthly.value)
-  const from = parseCivilDate(planFrom.value)
-  const day = typedCount(planDay.value)
+const plan = computed(() => {
+  const { expected, faults } = checkedExpectedPlan(typedAmount(planMonthly.value), parseCivilDate(planFrom.value), typedCount(planDay.value), startDay.value)
   const errors = {
-    monthly: monthly === null || monthly <= 0 ? loansWords.form.anAmount : null,
-    from: from === null || (startDay.value !== null && from < startDay.value) ? words.loanDialog.planFromError : null,
-    day: day === null || day > 31 ? words.loanDialog.planDayError : null,
+    monthly: faults.monthly ? loansWords.form.anAmount : null,
+    from: faults.from ? words.loanDialog.planFromError : null,
+    day: faults.day ? words.loanDialog.planDayError : null,
   }
-  const filled = monthly !== null && from !== null && day !== null && Object.values(errors).every((error) => error === null)
-  return { expected: filled ? { monthly, from, day } : null, errors }
+  return { expected, errors }
 })
 
 const errors = computed(() => ({

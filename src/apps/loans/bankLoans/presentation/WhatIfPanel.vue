@@ -6,14 +6,13 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
-import { triedRate, whatIfChange, whatIfExtraPayment } from '../domain/whatIf'
-import type { ExtraPaymentOutcome } from '../domain/whatIf'
+import { comingDues, instalmentsLeftFrom, triedRate, whatIfChange, whatIfExtraPayment } from '../domain/whatIf'
+import type { ExtraPaymentOutcome, TriedChange } from '../domain/whatIf'
 import { typedRate } from '../domain/yearlyRate'
 import type { ExtraPaymentStart } from './ExtraPaymentDialog.vue'
 import TryOutcome from './TryOutcome.vue'
 import { tryName } from './savedTries'
-import type { TriedChange } from './savedTries'
-import { typedTerm } from './typedTerm'
+import { typedTerm } from '../domain/typedTerm'
 import { useLoanWords } from './useLoanWords'
 import { newLoanScenario, saveScenario } from '../../scenarios/application/scenarioWrites'
 import { spanOf } from '../../scenarios/presentation/scenarioComparison'
@@ -77,16 +76,14 @@ const result = computed(() => {
 const shorter = computed(() => result.value?.outcomes.find((outcome) => outcome.effect === 'shorter-term') ?? null)
 const lower = computed(() => result.value?.outcomes.find((outcome) => outcome.effect === 'lower-instalment') ?? null)
 
-/** The instalments still to come, which a new rate or term can start from. */
-const comingDues = computed(() => (props.book.plan ?? []).filter((row) => row.kind === 'instalment' && row.number !== null && row.date > props.today))
-const dueItems = computed(() => comingDues.value.map((row) => ({ label: loanWords.value.ratePeriodDialog.dueDate(dayLabel(row.date), row.number ?? 0), value: row.date })))
+const coming = computed(() => comingDues(props.book, props.today))
+const dueItems = computed(() => coming.value.map((row) => ({ label: loanWords.value.ratePeriodDialog.dueDate(dayLabel(row.date), row.number ?? 0), value: row.date })))
 const due = ref<CivilDate>(props.defaultDate)
 const rate = ref('')
 const years = ref('')
 const months = ref('')
 
-/** The instalments left from the picked due date on, the one due then included. */
-const leftThen = computed(() => comingDues.value.filter((row) => row.date >= due.value).length)
+const leftThen = computed(() => instalmentsLeftFrom(props.book, props.today, due.value))
 const termInstalments = computed(() => {
   const count = typedTerm(years.value, months.value)
   return count !== null && count < leftThen.value ? count : null
@@ -94,7 +91,7 @@ const termInstalments = computed(() => {
 const termError = computed(() => (years.value.trim() !== '' || months.value.trim() !== '') && termInstalments.value === null)
 
 const triedChange = computed((): TriedChange | null => {
-  const from = comingDues.value.some((row) => row.date === due.value) ? due.value : null
+  const from = coming.value.some((row) => row.date === due.value) ? due.value : null
   if (from === null) return null
   if (kind.value === 'rate') {
     const typedRateValue = typedRate(rate.value)

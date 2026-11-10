@@ -172,6 +172,32 @@ const SHARED_PRESENTATION_ON_ADAPTERS = [
   'src/shared/storage/presentation/useFindFile.ts -> src/shared/storage/infrastructure/documentRecordStorage.ts',
 ]
 
+/** What the chat's operations still import from presentation beside its words, a list that only shrinks. */
+const OPERATIONS_ON_PRESENTATION = [
+  'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/assetTexts.ts',
+  'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/loanChoices.ts',
+  'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/asset/presentation/valuationTexts.ts',
+  'src/apps/assets/assistant/operations/assetsOperations.ts -> src/apps/assets/values/presentation/assetsOnDay.ts',
+  'src/apps/assets/assistant/operations/proposalLines.ts -> src/apps/assets/values/presentation/assetsOnDay.ts',
+  'src/apps/company/assistant/operations/proposalLines.ts -> src/apps/company/settings/presentation/vatTreatmentLabel.ts',
+  'src/apps/company/packs/hr-doo/assistant/operations/packOperations.ts -> src/apps/company/packs/hr-doo/presentation/editorColumns.ts',
+  'src/apps/company/packs/hr-doo/assistant/operations/packOperations.ts -> src/apps/company/settings/presentation/factTabColumns.ts',
+  'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/imports/presentation/dryRunLines.ts',
+  'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/imports/presentation/importChoices.ts',
+  'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/mail/presentation/mailReaderForm.ts',
+  'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/mail/presentation/useMailReports.ts',
+  'src/apps/investments/assistant/operations/pricesOperations.ts -> src/apps/investments/overview/presentation/investmentLinks.ts',
+  'src/apps/investments/assistant/operations/pricesOperations.ts -> src/apps/investments/prices/presentation/runProblem.ts',
+  'src/apps/investments/assistant/operations/proposalLines.ts -> src/apps/investments/holdings/presentation/holdingText.ts',
+  'src/apps/investments/assistant/operations/proposalLines.ts -> src/apps/investments/overview/presentation/checkLines.ts',
+  'src/apps/investments/assistant/operations/proposalLines.ts -> src/apps/investments/tax/presentation/surtaxCityChoices.ts',
+  'src/apps/loans/assistant/operations/loansOperations.ts -> src/apps/loans/bankLoans/presentation/savedTries.ts',
+  'src/apps/loans/assistant/operations/offerOperation.ts -> src/apps/loans/scenarios/presentation/offerName.ts',
+  'src/apps/loans/assistant/operations/proposalLines.ts -> src/apps/loans/informalLoans/presentation/informalLoanView.ts',
+  'src/apps/loans/assistant/operations/proposalLines.ts -> src/apps/loans/scenarios/presentation/scenarioComparison.ts',
+  'src/apps/loans/assistant/operations/proposalLines.ts -> src/apps/loans/scenarios/presentation/scenariosView.ts',
+]
+
 /** Each app's published file and the one file of another app that may import it. */
 const PUBLISHED: Readonly<Record<string, readonly string[]>> = {
   'src/apps/loans/facts.ts': ['src/apps/assets/loans/application/assetLoans.ts'],
@@ -464,6 +490,13 @@ describe('import boundaries', () => {
       expect(operations.length).toBeGreaterThanOrEqual(2)
       expect(IMPORTS.filter((entry) => operations.includes(entry.from) && entry.target !== null && /^src\/shared\/(secrets|google|sync)\//.test(entry.target))).toEqual([])
       expect(IMPORTS.filter((entry) => CHAT_CODE(entry.from) && !entry.dynamic && entry.target !== null && entry.target.includes('/assistant/operations/'))).toEqual([])
+    })
+
+    it('keeps the operations off presentation but its words, so a check a dialog makes is a domain function the chat calls too, but for a list that only shrinks', () => {
+      const found = IMPORTS.filter(
+        (entry) => /\/assistant\/operations\//.test(entry.from) && entry.target !== null && /\/presentation\//.test(entry.target) && !/[wW]ords\.ts$/.test(entry.target),
+      ).map((entry) => `${entry.from} -> ${entry.target}`)
+      expect([...new Set(found)].sort()).toEqual(OPERATIONS_ON_PRESENTATION)
     })
 
     it("sets this device's settings only through what Kuna's assistant hands in, so neither reaches a secret or Google beyond the auto sync switch and the page's sync", () => {

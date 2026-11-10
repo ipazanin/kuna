@@ -1,12 +1,11 @@
-import type { TransactionKind, TransactionRecord } from '../domain/listedTransactions'
+import type { TransactionKind, TransactionRecord } from './listedTransactions'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovementKind } from '../../workbook/domain/cashMovement'
 import type { IncomeKind } from '../../workbook/domain/income'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { CASH_MOVEMENT_RECORDS, EXCHANGE_RECORDS, INCOME_RECORDS, PRICE_RECORDS, SPIN_OFF_RECORDS, SPLIT_RECORDS, TRADE_RECORDS, TRANSFER_RECORDS } from '../../workbook/domain/investmentKinds'
-import { words } from './words'
-import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO, currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
@@ -114,7 +113,31 @@ export interface TransactionTexts {
   reverses: boolean
 }
 
-export type TransactionErrors = Partial<Record<keyof TransactionTexts, string>>
+/** What can be wrong with a field on its own, named for the sentence the dialog shows under it. */
+type PlainFault =
+  | 'holding'
+  | 'account'
+  | 'otherAccount'
+  | 'date'
+  | 'units'
+  | 'price'
+  | 'handPrice'
+  | 'amount'
+  | 'fees'
+  | 'withheld'
+  | 'reversalNote'
+  | 'rate'
+  | 'currency'
+  | 'otherCurrency'
+  | 'wholeNumber'
+  | 'sameUnits'
+  | 'share'
+  | 'otherHolding'
+
+/** What is wrong with one field. A spin-off's received holding quoted in another currency names the parent's currency. */
+export type TransactionFault = { readonly kind: PlainFault } | { readonly kind: 'receivedCurrency'; readonly currency: CurrencyCode }
+
+export type TransactionFaults = Partial<Record<keyof TransactionTexts, TransactionFault>>
 
 /** Where a new transaction starts: what happened and the holding, such as a buy of the holding whose page it opens from. */
 export interface TransactionStart {
@@ -246,13 +269,11 @@ export function ecbRateText(rates: RateBook | null, currency: CurrencyCode | nul
   return decimalShown(rate)
 }
 
-/** The fields' errors and, when there are none, the record they make with the id given. */
+/** What is wrong with each field and, when nothing is, the record the fields make with the id given. */
 export interface TransactionDraft {
-  readonly errors: TransactionErrors
+  readonly faults: TransactionFaults
   readonly record: TransactionRecord | null
 }
-
-const EXAMPLE_DAY = civilDate(2026, 10, 12)
 
 const CENT_PLACES = 2
 
@@ -284,29 +305,29 @@ function wholeNumber(text: string): number | null {
 
 /** Reads the texts of the happening into its record, keyed by `key`, or says what is wrong with each field. */
 export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, key: string): TransactionDraft {
-  const errors: TransactionErrors = {}
-  const fail = <T>(field: keyof TransactionTexts, message: string): T | null => {
-    errors[field] = message
+  const faults: TransactionFaults = {}
+  const fail = <T>(field: keyof TransactionTexts, fault: PlainFault | TransactionFault): T | null => {
+    faults[field] = typeof fault === 'string' ? { kind: fault } : fault
     return null
   }
-  const date = parseCivilDate(texts.date) ?? fail<CivilDate>('date', words.errors.date(EXAMPLE_DAY))
-  const accountOf = (field: 'account' | 'toAccount'): RecordId | null => book.accounts.find((account) => account.id === texts[field])?.id ?? fail<RecordId>(field, words.errors.account)
-  const instrumentOf = (field: 'instrument' | 'received'): Instrument | null => book.instruments.find((instrument) => instrument.id === texts[field]) ?? fail<Instrument>(field, words.errors.holding)
-  const currencyOf = (field: 'currency' | 'boughtCurrency' | 'feeCurrency'): CurrencyCode | null => currencyCodeOf(texts[field]) ?? fail<CurrencyCode>(field, words.errors.currency)
-  const rateFor = (currency: CurrencyCode | null): Decimal | null => (currency === null || currency === EURO ? null : (positiveDecimal(texts.rate) ?? fail<Decimal>('rate', words.errors.rate)))
+  const date = parseCivilDate(texts.date) ?? fail<CivilDate>('date', 'date')
+  const accountOf = (field: 'account' | 'toAccount'): RecordId | null => book.accounts.find((account) => account.id === texts[field])?.id ?? fail<RecordId>(field, 'account')
+  const instrumentOf = (field: 'instrument' | 'received'): Instrument | null => book.instruments.find((instrument) => instrument.id === texts[field]) ?? fail<Instrument>(field, 'holding')
+  const currencyOf = (field: 'currency' | 'boughtCurrency' | 'feeCurrency'): CurrencyCode | null => currencyCodeOf(texts[field]) ?? fail<CurrencyCode>(field, 'currency')
+  const rateFor = (currency: CurrencyCode | null): Decimal | null => (currency === null || currency === EURO ? null : (positiveDecimal(texts.rate) ?? fail<Decimal>('rate', 'rate')))
   const note = texts.note.trim()
-  const done = (record: TransactionRecord): TransactionDraft => ({ errors, record: Object.keys(errors).length === 0 ? record : null })
+  const done = (record: TransactionRecord): TransactionDraft => ({ faults, record: Object.keys(faults).length === 0 ? record : null })
 
   switch (texts.happened) {
     case 'buy':
     case 'sell': {
       const account = accountOf('account')
       const instrument = instrumentOf('instrument')
-      const quantity = positiveDecimal(texts.quantity) ?? fail<Decimal>('quantity', words.errors.units)
-      const price = typedDecimal(texts.price) ?? fail<Decimal>('price', words.errors.price)
-      const fees = texts.fees.trim() === '' ? null : (amountOf(texts.fees) ?? fail<Decimal>('fees', words.errors.fees))
+      const quantity = positiveDecimal(texts.quantity) ?? fail<Decimal>('quantity', 'units')
+      const price = typedDecimal(texts.price) ?? fail<Decimal>('price', 'price')
+      const fees = texts.fees.trim() === '' ? null : (amountOf(texts.fees) ?? fail<Decimal>('fees', 'fees'))
       const rate = rateFor(instrument?.currency ?? null)
-      if (account === null || instrument === null || date === null || quantity === null || price === null) return { errors, record: null }
+      if (account === null || instrument === null || date === null || quantity === null || price === null) return { faults, record: null }
       return done({
         kind: 'trade',
         record: { id: recordIdOf(TRADE_RECORDS, key), account, instrument: instrument.id, side: texts.happened, date, quantity, price, fees, rate, accrued: null, importKey: null, note },
@@ -317,13 +338,13 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
       const needsInstrument = texts.incomeKind === 'dividend' || texts.incomeKind === 'coupon'
       const instrument = needsInstrument || texts.instrument !== '' ? instrumentOf('instrument') : null
       const currency = currencyOf('currency')
-      const gross = positiveAmount(texts.amount) ?? fail<Decimal>('amount', words.errors.amount)
+      const gross = positiveAmount(texts.amount) ?? fail<Decimal>('amount', 'amount')
       const withheldText = texts.withheld.trim() === '' ? '0' : texts.withheld
       const withheld = amountOf(withheldText)
-      if (withheld === null || (gross !== null && withheld > gross)) fail('withheld', words.errors.withheld)
-      if (texts.reverses && note === '') fail('note', words.errors.reversalNote)
+      if (withheld === null || (gross !== null && withheld > gross)) fail('withheld', 'withheld')
+      if (texts.reverses && note === '') fail('note', 'reversalNote')
       const rate = rateFor(currency)
-      if (account === null || date === null || currency === null || gross === null || withheld === null) return { errors, record: null }
+      if (account === null || date === null || currency === null || gross === null || withheld === null) return { faults, record: null }
       return done({
         kind: 'income',
         record: {
@@ -347,22 +368,22 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
     case 'fee-refund': {
       const account = accountOf('account')
       const currency = currencyOf('currency')
-      const amount = positiveAmount(texts.amount) ?? fail<Decimal>('amount', words.errors.amount)
+      const amount = positiveAmount(texts.amount) ?? fail<Decimal>('amount', 'amount')
       const rate = rateFor(currency)
-      if (account === null || date === null || currency === null || amount === null) return { errors, record: null }
+      if (account === null || date === null || currency === null || amount === null) return { faults, record: null }
       const kind: CashMovementKind = texts.happened
       return done({ kind: 'cash-movement', record: { id: recordIdOf(CASH_MOVEMENT_RECORDS, key), account, kind, date, currency, amount, rate, importKey: null, note } })
     }
     case 'exchange': {
       const account = accountOf('account')
       const soldCurrency = currencyOf('currency')
-      const sold = positiveAmount(texts.amount) ?? fail<Decimal>('amount', words.errors.amount)
+      const sold = positiveAmount(texts.amount) ?? fail<Decimal>('amount', 'amount')
       const boughtCurrency = currencyOf('boughtCurrency')
-      if (boughtCurrency !== null && boughtCurrency === soldCurrency) fail('boughtCurrency', words.errors.otherCurrency)
-      const bought = positiveAmount(texts.bought) ?? fail<Decimal>('bought', words.errors.amount)
-      const feeAmount = texts.fees.trim() === '' ? null : (amountOf(texts.fees) ?? fail<Decimal>('fees', words.errors.fees))
+      if (boughtCurrency !== null && boughtCurrency === soldCurrency) fail('boughtCurrency', 'otherCurrency')
+      const bought = positiveAmount(texts.bought) ?? fail<Decimal>('bought', 'amount')
+      const feeAmount = texts.fees.trim() === '' ? null : (amountOf(texts.fees) ?? fail<Decimal>('fees', 'fees'))
       const feeCurrency = feeAmount === null ? null : currencyOf('feeCurrency')
-      if (account === null || date === null || soldCurrency === null || sold === null || boughtCurrency === null || bought === null) return { errors, record: null }
+      if (account === null || date === null || soldCurrency === null || sold === null || boughtCurrency === null || bought === null) return { faults, record: null }
       return done({
         kind: 'exchange',
         record: {
@@ -382,43 +403,43 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
     case 'transfer': {
       const from = accountOf('account')
       const to = accountOf('toAccount')
-      if (from !== null && to === from) fail('toAccount', words.errors.otherAccount)
+      if (from !== null && to === from) fail('toAccount', 'otherAccount')
       const instrument = texts.moves === 'units' ? instrumentOf('instrument') : null
-      const quantity = texts.moves === 'units' ? (positiveDecimal(texts.quantity) ?? fail<Decimal>('quantity', words.errors.units)) : null
+      const quantity = texts.moves === 'units' ? (positiveDecimal(texts.quantity) ?? fail<Decimal>('quantity', 'units')) : null
       const currency = texts.moves === 'cash' ? currencyOf('currency') : null
-      const amount = texts.moves === 'cash' ? (positiveAmount(texts.amount) ?? fail<Decimal>('amount', words.errors.amount)) : null
-      if (from === null || to === null || date === null) return { errors, record: null }
+      const amount = texts.moves === 'cash' ? (positiveAmount(texts.amount) ?? fail<Decimal>('amount', 'amount')) : null
+      if (from === null || to === null || date === null) return { faults, record: null }
       const moved =
         instrument !== null && quantity !== null
           ? { kind: 'units' as const, instrument: instrument.id, quantity }
           : currency !== null && amount !== null
             ? { kind: 'cash' as const, currency, amount }
             : null
-      return moved === null ? { errors, record: null } : done({ kind: 'transfer', record: { id: recordIdOf(TRANSFER_RECORDS, key), from, to, date, moved, importKey: null, note } })
+      return moved === null ? { faults, record: null } : done({ kind: 'transfer', record: { id: recordIdOf(TRANSFER_RECORDS, key), from, to, date, moved, importKey: null, note } })
     }
     case 'split': {
       const instrument = instrumentOf('instrument')
-      const newUnits = wholeNumber(texts.newUnits) ?? fail<number>('newUnits', words.errors.wholeNumber)
-      const oldUnits = wholeNumber(texts.oldUnits) ?? fail<number>('oldUnits', words.errors.wholeNumber)
-      if (newUnits !== null && newUnits === oldUnits) fail('oldUnits', words.errors.sameUnits)
-      if (instrument === null || date === null || newUnits === null || oldUnits === null) return { errors, record: null }
+      const newUnits = wholeNumber(texts.newUnits) ?? fail<number>('newUnits', 'wholeNumber')
+      const oldUnits = wholeNumber(texts.oldUnits) ?? fail<number>('oldUnits', 'wholeNumber')
+      if (newUnits !== null && newUnits === oldUnits) fail('oldUnits', 'sameUnits')
+      if (instrument === null || date === null || newUnits === null || oldUnits === null) return { faults, record: null }
       return done({ kind: 'split', record: { id: recordIdOf(SPLIT_RECORDS, key), instrument: instrument.id, date, newUnits, oldUnits, importKey: null, note } })
     }
     case 'spin-off': {
       const parent = instrumentOf('instrument')
       const received = instrumentOf('received')
-      if (parent !== null && received !== null && received.id === parent.id) fail('received', words.errors.otherHolding)
-      else if (parent !== null && received !== null && received.currency !== parent.currency) fail('received', words.errors.receivedCurrency(parent.currency))
-      const quantity = positiveDecimal(texts.quantity) ?? fail<Decimal>('quantity', words.errors.units)
+      if (parent !== null && received !== null && received.id === parent.id) fail('received', 'otherHolding')
+      else if (parent !== null && received !== null && received.currency !== parent.currency) fail('received', { kind: 'receivedCurrency', currency: parent.currency })
+      const quantity = positiveDecimal(texts.quantity) ?? fail<Decimal>('quantity', 'units')
       const percent = typedDecimal(texts.costShare)
-      const costShare = percent === null || percent > PERCENT_DECIMAL ? fail<Decimal>('costShare', words.errors.share) : scaledDecimal(percent, 1n, PERCENT)
-      if (parent === null || received === null || date === null || quantity === null || costShare === null) return { errors, record: null }
+      const costShare = percent === null || percent > PERCENT_DECIMAL ? fail<Decimal>('costShare', 'share') : scaledDecimal(percent, 1n, PERCENT)
+      if (parent === null || received === null || date === null || quantity === null || costShare === null) return { faults, record: null }
       return done({ kind: 'spin-off', record: { id: recordIdOf(SPIN_OFF_RECORDS, key), instrument: parent.id, received: received.id, date, quantity, costShare, importKey: null, note } })
     }
     case 'price': {
       const instrument = instrumentOf('instrument')
-      const price = positiveDecimal(texts.price) ?? fail<Decimal>('price', words.errors.handPrice)
-      if (instrument === null || date === null || price === null) return { errors, record: null }
+      const price = positiveDecimal(texts.price) ?? fail<Decimal>('price', 'handPrice')
+      if (instrument === null || date === null || price === null) return { faults, record: null }
       return done({ kind: 'price', record: { id: recordIdOf(PRICE_RECORDS, key), instrument: instrument.id, date, price, note } })
     }
   }

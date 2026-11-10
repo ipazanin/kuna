@@ -1,3 +1,9 @@
+import type { ChangeFaults, CostFaults } from '../domain/changeTexts'
+import type { OfferFaults } from '../domain/offerTexts'
+import { loanTermsErrors, words as bankWords } from '../../bankLoans/presentation/words'
+import { MOST_INSTALMENTS } from '../../workbook/domain/bankLoanReading'
+import { words as loansWords } from '../../words'
+import { civilDate } from '../../../../shared/calendar/civilDate'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 import { withFullStop } from '../../../../shared/text/withFullStop'
@@ -382,3 +388,52 @@ export const hr: Translation<typeof en> = {
 }
 
 export const words = language === 'hr' ? hr : en
+
+/** The sentence under each cost field that is wrong, or null. */
+export function costErrors(faults: CostFaults): Readonly<Record<keyof CostFaults, string | null>> {
+  const text = (wrong: boolean): string | null => (wrong ? words.editor.costError : null)
+  return { upfront: text(faults.upfront), monthly: text(faults.monthly), yearly: text(faults.yearly) }
+}
+
+type ChangeField = Exclude<keyof ChangeFaults, 'costs'>
+
+/** The sentence under each field of a change that is wrong, or null, for the fields its kind shows. */
+export type ChangeErrors = Readonly<Partial<Record<ChangeField | keyof CostFaults, string | null>>>
+
+const EXAMPLE_DAY = civilDate(2027, 3, 1)
+
+const CHANGE_FAULTS: Readonly<Record<NonNullable<ChangeFaults[ChangeField]>, () => string>> = {
+  'no-amount': () => loansWords.form.anAmount,
+  'no-date': () => loansWords.form.aDate(EXAMPLE_DAY),
+  'before-payout': () => bankWords.extraDialog.afterPayout,
+  'no-due': () => words.editor.dueError,
+  'before-start': () => words.editor.untilError,
+  'no-rate': () => bankWords.rateFields.rateError,
+  'no-count': () => bankWords.loanDialog.instalmentsError,
+  'too-many': () => bankWords.loanDialog.tooMany(MOST_INSTALMENTS),
+}
+
+/** What a change's block says under each of its fields. */
+export function changeErrors(faults: ChangeFaults): ChangeErrors {
+  const { costs, ...fields } = faults
+  return {
+    ...Object.fromEntries(Object.entries(fields).map(([field, fault]) => [field, fault === null || fault === undefined ? null : CHANGE_FAULTS[fault]()])),
+    ...(costs === undefined ? {} : costErrors(costs)),
+  }
+}
+
+/** The sentence under each field of an offer that is wrong, or null. */
+export type OfferErrors = Readonly<Record<keyof OfferFaults, string | null>>
+
+/** What the offer's fields say under each that is wrong. */
+export function offerErrors(faults: OfferFaults): OfferErrors {
+  const rateError = (fault: 'no-rate' | null): string | null => (fault === null ? null : bankWords.rateFields.rateError)
+  return {
+    ...loanTermsErrors(faults),
+    rate: rateError(faults.rate),
+    term: faults.term === null ? null : words.editor.termError,
+    fixedYears: faults.fixedYears === null ? null : words.editor.fixedForError,
+    thenVariable: rateError(faults.thenVariable),
+    bankEks: rateError(faults.bankEks),
+  }
+}

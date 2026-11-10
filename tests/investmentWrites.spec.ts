@@ -3,16 +3,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
 import { FUND_MIX_WRITES, TARGET_WRITES, replaceRows } from '../src/apps/investments/holdings/application/mixWrites'
-import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, instrumentErrors, instrumentOfTexts, instrumentTexts, typeItems, withQuoting } from '../src/apps/investments/holdings/presentation/instrumentForm'
-import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts, mixSum } from '../src/apps/investments/holdings/presentation/instrumentMixForm'
+import { fundMixChanges, fundMixFaults, fundMixTexts, mixLineTexts, mixSum } from '../src/apps/investments/holdings/domain/fundMixDraft'
+import { instrumentFaults, instrumentOfTexts, instrumentTexts, withQuoting } from '../src/apps/investments/holdings/domain/instrumentDraft'
+import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, typeItems } from '../src/apps/investments/holdings/presentation/instrumentForm'
+import { fundMixErrors, instrumentErrors } from '../src/apps/investments/holdings/presentation/words'
 import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
 import { listedTransactions, passesFilter, transactionCount, withImportFacts } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { TransactionRecord } from '../src/apps/investments/transactions/domain/listedTransactions'
 import { tradePreview } from '../src/apps/investments/transactions/domain/tradePreview'
 import { DIVIDEND_CO, EXAMPLE_RATES, TECH, WORLD, exampleYear } from './fixtures/taxExample'
-import { ecbRateText, happeningsOfKind, keyOf, rateCurrency, textsOf, transactionDraft } from '../src/apps/investments/transactions/presentation/transactionForm'
-import type { TransactionTexts } from '../src/apps/investments/transactions/presentation/transactionForm'
+import { ecbRateText, happeningsOfKind, keyOf, rateCurrency, textsOf, transactionDraft } from '../src/apps/investments/transactions/domain/transactionDraft'
+import type { TransactionTexts } from '../src/apps/investments/transactions/domain/transactionDraft'
+import { transactionErrors } from '../src/apps/investments/transactions/presentation/words'
 import type { FundMixLine } from '../src/apps/investments/workbook/domain/fundMix'
 import type { InvestmentsBooks } from '../src/apps/investments/workbook/domain/investmentsBooks'
 import { FUND_MIX_RECORDS, INSTRUMENT_RECORDS, PRICE_RECORDS, SETTING_RECORDS, TRADE_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
@@ -238,7 +241,7 @@ describe('the transaction form', () => {
   it('reads a dollar buy with a k in its fee and a decimal comma in its units', () => {
     const draft = transactionDraft(typedBuy({ quantity: '2,5', price: '158.96', fees: '0.01k', rate: '1.085' }), BOOK, 'new-buy')
 
-    expect(draft.errors).toEqual({})
+    expect(draft.faults).toEqual({})
     expect(draft.record).toEqual({
       kind: 'trade',
       record: { ...trade('buy', ONE, SHARE, '2026-10-21', '2.5', '158.96', '10', '1.085'), id: recordIdOf(TRADE_RECORDS, 'new-buy') },
@@ -246,9 +249,9 @@ describe('the transaction form', () => {
   })
 
   it('says what each field of a buy lacks, keeps a blank fee as not entered, and needs no rate in euros', () => {
-    expect(Object.keys(transactionDraft(typedBuy({ account: '', instrument: '', date: '' }), BOOK, 'k').errors).sort()).toEqual(['account', 'date', 'instrument', 'price', 'quantity'])
-    expect(transactionDraft(typedBuy({ quantity: '1', price: '10', rate: '' }), BOOK, 'k').errors).toEqual({ rate: 'A rate above zero, such as 1.0850' })
-    expect(transactionDraft(typedBuy({ quantity: '1', price: '10', fees: 'one' }), BOOK, 'k').errors.fees).toBe('An amount, or blank')
+    expect(Object.keys(transactionDraft(typedBuy({ account: '', instrument: '', date: '' }), BOOK, 'k').faults).sort()).toEqual(['account', 'date', 'instrument', 'price', 'quantity'])
+    expect(transactionErrors(transactionDraft(typedBuy({ quantity: '1', price: '10', rate: '' }), BOOK, 'k').faults)).toEqual({ rate: 'A rate above zero, such as 1.0850' })
+    expect(transactionDraft(typedBuy({ quantity: '1', price: '10', fees: 'one' }), BOOK, 'k').faults.fees).toEqual({ kind: 'fees' })
     const fundBuy = transactionDraft(typedBuy({ instrument: FUND.id, quantity: '1', price: '10' }), BOOK, 'k').record
     expect(fundBuy?.kind === 'trade' && [fundBuy.record.fees, fundBuy.record.rate]).toEqual([null, null])
   })
@@ -261,18 +264,18 @@ describe('the transaction form', () => {
       gross: decimal('12'),
       withheld: decimal('1.8'),
     })
-    expect(read({ happened: 'income', amount: '12', withheld: '13', rate: '1.1' }).errors.withheld).toBeDefined()
+    expect(read({ happened: 'income', amount: '12', withheld: '13', rate: '1.1' }).faults.withheld).toEqual({ kind: 'withheld' })
     expect(read({ happened: 'income', incomeKind: 'interest', instrument: '', currency: 'EUR', amount: '3' }).record?.record).toMatchObject({ instrument: null, rate: null })
     expect(read({ happened: 'deposit', currency: 'EUR', amount: '3k' }).record?.record).toMatchObject({ kind: 'deposit', amount: decimal('3000') })
-    expect(read({ happened: 'exchange', currency: 'EUR', amount: '1000', boughtCurrency: 'EUR', bought: '1085' }).errors.boughtCurrency).toBe('Another currency than the one sold')
-    expect(read({ happened: 'transfer', toAccount: ONE.id, moves: 'cash', currency: 'EUR', amount: '200' }).errors.toAccount).toBe('Another account than the one it leaves')
+    expect(read({ happened: 'exchange', currency: 'EUR', amount: '1000', boughtCurrency: 'EUR', bought: '1085' }).faults.boughtCurrency).toEqual({ kind: 'otherCurrency' })
+    expect(read({ happened: 'transfer', toAccount: ONE.id, moves: 'cash', currency: 'EUR', amount: '200' }).faults.toAccount).toEqual({ kind: 'otherAccount' })
     expect(read({ happened: 'transfer', toAccount: TWO.id, quantity: '4' }).record?.record).toMatchObject({ moved: { kind: 'units', instrument: SHARE.id, quantity: decimal('4') } })
-    expect(read({ happened: 'split', newUnits: '3', oldUnits: '3' }).errors.oldUnits).toBe('New and old differ in a split')
-    expect(read({ happened: 'split', newUnits: '1.5', oldUnits: '1' }).errors.newUnits).toBe('A whole number above zero')
+    expect(read({ happened: 'split', newUnits: '3', oldUnits: '3' }).faults.oldUnits).toEqual({ kind: 'sameUnits' })
+    expect(read({ happened: 'split', newUnits: '1.5', oldUnits: '1' }).faults.newUnits).toEqual({ kind: 'wholeNumber' })
     expect(read({ happened: 'spin-off', received: SPUN.id, quantity: '2', costShare: '8' }).record?.record).toMatchObject({ costShare: decimal('0.08') })
-    expect(read({ happened: 'spin-off', received: FUND.id, quantity: '2', costShare: '8' }).errors.received).toBe('A holding quoted in USD, as the one it came from')
-    expect(read({ happened: 'spin-off', received: SPUN.id, quantity: '2', costShare: '101' }).errors.costShare).toBe('A share from 0 to 100')
-    expect(read({ happened: 'price', price: '0' }).errors.price).toBe('A price above zero, such as 10.42')
+    expect(transactionErrors(read({ happened: 'spin-off', received: FUND.id, quantity: '2', costShare: '8' }).faults).received).toBe('A holding quoted in USD, as the one it came from')
+    expect(read({ happened: 'spin-off', received: SPUN.id, quantity: '2', costShare: '101' }).faults.costShare).toEqual({ kind: 'share' })
+    expect(read({ happened: 'price', price: '0' }).faults.price).toEqual({ kind: 'handPrice' })
   })
 
   it('reads units grouped as English writes them, as the money fields beside them read amounts', () => {
@@ -290,7 +293,7 @@ describe('the transaction form', () => {
     expect([fees.fees, income.amount, income.withheld]).toEqual(['1.235', '1,234.50', '12.345'])
     expect(transactionDraft(fees, BOOK, 'k').record?.record).toMatchObject({ fees: decimal('1.24') })
     expect(transactionDraft(income, BOOK, 'k').record?.record).toMatchObject({ gross: decimal('1234.5'), withheld: decimal('12.35') })
-    expect(transactionDraft({ ...fees, fees: '1.2x' }, BOOK, 'k').errors.fees).toBe('An amount, or blank')
+    expect(transactionDraft({ ...fees, fees: '1.2x' }, BOOK, 'k').faults.fees).toEqual({ kind: 'fees' })
   })
 
   it('shows a reversal’s amounts above zero and keeps them below zero, with a note saying what it reverses', () => {
@@ -299,13 +302,13 @@ describe('the transaction form', () => {
 
     expect([texts.reverses, texts.amount, texts.withheld]).toEqual([true, '12.00', '1.80'])
     expect(transactionDraft(texts, BOOK, 'k').record?.record).toMatchObject({ gross: decimal('-12'), withheld: decimal('-1.8'), note: 'Reverses a dividend' })
-    expect(transactionDraft({ ...texts, note: ' ' }, BOOK, 'k').errors.note).toBe('A note saying which payment it reverses')
+    expect(transactionDraft({ ...texts, note: ' ' }, BOOK, 'k').faults.note).toEqual({ kind: 'reversalNote' })
   })
 
   it('reads and shows numbers as Croatian writes them', async () => {
     vi.resetModules()
     vi.doMock('../src/shared/text/language', () => ({ language: 'hr', intlLocale: 'hr-HR' }))
-    const croatian = await import('../src/apps/investments/transactions/presentation/transactionForm')
+    const croatian = await import('../src/apps/investments/transactions/domain/transactionDraft')
     vi.doUnmock('../src/shared/text/language')
     const start = { happened: 'buy' as const, instrument: SHARE.id, today: civil('2026-10-21') }
     const typed = { ...croatian.textsOf(null, start, BOOK), account: ONE.id, quantity: '1.000', price: '158,96', fees: '1.000', rate: '1,085' }
@@ -513,7 +516,7 @@ describe('the instrument form', () => {
       country: null,
       ter: null,
     })
-    expect(instrumentErrors({ ...typed, ter: 'low' }, []).ter).toBe('A yearly cost in percent such as 0.20, or blank')
+    expect(instrumentErrors(instrumentFaults({ ...typed, ter: 'low' }, [])).ter).toBe('A yearly cost in percent such as 0.20, or blank')
     expect(instrumentTexts({ ...SHARE, sector: 'energy', country: countryOf('US'), ter: decimal('0.07') })).toMatchObject({ sector: 'energy', country: 'US', ter: '0.07' })
   })
 
@@ -554,7 +557,8 @@ describe('the instrument form', () => {
     const typed = withQuoting({ ...instrumentTexts(null), name: 'Example Bond', symbol: 'EXB' }, 'percent', '')
 
     expect(typed.type).toBe('bond')
-    expect(instrumentErrors(typed, [])).toMatchObject({ coupon: 'A yearly coupon in percent such as 3.5', maturity: 'Pick a date' })
+    expect(instrumentFaults(typed, [])).toMatchObject({ coupon: { kind: 'coupon' }, maturity: { kind: 'maturity' } })
+    expect(instrumentErrors(instrumentFaults(typed, []))).toMatchObject({ coupon: 'A yearly coupon in percent such as 3.5', maturity: 'Pick a date' })
     expect(instrumentOfTexts(typed, [], id, kept)).toBeNull()
 
     const bond = instrumentOfTexts({ ...typed, coupon: '3.5', maturity: '2030-03-02' }, [], id, kept)
@@ -566,7 +570,10 @@ describe('the instrument form', () => {
   })
 
   it('refuses a coupon on an instrument priced per unit and a type that its quoting does not allow', () => {
-    const errors = instrumentErrors({ ...instrumentTexts(null), coupon: '3', maturity: '2030-03-02', quoted: 'gram', type: 'share' }, [])
+    const faults = instrumentFaults({ ...instrumentTexts(null), coupon: '3', maturity: '2030-03-02', quoted: 'gram', type: 'share' }, [])
+    const errors = instrumentErrors(faults)
+
+    expect(faults).toMatchObject({ coupon: { kind: 'couponOfBond' }, maturity: { kind: 'maturityOfBond' }, type: { kind: 'quotedType', type: 'gold' } })
 
     expect(errors).toMatchObject({
       coupon: 'Only a bond quoted in percent has a coupon',
@@ -577,7 +584,7 @@ describe('the instrument form', () => {
 
   it('says what a fund’s mix lacks: a group, a group on one line only, a percent above 0 and at most 100, and lines that add up to 100%', () => {
     const typed = { sector: [mixLineTexts('', '60'), mixLineTexts('energy', '0'), mixLineTexts('energy', '120')], country: [] }
-    const errors = fundMixErrors(typed)
+    const errors = fundMixErrors(fundMixFaults(typed))
 
     expect(errors.lines.sector).toEqual([
       { group: 'Choose a group', percent: null },

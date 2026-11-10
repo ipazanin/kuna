@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 
-import { typedCosts } from './changeTexts'
-import type { CostTexts } from './changeTexts'
-import { words } from './words'
+import { costErrors, words } from './words'
+import { typedCosts } from '../domain/changeTexts'
+import type { CostTexts } from '../domain/changeTexts'
 import { words as loansWords } from '../../words'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
@@ -17,7 +17,7 @@ const props = defineProps<{
   testPrefix: string
 }>()
 
-const errors = computed(() => typedCosts(texts.value).errors)
+const errors = computed(() => costErrors(typedCosts(texts.value).faults))
 const shown = (error: string | null): string | false => (props.tried && error) || false
 </script>
 

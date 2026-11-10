@@ -7,6 +7,10 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { BANK_LOAN_WRITES, RATE_PERIOD_WRITES, newBankLoan, newRatePeriod, removeBankLoan } from '../application/bankLoanWrites'
+import { loanTermsTexts, typedLoanTerms } from '../domain/loanTermsTexts'
+import type { LoanTermsTexts } from '../domain/loanTermsTexts'
+import { subsidyTexts, typedSubsidy } from '../domain/subsidyTexts'
+import type { SubsidyTexts } from '../domain/subsidyTexts'
 import { typedRate } from '../domain/yearlyRate'
 import { bankLoanLink, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
@@ -18,15 +22,12 @@ import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import FoldBlock from './FoldBlock.vue'
 import LoanMoreTermsFields from './LoanMoreTermsFields.vue'
 import LoanTermsFields from './LoanTermsFields.vue'
-import { loanTermsTexts, typedLoanTerms } from './loanTermsTexts'
-import type { LoanTermsTexts } from './loanTermsTexts'
 import RateFields, { rateError } from './RateFields.vue'
 import type { RateTexts } from './RateFields.vue'
 import SubsidyFields from './SubsidyFields.vue'
-import { subsidyTexts, typedSubsidy } from './subsidyTexts'
-import type { SubsidyTexts } from './subsidyTexts'
 import { words as loansWords } from '../../words'
 import { provideLoanWords } from './useLoanWords'
+import { loanTermsErrors } from './words'
 
 /**
  * Adds a bank loan with its first rate period and its subsidy in one write, or changes its terms.
@@ -70,10 +71,9 @@ const typed = computed(() => typedLoanTerms(terms.value))
 
 const errors = computed(() => ({
   name: name.value.trim() === '' ? loanWords.value.loanDialog.nameError : null,
-  ...typed.value.errors,
+  ...loanTermsErrors(typed.value.faults),
   rate: props.book === null ? rateError(rate.value) : null,
-  subsidy:
-    props.book === null && subsidised.value && typedSubsidy(subsidy.value, typed.value.instalments, loanWords.value.subsidyFields).subsidy === null ? loanWords.value.loanDialog.subsidyError : null,
+  subsidy: props.book === null && subsidised.value && typedSubsidy(subsidy.value, typed.value.instalments).subsidy === null ? loanWords.value.loanDialog.subsidyError : null,
 }))
 
 const moreWrong = computed(() => tried.value && (errors.value.interim !== null || errors.value.subsidy !== null))
@@ -87,7 +87,7 @@ function typedTerms(): Omit<BankLoan, 'id'> | null {
   return {
     ...fields,
     name: name.value,
-    subsidy: props.book === null ? (subsidised.value ? typedSubsidy(subsidy.value, fields.instalments, loanWords.value.subsidyFields).subsidy : null) : props.book.loan.subsidy,
+    subsidy: props.book === null ? (subsidised.value ? typedSubsidy(subsidy.value, fields.instalments).subsidy : null) : props.book.loan.subsidy,
     note: note.value,
   }
 }

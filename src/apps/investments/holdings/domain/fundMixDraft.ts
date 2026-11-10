@@ -1,4 +1,3 @@
-import { words } from './words'
 import type { FundMixLine } from '../../workbook/domain/fundMix'
 import { HUNDRED_PERCENT } from '../../workbook/domain/investmentFields'
 import { FUND_MIXES, SECTORS, countryOf } from '../../workbook/domain/mixGroup'
@@ -19,15 +18,20 @@ export interface MixLineTexts {
 
 export type FundMixTexts = Record<FundMix, MixLineTexts[]>
 
-export interface MixLineErrors {
-  readonly group: string | null
-  readonly percent: string | null
+/** What is wrong with a line's group or percent, or with a mix whose lines do not add up to 100%. */
+export interface MixFault {
+  readonly kind: 'mixGroup' | 'mixGroupTwice' | 'mixPercent' | 'mixWhole'
 }
 
-export interface FundMixErrors {
-  readonly lines: Readonly<Record<FundMix, readonly MixLineErrors[]>>
+export interface MixLineFaults {
+  readonly group: MixFault | null
+  readonly percent: MixFault | null
+}
+
+export interface FundMixFaults {
+  readonly lines: Readonly<Record<FundMix, readonly MixLineFaults[]>>
   /** Why a mix with lines does not add up to 100%, or null. */
-  readonly whole: Readonly<Record<FundMix, string | null>>
+  readonly whole: Readonly<Record<FundMix, MixFault | null>>
 }
 
 let lastKey = 0
@@ -53,24 +57,24 @@ export function mixSum(lines: readonly MixLineTexts[]): Decimal {
   return sumDecimal(lines.map((line) => percentOf(line.percent) ?? DECIMAL_ZERO))
 }
 
-function lineErrors(lines: readonly MixLineTexts[]): MixLineErrors[] {
-  const text = words.instrumentDialog.errors
+function lineFaults(lines: readonly MixLineTexts[]): MixLineFaults[] {
   return lines.map((line, index) => ({
-    group: line.group === '' ? text.mixGroup : lines.some((other, at) => at < index && other.group === line.group) ? text.mixGroupTwice : null,
-    percent: percentOf(line.percent) === null ? text.mixPercent : null,
+    group: line.group === '' ? { kind: 'mixGroup' } : lines.some((other, at) => at < index && other.group === line.group) ? { kind: 'mixGroupTwice' } : null,
+    percent: percentOf(line.percent) === null ? { kind: 'mixPercent' } : null,
   }))
 }
 
-export function fundMixErrors(texts: FundMixTexts): FundMixErrors {
-  const whole = (mix: FundMix): string | null => (texts[mix].length === 0 || mixSum(texts[mix]) === HUNDRED_PERCENT ? null : words.instrumentDialog.errors.mixWhole)
+export function fundMixFaults(texts: FundMixTexts): FundMixFaults {
+  const whole = (mix: FundMix): MixFault | null => (texts[mix].length === 0 || mixSum(texts[mix]) === HUNDRED_PERCENT ? null : { kind: 'mixWhole' })
   return {
-    lines: { sector: lineErrors(texts.sector), country: lineErrors(texts.country) },
+    lines: { sector: lineFaults(texts.sector), country: lineFaults(texts.country) },
     whole: { sector: whole('sector'), country: whole('country') },
   }
 }
 
-export function mixHasErrors(errors: FundMixErrors, mix: FundMix): boolean {
-  return errors.whole[mix] !== null || errors.lines[mix].some((line) => line.group !== null || line.percent !== null)
+/** Whether a mix has a line or a whole that is wrong. */
+export function mixHasFaults(faults: FundMixFaults, mix: FundMix): boolean {
+  return faults.whole[mix] !== null || faults.lines[mix].some((line) => line.group !== null || line.percent !== null)
 }
 
 function sliceOf(mix: FundMix, group: string): FundMixGroup | null {
@@ -88,10 +92,10 @@ export interface MixChange {
   readonly wanted: readonly Omit<FundMixLine, 'id'>[]
 }
 
-/** The mixes whose lines differ from those held, or null while a field has an error. */
+/** The mixes whose lines differ from those held, or null while a field is wrong. */
 export function fundMixChanges(texts: FundMixTexts, held: readonly FundMixLine[], instrument: RecordId): MixChange[] | null {
-  const errors = fundMixErrors(texts)
-  if (FUND_MIXES.some((mix) => mixHasErrors(errors, mix))) return null
+  const faults = fundMixFaults(texts)
+  if (FUND_MIXES.some((mix) => mixHasFaults(faults, mix))) return null
   return FUND_MIXES.flatMap((mix) => {
     const heldOfMix = held.filter((line) => line.slice.mix === mix)
     const wanted = texts[mix].map((line) => ({ instrument, slice: sliceOf(mix, line.group)!, percent: percentOf(line.percent)! }))

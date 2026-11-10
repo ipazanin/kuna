@@ -35,6 +35,28 @@ export interface PlannedMonth {
   readonly owed: Money
 }
 
+/** Which fields of an expected plan break its rules. */
+export type ExpectedPlanFaults = Readonly<Record<keyof ExpectedPlan, boolean>>
+
+/**
+ * The expected plan the fields give, or null while one breaks its rules: an amount above zero, a first due date on or after the
+ * loan starts, and a day of the month from 1 to 31. A field that does not read as its value is null.
+ */
+export function checkedExpectedPlan(
+  monthly: Money | null,
+  from: CivilDate | null,
+  day: number | null,
+  start: CivilDate | null,
+): { readonly expected: ExpectedPlan | null; readonly faults: ExpectedPlanFaults } {
+  const faults = {
+    monthly: monthly === null || monthly <= 0,
+    from: from === null || (start !== null && from < start),
+    day: day === null || !Number.isInteger(day) || day < 1 || day > 31,
+  }
+  const expected = monthly !== null && from !== null && day !== null && !Object.values(faults).some(Boolean) ? { monthly, from, day } : null
+  return { expected, faults }
+}
+
 /** How far past today's month a plan's line runs at most, so a plan of small instalments on a large loan stays readable. */
 const PLAN_LINE_MONTHS = 120
 

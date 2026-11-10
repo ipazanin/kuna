@@ -1,23 +1,18 @@
 import { costTexts, typedCosts } from './changeTexts'
-import { spanOf } from './scenarioComparison'
-import { words } from './words'
 import type { CostTexts } from './changeTexts'
-import type { LoanChange, OfferTerms } from '../domain/loanScenario'
-import { fractionOf, rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
-import { typedLoanTerms } from '../../bankLoans/presentation/loanTermsTexts'
-import type { LoanTermsErrors } from '../../bankLoans/presentation/loanTermsTexts'
-import { subsidyTexts, typedSubsidy } from '../../bankLoans/presentation/subsidyTexts'
-import type { SubsidyTexts } from '../../bankLoans/presentation/subsidyTexts'
-import { typedTerm } from '../../bankLoans/presentation/typedTerm'
-import { words as bankWords } from '../../bankLoans/presentation/words'
+import type { LoanChange, OfferTerms } from './loanScenario'
+import { typedLoanTerms } from '../../bankLoans/domain/loanTermsTexts'
+import type { LoanTermsFaults } from '../../bankLoans/domain/loanTermsTexts'
+import { subsidyTexts, typedSubsidy } from '../../bankLoans/domain/subsidyTexts'
+import type { SubsidyTexts } from '../../bankLoans/domain/subsidyTexts'
+import { typedTerm } from '../../bankLoans/domain/typedTerm'
+import { rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
 import type { BankLoan } from '../../workbook/domain/bankLoan'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayMonthsLater } from '../../../../shared/calendar/monthKey'
 import { plainAmount } from '../../../../shared/money/money'
-import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
-import { typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from '../../../../shared/text/typedCount'
 
 type RateChange = Extract<LoanChange, { kind: 'rate-change' }>
@@ -94,14 +89,6 @@ export function offerTexts(name: string, terms: OfferTerms | null, changes: read
   }
 }
 
-/** The name a blank one becomes, such as "€100,000.00 at 4% over 10 y", or empty until the figures are typed. */
-export function offerAutoName(texts: OfferTexts): string {
-  const principal = typedAmount(texts.principal)
-  const rate = typedRate(texts.rate)
-  const instalments = typedTerm(texts.years, texts.months)
-  return principal === null || rate === null || instalments === null ? '' : words.editor.autoName(formatMoney(principal), formatRate(fractionOf(rate)), spanOf(instalments))
-}
-
 /** Whether the fields fill anything under More terms that changes a figure, so the section opens on them. */
 export function fillsMore(texts: OfferTexts): boolean {
   const costs = Object.values(texts.costs).some((cost) => cost.trim() !== '')
@@ -110,18 +97,26 @@ export function fillsMore(texts: OfferTexts): boolean {
   )
 }
 
-/** Whether a field under More terms is wrong while the four up front are right, which only opening the section shows. */
-export function wrongInMore(errors: OfferErrors): boolean {
-  return errors.principal === null && errors.rate === null && errors.term === null
+/** What is wrong with each field of an offer, or null where nothing is. */
+export interface OfferFaults extends LoanTermsFaults {
+  readonly rate: 'no-rate' | null
+  readonly term: 'no-term' | null
+  /** The fixed years do not read as whole years shorter than the term. */
+  readonly fixedYears: 'not-shorter' | null
+  readonly thenVariable: 'no-rate' | null
+  readonly bankEks: 'no-rate' | null
 }
 
-export type OfferErrors = LoanTermsErrors & Readonly<Record<'rate' | 'term' | 'fixedYears' | 'thenVariable' | 'bankEks', string | null>>
+/** Whether a field under More terms is wrong while the four up front are right, which only opening the section shows. */
+export function wrongInMore(faults: OfferFaults): boolean {
+  return faults.principal === null && faults.rate === null && faults.term === null
+}
 
 /**
  * The offer the fields give with its rates, the first from the first instalment and a variable one
- * after the fixed years, or nulls while a field is wrong, with why each is.
+ * after the fixed years, or nulls while a field is wrong, with what is wrong with each.
  */
-export function typedOffer(texts: OfferTexts): { readonly terms: OfferTerms | null; readonly rates: readonly RateChange[]; readonly errors: OfferErrors } {
+export function typedOffer(texts: OfferTexts): { readonly terms: OfferTerms | null; readonly rates: readonly RateChange[]; readonly faults: OfferFaults } {
   const instalments = typedTerm(texts.years, texts.months)
   const payout = parseCivilDate(texts.payout)
   const firstInstalment = texts.firstInstalment === '' && payout !== null ? dayMonthsLater(payout, 1) : texts.firstInstalment
@@ -135,7 +130,7 @@ export function typedOffer(texts: OfferTexts): { readonly terms: OfferTerms | nu
     interimDate: texts.interimDate,
     repayment: texts.repayment,
   })
-  const subsidy = texts.subsidised ? typedSubsidy(texts.subsidy, instalments, bankWords.subsidyFields).subsidy : null
+  const subsidy = texts.subsidised ? typedSubsidy(texts.subsidy, instalments).subsidy : null
   const { costs } = typedCosts(texts.costs)
   const bankEks = texts.bankEks.trim() === '' ? null : typedRate(texts.bankEks)
   const rate = typedRate(texts.rate)
@@ -144,19 +139,19 @@ export function typedOffer(texts: OfferTexts): { readonly terms: OfferTerms | nu
   const fixedYearsWrong = variableWanted && (fixedYears === null || (instalments !== null && fixedYears * 12 >= instalments))
   const thenVariable = typedRate(texts.thenVariable)
   const thenVariableWrong = variableWanted && thenVariable === null
-  const errors: OfferErrors = {
-    ...loan.errors,
-    rate: rate === null ? bankWords.rateFields.rateError : null,
-    term: instalments === null ? words.editor.termError : null,
-    fixedYears: fixedYearsWrong ? words.editor.fixedForError : null,
-    thenVariable: thenVariableWrong ? bankWords.rateFields.rateError : null,
-    bankEks: texts.bankEks.trim() !== '' && bankEks === null ? bankWords.rateFields.rateError : null,
+  const faults: OfferFaults = {
+    ...loan.faults,
+    rate: rate === null ? 'no-rate' : null,
+    term: instalments === null ? 'no-term' : null,
+    fixedYears: fixedYearsWrong ? 'not-shorter' : null,
+    thenVariable: thenVariableWrong ? 'no-rate' : null,
+    bankEks: texts.bankEks.trim() !== '' && bankEks === null ? 'no-rate' : null,
   }
-  const valid = loan.terms !== null && rate !== null && costs !== null && (!texts.subsidised || subsidy !== null) && errors.bankEks === null && !fixedYearsWrong && !thenVariableWrong
-  if (!valid || loan.terms === null || rate === null || costs === null) return { terms: null, rates: [], errors }
+  const valid = loan.terms !== null && rate !== null && costs !== null && (!texts.subsidised || subsidy !== null) && faults.bankEks === null && !fixedYearsWrong && !thenVariableWrong
+  if (!valid || loan.terms === null || rate === null || costs === null) return { terms: null, rates: [], faults }
   const terms: OfferTerms = { ...loan.terms, subsidy, costs, bankEks }
   const first: RateChange = { kind: 'rate-change', from: terms.firstInstalment, rate, rateType: texts.rateType }
   const later: RateChange[] =
     fixedYears === null || thenVariable === null || !variableWanted ? [] : [{ kind: 'rate-change', from: variableAfter(terms.firstInstalment, fixedYears), rate: thenVariable, rateType: 'variable' }]
-  return { terms, rates: [first, ...later], errors }
+  return { terms, rates: [first, ...later], faults }
 }

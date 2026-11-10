@@ -2,9 +2,9 @@ import { writeTransaction } from '../../transactions/application/transactionWrit
 import { withImportFacts } from '../../transactions/domain/listedTransactions'
 import type { TransactionKind, TransactionRecord } from '../../transactions/domain/listedTransactions'
 import { matchingDeposit } from '../../transactions/domain/matchingDeposit'
-import { ecbRateText, keyOf, rateCurrency, textsOf, transactionDraft } from '../../transactions/presentation/transactionForm'
-import type { Happening, TransactionTexts } from '../../transactions/presentation/transactionForm'
-import { words as transactionWords } from '../../transactions/presentation/words'
+import { ecbRateText, keyOf, rateCurrency, textsOf, transactionDraft } from '../../transactions/domain/transactionDraft'
+import type { Happening, TransactionTexts } from '../../transactions/domain/transactionDraft'
+import { transactionErrors, words as transactionWords } from '../../transactions/presentation/words'
 import { CASH_MOVEMENT_KINDS } from '../../workbook/domain/cashMovement'
 import { INCOME_KINDS } from '../../workbook/domain/income'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -347,7 +347,7 @@ function drafted(card: CardBooks, form: TransactionForm, before: TransactionReco
   if (draft.record === null) {
     const names = new Map(form.fields.map((field) => [field.text, field.name]))
     throw new StepRefused(
-      Object.entries(draft.errors)
+      Object.entries(transactionErrors(draft.faults))
         .map(([text, error]) => `${names.get(text as keyof TransactionTexts) ?? text}: ${error}`)
         .join(' '),
     )

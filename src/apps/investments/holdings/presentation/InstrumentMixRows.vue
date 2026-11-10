@@ -7,9 +7,9 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import FactsheetPaste from './FactsheetPaste.vue'
 import { COUNTRY_ITEMS, SECTOR_ITEMS } from './instrumentForm'
-import { mixHasErrors, mixLineTexts, mixSum } from './instrumentMixForm'
-import type { FundMix, FundMixErrors, FundMixTexts, MixLineTexts } from './instrumentMixForm'
-import { words } from './words'
+import { fundMixErrors, words } from './words'
+import { mixHasFaults, mixLineTexts, mixSum } from '../domain/fundMixDraft'
+import type { FundMix, FundMixFaults, FundMixTexts, MixLineTexts } from '../domain/fundMixDraft'
 import { HUNDRED_PERCENT } from '../../workbook/domain/investmentFields'
 import { FUND_MIXES } from '../../workbook/domain/mixGroup'
 import { formatQuantity } from '../../../../shared/money/moneyFormat'
@@ -19,7 +19,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 const texts = defineModel<FundMixTexts>({ required: true })
 
 const props = defineProps<{
-  errors: FundMixErrors
+  faults: FundMixFaults
   /** Whether a save was tried, after which each line shows what it lacks. */
   tried: boolean
 }>()
@@ -38,8 +38,10 @@ const PERCENT_PLACES = 12
 const lines = computed(() => texts.value[picked.value])
 const sum = computed(() => mixSum(lines.value))
 
-/** The mix not shown, when one of its lines has an error. */
-const otherToFix = computed(() => FUND_MIXES.find((mix) => mix !== picked.value && mixHasErrors(props.errors, mix)))
+const errors = computed(() => fundMixErrors(props.faults))
+
+/** The mix not shown, when one of its lines is wrong. */
+const otherToFix = computed(() => FUND_MIXES.find((mix) => mix !== picked.value && mixHasFaults(props.faults, mix)))
 
 const shown = (error: string | null): string | false => (props.tried && error) || false
 

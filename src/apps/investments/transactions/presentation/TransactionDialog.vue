@@ -23,9 +23,9 @@ import TradeFields from './TradeFields.vue'
 import TradeSummary from './TradeSummary.vue'
 import TransferFields from './TransferFields.vue'
 import { withImportFacts } from '../domain/listedTransactions'
-import { HAPPENINGS, ecbRateText, happeningsOfKind, kindOfHappening, keyOf, rateCurrency, textsOf, transactionDraft } from './transactionForm'
-import type { Happening, TransactionStart, TransactionTexts } from './transactionForm'
-import { words } from './words'
+import { HAPPENINGS, ecbRateText, happeningsOfKind, kindOfHappening, keyOf, rateCurrency, textsOf, transactionDraft } from '../domain/transactionDraft'
+import type { Happening, TransactionStart, TransactionTexts } from '../domain/transactionDraft'
+import { transactionErrors, words } from './words'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -92,6 +92,7 @@ watch(
 )
 
 const draft = computed(() => transactionDraft(texts, book.value, key.value))
+const errors = computed(() => transactionErrors(draft.value.faults))
 const kind = computed(() => kindOfHappening(texts.happened))
 
 const rateHelp = computed(() => {
@@ -150,18 +151,18 @@ async function remove(): Promise<void> {
       <ChoiceButtons v-model="texts.happened" :options="happeningOptions" :label="words.dialog.happened" data-testid="transaction-happened" />
     </div>
     <FormGrid id="transaction" as="form" data-testid="transaction-form" :data-kind="kind" @submit.prevent="save">
-      <TradeFields v-if="kind === 'trade'" v-model="texts" :book="book" :errors="draft.errors" :tried="tried" />
-      <IncomeFields v-else-if="kind === 'income'" v-model="texts" :book="book" :errors="draft.errors" :tried="tried" />
-      <CashFields v-else-if="kind === 'cash-movement'" v-model="texts" :book="book" :errors="draft.errors" :tried="tried" />
-      <ExchangeFields v-else-if="kind === 'exchange'" v-model="texts" :book="book" :errors="draft.errors" :tried="tried" />
-      <TransferFields v-else-if="kind === 'transfer'" v-model="texts" :book="book" :errors="draft.errors" :tried="tried" />
-      <SplitFields v-else-if="kind === 'split'" v-model="texts" :book="book" :errors="draft.errors" :tried="tried" />
-      <SpinOffFields v-else-if="kind === 'spin-off'" v-model="texts" :book="book" :errors="draft.errors" :tried="tried" />
-      <PriceFields v-else v-model="texts" :book="book" :errors="draft.errors" :tried="tried" />
-      <UFormField v-if="currencyOfRate !== null" :label="words.fields.ratePer(currencyOfRate)" :help="rateHelp" :error="(tried && draft.errors.rate) || false">
+      <TradeFields v-if="kind === 'trade'" v-model="texts" :book="book" :errors="errors" :tried="tried" />
+      <IncomeFields v-else-if="kind === 'income'" v-model="texts" :book="book" :errors="errors" :tried="tried" />
+      <CashFields v-else-if="kind === 'cash-movement'" v-model="texts" :book="book" :errors="errors" :tried="tried" />
+      <ExchangeFields v-else-if="kind === 'exchange'" v-model="texts" :book="book" :errors="errors" :tried="tried" />
+      <TransferFields v-else-if="kind === 'transfer'" v-model="texts" :book="book" :errors="errors" :tried="tried" />
+      <SplitFields v-else-if="kind === 'split'" v-model="texts" :book="book" :errors="errors" :tried="tried" />
+      <SpinOffFields v-else-if="kind === 'spin-off'" v-model="texts" :book="book" :errors="errors" :tried="tried" />
+      <PriceFields v-else v-model="texts" :book="book" :errors="errors" :tried="tried" />
+      <UFormField v-if="currencyOfRate !== null" :label="words.fields.ratePer(currencyOfRate)" :help="rateHelp" :error="(tried && errors.rate) || false">
         <UInput v-model="texts.rate" inputmode="decimal" class="w-full" data-testid="transaction-rate" @update:model-value="rateTyped = true" />
       </UFormField>
-      <UFormField :label="words.fields.note" :help="words.fields.noteHelp" :error="(tried && draft.errors.note) || false" class="sm:col-span-2">
+      <UFormField :label="words.fields.note" :help="words.fields.noteHelp" :error="(tried && errors.note) || false" class="sm:col-span-2">
         <UInput v-model="texts.note" class="w-full" data-testid="transaction-note" />
       </UFormField>
     </FormGrid>

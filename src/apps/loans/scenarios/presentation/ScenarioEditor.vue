@@ -22,18 +22,19 @@ import { newLoanScenario, saveScenario } from '../application/scenarioWrites'
 import { eksAgreement } from '../domain/eksAgreement'
 import { offerBase } from '../domain/scenarioPlan'
 import { moveDates, oldLoanDues, scenarioDues } from '../domain/scenarioDues'
+import { blankChange, changeTextsOf, typedChange } from '../domain/changeTexts'
+import type { ChangeRules, ChangeTexts } from '../domain/changeTexts'
+import { fillsMore, offerTexts, typedOffer, wrongInMore } from '../domain/offerTexts'
+import type { OfferTexts } from '../domain/offerTexts'
 import ChangeBlock from './ChangeBlock.vue'
-import { blankChange, changeTextsOf, typedChange } from './changeTexts'
-import type { ChangeRules, ChangeTexts } from './changeTexts'
 import OfferTermsFields from './OfferTermsFields.vue'
-import { fillsMore, offerAutoName, offerTexts, typedOffer, wrongInMore } from './offerTexts'
-import type { OfferTexts } from './offerTexts'
+import { offerAutoName } from './offerName'
 import { refusalText } from './scenarioComparison'
 import { scenarioMonths } from './scenarioMonths'
 import { workedScenario } from '../domain/workedScenario'
 import { changeSummary } from './scenariosView'
 import type { ScenarioMarking } from './scenariosView'
-import { words } from './words'
+import { changeErrors, offerErrors, words } from './words'
 import { fractionOf } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import { provideLoanWords } from '../../bankLoans/presentation/useLoanWords'
@@ -112,7 +113,7 @@ const dues = computed(() => {
 })
 const rules = computed((): ChangeRules | null => (base.value === null ? null : { drawdown: base.value.loan.drawdown, dues: new Set(dues.value.map((due) => due.date)) }))
 
-const typedBlocks = computed(() => blocks.value.map((block) => (rules.value === null ? { change: null, errors: {} } : typedChange(block, rules.value))))
+const typedBlocks = computed(() => blocks.value.map((block) => (rules.value === null ? { change: null, faults: {} } : typedChange(block, rules.value))))
 
 const changes = computed((): LoanChange[] => [...typed.value.rates, ...typedBlocks.value.flatMap(({ change }) => (change === null ? [] : [change]))])
 
@@ -183,7 +184,7 @@ const headline = computed(() => {
 
 /** After a Save, whether a field or a change under More terms still stops it. */
 const moreWrong = computed(
-  () => tried.value && ((typed.value.terms === null && wrongInMore(typed.value.errors)) || (typed.value.terms !== null && typedBlocks.value.some(({ change }) => change === null))),
+  () => tried.value && ((typed.value.terms === null && wrongInMore(typed.value.faults)) || (typed.value.terms !== null && typedBlocks.value.some(({ change }) => change === null))),
 )
 
 const refusal = computed(() => (live.value !== null && 'refused' in live.value.plan ? refusalText(live.value.plan) : null))
@@ -194,7 +195,7 @@ async function save(): Promise<void> {
   const records = store.state.records
   const terms = typed.value.terms
   if (terms === null) {
-    if (wrongInMore(typed.value.errors)) moreOpen.value = true
+    if (wrongInMore(typed.value.faults)) moreOpen.value = true
     return
   }
   const unfinished = blocks.value.find((_, index) => typedBlocks.value[index]?.change === null)
@@ -219,7 +220,7 @@ async function save(): Promise<void> {
   <AppDialog v-model:open="open" :title="draft?.editing ? words.editor.editTitle : words.editor.addTitle" :description="words.editor.description" width="3xl">
     <div class="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start" data-testid="scenario-editor">
       <form id="scenario-editor" class="flex min-w-0 flex-col gap-4" @submit.prevent="save">
-        <OfferTermsFields v-model="offer" v-model:more-open="moreOpen" :tried="tried" :errors="typed.errors" :auto-name="autoName" :more-wrong="moreWrong">
+        <OfferTermsFields v-model="offer" v-model:more-open="moreOpen" :tried="tried" :errors="offerErrors(typed.faults)" :auto-name="autoName" :more-wrong="moreWrong">
           <template #more>
             <section class="flex flex-col gap-2">
               <h3 class="type-label">{{ words.editor.changes }}</h3>
@@ -229,7 +230,7 @@ async function save(): Promise<void> {
                 :model-value="block"
                 :open="openBlock === block.id"
                 :tried="tried"
-                :errors="typedBlocks[index]?.errors ?? {}"
+                :errors="changeErrors(typedBlocks[index]?.faults ?? {})"
                 :due-items="dueItemsOf(block)"
                 :summary="summaries[index] ?? null"
                 :current-rate="typed.rates[0]?.rate ?? null"

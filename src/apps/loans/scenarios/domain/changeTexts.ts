@@ -1,12 +1,9 @@
-import type { LoanChange, LoanCosts } from '../domain/loanScenario'
+import type { LoanChange, LoanCosts } from './loanScenario'
 import { rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
-import { words as bankWords } from '../../bankLoans/presentation/words'
 import { MOST_INSTALMENTS } from '../../workbook/domain/bankLoanReading'
 import type { ExtraPayment } from '../../workbook/domain/extraPayment'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
-import { words as loansWords } from '../../words'
-import { words } from './words'
-import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO, plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -31,16 +28,19 @@ export function costTexts(costs: LoanCosts | null): CostTexts {
   return costs === null ? { upfront: '', monthly: '', yearly: '' } : { upfront: text(costs.upfront), monthly: text(costs.monthly), yearly: text(costs.yearly) }
 }
 
+/** Which cost fields do not hold an amount of zero or more. */
+export type CostFaults = Readonly<Record<keyof CostTexts, boolean>>
+
 /** The costs the fields give, blank as nothing, or null while one is not an amount of zero or more. */
-export function typedCosts(texts: CostTexts): { readonly costs: LoanCosts | null; readonly errors: Readonly<Record<keyof CostTexts, string | null>> } {
+export function typedCosts(texts: CostTexts): { readonly costs: LoanCosts | null; readonly faults: CostFaults } {
   const typed = (text: string) => (text.trim() === '' ? ZERO : typedAmount(text))
   const upfront = typed(texts.upfront)
   const monthly = typed(texts.monthly)
   const yearly = typed(texts.yearly)
-  const error = (amount: typeof upfront): string | null => (amount === null || amount < 0 ? words.editor.costError : null)
+  const wrong = (amount: typeof upfront): boolean => amount === null || amount < 0
   return {
     costs: upfront === null || monthly === null || yearly === null || upfront < 0 || monthly < 0 || yearly < 0 ? null : { upfront, monthly, yearly },
-    errors: { upfront: error(upfront), monthly: error(monthly), yearly: error(yearly) },
+    faults: { upfront: wrong(upfront), monthly: wrong(monthly), yearly: wrong(yearly) },
   }
 }
 
@@ -103,7 +103,17 @@ export function changeTextsOf(id: number, change: LoanChange): ChangeTexts {
   }
 }
 
-export type ChangeErrors = Readonly<Partial<Record<'amount' | 'date' | 'due' | 'until' | 'rate' | 'instalments' | keyof CostTexts, string | null>>>
+/** What is wrong with each field a change of its kind shows, or null where nothing is. */
+export interface ChangeFaults {
+  readonly amount?: 'no-amount' | null
+  readonly date?: 'no-date' | 'before-payout' | null
+  readonly due?: 'no-due' | null
+  /** The last regular payment does not read as a day on or after the first. */
+  readonly until?: 'before-start' | null
+  readonly rate?: 'no-rate' | null
+  readonly instalments?: 'no-count' | 'too-many' | null
+  readonly costs?: CostFaults
+}
 
 /** What a change may hold: the day its loan is paid out and the due dates a change can start on. */
 export interface ChangeRules {
@@ -111,54 +121,54 @@ export interface ChangeRules {
   readonly dues: ReadonlySet<string>
 }
 
-const EXAMPLE_DAY = civilDate(2027, 3, 1)
-
-/** The change the fields give, or null while one is wrong, with why each is. */
-export function typedChange(texts: ChangeTexts, rules: ChangeRules): { readonly change: LoanChange | null; readonly errors: ChangeErrors } {
+/** The change the fields give, or null while one is wrong, with what is wrong with each. */
+export function typedChange(texts: ChangeTexts, rules: ChangeRules): { readonly change: LoanChange | null; readonly faults: ChangeFaults } {
   const amount = typedAmount(texts.amount)
   const positive = amount !== null && amount > 0 ? amount : null
   const due = rules.dues.has(texts.due) ? parseCivilDate(texts.due) : null
-  const dueError = due === null ? words.editor.dueError : null
-  const amountError = positive === null ? loansWords.form.anAmount : null
+  const dueFault = due === null ? 'no-due' : null
+  const amountFault = positive === null ? 'no-amount' : null
   const rate = typedRate(texts.rate.rate)
-  const rateError = rate === null ? bankWords.rateFields.rateError : null
+  const rateFault = rate === null ? 'no-rate' : null
+  const instalmentsOf = (): { readonly instalments: number | null; readonly fault: 'no-count' | 'too-many' | null } => {
+    const instalments = typedCount(texts.instalments)
+    return { instalments, fault: instalments === null ? 'no-count' : instalments > MOST_INSTALMENTS ? 'too-many' : null }
+  }
   switch (texts.kind) {
     case 'extra-payment': {
       const date = parseCivilDate(texts.date)
-      const dateError = date === null ? loansWords.form.aDate(EXAMPLE_DAY) : date < rules.drawdown ? bankWords.extraDialog.afterPayout : null
+      const dateFault = date === null ? 'no-date' : date < rules.drawdown ? 'before-payout' : null
       return {
-        change: positive === null || date === null || dateError !== null ? null : { kind: 'extra-payment', date, amount: positive, effect: texts.effect },
-        errors: { amount: amountError, date: dateError },
+        change: positive === null || date === null || dateFault !== null ? null : { kind: 'extra-payment', date, amount: positive, effect: texts.effect },
+        faults: { amount: amountFault, date: dateFault },
       }
     }
     case 'regular-extra-payment': {
       const until = texts.until === '' ? null : parseCivilDate(texts.until)
-      const untilError = texts.until !== '' && (until === null || (due !== null && until < due)) ? words.editor.untilError : null
+      const untilFault = texts.until !== '' && (until === null || (due !== null && until < due)) ? 'before-start' : null
       return {
-        change: positive === null || due === null || untilError !== null ? null : { kind: 'regular-extra-payment', from: due, every: texts.every, until, amount: positive, effect: texts.effect },
-        errors: { amount: amountError, due: dueError, until: untilError },
+        change: positive === null || due === null || untilFault !== null ? null : { kind: 'regular-extra-payment', from: due, every: texts.every, until, amount: positive, effect: texts.effect },
+        faults: { amount: amountFault, due: dueFault, until: untilFault },
       }
     }
     case 'rate-change':
-      return { change: due === null || rate === null ? null : { kind: 'rate-change', from: due, rate, rateType: texts.rate.rateType }, errors: { due: dueError, rate: rateError } }
+      return { change: due === null || rate === null ? null : { kind: 'rate-change', from: due, rate, rateType: texts.rate.rateType }, faults: { due: dueFault, rate: rateFault } }
     case 'move': {
-      const instalments = typedCount(texts.instalments)
-      const instalmentsError = instalments === null ? bankWords.loanDialog.instalmentsError : instalments > MOST_INSTALMENTS ? bankWords.loanDialog.tooMany(MOST_INSTALMENTS) : null
-      const { costs, errors } = typedCosts(texts.costs)
+      const { instalments, fault } = instalmentsOf()
+      const { costs, faults } = typedCosts(texts.costs)
       return {
         change:
-          due === null || rate === null || instalments === null || instalmentsError !== null || costs === null
+          due === null || rate === null || instalments === null || fault !== null || costs === null
             ? null
             : { kind: 'move', on: due, lender: texts.lender.trim(), rate, rateType: texts.rate.rateType, instalments, costs },
-        errors: { due: dueError, rate: rateError, instalments: instalmentsError, ...errors },
+        faults: { due: dueFault, rate: rateFault, instalments: fault, costs: faults },
       }
     }
     case 'term-change': {
-      const instalments = typedCount(texts.instalments)
-      const instalmentsError = instalments === null ? bankWords.loanDialog.instalmentsError : instalments > MOST_INSTALMENTS ? bankWords.loanDialog.tooMany(MOST_INSTALMENTS) : null
+      const { instalments, fault } = instalmentsOf()
       return {
-        change: due === null || instalments === null || instalmentsError !== null ? null : { kind: 'term-change', from: due, instalments },
-        errors: { due: dueError, instalments: instalmentsError },
+        change: due === null || instalments === null || fault !== null ? null : { kind: 'term-change', from: due, instalments },
+        faults: { due: dueFault, instalments: fault },
       }
     }
   }

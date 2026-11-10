@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate'
-import { blankChange, typedChange, typedCosts } from '../src/apps/loans/scenarios/presentation/changeTexts'
-import type { ChangeRules } from '../src/apps/loans/scenarios/presentation/changeTexts'
+import { blankChange, typedChange, typedCosts } from '../src/apps/loans/scenarios/domain/changeTexts'
+import type { ChangeRules } from '../src/apps/loans/scenarios/domain/changeTexts'
+import { changeErrors } from '../src/apps/loans/scenarios/presentation/words'
 import { MOST_COMPARED, askedSlots, pickedOf } from '../src/apps/loans/scenarios/domain/scenarioSlots'
 import { scenarioKey, workedOffers } from '../src/apps/loans/scenarios/domain/workedScenario'
 import { changeSummary, offersComparison, scenarioRows, slotted } from '../src/apps/loans/scenarios/presentation/scenariosView'
@@ -112,9 +113,11 @@ describe('a change as the editor types it', () => {
     const regular = { ...blankChange(1, 'regular-extra-payment', civil('2027-01-21'), null), amount: '150', until: '2026-12-01' }
     const move = { ...blankChange(2, 'move', civil('2027-02-20'), 240), rate: { rate: '2.9', rateType: 'fixed' as const }, costs: { upfront: '-5', monthly: '', yearly: '' } }
 
-    expect(typedChange(regular, rules)).toMatchObject({ change: null, errors: { due: 'Choose a due date' } })
-    expect(typedChange({ ...regular, due: '2027-01-20' }, rules).errors.until).toBe('On or after the first payment')
-    expect(typedChange(move, rules)).toMatchObject({ change: null, errors: { upfront: 'An amount of zero or more with at most two decimals' } })
+    expect(typedChange(regular, rules)).toMatchObject({ change: null, faults: { due: 'no-due' } })
+    expect(changeErrors(typedChange(regular, rules).faults).due).toBe('Choose a due date')
+    expect(changeErrors(typedChange({ ...regular, due: '2027-01-20' }, rules).faults).until).toBe('On or after the first payment')
+    expect(typedChange(move, rules)).toMatchObject({ change: null, faults: { costs: { upfront: true } } })
+    expect(changeErrors(typedChange(move, rules).faults).upfront).toBe('An amount of zero or more with at most two decimals')
     expect(typedCosts({ upfront: '', monthly: '2', yearly: '' }).costs).toEqual({ upfront: euros(0), monthly: euros(2), yearly: euros(0) })
   })
 })

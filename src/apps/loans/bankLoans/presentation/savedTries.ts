@@ -2,7 +2,6 @@ import type { ChangeLine } from './ChangeListCard.vue'
 import { wordsFor } from './words'
 import type { words } from './words'
 import { NO_COSTS } from '../../scenarios/domain/loanScenario'
-import type { LoanChange } from '../../scenarios/domain/loanScenario'
 import { scenarioOutcome } from '../../scenarios/domain/scenarioOutcome'
 import { payoffMonthsLater } from '../../scenarios/domain/scenarioComparison'
 import { asItStands } from '../../scenarios/domain/scenarioPlan'
@@ -13,15 +12,13 @@ import type { BankLoanBook, ScenarioBook } from '../../workbook/domain/readLoanB
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
+import type { TriedChange } from '../domain/whatIf'
 import { fractionOf } from '../domain/yearlyRate'
 
 /** A saved try as its list shows it, with the scenario it deletes. */
 export interface SavedTry extends ChangeLine {
   readonly kept: ScenarioBook
 }
-
-/** A change What if tries: an extra payment, a new rate or a new term. */
-export type TriedChange = Extract<LoanChange, { readonly kind: 'extra-payment' | 'rate-change' | 'term-change' }>
 
 /** What a try is called when What if saves it, and wherever a saved term change shows. */
 export function tryName(change: TriedChange, loanWords: typeof words): string {

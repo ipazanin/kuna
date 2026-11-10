@@ -1,4 +1,6 @@
+import type { FundMix, FundMixFaults, MixFault } from '../domain/fundMixDraft'
 import type { HoldingGroup, HoldingsGrouping } from '../domain/holdingsList'
+import type { InstrumentFault, InstrumentFaults } from '../domain/instrumentDraft'
 import type { FundDistribution, InstrumentType, Quoting } from '../../workbook/domain/instrument'
 import type { Mix, Region, Sector } from '../../workbook/domain/mixGroup'
 import { language } from '../../../../shared/text/language'
@@ -865,3 +867,57 @@ export const hr: Translation<typeof en> = {
 }
 
 export const words = language === 'hr' ? hr : en
+
+/** The sentence under each field of the holding dialog that is wrong, or null. */
+export type InstrumentErrors = Readonly<Record<keyof InstrumentFaults, string | null>>
+
+function instrumentFaultText(fault: InstrumentFault | null): string | null {
+  if (fault === null) return null
+  switch (fault.kind) {
+    case 'isinTaken':
+      return words.instrumentDialog.errors.isinTaken(fault.holder)
+    case 'quotedType':
+      return words.instrumentDialog.errors.quotedType(words.types[fault.type])
+    default:
+      return words.instrumentDialog.errors[fault.kind]
+  }
+}
+
+/** What the holding dialog says under each field a check found wrong. */
+export function instrumentErrors(faults: InstrumentFaults): InstrumentErrors {
+  return {
+    name: instrumentFaultText(faults.name),
+    type: instrumentFaultText(faults.type),
+    coupon: instrumentFaultText(faults.coupon),
+    maturity: instrumentFaultText(faults.maturity),
+    symbol: instrumentFaultText(faults.symbol),
+    isin: instrumentFaultText(faults.isin),
+    exchange: instrumentFaultText(faults.exchange),
+    currency: instrumentFaultText(faults.currency),
+    ter: instrumentFaultText(faults.ter),
+  }
+}
+
+export interface MixLineErrors {
+  readonly group: string | null
+  readonly percent: string | null
+}
+
+export interface FundMixErrors {
+  readonly lines: Readonly<Record<FundMix, readonly MixLineErrors[]>>
+  /** Why a mix with lines does not add up to 100%, or null. */
+  readonly whole: Readonly<Record<FundMix, string | null>>
+}
+
+function mixFaultText(fault: MixFault | null): string | null {
+  return fault === null ? null : words.instrumentDialog.errors[fault.kind]
+}
+
+/** What the mix rows say under each line and under each mix a check found wrong. */
+export function fundMixErrors(faults: FundMixFaults): FundMixErrors {
+  const lines = (mix: FundMix): MixLineErrors[] => faults.lines[mix].map((line) => ({ group: mixFaultText(line.group), percent: mixFaultText(line.percent) }))
+  return {
+    lines: { sector: lines('sector'), country: lines('country') },
+    whole: { sector: mixFaultText(faults.whole.sector), country: mixFaultText(faults.whole.country) },
+  }
+}

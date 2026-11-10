@@ -8,7 +8,7 @@ import { offerEks } from '../src/apps/loans/scenarios/domain/effectiveRate'
 import { eksAgreement } from '../src/apps/loans/scenarios/domain/eksAgreement'
 import type { OfferTerms } from '../src/apps/loans/scenarios/domain/loanScenario'
 import { offerBase } from '../src/apps/loans/scenarios/domain/scenarioPlan'
-import { offerTexts, typedOffer } from '../src/apps/loans/scenarios/presentation/offerTexts'
+import { offerTexts, typedOffer } from '../src/apps/loans/scenarios/domain/offerTexts'
 import { civil, euros } from './fixtures/ledger'
 
 function rate(text: string): YearlyRate {
@@ -40,8 +40,8 @@ describe('an offer as typed', () => {
     const typed = typedOffer({ ...blank, principal: '150000', rate: '3.18', years: '30', bankEks: 'about 3' })
 
     expect(typed.terms).toBeNull()
-    expect(typed.errors.bankEks).not.toBeNull()
-    expect(typed.errors.rate).toBeNull()
+    expect(typed.faults.bankEks).toBe('no-rate')
+    expect(typed.faults.rate).toBeNull()
   })
 
   it('reads a saved offer back into the same fields', () => {

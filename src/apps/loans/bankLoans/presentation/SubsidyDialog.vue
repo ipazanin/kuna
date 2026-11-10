@@ -10,8 +10,8 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import SubsidyFields from './SubsidyFields.vue'
-import { subsidyTexts, typedSubsidy } from './subsidyTexts'
-import type { SubsidyTexts } from './subsidyTexts'
+import { subsidyTexts, typedSubsidy } from '../domain/subsidyTexts'
+import type { SubsidyTexts } from '../domain/subsidyTexts'
 import { words as loansWords } from '../../words'
 import { useLoanWords } from './useLoanWords'
 
@@ -34,7 +34,7 @@ watch(open, (opened) => {
   tried.value = false
 })
 
-const typed = computed(() => typedSubsidy(texts.value, props.book.loan.instalments, loanWords.value.subsidyFields).subsidy)
+const typed = computed(() => typedSubsidy(texts.value, props.book.loan.instalments).subsidy)
 
 async function write(title: string, subsidy: LoanSubsidy | null, failedTitle: string): Promise<void> {
   const { loan } = props.book

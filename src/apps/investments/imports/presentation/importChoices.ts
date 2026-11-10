@@ -13,8 +13,10 @@ import type {
 } from '../domain/importDryRun'
 import type { WorkbookRow } from '../domain/portfolioWorkbook'
 import { words } from './words'
-import { instrumentErrors, instrumentOfTexts, instrumentTexts } from '../../holdings/presentation/instrumentForm'
-import type { InstrumentErrors, InstrumentTexts } from '../../holdings/presentation/instrumentForm'
+import { instrumentFaults, instrumentOfTexts, instrumentTexts } from '../../holdings/domain/instrumentDraft'
+import type { InstrumentTexts } from '../../holdings/domain/instrumentDraft'
+import { instrumentErrors } from '../../holdings/presentation/words'
+import type { InstrumentErrors } from '../../holdings/presentation/words'
 import type { ReportedSplit } from '../../prices/application/priceVendor'
 import type { SplitsLookedUp } from '../../prices/application/splitLookup'
 import type { CloseRow } from '../../prices/domain/pricesFile'
@@ -244,7 +246,7 @@ function instrumentSteps(questions: readonly InstrumentQuestion[], book: Investm
       return { step: { question, choice, errors: null }, answer: book.instruments.find((instrument) => instrument.id === choice.instrument) ?? null }
     }
     const others = [...book.instruments, ...fresh.filter((other) => other.id !== id)]
-    return { step: { question, choice, errors: instrumentErrors(choice.texts, others) }, answer: instrumentOfTexts(choice.texts, others, id, question.proposal) }
+    return { step: { question, choice, errors: instrumentErrors(instrumentFaults(choice.texts, others)) }, answer: instrumentOfTexts(choice.texts, others, id, question.proposal) }
   })
 }
 

@@ -11,14 +11,15 @@ import { useInvestmentsBooks } from '../../workbook/application/investmentsStore
 import InstrumentFields from './InstrumentFields.vue'
 import InstrumentMixRows from './InstrumentMixRows.vue'
 import InstrumentSearch from './InstrumentSearch.vue'
-import { instrumentErrors, instrumentOfTexts, instrumentTexts, withListing } from './instrumentForm'
-import type { InstrumentTexts } from './instrumentForm'
-import { fundMixChanges, fundMixErrors, fundMixTexts } from './instrumentMixForm'
-import type { FundMixTexts } from './instrumentMixForm'
+import { withListing } from './instrumentForm'
+import { fundMixChanges, fundMixFaults, fundMixTexts } from '../domain/fundMixDraft'
+import type { FundMixTexts } from '../domain/fundMixDraft'
+import { instrumentFaults, instrumentOfTexts, instrumentTexts } from '../domain/instrumentDraft'
+import type { InstrumentTexts } from '../domain/instrumentDraft'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS } from '../../workbook/domain/investmentKinds'
-import { words } from './words'
+import { instrumentErrors, words } from './words'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -63,8 +64,8 @@ watch(open, (opened) => {
 })
 
 const others = computed(() => props.book.instruments.filter((other) => other.id !== props.instrument?.id))
-const errors = computed(() => instrumentErrors(texts.value, others.value))
-const mixErrors = computed(() => fundMixErrors(mixTexts.value))
+const errors = computed(() => instrumentErrors(instrumentFaults(texts.value, others.value)))
+const mixFaults = computed(() => fundMixFaults(mixTexts.value))
 
 async function save(): Promise<void> {
   tried.value = true
@@ -121,7 +122,7 @@ async function remove(): Promise<void> {
     <FormGrid id="instrument" as="form" data-testid="instrument-form" @submit.prevent="save">
       <InstrumentSearch @pick="texts = withListing(texts, $event)" />
       <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" :instrument="instrument" />
-      <InstrumentMixRows v-model="mixTexts" :errors="mixErrors" :tried="tried" />
+      <InstrumentMixRows v-model="mixTexts" :faults="mixFaults" :tried="tried" />
     </FormGrid>
     <template #start>
       <UButton

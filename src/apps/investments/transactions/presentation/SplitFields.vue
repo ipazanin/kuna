@@ -4,7 +4,8 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import InstrumentField from './InstrumentField.vue'
-import type { TransactionErrors, TransactionTexts } from './transactionForm'
+import type { TransactionTexts } from '../domain/transactionDraft'
+import type { TransactionErrors } from './words'
 import { words } from './words'
 
 /** A split of a holding: new units for old ones, both whole numbers, from a day on. */

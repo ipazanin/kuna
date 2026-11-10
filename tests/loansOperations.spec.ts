@@ -415,7 +415,7 @@ describe('a change that names only some fields', () => {
       { op: 'add-bank-loan', input: add.example, as: '$car' },
       { op: 'set-subsidy', input: { loan: '$car', monthly: 20, payer: 'APN', firstInstalment: 1, instalments: 6 } },
     ])
-    expect(answer.text).toContain('is changed, and takes its tries, on a card after it')
+    expect(answer.text).toContain('is changed, and takes its tries and late instalments, on a card after it')
   })
 })
 

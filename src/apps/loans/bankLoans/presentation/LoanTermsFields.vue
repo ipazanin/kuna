@@ -2,12 +2,13 @@
 import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import { typedLoanTerms } from './loanTermsTexts'
-import type { LoanTermsTexts } from './loanTermsTexts'
+import { typedLoanTerms } from '../domain/loanTermsTexts'
+import type { LoanTermsTexts } from '../domain/loanTermsTexts'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import RepaymentChoice from './RepaymentChoice.vue'
 import { useLoanWords } from './useLoanWords'
+import { loanTermsErrors } from './words'
 
 /** What a bank loan's plan cannot do without: the amount, how it is repaid, the instalments and the two days. */
 const texts = defineModel<LoanTermsTexts>({ required: true })
@@ -18,7 +19,7 @@ defineProps<{
   tried: boolean
 }>()
 
-const errors = computed(() => typedLoanTerms(texts.value).errors)
+const errors = computed(() => loanTermsErrors(typedLoanTerms(texts.value).faults))
 </script>
 
 <template>

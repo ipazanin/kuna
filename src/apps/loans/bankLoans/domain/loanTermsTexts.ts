@@ -1,11 +1,9 @@
 import type { BankLoan, InterimInterest, LoanTerms } from '../../workbook/domain/bankLoan'
 import { MOST_INSTALMENTS } from '../../workbook/domain/bankLoanReading'
-import { civilDate, parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from '../../../../shared/text/typedCount'
-import { words as loansWords } from '../../words'
-import { words } from './words'
 
 /** The terms a bank loan shares with an offer, as typed. */
 export interface LoanTermsTexts {
@@ -18,9 +16,6 @@ export interface LoanTermsTexts {
   interimDate: string
   repayment: BankLoan['repayment']
 }
-
-const EXAMPLE_DRAWDOWN = civilDate(2025, 8, 12)
-const EXAMPLE_FIRST_INSTALMENT = civilDate(2025, 9, 20)
 
 export function loanTermsTexts(terms: LoanTerms | null): LoanTermsTexts {
   return {
@@ -35,10 +30,18 @@ export function loanTermsTexts(terms: LoanTerms | null): LoanTermsTexts {
   }
 }
 
-export type LoanTermsErrors = Readonly<Record<'principal' | 'drawdown' | 'firstInstalment' | 'instalments' | 'interim', string | null>>
+/** What is wrong with each field of a loan's terms, or null where nothing is. */
+export interface LoanTermsFaults {
+  readonly principal: 'no-amount' | null
+  readonly drawdown: 'no-date' | null
+  readonly firstInstalment: 'no-date' | 'not-after-drawdown' | null
+  readonly instalments: 'no-count' | 'too-many' | null
+  /** The interest before the first instalment needs an amount above zero and its date, or neither. */
+  readonly interim: 'half-given' | null
+}
 
-/** The terms the fields give, the subsidy left to its own fields, or null while one is wrong, with why each is. */
-export function typedLoanTerms(texts: LoanTermsTexts): { readonly terms: Omit<LoanTerms, 'subsidy'> | null; readonly instalments: number | null; readonly errors: LoanTermsErrors } {
+/** The terms the fields give, the subsidy left to its own fields, or null while one is wrong, with what is wrong with each. */
+export function typedLoanTerms(texts: LoanTermsTexts): { readonly terms: Omit<LoanTerms, 'subsidy'> | null; readonly instalments: number | null; readonly faults: LoanTermsFaults } {
   const amount = typedAmount(texts.principal)
   const principal = amount !== null && amount > 0 ? amount : null
   const drawdown = parseCivilDate(texts.drawdown)
@@ -52,20 +55,20 @@ export function typedLoanTerms(texts: LoanTermsTexts): { readonly terms: Omit<Lo
       : interestAmount === null || interestAmount <= 0 || interestDate === null
         ? undefined
         : { amount: interestAmount, date: interestDate }
-  const errors: LoanTermsErrors = {
-    principal: principal === null ? loansWords.form.anAmount : null,
-    drawdown: drawdown === null ? loansWords.form.aDate(EXAMPLE_DRAWDOWN) : null,
-    firstInstalment: firstInstalment === null ? loansWords.form.aDate(EXAMPLE_FIRST_INSTALMENT) : drawdown !== null && firstInstalment <= drawdown ? words.loanDialog.afterDrawdown : null,
-    instalments: instalments === null ? words.loanDialog.instalmentsError : instalments > MOST_INSTALMENTS ? words.loanDialog.tooMany(MOST_INSTALMENTS) : null,
-    interim: interim === undefined ? words.loanDialog.interimError : null,
+  const faults: LoanTermsFaults = {
+    principal: principal === null ? 'no-amount' : null,
+    drawdown: drawdown === null ? 'no-date' : null,
+    firstInstalment: firstInstalment === null ? 'no-date' : drawdown !== null && firstInstalment <= drawdown ? 'not-after-drawdown' : null,
+    instalments: instalments === null ? 'no-count' : instalments > MOST_INSTALMENTS ? 'too-many' : null,
+    interim: interim === undefined ? 'half-given' : null,
   }
-  const valid = Object.values(errors).every((error) => error === null)
+  const valid = Object.values(faults).every((fault) => fault === null)
   return {
     terms:
       valid && principal !== null && drawdown !== null && firstInstalment !== null && instalments !== null && interim !== undefined
         ? { lender: texts.lender, principal, drawdown, firstInstalment, instalments, interimInterest: interim, repayment: texts.repayment }
         : null,
     instalments,
-    errors,
+    faults,
   }
 }

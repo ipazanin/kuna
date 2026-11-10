@@ -1,5 +1,6 @@
 import type { TransactionKind } from '../domain/listedTransactions'
-import type { Happening } from './transactionForm'
+import type { Happening, TransactionFault, TransactionFaults, TransactionTexts } from '../domain/transactionDraft'
+import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
@@ -383,3 +384,24 @@ export const hr: Translation<typeof en> = {
 }
 
 export const words = language === 'hr' ? hr : en
+
+/** The sentence under each field of the transaction dialog. */
+export type TransactionErrors = Partial<Record<keyof TransactionTexts, string>>
+
+const EXAMPLE_DAY = civilDate(2026, 10, 12)
+
+function faultText(fault: TransactionFault): string {
+  switch (fault.kind) {
+    case 'date':
+      return words.errors.date(EXAMPLE_DAY)
+    case 'receivedCurrency':
+      return words.errors.receivedCurrency(fault.currency)
+    default:
+      return words.errors[fault.kind]
+  }
+}
+
+/** What the dialog says under each field a draft found wrong. */
+export function transactionErrors(faults: TransactionFaults): TransactionErrors {
+  return Object.fromEntries(Object.entries(faults).map(([field, fault]) => [field, faultText(fault)]))
+}

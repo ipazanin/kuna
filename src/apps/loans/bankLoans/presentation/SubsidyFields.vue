@@ -2,11 +2,12 @@
 import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import { typedSubsidy } from './subsidyTexts'
-import type { SubsidyTexts } from './subsidyTexts'
+import { typedSubsidy } from '../domain/subsidyTexts'
+import type { SubsidyTexts } from '../domain/subsidyTexts'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { useLoanWords } from './useLoanWords'
+import { subsidyErrors } from './words'
 
 /** A fixed monthly amount a third party, such as APN, pays of each instalment it covers, and who that is. */
 const texts = defineModel<SubsidyTexts>({ required: true })
@@ -18,7 +19,7 @@ const props = defineProps<{
   loanInstalments: number | null
 }>()
 
-const errors = computed(() => typedSubsidy(texts.value, props.loanInstalments, loanWords.value.subsidyFields).errors)
+const errors = computed(() => subsidyErrors(typedSubsidy(texts.value, props.loanInstalments).faults, props.loanInstalments, loanWords.value.subsidyFields))
 </script>
 
 <template>

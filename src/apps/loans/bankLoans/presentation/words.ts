@@ -1,4 +1,9 @@
+import type { LoanTermsFaults } from '../domain/loanTermsTexts'
+import type { SubsidyFaults } from '../domain/subsidyTexts'
 import type { BankLoan } from '../../workbook/domain/bankLoan'
+import { MOST_INSTALMENTS } from '../../workbook/domain/bankLoanReading'
+import { words as loansWords } from '../../words'
+import { civilDate } from '../../../../shared/calendar/civilDate'
 import { language } from '../../../../shared/text/language'
 import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -812,4 +817,30 @@ const equalPrincipalWords = language === 'hr' ? hrEqualPrincipal : enEqualPrinci
 /** The words of one loan's own page and dialogs, which follow how its instalments are set. */
 export function wordsFor(repayment: BankLoan['repayment']): typeof words {
   return repayment === 'equal-principal' ? equalPrincipalWords : words
+}
+
+/** The sentence under each field of a loan's terms that is wrong, or null. */
+export type LoanTermsErrors = Readonly<Record<keyof LoanTermsFaults, string | null>>
+
+const EXAMPLE_DRAWDOWN = civilDate(2025, 8, 12)
+const EXAMPLE_FIRST_INSTALMENT = civilDate(2025, 9, 20)
+
+/** What the loan dialog and an offer say under each field of the terms. */
+export function loanTermsErrors(faults: LoanTermsFaults): LoanTermsErrors {
+  return {
+    principal: faults.principal === null ? null : loansWords.form.anAmount,
+    drawdown: faults.drawdown === null ? null : loansWords.form.aDate(EXAMPLE_DRAWDOWN),
+    firstInstalment: faults.firstInstalment === null ? null : faults.firstInstalment === 'no-date' ? loansWords.form.aDate(EXAMPLE_FIRST_INSTALMENT) : words.loanDialog.afterDrawdown,
+    instalments: faults.instalments === null ? null : faults.instalments === 'no-count' ? words.loanDialog.instalmentsError : words.loanDialog.tooMany(MOST_INSTALMENTS),
+    interim: faults.interim === null ? null : words.loanDialog.interimError,
+  }
+}
+
+/** What the subsidy's fields say under each that is wrong, in the words of the loan's repayment, for a loan of this many instalments. */
+export function subsidyErrors(faults: SubsidyFaults, instalments: number | null, fieldWords: typeof words.subsidyFields): Readonly<Record<keyof SubsidyFaults, string | null>> {
+  return {
+    monthly: faults.monthly === null ? null : loansWords.form.anAmount,
+    firstInstalment: faults.firstInstalment === null ? null : fieldWords.firstInstalmentError,
+    instalments: faults.instalments === null ? null : faults.instalments === 'no-count' || instalments === null ? fieldWords.instalmentsError : fieldWords.pastTheEnd(instalments),
+  }
 }

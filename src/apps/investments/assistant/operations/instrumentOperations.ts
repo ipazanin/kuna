@@ -1,9 +1,10 @@
 import { INSTRUMENT_WRITES } from '../../holdings/application/holdingWrites'
 import { FUND_MIX_WRITES, replaceRows } from '../../holdings/application/mixWrites'
-import { instrumentErrors, instrumentOfTexts, instrumentTexts, withQuoting } from '../../holdings/presentation/instrumentForm'
-import type { InstrumentTexts } from '../../holdings/presentation/instrumentForm'
-import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts } from '../../holdings/presentation/instrumentMixForm'
-import type { FundMix, FundMixTexts } from '../../holdings/presentation/instrumentMixForm'
+import { fundMixChanges, fundMixFaults, fundMixTexts, mixLineTexts } from '../../holdings/domain/fundMixDraft'
+import type { FundMix, FundMixTexts } from '../../holdings/domain/fundMixDraft'
+import { instrumentFaults, instrumentOfTexts, instrumentTexts, withQuoting } from '../../holdings/domain/instrumentDraft'
+import type { InstrumentTexts } from '../../holdings/domain/instrumentDraft'
+import { fundMixErrors, instrumentErrors } from '../../holdings/presentation/words'
 import { FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, NEW_INSTRUMENT_DEFAULTS, PRICE_SOURCES, QUOTING_KINDS } from '../../workbook/domain/instrument'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { INSTRUMENT_RECORDS } from '../../workbook/domain/investmentKinds'
@@ -115,8 +116,8 @@ function mixTextsOfStep(held: FundMixTexts, field: Readonly<Record<string, unkno
 
 /** Each field the dialog would mark, in the words it marks it with, named by the step's field. */
 function refusals(texts: InstrumentTexts, mixTexts: FundMixTexts, others: readonly Instrument[]): string[] {
-  const fields = Object.entries(instrumentErrors(texts, others)).flatMap(([name, error]) => (error === null ? [] : [`${name}: ${error}`]))
-  const mixErrors = fundMixErrors(mixTexts)
+  const fields = Object.entries(instrumentErrors(instrumentFaults(texts, others))).flatMap(([name, error]) => (error === null ? [] : [`${name}: ${error}`]))
+  const mixErrors = fundMixErrors(fundMixFaults(mixTexts))
   const mixes = FUND_MIXES.flatMap((mix) => {
     const lines = mixErrors.lines[mix].flatMap((line, at) => [line.group, line.percent].flatMap((error) => (error === null ? [] : [`${MIX_FIELDS[mix]}.${at}: ${error}`])))
     return mixErrors.whole[mix] === null ? lines : [...lines, `${MIX_FIELDS[mix]}: ${mixErrors.whole[mix]}`]

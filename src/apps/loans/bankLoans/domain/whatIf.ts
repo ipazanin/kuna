@@ -1,4 +1,5 @@
 import { ratePeriodOn, subsidyRepaidUntil } from './loanFigures'
+import type { PlanRow } from './loanPlan'
 import type { YearlyRate } from './yearlyRate'
 import { NO_COSTS, changeDate } from '../../scenarios/domain/loanScenario'
 import type { LoanChange } from '../../scenarios/domain/loanScenario'
@@ -64,6 +65,19 @@ export function whatIfExtraPayment(book: BankLoanBook, date: CivilDate, amount: 
   })
   const repaidUntil = subsidyRepaidUntil(book.loan)
   return { outcomes, subsidyRepaidUntil: repaidUntil !== null && date <= repaidUntil ? repaidUntil : null }
+}
+
+/** A change What if tries: an extra payment, a new rate or a new term. */
+export type TriedChange = Extract<LoanChange, { readonly kind: 'extra-payment' | 'rate-change' | 'term-change' }>
+
+/** The loan's instalments still to come after today, which a new rate or term can start from. */
+export function comingDues(book: BankLoanBook, today: CivilDate): readonly PlanRow[] {
+  return (book.plan ?? []).filter((row) => row.kind === 'instalment' && row.number !== null && row.date > today)
+}
+
+/** The instalments still to come from a due date on, the one due then included. A new term from then is shorter than this. */
+export function instalmentsLeftFrom(book: BankLoanBook, today: CivilDate, from: CivilDate): number {
+  return comingDues(book, today).filter((row) => row.date >= from).length
 }
 
 /** A new rate from a due date on, fixed or variable as the rate in force then is, since a reset keeps the loan's kind of rate. */

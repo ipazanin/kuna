@@ -7,7 +7,7 @@ import { dryRunGroups, dryRunSummary } from '../src/apps/investments/imports/pre
 import { NO_CHOICES, settledImport } from '../src/apps/investments/imports/presentation/importChoices'
 import type { ImportChoices, NewIds, SettledImport } from '../src/apps/investments/imports/presentation/importChoices'
 import { words } from '../src/apps/investments/imports/presentation/words'
-import { instrumentTexts } from '../src/apps/investments/holdings/presentation/instrumentForm'
+import { instrumentTexts } from '../src/apps/investments/holdings/domain/instrumentDraft'
 import { transactionCount } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { decimalText } from '../src/shared/money/decimal'

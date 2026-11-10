@@ -5,7 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
-import type { RateTexts } from './changeTexts'
+import type { RateTexts } from '../domain/changeTexts'
 import { words } from './words'
 import { rateMovedBy, rateText, typedRate } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'

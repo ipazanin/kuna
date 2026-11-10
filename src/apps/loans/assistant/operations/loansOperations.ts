@@ -14,15 +14,17 @@ import {
   newRatePeriod,
   removeBankLoan,
 } from '../../bankLoans/application/bankLoanWrites'
-import { triedRate } from '../../bankLoans/domain/whatIf'
+import { lateDues, paidLate } from '../../bankLoans/domain/lateInstalments'
+import { loanTermsTexts, typedLoanTerms } from '../../bankLoans/domain/loanTermsTexts'
+import type { LoanTermsTexts } from '../../bankLoans/domain/loanTermsTexts'
+import { subsidyTexts, typedSubsidy } from '../../bankLoans/domain/subsidyTexts'
+import { comingDues, instalmentsLeftFrom, triedRate } from '../../bankLoans/domain/whatIf'
+import type { TriedChange } from '../../bankLoans/domain/whatIf'
 import { typedRate } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
-import { loanTermsTexts, typedLoanTerms } from '../../bankLoans/presentation/loanTermsTexts'
-import type { LoanTermsTexts } from '../../bankLoans/presentation/loanTermsTexts'
 import { tryName } from '../../bankLoans/presentation/savedTries'
-import type { TriedChange } from '../../bankLoans/presentation/savedTries'
-import { subsidyTexts, typedSubsidy } from '../../bankLoans/presentation/subsidyTexts'
-import { words as bankWords, wordsFor } from '../../bankLoans/presentation/words'
+import { loanTermsErrors, subsidyErrors, words as bankWords, wordsFor } from '../../bankLoans/presentation/words'
+import { checkedExpectedPlan } from '../../informalLoans/domain/expectedPlan'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES, newInformalLoan, newMovement, removeInformalLoan } from '../../informalLoans/application/informalLoanWrites'
 import { copyScenario, newLoanScenario, removeScenario, saveScenario } from '../../scenarios/application/scenarioWrites'
 import { words as scenarioWords } from '../../scenarios/presentation/words'
@@ -373,8 +375,8 @@ function rateOf(text: string): YearlyRate {
 function subsidyOf(monthly: number | null, payer: string, firstInstalment: number | null, instalments: number | null, loanInstalments: number): LoanSubsidy | null {
   if (monthly === null) return null
   const texts = { monthly: amountText(monthly), payer, firstInstalment: countText(firstInstalment), instalments: countText(instalments) }
-  const typed = typedSubsidy(texts, loanInstalments, bankWords.subsidyFields)
-  refuseOnErrors({ monthly: typed.errors.monthly, firstInstalment: typed.errors.firstInstalment, instalments: typed.errors.instalments })
+  const typed = typedSubsidy(texts, loanInstalments)
+  refuseOnErrors(subsidyErrors(typed.faults, loanInstalments, bankWords.subsidyFields))
   return typed.subsidy
 }
 
@@ -382,24 +384,25 @@ function subsidyOf(monthly: number | null, payer: string, firstInstalment: numbe
 function loanOf(texts: LoanTermsTexts, name: string, subsidy: LoanSubsidy | null, note: string): Omit<BankLoan, 'id'> {
   if (name.trim() === '') throw new StepRefused('A bank loan needs a name, such as Home loan.')
   const typed = typedLoanTerms(texts)
-  refuseOnErrors(typed.errors)
+  refuseOnErrors(loanTermsErrors(typed.faults))
   return { ...typed.terms!, name, subsidy, note }
 }
 
-/** The expected plan the fields give over what the loan had, as the informal loan dialog checks it, or null for none. */
+/** The expected plan the fields give over what the loan had, through the informal loan dialog's own check, or null for none. */
 function expectedOf(field: Readonly<Record<string, never>>, kept: ExpectedPlan | null, start: CivilDate): ExpectedPlan | null {
   const [monthly, from, day] = [field['expectedMonthly'] as number | null, field['expectedFrom'] as string | null, field['expectedDay'] as number | null]
   if (monthly === null && from === null && day === null) return kept
   if (monthly === 0) return null
   const planned = {
-    monthly: monthly === null ? kept?.monthly : positiveOf(monthly, 'expectedMonthly'),
+    monthly: monthly === null ? kept?.monthly : moneyOf(monthly),
     from: from === null ? kept?.from : dayOf(from),
   }
   if (planned.monthly === undefined || planned.from === undefined) throw new StepRefused('An expected plan needs expectedMonthly and expectedFrom.')
-  if (planned.from < start) throw new StepRefused('expectedFrom is on or after the day the loan starts.')
-  const repaidOn = day ?? kept?.day ?? dayOfMonth(planned.from)
-  if (!Number.isInteger(repaidOn) || repaidOn < 1 || repaidOn > 31) throw new StepRefused('expectedDay is a day of the month from 1 to 31.')
-  return { monthly: planned.monthly, from: planned.from, day: repaidOn }
+  const { expected, faults } = checkedExpectedPlan(planned.monthly, planned.from, day ?? kept?.day ?? dayOfMonth(planned.from), start)
+  if (faults.monthly) throw new StepRefused('expectedMonthly is above zero.')
+  if (faults.from) throw new StepRefused('expectedFrom is on or after the day the loan starts.')
+  if (faults.day) throw new StepRefused('expectedDay is a day of the month from 1 to 31.')
+  return expected
 }
 
 /** The informal loan the fields give, with the name the dialog asks for. */
@@ -416,13 +419,12 @@ function triedChangeOf(book: BankLoanBook, field: Readonly<Record<string, never>
     if (date < book.loan.drawdown) throw new StepRefused('An extra payment falls on or after the payout.')
     return { kind: 'extra-payment', date, amount: positiveOf(field['amount'], 'amount'), effect: choiceOf(EXTRA_PAYMENT_EFFECTS, field['effect'], 'effect')! }
   }
-  const coming = (book.plan ?? []).filter((row) => row.kind === 'instalment' && row.number !== null && row.date > day)
-  if (!coming.some((row) => row.date === date)) throw new StepRefused('date is a due date of the loan still to come.')
+  if (!comingDues(book, day).some((row) => row.date === date)) throw new StepRefused('date is a due date of the loan still to come.')
   if (field['kind'] === 'rate-change') {
     if (field['rate'] === null) throw new StepRefused('A rate change takes rate.')
     return triedRate(book, date, rateOf(field['rate']))
   }
-  const left = coming.filter((row) => row.date >= date).length
+  const left = instalmentsLeftFrom(book, day, date)
   const instalments = field['instalments'] as number | null
   if (instalments === null || !Number.isInteger(instalments) || instalments < 1 || instalments >= left)
     throw new StepRefused(`instalments is a whole number below the ${left} the loan has left from then.`)
@@ -448,7 +450,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
     const id = idOf(value)
     const loanBook = book.bankLoans.find((candidate) => candidate.loan.id === id)
     if (loanBook !== undefined) return loanBook
-    if (addedLoans.some((loan) => loan.id === id)) throw new StepRefused('A bank loan added on this card is changed, and takes its tries, on a card after it.')
+    if (addedLoans.some((loan) => loan.id === id)) throw new StepRefused('A bank loan added on this card is changed, and takes its tries and late instalments, on a card after it.')
     throw new StepRefused('That bank loan is no longer in the file.')
   }
   const informalOf = (value: unknown): InformalLoan => found([...book.readings.informalLoans.facts, ...addedInformal], idOf(value), 'informal loan')
@@ -569,11 +571,13 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
       case 'add-late-instalment':
       case 'change-late-instalment': {
         const before = operation === 'change-late-instalment' ? found(book.readings.lateInstalments.facts, idOf(field['late']), 'late instalment') : null
+        const loanBook = bankBookOf(before === null ? field['loan'] : before.loan)
         const due = field['due'] === null ? before!.due : dayOf(field['due'])
         const paid = field['paid'] === null ? before!.paid : dayOf(field['paid'])
-        if (due > day) throw new StepRefused('Only an instalment due by today can be marked late.')
-        if (paid <= due) throw new StepRefused('paid is after the due date.')
-        if (before === null) unit.of(LATE_INSTALMENT_WRITES).add(newLateInstalment({ loan: bankLoanOf(field['loan']).id, due, paid }))
+        if (!lateDues(loanBook, day, before).some((row) => row.date === due))
+          throw new StepRefused("due is the due date of one of the loan's instalments, due by today, that no other late instalment names.")
+        if (!paidLate(due, paid)) throw new StepRefused('paid is after the due date.')
+        if (before === null) unit.of(LATE_INSTALMENT_WRITES).add(newLateInstalment({ loan: loanBook.loan.id, due, paid }))
         else unit.of(LATE_INSTALMENT_WRITES).change(before, { ...before, due, paid })
         break
       }

@@ -4,10 +4,12 @@ import { REPEATS } from '../../scenarios/domain/loanScenario'
 import type { LoanChange, LoanScenario } from '../../scenarios/domain/loanScenario'
 import { offerBase } from '../../scenarios/domain/scenarioPlan'
 import { moveDates, scenarioDues } from '../../scenarios/domain/scenarioDues'
-import { blankChange, typedChange } from '../../scenarios/presentation/changeTexts'
-import type { ChangeTexts } from '../../scenarios/presentation/changeTexts'
-import { offerAutoName, offerTexts, typedOffer } from '../../scenarios/presentation/offerTexts'
-import type { OfferTexts } from '../../scenarios/presentation/offerTexts'
+import { blankChange, typedChange } from '../../scenarios/domain/changeTexts'
+import type { ChangeTexts } from '../../scenarios/domain/changeTexts'
+import { offerTexts, typedOffer } from '../../scenarios/domain/offerTexts'
+import type { OfferTexts } from '../../scenarios/domain/offerTexts'
+import { offerAutoName } from '../../scenarios/presentation/offerName'
+import { changeErrors, offerErrors } from '../../scenarios/presentation/words'
 import { REPAYMENTS } from '../../workbook/domain/bankLoan'
 import { EXTRA_PAYMENT_EFFECTS } from '../../workbook/domain/extraPayment'
 import { LOAN_SCENARIO_RECORDS } from '../../workbook/domain/loanKinds'
@@ -257,9 +259,9 @@ function listedChanges(listed: readonly Field[], base: ReturnType<typeof offerBa
   const moved = Math.max(0, ...held.map((change) => (change.kind === 'move' ? change.instalments : 0)), ...blocks.map((block) => (block.kind === 'move' ? (typedCount(block.instalments) ?? 0) : 0)))
   const dues: ReadonlySet<string> = new Set(scenarioDues(base.loan, moved).map((due) => due.date))
   const typed = (block: ChangeTexts, allowed: ReadonlySet<string>): LoanChange => {
-    const { change, errors } = typedChange(block, { drawdown: base.loan.drawdown, dues: allowed })
+    const { change, faults } = typedChange(block, { drawdown: base.loan.drawdown, dues: allowed })
     if (change === null) {
-      refuseOnErrors(Object.fromEntries(Object.entries(errors).map(([name, error]) => [`changes ${block.id + 1} ${name}`, error ?? null])))
+      refuseOnErrors(Object.fromEntries(Object.entries(changeErrors(faults)).map(([name, error]) => [`changes ${block.id + 1} ${name}`, error ?? null])))
       throw new StepRefused(`changes ${block.id + 1} is not a change the offer can take.`)
     }
     return change
@@ -272,7 +274,7 @@ function listedChanges(listed: readonly Field[], base: ReturnType<typeof offerBa
 /** Writes the offer the texts give, with its rates and the changes, through the editor's own check and its save, and gives the id of the scenario it writes. */
 function writeOffer(unit: UnitOfWork, records: LoansRecords, texts: OfferTexts, field: Field, kept: readonly LoanChange[], editing: LoanScenario | null): string {
   const typed = typedOffer(texts)
-  refuseOnErrors(typed.errors)
+  refuseOnErrors(offerErrors(typed.faults))
   if (typed.terms === null) throw new StepRefused('Those terms are not an offer the Scenarios screen can take.')
   const name = texts.name.trim() || offerAutoName(texts)
   const base = offerBase(name, typed.terms)
