@@ -190,7 +190,7 @@ function skipToContent(): void {
 const paneHeight = useHeightAboveKeyboard(pane)
 
 /** The screen's name without its app's, as the router gives each route, since the tile and the drawer name the app. */
-const screenTitle = computed(() => (typeof route.meta.title === 'string' ? route.meta.title : props.title))
+const screenTitle = computed(() => route.meta.title ?? props.title)
 </script>
 
 <template>

@@ -48,7 +48,7 @@ function togglePages(appId: string): void {
   openApp.value = openApp.value === appId ? null : appId
 }
 
-const navigation = computed(() => navigationOf(installedApps(), openApp.value, typeof route.meta.under === 'string' ? route.meta.under : null))
+const navigation = computed(() => navigationOf(installedApps(), openApp.value, route.meta.under ?? null))
 const quickJumpOpen = ref(false)
 
 const pageSync = startPageSync(installedApps())
@@ -62,7 +62,7 @@ onBeforeUnmount(() => stops.forEach((stop) => stop()))
 watchEffect(() => setMoneyFormat(appOnScreen.value?.moneyFormat() ?? DEFAULT_MONEY_FORMAT))
 
 const inFirstRun = computed(() => firstRunAt(installedApps(), route.path))
-const bare = computed(() => route.meta.bare === true)
+const bare = computed(() => route.meta.bare)
 // Once the router has read the address, so a link into the first run keeps its step, and an address it redirects to the home leaves no app open.
 void router.isReady().then(() => {
   followAddress()
@@ -80,7 +80,7 @@ const toaster = { ui: { viewport: 'bottom-[max(1rem,env(safe-area-inset-bottom))
 
 /** The chat's code loads only once a person with a key opens it. */
 const ChatPanel = defineAsyncComponent(() => import('../shared/ai/presentation/ChatPanel.vue'))
-const screenName = computed(() => (typeof route.meta.title === 'string' ? route.meta.title : null))
+const screenName = computed(() => route.meta.title ?? null)
 
 const uiLocale = language === 'hr' ? hr : en_gb
 </script>

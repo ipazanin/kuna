@@ -7,6 +7,18 @@ import { nameScreen } from '../../shared/routing/browserTitle'
 import { installedApps, ownsPath } from './appRegistry'
 import { HOME_SCREEN, KUNA_SETTINGS_SCREEN, NET_WORTH_SCREEN } from './screens'
 
+declare module 'vue-router' {
+  interface RouteMeta {
+    /** True for a screen drawn without the app's frame. */
+    readonly bare: boolean
+    readonly title?: string
+    /** The name of the app that owns the screen. */
+    readonly app?: string
+    /** The route whose entry in the menu stays lit while this screen shows. */
+    readonly under?: `/${string}`
+  }
+}
+
 const loading = ref(false)
 
 /** True while a screen's code is on its way. A short wait keeps a cached screen from flashing a placeholder. */
@@ -67,7 +79,7 @@ export function createAppRouter(): Router {
     if (failure) {
       return
     }
-    nameScreen(to.meta.bare === true || typeof to.meta.title !== 'string' ? null : to.meta.title, typeof to.meta.app === 'string' ? to.meta.app : null)
+    nameScreen(to.meta.bare || to.meta.title === undefined ? null : to.meta.title, to.meta.app ?? null)
     if (from.matched.length > 0 && to.path !== from.path) {
       void nextTick(() => document.querySelector<HTMLElement>('[data-testid="screen-title"]')?.focus({ preventScroll: true }))
     }
