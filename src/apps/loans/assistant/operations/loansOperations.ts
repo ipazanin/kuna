@@ -105,7 +105,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'change-bank-loan',
     about:
-      "Fixes a bank loan's terms. A new first instalment moves the first rate period with it. interimAmount 0 removes the interim interest. Rates, the subsidy and extra payments have their own operations. Null leaves a field as it is.",
+      "Fixes a bank loan's terms. A new first instalment moves the first rate period with it. interimAmount 0 removes the interim interest. Rates, the subsidy and extra payments have their own operations. Null leaves a field as it is. bankInstalment is the first instalment the corrected contract or plan prints, which the card sets beside Kuna's first instalment at the new terms and the file does not keep.",
     input: inputOf({
       loan: TEXT,
       name: TEXT_OR_NULL,
@@ -118,6 +118,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
       interimDate: TEXT_OR_NULL,
       repayment: choiceOrNull(REPAYMENTS),
       note: TEXT_OR_NULL,
+      bankInstalment: BANK_INSTALMENT,
     }),
     refs: { loan: BANK_LOAN_RECORDS.name },
     creates: null,
@@ -134,6 +135,7 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
       interimDate: null,
       repayment: null,
       note: 'Checked',
+      bankInstalment: null,
     },
   },
   {
@@ -157,21 +159,23 @@ const LOAN_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'add-rate-period',
-    about: "A new yearly rate on a bank loan from one of its due dates on, until the next period. Only the loan's first period starts at its first instalment.",
-    input: inputOf({ loan: TEXT, from: TEXT, rate: RATE, rateType: RATE_TYPE, note: TEXT }),
+    about:
+      "A new yearly rate on a bank loan from one of its due dates on, until the next period. Only the loan's first period starts at its first instalment. bankInstalment is the instalment the rate notice prints from that due date, which the card sets beside Kuna's at the new rate and the file does not keep.",
+    input: inputOf({ loan: TEXT, from: TEXT, rate: RATE, rateType: RATE_TYPE, note: TEXT, bankInstalment: BANK_INSTALMENT }),
     refs: { loan: BANK_LOAN_RECORDS.name },
     creates: null,
     alone: false,
-    example: { loan: 'bank-loan', from: '2026-10-05', rate: '3.9', rateType: 'variable', note: '' },
+    example: { loan: 'bank-loan', from: '2026-10-05', rate: '3.9', rateType: 'variable', note: '', bankInstalment: null },
   },
   {
     name: 'change-rate-period',
-    about: 'Fixes a rate period: another due date, rate, type or note. The first period stays at the first instalment. Null leaves a field as it is.',
-    input: inputOf({ period: TEXT, from: TEXT_OR_NULL, rate: RATE_OR_NULL, rateType: choiceOrNull(RATE_TYPES), note: TEXT_OR_NULL }),
+    about:
+      "Fixes a rate period: another due date, rate, type or note. The first period stays at the first instalment. Null leaves a field as it is. bankInstalment is the instalment the corrected rate notice prints from the period's due date, which the card sets beside Kuna's at the fixed rate and the file does not keep.",
+    input: inputOf({ period: TEXT, from: TEXT_OR_NULL, rate: RATE_OR_NULL, rateType: choiceOrNull(RATE_TYPES), note: TEXT_OR_NULL, bankInstalment: BANK_INSTALMENT }),
     refs: { period: RATE_PERIOD_RECORDS.name },
     creates: null,
     alone: false,
-    example: { period: 'rate-period-later', from: null, rate: '4.2', rateType: null, note: null },
+    example: { period: 'rate-period-later', from: null, rate: '4.2', rateType: null, note: null, bankInstalment: null },
   },
   {
     name: 'delete-rate-period',
@@ -427,7 +431,7 @@ function triedChangeOf(book: BankLoanBook, field: Readonly<Record<string, never>
 
 /**
  * Plans the steps into one write, in order, through the screens' own write functions. A `$` name stands for a loan an earlier step added.
- * It gives the instalment each new loan or offer printed, by the id of what the card writes, for the card to set beside Kuna's.
+ * It gives the instalment each loan, rate period or offer printed, by the id of what the card writes, for the card to set beside Kuna's.
  */
 function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>, steps: readonly ProposalStep[]): ReadonlyMap<string, Money> {
   const book: LoanBook = workbook
@@ -454,6 +458,10 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
     if (scenario === undefined) throw new StepRefused('That scenario is no longer in the file.')
     return scenario
   }
+  const printedBy = (id: string, amount: number | null): void => {
+    const instalment = printedInstalmentOf(amount)
+    if (instalment !== null) printed.set(id, instalment)
+  }
   const day = today()
 
   for (const { operation, input, as } of steps) {
@@ -477,8 +485,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
         unit.of(RATE_PERIOD_WRITES).add(newRatePeriod({ loan: loan.id, from: loan.firstInstalment, rate: rateOf(field['rate']), rateType: field['rateType'], note: field['rateNote'] }))
         addedLoans.push(loan)
         if (as !== null) made.set(as, loan.id)
-        const instalment = printedInstalmentOf(field['bankInstalment'])
-        if (instalment !== null) printed.set(loan.id, instalment)
+        printedBy(loan.id, field['bankInstalment'])
         break
       }
       case 'change-bank-loan': {
@@ -498,6 +505,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
         }
         const after: BankLoan = { ...newBankLoan(loanOf(texts, field['name'] ?? before.name, before.subsidy, field['note'] ?? before.note)), id: before.id }
         unit.of(BANK_LOAN_WRITES).change(before, after)
+        printedBy(after.id, field['bankInstalment'])
         const firstPeriod = loanBook.ratePeriods.find((period) => period.from === before.firstInstalment) ?? null
         if (firstPeriod !== null && after.firstInstalment !== before.firstInstalment) unit.of(RATE_PERIOD_WRITES).change(firstPeriod, { ...firstPeriod, from: after.firstInstalment })
         break
@@ -518,7 +526,9 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
       }
       case 'add-rate-period': {
         const loan = bankLoanOf(field['loan'])
-        unit.of(RATE_PERIOD_WRITES).add(newRatePeriod({ loan: loan.id, from: dayOf(field['from']), rate: rateOf(field['rate']), rateType: field['rateType'], note: field['note'] }))
+        const period = newRatePeriod({ loan: loan.id, from: dayOf(field['from']), rate: rateOf(field['rate']), rateType: field['rateType'], note: field['note'] })
+        unit.of(RATE_PERIOD_WRITES).add(period)
+        printedBy(period.id, field['bankInstalment'])
         break
       }
       case 'change-rate-period': {
@@ -531,6 +541,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
           note: field['note'] ?? before.note,
         }
         unit.of(RATE_PERIOD_WRITES).change(before, after)
+        printedBy(after.id, field['bankInstalment'])
         break
       }
       case 'delete-rate-period':
@@ -641,9 +652,9 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
         unit.of(MOVEMENT_WRITES).remove(found(book.readings.movements.facts, idOf(field['movement']), 'movement'))
         break
       default: {
-        const offer = planOfferStep(unit, records, book, operation, field, day, idOf)
-        if (offer === null) throw new StepRefused('There is no such operation.')
-        if (offer.printedInstalment !== null) printed.set(offer.scenario, offer.printedInstalment)
+        const scenario = planOfferStep(unit, records, book, operation, field, day, idOf)
+        if (scenario === null) throw new StepRefused('There is no such operation.')
+        printedBy(scenario, field['bankInstalment'])
       }
     }
   }
@@ -651,26 +662,26 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
 }
 
 /**
- * How the chat's steps become one write of the Loans file. Each plan adds its printed instalments under the new ids it writes, so two checks
- * at once keep each other's. The model hears when a first instalment differs, as the card's warning never reaches it.
+ * How the chat's steps become one write of the Loans file. A check plans and shows its card over books of its own, so the printed instalments
+ * are kept by those books. Two checks at once each keep their own, and a later card never shows an earlier one's. The model hears when an instalment differs, as the card's warning never reaches it.
  */
 function loansWork(): ProposalWork<LoansBooks, never> {
-  let printed: ReadonlyMap<string, Money> = new Map()
+  const printedOf = new WeakMap<OpenBooks<LoansBooks>, ReadonlyMap<string, Money>>()
   let instalmentsDiffering = 0
   return {
     notOpen: 'The Loans file is not open on this device.',
     plan: (unit, books, steps) => {
-      printed = new Map([...printed, ...planned(unit, books, steps)])
+      printedOf.set(books, planned(unit, books, steps))
     },
-    groups: (checked, { workbook }) => {
-      const card = loansCardOf(checked, workbook, printed)
+    groups: (checked, books) => {
+      const card = loansCardOf(checked, books.workbook, printedOf.get(books) ?? new Map())
       instalmentsDiffering = card.instalmentsDiffering
       return card.groups
     },
     heldBack: () => {
       if (instalmentsDiffering === 0) return null
-      const loans = instalmentsDiffering === 1 ? '1 loan or offer' : `${instalmentsDiffering} loans or offers`
-      return `Kuna's first instalment is not the printed one on ${loans}. Tell the person to check the amount, rate, term and days against the document before accepting.`
+      const lines = instalmentsDiffering === 1 ? 'one line of the card' : `${instalmentsDiffering} lines of the card`
+      return `Kuna's instalment is not the printed one on ${lines}. Tell the person to check the amount, rate, term and days against the document before accepting.`
     },
   }
 }

@@ -20,6 +20,8 @@ export interface ProposalDescriber {
   warns(kind: RecordKind<unknown>, field: string, after: ProposedRecord | null, before: ProposedRecord | null): boolean
   /** Whether the change files a row a person confirmed under another category. Without it, no change does. */
   movesConfirmed?(kind: RecordKind<unknown>, before: ProposedRecord, after: ProposedRecord): boolean
+  /** The line with what the app checks of the record as it will be held, such as a figure set beside a document's. Without it, a line shows only the fields. */
+  checked?(kind: RecordKind<unknown>, record: ProposedRecord, line: ProposalLine): ProposalLine
 }
 
 function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallback: string, before: ProposedRecord | null, after: ProposedRecord | null): ProposalLine {
@@ -32,11 +34,12 @@ function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallbac
     return was === null && will === null ? [] : [{ name: describer.fieldName(field, shown ?? {}), before: was, after: will, warns: describer.warns(kind, field, after, before) }]
   })
   const movesConfirmed = before !== null && after !== null && describer.movesConfirmed?.(kind, before, after) === true
-  return {
+  const line: ProposalLine = {
     label: shown === null ? fallback : describer.label(kind, shown, fallback),
     fields: [...fields.filter((field) => field.warns), ...fields.filter((field) => !field.warns)],
     warning: movesConfirmed ? words.confirmedRowMoves : null,
   }
+  return after === null || describer.checked === undefined ? line : describer.checked(kind, after, line)
 }
 
 /**

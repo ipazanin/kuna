@@ -7,10 +7,11 @@ import type { Money } from '../../../../shared/money/money'
 export const RATE: StrictSchema = { type: 'string', description: 'A yearly percent as the bank writes it, such as 3.18, with at most four decimals.' }
 export const RATE_OR_NULL: StrictSchema = { type: ['string', 'null'], description: 'A yearly percent such as 3.18, or null to leave it.' }
 
-/** The first regular instalment a contract, plan or offer prints, which only the card reads and the file never keeps. */
+/** The regular instalment a contract, plan, offer or rate notice prints, which only the card reads and the file never keeps. */
 export const BANK_INSTALMENT: StrictSchema = {
   type: ['number', 'null'],
-  description: 'The first regular instalment as the document prints it, in euros, principal and interest before any subsidy, or null when it prints none. Never worked out.',
+  description:
+    'The regular instalment as the document prints it, in euros, principal and interest before any subsidy, from the due date the operation says, or null when it prints none. Never worked out.',
 }
 
 /** The printed instalment a step gives, above zero, or null for none. */

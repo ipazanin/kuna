@@ -4,7 +4,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
 import { KEPT_BY_KUNA, proposalFieldName } from '../src/apps/loans/assistant/operations/proposalLines'
 import { words } from '../src/apps/loans/assistant/words'
-import { BANK_LOAN_RECORDS, LOAN_SCENARIO_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import { BANK_LOAN_RECORDS, LOAN_SCENARIO_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import type { ProposalGroup, ProposalLine } from '../src/shared/app/assistantOperations'
+import { formatMoney } from '../src/shared/money/moneyFormat'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { EXAMPLE_RECORDS, loansDesk } from './fixtures/loansDesk'
@@ -157,11 +159,11 @@ describe('the first instalment the bank printed', () => {
     expect(recordsOf(desk)).not.toContain('bankInstalment')
   })
 
-  it("shows only Kuna's instalment when the contract prints none, and refuses one of zero", async () => {
+  it('shows no instalment when the contract prints none, and refuses one of zero', async () => {
     const desk = await loansDesk(used)
     await desk.propose([{ op: 'add-bank-loan', input: printedLoan(null) }])
     const names = addedLine(desk, BANK_LOAN_RECORDS.noun).fields.map((field) => field.name)
-    expect(names).toContain(words.proposals.fields.kunaInstalment)
+    expect(names).not.toContain(words.proposals.fields.kunaInstalment)
     expect(names).not.toContain(words.proposals.fields.bankInstalment)
     expect((await desk.propose([{ op: 'add-bank-loan', input: printedLoan(0) }])).isError).toBe(true)
   })
@@ -188,9 +190,9 @@ describe('the printed instalment heard by the model', () => {
   const bankFigure = (line: { readonly fields: readonly { readonly name: string; readonly after: string | null }[] }) =>
     line.fields.find((field) => field.name === words.proposals.fields.bankInstalment)?.after ?? null
 
-  it('tells the model when a first instalment differs, and nothing when they agree', async () => {
+  it('tells the model when an instalment differs, and nothing when they agree', async () => {
     const desk = await loansDesk(used)
-    expect((await desk.propose([{ op: 'add-bank-loan', input: printedLoan(285) }])).text).toContain("Kuna's first instalment is not the printed one on 1 loan or offer.")
+    expect((await desk.propose([{ op: 'add-bank-loan', input: printedLoan(285) }])).text).toContain("Kuna's instalment is not the printed one on one line of the card.")
     expect((await desk.propose([{ op: 'add-bank-loan', input: printedLoan(279.66) }])).text).not.toContain('not the printed one')
   })
 
@@ -205,7 +207,7 @@ describe('the printed instalment heard by the model', () => {
     expect(lines.map(bankFigure).map((figure) => figure?.replace(/\D/g, ''))).toEqual(['28500', '60000'])
     expect(lines[0]!.warning).toMatch(/285[,.]00/)
     expect(lines[1]!.warning).toMatch(/600[,.]00/)
-    expect(answer.text).toContain('on 2 loans or offers')
+    expect(answer.text).toContain('on 2 lines of the card')
   })
 
   it('keeps the printed figure of each card when two are checked at once', async () => {
@@ -216,13 +218,158 @@ describe('the printed instalment heard by the model', () => {
     expect(figures.sort()).toEqual(['28500', '60000'])
   })
 
-  it('shows no first instalment on a card that changes an offer', async () => {
+  it('shows no instalment on a card that changes an offer whose document prints none', async () => {
     const desk = await loansDesk(used)
     const change = LOANS_OPERATIONS.find((operation) => operation.name === 'change-offer')!
     await desk.propose([{ op: 'change-offer', input: exampleInput(desk, change) }])
 
     const names = desk.cards[0]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.map((field) => field.name)))
     expect(names).not.toContain(words.proposals.fields.kunaInstalment)
+  })
+})
+
+describe('the instalment printed on a change', () => {
+  const figureOf = (line: ProposalLine, name: string) => line.fields.find((field) => field.name === name)?.after ?? null
+  const changedLine = (desk: LoansDesk, verb: ProposalGroup['verb'], noun: RecordNoun) => desk.cards.at(-1)!.groups.find((group) => group.verb === verb && group.noun === noun)!.lines[0]!
+
+  /** Proposes the step with a printed instalment far from any Kuna works out, and gives the line that checks it, with Kuna's figure as the card writes it in English and in euros. */
+  async function differing(desk: LoansDesk, op: string, input: Record<string, unknown>, verb: ProposalGroup['verb'], noun: RecordNoun) {
+    const answer = await desk.propose([{ op, input: { ...input, bankInstalment: 9999 } }])
+    const line = changedLine(desk, verb, noun)
+    const kuna = figureOf(line, words.proposals.fields.kunaInstalment)!
+    return { answer, line, kuna, euros: Number(kuna.replace(/[^\d.]/g, '')) }
+  }
+
+  /** Proposes the step again with Kuna's own figure a cent off, which agrees. */
+  async function agreeing(desk: LoansDesk, op: string, input: Record<string, unknown>, euros: number, verb: ProposalGroup['verb'], noun: RecordNoun) {
+    const answer = await desk.propose([{ op, input: { ...input, bankInstalment: Math.round(euros * 100 + 1) / 100 } }])
+    return { answer, line: changedLine(desk, verb, noun) }
+  }
+
+  it("sets Kuna's first instalment at a corrected loan's new terms beside the printed one, and warns only when they differ", async () => {
+    const desk = await loansDesk(used)
+    const input = {
+      ...exampleInput(
+        desk,
+        LOANS_OPERATIONS.find((operation) => operation.name === 'change-bank-loan')!,
+      ),
+      principal: 2400,
+      note: null,
+    }
+
+    const off = await differing(desk, 'change-bank-loan', input, 'change', BANK_LOAN_RECORDS.noun)
+    expect(off.line.warning).toContain(off.kuna)
+    expect(off.line.warning).toMatch(/9[,.]?999[,.]00/)
+    expect(off.answer.text).toContain("Kuna's instalment is not the printed one on one line of the card.")
+    const on = await agreeing(desk, 'change-bank-loan', input, off.euros, 'change', BANK_LOAN_RECORDS.noun)
+    expect(on.line.warning).toBeNull()
+    expect(on.answer.text).not.toContain('not the printed one')
+
+    expect((await desk.accept()).kind).toBe('done')
+    const first = bookOf(desk).bankLoans[0]!.plan!.find((row) => row.number === 1)!
+    expect(formatMoney(first.payment)).toBe(off.kuna)
+  })
+
+  it("sets Kuna's instalment at a notice's new rate from its due date beside the printed one, and warns only when they differ", async () => {
+    const desk = await loansDesk(used)
+    const input = exampleInput(
+      desk,
+      LOANS_OPERATIONS.find((operation) => operation.name === 'add-rate-period')!,
+    )
+    const dueBefore = bookOf(desk).bankLoans[0]!.plan!.find((row) => row.date === input['from'])!.payment
+
+    const off = await differing(desk, 'add-rate-period', input, 'add', RATE_PERIOD_RECORDS.noun)
+    expect(off.line.warning).toContain(off.kuna)
+    expect(off.line.warning).toMatch(/9[,.]?999[,.]00/)
+    expect(off.answer.text).toContain("Kuna's instalment is not the printed one on one line of the card.")
+    const on = await agreeing(desk, 'add-rate-period', input, off.euros, 'add', RATE_PERIOD_RECORDS.noun)
+    expect(on.line.warning).toBeNull()
+    expect(on.answer.text).not.toContain('not the printed one')
+
+    expect((await desk.accept()).kind).toBe('done')
+    const due = bookOf(desk).bankLoans[0]!.plan!.find((row) => row.date === input['from'])!.payment
+    expect(formatMoney(due)).toBe(off.kuna)
+    expect(due).not.toBe(dueBefore)
+  })
+
+  it("sets Kuna's instalment at a corrected notice's rate from the period's due date beside the printed one, and warns only when they differ", async () => {
+    const desk = await loansDesk(used)
+    const input = exampleInput(
+      desk,
+      LOANS_OPERATIONS.find((operation) => operation.name === 'change-rate-period')!,
+    )
+    const from = bookOf(desk).bankLoans[0]!.ratePeriods.find((period) => period.id === EXAMPLE_RECORDS['rate-period-later'])!.from
+    const dueBefore = bookOf(desk).bankLoans[0]!.plan!.find((row) => row.date === from)!.payment
+
+    const off = await differing(desk, 'change-rate-period', input, 'change', RATE_PERIOD_RECORDS.noun)
+    expect(off.line.warning).toContain(off.kuna)
+    expect(off.line.warning).toMatch(/9[,.]?999[,.]00/)
+    expect(off.answer.text).toContain("Kuna's instalment is not the printed one on one line of the card.")
+    const on = await agreeing(desk, 'change-rate-period', input, off.euros, 'change', RATE_PERIOD_RECORDS.noun)
+    expect(on.line.warning).toBeNull()
+    expect(on.answer.text).not.toContain('not the printed one')
+
+    expect((await desk.accept()).kind).toBe('done')
+    const due = bookOf(desk).bankLoans[0]!.plan!.find((row) => row.date === from)!.payment
+    expect(formatMoney(due)).toBe(off.kuna)
+    expect(due).not.toBe(dueBefore)
+  })
+
+  // 90,000 at 3.5% over 240 months: 90,000 x 0.035/12 / (1 - (1 + 0.035/12)^-240) = 262.50 / 0.50291 = 521.96.
+  it("sets Kuna's first instalment at a revised offer's new terms beside the printed one, and warns only when they differ", async () => {
+    const desk = await loansDesk(used)
+    const input = exampleInput(
+      desk,
+      LOANS_OPERATIONS.find((operation) => operation.name === 'change-offer')!,
+    )
+
+    const off = await differing(desk, 'change-offer', input, 'change', LOAN_SCENARIO_RECORDS.noun)
+    expect(off.kuna).toMatch(/521[,.]96/)
+    expect(off.line.warning).toContain(off.kuna)
+    expect(off.answer.text).toContain("Kuna's instalment is not the printed one on one line of the card.")
+    const on = await agreeing(desk, 'change-offer', input, off.euros, 'change', LOAN_SCENARIO_RECORDS.noun)
+    expect(on.line.warning).toBeNull()
+    expect(figureOf(on.line, words.proposals.fields.bankInstalment)).toMatch(/521[,.]97/)
+    expect(on.answer.text).not.toContain('not the printed one')
+  })
+
+  it("shows no printed instalment on a later card about the same loan from an earlier card's check", async () => {
+    const desk = await loansDesk(used)
+    const loan = desk.ref('bank-loan', EXAMPLE_RECORDS['bank-loan']!)
+    await differing(
+      desk,
+      'change-bank-loan',
+      {
+        ...exampleInput(
+          desk,
+          LOANS_OPERATIONS.find((operation) => operation.name === 'change-bank-loan')!,
+        ),
+        principal: 2400,
+      },
+      'change',
+      BANK_LOAN_RECORDS.noun,
+    )
+    const answer = await desk.propose([{ op: 'set-subsidy', input: { loan, monthly: 20, payer: 'APN', firstInstalment: 1, instalments: 6 } }])
+
+    expect(changedLine(desk, 'change', BANK_LOAN_RECORDS.noun).fields.map((field) => field.name)).not.toContain(words.proposals.fields.bankInstalment)
+    expect(answer.text).not.toContain('not the printed one')
+  })
+
+  it('shows no instalment on a change or rate notice that prints none', async () => {
+    const desk = await loansDesk(used)
+    for (const op of ['change-bank-loan', 'add-rate-period', 'change-rate-period']) {
+      await desk.propose([
+        {
+          op,
+          input: exampleInput(
+            desk,
+            LOANS_OPERATIONS.find((operation) => operation.name === op)!,
+          ),
+        },
+      ])
+      const names = desk.cards.at(-1)!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.map((field) => field.name)))
+      expect(names).not.toContain(words.proposals.fields.kunaInstalment)
+    }
   })
 })
 
@@ -270,9 +417,9 @@ describe('what the screens refuse', () => {
   it('refuses a rate from a day that is no due date, and taking the first rate away', async () => {
     const desk = await loansDesk(used)
     const loan = desk.ref('bank-loan', EXAMPLE_RECORDS['bank-loan']!)
-    expect((await desk.propose([{ op: 'add-rate-period', input: { loan, from: '2026-10-06', rate: '3.9', rateType: 'variable', note: '' } }])).isError).toBe(true)
+    expect((await desk.propose([{ op: 'add-rate-period', input: { loan, from: '2026-10-06', rate: '3.9', rateType: 'variable', note: '', bankInstalment: null } }])).isError).toBe(true)
     expect((await desk.propose([{ op: 'delete-rate-period', input: { period: desk.ref('rate-period', EXAMPLE_RECORDS['rate-period-first']!) } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'add-rate-period', input: { loan, from: '2026-10-05', rate: '3.18%', rateType: 'variable', note: '' } }])).isError).toBe(true)
+    expect((await desk.propose([{ op: 'add-rate-period', input: { loan, from: '2026-10-05', rate: '3.18%', rateType: 'variable', note: '', bankInstalment: null } }])).isError).toBe(true)
   })
 
   it('refuses an extra payment before the payout or with a part of a cent, and a late instalment paid before it fell due', async () => {

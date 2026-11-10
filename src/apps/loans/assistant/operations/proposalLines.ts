@@ -1,5 +1,5 @@
 import { words as bankWords } from '../../bankLoans/presentation/words'
-import { firstInstalmentOf, instalmentAgreement } from '../../bankLoans/domain/instalmentAgreement'
+import { instalmentAgreement, instalmentFrom } from '../../bankLoans/domain/instalmentAgreement'
 import { loanPlan } from '../../bankLoans/domain/loanPlan'
 import type { PlanRow } from '../../bankLoans/domain/loanPlan'
 import { fractionOf } from '../../bankLoans/domain/yearlyRate'
@@ -27,6 +27,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
@@ -122,19 +123,29 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   return namesOf.get(record['loan']) ?? namesOf.get(record['scenario']) ?? fallback
 }
 
-/** Kuna's first instalment and the printed one, when the document printed one, and a warning when they disagree. */
-function instalmentLines(rows: readonly PlanRow[], printed: Money | null): { readonly fields: ProposalField[]; readonly warning: string | null; readonly differs: boolean } {
-  const planned = firstInstalmentOf(rows)
+/** Kuna's instalment and the printed one, when the document printed one, and a warning when they disagree. */
+interface InstalmentCheck {
+  readonly fields: readonly ProposalField[]
+  readonly warning: string | null
+  readonly differs: boolean
+}
+
+const NOT_PRINTED: InstalmentCheck = { fields: [], warning: null, differs: false }
+
+/** Kuna's instalment due from `from` beside the printed one, and a warning when they disagree. A line whose document printed none shows neither. */
+function instalmentCheck(rows: readonly PlanRow[], from: CivilDate, printed: Money | null): InstalmentCheck {
+  if (printed === null) return NOT_PRINTED
+  const planned = instalmentFrom(rows, from)
   const field = (name: string, amount: Money | null): ProposalField[] => (amount === null ? [] : [{ name, before: null, after: formatMoney(amount), warns: false }])
   const agreement = instalmentAgreement(planned, printed)
   return {
     fields: [...field(words.proposals.fields.kunaInstalment, planned), ...field(words.proposals.fields.bankInstalment, printed)],
-    warning: agreement.kind === 'differs' ? words.proposals.instalmentDiffers(formatMoney(agreement.planned), formatMoney(agreement.printed)) : null,
+    warning: agreement.kind === 'differs' ? words.proposals.instalmentDiffers(dayLabel(from), formatMoney(agreement.planned), formatMoney(agreement.printed)) : null,
     differs: agreement.kind === 'differs',
   }
 }
 
-/** A line of the card, and whether Kuna's first instalment on it differs from the printed one. */
+/** A line of the card, and whether Kuna's instalment on it differs from the printed one. */
 interface CheckedLine {
   readonly line: ProposalLine
   readonly differs: boolean
@@ -146,11 +157,13 @@ function warningOf(...warnings: readonly (string | null)[]): string | null {
   return given.length === 0 ? null : given.join(' ')
 }
 
-/**
- * The EKS lines of an offer the card writes, Kuna's figure and the bank's, and a warning when they disagree or Kuna cannot work the offer out.
- * A new offer also shows its first instalment beside `printedInstalment`, which `adding` says.
- */
-function offerLine(line: ProposalLine, scenario: LoanScenario, changes: readonly LoanChange[], adding: boolean, printedInstalment: Money | null): CheckedLine {
+/** The line with the instalment check's fields and warning after its own. */
+function withInstalment(line: ProposalLine, check: InstalmentCheck, ...warnings: readonly (string | null)[]): CheckedLine {
+  return { line: { ...line, fields: [...line.fields, ...check.fields], warning: warningOf(...warnings, check.warning) }, differs: check.differs }
+}
+
+/** The EKS lines of an offer the card writes, Kuna's figure and the bank's, with a warning when they disagree or Kuna cannot work the offer out, and its first instalment beside the printed one. */
+function offerLine(line: ProposalLine, scenario: LoanScenario, changes: readonly LoanChange[], printedInstalment: Money | null): CheckedLine {
   const { start } = scenario
   if (start.kind !== 'offer') return { line, differs: false }
   const base = offerBase(scenario.name, start.terms)
@@ -160,26 +173,23 @@ function offerLine(line: ProposalLine, scenario: LoanScenario, changes: readonly
   const printed = start.terms.bankEks
   const field = (name: string, rate: YearlyRate | null): ProposalField[] => (rate === null ? [] : [{ name, before: null, after: rateShown(rate), warns: false }])
   const agreement = eksAgreement(estimated, printed)
-  const instalment = adding ? instalmentLines(plan.rows, printedInstalment) : { fields: [], warning: null, differs: false }
-  return {
-    line: {
-      ...line,
-      fields: [...line.fields, ...field(words.proposals.fields.kunaEks, estimated), ...field(words.proposals.fields.bankEks, printed), ...instalment.fields],
-      warning: warningOf(agreement.kind === 'differs' ? words.proposals.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed)) : line.warning, instalment.warning),
-    },
-    differs: instalment.differs,
+  const eks = { ...line, fields: [...line.fields, ...field(words.proposals.fields.kunaEks, estimated), ...field(words.proposals.fields.bankEks, printed)] }
+  const eksWarning = agreement.kind === 'differs' ? words.proposals.eksDiffers(rateShown(agreement.estimated), rateShown(agreement.printed)) : line.warning
+  return withInstalment(eks, instalmentCheck(plan.rows, base.loan.firstInstalment, printedInstalment), eksWarning)
+}
+
+/** The records of the kind as the file will hold them once the card is written. */
+function heldAfter<R extends { readonly id: RecordId }>(facts: readonly R[], kind: RecordKind<R>, checked: CheckedWrite): R[] {
+  const held = new Map(facts.map((record) => [record.id, record]))
+  for (const { change } of checked.changes) {
+    if (change.kind.name !== kind.name) continue
+    if (change.verb === 'add' || change.verb === 'change' || change.verb === 'repair') held.set((change.after as R).id, change.after as R)
+    if (change.verb === 'remove') held.delete((change.before as R).id)
   }
+  return [...held.values()]
 }
 
-/** The first instalment lines of a bank loan the card adds, worked out from its first rate period on the same card. */
-function bankLoanLine(line: ProposalLine, loan: BankLoan, periods: readonly RatePeriod[], printedInstalment: Money | null): CheckedLine {
-  const own = periods.filter((period) => period.loan === loan.id)
-  if (!own.some((period) => period.from === loan.firstInstalment)) return { line, differs: false }
-  const instalment = instalmentLines(loanPlan(loan, own, []), printedInstalment)
-  return { line: { ...line, fields: [...line.fields, ...instalment.fields], warning: warningOf(line.warning, instalment.warning) }, differs: instalment.differs }
-}
-
-/** What the card shows, and how many of its new loans and offers have a first instalment that differs from the printed one. */
+/** What a card shows, and how many of its lines have an instalment that differs from the printed one. */
 export interface LoansCard {
   readonly groups: readonly ProposalGroup[]
   readonly instalmentsDiffering: number
@@ -187,57 +197,59 @@ export interface LoansCard {
 
 /**
  * What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. Each offer the card writes
- * says how Kuna's EKS stands against the printed one, and each new loan or offer how its first instalment stands against `printed`, by its id.
+ * says how Kuna's EKS stands against the printed one. Each loan, rate period or offer `printed` names by its id sets Kuna's instalment beside the printed one:
+ * a loan's or offer's first, and a rate period's first at its rate, each worked out from the file as the card leaves it.
  */
 export function loansCardOf(checked: CheckedWrite, book: LoanBook, printed: ReadonlyMap<string, Money>): LoansCard {
   const named = [...book.readings.bankLoans.facts, ...book.readings.informalLoans.facts, ...book.readings.loanScenarios.facts]
   const namesOf = new Map<unknown, string>(named.map((record) => [record.id, record.name]))
-  const written = checked.changes.flatMap(({ change }) =>
-    change.verb === 'add' || change.verb === 'change' ? [{ verb: change.verb, kind: change.kind.name, record: change.after as ProposedRecord }] : [],
-  )
-  for (const { kind, record } of written) {
-    if ([BANK_LOAN_RECORDS.name, INFORMAL_LOAN_RECORDS.name, LOAN_SCENARIO_RECORDS.name].includes(kind)) namesOf.set(record['id'], record['name'] as string)
+  for (const { change } of checked.changes) {
+    if ((change.verb === 'add' || change.verb === 'change') && [BANK_LOAN_RECORDS.name, INFORMAL_LOAN_RECORDS.name, LOAN_SCENARIO_RECORDS.name].includes(change.kind.name)) {
+      const record = change.after as ProposedRecord
+      namesOf.set(record['id'], record['name'] as string)
+    }
   }
+  const loans = heldAfter(book.readings.bankLoans.facts, BANK_LOAN_RECORDS, checked)
+  const periods = heldAfter(book.readings.ratePeriods.facts, RATE_PERIOD_RECORDS, checked)
+  const extraPayments = heldAfter(book.readings.extraPayments.facts, EXTRA_PAYMENT_RECORDS, checked)
+  const scenarioChanges = heldAfter(book.readings.scenarioChanges.facts, SCENARIO_CHANGE_RECORDS, checked)
+  const planOf = (loan: BankLoan): readonly PlanRow[] => {
+    const own = periods.filter((period) => period.loan === loan.id)
+    if (!own.some((period) => period.from === loan.firstInstalment)) return []
+    return loanPlan(
+      loan,
+      own,
+      extraPayments.filter((payment) => payment.loan === loan.id),
+    )
+  }
+  const loanOf = (id: RecordId): BankLoan | null => loans.find((loan) => loan.id === id) ?? null
+  const checkedLine = (kind: RecordKind<unknown>, record: ProposedRecord, line: ProposalLine): CheckedLine => {
+    const instalment = printed.get(record['id'] as string) ?? null
+    if (isKind(kind, LOAN_SCENARIO_RECORDS, record))
+      return offerLine(
+        line,
+        record,
+        scenarioChanges.filter((change) => change.scenario === record.id),
+        instalment,
+      )
+    if (instalment === null) return { line, differs: false }
+    if (isKind(kind, BANK_LOAN_RECORDS, record)) return withInstalment(line, instalmentCheck(planOf(record), record.firstInstalment, instalment), line.warning)
+    const loan = isKind(kind, RATE_PERIOD_RECORDS, record) ? loanOf(record.loan) : null
+    if (loan === null) return { line, differs: false }
+    return withInstalment(line, instalmentCheck(planOf(loan), (record as unknown as RatePeriod).from, instalment), line.warning)
+  }
+  let instalmentsDiffering = 0
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName: proposalFieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, namesOf),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf),
     warns: () => false,
+    checked: (kind, record, line) => {
+      const checkedOne = checkedLine(kind, record, line)
+      if (checkedOne.differs) instalmentsDiffering += 1
+      return checkedOne.line
+    },
   }
-  const groups = proposalGroups(checked, () => describer)
-  const addedChanges = written.flatMap(({ verb, kind, record }) => (verb === 'add' && kind === SCENARIO_CHANGE_RECORDS.name ? [record as unknown as ScenarioChange] : []))
-  const recordsOf = <R>(verb: string, kind: RecordKind<R>): R[] => written.flatMap((entry) => (entry.verb === verb && entry.kind === kind.name ? [entry.record as unknown as R] : []))
-  const addedPeriods = recordsOf('add', RATE_PERIOD_RECORDS)
-  let instalmentsDiffering = 0
-  const shown = (checkedLine: CheckedLine): ProposalLine => {
-    if (checkedLine.differs) instalmentsDiffering += 1
-    return checkedLine.line
-  }
-  const loans = recordsOf('add', BANK_LOAN_RECORDS)
-  const cardGroups = groups.map((group) => {
-    if (group.verb === 'add' && group.noun === BANK_LOAN_RECORDS.noun) {
-      return { ...group, lines: group.lines.map((line, at) => (loans[at] === undefined ? line : shown(bankLoanLine(line, loans[at], addedPeriods, printed.get(loans[at].id) ?? null)))) }
-    }
-    if (group.noun !== LOAN_SCENARIO_RECORDS.noun || group.verb === 'remove') return group
-    const scenarios = recordsOf(group.verb, LOAN_SCENARIO_RECORDS)
-    return {
-      ...group,
-      lines: group.lines.map((line, at) => {
-        const scenario = scenarios[at]
-        return scenario === undefined
-          ? line
-          : shown(
-              offerLine(
-                line,
-                scenario,
-                addedChanges.filter((change) => change.scenario === scenario.id),
-                group.verb === 'add',
-                printed.get(scenario.id) ?? null,
-              ),
-            )
-      }),
-    }
-  })
-  return { groups: cardGroups, instalmentsDiffering }
+  return { groups: proposalGroups(checked, () => describer), instalmentsDiffering }
 }

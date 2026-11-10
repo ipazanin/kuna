@@ -47,7 +47,7 @@ export interface ProposalWork<Books extends BooksRead, Kept> {
    * `kept` is what `beforeWrite` gave, and undefined in the check, which runs before it.
    */
   plan(unit: UnitOfWork, books: OpenBooks<Books>, steps: readonly ProposalStep[], kept: Kept | undefined): void
-  /** What the card shows of the checked write. */
+  /** What the card shows of the checked write, from the same `books` object the check's `plan` got. */
   groups(checked: CheckedWrite, books: OpenBooks<Books>): readonly ProposalGroup[]
   /**
    * Keeps a file the write points to, such as a receipt photo in Kuna's receipts folder, with access the person already gave.

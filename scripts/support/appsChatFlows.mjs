@@ -90,7 +90,7 @@ const CARDS = {
         page,
         '[data-testid="chat-proposal"]',
         [fields.kunaEks, fields.bankEks, fields.kunaInstalment, fields.bankInstalment],
-        "the offer card does not set Kuna's EKS and first instalment beside the printed ones",
+        "the offer card does not set Kuna's EKS and instalment beside the printed ones",
       )
       if ((await card.$('[data-testid="chat-proposal-line-warning"], [data-testid="chat-proposal-warning"]')) === null)
         throw new Error('the offer card does not warn that its EKS differs from the printed one')
@@ -101,9 +101,9 @@ const CARDS = {
     accept: true,
     shows: async (page, card, language) => {
       const fields = LOANS_WORDS[language].proposals.fields
-      await elementSays(page, '[data-testid="chat-proposal"]', [fields.kunaInstalment, fields.bankInstalment], "the loan card does not set Kuna's first instalment beside the printed one")
+      await elementSays(page, '[data-testid="chat-proposal"]', [fields.kunaInstalment, fields.bankInstalment], "the loan card does not set Kuna's instalment beside the printed one")
       if ((await card.$('[data-testid="chat-proposal-line-warning"], [data-testid="chat-proposal-warning"]')) === null)
-        throw new Error('the loan card does not warn that its first instalment differs from the printed one')
+        throw new Error('the loan card does not warn that its instalment differs from the printed one')
     },
   },
   extra: {
