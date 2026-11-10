@@ -383,6 +383,7 @@ describe('reading receipts and lines', () => {
       rules: read([]),
       receipts: read([one.receipt]),
       lines: read(lines),
+      held: read([]),
       settings: read([]),
     })
 

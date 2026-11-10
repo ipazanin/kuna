@@ -27,7 +27,7 @@ import { ACCOUNT_WRITES as SPENDING_ACCOUNT_WRITES } from '../src/apps/spending/
 import { BUDGET_WRITES } from '../src/apps/spending/budgets/application/budgetWrites'
 import { CATEGORY_WRITES as SPENDING_CATEGORY_WRITES } from '../src/apps/spending/categories/application/categoryWrites'
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
-import { RULE_WRITES as SPENDING_RULE_WRITES } from '../src/apps/spending/statements/application/statementWrites'
+import { HELD_ROW_WRITES, RULE_WRITES as SPENDING_RULE_WRITES } from '../src/apps/spending/statements/application/statementWrites'
 import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES, removeBankLoan } from '../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../src/apps/loans/informalLoans/application/informalLoanWrites'
 import { LOAN_SCENARIO_WRITES, SCENARIO_CHANGE_WRITES } from '../src/apps/loans/scenarios/application/scenarioWrites'
@@ -983,6 +983,7 @@ const [GROUP_A, GROUP_B, GROUP_C, GROUP_R, ENTRY_CATEGORY, LIMIT_FOOD, LIMIT_TRA
 const [ENTRY_A, ENTRY_B, ENTRY_C, ENTRY_R] = ids('53', 4)
 const [LIMIT_A, LIMIT_B, LIMIT_C, LIMIT_R] = ids('54', 4)
 const [RULE_CATEGORY, SPENDING_RULE_A, SPENDING_RULE_B, SPENDING_RULE_C, SPENDING_RULE_R] = ids('55', 5)
+const [HOLD_ACCOUNT, HOLD_LIKE, HOLD_A, HOLD_B, HOLD_OUT, HOLD_REFUSED] = ids('56', 6)
 
 const SPENDING_FIXTURES: Readonly<Record<string, KindFixture>> = {
   account: {
@@ -1051,6 +1052,24 @@ const SPENDING_FIXTURES: Readonly<Record<string, KindFixture>> = {
       fixed: { category: LIMIT_FOOD!, from: '2026-10', amount: '5.00', id: LIMIT_R! },
     },
   },
+  'held-row': {
+    seed: {
+      account: [{ name: 'OTP current', kind: 'bank', currency: 'EUR', opened_on: '2026-09-01', id: HOLD_ACCOUNT! }],
+      transaction: [{ account: HOLD_ACCOUNT!, date: '2026-10-27', amount: '-6.50', payee: 'Corner bakery', source: 'statement', import_key: 'file-1', id: HOLD_LIKE! }],
+    },
+    records: [
+      { account: HOLD_ACCOUNT!, date: '2026-10-28', amount: '-6.50', payee: 'CORNER BAKERY D.O.O.', description: 'Card payment', import_key: 'bank-ref-1', like: HOLD_LIKE!, id: HOLD_A! },
+      { account: HOLD_ACCOUNT!, date: '2026-10-29', amount: '-6.50', payee: 'Corner bakery', import_key: 'bank-ref-2', like: HOLD_LIKE!, id: HOLD_B! },
+    ],
+    outside: { account: HOLD_ACCOUNT!, date: '2026-10-30', amount: '-6.50', payee: 'Corner bakery', import_key: 'bank-ref-3', like: HOLD_LIKE!, id: HOLD_OUT! },
+    change: { field: 'payee', value: 'Corner bakery Zagreb' },
+    cleared: 'description',
+    refused: {
+      fields: { account: HOLD_ACCOUNT!, date: '2026-10-31', amount: '0.00', import_key: 'bank-ref-4', like: HOLD_LIKE!, id: HOLD_REFUSED! },
+      reason: 'amount is zero',
+      fixed: { account: HOLD_ACCOUNT!, date: '2026-10-31', amount: '-1.00', import_key: 'bank-ref-4', like: HOLD_LIKE!, id: HOLD_REFUSED! },
+    },
+  },
   rule: {
     seed: { category: [{ name: 'Food', kind: 'spending', order: '1', id: RULE_CATEGORY! }] },
     records: [
@@ -1116,7 +1135,7 @@ const INVESTMENTS_KINDS = INVESTMENTS_WRITES.map((rules) => [rules.kind.name, ru
 
 const ASSETS_KINDS = [ASSET_WRITES, VALUATION_WRITES].map((rules) => [rules.kind.name, rules as WriteRules<unknown>] as const)
 
-const SPENDING_KINDS = [SPENDING_ACCOUNT_WRITES, SPENDING_CATEGORY_WRITES, TRANSACTION_WRITES, BUDGET_WRITES, SPENDING_RULE_WRITES].map(
+const SPENDING_KINDS = [SPENDING_ACCOUNT_WRITES, SPENDING_CATEGORY_WRITES, TRANSACTION_WRITES, BUDGET_WRITES, SPENDING_RULE_WRITES, HELD_ROW_WRITES].map(
   (rules) => [rules.kind.name, rules as WriteRules<unknown>] as const,
 )
 
@@ -1151,7 +1170,7 @@ it('has a fixture for every Assets kind', () => {
 
 it('has a fixture for every Spending kind', () => {
   expect(SPENDING_KINDS.map(([name]) => name).filter((name) => SPENDING_FIXTURES[name] === undefined)).toEqual([])
-  expect(SPENDING_KINDS).toHaveLength(5)
+  expect(SPENDING_KINDS).toHaveLength(6)
 })
 
 it('has a fixture for every Investments kind', () => {

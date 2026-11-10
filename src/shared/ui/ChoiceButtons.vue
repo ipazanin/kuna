@@ -6,6 +6,8 @@ defineProps<{
   options: readonly { readonly value: Value; readonly label: string }[]
   /** What the choice is about, read out as the group's name. */
   label: string
+  /** The choice whose write is running, which shows busy and stops the others being tapped meanwhile. */
+  busy?: Value | null
 }>()
 
 const picked = defineModel<Value>({ required: true })
@@ -21,6 +23,8 @@ const picked = defineModel<Value>({ required: true })
       color="neutral"
       :variant="option.value === picked ? 'solid' : 'outline'"
       :aria-pressed="option.value === picked"
+      :loading="busy === option.value"
+      :disabled="busy != null && busy !== option.value"
       @click="picked = option.value"
     />
   </div>

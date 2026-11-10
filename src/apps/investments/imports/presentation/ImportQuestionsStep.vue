@@ -17,6 +17,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCurrencyAmount, formatQuantity } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
 /**
@@ -137,7 +138,7 @@ function shareHelp(step: SpinOffStep): string {
     <p class="type-body">{{ words.questions.intro }}</p>
 
     <section v-if="lookAlikes.length > 0" class="flex flex-col gap-1" data-testid="import-look-alikes">
-      <h3 class="type-card-title">{{ words.questions.lookAlikes }}</h3>
+      <h3 class="type-card-title">{{ twinWords.title }}</h3>
       <p class="type-caption">{{ words.questions.lookAlikesIntro }}</p>
       <ul class="flex flex-col">
         <li v-for="lookAlike in lookAlikes" :key="lookAlike.key" class="flex flex-col gap-1 border-t border-default pb-4 first:border-t-0" data-testid="import-look-alike">

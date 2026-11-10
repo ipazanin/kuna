@@ -8,6 +8,9 @@ import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
 import ReviewRow from './ReviewRow.vue'
+import { useHeldRows } from '../../bankSync/presentation/useHeldRows'
+import QuestionList from '../../../../shared/ui/QuestionList.vue'
+import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { REVIEW_ASKED } from './reviewAsks'
 import { ruleTestOf } from './ruleTest'
 import { words } from './words'
@@ -36,6 +39,7 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
 const book = computed(() => store.state.workbook)
+const held = useHeldRows()
 const { ask: askAboutQueue, marked: queueMarked } = useChatElement(REVIEW_ASKED, 'card', words.review.suggestCategoriesTask)
 const queue = computed(() => (book.value === null ? null : reviewQueue(book.value, today())))
 const accounts = computed(() => book.value?.accounts ?? [])
@@ -96,8 +100,19 @@ async function undoPair(legs: TransferPair): Promise<void> {
 <template>
   <div v-if="queue !== null" class="flex flex-col gap-6">
     <p v-if="queue.wantingSavings > 0" class="text-sm text-muted" data-testid="spending-wants-savings">{{ plural(words.review.pocketsWaiting(queue.wantingSavings), queue.wantingSavings) }}</p>
-    <EmptyState v-if="queue.waiting.length === 0" icon="i-lucide-inbox" :title="words.review.empty" :description="words.review.emptyDescription" data-testid="spending-review-empty" />
-    <AppCard v-else :title="words.review.title" :subtitle="words.review.subtitle" v-bind="queueMarked" data-testid="spending-review">
+    <AppCard v-if="held.items.value.length > 0" :title="words.review.held" data-testid="spending-review-held">
+      <div class="px-4 pt-3 pb-4 sm:px-5">
+        <QuestionList :items="held.items.value" :options="held.options" :label="twinWords.choice" :intro="twinWords.intro.sync" :saving="held.saving.value" @answer="held.answer" />
+      </div>
+    </AppCard>
+    <EmptyState
+      v-if="queue.waiting.length === 0 && held.items.value.length === 0"
+      icon="i-lucide-inbox"
+      :title="words.review.empty"
+      :description="words.review.emptyDescription"
+      data-testid="spending-review-empty"
+    />
+    <AppCard v-else-if="queue.waiting.length > 0" :title="words.review.title" :subtitle="words.review.subtitle" v-bind="queueMarked" data-testid="spending-review">
       <template #actions>
         <AskChatButton :text="words.review.suggestCategories" data-testid="spending-review-ask" @ask="askAboutQueue" />
       </template>

@@ -170,7 +170,7 @@ const waitingName = computed(() => dryRun.value?.statements.filter((statement) =
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
-  const written = await writes.write(importTitle(run), (unit) => writeImport(unit, run), {
+  const written = await writes.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records?.ledger ?? NO_RECORDS), {
     failedTitle: words.panel.notImported,
     key: 'import',
   })
@@ -277,6 +277,7 @@ const summary = computed(() => {
           @update:started="starts.start(statement.account, $event)"
           @update:typed-opening="starts.typeOpening(statement.account, $event)"
           @update:account-name="statement.newAccount && starts.nameAccount(statement.newAccount.iban, $event)"
+          @answer="starts.answerTwin"
         />
 
         <AppCard :title="words.panel.dryRun" data-testid="dry-run">

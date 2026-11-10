@@ -79,6 +79,8 @@ export const en = {
     amountPlaceholder: '0.00',
     noCounterparty: 'No counterparty',
     onLedger: 'On the ledger',
+    waitsForAnswer: 'Waits for your answer',
+    replacesCopied: "Takes the copied row's place",
     waitsForReview: 'Waits for review',
   },
   profile: {
@@ -224,6 +226,8 @@ export const hr: Translation<typeof en> = {
     amountPlaceholder: '0,00',
     noCounterparty: 'Bez partnera',
     onLedger: 'U evidenciji',
+    waitsForAnswer: 'Čeka vaš odgovor',
+    replacesCopied: 'Zamjenjuje prepisani redak',
     waitsForReview: 'Čeka provjeru',
   },
   profile: {

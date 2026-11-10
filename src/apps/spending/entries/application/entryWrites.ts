@@ -15,7 +15,10 @@ import { textOf } from '../../../../shared/storage/domain/storedFields'
 import { pickedEdits } from '../../../../shared/storage/domain/writeRules'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought stays on its account. A row split into parts keeps the amount its parts add up to. */
+/**
+ * An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought
+ * stays on its account. A row split into parts keeps the amount its parts add up to, and one a bank row on hold looks like stays.
+ */
 export const TRANSACTION_WRITES: WriteRules<Transaction> = {
   kind: TRANSACTION_RECORDS,
   reads: SPENDING_KINDS,
@@ -25,7 +28,7 @@ export const TRANSACTION_WRITES: WriteRules<Transaction> = {
     ...pickedEdits(change, (fields) => ({ account: textOf(fields.account), importKey: textOf(fields.import_key) })).flatMap(({ before, after: changed }) =>
       before !== null && changed !== null && before.importKey !== '' && before.account !== changed.account ? [words.accountOfStatementRow] : [],
     ),
-    ...dependentRefusals(['transactions', 'receipts', 'lines'], fresh, after),
+    ...dependentRefusals(['transactions', 'receipts', 'lines', 'held'], fresh, after),
   ],
 }
 

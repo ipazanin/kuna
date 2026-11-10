@@ -32,10 +32,6 @@ export const en = {
     one: `1 row of ${account} left out, since a file covers the days up to ${day}.`,
     other: `${count} rows of ${account} left out, since a file covers the days up to ${day}.`,
   }),
-  copiedLookAlikes: (count: number, days: number): EnglishForms => ({
-    one: `1 row left out, since it looks like a row the AI copied, with the same amount and at most ${days} days apart. Delete the copied row first if the file's row should take its place.`,
-    other: `${count} rows left out, since each looks like a row the AI copied, with the same amount and at most ${days} days apart. Delete the copied rows first if the file's rows should take their place.`,
-  }),
   coveredBySync: (count: number, account: string, day: string): EnglishForms => ({
     one: `1 row of ${account} left out, since the bank sync covers the days from ${day}.`,
     other: `${count} rows of ${account} left out, since the bank sync covers the days from ${day}.`,
@@ -99,11 +95,6 @@ export const hr: Translation<typeof en> = {
     one: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
     few: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
     other: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
-  }),
-  copiedLookAlikes: (count, days): CroatianForms => ({
-    one: `Izostavljen je ${count} redak jer nalikuje retku koji je AI prepisao, s istim iznosom i najviše ${days} dana razlike. Najprije obrišite prepisani redak ako ga redak iz datoteke treba zamijeniti.`,
-    few: `Izostavljena su ${count} retka jer svaki nalikuje retku koji je AI prepisao, s istim iznosom i najviše ${days} dana razlike. Najprije obrišite prepisane retke ako ih retci iz datoteke trebaju zamijeniti.`,
-    other: `Izostavljeno je ${count} redaka jer svaki nalikuje retku koji je AI prepisao, s istim iznosom i najviše ${days} dana razlike. Najprije obrišite prepisane retke ako ih retci iz datoteke trebaju zamijeniti.`,
   }),
   coveredBySync: (count, account, day): CroatianForms => ({
     one: `Izostavljeno redaka računa ${account}: ${count}, jer sinkronizacija s bankom pokriva dane od ${day}`,

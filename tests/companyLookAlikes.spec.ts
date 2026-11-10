@@ -2,12 +2,13 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { dryRunFor, writeImport } from '../src/apps/company/imports/application/importStatements'
 import { importDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import type { DryRunInputs } from '../src/apps/company/imports/domain/importDryRun'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { en } from '../src/apps/company/imports/domain/words'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
-import { ACCOUNT_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { LookAlikes } from '../src/shared/money/lookAlikeBookings'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { NO_SIGNALS, civil, ledger } from './fixtures/ledger'
@@ -25,7 +26,7 @@ const CAMT_ROWS = ledger([
   { date: '2026-10-08', amount: -12.5, counterparty: 'Office supplies d.o.o.', description: 'Paper' },
 ])
 
-function inputsOf(transactions: readonly Transaction[]): DryRunInputs {
+function inputsOf(transactions: readonly Transaction[], twinAnswers: DryRunInputs['twinAnswers'] = new Map()): DryRunInputs {
   return {
     transactions,
     rules: [],
@@ -33,6 +34,7 @@ function inputsOf(transactions: readonly Transaction[]): DryRunInputs {
     categories: [],
     starts: new Map(),
     named: new Map(),
+    twinAnswers,
   }
 }
 
@@ -161,12 +163,89 @@ describe('copied rows on a card that look like ledger rows', () => {
     ])
   })
 
+  it('matches a split row by its whole amount, since the parts sit beside the bank row and never replace it on the ledger', async () => {
+    const desk = await companyDesk(used)
+    const shop = desk.row('REF-9')
+    await desk.propose([
+      {
+        op: 'split-row',
+        input: {
+          row: desk.ref(LEDGER_RECORDS.name, shop.id),
+          by: 'amount',
+          parts: [
+            { amount: 30, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { amount: 20, category: desk.ref(CATEGORY_RECORDS.name, 'travel'), note: '' },
+          ],
+        },
+      },
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(desk.store.state.workbook!.splits.find((split) => split.row.id === shop.id)?.parts).toHaveLength(2)
+    expect((await desk.propose([copiedStep(desk, [{ date: '2026-10-10', amount: -50, counterparty: 'New shop' }, KIOSK])])).isError).toBe(false)
+    const notes = desk.cards.at(-1)!.groups.flatMap((group) => group.notes)
+    expect(notes.map((note) => note.text)).toContain('1 entry is on the ledger already. 1 new entry follows it.')
+    expect((await desk.accept()).kind).toBe('done')
+    expect(desk.store.state.workbook!.transactions.filter((row) => row.account === 'main' && row.amount === -5000)).toHaveLength(1)
+  })
+
   it('refuses a card of look-alikes alone, so the model asks first', async () => {
     const desk = await companyDesk(used)
     const answer = await desk.propose([copiedStep(desk, [SHOP_LATER])])
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain('Row 1 looks like a row Kuna has from another source, with the same amount and at most 3 days apart, and nothing else is new.')
     expect(desk.cards).toEqual([])
+  })
+})
+
+describe('a file over a row the AI copied, on the Import screen', () => {
+  it("writes the file's entry in the copied row's place in one write, and one Undo puts the copied row back", async () => {
+    const desk = await companyDesk(used)
+    const kiosk = { date: '2026-11-02', amount: -12.5, counterparty: 'Kiosk', iban: null, description: '' }
+    const input = {
+      file: null,
+      account: desk.ref(ACCOUNT_RECORDS.name, 'main'),
+      statementName: 'Statement 9',
+      opening: 760,
+      closing: 747.5,
+      rows: [kiosk],
+      lookAlikes: 'ask',
+      newAccount: null,
+      part: 1,
+    }
+    expect((await desk.propose([{ op: 'import-statement', input }])).isError).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+    const copiedKiosk = desk.store.state.workbook!.transactions.find((row) => row.counterparty === 'Kiosk')!
+    const entry = {
+      date: civil('2026-11-03'),
+      amount: moneyFromAmount(-12.5),
+      balance: moneyFromAmount(747.5),
+      counterparty: 'KIOSK D.O.O.',
+      counterpartyIban: '',
+      description: '',
+      reference: 'CAMT-K',
+      signals: NO_SIGNALS,
+      reviewReasons: [],
+    }
+    const statement = {
+      fileName: 'november.xml',
+      source: { kind: 'camt' as const, iban: '', sequence: 9 },
+      label: 'november.xml',
+      account: 'main',
+      opening: moneyFromAmount(760),
+      closing: moneyFromAmount(747.5),
+      rows: [entry],
+      notes: [],
+    }
+    const workbook = desk.store.state.workbook!
+    const asked = dryRunFor([{ statement }], workbook, new Map())
+    expect(asked.statements[0]!.questions.map((question) => question.copied.id)).toEqual([copiedKiosk.id])
+    const run = dryRunFor([{ statement }], workbook, new Map(), new Map(), new Map([['main CAMT-K', { booked: copiedKiosk.id, keep: 'file' as const }]]))
+    expect(run.removed).toHaveLength(1)
+    const receipt = await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!.ledger))
+    const kioskRows = () => desk.store.state.workbook!.transactions.filter((row) => row.account === 'main' && row.amount === moneyFromAmount(-12.5)).map((row) => row.reference)
+    expect(kioskRows()).toEqual(['CAMT-K'])
+    await desk.store.undo(desk.store.state.writes.find((write) => write.receipt === receipt)!)
+    expect(kioskRows()).toEqual([copiedKiosk.reference])
   })
 })
 
@@ -218,11 +297,80 @@ describe('a camt statement over rows the AI copied', () => {
     expect(statement!.rows.map((row) => row.inLedger)).toEqual([true, true, false])
     expect(statement!.rows[1]!.copiedTwin).toMatchObject({ counterparty: 'Office supplies d.o.o.', amount: moneyFromAmount(-12.5) })
     expect(statement!.notes).toEqual([])
-    expect(statement!.facts).toEqual([
-      '1 entry looks like a row the AI copied, with the same amount and at most 3 days apart, so it counts as on the ledger. The balances after it check that.',
-      '1 entry is on the ledger already. 1 new entry follows it.',
-    ])
+    expect(statement!.facts).toEqual(['1 entry is on the ledger already. 1 new entry follows it.'])
     expect(run.added.map((entry) => [entry.counterparty, entry.balance])).toEqual([['Harbour bistro', moneyFromAmount(920.5)]])
+  })
+
+  const OCTOBER = [
+    ['2026-10-05', -27, 'Telecom d.d.'],
+    ['2026-10-07', -12.5, 'OFFICE SUPPLIES ZAGREB'],
+    ['2026-10-10', -40, 'Harbour bistro'],
+  ] as const
+  const OFFICE = 'main CAMT-1'
+  const copiedOf = (reference: string): Transaction => COPIED.find((row) => row.reference === `read-${reference}`)!
+
+  it('asks about the look-alike and holds it, even without a balance, until the person answers', () => {
+    const [reading] = camtOf(OCTOBER)
+    const unbalanced = { statement: { ...reading!.statement, rows: reading!.statement.rows.map((row) => ({ ...row, balance: null })) } }
+    const [statement] = importDryRun([unbalanced], inputsOf(COPIED)).statements
+    expect(statement!.questions).toEqual([{ key: OFFICE, row: unbalanced.statement.rows[1], copied: copiedOf('REF-3'), keep: null }])
+    expect(statement!.rows.map((row) => row.inLedger)).toEqual([true, true, false])
+  })
+
+  it('takes the look-alike as new when the person keeps both, so the balances refuse what the bank booked once', () => {
+    const run = importDryRun(camtOf(OCTOBER), inputsOf(COPIED, new Map([[OFFICE, { booked: copiedOf('REF-3').id, keep: 'both' as const }]])))
+    expect(run.statements[0]!.rows.map((row) => row.inLedger)).toEqual([true, false, false])
+    expect(run.statements[0]!.refusal).toContain('before 8 Oct 2026')
+    expect(run.removed).toEqual([])
+  })
+
+  it("lets the file's entry take the copied row's place, keeping its category and share, and adds what follows", () => {
+    const office = { ...copiedOf('REF-3'), category: 'office', flaggedBy: 'rule' }
+    const filed = COPIED.map((row) => (row.reference === office.reference ? office : row))
+    const run = importDryRun(camtOf(OCTOBER), inputsOf(filed, new Map([[OFFICE, { booked: office.id, keep: 'file' as const }]])))
+    const [statement] = run.statements
+    expect(statement!.refusal).toBeNull()
+    expect(statement!.rows.map((row) => [row.inLedger, row.replaces?.reference ?? null])).toEqual([
+      [true, null],
+      [false, 'read-REF-3'],
+      [false, null],
+    ])
+    expect(run.removed).toEqual([office])
+    expect(run.added.map((entry) => [entry.reference, entry.counterparty, entry.balance, entry.category])).toEqual([
+      ['CAMT-2', 'Harbour bistro', moneyFromAmount(920.5), 'unknown'],
+      ['CAMT-1', 'OFFICE SUPPLIES ZAGREB', moneyFromAmount(960.5), 'office'],
+    ])
+    expect(statement!.facts).toContain("1 row the AI copied gives way to the file's entry, which keeps its category.")
+  })
+
+  it('replaces the copied rows after the answered one too, each by the entry it is or looks like', () => {
+    const run = importDryRun(
+      camtOf([['2026-10-04', -27, 'TELECOM D.D. ZAGREB'], ...OCTOBER.slice(1)]),
+      inputsOf(COPIED, new Map([['main CAMT-0', { booked: copiedOf('REF-2').id, keep: 'file' as const }]])),
+    )
+    const [statement] = run.statements
+    expect(statement!.refusal).toBeNull()
+    expect(statement!.questions.map((question) => question.keep)).toEqual(['file', null])
+    expect(run.removed).toEqual([copiedOf('REF-3'), copiedOf('REF-2')])
+    expect(run.added.map((entry) => [entry.reference, entry.balance]).reverse()).toEqual([
+      ['CAMT-0', moneyFromAmount(973)],
+      ['CAMT-1', moneyFromAmount(960.5)],
+      ['CAMT-2', moneyFromAmount(920.5)],
+    ])
+    expect(statement!.facts).toContain("2 rows the AI copied give way to the file's entries, which keep their categories.")
+  })
+
+  it('refuses to replace a copied row that a row of another statement follows', () => {
+    const later = ledger([{ date: '2026-10-09', amount: -10, counterparty: 'Parking', description: '' }]).map((row) => ({
+      ...row,
+      reference: 'OTHER-1',
+      balance: moneyFromAmount(950.5),
+      sequence: 10,
+    }))
+    const run = importDryRun(camtOf(OCTOBER), inputsOf([...COPIED, ...later], new Map([[OFFICE, { booked: copiedOf('REF-3').id, keep: 'file' as const }]])))
+    expect(run.statements[0]!.refusal).toContain('Parking of 9 Oct 2026 after it is not on this statement')
+    expect(run.added).toEqual([])
+    expect(run.removed).toEqual([])
   })
 
   it('keeps a near miss new, which the ledger refuses before its newest row', () => {

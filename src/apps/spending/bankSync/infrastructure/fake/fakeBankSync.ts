@@ -54,6 +54,7 @@ function revolutEuroRows(day: CivilDate, variant: string | null): readonly BankT
     ...(variant === 'exchange' ? [{ ...transaction(day, 1, 'rev-2101', '50.00', 'DBIT', 'Exchanged to USD'), exchangeRate: '1.0850' }] : []),
     ...(variant === 'pocket' ? [transaction(day, 1, 'rev-2201', '20.00', 'DBIT', 'To pocket Summer trip')] : []),
     ...(variant === 'card-pending' ? [transaction(day, 0, null, '0.80', 'DBIT', 'Newspaper kiosk', 'PDNG')] : []),
+    ...(variant === 'look-alike' ? [transaction(day, 2, 'rev-2401', '26.50', 'DBIT', 'OLD TOWN BOOKSHOP D.O.O.')] : []),
   ]
 }
 
@@ -153,7 +154,8 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
  * The fake build's script as `?banksync=` names it, which answers from the page and sends nothing away. `failed` answers an
  * error, `balance-differs` has OTP state a balance Kuna does not reach while it holds a pending row, `opening-off` has
  * Revolut's euro account do so with none, `card-pending` has it state an available balance its one pending card payment explains, `iban-blank` reaches the dollar account the fake file keeps without an IBAN,
- * `exchange` and `pocket` bring a move between your accounts, and a link's trip comes straight back to this address.
+ * `exchange` and `pocket` bring a move between your accounts, `look-alike` books the file's Old Town Bookshop three days later
+ * under a longer name, and a link's trip comes straight back to this address.
  */
 export function fakeBankSync(variant: string | null, day: CivilDate = today()): BankSyncPort {
   const failed = (): void => {

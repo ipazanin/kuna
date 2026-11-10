@@ -2,6 +2,7 @@ import type { Account } from './account'
 import type { Budget } from './budget'
 import type { Category } from './category'
 import type { EntryPart } from './entryPart'
+import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
 import type { SpendingRule } from './spendingRule'
 import type { Transaction } from './transaction'
@@ -36,6 +37,10 @@ export const RECEIPT_RECORDS = recordKind<Receipt>('receipt', {
 export const PART_RECORDS = recordKind<EntryPart>('line', {
   en: { one: 'part of an entry', many: 'parts of entries', article: 'a' },
   hr: { one: 'dio unosa', of: 'dijela unosa', few: 'dijela unosa', other: 'dijelova unosa', gender: 'masculine' },
+})
+export const HELD_ROW_RECORDS = recordKind<HeldBankRow>('held-row', {
+  en: { one: 'bank row on hold', many: 'bank rows on hold', article: 'a' },
+  hr: { one: 'redak iz banke na čekanju', of: 'retka iz banke na čekanju', few: 'retka iz banke na čekanju', other: 'redaka iz banke na čekanju', gender: 'masculine' },
 })
 export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
   en: { one: 'setting', many: 'settings', article: 'a' },

@@ -282,7 +282,6 @@ describe('imports, sync and mail in Croatian', () => {
       importedBefore: dryRun.importedBefore('promet', true),
       gap: dryRun.gap,
       partlyHeld: dryRun.partlyHeld(2, 3),
-      matchedCopied: dryRun.matchedCopied(1, 3),
       noReference: dryRun.noReference(2),
       beforeNewest: dryRun.beforeNewest(day, later, 'main'),
       missingBetween: dryRun.missingBetween('main', amount, day, amount),
@@ -290,6 +289,8 @@ describe('imports, sync and mail in Croatian', () => {
       sequenceGap: dryRun.sequenceGap(30, 27, 'main', 2),
       sequenceNotAfter: dryRun.sequenceNotAfter(27, 30, 'main'),
       labelHeld: dryRun.labelHeld('promet'),
+      replacedCopied: dryRun.replacedCopied(2),
+      replaceBlocked: dryRun.replaceBlocked('Parking', day),
     }
     const all = [...Object.values(sentences), transcribed.doesNotTie(amount, amount, amount, amount, amount), transcribed.oneBalance]
 
@@ -589,7 +590,7 @@ describe('a row that looks like one Kuna has, in Croatian', () => {
 
     expect(imports.words.dryRun.looksLike('Uplata')).toBe('Nalikuje zapisu koji Kuna ima: Uplata')
     expect(imports.words.waits['looks-in-kuna']).toBe('Nalikuje zapisu koji Kuna ima, s istim računom, danom i iznosima')
-    expect(imports.words.questions.lookAlikes).toBe('Retci koji nalikuju zapisima koje Kuna ima')
+    expect(shared.twinWords.title).toBe('Retci nalik onima koje Kuna ima')
     expect(shared.lookAlikesNote([pair], investments.words.proposals.lookAlike).text).toBe(
       'Nalikuje zapisu koji Kuna ima iz druge datoteke, s istim računom, danom i iznosima. Recite u razgovoru je li to isti zapis ili drugi.',
     )

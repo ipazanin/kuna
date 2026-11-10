@@ -22,6 +22,7 @@ function bookOf(transactions: readonly Transaction[]): SpendingBook {
     rules: [],
     receipts: [],
     lines: [],
+    held: [],
     settings: spendingSettingsOf([]),
     readings: {} as SpendingBook['readings'],
     problems: [],
@@ -112,6 +113,33 @@ describe('a copied statement over the bank sync', () => {
   })
 })
 
+describe('a bank sync over rows the AI copied', () => {
+  const COPIED_OTP: readonly Transaction[] = [
+    row(OTP, '2026-10-12', -45.3, null, { payee: 'Konzum', source: 'statement', importKey: 'read-a', statement: 'Copied October' }),
+    row(OTP, '2026-10-20', -30, null, { payee: 'Pharmacy', source: 'statement', importKey: 'read-b', statement: 'Copied October' }),
+  ]
+
+  /** Rows as the bank sync hands them over, each given as its day, amount and payee. */
+  function synced(rows: readonly (readonly [string, number, string])[]): StatementRows {
+    const { transcribed: _, ...statement } = copied(OTP.id, rows)
+    return { ...statement, label: 'Enable Banking', rows: statement.rows.map((fields, at) => ({ ...fields, importKey: `bank-ref-${at}` })) }
+  }
+
+  it('matches them row by row, since the copied days belong to no source, and puts a look-alike on hold', () => {
+    const run = statementDryRun(
+      bookOf(COPIED_OTP),
+      synced([
+        ['2026-10-12', -45.3, 'Konzum'],
+        ['2026-10-18', -8, 'Kiosk'],
+        ['2026-10-21', -30, 'PHARMACY ZAGREB'],
+      ]),
+      DAY,
+    )
+    expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'new', 'look-alike'])
+    expect(run.held).toHaveLength(1)
+  })
+})
+
 describe('a copied statement over typed rows', () => {
   it('fills the typed row of the same money, as a bank row does, and holds nothing', () => {
     const typed = row(OTP, '2026-10-12', -45.3, 'Home/Rent', { payee: 'Konzum', categorisedBy: 'person' })
@@ -146,21 +174,58 @@ describe('a parsed export over rows the AI copied', () => {
     return { ...statement, label: 'revolut.csv', rows: statement.rows.map((fields, at) => ({ ...fields, importKey: `0123456789abcdef-${at}` })) }
   }
 
-  it('skips the same row, leaves a look-alike out with a note, and adds the rest', () => {
-    const run = statementDryRun(
-      bookOf(COPIED_ROWS),
-      parsed([
-        ['2026-10-12', -45.3, 'KONZUM'],
-        ['2026-10-16', -12.5, 'Corner market Zagreb'],
-        ['2026-10-18', -8, 'Kiosk'],
-      ]),
-      DAY,
-    )
+  const EXPORT: readonly (readonly [string, number, string])[] = [
+    ['2026-10-12', -45.3, 'KONZUM'],
+    ['2026-10-16', -12.5, 'Corner market Zagreb'],
+    ['2026-10-18', -8, 'Kiosk'],
+  ]
+
+  it('skips the same row, holds a look-alike as a question, and adds the rest', () => {
+    const run = statementDryRun(bookOf(COPIED_ROWS), parsed(EXPORT), DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'look-alike', 'new'])
     expect(run.added.map((added) => added.payee)).toEqual(['Kiosk'])
-    expect(run.notes).toEqual([
-      "1 row left out, since it looks like a row the AI copied, with the same amount and at most 3 days apart. Delete the copied row first if the file's row should take its place.",
+    expect(run.questions).toEqual([{ key: `${REVOLUT_EUR.id} 0123456789abcdef-1`, row: run.lines[1]!.row, booked: COPIED_ROWS[1], keep: null }])
+    expect(run.notes).toEqual([])
+  })
+
+  it('adds the look-alike beside the copied row when the person keeps both', () => {
+    const statement = { ...parsed(EXPORT), twinAnswers: new Map([[`${REVOLUT_EUR.id} 0123456789abcdef-1`, { booked: COPIED_ROWS[1]!.id, keep: 'both' as const }]]) }
+    const run = statementDryRun(bookOf(COPIED_ROWS), statement, DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'new', 'new'])
+    expect(run.added.map((added) => added.payee)).toEqual(['Corner market Zagreb', 'Kiosk'])
+    expect(run.questions.map((question) => question.keep)).toEqual(['both'])
+    expect(run.changed).toEqual([])
+  })
+
+  it("lets the file's row take the copied row's place, keeping its id, category and note, in the same write as the new rows", () => {
+    const filed = { ...COPIED_ROWS[1]!, category: CATEGORIES[0]!.id, categorisedBy: 'person' as const, note: 'Milk' }
+    const statement = { ...parsed(EXPORT), twinAnswers: new Map([[`${REVOLUT_EUR.id} 0123456789abcdef-1`, { booked: filed.id, keep: 'file' as const }]]) }
+    const run = statementDryRun(bookOf([COPIED_ROWS[0]!, filed, COPIED_ROWS[2]!]), statement, DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'replaced', 'new'])
+    expect(run.changed).toEqual([
+      {
+        before: filed,
+        after: { ...filed, date: civil('2026-10-16'), payee: 'Corner market Zagreb', importKey: '0123456789abcdef-1', statement: 'revolut.csv' },
+      },
     ])
+    expect(run.lines[1]).toMatchObject({ outcome: 'replaced', category: filed.category })
+    expect(run.added.map((added) => added.payee)).toEqual(['Kiosk'])
+  })
+
+  it("keeps the copied row when the person keeps the row Kuna has, which takes the file's key so the file read again finds it", () => {
+    const statement = { ...parsed(EXPORT), twinAnswers: new Map([[`${REVOLUT_EUR.id} 0123456789abcdef-1`, { booked: COPIED_ROWS[1]!.id, keep: 'kept' as const }]]) }
+    const run = statementDryRun(bookOf(COPIED_ROWS), statement, DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'already-in', 'new'])
+    expect(run.changed).toEqual([{ before: COPIED_ROWS[1], after: { ...COPIED_ROWS[1]!, importKey: '0123456789abcdef-1' } }])
+    const again = statementDryRun(bookOf([COPIED_ROWS[0]!, run.changed[0]!.after, COPIED_ROWS[2]!]), parsed(EXPORT), DAY)
+    expect(again.lines[1]!.outcome).toBe('already-in')
+  })
+
+  it('asks again once the answer was given against another copied row', () => {
+    const statement = { ...parsed(EXPORT), twinAnswers: new Map([[`${REVOLUT_EUR.id} 0123456789abcdef-1`, { booked: COPIED_ROWS[2]!.id, keep: 'file' as const }]]) }
+    const run = statementDryRun(bookOf(COPIED_ROWS), statement, DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'look-alike', 'new'])
+    expect(run.questions.map((question) => question.keep)).toEqual([null])
   })
 
   it.each([

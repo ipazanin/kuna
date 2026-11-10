@@ -1,5 +1,6 @@
 import { optionalReference, requiredReference } from './recordReference'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import type { HeldBankRow } from './heldBankRow'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import { ibanKey } from './accountReading'
 import { flagOf, requiredAccountMoney } from './fieldReading'
 import { CATEGORISED_BY, TRANSACTION_SOURCES } from './transaction'
@@ -13,9 +14,15 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 
-export function transactionOf(fields: StoredFields, id: RecordId | null): Transaction {
+/** A row's amount, which is never zero. */
+function amountOf(fields: StoredFields): Transaction['amount'] {
   const amount = requiredAccountMoney(fields, 'amount')
   if (amount === 0) refuse(words.amountIsZero)
+  return amount
+}
+
+export function transactionOf(fields: StoredFields, id: RecordId | null): Transaction {
+  const amount = amountOf(fields)
   return {
     id: ownId(id),
     account: requiredReference(fields, 'account', ACCOUNT_RECORDS),
@@ -53,5 +60,33 @@ export const TRANSACTION_CODEC: RecordCodec<Transaction> = withIdField(TRANSACTI
     categorised_by: transaction.categorisedBy,
     moved_at: transaction.movedAt,
     pocket: transaction.pocket ? true : null,
+  }),
+)
+
+function heldBankRowOf(fields: StoredFields, id: RecordId | null): HeldBankRow {
+  return {
+    id: ownId(id),
+    account: requiredReference(fields, 'account', ACCOUNT_RECORDS),
+    date: requiredDate(fields, 'date'),
+    amount: amountOf(fields),
+    payee: textOf(fields.payee),
+    description: textOf(fields.description),
+    counterpartyIban: ibanKey(textOf(fields.counterparty_iban)),
+    importKey: textOf(fields.import_key),
+    like: requiredReference(fields, 'like', TRANSACTION_RECORDS),
+  }
+}
+
+/** A bank row on hold, stored as the entry it would be, with the entry it looks like. */
+export const HELD_ROW_CODEC: RecordCodec<HeldBankRow> = withIdField(HELD_ROW_RECORDS, words.entryLabel, heldBankRowOf, (held) =>
+  filledFields({
+    account: keyOfRecordId(ACCOUNT_RECORDS, held.account),
+    date: held.date,
+    amount: amountText(held.amount),
+    payee: held.payee,
+    description: held.description,
+    counterparty_iban: held.counterpartyIban,
+    import_key: held.importKey,
+    like: keyOfRecordId(TRANSACTION_RECORDS, held.like),
   }),
 )

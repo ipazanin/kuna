@@ -13,6 +13,10 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     paths: ['src/apps/company/workbook/application/rowIdWrites.ts#giveRowsIds'],
   },
   {
+    reason: 'A bank row on hold. It is answered where it waits, on To review or the bank sync card, since the chat does not read rows on hold yet.',
+    paths: ['src/apps/spending/bankSync/application/heldRowWrites.ts#answerHeldRow'],
+  },
+  {
     reason: 'Secrets and key-holding settings. AI keys, price vendor keys and the bank sync deployment are typed by the person and never pass through the chat.',
     paths: [
       'shared: src/shared/secrets/infrastructure/browserSecrets.ts#storeSecret',

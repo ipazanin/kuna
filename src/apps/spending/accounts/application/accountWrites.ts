@@ -19,7 +19,7 @@ export const ACCOUNT_WRITES: WriteRules<Account> = {
         ? [words.currencyKept(edit.before.label, edit.before.record.currency)]
         : [],
     )
-    return [...currencyChanged, ...dependentRefusals(['transactions'], fresh, after)]
+    return [...currencyChanged, ...dependentRefusals(['transactions', 'held'], fresh, after)]
   },
 }
 

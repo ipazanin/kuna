@@ -84,8 +84,6 @@ export const en = {
       const following = plural({ one: `${fresh} new entry follows`, other: `${fresh} new entries follow` }, fresh)
       return `${onLedger} ${following} ${held === 1 ? 'it' : 'them'}.`
     },
-    matchedCopied: (count: number, days: number) =>
-      `${count === 1 ? '1 entry looks like a row' : `${count} entries look like rows`} the AI copied, with the same amount and at most ${days} days apart, so ${count === 1 ? 'it counts' : 'they count'} as on the ledger. The balances after ${count === 1 ? 'it' : 'them'} check that.`,
     noReference: (count: number) =>
       `${count === 1 ? 'An entry carries' : `${count} entries carry`} no bank reference, so a second import could not tell ${count === 1 ? 'it' : 'them'} from others. The whole statement is refused.`,
     beforeNewest: (first: CivilDate, newest: CivilDate, account: string) =>
@@ -98,6 +96,10 @@ export const en = {
       `It is statement ${sequence}, and the newest on the ledger for ${account} is ${newest}, so ${missing === 1 ? 'one statement is' : `${missing} statements are`} not on the ledger. The balances still join, so ${missing === 1 ? 'it' : 'they'} may have held no entries.`,
     sequenceNotAfter: (sequence: number, newest: number, account: string) => `It is statement ${sequence}, which is not after ${newest}, the newest on the ledger for ${account}.`,
     labelHeld: (label: string) => `Rows of ${label} are on the ledger already.`,
+    replacedCopied: (count: number) =>
+      count === 1 ? "1 row the AI copied gives way to the file's entry, which keeps its category." : `${count} rows the AI copied give way to the file's entries, which keep their categories.`,
+    replaceBlocked: (row: string, day: CivilDate) =>
+      `The ledger runs on from its newest row, so a copied row can give way only with every row after it, and ${row} of ${dayLabel(day)} after it is not on this statement. Nothing of it is written.`,
   },
   profile: {
     badName: 'a profile name is lower-case letters and digits with single hyphens, such as otp-business',
@@ -184,15 +186,6 @@ export const hr: Translation<typeof en> = {
       `Stavke izvoda ${label} već su u evidenciji, pa je ova datoteka već uvezena, a ${noneMatch ? 'nijedna njezina stavka sada im ne odgovara' : 'samo im neke njezine stavke sada odgovaraju'}, na primjer nakon promjene profila. Ništa se iz nje ne upisuje.`,
     gap: 'Stavke kojih nema u evidenciji nalaze se između stavki koje već postoje, pa se izvod ne nastavlja na zadnju stavku računa u evidenciji. Ništa se iz njega ne upisuje.',
     partlyHeld: (held, fresh) => `Stavke izvoda već u evidenciji: ${held}. Nove stavke koje dolaze nakon njih: ${fresh}.`,
-    matchedCopied: (count, days) =>
-      plural(
-        {
-          one: `${count === 1 ? 'Jedna stavka nalikuje' : `${count} stavka nalikuje`} retku koji je AI prepisao, s istim iznosom i najviše ${days} dana razlike, pa se broji kao da je već u evidenciji. Stanja nakon nje to provjeravaju.`,
-          few: `${count} stavke nalikuju retcima koje je AI prepisao, s istim iznosom i najviše ${days} dana razlike, pa se broje kao da su već u evidenciji. Stanja nakon njih to provjeravaju.`,
-          other: `${count} stavki nalikuje retcima koje je AI prepisao, s istim iznosom i najviše ${days} dana razlike, pa se broje kao da su već u evidenciji. Stanja nakon njih to provjeravaju.`,
-        },
-        count,
-      ),
     noReference: (count) =>
       plural(
         {
@@ -220,6 +213,20 @@ export const hr: Translation<typeof en> = {
     },
     sequenceNotAfter: (sequence, newest, account) => `To je izvod ${sequence}, koji ne dolazi nakon izvoda ${newest}, najnovijeg u evidenciji za račun „${account}”.`,
     labelHeld: (label) => `Stavke izvoda ${label} već su u evidenciji.`,
+    replacedCopied: (count) =>
+      plural(
+        {
+          one:
+            count === 1
+              ? 'Stavka iz datoteke zamjenjuje jedan redak koji je AI prepisao i zadržava njegovu kategoriju.'
+              : `Stavke iz datoteke zamjenjuju ${count} redak koji je AI prepisao i zadržavaju njihove kategorije.`,
+          few: `Stavke iz datoteke zamjenjuju ${count} retka koje je AI prepisao i zadržavaju njihove kategorije.`,
+          other: `Stavke iz datoteke zamjenjuju ${count} redaka koje je AI prepisao i zadržavaju njihove kategorije.`,
+        },
+        count,
+      ),
+    replaceBlocked: (row, day) =>
+      `Evidencija se nastavlja na svoju najnoviju stavku, pa se prepisani redak može zamijeniti samo sa svim stavkama nakon njega, a stavka ${row} od ${dayLabel(day)} nakon njega nije na ovom izvodu. Ništa se iz njega ne upisuje.`,
   },
   profile: {
     badName: 'naziv profila piše se malim slovima i znamenkama s pojedinačnim crticama, na primjer otp-business',

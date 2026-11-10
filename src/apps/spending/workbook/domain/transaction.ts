@@ -43,7 +43,13 @@ export interface Transaction {
   readonly pocket: boolean
 }
 
+/** What tells a row from every other on the file: its account and its import key. */
+export function rowKey(row: Pick<Transaction, 'account' | 'importKey'>): string {
+  return `${row.account} ${row.importKey}`
+}
+
 /** What only a bank statement tells about a row. */
+
 export type BankFacts = Pick<Transaction, 'description' | 'counterpartyIban' | 'importKey' | 'statement' | 'movedAt' | 'pocket'>
 
 /** The bank facts of a row no statement brought. */

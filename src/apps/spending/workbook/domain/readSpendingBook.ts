@@ -4,11 +4,13 @@ import type { Budget } from './budget'
 import type { Category } from './category'
 import { isFixedKind } from './category'
 import type { EntryPart } from './entryPart'
+import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
 import { SPENDING_SETTING_CHECKS, spendingSettingsOf } from './spendingSettings'
 import type { SpendingSettings } from './spendingSettings'
+import { rowKey } from './transaction'
 import type { Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
@@ -34,6 +36,7 @@ export interface SpendingRecords {
   readonly receipts: RecordsRead<Receipt>
   /** The parts entries are split into, kept as `line` records. */
   readonly lines: RecordsRead<EntryPart>
+  readonly held: RecordsRead<HeldBankRow>
   readonly settings: RecordsRead<SettingRow>
 }
 
@@ -46,6 +49,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   rules: RULE_RECORDS,
   receipts: RECEIPT_RECORDS,
   lines: PART_RECORDS,
+  held: HELD_ROW_RECORDS,
   settings: SETTING_RECORDS,
 }
 
@@ -59,6 +63,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     rules: of(SPENDING_PARTS.rules),
     receipts: of(SPENDING_PARTS.receipts),
     lines: of(SPENDING_PARTS.lines),
+    held: of(SPENDING_PARTS.held),
     settings: of(SPENDING_PARTS.settings),
   }
 }
@@ -84,6 +89,8 @@ export interface SpendingBook {
   readonly receipts: readonly Receipt[]
   /** In the order of the file. */
   readonly lines: readonly EntryPart[]
+  /** The bank rows the sync left out, waiting on To review, in the order of the file. */
+  readonly held: readonly HeldBankRow[]
   readonly settings: SpendingSettings
   readonly readings: SpendingReadings
   /** Every kind's problems, in the order of the kinds. */
@@ -130,14 +137,13 @@ function readCategories(read: RecordsRead<Category>): Reading<Category> {
 
 function readTransactions(read: RecordsRead<Transaction>, accounts: ReadonlySet<string>, categories: ReadonlySet<string>): Reading<Transaction> {
   const byId = new Map(read.records.map((stored) => [stored.id, stored.record]))
-  const keyOf = (transaction: Transaction): string => `${transaction.account} ${transaction.importKey}`
   const sharingKey = sharedKeys(
     read.records.filter((stored) => stored.record.importKey !== ''),
-    (stored) => keyOf(stored.record),
+    (stored) => rowKey(stored.record),
   )
   const reading = readEach(read, ({ record: transaction }) => {
     if (!accounts.has(transaction.account)) return [words.noAccount]
-    if (transaction.importKey !== '' && sharingKey.has(keyOf(transaction))) return [words.importKeyShared(transaction.importKey)]
+    if (transaction.importKey !== '' && sharingKey.has(rowKey(transaction))) return [words.importKeyShared(transaction.importKey)]
     if (transaction.category !== null && !categories.has(transaction.category)) return [words.noCategory]
     if (transaction.pair === null) return []
     const other = byId.get(transaction.pair)
@@ -208,12 +214,29 @@ function readParts(read: RecordsRead<EntryPart>, transactions: readonly Transact
 }
 
 /**
+ * Why a bank row on hold does not count: it carries no import key, it names an account that does not count, or an entry or
+ * another held row of its account already has its import key. One whose look-alike is gone still counts, and To review says
+ * so. The write of a held row reads the same.
+ */
+function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlySet<string>, transactions: readonly Transaction[]): Reading<HeldBankRow> {
+  const booked = new Set(transactions.filter((row) => row.importKey !== '').map(rowKey))
+  const sharingKey = sharedKeys(read.records, (stored) => rowKey(stored.record))
+  return readEach(read, ({ record: held }) => {
+    if (held.importKey === '') return [words.heldRowNoKey]
+    if (!accounts.has(held.account)) return [words.noAccount]
+    if (booked.has(rowKey(held))) return [words.heldRowBooked(held.importKey)]
+    return sharingKey.has(rowKey(held)) ? [words.heldRowShared(held.importKey)] : []
+  })
+}
+
+/**
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
  * three fixed kinds is one category. An entry names an account and a category that count, and its other leg names it
  * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
  * same months. A rule names a category that counts. A receipt names an entry that counts, which no other receipt names, and no other receipt holds its JIR or ZKI. A part
  * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. The parts of an entry add up to its amount and count all or none. Two accounts with one IBAN and currency, and a second category of a fixed
- * kind, count but are doubted. Two entries of an account with one import key are refused.
+ * kind, count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
+ * `readHeld` refuses.
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const accounts = readAccounts(records.accounts)
@@ -224,8 +247,9 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const rules = readRules(records.rules, categoryIds)
   const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)))
   const lines = readParts(records.lines, transactions.facts, receipts.facts, categoryIds)
+  const held = readHeld(records.held, new Set(accounts.facts.map((account) => account.id)), transactions.facts)
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS)
-  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, lines, settings }
+  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, lines, held, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
@@ -234,6 +258,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     rules: rules.facts,
     receipts: receipts.facts,
     lines: lines.facts,
+    held: held.facts,
     settings: spendingSettingsOf(settings.facts),
     readings,
     problems: (Object.keys(SPENDING_PARTS) as (keyof SpendingRecords)[]).flatMap((part) =>

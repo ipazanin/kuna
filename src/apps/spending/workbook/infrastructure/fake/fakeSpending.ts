@@ -16,7 +16,8 @@ import { spendingDocumentOf } from '../spendingDocument'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { revolutStatement } from '../../../statements/domain/revolutStatement'
 import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampleRevolutFiles'
-import { transcribedImportKeys } from '../../../statements/domain/statementRows'
+import { BANK_SYNC_KEY_PREFIX, transcribedImportKeys } from '../../../statements/domain/statementRows'
+import { BANK_SYNC_LABEL } from '../../../bankSync/domain/bankSyncRows'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthOf } from '../../../../../shared/calendar/monthKey'
@@ -37,10 +38,11 @@ import { language } from '../../../../../shared/text/language'
  * Food's limit carrying from two months back and a transfer pair, `foreign` only the dollar account, `over` the
  * sample with two limits overspent, and `statements` the sample with rows of earlier statements waiting on review, a pair,
  * a lone leg, a rule, and typed rows the sample Revolut export pairs with, one of them near a row the rule would file, `copied` the statements
- * set with a row the AI copied that the export's Unknown shop looks like, and `receipts` the sample with the payments the
+ * set with a row the AI copied that the export's Unknown shop looks like, `synced` the statements set with a row the bank sync
+ * brought that the export's Corner market looks like, and `receipts` the sample with the payments the
  * sample receipt photos match and a row a receipt split. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'receipts' | 'people'
+export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'receipts' | 'people'
 
 const USD = currencyCodeOf('USD')!
 
@@ -218,6 +220,11 @@ function copiedRow(day: CivilDate, idOf: (path: string) => RecordId): Transactio
   })
 }
 
+/** A row the bank sync brought a day after the export's Corner market, booked a day later and named in full. */
+function syncedRow(day: CivilDate): Transaction {
+  return statementRow(1716, REVOLUT_EUR, day, -12.3, 'CORNER MARKET D.O.O.', { importKey: `${BANK_SYNC_KEY_PREFIX}fake-corner-market`, statement: BANK_SYNC_LABEL })
+}
+
 const SPLIT_ROW_PLACE = 1906
 
 /**
@@ -289,6 +296,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
 /** The variants of `?banksync=` that hold a saved script and both banks linked for months yet. */
 const LINKED_VARIANTS: readonly string[] = [
   'linked',
+  'look-alike',
   'failed',
   'unknown-account',
   'otp-failed',
@@ -382,8 +390,9 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...NO_BANK_FACTS,
     categorisedBy: null,
   }))
-  if (set === 'statements' || set === 'copied') transactions.push(...earlierStatementRows(day, idOf, categories, accounts))
+  if (set === 'statements' || set === 'copied' || set === 'synced') transactions.push(...earlierStatementRows(day, idOf, categories, accounts))
   if (set === 'copied') transactions.push(copiedRow(day, idOf))
+  if (set === 'synced') transactions.push(syncedRow(day))
   if (set === 'receipts') transactions.push(...receiptRows(day, idOf))
   if (set === 'people') transactions.push(...peopleRows(day, idOf))
   if (set !== 'foreign') {
@@ -411,7 +420,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...stored(CATEGORY_RECORDS, categories),
     ...stored(TRANSACTION_RECORDS, transactions),
     ...stored(BUDGET_RECORDS, budgets),
-    ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' ? fakeRules(idOf) : []),
+    ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' ? fakeRules(idOf) : []),
     ...(set === 'receipts' ? storedReceipts(splitRowReceipt(day, idOf)) : {}),
     ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
   })

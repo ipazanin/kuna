@@ -6,6 +6,7 @@ import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accoun
 import { setLimit } from '../src/apps/spending/budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
 import { TRANSACTION_WRITES, newEntry, newTransfer, deleteComesBack, removeEntry, retypedEntry, transferOver } from '../src/apps/spending/entries/application/entryWrites'
+import { answerHeldRow } from '../src/apps/spending/bankSync/application/heldRowWrites'
 import { fileRow, joinWithTyped, notAPair, pairRows, writeDryRun, writeRulesInto } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
@@ -342,6 +343,100 @@ describe('a statement in the Spending file', () => {
     await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id))
 
     await expect(store.write('Deleted', (unit) => unit.of(CATEGORY_WRITES).remove(category('Food/Groceries')))).rejects.toThrow()
+  })
+})
+
+describe('a bank row on hold', () => {
+  const FILE_ROW = {
+    account: OTP.id,
+    date: civil('2026-10-27'),
+    amount: accountMoneyFromAmount(-6.5),
+    payee: 'Corner bakery',
+    category: null,
+    description: '',
+    counterpartyIban: '',
+    importKey: '0123456789abcdef-1',
+    movedAt: '',
+    pocket: false,
+  }
+  const SYNCED = { ...FILE_ROW, date: civil('2026-10-28'), payee: 'CORNER BAKERY D.O.O.', importKey: 'bank-ref-1' }
+
+  /** The file's bakery imported, then the sync's of a day later put on hold. */
+  async function withHold(store: WorkbookStore<SpendingBooks>) {
+    const file = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [FILE_ROW], notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, file))
+    const sync = statementDryRun(store.state.workbook!, { label: 'Enable Banking', rows: [SYNCED], notes: [] }, civil('2026-10-30'))
+    const receipt = await store.write('Synced', (unit) => writeDryRun(unit, sync))
+    return { receipt, held: store.state.workbook!.held[0]! }
+  }
+
+  it('waits on To review, and keeping both books it and takes the hold off in one write that one Undo puts back', async () => {
+    const store = await spendingStore()
+    const { held } = await withHold(store)
+    expect(store.state.workbook!.transactions).toHaveLength(1)
+    expect(reviewCount(store.state.workbook!)).toBe(2)
+    const receipt = await store.write('Kept both', (unit) => answerHeldRow(unit, store.state.workbook!, held, 'both', civil('2026-10-30')))
+    expect(store.state.workbook!.transactions.map((row) => row.importKey).sort()).toEqual(['0123456789abcdef-1', 'bank-ref-1'])
+    expect(store.state.workbook!.held).toEqual([])
+    await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
+    expect(store.state.workbook!.transactions).toHaveLength(1)
+    expect(store.state.workbook!.held.map((row) => row.importKey)).toEqual(['bank-ref-1'])
+  })
+
+  it("gives the row Kuna has the bank's key when the person keeps it, so neither a later sync nor the file read again asks", async () => {
+    const store = await spendingStore()
+    const { held } = await withHold(store)
+    await store.write('Kept mine', (unit) => answerHeldRow(unit, store.state.workbook!, held, 'kept', civil('2026-10-30')))
+    const book = store.state.workbook!
+    expect(book.transactions.map((row) => [row.date, row.payee, row.importKey])).toEqual([[civil('2026-10-27'), 'Corner bakery', 'bank-ref-1']])
+    expect(book.held).toEqual([])
+    expect(statementDryRun(book, { label: 'Enable Banking', rows: [SYNCED], notes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['already-in'])
+    expect(statementDryRun(book, { label: 'export.csv', rows: [FILE_ROW], notes: [] }, civil('2026-10-30')).lines.map((line) => line.outcome)).toEqual(['other-source'])
+  })
+})
+
+describe('a bank row on hold whose look-alike is gone', () => {
+  const FILE_ROW = {
+    account: OTP.id,
+    date: civil('2026-10-27'),
+    amount: accountMoneyFromAmount(-6.5),
+    payee: 'Corner bakery',
+    category: null,
+    description: '',
+    counterpartyIban: '',
+    importKey: '0123456789abcdef-1',
+    movedAt: '',
+    pocket: false,
+  }
+  const SYNCED = { ...FILE_ROW, date: civil('2026-10-28'), payee: 'CORNER BAKERY D.O.O.', importKey: 'bank-ref-1' }
+
+  /** The file's bakery imported, the sync's of a day later put on hold, then the file's row deleted. */
+  async function withLoneHold(store: WorkbookStore<SpendingBooks>) {
+    await store.write('Imported', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [FILE_ROW], notes: [] }, civil('2026-10-30'))))
+    await store.write('Synced', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, { label: 'Enable Banking', rows: [SYNCED], notes: [] }, civil('2026-10-30'))))
+    await store.write('Deleted', (unit) => unit.of(TRANSACTION_WRITES).remove(store.state.workbook!.transactions[0]!))
+    return store.state.workbook!.held[0]!
+  }
+
+  it('still counts on To review, so the count and the card agree', async () => {
+    const store = await spendingStore()
+    await withLoneHold(store)
+    expect(store.state.workbook!.transactions).toEqual([])
+    expect(store.state.workbook!.held).toHaveLength(1)
+    expect(store.state.workbook!.problems).toEqual([])
+    expect(reviewCount(store.state.workbook!)).toBe(1)
+  })
+
+  it('books the row when the person keeps it, and drops only the hold when they leave it out', async () => {
+    const keeping = await spendingStore()
+    const held = await withLoneHold(keeping)
+    await keeping.write('Kept it', (unit) => answerHeldRow(unit, keeping.state.workbook!, held, 'both', civil('2026-10-30')))
+    expect(keeping.state.workbook!.transactions.map((row) => row.importKey)).toEqual(['bank-ref-1'])
+    expect(keeping.state.workbook!.held).toEqual([])
+    const leaving = await spendingStore()
+    const other = await withLoneHold(leaving)
+    await leaving.write('Left out', (unit) => answerHeldRow(unit, leaving.state.workbook!, other, 'kept', civil('2026-10-30')))
+    expect([leaving.state.workbook!.transactions, leaving.state.workbook!.held]).toEqual([[], []])
   })
 })
 

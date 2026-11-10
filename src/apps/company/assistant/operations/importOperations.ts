@@ -220,7 +220,7 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   const lookAlikeRows = lookAlikes.map(({ number }) => number)
   if (run.newRows === 0 && lookAlikes.length > 0) throw new StepRefused(lookAlikesForTheModel(lookAlikeRows, true))
   if (run.newRows === 0) throw new StepRefused('Every row of the statement is on the ledger already.')
-  writeImport(card.unit, run)
+  writeImport(card.unit, run, card.records().ledger)
   const parts = (row: Pick<Transaction, 'counterparty' | 'description' | 'amount' | 'date'>): string[] =>
     [row.counterparty || row.description, formatMoney(row.amount), dayLabel(row.date)].filter((part) => part !== '')
   const started = [...starts.keys()]

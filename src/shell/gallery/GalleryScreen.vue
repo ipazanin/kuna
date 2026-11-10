@@ -19,6 +19,7 @@ import ChartCard from '../../shared/ui/ChartCard.vue'
 import type { ChartPointSelection } from '../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../shared/ui/ChartLegend.vue'
 import ChoiceButtons from '../../shared/ui/ChoiceButtons.vue'
+import QuestionList from '../../shared/ui/QuestionList.vue'
 import MenuButton from '../../shared/ui/MenuButton.vue'
 import ColourSwatchPicker from '../../shared/ui/ColourSwatchPicker.vue'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
@@ -219,6 +220,20 @@ const GALLERY_PERIODS = [
   { value: 'all', label: 'All' },
 ] as const
 const galleryPeriod = ref<(typeof GALLERY_PERIODS)[number]['value']>('all')
+
+const GALLERY_ANSWERS = [
+  { value: 'later', label: 'Decide later' },
+  { value: 'both', label: 'Keep both' },
+  { value: 'kept', label: 'Keep the one I have' },
+] as const
+type GalleryAnswer = (typeof GALLERY_ANSWERS)[number]['value']
+const galleryAnswers = ref<Readonly<Record<string, GalleryAnswer>>>({ bakery: 'both' })
+const galleryQuestions = computed(() =>
+  [
+    { key: 'market', row: 'Corner market · −12.30 € · 9 Nov 2026 · Main account', caption: 'Looks like: CORNER MARKET LTD, −12.30 €, 10 Nov 2026' },
+    { key: 'bakery', row: 'Bakery · −4.20 € · 8 Nov 2026 · Main account', caption: 'Looks like: BAKERY 22, −4.20 €, 8 Nov 2026' },
+  ].map((item) => ({ ...item, choice: galleryAnswers.value[item.key] ?? ('later' as const) })),
+)
 const GALLERY_RECEIPT_WAYS = [
   { value: 'type', label: 'Type it in', icon: 'i-lucide-keyboard' },
   { value: 'photo', label: 'Read the photo', icon: 'i-lucide-camera', description: 'Opens the camera on a phone' },
@@ -945,6 +960,39 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
             <AppMark icon="i-lucide-landmark" colour="--app-loans" size="large" />
             <AppMark icon="i-lucide-building-2" colour="--app-company" />
             <AppMark icon="i-lucide-landmark" colour="--app-loans" />
+          </div>
+        </AppCard>
+      </DashboardGrid>
+    </GallerySection>
+
+    <GallerySection
+      id="question-list"
+      title="QuestionList"
+      description="Rows that each ask for one of a few choices, with an intro and a heading the card may already give. The answer being written shows busy."
+    >
+      <DashboardGrid>
+        <AppCard title="With its heading">
+          <div class="px-4 pt-3 pb-4 sm:px-5">
+            <QuestionList
+              :items="galleryQuestions"
+              :options="GALLERY_ANSWERS"
+              label="Which to keep"
+              heading="Rows that look like ones you have"
+              intro="Each looks like a row you have, with the same amount and at most 3 days apart."
+              :saving="{ key: 'market', choice: 'kept' }"
+              @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
+            />
+          </div>
+        </AppCard>
+        <AppCard title="Inside a card that names the rows">
+          <div class="px-4 pt-3 pb-4 sm:px-5">
+            <QuestionList
+              :items="galleryQuestions"
+              :options="GALLERY_ANSWERS"
+              label="Which to keep"
+              intro="Each looks like a row you have, with the same amount and at most 3 days apart."
+              @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
+            />
           </div>
         </AppCard>
       </DashboardGrid>

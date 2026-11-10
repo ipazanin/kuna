@@ -38,9 +38,9 @@ export function isWaiting(row: Transaction): boolean {
   return row.category === null
 }
 
-/** How many rows wait for a category. */
-export function reviewCount(book: Pick<SpendingBook, 'transactions'>): number {
-  return book.transactions.filter(isWaiting).length
+/** How many rows wait on To review: those for a category, and the bank rows on hold. */
+export function reviewCount(book: Pick<SpendingBook, 'transactions' | 'held'>): number {
+  return book.transactions.filter(isWaiting).length + book.held.length
 }
 
 /**

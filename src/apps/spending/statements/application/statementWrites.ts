@@ -11,7 +11,8 @@ import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/appl
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { EntryPart } from '../../workbook/domain/entryPart'
-import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
+import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
+import { HELD_ROW_RECORDS, RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { sameCondition } from '../../workbook/domain/spendingRule'
 import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -30,11 +31,21 @@ export const RULE_WRITES: WriteRules<SpendingRule> = {
   refusals: (_change, fresh, after) => dependentRefusals(['rules'], fresh, after),
 }
 
+/** A bank row on hold reads as `readHeld` says. */
+export const HELD_ROW_WRITES: WriteRules<HeldBankRow> = {
+  kind: HELD_ROW_RECORDS,
+  reads: SPENDING_KINDS,
+  undoable: true,
+  read: (read, records) => bookWith(HELD_ROW_RECORDS, read, records).readings.held,
+  refusals: (_change, fresh, after) => dependentRefusals(['held'], fresh, after),
+}
+
 /** Everything the import does in one write, so one Undo takes it all back. */
-export function writeDryRun(unit: UnitOfWork, run: Pick<StatementDryRun, 'added' | 'changed'>): void {
+export function writeDryRun(unit: UnitOfWork, run: Pick<StatementDryRun, 'added' | 'changed' | 'held'>): void {
   const entries = unit.of(TRANSACTION_WRITES)
   run.added.forEach((row) => entries.add(row))
   run.changed.forEach(({ before, after }) => entries.change(before, after))
+  run.held.forEach((held) => unit.of(HELD_ROW_WRITES).add(held))
 }
 
 /** The row under the category you picked, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it. */
@@ -142,7 +153,7 @@ export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: Rul
   const run = statementDryRun({ ...book, rules, transactions: book.transactions.map((row) => refiledTo.get(row) ?? row) }, statement, day)
   const changedByRun = run.changed.map(({ before, after }) => ({ before: refiledFrom.get(before) ?? before, after }))
   const startsOfRun = new Set(changedByRun.map(({ before }) => before))
-  writeDryRun(unit, { added: run.added, changed: [...refiled.filter(({ before }) => !startsOfRun.has(before)), ...changedByRun] })
+  writeDryRun(unit, { added: run.added, changed: [...refiled.filter(({ before }) => !startsOfRun.has(before)), ...changedByRun], held: run.held })
   return run
 }
 

@@ -82,6 +82,7 @@ export const CHAT_BOOK = {
   rules: [{ id: recordIdOf(RULE_RECORDS, 'rule-a'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Ana Horvat' }, category: RENT.id }],
   receipts: [RECEIPT],
   lines: [],
+  held: [],
   settings: { personPayees: ['Ana Horvat'] },
 } as unknown as SpendingBook
 

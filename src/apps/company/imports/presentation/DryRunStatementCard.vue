@@ -12,9 +12,13 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { reviewReasonLabel } from '../domain/camtStatement'
-import type { DryRunStatement } from '../domain/importDryRun'
+import type { CopiedTwinQuestion, DryRunStatement } from '../domain/importDryRun'
 import type { Transaction } from '../../workbook/domain/workbook'
-import { likeCopiedCaption } from '../../../../shared/ai/presentation/copiedRowsWords'
+import QuestionList from '../../../../shared/ui/QuestionList.vue'
+import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
+import { likeCaption } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { TWIN_CHOICES, twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
+import type { TwinChoice } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { words } from './words'
 
 const props = defineProps<{
@@ -35,13 +39,31 @@ const emit = defineEmits<{
   'update:started': [started: boolean]
   'update:typedOpening': [text: string]
   'update:accountName': [name: string]
+  answer: [question: CopiedTwinQuestion, choice: TwinChoice]
 }>()
 
 const names = useDisplayNames()
 
-/** The row the AI copied that an entry looks like, by its counterparty, amount and day. */
-function copiedParts(row: Transaction): string[] {
+/** A row as a person tells it from others: its counterparty, amount and day. */
+function rowParts(row: Pick<Transaction, 'counterparty' | 'description' | 'amount' | 'date'>): string[] {
   return [row.counterparty || row.description, formatMoney(row.amount), dayLabel(row.date)].filter((part) => part !== '')
+}
+
+const twinItems = computed(() =>
+  props.statement.questions.map((question): QuestionItem<TwinChoice> => ({
+    key: question.key,
+    row: rowParts(question.row).join(' · '),
+    caption: likeCaption('copied', rowParts(question.copied)),
+    choice: question.keep ?? 'later',
+  })),
+)
+
+/** The references of the entries that still wait for the person's word. */
+const waitingRefs = computed(() => new Set(props.statement.questions.flatMap((question) => (question.keep === null ? [question.row.reference] : []))))
+
+function answerTwin(key: string, choice: TwinChoice): void {
+  const question = props.statement.questions.find((asked) => asked.key === key)
+  if (question !== undefined) emit('answer', question, choice)
 }
 
 const counts = computed(() => {
@@ -111,6 +133,16 @@ function grouped(iban: string): string {
         <li v-for="note in [...statement.notes, ...statement.facts]" :key="note">{{ note }}</li>
       </ul>
 
+      <QuestionList
+        v-if="twinItems.length > 0"
+        :items="twinItems"
+        :options="TWIN_CHOICES.file"
+        :label="twinWords.choice"
+        :heading="twinWords.title"
+        :intro="twinWords.intro.file"
+        @answer="answerTwin"
+      />
+
       <ul v-if="statement.rows.length" class="@container divide-y divide-default rounded-control border border-default" data-testid="dry-run-rows">
         <li v-for="(row, index) in statement.rows" :key="`${row.reference}-${index}`" class="row" data-testid="dry-run-row">
           <span class="figure text-xs text-muted">{{ dayLabel(row.date) }}</span>
@@ -118,8 +150,10 @@ function grouped(iban: string): string {
             <span class="block break-words text-sm" :class="row.inLedger ? 'text-muted' : 'text-highlighted'">{{ row.counterparty || row.description || words.statement.noCounterparty }}</span>
             <span v-if="row.counterparty && row.description" class="block break-words text-xs text-muted">{{ row.description }}</span>
             <span class="mt-1 flex flex-wrap gap-1">
-              <UBadge v-if="row.inLedger" :label="words.statement.onLedger" color="neutral" variant="subtle" size="sm" />
+              <UBadge v-if="row.inLedger && waitingRefs.has(row.reference)" :label="words.statement.waitsForAnswer" color="info" variant="subtle" size="sm" />
+              <UBadge v-else-if="row.inLedger" :label="words.statement.onLedger" color="neutral" variant="subtle" size="sm" />
               <UBadge v-else-if="row.verdict" :label="names.category(row.verdict.category)" :color="row.verdict.flaggedBy === 'rule' ? 'success' : 'warning'" variant="subtle" size="sm" />
+              <UBadge v-if="row.replaces" :label="words.statement.replacesCopied" color="info" variant="subtle" size="sm" />
               <UBadge v-if="row.verdict?.flaggedBy === 'ai'" :label="words.statement.waitsForReview" color="warning" variant="outline" size="sm" />
               <UBadge v-for="reason in row.reviewReasons" :key="reason" :label="reviewReasonLabel(reason)" color="warning" variant="outline" size="sm" />
             </span>
@@ -128,7 +162,6 @@ function grouped(iban: string): string {
             <MoneyText :cents="row.amount" :tone="row.inLedger ? undefined : 'flow'" class="block text-sm" :class="{ 'text-muted': row.inLedger }" />
             <MoneyText v-if="row.balance !== null" :cents="row.balance" class="block text-xs text-muted" />
           </span>
-          <span v-if="row.copiedTwin" class="col-span-full break-words type-caption" data-testid="dry-run-like">{{ likeCopiedCaption(copiedParts(row.copiedTwin)) }}</span>
         </li>
       </ul>
     </div>

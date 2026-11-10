@@ -11,10 +11,6 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
-import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
-import { likeCopiedCaption } from '../../../../shared/ai/presentation/copiedRowsWords'
-import type { Transaction } from '../../workbook/domain/transaction'
-import type { Account } from '../../workbook/domain/account'
 
 /** Each row of a statement and what importing it would do. */
 const props = defineProps<{ lines: readonly DryRunLine[] }>()
@@ -34,16 +30,10 @@ const shown = computed(() => {
       line,
       outcome,
       account: accounts.get(line.row.account) ?? null,
-      like: line.outcome === 'look-alike' ? likeCopiedCaption(likeParts(line.like, accounts.get(line.like.account))) : null,
       skipped: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
     }
   })
 })
-
-/** The copied row a file's row looks like, by its payee, amount and day. */
-function likeParts(row: Transaction, account: Account | undefined): string[] {
-  return [row.payee || row.description, formatAccountMoney(row.amount, account?.currency ?? EURO), dayLabel(row.date)].filter((part) => part !== '')
-}
 
 type BadgeColor = 'neutral' | 'info' | 'warning' | 'success'
 
@@ -55,9 +45,11 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
     case 'other-source':
       return { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.coveredByFile : words.import.outcome.coveredBySync, color: 'neutral' }
     case 'look-alike':
-      return { label: words.import.outcome.lookAlike, color: 'neutral' }
+      return { label: isBankSyncKey(line.row.importKey) ? words.import.outcome.lookAlikeSynced : words.import.outcome.lookAlike, color: 'info' }
     case 'filled':
       return { label: words.import.outcome.filled, color: 'info' }
+    case 'replaced':
+      return { label: isBankSyncKey(line.like.importKey) ? words.import.outcome.replacedSynced : words.import.outcome.replaced, color: 'info' }
     case 'before-opening':
       return { label: words.import.outcome.beforeOpening, color: 'neutral' }
     case 'refiled':
@@ -72,7 +64,7 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
 
 <template>
   <ul class="divide-y divide-default rounded-control border border-default" data-testid="spending-dry-run-rows">
-    <li v-for="({ line, outcome, account, like, skipped }, place) in shown" :key="place" class="flex flex-col gap-1 px-3 py-2.5" data-testid="spending-dry-run-row">
+    <li v-for="({ line, outcome, account, skipped }, place) in shown" :key="place" class="flex flex-col gap-1 px-3 py-2.5" data-testid="spending-dry-run-row">
       <span class="flex items-start gap-3">
         <span class="flex min-w-0 flex-1 flex-col gap-1">
           <span class="break-words text-sm" :class="skipped ? 'text-muted' : 'text-highlighted'">{{ line.row.payee }}</span>
@@ -88,7 +80,6 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
           :class="{ 'text-muted': skipped }"
         />
       </span>
-      <span v-if="like !== null" class="break-words type-caption" data-testid="spending-dry-run-like">{{ like }}</span>
     </li>
   </ul>
   <ShowAllButton v-if="lines.length > FIRST_SHOWN" v-model:expanded="allShown" :total="lines.length" class="self-start" />

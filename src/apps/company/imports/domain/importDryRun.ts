@@ -2,7 +2,8 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { absMoney, addMoney, subtractMoney } from '../../../../shared/money/money'
 import { statementTies } from '../../../../shared/money/statementTies'
 import type { Money } from '../../../../shared/money/money'
-import { BOOKING_DAYS_APART, bookedTwins } from '../../../../shared/money/lookAlikeBookings'
+import { bookedTwins } from '../../../../shared/money/lookAlikeBookings'
+import type { TwinAnswer } from '../../../../shared/money/lookAlikeBookings'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { categorise } from '../../../../shared/categorising/domain/categorise'
 import type { Verdict } from '../../../../shared/categorising/domain/categorise'
@@ -27,8 +28,24 @@ export interface DryRunRow extends ImportedRow {
   readonly verdict: Verdict | null
   /** The ledger row a copied entry looks like, set only on an entry that waits for the person to say whether it is another. */
   readonly like?: Transaction
-  /** The row the AI copied that an entry of a file Kuna read looks like, which puts the entry on the ledger already. */
+  /** The row the AI copied that an entry of a file Kuna read looks like, which holds the entry as on the ledger until the person says to keep both. */
   readonly copiedTwin?: Transaction
+  /** The row the AI copied that this entry takes the place of, whose category it keeps. */
+  readonly replaces?: Transaction
+}
+
+/** An entry of a file Kuna read that looks like a row the AI copied, and what the person said of it, null until they say. */
+export interface CopiedTwinQuestion {
+  /** The entry's `copiedTwinKey`, which the answer goes under. */
+  readonly key: string
+  readonly row: ImportedRow
+  readonly copied: Transaction
+  readonly keep: TwinAnswer['keep'] | null
+}
+
+/** What tells an entry of a file from every other: its account and its reference. */
+export function copiedTwinKey(account: string, row: Pick<ImportedRow, 'reference'>): string {
+  return `${account} ${row.reference}`
 }
 
 /** An account the ledger has no row of yet, which a statement starts at its opening balance once the person agrees. */
@@ -65,6 +82,8 @@ export interface DryRunStatement {
   readonly start: AccountStart | null
   /** Set for a statement of an IBAN the accounts tab lacks, named or not. */
   readonly newAccount: NewAccountStart | null
+  /** The entries that look like rows the AI copied, answered or not, in the statement's order. */
+  readonly questions: readonly CopiedTwinQuestion[]
   /** What may be wrong with the statement, for the person to check. */
   readonly notes: readonly string[]
   /** What the import does that needs no check, such as the entries on the ledger already. */
@@ -77,6 +96,8 @@ export interface ImportDryRun {
   readonly statements: readonly DryRunStatement[]
   /** The ledger entries confirming would write, one statement after another, each newest first as the tab holds them. */
   readonly added: readonly LedgerEntry[]
+  /** The rows the AI copied that confirming takes out, since entries of a file take their place. */
+  readonly removed: readonly Transaction[]
   /** The accounts confirming would add before those entries. */
   readonly accounts: readonly AddedAccount[]
   readonly newRows: number
@@ -105,6 +126,8 @@ export interface DryRunInputs {
    * on the tab has, which the caller checks, and the account starts at its statement's opening.
    */
   readonly named: ReadonlyMap<string, string>
+  /** What the person said of the entries that look like rows the AI copied, by `copiedTwinKey`. */
+  readonly twinAnswers: ReadonlyMap<string, TwinAnswer>
 }
 
 /**
@@ -125,7 +148,10 @@ export interface DryRunInputs {
  * day, amount and counterparty as a row is on the ledger. One that only looks like a row waits unless the person said to import
  * it, and it holds its place in the statement as a row on the ledger does, so the entries after it still run on from the ledger.
  * A statement Kuna read itself is matched the same way against the rows the AI copied. One that only looks like a copied row
- * counts as on the ledger when the file gives its balance, since the balances after it then show whether the ledger holds it.
+ * counts as on the ledger until the person says to keep both, and then it is new. Or the person says the file's entry takes the
+ * copied row's place. The ledger runs on from its newest row, so the copied rows go from the oldest such row on, each with the
+ * entry it is or looks like taking its place and keeping its category and share, and a row after it the statement does not
+ * hold refuses the statement.
  */
 export function importDryRun(readings: readonly StatementReading[], inputs: DryRunInputs): ImportDryRun {
   const states = accountStates(inputs.transactions)
@@ -139,6 +165,7 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
   }
   const statements: DryRunStatement[] = []
   const added: LedgerEntry[] = []
+  const removed: Transaction[] = []
   const accounts = new Map<string, AddedAccount>()
   for (const reading of inBookingOrder(readings, inputs.named)) {
     if (!('statement' in reading)) {
@@ -150,6 +177,7 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
         refusal: reading.refusal,
         start: null,
         newAccount: null,
+        questions: [],
         notes: [],
         facts: [],
         opening: null,
@@ -161,6 +189,7 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
       const planned = planStatement(reading.statement, stateOf(reading.statement.account), inputs)
       statements.push({ ...planned.statement, newAccount: null })
       added.push(...planned.added)
+      removed.push(...planned.removed)
       continue
     }
     const newAccount = newAccountStart(reading.statement, reading.newAccount)
@@ -175,10 +204,11 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
     const planned = planStatement(named, stateOf(slug), { ...inputs, starts })
     statements.push({ ...planned.statement, newAccount })
     added.push(...planned.added)
+    removed.push(...planned.removed)
     if (planned.statement.refusal === null) accounts.set(slug, { slug, iban: newAccount.iban, currency: newAccount.currency })
   }
   const rows = statements.flatMap((statement) => statement.rows)
-  return { statements, added, accounts: [...accounts.values()], newRows: added.length, inLedger: rows.filter((row) => row.inLedger).length }
+  return { statements, added, removed, accounts: [...accounts.values()], newRows: added.length, inLedger: rows.filter((row) => row.inLedger).length }
 }
 
 /** Where a statement of a new account would start it: the balance before its first entry, on that entry's day. */
@@ -198,6 +228,7 @@ function waitingForName(statement: ImportedStatement, newAccount: NewAccountStar
     refusal: null,
     start: null,
     newAccount,
+    questions: [],
     notes: statement.notes,
     facts: [],
     opening: statement.opening,
@@ -205,7 +236,14 @@ function waitingForName(statement: ImportedStatement, newAccount: NewAccountStar
   }
 }
 
-function planStatement(statement: ImportedStatement, state: AccountState, inputs: DryRunInputs): { readonly statement: Omit<DryRunStatement, 'newAccount'>; readonly added: readonly LedgerEntry[] } {
+/** What one statement would do: its rows, the entries it writes and the copied rows those take the place of. */
+interface PlannedStatement {
+  readonly statement: Omit<DryRunStatement, 'newAccount'>
+  readonly added: readonly LedgerEntry[]
+  readonly removed: readonly Transaction[]
+}
+
+function planStatement(statement: ImportedStatement, state: AccountState, inputs: DryRunInputs): PlannedStatement {
   const { account } = statement
   const notes = [...statement.notes]
   const facts: string[] = []
@@ -216,20 +254,42 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   const fromOtherSource = (row: Transaction): boolean => (source.kind === 'transcribed' ? true : isTranscribedReference(row.reference))
   const others = state.rows.filter((row) => fromOtherSource(row) && !hit.has(row.reference) && row.statement !== statement.label)
   const copiedTwinOf = new Map<ImportedRow, Transaction>()
+  const twinOnLedger = new Map<Transaction, ImportedRow>()
+  const questions: CopiedTwinQuestion[] = []
   for (const [row, twin] of bookedTwins(
     statement.rows.filter((_, index) => !inLedger[index]),
     others,
   )) {
     const index = statement.rows.indexOf(row)
-    if (twin.kind === 'same') inLedger[index] = true
-    else if (source.kind === 'transcribed') {
-      if (source.lookAlikes === 'ask') likeOf.set(row, twin.booked)
-    } else if (row.balance !== null) {
+    if (twin.kind === 'same') {
       inLedger[index] = true
+      if (source.kind !== 'transcribed') twinOnLedger.set(twin.booked, row)
+    } else if (source.kind === 'transcribed') {
+      if (source.lookAlikes === 'ask') likeOf.set(row, twin.booked)
+    } else {
+      const key = copiedTwinKey(account, row)
+      const answer = inputs.twinAnswers.get(key)
+      const keep = answer?.booked === twin.booked.id ? answer.keep : null
+      questions.push({ key, row, copied: twin.booked, keep })
       copiedTwinOf.set(row, twin.booked)
+      if (keep === 'both') continue
+      inLedger[index] = true
+      twinOnLedger.set(twin.booked, row)
     }
   }
-  if (copiedTwinOf.size > 0) facts.push(words.dryRun.matchedCopied(copiedTwinOf.size, BOOKING_DAYS_APART))
+  questions.sort((left, right) => statement.rows.indexOf(left.row) - statement.rows.indexOf(right.row))
+  const replacing = questions.flatMap((question) => (question.keep === 'file' ? [question.copied] : []))
+  const oldestReplaced = replacing.reduce<Transaction | null>((oldest, copied) => (oldest === null || copied.sequence < oldest.sequence ? copied : oldest), null)
+  const takenOut = oldestReplaced === null ? [] : state.rows.filter((row) => row.sequence >= oldestReplaced.sequence)
+  const replacesOf = new Map(
+    takenOut.flatMap((copied) => {
+      const row = twinOnLedger.get(copied)
+      return row === undefined ? [] : [[row, copied] as const]
+    }),
+  )
+  for (const row of replacesOf.keys()) inLedger[statement.rows.indexOf(row)] = false
+  const left = state.rows.filter((row) => !takenOut.includes(row))
+  const latest = takenOut.length === 0 ? state.latest : newestOf(left)
   const held = statement.rows.map((row, index) => inLedger[index]! || likeOf.has(row))
   const firstNew = held.indexOf(false)
   const shell = { fileName: statement.fileName, label: statement.label, account, opening: statement.opening, closing: statement.closing }
@@ -243,61 +303,54 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
     rows: withBalances(statement.rows, opening).map(shownRow),
     refusal,
     start,
+    questions,
     notes,
     facts,
   })
+  const refused = (refusal: string): PlannedStatement => ({ statement: shown(refusal, null, statement.opening), added: [], removed: [] })
+  const stray = takenOut.find((row) => !twinOnLedger.has(row))
+  if (stray !== undefined) return refused(words.dryRun.replaceBlocked(stray.counterparty || stray.description, stray.date))
   if (firstNew < 0) {
     if (likeOf.size === 0) notes.push(statement.rows.length === 0 ? words.dryRun.noEntries : words.dryRun.allHeld)
-    return { statement: shown(null, null, statement.opening), added: [] }
+    return { statement: shown(null, null, statement.opening), added: [], removed: [] }
   }
   if (statement.source.kind === 'table' && state.labels.has(statement.label)) {
-    return {
-      statement: shown(words.dryRun.importedBefore(statement.label, firstNew === 0), null, statement.opening),
-      added: [],
-    }
+    return refused(words.dryRun.importedBefore(statement.label, firstNew === 0))
   }
   const fresh = statement.rows.slice(firstNew)
   if (held.slice(firstNew).some((kept) => kept)) {
-    return {
-      statement: shown(words.dryRun.gap, null, statement.opening),
-      added: [],
-    }
+    return refused(words.dryRun.gap)
   }
-  const heldBefore = firstNew - likeOf.size - copiedTwinOf.size
+  const heldBefore = firstNew - likeOf.size - statement.rows.slice(0, firstNew).filter((row) => copiedTwinOf.has(row)).length
   if (heldBefore > 0) {
     facts.push(words.dryRun.partlyHeld(heldBefore, fresh.length))
   }
+  if (replacesOf.size > 0) facts.push(words.dryRun.replacedCopied(replacesOf.size))
   const unidentified = fresh.filter((row) => row.reference === '')
   if (unidentified.length > 0) {
-    return {
-      statement: shown(words.dryRun.noReference(unidentified.length), null, statement.opening),
-      added: [],
-    }
+    return refused(words.dryRun.noReference(unidentified.length))
   }
   const first = fresh[0]!
-  if (state.latest !== null && first.date < state.latest.date) {
-    return {
-      statement: shown(words.dryRun.beforeNewest(first.date, state.latest.date, account), null, statement.opening),
-      added: [],
-    }
+  if (latest !== null && first.date < latest.date) {
+    return refused(words.dryRun.beforeNewest(first.date, latest.date, account))
   }
   const before = first.balance === null ? null : subtractMoney(first.balance, first.amount)
   let opening: Money | null
   let start: AccountStart | null = null
-  if (state.latest !== null) {
-    if (before !== null && before !== state.latest.balance) {
-      return { statement: shown(notRunningOn(statement, fresh, state.latest, before), null, statement.opening), added: [] }
+  if (latest !== null) {
+    if (before !== null && before !== latest.balance) {
+      return refused(notRunningOn(statement, fresh, latest, before))
     }
-    opening = state.latest.balance
+    opening = latest.balance
     if (before === null) {
-      facts.push(words.dryRun.worksOutBalances(opening, account, state.latest.date))
+      facts.push(words.dryRun.worksOutBalances(opening, account, latest.date))
     }
   } else {
     start = { account, opening: before, date: first.date }
     const typed = inputs.starts.get(account)
     opening = before === null ? (typed ?? null) : typed === before ? before : null
     if (opening === null) {
-      return { statement: shown(null, start, before), added: [] }
+      return { statement: shown(null, start, before), added: [], removed: [] }
     }
   }
   if (statement.source.kind === 'camt' && state.lastSequence !== null) {
@@ -314,23 +367,53 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   const balanced = withBalances(fresh, opening)
   const rows: DryRunRow[] = [
     ...withBalances(statement.rows.slice(0, firstNew), statement.opening).map(shownRow),
-    ...balanced.map((row) => ({
-      ...row,
-      inLedger: false,
-      verdict: categorise(
-        { account, amount: row.amount, counterparty: row.counterparty, counterpartyIban: normaliseIban(row.counterpartyIban), description: row.description, signals: row.signals },
-        inputs.rules,
-        inputs.context,
-      ),
-    })),
+    ...balanced.map((row, index) => {
+      const replaces = replacesOf.get(fresh[index]!)
+      const copiedTwin = copiedTwinOf.get(fresh[index]!)
+      return {
+        ...row,
+        inLedger: false,
+        verdict:
+          replaces === undefined
+            ? categorise(
+                { account, amount: row.amount, counterparty: row.counterparty, counterpartyIban: normaliseIban(row.counterpartyIban), description: row.description, signals: row.signals },
+                inputs.rules,
+                inputs.context,
+              )
+            : keptVerdict(replaces),
+        ...(copiedTwin === undefined ? {} : { copiedTwin }),
+        ...(replaces === undefined ? {} : { replaces }),
+      }
+    }),
   ]
   const last = balanced[balanced.length - 1]!
+  state.rows.splice(0, state.rows.length, ...left)
+  for (const row of takenOut) state.references.delete(row.reference)
   state.latest = { date: last.date, balance: last.balance }
   for (const row of fresh) state.references.add(row.reference)
   state.labels.add(statement.label)
   if (statement.source.kind === 'camt') state.lastSequence = Math.max(state.lastSequence ?? 0, statement.source.sequence)
-  const entries = balanced.map((row, index) => ledgerEntryOfImport(statement, { ...row, verdict: rows[firstNew + index]!.verdict }, inputs.categories))
-  return { statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, notes, facts }, added: entries.reverse() }
+  const entries = balanced.map((row, index) => {
+    const shownRow = rows[firstNew + index]!
+    const entry = ledgerEntryOfImport(statement, { ...row, verdict: shownRow.verdict }, inputs.categories)
+    return shownRow.replaces === undefined ? entry : { ...entry, flaggedBy: shownRow.replaces.flaggedBy, ownerShare: shownRow.replaces.ownerShare }
+  })
+  return {
+    statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, questions, notes, facts },
+    added: entries.reverse(),
+    removed: takenOut,
+  }
+}
+
+/** The verdict an entry keeps from the copied row it takes the place of: that row's category, settled unless it waits on review. */
+function keptVerdict(copied: Transaction): Verdict {
+  return { category: copied.category, flaggedBy: copied.flaggedBy === 'ai' ? 'ai' : 'rule', ruleId: null }
+}
+
+/** An account's newest row in booking order, as where the ledger leaves it, or null for none. */
+function newestOf(rows: readonly Transaction[]): { readonly date: CivilDate; readonly balance: Money } | null {
+  const newest = rows.reduce<Transaction | null>((found, row) => (found === null || row.sequence > found.sequence ? row : found), null)
+  return newest === null ? null : { date: newest.date, balance: newest.balance }
 }
 
 /** Whether the statement is a later part of one the AI copied, whose earlier parts' rows carry its label. */

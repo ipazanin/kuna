@@ -15,6 +15,16 @@ export const LOOK_ALIKES = ['ask', 'import'] as const
 
 export type LookAlikes = (typeof LOOK_ALIKES)[number]
 
+/**
+ * What the person said of a row of a file or the bank sync that looks like a row Kuna has from another source: `both` are
+ * payments, or they are one, and the `file`'s row takes the other's place or the row Kuna has is `kept`. It names the row it
+ * answers about, so it lapses once the row looks like another.
+ */
+export interface TwinAnswer {
+  readonly booked: string
+  readonly keep: 'both' | 'file' | 'kept'
+}
+
 /** A booking of one account as the look-alike test reads it: its day, its signed amount, who the other side is and what the bank wrote. */
 export interface Booking<Cents extends Money | AccountMoney> {
   readonly date: CivilDate

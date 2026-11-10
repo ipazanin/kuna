@@ -13,7 +13,11 @@ import BankAccountsSetup from './BankAccountsSetup.vue'
 import { BANK_SYNC_SCOPE } from './bankSyncPort'
 import { heldBankSetup, useBankSync } from './useBankSync'
 import { words } from './words'
+import { useHeldRows } from './useHeldRows'
 import DryRunLines from '../../statements/presentation/DryRunLines.vue'
+import { rowKey } from '../../workbook/domain/transaction'
+import QuestionList from '../../../../shared/ui/QuestionList.vue'
+import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -29,6 +33,9 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 const page = usePageSync()
 const sync = useBankSync()
+
+/** The rows this fetch put on hold, asked about here as on To review. */
+const held = useHeldRows((key) => sync.lastOutcome.value?.dryRun.lines.some((line) => line.outcome === 'look-alike' && rowKey(line.row) === key) ?? false)
 
 const settings = computed(() => store.state.workbook?.settings ?? null)
 const deployment = ref(settings.value?.bankSyncDeployment ?? '')
@@ -149,6 +156,16 @@ onMounted(() => {
           variant="subtle"
           :title="problem"
           data-testid="spending-bank-sync-problem"
+        />
+        <QuestionList
+          v-if="held.items.value.length > 0"
+          :items="held.items.value"
+          :options="held.options"
+          :label="twinWords.choice"
+          :heading="twinWords.title"
+          :intro="twinWords.intro.sync"
+          :saving="held.saving.value"
+          @answer="held.answer"
         />
         <DryRunLines v-if="sync.lastOutcome.value.dryRun.lines.length > 0" :lines="sync.lastOutcome.value.dryRun.lines" />
         <p v-else class="text-sm text-muted">{{ words.nothing }}</p>

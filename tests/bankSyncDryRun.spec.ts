@@ -10,6 +10,7 @@ import type { SyncedRows } from '../src/apps/spending/bankSync/domain/bankSyncRo
 import type { BankSession, BankTransaction, LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
+import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
@@ -41,6 +42,7 @@ function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRu
     rules,
     receipts: [],
     lines: [],
+    held: [],
     settings: spendingSettingsOf([]),
     readings: {} as SpendingBook['readings'],
     problems: [],
@@ -106,9 +108,32 @@ describe('a synced row against the file', () => {
     expect(run.lines.map((line) => line.outcome)).toEqual(['other-source'])
   })
 
-  it('takes a row the day after, of the same money too', () => {
-    const run = statementDryRun(bookOf([fileRow(1, '2026-10-27')]), syncOf([BANK]), DAY)
+  it('puts a row the day after of the same money on hold, since the two may date one booking on different days', () => {
+    const file = fileRow(1, '2026-10-27')
+    const run = statementDryRun(bookOf([file]), syncOf([BANK]), DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['look-alike'])
+    expect(run.added).toEqual([])
+    expect(run.notes).toEqual([])
+    expect(run.held).toEqual([expect.objectContaining({ account: OTP.id, date: civil('2026-10-28'), importKey: run.lines[0]!.row.importKey, like: file.id })])
+  })
+
+  it('finds a row on hold by its key when a later sync brings it again, and neither asks nor holds it twice', () => {
+    const file = fileRow(1, '2026-10-27')
+    const first = statementDryRun(bookOf([file]), syncOf([BANK]), DAY, () => '00000000-0000-4000-8000-000000000001')
+    const again = statementDryRun({ ...bookOf([file]), held: first.held }, syncOf([BANK]), DAY)
+    expect(again.lines).toEqual([expect.objectContaining({ outcome: 'look-alike', like: file })])
+    expect([again.held, again.questions, again.added]).toEqual([[], [], []])
+  })
+
+  it('takes a row the day after of other money', () => {
+    const run = statementDryRun(bookOf([fileRow(1, '2026-10-27', -4)]), syncOf([BANK]), DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['new'])
+  })
+
+  it('lets a row on the file’s days take its own twin first, so a second payment of the same money the day after stays new', () => {
+    const second = { ...BANK, reference: 'ref-2', bookedOn: '2026-10-29' }
+    const run = statementDryRun(bookOf([fileRow(1, '2026-10-28')]), syncOf([second, BANK]), DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['new', 'other-source'])
   })
 
   it('keeps the days apart per account, so a file on one account leaves another whole', () => {
@@ -156,8 +181,16 @@ describe('a file against rows a sync brought', () => {
   })
 
   it('takes a row from before the sync began, so a file can fill what came earlier', () => {
-    const run = statementDryRun(bookOf([synced('2026-10-29')]), fileStatement([{}]), DAY)
+    const run = statementDryRun(bookOf([synced('2026-10-29')]), fileStatement([{ payee: 'Pharmacy' }]), DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['new'])
+  })
+
+  it('asks about a row from before the sync began that looks like a synced row a day later', () => {
+    const book = bookOf([synced('2026-10-29')])
+    const run = statementDryRun(book, fileStatement([{}]), DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['look-alike'])
+    expect(run.questions.map((question) => [question.booked, question.keep])).toEqual([[book.transactions[0], null]])
+    expect(run.notes).toEqual([])
   })
 
   it('leaves a second file of the same rows to the rows it brought, by key', () => {
@@ -173,6 +206,62 @@ describe('a file against rows a sync brought', () => {
       DAY,
     )
     expect(run.added.every((added) => added.pair !== null)).toBe(true)
+  })
+})
+
+describe('a Revolut export and a sync answer of the same days', () => {
+  const HEADER = ['Type', 'Product', 'Started Date', 'Completed Date', 'Description', 'Amount', 'Fee', 'Currency', 'State', 'Balance']
+  /** The export: a market on 26 October, and a bakery started late on 27 October. */
+  const EXPORT = [
+    HEADER,
+    ['CARD_PAYMENT', 'Current', '2026-10-26 12:00:00', '2026-10-26 12:00:00', 'Konzum', '-45.30', '0.00', 'EUR', 'COMPLETED', ''],
+    ['CARD_PAYMENT', 'Current', '2026-10-27 23:50:00', '2026-10-28 09:00:00', 'Corner Bakery', '-6.50', '0.00', 'EUR', 'COMPLETED', ''],
+  ]
+  /** The same two from the sync, which dates the bakery by its booking a day later and names the companies in full. */
+  const ANSWER: readonly BankTransaction[] = [
+    { ...BANK, reference: 'rev-1', amount: '45.30', bookedOn: '2026-10-26', creditorName: 'KONZUM PLUS D.O.O.' },
+    { ...BANK, reference: 'rev-2', amount: '6.50', bookedOn: '2026-10-28', creditorName: 'CORNER BAKERY D.O.O.' },
+  ]
+
+  function exported(): StatementRows {
+    const reading = revolutStatement(EXPORT, 'revolut.csv', { accounts: ACCOUNTS, categories: CATEGORIES })
+    if (!('statement' in reading)) throw new Error(reading.refusal)
+    return reading.statement
+  }
+
+  function synced(): StatementRows {
+    const { label, rows } = bankSyncRows(ANSWER, REVOLUT_EUR)
+    return { label, rows, notes: [] }
+  }
+
+  it('puts the bakery of a sync after the export on hold, since the sync asks nobody', () => {
+    const first = statementDryRun(bookOf([]), exported(), DAY)
+    expect(first.added).toHaveLength(2)
+    const second = statementDryRun(bookOf(first.added), synced(), DAY)
+    expect(second.lines.map((line) => line.outcome)).toEqual(['other-source', 'look-alike'])
+    expect(second.added).toEqual([])
+    expect([second.notes.length, second.held.length]).toEqual([1, 1])
+  })
+
+  it('asks about the bakery on an export after the sync, and books it once whichever way the person answers', () => {
+    const { label, rows } = bankSyncRows(ANSWER.slice(1), REVOLUT_EUR)
+    const first = statementDryRun(bookOf([]), { label, rows, notes: [] }, DAY)
+    expect(first.added).toHaveLength(1)
+    const book = bookOf(first.added)
+    const asked = statementDryRun(book, exported(), DAY)
+    expect(asked.lines.map((line) => line.outcome)).toEqual(['new', 'look-alike'])
+    expect(asked.added.map((row) => row.payee)).toEqual(['Konzum'])
+    const [question] = asked.questions
+    const answered = (keep: 'both' | 'file') => statementDryRun(book, { ...exported(), twinAnswers: new Map([[question!.key, { booked: question!.booked.id, keep }]]) }, DAY)
+    const replaced = answered('file')
+    expect(replaced.lines.map((line) => line.outcome)).toEqual(['new', 'replaced'])
+    // The kept row keeps the bank's key and takes the file's day, payee and text, so the sync's first day moves a day earlier, to 27 October.
+    const [kept] = replaced.changed
+    expect(kept).toEqual({ before: first.added[0], after: { ...first.added[0]!, date: question!.row.date, payee: 'Corner Bakery', description: question!.row.description } })
+    const reread = statementDryRun(bookOf([kept!.after]), exported(), DAY)
+    expect(reread.lines.map((line) => line.outcome)).toEqual(['new', 'other-source'])
+    expect(kept!.after.date).toBe(civil('2026-10-27'))
+    expect(answered('both').added.map((row) => row.payee)).toEqual(['Konzum', 'Corner Bakery'])
   })
 })
 

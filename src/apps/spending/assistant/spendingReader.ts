@@ -16,7 +16,17 @@ import type { Category } from '../workbook/domain/category'
 import type { SpendingBook } from '../workbook/domain/readSpendingBook'
 import type { Receipt } from '../workbook/domain/receipt'
 import type { EntryPart } from '../workbook/domain/entryPart'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../workbook/domain/spendingKinds'
+import {
+  ACCOUNT_RECORDS,
+  BUDGET_RECORDS,
+  CATEGORY_RECORDS,
+  HELD_ROW_RECORDS,
+  PART_RECORDS,
+  RECEIPT_RECORDS,
+  RULE_RECORDS,
+  SETTING_RECORDS,
+  TRANSACTION_RECORDS,
+} from '../workbook/domain/spendingKinds'
 import type { LinkableBank } from '../workbook/domain/spendingSettings'
 import type { SpendingRule } from '../workbook/domain/spendingRule'
 import type { Transaction } from '../workbook/domain/transaction'
@@ -65,8 +75,11 @@ interface BankAccountLine {
   readonly fixedOpening: AccountMoney | null
 }
 
-/** The kinds that stay out of the chat's reach with why: a setting's value can route bank data or is an identifier, and the catalogue already says what each setting means. */
-export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name]
+/**
+ * The kinds that stay out of the chat's reach with why: a setting's value can route bank data or is an identifier, and the
+ * catalogue already says what each setting means. A bank row on hold is answered on To review, which the chat has no action for.
+ */
+export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name]
 
 const ACCOUNT_FIELDS: FieldDocs<Account> = {
   id: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account.' },

@@ -16,9 +16,6 @@ import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src
 import { en as companyBooksEnglish, hr as companyBooksCroatian } from '../../src/apps/company/workbook/domain/words.ts'
 import { en as importEnglish, hr as importCroatian } from '../../src/apps/company/imports/presentation/words.ts'
 import { en as importWritesEnglish, hr as importWritesCroatian } from '../../src/apps/company/imports/application/words.ts'
-import { en as importDryRunEnglish, hr as importDryRunCroatian } from '../../src/apps/company/imports/domain/words.ts'
-import { en as statementDryRunEnglish, hr as statementDryRunCroatian } from '../../src/apps/spending/statements/domain/words.ts'
-import { BOOKING_DAYS_APART } from '../../src/shared/money/lookAlikeBookings.ts'
 import { en as onboardingEnglish, hr as onboardingCroatian } from '../../src/apps/company/onboarding/presentation/words.ts'
 import { en as settingsReasonsEnglish, hr as settingsReasonsCroatian } from '../../src/apps/company/settings/domain/words.ts'
 import { en as booksEnglish, hr as booksCroatian } from '../../src/apps/company/workbook/presentation/words.ts'
@@ -1818,26 +1815,31 @@ export function importCamtFlowIn(language, path) {
 
 export const importCamtFlow = (path) => importCamtFlowIn('en', path)
 
-/** The dry run's words for a camt entry that looks like a row the AI copied, in each language. */
-const IMPORT_DRY_RUN_WORDS = { en: importDryRunEnglish.dryRun, hr: importDryRunCroatian.dryRun }
-
 /**
- * Import with a ledger row the AI copied a day before the sample camt statement's client payment: the dry run counts that payment as
- * on the ledger, says why in its notes, and adds the other three entries. Nothing is confirmed.
+ * Import with a ledger row the AI copied a day before the sample camt statement's client payment: the dry run holds that payment
+ * until the person answers, asks about it above the rows, and adds the other three entries. Use the file's row makes the payment take
+ * the copied row's place, so four entries go in. Nothing is confirmed.
  */
 export function importCamtLookAlikeFlowIn(language, path) {
   const words = SCREEN_WORDS[language]
   const panel = words.imports.panel
-  return async (page, { shoot: shootAs, inspect }) => {
+  return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropFile(page, path)
     await dryRunSays(page, countedIn(words, panel.addsRows(3), 3))
-    await elementSays(page, '[data-testid="dry-run-notes"]', [IMPORT_DRY_RUN_WORDS[language].matchedCopied(1, BOOKING_DAYS_APART)], 'the dry run does not say the payment looks like a copied row')
-    await elementSays(page, '[data-testid="dry-run-like"]', ['NORTHWIND ANALYTICS'], 'the payment does not name the copied row it looks like')
-    await page.$eval('[data-testid="dry-run-notes"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await elementSays(page, '[data-testid="dry-run-row"]', [words.imports.statement.waitsForAnswer], 'the payment does not say it waits for an answer')
+    await elementSays(page, '[data-testid="question"]', ['NORTHWIND ANALYTICS'], 'the question does not name the copied row the payment looks like')
+    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
     await delay(300)
-    await inspect?.('the camt dry run with a payment that looks like a copied row')
+    await inspect?.('the camt dry run asking about a payment that looks like a copied row')
     await shoot('import-camt-lookalike')
+    await pressSelector(page, press, `[data-testid="question-choice"] ${USE_FILE_ROW}`)
+    await dryRunSays(page, countedIn(words, panel.addsRows(4), 4))
+    await elementSays(page, '[data-testid="dry-run-row"]', [words.imports.statement.replacesCopied], "the payment does not say it takes the copied row's place")
+    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.("the camt dry run with the payment taking the copied row's place")
+    await shoot('import-camt-lookalike-replaced')
   }
 }
 
@@ -6211,15 +6213,13 @@ async function spendingDryRunSays(page, text) {
     })
 }
 
-/** The dry run's note on file rows that look like rows the AI copied, as `statements/domain/words.ts` words it for one row. */
-const COPIED_LOOK_ALIKE_NOTE = {
-  en: statementDryRunEnglish.copiedLookAlikes(1, BOOKING_DAYS_APART).one,
-  hr: statementDryRunCroatian.copiedLookAlikes(1, BOOKING_DAYS_APART).one,
-}
+/** The choice that lets a file's row take the place of the row the AI copied, third after Decide later and Keep both. */
+const USE_FILE_ROW = 'button:nth-child(3)'
 
 /**
  * On Spending's Import with the copied set: the sample Revolut export's Unknown shop looks like the row the AI copied a day before,
- * so the dry run leaves it out with a note and names that copied row under it. Nothing is imported.
+ * so the dry run asks about it above its rows, naming that copied row, and leaves it out until answered. Use the file's row makes
+ * it take the copied row's place, which Import writes with the new rows and one Undo takes back.
  */
 export function spendingImportLookAlikeFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
@@ -6228,13 +6228,51 @@ export function spendingImportLookAlikeFlowIn(language, paths) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropSpendingFile(page, paths.revolut)
     await spendingDryRunSays(page, panel.summary(7, 1, 1))
+    await elementSays(page, '[data-testid="question"]', ['UNKNOWN SHOP ZAGREB'], 'the question does not name the copied row the file row looks like')
     if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
-    await elementSays(page, '[data-testid="spending-dry-run-notes"]', [COPIED_LOOK_ALIKE_NOTE[language]], 'the dry run does not say why the look-alike is left out')
-    await elementSays(page, '[data-testid="spending-dry-run-like"]', ['UNKNOWN SHOP ZAGREB'], 'the look-alike does not name the copied row it looks like')
-    await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.lookAlike], 'the look-alike does not say it is left out')
+    await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.lookAlike], 'the look-alike does not say it waits for an answer')
+    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
     await delay(300)
-    await inspect?.('the Revolut dry run with a row that looks like a copied row')
+    await inspect?.('the Revolut dry run asking about a row that looks like a copied row')
     await shoot('spending-import-lookalike')
+    await pressSelector(page, press, `[data-testid="question-choice"] ${USE_FILE_ROW}`)
+    await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replaced], "the file's row does not say it takes the copied row's place")
+    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.("the Revolut dry run with the file's row taking the copied row's place")
+    await shoot('spending-import-lookalike-replaced')
+    await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
+    await toast(page, panel.imported)
+    await spendingDryRunSays(page, panel.summary(0, 10, 0))
+    await undoIn(page, press, words)
+    await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replaced], 'Undo did not bring the replacement back to the dry run')
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On Spending's Import with the synced set: the sample Revolut export's Corner market looks like the row the bank sync brought a
+ * day later, so the dry run asks about it above its rows, naming that synced row. Use the file's row makes it take the synced
+ * row's place. Nothing is imported.
+ */
+export function spendingImportSyncedLookAlikeFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  const panel = words.spendingStatements.import
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await dropSpendingFile(page, paths.revolut)
+    await elementSays(page, '[data-testid="question"]', ['CORNER MARKET D.O.O.'], 'the question does not name the synced row the file row looks like')
+    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.('the Revolut dry run asking about a row that looks like a synced row')
+    await shoot('spending-import-synced-lookalike')
+    await pressSelector(page, press, `[data-testid="question-choice"] ${USE_FILE_ROW}`)
+    if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
+    await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replacedSynced], "the file's row does not say it takes the synced row's place")
+    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.("the Revolut dry run with the file's row taking the synced row's place")
+    await shoot('spending-import-synced-lookalike-replaced')
   }
 }
 
@@ -6621,6 +6659,35 @@ export function spendingBankSyncBalanceFlowIn(language) {
     await delay(300)
     await inspect?.('the bank sync when a balance differs')
     await shoot('spending-bank-sync-balance')
+  }
+}
+
+/**
+ * On Settings, Bank sync when a synced row looks like the file's Old Town Bookshop three days before: the card asks about it and
+ * puts it on hold, To review lists it with the same answers, and Keep both there books it and takes the hold off in one write.
+ */
+export function spendingBankSyncLookAlikeFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await bankSyncSettled(page, press, '[data-testid="questions"]')
+    await elementSays(page, '[data-testid="question"]', ['OLD TOWN BOOKSHOP D.O.O.', 'Old Town Bookshop'], 'the sync card does not name both rows of the look-alike')
+    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.("the bank sync card asking about a row that looks like the file's")
+    await shoot('spending-bank-sync-lookalike')
+    await dismissToasts(page)
+    await page.evaluate(() => {
+      window.location.hash = '#/spending/transactions?tab=review'
+    })
+    await page.waitForSelector('[data-testid="spending-review-held"] [data-testid="question"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('To review with a bank row on hold')
+    await shoot('spending-review-held')
+    await pressSelector(page, press, '[data-testid="spending-review-held"] [data-testid="question-choice"] button:nth-child(2)')
+    await toast(page, words.spendingBankSync.heldBooked)
+    await page.waitForFunction(() => document.querySelector('[data-testid="spending-review-held"]') === null, { timeout: 10_000 })
+    await dismissToasts(page)
   }
 }
 

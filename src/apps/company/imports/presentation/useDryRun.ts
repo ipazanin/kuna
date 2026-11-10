@@ -1,12 +1,14 @@
 import { computed, ref } from 'vue'
 import type { ComputedRef, Ref } from 'vue'
 
+import type { TwinChoice } from '../../../../shared/ai/presentation/copiedRowsWords'
+import type { TwinAnswer } from '../../../../shared/money/lookAlikeBookings'
 import { negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { dryRunFor, newAccountNameProblem } from '../application/importStatements'
-import type { ImportDryRun } from '../domain/importDryRun'
+import type { CopiedTwinQuestion, ImportDryRun } from '../domain/importDryRun'
 import type { StatementReading } from '../domain/importedStatement'
 
 export interface DryRunWithStarts {
@@ -23,7 +25,8 @@ export interface DryRunWithStarts {
   start(account: string, started: boolean): void
   typeOpening(account: string, text: string): void
   nameAccount(iban: string, name: string): void
-  /** Forgets the starts, openings and names, as a newly loaded file does. */
+  answerTwin(question: CopiedTwinQuestion, choice: TwinChoice): void
+  /** Forgets the starts, openings, names and answers, as a newly loaded file does. */
   reset(): void
 }
 
@@ -37,12 +40,16 @@ function openingOf(text: string): Money | null {
   return amount === null ? null : trimmed.startsWith('-') ? negateMoney(amount) : amount
 }
 
-/** The dry run of the statements against the workbook on screen, with each account the person started at its opening and each new account by the name it takes. */
+/**
+ * The dry run of the statements against the workbook on screen, with each account the person started at its opening, each new
+ * account by the name it takes, and what the person said of each entry that looks like a row the AI copied.
+ */
 export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>): DryRunWithStarts {
   const store = useWorkbook()
   const started = ref<Record<string, boolean>>({})
   const typedOpenings = ref<Record<string, string>>({})
   const typedNames = ref<Record<string, string>>({})
+  const twinAnswers = ref<Readonly<Record<string, TwinAnswer>>>({})
 
   /** The IBANs of the new accounts the statements offer, in the order the file gives them. */
   const offered = computed(() => [...new Set(readings.value.flatMap((reading) => ('newAccount' in reading ? [reading.newAccount.iban] : [])))])
@@ -71,7 +78,8 @@ export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>):
     const workbook = store.state.workbook
     if (workbook === null || readings.value.length === 0) return null
     const names = new Map(Object.entries(accountNames.value))
-    const waiting = dryRunFor(readings.value, workbook, new Map(), names)
+    const answers = new Map(Object.entries(twinAnswers.value))
+    const waiting = dryRunFor(readings.value, workbook, new Map(), names, answers)
     const starts = new Map<string, Money>()
     for (const statement of waiting.statements) {
       const start = statement.start
@@ -79,7 +87,7 @@ export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>):
       const opening = start.opening === null ? openingOf(typedOpenings.value[start.account] ?? '') : started.value[start.account] ? start.opening : null
       if (opening !== null) starts.set(start.account, opening)
     }
-    return starts.size === 0 ? waiting : dryRunFor(readings.value, workbook, starts, names)
+    return starts.size === 0 ? waiting : dryRunFor(readings.value, workbook, starts, names, answers)
   })
 
   return {
@@ -97,10 +105,15 @@ export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>):
     nameAccount(iban, name) {
       typedNames.value = { ...typedNames.value, [iban]: name.trim().toLowerCase() }
     },
+    answerTwin(question, choice) {
+      const { [question.key]: _answered, ...others } = twinAnswers.value
+      twinAnswers.value = choice === 'later' ? others : { ...others, [question.key]: { booked: question.copied.id, keep: choice } }
+    },
     reset() {
       started.value = {}
       typedOpenings.value = {}
       typedNames.value = {}
+      twinAnswers.value = {}
     },
   }
 }

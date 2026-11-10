@@ -27,6 +27,7 @@ function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRu
     rules,
     receipts: [],
     lines: [],
+    held: [],
     settings: spendingSettingsOf([]),
     readings: {} as SpendingBook['readings'],
     problems: [],

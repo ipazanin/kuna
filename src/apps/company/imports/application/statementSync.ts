@@ -12,6 +12,7 @@ import { dryRunFor, statementReadings, writeImport } from './importStatements'
 import type { LoadedImportFile } from './importStatements'
 import type { StatementFolder } from './statementFolder'
 import { words } from './words'
+import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 
 /** What the statements step of a sync is doing: looking through the folder, or filing this many rows. */
 export type StatementSyncStep = { readonly kind: 'looking' } | { readonly kind: 'filing'; readonly rows: number }
@@ -100,7 +101,7 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
   }
   ports.step({ kind: 'filing', rows: run.newRows })
   try {
-    const receipt = await store.write(filedTitle(filed, run.newRows), (unit) => writeImport(unit, run))
+    const receipt = await store.write(filedTitle(filed, run.newRows), (unit) => writeImport(unit, run, store.state.records?.ledger ?? NO_RECORDS))
     return { problem: null, held, filed: receipt === null ? [] : filed, receipt }
   } catch (failure) {
     if (!(failure instanceof WorkbookWriteRefused) || !mayRetry) {

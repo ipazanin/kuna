@@ -8,10 +8,16 @@ import { writeDryRun } from '../application/statementWrites'
 import { addRevolutAccounts, revolutStatement } from '../domain/revolutStatement'
 import { statementDryRun } from '../domain/statementDryRun'
 import DryRunLines from './DryRunLines.vue'
+import { rowParts, twinCaption } from './rowParts'
 import MissingAccountsOffer from './MissingAccountsOffer.vue'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { today } from '../../../../shared/calendar/civilDate'
+import QuestionList from '../../../../shared/ui/QuestionList.vue'
+import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
+import { TWIN_CHOICES, twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
+import type { TwinChoice } from '../../../../shared/ai/presentation/copiedRowsWords'
+import type { TwinAnswer } from '../../../../shared/money/lookAlikeBookings'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -27,12 +33,15 @@ const loading = ref(false)
 const unreadable = ref<string | null>(null)
 // Shallow, so the cells stay plain data.
 const loaded = shallowRef<{ readonly name: string; readonly grid: Awaited<ReturnType<typeof readFirstSheet>> } | null>(null)
+/** What the person said of the file's rows that look like rows the AI copied, by the row's key. */
+const twinAnswers = ref<Readonly<Record<string, TwinAnswer>>>({})
 
 watch(picked, async (file) => {
   if (file === null) return
   loading.value = true
   unreadable.value = null
   loaded.value = null
+  twinAnswers.value = {}
   try {
     // A csv stays text, so its cells stay as written.
     const grid = await readFirstSheet(file.name.toLowerCase().endsWith('.csv') ? await file.text() : await file.arrayBuffer())
@@ -52,8 +61,25 @@ const refusal = computed(() => (reading.value !== null && 'refusal' in reading.v
 const missing = computed(() => reading.value?.missing ?? [])
 const dryRun = computed(() => {
   const book = store.state.workbook
-  return book === null || reading.value === null || !('statement' in reading.value) ? null : statementDryRun(book, reading.value.statement, today())
+  if (book === null || reading.value === null || !('statement' in reading.value)) return null
+  return statementDryRun(book, { ...reading.value.statement, twinAnswers: new Map(Object.entries(twinAnswers.value)) }, today())
 })
+
+const twinItems = computed(() => {
+  const accounts = new Map((store.state.workbook?.accounts ?? []).map((account) => [account.id, account]))
+  return (dryRun.value?.questions ?? []).map((question): QuestionItem<TwinChoice> => {
+    const account = accounts.get(question.row.account)
+    const row = [...rowParts(question.row, account), account?.name ?? ''].filter((part) => part !== '').join(' · ')
+    return { key: question.key, row, caption: twinCaption(question.booked, account), choice: question.keep ?? 'later' }
+  })
+})
+
+function answerTwin(key: string, choice: TwinChoice): void {
+  const question = dryRun.value?.questions.find((asked) => asked.key === key)
+  if (question === undefined) return
+  const { [key]: _answered, ...others } = twinAnswers.value
+  twinAnswers.value = choice === 'later' ? others : { ...others, [key]: { booked: question.booked.id, keep: choice } }
+}
 const changes = computed(() => (dryRun.value === null ? 0 : dryRun.value.added.length + dryRun.value.changed.length))
 
 async function confirm(): Promise<void> {
@@ -82,6 +108,15 @@ async function confirm(): Promise<void> {
           <li v-for="note in dryRun.notes" :key="note">{{ note }}</li>
         </ul>
         <MissingAccountsOffer v-if="missing.length > 0" :title="addRevolutAccounts(missing, 'savings')" :missing="missing" />
+        <QuestionList
+          v-if="twinItems.length > 0"
+          :items="twinItems"
+          :options="TWIN_CHOICES.file"
+          :label="twinWords.choice"
+          :heading="twinWords.title"
+          :intro="twinWords.intro.file"
+          @answer="answerTwin"
+        />
         <DryRunLines :lines="dryRun.lines" />
         <UButton
           v-if="changes > 0"

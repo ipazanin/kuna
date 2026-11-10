@@ -100,9 +100,10 @@ function rowIdRefusals(change: KindChange<LedgerEntry>): string[] {
 
 /**
  * Ledger records: statement rows added newest first, where a person reading an export looks, and
- * taken out again by Undo, and the verdict of a record already there with the owner share filed with
- * it, which is all of it the app changes. Against the ledger as it is right before the write, each
- * account's new records must open at its newest balance and run on from it, and none may predate the account's newest record. A
+ * taken out again by Undo or by an import whose entries take their place, and the verdict of a record
+ * already there with the owner share filed with it, which is all of it the app changes. Against the
+ * ledger as it is right before the write, less the records it takes out, each account's new records
+ * must open at its newest balance and run on from it, and none may predate the account's newest record. A
  * record already there by its account and reference is refused as every kind refuses a record it holds. A record taken out must have no
  * record of its account booked after it left in. A verdict names a defined category. A row without an id may be given one, and keeps it.
  */
@@ -116,6 +117,7 @@ export const LEDGER_WRITES: WriteRules<LedgerEntry> = {
     const before = readLedger(change.before, definedCategories(fresh.of(CATEGORY_RECORDS))).facts
     const added = change.edits.flatMap((edit) => (edit.before === null && edit.after !== null ? [edit.after.fields] : []))
     const removed = new Set(change.edits.flatMap((edit) => (edit.after === null && edit.before !== null ? [edit.before.id] : [])))
-    return [...addedRefusals(added, before), ...removedRefusals(removed, before), ...verdictRefusals(change, definedCategorySlugs(fresh.of(CATEGORY_RECORDS))), ...rowIdRefusals(change)]
+    const left = before.filter((row) => !removed.has(row.id))
+    return [...addedRefusals(added, left), ...removedRefusals(removed, before), ...verdictRefusals(change, definedCategorySlugs(fresh.of(CATEGORY_RECORDS))), ...rowIdRefusals(change)]
   },
 }
