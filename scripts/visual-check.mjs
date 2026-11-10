@@ -497,7 +497,7 @@ import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { MADE_UP_ANTHROPIC_KEY } from './support/chatFlows.mjs'
-import { writeFlexReportSamples, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
+import { SAMPLE_DAY, writeFlexReportSamples, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
 import { chatResizeFlow, menuLitFlow, quickJumpFlowIn, sidebarRoomWarningFlowIn, sidebarStateFlowIn, skipLinkFlow } from './support/shellFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
@@ -7639,7 +7639,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
           await stateCheck('an open menu')
         }
         try {
-          await page.goto(`${BASE}?theme=${theme}${query}${flow.hash}`, { waitUntil: 'networkidle0' })
+          await page.goto(`${BASE}?theme=${theme}${query}&day=${SAMPLE_DAY}${flow.hash}`, { waitUntil: 'networkidle0' })
           await page.waitForFunction((title) => document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() === title, { timeout: 10_000 }, flow.title)
           await flow.run(page, {
             press: pressLookingAtMenus,

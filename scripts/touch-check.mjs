@@ -258,7 +258,7 @@ import { companyChatAcceptLapsedFlowIn, companyChatAnonymiseFlowIn, companyChatC
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { onFreshDevice, setUpChatGoesOnFlowIn, setUpChatHomeFlowIn } from './support/setUpChatFlows.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
-import { writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
+import { SAMPLE_DAY, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
@@ -3258,7 +3258,7 @@ async function checkWidth(width) {
     ['set-up-chat-goes-on', 'empty', onFreshDevice(setUpChatGoesOnFlowIn('en'), '#/loans'), '#/settings', 'Kuna settings'],
   ]) {
     await step(name, async () => {
-      await page.goto(`${BASE}?theme=dark&fake=${variant}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
+      await page.goto(`${BASE}?theme=dark&fake=${variant}&day=${SAMPLE_DAY}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })
       await waitForTitle(page, title)
       await run(page, {
         press: (handle) => handle.tap(),

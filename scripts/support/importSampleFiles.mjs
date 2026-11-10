@@ -19,6 +19,9 @@ import { SAMPLE_RECEIPT_TOTALS, jpegWithMadeUpPlace, sampleFiscalQrText, sampleR
 import { sampleFlexReport } from '../../src/apps/investments/mail/infrastructure/fake/sampleFlexReport.ts'
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
 
+/** The day the sample files are made for. The checks pass it to the page as `?day=`, so the fake app seeds its rows from the same day. */
+export const SAMPLE_DAY = today()
+
 export async function writeImportSamples(folder) {
   const camt = join(folder, SAMPLE_CAMT_FILE_NAME)
   const table = join(folder, SAMPLE_TABLE_FILE_NAME)
@@ -41,10 +44,10 @@ export function writeFlexReportSamples(folder) {
 export function writeSpendingImportSamples(folder) {
   const revolut = join(folder, SAMPLE_REVOLUT_FILE_NAME)
   const refused = join(folder, SAMPLE_REFUSED_FILE_NAME)
-  writeFileSync(revolut, sampleRevolutCsv(today()))
+  writeFileSync(revolut, sampleRevolutCsv(SAMPLE_DAY))
   const missing = join(folder, SAMPLE_MISSING_FILE_NAME)
-  writeFileSync(refused, sampleRefusedCsv(today()))
-  writeFileSync(missing, sampleMissingAccountsCsv(today()))
+  writeFileSync(refused, sampleRefusedCsv(SAMPLE_DAY))
+  writeFileSync(missing, sampleMissingAccountsCsv(SAMPLE_DAY))
   return { revolut, refused, missing }
 }
 

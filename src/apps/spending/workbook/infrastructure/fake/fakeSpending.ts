@@ -324,6 +324,11 @@ function fakeBankSyncSettings(variant: string | null, day: CivilDate): readonly 
   ]
 }
 
+/** The day `?day=` names, so a check that builds files for a day gets rows seeded for the same day, and today where it names none. */
+export function fakeSpendingDay(requested: string | null): CivilDate {
+  return (requested === null ? null : parseCivilDate(requested)) ?? today()
+}
+
 export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today(), bankSync: string | null = null): WorkbookDocument {
   const { categories, idOf } = fakeCategories()
   const month = monthOf(day)

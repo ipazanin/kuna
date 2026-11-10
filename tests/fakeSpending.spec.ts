@@ -13,13 +13,15 @@ import {
   sampleRevolutCsv,
 } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
 import { readFirstSheet } from '../src/shared/xlsx/sheetGrids'
-import { fakeSpendingDocument, fakeStarterDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
+import { fakeSpendingDay, fakeSpendingDocument, fakeStarterDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import type { FakeSpendingSet } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import { monthOf } from '../src/shared/calendar/monthKey'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { civil, euros } from './fixtures/ledger'
+import { today } from '../src/shared/calendar/civilDate'
+import { SAMPLE_DAY } from '../scripts/support/importSampleFiles.mjs'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 
 const SAVED_AT = '2026-11-04T09:00:00.000Z'
@@ -79,6 +81,20 @@ describe("the fake build's Spending sets", () => {
     expect(queue.wantingSavings).toBe(1)
     expect(queue.waiting.filter((waiting) => waiting.maybeTyped !== null).map((waiting) => waiting.row.payee)).toEqual(['Old Town Bookshop'])
     expect(queue.waiting.filter((waiting) => waiting.maybeTransfer !== null).map((waiting) => waiting.row.payee)).toEqual(['Top-up by card', 'Card top-up'])
+  })
+
+  it('seeds the rows from the day the checks build the sample files for', async () => {
+    const day = fakeSpendingDay(SAMPLE_DAY)
+    const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', day))
+    const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(SAMPLE_DAY)), SAMPLE_REVOLUT_FILE_NAME, book)
+    if (!('statement' in reading)) throw new Error(reading.refusal)
+
+    expect(day).toBe(SAMPLE_DAY)
+    expect(statementDryRun(book, reading.statement, day)).toMatchObject({ newRows: 8, alreadyIn: 1, filled: 1 })
+  })
+
+  it('takes the day it is when ?day= names none or a day that does not exist', () => {
+    expect([fakeSpendingDay(null), fakeSpendingDay('2026-02-30'), fakeSpendingDay('soon')]).toEqual([today(), today(), today()])
   })
 
   it.each(['2026-11-04', '2026-12-01', '2027-03-31'])("read the sample Revolut export through the csv path as the statements set's dry run on %s", async (day) => {
