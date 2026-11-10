@@ -4733,6 +4733,8 @@ function readPage(page) {
           if (element.getClientRects().length === 0) continue
           const style = getComputedStyle(element)
           if (style.position === 'fixed' || style.textOverflow === 'ellipsis') continue
+          // An indeterminate progress bar slides its indicator past its own clipped track, so its scroll width changes by the frame.
+          if (element.getAttribute('role') === 'progressbar') continue
           let content = 0
           // A one-line input scrolls a long value inside itself, which never widens its card.
           if (element instanceof HTMLElement && !(element instanceof HTMLInputElement) && element.clientWidth > 1 && clips(style) && element.scrollWidth > element.clientWidth + 1) {
