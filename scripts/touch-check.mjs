@@ -29,7 +29,8 @@
  * Set up with the chat on a first run's home step and the empty overview of a device that keeps nothing, a goes-on card accepted that sends Go on,
  * invoice asked of the chat answered with a link to the Invoices tab, a loan offer, a bank loan from its contract, a buy and an Assets valuation each proposed
  * on a card, accepted and undone, and a sale over the units held refused, a text note beside a photo refused on the chat's
- * prompt, a salary figure's build-up read with Anonymise off and refused with nothing sent once Anonymise is on again,
+ * prompt, a salary figure's build-up read with Anonymise off and refused with nothing sent once Anonymise is on again, a chat left empty by Sign out on Kuna settings
+ * and by Company's last file on Drive kept in this browser in its place,
  * a statement filed on Sync from the fake statements folder with Undo in its step on Kuna settings and no toast, one held with 1 problem in the sync control and its steps in a bottom sheet
  * linking to Import, a sync with nothing new, Allow access in the sync control, the control while a slow step runs and once ready,
  * the mail step off and then saved on the Mail card, filing a statement the same sync reads with its list and a second sync filing nothing new, nothing new, a failed source and a failed upload in a bottom sheet and Allow access for Gmail read,
@@ -258,6 +259,7 @@ import { companyChatAcceptLapsedFlowIn, companyChatAnonymiseFlowIn, companyChatC
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { onFreshDevice, setUpChatGoesOnFlowIn, setUpChatHomeFlowIn } from './support/setUpChatFlows.mjs'
 import { writeChatAttachmentSamples } from './support/chatAttachmentFiles.mjs'
+import { keptInBrowserClearsChatFlow, signOutClearsChatFlow } from './support/chatForgottenFlows.mjs'
 import { SAMPLE_DAY, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
@@ -3190,6 +3192,8 @@ async function checkWidth(width) {
     ['chat-tag', 'drive', chatTagFlowIn('en'), '#/gallery', 'Gallery'],
     ['chat-attach-refused', 'drive', chatAttachRefusedFlow(CHAT_ATTACHMENT_SAMPLES), '#/gallery', 'Gallery'],
     ['chat-consent-cells', 'drive', chatConsentCellsFlow(CHAT_ATTACHMENT_SAMPLES), '#/gallery', 'Gallery'],
+    ['chat-sign-out', 'drive', signOutClearsChatFlow(), '#/settings', 'Kuna settings'],
+    ['chat-kept-in-browser', 'drive', keptInBrowserClearsChatFlow(TEMPLATE_FILE), '#/company/settings?tab=books', 'Settings'],
     ['owner-figure-ask', 'browser', figureAskFlowIn('en', 'owner'), '#/company/owner?p=all', 'Owner'],
     ['salaries-figure-ask', 'five-employees', figureAskFlowIn('en', 'salaries'), '#/company/salaries', 'Salaries'],
     ['pay-figure-ask', 'browser', figureAskFlowIn('en', 'pay'), '#/company/year?year=2027&tab=pay', 'Year'],

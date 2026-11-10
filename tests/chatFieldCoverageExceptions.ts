@@ -1,4 +1,4 @@
-/** A group of fields a screen sets that no chat operation takes, with its reason. A field is named `app: Owner.field`, as the spec names it. */
+/** A group of fields a screen sets that no chat operation takes, with its reason. A field is named `app: Owner.field`, as the spec names it, and a settings key `app: Setting.key`. */
 export interface FieldException {
   readonly reason: string
   readonly fields: readonly string[]
@@ -125,7 +125,41 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   },
   {
     reason: "Flagging a payee as a person. The chat flags the payee of a row it names, and only a person takes a flag off, on the row's dialog.",
-    fields: ['company: treatPayeeAsPerson.payee', 'company: treatPayeeAsPerson.asPerson', 'spending: treatPayeeAsPerson.payee', 'spending: treatPayeeAsPerson.asPerson'],
+    fields: [
+      'company: treatPayeeAsPerson.payee',
+      'company: treatPayeeAsPerson.asPerson',
+      'spending: treatPayeeAsPerson.payee',
+      'spending: treatPayeeAsPerson.asPerson',
+      'company: Setting.person_payees',
+      'spending: Setting.person_payees',
+    ],
+  },
+  {
+    reason: 'Secrets and key-holding settings. The bank sync deployment is typed by the person and never passes through the chat.',
+    fields: ['spending: Setting.bank_sync_deployment'],
+  },
+  {
+    reason: "What the bank sync keeps. A bank's approval needs its own page, a sync writes when each bank last answered, and the person keeps accounts out or as their own on the bank's account list.",
+    fields: [
+      'spending: Setting.bank_link_otp',
+      'spending: Setting.bank_link_revolut',
+      'spending: Setting.bank_sync_fetched_otp',
+      'spending: Setting.bank_sync_fetched_revolut',
+      'spending: Setting.bank_sync_not_in_kuna',
+      'spending: Setting.bank_sync_keep_mine',
+    ],
+  },
+  {
+    reason: "Where the bank's statements come from. Reading the folder or the bank's mail needs Google's consent, so the chat links the screen that asks for it.",
+    fields: ['company: Setting.statements_folder', 'company: Setting.statements_sync', 'company: Setting.statements_mail_from'],
+  },
+  {
+    reason: "The invoice folder. Only Google's Picker picks it, so the chat links the invoicing screen.",
+    fields: ['company: Setting.invoice_folder_id'],
+  },
+  {
+    reason: "Kuna's own settings: the file's format version, which Kuna writes, and the review label, which the owner keeps out of what the chat reads.",
+    fields: ['company: Setting.template_version', 'company: Setting.review_label'],
   },
   {
     reason: "Where the files live. The first-run screen asks it, since keeping files on Drive needs Google's consent.",

@@ -7,8 +7,8 @@ import { useToast } from '@nuxt/ui/composables/useToast'
 import { autoSyncOn, switchAutoSync } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import SyncStepList from '../../shared/sync/presentation/SyncStepList.vue'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
+import { signOutOfGoogle } from '../../shared/google/googleAuth'
 import AppCard from '../../shared/ui/AppCard.vue'
-import { signOutAndForgetChat } from './signOutOfKuna'
 import { words } from './words'
 
 /** Kuna settings: the steps of the last sync of this page, whether this device syncs by itself, and the one Google sign-in every file on Drive goes through. */
@@ -18,7 +18,7 @@ const signingOut = ref(false)
 
 async function signOut(): Promise<void> {
   signingOut.value = true
-  await signOutAndForgetChat()
+  await signOutOfGoogle()
   signingOut.value = false
   toast.add({ title: words.sync.signedOut, description: words.sync.signedOutNote, icon: 'i-lucide-log-out', color: 'success' })
 }
@@ -30,7 +30,7 @@ async function signOut(): Promise<void> {
       <SyncStepList :run="sync.run.value" @sync="sync.sync" />
       <USwitch :model-value="autoSyncOn" :label="words.sync.auto" :description="words.sync.autoNote" data-testid="auto-sync" @update:model-value="switchAutoSync($event)" />
       <div class="flex flex-wrap gap-2">
-        <UButton icon="i-lucide-log-out" :label="words.sync.signOut" color="neutral" variant="outline" size="sm" :loading="signingOut" @click="signOut" />
+        <UButton icon="i-lucide-log-out" :label="words.sync.signOut" color="neutral" variant="outline" size="sm" :loading="signingOut" data-testid="sign-out" @click="signOut" />
       </div>
     </div>
   </AppCard>

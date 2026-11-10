@@ -4,10 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { ASSETS_OPERATIONS } from '../src/apps/assets/assistant/operations/assetsOperations'
 import { companyOperations } from '../src/apps/company/assistant/operations/companyOperations'
 import { RULE_CONDITION_FIELDS } from '../src/apps/company/assistant/ruleConditionFields'
+import { installedPack } from '../src/apps/company/packs/packContribution'
+import { SETTING_DEFINITIONS } from '../src/apps/company/settings/domain/settings'
 import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
 import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
+import { INVESTMENT_SETTING_CHECKS } from '../src/apps/investments/workbook/application/settingWrites'
 import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
+import { SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import type { AssistantOperation } from '../src/shared/app/assistantOperations'
 import { kunaOperations } from '../src/shell/assistant/kunaOperations'
@@ -481,11 +485,30 @@ const GAPS = FIELD_SOURCES.flatMap((source) => {
     return gap ? [{ key, operations: missing.map((operation) => `${app}/${operation.name}`) }] : []
   })
 })
+/** Each app's settings keys, which its screens save as rows of its settings, the pack's among Company's. */
+const SETTING_KEYS: ReadonlyMap<string, readonly string[]> = new Map([
+  ['spending', [...SPENDING_SETTING_CHECKS.keys()]],
+  ['investments', [...INVESTMENT_SETTING_CHECKS.keys()]],
+  ['company', [...SETTING_DEFINITIONS, ...(installedPack().workbook?.settings.definitions ?? [])].map((definition) => definition.key)],
+])
+
+/** The keys an app's set-setting takes, from the enum of its key input. */
+function settableKeys(app: string): readonly string[] {
+  const input = operationOf(app, 'set-setting')?.input as { readonly properties?: { readonly key?: { readonly enum?: readonly string[] } } } | undefined
+  return input?.properties?.key?.enum ?? []
+}
+
+/** Each settings key an app's set-setting does not take, as `app: Setting.key`. */
+const SETTING_GAPS = [...SETTING_KEYS].flatMap(([app, keys]) => {
+  const settable = new Set(settableKeys(app))
+  return keys.filter((key) => !settable.has(key)).map((key) => `${app}: Setting.${key}`)
+})
+
 const EXCEPTED_FIELDS = new Set(FIELD_EXCEPTIONS.flatMap((exception) => exception.fields))
 const NO_FIELDS = new Set(NO_FIELD_PATHS.flatMap((exception) => exception.paths))
 const SOURCED = new Set(FIELD_SOURCES.map((source) => source.path))
 
-describe('every field a screen sets has a chat operation that takes it, or a listed exception', () => {
+describe('every field and settings key a screen sets has a chat operation that takes it, or a listed exception', () => {
   it('finds the fields of every write path a screen uses, or lists a path that sets no field', () => {
     const unlisted = [...SCREEN_WRITES.keys()].filter((path) => !path.includes('store.') && !CHAT_EXCEPTED.has(path) && !SOURCED.has(path) && !NO_FIELDS.has(path))
     expect(unlisted, 'Add the path to FIELD_SOURCES, or to NO_FIELD_PATHS in tests/chatFieldCoverageExceptions.ts with a reason').toEqual([])
@@ -506,8 +529,15 @@ describe('every field a screen sets has a chat operation that takes it, or a lis
     expect(gaps, 'Add the field to the operation, or a reason in tests/chatFieldCoverageExceptions.ts').toEqual([])
   })
 
+  it('has set-setting take each settings key a screen saves, or lists it with a reason', () => {
+    expect(
+      SETTING_GAPS.filter((key) => !EXCEPTED_FIELDS.has(key)),
+      "Let the app's set-setting take the key through the screen's own check, or add a reason in tests/chatFieldCoverageExceptions.ts",
+    ).toEqual([])
+  })
+
   it('lists no field an operation takes or no screen sets', () => {
-    const gapKeys = new Set(GAPS.map((gap) => gap.key))
+    const gapKeys = new Set([...GAPS.map((gap) => gap.key), ...SETTING_GAPS])
     expect(
       [...EXCEPTED_FIELDS].filter((key) => !gapKeys.has(key)),
       'Take these out of tests/chatFieldCoverageExceptions.ts',

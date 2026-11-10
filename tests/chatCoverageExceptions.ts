@@ -22,7 +22,7 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
       'company: src/shared/google/googleAuth.ts#needScopes',
       'kuna: src/shared/google/withGoogleAccess.ts#withGoogleAccess',
       'shared: src/shared/google/googleAuth.ts#needScopes',
-      'src/shell/settings/signOutOfKuna.ts#signOutAndForgetChat',
+      'kuna: src/shared/google/googleAuth.ts#signOutOfGoogle',
     ],
   },
   {

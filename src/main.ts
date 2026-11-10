@@ -7,6 +7,7 @@ import App from './shell/App.vue'
 import { holdProviderInUse } from './shared/ai/presentation/aiProvider'
 import { askSilentlyOnOpen, takeGoogleRedirect } from './shared/google/googleAuth'
 import { moveBrowserSecrets } from './shared/secrets/infrastructure/browserSecrets'
+import { forgetChatWithGoogle } from './shell/assistant/forgetChatWithGoogle'
 import { startServiceWorker } from './shell/pwa/appUpdate'
 import { installApp, installedApps } from './shell/routing/appRegistry'
 import { createAppRouter } from './shell/routing/router'
@@ -16,6 +17,7 @@ import { applyInitialTheme } from './shared/theme/theme'
 applyInitialTheme()
 applyLanguage()
 moveBrowserSecrets()
+forgetChatWithGoogle()
 
 async function start(): Promise<void> {
   // Each app loads apart from the entry chunk, and is installed before the router lists its screens.

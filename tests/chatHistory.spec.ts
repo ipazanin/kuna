@@ -11,12 +11,6 @@ import type { SavedLine } from '../src/shared/ai/application/savedChat'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { CHAT_PERSONS, CHAT_READING } from './fixtures/chatBook'
 
-const signedOut = vi.hoisted(() => ({ times: 0 }))
-vi.mock('../src/shared/google/googleAuth', () => ({
-  signOutOfGoogle: async () => {
-    signedOut.times += 1
-  },
-}))
 const port = vi.hoisted(() => ({ current: null as ModelPort | null }))
 vi.mock('../src/shared/ai/application/modelAccess', () => ({ modelPort: async () => port.current, keyKept: () => true }))
 vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
@@ -421,8 +415,13 @@ describe('a chat kept in this browser', () => {
     expect(await readSavedChat(now)).toBeNull()
   })
 
-  it('is cleared with its alias list when the person signs out of Google', async () => {
+  it.each([
+    ['the person signs out of Google', (google: typeof import('../src/shared/google/googleAuth')) => google.signOutOfGoogle()],
+    ['Kuna forgets Google as the last file on Drive moves into this browser', (google: typeof import('../src/shared/google/googleAuth')) => google.forgetGoogleSignIn()],
+  ])('is cleared with its alias list when %s', async (_, forget) => {
     const session = await loadSession()
+    const { forgetChatWithGoogle } = await import('../src/shell/assistant/forgetChatWithGoogle')
+    forgetChatWithGoogle()
     await allowSpending(session)
     port.current = scripted([
       { kind: 'tool-calls', calls: [{ id: 'a', name: 'find_records', args: FIND }], raw: [], tokens: TOKENS },
@@ -433,10 +432,9 @@ describe('a chat kept in this browser', () => {
     expect(await readSavedChat()).not.toBeNull()
     expect(session.shownOnScreen('Person 1')).toContain('Horvat')
 
-    const { signOutAndForgetChat } = await import('../src/shell/settings/signOutOfKuna')
-    await signOutAndForgetChat()
+    await forget(await import('../src/shared/google/googleAuth'))
+    await settled()
 
-    expect(signedOut.times).toBe(1)
     expect(session.chatLines).toHaveLength(0)
     expect(session.shownOnScreen('Person 1')).toBe('Person 1')
     expect(await readSavedChat()).toBeNull()

@@ -253,18 +253,28 @@ export async function tokenFor(scope: GoogleScope, then: RedirectResume | null):
   return token
 }
 
-/** Forgets the token, the account and its grants on this device, as moving the last file on Drive into this browser does. What the books need stays. */
+/** What goes with the Google sign-in besides Google's own state, such as the chat this browser keeps, handed in as the page starts. */
+const forgottenWithSignIn: (() => void)[] = []
+
+/** Has `forget` run each time Kuna forgets the Google sign-in, on Sign out or when the last file on Drive moves into this browser. */
+export function forgetWithGoogleSignIn(forget: () => void): void {
+  forgottenWithSignIn.push(forget)
+}
+
+/** Forgets the token, the account and its grants on this device, and what goes with them, as moving the last file on Drive into this browser does. What the books need stays. */
 export function forgetGoogleSignIn(): void {
   pageToken = null
   access.value = { scopes: null, refusal: null }
   forgetGoogleDevice()
+  forgottenWithSignIn.forEach((forget) => forget())
 }
 
 /** Revokes the app's access with Google when the page holds a token, then forgets the sign-in here. */
 export async function signOutOfGoogle(): Promise<void> {
   const token = pageToken !== null && pageToken.expiresAt > Date.now() ? pageToken.value : null
   forgetGoogleSignIn()
-  if (token === null) {
+  // Inline, not hoisted, so a production build folds the fake away. The fake build's token was never Google's.
+  if (token === null || import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     return
   }
   try {
