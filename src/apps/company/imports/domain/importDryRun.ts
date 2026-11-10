@@ -1,5 +1,6 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { addMoney, subtractMoney } from '../../../../shared/money/money'
+import { absMoney, addMoney, subtractMoney } from '../../../../shared/money/money'
+import { statementTies } from '../../../../shared/money/statementTies'
 import type { Money } from '../../../../shared/money/money'
 import { BOOKING_DAYS_APART, bookedTwins } from '../../../../shared/money/lookAlikeBookings'
 import { normaliseIban } from '../../../../shared/text/fold'
@@ -285,10 +286,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   let start: AccountStart | null = null
   if (state.latest !== null) {
     if (before !== null && before !== state.latest.balance) {
-      return {
-        statement: shown(words.dryRun.missingBetween(account, state.latest.balance, state.latest.date, before), null, statement.opening),
-        added: [],
-      }
+      return { statement: shown(notRunningOn(statement, fresh, state.latest, before), null, statement.opening), added: [] }
     }
     opening = state.latest.balance
     if (before === null) {
@@ -310,7 +308,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
       notes.push(words.dryRun.sequenceNotAfter(sequence, state.lastSequence, account))
     }
   }
-  if (state.labels.has(statement.label)) {
+  if (state.labels.has(statement.label) && !isLaterPart(statement)) {
     notes.push(words.dryRun.labelHeld(statement.label))
   }
   const balanced = withBalances(fresh, opening)
@@ -333,6 +331,22 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   if (statement.source.kind === 'camt') state.lastSequence = Math.max(state.lastSequence ?? 0, statement.source.sequence)
   const entries = balanced.map((row, index) => ledgerEntryOfImport(statement, { ...row, verdict: rows[firstNew + index]!.verdict }, inputs.categories))
   return { statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, notes, facts }, added: entries.reverse() }
+}
+
+/** Whether the statement is a later part of one the AI copied, whose earlier parts' rows carry its label. */
+function isLaterPart(statement: ImportedStatement): boolean {
+  return statement.source.kind === 'transcribed' && statement.source.part > 1
+}
+
+/**
+ * Why a statement's first new entry does not start where the ledger leaves the account. A later part of a copied statement runs
+ * back from its printed closing, so it does not add up with its earlier parts, and any other statement misses one before it.
+ */
+function notRunningOn(statement: ImportedStatement, fresh: readonly ImportedRow[], latest: { readonly date: CivilDate; readonly balance: Money }, before: Money): string {
+  const tie = isLaterPart(statement) && statement.closing !== null ? statementTies({ opening: latest.balance, amounts: fresh.map((row) => row.amount), closing: statement.closing }) : null
+  return tie?.kind === 'off'
+    ? words.transcribed.partDoesNotTie(statement.account, latest.balance, tie.rows, tie.reached, tie.statement.closing, absMoney(tie.gap))
+    : words.dryRun.missingBetween(statement.account, latest.balance, latest.date, before)
 }
 
 /** The ledger entry a new entry of a statement makes, filed under its verdict with the category's default share. */

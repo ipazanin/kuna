@@ -194,7 +194,7 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
   if (answers[0]!.isError) return answered(request, says.notRead, tokens)
   if (answers.length < 3) {
     const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
-    const input = { file: null, account: records[0]!.ref, opening: 500, closing: 547.5, rows: statementRows(answers.length === 1), part: 1, lookAlikes: 'ask' }
+    const input = { file: null, account: records[0]!.ref, statementName: '41/2026', opening: 500, closing: 547.5, rows: statementRows(answers.length === 1), part: 1, lookAlikes: 'ask' }
     const step = { op: 'import-statement', input: JSON.stringify(input), as: null }
     return lookup(answers.length, 'propose_changes', { app: 'spending', title: says.statementTitle, steps: [step], next: false }, tokens)
   }
@@ -299,7 +299,7 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
       { date: addDays(day, -3), amount: -18.9, payee: 'CITY PHARMACY 22 ZAGREB', iban: null },
       { date: addDays(day, -1), amount: -9, payee: 'Kiosk', iban: null },
     ]
-    const input = { file: null, account: otp.ref, opening: null, closing: null, rows, part: 1, lookAlikes: 'ask' }
+    const input = { file: null, account: otp.ref, statementName: '12/2026', opening: null, closing: null, rows, part: 1, lookAlikes: 'ask' }
     return lookup(1, 'propose_changes', { app: 'spending', title: says.copyTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, says.copyProposed, tokens)

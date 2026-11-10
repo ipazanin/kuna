@@ -86,7 +86,7 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   return fallback
 }
 
-/** A copied row that waits as a look-alike, by its number among the rows the AI copied. */
+/** A copied row that waits as a look-alike, by its number among the rows the AI copied onto the card. */
 export interface WaitingLookAlike {
   readonly number: number
   readonly line: Extract<DryRunLine, { readonly outcome: 'look-alike' }>
@@ -113,14 +113,14 @@ export function statementLeftOut({ statement, copied }: CardStatement, run: Pick
     fileNotes: statement.notes.length > 0,
     copied,
     inKuna: copied === null ? 0 : run.lines.filter((line) => line.outcome === 'already-in').length,
-    lookAlikes: copied === null ? [] : run.lines.flatMap((line) => (line.outcome === 'look-alike' ? [{ number: copied.firstRow + statement.rows.indexOf(line.row), line }] : [])),
+    lookAlikes: copied === null ? [] : run.lines.flatMap((line) => (line.outcome === 'look-alike' ? [{ number: statement.rows.indexOf(line.row) + 1, line }] : [])),
   }
 }
 
 /** A warning on the statement, since the card shows only what the import writes. Null when it leaves nothing out and nothing was copied. */
 function leftOutNote({ label, rows, fileNotes, copied }: StatementLeftOut): ProposalNote | null {
   const warnings = [
-    ...(copied === null ? [] : [copiedStatementRowsWarning(copied.count, copied.file, copied.tied)]),
+    ...(copied === null ? [] : [copiedStatementRowsWarning(copied.count, copied.file, copied.check)]),
     ...(rows === 0 ? [] : [plural(words.proposals.rowsLeftOut(rows), rows)]),
     ...(fileNotes ? [words.proposals.fileNotes] : []),
   ]

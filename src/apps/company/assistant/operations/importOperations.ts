@@ -18,7 +18,7 @@ import { ZERO, moneyFromAmount } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import { normaliseIban } from '../../../../shared/text/fold'
-import { copiedStatementRowsWarning, lookAlikesForTheModel, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { copiedStatementCheck, copiedStatementRowsWarning, lookAlikesForTheModel, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { BOOKING_DAYS_APART, LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
 import type { DryRunRow, ImportDryRun } from '../../imports/domain/importDryRun'
@@ -41,10 +41,11 @@ const IMPORT_STATEMENT: AssistantOperation = {
   name: 'import-statement',
   about: [
     "Imports a bank statement through Import's own dry run: rows already on the ledger are skipped, the rules file the new rows, and each account's rows must run on from its balance.",
-    'file names the attached file by its id, or null for a statement pasted as text. For a camt XML file or a bank sheet, account, opening and closing are null and rows empty, and Kuna reads it itself. A sheet reads by a saved import profile, by its name in profile or null for the one that fits. save-import-profile on a card before saves one for a sheet no profile reads.',
-    'For any other file or a pasted statement, profile is null. Read every row and copy each as written, oldest first, money out below zero. Give the opening and closing balances only when the statement prints both, and the rows must then lead from the one to the other. Never work out a balance. Without them the balances run on from the ledger and the card warns that Kuna could not check the rows.',
+    'file names the attached file by its id, or null for a statement pasted as text. For a camt XML file or a bank sheet, account, statementName, opening and closing are null and rows empty, and Kuna reads it itself. A sheet reads by a saved import profile, by its name in profile or null for the one that fits. save-import-profile on a card before saves one for a sheet no profile reads.',
+    'For any other file or a pasted statement, profile is null. Read every row and copy each as written, oldest first, money out below zero. statementName names the statement as it names itself, such as its number or the period it covers. Give the opening and closing balances only as the statement prints them, and never work one out. Without them the balances run on from the ledger and the card warns that Kuna could not check the rows.',
     `lookAlikes says what becomes of a copied row that looks like a ledger row from another source, such as a camt file or a bank sheet: the same amount on the same account at most ${BOOKING_DAYS_APART} days apart, unless the two counterparties and descriptions share no word. ask keeps it waiting, and the card lists it and asks the person to say in the chat. import imports it once the person says it is another payment: propose the same rows again with import once the card is answered, and a row dated before the account's newest row is still refused. A row of the same day, amount and counterparty as a ledger row is skipped either way. For a file Kuna reads, lookAlikes is ask.`,
-    `An account with no rows yet starts at the statement's opening, and the card says so. A statement over ${ROWS_A_PART} rows goes in parts, part 1 first, each its own card.`,
+    `A card carries at most ${ROWS_A_PART} copied rows. A longer statement goes in parts, oldest first, each its own card with only its own rows and the same statementName, part 1 first and each part once the one before is accepted. A part ends at the end of a day. Part 1 gives the opening alone and the last part both balances, and the parts between give neither. Kuna checks on the last part that its rows run on from where the earlier parts left the account to the closing. A statement in one part gives both or neither.`,
+    `An account with no rows yet starts at the statement's opening, and the card says so. A file Kuna reads goes in parts of ${ROWS_A_PART} rows of each statement, part 1 first, each its own card.`,
   ].join(' '),
   input: inputOf({
     file: TEXT_OR_NULL,
@@ -53,8 +54,10 @@ const IMPORT_STATEMENT: AssistantOperation = {
     opening: NUMBER_OR_NULL,
     closing: NUMBER_OR_NULL,
     rows: { type: 'array', items: inputOf({ date: TEXT, amount: NUMBER, counterparty: TEXT, iban: TEXT_OR_NULL, description: TEXT }) },
+    statementName: TEXT_OR_NULL,
     lookAlikes: { type: 'string', enum: [...LOOK_ALIKES] },
     ...START_FIELDS,
+    part: { type: 'integer', description: `Which part of the statement this card imports, from 1. For a file Kuna reads, which ${ROWS_A_PART} rows of each of its statements.` },
   }),
   refs: { file: ATTACHMENT_REF, account: ACCOUNT_RECORDS.name },
   creates: null,
@@ -69,6 +72,7 @@ const IMPORT_STATEMENT: AssistantOperation = {
       { date: '2026-11-02', amount: -12.5, counterparty: 'Office supplies d.o.o.', iban: null, description: 'Paper' },
       { date: '2026-11-03', amount: -27, counterparty: 'Telecom d.d.', iban: null, description: 'Phone' },
     ],
+    statementName: 'November 2026',
     lookAlikes: 'ask',
     newAccount: null,
     part: 1,
@@ -139,7 +143,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
 /** Why Company reads no statement from an attached file by itself, which sends the AI to read and copy it. */
 const COPY_IT = 'Kuna does not read this file as a camt statement or a bank sheet. Read it with read_attachment and copy every row into rows as written, with file naming it.'
 
-const KUNA_READS_IT = 'Kuna reads this file itself, so account, opening and closing are null and rows empty.'
+const KUNA_READS_IT = 'Kuna reads this file itself, so account, statementName, opening and closing are null and rows empty.'
 
 function isLoaded(file: unknown): file is LoadedImportFile {
   return typeof file === 'object' && file !== null && 'fileName' in file && ('document' in file || 'grid' in file)
@@ -195,11 +199,16 @@ function fileReadings(card: CompanyCard, loaded: LoadedImportFile, profileName: 
   return statementReadings(loaded, workbook, profile)
 }
 
-/** A statement the AI copied off a page, a file or the chat, refused when its printed balances do not tie or only one is given. */
+/** One part of a statement the AI copied off a page, a file or the chat, refused when its printed balances do not tie or break the rule on which part gives them. */
 function transcribedReadings(card: CompanyCard, field: Readonly<Record<string, never>>): readonly StatementReading[] {
   const rows = field['rows'] as readonly { readonly date: string; readonly amount: number; readonly counterparty: string; readonly iban: string | null; readonly description: string }[]
+  const name = field['statementName'] as string | null
+  const part: number = field['part']
   if (field['account'] === null) throw new StepRefused('Copied rows name the account they are on.')
+  if (name === null || name.trim() === '') throw new StepRefused('statementName names the statement, the same on every part of it.')
+  if (!Number.isInteger(part) || part < 1) throw new StepRefused('part counts from 1.')
   if (rows.length === 0) throw new StepRefused('The statement has no rows to import.')
+  if (rows.length > ROWS_A_PART) throw new StepRefused(`A card carries at most ${ROWS_A_PART} copied rows. Put the rest on the next part, which starts on the day after this one ends.`)
   const account = card.idOf(field['account']).toLowerCase()
   if (!card.workbook.accounts.some((candidate) => candidate.slug === account)) throw new StepRefused('That account is no longer in the books.')
   const entries = rows.map((row) => ({
@@ -210,20 +219,19 @@ function transcribedReadings(card: CompanyCard, field: Readonly<Record<string, n
     description: row.description.trim(),
   }))
   if (entries.some((entry) => entry.amount === 0)) throw new StepRefused('Every row has an amount other than zero.')
-  const days = entries.map((entry) => entry.date).sort()
-  // The label goes into each row's statement column, so it is built from the account and the days, never from words of one language.
-  const label = `${account} ${days[0]!}/${days.at(-1)!}`
+  // The label goes into each row's statement column and ties the parts together, so it is the account and the statement's own name, never words of one language.
+  const label = `${account}, ${name.trim()}`
   const printed = (amount: number | null): Money | null => (amount === null ? null : moneyFromAmount(amount))
   try {
     const lookAlikes = choiceOf(LOOK_ALIKES, field['lookAlikes'], 'lookAlikes')!
-    return [{ statement: transcribedStatement(account, label, printed(field['opening']), printed(field['closing']), entries, lookAlikes) }]
+    return [{ statement: transcribedStatement(account, label, printed(field['opening']), printed(field['closing']), entries, lookAlikes, part, card.workbook.transactions) }]
   } catch (failure) {
     if (failure instanceof StatementRefused) throw new StepRefused(failure.message)
     throw failure
   }
 }
 
-/** The readings with each statement's rows up to the end of the part a card imports, so the parts before it are on the ledger. */
+/** The readings of a file Kuna read or of held statements, with each statement's rows up to the end of the part a card imports, so the parts before it are on the ledger. */
 function upToPart(readings: readonly StatementReading[], part: number): readonly StatementReading[] {
   const longest = Math.max(1, ...readings.map((reading) => ('statement' in reading ? reading.statement.rows.length : 0)))
   const parts = Math.ceil(longest / ROWS_A_PART)
@@ -291,18 +299,20 @@ function waitingLookAlikes(run: ImportDryRun): readonly { readonly number: numbe
 function importStatement(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const file: unknown = field['file']
-  const part: number = field['part']
   if (isLoaded(file)) {
-    if (field['account'] !== null || field['opening'] !== null || field['closing'] !== null) throw new StepRefused(KUNA_READS_IT)
-    writeStatements(card, upToPart(fileReadings(card, file, field['profile']), part), field['newAccount'], null)
+    if (field['account'] !== null || field['statementName'] !== null || field['opening'] !== null || field['closing'] !== null) throw new StepRefused(KUNA_READS_IT)
+    writeStatements(card, upToPart(fileReadings(card, file, field['profile']), field['part']), field['newAccount'], null)
     return
   }
   if (file !== null && !isAttachment(file)) throw new StepRefused('file is not a file attached to this chat.')
-  const readings = upToPart(transcribedReadings(card, field), part)
-  const rows = (field['rows'] as readonly unknown[]).length
-  const onCard = Math.min(part * ROWS_A_PART, rows) - (part - 1) * ROWS_A_PART
+  const readings = transcribedReadings(card, field)
   const label = 'statement' in readings[0]! ? readings[0].statement.label : ''
-  writeStatements(card, readings, field['newAccount'], { label, text: copiedStatementRowsWarning(onCard, file === null ? null : file.name, field['opening'] !== null), tone: 'warning' })
+  const warning = copiedStatementRowsWarning(
+    (field['rows'] as readonly unknown[]).length,
+    file === null ? null : file.name,
+    copiedStatementCheck({ part: field['part'] as number, opening: field['opening'] as number | null, closing: field['closing'] as number | null }),
+  )
+  writeStatements(card, readings, field['newAccount'], { label, text: warning, tone: 'warning' })
 }
 
 /** The statements the last sync of the statements folder held back for a person, which `app.ts` hands in. */

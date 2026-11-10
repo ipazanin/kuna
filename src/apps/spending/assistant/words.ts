@@ -76,7 +76,6 @@ export const en = {
     keepNoAccess: 'Kuna cannot reach Drive on this device now, so nothing was kept or saved. Add the receipt on Entries after a sync.',
     photoStays: 'The photo stays in the Receipts folder on Drive after Undo.',
   },
-  statementRead: (account: string, from: string, to: string) => `${account}, statement read in the chat, ${from} to ${to}`,
   startingAccount: {
     thisDevice: 'This device',
     field: 'New entries start on',
@@ -224,7 +223,6 @@ export const hr: Translation<typeof en> = {
     keepNoAccess: 'Kuna sada na ovom uređaju ne može doći do Drivea, pa ništa nije spremljeno. Dodajte fiskalni račun na zaslonu Unosi nakon sinkronizacije.',
     photoStays: 'Fotografija ostaje u mapi Receipts na Driveu i nakon poništavanja.',
   },
-  statementRead: (account, from, to) => `${account}, izvod pročitan u razgovoru, od ${from} do ${to}`,
   startingAccount: {
     thisDevice: 'Ovaj uređaj',
     field: 'Novi unosi počinju na',

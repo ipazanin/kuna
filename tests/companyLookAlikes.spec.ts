@@ -118,6 +118,7 @@ describe('copied rows on a card that look like ledger rows', () => {
       file: null,
       profile: null,
       account: desk.ref(ACCOUNT_RECORDS.name, 'main'),
+      statementName: 'Statement 8',
       opening: 810,
       closing: rows.reduce((balance, row) => balance + row.amount, 810),
       rows: rows.map((row) => ({ ...row, iban: null, description: '' })),

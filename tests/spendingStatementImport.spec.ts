@@ -45,6 +45,7 @@ function transcribed(desk: SpendingDesk, file: string, fields: Record<string, un
     input: {
       file: null,
       account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id),
+      statementName: 'Statement 9',
       opening: amountOf(printed.opening),
       closing: amountOf(printed.closing),
       rows: printed.rows.map((row) => ({ date: row.date, amount: amountOf(row.cents), payee: row.payee, iban: null })),
@@ -108,9 +109,9 @@ describe('a statement read off a page', () => {
     expect(desk.cards).toEqual([])
   })
 
-  it('refuses one printed balance without the other', async () => {
+  it('refuses the closing balance without the opening, and the opening alone on a part after the first', async () => {
     const desk = await spendingDesk(used)
-    for (const missing of [{ opening: null }, { closing: null }]) {
+    for (const missing of [{ opening: null }, { closing: null, part: 2 }]) {
       const answer = await desk.propose([transcribed(desk, 'statement-ties.pdf', missing)])
       expect(answer.isError).toBe(true)
       expect(answer.text).toContain('or neither')
@@ -151,23 +152,6 @@ describe('a statement read off a page', () => {
     expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).find((row) => row.payee === 'Harbour bistro')).toMatchObject({ category: restaurants.id, categorisedBy: 'rule' })
   })
 
-  it(`goes in parts of ${ROWS_A_PART} rows, each a card of its own`, async () => {
-    const desk = await spendingDesk(used)
-    const rows = Array.from({ length: ROWS_A_PART + 10 }, (_, at) => ({ date: '2026-10-15', amount: -1, payee: `Shop ${at}`, iban: null }))
-    const statement = (part: number) => ({
-      op: 'import-statement',
-      input: { file: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), opening: 500, closing: 500 - rows.length, rows, part, lookAlikes: 'ask' },
-    })
-    const before = rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length
-    await desk.propose([statement(2)])
-    expect((await desk.accept()).kind).toBe('done')
-    expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length).toBe(before + 10)
-    await desk.propose([statement(1)])
-    expect((await desk.accept()).kind).toBe('done')
-    expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length).toBe(before + rows.length)
-    expect((await desk.propose([statement(3)])).isError).toBe(true)
-  })
-
   it('refuses a new category on the import’s card, which goes on a card before it', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
@@ -194,7 +178,7 @@ describe('a statement read off a page', () => {
     const desk = await spendingDesk(used)
     const savings = desk.ref('account', DESK_ACCOUNTS.SAVINGS.id)
     const topUp = { date: '2026-10-30', amount: 80, payee: 'Top-up', iban: DESK_ACCOUNTS.CURRENT.iban }
-    await desk.propose([{ op: 'import-statement', input: { file: null, account: savings, opening: 300, closing: 380, rows: [topUp], lookAlikes: 'ask', part: 1 } }])
+    await desk.propose([{ op: 'import-statement', input: { file: null, account: savings, statementName: 'Statement 3', opening: 300, closing: 380, rows: [topUp], lookAlikes: 'ask', part: 1 } }])
     await desk.accept()
     const waiting = rowsOn(desk, DESK_ACCOUNTS.SAVINGS.id).find((row) => row.payee === 'Top-up')!
     expect(waiting).toMatchObject({ category: null, pair: null })
@@ -212,7 +196,16 @@ describe('a statement read off a page', () => {
       rule,
       {
         op: 'import-statement',
-        input: { file: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), opening: 500, closing: 420, rows: [{ ...topUp, amount: -80, iban: null }], lookAlikes: 'ask', part: 1 },
+        input: {
+          file: null,
+          account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id),
+          statementName: 'Statement 10',
+          opening: 500,
+          closing: 420,
+          rows: [{ ...topUp, amount: -80, iban: null }],
+          lookAlikes: 'ask',
+          part: 1,
+        },
       },
     ])
     expect(answer.isError).toBe(false)
@@ -235,7 +228,16 @@ describe('a statement read off a page', () => {
 describe('copied rows that look like rows from another source', () => {
   const copiedRows = (desk: SpendingDesk, rows: readonly { readonly date: string; readonly amount: number; readonly payee: string }[], lookAlikes = 'ask') => ({
     op: 'import-statement',
-    input: { file: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), opening: null, closing: null, rows: rows.map((row) => ({ ...row, iban: null })), part: 1, lookAlikes },
+    input: {
+      file: null,
+      account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id),
+      statementName: 'Statement 11',
+      opening: null,
+      closing: null,
+      rows: rows.map((row) => ({ ...row, iban: null })),
+      part: 1,
+      lookAlikes,
+    },
   })
   const BAKERY_LATER = { date: '2026-10-16', amount: -20, payee: 'Bakery d.o.o.' }
   const KIOSK = { date: '2026-11-02', amount: -9, payee: 'Kiosk' }
@@ -286,8 +288,80 @@ describe('copied rows that look like rows from another source', () => {
   })
 })
 
+describe('a statement in parts', () => {
+  /** Three rows on each of three days from the first, made up and of amounts no typed row has. */
+  const partRows = (firstDay: number) =>
+    [0, 1, 2].map((offset) => ({ date: `2026-10-${String(firstDay + offset).padStart(2, '0')}`, amount: -(firstDay + offset + 0.11), payee: `Stall ${firstDay + offset}`, iban: null }))
+  const PARTS = [partRows(1), partRows(4), partRows(7)]
+  // The opening of 500.00 less the nine rows of 1.11 to 9.11, which add up to 45.99, leaves 454.01.
+  const CLOSING = 454.01
+  const part = (desk: SpendingDesk, number: number, fields: Record<string, unknown> = {}) => ({
+    op: 'import-statement',
+    input: {
+      file: null,
+      account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id),
+      statementName: 'October 2026',
+      opening: null,
+      closing: null,
+      rows: PARTS[number - 1],
+      part: number,
+      lookAlikes: 'ask',
+      ...fields,
+    },
+  })
+
+  it('carries only its own rows on each card, and ties on the last part against the rows the earlier parts put in Kuna', async () => {
+    const desk = await spendingDesk(used)
+    const before = rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length
+    for (const step of [part(desk, 1, { opening: 500 }), part(desk, 2)]) {
+      const answer = await desk.propose([step])
+      expect(answer.isError, answer.text).toBe(false)
+      expect(warnings(desk)).toEqual(['The AI read 3 rows from the chat. Kuna checks that the statement adds up once its last part gives the closing balance.'])
+      expect((await desk.accept()).kind).toBe('done')
+    }
+    const last = await desk.propose([part(desk, 3, { opening: 500, closing: CLOSING })])
+    expect(last.isError, last.text).toBe(false)
+    expect(warnings(desk)).toEqual(['The AI read 3 rows from the chat. Check them against the statement.'])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id)).toHaveLength(before + 9)
+    expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).filter((row) => row.statement === `${DESK_ACCOUNTS.CURRENT.name}, October 2026`)).toHaveLength(9)
+  })
+
+  it('refuses a last part that does not add up with the earlier parts, and names the gap', async () => {
+    const desk = await spendingDesk(used)
+    for (const step of [part(desk, 1, { opening: 500 }), part(desk, 2)]) {
+      await desk.propose([step])
+      await desk.accept()
+    }
+    const answer = await desk.propose([part(desk, 3, { opening: 500, closing: CLOSING + 0.01 })])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toMatch(/0[.,]01/)
+    expect(answer.text).toContain('a row of an earlier part that Kuna had already from another source counts as missing')
+  })
+
+  it('refuses a part whose earlier parts are not in Kuna, and one that starts on a day they reach', async () => {
+    const desk = await spendingDesk(used)
+    const early = await desk.propose([part(desk, 2)])
+    expect(early.isError).toBe(true)
+    expect(early.text).toContain('from part 1')
+    await desk.propose([part(desk, 1, { opening: 500 })])
+    await desk.accept()
+    const overlapping = await desk.propose([part(desk, 2, { rows: [...PARTS[0]!.slice(2).map((row) => ({ ...row, amount: -0.5 })), ...PARTS[1]!] })])
+    expect(overlapping.isError).toBe(true)
+    expect(overlapping.text).toContain('A part starts on the day after the one before it ends.')
+  })
+
+  it(`refuses a card of more than ${ROWS_A_PART} copied rows`, async () => {
+    const desk = await spendingDesk(used)
+    const rows = Array.from({ length: ROWS_A_PART + 1 }, (_, at) => ({ date: '2026-10-15', amount: -1, payee: `Shop ${at}`, iban: null }))
+    const answer = await desk.propose([part(desk, 1, { rows })])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain(`at most ${ROWS_A_PART} copied rows`)
+  })
+})
+
 describe('an attached statement file', () => {
-  const ATTACHED = { op: 'import-statement', input: { file: 'a1', account: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', part: 1 } }
+  const ATTACHED = { op: 'import-statement', input: { file: 'a1', account: null, statementName: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', part: 1 } }
 
   it('reads a Revolut sheet with Spending’s own reader, and imports its completed rows', async () => {
     const desk = await spendingDesk(used)

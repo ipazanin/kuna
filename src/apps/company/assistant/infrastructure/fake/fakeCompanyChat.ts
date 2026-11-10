@@ -283,7 +283,7 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
       { date: addDays(day, -5), amount: -40, counterparty: 'Harbour bistro', iban: null, description: 'REF 1002' },
       { date: addDays(day, -4), amount: 100, counterparty: 'Northwind', iban: null, description: 'REF 1003' },
     ]
-    const input = { file: null, profile: null, account: account.ref, opening: null, closing: null, rows, lookAlikes: 'ask', newAccount: null, part: 1 }
+    const input = { file: null, profile: null, account: account.ref, statementName: '7/2026', opening: null, closing: null, rows, lookAlikes: 'ask', newAccount: null, part: 1 }
     return lookup(1, 'propose_changes', { app: 'company', title: says.statementTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.statementRefused : says.statementProposed, tokens)
@@ -306,7 +306,7 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
       { date: '2026-10-09', amount: -14.08, counterparty: 'Phone network d.d.', iban: null, description: 'Mobile plan' },
       { date: '2026-10-20', amount: -12.5, counterparty: 'Papirnica d.o.o.', iban: null, description: 'Papir' },
     ]
-    const input = { file: null, profile: null, account: main.ref, opening: null, closing: null, rows, lookAlikes: 'ask', newAccount: null, part: 1 }
+    const input = { file: null, profile: null, account: main.ref, statementName: '10/2026', opening: null, closing: null, rows, lookAlikes: 'ask', newAccount: null, part: 1 }
     return lookup(1, 'propose_changes', { app: 'company', title: says.copyTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.statementRefused : says.copyProposed, tokens)

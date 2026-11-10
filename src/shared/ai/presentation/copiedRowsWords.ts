@@ -11,6 +11,10 @@ const en = {
     one: `The AI read 1 row ${source}. Kuna could not check that the statement adds up, so check it against it.`,
     other: `The AI read ${count} rows ${source}. Kuna could not check that the statement adds up, so check them against it.`,
   }),
+  atLastPart: (count: number, source: string): EnglishForms => ({
+    one: `The AI read 1 row ${source}. Kuna checks that the statement adds up once its last part gives the closing balance.`,
+    other: `The AI read ${count} rows ${source}. Kuna checks that the statement adds up once its last part gives the closing balance.`,
+  }),
   tied: (count: number, source: string): EnglishForms => ({
     one: `The AI read 1 row ${source}. Check it against the statement.`,
     other: `The AI read ${count} rows ${source}. Check them against the statement.`,
@@ -31,6 +35,11 @@ const hr = {
     one: `AI je ${source} pročitao ${count} redak. Kuna nije mogla provjeriti zbraja li se izvod, pa ga usporedite s njim.`,
     few: `AI je ${source} pročitao ${count} retka. Kuna nije mogla provjeriti zbraja li se izvod, pa ih usporedite s njim.`,
     other: `AI je ${source} pročitao ${count} redaka. Kuna nije mogla provjeriti zbraja li se izvod, pa ih usporedite s njim.`,
+  }),
+  atLastPart: (count: number, source: string): CroatianForms => ({
+    one: `AI je ${source} pročitao ${count} redak. Kuna provjerava zbraja li se izvod kad njegov zadnji dio navede završno stanje.`,
+    few: `AI je ${source} pročitao ${count} retka. Kuna provjerava zbraja li se izvod kad njegov zadnji dio navede završno stanje.`,
+    other: `AI je ${source} pročitao ${count} redaka. Kuna provjerava zbraja li se izvod kad njegov zadnji dio navede završno stanje.`,
   }),
   tied: (count: number, source: string): CroatianForms => ({
     one: `AI je ${source} pročitao ${count} redak. Usporedite ga s izvodom.`,
@@ -62,10 +71,20 @@ export function copiedRowsSource(file: string | null): string {
   return file === null ? words.fromChat : words.fromFile(file)
 }
 
-/** The warning on rows the AI copied out of a statement, with whether Kuna could check that the statement adds up. */
-export function copiedStatementRowsWarning(count: number, file: string | null, tied: boolean): string {
+/** Whether Kuna checks that a copied statement adds up: on this card, on a later part's card, or not at all. */
+export type CopiedStatementCheck = 'tied' | 'at-last-part' | 'unchecked'
+
+/** The check a copied part gets from the balances it gives: a closing ties the statement here, and an opening or a part after the first leaves it to the last part. */
+export function copiedStatementCheck(part: { readonly part: number; readonly opening: number | null; readonly closing: number | null }): CopiedStatementCheck {
+  if (part.closing !== null) return 'tied'
+  return part.opening !== null || part.part > 1 ? 'at-last-part' : 'unchecked'
+}
+
+/** The warning on rows the AI copied out of a statement, with when Kuna checks that the statement adds up. */
+export function copiedStatementRowsWarning(count: number, file: string | null, check: CopiedStatementCheck): string {
   const source = copiedRowsSource(file)
-  return plural(tied ? words.tied(count, source) : words.unchecked(count, source), count)
+  const forms = check === 'tied' ? words.tied(count, source) : check === 'at-last-part' ? words.atLastPart(count, source) : words.unchecked(count, source)
+  return plural(forms, count)
 }
 
 /** A copied row that waits, as the card lists it beside the row Kuna has, each as its parts in the app's own format. */

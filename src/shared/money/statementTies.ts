@@ -24,3 +24,24 @@ export function statementTies<Cents extends Money | AccountMoney>(statement: Pri
   }
   return { kind: 'off', rows: rows as Cents, reached: reached as Cents, gap: (statement.closing - reached) as Cents, statement }
 }
+
+/**
+ * Whether a card of a statement the AI copied gives the printed balances as the rule asks: both or neither, as a statement prints
+ * both or none, and nothing worked out. A statement in parts gives its opening alone on part 1 and both again on its last part.
+ */
+export function givesPrintedBalances(opening: number | null, closing: number | null, part: number): boolean {
+  return (opening === null) === (closing === null) || (part === 1 && closing === null)
+}
+
+/**
+ * Why a part after the first of a copied statement cannot go yet: no row of the parts before it is in Kuna, or it starts on a day
+ * they reach. A part starts on a day after the one before it ends, since rows of one day are told apart by their count on that day.
+ */
+export type PartRefusal = 'parts-before-missing' | 'day-reached'
+
+/** Why the part cannot follow the rows its statement's earlier parts put in Kuna, given by their days, or null. Part 1 always can. */
+export function partRefusal(part: number, earlierDays: readonly string[], firstDay: string): PartRefusal | null {
+  if (part === 1) return null
+  if (earlierDays.length === 0) return 'parts-before-missing'
+  return earlierDays.some((day) => day >= firstDay) ? 'day-reached' : null
+}

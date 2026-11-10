@@ -1,12 +1,13 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
-import { absMoney, addMoney } from '../../../../shared/money/money'
+import { absMoney, addMoney, subtractMoney } from '../../../../shared/money/money'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
-import { statementTies } from '../../../../shared/money/statementTies'
+import { givesPrintedBalances, partRefusal, statementTies } from '../../../../shared/money/statementTies'
 import type { StatementTie } from '../../../../shared/money/statementTies'
 import { words } from './words'
 import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
+import type { Transaction } from '../../workbook/domain/workbook'
 
 /** The bank's codes of a row whose file gives none. */
 export const NO_SIGNALS: TransactionSignals = { purpose: '', txDomain: '', txFamily: '', txSubFamily: '', creditorReference: '', instructedCurrency: '' }
@@ -33,7 +34,7 @@ export interface ImportedRow {
 export type StatementSource =
   | { readonly kind: 'camt'; readonly iban: string; readonly sequence: number }
   | { readonly kind: 'table'; readonly profile: string; readonly fileHash: string }
-  | { readonly kind: 'transcribed'; readonly lookAlikes: LookAlikes }
+  | { readonly kind: 'transcribed'; readonly lookAlikes: LookAlikes; readonly part: number }
 
 /** One statement read from a file: an account's entries in booking order, oldest first. */
 export interface ImportedStatement {
@@ -94,25 +95,61 @@ export function transcribedReferences(account: string, rows: readonly Pick<Impor
 /** An entry as read off a printed statement. */
 export type TranscribedRow = Pick<ImportedRow, 'date' | 'amount' | 'counterparty' | 'counterpartyIban' | 'description'>
 
+/** A ledger row as a later part of a copied statement looks for its earlier parts. */
+export type LedgerRowOfStatement = Pick<Transaction, 'account' | 'date' | 'statement' | 'reference'>
+
 /**
- * A statement the AI copied off a page, a file or the chat, its entries oldest first. With both printed balances, each entry carries
- * the balance it leaves from the opening, and the statement is refused unless its entries lead to the closing, since nothing is
- * filled in to close the gap. Without them no entry carries a balance, and the dry run works them out from the ledger. One balance
- * without the other is refused.
+ * One part of a statement the AI copied off a page, a file or the chat, its entries oldest first, with the rows the ledger already
+ * holds. Part 1 may give the opening, and its entries then carry the balance each leaves from it. A statement in one part that gives
+ * both balances is refused unless its entries lead to the closing, since nothing is filled in to close the gap. Its last part gives
+ * the closing, and its entries carry the balances that lead to it, so the dry run refuses it unless they run on from where the
+ * earlier parts left the ledger. A part after the first needs rows of the parts before it on the ledger, on days before its own.
  */
-export function transcribedStatement(account: string, label: string, opening: Money | null, closing: Money | null, rows: readonly TranscribedRow[], lookAlikes: LookAlikes): ImportedStatement {
-  if ((opening === null) !== (closing === null)) throw new StatementRefused(words.transcribed.oneBalance)
-  if (opening !== null && closing !== null) {
+export function transcribedStatement(
+  account: string,
+  label: string,
+  opening: Money | null,
+  closing: Money | null,
+  rows: readonly TranscribedRow[],
+  lookAlikes: LookAlikes,
+  part = 1,
+  ledger: readonly LedgerRowOfStatement[] = [],
+): ImportedStatement {
+  if (!givesPrintedBalances(opening, closing, part)) throw new StatementRefused(words.transcribed.oneBalance)
+  const references = transcribedReferences(account, rows)
+  const onCard = new Set(references)
+  const earlierDays = ledger.filter((row) => row.account === account && row.statement === label && !onCard.has(row.reference)).map((row) => row.date)
+  const refusal = partRefusal(part, earlierDays, rows.map((row) => row.date).sort()[0] ?? '')
+  if (refusal === 'parts-before-missing') throw new StatementRefused(words.transcribed.partsBeforeMissing(label))
+  if (refusal === 'day-reached') throw new StatementRefused(words.transcribed.dayReached(label, part))
+  if (part === 1 && opening !== null && closing !== null) {
     const tie = statementTies({ opening, amounts: rows.map((row) => row.amount), closing })
     if (tie.kind === 'off') throw new StatementRefused(tieRefusal(tie))
   }
-  const references = transcribedReferences(account, rows)
+  const balances = part === 1 ? balancesFrom(opening, rows) : balancesTo(closing, rows)
+  const entries = rows.map((row, at): ImportedRow => ({ ...row, balance: balances[at]!, reference: references[at]!, signals: NO_SIGNALS, reviewReasons: [] }))
+  return { fileName: label, source: { kind: 'transcribed', lookAlikes, part }, label, account, opening: part === 1 ? opening : null, closing, rows: entries, notes: [] }
+}
+
+/** The balance each entry leaves, running on from the opening, or null for each when there is none. */
+function balancesFrom(opening: Money | null, rows: readonly Pick<ImportedRow, 'amount'>[]): (Money | null)[] {
   let balance = opening
-  const entries = rows.map((row, at): ImportedRow => {
+  return rows.map((row) => {
     balance = balance === null ? null : addMoney(balance, row.amount)
-    return { ...row, balance, reference: references[at]!, signals: NO_SIGNALS, reviewReasons: [] }
+    return balance
   })
-  return { fileName: label, source: { kind: 'transcribed', lookAlikes }, label, account, opening, closing, rows: entries, notes: [] }
+}
+
+/** The balance each entry leaves, running back from the closing the last entry leaves, or null for each when there is none. */
+function balancesTo(closing: Money | null, rows: readonly Pick<ImportedRow, 'amount'>[]): (Money | null)[] {
+  if (closing === null) return rows.map(() => null)
+  const balances: Money[] = []
+  let after = closing
+  for (let at = rows.length - 1; at >= 0; at -= 1) {
+    balances[at] = after
+    after = subtractMoney(after, rows[at]!.amount)
+  }
+  return balances
 }
 
 /** Why a statement that does not tie is refused, with the gap. */

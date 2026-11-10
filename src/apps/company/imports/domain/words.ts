@@ -119,7 +119,12 @@ export const en = {
   transcribed: {
     doesNotTie: (opening: Money, rows: Money, reached: Money, closing: Money, gap: Money) =>
       `The statement does not add up: the opening balance ${plainAmount(opening)} and its entries ${plainAmount(rows)} reach ${plainAmount(reached)}, but the printed closing balance is ${plainAmount(closing)}, ${plainAmount(gap)} apart.`,
-    oneBalance: 'Give both the opening and the closing balance the statement prints, or neither when it prints none. Never work one out.',
+    partDoesNotTie: (account: string, left: Money, rows: Money, reached: Money, closing: Money, gap: Money) =>
+      `The statement does not add up: its earlier parts leave ${account} at ${plainAmount(left)}, and this part's new entries ${plainAmount(rows)} reach ${plainAmount(reached)}, but the printed closing balance is ${plainAmount(closing)}, ${plainAmount(gap)} apart.`,
+    oneBalance:
+      'Give both the opening and the closing balance the statement prints, or neither when it prints none. A statement in parts gives the opening alone on part 1 and both on its last part. Never work one out.',
+    partsBeforeMissing: (label: string) => `No row of ${label} is on the ledger yet. Import its parts in order from part 1, each once the one before is accepted.`,
+    dayReached: (label: string, part: number) => `The parts of ${label} on the ledger reach the first day of part ${part}. A part starts on the day after the one before it ends.`,
   },
 }
 
@@ -236,7 +241,12 @@ export const hr: Translation<typeof en> = {
   transcribed: {
     doesNotTie: (opening, rows, reached, closing, gap) =>
       `Izvod se ne slaže: početno stanje ${formatMoney(opening)} i njegove stavke ${formatMoney(rows)} daju ${formatMoney(reached)}, a ispisano završno stanje je ${formatMoney(closing)}, razlika ${formatMoney(gap)}.`,
-    oneBalance: 'Navedite i početno i završno stanje koje izvod ispisuje, ili nijedno kad ih ne ispisuje. Stanje nikad ne izračunavajte sami.',
+    partDoesNotTie: (account, left, rows, reached, closing, gap) =>
+      `Izvod se ne slaže: prethodni dijelovi ostavljaju račun ${account} na ${formatMoney(left)}, a nove stavke ovog dijela ${formatMoney(rows)} daju ${formatMoney(reached)}, dok je ispisano završno stanje ${formatMoney(closing)}, razlika ${formatMoney(gap)}.`,
+    oneBalance:
+      'Navedite i početno i završno stanje koje izvod ispisuje, ili nijedno kad ih ne ispisuje. Izvod u dijelovima navodi samo početno stanje u 1. dijelu, a oba u posljednjem. Stanje nikad ne izračunavajte sami.',
+    partsBeforeMissing: (label) => `Nijedna stavka izvoda ${label} još nije u evidenciji. Uvezite njegove dijelove redom od 1. dijela, svaki tek kad je prethodni prihvaćen.`,
+    dayReached: (label, part) => `Dijelovi izvoda ${label} u evidenciji sežu do prvog dana ${part}. dijela. Dio počinje dan nakon što prethodni završi.`,
   },
 }
 

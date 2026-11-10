@@ -50,6 +50,7 @@ function transcribed(
       file: null,
       profile: null,
       account: desk.ref(ACCOUNT_RECORDS.name, 'main'),
+      statementName: 'Statement 5',
       opening,
       closing,
       rows: rows.map((row) => ({ ...row, counterparty: 'Supplier d.o.o.', iban: null, description: 'Goods' })),
@@ -95,9 +96,9 @@ describe('a statement read off a page', () => {
     expect(answer.text).toContain('0.50')
   })
 
-  it('refuses one printed balance without the other', async () => {
+  it('refuses the closing balance without the opening, and the opening alone on a part after the first', async () => {
     const desk = await companyDesk(used)
-    for (const missing of [{ opening: null }, { closing: null }]) {
+    for (const missing of [{ opening: null }, { closing: null, part: 2 }]) {
       const step = transcribed(desk, 720.5)
       const answer = await desk.propose([{ ...step, input: { ...step.input, ...missing } }])
       expect(answer.isError).toBe(true)
@@ -148,18 +149,71 @@ describe('a statement read off a page', () => {
     expect(again.isError).toBe(true)
     expect(again.text).toContain('on the ledger already')
   })
+})
 
-  it(`goes in parts of ${ROWS_A_PART} rows, each after the one before`, async () => {
+describe('a statement in parts', () => {
+  /** Three rows on each of three days from the given one in November, after the main account's newest row. */
+  const partRows = (firstDay: number) => [0, 1, 2].map((offset) => ({ date: `2026-11-${String(firstDay + offset).padStart(2, '0')}`, amount: -(firstDay + offset) }))
+  const PARTS = [partRows(2), partRows(5), partRows(8)]
+  // The account's 760.00 less the nine rows of 2.00 to 10.00, which add up to 54.00, leaves 706.00.
+  const CLOSING = 706
+  const part = (desk: CompanyDesk, number: number, opening: number | null, closing: number | null) => {
+    const step = transcribed(desk, 0, PARTS[number - 1])
+    return { ...step, input: { ...step.input, opening, closing, part: number } }
+  }
+
+  it('carries only its own rows on each card, and ties on the last part against where the earlier parts left the ledger', async () => {
     const desk = await companyDesk(used)
-    const rows = Array.from({ length: ROWS_A_PART + 10 }, (_, at) => ({ date: `2026-11-${String(2 + Math.floor(at / 10)).padStart(2, '0')}`, amount: -1 }))
-    const statement = transcribed(desk, 760 - rows.length, rows)
     const before = rowsOf(desk, 'main').length
-    await desk.propose([statement])
+    for (const step of [part(desk, 1, 760, null), part(desk, 2, null, null)]) {
+      const answer = await desk.propose([step])
+      expect(answer.isError, answer.text).toBe(false)
+      expect(warnings(desk)[0]).toBe('The AI read 3 rows from the chat. Kuna checks that the statement adds up once its last part gives the closing balance.')
+      await desk.accept()
+    }
+    const last = await desk.propose([part(desk, 3, 760, CLOSING)])
+    expect(last.isError, last.text).toBe(false)
+    expect(warnings(desk)[0]).toBe('The AI read 3 rows from the chat. Check them against the statement.')
     await desk.accept()
-    expect(rowsOf(desk, 'main')).toHaveLength(before + ROWS_A_PART)
-    await desk.propose([{ ...statement, input: { ...statement.input, part: 2 } }])
+    expect(rowsOf(desk, 'main')).toHaveLength(before + 9)
+    expect(
+      rowsOf(desk, 'main')
+        .filter((row) => row.statement === 'main, Statement 5')
+        .map((row) => row.balance),
+    ).toContain(70600)
+  })
+
+  it('refuses a last part that does not add up with the earlier parts, and names the gap', async () => {
+    const desk = await companyDesk(used)
+    for (const step of [part(desk, 1, 760, null), part(desk, 2, null, null)]) {
+      await desk.propose([step])
+      await desk.accept()
+    }
+    const answer = await desk.propose([part(desk, 3, 760, CLOSING + 0.5)])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('its earlier parts leave main at')
+    expect(answer.text).toContain('0.50')
+  })
+
+  it('refuses a part whose earlier parts are not on the ledger, and one that starts on a day they reach', async () => {
+    const desk = await companyDesk(used)
+    const early = await desk.propose([part(desk, 2, null, null)])
+    expect(early.isError).toBe(true)
+    expect(early.text).toContain('from part 1')
+    await desk.propose([part(desk, 1, 760, null)])
     await desk.accept()
-    expect(rowsOf(desk, 'main')).toHaveLength(before + rows.length)
+    const step = part(desk, 2, null, null)
+    const overlapping = await desk.propose([{ ...step, input: { ...step.input, rows: [{ ...step.input.rows[0]!, date: '2026-11-04', amount: -0.5 }, ...step.input.rows] } }])
+    expect(overlapping.isError).toBe(true)
+    expect(overlapping.text).toContain('A part starts on the day after the one before it ends.')
+  })
+
+  it(`refuses a card of more than ${ROWS_A_PART} copied rows`, async () => {
+    const desk = await companyDesk(used)
+    const rows = Array.from({ length: ROWS_A_PART + 1 }, () => ({ date: '2026-11-02', amount: -1 }))
+    const answer = await desk.propose([transcribed(desk, 760 - rows.length, rows)])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain(`at most ${ROWS_A_PART} copied rows`)
   })
 })
 
@@ -182,21 +236,24 @@ describe('an import card', () => {
     const imported = await desk.propose([{ ...statement, input: { ...statement.input, account: desk.ref(ACCOUNT_RECORDS.name, 'savings') } }])
     expect(imported.isError, imported.text).toBe(false)
     expect((await desk.accept()).kind).toBe('done')
-    expect(rowsOf(desk, 'savings').map((row) => row.statement)).toEqual(['savings 2026-11-02/2026-11-02'])
+    expect(rowsOf(desk, 'savings').map((row) => row.statement)).toEqual(['savings, Statement 5'])
   })
 })
 
 describe('an attached file', () => {
   it('reads a camt file through Import, and starts an account with no rows at its opening, saying so on the card', async () => {
     const desk = await companyDesk(used, { readStatementFile: loadImportFile })
-    const input = { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', newAccount: null, part: 1 }
+    const input = { file: 'a1', profile: null, account: null, statementName: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', newAccount: null, part: 1 }
     expect((await desk.propose([{ op: 'import-statement', input }], [attached('xml', 'camt.xml')])).isError).toBe(false)
     expect(warnings(desk)).toContain(words.accountStarted('fresh'))
     await desk.accept()
     expect(rowsOf(desk, 'fresh').length).toBeGreaterThan(0)
   })
 
-  const ATTACHED = { op: 'import-statement', input: { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', newAccount: null, part: 1 } }
+  const ATTACHED = {
+    op: 'import-statement',
+    input: { file: 'a1', profile: null, account: null, statementName: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', newAccount: null, part: 1 },
+  }
 
   it('sends the AI to read a photo, and a sheet no saved profile reads, with read_attachment', async () => {
     const desk = await companyDesk(used, { readStatementFile: loadImportFile })
