@@ -82,7 +82,8 @@ beforeEach(async () => {
   localStorage.clear()
   const session = await loadSession()
   session.clearChat()
-  await settled()
+  // The clear forgets the kept chat without waiting. A forget on the same module waits behind it, so a test's own save never races it.
+  await (await import('../src/shared/ai/application/savedChat')).forgetSavedChat()
 })
 
 describe('a chat kept in this browser', () => {
