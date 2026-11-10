@@ -51,6 +51,8 @@ export interface ProposalField {
 /** One record on the card, by its name on screen, with the fields that say where money or mail goes first. */
 export interface ProposalLine {
   readonly label: string
+  /** Whether the label is an identifier the app shows in identifier style, such as a rule name. */
+  readonly identifier?: boolean
   readonly fields: readonly ProposalField[]
   /** Why the card warns on the record as a whole, such as a row a person confirmed that the change files elsewhere, or null. */
   readonly warning: string | null

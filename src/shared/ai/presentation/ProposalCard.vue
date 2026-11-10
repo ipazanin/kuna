@@ -146,7 +146,7 @@ async function undo(event: Event): Promise<void> {
         </UAlert>
         <ul class="flex flex-col gap-1.5">
           <li v-for="(line, lineAt) in shownOf(group.lines, `lines-${at}`)" :key="lineAt" class="flex min-w-0 flex-col" data-testid="chat-proposal-line">
-            <p class="type-body wrap-anywhere text-highlighted">{{ line.label }}</p>
+            <p class="wrap-anywhere text-highlighted" :class="line.identifier === true ? 'identifier' : 'type-body'">{{ line.label }}</p>
             <p v-if="line.warning !== null" class="flex items-start gap-1 type-caption text-warning" data-testid="chat-proposal-line-warning">
               <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
               {{ line.warning }}

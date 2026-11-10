@@ -170,7 +170,7 @@ export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, note
   const invoicing = invoicingDescriber(workbook)
   // A rule renumbered to make room for a move keeps its place among the rules, so it shows nothing and stays off the card.
   const groups = proposalGroups(checked, (kind) => (packs?.kinds.has(kind.name) === true ? packs : INVOICING_KINDS.has(kind.name) ? invoicing : core)).map((group) =>
-    group.noun === RULE_RECORDS.noun ? { ...group, lines: group.lines.filter((line) => line.fields.length > 0 || line.warning !== null) } : group,
+    group.noun === RULE_RECORDS.noun ? { ...group, lines: group.lines.filter((line) => line.fields.length > 0 || line.warning !== null).map((line) => ({ ...line, identifier: true })) } : group,
   )
   return withNotes(groups, notes)
 }
