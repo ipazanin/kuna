@@ -92,6 +92,8 @@ export const en = {
     minimumIn: (name: string, month: string) => `${name}, the minimum wage in ${month}.`,
     overCap: (name: string, payment: string, period: string, excess: string) => `${name}: ${payment} paid in ${period} is ${excess} over its tax-free cap, which is taxed as salary.`,
     againstCap: (name: string, payment: string, period: string) => `${name}, ${payment} in ${period}, against its cap.`,
+    needsTrip: (name: string, payment: string, amount: string) => `${name}: ${amount} of ${payment} needs a trip for its days or km, so its tax-free cap is not checked.`,
+    needsEvents: (name: string, payment: string, amount: string) => `${name}: ${amount} of ${payment} has a cap per event, and a bank row does not say how many, so its tax-free cap is not checked.`,
   },
   everyone: 'Everyone',
   screen: {
@@ -266,6 +268,8 @@ export const hr: Translation<typeof en> = {
     minimumIn: (name, month) => `${name}, minimalna plaća, ${withFullStop(month)}`,
     overCap: (name, payment, period, excess) => `${name}, ${payment}: isplata u razdoblju ${period} premašuje neoporezivi iznos za ${excess}, koji se oporezuje kao plaća.`,
     againstCap: (name, payment, period) => `${name}, ${payment} u razdoblju ${period}, prema neoporezivom iznosu.`,
+    needsTrip: (name, payment, amount) => `${name}, ${payment}: za isplatu od ${amount} potreban je putni nalog s danima ili kilometrima, pa neoporezivi iznos nije provjeren.`,
+    needsEvents: (name, payment, amount) => `${name}, ${payment}: neoporezivi iznos vrijedi po događaju, a bankovna stavka od ${amount} ne kaže koliko ih je, pa nije provjeren.`,
   },
   everyone: 'Svi',
   screen: {

@@ -286,6 +286,15 @@ function problemView(problem: SalaryProblem, index: number, month: string, linkO
         detail: figureDetail(problem.usage.paid, words.problems.againstCap(name, problem.usage.payment, problem.usage.periodKey), [name, problem.usage.periodKey], linkOf, true),
         rows: linkOf(problem.usage.paid.drill),
       }
+    case 'needs-units':
+      return {
+        ...plain,
+        text:
+          problem.unit === 'event'
+            ? words.problems.needsEvents(name, problem.payment, formatMoney(problem.paid.amount))
+            : words.problems.needsTrip(name, problem.payment, formatMoney(problem.paid.amount)),
+        rows: linkOf(problem.paid.drill),
+      }
   }
 }
 

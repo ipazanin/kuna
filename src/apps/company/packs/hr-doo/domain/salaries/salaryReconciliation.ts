@@ -15,7 +15,7 @@ import { weekdaysEmployed } from '../employees/employees'
 import type { Employee } from '../employees/employees'
 import type { HrDooWorkbook } from '../hrDooPart'
 import { PACK_ROLES, payrollTaxCategories, taxFreePaymentOf } from '../packRoles'
-import { nontaxableUsage } from '../payroll/nontaxableUsage'
+import { capUnitOf, nontaxableUsage } from '../payroll/nontaxableUsage'
 import type { NontaxablePaymentMade, NontaxableUsage } from '../payroll/nontaxableUsage'
 import { summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
@@ -75,6 +75,8 @@ export type SalaryProblem =
   | { readonly kind: 'no-pay-rows'; readonly employee: Employee }
   | { readonly kind: 'pay-to-no-employee'; readonly paid: TracedFigure }
   | { readonly kind: 'over-cap'; readonly employee: Employee; readonly usage: NontaxableUsage }
+  /** A row in a tax-free category whose cap counts days, kilometres or events, which a bank row does not state, so its cap is not checked. */
+  | { readonly kind: 'needs-units'; readonly employee: Employee; readonly payment: string; readonly unit: string; readonly paid: TracedFigure }
   | { readonly kind: 'below-minimum-wage'; readonly employee: Employee; readonly warning: PayrollWarning }
 
 /** The month the bank paid a payroll in, with each employee paid then and the contributions of them all. */
@@ -136,7 +138,12 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
       return payment === null ? [] : [[category.slug, payment] as const]
     }),
   )
-  const extras = employees.flatMap((employee) => extrasOf(employee, payParts, taxFree, rules))
+  const taxFreeParts = payParts.flatMap((pay): TaxFreePart[] => {
+    const payment = taxFree.get(pay.part.category)
+    return pay.employee !== null && payment !== undefined && pay.part.amount < 0 ? [{ ...pay, employee: pay.employee, payment, unit: capUnitOf(payment, pay.part.date, rules) }] : []
+  })
+  const extras = employees.flatMap((employee) => extrasOf(employee, taxFreeParts, rules))
+  const unitless = taxFreeParts.flatMap((pay) => (pay.unit === null ? [] : [{ payday: monthOf(pay.part.date), problem: needsUnits(pay, pay.unit) }]))
   const overCaps = extras.flatMap((extra) => extra.usage.filter((usage) => usage.excess.amount > 0).map((usage) => ({ payday: lastPaidMonth(usage), employee: extra.employee, usage })))
   const inLedger = (month: MonthKey) => window.firstMonth <= month && month <= window.partMonth
   const expected = (employee: Employee, payday: MonthKey) => window.firstCompleteMonth <= payday && payday <= window.lastCompleteMonth && weekdaysEmployed(employee, addMonths(payday, -1)) !== null
@@ -183,6 +190,7 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
     const strays = partsOfDay.filter((pay) => pay.employee === null)
     if (strays.length > 0) problems.push({ kind: 'pay-to-no-employee', paid: paidFigure(words.salaries.paidToNoEmployee, strays, payCategories, payday) })
     problems.push(...overCaps.filter((over) => over.payday === payday).map(({ employee, usage }): SalaryProblem => ({ kind: 'over-cap', employee, usage })))
+    problems.push(...unitless.filter((entry) => entry.payday === payday).map((entry) => entry.problem))
     return { payday, employees: employeePaydays, contributions, problems }
   })
   return { paydays, extras }
@@ -270,14 +278,25 @@ function lineCheck<Line extends string>(line: Line, app: TracedFigure | null, ba
   return { line, app, bank, agrees: app === null || bank === null || app.amount === bank.amount }
 }
 
-/** The employee's rows in `tax-free:` categories, by year, against the caps. A credit, such as a bonus paid back, is not a payment and is left out. */
-function extrasOf(employee: Employee, payParts: readonly PayPart[], taxFree: ReadonlyMap<string, string>, rules: RuleSource): EmployeeExtras[] {
-  const made: NontaxablePaymentMade[] = payParts.flatMap((pay) => {
-    const payment = taxFree.get(pay.part.category)
-    return pay.employee === employee && payment !== undefined && pay.part.amount < 0 ? [{ payment, paidOn: pay.part.date, amount: negateMoney(pay.part.amount) }] : []
-  })
+/** A part paid to an employee in a `tax-free:` category, with what its cap counts per unit, if anything. */
+interface TaxFreePart extends PayPart {
+  readonly employee: Employee
+  readonly payment: string
+  readonly unit: string | null
+}
+
+/** The employee's payments in `tax-free:` categories, by year, against the caps, leaving out a part whose cap counts units the bank row does not state. */
+function extrasOf(employee: Employee, parts: readonly TaxFreePart[], rules: RuleSource): EmployeeExtras[] {
+  const made: NontaxablePaymentMade[] = parts
+    .filter((pay) => pay.employee === employee && pay.unit === null)
+    .map((pay) => ({ payment: pay.payment, paidOn: pay.part.date, amount: negateMoney(pay.part.amount) }))
   const years = [...new Set(made.map((payment) => yearOf(payment.paidOn)))].sort()
   return years.map((year) => ({ employee, year, usage: nontaxableUsage(made, year, 'ledger', rules) }))
+}
+
+function needsUnits(pay: TaxFreePart, unit: string): SalaryProblem {
+  const paid = withDrill({ ...tracedFigure(words.salaries.paidOn, negateMoney(pay.part.amount), 'ledger', []), on: pay.part.date }, rowDrill(pay.whole))
+  return { kind: 'needs-units', employee: pay.employee, payment: pay.payment, unit, paid }
 }
 
 /** The month of the last payment that a cap's period counts. */

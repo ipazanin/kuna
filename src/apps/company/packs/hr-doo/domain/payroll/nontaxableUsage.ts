@@ -51,6 +51,12 @@ const PER_UNIT_PERIODS = new Map([
   ['event', 'events'],
 ])
 
+/** What a payment's cap counts per unit on the day, `day`, `kilometre` or `event`, or null for a cap that needs no units. */
+export function capUnitOf(payment: string, paidOn: CivilDate, rules: RuleSource = ruleValue): string | null {
+  const period = capRowsOf(payment, rules('hr.pit.nontaxable-caps', paidOn))[0].period.text
+  return PER_UNIT_PERIODS.has(period) ? period : null
+}
+
 /** The payments of a year against their caps, each cap looked up on the last payment date of its period. */
 export function nontaxableUsage(payments: readonly NontaxablePaymentMade[], year: number, basis: FigureBasis, rules: RuleSource = ruleValue): readonly NontaxableUsage[] {
   const groups = new Map<string, PaymentsInPeriod>()

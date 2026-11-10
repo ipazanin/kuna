@@ -36,6 +36,8 @@ const CATEGORIES: readonly Category[] = [
   category('payroll-tax', 'taxes', ['owner-pay-tax', 'arrears']),
   category('dividend-tax', 'taxes', ['owner-pay-tax', 'profit-distribution']),
   category('travel-orders', 'operating', []),
+  category('per-diems', 'owner-pay', ['tax-free:domestic-per-diem-over-12-hours']),
+  category('car-km', 'owner-pay', ['tax-free:private-car-business-travel']),
   category('office', 'operating', []),
 ]
 
@@ -276,5 +278,22 @@ describe('salaryReconciliation', () => {
     ])
     expect(problemKinds(paydayOf(paydays, '2026-02').problems)).not.toContain('over-cap ana')
     expect(problemKinds(paydayOf(paydays, '2026-12').problems)).toContain('over-cap ana')
+  })
+  it('lists a per diem or kilometre payment as a problem, since a bank row states no days or km, and leaves it out of the caps', () => {
+    const ana = PEOPLE[0]!
+    const account = ana.ibans[0]
+    const rows: RowSpec[] = [
+      { date: '2026-03-12', amount: -60, category: 'per-diems', iban: account },
+      { date: '2026-03-12', amount: -45, category: 'car-km', iban: account },
+      { date: '2026-03-20', amount: -700, category: 'gifts', iban: account },
+      { date: '2026-05-04', amount: -20, category: 'office' },
+    ]
+    const { paydays, extras } = reconciled(rows, [ana])
+    const march = paydayOf(paydays, '2026-03').problems.filter((problem) => problem.kind === 'needs-units')
+    expect(march.map((problem) => [problem.payment, problem.unit, problem.paid.amount])).toEqual([
+      ['private-car-business-travel', 'kilometre', euros(45)],
+      ['domestic-per-diem-over-12-hours', 'day', euros(60)],
+    ])
+    expect(extras.flatMap((extra) => extra.usage.map((usage) => usage.payment))).toEqual(['occasional-gift'])
   })
 })
