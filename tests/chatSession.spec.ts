@@ -32,20 +32,24 @@ const {
   promptFilesCost,
   removePromptFile,
   chatFigure,
+  chatGoingOn,
   chatLines,
   chatSpent,
   chatStatus,
   clearChat,
   sendChatFrom,
   sendChatMessage,
+  sendTask,
   settleProposal,
   shownOnScreen,
+  startChatWith,
   stopChatMessage,
   undoProposal,
 } = await import('../src/shared/ai/presentation/chatSession')
 const { allowAssist, assistAllowed, pickProvider, pickModel, switchAnonymise } = await import('../src/shared/ai/application/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
 const { providerInUse } = await import('../src/shared/ai/presentation/aiProvider')
+const { chatElement, chatOpen, chatRequest, closeChat, openChatAbout, removeChatElement, takeChatRequest } = await import('../src/shared/ai/presentation/chatDock')
 
 const CATALOGUE: Catalogue = {
   system: 'Be Kuna.',
@@ -698,5 +702,155 @@ describe('what a card says it leaves outside the books', () => {
   it('carries a card that has no Undo, so it says so before Accept', async () => {
     const card = await shownCard(proposerWith([], false))
     expect(card.checked?.undoable).toBe(false)
+  })
+})
+
+describe('starting a chat with files, a tag and a task', () => {
+  const READ_IT = 'Read the attached receipt and add it to its payment.'
+  const PHOTO = (): File => picked('receipt.jpg', new Uint8Array([1]), 'image/jpeg')
+  const ROW = { key: 'row-1', label: 'Corner market, 3 Nov', about: { kind: 'record', app: 'spending', recordKind: 'transaction', id: CHAT_BOOK.transactions[0]!.id } } as const
+  const FETCH: AppProposer = {
+    operations: [{ name: 'fetch', about: 'Fetches.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
+    readsBooks: false,
+    check: async (title) => ({ title, count: 1, groups: [], outside: [], undoable: true, heldBack: null, held: {} }),
+  }
+
+  beforeEach(() => {
+    closeChat()
+    removeChatElement()
+    takeChatRequest()
+    allowThisChat('anthropic')
+  })
+
+  it('counts a chat as going on once a message goes in this visit, and not after New chat', async () => {
+    port.current = scripted([answer('One')])
+    expect(chatGoingOn.value).toBe(false)
+    await sendChatMessage('First', CONTEXT, knowledge)
+    expect(chatGoingOn.value).toBe(true)
+    await startChatWith({}, 'new-chat')
+    expect(chatGoingOn.value).toBe(false)
+    expect(chatLines).toEqual([])
+  })
+
+  it('starts a new chat for a photo from a page while none is going on, dropping a tag and a file put there alone', async () => {
+    openChatAbout(ROW)
+    await attachFiles([picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv')])
+
+    await startChatWith({ files: [PHOTO()], task: READ_IT }, 'page')
+
+    expect(chatOpen.value).toBe(true)
+    expect(chatElement.value).toBeNull()
+    expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['receipt.jpg'])
+    expect(chatRequest.value).toBe(READ_IT)
+  })
+
+  it('joins a chat going on with a photo from a page, keeping what was said and the tag', async () => {
+    port.current = scripted([answer('One')])
+    await sendChatMessage('First', CONTEXT, knowledge)
+    openChatAbout(ROW)
+    closeChat()
+
+    await startChatWith({ files: [PHOTO()], task: READ_IT }, 'page')
+
+    expect(chatLines.map((line) => line.text)).toEqual(['First', 'One'])
+    expect(chatElement.value).toEqual(ROW)
+    expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['receipt.jpg'])
+    expect(chatRequest.value).toBe(READ_IT)
+  })
+
+  it('joins the closed chat that holds an open card, which stays open', async () => {
+    port.current = scripted([lookup('propose_changes', { app: 'spending', title: 'Fetch prices', steps: [{ op: 'fetch', input: '{}', as: null }], next: false }), answer('Card shown.')])
+    await sendChatMessage('Fetch', CONTEXT, async () => ({ ...CATALOGUE, proposers: new Map([['spending', FETCH]]) }))
+    closeChat()
+
+    await startChatWith({ files: [PHOTO()], task: READ_IT }, 'page')
+
+    expect(chatLines.at(-1)!.proposals.map((card) => card.state)).toEqual(['open'])
+    expect(chatPromptFiles.value.map((file) => file.name)).toEqual(['receipt.jpg'])
+  })
+
+  it('starts over on New chat even while a chat is going on', async () => {
+    port.current = scripted([answer('One')])
+    await sendChatMessage('First', CONTEXT, knowledge)
+    openChatAbout(ROW)
+
+    await startChatWith({}, 'new-chat')
+
+    expect(chatLines).toEqual([])
+    expect(chatElement.value).toBeNull()
+  })
+
+  it('leaves the task only once the photo is read, as a file still read does not go with a message', async () => {
+    const starting = startChatWith({ files: [PHOTO()], task: READ_IT }, 'page')
+    expect(chatPromptFiles.value.map((file) => file.state)).toEqual(['reading'])
+    expect(chatRequest.value).toBeNull()
+
+    await starting
+
+    expect(chatPromptFiles.value.map((file) => file.state)).toEqual(['ready'])
+    expect(chatRequest.value).toBe(READ_IT)
+  })
+
+  it('leaves no task when every file was refused, so the chat is not asked to read what is not there', async () => {
+    await startChatWith({ files: [picked('notes.docx', new Uint8Array([1]))], task: READ_IT }, 'page')
+
+    expect(chatPromptFiles.value.map((file) => file.state)).toEqual(['refused'])
+    expect(chatRequest.value).toBeNull()
+  })
+
+  /** A reply that waits until `release` is called, so a test can act while the answer streams. */
+  function heldAnswer(text: string): { readonly reply: () => Promise<ModelReply>; readonly release: () => void } {
+    let release = (): void => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    return { reply: async () => (await gate, answer(text)), release }
+  }
+
+  it('holds a task that arrives while an answer streams and sends it by itself once the answer ends', async () => {
+    const held = heldAnswer('One')
+    port.current = scripted([held.reply, answer('Read.')])
+    const sent: [string, string][] = []
+    sendChatFrom((message, origin) => {
+      sent.push([message, origin])
+      void sendChatMessage(message, CONTEXT, knowledge, origin)
+    })
+    try {
+      const first = sendChatMessage('First', CONTEXT, knowledge)
+      await vi.waitFor(() => expect(chatStatus.value).toBe('streaming'))
+
+      sendTask(READ_IT)
+      expect(sent).toEqual([])
+
+      held.release()
+      await first
+      expect(sent).toEqual([[READ_IT, 'task']])
+      await vi.waitFor(() => expect(chatStatus.value).toBe('ready'))
+      expect(chatLines.at(-2)).toMatchObject({ role: 'user', text: READ_IT, byKuna: true })
+    } finally {
+      sendChatFrom(null)
+    }
+  })
+
+  it('holds a task while no panel is open and sends it once one opens, and drops it on a new chat', async () => {
+    const sent: string[] = []
+    sendTask(READ_IT)
+    sendChatFrom((message) => sent.push(message))
+    expect(sent).toEqual([READ_IT])
+    sendChatFrom(null)
+
+    sendTask(READ_IT)
+    clearChat()
+    sendChatFrom((message) => sent.push(message))
+    sendChatFrom(null)
+    expect(sent).toEqual([READ_IT])
+  })
+
+  it('tags the element a page gives with the photo, so a row can start a chat about itself', async () => {
+    await startChatWith({ files: [PHOTO()], element: ROW, task: READ_IT }, 'page')
+
+    expect(chatElement.value).toEqual(ROW)
+    expect(chatOpen.value).toBe(true)
+    expect(chatRequest.value).toBe(READ_IT)
   })
 })

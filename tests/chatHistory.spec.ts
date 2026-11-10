@@ -487,4 +487,20 @@ describe('a chat kept in this browser', () => {
     expect(second.chatLines).toEqual([])
     expect(second.shownOnScreen('Person 2')).toBe('Person 2')
   })
+
+  it("never brings yesterday's chat into one a page starts while the restore still reads it", async () => {
+    await saveChat({ lines: [said('user', 'Who got the rent?', { at: Date.now() - DAY }), said('assistant', 'Person 2 got it.', { at: Date.now() - DAY })], spent: NOTHING_SPENT })
+    const session = await loadSession()
+    const statement = new File(['date,amount\n2026-10-01,-12.00'], 'october.csv', { type: 'text/csv' })
+
+    const restoring = session.restoreChat()
+    await session.startChatWith({ files: [statement] }, 'page')
+    await restoring
+    await session.restoreChat()
+
+    expect(session.chatLines).toEqual([])
+    expect(session.chatPromptFiles.value.map((file) => file.name)).toEqual(['october.csv'])
+    await settled()
+    expect(await readSavedChat()).toBeNull()
+  })
 })

@@ -442,7 +442,7 @@ function spendingChat(turn: FakeChatTurn): ModelReply | null {
   if (/^bring the revolut|^unesi revolut/i.test(typed)) return revolutCopyReply(turn, says)
   if (/^check these rows|^provjeri ove retke/i.test(typed)) return matchReply(turn, says)
   if (/biggest spends|najveći troškovi/i.test(typed)) return biggestReply(turn, says)
-  if (/^read (the|this|a) receipt|^pročitaj (fiskalni )?račun/i.test(typed)) return receiptReply(turn, says)
+  if (/^read (the|this|a)( attached)? receipt|^pročitaj (priloženi )?(fiskalni )?račun/i.test(typed)) return receiptReply(turn, says)
   if (/^split|^podijeli/i.test(typed)) return splitReply(turn, says)
   if (/spent|spend|potroš/i.test(typed)) return spendingReply(turn, says)
   if (/rule|pravil/i.test(typed)) {

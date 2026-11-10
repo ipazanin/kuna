@@ -30,7 +30,6 @@ import { today } from '../../../../shared/calendar/civilDate'
 import { monthOf, monthsFrom, parseMonthKey } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { openChat } from '../../../../shared/ai/presentation/chatDock'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -139,15 +138,14 @@ function addReceipt(way: (typeof receiptChoices)[number]['value']): void {
   else receiptPicker.value?.click()
 }
 
-/** Puts the photo picked or taken on the chat's prompt and opens the chat, where the person asks for it to be read. The chat's code loads only then. */
+/** Starts a chat with the photo picked or taken, or joins one going on, and asks for it to be read once it is. The chat's code loads only then. */
 async function receiptToChat(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const files = [...(input.files ?? [])]
   input.value = ''
   if (files.length === 0) return
-  openChat()
-  const { attachFiles } = await import('../../../../shared/ai/presentation/chatSession')
-  await attachFiles(files)
+  const { startChatWith } = await import('../../../../shared/ai/presentation/chatSession')
+  await startChatWith({ files, task: words.receipt.readTask }, 'page')
 }
 
 function openEntry(entry: Transaction | null): void {

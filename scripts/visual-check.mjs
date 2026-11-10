@@ -30,8 +30,8 @@
  * Another flags a payee as a person on its Spending entry, lets the chat read Spending from its card and opens the exact text sent,
  * with that person's alias and the IBAN masked, and again with Anonymise off. A proposal shows its card with Accept and one Undo.
  * Spending's To review asks the chat from its card's header and from a waiting row, each outlined while the chat is about it.
- * Entries puts a receipt photo on the prompt, the chat proposes its new category on one card and the receipt on the next, and
- * Accept splits the payment with one Undo. The receipt dialog shows no part of the assistant.
+ * A receipt photo from Entries starts a new chat unless one is going on, which it joins, and the chat sends its task once the
+ * photo is read. The chat proposes its new category on one card and the receipt on the next, and Accept splits the payment with one Undo. The receipt dialog shows no part of the assistant.
  * Company's To review keeps Suggest categories, which opens the chat about the queue and files the sure rows on a card, and an
  * opened row asks about itself. An invoice asked of the chat is a link to the Invoices tab, dollars are a currency card with a
  * warned line, a rule for Laptop Store re-files a confirmed row with a warning, trying the second rule first is a card that says where it is tried, a category for training is a card that names its
@@ -5264,6 +5264,24 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=sample&lang=hr' },
+  },
+  {
+    name: 'chat-receipt-joins',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { joins: true }),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts' },
+  },
+  {
+    name: 'chat-receipt-joins-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: chatReceiptFlowIn('hr', SPENDING_RECEIPT_SAMPLES, { joins: true }),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts&lang=hr' },
   },
   // Company's ways into the chat and its cards, and Kuna's theme card.
   {

@@ -96,7 +96,9 @@ import {
   keepAiKey,
   newChat,
   openChat,
+  panelSettled,
   savedCardEnded,
+  savedChatAnswered,
   savedChatGone,
   sendInChat,
 } from './chatFlows.mjs'
@@ -10030,25 +10032,51 @@ async function rowHasLines(page, title, cents) {
     })
 }
 
+/** Asks the chat how much was spent and waits until this browser keeps its answer, as a chat begun earlier. */
+async function earlierQuestion(page, press, question) {
+  await openChat(page, press)
+  await sendInChat(page, press, question)
+  await allowIfAsked(page, press)
+  await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+  await savedChatAnswered(page)
+}
+
+/** Whether the chat shows a message with this text. */
+async function chatShowsQuestion(page, question) {
+  return page.$$eval('[data-testid="chat-question"]', (shown, text) => shown.some((line) => line.textContent?.includes(text)), question)
+}
+
 /**
  * On the receipts set's Entries with a made-up key kept: Add a receipt opens a menu, and its Read the photo in the chat opens
- * the rear camera's file picker and puts the photo on the prompt, filling in nothing. Asked to read it, the chat proposes the Pet food category alone, and asked again once that is accepted, the receipt
- * card that splits the Corner market payment and says the photo stays on Drive after Undo. With `accept`, Accept splits the
- * row and Undo takes it back.
+ * the rear camera's file picker. With no chat going on, as after a reload that brought back an earlier one, the photo starts
+ * a new chat, and with `joins` it joins the chat going on, keeping its question. Once the photo is read the chat sends the
+ * receipt's task for the person, through the yes, and proposes the Pet food category alone. Asked again once that is
+ * accepted, it proposes the receipt card that splits the Corner market payment and says the photo stays on Drive after Undo.
+ * With `accept`, Accept splits the row and Undo takes it back.
  */
-export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
+export function chatReceiptFlowIn(language, photos, { accept = false, joins = false } = {}) {
   const words = ASSIST_WORDS[language]
   const request = language === 'en' ? 'Read the receipt' : 'Pročitaj fiskalni račun'
+  const earlier = language === 'en' ? 'How much did I spend this month?' : 'Koliko sam potrošio ovaj mjesec?'
+  const task = SCREEN_WORDS[language].spendingEntries.receipt.readTask
   const petFood = language === 'en' ? 'Pet food' : 'Hrana za ljubimce'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
       await keepAiKey(page)
+      await earlierQuestion(page, press, earlier)
+      if (joins) {
+        await pressSelector(page, press, '[data-testid="chat-close"]')
+        await page.waitForFunction(() => !document.querySelector('[data-testid="chat-panel"]'), { timeout: 5_000 })
+      } else {
+        await page.reload({ waitUntil: 'networkidle0' })
+        await giveThePageBack(page, press)
+      }
       const capture = await page.$eval('[data-testid="spending-receipt-to-chat-input"]', (input) => input.getAttribute('capture')).catch(() => null)
       if (capture !== 'environment') throw new Error(`Read the photo in the chat opens the camera "${capture}", not the rear one`)
       await pressSelector(page, press, '[data-testid="spending-add-receipt"]')
       const toChat = await receiptMenuChoice(page, SCREEN_WORDS[language].spendingEntries.receipt.readInChat)
-      if (!accept) {
+      if (!accept && !joins) {
         await delay(300)
         await inspect?.('the Add a receipt menu open')
         await shoot('spending-receipt-menu')
@@ -10056,22 +10084,33 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
       const [chooser] = await Promise.all([page.waitForFileChooser({ timeout: 10_000 }), press(toChat)])
       await chooser.accept([photos.oneMatch])
       await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
-      await page.waitForSelector('[data-testid="chat-file"][data-state="ready"]', { visible: true, timeout: 15_000 }).catch(() => {
-        throw new Error('the photo is not ready on the chat prompt')
-      })
-      const typed = await page.$eval('textarea[data-testid="chat-prompt"]', (prompt) => prompt.value)
-      if (typed !== '') throw new Error(`the prompt was filled in with "${typed}"`)
-      if (!accept) {
-        await delay(300)
-        await inspect?.('the receipt photo on the prompt')
-        await shoot('chat-receipt-on-prompt')
+      await page
+        .waitForFunction(
+          (text) => document.querySelector('[data-testid="chat-allow"]') !== null || [...document.querySelectorAll('[data-testid="chat-question"]')].some((line) => line.textContent?.includes(text)),
+          { timeout: 15_000 },
+          task,
+        )
+        .catch(() => {
+          throw new Error('the chat did not send the receipt task once the photo was read')
+        })
+      if ((await chatShowsQuestion(page, earlier)) !== joins) throw new Error(joins ? 'the photo did not join the chat going on' : 'the photo landed in the chat of an earlier visit')
+      if (!accept && !joins) {
+        await panelSettled(page)
+        await inspect?.('the receipt photo starting a new chat')
+        await shoot('chat-receipt-new-chat')
       }
 
-      await sendInChat(page, press, request)
       await allowIfAsked(page, press)
       const category = await newestCard(page, 1, 'the chat proposed no category card')
-      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await page.waitForFunction((answers) => document.querySelectorAll('[data-testid="chat-answer"]').length >= answers, { timeout: 15_000 }, joins ? 2 : 1)
       if (!(await category.evaluate((card, name) => card.textContent?.includes(name) ?? false, petFood))) throw new Error(`the first card does not add ${petFood}`)
+      if (!(await chatShowsQuestion(page, task))) throw new Error('the receipt task is not on the chat as a message Kuna sent')
+      if (joins) {
+        await acceptLooksReady(page)
+        await inspect?.('the receipt photo joining the chat going on')
+        await shoot('chat-receipt-joins')
+        return
+      }
       if (!accept) {
         await acceptLooksReady(page)
         await inspect?.('the category card before the receipt')

@@ -3220,6 +3220,7 @@ async function checkWidth(width) {
     ['spending-chat-revolut-copy', 'drive&spending=sample', appChatCardFlowIn('en', 'revolut', CHAT_ATTACHMENT_SAMPLES), '#/spending', 'Overview'],
     ['chat-split', 'drive&spending=sample', chatSplitFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['chat-receipt', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { accept: true }), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-joins', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { joins: true }), '#/spending/transactions', 'Entries'],
     // Company's ways into the chat.
     ['company-review-sort', 'drive', companyReviewAskFlowIn('en'), '#/company/transactions?tab=review', 'Transactions'],
     ['company-chat-invoice', 'drive', companyChatCardFlowIn('en', 'invoice'), '#/company', 'Overview'],

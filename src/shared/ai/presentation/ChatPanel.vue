@@ -32,13 +32,14 @@ import {
   chatPromptFiles,
   chatSpent,
   chatStatus,
-  clearChat,
   loadCatalogue,
   promptPdfsRefused,
   promptFileNotes,
   restoreChat,
   sendChatFrom,
   sendChatMessage,
+  sendTask,
+  startChatWith,
   stopChatMessage,
 } from './chatSession'
 import type { MessageOrigin } from './chatSession'
@@ -76,7 +77,7 @@ provide(CHAT_APPS, [...props.apps, props.kuna])
 onMounted(() => {
   void restoreChat()
   void loadCatalogue(props.apps, props.kuna)
-  sendChatFrom((message, origin) => run(message, origin))
+  sendChatFrom(send)
 })
 onUnmounted(() => sendChatFrom(null))
 const panel = useTemplateRef<HTMLElement>('panel')
@@ -154,14 +155,13 @@ function run(message: string, origin: MessageOrigin = 'person'): void {
   )
 }
 
-/** A button that names a task sends it as Kuna's message for the person, through the same yes as a typed one. While a message runs it waits in the prompt. */
+/** A button that names a task sends it as Kuna's message for the person, through the same yes as a typed one. While a message runs it goes once that ends. */
 watch(
   chatRequest,
   (task) => {
     if (task === null) return
     takeChatRequest()
-    if (chatStatus.value === 'ready') send(task, 'task')
-    else chatDraft.value = task
+    sendTask(task)
   },
   { immediate: true },
 )
@@ -190,8 +190,7 @@ function allowAlways(): void {
 
 function startOver(): void {
   asking.value = null
-  clearChat()
-  removeChatElement()
+  void startChatWith({}, 'new-chat')
 }
 
 const picker = useTemplateRef<HTMLInputElement>('picker')

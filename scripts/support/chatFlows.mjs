@@ -69,15 +69,46 @@ export async function acceptLooksReady(page) {
   if (faded.length > 0) throw new Error(`a card's Accept shows ${faded.join(' and ')} just before the screenshot`)
 }
 
-/** Allows the chat when it asks first, and goes on when it does not ask within five seconds. */
+/**
+ * Waits until the chat panel has stopped moving: no animation that ends runs in it, as a spinner never does, and none of its buttons moved over the last five
+ * frames. Below the width that docks it the panel takes the page's place while the yes card lays out, and a press before then misses.
+ */
+export async function panelSettled(page) {
+  await page
+    .waitForFunction(
+      () =>
+        new Promise((resolve) => {
+          const panel = document.querySelector('[data-testid="chat-panel"]')
+          if (panel === null) return resolve(false)
+          const layout = () => JSON.stringify([...panel.querySelectorAll('button')].map((button) => button.getBoundingClientRect()))
+          const first = layout()
+          let frames = 0
+          const next = () => {
+            frames += 1
+            if (layout() !== first || panel.getAnimations({ subtree: true }).some((animation) => animation.effect?.getTiming().iterations !== Infinity)) return resolve(false)
+            if (frames === 5) return resolve(true)
+            requestAnimationFrame(next)
+          }
+          requestAnimationFrame(next)
+        }),
+      { timeout: 5_000 },
+    )
+    .catch(() => {
+      throw new Error('the chat panel kept moving')
+    })
+}
+
+/** Allows the chat when it asks first, once the panel has settled, and goes on when it does not ask within five seconds. */
 export async function allowIfAsked(page, press) {
   const allow = await page.waitForSelector('[data-testid="chat-allow"]', { visible: true, timeout: 5_000 }).catch(() => null)
-  if (allow !== null) await press(allow)
+  if (allow === null) return
+  await panelSettled(page)
+  await press(allow)
 }
 
 /**
- * Waits until this browser keeps the chat a reload should bring back: none at all when `cardState` is null, or one whose
- * card ended in `cardState`. The chat is kept in the background, so a reload that does not wait can race it.
+ * Waits until this browser keeps the chat a reload should bring back: none at all when `cardState` is null, one with an
+ * answer when it is `answered`, or one whose card ended in `cardState`. The chat is kept in the background, so a reload that does not wait can race it.
  */
 async function savedChatSettled(page, cardState, failure) {
   await page
@@ -93,7 +124,9 @@ async function savedChatSettled(page, cardState, failure) {
             reading.onsuccess = () => {
               database.close()
               const kept = reading.result
-              resolve(wanted === null ? kept === undefined : (kept?.lines ?? []).some((line) => line.proposals.some((proposal) => proposal.state === wanted)))
+              if (wanted === null) resolve(kept === undefined)
+              else if (wanted === 'answered') resolve((kept?.lines ?? []).some((line) => line.role === 'assistant' && line.text !== ''))
+              else resolve((kept?.lines ?? []).some((line) => line.proposals.some((proposal) => proposal.state === wanted)))
             }
           }
         })
@@ -114,6 +147,11 @@ export async function savedChatGone(page) {
 /** Waits until this browser keeps a card that ended in `state`, so a reload brings it back as it ended. */
 export async function savedCardEnded(page, state) {
   await savedChatSettled(page, state, `this browser never kept a card that ended ${state}`)
+}
+
+/** Waits until this browser keeps a chat with an answer, so a reload brings it back. */
+export async function savedChatAnswered(page) {
+  await savedChatSettled(page, 'answered', 'this browser never kept the answer')
 }
 
 /** Starts a new chat, unless the chat is empty, and waits until this browser keeps none, so the next flow opens on an empty chat. */

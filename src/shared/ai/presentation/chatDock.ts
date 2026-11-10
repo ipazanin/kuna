@@ -89,6 +89,12 @@ export function openChat(): void {
   open.value = true
 }
 
+/** Opens the chat about `about`, in place of any element before. */
+export function openChatAbout(about: AskedElement): void {
+  element.value = about
+  open.value = true
+}
+
 /** Opens the chat and leaves `task` for it to send by itself, as a button that names a task does. */
 export function askChat(task: string): void {
   request.value = task
@@ -121,9 +127,8 @@ export function useChatElement(
     ask: () => {
       const about = toValue(asked)
       if (about === null) return
-      element.value = about
+      openChatAbout(about)
       request.value = task
-      open.value = true
     },
     marked: computed(() => {
       const about = toValue(asked)

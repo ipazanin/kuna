@@ -28,6 +28,8 @@ import { modelPort } from '../application/modelAccess'
 import { anonymiseOn, assistAllowed, modelOf } from '../application/assistSettings'
 import type { ProviderId, ProviderPreset } from '../domain/providerPresets'
 import type { KunaChat } from './chatApps'
+import { askChat, openChat, openChatAbout, removeChatElement } from './chatDock'
+import type { AskedElement } from './chatDock'
 import { imagePartOf } from './imagePartOf'
 import { anonymisingNow, costWords, providerInUse, resultLine } from './aiProvider'
 import { words } from './words'
@@ -107,6 +109,11 @@ const MOST_GOING_ON = 10
 const lines = reactive<ChatLine[]>([])
 const spent = reactive<Spent>({ dollars: 0, unknown: false, any: false })
 const status = shallowRef<'ready' | 'streaming'>('ready')
+/**
+ * Whether a chat is going on: a message went in this visit. A card still open and an answer streaming come only from one,
+ * as a restored chat's cards end, so a chat brought back from an earlier visit or a tag alone does not count.
+ */
+const goingOn = shallowRef(false)
 
 /** A question not sent yet, which stays while the panel is closed and goes with a new chat. */
 export const chatDraft = shallowRef('')
@@ -138,7 +145,9 @@ const outcomes: string[] = []
 let wentOnBySelf = 0
 /** A card was accepted while a message was still under way, so Go on waits for it to end. */
 let goOnWaiting = false
-/** Sends a message as the open panel sends one, from where the person is then. Null while no panel is open. */
+/** A task a button named while a message was under way or no panel was open, which goes by itself once nothing is, as Go on does. */
+let taskWaiting: string | null = null
+/** Sends a message as the open panel sends one, through its yes, from where the person is then. Null while no panel is open. */
 let sendFromPanel: ((message: string, origin: MessageOrigin) => void) | null = null
 /** People go out as aliases in the screen's language, so the person reads the same word the model writes. */
 const PERSON_WORD: PersonWord = language === 'hr' ? 'Osoba' : 'Person'
@@ -311,11 +320,13 @@ function restored(saved: SavedChat): void {
 }
 
 let restoring: Promise<void> | null = null
+/** A chat started over in this visit, so the saved one, which may still be read, never comes back into it. */
+let startedOver = false
 
 /** Brings back the last chat of this browser, once a visit, unless one was begun. The model hears the messages again but not what its tools read last time. */
 export function restoreChat(): Promise<void> {
   restoring ??= readSavedChat().then((saved) => {
-    if (saved !== null && lines.length === 0) restored(saved)
+    if (saved !== null && !startedOver && lines.length === 0) restored(saved)
   })
   return restoring
 }
@@ -344,9 +355,23 @@ export function settleProposal(proposal: ChatProposal, state: ProposalState, rea
   else if (state === 'done' && held.goesOn) goOn()
 }
 
-/** The panel's way to send a message, which the chat's own Go on takes, or null once the panel closes. */
+/** The panel's way to send a message, which Go on and a waiting task take, or null once the panel closes. */
 export function sendChatFrom(send: ((message: string, origin: MessageOrigin) => void) | null): void {
   sendFromPanel = send
+  sendWaitingTask()
+}
+
+/** Sends a task a button named as Kuna's message for the person, at once or, while a message is under way, once it ends. */
+export function sendTask(task: string): void {
+  taskWaiting = task
+  sendWaitingTask()
+}
+
+function sendWaitingTask(): void {
+  if (taskWaiting === null || sendFromPanel === null || status.value !== 'ready') return
+  const task = taskWaiting
+  taskWaiting = null
+  sendFromPanel(task, 'task')
 }
 
 /** Sends Go on once nothing is under way, unless no panel is open to send it. */
@@ -462,6 +487,7 @@ function sentFiles(): readonly ChatAttachment[] {
 export async function sendChatMessage(message: string, where: ChatWhere, knowledge: () => Promise<Catalogue>, origin: MessageOrigin = 'person'): Promise<void> {
   const preset = providerInUse()
   if (promptPdfsRefused.value) return
+  goingOn.value = true
   if (origin === 'goOn') wentOnBySelf += 1
   else {
     wentOnBySelf = 0
@@ -558,7 +584,10 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       else line.stopped = stoppedByPerson
       keepChat()
       if (goOnWaiting && !stoppedByPerson && line.failure === null) goOn()
-      else goOnWaiting = false
+      else {
+        goOnWaiting = false
+        sendWaitingTask()
+      }
     }
   }
 }
@@ -575,8 +604,10 @@ export function stopChatMessage(): void {
   current?.abort()
 }
 
-/** Starts over: nothing of the chat stays in this page. */
+/** Starts over: nothing of the chat stays in this page, and the saved chat does not come back in this visit. */
 export function clearChat(): void {
+  startedOver = true
+  goingOn.value = false
   stoppedByPerson = true
   current?.abort()
   current = null
@@ -594,6 +625,7 @@ export function clearChat(): void {
   outcomes.splice(0)
   wentOnBySelf = 0
   goOnWaiting = false
+  taskWaiting = null
   void forgetSavedChat()
   chatDraft.value = ''
   Object.assign(spent, { dollars: 0, unknown: false, any: false })
@@ -601,6 +633,30 @@ export function clearChat(): void {
 
 export const chatLines = readonly(lines)
 export const chatStatus = readonly(status)
+export const chatGoingOn = readonly(goingOn)
+
+/** What a chat starts with: files to read onto the prompt, the element it is about, and a task Kuna sends for the person. */
+export interface ChatStart {
+  readonly files?: readonly File[]
+  readonly element?: AskedElement | null
+  readonly task?: string | null
+}
+
+/**
+ * Opens the chat with what `start` gives. New chat always starts over. A page joins a chat going on, and otherwise starts
+ * over as New chat does, which replaces the saved chat. The task goes through the same yes as a typed message once a file
+ * is read, as only a ready file goes with a message, and not at all when every file was refused.
+ */
+export async function startChatWith({ files = [], element = null, task = null }: ChatStart, from: 'new-chat' | 'page'): Promise<void> {
+  if (from === 'new-chat' || !goingOn.value) {
+    clearChat()
+    removeChatElement()
+  }
+  if (element === null) openChat()
+  else openChatAbout(element)
+  if (files.length > 0) await attachFiles(files)
+  if (task !== null && (files.length === 0 || chatPromptFiles.value.some((file) => file.state === 'ready'))) askChat(task)
+}
 
 /** An answer as the person sees it, with this chat's aliases back as what they stand for. Neither leaves the page. */
 export function shownOnScreen(text: string): string {
