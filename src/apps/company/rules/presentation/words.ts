@@ -66,6 +66,8 @@ export const en = {
     triedHelp: 'Rules are tried from the top, and the first one whose conditions all hold decides the row.',
     triedBefore: 'Tried before',
     before: (id: string) => `Before ${id}`,
+    /** Where a rule tried before every other stands, and where one tried after every other stands. */
+    first: 'First',
     last: 'After every rule',
     conditions: 'Conditions',
     conditionsHelp: 'Every condition must hold. Text is compared without accents or case.',
@@ -222,6 +224,7 @@ export const hr: Translation<typeof en> = {
     triedHelp: 'Pravila se isprobavaju odozgo, a o stavci odlučuje prvo čiji su svi uvjeti ispunjeni.',
     triedBefore: 'Isprobava se prije',
     before: (id) => `Prije „${id}”`,
+    first: 'Prvo',
     last: 'Nakon svih pravila',
     conditions: 'Uvjeti',
     conditionsHelp: 'Svi uvjeti moraju biti ispunjeni. Tekst se uspoređuje bez dijakritika i bez razlike između velikih i malih slova.',

@@ -10,11 +10,12 @@ import UTextarea from '@nuxt/ui/components/Textarea.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import CategoryPicker from '../../transactions/presentation/CategoryPicker.vue'
 import type { Category } from '../../workbook/domain/workbook'
-import { CONDITION_COLUMNS, inTryingOrder } from '../../../../shared/categorising/domain/rule'
+import { CONDITION_COLUMNS } from '../../../../shared/categorising/domain/rule'
 import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
 import { FLAG_COLUMNS, newCondition, withCondition } from '../domain/ruleDraft'
 import type { ConditionColumn, DraftCondition, RuleDraft } from '../domain/ruleDraft'
 import { words as ruleWords } from '../domain/words'
+import { placementChoices } from './placementWords'
 import { words } from './words'
 
 /** One rules row as a form: its conditions from the tab's columns, what it files, and where it is tried. */
@@ -61,12 +62,7 @@ const confidenceItems: { value: RuleConfidence; label: string }[] = [
   { value: 'review', label: words.form.waitsForReview },
 ]
 
-const placementItems = computed(() => [
-  ...inTryingOrder(props.rules)
-    .filter((rule) => rule.id !== props.editingId)
-    .map((rule) => ({ value: rule.id, label: words.form.before(rule.id) })),
-  { value: LAST, label: words.form.last },
-])
+const placementItems = computed(() => placementChoices(props.rules, props.editingId, LAST))
 
 function presenceOf(value: DraftCondition['value']): string {
   return String(value).toUpperCase() === 'FALSE' ? 'FALSE' : 'TRUE'

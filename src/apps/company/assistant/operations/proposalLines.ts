@@ -8,6 +8,7 @@ import { ownerShareText } from '../../owner-share/domain/ownerShare'
 import { classSharesDay, installedPack } from '../../packs/packContribution'
 import { vatTreatmentLabel } from '../../settings/presentation/vatTreatmentLabel'
 import { words as settingsWords } from '../../settings/presentation/words'
+import { placementWords } from '../../rules/presentation/placementWords'
 import { words as ruleFormWords } from '../../rules/presentation/words'
 import { readRules } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
@@ -113,16 +114,12 @@ function movesConfirmed(kind: RecordKind<unknown>, before: ProposedRecord, after
   return isKind(kind, LEDGER_RECORDS, before) && isKind(kind, LEDGER_RECORDS, after) && isHumanConfirmed(before) && before.category !== '' && before.category !== after.category
 }
 
-/** Where a rule is tried, as the rule form says it: before the rule tried next, or after every rule. */
-function placementInWords(next: string | null): string {
-  return next === null ? ruleFormWords.form.last : ruleFormWords.form.before(next)
-}
-
-/** The rule tried right after the named one, or null for the last. */
-function nextRule(rules: readonly Pick<Rule, 'id' | 'order'>[], id: string): string | null {
+/** Where a rule is tried among the rules, with the rule tried next by its name now. */
+function placementOf(rules: readonly Pick<Rule, 'id' | 'order'>[], id: string, nameNow: (id: string) => string): string {
   const ordered = inTryingOrder(rules)
   const at = ordered.findIndex((rule) => rule.id.toLowerCase() === id.toLowerCase())
-  return at === -1 ? null : (ordered[at + 1]?.id ?? null)
+  const next = ordered[at + 1]
+  return placementWords(next === undefined ? null : nameNow(next.id), at === 0)
 }
 
 /**
@@ -143,11 +140,10 @@ function movedRules(checked: CheckedWrite, rules: readonly Rule[], moved: Readon
   const placements = new Map<string, ProposalField>()
   for (const change of ruleChanges) {
     if (change.verb !== 'change' || !moved.has(idOf(change.before).toLowerCase())) continue
-    const was = nextRule(rules, idOf(change.before))
-    const wasNamed = was === null ? null : (renamed.get(was.toLowerCase()) ?? was)
-    const will = nextRule([...after.values()], idOf(change.after))
-    if (wasNamed?.toLowerCase() === will?.toLowerCase()) continue
-    placements.set(idOf(change.after).toLowerCase(), { name: ruleFormWords.form.tried, before: placementInWords(wasNamed), after: placementInWords(will), warns: false })
+    const was = placementOf(rules, idOf(change.before), (id) => renamed.get(id.toLowerCase()) ?? id)
+    const will = placementOf([...after.values()], idOf(change.after), (id) => id)
+    if (was === will) continue
+    placements.set(idOf(change.after).toLowerCase(), { name: ruleFormWords.form.tried, before: was, after: will, warns: false })
   }
   return placements
 }

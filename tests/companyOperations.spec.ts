@@ -299,14 +299,14 @@ describe('rules', () => {
     expect(answer.text).toContain('beyond the direction')
   })
 
-  it('says on the card where a rule moves among the rules, by the rule it now comes before', async () => {
+  it('says on the card where a rule moves among the rules, as first when it goes to the top', async () => {
     const desk = await companyDesk(used)
     await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'MARKET' }) }])
     await desk.accept()
     await desk.propose([{ op: 'change-rule', input: changeRuleInput(desk, 'office-market', { before: desk.ref(RULE_RECORDS.name, 'merchant-model') }) }])
 
     const line = desk.cards[1]!.groups.find((group) => group.noun === RULE_RECORDS.noun)!.lines.find((candidate) => candidate.label === 'office-market')!
-    expect(line.fields.map((field) => [field.name, field.before, field.after])).toEqual([[ruleFormWords.form.tried, ruleFormWords.form.last, ruleFormWords.form.before('merchant-model')]])
+    expect(line.fields.map((field) => [field.name, field.before, field.after])).toEqual([[ruleFormWords.form.tried, ruleFormWords.form.last, ruleFormWords.form.first]])
   })
 
   it('leaves off the card the rules renumbered to make room for a move, and counts only the rule that moves', async () => {
@@ -322,7 +322,9 @@ describe('rules', () => {
     const card = desk.cards[0]!
     const changes = (card.held as { readonly changes: readonly RuledChange[] }).changes
     expect(changes.filter(({ change }) => change.kind.name === RULE_RECORDS.name)).toHaveLength(2)
-    expect(card.groups.find((group) => group.noun === RULE_RECORDS.noun)!.lines.map((line) => line.label)).toEqual(['office-noone'])
+    const lines = card.groups.find((group) => group.noun === RULE_RECORDS.noun)!.lines
+    expect(lines.map((line) => line.label)).toEqual(['office-noone'])
+    expect(lines[0]!.fields.map((field) => [field.before, field.after])).toEqual([[ruleFormWords.form.last, ruleFormWords.form.before('office-nobody')]])
     expect(card.count).toBe(1)
   })
 
