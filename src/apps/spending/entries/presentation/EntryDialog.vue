@@ -8,12 +8,12 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { entryCategoryChoices } from './categoryChoices'
+import EntrySplitDialog from './EntrySplitDialog.vue'
 import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
 import { words } from './words'
 import { knownPayees, payeeChoices } from '../domain/knownPayees'
-import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, writeEntry, writeTransfer } from '../application/entryWrites'
+import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
-import { removeReceiptOf } from '../../receipts/application/receiptRecords'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
@@ -75,15 +75,17 @@ const legs = computed((): readonly [Transaction, Transaction] | null => {
   return props.entry.amount < 0 ? [props.entry, other] : [other, props.entry]
 })
 
-/** What a receipt split the entry into, whose sum holds its amount and whose categories count in place of its own. */
+/** What a receipt or you split the entry into, whose sum holds its amount and whose categories count in place of its own. */
 const entryLines = computed(() => (store.state.workbook?.lines ?? []).filter((line) => line.transaction === props.entry?.id))
 const split = computed(() => entryLines.value.length > 0)
+const receipt = computed(() => (store.state.workbook?.receipts ?? []).find((held) => held.transaction === props.entry?.id) ?? null)
 /** Where the entry's receipt was photographed, when its photo held a position. */
 const receiptPlace = computed(() => {
-  const held = (store.state.workbook?.receipts ?? []).find((receipt) => receipt.transaction === props.entry?.id)
-  const link = held === undefined ? null : mapLinkOf(held)
-  return held === undefined || link === null ? null : { text: receiptWords.place(held.latitude, held.longitude), link }
+  const held = receipt.value
+  const link = held === null ? null : mapLinkOf(held)
+  return held === null || link === null ? null : { text: receiptWords.place(held.latitude, held.longitude), link }
 })
+const splitOpen = ref(false)
 
 /** The open accounts, and the closed ones the entry is already on. */
 const choosable = computed(() => {
@@ -227,11 +229,13 @@ async function treatPayee(): Promise<void> {
   })
 }
 
-async function removeReceipt(): Promise<void> {
+/** Takes the receipt and its lines off, or the parts you split the entry into, and closes the dialog. */
+async function removeSplit(): Promise<void> {
   const entry = props.entry
   const records = store.state.records
   if (entry === null || records === null) return
-  if (await writes.write(receiptWords.removed, (unit) => removeReceiptOf(unit, records, entry), { key: 'remove-receipt', failedTitle: spendingWords.form.notSaved })) open.value = false
+  const [title, key] = receipt.value === null ? [words.split.removed, 'remove-split'] : [receiptWords.removed, 'remove-receipt']
+  if (await writes.write(title, (unit) => removeSplitOf(unit, records, entry), { key, failedTitle: spendingWords.form.notSaved })) open.value = false
 }
 
 async function remove(): Promise<void> {
@@ -287,13 +291,14 @@ async function remove(): Promise<void> {
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
-        <p class="type-caption">{{ receiptWords.splitNote }}</p>
+        <p class="type-caption">{{ receipt === null ? words.split.note : receiptWords.splitNote }}</p>
         <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full" />
         <p v-if="receiptPlace !== null" class="flex flex-col items-start text-sm" data-testid="spending-entry-place">
           <span>{{ receiptPlace.text }}</span>
           <a :href="receiptPlace.link" target="_blank" rel="noopener noreferrer" class="quiet-link" data-testid="spending-entry-place-link">{{ receiptWords.openMap }}</a>
         </p>
         <UButton
+          v-if="receipt !== null"
           :label="receiptWords.remove"
           icon="i-lucide-receipt"
           color="neutral"
@@ -301,8 +306,24 @@ async function remove(): Promise<void> {
           :loading="writes.saving('remove-receipt')"
           :disabled="writes.busy.value"
           data-testid="spending-entry-remove-receipt"
-          @click="removeReceipt"
+          @click="removeSplit"
         />
+        <div v-else class="flex flex-wrap gap-2">
+          <UButton :label="words.split.change" icon="i-lucide-split" color="neutral" variant="outline" data-testid="spending-entry-change-split" @click="splitOpen = true" />
+          <UButton
+            :label="words.split.remove"
+            icon="i-lucide-x"
+            color="neutral"
+            variant="outline"
+            :loading="writes.saving('remove-split')"
+            :disabled="writes.busy.value"
+            data-testid="spending-entry-remove-split"
+            @click="removeSplit"
+          />
+        </div>
+      </div>
+      <div v-else-if="entry !== null && legs === null && kind !== 'transfer'" class="sm:col-span-2">
+        <UButton :label="words.split.action" icon="i-lucide-split" color="neutral" variant="outline" data-testid="spending-entry-split" @click="splitOpen = true" />
       </div>
       <div v-if="savedPayee !== '' && assistKeyKept" class="flex flex-col items-start gap-1 sm:col-span-2" data-testid="spending-entry-person">
         <UButton
@@ -319,6 +340,7 @@ async function remove(): Promise<void> {
       </div>
       <p v-if="deleteComesBack(legs ?? (entry === null ? [] : [entry]))" class="type-caption sm:col-span-2" data-testid="spending-entry-comes-back">{{ words.dialog.comesBack }}</p>
     </FormGrid>
+    <EntrySplitDialog v-if="entry !== null" v-model:open="splitOpen" :entry="entry" :currency="from?.currency ?? EURO" @saved="open = false" />
     <template #start>
       <UButton
         v-if="entry !== null"

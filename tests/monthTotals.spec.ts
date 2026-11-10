@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow'
 import { categoryTotal, monthTotals } from '../src/apps/spending/analytics/domain/monthTotals'
 import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
-import type { ReceiptLine } from '../src/apps/spending/workbook/domain/receiptLine'
-import { LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { EntryPart } from '../src/apps/spending/workbook/domain/entryPart'
+import { PART_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
@@ -18,9 +18,9 @@ function totalsOf(rows: readonly Transaction[], asked: string, rates: RateBook =
 }
 
 /** A row's lines, as a receipt split it, in the row's currency. */
-function linesOf(transaction: Transaction, parts: readonly (readonly [number, string])[]): readonly ReceiptLine[] {
+function linesOf(transaction: Transaction, parts: readonly (readonly [number, string])[]): readonly EntryPart[] {
   return parts.map(([amount, path], place) => ({
-    id: recordIdOf(LINE_RECORDS, `5e000000-0000-4000-8000-00000000${String(7000 + place)}`),
+    id: recordIdOf(PART_RECORDS, `5e000000-0000-4000-8000-00000000${String(7000 + place)}`),
     transaction: transaction.id,
     receipt: recordIdOf(RECEIPT_RECORDS, '5e000000-0000-4000-8000-000000006000'),
     printed: '',

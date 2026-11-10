@@ -15,8 +15,8 @@ import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
 import type { SpendingBook } from '../workbook/domain/readSpendingBook'
 import type { Receipt } from '../workbook/domain/receipt'
-import type { ReceiptLine } from '../workbook/domain/receiptLine'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../workbook/domain/spendingKinds'
+import type { EntryPart } from '../workbook/domain/entryPart'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../workbook/domain/spendingKinds'
 import type { LinkableBank } from '../workbook/domain/spendingSettings'
 import type { SpendingRule } from '../workbook/domain/spendingRule'
 import type { Transaction } from '../workbook/domain/transaction'
@@ -144,12 +144,12 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   longitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
 }
 
-const LINE_FIELDS: FieldDocs<ReceiptLine> = {
-  id: { exposure: 'ref', to: LINE_RECORDS.name, meaning: 'The line.' },
+const PART_FIELDS: FieldDocs<EntryPart> = {
+  id: { exposure: 'ref', to: PART_RECORDS.name, meaning: 'The part.' },
   transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry it is part of.' },
-  receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
-  printed: { exposure: 'free-text', meaning: 'As the till printed it.' },
-  text: { exposure: 'free-text', meaning: 'In plain words.' },
+  receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand.' },
+  printed: { exposure: 'free-text', meaning: 'As the till printed it, or empty.' },
+  text: { exposure: 'free-text', meaning: 'In plain words, or empty.' },
   amount: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'Signed as the entry is.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The figures count this instead of the entry.' },
 }
@@ -307,9 +307,9 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: RULE_FIELDS, dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),
       readableKind({ kind: RECEIPT_RECORDS, about: words.reads.receipt, fields: RECEIPT_FIELDS, dated: 'issuedOn', rows: () => rows((book) => book.receipts), currencyOf: () => EURO }),
       readableKind({
-        kind: LINE_RECORDS,
+        kind: PART_RECORDS,
         about: words.reads.line,
-        fields: LINE_FIELDS,
+        fields: PART_FIELDS,
         dated: null,
         rows: () => rows((book) => book.lines),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),

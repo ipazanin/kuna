@@ -1,8 +1,8 @@
 import type { Account } from './account'
 import type { Budget } from './budget'
 import type { Category } from './category'
+import type { EntryPart } from './entryPart'
 import type { Receipt } from './receipt'
-import type { ReceiptLine } from './receiptLine'
 import type { SpendingRule } from './spendingRule'
 import type { Transaction } from './transaction'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
@@ -32,9 +32,10 @@ export const RECEIPT_RECORDS = recordKind<Receipt>('receipt', {
   en: { one: 'receipt', many: 'receipts', article: 'a' },
   hr: { one: 'fiskalni račun', of: 'fiskalnog računa', few: 'fiskalna računa', other: 'fiskalnih računa', gender: 'masculine' },
 })
-export const LINE_RECORDS = recordKind<ReceiptLine>('line', {
-  en: { one: 'receipt line', many: 'receipt lines', article: 'a' },
-  hr: { one: 'stavka računa', of: 'stavke računa', few: 'stavke računa', other: 'stavki računa', gender: 'feminine' },
+/** Named `line` in the file, from when only a receipt split an entry. */
+export const PART_RECORDS = recordKind<EntryPart>('line', {
+  en: { one: 'part of an entry', many: 'parts of entries', article: 'a' },
+  hr: { one: 'dio unosa', of: 'dijela unosa', few: 'dijela unosa', other: 'dijelova unosa', gender: 'masculine' },
 })
 export const SETTING_RECORDS = recordKind<SettingRow>('setting', {
   en: { one: 'setting', many: 'settings', article: 'a' },

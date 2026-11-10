@@ -1,0 +1,211 @@
+import 'fake-indexeddb/auto'
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { PART_WRITES, TRANSACTION_WRITES, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
+import { differencePart, entrySplit, mainCategoryOf } from '../src/apps/spending/entries/domain/entrySplit'
+import type { EntrySplit, PartDraft } from '../src/apps/spending/entries/domain/entrySplit'
+import { splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
+import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
+import type { EntryPart } from '../src/apps/spending/workbook/domain/entryPart'
+import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
+import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
+import { moneyFromAmount } from '../src/shared/money/money'
+import { NO_RATES } from '../src/shared/money/rateBook'
+import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import type { RecordKind } from '../src/shared/storage/domain/recordKind'
+import { month } from './fixtures/ledger'
+import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, category, row } from './fixtures/spending'
+import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
+
+const used = new Set<string>()
+afterEach(async () => forgetCaches(used))
+
+const GROCERIES = category('Food/Groceries')
+const RESTAURANTS = category('Food/Restaurants')
+const FOOD = category('Food')
+const COMPANY = CATEGORIES.find((held) => held.kind === 'company')!
+const TRANSFER = CATEGORIES.find((held) => held.kind === 'transfer')!
+const SALARY = category('Income/Salary')
+
+const BOOK = { categories: CATEGORIES, receipts: [] as readonly Receipt[] }
+
+let keyPlace = 0
+function keys(): () => string {
+  return () => `5e5e0000-0000-4000-8000-${String((keyPlace += 1)).padStart(12, '0')}`
+}
+
+const part = (amount: number | 'rest', on: { readonly id: PartDraft['category'] }, text = ''): PartDraft => ({
+  amount: amount === 'rest' ? 'rest' : accountMoneyFromAmount(amount),
+  category: on.id,
+  text,
+})
+
+function splitOf(row: Transaction, drafts: readonly PartDraft[], book = BOOK): EntrySplit {
+  const split = entrySplit(book, row, drafts, keys())
+  if ('refused' in split) throw new Error(`refused: ${split.refused}`)
+  return split
+}
+
+describe('an entry split by hand', () => {
+  const spend = row(OTP, '2026-11-04', -100, 'Food/Groceries', { payee: 'Market' })
+
+  it('places each part signed as the entry, gives the rest what is left, and files the row under the category with most of the money', () => {
+    const split = splitOf(spend, [part(-20, GROCERIES, ' Bread '), part(-35.5, COMPANY), part('rest', RESTAURANTS)])
+
+    expect(split.parts.map((held) => [held.amount, held.category, held.text, held.receipt])).toEqual([
+      [accountMoneyFromAmount(-20), GROCERIES.id, 'Bread', null],
+      [accountMoneyFromAmount(-35.5), COMPANY.id, '', null],
+      [accountMoneyFromAmount(-44.5), RESTAURANTS.id, '', null],
+    ])
+    expect(split.parts.every((held) => held.transaction === spend.id)).toBe(true)
+    expect(split.row).toEqual({ ...spend, category: RESTAURANTS.id, categorisedBy: 'person' })
+    expect(split.before).toBe(spend)
+  })
+
+  it('splits money in as money in', () => {
+    const refund = row(OTP, '2026-11-04', 50, 'Income/Salary')
+    expect(splitOf(refund, [part(10, GROCERIES), part('rest', SALARY)]).parts.map((held) => held.amount)).toEqual([accountMoneyFromAmount(10), accountMoneyFromAmount(40)])
+  })
+
+  it.each([
+    ['too-few', [part('rest', GROCERIES)]],
+    ['one-rest', [part(-20, GROCERIES), part(-80, RESTAURANTS)]],
+    ['zero-part', [part(0, GROCERIES), part('rest', RESTAURANTS)]],
+    ['wrong-sign', [part(20, GROCERIES), part('rest', RESTAURANTS)]],
+    ['over', [part(-100, GROCERIES), part('rest', RESTAURANTS)]],
+    ['group-with-children', [part(-20, FOOD), part('rest', RESTAURANTS)]],
+    ['between-accounts', [part(-20, TRANSFER), part('rest', RESTAURANTS)]],
+    ['unknown-category', [{ amount: accountMoneyFromAmount(-20), category: recordIdOf(CATEGORY_RECORDS, 'gone'), text: '' }, part('rest', RESTAURANTS)]],
+  ] as const)('refuses as %s', (reason, drafts) => {
+    expect(entrySplit(BOOK, spend, drafts)).toEqual({ refused: reason })
+  })
+
+  it("refuses a transfer's leg and an entry a receipt split, which stay as they are", () => {
+    const drafts = [part(-20, GROCERIES), part('rest', RESTAURANTS)]
+    expect(entrySplit(BOOK, { ...spend, pair: row(OTP, '2026-11-04', 100, null).id }, drafts)).toEqual({ refused: 'transfer-leg' })
+    expect(entrySplit(BOOK, { ...spend, category: TRANSFER.id }, drafts)).toEqual({ refused: 'transfer-leg' })
+    const receipt = { id: recordIdOf(RECEIPT_RECORDS, 'receipt'), transaction: spend.id } as Receipt
+    expect(entrySplit({ ...BOOK, receipts: [receipt] }, spend, drafts)).toEqual({ refused: 'receipt' })
+  })
+
+  it('files the row under the first category on a tie', () => {
+    const half = accountMoneyFromAmount(-50)
+    expect(
+      mainCategoryOf([
+        { amount: half, category: GROCERIES.id },
+        { amount: half, category: RESTAURANTS.id },
+      ]),
+    ).toBe(GROCERIES.id)
+  })
+})
+
+describe('the Difference part', () => {
+  const like = { transaction: row(OTP, '2026-11-04', -25, null).id, receipt: null, category: GROCERIES.id }
+
+  it('takes what the whole adds past the parts, of either sign, and is not there when they add up', () => {
+    expect(differencePart(accountMoneyFromAmount(-25), [{ amount: accountMoneyFromAmount(-23.49) }], like, 'Difference', keys())).toMatchObject({
+      amount: accountMoneyFromAmount(-1.51),
+      category: GROCERIES.id,
+      receipt: null,
+      text: 'Difference',
+    })
+    expect(differencePart(accountMoneyFromAmount(-20), [{ amount: accountMoneyFromAmount(-23.49) }], like, 'Difference')?.amount).toBe(accountMoneyFromAmount(3.49))
+    expect(differencePart(accountMoneyFromAmount(-25), [{ amount: accountMoneyFromAmount(-25) }], like, 'Difference')).toBeNull()
+  })
+})
+
+function stored<R>(kind: RecordKind<R>, records: readonly R[]) {
+  const codec = codecOfSpendingKind(kind)
+  return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
+}
+
+async function storeWith(rows: readonly Transaction[], parts: readonly EntryPart[] = []): Promise<WorkbookStore<SpendingBooks>> {
+  const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', {
+    ...stored(ACCOUNT_RECORDS, ACCOUNTS),
+    ...stored(CATEGORY_RECORDS, CATEGORIES),
+    ...stored(TRANSACTION_RECORDS, rows),
+    ...stored(PART_RECORDS, parts),
+  })
+  const { store } = await browserHarness(used, document, SPENDING)
+  return store
+}
+
+describe('the file with parts no receipt split', () => {
+  const spend = row(OTP, '2026-11-04', -100, 'Food/Groceries')
+  const handParts = splitOf(spend, [part(-30, RESTAURANTS), part('rest', GROCERIES)]).parts
+
+  it('stores a part with no receipt as a blank field, under the kind it always had, and reads it back', () => {
+    const fields = codecOfSpendingKind(PART_RECORDS).fieldsOf(handParts[0]!)
+    expect(PART_RECORDS.name).toBe('line')
+    expect(fields).not.toHaveProperty('receipt')
+  })
+
+  it('counts the parts in place of the entry and its category', async () => {
+    const store = await storeWith([spend], handParts)
+    const book = store.state.workbook!
+    expect(book.problems).toEqual([])
+    expect(book.lines.map((held) => [held.receipt, held.amount])).toEqual([
+      [null, accountMoneyFromAmount(-30)],
+      [null, accountMoneyFromAmount(-70)],
+    ])
+    const totals = spendingFigures(book, NO_RATES).totalsOf(month('2026-11')).byCategory
+    expect([totals.get(RESTAURANTS.id), totals.get(GROCERIES.id)]).toEqual([moneyFromAmount(30), moneyFromAmount(70)])
+  })
+
+  it('refuses parts that do not add up to the entry, and leaves out their sibling with them', async () => {
+    const store = await storeWith([spend], [handParts[0]!, { ...handParts[1]!, amount: accountMoneyFromAmount(-60) }])
+    const book = store.state.workbook!
+    expect(book.lines).toEqual([])
+    expect(book.problems.map((problem) => problem.reason)).toEqual([
+      'the parts of its entry add up to -90.00, and the entry says -100.00',
+      'the parts of its entry add up to -90.00, and the entry says -100.00',
+    ])
+  })
+
+  it('keeps a row split by hand out of the rows a receipt may split', async () => {
+    const other = row(OTP, '2026-11-04', -12, 'Food/Groceries')
+    const store = await storeWith([spend, other], handParts)
+    expect(splittableRows(store.state.workbook!).map((held) => held.id)).toEqual([other.id])
+  })
+})
+
+describe('writing a hand split', () => {
+  it('writes the row and its parts in one write, puts new parts in place of old ones, and removing the split keeps the row under its main category', async () => {
+    const spend = row(OTP, '2026-11-04', -100, 'Food/Groceries')
+    const store = await storeWith([spend])
+    const records = () => store.state.records!
+    const book = () => store.state.workbook!
+
+    await store.write('Split', (unit) => writeEntrySplit(unit, records(), splitOf(spend, [part(-60, RESTAURANTS), part(-25, COMPANY), part('rest', GROCERIES)])))
+    expect(book().problems).toEqual([])
+    expect(book().lines.map((held) => held.amount)).toEqual([accountMoneyFromAmount(-60), accountMoneyFromAmount(-25), accountMoneyFromAmount(-15)])
+    const split = book().transactions[0]!
+    expect(split).toMatchObject({ category: RESTAURANTS.id, categorisedBy: 'person', amount: spend.amount })
+
+    await store.write('Split again', (unit) => writeEntrySplit(unit, records(), splitOf(split, [part(-10, GROCERIES), part('rest', COMPANY)])))
+    expect(book().lines.map((held) => [held.amount, held.category])).toEqual([
+      [accountMoneyFromAmount(-10), GROCERIES.id],
+      [accountMoneyFromAmount(-90), COMPANY.id],
+    ])
+    expect(book().transactions[0]!.category).toBe(COMPANY.id)
+
+    await store.write('Removed', (unit) => removeSplitOf(unit, records(), book().transactions[0]!))
+    expect(book().lines).toEqual([])
+    expect(book().transactions[0]).toMatchObject({ category: COMPANY.id, amount: spend.amount })
+  })
+
+  it("refuses a change to the entry's amount that its parts no longer add up to", async () => {
+    const spend = row(REVOLUT_USD, '2026-11-04', -100, 'Food/Groceries')
+    const store = await storeWith([spend], splitOf(spend, [part(-30, RESTAURANTS), part('rest', GROCERIES)]).parts)
+    const held = store.state.workbook!.transactions[0]!
+    await expect(store.write('Changed', (unit) => unit.of(TRANSACTION_WRITES).change(held, { ...held, amount: accountMoneyFromAmount(-90) }))).rejects.toThrow(/add up/)
+    const first = store.state.workbook!.lines[0]!
+    await expect(store.write('Changed', (unit) => unit.of(PART_WRITES).change(first, { ...first, amount: accountMoneyFromAmount(-20) }))).rejects.toThrow(/add up/)
+  })
+})

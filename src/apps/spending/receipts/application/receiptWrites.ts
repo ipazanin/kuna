@@ -1,6 +1,6 @@
-import { LINE_WRITES, RECEIPT_WRITES } from './receiptRecords'
+import { RECEIPT_WRITES } from './receiptRecords'
 import type { ReceiptSplit } from '../domain/receiptSplit'
-import { TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 
 /** The receipt, its lines and the row they split, in one write, so one Undo takes it all back. */
@@ -9,5 +9,5 @@ export function writeReceiptSplit(unit: UnitOfWork, { before, row, receipt, line
   if (before === null) entries.add(row)
   else entries.change(before, row)
   unit.of(RECEIPT_WRITES).add(receipt)
-  lines.forEach((line) => unit.of(LINE_WRITES).add(line))
+  lines.forEach((line) => unit.of(PART_WRITES).add(line))
 }

@@ -1,22 +1,21 @@
-import { TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { differencePart } from '../../entries/domain/entrySplit'
 import { filledByBank, statementDryRun } from '../domain/statementDryRun'
 import type { StatementDryRun } from '../domain/statementDryRun'
 import { rulesRerun } from '../domain/spendingCategorisation'
 import type { StatementRows } from '../domain/statementRows'
 import { legsOfPair } from '../../pairing/domain/transferPairs'
-import { LINE_WRITES } from '../../receipts/application/receiptRecords'
-import { differenceLine } from '../../receipts/domain/receiptSplit'
+import { words as receiptWords } from '../../receipts/domain/words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import type { ReceiptLine } from '../../workbook/domain/receiptLine'
+import type { EntryPart } from '../../workbook/domain/entryPart'
 import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { sameCondition } from '../../workbook/domain/spendingRule'
 import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { subtractAccountMoney } from '../../../../shared/money/accountMoney'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -60,13 +59,15 @@ export function pairRows(unit: UnitOfWork, { debit, credit }: TransferPair, tran
   entries.change(credit, creditLeg)
 }
 
-/** A near match joined by your word: the typed row takes the bank's facts and the bank's own row goes. A row a receipt split gains a Difference line for what the bank's amount adds, so its lines keep adding up. */
-export function joinWithTyped(unit: UnitOfWork, typed: Transaction, bank: Transaction, lines: readonly ReceiptLine[]): void {
+/** A near match joined by your word: the typed row takes the bank's facts and the bank's own row goes. A row split into parts gains a Difference part in its first part's category for what the bank's amount adds, so its parts keep adding up. */
+export function joinWithTyped(unit: UnitOfWork, typed: Transaction, bank: Transaction, lines: readonly EntryPart[]): void {
   const entries = unit.of(TRANSACTION_WRITES)
   entries.remove(bank)
   entries.change(typed, filledByBank(typed, bank))
-  const first = lines.find((line) => line.transaction === typed.id)
-  if (first !== undefined && bank.amount !== typed.amount) unit.of(LINE_WRITES).add(differenceLine(first, subtractAccountMoney(bank.amount, typed.amount)))
+  const parts = lines.filter((part) => part.transaction === typed.id)
+  const first = parts[0]
+  const difference = first === undefined ? null : differencePart(bank.amount, parts, first, receiptWords.difference)
+  if (difference !== null) unit.of(PART_WRITES).add(difference)
 }
 
 /** What "Always for this payee" tests on a row: its IBAN, else its payee's name. Null for a row with neither. */

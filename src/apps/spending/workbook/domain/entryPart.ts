@@ -1,14 +1,15 @@
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** A part of an entry a receipt split. The lines of an entry add up to its amount, and the figures count them instead of the entry's category. */
-export interface ReceiptLine {
+/** A part of an entry, which a receipt or a person split it into. The parts of an entry add up to its amount, and the figures count them instead of the entry's category. */
+export interface EntryPart {
   readonly id: RecordId
   readonly transaction: RecordId
-  readonly receipt: RecordId
+  /** The receipt whose line it is, or null for a part split by hand. */
+  readonly receipt: RecordId | null
   /** As the till printed it, or blank. */
   readonly printed: string
-  /** In plain words, or blank for a line that stands for the whole receipt. */
+  /** In plain words, or blank for a part that stands for the whole receipt or was left without words. */
   readonly text: string
   /** Signed as the entry is, in its account's currency. */
   readonly amount: AccountMoney

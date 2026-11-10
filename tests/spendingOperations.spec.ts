@@ -13,6 +13,7 @@ import { lastAccountId, startingAccount } from '../src/apps/spending/entries/inf
 import { BANK_ACCOUNT_LINES } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import { NO_RATES } from '../src/shared/money/rateBook'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, deskBankSetup, deskPorts, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
@@ -307,6 +308,105 @@ describe('categories and accounts', () => {
     await desk.propose([change({ kind: 'cash' })])
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)).toMatchObject({ kind: 'cash', bank: null, iban: '' })
+  })
+})
+
+describe('an entry split by hand', () => {
+  const split = (desk: SpendingDesk, entry: string, parts: readonly { readonly amount: number | null; readonly category: string; readonly text?: string }[]) => ({
+    op: 'split-entry',
+    input: { entry: desk.ref('transaction', entry), parts: parts.map((part) => ({ amount: part.amount, category: desk.ref('category', part.category), text: part.text ?? '' })) },
+  })
+  const typed = EXAMPLE_RECORDS['transaction']!
+
+  it('splits an entry into three parts signed as the entry, under the category with most of the money, and one Undo puts it back', async () => {
+    const desk = await spendingDesk(used)
+    const before = rowOf(desk, typed)
+    await desk.propose([
+      split(desk, typed, [
+        { amount: 10, category: EXAMPLE_RECORDS['category']!, text: 'Light bulbs' },
+        { amount: 15.3, category: categoryNamed(desk, 'For the company').id },
+        { amount: null, category: EXAMPLE_RECORDS['category-other']! },
+      ]),
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    const parts = bookOf(desk).lines.filter((part) => part.transaction === typed)
+    expect(parts.map((part) => [part.amount, part.text, part.receipt])).toEqual([
+      [accountMoneyFromAmount(-10), 'Light bulbs', null],
+      [accountMoneyFromAmount(-15.3), '', null],
+      [accountMoneyFromAmount(-20), '', null],
+    ])
+    expect(rowOf(desk, typed)).toMatchObject({ category: EXAMPLE_RECORDS['category-other'], categorisedBy: 'person', amount: before!.amount })
+    expect(bookOf(desk).problems).toEqual([])
+  })
+
+  it.each([
+    ['one part', [{ amount: null, category: 'category' }], 'at least two parts'],
+    [
+      'no rest',
+      [
+        { amount: 10, category: 'category' },
+        { amount: 35.3, category: 'category-other' },
+      ],
+      'Exactly one part takes the rest',
+    ],
+    [
+      'an amount below zero',
+      [
+        { amount: -10, category: 'category' },
+        { amount: null, category: 'category-other' },
+      ],
+      'Amounts are above zero',
+    ],
+    [
+      'amounts that leave no rest',
+      [
+        { amount: 45.3, category: 'category' },
+        { amount: null, category: 'category-other' },
+      ],
+      'nothing is left for the rest',
+    ],
+    [
+      'a group with children',
+      [
+        { amount: 10, category: 'category-group' },
+        { amount: null, category: 'category-other' },
+      ],
+      'a group with categories under it',
+    ],
+  ] as const)('refuses %s with why', async (_name, parts, why) => {
+    const desk = await spendingDesk(used)
+    const named = (key: string) => (key === 'category-group' ? categoryNamed(desk, 'Food').id : EXAMPLE_RECORDS[key]!)
+    const answer = await desk.propose([
+      split(
+        desk,
+        typed,
+        parts.map((part) => ({ ...part, category: named(part.category) })),
+      ),
+    ])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain(why)
+  })
+
+  it("refuses a transfer's leg and an entry a receipt split, whose lines only remove-receipt takes off", async () => {
+    const desk = await spendingDesk(used)
+    const parts = [
+      { amount: 1, category: EXAMPLE_RECORDS['category']! },
+      { amount: null, category: EXAMPLE_RECORDS['category-other']! },
+    ]
+    expect((await desk.propose([split(desk, EXAMPLE_RECORDS['transaction-paired']!, parts)])).text).toContain("transfer's leg")
+    expect((await desk.propose([split(desk, EXAMPLE_RECORDS['transaction-receipt']!, parts)])).text).toContain('receipt split that entry')
+    expect((await desk.propose([{ op: 'remove-split', input: { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!) } }])).text).toContain('remove-receipt')
+  })
+
+  it('takes a hand split off and keeps the row under its main category, refuses an entry that is not split, and leaves it to remove-split', async () => {
+    const desk = await spendingDesk(used)
+    const handSplit = EXAMPLE_RECORDS['transaction-split']!
+    expect((await desk.propose([{ op: 'remove-split', input: { entry: desk.ref('transaction', typed) } }])).text).toContain('not split')
+    expect((await desk.propose([{ op: 'remove-receipt', input: { entry: desk.ref('transaction', handSplit) } }])).text).toContain('no receipt')
+    await desk.propose([{ op: 'remove-split', input: { entry: desk.ref('transaction', handSplit) } }])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(bookOf(desk).lines.filter((part) => part.transaction === handSplit)).toEqual([])
+    expect(rowOf(desk, handSplit)).toMatchObject({ category: EXAMPLE_RECORDS['category'] })
   })
 })
 

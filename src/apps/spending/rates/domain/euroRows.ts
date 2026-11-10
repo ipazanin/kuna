@@ -1,7 +1,7 @@
 import { accountBalance } from '../../accounts/domain/accountBalance'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import type { ReceiptLine } from '../../workbook/domain/receiptLine'
+import type { EntryPart } from '../../workbook/domain/entryPart'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -16,14 +16,14 @@ export interface EuroRow {
   readonly transaction: Transaction
   readonly account: Account
   readonly euros: Money | null
-  /** What a receipt split the entry into, none for an entry no receipt split. */
-  readonly lines: readonly ReceiptLine[]
+  /** The parts a receipt or you split the entry into, none for an entry that is whole. */
+  readonly lines: readonly EntryPart[]
 }
 
 /** Every entry of the book in euros, each at the rate of its day. An entry on a euro account passes through. */
 export function euroRows(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'lines'>, rates: RateBook): EuroRow[] {
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
-  const linesOf = new Map<RecordId, ReceiptLine[]>()
+  const linesOf = new Map<RecordId, EntryPart[]>()
   for (const line of book.lines) linesOf.set(line.transaction, [...(linesOf.get(line.transaction) ?? []), line])
   return book.transactions.flatMap((transaction) => {
     const account = accounts.get(transaction.account)

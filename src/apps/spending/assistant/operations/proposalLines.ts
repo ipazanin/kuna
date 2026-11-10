@@ -7,7 +7,7 @@ import type { Account } from '../../workbook/domain/account'
 import { NEW_CATEGORY_DEFAULTS } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
 import type { CardStatement, CopiedRows } from './statementImport'
 import type { CardNote, ProposalGroup, ProposalNote } from '../../../../shared/app/assistantOperations'
@@ -65,7 +65,10 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
     return currency === null ? null : formatAccountMoney(record.amount, currency)
   }
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'opening') return formatAccountMoney(record.opening, record.currency)
-  if (isKind(kind, LINE_RECORDS, record) && field === 'amount') return formatAccountMoney(record.amount, EURO)
+  if (isKind(kind, PART_RECORDS, record) && field === 'amount') {
+    const account = book.transactions.find((held) => held.id === record.transaction)?.account
+    return formatAccountMoney(record.amount, book.accounts.find((held) => held.id === account)?.currency ?? EURO)
+  }
   if (isKind(kind, RECEIPT_RECORDS, record) && field === 'total') return formatMoney(record.total, 'negative', { ...DEFAULT_MONEY_FORMAT, currency: EURO })
   if (isKind(kind, RECEIPT_RECORDS, record) && field === 'issuedOn') return dayLabel(record.issuedOn)
   if (isKind(kind, BUDGET_RECORDS, record) && field === 'amount') return formatMoney(record.amount, 'negative', { ...DEFAULT_MONEY_FORMAT, currency: EURO })
@@ -75,13 +78,13 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   return namesOf.get(value) ?? String(value)
 }
 
-/** What the record is called on screen: an entry by its payee or else its category, a rule by the payee or IBAN it files, a limit by its category, and others by their name. */
+/** What the record is called on screen: an entry by its payee or else its category, a rule by the payee or IBAN it files, a limit by its category, a part of an entry by its words or else its category, and others by their name. */
 function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>): string {
   if (isKind(kind, TRANSACTION_RECORDS, record)) return record.payee !== '' ? record.payee : (namesOf.get(record.category) ?? fallback)
   if (isKind(kind, RULE_RECORDS, record)) return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment
   if (isKind(kind, BUDGET_RECORDS, record)) return namesOf.get(record.category) ?? fallback
   if (isKind(kind, RECEIPT_RECORDS, record)) return record.merchant !== '' ? record.merchant : fallback
-  if (isKind(kind, LINE_RECORDS, record)) return record.text !== '' ? record.text : record.printed !== '' ? record.printed : fallback
+  if (isKind(kind, PART_RECORDS, record)) return record.text !== '' ? record.text : record.printed !== '' ? record.printed : (namesOf.get(record.category) ?? fallback)
   if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record)) return record.name
   return fallback
 }

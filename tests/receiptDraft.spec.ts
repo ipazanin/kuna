@@ -5,7 +5,7 @@ import { entryCategoryChoices } from '../src/apps/spending/entries/presentation/
 import { receiptCategories, receiptDraft, withR1Answer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { AnsweredLine, DraftContext, ReceiptAnswer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { FiscalQr } from '../src/apps/spending/receipts/domain/fiscalQr'
-import { LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { PART_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { civil, euros } from './fixtures/ledger'
@@ -247,7 +247,7 @@ describe('a line remembered from a confirmed receipt', () => {
     longitude: '',
   })
   const held = (key: string, receiptKey: string, printed: string, path: string) => ({
-    id: recordIdOf(LINE_RECORDS, key),
+    id: recordIdOf(PART_RECORDS, key),
     transaction: recordIdOf(RECEIPT_RECORDS, receiptKey),
     receipt: recordIdOf(RECEIPT_RECORDS, receiptKey),
     printed,

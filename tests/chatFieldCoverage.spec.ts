@@ -311,6 +311,11 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     from: ['typed'],
     operations: ['add-transfer', 'change-transfer'].map((name) => ({ name, renames: { account: ['from', 'to'], amount: ['amount', 'toAmount'] } })),
   },
+  {
+    path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntrySplit',
+    type: 'src/apps/spending/entries/domain/entrySplit.ts#PartDraft',
+    operations: [{ name: 'split-entry', prefix: 'parts.' }],
+  },
   { path: 'src/apps/spending/workbook/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
   {
     path: 'src/apps/spending/receipts/application/receiptWrites.ts#writeReceiptSplit',
@@ -319,7 +324,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   },
   {
     path: 'src/apps/spending/receipts/application/receiptWrites.ts#writeReceiptSplit',
-    type: 'src/apps/spending/workbook/domain/receiptLine.ts#ReceiptLine',
+    type: 'src/apps/spending/workbook/domain/entryPart.ts#EntryPart',
     operations: [{ name: 'add-receipt', prefix: 'lines.', renames: { amount: 'lines.lineTotal' } }],
   },
   { path: 'src/apps/spending/workbook/application/settingWrites.ts#SETTING_WRITES', operations: ['set-setting'] },

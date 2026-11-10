@@ -68,7 +68,7 @@ export const en = {
       latitude: 'Latitude',
       longitude: 'Longitude',
       printed: 'Printed',
-      text: 'Line',
+      text: 'Note',
     },
   },
   receipts: {
@@ -92,7 +92,7 @@ export const en = {
     budget: 'Monthly limits on spending categories.',
     rule: 'What files a bank row by itself.',
     receipt: 'Fiscal receipts and the entry each split.',
-    line: 'The parts of an entry a receipt split, which the figures count instead of the entry.',
+    line: 'The parts an entry is split into, by a receipt or by hand, which the figures count instead of the entry.',
     waiting: 'The rows waiting on To review for a category, which count nowhere until filed.',
     bankAccount:
       "Each currency of each account the linked banks gave at this page's last bank sync, against your Spending accounts, as Settings, Bank sync lists them. A new sync or a reload changes them, and after a reload no rows are held.",
@@ -214,7 +214,7 @@ export const hr: Translation<typeof en> = {
       latitude: 'Geografska širina',
       longitude: 'Geografska dužina',
       printed: 'Ispisano',
-      text: 'Stavka',
+      text: 'Bilješka',
     },
   },
   receipts: {
@@ -238,7 +238,7 @@ export const hr: Translation<typeof en> = {
     budget: 'Mjesečna ograničenja na kategorije potrošnje.',
     rule: 'Ono što sâmo razvrstava bankovni redak.',
     receipt: 'Fiskalni računi i unos koji je svaki podijelio.',
-    line: 'Dijelovi unosa koji je račun podijelio, a iznosi broje njih umjesto unosa.',
+    line: 'Dijelovi na koje je unos podijeljen, fiskalnim računom ili ručno, a iznosi broje njih umjesto unosa.',
     waiting: 'Retci koji na Za pregled čekaju kategoriju i ne broje se nigdje dok se ne razvrstaju.',
     bankAccount:
       'Svaka valuta svakog računa koji su povezane banke dale pri zadnjoj sinkronizaciji na ovoj stranici, uz vaše račune u Potrošnji, kako ih navodi Postavke, Sinkronizacija s bankom. Nova sinkronizacija ili ponovno učitavanje ih mijenja, a nakon ponovnog učitavanja nijedan redak nije zadržan.',

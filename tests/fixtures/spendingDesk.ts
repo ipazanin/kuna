@@ -13,9 +13,10 @@ import { settingRow } from '../../src/shared/storage/domain/settingRows'
 import { codecOfSpendingKind } from '../../src/apps/spending/workbook/application/spendingCodecs'
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
+import type { EntryPart } from '../../src/apps/spending/workbook/domain/entryPart'
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingRule } from '../../src/apps/spending/workbook/domain/spendingRule'
 import type { Transaction } from '../../src/apps/spending/workbook/domain/transaction'
 import { NO_BANK_FACTS } from '../../src/apps/spending/workbook/domain/transaction'
@@ -78,7 +79,7 @@ function row(key: string, date: string, amount: number, payee: string, fields: P
   }
 }
 
-/** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, and a transfer a statement paired. */
+/** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, and a typed row split by hand. */
 const ROWS: readonly Transaction[] = [
   row('transaction-typed', '2026-10-12', -45.3, 'Corner market', { source: 'typed', category: GROCERIES.id, categorisedBy: 'person' }),
   row('transaction-receipt', '2026-10-14', -20, 'Bakery', { category: GROCERIES.id, categorisedBy: 'rule', importKey: 'made-up-2' }),
@@ -88,7 +89,22 @@ const ROWS: readonly Transaction[] = [
   row('transaction-in', '2026-10-25', 200, '', { account: SAVINGS.id, importKey: 'made-up-6' }),
   row('transaction-paired-out', '2026-10-28', -100, '', { importKey: 'made-up-7', category: TRANSFER.id, pair: recordIdOf(TRANSACTION_RECORDS, 'transaction-paired-in') }),
   row('transaction-paired-in', '2026-10-28', 100, '', { account: SAVINGS.id, importKey: 'made-up-8', category: TRANSFER.id, pair: recordIdOf(TRANSACTION_RECORDS, 'transaction-paired-out') }),
+  row('transaction-split', '2026-10-30', -60, 'Hardware store', { source: 'typed', category: RENT.id, categorisedBy: 'person' }),
 ]
+
+function handPart(key: string, amount: number, category: Category): EntryPart {
+  return {
+    id: recordIdOf(PART_RECORDS, key),
+    transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-split'),
+    receipt: null,
+    printed: '',
+    text: '',
+    amount: accountMoneyFromAmount(amount),
+    category: category.id,
+  }
+}
+
+const HAND_PARTS: readonly EntryPart[] = [handPart('line-hardware-rent', -40, RENT), handPart('line-hardware-groceries', -20, GROCERIES)]
 
 const RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-bakery'),
@@ -141,6 +157,7 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'category-child': RESTAURANTS.id,
   transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-typed'),
   'transaction-receipt': RECEIPT.transaction,
+  'transaction-split': recordIdOf(TRANSACTION_RECORDS, 'transaction-split'),
   'transaction-joinable': recordIdOf(TRANSACTION_RECORDS, 'transaction-pharmacy-bank'),
   'transaction-pairable': recordIdOf(TRANSACTION_RECORDS, 'transaction-out'),
   'transaction-paired': recordIdOf(TRANSACTION_RECORDS, 'transaction-paired-out'),
@@ -205,6 +222,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...stored(TRANSACTION_RECORDS, ROWS),
     ...stored(RULE_RECORDS, [RULE]),
     ...stored(RECEIPT_RECORDS, [RECEIPT]),
+    ...stored(PART_RECORDS, HAND_PARTS),
     ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),
   })
   const { store } = await browserHarness(used, document, SPENDING)

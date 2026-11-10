@@ -41,6 +41,10 @@ const ANSWERS = {
       like: (row: number) => `Row ${row} looks like a payment Spending has, dated a few days off. Is it another payment?`,
       none: (row: number) => `Row ${row} is not in Spending yet.`,
     },
+    splitTitle: 'Split the latest spend',
+    splitProposed: 'The card below puts €5.00 of it under Household goods and leaves the rest where it was. Nothing changes until you accept it.',
+    nothingToSplit: 'None of the latest rows is a spend I could split.',
+    householdPart: 'Cleaning things',
     biggest: 'Your biggest spends last month:',
     noSpends: 'There were no spends last month.',
   },
@@ -79,6 +83,10 @@ const ANSWERS = {
       like: (row: number) => `${row}. redak nalikuje plaćanju koje Potrošnja ima nekoliko dana ranije ili kasnije. Je li to drugo plaćanje?`,
       none: (row: number) => `${row}. retka još nema u Potrošnji.`,
     },
+    splitTitle: 'Podijeli zadnji trošak',
+    splitProposed: 'Kartica ispod stavlja 5,00 € od njega pod Kućanske potrepštine, a ostatak ostavlja gdje je bio. Ništa se ne mijenja dok je ne prihvatite.',
+    nothingToSplit: 'Nijedan od zadnjih redaka nije trošak koji bih mogao podijeliti.',
+    householdPart: 'Sredstva za čišćenje',
     biggest: 'Vaši najveći troškovi prošlog mjeseca:',
     noSpends: 'Prošlog mjeseca nije bilo troškova.',
   },
@@ -234,6 +242,7 @@ interface FoundRecord {
   readonly category?: string
   readonly currency?: string
   readonly closed?: boolean
+  readonly kind?: string
 }
 
 function recordsIn(text: string): readonly FoundRecord[] {
@@ -373,6 +382,30 @@ function matchReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   return answered(request, matches.map(({ row, match }) => `- ${says.matched[match](row)}`).join('\n'), tokens)
 }
 
+/** Reads the latest spends of 10 or more and the categories, and proposes 5 of the first one filed under spending to go under Household goods, the rest where it was. */
+function splitReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) {
+    const spends = findRecordsArgs('spending', 'transaction', { filters: [{ field: 'amount', op: 'at-most', values: ['-10'] }], fields: ['payee', 'amount', 'category'], limit: 5 })
+    return lookup(0, 'find_records', spends, tokens)
+  }
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
+  if (answers.length === 2) {
+    const categories = recordsIn(answers[1]!.text)
+    const household = categories.find((category) => HOUSEHOLD.includes(category.name ?? ''))?.ref
+    const spending = new Set(categories.filter((category) => category.kind === 'spending').map((category) => category.ref))
+    const row = recordsIn(answers[0]!.text).find((found) => found.category !== undefined && found.category !== household && spending.has(found.category))
+    if (row === undefined || household === undefined) return answered(request, says.nothingToSplit, tokens)
+    const parts = [
+      { amount: 5, category: household, text: says.householdPart },
+      { amount: null, category: row.category, text: '' },
+    ]
+    const step = { op: 'split-entry', input: JSON.stringify({ entry: row.ref, parts }), as: null }
+    return lookup(2, 'propose_changes', { app: 'spending', title: says.splitTitle, steps: [step], next: false }, tokens)
+  }
+  return answered(request, says.splitProposed, tokens)
+}
+
 /** Reads last month's spends, the biggest first, and lists the payees with their amounts. */
 function biggestReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
@@ -395,7 +428,7 @@ function biggestReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
 
 /**
  * Spending's part of the fake chat: Suggest categories proposes a new category and, at Go on, a rule into it, any other that starts with sort proposes a rule, one that starts with close proposes closing
- * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
+ * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, one that starts with split proposes splitting the latest spend, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
@@ -410,6 +443,7 @@ function spendingChat(turn: FakeChatTurn): ModelReply | null {
   if (/^check these rows|^provjeri ove retke/i.test(typed)) return matchReply(turn, says)
   if (/biggest spends|najveći troškovi/i.test(typed)) return biggestReply(turn, says)
   if (/^read (the|this|a) receipt|^pročitaj (fiskalni )?račun/i.test(typed)) return receiptReply(turn, says)
+  if (/^split|^podijeli/i.test(typed)) return splitReply(turn, says)
   if (/spent|spend|potroš/i.test(typed)) return spendingReply(turn, says)
   if (/rule|pravil/i.test(typed)) {
     if (lookups === 0) return lookup(lookups, 'kuna_docs', { path: 'spending/guide/first-rules' }, tokens)

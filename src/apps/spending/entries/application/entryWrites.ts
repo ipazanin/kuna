@@ -1,7 +1,9 @@
-import { removeReceiptOf } from '../../receipts/application/receiptRecords'
+import type { EntrySplit } from '../domain/entrySplit'
+import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
-import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import type { EntryPart } from '../../workbook/domain/entryPart'
+import { PART_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words } from '../../workbook/domain/words'
@@ -13,7 +15,7 @@ import { textOf } from '../../../../shared/storage/domain/storedFields'
 import { pickedEdits } from '../../../../shared/storage/domain/writeRules'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought stays on its account. A row a receipt split keeps the amount its lines add up to. */
+/** An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought stays on its account. A row split into parts keeps the amount its parts add up to. */
 export const TRANSACTION_WRITES: WriteRules<Transaction> = {
   kind: TRANSACTION_RECORDS,
   reads: SPENDING_KINDS,
@@ -25,6 +27,15 @@ export const TRANSACTION_WRITES: WriteRules<Transaction> = {
     ),
     ...dependentRefusals(['transactions', 'receipts', 'lines'], fresh, after),
   ],
+}
+
+/** The parts of an entry add up to its amount, so a write changes them together or not at all. */
+export const PART_WRITES: WriteRules<EntryPart> = {
+  kind: PART_RECORDS,
+  reads: SPENDING_KINDS,
+  undoable: true,
+  read: (read, records) => bookWith(PART_RECORDS, read, records).readings.lines,
+  refusals: (_change, fresh, after) => dependentRefusals(['lines'], fresh, after),
 }
 
 /** A new typed entry, its text trimmed, with an id of its own. */
@@ -112,6 +123,25 @@ export function removeEntry(unit: UnitOfWork, records: SpendingRecords, entry: T
   const other = otherLegOf(records, entry)
   for (const row of other === null ? [entry] : [entry, other]) {
     unit.of(TRANSACTION_WRITES).remove(row)
-    removeReceiptOf(unit, records, row)
+    removeSplitOf(unit, records, row)
   }
+}
+
+/** The entry under its main category with the parts you split it into, in place of any it had, in one write. */
+export function writeEntrySplit(unit: UnitOfWork, records: Pick<SpendingRecords, 'lines'>, { before, row, parts }: EntrySplit): void {
+  unit.of(TRANSACTION_WRITES).change(before, row)
+  partsOf(records, before).forEach((part) => unit.of(PART_WRITES).remove(part))
+  parts.forEach((part) => unit.of(PART_WRITES).add(part))
+}
+
+/** Takes the row's parts out, with the receipt that split it when one did, which leaves the row under its main category. A photo kept on Drive stays there. */
+export function removeSplitOf(unit: UnitOfWork, records: Pick<SpendingRecords, 'receipts' | 'lines'>, row: Pick<Transaction, 'id'>): void {
+  partsOf(records, row).forEach((part) => unit.of(PART_WRITES).remove(part))
+  recordsOf(records.receipts)
+    .filter((receipt) => receipt.transaction === row.id)
+    .forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
+}
+
+function partsOf(records: Pick<SpendingRecords, 'lines'>, row: Pick<Transaction, 'id'>): readonly EntryPart[] {
+  return recordsOf(records.lines).filter((part) => part.transaction === row.id)
 }

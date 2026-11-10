@@ -5,8 +5,8 @@ import type { Account } from '../../domain/account'
 import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
 import type { Receipt } from '../../domain/receipt'
-import type { ReceiptLine } from '../../domain/receiptLine'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
+import type { EntryPart } from '../../domain/entryPart'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
 import type { SpendingRule } from '../../domain/spendingRule'
 import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../domain/spendingSettings'
 import { NO_BANK_FACTS } from '../../domain/transaction'
@@ -251,11 +251,11 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
 }
 
 /** The receipt of the row a receipt split, with a line on each of two categories. */
-function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { readonly receipts: readonly Receipt[]; readonly lines: readonly ReceiptLine[] } {
+function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { readonly receipts: readonly Receipt[]; readonly lines: readonly EntryPart[] } {
   const row = fixedId(TRANSACTION_RECORDS, SPLIT_ROW_PLACE)
   const receipt = fixedId(RECEIPT_RECORDS, 1951)
-  const line = (place: number, amount: number, category: string): ReceiptLine => ({
-    id: fixedId(LINE_RECORDS, place),
+  const line = (place: number, amount: number, category: string): EntryPart => ({
+    id: fixedId(PART_RECORDS, place),
     transaction: row,
     receipt,
     printed: '',
@@ -418,7 +418,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
 }
 
 function storedReceipts({ receipts, lines }: ReturnType<typeof splitRowReceipt>): WorkbookDocument['records'] {
-  return { ...stored(RECEIPT_RECORDS, receipts), ...stored(LINE_RECORDS, lines) }
+  return { ...stored(RECEIPT_RECORDS, receipts), ...stored(PART_RECORDS, lines) }
 }
 
 function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {

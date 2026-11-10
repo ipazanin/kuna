@@ -111,6 +111,7 @@ import {
   chatStatementCardFlowIn,
   chatStatementLookAlikeFlowIn,
   chatReceiptFlowIn,
+  chatSplitFlowIn,
   spendingReviewAskFlowIn,
   assistSwitchFlow,
   assistTabFlowIn,
@@ -177,6 +178,7 @@ import {
   spendingImportMissingFlowIn,
   spendingImportLookAlikeFlowIn,
   spendingReceiptFlowIn,
+  spendingSplitFlowIn,
   spendingReceiptNoEuroFlow,
   spendingReceiptPickFlowIn,
   spendingReceiptPlaceFlowIn,
@@ -3179,6 +3181,7 @@ async function checkWidth(width) {
     ['spending-receipt-pick', 'drive&spending=receipts', spendingReceiptPickFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-receipt-no-euro', 'drive&spending=foreign', spendingReceiptNoEuroFlow, '#/spending/transactions', 'Entries'],
     ['spending-receipt-place', 'drive&spending=receipts', spendingReceiptPlaceFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
+    ['spending-split', 'drive&spending=sample', spendingSplitFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-review-near', 'drive&spending=statements', spendingReviewNearFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     // The same saves and Undo once the page's Google token has lapsed, as on a phone after an hour: each asks Google and goes again.
@@ -3211,6 +3214,7 @@ async function checkWidth(width) {
     // Spending's ways into the chat.
     ['spending-review-ask', 'drive&spending=statements', spendingReviewAskFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-chat-revolut-copy', 'drive&spending=sample', appChatCardFlowIn('en', 'revolut', CHAT_ATTACHMENT_SAMPLES), '#/spending', 'Overview'],
+    ['chat-split', 'drive&spending=sample', chatSplitFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['chat-receipt', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { accept: true }), '#/spending/transactions', 'Entries'],
     // Company's ways into the chat.
     ['company-review-sort', 'drive', companyReviewAskFlowIn('en'), '#/company/transactions?tab=review', 'Transactions'],

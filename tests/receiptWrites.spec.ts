@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
-import { TRANSACTION_WRITES, removeEntry } from '../src/apps/spending/entries/application/entryWrites'
-import { LINE_WRITES, RECEIPT_WRITES, removeReceiptOf } from '../src/apps/spending/receipts/application/receiptRecords'
+import { PART_WRITES, TRANSACTION_WRITES, removeEntry, removeSplitOf } from '../src/apps/spending/entries/application/entryWrites'
+import { RECEIPT_WRITES } from '../src/apps/spending/receipts/application/receiptRecords'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -253,7 +253,7 @@ describe('a row a receipt split', () => {
     const { store } = await splitStore()
     const [line] = store.state.workbook!.lines
 
-    await expect(store.write('Changed', (unit) => unit.of(LINE_WRITES).change(line!, { ...line!, amount: accountMoneyFromAmount(-20) }))).rejects.toThrow(/add up/)
+    await expect(store.write('Changed', (unit) => unit.of(PART_WRITES).change(line!, { ...line!, amount: accountMoneyFromAmount(-20) }))).rejects.toThrow(/add up/)
   })
 
   it('refuses to delete the row and leave its receipt and lines behind', async () => {
@@ -284,7 +284,7 @@ describe('a row a receipt split', () => {
     const { store, split } = await splitStore()
     const records = store.state.records!
 
-    await store.write('Removed', (unit) => removeReceiptOf(unit, records, split))
+    await store.write('Removed', (unit) => removeSplitOf(unit, records, split))
 
     expect(store.state.workbook!.transactions).toMatchObject([{ id: split.id, amount: accountMoneyFromAmount(-23.49), category: GROCERIES.id }])
     expect([store.state.workbook!.receipts, store.state.workbook!.lines]).toEqual([[], []])

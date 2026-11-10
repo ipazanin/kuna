@@ -50,7 +50,7 @@ export const en = {
     targetError: 'Pick where its entries go',
     entries: (count: number): EnglishForms => ({ one: '1 entry', other: `${count} entries` }),
     moving: (entries: string) => `${entries} move to the category you pick.`,
-    linesMove: (count: number): EnglishForms => ({ one: '1 receipt line moves too.', other: `${count} receipt lines move too.` }),
+    partsMove: (count: number): EnglishForms => ({ one: '1 part of an entry moves too.', other: `${count} parts of entries move too.` }),
     rulesMove: (count: number): EnglishForms => ({ one: '1 rule moves with them.', other: `${count} rules move with them.` }),
     limitsEnd: (count: number): EnglishForms => ({ one: '1 limit ends with it.', other: `${count} limits end with it.` }),
     nothingMoves: 'It has no entries and no limits, so nothing moves.',
@@ -106,7 +106,7 @@ export const hr: Translation<typeof en> = {
     targetError: 'Odaberite kamo idu njezini unosi',
     entries: (count): CroatianForms => ({ one: `${count} unos`, few: `${count} unosa`, other: `${count} unosa` }),
     moving: (entries) => `U odabranu kategoriju prelazi: ${entries}.`,
-    linesMove: (count): CroatianForms => ({ one: `Prelazi i ${count} stavka računa.`, few: `Prelaze i ${count} stavke računa.`, other: `Prelazi i ${count} stavki računa.` }),
+    partsMove: (count): CroatianForms => ({ one: `Prelazi i ${count} dio unosa.`, few: `Prelaze i ${count} dijela unosa.`, other: `Prelazi i ${count} dijelova unosa.` }),
     rulesMove: (count): CroatianForms => ({ one: `S njima prelazi ${count} pravilo.`, few: `S njima prelaze ${count} pravila.`, other: `S njima prelazi ${count} pravila.` }),
     limitsEnd: (count): CroatianForms => ({
       one: `${count} ograničenje prestaje s njom.`,

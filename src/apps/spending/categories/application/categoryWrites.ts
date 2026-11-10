@@ -1,6 +1,5 @@
 import { BUDGET_WRITES } from '../../budgets/application/budgetWrites'
-import { TRANSACTION_WRITES } from '../../entries/application/entryWrites'
-import { LINE_WRITES } from '../../receipts/application/receiptRecords'
+import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
 import { RULE_WRITES } from '../../statements/application/statementWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isFixedKind } from '../../workbook/domain/category'
@@ -13,7 +12,7 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** A category keeps its children, entries, receipt lines, limits and rules, and the three fixed ones are never deleted. */
+/** A category keeps its children, entries, parts of entries, limits and rules, and the three fixed ones are never deleted. */
 export const CATEGORY_WRITES: WriteRules<Category> = {
   kind: CATEGORY_RECORDS,
   reads: SPENDING_KINDS,
@@ -31,7 +30,7 @@ export function newCategory(category: Omit<Category, 'id'>): Category {
 }
 
 /**
- * Deletes the category, moves its entries, receipt lines and rules to another and deletes its limits, all in one write, so one Undo puts it all
+ * Deletes the category, moves its entries, parts of entries and rules to another and deletes its limits, all in one write, so one Undo puts it all
  * back. The other category keeps its own limits, whose carry would change if they took on the deleted one's history.
  */
 export function deleteInto(unit: UnitOfWork, records: SpendingRecords, category: Category, target: Category): void {
@@ -39,8 +38,8 @@ export function deleteInto(unit: UnitOfWork, records: SpendingRecords, category:
     .filter((entry) => entry.category === category.id)
     .forEach((entry) => unit.of(TRANSACTION_WRITES).change(entry, { ...entry, category: target.id }))
   recordsOf(records.lines)
-    .filter((line) => line.category === category.id)
-    .forEach((line) => unit.of(LINE_WRITES).change(line, { ...line, category: target.id }))
+    .filter((part) => part.category === category.id)
+    .forEach((part) => unit.of(PART_WRITES).change(part, { ...part, category: target.id }))
   recordsOf(records.rules)
     .filter((rule) => rule.category === category.id)
     .forEach((rule) => unit.of(RULE_WRITES).change(rule, { ...rule, category: target.id }))

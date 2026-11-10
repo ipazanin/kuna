@@ -5913,6 +5913,87 @@ async function payeeListGone(page) {
     })
 }
 
+const SPENDING_SPLIT_DIALOG = '[data-testid="spending-split-dialog"]'
+
+/** The part at `place` of the split dialog, from 0. */
+async function splitPart(page, place) {
+  const parts = await page.$$(`${SPENDING_SPLIT_DIALOG} [data-testid="spending-split-part"]`)
+  const part = parts[place]
+  if (part === undefined) throw new Error(`the split has no part ${place + 1}`)
+  return part
+}
+
+async function typePartAmount(page, press, place, amount) {
+  const field = await (await splitPart(page, place)).$('[data-testid="spending-split-amount"]')
+  if (field === null) throw new Error(`part ${place + 1} of the split has no amount to type`)
+  const pad = await field.evaluate((element) => element.getAttribute('inputmode'))
+  if (pad !== 'decimal') throw new Error(`the amount of part ${place + 1} opens no number pad on a phone, its inputmode is ${pad}`)
+  await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await press(field)
+  await field.evaluate((element) => element.select())
+  await page.keyboard.type(amount)
+}
+
+async function choosePartCategory(page, press, place, name) {
+  const picker = await (await splitPart(page, place)).$('[data-testid="spending-split-category"]')
+  if (picker === null) throw new Error(`part ${place + 1} of the split has no category to pick`)
+  await choose(page, press, picker, name)
+}
+
+/**
+ * On the sample Spending file's Transactions: the Corner market row of this month split by hand into three parts, one of
+ * them For the company and one the rest, lands as three parts on the row. Its dialog then shows the parts, and Remove the
+ * split takes them off until Undo brings them back.
+ */
+export function spendingSplitFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { split } = words.spendingEntries
+  const starter = words.spendingStarter
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Corner market', -4530)
+    await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-entry-split"]')
+    await page.waitForSelector(SPENDING_SPLIT_DIALOG, { visible: true, timeout: 10_000 })
+    await typePartAmount(page, press, 0, '20')
+    await choosePartCategory(page, press, 1, starter.Restaurants)
+    await pressSelector(page, press, '[data-testid="spending-split-add-part"]')
+    await typePartAmount(page, press, 2, '15.3')
+    await choosePartCategory(page, press, 2, starter['For the company'])
+    await page
+      .waitForFunction((selector) => document.querySelector(selector)?.textContent?.includes('10') ?? false, { timeout: 5_000 }, '[data-testid="spending-split-rest"]')
+      .catch(() => {
+        throw new Error('the rest does not show what the other parts leave')
+      })
+    await delay(300)
+    await inspect?.('the split of an entry into three parts')
+    await shoot('spending-split')
+
+    await pressSelector(page, press, '[data-testid="spending-split-save"]')
+    await toast(page, split.saved)
+    await dialogGone(page, SPENDING_SPLIT_DIALOG)
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await dismissToasts(page)
+    await rowLinesAre(page, 'Corner market', -4530, 3)
+    await inspect?.('Transactions with the entry split by hand')
+    await shoot('spending-split-done')
+
+    await openSpendingRow(page, press, 'Corner market', -4530)
+    await page.waitForSelector('[data-testid="spending-entry-remove-split"]', { visible: true, timeout: 10_000 })
+    if (await page.$('[data-testid="spending-entry-remove-receipt"]')) throw new Error('a row split by hand offers to remove a receipt')
+    if (!(await page.$eval('[data-testid="spending-entry-amount"] input, input[data-testid="spending-entry-amount"]', (input) => input.disabled))) throw new Error('a split row lets its amount change')
+    await delay(300)
+    await inspect?.('the entry dialog of a row split by hand')
+    await shoot('spending-split-entry')
+    await pressSelector(page, press, '[data-testid="spending-entry-remove-split"]')
+    await toast(page, split.removed)
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await rowLinesAre(page, 'Corner market', -4530, 0)
+    await undoIn(page, press, words)
+    await rowLinesAre(page, 'Corner market', -4530, 3)
+  }
+}
+
 /**
  * The entry dialog opened on the sample Spending file's Transactions, as money out or as a move between two accounts in two currencies, and closed again.
  * Money out also lists the known payees after two typed letters. Escape closes the list and keeps the letters, so does Enter as the list opens, and Down then Enter picks the newest payee.
@@ -9921,6 +10002,48 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
           throw new Error('Undo did not say it was undone')
         })
       await rowLinesAre(page, 'Corner market', -2349, 0)
+    } finally {
+      await newChat(page, press)
+      await forgetAssist(page)
+    }
+  }
+}
+
+/**
+ * On the sample Spending file with a made-up key kept: asked to split the latest spend, the chat proposes a card that files
+ * this month's rent and adds its two parts, and Accept splits the row until Undo takes the parts off again.
+ */
+export function chatSplitFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  const request = language === 'en' ? 'Split the latest spend' : 'Podijeli zadnji trošak'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, request)
+      await allowIfAsked(page, press)
+      const card = await newestCard(page, 1, 'the chat proposed no split card')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      const says = await card.evaluate((element) => element.textContent ?? '')
+      if (!says.includes('Landlord')) throw new Error(`the split card does not name the entry it splits, and says "${says}"`)
+      await delay(300)
+      await acceptLooksReady(page)
+      await inspect?.('the card that splits an entry')
+      await shoot('chat-split-card')
+      await press(await card.$('[data-testid="chat-proposal-accept"]'))
+      await card.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
+        throw new Error(`Accept did not land: ${refused}`)
+      })
+      await rowLinesAre(page, 'Landlord', -60000, 2)
+      await press(await card.$('[data-testid="chat-proposal-undo"]'))
+      await page
+        .waitForFunction((held, text) => held.textContent?.includes(text) ?? false, { timeout: 10_000 }, card, words.proposal.undone)
+        .catch(() => {
+          throw new Error('Undo did not say it was undone')
+        })
+      await rowLinesAre(page, 'Landlord', -60000, 0)
     } finally {
       await newChat(page, press)
       await forgetAssist(page)

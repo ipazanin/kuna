@@ -16,8 +16,9 @@ import { ACCOUNT_WRITES, keptAccount, newAccount } from '../../accounts/applicat
 import { setLimit } from '../../budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/application/categoryWrites'
 import { lastOrder, siblingsUnder, swappedPlaces } from '../../categories/domain/categoryPlaces'
-import { TRANSACTION_WRITES, newEntry, newTransfer, removeEntry, writeEntry, writeTransfer } from '../../entries/application/entryWrites'
-import { removeReceiptOf } from '../../receipts/application/receiptRecords'
+import { TRANSACTION_WRITES, newEntry, newTransfer, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
+import { entrySplit } from '../../entries/domain/entrySplit'
+import type { PartDraft, SplitRefusal } from '../../entries/domain/entrySplit'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { SETTING_WRITES, treatPayeeAsPerson } from '../../workbook/application/settingWrites'
@@ -85,7 +86,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'delete-category',
-    about: 'Deletes a category. Its entries, receipt lines and rules move to another, and its limits go.',
+    about: 'Deletes a category. Its entries, the parts entries are split into, and its rules move to another, and its limits go.',
     input: inputOf({ category: TEXT, into: TEXT }),
     refs: { category: CATEGORY_RECORDS.name, into: CATEGORY_RECORDS.name },
     creates: null,
@@ -225,6 +226,38 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     example: { entry: 'transaction' },
   },
   {
+    name: 'split-entry',
+    about: [
+      "Splits an entry into parts by hand, each under a category of its own, as the entry's Split does. A split has two parts or more, and splitting an entry again puts the new parts in place of its old ones.",
+      "Each amount is above zero in the entry's account currency, and Kuna signs it as the entry is. Exactly one part has amount null and takes the rest, which must leave something.",
+      'A part goes under any category a row may take, For the company too, but never under a group with categories under it or under Between my accounts. text is optional words for the part, or "".',
+      "The entry goes under the category most of its money is in. A transfer's leg and an entry a receipt split stay as they are.",
+    ].join(' '),
+    input: inputOf({
+      entry: TEXT,
+      parts: { type: 'array', items: inputOf({ amount: { type: ['number', 'null'], description: 'Above zero, or null for the one part that takes the rest.' }, category: TEXT, text: TEXT }) },
+    }),
+    refs: { entry: TRANSACTION_RECORDS.name, 'parts.category': CATEGORY_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: {
+      entry: 'transaction',
+      parts: [
+        { amount: 30, category: 'category', text: 'Lunch' },
+        { amount: null, category: 'category-other', text: '' },
+      ],
+    },
+  },
+  {
+    name: 'remove-split',
+    about: 'Takes the parts off an entry split by hand, and keeps the entry under the category most of its money was in. An entry a receipt split loses its lines through remove-receipt.',
+    input: inputOf({ entry: TEXT }),
+    refs: { entry: TRANSACTION_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { entry: 'transaction-split' },
+  },
+  {
     name: 'remove-receipt',
     about: 'Takes the receipt off an entry, with the lines it split the entry into, and keeps the entry. The photo stays where it was kept.',
     input: inputOf({ entry: TEXT }),
@@ -276,6 +309,25 @@ function positiveOf(amount: number): AccountMoney {
 }
 
 /** The swatch a step names, blank for the group's colour, or the colour kept. */
+/** An amount above zero signed as the row is, so a part of money out is money out. */
+function signedAs(row: Transaction, amount: AccountMoney): AccountMoney {
+  return row.amount < 0 ? negateAccountMoney(amount) : amount
+}
+
+/** Why the chat's split cannot go, for the model to put right. */
+const SPLIT_REFUSALS: Readonly<Record<SplitRefusal, string>> = {
+  'one-rest': 'Exactly one part takes the rest, with amount null.',
+  'zero-part': 'Every part needs an amount above zero.',
+  'wrong-sign': 'Amounts are above zero. Kuna signs them as the entry is.',
+  over: 'The parts with amounts reach the whole entry or go past it, so nothing is left for the rest.',
+  'transfer-leg': "That entry is a transfer's leg, which stays whole.",
+  receipt: 'A receipt split that entry, and its lines follow the receipt.',
+  'too-few': 'A split has at least two parts.',
+  'unknown-category': 'That category is not in the file.',
+  'group-with-children': 'That category is a group with categories under it. Pick one of those.',
+  'between-accounts': 'A part never goes under Between my accounts.',
+}
+
 function colourOf(text: string | null, kept: string): string {
   if (text === null) return kept
   if (text.trim() === '') return ''
@@ -556,10 +608,35 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       case 'delete-entry':
         removeEntry(unit, books.records, rowOf(field['entry']))
         break
+      case 'split-entry': {
+        const row = rowOf(field['entry'])
+        const given = field['parts'] as readonly { readonly amount: number | null; readonly category: string; readonly text: string }[]
+        const drafts = given.map((part): PartDraft => ({
+          amount: part.amount === null ? 'rest' : signedAs(row, accountMoneyFromAmount(part.amount)),
+          category: categoryOf(part.category).id,
+          text: part.text,
+        }))
+        const split = entrySplit(book, row, drafts)
+        if ('refused' in split) throw new StepRefused(SPLIT_REFUSALS[split.refused])
+        writeEntrySplit(unit, books.records, split)
+        book = {
+          ...book,
+          transactions: book.transactions.map((held) => (held.id === row.id ? split.row : held)),
+          lines: [...book.lines.filter((part) => part.transaction !== row.id), ...split.parts],
+        }
+        break
+      }
+      case 'remove-split': {
+        const row = rowOf(field['entry'])
+        if (book.receipts.some((receipt) => receipt.transaction === row.id)) throw new StepRefused('A receipt split that entry, so remove-receipt takes its lines off.')
+        if (!book.lines.some((part) => part.transaction === row.id)) throw new StepRefused('That entry is not split.')
+        removeSplitOf(unit, books.records, row)
+        break
+      }
       case 'remove-receipt': {
         const row = rowOf(field['entry'])
-        if (!book.receipts.some((receipt) => receipt.transaction === row.id) && !book.lines.some((line) => line.transaction === row.id)) throw new StepRefused('That entry has no receipt.')
-        removeReceiptOf(unit, books.records, row)
+        if (!book.receipts.some((receipt) => receipt.transaction === row.id)) throw new StepRefused('That entry has no receipt.')
+        removeSplitOf(unit, books.records, row)
         break
       }
       case 'add-receipt': {
