@@ -1,4 +1,4 @@
-import { answered, answersSince, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, findRecordsArgs, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
@@ -7,7 +7,7 @@ import { language } from '../../../../../shared/text/language'
 const ANSWERS = {
   en: {
     worth: (value: string, gain: string) => `Your portfolio is worth ${value}, a total gain of ${gain} on what you put in.`,
-    notRead: "You didn't allow reading Investments, so I can only tell you how it works.",
+    noAccount: 'Investments has no account to record it on yet. Add one on Settings, General first.',
     buyTitle: 'Record the buy',
     buyProposed: 'The card below records the buy at the rate of its day. Nothing changes until you accept it.',
     sellTitle: 'Record the sale',
@@ -31,7 +31,7 @@ const ANSWERS = {
   },
   hr: {
     worth: (value: string, gain: string) => `Vaš portfelj vrijedi ${value}, uz ukupnu dobit od ${gain} na uloženo.`,
-    notRead: 'Niste dopustili čitanje Ulaganja, pa vam mogu reći samo kako rade.',
+    noAccount: 'Ulaganja još nemaju račun na koji bih to zapisao. Najprije ga dodajte na Postavkama, Općenito.',
     buyTitle: 'Zapiši kupnju',
     buyProposed: 'Kartica ispod zapisuje kupnju po tečaju njezina dana. Ništa se ne mijenja dok je ne prihvatite.',
     sellTitle: 'Zapiši prodaju',
@@ -57,7 +57,7 @@ const ANSWERS = {
 
 type Says = (typeof ANSWERS)['en']
 
-const FIND = { query: null, from: null, to: null, about: null, only: null, limit: 5, cursor: null }
+const findAccounts = findRecordsArgs('investments', 'investment-account', { limit: 5 })
 
 function firstRef(answer: string): string | null {
   const { records } = JSON.parse(answer) as { readonly records: readonly { readonly ref: string }[] }
@@ -68,7 +68,6 @@ function firstRef(answer: string): string | null {
 function worthReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'read_figures', { app: 'investments', report: 'portfolio', period: null }, tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
   const { figures } = JSON.parse(answers[0]!.text) as { readonly figures: readonly { readonly ref: string; readonly label: string }[] }
   const refOf = (label: string): string => `[${figures.find((figure) => figure.label === label)?.ref ?? ''}]`
   return answered(request, says.worth(refOf('value'), refOf('total gain')), tokens)
@@ -80,12 +79,11 @@ function worthReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
  */
 function tradeReply({ request, tokens }: FakeChatTurn, says: Says, side: 'buy' | 'sell'): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', { app: 'investments', kind: 'investment-account', ...FIND }, tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', { app: 'investments', kind: 'instrument', ...FIND }, tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('investments', 'instrument', { limit: 5 }), tokens)
   if (answers.length === 2) {
     const [account, instrument] = [firstRef(answers[0]!.text), firstRef(answers[1]!.text)]
-    if (account === null || instrument === null) return answered(request, says.notRead, tokens)
+    if (account === null || instrument === null) return answered(request, says.noAccount, tokens)
     const input = { side, account, instrument, date: addDays(today(), -7), quantity: side === 'buy' ? '1' : '1000000', price: '100', fees: '1', rate: null, note: '' }
     const step = { op: 'add-trade', input: JSON.stringify(input), as: null }
     return lookup(2, 'propose_changes', { app: 'investments', title: side === 'buy' ? says.buyTitle : says.sellTitle, steps: [step], next: false }, tokens)
@@ -120,11 +118,10 @@ function deposit(date: string, cash: string) {
  */
 function copyReply({ request, tokens }: FakeChatTurn, says: Says, again: boolean): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', { app: 'investments', kind: 'investment-account', ...FIND }, tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
   if (answers.length === 1) {
     const account = firstRef(answers[0]!.text)
-    if (account === null) return answered(request, says.notRead, tokens)
+    if (account === null) return answered(request, says.noAccount, tokens)
     const first = deposit(addDays(today(), -9), '500')
     const rows = again ? [first, deposit(addDays(today(), -8), '200')] : [first]
     const balances = [{ currency: 'EUR', opening: '0', closing: again ? '700' : '500' }]
@@ -146,11 +143,10 @@ function fileCopyReply(turn: FakeChatTurn, says: Says, lookAlikes: 'ask' | 'impo
   const reads = lookAlikes === 'ask' ? 1 : 0
   const answers = answersSince(request)
   if (answers.length === 0 && reads === 1) return lookup(0, 'read_attachment', { attachment: file, pages: null, sheet: null, rows: '1-3' }, tokens)
-  if (answers.length === reads) return lookup(reads, 'find_records', { app: 'investments', kind: 'investment-account', ...FIND }, tokens)
-  if (answers[reads]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === reads) return lookup(reads, 'find_records', findAccounts, tokens)
   if (answers.length === reads + 1) {
     const account = firstRef(answers[reads]!.text)
-    if (account === null) return answered(request, says.notRead, tokens)
+    if (account === null) return answered(request, says.noAccount, tokens)
     const input = { file, account, broker: 'Example Broker', lookAlikes, rows: [deposit(addDays(today(), -9), '500'), deposit(addDays(today(), -6), '300')], balances: [] }
     const title = lookAlikes === 'ask' ? says.fileTitle : says.lookAlikeTitle
     return lookup(reads + 1, 'propose_changes', { app: 'investments', title, steps: [{ op: 'import-transcribed', input: JSON.stringify(input), as: null }], next: false }, tokens)

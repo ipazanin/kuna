@@ -6,7 +6,6 @@ import { today } from '../../shared/calendar/civilDate'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
-import { LOANS_ASSIST } from './assistant/loansAssist'
 import { words as bankLoanWords } from './bankLoans/presentation/words'
 import { LOANS_HOME_CARD } from './home/presentation/loansHomeCard'
 import { loansHubFigures } from './home/presentation/loansHubFigures'
@@ -70,7 +69,6 @@ export const loansApp: AppContribution = {
   subtitle: () => null,
   // Until Loans has settings of its own, it shows euros in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
-  assist: LOANS_ASSIST,
   assistant: async () => {
     const [{ loansAssistant }, { loansProposer, loansAcceptance }] = await Promise.all([import('./assistant/loansAssistant'), import('./assistant/operations/loansOperations')])
     const store = useLoansBooks()

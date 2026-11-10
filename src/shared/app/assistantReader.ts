@@ -1,8 +1,11 @@
-import type { Exposure, FieldDoc, FieldDocs, StoredValue } from '../privacy/domain/exposure'
+import type { AmountSign, Exposure, FieldDoc, FieldDocs, StoredValue } from '../privacy/domain/exposure'
 import type { FigureTrace } from '../ai/domain/chatElement'
 import type { AccountMoney } from '../money/accountMoney'
 import type { CurrencyCode } from '../money/currencyCode'
+import { decimalText } from '../money/decimal'
+import type { Decimal } from '../money/decimal'
 import type { Money } from '../money/money'
+import type { Booking } from '../money/lookAlikeBookings'
 import type { RecordKind, RecordNoun } from '../storage/domain/recordKind'
 
 /** One field of a record, handed to the chat as its exposure says. A field that never leaves is not among them. */
@@ -10,6 +13,8 @@ export type ReadableField =
   | { readonly name: string; readonly exposure: 'plain' | 'identifier' | 'party' | 'free-text'; readonly value: StoredValue }
   | { readonly name: string; readonly exposure: 'ref'; readonly to: string; readonly id: string | null }
   | { readonly name: string; readonly exposure: 'plain'; readonly of: 'account' | 'app'; readonly cents: number; readonly currency: string }
+  /** A decimal amount, which leaves as its text, such as `12.5 USD`, and compares as the decimal. */
+  | { readonly name: string; readonly exposure: 'plain'; readonly value: string; readonly decimal: Decimal }
 
 export interface ReadableRow {
   readonly id: string
@@ -29,7 +34,8 @@ export interface ReadableKind {
   readonly name: string
   readonly noun: RecordNoun
   readonly about: string
-  readonly fields: readonly { readonly name: string; readonly meaning: string; readonly exposure: Exposure; readonly amount: boolean }[]
+  /** Each field, with the sign of an amount and null for any other field. */
+  readonly fields: readonly { readonly name: string; readonly meaning: string; readonly exposure: Exposure; readonly amount: AmountSign | null }[]
   /** The field a date filter and the newest-first order read, or null for a kind with no date. */
   readonly dated: string | null
   rows(): readonly ReadableRow[]
@@ -62,6 +68,10 @@ function readableFields<R extends { readonly id: string }>(kind: ReadableKindOf<
       const cents = record[name] as number | null
       return [cents === null ? { name, exposure: 'plain', value: null } : { name, exposure: 'plain', of: doc.amount, cents, currency: kind.currencyOf(record) }]
     }
+    if ('decimal' in doc) {
+      const held = doc.decimal(record)
+      return [held === null ? { name, exposure: 'plain', value: null } : { name, exposure: 'plain', value: `${decimalText(held.amount)} ${held.currency}`, decimal: held.amount }]
+    }
     return [{ name, exposure: doc.exposure, value: doc.read === undefined ? (record[name] as StoredValue) : doc.read(record) }]
   })
 }
@@ -72,7 +82,7 @@ export function readableKind<R extends { readonly id: string }>(kind: ReadableKi
     name: kind.kind.name,
     noun: kind.kind.noun,
     about: kind.about,
-    fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]) => ({ name, meaning: doc.meaning, exposure: doc.exposure, amount: 'amount' in doc })),
+    fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]) => ({ name, meaning: doc.meaning, exposure: doc.exposure, amount: 'sign' in doc ? doc.sign : null })),
     dated: kind.dated,
     rows: () => kind.rows().map((record) => ({ id: record.id, fields: readableFields(kind, record) })),
     ...(kind.sets === undefined ? {} : { sets: kind.sets.map(({ name, about, holds }) => ({ name, about, ids: () => new Set(kind.rows().flatMap((record) => (holds(record) ? [record.id] : []))) })) }),
@@ -118,4 +128,24 @@ export interface AppReader {
   readonly reports: readonly AssistantReport[]
   /** The rules behind the app's figure build-ups, for an app whose figures cite any. */
   readonly traceRules?: TraceRules
+  /** The bookings of each bank account, which rows copied off a statement are matched against, for an app that keeps any. */
+  readonly bookings?: AccountBookings
+}
+
+/** A booking in the books, by the id of the record that holds it. */
+export interface BookedRecord {
+  readonly id: string
+  readonly booking: Booking<Money | AccountMoney>
+}
+
+/** An app's bookings by bank account, as a statement's rows are matched against them. */
+export interface AccountBookings {
+  /** The kind of the records that hold the bookings, such as Spending's transactions. */
+  readonly kind: string
+  /** The kind of the record an account's ref names. */
+  readonly accountKind: string
+  /** Every booking of the account, of any source, or null for an account the books do not hold. */
+  of(account: string): readonly BookedRecord[] | null
+  /** The account when the books hold exactly one, or null. */
+  onlyAccount(): string | null
 }

@@ -38,7 +38,6 @@ const settingUpAi = ref(false)
 const orderLines = computed(() =>
   apps.flatMap((app) => (app.setUpOrder !== undefined && chosenApps.value.includes(app.id) && chosenApps.value.includes(app.setUpOrder.after) ? [app.setUpOrder.why] : [])),
 )
-const assistApps = computed(() => apps.filter((app) => app.assist !== undefined && chosenApps.value.includes(app.id)))
 
 const screenTitle = useTemplateRef<HTMLElement>('screenTitle')
 
@@ -63,7 +62,7 @@ function goOn(): void {
     <template #title>
       <span ref="screenTitle" data-testid="screen-title" tabindex="-1" class="screen-title">{{ settingUpAi ? assistWords.card.title : text.title }}</span>
     </template>
-    <AssistSetUp v-if="settingUpAi" :apps="assistApps" @back="showKeyStep(false)" @done="answer" />
+    <AssistSetUp v-if="settingUpAi" @back="showKeyStep(false)" @done="answer" />
     <div v-else class="flex flex-col gap-5 px-4 pt-4 pb-5 sm:px-5">
       <UCheckboxGroup v-model="chosenApps" :items="APP_CHOICES" :legend="text.which" variant="card" :ui="{ legend: 'type-label mb-2', fieldset: 'gap-2' }" data-testid="kuna-welcome-apps" />
       <p v-for="line in orderLines" :key="line" class="type-caption" data-testid="kuna-welcome-order">{{ line }}</p>

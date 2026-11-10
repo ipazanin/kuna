@@ -201,7 +201,7 @@ export function setUpChatCompanyFolderFlowIn(language) {
 
 /**
  * Makes the app's file in this browser through the home step's chat button, which opens the chat on the new overview with its opening
- * message waiting on the first-send card. `answer` presses Allow here or Cancel on that card.
+ * message waiting on the first-send card. `answer` presses Allow in this chat or Cancel on that card.
  */
 async function newAppWithChat(page, press, app, language, answer) {
   await keepAiKey(page)
@@ -239,11 +239,7 @@ export function setUpChatGoesOnFlowIn(language, accepts = true) {
     try {
       await newAppWithChat(page, press, 'loans', language, 'allow')
       await sendInChat(page, press, CONTRACT[language])
-      for (let asked = 0; asked < 2; asked += 1) {
-        const allow = await page.waitForSelector('[data-testid="chat-allow"]', { visible: true, timeout: 5_000 }).catch(() => null)
-        if (allow === null) break
-        await press(allow)
-      }
+      if (await page.$('[data-testid="chat-consent"]')) throw new Error('the chat asked again after the yes on its first send')
       const line = await page.waitForSelector('[data-testid="chat-proposal"][data-state="open"] [data-testid="chat-proposal-goes-on"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the card made while Loans is new does not say the chat goes on')
       })

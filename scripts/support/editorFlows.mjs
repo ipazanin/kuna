@@ -8352,7 +8352,8 @@ const ANTHROPIC_ROW = '[data-testid="assist-card"] [data-provider="anthropic"]'
 const OPENAI_ROW = '[data-testid="assist-card"] [data-provider="openai"]'
 const OPENROUTER_ROW = '[data-testid="assist-card"] [data-provider="openrouter"]'
 const COMPANY_SELECT = '[data-testid="assist-provider-select"]'
-const COMPANY_SWITCH = '[data-testid="assist-switch-company"]'
+const ALWAYS_ALLOW = '[data-testid="assist-allow"]'
+const APP_ALLOWED = '[data-testid="app-assist-card"] [data-testid="assist-allowed"]'
 const CHAT_CONSENT = '[data-testid="chat-consent"]'
 const SHELL_SETTINGS_NAME = { en: 'Kuna settings', hr: 'Postavke Kune' }
 
@@ -8428,7 +8429,7 @@ export async function assistKeyFlow(page, { press, shoot, inspect }) {
   try {
     await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-key-steps"]`, { visible: true, timeout: 10_000 })
     if (await page.$('[data-testid="assist-model"]')) throw new Error('the model field shows with no key')
-    if (await page.$('[data-testid="assist-app"]')) throw new Error('the lines of the apps show with no key')
+    if (await page.$(ALWAYS_ALLOW)) throw new Error('Always allow shows with no key')
     await inspect?.('the card with no key')
 
     await saveTypedKey(page, press, ANTHROPIC_ROW, MADE_UP_ANTHROPIC_KEY)
@@ -8557,26 +8558,39 @@ export async function goToRoute(page, hash, ready) {
   await delay(200)
 }
 
-/** Company's Assistant tab with a made-up key kept: its switch turned on stays on after a reload, and turned off again forgets the choice. */
+/**
+ * Company's Assistant tab with a made-up key kept says the chat asks, and links Kuna settings, whose Always allow turned on
+ * stays on after a reload and shows on the tab, and turned off again forgets the choice.
+ */
 export async function assistSwitchFlow(page, { press, shoot, inspect }) {
+  const words = ASSIST_WORDS.en
   try {
     await keepAiKey(page)
-    await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 })
-    if (await switchOn(page, COMPANY_SWITCH)) throw new Error("Company's switch is on before it was switched on")
-    await pressSelector(page, press, COMPANY_SWITCH)
-    await switchSays(page, COMPANY_SWITCH, true, "Company's switch did not turn on")
-    if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== 'on') throw new Error('this browser does not keep Company switched on')
-    await inspect?.("Company's switch on")
+    await page.waitForSelector(`${APP_ALLOWED}[data-allowed="false"]`, { visible: true, timeout: 10_000 })
+    await elementSays(page, APP_ALLOWED, [words.card.allowOff('Anthropic')], 'the tab does not say the chat asks')
+    await pressSelector(page, press, '[data-testid="assist-allow-link"]')
+    await page.waitForSelector(ALWAYS_ALLOW, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the tab did not lead to Always allow in Kuna settings')
+    })
+    if (await switchOn(page, ALWAYS_ALLOW)) throw new Error('Always allow is on before it was switched on')
+    await pressSelector(page, press, ALWAYS_ALLOW)
+    await switchSays(page, ALWAYS_ALLOW, true, 'Always allow did not turn on')
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist-allowed.anthropic'))) !== 'on') throw new Error('this browser does not keep Anthropic allowed')
+    await elementSays(page, '[data-testid="assist-card"]', [words.card.allowOn('Anthropic')], 'Always allow does not say what it allows')
+    await inspect?.('Always allow on')
     await shoot('assist-switch')
 
     await page.reload({ waitUntil: 'networkidle0' })
-    await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 })
-    if (!(await switchOn(page, COMPANY_SWITCH))) throw new Error("Company's switch is off again after a reload")
-    await inspect?.("Company's switch on after a reload")
+    await page.waitForSelector(ALWAYS_ALLOW, { visible: true, timeout: 10_000 })
+    if (!(await switchOn(page, ALWAYS_ALLOW))) throw new Error('Always allow is off again after a reload')
+    await goToRoute(page, '#/company/settings?tab=assistant', `${APP_ALLOWED}[data-allowed="true"]`)
+    await elementSays(page, APP_ALLOWED, [words.card.allowOn('Anthropic')], 'the tab does not follow Always allow')
+    await inspect?.('the Assistant tab with Always allow on')
 
-    await pressSelector(page, press, COMPANY_SWITCH)
-    await switchSays(page, COMPANY_SWITCH, false, "Company's switch did not turn off")
-    if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('switching Company off left the choice in this browser')
+    await goToRoute(page, '#/settings', ALWAYS_ALLOW)
+    await pressSelector(page, press, ALWAYS_ALLOW)
+    await switchSays(page, ALWAYS_ALLOW, false, 'Always allow did not turn off')
+    if ((await page.evaluate(() => localStorage.getItem('kuna.assist-allowed.anthropic'))) !== null) throw new Error('switching Always allow off left the choice in this browser')
   } finally {
     await forgetAssist(page)
   }
@@ -8584,20 +8598,18 @@ export async function assistSwitchFlow(page, { press, shoot, inspect }) {
 
 /**
  * The Assistant tab and Kuna settings over one state: with no key the tab says what could be done and links to Kuna
- * settings, and with a key the line in Kuna settings leads to the tab, whose switch the line then follows. Spending has
- * its own tab, and an app still in its first run has no line.
+ * settings, and with a key the tab says whether the chat asks and links Always allow there. Spending's tab says the same.
  */
 export function assistTabFlowIn(language) {
   const words = ASSIST_WORDS[language]
   const companyName = (language === 'en' ? companyEnglish : companyCroatian).name
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    const companyState = '[data-testid="assist-app"][data-app="company"] [data-testid="assist-app-state"]'
     try {
       await page.waitForSelector('[data-testid="assist-add-key"]', { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('the tab with no key does not link to Kuna settings')
       })
-      if (await page.$(COMPANY_SWITCH)) throw new Error('the tab shows a switch with no key')
+      if (await page.$(APP_ALLOWED)) throw new Error('the tab says whether the chat asks with no key')
       await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.addKey], 'the tab with no key does not offer to add one')
       await inspect?.('the Assistant tab with no key')
       await pressSelector(page, press, '[data-testid="assist-add-key"]')
@@ -8606,27 +8618,30 @@ export function assistTabFlowIn(language) {
       })
 
       await keepAiKey(page)
-      await page.waitForSelector(companyState, { visible: true, timeout: 10_000 })
-      await elementSays(page, companyState, [words.card.asksFirst], "Company's line does not say it asks first")
-      if (await page.$('[data-testid="assist-app"][data-app="assets"]')) throw new Error('an app in its first run has a line')
-      if (await page.$('[data-testid="assist-app"][data-app="investments"]')) throw new Error('an app in its first run has a line')
-      await inspect?.('the lines of the apps')
-      await pressSelector(page, press, '[data-testid="assist-app"][data-app="company"] [data-testid="assist-app-link"]')
-      await page.waitForSelector(COMPANY_SWITCH, { visible: true, timeout: 10_000 }).catch(() => {
-        throw new Error("Company's line did not open its Assistant tab")
-      })
-      await pressSelector(page, press, COMPANY_SWITCH)
-      await switchSays(page, COMPANY_SWITCH, true, "Company's switch did not turn on")
-      await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.chatTitle, words.appCard.chatSends(companyName)], 'the tab does not say what the chat reads')
+      await page.waitForSelector(ALWAYS_ALLOW, { visible: true, timeout: 10_000 })
+      if (await switchOn(page, ALWAYS_ALLOW)) throw new Error('Always allow is on with nothing allowed')
+      await elementSays(page, '[data-testid="assist-card"]', [words.card.allow, words.card.allowOff('Anthropic')], 'Always allow does not say the chat asks')
+      await inspect?.('Always allow in Kuna settings')
+      await shoot('assist-allow')
+
+      await goToRoute(page, '#/company/settings?tab=assistant', APP_ALLOWED)
+      await elementSays(
+        page,
+        '[data-testid="app-assist-card"]',
+        [words.card.allowOff('Anthropic'), words.appCard.change, words.appCard.chatTitle, words.appCard.chatSends(companyName)],
+        'the tab does not say whether the chat asks and what it reads',
+      )
       await inspect?.("Company's Assistant tab")
       await shoot('assist-tab')
 
-      await goToRoute(page, '#/settings', companyState)
-      await elementSays(page, companyState, [words.card.sendsFreely], "Company's line does not follow its switch")
-      await pressSelector(page, press, '[data-testid="assist-app"][data-app="spending"] [data-testid="assist-app-link"]')
-      await page.waitForSelector('[data-testid="assist-switch-spending"]', { visible: true, timeout: 10_000 }).catch(() => {
-        throw new Error("Spending's line did not open its Assistant tab")
+      await pressSelector(page, press, '[data-testid="assist-allow-link"]')
+      await page.waitForSelector(ALWAYS_ALLOW, { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the tab did not link Kuna settings')
       })
+      await pressSelector(page, press, ALWAYS_ALLOW)
+      await switchSays(page, ALWAYS_ALLOW, true, 'Always allow did not turn on')
+      await goToRoute(page, '#/spending/settings?tab=assistant', `${APP_ALLOWED}[data-allowed="true"]`)
+      await elementSays(page, APP_ALLOWED, [words.card.allowOn('Anthropic')], "Spending's tab does not follow Always allow")
       await inspect?.("Spending's Assistant tab")
       await shoot('assist-tab-spending')
     } finally {
@@ -8707,8 +8722,7 @@ export function chatPanelFlowIn(language) {
       await kept.evaluate((field) => field.select())
       await page.keyboard.press('Backspace')
       await elementSays(page, '[data-testid="chat-label"]', [words.chat.inApp(language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name)], 'the panel does not name the app on screen')
-      const appName = language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name
-      await elementSays(page, '[data-testid="chat-empty"]', [words.chat.emptyReads(appName)], 'the empty panel does not say what it can do')
+      await elementSays(page, '[data-testid="chat-empty"]', [words.chat.emptyReads, words.chat.emptyAsks], 'the empty panel does not say what it can do')
       if (!(await wide()) && (await page.$eval('main', (element) => element.offsetParent !== null))) throw new Error('the page stays on screen behind the pane')
       await inspect?.('the empty chat')
       await shoot('chat-empty')
@@ -8717,12 +8731,17 @@ export function chatPanelFlowIn(language) {
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('the send did not ask with the switch off')
       })
-      await elementSays(page, CHAT_CONSENT, [words.chat.sendsAndReads(appName), words.chat.aliases, words.retention.anthropic], 'the card does not say what leaves and what the company keeps')
+      await elementSays(
+        page,
+        CHAT_CONSENT,
+        [words.chat.sends, words.chat.aliases, words.retention.anthropic, words.chat.allowAlwaysNote, words.chat.allowInChat, words.chat.allowAlways('Anthropic')],
+        'the card does not say what leaves and what the company keeps',
+      )
       if (await page.$('[role="dialog"]')) throw new Error('the chat asked in a dialog')
       await delay(400)
       await inspect?.('the card before a chat sends')
       await shoot('chat-consent')
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('asking changed the switch')
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist-allowed.anthropic'))) !== null) throw new Error('asking changed the switch')
       const promptFocusAfter = async (how) => {
         await delay(200)
         const focused = await page.evaluate(() => document.activeElement?.matches('textarea[data-testid="chat-prompt"]') === true)
@@ -8757,7 +8776,7 @@ export function chatPanelFlowIn(language) {
       const issues = await page.waitForSelector('[data-testid="chat-issues"]', { visible: true, timeout: 15_000 })
       const address = await issues.evaluate((element) => element.getAttribute('href'))
       if (address !== 'https://github.com/ipazanin/kuna/issues') throw new Error(`the issues link goes to ${address}`)
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('a yes for this chat changed the switch')
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist-allowed.anthropic'))) !== null) throw new Error('a yes for this chat changed the switch')
       await inspect?.('asked how to request a feature, with the issues link')
       await shoot('chat-issues')
 
@@ -8769,13 +8788,13 @@ export function chatPanelFlowIn(language) {
       })
       await pressSelector(page, press, '[data-testid="chat-allow-always"]')
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== 'on') throw new Error("Don't ask again left the switch off")
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist-allowed.anthropic'))) !== 'on') throw new Error('Always allow left the switch off')
 
       await pressSelector(page, press, '[data-testid="chat-new"]')
       await page.waitForSelector('[data-testid="chat-empty"]', { visible: true, timeout: 5_000 })
       await send(language === 'en' ? 'And the rules?' : 'A pravila?')
       await page.waitForSelector('[data-testid="chat-chip"]', { visible: true, timeout: 15_000 })
-      if (await page.$(CHAT_CONSENT)) throw new Error("a new chat asked with Don't ask again on")
+      if (await page.$(CHAT_CONSENT)) throw new Error('a new chat asked with Always allow on')
       // The link shows with the tool call, before the answer's text lands above it and moves it down on a phone.
       await page.waitForSelector('[data-status="ready"] [data-testid="chat-answer"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the answer with the link did not finish')
@@ -8906,15 +8925,14 @@ async function flagReviewCounterparty(page, press, review, shoot, inspect) {
 }
 
 /**
- * A question about figures with Ana Horvat flagged as a person on her entry: the one card covers sending and reading the
- * app on screen, the answer shows Kuna's figure and her real name, the row under it opens to the exact text with her alias
- * and her IBAN masked, an invented amount is flagged, a read from outside the app asks again, and with Anonymise off for
- * Anthropic her name goes as written while the IBAN stays masked.
+ * A question about figures with Ana Horvat flagged as a person on her entry: the one card covers sending and reading every
+ * app, the answer shows Kuna's figure and her real name, the row under it opens to the exact text with her alias and her IBAN
+ * masked, an invented amount is flagged, a read from the home asks nothing more, and with Anonymise off for Anthropic her
+ * name goes as written while the IBAN stays masked.
  */
 export function chatReadFlowIn(language) {
   const words = ASSIST_WORDS[language]
   const { dialog } = SCREEN_WORDS[language].spendingEntries
-  const appName = language === 'en' ? spendingAppEnglish.name : spendingAppCroatian.name
   const question = language === 'en' ? 'What did I spend?' : 'Koliko sam potrošio?'
   const alias = language === 'en' ? 'Person 1' : 'Osoba 1'
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -8942,7 +8960,7 @@ export function chatReadFlowIn(language) {
       await openChat(page, press)
       await send()
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
-      await elementSays(page, CHAT_CONSENT, [words.chat.sendsAndReads(appName), words.chat.aliases], 'the card does not say the chat reads the app, with aliases')
+      await elementSays(page, CHAT_CONSENT, [words.chat.sends, words.chat.aliases], 'the card does not say the chat reads the apps, with aliases')
       await delay(400)
       await inspect?.('the card that lets the chat read')
       await shoot('chat-grant')
@@ -8952,7 +8970,7 @@ export function chatReadFlowIn(language) {
       await page.waitForSelector('[data-testid="chat-figure"]', { visible: true, timeout: 5_000 })
       if (await page.$(CHAT_CONSENT)) throw new Error('the yes on the first send did not cover the read')
       if (await page.$('[data-testid="chat-stray"]')) throw new Error("Kuna's own figure was flagged")
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.spending'))) !== null) throw new Error('a yes for this chat changed the switch')
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist-allowed.anthropic'))) !== null) throw new Error('a yes for this chat changed the switch')
       await inspect?.('an answer from what the chat read')
       await shoot('chat-read-answer')
 
@@ -8983,15 +9001,14 @@ export function chatReadFlowIn(language) {
       await openChat(page, press)
       await send()
       await page.waitForSelector(CHAT_CONSENT, { visible: true, timeout: 10_000 })
-      await elementSays(page, CHAT_CONSENT, [words.chat.sends], 'outside an app the first card still spoke of reading')
+      await elementSays(page, CHAT_CONSENT, [words.chat.sends], 'outside an app the card does not say the chat reads the apps')
       await pressSelector(page, press, '[data-testid="chat-allow"]')
-      await elementSays(page, CHAT_CONSENT, [words.chat.readTitle(appName), words.chat.reads(appName)], 'a read outside the app on screen did not ask')
-      await delay(400)
-      await inspect?.('the card before a read outside the app on screen')
-      await shoot('chat-read-ask')
-      await pressSelector(page, press, '[data-testid="chat-allow-cancel"]')
-      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
-      if (await page.$('[data-testid="chat-sent"]')) throw new Error('a no still read the books')
+      await page.waitForSelector('[data-testid="chat-sent"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the one yes on the home did not cover reading Spending')
+      })
+      if (await page.$(CHAT_CONSENT)) throw new Error('a read outside the app on screen asked again')
+      await page.waitForSelector('[data-status="ready"] [data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await inspect?.('a read from the home under the one yes')
 
       await startOver()
       await savedChatGone(page)
@@ -9438,6 +9455,41 @@ export function chatStatementCardFlowIn(language) {
   }
 }
 
+/**
+ * Spending's statements set under one yes: the biggest spends of last month come from one read filtered to money out and sorted by
+ * amount, each with Kuna's own figure, and the rows the person asks about are each matched with the books.
+ */
+export function chatLookupFlowIn(language) {
+  const biggest = language === 'en' ? 'Biggest spends last month' : 'Najveći troškovi prošlog mjeseca'
+  const check = language === 'en' ? 'Check these rows' : 'Provjeri ove retke'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (shot) => shootAs(language === 'en' ? shot : `${shot}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, biggest)
+      await pressSelector(page, press, '[data-testid="chat-allow"]')
+      await page.waitForSelector('[data-status="ready"] [data-testid="chat-answer"] [data-testid="chat-figure"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error("the biggest spends came without Kuna's figures")
+      })
+      await sendInChat(page, press, check)
+      await page
+        .waitForFunction(() => document.querySelectorAll('[data-status="ready"] [data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
+        .catch(() => {
+          throw new Error('the check of the rows gave no answer')
+        })
+      if (await page.$('[data-testid="chat-consent"]')) throw new Error('the second message asked again')
+      const said = await page.$$eval('[data-testid="chat-answer"]', (elements) => elements.at(-1)?.textContent ?? '')
+      if ((said.match(language === 'en' ? /Row \d/g : /\d\. re[dt]/g) ?? []).length !== 3) throw new Error(`the check does not answer for each of the three rows: ${said}`)
+      await inspect?.('the biggest spends and the rows checked against the books')
+      await shoot('chat-lookup')
+      await newChat(page, press)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
 /** What the card's look-alike note is called in each language, as `copiedRowsWords.ts` words it for one row. */
 const LOOK_ALIKE_WAITS = { en: '1 row waits, not imported', hr: '1 redak čeka, nije uvezen' }
 
@@ -9683,8 +9735,9 @@ export function chatReceiptFlowIn(language, photos, { accept = false } = {}) {
 }
 
 /**
- * The select of AI companies with Anonymise off for Anthropic: a company with a key says so and takes over at once,
- * Anonymise is on again and the card says so, the other key stays with Remove and Undo, and Company's switch stays.
+ * The select of AI companies with Anonymise off for Anthropic and Company's yes as an older Kuna kept it: that yes shows as
+ * Always allow for Anthropic, a company with a key says so and takes over at once, Anonymise is on again and the card says
+ * so, the other key stays with Remove and Undo, and the yes stays with Anthropic while the Assistant tab says OpenAI asks.
  */
 export function assistProviderSwitchFlowIn(language) {
   const words = ASSIST_WORDS[language]
@@ -9695,6 +9748,8 @@ export function assistProviderSwitchFlowIn(language) {
       await keepAiKey(page, TWO_KEYS_ANONYMISE_OFF)
       await page.waitForSelector(`${ANTHROPIC_ROW} [data-testid="assist-key-kept"]`, { visible: true, timeout: 10_000 })
       await switchSays(page, anonymise, false, 'Anonymise does not show off for Anthropic')
+      await switchSays(page, ALWAYS_ALLOW, true, "Company's old yes did not carry over to Anthropic")
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error("Company's old yes stayed in this browser after it carried over")
       const offered = await openCompanies(page, press)
       if (!offered.find((option) => option.startsWith('OpenAI'))?.includes(words.card.keySaved)) throw new Error(`the select does not mark the saved key: ${offered.join(' | ')}`)
       if (offered.find((option) => option.startsWith('OpenRouter'))?.includes(words.card.keySaved)) throw new Error('the select marks a key that is not saved')
@@ -9711,17 +9766,18 @@ export function assistProviderSwitchFlowIn(language) {
         'the switch does not say what it did',
       )
       await switchSays(page, anonymise, true, 'Anonymise is not on again after a change of company')
+      await switchSays(page, ALWAYS_ALLOW, false, 'the yes for Anthropic went with the change to OpenAI')
       await elementSays(page, '[data-testid="assist-card"]', [words.card.anonymiseOn('OpenAI')], 'Anonymise does not describe itself for OpenAI')
-      const [pick, anthropic, anonymiseOffFor, app] = await page.evaluate(() => [
+      const [pick, anthropic, anonymiseOffFor, allowed] = await page.evaluate(() => [
         localStorage.getItem('kuna.assist-provider'),
         localStorage.getItem('kuna.secret.anthropic'),
         localStorage.getItem('kuna.assist-anonymise'),
-        localStorage.getItem('kuna.assist.company'),
+        localStorage.getItem('kuna.assist-allowed.anthropic'),
       ])
       if (pick !== 'openai') throw new Error(`the pick is "${pick}" after picking OpenAI`)
       if (anthropic !== MADE_UP_ANTHROPIC_KEY) throw new Error('the switch lost the other key')
       if (anonymiseOffFor !== null) throw new Error(`Anonymise stays off for "${anonymiseOffFor}" through a change of company`)
-      if (app !== 'on') throw new Error("the switch of company changed Company's own switch")
+      if (allowed !== 'on') throw new Error('the switch of company forgot the yes for Anthropic')
       await inspect?.('after a switch of company')
       await shoot('assist-provider-switched')
 
@@ -9736,9 +9792,8 @@ export function assistProviderSwitchFlowIn(language) {
         throw new Error('Undo did not bring back the other key')
       })
 
-      await goToRoute(page, '#/company/settings?tab=assistant', COMPANY_SWITCH)
-      if (!(await switchOn(page, COMPANY_SWITCH))) throw new Error("Company's switch went off with the change of company")
-      await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.uses('OpenAI')], 'the tab does not name the new company')
+      await goToRoute(page, '#/company/settings?tab=assistant', APP_ALLOWED)
+      await elementSays(page, '[data-testid="app-assist-card"]', [words.appCard.uses('OpenAI'), words.card.allowOff('OpenAI')], 'the tab does not say the new company asks')
     } finally {
       await forgetAssist(page)
     }
@@ -9800,7 +9855,7 @@ async function reachKeyStep(page, press, language, appNames) {
 
 /**
  * Yes at the welcome, with Company and Loans picked: the key step in the same card, a key tested and kept, one line on the chat and the one consent, which turns on
- * Send without asking in both. Back on the way keeps what was picked.
+ * Always allow for the company. Back on the way keeps what was picked.
  */
 export function kunaWelcomeAiFlowIn(language) {
   const screen = SCREEN_WORDS[language]
@@ -9833,11 +9888,11 @@ export function kunaWelcomeAiFlowIn(language) {
       await elementSays(
         page,
         '[data-testid="assist-set-up-consent"]',
-        [words.setUp.sends, words.retention.anthropic, words.appCard.switch, screen.company, screen.loans],
+        [words.setUp.sends, words.retention.anthropic, words.card.allow, words.card.allowOn('Anthropic'), words.setUp.turnOff],
         'the consent does not say what it covers',
       )
       if (await page.$(`${SET_UP} [data-testid="assist-key"]`)) throw new Error('the key field stays after the company took the key')
-      if ((await page.evaluate(() => localStorage.getItem('kuna.assist.company'))) !== null) throw new Error('the consent turned on before anyone said so')
+      if ((await page.evaluate(() => localStorage.getItem('kuna.assist-allowed.anthropic'))) !== null) throw new Error('the consent turned on before anyone said so')
       await page.waitForSelector('[data-testid="chat-open"]', { visible: true, timeout: 5_000 }).catch(() => {
         throw new Error('the chat does not open with a key that works')
       })
@@ -9845,17 +9900,19 @@ export function kunaWelcomeAiFlowIn(language) {
       await shoot('kuna-welcome-ai-accepted')
 
       await pressSelector(page, press, '[data-testid="assist-set-up-switch"]')
+      await switchSays(page, '[data-testid="assist-set-up-switch"]', true, 'the consent did not turn on')
+      await inspect?.('the consent switched on')
+      await shoot('kuna-welcome-ai-allowed')
       await pressSelector(page, press, '[data-testid="assist-set-up-continue"]')
       await page.waitForSelector('[data-testid="home-card"][data-app="company"]', { visible: true, timeout: 10_000 }).catch(() => {
         throw new Error('the key step does not go on to the home')
       })
-      const [company, loans, kept, pick] = await page.evaluate(() => [
-        localStorage.getItem('kuna.assist.company'),
-        localStorage.getItem('kuna.assist.loans'),
+      const [allowed, kept, pick] = await page.evaluate(() => [
+        localStorage.getItem('kuna.assist-allowed.anthropic'),
         localStorage.getItem('kuna.secret.anthropic'),
         localStorage.getItem('kuna.assist-provider'),
       ])
-      if (company !== 'on' || loans !== 'on') throw new Error(`the consent left Company ${company ?? 'off'} and Loans ${loans ?? 'off'}`)
+      if (allowed !== 'on') throw new Error('the consent left Anthropic asking')
       if (kept !== MADE_UP_ANTHROPIC_KEY) throw new Error('the key was not kept')
       if (pick !== 'anthropic') throw new Error(`the assistant is on "${pick}" after the walk-through`)
     } finally {

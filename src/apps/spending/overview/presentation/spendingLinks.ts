@@ -21,7 +21,7 @@ export const SPENDING_ACCOUNT_ROUTE = '/spending/account'
 export const SPENDING_SETTINGS_ROUTE = '/spending/settings'
 /** Settings' Bank sync tab. */
 export const SPENDING_BANK_SYNC_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=bank-sync`
-/** The Assistant tab of Settings, which Kuna settings links to. */
+/** The Assistant tab of Settings, which the chat can link to. */
 export const SPENDING_ASSISTANT_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=assistant`
 
 /** An account's page, which names the account by its bare UUID in `?account=`. */

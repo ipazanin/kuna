@@ -52,7 +52,6 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     reason: 'Changes with no Undo on the books: deleting an app’s data or all of Kuna, starting over, importing books over the ones on screen, moving the file and trashing backups.',
     paths: [
       'shared: src/shared/storage/application/appData.ts#removeAppData',
-      'shared: src/shared/ai/application/assistSettings.ts#forgetAppAssist',
       'shared: src/shared/app/setUpAnswer.ts#forgetSetUpAnswersOf',
       'src/shell/settings/deleteAllOfKuna.ts#forgetBrowserSettings',
       'company: store.dropWorkbook',

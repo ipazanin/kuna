@@ -102,12 +102,6 @@ export type HubState<Part extends HubPart = HubPart> = HubFigures<Part> | 'openi
  */
 export type AppHub = { readonly counts: true; figures(): HubState<CountedHubPart> } | { readonly counts: false; figures(): HubState }
 
-/** Where the app's assistant switch is, for its line in Kuna settings. */
-export interface AppAssist {
-  /** Where the app's own switches are, which Kuna settings links to, as the shell cannot know an app's tabs. */
-  readonly settings: RouteLocationRaw
-}
-
 /** A part of a screen the chat can link to, such as a tab, with the address that opens it. */
 export interface AssistantPlace {
   readonly route: `/${string}`
@@ -227,8 +221,6 @@ export interface AppContribution {
   readonly data: AppData
   /** The app's own specimens for the gallery, which only development and fake builds load. */
   readonly gallery?: () => Promise<Component>
-  /** What the app's assistant may do, for an app that has one. */
-  readonly assist?: AppAssist
   /** What the app tells the chat about itself, which loads only once a chat starts. */
   readonly assistant: () => Promise<AppAssistant>
   /** The exchange rates the app's records need, for an app that holds other currencies, or null before its file is read. */

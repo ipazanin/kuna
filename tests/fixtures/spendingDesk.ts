@@ -209,7 +209,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
   })
   const { store } = await browserHarness(used, document, SPENDING)
   const typed = store as unknown as WorkbookStore<SpendingBooks>
-  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['spending', spendingProposer(typed, ports, FILE_OPEN)]])
   const acceptance = spendingAcceptance(typed, ports, FILE_OPEN)

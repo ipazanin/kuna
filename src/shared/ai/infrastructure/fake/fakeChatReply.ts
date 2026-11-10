@@ -1,3 +1,4 @@
+import type { FindRecordsInput } from '../../application/chatReads'
 import type { ModelReply, ModelRequest, ToolCall } from '../../application/modelPort'
 import type { ModelTokens } from '../../domain/modelUsage'
 import { language } from '../../../text/language'
@@ -81,6 +82,11 @@ export function goOnsInto(request: ModelRequest, task: RegExp): number | null {
 export function settingUp(request: ModelRequest): boolean {
   const places = JSON.stringify(request.turns).match(/<context>The person is in[^<]*<\/context>/g) ?? []
   return /is new\. |has no file on this device yet\./.test(places.at(-1) ?? '')
+}
+
+/** A find_records call's arguments, each at the tool's default unless `changes` sets it, as the tool's schema wants every key. */
+export function findRecordsArgs(app: string, kind: string, changes: Partial<Omit<FindRecordsInput, 'app' | 'kind'>> = {}): FindRecordsInput {
+  return { app, kind, query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null, ...changes }
 }
 
 export function lookup(lookups: number, name: string, args: unknown, tokens: ModelTokens): ModelReply {

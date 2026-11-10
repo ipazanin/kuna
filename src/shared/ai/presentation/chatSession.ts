@@ -25,7 +25,7 @@ import type { ChatElementAbout } from '../domain/chatElement'
 import { forgetSavedChat, readSavedChat, saveChat } from '../application/savedChat'
 import type { ProposalState, SavedChat, SavedLine, SavedProposal } from '../application/savedChat'
 import { modelPort } from '../application/modelAccess'
-import { anonymiseOn, assistOn, modelOf, switchAssist } from '../application/assistSettings'
+import { anonymiseOn, assistAllowed, modelOf } from '../application/assistSettings'
 import type { ProviderId, ProviderPreset } from '../domain/providerPresets'
 import type { KunaChat } from './chatApps'
 import { imagePartOf } from './imagePartOf'
@@ -81,15 +81,6 @@ export interface ChatProposal extends SavedProposal {
   readonly goesOn: boolean
 }
 
-/** The chat wants to read an app and waits for the person. */
-export interface ReadAsk {
-  readonly app: string
-  readonly name: string
-}
-
-/** How a person answered: yes for this chat, yes on this device, or no. */
-export type ReadAnswer = 'chat' | 'always' | 'no'
-
 /** Why a file on the prompt cannot go: Kuna's own check, or a provider that reads no PDFs. */
 export type FileRefusal = AttachmentRefusal | { readonly reason: 'no-pdf'; readonly provider: string }
 
@@ -107,7 +98,7 @@ interface Spent {
 }
 
 /** The chat kept in memory for this visit: it follows the person across apps and goes with a reload. */
-/** How long one message may take, its rounds together, which also ends a stream that stalls. A wait for the person's answer pauses it. */
+/** How long one message may take, its rounds together, which also ends a stream that stalls. */
 const MOST_RUN_MILLISECONDS = 5 * 60_000
 /** The most messages the chat sends by itself, one after each card accepted that another card follows, before it waits for the person to write. */
 const MOST_GOING_ON = 10
@@ -138,14 +129,8 @@ let chain: string | null = null
 let current: AbortController | null = null
 let stoppedByPerson = false
 let nextId = 0
-/** The provider this chat got a yes for, and the apps it may read, held in memory only. The card names the provider, so a yes does not carry to another. */
+/** The provider this chat got a yes for, held in memory only. The card names the provider, so a yes does not carry to another. */
 let allowedFor: ProviderId | null = null
-const appsAllowed = new Set<string>()
-/** What a yes or a no on the card waits to hear, oldest first, as a model may ask for two apps at once. */
-const asks: { readonly ask: ReadAsk; readonly answer: (answer: ReadAnswer) => void }[] = []
-const asking = shallowRef<ReadAsk | null>(null)
-/** The apps a person said no to on this message, so a model cannot ask again and again within it. */
-const refusedThisMessage = new Set<string>()
 /** What the model has not heard yet of how its cards ended, which goes at the start of the next message. */
 const outcomes: string[] = []
 /** How many messages the chat sent by itself since the person last wrote one. */
@@ -226,15 +211,15 @@ export interface ChatWhere extends Omit<ChatContext, 'place'> {
   readonly element: ChatElementAbout | null
 }
 
-/** Whether the chat may read the app's books now without asking: its switch is on, or this chat has a yes for it on the provider. */
-function readsWithoutAsking(app: string, provider: ProviderId): boolean {
-  return assistOn(app) || (allowedFor === provider && appsAllowed.has(app))
+/** Whether the chat may read the books and send to the provider without asking: the person said yes for good, or in this chat. */
+export function chatAllowed(provider: ProviderId): boolean {
+  return assistAllowed(provider) || allowedFor === provider
 }
 
-/** A new app's other set-up lines tell facts about its books, so they go only for an app the chat may already read. */
+/** A new app's other set-up lines tell facts about its books, so they go only while the chat may read them. */
 function contextAt(where: ChatWhere, known: Catalogue, provider: ProviderId): ChatContext {
   const place = placeAt(known, where.path, where.query)
-  const setUp = where.setUp.map((app) => (readsWithoutAsking(app.app, provider) ? app : { ...app, others: [] }))
+  const setUp = chatAllowed(provider) ? where.setUp : where.setUp.map((app) => ({ ...app, others: [] }))
   return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, today: where.today, setUp }
 }
 
@@ -404,63 +389,15 @@ export async function undoProposal(proposal: Pick<ChatProposal, 'id'>): Promise<
   outcomes.push(`The person tried to undo the card "${held.title}", but Kuna refused, so what it wrote stands.`)
 }
 
-/** Puts the question on the card and waits. The clock of the run stops meanwhile, as a person may take their time. */
-function askToRead(ask: ReadAsk, pauseClock: () => () => void): Promise<ReadAnswer> {
-  const resume = pauseClock()
-  return new Promise((resolve) => {
-    asks.push({
-      ask,
-      answer: (answer) => {
-        resume()
-        resolve(answer)
-      },
-    })
-    asking.value = asks[0]!.ask
-  })
-}
-
-/** The question open for each app, so a second read of it in the same round waits for that answer instead of asking again. */
-const openReadAsks = new Map<string, Promise<boolean>>()
-
-/** Whether the person lets the chat read the app, asked once however many reads wait on it. */
-function readAnswered(ask: ReadAsk, provider: ProviderId, pauseClock: () => () => void): Promise<boolean> {
-  const open = openReadAsks.get(ask.app)
-  if (open !== undefined) return open
-  const answered = askToRead(ask, pauseClock).then((answer) => {
-    openReadAsks.delete(ask.app)
-    if (answer === 'no') {
-      refusedThisMessage.add(ask.app)
-      return false
-    }
-    if (answer === 'always') switchAssist(ask.app, true)
-    allowThisChat(provider, ask.app)
-    return true
-  })
-  openReadAsks.set(ask.app, answered)
-  return answered
-}
-
-/** Answers the question on the card. Always stays on this device and shows only where a switch can take it back, and any yes lasts this chat. */
-export function answerReadAsk(answer: ReadAnswer): void {
-  const waiting = asks.shift()
-  asking.value = asks[0]?.ask ?? null
-  waiting?.answer(answer)
-}
-
-/** The gate of a chat's reads: the app's switch, this chat's yes, or else the person. */
-function readsOf(catalogue: Catalogue, provider: ProviderId, pauseClock: () => () => void): ChatReads {
+/** The gate of a chat's reads, which holds while the person's yes does, as another tab can take it back. */
+function readsOf(catalogue: Catalogue, provider: ProviderId): ChatReads {
   return {
     readers: catalogue.readers,
     pseudonyms,
     refs,
     anonymising: () => anonymiseOn(provider),
     persons: () => catalogue.persons(),
-    mayRead: async (app) => {
-      if (readsWithoutAsking(app, provider)) return true
-      const name = catalogue.readers.get(app)?.name
-      if (refusedThisMessage.has(app) || name === undefined) return false
-      return readAnswered({ app, name }, provider, pauseClock)
-    },
+    mayRead: () => chatAllowed(provider),
   }
 }
 
@@ -548,16 +485,8 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
   const controller = new AbortController()
   current = controller
   stoppedByPerson = false
-  refusedThisMessage.clear()
   status.value = 'streaming'
-  const timedOut = (): void => controller.abort(new Error(words.result.timedOut))
-  let timeout = setTimeout(timedOut, MOST_RUN_MILLISECONDS)
-  const pauseClock = (): (() => void) => {
-    clearTimeout(timeout)
-    return () => {
-      timeout = setTimeout(timedOut, MOST_RUN_MILLISECONDS)
-    }
-  }
+  const timeout = setTimeout(() => controller.abort(new Error(words.result.timedOut)), MOST_RUN_MILLISECONDS)
   try {
     const model = preset === null ? null : await modelPort(preset)
     if (model === null || preset === null) {
@@ -565,7 +494,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       return
     }
     const catalogue = await knowledge()
-    const reads = readsOf(catalogue, preset.id, pauseClock)
+    const reads = readsOf(catalogue, preset.id)
     const contextNow = contextLine(contextAt(where, catalogue, preset.id))
     const elementNow = elementLine(where.element, attached, catalogue, reads)
     const heard = outcomes.splice(0).map((outcome) => `<context>${outcome}</context>`)
@@ -643,16 +572,9 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
   }
 }
 
-/** Takes the person's yes for the rest of this chat, on the provider the card named, with the app it may read if the card named one. */
-export function allowThisChat(provider: ProviderId, app: string | null = null): void {
-  if (allowedFor !== provider) appsAllowed.clear()
+/** Takes the person's yes for the rest of this chat, on the provider the card named, to read every app and send. */
+export function allowThisChat(provider: ProviderId): void {
   allowedFor = provider
-  if (app !== null) appsAllowed.add(app)
-}
-
-/** Whether this chat already has a yes for the provider. */
-export function allowedThisChat(provider: ProviderId): boolean {
-  return allowedFor === provider
 }
 
 /** Stops the message under way. What it spent so far is lost to the count, as the provider reports it only at the end. */
@@ -660,7 +582,6 @@ export function stopChatMessage(): void {
   stoppedByPerson = true
   goOnWaiting = false
   current?.abort()
-  while (asks.length > 0) answerReadAsk('no')
 }
 
 /** Starts over: nothing of the chat stays in this page. */
@@ -668,7 +589,6 @@ export function clearChat(): void {
   stoppedByPerson = true
   current?.abort()
   current = null
-  while (asks.length > 0) answerReadAsk('no')
   status.value = 'ready'
   lines.splice(0)
   history = []
@@ -676,7 +596,6 @@ export function clearChat(): void {
   lastElement = null
   chain = null
   allowedFor = null
-  appsAllowed.clear()
   pseudonyms = newPseudonyms(PERSON_WORD)
   refs = chatRefs()
   dropPromptFiles()
@@ -691,8 +610,6 @@ export function clearChat(): void {
 
 export const chatLines = readonly(lines)
 export const chatStatus = readonly(status)
-/** What the chat is waiting to be allowed to read, or null. */
-export const chatAsking = readonly(asking)
 
 /** An answer as the person sees it, with this chat's aliases back as what they stand for. Neither leaves the page. */
 export function shownOnScreen(text: string): string {

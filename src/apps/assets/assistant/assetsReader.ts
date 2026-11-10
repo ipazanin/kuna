@@ -54,7 +54,7 @@ function assetFields(loans: () => LoansOnScreen): FieldDocs<Asset> {
     name: { exposure: 'free-text', meaning: 'The name the owner gave it.' },
     kind: { exposure: 'plain', meaning: 'home is a flat or house, car, or other.' },
     bought: { exposure: 'plain', meaning: 'The day it was bought, or empty.' },
-    price: { exposure: 'plain', amount: 'app', meaning: 'What was paid for it, above zero, or empty.' },
+    price: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'What was paid for it, above zero, or empty.' },
     region: { exposure: 'plain', meaning: "A home's region for the house price index: zagreb, adriatic or rest, or empty." },
     firstRegistration: { exposure: 'plain', meaning: "A car's first registration, from which the customs table counts its months, or empty." },
     loan: { exposure: 'free-text', meaning: 'The name of the bank loan on it, as Loans lists it, or empty.', read: (asset) => loanNameOf(asset, loans()) },
@@ -66,7 +66,7 @@ const VALUATION_FIELDS: FieldDocs<Valuation> = {
   id: { exposure: 'ref', to: VALUATION_RECORDS.name, meaning: 'The valuation.' },
   asset: { exposure: 'ref', to: ASSET_RECORDS.name, meaning: 'The asset it values.' },
   date: { exposure: 'plain', meaning: 'The day the value is for.' },
-  value: { exposure: 'plain', amount: 'app', meaning: 'What the asset was worth on that day, zero or more.' },
+  value: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'What the asset was worth on that day, zero or more.' },
   note: { exposure: 'free-text', meaning: "The owner's note, such as the bank's appraisal or a guess." },
 }
 

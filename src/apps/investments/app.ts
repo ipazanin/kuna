@@ -30,7 +30,6 @@ import { INVESTMENTS_APP } from './workbook/infrastructure/investmentsDocument'
 import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { words as fileWords } from './workbook/presentation/words'
 import { pageRequestCounts, startPrices, usePrices } from './prices/presentation/usePrices'
-import { INVESTMENTS_ASSIST } from './assistant/investmentsAssist'
 import type { InvestmentsPorts } from './assistant/operations/investmentsOperations'
 
 const OVERVIEW: AppScreen = { path: INVESTMENTS_OVERVIEW_ROUTE, title: overviewWords.title, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
@@ -114,7 +113,6 @@ export const investmentsApp: AppContribution = {
       { proposer: investmentsProposer(store, ports, file), acceptance: investmentsAcceptance(store, ports, file) },
     )
   },
-  assist: INVESTMENTS_ASSIST,
   homeCard: INVESTMENTS_HOME_CARD,
   hub: { counts: true, figures: () => shownPortfolio(({ figures }) => investmentsHubFigures(figures)) },
   setUpLines: () => (state.workbook === null ? [] : investmentsSetUp(state.workbook.book, figures.value, taxShown.value)),

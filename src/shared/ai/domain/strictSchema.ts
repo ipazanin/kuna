@@ -1,7 +1,8 @@
 /**
  * A JSON schema in the subset both adapters accept for strict output and strict tools: objects with every property
  * required and no others, arrays, strings with an optional enum, integers, numbers, booleans and null, and a type list
- * such as `["number", "null"]`, with an optional enum that lists null too. No recursion, no references, no formats.
+ * such as `["number", "null"]`, with an optional enum that lists null too, or `["array", "null"]` with its items. No
+ * recursion, no references, no formats.
  */
 export type StrictSchema =
   | {
@@ -19,6 +20,9 @@ export type StrictSchema =
 /** What in the value does not match the schema, each as a path and what is wrong, such as `suggestions.0.row is "x", not one of a, b`. Empty when it matches. */
 export function schemaProblems(value: unknown, schema: StrictSchema, path = ''): string[] {
   const at = path === '' ? 'The answer' : path
+  if ('items' in schema && Array.isArray(schema.type)) {
+    return value === null ? [] : schemaProblems(value, { type: 'array', items: schema.items }, path)
+  }
   if (Array.isArray(schema.type)) {
     if (!schema.type.some((type) => (type === 'null' ? value === null : typeof value === type && (type !== 'number' || Number.isFinite(value))))) return [`${at} is not ${schema.type.join(' or ')}`]
     const allowed = 'enum' in schema ? schema.enum : undefined

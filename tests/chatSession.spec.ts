@@ -26,10 +26,8 @@ vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
 
 const {
   allowThisChat,
-  allowedThisChat,
-  answerReadAsk,
   attachFiles,
-  chatAsking,
+  chatAllowed,
   chatPromptFiles,
   promptCellsNotes,
   promptFilesCost,
@@ -49,7 +47,7 @@ const {
 } = await import('../src/shared/ai/presentation/chatSession')
 // No app's reader is in this chat, so every file that is not a photo or a PDF goes as cells.
 void loadCatalogue([], KUNA_CHAT)
-const { assistOn, pickProvider, pickModel, switchAnonymise, switchAssist } = await import('../src/shared/ai/application/assistSettings')
+const { allowAssist, assistAllowed, pickProvider, pickModel, switchAnonymise } = await import('../src/shared/ai/application/assistSettings')
 const { words } = await import('../src/shared/ai/presentation/words')
 
 const CATALOGUE: Catalogue = {
@@ -66,7 +64,7 @@ const CATALOGUE: Catalogue = {
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
 const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending/transactions', query: {}, element: null, today: '2026-11-07', setUp: [] }
-const READ_ROWS = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+const READ_ROWS = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null }
 const lookup = (name: string, args: unknown, id = 'call'): ModelReply => ({ kind: 'tool-calls', calls: [{ id, name, args }], raw: [], tokens: TOKENS })
 
 function scripted(
@@ -102,7 +100,8 @@ const statementPdf = (): File => picked('Statement October.pdf', new Uint8Array(
 beforeEach(() => {
   clearChat()
   localStorage.clear()
-  switchAssist('spending', false)
+  allowAssist('anthropic', false)
+  allowAssist('openai', false)
   pickProvider('anthropic')
 })
 
@@ -136,13 +135,12 @@ describe('a chat in memory', () => {
     expect(text).not.toContain('Shop on the corner')
   })
 
-  it("names a new app's other set-up lines only for an app the chat may read already", async () => {
+  it("names a new app's other set-up lines only while the chat may read the books", async () => {
     const model = scripted([answer('Hi.'), answer('Hi again.')])
     port.current = model
     const where = { ...CONTEXT, setUp: [{ app: 'spending', name: 'Spending', hasFile: true, starting: ['first-entries'], others: ['categories'] }] }
-    allowThisChat('anthropic')
     await sendChatMessage('Hi', where, knowledge)
-    allowThisChat('anthropic', 'spending')
+    allowThisChat('anthropic')
     await sendChatMessage('Hi', where, knowledge)
 
     expect(JSON.stringify(model.requests[0]!.turns)).toContain('Set-up lines left: first-entries.')
@@ -219,15 +217,17 @@ describe('a chat in memory', () => {
     expect(chatStatus.value).toBe('ready')
   })
 
-  it('keeps a yes for this chat until a new chat, on the provider it was given for, and stores nothing', () => {
+  it('keeps a yes for this chat until a new chat, on the provider it was given for, and stores nothing, while Always allow holds across chats', () => {
     const storedBefore = localStorage.length
-    expect(allowedThisChat('anthropic')).toBe(false)
+    expect(chatAllowed('anthropic')).toBe(false)
     allowThisChat('anthropic')
-    expect(allowedThisChat('anthropic')).toBe(true)
-    expect(allowedThisChat('openai')).toBe(false)
+    expect(chatAllowed('anthropic')).toBe(true)
+    expect(chatAllowed('openai')).toBe(false)
     expect(localStorage.length).toBe(storedBefore)
     clearChat()
-    expect(allowedThisChat('anthropic')).toBe(false)
+    expect(chatAllowed('anthropic')).toBe(false)
+    allowAssist('anthropic', true)
+    expect(chatAllowed('anthropic')).toBe(true)
   })
 
   describe('reading', () => {
@@ -237,14 +237,11 @@ describe('a chat in memory', () => {
       return last.role === 'tool-results' ? last.results[0]!.text : ''
     }
 
-    it('asks before the first read, reads once allowed, and shows the exact text that went, aliases and all', async () => {
+    it('reads once the chat is allowed, and shows the exact text that went, aliases and all', async () => {
+      allowThisChat('anthropic')
       const model = scripted([lookup('find_records', READ_ROWS), answer('Person 1 got 600,00 €.')])
       port.current = model
-      const sending = sendChatMessage('Who got the rent?', CONTEXT, knowledge)
-      await vi.waitFor(() => expect(chatAsking.value).toEqual({ app: 'spending', name: 'Spending' }))
-      expect(model.requests).toHaveLength(1)
-      answerReadAsk('chat')
-      await sending
+      await sendChatMessage('Who got the rent?', CONTEXT, knowledge)
       const line = chatLines.at(-1)!
       expect(line.sent).toHaveLength(1)
       expect(line.sent[0]!.text).toBe(resultIn(model.requests[1]!))
@@ -256,98 +253,57 @@ describe('a chat in memory', () => {
       expect(line.strayFigure).toBe(false)
     })
 
-    it('keeps a yes for the chat and asks no more, and stores nothing', async () => {
-      port.current = scripted([lookup('find_records', READ_ROWS), answer('One'), lookup('find_records', READ_ROWS), answer('Two')])
+    it('reads with a yes for this chat or with Always allow for the company, and the yes for this chat stores nothing', async () => {
       const storedBefore = localStorage.length
-      const sending = sendChatMessage('First', CONTEXT, knowledge)
-      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
-      answerReadAsk('chat')
-      await sending
-      await sendChatMessage('Second', CONTEXT, knowledge)
-      expect(chatAsking.value).toBeNull()
-      expect(chatLines.at(-1)!.text).toBe('Two')
-      expect(assistOn('spending')).toBe(false)
-      expect(localStorage.length).toBe(storedBefore)
-    })
-
-    it('does not ask when a yes came with the first send, or the switch is on', async () => {
+      allowThisChat('anthropic')
       port.current = scripted([lookup('find_records', READ_ROWS), answer('One')])
-      allowThisChat('anthropic', 'spending')
       await sendChatMessage('First', CONTEXT, knowledge)
       expect(chatLines.at(-1)!.sent).toHaveLength(1)
+      expect(assistAllowed('anthropic')).toBe(false)
+      expect(localStorage.length).toBe(storedBefore)
       clearChat()
-      switchAssist('spending', true)
+      allowAssist('anthropic', true)
       port.current = scripted([lookup('find_records', READ_ROWS), answer('Two')])
       await sendChatMessage('Second', CONTEXT, knowledge)
       expect(chatLines.at(-1)!.sent).toHaveLength(1)
     })
 
-    it('holds the yes to the company it named, so another company asks again', async () => {
-      allowThisChat('anthropic', 'spending')
-      pickProvider('openai')
-      port.current = scripted([lookup('find_records', READ_ROWS), answer('One')])
-      const sending = sendChatMessage('First', CONTEXT, knowledge)
-      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
-      answerReadAsk('no')
-      await sending
-    })
-
-    it('writes the switch on Always', async () => {
-      port.current = scripted([lookup('find_records', READ_ROWS), answer('One')])
-      const sending = sendChatMessage('First', CONTEXT, knowledge)
-      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
-      answerReadAsk('always')
-      await sending
-      expect(assistOn('spending')).toBe(true)
-    })
-
-    it('on a no sends nothing from the books, tells the model, and does not ask again within the message', async () => {
+    it('reads nothing from the books without a yes, and tells the model so as a plain fact', async () => {
       const model = scripted([lookup('find_records', READ_ROWS), lookup('read_figures', { app: 'spending', report: 'month', period: null }), answer('Could not read.')])
       port.current = model
-      const sending = sendChatMessage('First', CONTEXT, knowledge)
-      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
-      answerReadAsk('no')
-      await sending
+      await sendChatMessage('First', CONTEXT, knowledge)
       expect(chatLines.at(-1)!.sent).toEqual([])
       expect(chatLines.at(-1)!.text).toBe('Could not read.')
       for (const request of model.requests) expect(JSON.stringify(request)).not.toContain('Corner market')
-      expect(resultIn(model.requests[1]!)).toContain('did not allow')
+      expect(resultIn(model.requests[1]!)).toContain('not allowed')
+      expect(resultIn(model.requests[1]!)).not.toContain('Carry on')
     })
 
-    it('asks once when two reads of one app go in the same round, and gives both the answer', async () => {
-      const bothReads: ModelReply = {
-        kind: 'tool-calls',
-        calls: [
-          { id: 'rows', name: 'find_records', args: READ_ROWS },
-          { id: 'month', name: 'read_figures', args: { app: 'spending', report: 'month', period: '2026-10' } },
-        ],
-        raw: [],
-        tokens: TOKENS,
-      }
-      port.current = scripted([bothReads, answer('Both.')])
-      const sending = sendChatMessage('Rent and the month?', CONTEXT, knowledge)
-      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
-      answerReadAsk('chat')
-      expect(chatAsking.value).toBeNull()
-      await sending
-      expect(chatLines.at(-1)!.sent).toHaveLength(2)
-      expect(chatLines.at(-1)!.text).toBe('Both.')
+    it('holds a yes to the company it named, so another company reads nothing', async () => {
+      allowThisChat('anthropic')
+      allowAssist('anthropic', true)
+      pickProvider('openai')
+      port.current = scripted([lookup('find_records', READ_ROWS), answer('One')])
+      await sendChatMessage('First', CONTEXT, knowledge)
+      expect(chatLines.at(-1)!.sent).toEqual([])
     })
 
-    it('ends the ask when the person stops the message, and reads nothing', async () => {
-      const model = scripted([lookup('find_records', READ_ROWS), answer('Never')])
-      port.current = model
-      const sending = sendChatMessage('First', CONTEXT, knowledge)
-      await vi.waitFor(() => expect(chatAsking.value).not.toBeNull())
-      stopChatMessage()
-      await sending
-      expect(chatAsking.value).toBeNull()
-      expect(model.requests).toHaveLength(1)
-      expect(chatLines.map((line) => line.text)).toEqual(['First'])
+    it('reads nothing more once Always allow is taken back while the chat has no yes of its own', async () => {
+      allowAssist('anthropic', true)
+      port.current = scripted([
+        lookup('find_records', READ_ROWS, 'first'),
+        async () => {
+          allowAssist('anthropic', false)
+          return lookup('find_records', READ_ROWS, 'second')
+        },
+        answer('Done.'),
+      ])
+      await sendChatMessage('First', CONTEXT, knowledge)
+      expect(chatLines.at(-1)!.sent).toHaveLength(1)
     })
 
     it('shows the figure of a ref, and flags an amount no tool gave', async () => {
-      allowThisChat('anthropic', 'spending')
+      allowThisChat('anthropic')
       port.current = scripted([lookup('read_figures', { app: 'spending', report: 'month', period: '2026-10' }), answer('You spent [f1], and €4,300.00 last year.')])
       await sendChatMessage('First', CONTEXT, knowledge)
       expect(chatLines.at(-1)!.strayFigure).toBe(true)
@@ -357,7 +313,7 @@ describe('a chat in memory', () => {
 
     it('sends real names with the setting off, while the loop still cuts an IBAN', async () => {
       switchAnonymise('anthropic', false)
-      allowThisChat('anthropic', 'spending')
+      allowThisChat('anthropic')
       const model = scripted([lookup('find_records', READ_ROWS), answer('One')])
       port.current = model
       await sendChatMessage('First', CONTEXT, knowledge)
@@ -369,7 +325,7 @@ describe('a chat in memory', () => {
     })
 
     it('forgets the aliases and the refs on a new chat', async () => {
-      allowThisChat('anthropic', 'spending')
+      allowThisChat('anthropic')
       port.current = scripted([lookup('find_records', READ_ROWS), answer('Person 1')])
       await sendChatMessage('First', CONTEXT, knowledge)
       expect(shownOnScreen('Person 1')).not.toBe('Person 1')
@@ -378,7 +334,7 @@ describe('a chat in memory', () => {
     })
 
     it('says the row went only once the request left: a guarded request sent nothing', async () => {
-      allowThisChat('anthropic', 'spending')
+      allowThisChat('anthropic')
       const { guardedModel } = await import('../src/shared/ai/application/egressGuard')
       const inner = scripted([lookup('find_records', READ_ROWS), answer('Never')])
       port.current = guardedModel(inner, () => ['Corner market'])
@@ -410,7 +366,7 @@ describe('a card in the chat', () => {
   const WITH_TIDY: Catalogue = { ...CATALOGUE, proposers: new Map([['spending', TIDY]]) }
 
   it('stays done with no Undo when Kuna refuses the Undo, says why, and tells the model the write stands', async () => {
-    allowThisChat('anthropic', 'spending')
+    allowThisChat('anthropic')
     const model = scripted([lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }], next: false }), answer('Card shown.'), answer('Noted.')])
     port.current = model
     await sendChatMessage('Tidy', CONTEXT, async () => WITH_TIDY)
@@ -425,7 +381,7 @@ describe('a card in the chat', () => {
   })
 
   it('names the files the model read in the turn that made a card, and none on a card of a later turn or without a read', async () => {
-    allowThisChat('anthropic', 'spending')
+    allowThisChat('anthropic')
     const tidy = (id: string) => lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }], next: false }, id)
     await attachFiles([picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv'), picked('notes.csv', new TextEncoder().encode('note\nhello'), 'text/csv')])
     const [october] = chatPromptFiles.value as readonly Extract<PromptFile, { readonly state: 'ready' }>[]
@@ -444,7 +400,7 @@ describe('a card in the chat', () => {
     const cards = chatLines.flatMap((line) => line.proposals)
     expect(cards.map((card) => card.readFiles)).toEqual([[], ['october.csv'], []])
     clearChat()
-    allowThisChat('anthropic', 'spending')
+    allowThisChat('anthropic')
     port.current = scripted([tidy('fresh'), answer('Card shown.')])
     await sendChatMessage('Tidy', CONTEXT, async () => WITH_TIDY)
     expect(chatLines.at(-1)!.proposals[0]!.readFiles).toEqual([])
@@ -465,7 +421,7 @@ describe('the chat going on with a job of several cards', () => {
 
   beforeEach(() => {
     wentOn.splice(0)
-    allowThisChat('anthropic', 'spending')
+    allowThisChat('anthropic')
     sendChatFrom((message, origin) => {
       wentOn.push(message)
       void sendChatMessage(message, SETTING_UP, async () => WITH_TIDY, origin)
@@ -726,7 +682,7 @@ describe('what a card says it leaves outside the books', () => {
   })
 
   async function shownCard(proposer: AppProposer): Promise<ChatProposal> {
-    allowThisChat('anthropic', 'spending')
+    allowThisChat('anthropic')
     port.current = scripted([lookup('propose_changes', { app: 'spending', title: 'Fetch prices', steps: [{ op: 'fetch', input: '{}', as: null }], next: false }), answer('Card shown.')])
     await sendChatMessage('Fetch', CONTEXT, async () => ({ ...CATALOGUE, proposers: new Map([['spending', proposer]]) }))
     return chatLines.at(-1)!.proposals[0]! as ChatProposal

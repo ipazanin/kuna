@@ -182,8 +182,8 @@ const LEDGER_FIELDS: FieldDocs<LedgerRowView> = {
   id: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row.' },
   account: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account it was booked on.' },
   date: { exposure: 'plain', meaning: 'The day the bank booked it.' },
-  amount: { exposure: 'plain', amount: 'app', meaning: "Money in above zero, money out below, in the books' currency." },
-  balance: { exposure: 'plain', amount: 'app', meaning: "The account's balance after it." },
+  amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: "Money in above zero, money out below, in the books' currency." },
+  balance: { exposure: 'plain', amount: 'app', sign: 'either', meaning: "The account's balance after it." },
   counterparty: { exposure: 'party', meaning: 'The other side of the payment. An alias for a person Kuna knows, a company as it is.' },
   counterpartyIban: { exposure: 'identifier', meaning: "The other side's IBAN." },
   description: { exposure: 'free-text', meaning: "The bank's text for the row." },
@@ -261,7 +261,7 @@ const INVOICE_FIELDS: FieldDocs<InvoiceView> = {
   number: { exposure: 'plain', meaning: 'Its number.' },
   client: { exposure: 'ref', to: CLIENT_RECORDS.name, meaning: 'The client it was issued to.' },
   item: { exposure: 'free-text', meaning: 'What it bills.' },
-  amount: { exposure: 'plain', amount: 'app', meaning: 'Its total.' },
+  amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'Its total.' },
   issued: { exposure: 'plain', meaning: 'The day it was issued.' },
   due: { exposure: 'plain', meaning: 'The day it is due, or empty.' },
   deliveryPeriod: { exposure: 'plain', meaning: 'The days the work was delivered in, or empty when the issue day stands for it.' },
@@ -271,7 +271,7 @@ const BILLING_FIELDS: FieldDocs<BillingItem> = {
   id: { exposure: 'ref', to: BILLING_RECORDS.name, meaning: 'The plan row.' },
   item: { exposure: 'free-text', meaning: 'The kind of item, such as the monthly fee.' },
   date: { exposure: 'plain', meaning: 'The day it becomes billable.' },
-  amount: { exposure: 'plain', amount: 'app', meaning: 'What it bills.' },
+  amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'What it bills.' },
   client: { exposure: 'ref', to: CLIENT_RECORDS.name, meaning: 'The client it bills.' },
   description: { exposure: 'free-text', meaning: 'What the invoice says about it.' },
 }
@@ -574,5 +574,18 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
       ...(pack?.reports ?? []),
     ],
     ...(pack?.traceRules === undefined ? {} : { traceRules: pack.traceRules }),
+    bookings: {
+      kind: LEDGER_RECORDS.name,
+      accountKind: ACCOUNT_RECORDS.name,
+      of: (account) => {
+        const workbook = reading.workbook()
+        if (workbook === null || !workbook.accounts.some((held) => held.slug === account)) return null
+        return workbook.transactions.filter((row) => row.account === account).map((row) => ({ id: row.id, booking: row }))
+      },
+      onlyAccount: () => {
+        const accounts = reading.workbook()?.accounts ?? []
+        return accounts.length === 1 ? accounts[0]!.slug : null
+      },
+    },
   }
 }

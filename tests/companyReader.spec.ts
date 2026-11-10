@@ -42,7 +42,20 @@ function amountLabelled(figures: readonly ReportFigure[], label: string): number
   return figure !== undefined && 'cents' in figure ? figure.cents : undefined
 }
 
-const ALL: FindRecordsInput = { app: 'company', kind: coreKinds.LEDGER_RECORDS.name, query: null, from: null, to: null, about: null, only: null, limit: 200, cursor: null }
+const ALL: FindRecordsInput = {
+  app: 'company',
+  kind: coreKinds.LEDGER_RECORDS.name,
+  query: null,
+  from: null,
+  to: null,
+  refs: [],
+  filters: [],
+  sort: [],
+  fields: [],
+  only: null,
+  limit: 200,
+  cursor: null,
+}
 
 describe("what the chat reads of the company's books", () => {
   it('reads every core kind the books keep but splits and dismissals, then the pack’s kinds', () => {

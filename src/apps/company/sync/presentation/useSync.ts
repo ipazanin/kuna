@@ -11,10 +11,9 @@ import { mailNeeds, useMailSync } from '../../mail/presentation/useMailSync'
 import { BOOKS_FILE_LINK } from '../../settings/presentation/settingsTabs'
 import LocalWorkbookStatus from '../../workbook-files/presentation/LocalWorkbookStatus.vue'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { COMPANY_APP } from '../../workbook/domain/companyApp'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import { assistOn } from '../../../../shared/ai/application/assistSettings'
+import { assistAllowedNow } from '../../../../shared/ai/presentation/aiProvider'
 import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
 import { words } from './words'
 
@@ -31,13 +30,12 @@ function needsOfBooks(workbook: Workbook | null): AccessNeed[] {
 export function companySyncGroup(): AppSyncGroup {
   const store = useWorkbook()
   const writes = useRecordWrites(store)
-  const assistWanted = () => assistOn(COMPANY_APP)
-  const steps = [useMailSync().step, useStatementSync().step, secretsStep(assistWanted)]
+  const steps = [useMailSync().step, useStatementSync().step, secretsStep(assistAllowedNow)]
   return {
     store,
     steps: () => steps,
     // A file in the bin or gone has no keys step to reach, so it asks for no access the keys would need.
-    needs: () => [...needsOfBooks(store.state.workbook), ...(store.state.missing ? [] : secretsNeeds(assistWanted))],
+    needs: () => [...needsOfBooks(store.state.workbook), ...(store.state.missing ? [] : secretsNeeds(assistAllowedNow))],
     undo: writes.undo,
     exportControl: LocalWorkbookStatus,
     fileCard: BOOKS_FILE_LINK,

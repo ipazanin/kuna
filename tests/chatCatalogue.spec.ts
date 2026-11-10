@@ -159,8 +159,11 @@ describe('the catalogue', () => {
     const page = catalogue.pages.get('spending/kind/transaction')!
     expect(page).toContain('- payee (party):')
     expect(page).toContain('- counterpartyIban (identifier):')
-    expect(page).toContain('- amount (amount):')
+    expect(page).toContain('- amount (amount, either sign):')
     expect(page.split('## Never read')[1]).toContain('- importKey')
+    expect(page).toContain('- identifier: is, one-of, with a token a read gave you')
+    expect(page).toContain('- ref: is, one-of, not, empty, not-empty, with refs Kuna handed out. Never sorts.')
+    expect(catalogue.pages.get('loans/kind/movement')).toContain('- amount (amount, zero or more):')
     // An operation's example is written in the code, and may share a made-up payee with the books of this test.
     const whole = [catalogue.system, ...[...catalogue.pages].flatMap(([path, page]) => (path.includes('/op/') ? [] : [page]))].join('\n')
     expect(whole).not.toMatch(/Horvat|Corner market|Made-up/i)
@@ -185,8 +188,15 @@ describe('the catalogue', () => {
 
     it('tells the model to suggest one only from what the person is doing or what it may read', () => {
       expect(catalogue.system).toContain('or what you already read with their leave')
-      expect(catalogue.system).toContain('Never read records only to look for one')
+      expect(catalogue.system).not.toContain('Never read records only to look for one')
     })
+  })
+
+  it('reads what a question needs with no rule against reading, and checks rows against the books before proposing them', () => {
+    expect(catalogue.system).not.toContain('Read only what the question needs')
+    expect(catalogue.system).not.toContain('carry on with what you have')
+    expect(catalogue.system).toContain('pages of up to 200')
+    expect(catalogue.system).toContain('check them with match_records')
   })
 
   it("resolves every address a chat can link to one of the app's screens", () => {

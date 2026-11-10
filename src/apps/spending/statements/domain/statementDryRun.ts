@@ -14,7 +14,8 @@ import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { BOOKING_DAYS_APART, bookedTwins } from '../../../../shared/money/lookAlikeBookings'
-import type { BookedTwin } from '../../../../shared/money/lookAlikeBookings'
+import type { BookedTwin, Booking } from '../../../../shared/money/lookAlikeBookings'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { normaliseIban } from '../../../../shared/text/fold'
@@ -98,6 +99,11 @@ function sourceDaysOf(rows: readonly Pick<Transaction, 'account' | 'date' | 'imp
   return days
 }
 
+/** A row as the look-alike test reads it, with the payee as the other side, and the row it came from. */
+export function bookingOf<Row extends Pick<Transaction, 'date' | 'amount' | 'payee' | 'description'>>(row: Row): Booking<AccountMoney> & { readonly row: Row } {
+  return { date: row.date, amount: row.amount, counterparty: row.payee, description: row.description, row }
+}
+
 /**
  * Each row's twin among the rows on the file from another source, but for those the statement's own keys hit and those of the
  * statement itself, such as its other parts. A copied row looks among every row an import brought, and a file's row among the
@@ -109,8 +115,8 @@ function twinsOnFile(rows: readonly StatementRow[], book: SpendingBook, statemen
   const others = book.transactions.filter((row) => fromOtherSource(row) && row.statement !== statement.label && !keysHit.has(`${row.account} ${row.importKey}`))
   const twins = new Map<StatementRow, BookedTwin<Transaction>>()
   for (const account of new Set(rows.map((row) => row.account))) {
-    const copied = rows.filter((row) => row.account === account).map((row) => ({ ...row, counterparty: row.payee, row }))
-    const onFile = others.filter((row) => row.account === account).map((row) => ({ ...row, counterparty: row.payee, row }))
+    const copied = rows.filter((row) => row.account === account).map(bookingOf)
+    const onFile = others.filter((row) => row.account === account).map(bookingOf)
     for (const [{ row }, twin] of bookedTwins(copied, onFile)) twins.set(row, { kind: twin.kind, booked: twin.booked.row })
   }
   return twins

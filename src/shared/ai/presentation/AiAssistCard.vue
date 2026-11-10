@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { RouteLocationRaw } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInputMenu from '@nuxt/ui/components/InputMenu.vue'
@@ -10,7 +9,7 @@ import { useKeyUndo } from '../../secrets/presentation/useKeyUndo'
 import { words as secretWords } from '../../secrets/presentation/words'
 import AppCard from '../../ui/AppCard.vue'
 import AppDialog from '../../ui/AppDialog.vue'
-import { anonymiseOn, assistOn, switchAnonymise } from '../application/assistSettings'
+import { allowAssist, anonymiseOn, assistAllowed, switchAnonymise } from '../application/assistSettings'
 import { turnsOnWebSearch } from '../domain/providerPresets'
 import AssistKeyForm from './AssistKeyForm.vue'
 import { assistKeyKept } from './aiProvider'
@@ -18,9 +17,8 @@ import { useAssistantCard } from './useAssistantCard'
 import { useSavedChatLine } from './useSavedChatLine'
 import { words } from './words'
 
-/** Kuna settings' assistant: one company at a time, its key and its model, and a line per app with a link to that app's own switches. `useAssistantCard` holds its rules. */
+/** Kuna settings' assistant: one company at a time, its key, its model, and whether the chat may read and send to it without asking. `useAssistantCard` holds its rules. */
 defineProps<{
-  apps: readonly { readonly id: string; readonly name: string; readonly to: RouteLocationRaw }[]
   /** Whether some app's file on Drive has a sync that carries the keys. */
   keysSync: boolean
   /** Asks Google for the keys another browser saved, and says why they could not be read, or null. */
@@ -165,15 +163,22 @@ const showsAllModels = computed(() => modelIds.value.includes(modelText.value))
         />
       </UFormField>
 
-      <USwitch
-        v-if="row.kept && inUse?.id === shownId"
-        :model-value="anonymiseOn(shownId)"
-        :label="words.card.anonymise"
-        :description="anonymiseOn(shownId) ? words.card.anonymiseOn(shown.name) : words.card.anonymiseOff(shown.name)"
-        class="border-t border-default pt-3"
-        data-testid="assist-anonymise"
-        @update:model-value="switchAnonymise(shownId, $event)"
-      />
+      <div v-if="row.kept && inUse?.id === shownId" class="flex flex-col gap-3 border-t border-default pt-3">
+        <USwitch
+          :model-value="assistAllowed(shownId)"
+          :label="words.card.allow"
+          :description="assistAllowed(shownId) ? words.card.allowOn(shown.name) : words.card.allowOff(shown.name)"
+          data-testid="assist-allow"
+          @update:model-value="allowAssist(shownId, $event)"
+        />
+        <USwitch
+          :model-value="anonymiseOn(shownId)"
+          :label="words.card.anonymise"
+          :description="anonymiseOn(shownId) ? words.card.anonymiseOn(shown.name) : words.card.anonymiseOff(shown.name)"
+          data-testid="assist-anonymise"
+          @update:model-value="switchAnonymise(shownId, $event)"
+        />
+      </div>
 
       <p v-if="historyShown" class="flex flex-wrap items-center gap-x-1 type-caption" data-testid="assist-history">
         <span role="status">{{ historyCleared ? words.history.cleared : words.history.kept }}</span>
@@ -196,29 +201,6 @@ const showsAllModels = computed(() => modelIds.value.includes(modelText.value))
           <UButton :label="words.history.cancel" color="neutral" variant="outline" @click="confirmingClear = false" />
         </template>
       </AppDialog>
-
-      <section v-if="row.kept && apps.length > 0" class="flex flex-col gap-2 border-t border-default pt-3" :aria-label="words.card.inApps">
-        <h3 class="type-label">{{ words.card.inApps }}</h3>
-        <ul class="flex flex-col gap-1">
-          <li v-for="app in apps" :key="app.id" class="flex flex-wrap items-center justify-between gap-x-3" data-testid="assist-app" :data-app="app.id">
-            <span class="type-body text-highlighted">{{ app.name }}</span>
-            <span class="flex flex-wrap items-center gap-x-2">
-              <span class="type-caption" data-testid="assist-app-state">{{ assistOn(app.id) ? words.card.sendsFreely : words.card.asksFirst }}</span>
-              <UButton
-                :to="app.to"
-                :label="words.card.settings"
-                :aria-label="`${app.name}: ${words.card.settings}`"
-                trailing-icon="i-lucide-arrow-right"
-                color="neutral"
-                variant="link"
-                size="sm"
-                class="px-0"
-                data-testid="assist-app-link"
-              />
-            </span>
-          </li>
-        </ul>
-      </section>
     </div>
   </AppCard>
 </template>

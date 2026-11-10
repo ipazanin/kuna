@@ -10,7 +10,7 @@ export const LOANS_OVERVIEW_ROUTE = '/loans'
 /** The Loans first run, with its step in the query. */
 export const LOANS_START_ROUTE = '/loans/start'
 export const LOANS_SETTINGS_ROUTE = '/loans/settings'
-/** The Assistant tab of the Loans settings, with the switch that lets the chat read Loans without asking. */
+/** The Assistant tab of the Loans settings, which says whether the chat asks before it reads. */
 export const LOANS_ASSISTANT_LINK = `${LOANS_SETTINGS_ROUTE}?tab=assistant`
 export const BANK_LOAN_ROUTE = '/loans/bank-loan'
 export const INFORMAL_LOAN_ROUTE = '/loans/informal-loan'

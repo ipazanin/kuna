@@ -4,12 +4,14 @@ import { PROVIDER_PRESETS, modelChoice, presetOf } from '../domain/providerPrese
 import type { ModelChoice, ProviderId } from '../domain/providerPresets'
 
 /**
- * This device's choices for the assistant, each under its own key: a switch per app that sends without asking, the
- * provider in use, the model of each provider, and the one AI company Anonymise was switched off for. Every screen reads
- * these choices here and keeps no copy, and a change in another tab arrives here. Absent or denied storage means off and
- * the defaults, and a choice made while storage is denied holds for the visit.
+ * This device's choices for the assistant, each under its own key: the yes for each AI company to read and send in every app
+ * without asking, the provider in use, the model of each provider, and the one AI company Anonymise was switched off for.
+ * Every screen reads these choices here and keeps no copy, and a change in another tab arrives here. Absent or denied
+ * storage means off and the defaults, and a choice made while storage is denied holds for the visit.
  */
-const APP_PREFIX = 'kuna.assist.'
+const ALLOWED_PREFIX = 'kuna.assist-allowed.'
+/** Where each app kept its own yes, which the one yes per AI company replaced. */
+const RETIRED_APP_PREFIX = 'kuna.assist.'
 /** Where each task kept its own employee switch, which the one Anonymise switch replaced. */
 const RETIRED_TASK_PREFIX = 'kuna.assist-task.'
 const PROVIDER_KEY = 'kuna.assist-provider'
@@ -47,14 +49,21 @@ function choose(key: string, value: string | null): void {
   choices[key] = value
 }
 
-/** Whether the app sends to a model without asking. Off until switched on, and while off Kuna asks first. */
-export function assistOn(app: string): boolean {
-  return choice(`${APP_PREFIX}${app}`) === 'on'
+/** Whether the chat reads and sends to the AI company in every app without asking. Off until switched on, and while off Kuna asks once a chat. */
+export function assistAllowed(provider: ProviderId): boolean {
+  return choice(`${ALLOWED_PREFIX}${provider}`) === 'on'
 }
 
-/** Switches the app on or off, and off forgets the choice. */
-export function switchAssist(app: string, on: boolean): void {
-  choose(`${APP_PREFIX}${app}`, on ? 'on' : null)
+/** Carries any app's own yes from before over to the AI company in use as the yes for that company, and forgets every app's own switch, so nobody is asked again. */
+export function carryOverAppYes(provider: ProviderId): void {
+  const retired = storedNames().filter((key) => key.startsWith(RETIRED_APP_PREFIX))
+  if (retired.some((key) => read(key) === 'on')) choose(`${ALLOWED_PREFIX}${provider}`, 'on')
+  retired.forEach((key) => choose(key, null))
+}
+
+/** Switches the yes for the AI company on or off, and off forgets the choice. */
+export function allowAssist(provider: ProviderId, on: boolean): void {
+  choose(`${ALLOWED_PREFIX}${provider}`, on ? 'on' : null)
 }
 
 /**
@@ -83,7 +92,7 @@ export function pinProvider(id: ProviderId): void {
 
 /**
  * Picks the provider. Anonymise was switched off for one company, so a real change turns it back on. Says whether it did.
- * App switches stay.
+ * Each company keeps its own yes.
  */
 export function pickProvider(id: ProviderId): boolean {
   const changed = pickedProvider() !== id
@@ -102,11 +111,6 @@ export function modelOf(id: ProviderId): ModelChoice {
 export function pickModel(id: ProviderId, model: string): void {
   const typed = model.trim()
   choose(`${MODEL_PREFIX}${id}`, typed === '' || typed === presetOf(id).defaultModel ? null : typed)
-}
-
-/** Forgets the app's switch. */
-export function forgetAppAssist(app: string): void {
-  choose(`${APP_PREFIX}${app}`, null)
 }
 
 /** Forgets every choice of the assistant on this device, as one that never made any. */

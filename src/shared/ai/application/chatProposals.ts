@@ -3,7 +3,7 @@ import type { AppProposer, CheckedProposal, ProposalStep } from '../../app/assis
 import type { ChatAttachment } from '../domain/chatAttachments'
 import { schemaProblems } from '../domain/strictSchema'
 import type { Pseudonyms } from '../../privacy/domain/pseudonyms'
-import { labelLeaving, refusal } from './chatReads'
+import { NOT_ALLOWED, labelLeaving, refusal } from './chatReads'
 import type { ChatReads, ChatToolAnswer } from './chatReads'
 
 export interface ProposeInput {
@@ -93,7 +93,7 @@ function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['st
 /**
  * A dry run of the steps, through the app's own checks. What passes shows as a card, and what the model hears holds nothing
  * the card holds. The title stays as the model wrote it, aliases and all, as it goes back to the model and into the chat
- * kept in this browser. A proposer that reads no books, such as Kuna's own settings, needs no yes to read an app.
+ * kept in this browser. A proposer that reads no books, such as Kuna's own settings, needs no yes to read them.
  */
 export async function proposeChanges(
   input: ProposeInput,
@@ -114,7 +114,7 @@ export async function proposeChanges(
   }
   const alone = steps.filter((step) => proposer.operations.find((operation) => operation.name === step.operation)?.alone === true)
   if (alone.length > 1) return refusal(`${alone[0]!.operation} goes one to a card. Propose the first, and the next once it is answered.`)
-  if (proposer.readsBooks && !(await reads.mayRead(input.app))) return refusal('The person did not allow this app. Say what to do and link its screen.')
+  if (proposer.readsBooks && !reads.mayRead()) return refusal(NOT_ALLOWED)
   const checked = await proposer.check(input.title, steps)
   if ('refused' in checked) {
     const sent = checked.refused.map((reason) => labelLeaving(reason, reads) ?? REFUSED_ABOUT_AN_EMPLOYEE).join(' ')

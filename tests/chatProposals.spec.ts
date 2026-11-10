@@ -34,7 +34,7 @@ interface Desk {
 async function desk(): Promise<Desk> {
   const { store } = await browserHarness(used, fakeSpendingDocument('2026-11-07T09:00:00.000Z', 'people', DAY), SPENDING)
   const typed = store as unknown as WorkbookStore<SpendingBooks>
-  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['spending', spendingProposer(typed, deskPorts(), FILE_OPEN)]])
   return {
@@ -46,7 +46,7 @@ async function desk(): Promise<Desk> {
       proposeChanges(
         { app: 'spending', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })), next: false },
         proposers,
-        allowed ? reads : { ...reads, mayRead: async () => false },
+        allowed ? reads : { ...reads, mayRead: () => false },
         [],
         (_app, card) => cards.push(card),
       ),
@@ -245,16 +245,10 @@ describe('a proposal', () => {
     expect(d.cards[0]!.title).toBe('Rules for Person 1')
   })
 
-  it('needs the yes to read the app', async () => {
+  it('checks nothing against the books without the yes to read them, and says so as a plain fact', async () => {
     const d = await desk()
-    const answer = await d.propose(
-      [
-        { op: 'delete-rule', input: { rule: 'rule-1' } },
-        { op: 'set-setting', input: { key: COMPANY_OIB_KEY, value: '1' } },
-      ],
-      false,
-    )
-    expect(answer.isError).toBe(true)
+    const answer = await d.propose([{ op: 'set-setting', input: { key: COMPANY_OIB_KEY, value: '1' } }], false)
+    expect(answer).toMatchObject({ isError: true, text: 'The person has not allowed the chat to read their books.' })
     expect(d.cards).toEqual([])
   })
 
@@ -323,7 +317,7 @@ describe('a proposal of another app', () => {
     }
   }
 
-  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => false }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => false }
   const propose = (proposer: AppProposer, file: string) =>
     proposeChanges(
       { app: 'kuna', title: 'Import', steps: [{ op: 'import-statement', input: JSON.stringify({ file }), as: null }], next: false },

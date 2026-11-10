@@ -79,7 +79,7 @@ export async function assetsDesk(used: Set<string>, loans: () => AssetLoan[] | '
     unit.of(ASSET_WRITES).add(BOAT)
     unit.of(VALUATION_WRITES).add(VALUATION)
   })
-  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['assets', assetsProposer(store, loans, FILE_OPEN)]])
   return {

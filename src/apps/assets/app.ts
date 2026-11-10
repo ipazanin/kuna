@@ -7,7 +7,6 @@ import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
-import { ASSETS_ASSIST } from './assistant/assetsAssist'
 import { words as assetWords } from './asset/presentation/words'
 import { ASSETS_HOME_CARD } from './home/presentation/assetsHomeCard'
 import { assetsHubFigures } from './home/presentation/assetsHubFigures'
@@ -54,7 +53,6 @@ export const assetsApp: AppContribution = {
   subtitle: () => null,
   // Every figure is in euros, so it shows them in the language's format.
   moneyFormat: () => DEFAULT_MONEY_FORMAT,
-  assist: ASSETS_ASSIST,
   assistant: async () => {
     const [{ assetsAssistant }, { assetsProposer, assetsAcceptance }] = await Promise.all([import('./assistant/assetsAssistant'), import('./assistant/operations/assetsOperations')])
     const store = useAssetsBooks()

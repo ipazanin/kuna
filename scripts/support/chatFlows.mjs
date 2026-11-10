@@ -8,7 +8,7 @@ import { pressSelector } from './pressing.mjs'
 /** A made-up Anthropic key the assistant is given, whose whole text must never come back on screen. */
 export const MADE_UP_ANTHROPIC_KEY = 'made-up-anthropic-key-0042'
 
-/** With the Anthropic key, a made-up OpenAI key kept, Anthropic picked, Company sending without asking and Anonymise off for Anthropic. */
+/** With the Anthropic key, a made-up OpenAI key kept, Anthropic picked, Anonymise off for Anthropic and Company's yes as an older Kuna kept it, which becomes the yes for Anthropic. */
 export const TWO_KEYS_ANONYMISE_OFF = {
   'kuna.secret.openai': 'made-up-openai-key-0077',
   'kuna.assist-provider': 'anthropic',
@@ -69,7 +69,7 @@ export async function acceptLooksReady(page) {
   if (faded.length > 0) throw new Error(`a card's Accept shows ${faded.join(' and ')} just before the screenshot`)
 }
 
-/** Allows the read when the chat asks first, and goes on when it does not ask within five seconds. */
+/** Allows the chat when it asks first, and goes on when it does not ask within five seconds. */
 export async function allowIfAsked(page, press) {
   const allow = await page.waitForSelector('[data-testid="chat-allow"]', { visible: true, timeout: 5_000 }).catch(() => null)
   if (allow !== null) await press(allow)

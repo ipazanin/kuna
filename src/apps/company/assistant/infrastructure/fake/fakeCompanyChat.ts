@@ -1,4 +1,4 @@
-import { answered, answersSince, goOnsInto, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, findRecordsArgs, goOnsInto, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply, ModelRequest } from '../../../../../shared/ai/application/modelPort'
 import { aboutEmployeesPay } from '../../../../../shared/ai/application/chatReads'
@@ -7,7 +7,6 @@ import { language } from '../../../../../shared/text/language'
 
 const ANSWERS = {
   en: {
-    notRead: "You didn't allow reading Company, so I can only tell you how it works.",
     sortTitle: 'File what I am sure of',
     sorted: (unsure: string) => `The card files the rows I am sure of. Once you accept, a card adds a category for client meals for ${unsure}, and the one after files it there with a rule.`,
     filedAll: 'The card files every row waiting.',
@@ -36,6 +35,7 @@ const ANSWERS = {
     statementTitle: 'Import the pasted statement',
     statementProposed: 'The card imports the rows as I copied them. The statement printed no balances, so the account starts at zero.',
     statementRefused: 'Kuna refused the statement. Check the rows I copied against it.',
+    noAccount: 'Company has no bank account to import the statement into. Add one on Settings, Accounts first.',
     copyTitle: 'Import the copied statement',
     copyProposed: 'One row is on the ledger already and is skipped. Another looks like a ledger row from another source, so it waits on the card. Is it another payment?',
     noBuildUp: 'Tag a figure with its ask button first, and I will read how Kuna built it.',
@@ -44,7 +44,6 @@ const ANSWERS = {
       'That figure is about employees and their pay, so it stays on this device while Anonymise is on. Turn Anonymise off for this AI company in Kuna settings if you want it explained.',
   },
   hr: {
-    notRead: 'Niste dopustili čitanje Tvrtke, pa vam mogu reći samo kako radi.',
     sortTitle: 'Razvrstaj ono u što sam siguran',
     sorted: (unsure: string) =>
       `Kartica razvrstava retke u koje sam siguran. Kad prihvatite, sljedeća kartica dodaje kategoriju za obroke s klijentima za ${unsure}, a ona nakon nje razvrstava redak u nju s pravilom.`,
@@ -74,6 +73,7 @@ const ANSWERS = {
     statementTitle: 'Uvezi zalijepljeni izvod',
     statementProposed: 'Kartica uvozi retke kako sam ih prepisao. Izvod ne ispisuje stanja, pa račun počinje od nule.',
     statementRefused: 'Kuna je odbila izvod. Usporedite retke koje sam prepisao s njim.',
+    noAccount: 'Tvrtka nema bankovni račun u koji bi uvezla izvod. Najprije ga dodajte na Postavkama, Računi u banci.',
     copyTitle: 'Uvezi prepisani izvod',
     copyProposed: 'Jedan je redak već u evidenciji i preskočen je. Drugi nalikuje stavci iz drugog izvora, pa čeka na kartici. Je li to drugo plaćanje?',
     noBuildUp: 'Najprije označite iznos njegovim gumbom za pitanje, pa ću pročitati kako ga je Kuna izračunala.',
@@ -107,8 +107,6 @@ function inCompany(request: ModelRequest): boolean {
   const where = contextLines(request).filter((line) => line.includes('The person is in'))
   return where.at(-1)?.includes('(/company') ?? false
 }
-
-const findIn = (kind: string, only: string | null, limit: number) => ({ app: 'company', kind, query: null, from: null, to: null, about: null, only, limit, cursor: null })
 
 /** What asks to sort the rows waiting, as Suggest categories and the quick action do. */
 const SORT_JOB = /suggest categories|^sort|predloži kategorije|^razvrstaj/i
@@ -160,9 +158,8 @@ function mealsCategory(says: Says): Readonly<Record<string, unknown>> {
  */
 function sortReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findIn('ledger-row', 'waiting', 20), tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findIn('category', null, 50), tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'ledger-row', { only: 'waiting' }), tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('company', 'category', { limit: 50 }), tokens)
   const waiting = recordsOf(answers[0]!.text)
   const categories = recordsOf(answers[1]!.text)
   const sure = waiting.flatMap((row) => {
@@ -189,8 +186,8 @@ function sortGoOnReply({ request, tokens }: FakeChatTurn, says: Says, goOns: num
       return lookup(0, 'propose_changes', { app: 'company', title: says.mealsTitle, steps: [{ op: 'add-category', input: JSON.stringify(mealsCategory(says)), as: null }], next: true }, tokens)
     return answered(request, says.mealsProposed, tokens)
   }
-  if (answers.length === 0) return lookup(0, 'find_records', findIn('ledger-row', 'waiting', 20), tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findIn('category', null, 50), tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'ledger-row', { only: 'waiting' }), tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('company', 'category', { limit: 50 }), tokens)
   if (answers.length === 2) {
     const row = recordsOf(answers[0]!.text).find((waiting) => !SURE.some((candidate) => waiting.counterparty?.includes(candidate.word)))
     const meals = recordsOf(answers[1]!.text).find((category) => category.label === says.mealsLabel)
@@ -204,8 +201,7 @@ function sortGoOnReply({ request, tokens }: FakeChatTurn, says: Says, goOns: num
 /** Reads the clients and links the Invoices tab with the first one picked, since the chat writes no PDF and no mail. */
 function invoiceReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findIn('client', null, 10), tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'client', { limit: 10 }), tokens)
   if (answers.length === 1) {
     const [client] = recordsOf(answers[0]!.text)
     return lookup(1, 'show_screen', { route: '/company/invoicing?tab=invoices', params: client === undefined ? [] : [{ name: 'make', value: client.ref }] }, tokens)
@@ -229,9 +225,8 @@ function currencyReply({ request, tokens }: FakeChatTurn, says: Says): ModelRepl
  */
 function ruleReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findIn('category', null, 50), tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findIn('rule', null, 1), tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'category', { limit: 50 }), tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('company', 'rule', { limit: 1 }), tokens)
   if (answers.length === 2) {
     const office = recordsOf(answers[0]!.text).find((category) => /office supplies|uredski materijal/i.test(category.label ?? ''))
     if (office === undefined) return answered(request, says.noCategory, tokens)
@@ -245,8 +240,7 @@ function ruleReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
 /** Reads the rules and proposes trying the second one before the first, a card that changes only where a rule stands. */
 function moveReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findIn('rule', null, 50), tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'rule', { limit: 50 }), tokens)
   if (answers.length === 1) {
     const rules = recordsOf(answers[0]!.text)
     const [first, second] = rules
@@ -280,8 +274,7 @@ function categoryReply({ request, tokens }: FakeChatTurn, says: Says): ModelRepl
 /** Reads the categories and deletes AI services into software subscriptions, which moves what names it there in the same change. */
 function mergeReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findIn('category', null, 50), tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'category', { limit: 50 }), tokens)
   if (answers.length === 1) {
     const categories = recordsOf(answers[0]!.text)
     const ai = categories.find((category) => /^ai\b/i.test(category.label ?? ''))
@@ -296,11 +289,10 @@ function mergeReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
 /** Reads the accounts and copies a pasted statement that prints no balances onto the first, which has no rows yet, so Kuna starts it at zero. */
 function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findIn('account', null, 5), tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
   if (answers.length === 1) {
     const [account] = recordsOf(answers[0]!.text)
-    if (account === undefined) return answered(request, says.notRead, tokens)
+    if (account === undefined) return answered(request, says.noAccount, tokens)
     const day = today()
     const rows = [
       { date: addDays(day, -6), amount: -12.5, counterparty: 'Corner market', iban: null, description: 'REF 1001' },
@@ -313,18 +305,19 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
   return answered(request, answers[1]!.isError ? says.statementRefused : says.statementProposed, tokens)
 }
 
+const findAccounts = findRecordsArgs('company', 'account', { limit: 5 })
+
 /**
  * Copies a statement of the main account in the fake books, with no balances: the snack kiosk row of 8 October as the bank has it,
  * which Kuna skips, the phone bill of 7 October dated two days later, which waits as a look-alike, and a new row after them.
  */
 function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findIn('account', null, 5), tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
   if (answers.length === 1) {
     const accounts = recordsOf(answers[0]!.text)
     const main = accounts.find((account) => /main|glavn/i.test(account.label ?? '')) ?? accounts.find((account) => !/legacy|star/i.test(account.label ?? ''))
-    if (main === undefined) return answered(request, says.notRead, tokens)
+    if (main === undefined) return answered(request, says.noAccount, tokens)
     const rows = [
       { date: '2026-10-08', amount: -6.4, counterparty: 'SNACK KIOSK', iban: null, description: 'Card purchase' },
       { date: '2026-10-09', amount: -14.08, counterparty: 'Phone network d.d.', iban: null, description: 'Mobile plan' },

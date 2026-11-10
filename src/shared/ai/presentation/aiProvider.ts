@@ -2,7 +2,7 @@ import { computed, watch } from 'vue'
 import type { ComputedRef } from 'vue'
 
 import type { LoopEnd } from '../application/runModelLoop'
-import { anonymiseOn, pickProvider, pickedProvider, pinProvider } from '../application/assistSettings'
+import { anonymiseOn, assistAllowed, carryOverAppYes, pickProvider, pickedProvider, pinProvider } from '../application/assistSettings'
 import { keyKept } from '../application/modelAccess'
 import { PROVIDER_PRESETS, presetOf } from '../domain/providerPresets'
 import type { ProviderId, ProviderPreset } from '../domain/providerPresets'
@@ -23,12 +23,14 @@ export function providerInUse(): ProviderPreset | null {
 }
 
 /**
- * Stores the provider in use as the pick. With none stored, a key a sync brought could otherwise move the assistant, and
- * Anonymise switched off, to another company without a word.
+ * Stores the provider in use as the pick, and gives it any app's yes from before. With no pick stored, a key a sync brought could
+ * otherwise move the assistant, and Anonymise switched off, to another company without a word.
  */
 export function pinProviderInUse(): void {
   const preset = providerInUse()
-  if (preset !== null) pinProvider(preset.id)
+  if (preset === null) return
+  pinProvider(preset.id)
+  carryOverAppYes(preset.id)
 }
 
 /** Pins the provider in use now and after every change of a key, before a sync or a key saved on a card could move it. The shell calls it once as it starts. */
@@ -47,6 +49,12 @@ export function switchProvider(id: ProviderId): boolean {
 export function anonymisingNow(): boolean {
   const preset = providerInUse()
   return preset === null || anonymiseOn(preset.id)
+}
+
+/** Whether the person said yes for good to the provider in use, so the chat reads and sends in every app without asking. Reactive. */
+export function assistAllowedNow(): boolean {
+  const preset = providerInUse()
+  return preset !== null && assistAllowed(preset.id)
 }
 
 /** Whether a key is kept here for the provider in use, so the pages offer the chat. Reactive. */

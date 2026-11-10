@@ -49,7 +49,7 @@ export function companyReadsOf(books: CompanyBooks, overrides: Partial<ChatReads
     refs: chatRefs(),
     anonymising: () => true,
     persons: () => personsOf(books),
-    mayRead: async () => true,
+    mayRead: () => true,
     ...overrides,
   }
 }

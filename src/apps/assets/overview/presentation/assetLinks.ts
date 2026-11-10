@@ -9,7 +9,7 @@ export const ASSETS_OVERVIEW_ROUTE = '/assets'
 /** The Assets first run, with its step in the query. */
 export const ASSETS_START_ROUTE = '/assets/start'
 export const ASSETS_SETTINGS_ROUTE = '/assets/settings'
-/** The Assistant tab of the Assets settings, with the switch that lets the chat read Assets without asking. */
+/** The Assistant tab of the Assets settings, which says whether the chat asks before it reads. */
 export const ASSETS_ASSISTANT_LINK = `${ASSETS_SETTINGS_ROUTE}?tab=assistant`
 export const ASSET_ROUTE = '/assets/asset'
 

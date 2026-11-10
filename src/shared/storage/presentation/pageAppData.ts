@@ -1,5 +1,4 @@
 import { forgetSetUpAnswersOf } from '../../app/setUpAnswer'
-import { forgetAppAssist } from '../../ai/application/assistSettings'
 import { usePageSync } from '../../sync/presentation/pageSync'
 import { placesHeld, removeAppData } from '../application/appData'
 import type { AppData, DataBeside } from '../application/appData'
@@ -48,7 +47,6 @@ export function pageAppData(app: {
           beside: app.beside ?? null,
           forgetOnThisDevice(fileId) {
             forgetSetUpAnswersOf(fileId)
-            forgetAppAssist(app.id)
             app.forgetOnThisDevice?.()
           },
         },

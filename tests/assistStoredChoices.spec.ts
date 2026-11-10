@@ -1,9 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { AppContribution } from '../src/shared/app/appContribution'
-import { assistLines } from '../src/shell/settings/assistLines'
-
 const OWNER_KEY = 'made-up-anthropic-key-0042'
 const OTHER_KEY = 'made-up-openai-key-0077'
 const SAVED_AT = '2026-10-30T10:00:00.000Z'
@@ -23,6 +20,13 @@ const BEFORE_THIS_CHANGE: Readonly<Record<string, string>> = {
 /** What reading the choices leaves: all of it but the employee switch a task once kept. */
 const KEPT = Object.fromEntries(Object.entries(BEFORE_THIS_CHANGE).filter(([name]) => !name.startsWith('kuna.assist-task.')))
 
+/** What the shell's pin of the company in use leaves: the pick, and each app's yes become the yes of that company. */
+const PINNED = {
+  ...Object.fromEntries(Object.entries(KEPT).filter(([name]) => !name.startsWith('kuna.assist.'))),
+  'kuna.assist-allowed.anthropic': 'on',
+  'kuna.assist-provider': 'anthropic',
+}
+
 function storedNow(): Record<string, string | null> {
   return Object.fromEntries(Object.keys(localStorage).map((name) => [name, localStorage.getItem(name)]))
 }
@@ -38,11 +42,9 @@ async function page() {
 }
 
 describe('what a browser already holds of the assistant', () => {
-  it('keeps every switch, model and key working, with no pick stored, and clears only the employee switch each task once kept', async () => {
-    const { anonymiseOn, assistKeyKept, assistOn, modelOf, pickedProvider, providerInUse } = await page()
+  it('keeps every model and key working, with no pick stored, and clears only the employee switch each task once kept', async () => {
+    const { anonymiseOn, assistKeyKept, modelOf, pickedProvider, providerInUse } = await page()
 
-    expect(assistOn('company')).toBe(true)
-    expect(assistOn('spending')).toBe(false)
     expect(anonymiseOn('anthropic')).toBe(false)
     expect(modelOf('anthropic').id).toBe('claude-opus-5-5')
     expect(pickedProvider()).toBeNull()
@@ -51,37 +53,29 @@ describe('what a browser already holds of the assistant', () => {
     expect(storedNow()).toEqual(KEPT)
   })
 
-  it('leaves Anonymise off when the shell stores the company already in use as the pick', async () => {
-    const { anonymiseOn, pinProviderInUse, providerInUse, switchProvider } = await page()
+  it("leaves Anonymise off when the shell stores the company already in use as the pick, and gives that company an app's old yes", async () => {
+    const { anonymiseOn, assistAllowed, assistAllowedNow, pinProviderInUse, providerInUse, switchProvider } = await page()
+    expect(assistAllowedNow()).toBe(false)
     pinProviderInUse()
+    expect(assistAllowedNow()).toBe(true)
+    expect(assistAllowed('openai')).toBe(false)
     expect(localStorage.getItem('kuna.assist-provider')).toBe('anthropic')
     expect(switchProvider('anthropic')).toBe(false)
     expect(anonymiseOn('anthropic')).toBe(false)
     expect(providerInUse()?.id).toBe('anthropic')
-    expect(storedNow()).toEqual({ ...KEPT, 'kuna.assist-provider': 'anthropic' })
+    expect(storedNow()).toEqual(PINNED)
   })
 
-  it('turns Anonymise back on when moving away from the company in use with no pick stored, and keeps both keys', async () => {
-    const { anonymiseOn, assistOn, providerInUse, switchProvider } = await page()
+  it("turns Anonymise back on when moving away from the company in use with no pick stored, keeps both keys, and leaves the app's old yes with the company it carried over to", async () => {
+    const { anonymiseOn, assistAllowed, assistAllowedNow, providerInUse, switchProvider } = await page()
     expect(switchProvider('openai')).toBe(true)
     expect(providerInUse()?.id).toBe('openai')
     expect(anonymiseOn('anthropic')).toBe(true)
     expect(anonymiseOn('openai')).toBe(true)
-    expect(assistOn('company')).toBe(true)
+    expect(assistAllowedNow()).toBe(false)
+    expect(assistAllowed('anthropic')).toBe(true)
     expect(localStorage.getItem('kuna.secret.anthropic')).toBe(OWNER_KEY)
     expect(localStorage.getItem('kuna.secret.openai')).toBe(OTHER_KEY)
-  })
-})
-
-describe('the lines of the apps in Kuna settings', () => {
-  const app = (id: string, assist: unknown, firstRun = false) => ({ id, name: id, assist, firstRun: () => firstRun }) as unknown as AppContribution
-  const switchAt = (to: string) => ({ settings: to })
-
-  it('lists every app that names an assistant, and leaves out one with no assistant or in its first run', () => {
-    expect(assistLines([app('none', undefined), app('spending', switchAt('/spending')), app('setting-up', switchAt('/setting-up'), true), app('company', switchAt('/company'))])).toEqual([
-      { id: 'spending', name: 'spending', to: '/spending' },
-      { id: 'company', name: 'company', to: '/company' },
-    ])
   })
 })
 
@@ -93,13 +87,14 @@ describe('a change in another tab', () => {
   }
 
   it('reaches the switches and the pick here, so a stale tab neither sends without asking nor uses the old company', async () => {
-    const { anonymiseOn, assistOn, providerInUse } = await page()
-    expect(assistOn('company')).toBe(true)
+    const { anonymiseOn, assistAllowed, pinProviderInUse, providerInUse } = await page()
+    pinProviderInUse()
+    expect(assistAllowed('anthropic')).toBe(true)
     expect(anonymiseOn('anthropic')).toBe(false)
-    otherTabWrites('kuna.assist.company', null)
+    otherTabWrites('kuna.assist-allowed.anthropic', null)
     otherTabWrites('kuna.assist-anonymise', null)
     otherTabWrites('kuna.assist-provider', 'openai')
-    expect(assistOn('company')).toBe(false)
+    expect(assistAllowed('anthropic')).toBe(false)
     expect(anonymiseOn('anthropic')).toBe(true)
     expect(providerInUse()?.id).toBe('openai')
   })
@@ -108,7 +103,7 @@ describe('a change in another tab', () => {
     const { useSecretsChanged } = await import('../src/shared/secrets/presentation/pageSecrets')
     const changed = useSecretsChanged()
     const before = changed.value
-    otherTabWrites('kuna.assist.spending', 'on')
+    otherTabWrites('kuna.assist-allowed.openai', 'on')
     expect(changed.value).toBe(before)
     otherTabWrites('kuna.secret.openrouter', 'made-up-openrouter-key-0042')
     expect(changed.value).toBe(before + 1)

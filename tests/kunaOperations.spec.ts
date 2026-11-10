@@ -70,7 +70,7 @@ function fakeDevice(start: KunaStart | null = { home: 'drive', apps: ['company']
 }
 
 function propose(device: KunaDevice, steps: readonly { readonly op: string; readonly input: unknown }[]) {
-  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => false }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => false }
   const cards: CheckedProposal[] = []
   const answer = proposeChanges(
     { app: 'kuna', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: null })), next: false },
@@ -269,9 +269,9 @@ describe("Kuna's own operations", () => {
     expect((await unasked.answer).text).toBe(words.refused.noAnswer)
   })
 
-  it('reaches no Anonymise, key, provider, Google access or history, which its page names as only the person sets them on Kuna settings', async () => {
+  it('reaches no Anonymise, Always allow, key, provider, Google access or history, which its page names as only the person sets them on Kuna settings', async () => {
     const operations = kunaOperations(fakeDevice().device).map((operation) => operation.name)
-    for (const op of ['set-anonymise', 'set-provider', 'set-key', 'allow-access', 'clear-history', 'sign-out']) {
+    for (const op of ['set-anonymise', 'always-allow', 'set-provider', 'set-key', 'allow-access', 'clear-history', 'sign-out']) {
       const { answer } = propose(fakeDevice().device, [{ op, input: {} }])
       expect((await answer).isError).toBe(true)
     }

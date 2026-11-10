@@ -15,7 +15,7 @@ import { usePhoneLayout } from '../../layout/viewport'
 import AppMark from '../../ui/AppMark.vue'
 import RemovableChip from '../../ui/RemovableChip.vue'
 import { today } from '../../calendar/civilDate'
-import { assistOn, switchAssist } from '../application/assistSettings'
+import { allowAssist } from '../application/assistSettings'
 import { ATTACHABLE } from '../domain/chatAttachments'
 import { CHAT_APPS } from './chatApps'
 import type { KunaChat } from './chatApps'
@@ -25,10 +25,8 @@ import PromptFiles from './PromptFiles.vue'
 import { chatElement, chatRequest, closeChat, removeChatElement, takeChatRequest } from './chatDock'
 import {
   allowThisChat,
-  allowedThisChat,
-  answerReadAsk,
   attachFiles,
-  chatAsking,
+  chatAllowed,
   chatDraft,
   chatLines,
   chatPromptFiles,
@@ -49,9 +47,8 @@ import { anonymisingNow, providerInUse } from './aiProvider'
 import { words } from './words'
 
 /**
- * The chat beside the page or in its place, labelled with the app on screen. It knows this version of Kuna, and it
- * asks once per chat before it sends, which also lets it read the app on screen, unless the app's switch says not to ask.
- * A read of another app asks again.
+ * The chat beside the page or in its place, labelled with the app on screen. It knows this version of Kuna, and it asks
+ * once per chat before it sends, which also lets it read every app, unless the person said yes for good to the AI company.
  */
 const props = defineProps<{
   /** The app on screen, or null on the home and Kuna's own screens. */
@@ -85,8 +82,8 @@ onUnmounted(() => sendChatFrom(null))
 const panel = useTemplateRef<HTMLElement>('panel')
 
 /** The card's buttons leave with the card, so focus goes back to the prompt. A phone keeps its keyboard down. */
-watch([asking, chatAsking], ([message, read]) => {
-  if (message === null && read === null && !phone.value) void nextTick(() => panel.value?.querySelector('textarea')?.focus())
+watch(asking, (message) => {
+  if (message === null && !phone.value) void nextTick(() => panel.value?.querySelector('textarea')?.focus())
 })
 
 watch(
@@ -100,9 +97,6 @@ watch(
   { immediate: true },
 )
 
-/** An app with no Assistant tab has no switch a person could see or take back, so outside Company and Spending only a yes for this chat stops the asking. */
-const switchApp = computed(() => (props.app?.assist === undefined ? null : props.app.id))
-
 /** The app on screen and the apps the person said they use, each while it is new. */
 function setUpNow(): readonly AppSetUp[] {
   const inUse = new Set(kunaStart()?.apps ?? [])
@@ -112,20 +106,17 @@ function setUpNow(): readonly AppSetUp[] {
 /** The app on screen is new, so it knows no names yet to put aliases on. */
 const appOnScreenNew = computed(() => props.app !== null && appSetUpOf(props.app) !== null)
 
-const asksAlways = computed(() => props.apps.find((app) => app.id === chatAsking.value?.app)?.assist !== undefined)
 const aliasLine = computed(() => (anonymisingNow() ? words.chat.aliases : words.chat.noAliases(provider.value?.name ?? '')))
 const sendLines = computed(() => {
   const files = promptSendsDocument.value || promptCellsNotes.value.length > 0
-  const sends = readsHere.value && props.app !== null ? (files ? words.chat.sendsAndReadsWithFiles : words.chat.sendsAndReads)(props.app.name) : files ? words.chat.sendsWithFiles : words.chat.sends
   // A new app knows nobody to put an alias on, so its files of cells get one line that says names go as written.
   const cells = promptCellsNotes.value.filter((note) => !note.warns).map((note) => note.text)
   const cellLines = appOnScreenNew.value && cells.length > 0 ? [words.chat.newAppNames] : cells
-  return [words.consent.sends(sends), ...(readsHere.value && props.app !== null ? [aliasLine.value] : []), ...cellLines]
+  return [words.consent.sends(files ? words.chat.sendsWithFiles : words.chat.sends), aliasLine.value, ...cellLines]
 })
 /** The warnings under the card's lines: each file of cells whose names go as written, then that photos and PDFs go whole. */
 const sendCautions = computed(() => [...promptCellsNotes.value.filter((note) => note.warns).map((note) => note.text), ...(promptSendsDocument.value ? [words.files.goesWhole] : [])])
-const readLines = computed(() => (chatAsking.value === null ? [] : [words.consent.sends(words.chat.reads(chatAsking.value.name)), aliasLine.value]))
-const held = computed(() => asking.value !== null || chatAsking.value !== null)
+const held = computed(() => asking.value !== null)
 const readingFiles = computed(() => chatPromptFiles.value.some((file) => file.state === 'reading'))
 const placeholder = computed(() => {
   if (chatElement.value !== null) return words.chat.placeholderAbout(chatElement.value.label)
@@ -135,11 +126,14 @@ const placeholder = computed(() => {
 const messages = computed(() => chatLines.map((line) => ({ id: line.id, role: line.role, parts: [{ type: 'text' as const, text: line.text }], line })))
 const lineOf = (id: string) => chatLines.find((line) => line.id === id)
 
-/** Whether a send may go without asking: the app's switch is on, or this chat already has a yes for the provider. */
 function allowed(): boolean {
-  const app = switchApp.value
-  const preset = provider.value
-  return (app !== null && assistOn(app)) || (preset !== null && allowedThisChat(preset.id))
+  return provider.value !== null && chatAllowed(provider.value.id)
+}
+
+/** What the empty chat says it can do here, and that it asks first unless the person already said yes. */
+function emptyLine(): string {
+  if (!readsHere.value || props.app === null) return words.chat.empty
+  return allowed() ? words.chat.emptyReads : `${words.chat.emptyReads} ${words.chat.emptyAsks}`
 }
 
 /** A message waiting on the yes stays in the prompt, so a task a button named shows there as a typed one does. */
@@ -186,14 +180,14 @@ function submit(): void {
 function allowInChat(): void {
   const waiting = asking.value
   asking.value = null
-  if (provider.value !== null) allowThisChat(provider.value.id, readsHere.value && props.app !== null ? props.app.id : null)
+  if (provider.value !== null) allowThisChat(provider.value.id)
   if (waiting === null) return
   if (chatDraft.value.trim() === waiting.message) chatDraft.value = ''
   run(waiting.message, waiting.origin)
 }
 
 function allowAlways(): void {
-  if (switchApp.value !== null) switchAssist(switchApp.value, true)
+  if (provider.value !== null) allowAssist(provider.value.id, true)
   allowInChat()
 }
 
@@ -279,7 +273,7 @@ function dropped(event: DragEvent): void {
     <div class="min-h-0 flex-1 overflow-y-auto px-3 py-3" data-testid="chat-messages">
       <div class="mx-auto w-full max-w-2xl">
         <div v-if="chatLines.length === 0" class="flex flex-col items-start gap-3">
-          <p class="type-body text-muted" data-testid="chat-empty">{{ readsHere && app ? words.chat.emptyReads(app.name) : words.chat.empty }}</p>
+          <p class="type-body text-muted" data-testid="chat-empty">{{ emptyLine() }}</p>
           <div v-if="quickActions.length > 0 && !appOnScreenNew" class="flex flex-wrap gap-1.5">
             <UButton
               v-for="action in quickActions"
@@ -318,21 +312,9 @@ function dropped(event: DragEvent): void {
           :title="words.consent.title(provider.name)"
           :lines="sendLines"
           :cautions="sendCautions"
-          :offers-always="switchApp !== null"
           @allow="allowInChat"
           @always="allowAlways"
           @cancel="asking = null"
-        />
-        <GrantCard
-          v-else-if="chatAsking !== null && provider"
-          :key="chatAsking.app"
-          :provider="provider"
-          :title="words.chat.readTitle(chatAsking.name)"
-          :lines="readLines"
-          :offers-always="asksAlways"
-          @allow="answerReadAsk('chat')"
-          @always="answerReadAsk('always')"
-          @cancel="answerReadAsk('no')"
         />
         <div v-if="chatElement" class="flex min-w-0 items-center gap-1" data-testid="chat-tag">
           <RemovableChip icon="i-lucide-sparkles" :label="chatElement.label" :remove-label="words.chat.removeTag(chatElement.label)" data-testid="chat-tag-remove" @remove="removeChatElement" />

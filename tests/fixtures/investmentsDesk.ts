@@ -239,7 +239,7 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
     requestCounts: { today: (vendorId) => requests.get(vendorId) ?? 0, set: (vendorId, count) => requests.set(vendorId, count) },
   }
   const attachments = [await workbookAttachment('a1', DEPOSIT_WORKBOOK), closesAttachment('a2', 'SHARE.csv', 'Date,Close\n2026-10-01,101.5\n2026-10-02,102\n'), flexAttachment('a3', ['2026-10-12'])]
-  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['investments', investmentsProposer(typed, ports, FILE_OPEN)]])
   return {

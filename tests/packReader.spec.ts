@@ -50,7 +50,20 @@ function report(id: string) {
   return PACK.reports.find((candidate) => candidate.id === id)!
 }
 
-const ALL: FindRecordsInput = { app: 'company', kind: hrDooKinds.EMPLOYEE_RECORDS.name, query: null, from: null, to: null, about: null, only: null, limit: 200, cursor: null }
+const ALL: FindRecordsInput = {
+  app: 'company',
+  kind: hrDooKinds.EMPLOYEE_RECORDS.name,
+  query: null,
+  from: null,
+  to: null,
+  refs: [],
+  filters: [],
+  sort: [],
+  fields: [],
+  only: null,
+  limit: 200,
+  cursor: null,
+}
 
 describe("what the chat reads of the d.o.o. pack's records", () => {
   it('reads each of the pack’s kinds, one row a record', () => {

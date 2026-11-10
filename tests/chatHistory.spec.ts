@@ -39,7 +39,7 @@ const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending', query: 
 const TOKENS = { input: 1, cacheRead: 0, cacheWrite: 0, output: 1 }
 const DAY = 86_400_000
 const NOTHING_SPENT = { dollars: 0, unknown: false, any: false }
-const FIND = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+const FIND = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null }
 /** A map in which the chat's one known person is Person 2, as no fresh map would make them, so a test can tell the kept map was taken back. */
 const ANA_SECOND = {
   identifiers: [],
@@ -56,7 +56,7 @@ function said(role: SavedLine['role'], text: string, fields: Partial<SavedLine> 
 async function allowSpending(session: Awaited<ReturnType<typeof loadSession>>): Promise<void> {
   const { pickProvider } = await import('../src/shared/ai/application/assistSettings')
   pickProvider('anthropic')
-  session.allowThisChat('anthropic', 'spending')
+  session.allowThisChat('anthropic')
 }
 
 function scripted(replies: readonly ModelReply[]): ModelPort & { readonly turns: (readonly ModelTurn[])[] } {
@@ -95,10 +95,10 @@ beforeEach(async () => {
 describe('a chat kept in this browser', () => {
   it('comes back after a reload with its alias map, written-out figures, no tool result and no note', async () => {
     const first = await loadSession()
-    first.allowThisChat('anthropic', 'spending')
+    first.allowThisChat('anthropic')
     const { pickProvider } = await import('../src/shared/ai/application/assistSettings')
     pickProvider('anthropic')
-    first.allowThisChat('anthropic', 'spending')
+    first.allowThisChat('anthropic')
     port.current = scripted([
       { kind: 'tool-calls', calls: [{ id: 'a', name: 'find_records', args: FIND }], raw: [], tokens: TOKENS },
       { kind: 'tool-calls', calls: [{ id: 'b', name: 'read_figures', args: { app: 'spending', report: 'month', period: '2026-10' } }], raw: [], tokens: TOKENS },

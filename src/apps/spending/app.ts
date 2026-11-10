@@ -17,7 +17,6 @@ import { ratesNeeded } from './rates/domain/ratesNeeded'
 import { useRates } from '../../shared/rates/application/pageRates'
 import { everydayRates } from '../../shared/rates/domain/ratesState'
 import { words as screenWords } from './screenWords'
-import { SPENDING_ASSIST } from './assistant/spendingAssist'
 import type { ReceiptPorts } from './assistant/operations/receiptOperation'
 import type { SpendingPorts } from './assistant/operations/spendingOperations'
 import { reviewCount } from './statements/domain/reviewQueue'
@@ -133,7 +132,6 @@ export const spendingApp: AppContribution = {
   },
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
-  assist: SPENDING_ASSIST,
   setUpLines: () => (state.workbook === null ? [] : spendingSetUp(state.workbook)),
   data: spendingData,
   firstRun: () => isFirstRun(state),

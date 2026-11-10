@@ -108,11 +108,6 @@ const TABLE_PLACE_FIELDS: FieldDocs<TablePlace> = {
   rate: { exposure: 'plain', meaning: 'The yearly surtax rate for 2023.', read: (place) => `${writtenPercent(place.rate)}%` },
 }
 
-/** A decimal as the file stores it, with its currency, so `12.5 USD` reads the same in every language. */
-function amountIn(value: Decimal, currency: string): string {
-  return `${decimalText(value)} ${currency}`
-}
-
 function decimalOrNull(value: Decimal | null): string | null {
   return value === null ? null : decimalText(value)
 }
@@ -170,13 +165,24 @@ function fieldsOf(book: () => InvestmentBook | null) {
     side: { exposure: 'plain', meaning: 'buy or sell.' },
     date: { exposure: 'plain', meaning: 'The trade day.' },
     quantity: { exposure: 'plain', meaning: 'Units, grams or a bond nominal, above zero.', read: (record) => decimalText(record.quantity) },
-    price: { exposure: 'plain', meaning: 'The price per unit in the quote currency, or in percent for a bond.', read: (record) => amountIn(record.price, currencyOf(record.instrument)) },
-    fees: { exposure: 'plain', meaning: 'The broker fees, or null when not entered.', read: (record) => (record.fees === null ? null : amountIn(record.fees, currencyOf(record.instrument))) },
+    price: {
+      exposure: 'plain',
+      sign: 'zero-or-more',
+      meaning: 'The price per unit in the quote currency, or in percent for a bond.',
+      decimal: (record) => ({ amount: record.price, currency: currencyOf(record.instrument) }),
+    },
+    fees: {
+      exposure: 'plain',
+      sign: 'either',
+      meaning: 'The broker fees, or null when not entered.',
+      decimal: (record) => (record.fees === null ? null : { amount: record.fees, currency: currencyOf(record.instrument) }),
+    },
     rate: { exposure: 'plain', meaning: 'The rate the trade converts to euros at, or null for euros.', read: (record) => rateIn(record.rate, currencyOf(record.instrument)) },
     accrued: {
       exposure: 'plain',
+      sign: 'either',
       meaning: "A bond's accrued interest paid or received, or null.",
-      read: (record) => (record.accrued === null ? null : amountIn(record.accrued, currencyOf(record.instrument))),
+      decimal: (record) => (record.accrued === null ? null : { amount: record.accrued, currency: currencyOf(record.instrument) }),
     },
     importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
     note: { exposure: 'free-text', meaning: "The owner's note." },
@@ -188,8 +194,8 @@ function fieldsOf(book: () => InvestmentBook | null) {
     instrument: { exposure: 'ref', to: INSTRUMENT_RECORDS.name, meaning: 'What paid it, which a dividend and a coupon name.' },
     date: { exposure: 'plain', meaning: 'The day it was paid.' },
     currency: { exposure: 'plain', meaning: 'Its currency.' },
-    gross: { exposure: 'plain', meaning: 'Before the tax withheld. Below zero for a reversal.', read: (record) => amountIn(record.gross, record.currency) },
-    withheld: { exposure: 'plain', meaning: 'The tax withheld at source.', read: (record) => amountIn(record.withheld, record.currency) },
+    gross: { exposure: 'plain', sign: 'either', meaning: 'Before the tax withheld. Below zero for a reversal.', decimal: (record) => ({ amount: record.gross, currency: record.currency }) },
+    withheld: { exposure: 'plain', sign: 'either', meaning: 'The tax withheld at source.', decimal: (record) => ({ amount: record.withheld, currency: record.currency }) },
     rate: { exposure: 'plain', meaning: 'The rate it converts to euros at, or null for euros.', read: (record) => rateIn(record.rate, record.currency) },
     importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
     note: { exposure: 'free-text', meaning: "The owner's note, or the broker's words for an imported one." },
@@ -205,7 +211,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
     kind: { exposure: 'plain', meaning: 'deposit, withdrawal, fee or fee-refund.' },
     date: { exposure: 'plain', meaning: 'The day.' },
     currency: { exposure: 'plain', meaning: 'Its currency.' },
-    amount: { exposure: 'plain', meaning: 'Above zero. The kind gives its direction.', read: (record) => amountIn(record.amount, record.currency) },
+    amount: { exposure: 'plain', sign: 'zero-or-more', meaning: 'Above zero. The kind gives its direction.', decimal: (record) => ({ amount: record.amount, currency: record.currency }) },
     rate: { exposure: 'plain', meaning: 'The rate it converts to euros at, or null for euros.', read: (record) => rateIn(record.rate, record.currency) },
     importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
     note: { exposure: 'free-text', meaning: "The owner's note." },
@@ -214,14 +220,15 @@ function fieldsOf(book: () => InvestmentBook | null) {
     id: { exposure: 'ref', to: EXCHANGE_RECORDS.name, meaning: 'The exchange.' },
     account: { exposure: 'ref', to: INVESTMENT_ACCOUNT_RECORDS.name, meaning: 'The account.' },
     date: { exposure: 'plain', meaning: 'The day.' },
-    sold: { exposure: 'plain', meaning: 'What was sold, after fees.', read: (record) => amountIn(record.sold, record.soldCurrency) },
+    sold: { exposure: 'plain', sign: 'zero-or-more', meaning: 'What was sold, after fees.', decimal: (record) => ({ amount: record.sold, currency: record.soldCurrency }) },
     soldCurrency: { exposure: 'plain', meaning: 'The currency sold.' },
-    bought: { exposure: 'plain', meaning: 'What was bought, after fees.', read: (record) => amountIn(record.bought, record.boughtCurrency) },
+    bought: { exposure: 'plain', sign: 'zero-or-more', meaning: 'What was bought, after fees.', decimal: (record) => ({ amount: record.bought, currency: record.boughtCurrency }) },
     boughtCurrency: { exposure: 'plain', meaning: 'The currency bought.' },
     fees: {
       exposure: 'plain',
+      sign: 'either',
       meaning: 'What the exchange charged, already inside the amounts, or null.',
-      read: (record) => (record.fees === null ? null : amountIn(record.fees.amount, record.fees.currency)),
+      decimal: (record) => (record.fees === null ? null : { amount: record.fees.amount, currency: record.fees.currency }),
     },
     importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
     note: { exposure: 'free-text', meaning: "The owner's note." },
@@ -237,7 +244,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
       read: ({ moved }) =>
         moved.kind === 'units'
           ? `${decimalText(moved.quantity)} units of ${book()?.instruments.find((candidate) => candidate.id === moved.instrument)?.name ?? ''}`
-          : amountIn(moved.amount, moved.currency),
+          : `${decimalText(moved.amount)} ${moved.currency}`,
     },
     importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
     note: { exposure: 'free-text', meaning: "The owner's note." },
@@ -265,7 +272,7 @@ function fieldsOf(book: () => InvestmentBook | null) {
     id: { exposure: 'ref', to: PRICE_RECORDS.name, meaning: 'The price.' },
     instrument: { exposure: 'ref', to: INSTRUMENT_RECORDS.name, meaning: 'The instrument.' },
     date: { exposure: 'plain', meaning: 'The day it closed at it.' },
-    price: { exposure: 'plain', meaning: 'The close in the quote currency.', read: (record) => amountIn(record.price, currencyOf(record.instrument)) },
+    price: { exposure: 'plain', sign: 'zero-or-more', meaning: 'The close in the quote currency.', decimal: (record) => ({ amount: record.price, currency: currencyOf(record.instrument) }) },
     note: { exposure: 'free-text', meaning: "The owner's note." },
   }
   const fundMix: FieldDocs<FundMixLine> = {

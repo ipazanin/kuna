@@ -1,4 +1,4 @@
-import { answered, answersSince, lookup, registerFakeChat, settingUp } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, findRecordsArgs, lookup, registerFakeChat, settingUp } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
@@ -6,7 +6,6 @@ import { language } from '../../../../../shared/text/language'
 
 const ANSWERS = {
   en: {
-    notRead: "You didn't allow reading Loans, so I can only tell you how it works.",
     offerTitle: 'Add the offer from Example Bank',
     offerProposed: 'The card below adds the offer as printed. Kuna checks its EKS against the one the bank printed.',
     extraTitle: 'An extra payment on the loan',
@@ -16,7 +15,6 @@ const ANSWERS = {
     loanProposed: "The card below adds the loan as the contract prints it. Kuna's first instalment is not the one the contract prints, so check the terms before you accept.",
   },
   hr: {
-    notRead: 'Niste dopustili čitanje Kredita, pa vam mogu reći samo kako rade.',
     offerTitle: 'Dodaj ponudu banke Example Bank',
     offerProposed: 'Kartica ispod dodaje ponudu kako je ispisana. Kuna provjerava njezin EKS prema onome koji je banka navela.',
     extraTitle: 'Prijevremena otplata kredita',
@@ -88,7 +86,7 @@ function offerReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const step = { op: 'add-offer', input: JSON.stringify(offerInput()), as: null }
     return lookup(0, 'propose_changes', { app: 'loans', title: says.offerTitle, steps: [step], next: settingUp(request) }, tokens)
   }
-  return answered(request, answers[0]!.isError ? says.notRead : says.offerProposed, tokens)
+  return answered(request, says.offerProposed, tokens)
 }
 
 /** Proposes the car loan at once, as a model would from an attached contract, so the card shows Kuna's first instalment against the printed one. */
@@ -98,14 +96,13 @@ function loanReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const step = { op: 'add-bank-loan', input: JSON.stringify(loanInput()), as: null }
     return lookup(0, 'propose_changes', { app: 'loans', title: says.loanTitle, steps: [step], next: settingUp(request) }, tokens)
   }
-  return answered(request, answers[0]!.isError ? says.notRead : says.loanProposed, tokens)
+  return answered(request, says.loanProposed, tokens)
 }
 
 /** Reads the bank loans and proposes an extra payment on the first, a week from today. */
 function extraReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', { app: 'loans', kind: 'bank-loan', query: null, from: null, to: null, about: null, only: null, limit: 5, cursor: null }, tokens)
-  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('loans', 'bank-loan', { limit: 5 }), tokens)
   if (answers.length === 1) {
     const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
     const [loan] = records
@@ -113,7 +110,7 @@ function extraReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const step = { op: 'add-extra-payment', input: JSON.stringify({ loan: loan.ref, date: addDays(today(), 7), amount: 1000, effect: 'shorter-term' }), as: null }
     return lookup(1, 'propose_changes', { app: 'loans', title: says.extraTitle, steps: [step], next: settingUp(request) }, tokens)
   }
-  return answered(request, answers[1]!.isError ? says.notRead : says.extraProposed, tokens)
+  return answered(request, says.extraProposed, tokens)
 }
 
 /** Loans' part of the fake chat: one that starts with offer adds a loan offer, one that starts with extra pays extra on a bank loan, and one that starts with contract adds a car loan. */

@@ -65,9 +65,9 @@ describe('what the chat reads of Assets', () => {
       refs: chatRefs(),
       anonymising: () => true,
       persons: () => [],
-      mayRead: async () => true,
+      mayRead: () => true,
     }
-    const input: FindRecordsInput = { app: 'assets', kind: 'asset', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+    const input: FindRecordsInput = { app: 'assets', kind: 'asset', query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null }
 
     const answer = await findRecords(input, reads)
 
@@ -100,9 +100,9 @@ describe('what the chat reads of Assets', () => {
       refs: chatRefs(),
       anonymising: () => true,
       persons: () => [{ name: 'Ivana', employee: false, ibans: [] }],
-      mayRead: async () => true,
+      mayRead: () => true,
     }
-    const input: FindRecordsInput = { app: 'assets', kind: 'asset', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+    const input: FindRecordsInput = { app: 'assets', kind: 'asset', query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null }
 
     const answer = await findRecords(input, reads)
 

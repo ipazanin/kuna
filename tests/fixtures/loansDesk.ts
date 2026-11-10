@@ -87,7 +87,7 @@ export async function loansDesk(used: Set<string>): Promise<LoansDesk> {
     saveScenario(unit, store.state.records!, OFFER, [{ kind: 'rate-change', from: civil('2027-01-01'), rate: percent('3.5'), rateType: 'fixed' }], null)
     saveScenario(unit, store.state.records!, TRY, [{ kind: 'extra-payment', date: civil('2026-09-01'), amount: euros(200), effect: 'shorter-term' }], null)
   })
-  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => true }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['loans', loansProposer(store, FILE_OPEN)]])
   return {

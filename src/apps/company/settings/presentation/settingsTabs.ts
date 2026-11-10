@@ -9,7 +9,7 @@ export const BOOKS_FILE_LINK = `/company/settings?tab=${BOOKS_FILE_TAB}`
 /** The Assistant tab's value in `?tab=` on Settings. */
 export const ASSISTANT_TAB = 'assistant'
 
-/** The Assistant tab of Settings, which Kuna settings links to. */
+/** The Assistant tab of Settings, which the chat can link to. */
 export const ASSISTANT_SETTINGS_LINK = `/company/settings?tab=${ASSISTANT_TAB}`
 
 /** A tab of the company's Settings, core's or the pack's, before Books file. */

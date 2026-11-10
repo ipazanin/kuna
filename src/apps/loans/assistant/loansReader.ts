@@ -68,7 +68,7 @@ const BANK_LOAN_FIELDS: FieldDocs<BankLoan> = {
   id: { exposure: 'ref', to: BANK_LOAN_RECORDS.name, meaning: 'The bank loan.' },
   name: { exposure: 'free-text', meaning: 'The name the owner gave it.' },
   lender: { exposure: 'party', meaning: 'The bank.' },
-  principal: { exposure: 'plain', amount: 'app', meaning: 'The amount borrowed, as the contract gives it.' },
+  principal: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'The amount borrowed, as the contract gives it.' },
   drawdown: { exposure: 'plain', meaning: 'The day it was paid out.' },
   firstInstalment: { exposure: 'plain', meaning: 'The due date of the first instalment. Every later one falls on its day of the month.' },
   instalments: { exposure: 'plain', meaning: 'How many monthly instalments in all.' },
@@ -102,7 +102,7 @@ const EXTRA_PAYMENT_FIELDS: FieldDocs<ExtraPayment> = {
   id: { exposure: 'ref', to: EXTRA_PAYMENT_RECORDS.name, meaning: 'The extra payment.' },
   loan: { exposure: 'ref', to: BANK_LOAN_RECORDS.name, meaning: 'The bank loan.' },
   date: { exposure: 'plain', meaning: 'The day it was paid.' },
-  amount: { exposure: 'plain', amount: 'app', meaning: 'The principal paid back early.' },
+  amount: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'The principal paid back early.' },
   effect: { exposure: 'plain', meaning: 'shorter-term keeps the instalment and ends sooner, lower-instalment keeps the end.' },
 }
 
@@ -118,7 +118,7 @@ const INFORMAL_LOAN_FIELDS: FieldDocs<InformalLoan> = {
   name: { exposure: 'free-text', meaning: 'The name the owner gave it.' },
   counterparty: { exposure: 'party', meaning: 'Who it is with. An alias for a person Kuna knows.' },
   direction: { exposure: 'plain', meaning: 'you-owe or owed-to-you.' },
-  openingBalance: { exposure: 'plain', amount: 'app', meaning: 'What was owed on the start day.' },
+  openingBalance: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'What was owed on the start day.' },
   start: { exposure: 'plain', meaning: 'The day it starts. Movements come after it.' },
   note: { exposure: 'free-text', meaning: "The owner's note." },
   expected: {
@@ -133,7 +133,7 @@ const MOVEMENT_FIELDS: FieldDocs<Movement> = {
   loan: { exposure: 'ref', to: INFORMAL_LOAN_RECORDS.name, meaning: 'The informal loan.' },
   date: { exposure: 'plain', meaning: 'The day.' },
   kind: { exposure: 'plain', meaning: 'borrowed and borrowed-in-kind raise what is owed. repaid, repaid-in-kind and forgiven lower it.' },
-  amount: { exposure: 'plain', amount: 'app', meaning: 'Above zero. The kind gives its direction.' },
+  amount: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'Above zero. The kind gives its direction.' },
   note: { exposure: 'free-text', meaning: "The owner's note." },
 }
 

@@ -8,8 +8,8 @@ import type { ProviderPreset } from '../domain/providerPresets'
 import { words } from './words'
 
 /**
- * Asks inside the chat: before its first send, and again before reading an app that yes did not cover. It says what
- * leaves the device and what the company keeps. Always shows only where a visible switch can take it back.
+ * Asks inside the chat before its first send, for this chat or for good. It says what leaves the device and what the company
+ * keeps. A yes for good is the switch in Kuna settings, which takes it back.
  */
 defineProps<{
   provider: ProviderPreset
@@ -18,7 +18,6 @@ defineProps<{
   lines: readonly string[]
   /** What goes past the usual care, such as photos sent whole, each as a warning under the lines. */
   cautions?: readonly string[]
-  offersAlways: boolean
 }>()
 
 const emit = defineEmits<{ allow: []; always: []; cancel: [] }>()
@@ -37,10 +36,11 @@ onMounted(() => allow.value?.$el.focus())
           {{ caution }}
         </p>
         <p>{{ words.retention[provider.id] }}</p>
+        <p data-testid="chat-consent-always">{{ words.chat.allowAlwaysNote }}</p>
       </div>
       <div class="flex flex-wrap justify-end gap-2">
         <UButton :label="words.consent.cancel" color="neutral" variant="ghost" size="sm" data-testid="chat-allow-cancel" @click="emit('cancel')" />
-        <UButton v-if="offersAlways" :label="words.chat.allowAlways" color="neutral" variant="outline" size="sm" data-testid="chat-allow-always" @click="emit('always')" />
+        <UButton :label="words.chat.allowAlways(provider.name)" color="neutral" variant="outline" size="sm" data-testid="chat-allow-always" @click="emit('always')" />
         <UButton ref="allow" :label="words.chat.allowInChat" size="sm" data-testid="chat-allow" @click="emit('allow')" />
       </div>
     </div>

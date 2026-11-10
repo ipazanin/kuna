@@ -3,6 +3,8 @@ import type { AppProposer, AssistantOperation } from '../../app/assistantOperati
 import type { AppReader, AssistantReport, ReadableKind } from '../../app/assistantReader'
 import type { KnownPerson } from '../../privacy/domain/pseudonyms'
 import type { AttachedFile, FormatFound } from '../domain/chatAttachments'
+import { OPS_OF, fieldClassOf, sorts } from '../domain/recordFilters'
+import type { FieldClass } from '../domain/recordFilters'
 import { language } from '../../text/language'
 
 /** Where a person writes down what Kuna cannot do. The chat links here and nothing more: no draft and no token. */
@@ -119,18 +121,34 @@ export function recordPageParam(placeParams: ReadonlyMap<string, PlaceParams>, a
   return Object.entries(declared.params).find(([, shape]) => typeof shape !== 'string' && shape.kind === kind.name)?.[0] ?? null
 }
 
-/** What each field of a kind means and how it arrives, with what never does. */
+/** How a filter and a sort treat each class of field, as a kind's page says it. */
+const CLASS_RULES: Readonly<Record<FieldClass, string>> = {
+  amount: "decimal text in the record's own currency, such as -12.50",
+  plain: 'at-least and at-most take a number, or a day or month such as 2026-10',
+  words: 'on the text as it arrives, so a person by their alias',
+  identifier: 'with a token a read gave you, such as HR•• ••••0160',
+  ref: 'with refs Kuna handed out',
+}
+
+function classLine(fieldClass: FieldClass): string {
+  const name = fieldClass === 'words' ? 'party and free-text' : fieldClass
+  return `- ${name}: ${OPS_OF[fieldClass].join(', ')}, ${CLASS_RULES[fieldClass]}. ${sorts(fieldClass) ? 'Sorts either way.' : 'Never sorts.'}`
+}
+
+/** What each field of a kind means and how it arrives, with the sign of each amount, what never arrives, and what filters each field takes. */
 function kindPage(kind: ReadableKind, linksToPage: boolean): string {
   const read = kind.fields.filter((field) => field.exposure !== 'never' && field.name !== 'id')
   const kept = kind.fields.filter((field) => field.exposure === 'never')
+  const classes = [...new Set(read.flatMap((field) => fieldClassOf(field.exposure, field.amount !== null) ?? []))]
   return [
     `# ${kind.name}`,
     kind.about,
     ...section(
       'Fields',
-      read.map((field) => `- ${field.name} (${field.amount ? 'amount' : field.exposure}): ${field.meaning}`),
+      read.map((field) => `- ${field.name} (${field.amount === null ? field.exposure : `amount, ${field.amount === 'either' ? 'either sign' : 'zero or more'}`}): ${field.meaning}`),
     ),
     ...section('Never read', [...kept.map((field) => `- ${field.name}`)]),
+    ...section('Filters by the class in brackets', classes.map(classLine)),
     ...section(
       'Sets find_records keeps to with only',
       (kind.sets ?? []).map((set) => `- ${set.name}: ${set.about}`),
@@ -191,7 +209,8 @@ function systemOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): string {
     '- You explain what this version of Kuna does and how to use it. The tool kuna_docs opens its pages, which come from the code of the version running. Read a page before you say how something works, and never describe a screen or a setting no page names.',
     '- The tool show_screen puts a link to a screen under your answer. Use it whenever you send the person somewhere or explain what a screen shows. Take the address from a page, and fill only the parameters its page lists, such as a month or a ref. A ref of a record whose kind has a page links to that page. It does not move them there.',
     '- Never write an address in your answer. Name the screen or tab as it is called on screen, and link it with show_screen.',
-    "- The tools find_records, get_record and read_figures read the person's records and the figures Kuna computed, in an app whose page lists them. find_records keeps to a set a kind lists, such as the rows waiting, with only. Kuna may ask the person first. If they say no, carry on with what you have and say what you could not read. Read only what the question needs.",
+    "- The tools find_records, get_record and read_figures read the person's records and the figures Kuna computed, in an app whose page lists them. find_records takes filters on any field a kind's page lists, a sort either way, the fields to return, refs, a set such as the rows waiting with only, and pages of up to 200. An amount compares in its record's own currency.",
+    '- Before you propose rows from a file or a paste, check them with match_records, which says which are already in the books.',
     '',
     '# What you cannot do',
     '- You cannot change anything yourself. In an app listed under Changes you can propose, propose them. Elsewhere say what to do and link the screen.',
@@ -224,7 +243,7 @@ function systemOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): string {
     '# How you answer',
     '- Answer in the language the person writes in, in short plain sentences. You may use short lists, **bold** and `code`, and nothing else from Markdown.',
     "- A line at the start of a message in <context> tags says where the person is now and today's date. It comes from Kuna and it is not something they typed. It can name one element they tagged: a record by its ref, which get_record reads, a figure of a report, a place, or a figure's build-up by its ref, which read_build_up reads. It lists the files attached to this chat by id and kind.",
-    '- Some of what Kuna offers runs on its own once it is set up. The pages list these under Automations. When one fits what the person is doing, such as uploading by hand what could arrive on its own, or what you already read with their leave, suggest it in a sentence and link its set-up screen with show_screen. Never read records only to look for one.',
+    '- Some of what Kuna offers runs on its own once it is set up. The pages list these under Automations. When one fits what the person is doing, such as uploading by hand what could arrive on its own, or what you already read with their leave, suggest it in a sentence and link its set-up screen with show_screen.',
     '- When the person asks where something is and they are already on that screen or tab, say they are there and point at what is on it. This never takes the place of doing what a message asks.',
     '',
     '# Pages',

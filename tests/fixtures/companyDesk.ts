@@ -144,7 +144,7 @@ export function deskPorts(given: DeskPorts = {}): CompanyOperationPorts {
 
 /** The chat proposing to Company over the store, as Company's wiring hands it the ports. */
 export function companyChat(store: WorkbookStore<CompanyBooks>, ports: CompanyOperationPorts, anonymising = true): CompanyChat {
-  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => anonymising, persons: () => [], mayRead: async () => true }
+  const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => anonymising, persons: () => [], mayRead: () => true }
   const cards: CheckedProposal[] = []
   const proposers = new Map([['company', companyProposer(store, ports, FILE_OPEN)]])
   return {

@@ -36,12 +36,12 @@ function chatReadsOf(desk: Awaited<ReturnType<typeof loansDesk>>): ChatReads {
     refs: chatRefs(),
     anonymising: () => true,
     persons: () => loansAssistant(reading).persons(),
-    mayRead: async () => true,
+    mayRead: () => true,
   }
 }
 
 function everyRecord(kind: string): FindRecordsInput {
-  return { app: 'loans', kind, query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+  return { app: 'loans', kind, query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null }
 }
 
 function fieldsOf(reader: AppReader, kind: string, id: string): Readonly<Record<string, ReadableField>> {

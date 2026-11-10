@@ -10,9 +10,10 @@ import { capitalGainsYear } from '../src/apps/investments/tax/domain/taxYear'
 import * as investmentKinds from '../src/apps/investments/workbook/domain/investmentKinds'
 import { MAIL_READER_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
 import { findRecords } from '../src/shared/ai/application/chatReads'
-import type { ChatReads } from '../src/shared/ai/application/chatReads'
+import type { ChatReads, FindRecordsInput } from '../src/shared/ai/application/chatReads'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import type { ReportFigure } from '../src/shared/app/assistantReader'
+import { decimalOfText } from '../src/shared/money/decimal'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import { WORKED_PRICES, WORKED_RATES, workedPortfolio } from './fixtures/investments'
 import { civil } from './fixtures/ledger'
@@ -60,10 +61,10 @@ describe('the Investments reader', () => {
       refs: chatRefs(),
       anonymising: () => true,
       persons: () => [],
-      mayRead: async () => true,
+      mayRead: () => true,
     }
 
-    const answer = await findRecords({ app: 'investments', kind: SURTAX_TABLE, query, from: null, to: null, about: null, only: null, limit: null, cursor: null }, reads)
+    const answer = await findRecords({ app: 'investments', kind: SURTAX_TABLE, query, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null }, reads)
 
     const records = (JSON.parse(answer.text) as { records: Record<string, unknown>[] }).records
     expect(records.map((record) => record['code'])).toEqual(codes)
@@ -78,13 +79,33 @@ describe('the Investments reader', () => {
     expect(zagreb.fields.find((field) => field.name === 'rate')).toMatchObject({ value: '18%' })
   })
 
-  it('hands every decimal over as text with its currency, so no row holds a number the chat cannot write', () => {
-    const rows = reader.kinds.flatMap((kind) => kind.rows())
-    expect(() => JSON.stringify(rows)).not.toThrow()
+  it("hands every decimal over as text with its currency, and keeps an amount's decimal beside its text so a filter can range it", () => {
+    const values = reader.kinds.flatMap((kind) => kind.rows()).flatMap((row) => row.fields.flatMap((field) => ('value' in field ? [field.value] : [])))
+    expect(() => JSON.stringify(values)).not.toThrow()
     const trade = reader.kinds.find((kind) => kind.name === 'trade')!.rows()[1]!
     const fields = Object.fromEntries(trade.fields.map((field) => [field.name, 'value' in field ? field.value : 'id' in field ? field.id : null]))
     expect(fields).toMatchObject({ quantity: '20', price: '50 USD', fees: '1 USD', rate: '1.05 USD per EUR' })
+    expect(trade.fields.find((field) => field.name === 'price')).toMatchObject({ decimal: decimalOfText('50') })
     expect(trade.fields.map((field) => field.name)).not.toContain('importKey')
+  })
+
+  it('ranges and sorts a trade by its decimal price in its own currency, and sends the price as the same text', () => {
+    const reads: ChatReads = {
+      readers: new Map([['investments', { name: 'Investments', reader }]]),
+      pseudonyms: newPseudonyms(),
+      refs: chatRefs(),
+      anonymising: () => true,
+      persons: () => [],
+      mayRead: () => true,
+    }
+    const all: FindRecordsInput = { app: 'investments', kind: 'trade', query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: ['price'], only: null, limit: 200, cursor: null }
+    const prices = (input: FindRecordsInput) => (JSON.parse(findRecords(input, reads).text) as { records: { price: string }[] }).records.map((record) => record.price)
+    const every = prices(all)
+    const cheapest = prices({ ...all, sort: [{ field: 'price', direction: 'ascending' }] })
+    expect(cheapest).toHaveLength(every.length)
+    expect(cheapest.map((price) => Number(price.split(' ')[0]))).toEqual(cheapest.map((price) => Number(price.split(' ')[0])).sort((one, other) => one - other))
+    expect(prices({ ...all, filters: [{ field: 'price', op: 'at-least', values: ['50'] }] }).every((price) => Number(price.split(' ')[0]) >= 50)).toBe(true)
+    expect(prices({ ...all, filters: [{ field: 'price', op: 'is', values: ['50'] }] })).toContain('50 USD')
   })
 
   it("links an instrument to its holding's page", () => {

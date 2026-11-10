@@ -4,6 +4,7 @@ import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
 import { countedAccounts } from '../rates/domain/euroRows'
 import { isWaiting, reviewCount } from '../statements/domain/reviewQueue'
+import { bookingOf } from '../statements/domain/statementDryRun'
 import type { BankSetup } from '../bankSync/application/bankSync'
 import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setupLines } from '../bankSync/domain/bankAccountSetup'
 import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
@@ -73,7 +74,7 @@ const ACCOUNT_FIELDS: FieldDocs<Account> = {
   kind: { exposure: 'plain', meaning: 'bank, cash or savings.' },
   bank: { exposure: 'plain', meaning: 'otp, revolut, other or empty.' },
   currency: { exposure: 'plain', meaning: 'Its one currency.' },
-  opening: { exposure: 'plain', amount: 'account', meaning: 'What it held at the start of openedOn.' },
+  opening: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'What it held at the start of openedOn.' },
   openedOn: { exposure: 'plain', meaning: 'The day its figures start.' },
   iban: { exposure: 'identifier', meaning: "The account's own IBAN." },
   closed: { exposure: 'plain', meaning: 'Closed by the owner.' },
@@ -93,7 +94,7 @@ const TRANSACTION_FIELDS: FieldDocs<Transaction> = {
   id: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry.' },
   account: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account it is on.' },
   date: { exposure: 'plain', meaning: 'The day.' },
-  amount: { exposure: 'plain', amount: 'account', meaning: "Credits above zero, debits below, in the account's currency." },
+  amount: { exposure: 'plain', amount: 'account', sign: 'either', meaning: "Credits above zero, debits below, in the account's currency." },
   payee: { exposure: 'party', meaning: 'Who was paid or who paid. An alias for a person Kuna knows, a shop or a company as it is.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'Its category, or none while it waits on To review, when it counts nowhere.' },
   note: { exposure: 'free-text', meaning: "The owner's note." },
@@ -112,7 +113,7 @@ const BUDGET_FIELDS: FieldDocs<Budget> = {
   id: { exposure: 'ref', to: BUDGET_RECORDS.name, meaning: 'The limit.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The spending category it limits.' },
   from: { exposure: 'plain', meaning: 'The month it starts, until a later one of the category.' },
-  amount: { exposure: 'plain', amount: 'app', meaning: 'A month in euros. Zero ends the limit.' },
+  amount: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'A month in euros. Zero ends the limit.' },
 }
 
 const RULE_FIELDS: FieldDocs<SpendingRule> = {
@@ -134,7 +135,7 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   buyerOib: { exposure: 'identifier', meaning: 'The buyer named on an R1 receipt.' },
   issuedOn: { exposure: 'plain', meaning: 'The day.' },
   issuedTime: { exposure: 'plain', meaning: 'The time, or empty.' },
-  total: { exposure: 'plain', amount: 'app', meaning: 'Its total in euros.' },
+  total: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'Its total in euros.' },
   jir: { exposure: 'never', meaning: 'The fiscal code.' },
   zki: { exposure: 'never', meaning: 'The fiscal code.' },
   readBy: { exposure: 'plain', meaning: 'The model that read it, or empty.' },
@@ -149,7 +150,7 @@ const LINE_FIELDS: FieldDocs<ReceiptLine> = {
   receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
   printed: { exposure: 'free-text', meaning: 'As the till printed it.' },
   text: { exposure: 'free-text', meaning: 'In plain words.' },
-  amount: { exposure: 'plain', amount: 'account', meaning: 'Signed as the entry is.' },
+  amount: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'Signed as the entry is.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The figures count this instead of the entry.' },
 }
 
@@ -224,14 +225,19 @@ const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
   iban: { exposure: 'identifier', meaning: "The bank's IBAN for it." },
   offers: { exposure: 'plain', meaning: 'What the bank account operations can do with it: add, update, keep-mine, leave-out, bring-back or bring-back-mine.' },
   draft: { exposure: 'plain', meaning: 'The name of the account add makes, or none.' },
-  opening: { exposure: 'plain', amount: 'account', meaning: 'The opening the account add makes starts at.' },
+  opening: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'The opening the account add makes starts at.' },
   openedOn: { exposure: 'plain', meaning: 'The day the account add makes opens.' },
   rowsHeld: { exposure: 'plain', meaning: 'The rows the page holds for the account add makes, which come in with it.' },
   takesBank: { exposure: 'plain', meaning: 'The bank update gives the account, when it differs.' },
   takesIban: { exposure: 'identifier', meaning: 'The IBAN update gives the account, when it differs.' },
   takesKind: { exposure: 'plain', meaning: 'The kind update gives the account, when it differs.' },
-  bankBalance: { exposure: 'plain', amount: 'account', meaning: "The bank's balance at the fetch, when it differs from Kuna's." },
-  fixedOpening: { exposure: 'plain', amount: 'account', meaning: "The opening fix-opening sets so Kuna's balance agrees with the bank's, or none when pending rows may explain the difference." },
+  bankBalance: { exposure: 'plain', amount: 'account', sign: 'either', meaning: "The bank's balance at the fetch, when it differs from Kuna's." },
+  fixedOpening: {
+    exposure: 'plain',
+    amount: 'account',
+    sign: 'either',
+    meaning: "The opening fix-opening sets so Kuna's balance agrees with the bank's, or none when pending rows may explain the difference.",
+  },
 }
 
 /** The bank set-up list as the chat reads it, matched against the file as it stands. */
@@ -326,5 +332,18 @@ export function spendingReader(reading: SpendingReading): AppReader {
       { id: 'limits', title: words.reports.limits.title, about: words.reports.limits.about, period: 'month', figures: report(limitsReport) },
       { id: 'balances', title: words.reports.balances.title, about: words.reports.balances.about, period: 'day', figures: report(balancesReport) },
     ],
+    bookings: {
+      kind: TRANSACTION_RECORDS.name,
+      accountKind: ACCOUNT_RECORDS.name,
+      of: (account) => {
+        const book = reading.book()
+        if (book === null || !book.accounts.some((held) => held.id === account)) return null
+        return book.transactions.filter((row) => row.account === account).map((row) => ({ id: row.id, booking: bookingOf(row) }))
+      },
+      onlyAccount: () => {
+        const accounts = reading.book()?.accounts ?? []
+        return accounts.length === 1 ? accounts[0]!.id : null
+      },
+    },
   }
 }

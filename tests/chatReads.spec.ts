@@ -6,6 +6,7 @@ import { UNREAD_KINDS, spendingReader } from '../src/apps/spending/assistant/spe
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
 import { findRecords, getRecord, readFigures } from '../src/shared/ai/application/chatReads'
 import type { ChatReads, FindRecordsInput } from '../src/shared/ai/application/chatReads'
+import { MOST_CHARACTERS_A_READ } from '../src/shared/ai/domain/chatAttachments'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
@@ -22,12 +23,12 @@ function readsOf(overrides: Partial<ChatReads> = {}): ChatReads {
     refs: chatRefs(),
     anonymising: () => true,
     persons: () => CHAT_PERSONS,
-    mayRead: async () => true,
+    mayRead: () => true,
     ...overrides,
   }
 }
 
-const ALL: FindRecordsInput = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+const ALL: FindRecordsInput = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null }
 
 async function found(input: Partial<FindRecordsInput>, reads: ChatReads) {
   const answer = await findRecords({ ...ALL, ...input }, reads)
@@ -39,10 +40,10 @@ describe('what a read gives the chat', () => {
   it('runs nothing before the gate says yes, and says so', async () => {
     const rows = vi.fn(() => [])
     const reader = spendingReader(CHAT_READING)
-    const reads = readsOf({ mayRead: async () => false, readers: new Map([['spending', { name: 'Spending', reader: { ...reader, kinds: [{ ...reader.kinds[0]!, rows }] } }]]) })
+    const reads = readsOf({ mayRead: () => false, readers: new Map([['spending', { name: 'Spending', reader: { ...reader, kinds: [{ ...reader.kinds[0]!, rows }] } }]]) })
     const answer = await findRecords(ALL, reads)
     expect(answer.isError).toBe(true)
-    expect(answer.text).toContain('did not allow')
+    expect(answer.text).toBe('The person has not allowed the chat to read their books.')
     expect(rows).not.toHaveBeenCalled()
     expect((await readFigures('spending', 'month', '2026-10', reads)).isError).toBe(true)
   })
@@ -134,14 +135,14 @@ describe('what a read gives the chat', () => {
     const second = await found({ limit: 2, cursor: first.nextCursor! }, reads)
     expect(second.records.map((record) => record['date'])).toEqual(['2026-09-05'])
     expect(second.nextCursor).toBeNull()
-    expect((await found({ limit: 100_000 }, reads)).records.length).toBeLessThanOrEqual(50)
+    expect((await found({ limit: 100_000 }, reads)).records.length).toBeLessThanOrEqual(200)
   })
 
   it('filters by days and by a ref', async () => {
     const reads = readsOf()
     expect((await found({ from: '2026-10', to: '2026-10' }, reads)).total).toBe(2)
     const { records } = await found({}, reads)
-    expect((await found({ about: records[1]!['category']! }, reads)).total).toBe(2)
+    expect((await found({ refs: [records[1]!['category']!] }, reads)).total).toBe(2)
   })
 
   it('reads one record only by a ref it handed out in this app', async () => {
@@ -237,6 +238,116 @@ describe('what Spending lets the chat read', () => {
     const fields = spendingReader(CHAT_READING).kinds.find((kind) => kind.name === 'receipt')!.fields
     expect(fields.filter((field) => field.exposure === 'never').map((field) => field.name)).toEqual(['jir', 'zki', 'photo', 'latitude', 'longitude'])
     expect(UNREAD_KINDS).toContain(spendingKinds.SETTING_RECORDS.name)
+  })
+})
+
+describe('a search with filters, a sort and fields', () => {
+  const payees = (answer: { records: Record<string, unknown>[] }) => answer.records.map((record) => record['payee'])
+  const amounts = (answer: { records: Record<string, unknown>[] }) => answer.records.map((record) => (record['amount'] as { amount: string }).amount)
+
+  it("ranges an amount as decimal text in the account's own currency", async () => {
+    const reads = readsOf()
+    expect((await found({ filters: [{ field: 'amount', op: 'at-most', values: ['-100'] }] }, reads)).total).toBe(2)
+    expect(payees(await found({ filters: [{ field: 'amount', op: 'at-least', values: ['-100.00'] }] }, reads))).toEqual(['Corner market'])
+    expect((await found({ filters: [{ field: 'amount', op: 'is', values: ['-45.3'] }] }, reads)).total).toBe(1)
+    expect((await findRecords({ ...ALL, filters: [{ field: 'amount', op: 'at-least', values: ['-12,50'] }] }, reads)).isError).toBe(true)
+  })
+
+  it('sorts by any read field either way, and newest first when no sort is given', async () => {
+    const reads = readsOf()
+    expect(amounts(await found({ sort: [{ field: 'amount', direction: 'ascending' }] }, reads))).toEqual(['-600.00 EUR', '-500.00 EUR', '-45.30 EUR'])
+    expect(amounts(await found({ sort: [{ field: 'amount', direction: 'descending' }] }, reads))).toEqual(['-45.30 EUR', '-500.00 EUR', '-600.00 EUR'])
+    expect((await found({}, reads)).records.map((record) => record['date'])).toEqual(['2026-10-12', '2026-10-05', '2026-09-05'])
+  })
+
+  it('breaks a tie in the sort by the record id, so pages hold the same records from one call to the next', async () => {
+    const reads = readsOf()
+    const samePayee = await found({ sort: [{ field: 'payee', direction: 'ascending' }], filters: [{ field: 'payee', op: 'is', values: ['Person 1'] }] }, reads)
+    expect(samePayee.records.map((record) => record['date'])).toEqual(['2026-09-05', '2026-10-05'])
+  })
+
+  it('matches a person on the alias they leave under, never on the real name the model types', async () => {
+    const reads = readsOf()
+    await found({}, reads)
+    expect((await found({ filters: [{ field: 'payee', op: 'is', values: ['Person 1'] }] }, reads)).total).toBe(2)
+    expect((await found({ filters: [{ field: 'payee', op: 'is', values: ['Ana Horvat'] }] }, reads)).total).toBe(0)
+    expect((await found({ filters: [{ field: 'description', op: 'contains', values: ['Horvat'] }] }, reads)).total).toBe(0)
+    expect((await found({ filters: [{ field: 'payee', op: 'not', values: ['Person 1'] }] }, reads)).total).toBe(1)
+  })
+
+  it('filters an identifier only by a token a read handed out, and refuses its digits without repeating them', async () => {
+    const reads = readsOf()
+    await found({}, reads)
+    expect((await found({ filters: [{ field: 'counterpartyIban', op: 'is', values: ['HR•• ••••0160'] }] }, reads)).total).toBe(2)
+    const raw = await findRecords({ ...ALL, filters: [{ field: 'counterpartyIban', op: 'is', values: [IBAN_OF_ANA] }] }, reads)
+    expect(raw.isError).toBe(true)
+    expect(raw.text).not.toContain('1001005')
+    expect((await findRecords({ ...ALL, filters: [{ field: 'counterpartyIban', op: 'contains', values: ['HR12'] }] }, reads)).isError).toBe(true)
+    expect((await findRecords({ ...ALL, sort: [{ field: 'counterpartyIban', direction: 'ascending' }] }, reads)).isError).toBe(true)
+  })
+
+  it('filters a ref field by refs Kuna handed out, and by whether it is empty', async () => {
+    const reads = readsOf()
+    const { records } = await found({}, reads)
+    expect((await found({ filters: [{ field: 'category', op: 'is', values: [records[1]!['category']!] }] }, reads)).total).toBe(2)
+    expect((await found({ filters: [{ field: 'category', op: 'not', values: [records[1]!['category']!] }] }, reads)).total).toBe(1)
+    expect((await found({ filters: [{ field: 'category', op: 'empty', values: [] }] }, reads)).total).toBe(0)
+    expect((await findRecords({ ...ALL, filters: [{ field: 'category', op: 'is', values: ['category-1'] }] }, readsOf())).isError).toBe(true)
+  })
+
+  it('refuses a field the kind never reads or does not have, naming the fields it reads', async () => {
+    for (const field of ['importKey', 'secret']) {
+      const answer = await findRecords({ ...ALL, filters: [{ field, op: 'not-empty', values: [] }] }, readsOf())
+      expect(answer.isError).toBe(true)
+      expect(answer.text).toContain('payee')
+      expect(answer.text).not.toContain(field)
+    }
+    expect((await findRecords({ ...ALL, fields: ['importKey'] }, readsOf())).isError).toBe(true)
+    expect((await findRecords({ ...ALL, sort: [{ field: 'importKey', direction: 'ascending' }] }, readsOf())).isError).toBe(true)
+  })
+
+  it('refuses an op a field does not take, and a range on words', async () => {
+    const answer = await findRecords({ ...ALL, filters: [{ field: 'payee', op: 'at-least', values: ['A'] }] }, readsOf())
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('payee takes is, one-of, not, contains, empty, not-empty')
+    expect((await findRecords({ ...ALL, filters: [{ field: 'date', op: 'at-least', values: ['soon'] }] }, readsOf())).isError).toBe(true)
+  })
+
+  it('sends only the fields asked for, and the ref always', async () => {
+    const { records } = await found({ fields: ['payee'] }, readsOf())
+    expect(Object.keys(records[0]!)).toEqual(['ref', 'payee'])
+  })
+
+  it('counts records about employees before the filters on fields, so the count says nothing about them', async () => {
+    const employee = [{ name: 'Ana Horvat', employee: true, ibans: [] }]
+    const answer = await found({ filters: [{ field: 'amount', op: 'at-most', values: ['-550'] }] }, readsOf({ persons: () => employee }))
+    expect(answer.total).toBe(0)
+    expect(JSON.parse(answer.answer.text).leftOutAboutEmployees).toBe(2)
+  })
+})
+
+describe('a page of long records', () => {
+  interface Note {
+    readonly id: string
+    readonly text: string
+  }
+  const notes: Note[] = Array.from({ length: 200 }, (_, at) => ({ id: `note:${String(at).padStart(3, '0')}`, text: 'x'.repeat(1000) }))
+  const kind = readableKind<Note>({
+    kind: { name: 'note', noun: spendingKinds.TRANSACTION_RECORDS.noun },
+    about: 'Notes.',
+    fields: { id: { exposure: 'ref', to: 'note', meaning: 'The note.' }, text: { exposure: 'plain', meaning: 'Its text.' } },
+    dated: null,
+    rows: () => notes,
+    currencyOf: () => 'EUR',
+  })
+  const reads = () => readsOf({ readers: new Map([['spending', { name: 'Spending', reader: { status: () => 'open', kinds: [kind], reports: [] } }]]) })
+
+  it('stops at the most characters a read takes and gives the cursor where it stopped', async () => {
+    const first = await found({ kind: 'note', limit: 200 }, reads())
+    expect(first.answer.text.length).toBeLessThanOrEqual(MOST_CHARACTERS_A_READ)
+    expect(first.records.length).toBeGreaterThan(20)
+    expect(first.records.length).toBeLessThan(200)
+    expect(first.nextCursor).toBe(String(first.records.length))
   })
 })
 

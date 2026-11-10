@@ -15,7 +15,6 @@ import { hrDooPack } from './packs/hr-doo/hrDooPack'
 import { HR_DOO_TABS } from './packs/hr-doo/infrastructure/hrDooTabs'
 import { installPack, installedPack, shownPack } from './packs/packContribution'
 import { useSettings } from './settings/application/useSettings'
-import { COMPANY_ASSIST } from './settings/presentation/companyAssist'
 import { moneyFormatOf } from './settings/domain/settings'
 import { words as analysisWords } from './analysis/presentation/words'
 import { mailDraftsOn, switchMailDrafts } from './invoicing/infrastructure/mailDraftSwitch'
@@ -86,7 +85,6 @@ export const companyApp: AppContribution = {
   moneyFormat: () => moneyFormatOf(settings.value),
   homeCard: COMPANY_HOME_CARD,
   hub: { counts: false, figures: () => homeCardFigures(state, companyHubFigures) },
-  assist: COMPANY_ASSIST,
   assistant: async () => {
     const [{ companyAssistant }, { HR_DOO_ASSISTANT }, { companyProposer, companyAcceptance }, { hrDooOperations }, { loadImportFile }, { useStatementSync }, { gmailForDrafts }] = await Promise.all([
       import('./assistant/companyAssistant'),

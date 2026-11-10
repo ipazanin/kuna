@@ -103,7 +103,7 @@ function call(name: string, args: unknown): ToolCall {
 }
 
 function readsOf(allowed = false): ChatReads {
-  return { readers: CATALOGUE.readers, pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => CHAT_PERSONS, mayRead: async () => allowed }
+  return { readers: CATALOGUE.readers, pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => CHAT_PERSONS, mayRead: () => allowed }
 }
 
 /** What a tool call does for a model that was given no yes, unless a test says otherwise. */
@@ -111,7 +111,7 @@ function tools(show: (chip: ChatChip) => void = () => undefined, reads: ChatRead
   return { catalogue: CATALOGUE, reads, attachments, readsPdf: true, showChip: show, showProposal: () => undefined }
 }
 
-const FIND = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: null, cursor: null }
+const FIND = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null }
 const TURN = {
   catalogue: CATALOGUE,
   history: [],
@@ -157,11 +157,21 @@ describe('a chat run by a hostile model', () => {
   })
   afterEach(() => vi.unstubAllGlobals())
 
-  it('has exactly the eight closed tools', () => {
-    expect(CHAT_TOOLS.map((tool) => tool.name)).toEqual(['kuna_docs', 'show_screen', 'find_records', 'get_record', 'read_figures', 'propose_changes', 'read_attachment', 'read_build_up'])
+  it('has exactly the nine closed tools', () => {
+    expect(CHAT_TOOLS.map((tool) => tool.name)).toEqual([
+      'kuna_docs',
+      'show_screen',
+      'find_records',
+      'get_record',
+      'read_figures',
+      'match_records',
+      'propose_changes',
+      'read_attachment',
+      'read_build_up',
+    ])
   })
 
-  it('gives each of the eight tools a title and marks it read-only, as none of them writes', () => {
+  it('gives each of the nine tools a title and marks it read-only, as none of them writes', () => {
     expect(CHAT_TOOLS.filter((tool) => tool.title.trim() === '' || !tool.readOnly).map((tool) => tool.name)).toEqual([])
   })
 
@@ -252,17 +262,28 @@ describe('a chat run by a hostile model', () => {
     ).toBe(true)
   })
 
-  it.each([{ limit: -1 }, { limit: 1.5 }, { limit: 'all' }, { cursor: 'x' }, { cursor: '-1' }, { from: 'yesterday' }, { to: "' OR 1=1" }, { about: 'kuna-secrets.json' }, { extra: 'field' }])(
-    'refuses a search off its rules: %j',
-    async (args) => {
-      const answer = await runChatTool(
-        tools(() => undefined, readsOf(true)),
-        call('find_records', { ...FIND, ...args }),
-      )
-      expect(answer.isError).toBe(true)
-      expect(answer.text).not.toContain(BOOK_CANARY)
-    },
-  )
+  it.each([
+    { limit: -1 },
+    { limit: 1.5 },
+    { limit: 'all' },
+    { cursor: 'x' },
+    { cursor: '-1' },
+    { from: 'yesterday' },
+    { to: "' OR 1=1" },
+    { refs: ['kuna-secrets.json'] },
+    { about: null },
+    { extra: 'field' },
+    { filters: [{ field: 'payee', op: 'like', values: ['x'] }] },
+    { sort: [{ field: 'payee', direction: 'up' }] },
+    { fields: 'payee' },
+  ])('refuses a search off its rules: %j', async (args) => {
+    const answer = await runChatTool(
+      tools(() => undefined, readsOf(true)),
+      call('find_records', { ...FIND, ...args }),
+    )
+    expect(answer.isError).toBe(true)
+    expect(answer.text).not.toContain(BOOK_CANARY)
+  })
 
   it('cannot search out an identifier digit by digit', async () => {
     const answer = await runChatTool(
@@ -270,6 +291,41 @@ describe('a chat run by a hostile model', () => {
       call('find_records', { ...FIND, query: IBAN_OF_ANA.slice(0, 8) }),
     )
     expect(JSON.parse(answer.text).total).toBe(0)
+  })
+
+  it.each([
+    { op: 'contains', values: [IBAN_OF_ANA.slice(0, 8)] },
+    { op: 'is', values: [IBAN_OF_ANA] },
+    { op: 'one-of', values: [IBAN_OF_ANA.slice(0, 8), IBAN_OF_ANA] },
+    { op: 'at-least', values: ['HR10'] },
+    { op: 'empty', values: [] },
+  ])('cannot guess an identifier digit by digit through a filter: %j', async ({ op, values }) => {
+    const answer = await runChatTool(
+      tools(() => undefined, readsOf(true)),
+      call('find_records', { ...FIND, filters: [{ field: 'counterpartyIban', op, values }] }),
+    )
+    expect(answer.isError).toBe(true)
+    expect(answer.text).not.toContain(IBAN_OF_ANA.slice(4, 12))
+    expect(answer.read).toBeUndefined()
+  })
+
+  it('cannot sort by an identifier, whose order would hint at its digits', async () => {
+    const answer = await runChatTool(
+      tools(() => undefined, readsOf(true)),
+      call('find_records', { ...FIND, sort: [{ field: 'counterpartyIban', direction: 'ascending' }] }),
+    )
+    expect(answer.isError).toBe(true)
+    expect(answer.read).toBeUndefined()
+  })
+
+  it.each(['importKey', 'kuna-secrets.json', '__proto__'])('refuses a filter on a field it never reads: %j', async (field) => {
+    const answer = await runChatTool(
+      tools(() => undefined, readsOf(true)),
+      call('find_records', { ...FIND, filters: [{ field, op: 'not-empty', values: [] }] }),
+    )
+    expect(answer.isError).toBe(true)
+    expect(answer.text).not.toContain(field)
+    expect(answer.text).not.toContain(BOOK_CANARY)
   })
 
   it('reads a row that tries to give orders as data, and it cannot write or reach anything by it', async () => {
@@ -719,7 +775,7 @@ describe('a build-up read', () => {
   })
 
   it('reads nothing while the gate says no', async () => {
-    const reads = { ...buildUpReads(false), mayRead: async () => false }
+    const reads = { ...buildUpReads(false), mayRead: () => false }
     const answer = await runChatTool(
       tools(() => undefined, reads),
       call('read_build_up', { ref: reads.refs.buildUpRef(BUILD_UP) }),

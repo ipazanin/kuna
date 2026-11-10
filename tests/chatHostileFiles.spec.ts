@@ -48,7 +48,7 @@ async function held(name: string, contents: string | Uint8Array<ArrayBuffer>): P
 const ANA: KnownPerson = { name: 'Ana Horvat', employee: true, ibans: ['HR1210010051863000160'] }
 
 function readsOf(anonymising: boolean): ChatReads {
-  return { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => anonymising, persons: () => [ANA], mayRead: async () => false }
+  return { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => anonymising, persons: () => [ANA], mayRead: () => false }
 }
 
 async function read(file: ChatAttachment, reads = readsOf(true), rows: string | null = null): Promise<{ readonly text: string; readonly isError: boolean }> {
