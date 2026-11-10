@@ -113,9 +113,9 @@ function grouped(iban: string): string {
 
       <ul v-if="statement.rows.length" class="@container divide-y divide-default rounded-control border border-default" data-testid="dry-run-rows">
         <li v-for="(row, index) in statement.rows" :key="`${row.reference}-${index}`" class="row" data-testid="dry-run-row">
-          <span class="figure text-xs text-muted" :class="{ 'opacity-60': row.inLedger }">{{ dayLabel(row.date) }}</span>
-          <span class="min-w-0" :class="{ 'opacity-60': row.inLedger }">
-            <span class="block break-words text-sm text-highlighted">{{ row.counterparty || row.description || words.statement.noCounterparty }}</span>
+          <span class="figure text-xs text-muted">{{ dayLabel(row.date) }}</span>
+          <span class="min-w-0">
+            <span class="block break-words text-sm" :class="row.inLedger ? 'text-muted' : 'text-highlighted'">{{ row.counterparty || row.description || words.statement.noCounterparty }}</span>
             <span v-if="row.counterparty && row.description" class="block break-words text-xs text-muted">{{ row.description }}</span>
             <span class="mt-1 flex flex-wrap gap-1">
               <UBadge v-if="row.inLedger" :label="words.statement.onLedger" color="neutral" variant="subtle" size="sm" />
@@ -124,8 +124,8 @@ function grouped(iban: string): string {
               <UBadge v-for="reason in row.reviewReasons" :key="reason" :label="reviewReasonLabel(reason)" color="warning" variant="outline" size="sm" />
             </span>
           </span>
-          <span class="text-end" :class="{ 'opacity-60': row.inLedger }">
-            <MoneyText :cents="row.amount" tone="flow" class="block text-sm" />
+          <span class="text-end">
+            <MoneyText :cents="row.amount" :tone="row.inLedger ? undefined : 'flow'" class="block text-sm" :class="{ 'text-muted': row.inLedger }" />
             <MoneyText v-if="row.balance !== null" :cents="row.balance" class="block text-xs text-muted" />
           </span>
           <span v-if="row.copiedTwin" class="col-span-full break-words type-caption" data-testid="dry-run-like">{{ likeCopiedCaption(copiedParts(row.copiedTwin)) }}</span>

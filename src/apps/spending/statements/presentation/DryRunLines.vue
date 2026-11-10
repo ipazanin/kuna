@@ -35,7 +35,7 @@ const shown = computed(() => {
       outcome,
       account: accounts.get(line.row.account) ?? null,
       like: line.outcome === 'look-alike' ? likeCopiedCaption(likeParts(line.like, accounts.get(line.like.account))) : null,
-      faded: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
+      skipped: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
     }
   })
 })
@@ -72,14 +72,21 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
 
 <template>
   <ul class="divide-y divide-default rounded-control border border-default" data-testid="spending-dry-run-rows">
-    <li v-for="({ line, outcome, account, like, faded }, place) in shown" :key="place" class="flex flex-col gap-1 px-3 py-2.5" data-testid="spending-dry-run-row">
-      <span class="flex items-start gap-3" :class="{ 'opacity-60': faded }">
+    <li v-for="({ line, outcome, account, like, skipped }, place) in shown" :key="place" class="flex flex-col gap-1 px-3 py-2.5" data-testid="spending-dry-run-row">
+      <span class="flex items-start gap-3">
         <span class="flex min-w-0 flex-1 flex-col gap-1">
-          <span class="break-words text-sm text-highlighted">{{ line.row.payee }}</span>
+          <span class="break-words text-sm" :class="skipped ? 'text-muted' : 'text-highlighted'">{{ line.row.payee }}</span>
           <span class="break-words type-caption">{{ [dayLabel(line.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ') }}</span>
           <UBadge :label="outcome.label" :color="outcome.color" variant="subtle" size="sm" class="self-start" data-testid="spending-dry-run-outcome" />
         </span>
-        <AccountMoneyText :cents="line.row.amount" :currency="account?.currency ?? EURO" sign="always" tone="flow" class="shrink-0 text-sm" />
+        <AccountMoneyText
+          :cents="line.row.amount"
+          :currency="account?.currency ?? EURO"
+          sign="always"
+          :tone="skipped ? undefined : 'flow'"
+          class="shrink-0 text-sm"
+          :class="{ 'text-muted': skipped }"
+        />
       </span>
       <span v-if="like !== null" class="break-words type-caption" data-testid="spending-dry-run-like">{{ like }}</span>
     </li>
