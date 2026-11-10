@@ -1,6 +1,7 @@
 import { categoryOf, fieldsOf, flagOf, rowOf } from './companyCard'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
 import { words } from './words'
+import { RULE_CONDITION_FIELDS, RULE_CONDITION_INPUTS, conditionsFromInput } from '../ruleConditionFields'
 import { writeOwnerShare } from '../../owner-share/application/ownerShareWrites'
 import { typedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { ShareTarget } from '../../owner-share/domain/ownerShare'
@@ -13,7 +14,7 @@ import { ruleNameOf } from '../../rules/domain/proposeRule'
 import { readRules } from '../../rules/domain/readRules'
 import { ruleAgainst, ruleCoverage } from '../../rules/domain/ruleCoverage'
 import { blankDraft, draftChange, draftForRow, draftOfRule } from '../../rules/domain/ruleDraft'
-import type { ConditionColumn, DraftCondition, RuleDraft } from '../../rules/domain/ruleDraft'
+import type { DraftCondition, RuleDraft } from '../../rules/domain/ruleDraft'
 import { previewRulesChange } from '../../rules/domain/rulesChangePreview'
 import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import { treatPayeeAsPerson } from '../../settings/application/settingWrites'
@@ -38,21 +39,12 @@ import { moneyParts } from '../../../../shared/money/decimal'
 import { absMoney, moneyFromAmount, negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { NO_RECORDS, recordWithId, recordsOf } from '../../../../shared/storage/domain/recordsRead'
-import { normaliseIban } from '../../../../shared/text/fold'
 
 const ROW = LEDGER_RECORDS.name
 const CATEGORY = CATEGORY_RECORDS.name
 const RULE = RULE_RECORDS.name
 
 const CONFIDENCE_OR_NULL = { type: ['string', 'null'], description: 'rule files the row, review files it and leaves it waiting on To review, or null to leave it.' } as const
-const DIRECTION_OR_NULL = { type: ['string', 'null'], description: 'in for money in, out for money out, "" for either way, or null to leave it.' } as const
-
-/** The rule's conditions a step may set, each by the column it tests. Others the rule holds stay as they are. */
-const RULE_WORDS = {
-  payeeWords: 'counterparty_contains',
-  descriptionWords: 'description_contains',
-  iban: 'counterparty_iban',
-} as const satisfies Readonly<Record<string, ConditionColumn>>
 
 const RULE_NAME = {
   type: ['string', 'null'],
@@ -60,13 +52,13 @@ const RULE_NAME = {
 } as const
 
 const RULE_FIELDS = {
-  payeeWords: { type: ['string', 'null'], description: 'Words the other side\'s name must hold, "" for none, or null to leave them.' },
-  descriptionWords: { type: ['string', 'null'], description: 'Words the description must hold, "" for none, or null to leave them.' },
-  iban: { type: ['string', 'null'], description: 'The other side\'s IBAN, "" for none, or null to leave it.' },
-  direction: DIRECTION_OR_NULL,
+  ...RULE_CONDITION_INPUTS,
   confidence: CONFIDENCE_OR_NULL,
   note: TEXT_OR_NULL,
-} as const
+}
+
+/** Every condition left as it is, for the examples. */
+const CONDITIONS_LEFT = Object.fromEntries(RULE_CONDITION_FIELDS.map((field) => [field.name, null]))
 
 const OPERATIONS: readonly AssistantOperation[] = [
   {
@@ -82,16 +74,17 @@ const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-rule',
     about: [
-      'A rule as Settings, Category rules makes it. From a row, by its ref, it looks for what the rule editor drafts from that row. Otherwise it looks for the words or IBAN given.',
+      'A rule as Settings, Category rules makes it. From a row, by its ref, it looks for what the rule editor drafts from that row. Otherwise it looks for the conditions given.',
       'The rows waiting on To review that it settles are filed in the same change, and so are rows a person confirmed that it now files elsewhere, each warned on the card. Rows a rule filed, and rows another rule decides, keep their category, and the card warns on each the rules now disagree with.',
       'on no adds it switched off, and null adds it on. before is the rule it is tried just before, or null for after every rule. With name null Kuna names it from the category and the payee or account holder.',
+      'Every condition must hold. A rule looks for something beyond the direction, such as words, an IBAN, a bank code or a card purchase.',
     ].join(' '),
     input: inputOf({ row: TEXT_OR_NULL, category: TEXT, name: RULE_NAME, on: FLAG_OR_NULL, before: TEXT_OR_NULL, ...RULE_FIELDS }),
     refs: { row: ROW, category: CATEGORY, before: RULE },
     spellings: ['payeeWords'],
     creates: RULE,
     alone: false,
-    example: { row: null, category: 'category', name: null, on: null, before: null, payeeWords: 'MARKET', descriptionWords: null, iban: null, direction: 'out', confidence: 'rule', note: null },
+    example: { row: null, category: 'category', name: null, on: null, before: null, ...CONDITIONS_LEFT, payeeWords: 'MARKET', direction: 'out', confidence: 'rule', note: null },
   },
   {
     name: 'change-rule',
@@ -110,7 +103,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
     spellings: ['payeeWords'],
     creates: null,
     alone: false,
-    example: { rule: 'rule', name: null, category: null, on: 'no', before: null, last: null, payeeWords: null, descriptionWords: null, iban: null, direction: null, confidence: null, note: null },
+    example: { rule: 'rule', name: null, category: null, on: 'no', before: null, last: null, ...CONDITIONS_LEFT, confidence: null, note: null },
   },
   {
     name: 'delete-rule',
@@ -221,25 +214,6 @@ function fileRow(card: CompanyCard, step: ProposalStep): void {
   fileRows(card.unit, card.records().ledger, [verdict], card.workbook.categories)
 }
 
-/** Text a step gives for a condition: null leaves it, blank drops it. */
-function conditionsWith(conditions: readonly DraftCondition[], field: Readonly<Record<string, never>>): DraftCondition[] {
-  let kept = [...conditions]
-  for (const [name, column] of Object.entries(RULE_WORDS)) {
-    const text = field[name] as string | string[] | null
-    if (text === null) continue
-    const value = Array.isArray(text) ? text[0] : text
-    kept = kept.filter((condition) => condition.column !== column)
-    if (value !== undefined && value.trim() !== '') kept.push({ column, value: column === 'counterparty_iban' ? normaliseIban(value) : value.trim() })
-  }
-  const direction = field['direction'] as string | null
-  if (direction !== null) {
-    if (!['in', 'out', ''].includes(direction)) throw new StepRefused('direction is in, out, "" or null.')
-    kept = kept.filter((condition) => condition.column !== 'direction')
-    if (direction !== '') kept.push({ column: 'direction', value: direction === 'in' ? 'credit' : 'debit' })
-  }
-  return kept
-}
-
 function confidenceOf(text: string | null, kept: RuleConfidence): RuleConfidence {
   if (text === null) return kept
   if (text !== 'rule' && text !== 'review') throw new StepRefused('confidence is rule, review or null.')
@@ -297,12 +271,12 @@ function addRule(card: CompanyCard, step: ProposalStep): void {
     id: ruleNameFrom(field['name'], rules, null) ?? ruleNameOf(category.slug, holder, rules),
     enabled: flagOf(field['on']) ?? true,
     category: category.slug,
-    conditions: conditionsWith(start.conditions, field),
+    conditions: conditionsFromInput(start.conditions, field),
     confidence: confidenceOf(field['confidence'], start.confidence),
     note: (field['note'] as string | null) ?? start.note,
     before: field['before'] === null ? start.before : ruleIdOf(card, field['before']),
   }
-  if (!looksForSomething(draft.conditions)) throw new StepRefused('A rule needs a row to draft from, or words or an IBAN to look for.')
+  if (!looksForSomething(draft.conditions)) throw new StepRefused('A rule needs a row to draft from, or something to look for beyond the direction.')
   writeRules(card, draftChange(draft, rules, recordsOf(card.records().rules), null), draft.enabled ? draft.id : null)
   card.made(step.as, draft.id)
 }
@@ -342,13 +316,14 @@ function changeRule(card: CompanyCard, step: ProposalStep): void {
     ...opened.draft,
     category: field['category'] === null ? opened.draft.category : categoryOf(card, field['category']).slug,
     enabled: on ?? opened.draft.enabled,
-    conditions: conditionsWith(opened.draft.conditions, field),
+    conditions: conditionsFromInput(opened.draft.conditions, field),
     confidence: confidenceOf(field['confidence'], opened.draft.confidence),
     id: ruleNameFrom(field['name'], rules, id) ?? opened.draft.id,
     note: (field['note'] as string | null) ?? opened.draft.note,
     before: last === true ? null : field['before'] === null ? opened.draft.before : ruleIdOf(card, field['before']),
   }
-  if (!looksForSomething(draft.conditions)) throw new StepRefused('A rule needs words or an IBAN to look for.')
+  if (!looksForSomething(draft.conditions)) throw new StepRefused('A rule needs something to look for beyond the direction.')
+  if (draft.before !== opened.draft.before) card.movesRule(id)
   writeRules(card, draftChange(draft, rules, rows, opened.edited), draft.enabled ? draft.id : null)
 }
 

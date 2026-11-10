@@ -1,4 +1,5 @@
 import { words } from './words'
+import { NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { LinkableBank } from '../../workbook/domain/spendingSettings'
 
@@ -12,5 +13,5 @@ export function draftedAccount(
 ): Omit<Account, 'id'> {
   const plain = words.draftName(details.bank, details.currency, details.kind === 'savings')
   const name = details.iban !== '' && accounts.some((account) => account.name.trim() === plain) ? `${plain} ${details.iban.slice(-4)}` : plain
-  return { ...details, name, closed: false }
+  return { ...details, name, ...NEW_ACCOUNT_DEFAULTS }
 }

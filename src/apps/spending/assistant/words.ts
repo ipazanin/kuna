@@ -33,8 +33,6 @@ export const en = {
     ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row of the statement is left out.', other: `${count} rows of the statement are left out.` }),
     fileNotes: 'The file has notes this card does not show.',
-    yes: 'yes',
-    no: 'no',
     fields: {
       name: 'Name',
       kind: 'Type',
@@ -183,8 +181,6 @@ export const hr: Translation<typeof en> = {
       other: `Izostavljeno je ${count} redaka izvoda.`,
     }),
     fileNotes: 'Datoteka ima napomene koje ova kartica ne prikazuje.',
-    yes: 'da',
-    no: 'ne',
     fields: {
       name: 'Naziv',
       kind: 'Vrsta',

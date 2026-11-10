@@ -22,6 +22,18 @@ export interface DraftCondition {
   readonly value: FieldValue
 }
 
+/** A condition on the column as it starts when a person adds it: TRUE for a flag or for having an IBAN, money out for the direction, and blank text for the rest. */
+export function newCondition(column: ConditionColumn): DraftCondition {
+  const value: FieldValue = FLAG_COLUMNS.has(column) || column === 'has_counterparty_iban' ? true : column === 'direction' ? 'debit' : ''
+  return { column, value }
+}
+
+/** The conditions with the column set to the value, in its place when it has one, or without the column for null. */
+export function withCondition(conditions: readonly DraftCondition[], column: ConditionColumn, value: FieldValue | null): DraftCondition[] {
+  if (value === null) return conditions.filter((condition) => condition.column !== column)
+  return conditions.some((condition) => condition.column === column) ? conditions.map((condition) => (condition.column === column ? { column, value } : condition)) : [...conditions, { column, value }]
+}
+
 /** A rule as the form edits it: the fields of one stored rule, plus where it is tried. */
 export interface RuleDraft {
   readonly id: string

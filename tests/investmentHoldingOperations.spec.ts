@@ -1,6 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { words as assistantWords } from '../src/apps/investments/assistant/words'
+import { words as cardWords } from '../src/shared/app/words'
 import { words as holdingsWords } from '../src/apps/investments/holdings/presentation/words'
 import { words as settingsWords } from '../src/apps/investments/settings/presentation/words'
 import { decimalText } from '../src/shared/money/decimal'
@@ -91,6 +93,15 @@ describe('targets', () => {
 })
 
 describe('checks', () => {
+  it('leaves a new setting switched on off its card, and shows a switch the step sets', async () => {
+    const desk = await investmentsDesk(used)
+    await desk.propose([{ op: 'set-check', input: { check: 'cash', threshold: '15', on: null } }])
+    expect(desk.cards[0]!.groups[0]!.lines[0]!.fields.map((field) => field.name)).not.toContain(assistantWords.proposals.fields.off)
+    await desk.propose([{ op: 'set-check', input: { check: 'cash', threshold: null, on: 'no' } }])
+    const switched = desk.cards[1]!.groups[0]!.lines[0]!.fields.find((field) => field.name === assistantWords.proposals.fields.off)
+    expect(switched?.after).toBe(cardWords.yes)
+  })
+
   it('keeps a record only while a check differs from its default, as the Checks tab does', async () => {
     const desk = await investmentsDesk(used)
     await desk.propose([{ op: 'set-check', input: { check: 'cash', threshold: '15', on: 'no' } }])
@@ -116,6 +127,13 @@ describe('the benchmark', () => {
     await desk.accept()
     await desk.propose([{ op: 'set-benchmark', input: { instrument: desk.ref('instrument', DESK.FUND.id) } }])
     expect(desk.cards[1]!.count).toBe(2)
+    const marks = desk.cards[1]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.filter((field) => field.name === assistantWords.proposals.fields.benchmark)))
+    expect(marks.map((field) => [field.before, field.after])).toEqual(
+      expect.arrayContaining([
+        [cardWords.yes, cardWords.no],
+        [cardWords.no, cardWords.yes],
+      ]),
+    )
     await desk.accept()
     expect(
       bookOf(desk)

@@ -22,6 +22,9 @@ const ANSWERS = {
     ruleTitle: 'A rule for Laptop Store',
     rule: 'The card adds the rule and files the Laptop Store rows you confirmed under Equipment under Office supplies instead. Each of their lines is warned, since you filed them yourself.',
     noCategory: 'I found no category for office supplies. Add one on Settings, Categories first.',
+    moveTitle: 'Try the second rule first',
+    moved: 'The card moves the second rule to the top, so it is tried before every other rule.',
+    fewRules: 'The books hold fewer than two rules, so there is nothing to move.',
     categoryTitle: 'Add a category for training',
     trainingLabel: 'Training',
     trainingFamily: 'operating',
@@ -52,6 +55,9 @@ const ANSWERS = {
     currency: 'Kartica mijenja valutu knjiga. Svaki iznos tada se čita u dolarima, pa provjerite označeni redak prije nego što prihvatite.',
     ruleTitle: 'Pravilo za Laptop Store',
     rule: 'Kartica dodaje pravilo i stavke Laptop Store koje ste potvrdili pod Opremom razvrstava pod Uredski materijal. Svaki njihov redak je označen jer ste ih sami razvrstali.',
+    moveTitle: 'Neka se drugo pravilo isprobava prvo',
+    moved: 'Kartica premješta drugo pravilo na vrh, pa se isprobava prije svih ostalih.',
+    fewRules: 'U knjigama su manje od dva pravila, pa nema što premjestiti.',
     noCategory: 'Nisam našao kategoriju za uredski materijal. Najprije je dodajte na Postavkama, Kategorije.',
     categoryTitle: 'Dodaj kategoriju za edukaciju',
     trainingLabel: 'Edukacija',
@@ -99,6 +105,29 @@ const findIn = (kind: string, only: string | null, limit: number) => ({ app: 'co
 /** What asks to sort the rows waiting, as Suggest categories and the quick action do. */
 const SORT_JOB = /suggest categories|^sort|predloži kategorije|^razvrstaj/i
 
+/** The fields add-rule and change-rule share, each left as it is, as a model writes them before it names what the rule looks for. */
+const RULE_LEFT = {
+  name: null,
+  on: null,
+  before: null,
+  payeeWords: null,
+  descriptionWords: null,
+  descriptionStart: null,
+  iban: null,
+  ibanPresent: null,
+  direction: null,
+  ownAccount: null,
+  client: null,
+  card: null,
+  foreignCurrency: null,
+  domain: null,
+  family: null,
+  subFamily: null,
+  purpose: null,
+  revenueCode: null,
+  confidence: null,
+  note: null,
+}
 /** The counterparties the fake model is sure of: a shop for devices files under Equipment. Any other row waiting gets a new category. */
 const SURE: readonly { readonly word: string; readonly category: RegExp }[] = [{ word: 'GADGET', category: /^equipment$|^oprema$/i }]
 
@@ -158,7 +187,7 @@ function sortGoOnReply({ request, tokens }: FakeChatTurn, says: Says, goOns: num
     const row = recordsOf(answers[0]!.text).find((waiting) => !SURE.some((candidate) => waiting.counterparty?.includes(candidate.word)))
     const meals = recordsOf(answers[1]!.text).find((category) => category.label === says.mealsLabel)
     if (row === undefined || meals === undefined) return answered(request, says.filedAll, tokens)
-    const input = { row: row.ref, category: meals.ref, name: null, on: null, before: null, payeeWords: null, descriptionWords: null, iban: null, direction: null, confidence: null, note: null }
+    const input = { ...RULE_LEFT, row: row.ref, category: meals.ref }
     return lookup(2, 'propose_changes', { app: 'company', title: says.mealsRuleTitle, steps: [{ op: 'add-rule', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, says.mealsRuled, tokens)
@@ -199,22 +228,25 @@ function ruleReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const office = recordsOf(answers[0]!.text).find((category) => /office supplies|uredski materijal/i.test(category.label ?? ''))
     if (office === undefined) return answered(request, says.noCategory, tokens)
     const [first] = recordsOf(answers[1]!.text)
-    const input = {
-      row: null,
-      category: office.ref,
-      name: null,
-      on: null,
-      before: first?.ref ?? null,
-      payeeWords: 'Laptop Store',
-      descriptionWords: null,
-      iban: null,
-      direction: 'out',
-      confidence: 'rule',
-      note: null,
-    }
+    const input = { ...RULE_LEFT, row: null, category: office.ref, before: first?.ref ?? null, payeeWords: 'Laptop Store', direction: 'out', confidence: 'rule' }
     return lookup(2, 'propose_changes', { app: 'company', title: says.ruleTitle, steps: [{ op: 'add-rule', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, says.rule, tokens)
+}
+
+/** Reads the rules and proposes trying the second one before the first, a card that changes only where a rule stands. */
+function moveReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findIn('rule', null, 50), tokens)
+  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 1) {
+    const rules = recordsOf(answers[0]!.text)
+    const [first, second] = rules
+    if (first === undefined || second === undefined) return answered(request, says.fewRules, tokens)
+    const input = { ...RULE_LEFT, rule: second.ref, category: null, before: first.ref, last: null }
+    return lookup(1, 'propose_changes', { app: 'company', title: says.moveTitle, steps: [{ op: 'change-rule', input: JSON.stringify(input), as: null }], next: false }, tokens)
+  }
+  return answered(request, says.moved, tokens)
 }
 
 /** Proposes a new operating category for training with its tax class, a cost the profit tax allows, and VAT deducted at the full rate. */
@@ -305,7 +337,7 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
 /**
  * Company's part of the fake chat, only while the person is on a Company screen: one that asks to suggest categories or sort
  * reads the rows waiting, files the sure ones and goes on at each Go on with a new category and a rule for the rest, one about an invoice links the Invoices tab, one about dollars proposes the
- * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one about training proposes a category with its tax
+ * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one that tries the second rule first moves it to the top, one about training proposes a category with its tax
  * class, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account a row of which waits as a look-alike, and one that asks to explain reads the tagged build-up.
  */
 function companyChat(turn: FakeChatTurn): ModelReply | null {
@@ -318,6 +350,7 @@ function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (/invoice|faktur/i.test(typed)) return invoiceReply(turn, says)
   if (/dollar|dolar/i.test(typed)) return currencyReply(turn, says)
   if (/laptop store/i.test(typed)) return ruleReply(turn, says)
+  if (/second rule first|drugo pravilo isprobava prvo/i.test(typed)) return moveReply(turn, says)
   if (/training|edukacij/i.test(typed)) return categoryReply(turn, says)
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
   if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)

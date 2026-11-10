@@ -27,6 +27,8 @@ import { EURO, currencyCodeOf } from '../../../shared/money/currencyCode'
 import { ZERO, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
+import { ruleConditionValues } from './ruleConditionFields'
+import type { RuleConditionValues } from './ruleConditionFields'
 import { words } from './words'
 
 /** What the reader reads from, which `app.ts` hands in over the company's store, so this folder holds no store. */
@@ -134,18 +136,14 @@ interface AccountView {
   readonly iban: string
 }
 
-/** A rule as the chat reads it: its conditions split by what they test, so a payee's name goes as a party. */
-interface RuleView {
+/** A rule as the chat reads it, with each condition under the name add-rule and change-rule give it, so a payee's name goes as a party. */
+type RuleView = RuleConditionValues & {
   readonly id: string
   readonly order: number
   readonly enabled: boolean
   readonly confidence: string
   readonly category: string
   readonly note: string
-  readonly payeeWords: string
-  readonly descriptionWords: string
-  readonly iban: string
-  readonly other: string
 }
 
 interface ClientView {
@@ -230,9 +228,20 @@ const RULE_FIELDS: FieldDocs<RuleView> = {
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category it files into.' },
   note: { exposure: 'free-text', meaning: "The owner's note on it." },
   payeeWords: { exposure: 'party', meaning: "Words the other side's name must hold." },
-  descriptionWords: { exposure: 'free-text', meaning: 'Words the description must hold or start with.' },
+  descriptionWords: { exposure: 'free-text', meaning: 'Words the description must hold.' },
+  descriptionStart: { exposure: 'free-text', meaning: 'Words the description must start with.' },
   iban: { exposure: 'identifier', meaning: "The other side's IBAN it must have." },
-  other: { exposure: 'plain', meaning: 'Its other conditions, such as the direction or a bank code, joined.' },
+  ibanPresent: { exposure: 'plain', meaning: 'yes when the other side must have an IBAN, no when it must have none, empty for either.' },
+  direction: { exposure: 'plain', meaning: 'in for money in, out for money out, empty for either way.' },
+  ownAccount: { exposure: 'plain', meaning: "The other side must be one of the company's own accounts." },
+  client: { exposure: 'plain', meaning: 'The other side must be a client.' },
+  card: { exposure: 'plain', meaning: 'The row must be a card purchase.' },
+  foreignCurrency: { exposure: 'plain', meaning: 'The row must be in a foreign currency.' },
+  domain: { exposure: 'plain', meaning: "The bank's domain code it must have." },
+  family: { exposure: 'plain', meaning: "The bank's family code it must have." },
+  subFamily: { exposure: 'plain', meaning: "The bank's sub-family code it must have." },
+  purpose: { exposure: 'plain', meaning: 'The purpose code it must have.' },
+  revenueCode: { exposure: 'plain', meaning: 'The revenue code it must have.' },
 }
 
 const CLIENT_FIELDS: FieldDocs<ClientView> = {
@@ -315,7 +324,6 @@ function ledgerRowOf(row: Workbook['transactions'][number]): LedgerRowView {
 }
 
 function ruleOf(rule: Workbook['rules'][number]): RuleView {
-  const words = (columns: readonly string[]) => rule.conditions.flatMap((condition) => ('fragment' in condition && columns.includes(condition.column) ? [condition.fragment] : [])).join(', ')
   return {
     id: rule.id,
     order: rule.order,
@@ -323,19 +331,7 @@ function ruleOf(rule: Workbook['rules'][number]): RuleView {
     confidence: rule.confidence,
     category: rule.category,
     note: rule.note,
-    payeeWords: words(['counterparty_contains']),
-    descriptionWords: words(['description_contains', 'description_starts_with']),
-    iban: rule.conditions.flatMap((condition) => (condition.column === 'counterparty_iban' ? [condition.iban] : [])).join(', '),
-    other: rule.conditions
-      .flatMap((condition) => {
-        if (condition.column === 'counterparty_contains' || condition.column === 'description_contains' || condition.column === 'description_starts_with' || condition.column === 'counterparty_iban')
-          return []
-        if (condition.column === 'direction') return [`direction ${condition.direction}`]
-        if (condition.column === 'has_counterparty_iban') return [`has_counterparty_iban ${String(condition.present)}`]
-        if ('code' in condition) return [`${condition.column} ${condition.code}`]
-        return [condition.column]
-      })
-      .join(', '),
+    ...ruleConditionValues(rule.conditions),
   }
 }
 

@@ -23,6 +23,8 @@ export interface CompanyCard {
   note(note: CardNote): void
   /** Tells the model, beside the card, what the card leaves out for the person to answer, such as copied rows that wait. */
   holdBack(text: string): void
+  /** Names a rule, by its name before the step, that the step moves among the rules, so the card says where it is tried now. */
+  movesRule(id: string): void
 }
 
 /** A part of what the chat can do in Company, in its own file: its operations, and how it plans a step of one of them. */

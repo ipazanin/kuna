@@ -62,6 +62,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonl
   const names = new Map<string, string>()
   const notes: CardNote[] = []
   const heldBack: string[] = []
+  const movedRules = new Set<string>()
   const pack = installedPack().workbook
   const cardOn = (workbook: Workbook): CompanyCard => ({
     books,
@@ -74,6 +75,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonl
     },
     note: (note) => notes.push(note),
     holdBack: (text) => heldBack.push(text),
+    movesRule: (id) => movedRules.add(id.toLowerCase()),
   })
   steps.forEach((step, at) => {
     const set = sets.find((candidate) => candidate.operations.some((operation) => operation.name === step.operation))
@@ -83,24 +85,26 @@ function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonl
   const card = cardOn(readWorkbook(books.workbook, records.records(), pack))
   sets.forEach((set) => set.finish?.(card))
   records.writeInto(unit)
-  return { notes, heldBack }
+  return { notes, heldBack, movedRules }
 }
 
 /** What a planned card shows beside its write, and what the model hears it holds back. */
 interface CardTold {
   readonly notes: readonly CardNote[]
   readonly heldBack: readonly string[]
+  /** The rules a step moves, by their names before the card in lower case. */
+  readonly movedRules: ReadonlySet<string>
 }
 
 /** How the chat's steps become one write of the company's books. The card's notes come from its own plan, so each check gets its own. */
 function companyWork(sets: readonly CompanyOperationSet[], pack: PackOperations | null): ProposalWork<CompanyBooks, never> {
-  let told: CardTold = { notes: [], heldBack: [] }
+  let told: CardTold = { notes: [], heldBack: [], movedRules: new Set() }
   return {
     notOpen: 'The company books are not open on this device.',
     plan: (unit, books, steps) => {
       told = planned(unit, books, sets, steps)
     },
-    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, told.notes, pack),
+    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, told.notes, pack, told.movedRules),
     heldBack: () => (told.heldBack.length === 0 ? null : told.heldBack.join(' ')),
   }
 }

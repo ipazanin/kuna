@@ -9,6 +9,12 @@ import type { ProposalGroup, ProposalLine } from '../src/shared/app/assistantOpe
 import { formatMoney } from '../src/shared/money/moneyFormat'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
+import { saveScenario } from '../src/apps/loans/scenarios/application/scenarioWrites'
+import { NO_COSTS } from '../src/apps/loans/scenarios/domain/loanScenario'
+import type { LoanScenario } from '../src/apps/loans/scenarios/domain/loanScenario'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { civil, euros } from './fixtures/ledger'
+import { percent } from './fixtures/loans'
 import { EXAMPLE_RECORDS, loansDesk } from './fixtures/loansDesk'
 import type { LoansDesk } from './fixtures/loansDesk'
 import { forgetCaches } from './fixtures/writeBack'
@@ -463,5 +469,89 @@ describe('one write, one Undo', () => {
     const car = bookOf(desk).bankLoans.find((loanBook) => loanBook.loan.drawdown === '2026-11-02')!
     expect(car.extraPayments.map((payment) => payment.amount)).toEqual([100000])
     expect(car.ratePeriods).toHaveLength(1)
+  })
+})
+
+describe("an offer's move to another bank", () => {
+  const change = () => LOANS_OPERATIONS.find((operation) => operation.name === 'change-offer')!
+  const MOVED = recordIdOf(LOAN_SCENARIO_RECORDS, 'scenario-moved')
+
+  /** The desk's offer copied with a move to Other Bank after the instalment due on 2030-01-01, over 180 instalments at a fixed 3%. */
+  async function movedOffer(desk: LoansDesk): Promise<void> {
+    const offer = bookOf(desk).scenarios.find((held) => held.scenario.id === EXAMPLE_RECORDS['loan-scenario'])!.scenario
+    const moved: LoanScenario = { ...offer, id: MOVED, name: 'Offer A, moved' }
+    await desk.store.write('A moved offer', (unit) =>
+      saveScenario(
+        unit,
+        desk.store.state.records!,
+        moved,
+        [
+          { kind: 'rate-change', from: civil('2027-01-01'), rate: percent('3.5'), rateType: 'fixed' },
+          { kind: 'move', on: civil('2030-01-01'), lender: 'Other Bank', rate: percent('3'), rateType: 'fixed', instalments: 180, costs: NO_COSTS },
+        ],
+        null,
+      ),
+    )
+  }
+
+  const move = (fields: Record<string, unknown>) => ({
+    kind: 'move',
+    date: '2030-01-01',
+    amount: null,
+    effect: null,
+    every: null,
+    until: null,
+    rate: '3',
+    rateType: 'fixed',
+    lender: 'Other Bank',
+    instalments: 180,
+    upfrontCost: 0,
+    monthlyCost: 0,
+    yearlyCost: 0,
+    ...fields,
+  })
+
+  const changeInput = (desk: LoansDesk, scenario: string, changes: readonly unknown[]) => ({
+    ...exampleInput(desk, change()),
+    scenario: desk.ref(LOAN_SCENARIO_RECORDS.name, scenario),
+    principal: null,
+    laterTerms: 'replace',
+    changes,
+  })
+
+  it('edits the lender and costs of the move an offer holds, and keeps the one move', async () => {
+    const desk = await loansDesk(used)
+    await movedOffer(desk)
+    const answer = await desk.propose([{ op: 'change-offer', input: changeInput(desk, MOVED, [move({ lender: 'Better Bank', upfrontCost: 800, monthlyCost: 5.5 })]) }])
+    expect(answer.isError).toBe(false)
+    await desk.accept()
+
+    const moves = bookOf(desk)
+      .scenarios.find((held) => held.scenario.id === MOVED)!
+      .changes.filter((held) => held.kind === 'move')
+    expect(moves).toEqual([expect.objectContaining({ lender: 'Better Bank', on: '2030-01-01', instalments: 180, costs: { upfront: euros(800), monthly: euros(5.5), yearly: euros(0) } })])
+  })
+
+  it('refuses a move on the last due date, which leaves the old loan nothing to repay', async () => {
+    const desk = await loansDesk(used)
+    await movedOffer(desk)
+    const answer = await desk.propose([{ op: 'change-offer', input: changeInput(desk, MOVED, [move({ date: '2046-12-01' })]) }])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('changes 1 due')
+  })
+
+  it('refuses a cost below zero', async () => {
+    const desk = await loansDesk(used)
+    await movedOffer(desk)
+    expect((await desk.propose([{ op: 'change-offer', input: changeInput(desk, MOVED, [move({ monthlyCost: -5 })]) }])).isError).toBe(true)
+  })
+
+  it('adds no move to an offer that holds none, new or kept, as its editor adds none', async () => {
+    const desk = await loansDesk(used)
+    const kept = await desk.propose([{ op: 'change-offer', input: changeInput(desk, EXAMPLE_RECORDS['loan-scenario']!, [move({})]) }])
+    expect(kept.isError).toBe(true)
+    expect(kept.text).toContain('adds no move')
+    const added = await desk.propose([{ op: 'add-offer', input: { ...printedOffer(null), changes: [move({})] } }])
+    expect(added.text).toContain('adds no move')
   })
 })

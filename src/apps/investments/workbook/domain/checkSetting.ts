@@ -31,3 +31,6 @@ export interface CheckSetting {
   /** Switched off, so the check is left out. */
   readonly off: boolean
 }
+
+/** What a new check setting holds unless a person sets it: switched on. */
+export const NEW_CHECK_DEFAULTS: Pick<CheckSetting, 'off'> = { off: false }

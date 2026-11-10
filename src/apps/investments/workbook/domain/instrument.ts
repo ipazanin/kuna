@@ -94,3 +94,6 @@ export interface Instrument {
   readonly distribution: FundDistribution | null
   readonly note: string
 }
+
+/** What a new instrument holds unless a person sets it: no benchmark. */
+export const NEW_INSTRUMENT_DEFAULTS: Pick<Instrument, 'benchmark'> = { benchmark: false }

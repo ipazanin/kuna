@@ -148,10 +148,11 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
         return { refused: [`That is ${checked.changes.length} changes. A card holds ${MOST_CHANGES}.`, work.overLimit?.(steps) ?? 'Propose fewer, and then the rest.'] }
       }
       const held: HeldWrite<Books> = { title, changes: checked.changes, books, steps }
+      const groups = work.groups(checked, books)
       return {
         title,
-        count: checked.changes.length,
-        groups: work.groups(checked, books),
+        count: groups.reduce((sum, group) => sum + group.lines.length, 0),
+        groups,
         outside: work.outside?.(steps) ?? [],
         undoable: isUndoable(checked.changes),
         heldBack: work.heldBack?.() ?? null,

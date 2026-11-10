@@ -1,4 +1,5 @@
 import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
+import { words as cardWords } from '../../../../shared/app/words'
 import { words as holdingsWords } from '../../holdings/presentation/words'
 import { words as mailWords } from '../../mail/presentation/words'
 import { thresholdText } from '../../overview/presentation/checkLines'
@@ -7,11 +8,13 @@ import { words as vendorWords } from '../../prices/infrastructure/vendors/words'
 import { storedCityText } from '../../tax/presentation/surtaxCityChoices'
 import { words as taxWords } from '../../tax/presentation/words'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
+import { NEW_CHECK_DEFAULTS } from '../../workbook/domain/checkSetting'
 import type { CheckSetting } from '../../workbook/domain/checkSetting'
 import type { Exchange } from '../../workbook/domain/exchange'
 import type { FundMixLine } from '../../workbook/domain/fundMix'
 import type { HandPrice } from '../../workbook/domain/handPrice'
 import type { Income } from '../../workbook/domain/income'
+import { NEW_INSTRUMENT_DEFAULTS } from '../../workbook/domain/instrument'
 import type { Instrument, PriceSource } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import {
@@ -213,7 +216,6 @@ function holdingValue(kind: RecordKind<unknown>, field: string, record: Proposed
       country: record.country === null ? null : countryText(record.country),
       ter: record.ter === null ? null : percentText(record.ter),
       distribution: record.distribution === null ? null : holdingsWords.distributions[record.distribution],
-      benchmark: record.benchmark ? words.proposals.yes : null,
     }
     return shown[field as keyof Instrument]
   }
@@ -243,7 +245,6 @@ function settingValue(kind: RecordKind<unknown>, field: string, record: Proposed
     const shown: Partial<Record<keyof CheckSetting, string | null>> = {
       check: overviewWords.checks.labels[setting.check],
       threshold: setting.threshold === null ? null : thresholdText(setting.check, setting.threshold),
-      off: setting.off ? words.proposals.yes : null,
     }
     return shown[field as keyof CheckSetting]
   }
@@ -271,7 +272,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (ofHolding !== undefined) return ofHolding
   const ofSetting = settingValue(kind, field, record)
   if (ofSetting !== undefined) return ofSetting
-  if (typeof value === 'boolean') return value ? words.proposals.yes : words.proposals.no
+  if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   const day = (field === 'date' || field === 'since') && typeof value === 'string' ? parseCivilDate(value) : null
   if (day !== null) return dayLabel(day)
   return namesOf.get(value) ?? String(value)
@@ -309,6 +310,7 @@ export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook, no
         : (MAIL_FIELD_NAMES[field] ?? (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field),
     shown: (kind, field, record) => shownValue(kind, field, original(record), book, namesOf),
     label: (kind, record, fallback) => labelOf(kind, original(record), fallback, namesOf),
+    defaultsOf: (kind) => (kind.name === INSTRUMENT_RECORDS.name ? NEW_INSTRUMENT_DEFAULTS : kind.name === CHECK_RECORDS.name ? NEW_CHECK_DEFAULTS : {}),
     warns: (kind, field) => kind.name === MAIL_READER_RECORDS.name && WARNS.has(field),
   }
   return withNotes(

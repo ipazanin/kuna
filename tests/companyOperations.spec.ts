@@ -15,6 +15,10 @@ import { settingName } from '../src/apps/company/assistant/operations/settingNam
 import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
 import { packDescriber } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
 import { words } from '../src/apps/company/assistant/operations/words'
+import { RULE_CONDITION_FIELDS } from '../src/apps/company/assistant/ruleConditionFields'
+import { words as ruleWords } from '../src/apps/company/rules/domain/words'
+import { words as ruleFormWords } from '../src/apps/company/rules/presentation/words'
+import { proposalGroupsOf } from '../src/apps/company/assistant/operations/proposalLines'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { AssistantOperation } from '../src/shared/app/assistantOperations'
@@ -22,6 +26,8 @@ import { words as sharedWords } from '../src/shared/app/words'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
+import { recordsOf } from '../src/shared/storage/domain/recordsRead'
+import { writeRulesChange } from '../src/apps/company/rules/application/ruleWrites'
 import { companyDesk, deskPorts, mailDraftsHeld } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
@@ -159,20 +165,31 @@ describe('filing rows against a rule', () => {
 })
 
 describe('rules', () => {
+  const conditionsLeft = Object.fromEntries(RULE_CONDITION_FIELDS.map((field) => [field.name, null]))
   const ruleInput = (desk: CompanyDesk, fields: Record<string, unknown>) => ({
     row: null,
     category: desk.ref(CATEGORY_RECORDS.name, 'office'),
     name: null,
     on: null,
     before: null,
-    payeeWords: null,
-    descriptionWords: null,
-    iban: null,
-    direction: null,
+    ...conditionsLeft,
     confidence: null,
     note: null,
     ...fields,
   })
+  const changeRuleInput = (desk: CompanyDesk, id: string, fields: Record<string, unknown>) => ({
+    rule: desk.ref(RULE_RECORDS.name, id),
+    name: null,
+    category: null,
+    on: null,
+    before: null,
+    last: null,
+    ...conditionsLeft,
+    confidence: null,
+    note: null,
+    ...fields,
+  })
+  const storedRule = (desk: CompanyDesk, id: string) => desk.store.state.workbook!.rules.find((rule) => rule.id === id)!
 
   it('adds a rule and files the waiting rows it settles in the same write, with one Undo', async () => {
     const desk = await companyDesk(used)
@@ -247,44 +264,81 @@ describe('rules', () => {
     expect(desk.row('REF-8')).toMatchObject({ flaggedBy: 'ai' })
   })
 
+  it("refuses a revenue code that is not four digits with the rules tab's own reason", async () => {
+    const desk = await companyDesk(used)
+    const answer = await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'MARKET', revenueCode: '123' }) }])
+    expect(answer).toMatchObject({ isError: true })
+    expect(answer.text).toContain(ruleWords.reading.revenueCode('123'))
+  })
+
+  it('takes a card purchase alone or beside the direction, and says each condition on the card', async () => {
+    const desk = await companyDesk(used)
+    expect((await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { card: 'yes', direction: 'out' }) }])).isError).toBe(false)
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { name: 'office-card-salary', card: 'yes', purpose: 'SALA' }) }])
+    const said = desk.cards[1]!.groups[0]!.lines[0]!.fields.map((field) => field.after).join(' ')
+    expect(said).toContain(ruleWords.conditions.card)
+    expect(said).toContain(ruleWords.conditions.purposeIs('SALA'))
+  })
+
+  it('stores FALSE for a rule on rows with no IBAN, and drops a card purchase on change with card no', async () => {
+    const desk = await companyDesk(used)
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { name: 'office-cards', payeeWords: 'MARKET', card: 'yes', ibanPresent: 'no' }) }])
+    await desk.accept()
+    expect(storedRule(desk, 'office-cards').conditions).toEqual(expect.arrayContaining([{ column: 'is_card' }, { column: 'has_counterparty_iban', present: false }]))
+    const stored = recordsOf(desk.store.state.records!.rules).find((row) => row.fields.rule === 'office-cards')!
+    expect(stored.fields.has_counterparty_iban).toBe(false)
+
+    await desk.propose([{ op: 'change-rule', input: changeRuleInput(desk, 'office-cards', { card: 'no' }) }])
+    await desk.accept()
+    expect(storedRule(desk, 'office-cards').conditions.map((condition) => condition.column)).not.toContain('is_card')
+  })
+
+  it('refuses a rule on the direction alone, as something to look for beyond it', async () => {
+    const desk = await companyDesk(used)
+    const answer = await desk.propose([{ op: 'change-rule', input: changeRuleInput(desk, 'merchant-model', { payeeWords: '', direction: 'out' }) }])
+    expect(answer.text).toContain('beyond the direction')
+  })
+
+  it('says on the card where a rule moves among the rules, by the rule it now comes before', async () => {
+    const desk = await companyDesk(used)
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'MARKET' }) }])
+    await desk.accept()
+    await desk.propose([{ op: 'change-rule', input: changeRuleInput(desk, 'office-market', { before: desk.ref(RULE_RECORDS.name, 'merchant-model') }) }])
+
+    const line = desk.cards[1]!.groups.find((group) => group.noun === RULE_RECORDS.noun)!.lines.find((candidate) => candidate.label === 'office-market')!
+    expect(line.fields.map((field) => [field.name, field.before, field.after])).toEqual([[ruleFormWords.form.tried, ruleFormWords.form.last, ruleFormWords.form.before('merchant-model')]])
+  })
+
+  it('leaves off the card the rules renumbered to make room for a move, and counts only the rule that moves', async () => {
+    const desk = await companyDesk(used)
+    const seeded = (rule: string, order: string, payee: string) => ({ rule, order, enabled: true, counterparty_contains: payee, category: 'office', confidence: 'rule' })
+    await desk.store.write('Rules that share an order', (unit) => {
+      writeRulesChange(unit, { appended: seeded('office-nobody', '100', 'NOBODY'), edited: [], removed: null })
+      writeRulesChange(unit, { appended: seeded('office-noone', '200', 'NO ONE'), edited: [], removed: null })
+    })
+    // merchant-model and office-nobody share order 100, so moving office-noone between them renumbers office-nobody too.
+    await desk.propose([{ op: 'change-rule', input: changeRuleInput(desk, 'office-noone', { before: desk.ref(RULE_RECORDS.name, 'office-nobody') }) }])
+
+    const card = desk.cards[0]!
+    const changes = (card.held as { readonly changes: readonly RuledChange[] }).changes
+    expect(changes.filter(({ change }) => change.kind.name === RULE_RECORDS.name)).toHaveLength(2)
+    expect(card.groups.find((group) => group.noun === RULE_RECORDS.noun)!.lines.map((line) => line.label)).toEqual(['office-noone'])
+    expect(card.count).toBe(1)
+  })
+
   it('renames a rule', async () => {
     const desk = await companyDesk(used)
-    const rule = desk.ref(RULE_RECORDS.name, 'merchant-model')
-    await desk.propose([
-      {
-        op: 'change-rule',
-        input: {
-          rule,
-          name: 'ai-services-model-api',
-          category: null,
-          on: null,
-          before: null,
-          last: null,
-          payeeWords: null,
-          descriptionWords: null,
-          iban: null,
-          direction: null,
-          confidence: null,
-          note: null,
-        },
-      },
-    ])
+    await desk.propose([{ op: 'change-rule', input: changeRuleInput(desk, 'merchant-model', { name: 'ai-services-model-api' }) }])
     expect((await desk.accept()).kind).toBe('done')
     expect(desk.store.state.workbook!.rules.map((candidate) => candidate.id)).toEqual(['ai-services-model-api'])
   })
 
   it('switches a rule off and moves it last, and deletes one', async () => {
     const desk = await companyDesk(used)
-    const rule = desk.ref(RULE_RECORDS.name, 'merchant-model')
-    await desk.propose([
-      {
-        op: 'change-rule',
-        input: { rule, name: null, category: null, on: 'no', before: null, last: 'yes', payeeWords: null, descriptionWords: null, iban: null, direction: null, confidence: null, note: null },
-      },
-    ])
+    await desk.propose([{ op: 'change-rule', input: changeRuleInput(desk, 'merchant-model', { on: 'no', last: 'yes' }) }])
     expect((await desk.accept()).kind).toBe('done')
     expect(desk.store.state.workbook!.rules.find((candidate) => candidate.id === 'merchant-model')!.enabled).toBe(false)
-    await desk.propose([{ op: 'delete-rule', input: { rule } }])
+    await desk.propose([{ op: 'delete-rule', input: { rule: desk.ref(RULE_RECORDS.name, 'merchant-model') } }])
     await desk.accept()
     expect(desk.store.state.workbook!.rules).toEqual([])
   })
@@ -622,5 +676,18 @@ describe("the catalogue of Company's operations", () => {
     expect(names.filter((name) => name === 'set-setting')).toHaveLength(1)
     expect(catalogue.proposers.get('company')).toBe(assistant.proposer)
     expect([...catalogue.pages.keys()].filter((path) => path.startsWith('company/op/'))).toEqual(names.map((name) => `company/op/${name}`))
+  })
+})
+
+describe('a flag on a card', () => {
+  it('reads yes or no, as the other apps say it', async () => {
+    const desk = await companyDesk(used)
+    const workbook = desk.store.state.workbook!
+    const category = { ...workbook.categories[0]!, flagged: false }
+    const change = { kind: CATEGORY_RECORDS, verb: 'change', before: category, after: { ...category, flagged: true } } as const
+    const checked = { title: 'A title', changes: [{ rules: {} as RuledChange['rules'], change }], kinds: [CATEGORY_RECORDS], written: [], found: [] }
+
+    const [group] = proposalGroupsOf(checked, workbook, [], null, new Set())
+    expect(group!.lines[0]!.fields.find((field) => field.name === 'flagged')).toMatchObject({ before: sharedWords.no, after: sharedWords.yes })
   })
 })

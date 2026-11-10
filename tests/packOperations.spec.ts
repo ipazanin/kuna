@@ -16,6 +16,7 @@ import type { WorkbookStore } from '../src/shared/storage/application/createWork
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
+import { defaultsOnAdd } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { companyChat, deskPorts } from './fixtures/companyDesk'
 import type { CompanyChat } from './fixtures/companyDesk'
@@ -119,7 +120,7 @@ function fieldsOnCard(card: CheckedProposal): { readonly shown: readonly string[
     const group = card.groups.find((candidate) => candidate.verb === change.verb && candidate.noun === change.kind.noun)!
     const at = taken.get(group.verb + group.noun.en.one) ?? 0
     taken.set(group.verb + group.noun.en.one, at + 1)
-    const before = (change.verb === 'change' ? change.before : {}) as Readonly<Record<string, unknown>>
+    const before = (change.verb === 'change' ? change.before : defaultsOnAdd(change.kind)) as Readonly<Record<string, unknown>>
     const after = change.after as Readonly<Record<string, unknown>>
     const said = (value: unknown) => JSON.stringify(value === undefined || value === '' || (Array.isArray(value) && value.length === 0) ? null : value)
     const set = Object.keys({ ...before, ...after }).filter((field) => !NOT_ON_CARD.has(field) && said(before[field]) !== said(after[field]))

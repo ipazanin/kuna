@@ -1,8 +1,10 @@
 import type { PackDescriber } from '../../../../assistant/companyAssistant'
+import { words as cardWords } from '../../../../../../shared/app/words'
 import { ownerShareText } from '../../../../owner-share/domain/ownerShare'
 import { displayNamesOf } from '../../../../workbook/domain/displayName'
 import type { Workbook } from '../../../../workbook/domain/workbook'
 import { moneyFormatOf } from '../../../../settings/domain/settings'
+import { NEW_ASSET_DEFAULTS } from '../../domain/assets/assets'
 import type { GrantClawback, GrantParts } from '../../domain/grants/grants'
 import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../../domain/hrDooKinds'
 import type { ScenarioComponent } from '../../domain/scenarios/ownerPayScenarios'
@@ -79,7 +81,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (kind.name === PLAN_RECORDS.name && field === 'month' && value === null && record['kind'] === 'amount') return words.proposals.everyMonth
   if (value === null || value === undefined || value === '' || SHOWN_ELSEWHERE.get(kind.name) === field) return null
   if (Array.isArray(value)) return value.length === 0 ? null : value.join(', ')
-  if (typeof value === 'boolean') return value ? words.proposals.yes : words.proposals.no
+  if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   const money = moneyIn(kind, field, record)
   if (money !== null) return formatMoney(money, 'negative', format)
   if (DAY_FIELDS.has(field) && typeof value === 'string') return dayLabel(value as CivilDate)
@@ -127,6 +129,11 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   }
 }
 
+/** What a new asset holds unless a person sets it, which a card leaves off its add. */
+export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
+  return kind.name === ASSET_RECORDS.name ? NEW_ASSET_DEFAULTS : {}
+}
+
 /** How a card reads the pack's records, in the words of its screens. An employee's accounts say where pay goes, so the card warns on them. */
 export function packDescriber(workbook: Workbook): PackDescriber {
   const format = moneyFormatOf(workbook.settings)
@@ -138,6 +145,7 @@ export function packDescriber(workbook: Workbook): PackDescriber {
     fieldName: (field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
     shown: (kind, field, record) => shownValue(kind, field, record, format, category),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, category),
+    defaultsOf: defaultsOnAdd,
     warns: (kind, field) => kind.name === EMPLOYEE_RECORDS.name && field === 'ibans',
     settingNames: {
       hr_company_registered: packWords.facts.registered,

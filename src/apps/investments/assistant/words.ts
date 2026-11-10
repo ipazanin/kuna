@@ -81,8 +81,6 @@ export const en = {
     },
   },
   proposals: {
-    yes: 'yes',
-    no: 'no',
     units: (quantity: string, instrument: string) => `${quantity} of ${instrument}`,
     percent: (value: string) => `${value}%`,
     pricesFetched: (instruments: readonly string[]) => `Kuna fetches the prices of ${listInWords(instruments)} after Accept. Undo leaves the prices it fetched.`,
@@ -254,8 +252,6 @@ export const hr: Translation<typeof en> = {
     },
   },
   proposals: {
-    yes: 'da',
-    no: 'ne',
     units: (quantity, instrument) => `${quantity} instrumenta ${instrument}`,
     percent: (value) => `${value}\u00a0%`,
     pricesFetched: (instruments) =>

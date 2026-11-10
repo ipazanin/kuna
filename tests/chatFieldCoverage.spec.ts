@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { ASSETS_OPERATIONS } from '../src/apps/assets/assistant/operations/assetsOperations'
 import { companyOperations } from '../src/apps/company/assistant/operations/companyOperations'
+import { RULE_CONDITION_FIELDS } from '../src/apps/company/assistant/ruleConditionFields'
 import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
 import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
 import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
@@ -54,12 +55,7 @@ interface FieldSource {
   readonly operations: readonly (string | OperationFields)[]
 }
 
-const CONDITION_RENAMES = {
-  'conditions.counterparty_contains': 'payeeWords',
-  'conditions.description_contains': 'descriptionWords',
-  'conditions.counterparty_iban': 'iban',
-  'conditions.direction': 'direction',
-}
+const CONDITION_RENAMES = Object.fromEntries(RULE_CONDITION_FIELDS.map((field) => [`conditions.${field.column}`, field.name]))
 const INVOICING_RENAMES = Object.fromEntries(['address', 'country', 'taxId', 'invoiceMail', 'mailLanguage', 'reverseCharge'].map((field) => [`invoicing.${field}`, field]))
 const ASSET_RENAMES = { name: 'asset', inUse: 'in_use', costNet: 'cost_net', doubledRate: 'doubled', fundedBy: 'funded_by', ledgerReference: 'ledger_reference' }
 const GRANT_RENAMES = {
@@ -266,7 +262,14 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     path: 'src/apps/loans/scenarios/application/scenarioWrites.ts#saveScenario',
     from: ['changes'],
     anyOperation: true,
-    operations: [{ name: 'save-try', renames: { from: 'date' } }, ...['add-offer', 'change-offer'].map((name) => ({ name, prefix: 'changes.', renames: { from: 'changes.date' } }))],
+    operations: [
+      { name: 'save-try', renames: { from: 'date' } },
+      ...['add-offer', 'change-offer'].map((name) => ({
+        name,
+        prefix: 'changes.',
+        renames: { from: 'changes.date', on: 'changes.date', 'costs.upfront': 'changes.upfrontCost', 'costs.monthly': 'changes.monthlyCost', 'costs.yearly': 'changes.yearlyCost' },
+      })),
+    ],
   },
   { path: 'src/apps/loans/scenarios/application/scenarioWrites.ts#copyScenario', from: ['name'], operations: ['copy-scenario'] },
   {

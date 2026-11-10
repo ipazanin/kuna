@@ -51,6 +51,6 @@ export const CONDITION_COLUMNS = [
 ] as const
 
 /** The rules in the order they are tried: by order, then by id. */
-export function inTryingOrder(rules: readonly Rule[]): Rule[] {
+export function inTryingOrder<Tried extends Pick<Rule, 'id' | 'order'>>(rules: readonly Tried[]): Tried[] {
   return [...rules].sort((earlier, later) => earlier.order - later.order || naturalOrder(earlier.id.toLowerCase(), later.id.toLowerCase()))
 }

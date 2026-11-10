@@ -91,6 +91,7 @@ export interface CardNote {
  */
 export interface CheckedProposal {
   readonly title: string
+  /** The records the card shows. A change that shows nothing, such as a rule renumbered to make room, is written but not counted. */
   readonly count: number
   readonly groups: readonly ProposalGroup[]
   /** What Accept does outside the books, which Undo leaves as it is, each a line such as "The PDF stays on Drive after Undo". */

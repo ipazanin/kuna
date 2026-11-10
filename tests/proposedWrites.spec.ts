@@ -40,7 +40,7 @@ function renaming(events: string[] = [], effects: Pick<ProposalWork<SpendingBook
         unit.of(CATEGORY_WRITES).change(category, { ...category, name: kept === undefined ? String(input['name']) : `${String(input['name'])} ${kept}` })
       }
     },
-    groups: () => [],
+    groups: (checked) => [{ verb: 'change', noun: CATEGORY_WRITES.kind.noun, notes: [], lines: checked.changes.map(() => ({ label: 'A category', fields: [], warning: null })) }],
     ...effects,
   }
 }

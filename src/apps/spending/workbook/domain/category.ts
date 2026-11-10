@@ -31,3 +31,6 @@ export interface Category {
   /** Hidden from the pickers, while its rows keep counting. */
   readonly hidden: boolean
 }
+
+/** What a new category holds unless a person sets it: shown in the pickers. */
+export const NEW_CATEGORY_DEFAULTS: Pick<Category, 'hidden'> = { hidden: false }

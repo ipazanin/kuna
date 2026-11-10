@@ -1,4 +1,5 @@
 import { settingName } from './settingNames'
+import { words as cardWords } from '../../../../shared/app/words'
 import { WARNED_SETTING_KEYS } from './settingsOperations'
 import { INVOICING_KINDS, invoicingDescriber } from './invoicingLines'
 import { words } from './words'
@@ -7,6 +8,7 @@ import { ownerShareText } from '../../owner-share/domain/ownerShare'
 import { classSharesDay, installedPack } from '../../packs/packContribution'
 import { vatTreatmentLabel } from '../../settings/presentation/vatTreatmentLabel'
 import { words as settingsWords } from '../../settings/presentation/words'
+import { words as ruleFormWords } from '../../rules/presentation/words'
 import { readRules } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import { conditionInWords } from '../../rules/domain/ruleSummary'
@@ -16,7 +18,7 @@ import type { DisplayNames } from '../../workbook/domain/displayName'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import { moneyFormatOf } from '../../settings/domain/settings'
 import type { Workbook } from '../../workbook/domain/workbook'
-import type { CardNote, ProposalGroup } from '../../../../shared/app/assistantOperations'
+import type { CardNote, ProposalField, ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
 import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -24,6 +26,9 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
+import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
+import type { Rule } from '../../../../shared/categorising/domain/rule'
+import { cellText } from '../../../../shared/text/cellText'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
 export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'rowId', 'signals', 'reviewReasons', 'reference', 'statement', 'balance', 'key'])
@@ -79,6 +84,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'roles')
     return record.roles.length === 0 ? null : record.roles.map((role) => installedPack().categoryClassHelp(role, classSharesDay(workbook))?.name ?? role).join(', ')
   if (Array.isArray(value)) return value.length === 0 ? null : value.join(', ')
+  if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   return String(value)
 }
 
@@ -107,10 +113,50 @@ function movesConfirmed(kind: RecordKind<unknown>, before: ProposedRecord, after
   return isKind(kind, LEDGER_RECORDS, before) && isKind(kind, LEDGER_RECORDS, after) && isHumanConfirmed(before) && before.category !== '' && before.category !== after.category
 }
 
+/** Where a rule is tried, as the rule form says it: before the rule tried next, or after every rule. */
+function placementInWords(next: string | null): string {
+  return next === null ? ruleFormWords.form.last : ruleFormWords.form.before(next)
+}
+
+/** The rule tried right after the named one, or null for the last. */
+function nextRule(rules: readonly Pick<Rule, 'id' | 'order'>[], id: string): string | null {
+  const ordered = inTryingOrder(rules)
+  const at = ordered.findIndex((rule) => rule.id.toLowerCase() === id.toLowerCase())
+  return at === -1 ? null : (ordered[at + 1]?.id ?? null)
+}
+
+/**
+ * Each rule a step moves, by its name after the change in lower case, with where it is tried before and after. The order number
+ * stays off the card, so a move reads by the rule it now comes before. `moved` holds the rules' names before the change.
+ */
+function movedRules(checked: CheckedWrite, rules: readonly Rule[], moved: ReadonlySet<string>): ReadonlyMap<string, ProposalField> {
+  const fieldsOf = (record: unknown) => (record as RuleTabRow).fields
+  const idOf = (record: unknown) => cellText(fieldsOf(record).rule)
+  const ruleChanges = checked.changes.map(({ change }) => change).filter((change) => change.kind.name === RULE_RECORDS.name)
+  const after = new Map(rules.map((rule): [string, Pick<Rule, 'id' | 'order'>] => [rule.id.toLowerCase(), rule]))
+  const renamed = new Map<string, string>()
+  for (const change of ruleChanges) {
+    if (change.verb === 'change' || change.verb === 'remove') after.delete(idOf(change.before).toLowerCase())
+    if (change.verb === 'change' || change.verb === 'add') after.set(idOf(change.after).toLowerCase(), { id: idOf(change.after), order: Number(cellText(fieldsOf(change.after).order)) })
+    if (change.verb === 'change') renamed.set(idOf(change.before).toLowerCase(), idOf(change.after))
+  }
+  const placements = new Map<string, ProposalField>()
+  for (const change of ruleChanges) {
+    if (change.verb !== 'change' || !moved.has(idOf(change.before).toLowerCase())) continue
+    const was = nextRule(rules, idOf(change.before))
+    const wasNamed = was === null ? null : (renamed.get(was.toLowerCase()) ?? was)
+    const will = nextRule([...after.values()], idOf(change.after))
+    if (wasNamed?.toLowerCase() === will?.toLowerCase()) continue
+    placements.set(idOf(change.after).toLowerCase(), { name: ruleFormWords.form.tried, before: placementInWords(wasNamed), after: placementInWords(will), warns: false })
+  }
+  return placements
+}
+
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words, with the card's notes on the group of their kind. Each kind reads through its own screens' describer. */
-export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, notes: readonly CardNote[], pack: PackOperations | null): readonly ProposalGroup[] {
+export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, notes: readonly CardNote[], pack: PackOperations | null, moved: ReadonlySet<string>): readonly ProposalGroup[] {
   const names = displayNamesOf(workbook)
   const packs = pack?.describer(workbook) ?? null
+  const placements = movedRules(checked, workbook.rules, moved)
   const core: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
@@ -118,8 +164,17 @@ export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, note
     label: (kind, record, fallback) => labelOf(kind, record, fallback, names, packs?.settingNames ?? {}),
     warns,
     movesConfirmed,
+    checked: (kind, record, line): ProposalLine => {
+      if (!isKind(kind, RULE_RECORDS, record)) return line
+      const moved = placements.get(cellText(record.fields.rule).toLowerCase())
+      const said = line.fields.filter((field) => field.before !== field.after)
+      return { ...line, fields: moved === undefined ? said : [...said, moved] }
+    },
   }
   const invoicing = invoicingDescriber(workbook)
-  const groups = proposalGroups(checked, (kind) => (packs?.kinds.has(kind.name) === true ? packs : INVOICING_KINDS.has(kind.name) ? invoicing : core))
+  // A rule renumbered to make room for a move keeps its place among the rules, so it shows nothing and stays off the card.
+  const groups = proposalGroups(checked, (kind) => (packs?.kinds.has(kind.name) === true ? packs : INVOICING_KINDS.has(kind.name) ? invoicing : core)).map((group) =>
+    group.noun === RULE_RECORDS.noun ? { ...group, lines: group.lines.filter((line) => line.fields.length > 0 || line.warning !== null) } : group,
+  )
   return withNotes(groups, notes)
 }

@@ -28,3 +28,6 @@ export interface Account {
   readonly iban: string
   readonly closed: boolean
 }
+
+/** What a new account holds unless a person sets it: open. */
+export const NEW_ACCOUNT_DEFAULTS: Pick<Account, 'closed'> = { closed: false }

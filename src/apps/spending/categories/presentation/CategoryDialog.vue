@@ -18,7 +18,7 @@ import { categoryTree } from '../domain/categoryTree'
 import { categoryColours } from './categoryColours'
 import { lastOrder, siblingsUnder } from '../domain/categoryPlaces'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { isFixedKind } from '../../workbook/domain/category'
+import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
 import { words as spendingWords } from '../../words'
 import { words } from './words'
 import { SWATCHES, swatchToken } from '../../../../shared/charts/swatches'
@@ -47,11 +47,11 @@ const before = computed(() => (props.editing.mode === 'edit' ? props.editing.cat
 const fixed = computed(() => before.value !== null && isFixedKind(before.value.kind))
 
 /** The category the dialog starts from: the one to change, or a new one with an id of its own. */
-const start = ref<Category>(newCategory({ name: '', kind: 'spending', parent: null, order: 0, colour: '', hidden: false }))
+const start = ref<Category>(newCategory({ name: '', kind: 'spending', parent: null, order: 0, colour: '', ...NEW_CATEGORY_DEFAULTS }))
 const name = ref('')
 const parent = ref<RecordId | null>(null)
 const colour = ref('')
-const hidden = ref(false)
+const hidden = ref(NEW_CATEGORY_DEFAULTS.hidden)
 const tried = ref(false)
 const deleting = ref(false)
 /** The category picked to take the entries, or blank while none is, which shows the placeholder. */
@@ -69,7 +69,7 @@ watch(open, (opened) => {
           parent: editing.mode === 'add-child' ? editing.group.id : null,
           order: 0,
           colour: '',
-          hidden: false,
+          ...NEW_CATEGORY_DEFAULTS,
         })
   name.value = start.value.name
   parent.value = start.value.parent

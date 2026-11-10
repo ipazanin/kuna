@@ -21,10 +21,10 @@ import { removeReceiptOf } from '../../receipts/application/receiptRecords'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { SETTING_WRITES, treatPayeeAsPerson } from '../../workbook/application/settingWrites'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS } from '../../workbook/domain/account'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
-import { isFixedKind } from '../../workbook/domain/category'
+import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
 import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
@@ -382,7 +382,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
           parent,
           order: lastOrder(siblingsUnder(book.categories, parent, kind)),
           colour: colourOf(field['colour'], ''),
-          hidden: flagOf(field['hidden'], false),
+          hidden: flagOf(field['hidden'], NEW_CATEGORY_DEFAULTS.hidden),
         })
         unit.of(CATEGORY_WRITES).add(category)
         book = { ...book, categories: [...book.categories, category] }
@@ -448,7 +448,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
           opening: accountMoneyFromAmount(field['opening']),
           openedOn: dayOf(field['openedOn']),
           iban: (field['iban'] as string | null) ?? '',
-          closed: false,
+          ...NEW_ACCOUNT_DEFAULTS,
         })
         unit.of(ACCOUNT_WRITES).add(account)
         book = { ...book, accounts: [...book.accounts, account] }

@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { KEPT_BY_KUNA } from '../src/apps/spending/assistant/operations/proposalLines'
+import { KEPT_BY_KUNA, defaultsOnAdd } from '../src/apps/spending/assistant/operations/proposalLines'
+import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { words } from '../src/apps/spending/assistant/words'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
@@ -46,12 +47,28 @@ function said(value: unknown): unknown {
   return value === undefined || value === '' ? null : value
 }
 
-/** The card's names of the fields a change sets, leaving out the ones Kuna keeps by itself and where a rule stands among the rules, which its card leaves off. */
-function namesSet(kind: string, before: Readonly<Record<string, unknown>> | null, after: Readonly<Record<string, unknown>>): string[] {
-  const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field) && !(kind === 'rule' && field === 'order'))
-  const altered = fields.filter((field) => JSON.stringify(said(before?.[field])) !== JSON.stringify(said(after[field])))
+/**
+ * The card's names of the fields a change sets, leaving out the ones Kuna keeps by itself, where a rule stands among the rules, and
+ * on an add the values a new record holds unless a person sets them, which its card leaves off.
+ */
+function namesSet(kind: RecordKind<unknown>, before: Readonly<Record<string, unknown>> | null, after: Readonly<Record<string, unknown>>): string[] {
+  const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field) && !(kind.name === 'rule' && field === 'order'))
+  const unchanged = before ?? defaultsOnAdd(kind)
+  const altered = fields.filter((field) => JSON.stringify(said(unchanged[field])) !== JSON.stringify(said(after[field])))
   return altered.map((field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field)
 }
+
+describe('a new category or account on its card', () => {
+  const fieldNames = (desk: SpendingDesk) => desk.cards.at(-1)!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.map((field) => field.name)))
+
+  it('leaves off what a new one holds unless a person sets it, and shows it when a step sets it', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([{ op: 'add-category', input: { name: 'Pets', kind: 'spending', parent: null, colour: null, hidden: null } }])
+    expect(fieldNames(desk)).not.toContain(words.proposals.fields.hidden)
+    await desk.propose([{ op: 'add-category', input: { name: 'Pets', kind: 'spending', parent: null, colour: null, hidden: 'yes' } }])
+    expect(fieldNames(desk)).toContain(words.proposals.fields.hidden)
+  })
+})
 
 /** A change-entry step that sets only the given fields. */
 function changeEntry(desk: SpendingDesk, entry: string, fields: Readonly<Record<string, unknown>>) {
@@ -86,7 +103,7 @@ describe('every Spending operation', () => {
         return [
           {
             shown: group.lines.filter((line) => line.fields.length > 0 || line.warning === null)[at]!.fields.map((field) => field.name),
-            set: namesSet(change.kind.name, before, change.after as Readonly<Record<string, unknown>>),
+            set: namesSet(change.kind, before, change.after as Readonly<Record<string, unknown>>),
           },
         ]
       })

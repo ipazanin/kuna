@@ -12,7 +12,7 @@ import { words } from './words'
 import { ACCOUNT_WRITES, newAccount } from '../application/accountWrites'
 import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS } from '../../workbook/domain/account'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -102,7 +102,7 @@ async function save(): Promise<void> {
     opening: amount,
     openedOn: day,
     iban: iban.value,
-    closed: props.account?.closed ?? false,
+    closed: props.account?.closed ?? NEW_ACCOUNT_DEFAULTS.closed,
   })
   const before = props.account
   const written =

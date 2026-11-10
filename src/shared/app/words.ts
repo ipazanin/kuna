@@ -10,6 +10,9 @@ export const en = {
   privacy: 'Privacy',
   terms: 'Terms',
   saving: 'Saving…',
+  /** A flag on a card, such as a category hidden from the pickers. */
+  yes: 'yes',
+  no: 'no',
   confirmedRowMoves: 'You confirmed this row. This change files it under another category.',
   proposalUndoEnded: 'Undo ended, as something else was changed since.',
   proposalChangedOnAccept: 'The change would no longer be the one on this card. Ask the chat again.',
@@ -28,6 +31,8 @@ export const hr: Translation<typeof en> = {
   privacy: 'Privatnost',
   terms: 'Uvjeti',
   saving: 'Spremanje…',
+  yes: 'da',
+  no: 'ne',
   confirmedRowMoves: 'Ovaj ste redak potvrdili. Ova ga promjena razvrstava u drugu kategoriju.',
   proposalUndoEnded: 'Poništavanje je isteklo jer je u međuvremenu promijenjeno nešto drugo.',
   proposalChangedOnAccept: 'Promjena više ne bi bila ona s ove kartice. Pitajte ponovno u razgovoru.',

@@ -34,7 +34,7 @@
  * Accept splits the payment with one Undo. The receipt dialog shows no part of the assistant.
  * Company's To review keeps Suggest categories, which opens the chat about the queue and files the sure rows on a card, and an
  * opened row asks about itself. An invoice asked of the chat is a link to the Invoices tab, dollars are a currency card with a
- * warned line, a rule for Laptop Store re-files a confirmed row with a warning, a category for training is a card that names its
+ * warned line, a rule for Laptop Store re-files a confirmed row with a warning, trying the second rule first is a card that says where it is tried, a category for training is a card that names its
  * tax class, and Kuna's dark look is a card with Undo.
  * In Loans a loan offer is a card that sets Kuna's EKS and first instalment beside the printed ones and warns where they differ, a bank loan
  * from its contract warns where its first instalment differs from the printed one, and an extra
@@ -5145,6 +5145,23 @@ const FLOWS = [
     hash: '#/company',
     title: 'Pregled',
     run: companyChatCardFlowIn('hr', 'refile'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'company-chat-move',
+    hash: '#/company',
+    title: 'Overview',
+    run: companyChatCardFlowIn('en', 'move'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+  },
+  {
+    name: 'company-chat-move-croatian',
+    hash: '#/company',
+    title: 'Pregled',
+    run: companyChatCardFlowIn('hr', 'move'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr' },

@@ -134,26 +134,6 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     reason: "Where the files live. The first-run screen asks it, since keeping files on Drive needs Google's consent.",
     fields: ['kuna: KunaStart.home'],
   },
-  {
-    reason: "Not yet. Company's rule form tests more columns than the chat's rules take, which take only words, an IBAN and the direction.",
-    fields: [
-      'company: RuleDraft.conditions.counterparty_is_client',
-      'company: RuleDraft.conditions.counterparty_is_own',
-      'company: RuleDraft.conditions.description_starts_with',
-      'company: RuleDraft.conditions.foreign_currency',
-      'company: RuleDraft.conditions.has_counterparty_iban',
-      'company: RuleDraft.conditions.is_card',
-      'company: RuleDraft.conditions.purpose',
-      'company: RuleDraft.conditions.revenue_code',
-      'company: RuleDraft.conditions.tx_domain',
-      'company: RuleDraft.conditions.tx_family',
-      'company: RuleDraft.conditions.tx_sub_family',
-    ],
-  },
-  {
-    reason: "Not yet. A scenario's move to another lender, with that lender's costs, has no field on save-try or the offer operations.",
-    fields: ['loans: LoanChange.on', 'loans: LoanChange.lender', 'loans: LoanChange.costs.upfront', 'loans: LoanChange.costs.monthly', 'loans: LoanChange.costs.yearly'],
-  },
 ]
 
 export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [

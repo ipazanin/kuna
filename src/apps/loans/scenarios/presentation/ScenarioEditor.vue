@@ -20,7 +20,8 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { newLoanScenario, saveScenario } from '../application/scenarioWrites'
 import { eksAgreement } from '../domain/eksAgreement'
-import { offerBase, scenarioPlan } from '../domain/scenarioPlan'
+import { offerBase } from '../domain/scenarioPlan'
+import { moveDates, oldLoanDues, scenarioDues } from '../domain/scenarioDues'
 import ChangeBlock from './ChangeBlock.vue'
 import { blankChange, changeTextsOf, typedChange } from './changeTexts'
 import type { ChangeRules, ChangeTexts } from './changeTexts'
@@ -33,7 +34,6 @@ import { workedScenario } from '../domain/workedScenario'
 import { changeSummary } from './scenariosView'
 import type { ScenarioMarking } from './scenariosView'
 import { words } from './words'
-import { dueDateOf } from '../../bankLoans/domain/loanPlan'
 import { fractionOf } from '../../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../../bankLoans/domain/yearlyRate'
 import { provideLoanWords } from '../../bankLoans/presentation/useLoanWords'
@@ -105,12 +105,10 @@ const name = computed(() => offer.value.name.trim() || autoName.value)
 /** The offer's terms as a bank loan, which its changes apply to. */
 const base = computed(() => (typed.value.terms === null ? null : offerBase(name.value, typed.value.terms)))
 
-/** Every due date of the loan, and of the new loan after a move, numbered from the first. */
 const dues = computed(() => {
   const loan = base.value?.loan ?? null
   if (loan === null) return []
-  const moved = Math.max(0, ...blocks.value.filter((block) => block.kind === 'move').map((block) => typedCount(block.instalments) ?? 0))
-  return Array.from({ length: loan.instalments + moved }, (_, offset) => ({ number: offset + 1, date: dueDateOf(loan, offset + 1) }))
+  return scenarioDues(loan, Math.max(0, ...blocks.value.filter((block) => block.kind === 'move').map((block) => typedCount(block.instalments) ?? 0)))
 })
 const rules = computed((): ChangeRules | null => (base.value === null ? null : { drawdown: base.value.loan.drawdown, dues: new Set(dues.value.map((due) => due.date)) }))
 
@@ -123,29 +121,19 @@ const summaries = computed(() =>
   typedBlocks.value.map(({ change }) => (change === null ? null : changeSummary(change, loanWords.value.extraDialog.effects, change.kind === 'move' ? (live.value?.breakEven ?? null) : undefined))),
 )
 
-/** The loan's instalments with its changes but a move, which a move counts its instalments left from, or null while they cannot be worked out. */
-const oldInstalments = computed(() => {
-  if (base.value === null) return null
-  const plan = scenarioPlan(
-    base.value,
-    changes.value.filter((change) => change.kind !== 'move'),
-    null,
-  )
-  return 'refused' in plan ? null : plan.rows.filter((row) => row.kind === 'instalment')
-})
+const oldDues = computed(() => (base.value === null ? null : oldLoanDues(base.value, changes.value)))
+const movable = computed(() => (base.value === null ? null : moveDates(base.value, changes.value)))
 
-/** The due dates a block can pick. A move picks one the loan still has instalments after. */
+/** The due dates a block can pick, and for a move only those it may fall on, keeping the one it holds. */
 function dueItemsOf(block: ChangeTexts): { label: string; value: string }[] {
-  const movable = block.kind === 'move' && oldInstalments.value !== null ? new Set(oldInstalments.value.slice(0, -1).map((row) => row.date)) : null
+  const allowed = block.kind === 'move' ? movable.value : null
   return dues.value
-    .filter((due) => due.date === block.due || movable === null || movable.has(due.date))
+    .filter((due) => due.date === block.due || allowed === null || allowed.has(due.date))
     .map((due) => ({ label: loanWords.value.ratePeriodDialog.dueDate(dayLabel(due.date), due.number), value: due.date }))
 }
 
 function leftAfterOf(block: ChangeTexts): number | null {
-  const rows = oldInstalments.value ?? []
-  const index = rows.findIndex((row) => row.date === block.due)
-  return index === -1 ? null : rows.length - index - 1
+  return oldDues.value?.find((due) => due.date === block.due)?.left ?? null
 }
 
 function add(kind: (typeof ADDABLE)[number]): void {

@@ -12,7 +12,7 @@ import CategoryPicker from '../../transactions/presentation/CategoryPicker.vue'
 import type { Category } from '../../workbook/domain/workbook'
 import { CONDITION_COLUMNS, inTryingOrder } from '../../../../shared/categorising/domain/rule'
 import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
-import { FLAG_COLUMNS } from '../domain/ruleDraft'
+import { FLAG_COLUMNS, newCondition, withCondition } from '../domain/ruleDraft'
 import type { ConditionColumn, DraftCondition, RuleDraft } from '../domain/ruleDraft'
 import { words as ruleWords } from '../domain/words'
 import { words } from './words'
@@ -39,22 +39,11 @@ const unusedColumns = computed(() =>
 )
 
 function addCondition(column: ConditionColumn): void {
-  const value: DraftCondition['value'] = FLAG_COLUMNS.has(column) || column === 'has_counterparty_iban' ? true : column === 'direction' ? 'debit' : ''
-  update('conditions', [...draft.value.conditions, { column, value }])
+  update('conditions', [...draft.value.conditions, newCondition(column)])
 }
 
-function setCondition(index: number, value: DraftCondition['value']): void {
-  update(
-    'conditions',
-    draft.value.conditions.map((condition, position) => (position === index ? { ...condition, value } : condition)),
-  )
-}
-
-function removeCondition(index: number): void {
-  update(
-    'conditions',
-    draft.value.conditions.filter((_, position) => position !== index),
-  )
+function setCondition(column: ConditionColumn, value: DraftCondition['value'] | null): void {
+  update('conditions', withCondition(draft.value.conditions, column, value))
 }
 
 const directionItems = [
@@ -106,7 +95,7 @@ function presenceOf(value: DraftCondition['value']): string {
       <legend class="text-sm font-medium text-highlighted">{{ words.form.conditions }}</legend>
       <p class="-mt-1 text-xs text-muted">{{ words.form.conditionsHelp }}</p>
       <ul v-if="draft.conditions.length" class="flex flex-col gap-2">
-        <li v-for="(condition, index) in draft.conditions" :key="condition.column" class="condition-row" data-testid="rule-condition">
+        <li v-for="condition in draft.conditions" :key="condition.column" class="condition-row" data-testid="rule-condition">
           <span class="text-sm text-toned">{{ ruleWords.labels[condition.column] }}</span>
           <USelect
             v-if="condition.column === 'direction'"
@@ -114,7 +103,7 @@ function presenceOf(value: DraftCondition['value']): string {
             :items="directionItems"
             class="w-full sm:w-48"
             :aria-label="ruleWords.labels[condition.column]"
-            @update:model-value="setCondition(index, String($event))"
+            @update:model-value="setCondition(condition.column, String($event))"
           />
           <USelect
             v-else-if="condition.column === 'has_counterparty_iban'"
@@ -122,7 +111,7 @@ function presenceOf(value: DraftCondition['value']): string {
             :items="presenceItems"
             class="w-full sm:w-48"
             :aria-label="ruleWords.labels[condition.column]"
-            @update:model-value="setCondition(index, $event === 'TRUE')"
+            @update:model-value="setCondition(condition.column, $event === 'TRUE')"
           />
           <span v-else-if="FLAG_COLUMNS.has(condition.column)" class="text-xs text-muted">{{ words.form.holds }}</span>
           <UInput
@@ -130,9 +119,9 @@ function presenceOf(value: DraftCondition['value']): string {
             :model-value="String(condition.value)"
             class="identifier w-full sm:w-64"
             :aria-label="ruleWords.labels[condition.column]"
-            @update:model-value="setCondition(index, String($event))"
+            @update:model-value="setCondition(condition.column, String($event))"
           />
-          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="words.form.remove(ruleWords.labels[condition.column])" @click="removeCondition(index)" />
+          <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="words.form.remove(ruleWords.labels[condition.column])" @click="setCondition(condition.column, null)" />
         </li>
       </ul>
       <p v-else class="text-xs text-muted">{{ words.form.noCondition }}</p>

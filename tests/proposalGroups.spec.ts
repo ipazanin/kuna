@@ -27,6 +27,14 @@ function checkedOf(...changes: RecordChange[]): CheckedWrite {
 const filed: ProposedRecord = { payee: 'Corner market', category: 'groceries', confirmed: true }
 
 describe('the lines of a proposal', () => {
+  it('leave off an add the values a new record holds unless a person sets them, and show them on a change', () => {
+    const defaulted: ProposalDescriber = { ...DESCRIBER, defaultsOf: () => ({ confirmed: false }) }
+    const added = { ...filed, confirmed: false }
+    const groups = proposalGroups(checkedOf({ kind: KIND, verb: 'add', after: added }, { kind: KIND, verb: 'change', before: filed, after: added }), () => defaulted)
+
+    expect(groups.map((group) => group.lines[0]!.fields.map((field) => field.name))).toEqual([['payee', 'category'], ['confirmed']])
+  })
+
   it('warn when a change files a confirmed row under another category', () => {
     const [group] = proposalGroups(checkedOf({ kind: KIND, verb: 'change', before: filed, after: { ...filed, category: 'eating-out' } }), () => DESCRIBER)
 

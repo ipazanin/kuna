@@ -29,3 +29,6 @@ export interface Asset {
   /** Held by no other row of its tab. */
   readonly id: RecordId
 }
+
+/** What a new asset holds unless a person sets it: the group's single rate. */
+export const NEW_ASSET_DEFAULTS: Pick<Asset, 'doubledRate'> = { doubledRate: false }

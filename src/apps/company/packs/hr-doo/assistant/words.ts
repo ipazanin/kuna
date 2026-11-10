@@ -12,8 +12,6 @@ export const en = {
     employee: 'A person the company pays a salary, with the facts the payroll needs.',
   },
   proposals: {
-    yes: 'yes',
-    no: 'no',
     dividend: 'Dividend',
     ownerPay: 'Owner pay',
     everyMonth: 'every month',
@@ -92,8 +90,6 @@ export const hr: Translation<typeof en> = {
     employee: 'Osoba kojoj tvrtka isplaćuje plaću, s podacima koji trebaju za obračun.',
   },
   proposals: {
-    yes: 'da',
-    no: 'ne',
     dividend: 'Dividenda',
     ownerPay: 'Plaća vlasnika',
     everyMonth: 'svaki mjesec',

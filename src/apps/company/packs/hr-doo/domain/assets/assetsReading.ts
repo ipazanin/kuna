@@ -1,6 +1,6 @@
 import { SHARED_ID_REASON, idSharing, problemOf, refusedProblems } from '../../../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../../../shared/storage/domain/recordsRead'
-import { ASSET_GROUPS } from './assets'
+import { ASSET_GROUPS, NEW_ASSET_DEFAULTS } from './assets'
 import type { Asset } from './assets'
 import { labelWords, withIdField } from '../../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../../shared/storage/domain/recordCodec'
@@ -26,7 +26,7 @@ export function assetOf(fields: StoredFields, id: RecordId | null): Asset {
   if (inUse < bought) refuse(words.reading.before('in_use', inUse, 'bought', bought))
   const costNet = positiveMoney(fields, 'cost_net')
   const group = requiredChoice(fields, 'group', ASSET_GROUPS)
-  const doubledRate = fields.doubled === undefined ? false : (booleanOf(fields.doubled) ?? refuse(words.reading.notAFlag('doubled', fields.doubled.text)))
+  const doubledRate = fields.doubled === undefined ? NEW_ASSET_DEFAULTS.doubledRate : (booleanOf(fields.doubled) ?? refuse(words.reading.notAFlag('doubled', fields.doubled.text)))
   const disposed = optionalDate(fields, 'disposed')
   if (disposed !== null && disposed < inUse) refuse(words.reading.before('disposed', disposed, 'in_use', inUse))
   return {

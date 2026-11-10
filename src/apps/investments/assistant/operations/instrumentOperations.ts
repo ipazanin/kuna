@@ -4,7 +4,7 @@ import { instrumentErrors, instrumentOfTexts, instrumentTexts } from '../../hold
 import type { InstrumentTexts } from '../../holdings/presentation/instrumentForm'
 import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts } from '../../holdings/presentation/instrumentMixForm'
 import type { FundMix, FundMixTexts } from '../../holdings/presentation/instrumentMixForm'
-import { FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, PRICE_SOURCES } from '../../workbook/domain/instrument'
+import { FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, NEW_INSTRUMENT_DEFAULTS, PRICE_SOURCES } from '../../workbook/domain/instrument'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { INSTRUMENT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { FUND_MIXES, REGIONS, SECTORS } from '../../workbook/domain/mixGroup'
@@ -122,7 +122,7 @@ function savedInstrument(unit: Parameters<InvestmentSteps['write']>[0], card: Ca
   const mixTexts = mixTextsOfStep(fundMixTexts(heldLines), field)
   const refused = refusals(texts, mixTexts, others)
   if (refused.length > 0) throw new StepRefused(refused.join(' '))
-  const record = instrumentOfTexts(texts, others, id, before ?? { quoted: { kind: 'unit' }, benchmark: false })!
+  const record = instrumentOfTexts(texts, others, id, before ?? { quoted: { kind: 'unit' }, ...NEW_INSTRUMENT_DEFAULTS })!
   const mixes = fundMixChanges(mixTexts, heldLines, id)!
   if (before === null) unit.of(INSTRUMENT_WRITES).add(record)
   else unit.of(INSTRUMENT_WRITES).change(before, record)

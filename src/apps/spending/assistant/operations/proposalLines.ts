@@ -1,7 +1,10 @@
 import { words as accountWords } from '../../accounts/presentation/words'
+import { words as cardWords } from '../../../../shared/app/words'
 import { words as categoryWords } from '../../categories/presentation/words'
 import type { DryRunLine, StatementDryRun } from '../../statements/domain/statementDryRun'
+import { NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
+import { NEW_CATEGORY_DEFAULTS } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -53,7 +56,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'kind') return categoryWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank === null ? null : accountWords.banks[record.bank]
-  if (typeof value === 'boolean') return value ? words.proposals.yes : words.proposals.no
+  if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   if (isKind(kind, RULE_RECORDS, record) && field === 'condition') {
     return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment
   }
@@ -145,6 +148,11 @@ export interface CardWarnings {
   readonly receipts: readonly ProposalNote[]
 }
 
+/** What a new category or account holds unless a person sets it, which a card leaves off its add. */
+export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
+  return kind.name === CATEGORY_RECORDS.name ? NEW_CATEGORY_DEFAULTS : kind.name === ACCOUNT_RECORDS.name ? NEW_ACCOUNT_DEFAULTS : {}
+}
+
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its group of entries, and a receipt on its group of receipts. */
 export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { leftOut, receipts }: CardWarnings = { leftOut: null, receipts: [] }): readonly ProposalGroup[] {
   const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts].map((record) => [record.id, record.name]))
@@ -156,6 +164,7 @@ export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { le
     fieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf),
+    defaultsOf: defaultsOnAdd,
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),
   }
   const statementNotes = leftOut === null ? [] : [lookAlikeNote(leftOut, book), leftOutNote(leftOut), inKunaNote(leftOut)].flatMap((note) => (note === null ? [] : [note]))
