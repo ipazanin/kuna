@@ -4,7 +4,7 @@ import type { PackKey, PackPart } from '../../../workbook/domain/packPart'
 import { CATEGORY_NAMING, OWNER_ADVANCE_NAMING } from './categoryNaming'
 import { tabProblems } from '../../../workbook/domain/workbook'
 import type { OwnerAdvance, Workbook } from '../../../workbook/domain/workbook'
-import { assetsClaimingRows, uncheckedClaimProblems } from './assets/assetRegister'
+import { assetPaymentProblems, assetsClaimingRows } from './assets/assetRegister'
 import type { Asset } from './assets/assets'
 import { ASSET_CODEC, readAssets } from './assets/assetsReading'
 import { COMPANY_FACT_SETTINGS } from './companyFacts'
@@ -150,7 +150,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
         ...tabProblems('grants', grants.problems),
         ...tabProblems('scenarios', scenarios.problems),
         ...tabProblems('owner-advances', ownerAdvances.problems),
-        ...tabProblems('assets', [...assets.problems, ...uncheckedClaimProblems(assets.facts, core.transactions, core.categories)]),
+        ...tabProblems('assets', [...assets.problems, ...assetPaymentProblems(assets.facts, core.transactions, core.categories)]),
         ...tabProblems('year-end', yearEndLines.problems),
         ...tabProblems('plan', planLines.problems),
         ...tabProblems('employees', employees.problems),

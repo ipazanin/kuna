@@ -41,6 +41,8 @@ export const en = {
   /** Why an asset claims no bank row it would otherwise claim. */
   unchecked: (byDate: boolean, day: CivilDate) =>
     `${byDate ? `the capital purchase of ${day} may pay for it` : `its ledger_reference finds the bank row of ${day}`}, but the app has no standard VAT rate for that day to check the amount against, so the row is left unclaimed`,
+  /** Why an asset linked to a bank row has no payment. */
+  noLinkedPayment: (rowId: string) => `no payment on the ledger carries its row_id ${rowId}, so it claims no bank row`,
 }
 
 export const hr: Translation<typeof en> = {
@@ -74,6 +76,7 @@ export const hr: Translation<typeof en> = {
   },
   unchecked: (byDate, day) =>
     `${byDate ? `nabava dugotrajne imovine od ${dayLabel(day)} možda ga plaća` : `njegovo polje ledger_reference pronalazi bankovnu stavku od ${dayLabel(day)}`}, ali aplikacija za taj dan nema opću stopu PDV-a za provjeru iznosa, pa stavka ostaje nepovezana`,
+  noLinkedPayment: (rowId) => `nijedno plaćanje u evidenciji nema njegov row_id ${rowId}, pa nije povezano ni s jednom bankovnom stavkom`,
 }
 
 export const words = language === 'hr' ? hr : en

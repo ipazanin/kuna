@@ -18,6 +18,8 @@ const UNDO_TOAST_DURATION = 10_000
 export interface RecordWriteOptions {
   /** What the toast says under its title. Defaults to the records written, by their labels. */
   readonly description?: string
+  /** True when the title already counts what the write changed, so the toast adds no line naming the records. */
+  readonly titleCounts?: boolean
   /** A second action beside Undo, such as making a rule from the row just filed. */
   readonly follow?: { readonly label: string; readonly icon: string; readonly run: () => void }
   /** The toast's title when the write was refused, so nothing was written. */
@@ -51,7 +53,7 @@ export interface RecordWrites {
    */
   write(title: string, work: (unit: UnitOfWork) => void, options?: RecordWriteOptions): Promise<boolean>
   /** Says in a toast what a write of this session did, under its title, with Undo where it keeps one. */
-  announce(receipt: WriteReceipt, options?: Pick<RecordWriteOptions, 'description' | 'follow'>): void
+  announce(receipt: WriteReceipt, options?: Pick<RecordWriteOptions, 'description' | 'follow' | 'titleCounts'>): void
   /** Puts back what a write of this session changed, and says so in a toast, or why it could not. */
   undo(write: SessionWrite): Promise<void>
 }
@@ -99,13 +101,13 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
     }
   }
 
-  function announce(receipt: WriteReceipt, options: Pick<RecordWriteOptions, 'description' | 'follow'> = {}): void {
+  function announce(receipt: WriteReceipt, options: Pick<RecordWriteOptions, 'description' | 'follow' | 'titleCounts'> = {}): void {
     const recorded = store.state.writes.find((written) => written.receipt === receipt)
     if (recorded === undefined) return
     toast.add({
       title: receipt.title,
       // The control already shows what changed, so its toast keeps to one row and stacks low on a phone.
-      ...(recorded.shownAtOnce ? { orientation: 'horizontal' as const } : { description: options.description ?? recordsChangeInWords(receipt, null) }),
+      ...(recorded.shownAtOnce ? { orientation: 'horizontal' as const } : options.titleCounts === true ? {} : { description: options.description ?? recordsChangeInWords(receipt, null) }),
       icon: 'i-lucide-check',
       color: 'success',
       duration: UNDO_TOAST_DURATION,

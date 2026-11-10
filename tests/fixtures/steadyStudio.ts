@@ -117,6 +117,7 @@ export const STEADY_LAPTOP: Asset = {
   disposed: null,
   fundedBy: '',
   ledgerReference: 'Order 2001',
+  rowId: null,
   note: '',
   id: recordIdOf(ASSET_RECORDS, 'row-2'),
 }

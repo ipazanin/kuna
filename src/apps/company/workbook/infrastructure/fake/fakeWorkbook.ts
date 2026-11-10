@@ -284,7 +284,11 @@ const FIXED_IDS: Readonly<Record<string, number>> = {
 
 function withFixedId(kind: string, fields: FakeFields, index: number): FakeFields {
   const place = FIXED_IDS[kind]
-  return place === undefined ? fields : { ...fields, [ID_FIELD]: `00000000-0000-4000-8000-${String(place).padStart(4, '0')}${String(index + 1).padStart(8, '0')}` }
+  return place === undefined ? fields : { ...fields, [ID_FIELD]: fixedIdOf(place, index) }
+}
+
+function fixedIdOf(place: number, index: number): string {
+  return `00000000-0000-4000-8000-${String(place).padStart(4, '0')}${String(index + 1).padStart(8, '0')}`
 }
 
 /** The fields as text, a number as its decimal text. */
@@ -629,6 +633,7 @@ function splitRecords(ledger: readonly FakeFields[]): FakeFields[] {
       account: row.account,
       row_amount: row.amount,
       row_balance: row.balance,
+      row_id: fixedIdOf(FIXED_IDS['ledger-row']!, ledger.indexOf(row)),
       amount: money(part === null ? roundToCent(amount + fixed) : -part),
       category,
       note,

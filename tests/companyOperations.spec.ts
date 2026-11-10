@@ -347,7 +347,7 @@ describe('rules', () => {
 })
 
 describe('splits and owner shares', () => {
-  it('splits a row by shares with no cent lost, and Undo takes the split off', async () => {
+  it('splits a row by shares with no cent lost, each part naming the row by its id, and Undo takes the split off', async () => {
     const desk = await companyDesk(used)
     const row = desk.row('REF-6')
     await desk.propose([
@@ -368,6 +368,9 @@ describe('splits and owner shares', () => {
     const split = desk.store.state.workbook!.splits.find((candidate) => candidate.row.id === row.id)!
     expect(split.parts.map((part) => part.amount).reduce((sum, amount) => sum + amount, 0)).toBe(row.amount)
     expect(split.parts.map((part) => part.amount)).toEqual([-2000, -2000, -2000])
+    expect(row.rowId).not.toBeNull()
+    const partIds = new Set(split.parts.map((part) => part.id))
+    expect(desk.store.state.records!.splits.records.filter((stored) => partIds.has(stored.record.id)).map((stored) => stored.record.key.rowId)).toEqual([row.rowId, row.rowId, row.rowId])
     if (accepted.kind === 'done') await accepted.undo!()
     expect(desk.store.state.workbook!.splits.some((candidate) => candidate.row.id === row.id)).toBe(false)
   })

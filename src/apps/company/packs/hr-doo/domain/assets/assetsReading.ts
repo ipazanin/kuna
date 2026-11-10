@@ -39,6 +39,7 @@ export function assetOf(fields: StoredFields, id: RecordId | null): Asset {
     disposed,
     fundedBy: slugOf(fields.funded_by),
     ledgerReference: textOf(fields.ledger_reference),
+    rowId: textOf(fields.row_id) || null,
     note: textOf(fields.note),
     id: ownId(id),
   }
@@ -60,6 +61,7 @@ export const ASSET_CODEC: RecordCodec<Asset> = withIdField(
       disposed: asset.disposed,
       funded_by: asset.fundedBy,
       ledger_reference: asset.ledgerReference,
+      row_id: asset.rowId,
       note: asset.note,
     }),
 )

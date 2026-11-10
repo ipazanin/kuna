@@ -1,4 +1,5 @@
 import type { PackOperations } from '../../../../assistant/companyAssistant'
+import { LEDGER_RECORDS } from '../../../../workbook/domain/coreKinds'
 import { recordsOfKindIn } from '../../../../workbook/domain/readWorkbook'
 import type { CompanyBooks } from '../../../../workbook/domain/readWorkbook'
 import { slugProblem } from '../../../../workbook/domain/slug'
@@ -13,6 +14,7 @@ import type { KeyedLine, PlanLineDraft } from '../../application/planWrites'
 import { copyScenario, renameScenario, scenarioRowsOf } from '../../application/scenarioWrites'
 import { ASSET_GROUPS } from '../../domain/assets/assets'
 import type { Asset, AssetGroup } from '../../domain/assets/assets'
+import { paymentRowsOf } from '../../domain/assets/assetRegister'
 import { assetOfFields } from '../../domain/assets/assetsReading'
 import type { Employee } from '../../domain/employees/employees'
 import { employeeOfFields } from '../../domain/employees/employeesReading'
@@ -53,6 +55,13 @@ const MONTH: StrictSchema = { type: 'integer', description: 'A month from 1 to 1
 const MONTH_OR_NULL: StrictSchema = { type: ['number', 'null'], description: 'A month from 1 to 12, or null.' }
 const DAY: StrictSchema = { type: 'string', description: 'A day such as 2026-10-31.' }
 
+/** What a kind's add and change take beside the editor's columns, and how a step's value of it lands on the record. */
+interface EditorInput<R> {
+  readonly fields: Readonly<Record<string, StrictSchema>>
+  readonly refs: Readonly<Record<string, string>>
+  apply(record: R, field: Readonly<Record<string, never>>, books: CompanyBooks, idOf: (value: unknown) => string): R
+}
+
 /** A kind a person keeps in an editor on its screen, which the chat changes one row at a time through the editor's own columns and factory. */
 interface EditorKind<R> {
   readonly rules: WriteRules<R>
@@ -60,13 +69,32 @@ interface EditorKind<R> {
   readonly make: DraftFactory<R>
   /** The record a ref names, as the app read it, by the id the chat reads the kind by. */
   held(read: RecordsRead<R>, id: string): ReadRecord<R> | undefined
+  readonly input?: EditorInput<R>
+}
+
+/** The asset linked to the payment a ledger row's ref names, or left as it is by null. Only a payment out with a row id can be linked. */
+function withPayment(asset: Asset, field: Readonly<Record<string, never>>, books: CompanyBooks, idOf: (value: unknown) => string): Asset {
+  const value = field['payment'] as string | null
+  if (value === null) return asset
+  const id = idOf(value)
+  const row = books.workbook.transactions.find((candidate) => candidate.id === id)
+  if (row === undefined) throw new StepRefused('That ledger row is no longer in the books.')
+  if (row.rowId === null) throw new StepRefused('That ledger row has no id yet. Give the ledger rows their ids on Settings, Books file, first.')
+  if (paymentRowsOf(row.rowId, books.workbook.transactions).length === 0) throw new StepRefused('An asset is paid by money going out, and that row brings money in.')
+  return { ...asset, rowId: row.rowId }
+}
+
+const ASSET_PAYMENT: EditorInput<Asset> = {
+  fields: { payment: { type: ['string', 'null'], description: 'The ledger row that paid for it, which links the asset to that row, or null to leave its link as it is.' } },
+  refs: { payment: LEDGER_RECORDS.name },
+  apply: withPayment,
 }
 
 const byRecordId = <R>(read: RecordsRead<R>, id: string): ReadRecord<R> | undefined => read.records.find((stored) => stored.id === id)
 const bySlug = <R extends { readonly slug: string }>(read: RecordsRead<R>, slug: string): ReadRecord<R> | undefined => read.records.find((stored) => stored.record.slug === slug)
 
 const YEAR_END_KIND: EditorKind<YearEndLine> = { rules: YEAR_END_WRITES, columns: YEAR_END_COLUMNS, make: yearEndLineOfFields, held: byRecordId }
-const ASSET_KIND: EditorKind<Asset> = { rules: ASSET_WRITES, columns: assetColumns([]), make: assetOfFields, held: byRecordId }
+const ASSET_KIND: EditorKind<Asset> = { rules: ASSET_WRITES, columns: assetColumns([]), make: assetOfFields, held: byRecordId, input: ASSET_PAYMENT }
 const GRANT_KIND: EditorKind<Grant> = { rules: GRANT_WRITES, columns: GRANT_COLUMNS, make: grantOfFields, held: bySlug }
 const EMPLOYEE_KIND: EditorKind<Employee> = { rules: EMPLOYEE_WRITES, columns: EMPLOYEE_COLUMNS, make: employeeOfFields, held: bySlug }
 
@@ -118,19 +146,30 @@ function editorOperations(
   refKind: string,
   examples: { readonly add: Readonly<Record<string, string>>; readonly change: Readonly<Record<string, string>>; readonly deleted?: string },
 ): AssistantOperation[] {
-  const fields = columnFields(EDITOR_KINDS[name].columns)
+  const kind: EditorKind<unknown> = EDITOR_KINDS[name]
+  const fields = columnFields(kind.columns)
+  const extra = kind.input?.fields ?? {}
   const left = Object.fromEntries(Object.keys(fields).map((field) => [field, null]))
-  const noun = EDITOR_KINDS[name].rules.kind.noun.en.one
+  const extraLeft = Object.fromEntries(Object.keys(extra).map((field) => [field, null]))
+  const noun = kind.rules.kind.noun.en.one
   return [
-    { name: `add-${name}`, about: about.add, input: inputOf(fields), refs: {}, creates: null, alone: false, example: { ...left, ...examples.add } },
+    {
+      name: `add-${name}`,
+      about: about.add,
+      input: inputOf({ ...fields, ...extra }),
+      refs: kind.input?.refs ?? {},
+      creates: null,
+      alone: false,
+      example: { ...left, ...extraLeft, ...examples.add },
+    },
     {
       name: `change-${name}`,
       about: about.change,
-      input: inputOf({ row: TEXT, ...fields }),
-      refs: { row: refKind },
+      input: inputOf({ row: TEXT, ...fields, ...extra }),
+      refs: { row: refKind, ...kind.input?.refs },
       creates: null,
       alone: false,
-      example: { row: name, ...left, ...examples.change },
+      example: { row: name, ...left, ...extraLeft, ...examples.change },
     },
     { name: `delete-${name}`, about: about.delete, input: inputOf({ row: TEXT }), refs: { row: refKind }, creates: null, alone: false, example: { row: examples.deleted ?? name } },
     {
@@ -431,15 +470,19 @@ function editorRowOf<R>(kind: EditorKind<R>, name: EditorName, held: StoredRecor
   return made.made
 }
 
-/** One editor row added, changed or removed, through the editor's columns and factory, as its Save writes it. */
-function writeEditorRow(unit: UnitOfWork, books: CompanyBooks, name: EditorName, verb: string, field: Readonly<Record<string, never>>): void {
+/**
+ * One editor row added, changed or removed, through the editor's columns and factory, as its Save writes it, with what the kind
+ * takes beside the columns.
+ */
+function writeEditorRow(unit: UnitOfWork, books: CompanyBooks, name: EditorName, verb: string, field: Readonly<Record<string, never>>, idOf: (value: unknown) => string): void {
   const kind = EDITOR_KINDS[name] as EditorKind<unknown>
   const read = recordsOfKindIn(books.records, kind.rules.kind)
   const held = verb === 'add' ? undefined : kind.held(read, field['row'])
   if (verb !== 'add' && held === undefined) throw new StepRefused(`That ${kind.rules.kind.noun.en.one} is no longer in the file, or the file cannot read it.`)
+  const rowOf = (record: unknown): unknown => (kind.input === undefined ? record : kind.input.apply(record, field, books, idOf))
   if (verb === 'delete') unit.of(kind.rules).remove(held!.record)
-  else if (held === undefined) unit.of(kind.rules).add(editorRowOf(kind, name, undefined, field))
-  else unit.of(kind.rules).change(held.record, editorRowOf(kind, name, held, field))
+  else if (held === undefined) unit.of(kind.rules).add(rowOf(editorRowOf(kind, name, undefined, field)))
+  else unit.of(kind.rules).change(held.record, rowOf(editorRowOf(kind, name, held, field)))
 }
 
 /** A row Kuna cannot read, fixed through the editor's columns and factory or removed, as the editor's Save repairs or drops it. */
@@ -610,7 +653,7 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
       const [verb, ...rest] = operation.split('-')
       const name = rest.join('-')
       if ((verb === 'add' || verb === 'change' || verb === 'delete') && name in EDITOR_KINDS) {
-        writeEditorRow(unit, books, name as EditorName, verb, field)
+        writeEditorRow(unit, books, name as EditorName, verb, field, idOf)
         return
       }
       if (plannedTripStep(unit, books, { operation, input, as: null }, idOf, anonymising)) return

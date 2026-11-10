@@ -23,8 +23,10 @@ export interface Asset {
   readonly disposed: CivilDate | null
   /** The grant that paid for it, by the `grant` name on the grants tab. Blank when none did. */
   readonly fundedBy: string
-  /** Text that finds the purchase on the ledger, such as its bank reference. */
+  /** Text that finds the purchase on the ledger, such as its bank reference, while `rowId` is null. */
   readonly ledgerReference: string
+  /** The `rowId` of the bank row that paid for it, or null while `ledgerReference` or the amount finds its payment. */
+  readonly rowId: string | null
   readonly note: string
   /** Held by no other row of its tab. */
   readonly id: RecordId

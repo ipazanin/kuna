@@ -33,6 +33,7 @@ function asset(spec: AssetSpec): Asset {
     disposed: null,
     fundedBy: spec.fundedBy ?? '',
     ledgerReference: '',
+    rowId: null,
     note: '',
     id: recordIdOf(ASSET_RECORDS, 'row-2'),
   }

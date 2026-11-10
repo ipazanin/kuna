@@ -50,7 +50,8 @@ const ASSET_COLUMNS: readonly TemplateColumn[] = [
   { name: 'doubled', note: 'TRUE when the depreciation rate is doubled for this asset. Blank or FALSE uses the single rate.' },
   { name: 'disposed', note: 'The day it was sold or written off, as a date cell. Blank while you still have it.' },
   { name: 'funded_by', note: 'The grant that paid for it, by the name in the grants tab. Optional.' },
-  { name: 'ledger_reference', note: 'Text that finds the purchase on the ledger, such as its bank reference. Optional.' },
+  { name: 'ledger_reference', note: 'Text that finds the purchase on the ledger, such as its bank reference, while row_id is blank. Optional.' },
+  { name: 'row_id', note: 'The id of the ledger row that paid for it, which the app writes. When it is set, the asset finds its payment by it alone. Optional.' },
   { name: 'note', note: 'Anything worth keeping with it. Optional.' },
   ID_TEMPLATE_COLUMN,
 ]

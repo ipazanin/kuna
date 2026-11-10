@@ -160,12 +160,12 @@ describe('the share of a record filed outside the ledger', () => {
   })
 
   it('gives each new split part its category’s default, a part put in another category the new one, and keeps the share of a part that keeps its category', () => {
-    const key = { date: civil('2026-10-05'), account: 'main', rowAmount: euros(-30), rowBalance: euros(970) }
+    const key = { date: civil('2026-10-05'), account: 'main', rowAmount: euros(-30), rowBalance: euros(970), rowId: null }
     const held: SplitTabRow[] = [
       { key, amount: euros(-20), category: 'ai-services', note: '', ownerShare: share(10), id: recordIdOf(SPLIT_PART_RECORDS, 'part-a') },
       { key, amount: euros(-10), category: 'ai-services', note: '', ownerShare: share(50), id: recordIdOf(SPLIT_PART_RECORDS, 'part-b') },
     ]
-    const bankRow = { date: key.date, account: 'main', amount: key.rowAmount, balance: key.rowBalance }
+    const bankRow = { date: key.date, account: 'main', amount: key.rowAmount, balance: key.rowBalance, rowId: null }
 
     const changes = changesOf((unit) =>
       writeSplit(
@@ -189,13 +189,13 @@ describe('the share of a record filed outside the ledger', () => {
   })
 
   it('keeps the share a part was opened with when a part above it is removed in the editor', () => {
-    const key = { date: civil('2026-10-05'), account: 'main', rowAmount: euros(-30), rowBalance: euros(970) }
+    const key = { date: civil('2026-10-05'), account: 'main', rowAmount: euros(-30), rowBalance: euros(970), rowId: null }
     const held: SplitTabRow[] = [
       { key, amount: euros(-20), category: 'ai-services', note: '', ownerShare: share(10), id: recordIdOf(SPLIT_PART_RECORDS, 'part-a') },
       { key, amount: euros(-6), category: 'ai-services', note: 'Seats', ownerShare: null, id: recordIdOf(SPLIT_PART_RECORDS, 'part-b') },
       { key, amount: euros(-4), category: 'equipment', note: '', ownerShare: share(30), id: recordIdOf(SPLIT_PART_RECORDS, 'part-c') },
     ]
-    const bankRow = { date: key.date, account: 'main', amount: key.rowAmount, balance: key.rowBalance }
+    const bankRow = { date: key.date, account: 'main', amount: key.rowAmount, balance: key.rowBalance, rowId: null }
 
     const changes = changesOf((unit) =>
       writeSplit(

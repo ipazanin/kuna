@@ -131,6 +131,9 @@ export const en = {
       `the ledger holds no ${account} row of ${date} with the amount ${plainAmount(amount)} and the balance ${plainAmount(balance)}`,
     severalRows: (count: number, account: string, date: CivilDate, amount: Money, balance: Money) =>
       `${count} ledger rows are the ${account} row of ${date} with the amount ${plainAmount(amount)} and the balance ${plainAmount(balance)}`,
+    noRowWithId: (rowId: string, account: string, date: CivilDate, amount: Money, balance: Money) =>
+      `the ledger holds no row with the id ${rowId}, which was the ${account} row of ${date} with the amount ${plainAmount(amount)} and the balance ${plainAmount(balance)}`,
+    severalRowsWithId: (count: number, rowId: string) => `${count} ledger rows carry the id ${rowId}`,
     sharesKey: (account: string, date: CivilDate, amount: Money, balance: Money) =>
       `the ${account} row of ${date} with the amount ${plainAmount(amount)} and the balance ${plainAmount(balance)} shares its key with another ledger row`,
     unreadableParts: (count: number): EnglishForms => ({ one: 'a part of this split cannot be read', other: `${count} parts of this split cannot be read` }),
@@ -213,6 +216,9 @@ export const hr: Translation<typeof en> = {
     noRow: (account, date, amount, balance) => `u evidenciji nema ove stavke: ${croatianRow(account, date, amount, balance)}`,
     severalRows: (count, account, date, amount, balance) =>
       `${capitalised(croatianRow(account, date, amount, balance))} u evidenciji je ${count} ${plural({ one: 'put', few: 'puta', other: 'puta' }, count)}`,
+    noRowWithId: (rowId, account, date, amount, balance) => `u evidenciji nema stavke s ID-om ${rowId}, a to je bila ${croatianRow(account, date, amount, balance)}`,
+    severalRowsWithId: (count, rowId) =>
+      `ID ${rowId} ${plural({ one: 'ima', few: 'imaju', other: 'ima' }, count)} ${count} ${plural({ one: 'stavka', few: 'stavke', other: 'stavki' }, count)} evidencije`,
     sharesKey: (account, date, amount, balance) => `${croatianRow(account, date, amount, balance)} dijeli ključ s drugom stavkom evidencije`,
     unreadableParts: (count) => ({
       one: `${count} dio ove podjele ne može se pročitati`,

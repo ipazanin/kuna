@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { Asset } from '../src/apps/company/packs/hr-doo/domain/assets/assets'
 import type { Category } from '../src/apps/company/workbook/domain/workbook'
-import { assetRegister } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister'
+import { assetPaymentProblems, assetRegister } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
@@ -38,6 +38,7 @@ function asset(name: string, cost: number, bought: string, ledgerReference = '')
     disposed: null,
     fundedBy: '',
     ledgerReference,
+    rowId: null,
     note: '',
     id: recordIdOf(ASSET_RECORDS, 'row-2'),
   }
@@ -74,6 +75,31 @@ describe('assetRegister', () => {
       ['date-and-amount', 'Foreign tablet'],
     ])
     expect(register.unmatchedPurchases.map((purchase) => purchase.row.description)).toEqual(['Early order'])
+  })
+
+  it('takes the debit an asset is linked to by its row id, whatever its reference or amount, and keeps it out of the amount match', () => {
+    const rows = ledger([
+      { date: '2025-05-02', amount: -1000, category: 'equipment', description: 'Order 77' },
+      { date: '2025-05-02', amount: -1000, category: 'equipment', description: 'Order 78' },
+    ])
+    const transactions = rows.map((row) => (row.description === 'Order 78' ? { ...row, rowId: 'row-78' } : row))
+    const register = assetRegister([{ ...asset('Example laptop', 650, '2025-05-02', 'Order 77'), rowId: 'row-78' }, asset('Example dock', 800, '2025-05-02')], transactions, CATEGORIES)
+
+    expect(register.assets.map((entry) => [entry.payment?.matchedBy, entry.payment?.row.description])).toEqual([
+      ['row', 'Order 78'],
+      ['date-and-amount', 'Order 77'],
+    ])
+    expect(register.mismatchedPayments).toEqual([])
+  })
+
+  it('leaves an asset whose row id no debit carries without a payment, and says why', () => {
+    const transactions = ledger([{ date: '2025-05-02', amount: -1000, category: 'equipment', description: 'Order 77' }])
+    const linked = { ...asset('Example laptop', 800, '2025-05-02', 'Order 77'), rowId: 'row-gone' }
+
+    expect(assetRegister([linked], transactions, CATEGORIES).assets[0]?.payment).toBeNull()
+    expect(assetPaymentProblems([linked], transactions, CATEGORIES).map((problem) => [problem.label, problem.reason])).toEqual([
+      ['Example laptop', 'no payment on the ledger carries its row_id row-gone, so it claims no bank row'],
+    ])
   })
 
   it('keeps a row claimed by reference out of the amount match', () => {

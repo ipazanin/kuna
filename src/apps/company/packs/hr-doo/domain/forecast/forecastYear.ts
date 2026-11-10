@@ -556,6 +556,7 @@ function plannedAssetsOf(lines: readonly PlanLine[], calendar: ForecastCalendar)
             disposed: null,
             fundedBy: '',
             ledgerReference: '',
+            rowId: null,
             note: line.note,
             id: line.id,
           },

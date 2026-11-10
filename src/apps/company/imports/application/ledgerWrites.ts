@@ -1,8 +1,10 @@
 import { addMoney, subtractMoney } from '../../../../shared/money/money'
 import { definedCategories, definedCategorySlugs } from '../../workbook/domain/categoriesReading'
 import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
+import { changesOnly } from '../../workbook/domain/fieldEdits'
 import { readLedger } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
+import { ID_FIELD } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
@@ -76,13 +78,23 @@ function removedRefusals(removedRows: ReadonlySet<RecordId | null>, before: read
   return refusals
 }
 
-/** A verdict names a category the categories tab defines, unless it puts back what an earlier write replaced. */
+/** A verdict names a category the categories tab defines, unless it puts back what an earlier write replaced. Giving a row its id files nothing. */
 function verdictRefusals(change: KindChange<LedgerEntry>, definedCategories: ReadonlySet<string>): string[] {
   if (change.undoing) return []
   return change.edits.flatMap((edit) => {
-    if (edit.before === null || edit.after === null) return []
+    if (edit.before === null || edit.after === null || changesOnly(edit.before.fields, edit.after.fields, ID_FIELD)) return []
     const category = textOf(edit.after.fields.category)
     return definedCategories.has(category.toLowerCase()) ? [] : [words.ledger.notACategory(category)]
+  })
+}
+
+/** A row keeps the id it was given, unless the write puts back what an earlier write replaced. */
+function rowIdRefusals(change: KindChange<LedgerEntry>): string[] {
+  if (change.undoing) return []
+  return change.edits.flatMap((edit) => {
+    if (edit.before === null || edit.after === null) return []
+    const given = textOf(edit.before.fields[ID_FIELD])
+    return given === '' || given === textOf(edit.after.fields[ID_FIELD]) ? [] : [words.ledger.keepsRowId(edit.before.label)]
   })
 }
 
@@ -92,18 +104,18 @@ function verdictRefusals(change: KindChange<LedgerEntry>, definedCategories: Rea
  * it, which is all of it the app changes. Against the ledger as it is right before the write, each
  * account's new records must open at its newest balance and run on from it, and none may predate the account's newest record. A
  * record already there by its account and reference is refused as every kind refuses a record it holds. A record taken out must have no
- * record of its account booked after it left in. A verdict names a defined category.
+ * record of its account booked after it left in. A verdict names a defined category. A row without an id may be given one, and keeps it.
  */
 export const LEDGER_WRITES: WriteRules<LedgerEntry> = {
   kind: LEDGER_RECORDS,
   reads: [CATEGORY_RECORDS],
-  changeable: ['category', 'flaggedBy', 'ownerShare'] satisfies (keyof LedgerEntry)[],
+  changeable: ['category', 'flaggedBy', 'ownerShare', 'rowId'] satisfies (keyof LedgerEntry)[],
   undoable: true,
   read: (read, records) => readLedger(read, definedCategories(records.of(CATEGORY_RECORDS))),
   refusals: (change, fresh) => {
     const before = readLedger(change.before, definedCategories(fresh.of(CATEGORY_RECORDS))).facts
     const added = change.edits.flatMap((edit) => (edit.before === null && edit.after !== null ? [edit.after.fields] : []))
     const removed = new Set(change.edits.flatMap((edit) => (edit.after === null && edit.before !== null ? [edit.before.id] : [])))
-    return [...addedRefusals(added, before), ...removedRefusals(removed, before), ...verdictRefusals(change, definedCategorySlugs(fresh.of(CATEGORY_RECORDS)))]
+    return [...addedRefusals(added, before), ...removedRefusals(removed, before), ...verdictRefusals(change, definedCategorySlugs(fresh.of(CATEGORY_RECORDS))), ...rowIdRefusals(change)]
   },
 }

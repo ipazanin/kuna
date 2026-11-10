@@ -29,6 +29,7 @@ function asset(spec: AssetSpec): Asset {
     disposed: spec.disposed === undefined ? null : civil(spec.disposed),
     fundedBy: '',
     ledgerReference: '',
+    rowId: null,
     note: '',
     id: recordIdOf(ASSET_RECORDS, 'row-2'),
   }

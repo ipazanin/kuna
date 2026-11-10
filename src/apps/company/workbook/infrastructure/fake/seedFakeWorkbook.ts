@@ -2,6 +2,8 @@ import { answerKunaStart, forgetKunaStart } from '../../../../../shared/app/kuna
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'
 import { decodeDocument, encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import type { DocumentCopy } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
+import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
+import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
 import { COMPANY_APP } from '../../domain/companyApp'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
 import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, seedFakeBackups, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
@@ -15,13 +17,20 @@ import type { FakeStaff } from './fakeWorkbook'
 
 const DAY = 86_400_000
 
-/** The variants that start without the records of a kind, by the end of their name. */
+/** The books as they stood before imports gave every ledger row an id: no row has one, and no split part names one. */
+function withoutRowIds(document: WorkbookDocument): WorkbookDocument {
+  const ledger = (document.records['ledger-row'] ?? []).map(({ [ID_FIELD]: _id, ...fields }) => fields)
+  const parts = (document.records['split-part'] ?? []).map(({ row_id: _rowId, ...fields }) => fields)
+  return { ...document, records: { ...document.records, 'ledger-row': ledger, 'split-part': parts } }
+}
+
 /** Each load of the fake build starts with the home welcome unanswered, unless the address says otherwise, so one check's answer does not reach the next. */
 function seedFakeStart(home: string | null): void {
   forgetKunaStart()
   if (home === 'drive' || home === 'browser') answerKunaStart({ home, apps: ['company', 'loans', 'assets'] })
 }
 
+/** The variants that start without the records of a kind, by the end of their name. */
 const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
   ['no-billing-plan', 'billing-item'],
   ['no-scenarios', 'hr-doo.scenario-component'],
@@ -41,7 +50,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
  * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, and one that
- * ends in `category-move` adds plan rows a category's move joins or cannot change.
+ * ends in `category-move` adds plan rows a category's move joins or cannot change. One that ends in `no-row-ids` holds books from before every ledger row had an id.
  */
 export async function seedFakeWorkbook(variant: string | null, staffOf: (variant: string | null) => FakeStaff | null): Promise<void> {
   seedFakeStart(new URLSearchParams(window.location.search).get('start'))
@@ -56,7 +65,8 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const full = variant?.endsWith('copied') ? { ...seeded, records: { ...seeded.records, 'ledger-row': [sampleCopiedLedgerRow(), ...(seeded.records['ledger-row'] ?? [])] } } : seeded
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full
-  const kept = missing === null ? planned : { ...planned, records: { ...planned.records, [missing]: [] } }
+  const unlinked = variant?.endsWith('no-row-ids') ? withoutRowIds(planned) : planned
+  const kept = missing === null ? unlinked : { ...unlinked, records: { ...unlinked.records, [missing]: [] } }
   const mailed = variant?.startsWith('mail') ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : kept
   const document = variant === 'newer-file' ? { ...mailed, schema: { ...mailed.schema, core: (mailed.schema.core ?? 0) + 1 } } : mailed
   if (variant === 'race') {

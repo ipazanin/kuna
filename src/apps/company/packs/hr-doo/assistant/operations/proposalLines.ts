@@ -135,6 +135,13 @@ export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
   return kind.name === ASSET_RECORDS.name ? NEW_ASSET_DEFAULTS : {}
 }
 
+/** The bank row an asset is linked to, by its day, its other side and its amount, or nothing for an asset linked to none. */
+function paymentText(workbook: Workbook, rowId: string | null, format: MoneyFormat): string | null {
+  const row = rowId === null ? undefined : workbook.transactions.find((candidate) => candidate.rowId === rowId)
+  if (row === undefined) return rowId
+  return [dayLabel(row.date), row.counterparty || row.description, formatMoney(row.amount, 'negative', format)].filter((part) => part !== '').join(', ')
+}
+
 /** How a card reads the pack's records, in the words of its screens. An employee's accounts say where pay goes, so the card warns on them. */
 export function packDescriber(workbook: Workbook): PackDescriber {
   const format = moneyFormatOf(workbook.settings)
@@ -145,6 +152,7 @@ export function packDescriber(workbook: Workbook): PackDescriber {
     keptByKuna: KEPT_BY_KUNA,
     fieldName: (field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
     shown: (kind, field, record) => {
+      if (isKind(kind, ASSET_RECORDS, record) && field === 'rowId') return paymentText(workbook, record.rowId, format)
       const trip = tripShownValue(kind, field, record, format, workbook)
       return trip === undefined ? shownValue(kind, field, record, format, category) : trip
     },

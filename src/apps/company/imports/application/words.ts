@@ -47,6 +47,7 @@ export const en = {
     bookedAfter: (account: string, date: CivilDate, balance: Money) =>
       `The ${account} row of ${date} with the balance ${plainAmount(balance)} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`,
     notACategory: (category: string) => `"${category}" is not a category on the categories tab.`,
+    keepsRowId: (label: string) => `The ledger row "${label}" keeps the id it was given, since split parts and assets find it by that id.`,
   },
 }
 
@@ -85,6 +86,7 @@ export const hr: Translation<typeof en> = {
     bookedAfter: (account, date, balance) =>
       `Stavka računa „${account}” od ${dayLabel(date)} sa saldom ${formatMoney(balance)} proknjižena je nakon stavki koje se uklanjaju, pa njezin saldo ovisi o njima. Najprije uklonite nju ili ostavite stavke.`,
     notACategory: (category) => `„${category}” nije kategorija iz popisa kategorija.`,
+    keepsRowId: (label) => `Stavka evidencije „${label}” zadržava ID koji je dobila jer je po njemu pronalaze dijelovi podjela i sredstva.`,
   },
 }
 

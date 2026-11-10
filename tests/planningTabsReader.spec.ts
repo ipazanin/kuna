@@ -125,6 +125,7 @@ describe('the assets tab', () => {
         disposed: null,
         fundedBy: 'startup',
         ledgerReference: 'FAKE-REF-0002',
+        rowId: null,
         note: 'Main machine',
         id: recordIdOf(ASSET_RECORDS, 'assets-2'),
       },

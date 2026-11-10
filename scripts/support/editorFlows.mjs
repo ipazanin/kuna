@@ -1453,6 +1453,54 @@ export function splitFlowIn(language) {
 export const splitFlow = splitFlowIn('en')
 
 /**
+ * Books from before every ledger row had an id (`?fake=no-row-ids`): Overview's Waiting for you counts the rows, its link opens Settings, Books
+ * file, whose prompt gives them all an id in one write. Undo takes the ids back and the prompt returns. Given again, the ids link the
+ * split parts to their rows, and a split row on Transactions still shows its parts.
+ */
+export function rowIdsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.books.rowIds
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const notice = '[data-testid="row-ids-notice"]'
+    await page.waitForSelector('[data-testid="waiting-for-you"] [data-job="row-ids"] a', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Waiting for you does not count the ledger rows without an id')
+    })
+    await shoot('row-ids-waiting')
+    await pressSelector(page, press, '[data-testid="waiting-for-you"] [data-job="row-ids"] a')
+    await page.waitForSelector(notice, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Settings, Books file does not offer to give the ledger rows their ids')
+    })
+    const count = Number((await page.$eval(`${notice} [data-slot="title"]`, (title) => title.textContent ?? '')).match(/\d+/)?.[0])
+    if (!(count > 0)) throw new Error('the row id prompt names no count of rows')
+    await inspect?.('the row id prompt')
+    await shoot('row-ids-prompt')
+    await pressButton(page, press, `${notice} button`, said.give)
+    await toast(page, countedIn(words, said.given(count), count))
+    await page.waitForSelector(notice, { hidden: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the row id prompt stays once every row has an id')
+    })
+    await shoot('row-ids-given')
+    await undoIn(page, press, words)
+    await page.waitForSelector(notice, { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Undo does not bring the row id prompt back')
+    })
+    await dismissToasts(page)
+    await pressButton(page, press, `${notice} button`, said.give)
+    await toast(page, countedIn(words, said.given(count), count))
+    await dismissToasts(page)
+    // The fake split parts lost their row ids with the rows, so the write links them to their rows by day, amount and balance.
+    await page.evaluate(() => {
+      window.location.hash = '#/company/transactions?p=all&q=BISTRO'
+    })
+    await waitForSplit(page, true)
+    await shoot('row-ids-split-kept')
+  }
+}
+
+export const rowIdsFlow = rowIdsFlowIn('en')
+
+/**
  * The Change category action of the first row in view, or with `words` of the first part of a split
  * row: in the table's last column, or inside its card on a phone once the card is open.
  */

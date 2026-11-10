@@ -71,8 +71,8 @@ describe.each([
     ])
 
     expect(cellsOf(receipt, 'add')).toEqual([
-      { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -12, category: 'ai-services', note: 'Seats', id: AN_ID },
-      { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, amount: -8, category: 'owner-loan-out', note: 'The owner’s seat', id: AN_ID },
+      { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, row_id: model.rowId, amount: -12, category: 'ai-services', note: 'Seats', id: AN_ID },
+      { date: 46299, account: 'main', row_amount: -20, row_balance: 1038.9, row_id: model.rowId, amount: -8, category: 'owner-loan-out', note: 'The owner’s seat', id: AN_ID },
     ])
     expect(store.state.workbook?.splits.map((split) => [split.row.id, split.parts.map((part) => [part.amount, part.category])])).toEqual([
       [

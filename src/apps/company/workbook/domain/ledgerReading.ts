@@ -88,6 +88,11 @@ export function ledgerEntryOf(fields: StoredFields, id: RecordId | null): Ledger
   }
 }
 
+/** The ledger rows that carry no row id yet, from before imports gave every new row one. */
+export function rowsWithoutId<Row extends Pick<LedgerEntry, 'rowId'>>(rows: readonly Row[]): Row[] {
+  return rows.filter((row) => row.rowId === null)
+}
+
 /**
  * The ledger row's key. A row with a reference is known by it even when the ledger's factory refuses
  * the row, so a statement carrying that reference is never added beside it. Null for a refused row

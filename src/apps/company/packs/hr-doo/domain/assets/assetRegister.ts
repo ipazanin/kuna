@@ -14,8 +14,8 @@ import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
-/** How an asset found its payment: its `ledger_reference` equals the row's reference or appears in its description, or the amount fits. */
-export type AssetMatch = 'reference' | 'description' | 'date-and-amount'
+/** How an asset found its payment: its `row_id` is the row's id, its `ledger_reference` equals the row's reference or appears in its description, or the amount fits. */
+export type AssetMatch = 'row' | 'reference' | 'description' | 'date-and-amount'
 
 export interface AssetPayment {
   readonly row: Transaction
@@ -64,8 +64,14 @@ export interface AssetRegister {
   readonly capitalPurchaseCategories: readonly string[]
 }
 
+/** The debits that carry this row id, of which an asset linked to it takes the one paid nearest the day it was bought. */
+export function paymentRowsOf<Row extends Pick<Transaction, 'amount' | 'rowId'>>(rowId: string, transactions: readonly Row[]): Row[] {
+  return transactions.filter((row) => row.amount < 0 && row.rowId === rowId)
+}
+
 /**
- * Each asset matched to the debit that paid for it. A `ledger_reference` is looked for on every
+ * Each asset matched to the debit that paid for it. An asset with a `row_id` takes the debit with
+ * that id and nothing else, as a person linked it. Without one, a `ledger_reference` is looked for on every
  * debit, first as the row's reference and then inside its description, because older rows carry no
  * reference. An asset left over takes an unclaimed `capital-purchase` debit of its net cost, or of
  * its net cost with VAT at the standard rate, nearest to the day it was bought. A payment the
@@ -76,13 +82,17 @@ export interface AssetRegister {
 export function assetRegister(assets: readonly Asset[], transactions: readonly Transaction[], categories: readonly Category[], rules: RuleSource = ruleValue): AssetRegister {
   const capitalPurchaseCategories = categoriesWithRole(categories, PACK_ROLES.capitalPurchase)
   const debits = oldestFirst(transactions.filter((row) => row.amount < 0))
-  const found = assets.map((asset) => referenceMatch(asset, debits))
+  const linked = assets.map((asset) => linkedPayment(asset, debits))
+  const found = assets.map((asset) => (asset.rowId === null ? referenceMatch(asset, debits) : null))
   const byReference = found.map((payment) => (payment !== null && vatRateKnown(payment.row) ? payment : null))
   const uncheckedClaims: UncheckedClaim[] = []
 
-  const claimed = new Set(byReference.flatMap((payment) => (payment === null ? [] : [payment.row])))
+  const claimed = new Set([...linked, ...byReference].flatMap((payment) => (payment === null ? [] : [payment.row])))
   const purchases = debits.filter((row) => capitalPurchaseCategories.includes(row.category))
   const registered = assets.map((asset, position): RegisteredAsset => {
+    if (asset.rowId !== null) {
+      return { asset, payment: linked[position] ?? null }
+    }
     const referenced = found[position] ?? null
     if (referenced !== null) {
       const known = byReference[position] ?? null
@@ -138,11 +148,33 @@ export function assetsClaimingRows(
   return claiming
 }
 
-/** A problem on each asset that claims no row it would otherwise claim, naming the row's day and the VAT rate the ruleset lacks for it. */
-export function uncheckedClaimProblems(assets: readonly Asset[], transactions: readonly Transaction[], categories: readonly Category[]): RecordProblem[] {
-  return assetRegister(assets, transactions, categories).uncheckedClaims.map(({ asset, row, matchedBy }) => {
-    return problemOf({ id: asset.id, label: asset.name }, words.unchecked(matchedBy === 'date-and-amount', row.date))
+/**
+ * Each asset not yet linked whose `ledger_reference` finds exactly one debit, which the register claims for it and whose amount
+ * fits, with that row's id, so the asset can be linked to the row it already counts.
+ */
+export function assetsToLink(assets: readonly Asset[], transactions: readonly Transaction[], categories: readonly Category[]): readonly { readonly asset: Asset; readonly rowId: string }[] {
+  const register = assetRegister(assets, transactions, categories)
+  const debits = transactions.filter((row) => row.amount < 0)
+  const mismatched = new Set(register.mismatchedPayments.map((payment) => payment.row))
+  return register.assets.flatMap(({ asset, payment }) => {
+    if (asset.rowId !== null || payment === null || payment.row.rowId === null || mismatched.has(payment.row)) return []
+    const { rows } = referencedRows(asset, debits)
+    return rows.length === 1 && rows[0] === payment.row ? [{ asset, rowId: payment.row.rowId }] : []
   })
+}
+
+/**
+ * A problem on each asset that claims no row it would otherwise claim, naming the row's day and the VAT rate the ruleset lacks for
+ * it, and on each asset whose `row_id` no debit of the ledger carries.
+ */
+export function assetPaymentProblems(assets: readonly Asset[], transactions: readonly Transaction[], categories: readonly Category[]): RecordProblem[] {
+  const unchecked = assetRegister(assets, transactions, categories).uncheckedClaims.map(({ asset, row, matchedBy }) =>
+    problemOf({ id: asset.id, label: asset.name }, words.unchecked(matchedBy === 'date-and-amount', row.date)),
+  )
+  const unlinked = assets.flatMap((asset) =>
+    asset.rowId !== null && paymentRowsOf(asset.rowId, transactions).length === 0 ? [problemOf({ id: asset.id, label: asset.name }, words.noLinkedPayment(asset.rowId))] : [],
+  )
+  return [...unchecked, ...unlinked]
 }
 
 function mismatchedPayments(assets: readonly Asset[], byReference: readonly (AssetPayment | null)[], debits: readonly Transaction[], rules: RuleSource): MismatchedPayment[] {
@@ -156,23 +188,25 @@ function mismatchedPayments(assets: readonly Asset[], byReference: readonly (Ass
   })
 }
 
-function referenceMatch(asset: Asset, debits: readonly Transaction[]): AssetPayment | null {
+function linkedPayment(asset: Asset, debits: readonly Transaction[]): AssetPayment | null {
+  const row = asset.rowId === null ? null : nearestTo(asset, paymentRowsOf(asset.rowId, debits))
+  return row === null ? null : { row, matchedBy: 'row', drill: rowDrill(row) }
+}
+
+/** The debits an asset's `ledger_reference` finds: those with it as their reference, or failing any, those with it inside their description. */
+function referencedRows(asset: Asset, debits: readonly Transaction[]): { readonly rows: readonly Transaction[]; readonly matchedBy: 'reference' | 'description' } {
   const reference = normalised(asset.ledgerReference)
   if (reference === '') {
-    return null
+    return { rows: [], matchedBy: 'reference' }
   }
-  const exact = nearestTo(
-    asset,
-    debits.filter((row) => normalised(row.reference) === reference),
-  )
-  if (exact !== null) {
-    return { row: exact, matchedBy: 'reference', drill: rowDrill(exact) }
-  }
-  const described = nearestTo(
-    asset,
-    debits.filter((row) => normalised(row.description).includes(reference)),
-  )
-  return described === null ? null : { row: described, matchedBy: 'description', drill: rowDrill(described) }
+  const exact = debits.filter((row) => normalised(row.reference) === reference)
+  return exact.length > 0 ? { rows: exact, matchedBy: 'reference' } : { rows: debits.filter((row) => normalised(row.description).includes(reference)), matchedBy: 'description' }
+}
+
+function referenceMatch(asset: Asset, debits: readonly Transaction[]): AssetPayment | null {
+  const { rows, matchedBy } = referencedRows(asset, debits)
+  const row = nearestTo(asset, rows)
+  return row === null ? null : { row, matchedBy, drill: rowDrill(row) }
 }
 
 function vatRateKnown(row: Transaction): boolean {

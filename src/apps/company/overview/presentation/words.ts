@@ -33,7 +33,7 @@ export const en = {
       one: `An invoice is past the due date, ${owed} still owed`,
       other: `${count} invoices are past the due date, ${owed} still owed`,
     }),
-    links: { import: 'Import', review: 'To review', invoicing: 'Invoicing', invoices: 'Invoices' },
+    links: { import: 'Import', review: 'To review', invoicing: 'Invoicing', invoices: 'Invoices', booksFile: 'Books file' },
   },
   tiles: {
     cashOnHand: 'Cash on hand',
@@ -124,7 +124,7 @@ export const hr: Translation<typeof en> = {
       few: `Rok plaćanja prošao je za ${count} računa, a duguje se još ${owed}`,
       other: `Rok plaćanja prošao je za ${count} računa, a duguje se još ${owed}`,
     }),
-    links: { import: 'Uvoz', review: 'Za provjeru', invoicing: 'Računi', invoices: 'Računi' },
+    links: { import: 'Uvoz', review: 'Za provjeru', invoicing: 'Računi', invoices: 'Računi', booksFile: 'Datoteka' },
   },
   tiles: {
     cashOnHand: 'Novac na računima',

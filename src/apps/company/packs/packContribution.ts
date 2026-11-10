@@ -12,7 +12,8 @@ import type { FilteredLedger } from '../transactions/application/useFilteredLedg
 import type { PackPart } from '../workbook/domain/packPart'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
 import { newestBookingOf } from '../workbook/domain/workbook'
-import type { Category, Workbook } from '../workbook/domain/workbook'
+import type { Category, Transaction, Workbook } from '../workbook/domain/workbook'
+import type { UnitOfWork } from '../../../shared/storage/application/repository'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 import type { Money } from '../../../shared/money/money'
 import type { RatesDemand } from '../../../shared/rates/domain/ratesDemand'
@@ -114,6 +115,8 @@ export interface PackContribution {
   readonly onboarding: PackOnboarding | null
   /** The employees from their records, each with the IBANs they are paid into, so a row that names one or pays one can be kept from a model. */
   employees(records: WorkbookRecords): readonly KnownPerson[]
+  /** Links the pack's records that find their bank row by its content to that row's id, in the write that gives the ledger rows their ids. */
+  linkToRows(unit: UnitOfWork, records: WorkbookRecords, ledger: { readonly transactions: readonly Transaction[]; readonly categories: readonly Category[] }): void
 }
 
 const NO_PACK: PackContribution = {
@@ -134,6 +137,7 @@ const NO_PACK: PackContribution = {
   },
   onboarding: null,
   employees: () => [],
+  linkToRows: () => {},
 }
 
 let installed: PackContribution = NO_PACK

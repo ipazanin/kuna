@@ -139,7 +139,8 @@
  * category's plan and a planned purchase.
  * It plans a category for 2027 on Year, Plan, edits, clears and undoes it, and plans a purchase in a
  * workbook without plan rows. On Transactions it splits a payment, edits the split, deletes it and
- * undoes the delete. On the To review tab it does the same from a row of the queue. On Settings, Category rules it dismisses a group of
+ * undoes the delete. On the To review tab it does the same from a row of the queue. In books whose ledger rows have no id yet it follows
+ * Waiting for you to Settings, Books file, gives the rows their ids and undoes it, in Croatian too. On Settings, Category rules it dismisses a group of
  * confirmed rows no rule repeats, restores it and undoes the restore. There it also changes a rule's note in the rule's editor and undoes it,
  * then deletes the rule from its editor and brings it back with Undo. On the Import tab of Transactions it drops the sample camt.053 statement and the
  * sample bank export, makes a profile for the export, reads each dry run, confirms it, reads how many
@@ -450,6 +451,8 @@ import {
   setUpFlow,
   shareFillFlow,
   shareFillFlowIn,
+  rowIdsFlow,
+  rowIdsFlowIn,
   splitFlow,
   splitFlowIn,
   startingScenariosFlow,
@@ -5790,6 +5793,22 @@ const FLOWS = [
     run: reviewSplitFlowIn('hr'),
     viewports: ['phone', 'tablet', 'desktop'],
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
+  },
+  {
+    name: 'row-ids',
+    hash: '#/company',
+    title: 'Overview',
+    run: rowIdsFlow,
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&fake=no-row-ids', browser: '&fake=browser-no-row-ids' },
+  },
+  {
+    name: 'row-ids-croatian',
+    hash: '#/company',
+    title: 'Pregled',
+    run: rowIdsFlowIn('hr'),
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&fake=no-row-ids&lang=hr', browser: '&fake=browser-no-row-ids&lang=hr' },
   },
   {
     name: 'change-category-croatian',

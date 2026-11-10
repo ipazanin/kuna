@@ -71,6 +71,10 @@ export const en = {
     registerSubtitle: "From the assets tab. An asset's name opens the ledger payment that bought it, and its rate opens the rule.",
     noPaymentBefore: (assets: string) => `No ledger payment found for ${assets}. Put the bank reference, or words from the bank description, in its `,
     noPaymentAfter: ' under Asset rows.',
+    linkGone: (_count: number, assets: string): EnglishForms => ({
+      one: `The payment ${assets} was linked to is no longer on the ledger. Link it again in the chat.`,
+      other: `The payments ${assets} were linked to are no longer on the ledger. Link them again in the chat.`,
+    }),
     unmatchedPurchases: (count: number, threshold: string): EnglishForms => ({
       one: `${count} purchase on a capital-purchase category is on no asset row. Up to ${threshold} without VAT an item is small inventory, written off when put in use. Above that it belongs on the assets tab.`,
       other: `${count} purchases on a capital-purchase category are on no asset row. Up to ${threshold} without VAT an item is small inventory, written off when put in use. Above that it belongs on the assets tab.`,
@@ -238,6 +242,11 @@ export const hr: Translation<typeof en> = {
     registerSubtitle: 'S lista „assets”. Naziv sredstva otvara plaćanje iz evidencije kojim je kupljeno, a njegova stopa otvara odredbu.',
     noPaymentBefore: (assets) => `Za ${assets} nije pronađeno plaćanje u evidenciji. Upišite bankovnu referencu ili riječi iz opisa banke u polje `,
     noPaymentAfter: ' pod Retci sredstava.',
+    linkGone: (_count, assets) => ({
+      one: `Plaćanje povezano sa sredstvom ${assets} više nije u evidenciji. Ponovno ga povežite u razgovoru.`,
+      few: `Plaćanja povezana sa sredstvima ${assets} više nisu u evidenciji. Ponovno ih povežite u razgovoru.`,
+      other: `Plaćanja povezana sa sredstvima ${assets} više nisu u evidenciji. Ponovno ih povežite u razgovoru.`,
+    }),
     unmatchedPurchases: (count, threshold) => ({
       one: `${count} kupnja na kategoriji za nabavu dugotrajne imovine nije ni u jednom retku sredstava. Do ${threshold} bez PDV-a predmet je sitni inventar, koji se otpisuje kad se stavi u upotrebu. Iznad toga pripada na list „assets”.`,
       few: `${count} kupnje na kategoriji za nabavu dugotrajne imovine nisu ni u jednom retku sredstava. Do ${threshold} bez PDV-a predmet je sitni inventar, koji se otpisuje kad se stavi u upotrebu. Iznad toga pripada na list „assets”.`,

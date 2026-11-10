@@ -203,6 +203,7 @@ function asset(name: string, cost: number, inUse: string, group: AssetGroup, led
     disposed: null,
     fundedBy: 'example-grant',
     ledgerReference,
+    rowId: null,
     note: '',
     id: recordIdOf(ASSET_RECORDS, name),
   }

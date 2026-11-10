@@ -206,7 +206,7 @@ const [COST_A, COST_B, COST_C, COST_R] = ids('10', 4)
 const TRAVELLER = { employee: 'dora', residence_city: 'Zagreb', from: '2025-06-05' }
 const TRIP_ORDER = { traveller: 'dora', issued: '2026-10-05', departs: '2026-10-06', days: '1', transport: 'train' }
 const TRIP_SEED: Seed = { 'hr-doo.employee': [TRAVELLER], 'hr-doo.trip': [{ ...TRIP_ORDER, number: '9/2026', id: TRIP_SEEDED! }] }
-const SPLIT_ROW = { date: '2026-10-05', account: 'main', row_amount: '-10.00', row_balance: '90.00' }
+const SPLIT_ROW = { date: '2026-10-05', account: 'main', row_amount: '-10.00', row_balance: '90.00', row_id: 'row-s' }
 
 const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
   'ledger-row': {
@@ -312,7 +312,10 @@ const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
     },
   },
   'split-part': {
-    seed: { category: CATEGORIES, 'ledger-row': [{ date: '2026-10-05', account: 'main', description: 'Card purchase', amount: '-10.00', balance: '90.00', category: 'groceries', reference: 'R-S' }] },
+    seed: {
+      category: CATEGORIES,
+      'ledger-row': [{ date: '2026-10-05', account: 'main', description: 'Card purchase', amount: '-10.00', balance: '90.00', category: 'groceries', reference: 'R-S', id: 'row-s' }],
+    },
     records: [
       { ...SPLIT_ROW, amount: '-6.00', category: 'groceries', note: 'Food', owner_share: '25', id: SPLIT_A! },
       { ...SPLIT_ROW, amount: '-4.00', category: 'telecom', id: SPLIT_B! },
@@ -374,7 +377,18 @@ const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
   },
   'hr-doo.asset': {
     records: [
-      { asset: 'Laptop', bought: '2026-10-05', in_use: '2026-10-07', cost_net: '1500.75', group: 'computers', doubled: true, ledger_reference: 'REF-1', note: 'Work laptop', id: ASSET_A! },
+      {
+        asset: 'Laptop',
+        bought: '2026-10-05',
+        in_use: '2026-10-07',
+        cost_net: '1500.75',
+        group: 'computers',
+        doubled: true,
+        ledger_reference: 'REF-1',
+        row_id: 'row-laptop',
+        note: 'Work laptop',
+        id: ASSET_A!,
+      },
       { asset: 'Desk', bought: '2026-10-06', cost_net: '200.00', group: 'equipment', id: ASSET_B! },
     ],
     outside: { asset: 'Lamp', bought: '2026-10-07', cost_net: '40.00', group: 'equipment', id: ASSET_C! },

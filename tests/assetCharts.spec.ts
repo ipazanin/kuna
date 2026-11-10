@@ -24,6 +24,7 @@ function laptop(cost: number): Asset {
     disposed: null,
     fundedBy: '',
     ledgerReference: '',
+    rowId: null,
     note: '',
     id: recordIdOf(ASSET_RECORDS, 'row-2'),
   }

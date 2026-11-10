@@ -158,7 +158,11 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'row_amount', note: 'The amount of that ledger row, as the ledger holds it. Required.' },
     {
       name: 'row_balance',
-      note: 'The balance of that ledger row, copied from the ledger. With the date, account and amount it finds exactly one row. Required.',
+      note: 'The balance of that ledger row, copied from the ledger. With the date, account and amount it finds exactly one row while row_id is blank. Required.',
+    },
+    {
+      name: 'row_id',
+      note: "The id of that ledger row, which the app writes. The part finds its row by it, even after the row's amount or balance is corrected. Leave it as it is.",
     },
     {
       name: 'amount',

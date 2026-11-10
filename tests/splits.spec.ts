@@ -157,6 +157,70 @@ describe('readSplits', () => {
     expect(reading.problems[0]?.reason).toBe('2 ledger rows are the main row of 2026-03-09 with the amount -60.00 and the balance 940.00, so the ledger row counts whole')
   })
 
+  it('finds a part’s row by the row id it holds, even after the row’s amount and balance are corrected', () => {
+    const corrected = ROWS.map((row) => (row.id === ORDER.id ? { ...row, rowId: 'row-77', amount: euros(-50), balance: euros(950) } : row))
+    const reading = readSplits(
+      recordsOfRows(
+        CORE_TABS.splits,
+        sheetRowsFromValues(
+          withIds('split', [
+            [...SPLIT_HEADER, 'row_id'],
+            [...KEY, -35, 'office-supplies', '', 'row-77'],
+            [...KEY, -15, 'travel', '', 'row-77'],
+          ]),
+        ),
+      ),
+      corrected,
+      CATEGORIES,
+    )
+
+    expect(reading.problems).toEqual([])
+    expect(reading.splits.map((split) => [split.row.amount, split.parts.map((part) => part.amount)])).toEqual([[euros(-50), [euros(-35), euros(-15)]]])
+  })
+
+  it('refuses a part whose row id no ledger row carries, though its day, account, amount and balance would find one', () => {
+    const reading = readSplits(
+      recordsOfRows(
+        CORE_TABS.splits,
+        sheetRowsFromValues(
+          withIds('split', [
+            [...SPLIT_HEADER, 'row_id'],
+            [...KEY, -45, 'office-supplies', '', 'row-gone'],
+            [...KEY, -15, 'travel', '', 'row-gone'],
+          ]),
+        ),
+      ),
+      ROWS,
+      CATEGORIES,
+    )
+
+    expect(reading.splits).toEqual([])
+    expect(reading.problems[0]?.reason).toBe(
+      'the ledger holds no row with the id row-gone, which was the main row of 2026-03-09 with the amount -60.00 and the balance 940.00, so the ledger row counts whole',
+    )
+  })
+
+  it('makes one split of the parts that find one row, whether by its id or by its day, account, amount and balance', () => {
+    const linked = ROWS.map((row) => (row.id === ORDER.id ? { ...row, rowId: 'row-77' } : row))
+    const reading = readSplits(
+      recordsOfRows(
+        CORE_TABS.splits,
+        sheetRowsFromValues(
+          withIds('split', [
+            [...SPLIT_HEADER, 'row_id'],
+            [...KEY, -45, 'office-supplies', '', 'row-77'],
+            [...KEY, -15, 'travel', '', ''],
+          ]),
+        ),
+      ),
+      linked,
+      CATEGORIES,
+    )
+
+    expect(reading.problems).toEqual([])
+    expect(reading.splits.map((split) => split.parts.length)).toEqual([2])
+  })
+
   it('refuses a split with one part, a part of zero and a part with the other sign', () => {
     expect(reasons(read([...KEY, -60, 'office-supplies']))).toEqual(['office-supplies, -60, 2026-03-09: a split has at least two parts, and this one has one, so the ledger row counts whole'])
     expect(reasons(read([...KEY, -60, 'office-supplies'], [...KEY, 0, 'travel']))[0]).toBe('office-supplies, -60, 2026-03-09: the part "travel, 0, 2026-03-09" is zero, so the ledger row counts whole')

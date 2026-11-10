@@ -9,6 +9,10 @@ export interface ChatException {
 
 export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   {
+    reason: "Giving the ledger's rows their ids. The app's own prompt on Settings, Books file does it in one write, and no agent fills an id.",
+    paths: ['src/apps/company/workbook/application/rowIdWrites.ts#giveRowsIds'],
+  },
+  {
     reason: 'Secrets and key-holding settings. AI keys, price vendor keys and the bank sync deployment are typed by the person and never pass through the chat.',
     paths: [
       'shared: src/shared/secrets/infrastructure/browserSecrets.ts#storeSecret',

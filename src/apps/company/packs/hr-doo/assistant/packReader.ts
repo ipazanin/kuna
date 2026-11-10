@@ -2,11 +2,13 @@ import type { CompanyReading, PackReader } from '../../../assistant/companyReade
 import { DEFAULT_FILTERS } from '../../../filters/domain/filterState'
 import { ownerShareText } from '../../../owner-share/domain/ownerShare'
 import { countedLedger } from '../../../transactions/domain/countedLedger'
-import { CATEGORY_RECORDS } from '../../../workbook/domain/coreKinds'
+import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../../workbook/domain/displayName'
 import { recordsOfKindIn } from '../../../workbook/domain/readWorkbook'
 import { bookingOfAdvance } from '../../../workbook/domain/workbook'
 import type { Workbook } from '../../../workbook/domain/workbook'
+import { assetRegister } from '../domain/assets/assetRegister'
+import type { AssetMatch } from '../domain/assets/assetRegister'
 import type { Asset } from '../domain/assets/assets'
 import { COMPANY_FACT_SETTINGS } from '../domain/companyFacts'
 import { dividendCapacity } from '../domain/dividend/dividendCapacity'
@@ -84,6 +86,12 @@ interface YearEndLineView {
   readonly aop: string
   readonly source: string
   readonly note: string
+}
+
+/** An asset as the chat reads it, its payment named by the ledger row's ref rather than the row id it stores. */
+type AssetView = Omit<Asset, 'rowId'> & {
+  readonly payment: string | null
+  readonly paymentFoundBy: AssetMatch | ''
 }
 
 interface GrantView {
@@ -167,7 +175,7 @@ const YEAR_END_FIELDS: FieldDocs<YearEndLineView> = {
   note: { exposure: 'free-text', meaning: "The owner's note." },
 }
 
-const ASSET_FIELDS: FieldDocs<Asset> = {
+const ASSET_FIELDS: FieldDocs<AssetView> = {
   id: { exposure: 'ref', to: ASSET_RECORDS.name, meaning: 'The asset.' },
   name: { exposure: 'free-text', meaning: 'As written.' },
   bought: { exposure: 'plain', meaning: 'The day it was bought.' },
@@ -177,7 +185,13 @@ const ASSET_FIELDS: FieldDocs<Asset> = {
   doubledRate: { exposure: 'plain', meaning: "The accountant doubles its group's depreciation rate." },
   disposed: { exposure: 'plain', meaning: 'The day it was disposed of, or empty while it is held.' },
   fundedBy: { exposure: 'ref', to: GRANT_RECORDS.name, meaning: 'The grant that paid for it.' },
-  ledgerReference: { exposure: 'free-text', meaning: 'What finds the purchase on the ledger, such as its bank reference.' },
+  ledgerReference: { exposure: 'free-text', meaning: 'What finds the purchase on the ledger while it has no linked payment, such as its bank reference.' },
+  payment: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row that paid for it, as Year, Assets finds it, or empty when none is found.' },
+  paymentFoundBy: {
+    exposure: 'plain',
+    meaning:
+      'How its payment was found: row when the asset is linked to that row, reference or description by ledger_reference, date-and-amount by a capital purchase of its cost. Empty when none is.',
+  },
   note: { exposure: 'free-text', meaning: "The owner's note." },
 }
 
@@ -263,6 +277,14 @@ function yearEndLineOf(line: YearEndLine): YearEndLineView {
 
 function clawbackText(clawback: GrantClawback | null): string {
   return clawback === null ? '' : clawback === 'whole' ? 'whole' : plainAmount(clawback)
+}
+
+function assetViews(assets: readonly Asset[], workbook: Workbook | null): readonly AssetView[] {
+  const register = workbook === null ? null : assetRegister(assets, workbook.transactions, workbook.categories)
+  return assets.map(({ rowId: _rowId, ...asset }, position) => {
+    const payment = register?.assets[position]?.payment ?? null
+    return { ...asset, payment: payment?.row.id ?? null, paymentFoundBy: payment?.matchedBy ?? '' }
+  })
 }
 
 function grantOf(grant: Grant): GrantView {
@@ -410,7 +432,14 @@ export function hrDooReader(reading: CompanyReading): PackReader {
         currencyOf: currency,
       }),
       readableKind({ kind: YEAR_END_RECORDS, about: words.reads.yearEndLine, fields: YEAR_END_FIELDS, dated: null, rows: () => recordsOf(YEAR_END_RECORDS).map(yearEndLineOf), currencyOf: currency }),
-      readableKind({ kind: ASSET_RECORDS, about: words.reads.asset, fields: ASSET_FIELDS, dated: 'bought', rows: () => recordsOf(ASSET_RECORDS), currencyOf: currency }),
+      readableKind({
+        kind: ASSET_RECORDS,
+        about: words.reads.asset,
+        fields: ASSET_FIELDS,
+        dated: 'bought',
+        rows: () => assetViews(recordsOf(ASSET_RECORDS), reading.workbook()),
+        currencyOf: currency,
+      }),
       readableKind({ kind: GRANT_RECORDS, about: words.reads.grant, fields: GRANT_FIELDS, dated: 'received', rows: () => recordsOf(GRANT_RECORDS).map(grantOf), currencyOf: currency }),
       readableKind({ kind: EMPLOYEE_RECORDS, about: words.reads.employee, fields: EMPLOYEE_FIELDS, dated: null, rows: () => recordsOf(EMPLOYEE_RECORDS).map(employeeOf), currencyOf: currency }),
       ...tripKinds(reading, currency),

@@ -139,7 +139,8 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     return exposure === null ? [] : [exposure.amount.amount]
   })
   const firstCondition = grants.flatMap((grant) => (grant.employmentRequiredUntil !== null && grant.employmentRequiredUntil >= today ? [grant.employmentRequiredUntil] : [])).sort()[0]
-  const unmatchedAssets = register.assets.filter((entry) => entry.payment === null).map((entry) => entry.asset.name)
+  const unmatchedAssets = register.assets.filter((entry) => entry.payment === null && entry.asset.rowId === null).map((entry) => entry.asset.name)
+  const lostLinks = register.assets.filter((entry) => entry.payment === null && entry.asset.rowId !== null).map((entry) => entry.asset.name)
   const held = lines.filter((line) => line.gone === null).length
 
   return {
@@ -189,6 +190,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
     },
     registerSummary: words.registerSummary(plural(words.assets(lines.length), lines.length), formatMoney(bookValue)),
     unmatchedAssets,
+    lostLinks,
     unmatchedPurchases: register.unmatchedPurchases.map((purchase) => ({
       key: `${purchase.row.account}-${purchase.row.sequence}`,
       date: dayLabel(purchase.row.date),
@@ -362,13 +364,17 @@ function employmentState(until: CivilDate | null): string | null {
           <AssetRegister :lines="view.lines" :totals="view.totals" :year="year" :today="dayLabel(today)" />
         </div>
         <div
-          v-if="view.unmatchedAssets.length > 0 || view.unmatchedPurchases.length > 0 || view.mismatchedPayments.length > 0"
+          v-if="view.unmatchedAssets.length > 0 || view.lostLinks.length > 0 || view.unmatchedPurchases.length > 0 || view.mismatchedPayments.length > 0"
           class="flex flex-col gap-3 border-t border-default px-4 py-3 sm:px-5"
           data-testid="asset-notices"
         >
           <div v-if="view.unmatchedAssets.length > 0" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-search-x" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <p>{{ words.panel.noPaymentBefore(view.unmatchedAssets.join(', ')) }}<span class="identifier">ledger_reference</span>{{ words.panel.noPaymentAfter }}</p>
+          </div>
+          <div v-if="view.lostLinks.length > 0" class="flex items-start gap-2 text-sm text-toned" data-testid="asset-link-gone">
+            <UIcon name="i-lucide-unlink" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+            <p>{{ plural(words.panel.linkGone(view.lostLinks.length, view.lostLinks.join(', ')), view.lostLinks.length) }}</p>
           </div>
           <div v-if="view.unmatchedPurchases.length > 0" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-package-search" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />

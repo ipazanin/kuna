@@ -8,14 +8,17 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Transaction } from './workbook'
 
 /**
- * What finds the bank row a split belongs to: its day, its account, and its amount and balance.
- * The balance chain makes the four unique, since no row moves nothing.
+ * What finds the bank row a split belongs to: the row's id, or for a part stored before the row had one its day, its account,
+ * and its amount and balance. The balance chain makes the four unique, since no row moves nothing. A part keeps the four beside
+ * the id, as the row stood when the part was written.
  */
 export interface SplitKey {
   readonly date: CivilDate
   readonly account: string
   readonly rowAmount: Money
   readonly rowBalance: Money
+  /** The bank row's `rowId`, or null on a part written before the row had one. */
+  readonly rowId: string | null
 }
 
 /** One part of a split row: what of the payment counts in which category. */
@@ -43,12 +46,16 @@ export function partOrder(earlier: SplitPart, later: SplitPart): number {
   return Math.abs(later.amount) - Math.abs(earlier.amount) || naturalOrder(earlier.category, later.category) || naturalOrder(earlier.note, later.note)
 }
 
-export function splitKeyOf(row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance'>): SplitKey {
-  return { date: row.date, account: row.account, rowAmount: row.amount, rowBalance: row.balance }
+/** The key a part of this row is written with. */
+export function splitKeyOf(row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance' | 'rowId'>): SplitKey {
+  return { date: row.date, account: row.account, rowAmount: row.amount, rowBalance: row.balance, rowId: row.rowId }
 }
 
-export function holdsSplitKey(row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance'>, key: SplitKey): boolean {
-  return row.date === key.date && row.account === key.account && row.amount === key.rowAmount && row.balance === key.rowBalance
+/** The ledger rows a split's key finds: those with its row id, or without one those with its day, account, amount and balance. */
+export function rowsOfSplitKey<Row extends Pick<Transaction, 'date' | 'account' | 'amount' | 'balance' | 'rowId'>>(transactions: readonly Row[], key: SplitKey): Row[] {
+  return transactions.filter((row) =>
+    key.rowId === null ? row.date === key.date && row.account === key.account && row.amount === key.rowAmount && row.balance === key.rowBalance : row.rowId === key.rowId,
+  )
 }
 
 /**

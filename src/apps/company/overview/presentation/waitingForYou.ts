@@ -11,7 +11,10 @@ import { planMonthLink } from '../../invoicing/presentation/invoicingLinks'
 import { amountsOwed } from '../../receivables/domain/ageing'
 import { receivablesOf } from '../../receivables/domain/invoiceMatching'
 import { shownPack } from '../../packs/packContribution'
+import { BOOKS_FILE_LINK } from '../../settings/presentation/settingsTabs'
 import { REVIEW_LINK } from '../../transactions/presentation/transactionsLinks'
+import { rowsWithoutId } from '../../workbook/domain/ledgerReading'
+import { words as booksWords } from '../../workbook/presentation/words'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
@@ -30,7 +33,7 @@ export interface WaitingJob {
 /**
  * What waits for a person across the whole workbook, whatever the filters, seen on the newest
  * booking: rows to review, invoices the billing plan expects by this month that are not made and
- * invoices past their due date, then the pack's jobs while its module is on. `bankRows` are the
+ * invoices past their due date, ledger rows that have no id yet, then the pack's jobs while its module is on. `bankRows` are the
  * ledger rows as read, since a person reviews the row the bank booked.
  */
 export function waitingJobs(workbook: Workbook, bankRows: readonly Transaction[]): WaitingJob[] {
@@ -38,7 +41,7 @@ export function waitingJobs(workbook: Workbook, bankRows: readonly Transaction[]
   if (asOf === null) {
     return []
   }
-  const core = [reviewJob(bankRows), invoiceJob(workbook, asOf), overdueJob(workbook, asOf)].flatMap((job) => (job === null ? [] : [job]))
+  const core = [reviewJob(bankRows), invoiceJob(workbook, asOf), overdueJob(workbook, asOf), rowIdsJob(bankRows)].flatMap((job) => (job === null ? [] : [job]))
   return [...core, ...shownPack(workbook.settings).waitingJobs(workbook, asOf)]
 }
 
@@ -61,6 +64,17 @@ function reviewJob(bankRows: readonly Transaction[]): WaitingJob | null {
     text: plural(words.waiting.toReview(count), count),
     tone: 'warning',
     link: { label: words.waiting.links.review, to: REVIEW_LINK },
+  }
+}
+
+function rowIdsJob(bankRows: readonly Transaction[]): WaitingJob | null {
+  const count = rowsWithoutId(bankRows).length
+  if (count === 0) return null
+  return {
+    key: 'row-ids',
+    text: plural(booksWords.rowIds.title(count), count),
+    tone: 'warning',
+    link: { label: words.waiting.links.booksFile, to: BOOKS_FILE_LINK },
   }
 }
 

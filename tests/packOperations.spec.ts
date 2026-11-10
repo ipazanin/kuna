@@ -337,6 +337,33 @@ describe('the editors', () => {
   })
 })
 
+describe('linking an asset to its payment', () => {
+  it('links an asset to the payment out a ledger row names, by the row id', async () => {
+    const desk = await packDesk()
+    const [asset] = recordsOf(recordsOfKindIn(desk.store.state.records!, ASSET_RECORDS))
+    const payment = desk.store.state.workbook!.transactions.find((row) => row.amount < 0 && row.rowId !== null)!
+
+    await desk.propose([{ op: 'change-asset', input: { ...editorRow('change-asset', {}), row: desk.ref(ASSET_RECORDS.name, asset!.id), payment: desk.ref(LEDGER_RECORDS.name, payment.id) } }])
+    expect(desk.cards[0]!.groups[0]!.lines[0]!.fields.map((field) => field.name)).toEqual(['Payment'])
+    await desk.accept()
+
+    expect(recordsOf(recordsOfKindIn(desk.store.state.records!, ASSET_RECORDS)).find((candidate) => candidate.id === asset!.id)!.rowId).toBe(payment.rowId)
+  })
+
+  it('refuses money coming in as an asset’s payment', async () => {
+    const desk = await packDesk()
+    const [asset] = recordsOf(recordsOfKindIn(desk.store.state.records!, ASSET_RECORDS))
+    const income = desk.store.state.workbook!.transactions.find((row) => row.amount > 0 && row.rowId !== null)!
+
+    const answer = await desk.propose([
+      { op: 'change-asset', input: { ...editorRow('change-asset', {}), row: desk.ref(ASSET_RECORDS.name, asset!.id), payment: desk.ref(LEDGER_RECORDS.name, income.id) } },
+    ])
+
+    expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('brings money in') })
+    expect(desk.cards).toEqual([])
+  })
+})
+
 /** The input of an editor's add, every column left as it is but the ones given. */
 function editorRow(name: string, columns: Readonly<Record<string, string>>): Record<string, unknown> {
   const operation = PACK_OPERATIONS.find((candidate) => candidate.name === name)!
