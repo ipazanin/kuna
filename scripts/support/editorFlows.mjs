@@ -16,6 +16,9 @@ import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src
 import { en as companyBooksEnglish, hr as companyBooksCroatian } from '../../src/apps/company/workbook/domain/words.ts'
 import { en as importEnglish, hr as importCroatian } from '../../src/apps/company/imports/presentation/words.ts'
 import { en as importWritesEnglish, hr as importWritesCroatian } from '../../src/apps/company/imports/application/words.ts'
+import { en as importDryRunEnglish, hr as importDryRunCroatian } from '../../src/apps/company/imports/domain/words.ts'
+import { en as statementDryRunEnglish, hr as statementDryRunCroatian } from '../../src/apps/spending/statements/domain/words.ts'
+import { BOOKING_DAYS_APART } from '../../src/shared/money/lookAlikeBookings.ts'
 import { en as onboardingEnglish, hr as onboardingCroatian } from '../../src/apps/company/onboarding/presentation/words.ts'
 import { en as settingsReasonsEnglish, hr as settingsReasonsCroatian } from '../../src/apps/company/settings/domain/words.ts'
 import { en as booksEnglish, hr as booksCroatian } from '../../src/apps/company/workbook/presentation/words.ts'
@@ -1741,6 +1744,29 @@ export function importCamtFlowIn(language, path) {
 }
 
 export const importCamtFlow = (path) => importCamtFlowIn('en', path)
+
+/** The dry run's words for a camt entry that looks like a row the AI copied, in each language. */
+const IMPORT_DRY_RUN_WORDS = { en: importDryRunEnglish.dryRun, hr: importDryRunCroatian.dryRun }
+
+/**
+ * Import with a ledger row the AI copied a day before the sample camt statement's client payment: the dry run counts that payment as
+ * on the ledger, says why in its notes, and adds the other three entries. Nothing is confirmed.
+ */
+export function importCamtLookAlikeFlowIn(language, path) {
+  const words = SCREEN_WORDS[language]
+  const panel = words.imports.panel
+  return async (page, { shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await dropFile(page, path)
+    await dryRunSays(page, countedIn(words, panel.addsRows(3), 3))
+    await elementSays(page, '[data-testid="dry-run-notes"]', [IMPORT_DRY_RUN_WORDS[language].matchedCopied(1, BOOKING_DAYS_APART)], 'the dry run does not say the payment looks like a copied row')
+    await elementSays(page, '[data-testid="dry-run-like"]', ['NORTHWIND ANALYTICS'], 'the payment does not name the copied row it looks like')
+    await page.$eval('[data-testid="dry-run-notes"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.('the camt dry run with a payment that looks like a copied row')
+    await shoot('import-camt-lookalike')
+  }
+}
 
 /** Import: drop the sample bank export, make and save a profile from the guess, confirm the dry run, and Undo. */
 export function importTableFlowIn(language, path) {
@@ -5914,6 +5940,33 @@ async function spendingDryRunSays(page, text) {
     })
 }
 
+/** The dry run's note on file rows that look like rows the AI copied, as `statements/domain/words.ts` words it for one row. */
+const COPIED_LOOK_ALIKE_NOTE = {
+  en: statementDryRunEnglish.copiedLookAlikes(1, BOOKING_DAYS_APART).one,
+  hr: statementDryRunCroatian.copiedLookAlikes(1, BOOKING_DAYS_APART).one,
+}
+
+/**
+ * On Spending's Import with the copied set: the sample Revolut export's Unknown shop looks like the row the AI copied a day before,
+ * so the dry run leaves it out with a note and names that copied row under it. Nothing is imported.
+ */
+export function spendingImportLookAlikeFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  const panel = words.spendingStatements.import
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await dropSpendingFile(page, paths.revolut)
+    await spendingDryRunSays(page, panel.summary(7, 1, 1))
+    if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
+    await elementSays(page, '[data-testid="spending-dry-run-notes"]', [COPIED_LOOK_ALIKE_NOTE[language]], 'the dry run does not say why the look-alike is left out')
+    await elementSays(page, '[data-testid="spending-dry-run-like"]', ['UNKNOWN SHOP ZAGREB'], 'the look-alike does not name the copied row it looks like')
+    await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.lookAlike], 'the look-alike does not say it is left out')
+    await delay(300)
+    await inspect?.('the Revolut dry run with a row that looks like a copied row')
+    await shoot('spending-import-lookalike')
+  }
+}
+
 /**
  * On Spending's Import with the statements set: the sample Revolut export read as a dry run of 8 new rows, 1 already in and
  * 1 paired with a typed row, with nothing written. Imported, nothing is new, and one Undo brings the dry run back.
@@ -9324,6 +9377,46 @@ export function chatStatementCardFlowIn(language) {
       await shoot('chat-statement-card-done')
       await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
       await elementSays(page, '[data-testid="chat-proposal-over"]', [words.proposal.undone], 'Undo did not say it was undone')
+      await newChat(page, press)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** What the card's look-alike note is called in each language, as `copiedRowsWords.ts` words it for one row. */
+const LOOK_ALIKE_WAITS = { en: '1 row waits, not imported', hr: '1 redak čeka, nije uvezen' }
+
+/**
+ * In Spending or Company, "transcribe" makes the fake model copy a statement onto an account that holds rows from another source:
+ * the card skips the row the books have, lists the look-alike that waits beside the row it looks like, and Accept writes the
+ * rest with one Undo. `name` is what the screenshot is called.
+ */
+export function chatStatementLookAlikeFlowIn(language, name) {
+  const request = language === 'en' ? 'transcribe the statement' : 'prenesi izvod'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (shot) => shootAs(language === 'en' ? shot : `${shot}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, request)
+      await allowIfAsked(page, press)
+      await page.waitForSelector('[data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-answer"]')?.textContent)
+        throw new Error(`the copied statement showed no card: ${refused}`)
+      })
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await elementSays(page, '[data-testid="chat-proposal"]', [LOOK_ALIKE_WAITS[language]], 'the card does not list the look-alike that waits')
+      await acceptLooksReady(page)
+      await inspect?.('the copied statement card with a look-alike waiting')
+      await shoot(name)
+      await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
+      await page.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
+        throw new Error(`Accept did not land: ${refused}`)
+      })
+      await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
+      await page.waitForSelector('[data-testid="chat-proposal-over"]', { visible: true, timeout: 15_000 })
       await newChat(page, press)
     } finally {
       await forgetAssist(page)

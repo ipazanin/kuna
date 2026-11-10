@@ -33,6 +33,7 @@ import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } 
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AppAcceptance, AppProposer, AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused, proposedWrites, refuseBesideImport } from '../../../../shared/app/proposedWrites'
+import { lookAlikesForTheModel } from '../../../../shared/ai/presentation/copiedRowsWords'
 import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -593,7 +594,13 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         throw new StepRefused('There is no such operation.')
     }
   }
-  if (imported !== null) return { leftOut: statementLeftOut(imported, importWithRules(unit, book, edits, imported.statement, today())), receipts: receiptWarnings }
+  if (imported !== null) {
+    const run = importWithRules(unit, book, edits, imported.statement, today())
+    const leftOut = statementLeftOut(imported, run)
+    const lookAlikes = leftOut.lookAlikes.map(({ number }) => number)
+    if (lookAlikes.length > 0 && run.added.length + run.changed.length === 0) throw new StepRefused(lookAlikesForTheModel(lookAlikes, true))
+    return { leftOut, receipts: receiptWarnings }
+  }
   if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits)
   return { leftOut: null, receipts: receiptWarnings }
 }
@@ -610,12 +617,13 @@ function spendingWork(ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPho
     outside: receiptsOutside,
     heldBack: () => {
       const rows = warnings.leftOut?.rows ?? 0
-      if (rows === 0) return null
+      const lookAlikes = (warnings.leftOut?.lookAlikes ?? []).map(({ number }) => number)
       const leftOut =
         rows === 1
           ? '1 row of the statement is left out, as it falls before the account opened or the bank sync covers its day.'
           : `${rows} rows of the statement are left out, as they fall before the account opened or the bank sync covers their day.`
-      return `${leftOut} Tell the person, and ask before proposing them another way.`
+      const told = [...(lookAlikes.length === 0 ? [] : [lookAlikesForTheModel(lookAlikes, false)]), ...(rows === 0 ? [] : [`${leftOut} Tell the person, and ask before proposing them another way.`])]
+      return told.length === 0 ? null : told.join(' ')
     },
     overLimit: (steps) =>
       steps.some((step) => step.operation === IMPORT_STATEMENT.name)

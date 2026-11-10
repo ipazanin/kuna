@@ -86,7 +86,7 @@ export function useStatementSync(): StatementSync {
     const heldCount = outcome.held.length
     const line = [
       receipt === null ? '' : words.step.onReview(receipt.title, waiting),
-      ...outcome.filed.flatMap((statement) => statement.notes),
+      ...outcome.filed.flatMap((statement) => [...statement.notes, ...statement.facts]),
       heldCount === 0 ? '' : plural(words.step.held(heldCount), heldCount),
     ]
       .filter((sentence) => sentence !== '')

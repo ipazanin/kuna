@@ -21,6 +21,8 @@ export interface CompanyCard {
   made(as: string | null, id: string): void
   /** Shows a note on the card beside what the write does, such as a confirmed row a rule now disagrees with. */
   note(note: CardNote): void
+  /** Tells the model, beside the card, what the card leaves out for the person to answer, such as copied rows that wait. */
+  holdBack(text: string): void
 }
 
 /** A part of what the chat can do in Company, in its own file: its operations, and how it plans a step of one of them. */

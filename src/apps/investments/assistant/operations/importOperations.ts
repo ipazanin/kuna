@@ -1,6 +1,7 @@
 import { readPortfolioWorkbookFile } from '../../imports/application/portfolioWorkbookFile'
 import { writeWorkbookImport } from '../../imports/application/workbookImport'
-import { LOOK_ALIKES, importableRecords } from '../../imports/domain/importDryRun'
+import { importableRecords } from '../../imports/domain/importDryRun'
+import { LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
 import type { ImportedRecord, WorkbookRows } from '../../imports/domain/importDryRun'
 import { WORKBOOK_TYPES } from '../../imports/domain/portfolioWorkbook'
 import type { WorkbookRow } from '../../imports/domain/portfolioWorkbook'

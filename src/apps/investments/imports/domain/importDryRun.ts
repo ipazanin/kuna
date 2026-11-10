@@ -54,6 +54,7 @@ import {
   timesDecimal,
 } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
+import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -266,11 +267,6 @@ export interface ReportFacts {
   /** How many rows were left out for being dated before the reader's start day. */
   readonly beforeStart: number
 }
-
-/** What a copied row that looks like a record Kuna has from elsewhere becomes: it waits for the person, or every one is imported as they said. */
-export const LOOK_ALIKES = ['ask', 'import'] as const
-
-export type LookAlikes = (typeof LOOK_ALIKES)[number]
 
 export interface WorkbookRows {
   readonly rows: readonly WorkbookRow[]

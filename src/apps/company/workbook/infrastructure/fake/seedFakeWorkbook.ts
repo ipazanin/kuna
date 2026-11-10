@@ -10,6 +10,7 @@ import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure
 import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
 import { FAKE_MAIL_SETTINGS } from '../../../mail/infrastructure/fake/fakeMailbox'
 import { FAKE_FOLDERS, FAKE_WORKBOOK_ID, fakeWorkbookDocument } from './fakeWorkbook'
+import { sampleCopiedLedgerRow } from '../../../imports/infrastructure/fake/sampleImportFiles'
 import type { FakeStaff } from './fakeWorkbook'
 
 const DAY = 86_400_000
@@ -39,6 +40,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
+ * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like.
  */
 export async function seedFakeWorkbook(variant: string | null, staffOf: (variant: string | null) => FakeStaff | null): Promise<void> {
   seedFakeStart(new URLSearchParams(window.location.search).get('start'))
@@ -49,7 +51,8 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const source = variant?.startsWith('browser') ? 'browser' : 'drive'
   const now = Date.now()
   const savedAt = new Date(now).toISOString()
-  const full = fakeWorkbookDocument(savedAt, source, staffOf(variant))
+  const seeded = fakeWorkbookDocument(savedAt, source, staffOf(variant))
+  const full = variant?.endsWith('copied') ? { ...seeded, records: { ...seeded.records, 'ledger-row': [sampleCopiedLedgerRow(), ...(seeded.records['ledger-row'] ?? [])] } } : seeded
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const kept = missing === null ? full : { ...full, records: { ...full.records, [missing]: [] } }
   const mailed = variant?.startsWith('mail') ? { ...kept, records: { ...kept.records, setting: [...(kept.records.setting ?? []), ...FAKE_MAIL_SETTINGS] } } : kept

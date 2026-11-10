@@ -13,6 +13,8 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { reviewReasonLabel } from '../domain/camtStatement'
 import type { DryRunStatement } from '../domain/importDryRun'
+import type { Transaction } from '../../workbook/domain/workbook'
+import { likeCopiedCaption } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { words } from './words'
 
 const props = defineProps<{
@@ -36,6 +38,11 @@ const emit = defineEmits<{
 }>()
 
 const names = useDisplayNames()
+
+/** The row the AI copied that an entry looks like, by its counterparty, amount and day. */
+function copiedParts(row: Transaction): string[] {
+  return [row.counterparty || row.description, formatMoney(row.amount), dayLabel(row.date)].filter((part) => part !== '')
+}
 
 const counts = computed(() => {
   const added = props.statement.rows.filter((row) => !row.inLedger && row.verdict !== null).length
@@ -100,14 +107,14 @@ function grouped(iban: string): string {
         </UFormField>
       </div>
 
-      <ul v-if="statement.notes.length" class="flex flex-col gap-1 text-sm text-muted" data-testid="dry-run-notes">
-        <li v-for="note in statement.notes" :key="note">{{ note }}</li>
+      <ul v-if="statement.notes.length + statement.facts.length" class="flex flex-col gap-1 text-sm text-muted" data-testid="dry-run-notes">
+        <li v-for="note in [...statement.notes, ...statement.facts]" :key="note">{{ note }}</li>
       </ul>
 
       <ul v-if="statement.rows.length" class="@container divide-y divide-default rounded-control border border-default" data-testid="dry-run-rows">
-        <li v-for="(row, index) in statement.rows" :key="`${row.reference}-${index}`" class="row" :class="{ 'opacity-60': row.inLedger }" data-testid="dry-run-row">
-          <span class="figure text-xs text-muted">{{ dayLabel(row.date) }}</span>
-          <span class="min-w-0">
+        <li v-for="(row, index) in statement.rows" :key="`${row.reference}-${index}`" class="row" data-testid="dry-run-row">
+          <span class="figure text-xs text-muted" :class="{ 'opacity-60': row.inLedger }">{{ dayLabel(row.date) }}</span>
+          <span class="min-w-0" :class="{ 'opacity-60': row.inLedger }">
             <span class="block break-words text-sm text-highlighted">{{ row.counterparty || row.description || words.statement.noCounterparty }}</span>
             <span v-if="row.counterparty && row.description" class="block break-words text-xs text-muted">{{ row.description }}</span>
             <span class="mt-1 flex flex-wrap gap-1">
@@ -117,10 +124,11 @@ function grouped(iban: string): string {
               <UBadge v-for="reason in row.reviewReasons" :key="reason" :label="reviewReasonLabel(reason)" color="warning" variant="outline" size="sm" />
             </span>
           </span>
-          <span class="text-end">
+          <span class="text-end" :class="{ 'opacity-60': row.inLedger }">
             <MoneyText :cents="row.amount" tone="flow" class="block text-sm" />
             <MoneyText v-if="row.balance !== null" :cents="row.balance" class="block text-xs text-muted" />
           </span>
+          <span v-if="row.copiedTwin" class="col-span-full break-words type-caption" data-testid="dry-run-like">{{ likeCopiedCaption(copiedParts(row.copiedTwin)) }}</span>
         </li>
       </ul>
     </div>

@@ -29,6 +29,8 @@ const ANSWERS = {
     statementTitle: 'Import the pasted statement',
     statementProposed: 'The card imports the rows as I copied them. The statement printed no balances, so the account starts at zero.',
     statementRefused: 'Kuna refused the statement. Check the rows I copied against it.',
+    copyTitle: 'Import the copied statement',
+    copyProposed: 'One row is on the ledger already and is skipped. Another looks like a ledger row from another source, so it waits on the card. Is it another payment?',
     noBuildUp: 'Tag a figure with its ask button first, and I will read how Kuna built it.',
     explained: (label: string, amount: string, steps: string) => `${label} is ${amount}. Kuna builds it from ${steps}. The link opens the tax rule it rests on.`,
     keptByAnonymise:
@@ -58,6 +60,8 @@ const ANSWERS = {
     statementTitle: 'Uvezi zalijepljeni izvod',
     statementProposed: 'Kartica uvozi retke kako sam ih prepisao. Izvod ne ispisuje stanja, pa račun počinje od nule.',
     statementRefused: 'Kuna je odbila izvod. Usporedite retke koje sam prepisao s njim.',
+    copyTitle: 'Uvezi prepisani izvod',
+    copyProposed: 'Jedan je redak već u evidenciji i preskočen je. Drugi nalikuje stavci iz drugog izvora, pa čeka na kartici. Je li to drugo plaćanje?',
     noBuildUp: 'Najprije označite iznos njegovim gumbom za pitanje, pa ću pročitati kako ga je Kuna izračunala.',
     explained: (label: string, amount: string, steps: string) => `${label} iznosi ${amount}. Kuna ga računa iz ${steps}. Poveznica otvara porezno pravilo na kojem počiva.`,
     keptByAnonymise:
@@ -247,10 +251,33 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
       { date: addDays(day, -5), amount: -40, counterparty: 'Harbour bistro', iban: null, description: 'REF 1002' },
       { date: addDays(day, -4), amount: 100, counterparty: 'Northwind', iban: null, description: 'REF 1003' },
     ]
-    const input = { file: null, profile: null, account: account.ref, opening: null, closing: null, rows, newAccount: null, part: 1 }
+    const input = { file: null, profile: null, account: account.ref, opening: null, closing: null, rows, lookAlikes: 'ask', newAccount: null, part: 1 }
     return lookup(1, 'propose_changes', { app: 'company', title: says.statementTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.statementRefused : says.statementProposed, tokens)
+}
+
+/**
+ * Copies a statement of the main account in the fake books, with no balances: the snack kiosk row of 8 October as the bank has it,
+ * which Kuna skips, the phone bill of 7 October dated two days later, which waits as a look-alike, and a new row after them.
+ */
+function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findIn('account', null, 5), tokens)
+  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 1) {
+    const accounts = recordsOf(answers[0]!.text)
+    const main = accounts.find((account) => /main|glavn/i.test(account.label ?? '')) ?? accounts.find((account) => !/legacy|star/i.test(account.label ?? ''))
+    if (main === undefined) return answered(request, says.notRead, tokens)
+    const rows = [
+      { date: '2026-10-08', amount: -6.4, counterparty: 'SNACK KIOSK', iban: null, description: 'Card purchase' },
+      { date: '2026-10-09', amount: -14.08, counterparty: 'Phone network d.d.', iban: null, description: 'Mobile plan' },
+      { date: '2026-10-20', amount: -12.5, counterparty: 'Papirnica d.o.o.', iban: null, description: 'Papir' },
+    ]
+    const input = { file: null, profile: null, account: main.ref, opening: null, closing: null, rows, lookAlikes: 'ask', newAccount: null, part: 1 }
+    return lookup(1, 'propose_changes', { app: 'company', title: says.copyTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
+  }
+  return answered(request, answers[1]!.isError ? says.statementRefused : says.copyProposed, tokens)
 }
 
 interface ReadStep {
@@ -279,7 +306,7 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
  * Company's part of the fake chat, only while the person is on a Company screen: one that asks to suggest categories or sort
  * reads the rows waiting, files the sure ones and goes on at each Go on with a new category and a rule for the rest, one about an invoice links the Invoices tab, one about dollars proposes the
  * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one about training proposes a category with its tax
- * class, one that starts with import copies a pasted statement onto the first account, and one that asks to explain reads the tagged build-up.
+ * class, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account a row of which waits as a look-alike, and one that asks to explain reads the tagged build-up.
  */
 function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (!inCompany(turn.request)) return null
@@ -293,6 +320,7 @@ function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (/laptop store/i.test(typed)) return ruleReply(turn, says)
   if (/training|edukacij/i.test(typed)) return categoryReply(turn, says)
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
+  if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)
   if (/explain|objasni/i.test(typed)) return buildUpReply(turn, says)
   return null
 }

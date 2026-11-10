@@ -1,7 +1,8 @@
 import { words as accountWords } from '../../accounts/presentation/words'
 import { words as categoryWords } from '../../categories/presentation/words'
-import type { StatementDryRun } from '../../statements/domain/statementDryRun'
+import type { DryRunLine, StatementDryRun } from '../../statements/domain/statementDryRun'
 import type { Account } from '../../workbook/domain/account'
+import type { Transaction } from '../../workbook/domain/transaction'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
@@ -16,7 +17,7 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import { DEFAULT_MONEY_FORMAT, formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
-import { copiedStatementRowsWarning } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { copiedInKunaText, copiedStatementRowsWarning, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
@@ -82,12 +83,23 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   return fallback
 }
 
-/** What a card's import leaves out of its statement or cannot vouch for: the rows its dry run skips for their day, whether the file's reader left out more or noted its balance, and the rows the AI copied. */
+/** A copied row that waits as a look-alike, by its number among the rows the AI copied. */
+export interface WaitingLookAlike {
+  readonly number: number
+  readonly line: Extract<DryRunLine, { readonly outcome: 'look-alike' }>
+}
+
+/**
+ * What a card's import leaves out of its statement or cannot vouch for: the rows its dry run skips for their day, whether the
+ * file's reader left out more or noted its balance, the rows the AI copied, those of them Kuna has already and those that wait as look-alikes.
+ */
 export interface StatementLeftOut {
   readonly label: string
   readonly rows: number
   readonly fileNotes: boolean
   readonly copied: CopiedRows | null
+  readonly inKuna: number
+  readonly lookAlikes: readonly WaitingLookAlike[]
 }
 
 /** What the import leaves out, from its statement and its dry run. A row already on the file is not left out, since it is there. */
@@ -97,6 +109,8 @@ export function statementLeftOut({ statement, copied }: CardStatement, run: Pick
     rows: run.lines.filter((line) => line.outcome === 'before-opening' || line.outcome === 'other-source').length,
     fileNotes: statement.notes.length > 0,
     copied,
+    inKuna: copied === null ? 0 : run.lines.filter((line) => line.outcome === 'already-in').length,
+    lookAlikes: copied === null ? [] : run.lines.flatMap((line) => (line.outcome === 'look-alike' ? [{ number: copied.firstRow + statement.rows.indexOf(line.row), line }] : [])),
   }
 }
 
@@ -108,6 +122,21 @@ function leftOutNote({ label, rows, fileNotes, copied }: StatementLeftOut): Prop
     ...(fileNotes ? [words.proposals.fileNotes] : []),
   ]
   return warnings.length === 0 ? null : { label, text: warnings.join(' '), tone: 'warning' }
+}
+
+/** The plain line on copied rows Kuna has already, which the import skips. Null when there are none. */
+function inKunaNote({ label, inKuna }: StatementLeftOut): ProposalNote | null {
+  return inKuna === 0 ? null : { label, text: copiedInKunaText(inKuna), tone: 'neutral' }
+}
+
+/** The note that lists the copied rows waiting as look-alikes, each beside the row on the file it looks like. Null when none waits. */
+function lookAlikeNote({ lookAlikes }: StatementLeftOut, book: SpendingBook): ProposalNote | null {
+  if (lookAlikes.length === 0) return null
+  const parts = (row: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'description'>): string[] => {
+    const currency = currencyOf(row, book)
+    return [row.payee || row.description, currency === null ? '' : formatAccountMoney(row.amount, currency), dayLabel(row.date)].filter((part) => part !== '')
+  }
+  return lookAlikesNote(lookAlikes.map(({ line }) => ({ row: parts(line.row), like: parts(line.like) })))
 }
 
 /** What a card warns on beyond its changes: what its import leaves out, and each receipt whose read failed a check or that may be a payment already on the file. */
@@ -129,8 +158,8 @@ export function proposalGroupsOf(checked: CheckedWrite, book: SpendingBook, { le
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf),
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),
   }
-  const note = leftOut === null ? null : leftOutNote(leftOut)
-  const notes: CardNote[] = [...(note === null ? [] : [{ noun: TRANSACTION_RECORDS.noun, note }]), ...receipts.map((receipt) => ({ noun: RECEIPT_RECORDS.noun, note: receipt }))]
+  const statementNotes = leftOut === null ? [] : [lookAlikeNote(leftOut, book), leftOutNote(leftOut), inKunaNote(leftOut)].flatMap((note) => (note === null ? [] : [note]))
+  const notes: CardNote[] = [...statementNotes.map((note) => ({ noun: TRANSACTION_RECORDS.noun, note })), ...receipts.map((receipt) => ({ noun: RECEIPT_RECORDS.noun, note: receipt }))]
   return withNotes(
     proposalGroups(checked, () => describer),
     notes,

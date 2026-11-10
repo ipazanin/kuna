@@ -265,7 +265,35 @@ describe('imports, sync and mail in Croatian', () => {
     expect(words.dryRun.noReference(1)).toMatch(/^Jedna stavka nema bankovnu referencu, pa je /)
     expect(words.dryRun.noReference(3)).toMatch(/^3 stavke nemaju bankovnu referencu, pa ih /)
     expect(words.dryRun.sequenceGap(30, 27, 'main', 2)).toContain('pa u evidenciji nedostaju 2 izvoda.')
+    expect(words.dryRun.partlyHeld(1, 2)).toBe('Stavke izvoda već u evidenciji: 1. Nove stavke koje dolaze nakon njih: 2.')
     expect(words.camt.summaryCount('TtlDbtNtries', 3, 2, 'debit')).toBe('TtlDbtNtries navodi 3 stavke, a aplikacija je pročitala 2 stavke proknjiženih terećenja.')
+  })
+
+  it('never ends a date with a second full stop in a statement import’s sentences', async () => {
+    const { words } = await inCroatian(() => import('../src/apps/company/imports/domain/words'))
+    const { moneyFromAmount } = await import('../src/shared/money/money')
+    const day = civilDate(2026, 10, 8)
+    const later = civilDate(2026, 10, 12)
+    const amount = moneyFromAmount(1234.5)
+    const { dryRun, transcribed } = words
+    const sentences: Record<keyof typeof dryRun, string> = {
+      noEntries: dryRun.noEntries,
+      allHeld: dryRun.allHeld,
+      importedBefore: dryRun.importedBefore('promet', true),
+      gap: dryRun.gap,
+      partlyHeld: dryRun.partlyHeld(2, 3),
+      matchedCopied: dryRun.matchedCopied(1, 3),
+      noReference: dryRun.noReference(2),
+      beforeNewest: dryRun.beforeNewest(day, later, 'main'),
+      missingBetween: dryRun.missingBetween('main', amount, day, amount),
+      worksOutBalances: dryRun.worksOutBalances(amount, 'main', day),
+      sequenceGap: dryRun.sequenceGap(30, 27, 'main', 2),
+      sequenceNotAfter: dryRun.sequenceNotAfter(27, 30, 'main'),
+      labelHeld: dryRun.labelHeld('promet'),
+    }
+    const all = [...Object.values(sentences), transcribed.doesNotTie(amount, amount, amount, amount, amount), transcribed.oneBalance]
+
+    expect(all.filter((sentence) => sentence.includes('..'))).toEqual([])
   })
 
   it('counts the mail step’s files and names the ones it could not file', async () => {

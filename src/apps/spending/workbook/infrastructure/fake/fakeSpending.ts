@@ -16,6 +16,7 @@ import { spendingDocumentOf } from '../spendingDocument'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { revolutStatement } from '../../../statements/domain/revolutStatement'
 import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampleRevolutFiles'
+import { transcribedImportKeys } from '../../../statements/domain/statementRows'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthOf } from '../../../../../shared/calendar/monthKey'
@@ -35,10 +36,11 @@ import { language } from '../../../../../shared/text/language'
  * The fake build's Spending sets: `sample` the worked example's four accounts with three months of rows up to the day,
  * Food's limit carrying from two months back and a transfer pair, `foreign` only the dollar account, `over` the
  * sample with two limits overspent, and `statements` the sample with rows of earlier statements waiting on review, a pair,
- * a lone leg, a rule, and typed rows the sample Revolut export pairs with, one of them near a row the rule would file, and `receipts` the sample with the payments the
+ * a lone leg, a rule, and typed rows the sample Revolut export pairs with, one of them near a row the rule would file, `copied` the statements
+ * set with a row the AI copied that the export's Unknown shop looks like, and `receipts` the sample with the payments the
  * sample receipt photos match and a row a receipt split. Each figure is made up.
  */
-export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'receipts' | 'people'
+export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'receipts' | 'people'
 
 const USD = currencyCodeOf('USD')!
 
@@ -203,6 +205,19 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
   ]
 }
 
+/** A row the AI copied off a printed statement a day before the export's Unknown shop, with the same amount and a longer payee. */
+function copiedRow(day: CivilDate, idOf: (path: string) => RecordId): Transaction {
+  const date = addDays(day, -1)
+  const amount = accountMoneyFromAmount(-9.99)
+  return statementRow(1715, REVOLUT_EUR, date, -9.99, 'UNKNOWN SHOP ZAGREB', {
+    category: idOf('Leisure/Hobbies'),
+    categorisedBy: 'person',
+    description: '',
+    importKey: transcribedImportKeys([{ account: REVOLUT_EUR, date, amount }])[0]!,
+    statement: 'Revolut EUR, statement read in the chat',
+  })
+}
+
 const SPLIT_ROW_PLACE = 1906
 
 /**
@@ -362,7 +377,8 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...NO_BANK_FACTS,
     categorisedBy: null,
   }))
-  if (set === 'statements') transactions.push(...earlierStatementRows(day, idOf, categories, accounts))
+  if (set === 'statements' || set === 'copied') transactions.push(...earlierStatementRows(day, idOf, categories, accounts))
+  if (set === 'copied') transactions.push(copiedRow(day, idOf))
   if (set === 'receipts') transactions.push(...receiptRows(day, idOf))
   if (set === 'people') transactions.push(...peopleRows(day, idOf))
   if (set !== 'foreign') {
@@ -390,7 +406,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...stored(CATEGORY_RECORDS, categories),
     ...stored(TRANSACTION_RECORDS, transactions),
     ...stored(BUDGET_RECORDS, budgets),
-    ...stored(RULE_RECORDS, set === 'statements' ? fakeRules(idOf) : []),
+    ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' ? fakeRules(idOf) : []),
     ...(set === 'receipts' ? storedReceipts(splitRowReceipt(day, idOf)) : {}),
     ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
   })

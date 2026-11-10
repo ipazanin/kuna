@@ -1,6 +1,11 @@
 import { addDays, parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
+import { transcribedReferences } from '../../domain/importedStatement'
+import { addMoney, moneyFromAmount } from '../../../../../shared/money/money'
+import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
+import { amountText } from '../../../../../shared/storage/domain/recordFields'
+import type { RecordFields } from '../../../../../shared/storage/domain/recordFields'
 import type { CellValue } from '../../../workbook/infrastructure/workbookSnapshot'
 
 /**
@@ -48,6 +53,30 @@ function sampleCamtShape(main: MainAccount): { readonly booked: CivilDate; reado
 export function sampleCamtLabel(sequence?: number): string {
   const shape = sampleCamtShape(mainAccount())
   return `${shape.created}-statement-${String(sequence ?? shape.sequence).padStart(3, '0')}`
+}
+
+/**
+ * A ledger row the AI copied off a printed statement of the main account, a day before the camt statement's client payment, with
+ * the same amount, the counterparty spelled shorter and the balance that payment leaves. The camt import counts that payment as on the ledger.
+ */
+export function sampleCopiedLedgerRow(): RecordFields {
+  const main = mainAccount()
+  const date = addDays(sampleCamtShape(main).booked, -1)
+  const amount = moneyFromAmount(7120)
+  return {
+    [ID_FIELD]: '00000000-0000-4000-8000-000900000001',
+    date,
+    account: 'main',
+    statement: `main ${date}/${date}`,
+    counterparty: 'NORTHWIND ANALYTICS',
+    counterparty_iban: '',
+    description: 'Invoice 9-1-26',
+    amount: amountText(amount),
+    balance: amountText(addMoney(moneyFromAmount(main.balance), amount)),
+    category: 'revenue',
+    flagged_by: 'person',
+    reference: transcribedReferences('main', [{ date, amount }])[0]!,
+  }
 }
 
 /**

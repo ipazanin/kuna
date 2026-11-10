@@ -6,6 +6,7 @@ import { occurrenceKeys } from '../../../../shared/text/factKey'
 import { statementTies } from '../../../../shared/money/statementTies'
 import type { StatementTie } from '../../../../shared/money/statementTies'
 import { words } from './words'
+import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 
 /** The bank's codes of a row whose file gives none. */
 export const NO_SIGNALS: TransactionSignals = { purpose: '', txDomain: '', txFamily: '', txSubFamily: '', creditorReference: '', instructedCurrency: '' }
@@ -30,7 +31,9 @@ export interface ImportedRow {
 
 /** Where a statement came from and which one it is. */
 export type StatementSource =
-  { readonly kind: 'camt'; readonly iban: string; readonly sequence: number } | { readonly kind: 'table'; readonly profile: string; readonly fileHash: string } | { readonly kind: 'transcribed' }
+  | { readonly kind: 'camt'; readonly iban: string; readonly sequence: number }
+  | { readonly kind: 'table'; readonly profile: string; readonly fileHash: string }
+  | { readonly kind: 'transcribed'; readonly lookAlikes: LookAlikes }
 
 /** One statement read from a file: an account's entries in booking order, oldest first. */
 export interface ImportedStatement {
@@ -75,6 +78,10 @@ export class StatementRefused extends Error {
 /** What starts the reference of an entry read off a printed statement, so it is never taken for a bank's reference or a table's key. */
 const TRANSCRIBED_PREFIX = 'read-'
 
+export function isTranscribedReference(reference: string): boolean {
+  return reference.startsWith(TRANSCRIBED_PREFIX)
+}
+
 /**
  * References for entries read off a printed statement, in the statement's order: its account, day and amount, with the count
  * among equal entries before it. The counterparty stays out, as two reads of one page spell it differently. Reading the same
@@ -93,7 +100,7 @@ export type TranscribedRow = Pick<ImportedRow, 'date' | 'amount' | 'counterparty
  * filled in to close the gap. Without them no entry carries a balance, and the dry run works them out from the ledger. One balance
  * without the other is refused.
  */
-export function transcribedStatement(account: string, label: string, opening: Money | null, closing: Money | null, rows: readonly TranscribedRow[]): ImportedStatement {
+export function transcribedStatement(account: string, label: string, opening: Money | null, closing: Money | null, rows: readonly TranscribedRow[], lookAlikes: LookAlikes): ImportedStatement {
   if ((opening === null) !== (closing === null)) throw new StatementRefused(words.transcribed.oneBalance)
   if (opening !== null && closing !== null) {
     const tie = statementTies({ opening, amounts: rows.map((row) => row.amount), closing })
@@ -105,7 +112,7 @@ export function transcribedStatement(account: string, label: string, opening: Mo
     balance = balance === null ? null : addMoney(balance, row.amount)
     return { ...row, balance, reference: references[at]!, signals: NO_SIGNALS, reviewReasons: [] }
   })
-  return { fileName: label, source: { kind: 'transcribed' }, label, account, opening, closing, rows: entries, notes: [] }
+  return { fileName: label, source: { kind: 'transcribed', lookAlikes }, label, account, opening, closing, rows: entries, notes: [] }
 }
 
 /** Why a statement that does not tie is refused, with the gap. */

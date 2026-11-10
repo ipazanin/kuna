@@ -290,7 +290,8 @@ describe('a tabular import through its profile', () => {
     const workbook = store.state.workbook!
     const run = dryRunFor(statementReadings(file, workbook, profile), workbook, new Map())
 
-    expect(run.statements[0]?.notes).toEqual(['The file gives no balances, so they are worked out from 1000.00, where the ledger leaves main on 2026-10-05.'])
+    expect(run.statements[0]?.notes).toEqual([])
+    expect(run.statements[0]?.facts).toEqual(['The file gives no balances, so they are worked out from 1000.00, where the ledger leaves main on 2026-10-05.'])
     expect(rowsOf(run).map((cells) => [cells.date, cells.amount, cells.balance, cells.statement])).toEqual([
       [46312, -3.4, 8146.6, 'promet (ffffffff)'],
       [46311, 7150, 8150, 'promet (ffffffff)'],

@@ -80,7 +80,13 @@ export const en = {
     importedBefore: (label: string, noneMatch: boolean) =>
       `Rows of ${label} are on the ledger already, so this file was imported before, and ${noneMatch ? 'none' : 'only some'} of its entries match them now, such as after a change to its profile. Nothing of it is written.`,
     gap: 'Rows the ledger lacks sit between rows it already holds, so the statement does not continue where the ledger leaves the account. Nothing of it is written.',
-    partlyHeld: (held: number, total: number, fresh: number) => `${held} of its ${total} entries are on the ledger already. The other ${fresh} follow them.`,
+    partlyHeld: (held: number, fresh: number) => {
+      const onLedger = plural({ one: `${held} entry is on the ledger already.`, other: `${held} entries are on the ledger already.` }, held)
+      const following = plural({ one: `${fresh} new entry follows`, other: `${fresh} new entries follow` }, fresh)
+      return `${onLedger} ${following} ${held === 1 ? 'it' : 'them'}.`
+    },
+    matchedCopied: (count: number, days: number) =>
+      `${count === 1 ? '1 entry looks like a row' : `${count} entries look like rows`} the AI copied, with the same amount and at most ${days} days apart, so ${count === 1 ? 'it counts' : 'they count'} as on the ledger. The balances after ${count === 1 ? 'it' : 'them'} check that.`,
     noReference: (count: number) =>
       `${count === 1 ? 'An entry carries' : `${count} entries carry`} no bank reference, so a second import could not tell ${count === 1 ? 'it' : 'them'} from others. The whole statement is refused.`,
     beforeNewest: (first: CivilDate, newest: CivilDate, account: string) =>
@@ -173,7 +179,16 @@ export const hr: Translation<typeof en> = {
     importedBefore: (label, noneMatch) =>
       `Stavke izvoda ${label} već su u evidenciji, pa je ova datoteka već uvezena, a ${noneMatch ? 'nijedna njezina stavka sada im ne odgovara' : 'samo im neke njezine stavke sada odgovaraju'}, na primjer nakon promjene profila. Ništa se iz nje ne upisuje.`,
     gap: 'Stavke kojih nema u evidenciji nalaze se između stavki koje već postoje, pa se izvod ne nastavlja na zadnju stavku računa u evidenciji. Ništa se iz njega ne upisuje.',
-    partlyHeld: (held, total, fresh) => `Stavke izvoda već u evidenciji: ${held} od ${total}. Nove stavke (${fresh}) dolaze nakon njih.`,
+    partlyHeld: (held, fresh) => `Stavke izvoda već u evidenciji: ${held}. Nove stavke koje dolaze nakon njih: ${fresh}.`,
+    matchedCopied: (count, days) =>
+      plural(
+        {
+          one: `${count === 1 ? 'Jedna stavka nalikuje' : `${count} stavka nalikuje`} retku koji je AI prepisao, s istim iznosom i najviše ${days} dana razlike, pa se broji kao da je već u evidenciji. Stanja nakon nje to provjeravaju.`,
+          few: `${count} stavke nalikuju retcima koje je AI prepisao, s istim iznosom i najviše ${days} dana razlike, pa se broje kao da su već u evidenciji. Stanja nakon njih to provjeravaju.`,
+          other: `${count} stavki nalikuje retcima koje je AI prepisao, s istim iznosom i najviše ${days} dana razlike, pa se broje kao da su već u evidenciji. Stanja nakon njih to provjeravaju.`,
+        },
+        count,
+      ),
     noReference: (count) =>
       plural(
         {
@@ -187,7 +202,7 @@ export const hr: Translation<typeof en> = {
       `Prva nova stavka ima datum ${dayLabel(first)}, prije ${dayLabel(newest)}, datuma najnovije stavke računa „${account}”. Stavke se dodaju samo nakon najnovije.`,
     missingBetween: (account, balance, day, before) =>
       `Račun „${account}” u evidenciji završava saldom ${formatMoney(balance)} na dan ${dayLabel(day)}, a prva nova stavka ovog izvoda polazi od ${formatMoney(before)}, pa između njih nedostaje izvod. Najprije uvezite njega.`,
-    worksOutBalances: (opening, account, day) => `Datoteka ne navodi salda, pa se izračunavaju od ${formatMoney(opening)}, salda računa „${account}” u evidenciji na dan ${dayLabel(day)}.`,
+    worksOutBalances: (opening, account, day) => `Datoteka ne navodi salda, pa se izračunavaju od ${formatMoney(opening)}, salda koje račun „${account}” ima ${dayLabel(day)} u evidenciji.`,
     sequenceGap: (sequence, newest, account, missing) => {
       const gap = plural(
         {

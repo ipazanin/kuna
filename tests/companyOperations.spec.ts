@@ -34,9 +34,14 @@ afterEach(async () => forgetCaches(used))
 /** A statement the last folder sync held back: the account with no rows yet, which it starts at its opening. */
 const HELD = [
   {
-    statement: transcribedStatement('fresh', 'fresh-statement-001', moneyFromAmount(200), moneyFromAmount(150), [
-      { date: parseCivilDate('2026-10-20')!, amount: moneyFromAmount(-50), counterparty: 'Supplier', counterpartyIban: '', description: 'Goods' },
-    ]),
+    statement: transcribedStatement(
+      'fresh',
+      'fresh-statement-001',
+      moneyFromAmount(200),
+      moneyFromAmount(150),
+      [{ date: parseCivilDate('2026-10-20')!, amount: moneyFromAmount(-50), counterparty: 'Supplier', counterpartyIban: '', description: 'Goods' }],
+      'ask',
+    ),
   },
 ]
 

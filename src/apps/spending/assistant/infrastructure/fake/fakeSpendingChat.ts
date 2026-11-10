@@ -18,6 +18,8 @@ const ANSWERS = {
     nothingToSort: 'None of the latest rows names a shop I could make a rule for.',
     statementTitle: 'Import the pasted statement',
     statementProposed: 'I misread one amount at first, so Kuna refused it as not adding up. The card below now ties from the opening balance to the closing one.',
+    copyTitle: 'Import the copied statement',
+    copyProposed: 'One row is in Spending already and is skipped. Another looks like a row Kuna has from another source, so it waits on the card. Is it another payment?',
     noPhoto: 'Attach a photo of the receipt first, and I will read its lines.',
     pharmacy: 'Pharmacy',
     pharmacyTitle: 'A category for the pharmacy',
@@ -43,6 +45,8 @@ const ANSWERS = {
     nothingToSort: 'Nijedan od zadnjih redaka ne navodi trgovinu za koju bih mogao napraviti pravilo.',
     statementTitle: 'Uvezi zalijepljeni izvod',
     statementProposed: 'Isprva sam krivo pročitao jedan iznos, pa ga je Kuna odbila jer se ne zbraja. Kartica ispod sada se slaže od početnog do završnog stanja.',
+    copyTitle: 'Uvezi prepisani izvod',
+    copyProposed: 'Jedan je redak već u Potrošnji i preskočen je. Drugi nalikuje retku koji Kuna ima iz drugog izvora, pa čeka na kartici. Je li to drugo plaćanje?',
     noPhoto: 'Najprije priložite fotografiju fiskalnog računa, pa ću pročitati stavke.',
     pharmacy: 'Ljekarna',
     pharmacyTitle: 'Kategorija za ljekarnu',
@@ -190,7 +194,7 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
   if (answers[0]!.isError) return answered(request, says.notRead, tokens)
   if (answers.length < 3) {
     const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
-    const input = { file: null, account: records[0]!.ref, opening: 500, closing: 547.5, rows: statementRows(answers.length === 1), part: 1 }
+    const input = { file: null, account: records[0]!.ref, opening: 500, closing: 547.5, rows: statementRows(answers.length === 1), part: 1, lookAlikes: 'ask' }
     const step = { op: 'import-statement', input: JSON.stringify(input), as: null }
     return lookup(answers.length, 'propose_changes', { app: 'spending', title: says.statementTitle, steps: [step], next: false }, tokens)
   }
@@ -279,8 +283,31 @@ function receiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
 }
 
 /**
+ * Copies a statement of the OTP account in the statements sample, with no balances: the City pharmacy row of nine days back as
+ * the file has it, which Kuna skips, the one of four days back a day later and spelled longer, which waits as a look-alike, and a new kiosk row.
+ */
+function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', { app: 'spending', kind: 'account', query: null, from: null, to: null, about: null, only: null, limit: 5, cursor: null }, tokens)
+  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 1) {
+    const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string; readonly bank?: string }[] }
+    const otp = records.find((record) => record.bank === 'otp') ?? records[0]!
+    const day = today()
+    const rows = [
+      { date: addDays(day, -9), amount: -12, payee: 'City pharmacy', iban: null },
+      { date: addDays(day, -3), amount: -18.9, payee: 'CITY PHARMACY 22 ZAGREB', iban: null },
+      { date: addDays(day, -1), amount: -9, payee: 'Kiosk', iban: null },
+    ]
+    const input = { file: null, account: otp.ref, opening: null, closing: null, rows, part: 1, lookAlikes: 'ask' }
+    return lookup(1, 'propose_changes', { app: 'spending', title: says.copyTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
+  }
+  return answered(request, says.copyProposed, tokens)
+}
+
+/**
  * Spending's part of the fake chat: Suggest categories proposes a new category and, at Go on, a rule into it, any other that starts with sort proposes a rule, one that starts with close proposes closing
- * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that asks to read the receipt reads the photo attached and proposes it, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
+ * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to read the receipt reads the photo attached and proposes it, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
@@ -290,6 +317,7 @@ function spendingChat(turn: FakeChatTurn): ModelReply | null {
   if (/^sort|^razvrstaj/i.test(typed)) return sortReply(turn, says)
   if (/^close|^zatvori/i.test(typed)) return closeAccountReply(turn, says)
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
+  if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)
   if (/^read (the|this|a) receipt|^pročitaj (fiskalni )?račun/i.test(typed)) return receiptReply(turn, says)
   if (/spent|spend|potroš/i.test(typed)) return spendingReply(turn, says)
   if (/rule|pravil/i.test(typed)) {

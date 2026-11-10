@@ -1,4 +1,4 @@
-import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
+import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { addRevolutAccounts, revolutStatement } from '../../statements/domain/revolutStatement'
 import { transcribedImportKeys } from '../../statements/domain/statementRows'
 import type { StatementRow, StatementRows } from '../../statements/domain/statementRows'
@@ -14,6 +14,8 @@ import { ROWS_A_PART, StepRefused } from '../../../../shared/app/proposedWrites'
 import { accountMoneyFromAmount } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
+import { BOOKING_DAYS_APART, LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
+import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { statementTies } from '../../../../shared/money/statementTies'
 import type { StatementTie } from '../../../../shared/money/statementTies'
@@ -28,6 +30,7 @@ export const IMPORT_STATEMENT: AssistantOperation = {
     'Imports a statement through the same dry run as Entries, Import: rows already in are skipped, a row of the same money fills a typed row, rules file the new rows, and transfers between your accounts pair.',
     'file names the attached file by its id, or null for a statement pasted as text. For a file the context line says Kuna reads, account, opening and closing are null and rows empty, and Kuna reads it itself.',
     'For any other file or a pasted statement, read every row and copy each as written, money out below zero, on the one account it is for. Give the opening and closing balances only when the statement prints both, and the rows must then lead from the one to the other. Never work out a balance. Without them the card warns that Kuna could not check the rows.',
+    `lookAlikes says what becomes of a copied row that looks like a row Kuna has from another source, such as a Revolut export or the bank sync: the same amount on the same account at most ${BOOKING_DAYS_APART} days apart, unless the two payees share no word. ask keeps it waiting and lists it on the card, which asks the person to say in the chat. import imports it once the person says it is another payment: propose the same rows again with import once the card is answered. A row of the same day, amount and payee as one Kuna has is skipped either way. For a file Kuna reads, lookAlikes is ask.`,
     `A statement over ${ROWS_A_PART} rows goes in parts: part 1, then part 2 and on, each its own card holding the whole statement. Rules on the same card file its new rows. A new category goes on an earlier card. When a card with an import holds too many changes, put its rules on a card of their own before the import.`,
   ].join(' '),
   input: inputOf({
@@ -37,6 +40,7 @@ export const IMPORT_STATEMENT: AssistantOperation = {
     closing: NUMBER_OR_NULL,
     rows: { type: 'array', items: inputOf({ date: TEXT, amount: NUMBER, payee: TEXT, iban: TEXT_OR_NULL }) },
     part: { type: 'integer', description: `Which ${ROWS_A_PART} rows this card imports, from 1.` },
+    lookAlikes: { type: 'string', enum: [...LOOK_ALIKES] },
   }),
   refs: { file: ATTACHMENT_REF, account: ACCOUNT_RECORDS.name },
   creates: null,
@@ -51,6 +55,7 @@ export const IMPORT_STATEMENT: AssistantOperation = {
       { date: '2026-10-03', amount: -25, payee: 'Harbour bistro', iban: null },
     ],
     part: 1,
+    lookAlikes: 'ask',
   },
 }
 
@@ -67,9 +72,13 @@ interface TranscribedRow {
   readonly iban: string | null
 }
 
-/** Rows the AI copied from a file or the chat, which the card warns about: how many are on the card, the file's name or null for the chat, and whether printed balances tied them. */
+/**
+ * Rows the AI copied from a file or the chat, which the card warns about: how many are on the card, the number the first of them
+ * has among the rows the AI copied, the file's name or null for the chat, and whether printed balances tied them.
+ */
 export interface CopiedRows {
   readonly count: number
+  readonly firstRow: number
   readonly file: string | null
   readonly tied: boolean
 }
@@ -126,7 +135,7 @@ export async function withSheetsRead(steps: readonly ProposalStep[]): Promise<re
  * Rows the AI copied off a page, a file or the chat. Printed balances, when given, must both be there and tie, and a statement
  * without them goes in with the card warning that Kuna could not check it.
  */
-function copiedStatement(account: Account | null, opening: number | null, closing: number | null, rows: readonly TranscribedRow[]): StatementRows {
+function copiedStatement(account: Account | null, opening: number | null, closing: number | null, rows: readonly TranscribedRow[], lookAlikes: LookAlikes): StatementRows {
   if (account === null) throw new StepRefused('Copied rows name the account they are on.')
   if ((opening === null) !== (closing === null)) throw new StepRefused('Give both the opening and the closing balance the statement prints, or neither when it prints none. Never work one out.')
   if (rows.length === 0) throw new StepRefused('The statement has no rows to import.')
@@ -151,6 +160,7 @@ function copiedStatement(account: Account | null, opening: number | null, closin
       pocket: false,
     })),
     notes: [],
+    transcribed: { lookAlikes },
   }
 }
 
@@ -186,8 +196,10 @@ export function importedStatement(input: Readonly<Record<string, never>>, book: 
     return { statement: partOf(fromSheet(file, book, input['account'] !== null || input['opening'] !== null || input['closing'] !== null), input['part']), copied: null }
   }
   if (file !== null && !isAttachment(file)) throw new StepRefused('file is not a file attached to this chat.')
-  const statement = partOf(copiedStatement(input['account'] === null ? null : accountOf(input['account']), input['opening'], input['closing'], rows), input['part'])
-  return { statement, copied: { count: statement.rows.length, file: file === null ? null : file.name, tied: input['opening'] !== null } }
+  const lookAlikes = choiceOf(LOOK_ALIKES, input['lookAlikes'], 'lookAlikes')!
+  const statement = partOf(copiedStatement(input['account'] === null ? null : accountOf(input['account']), input['opening'], input['closing'], rows, lookAlikes), input['part'])
+  const firstRow = (input['part'] - 1) * ROWS_A_PART + 1
+  return { statement, copied: { count: statement.rows.length, firstRow, file: file === null ? null : file.name, tied: input['opening'] !== null } }
 }
 
 /** Why a statement that does not tie is refused, with the gap in the account's currency. */

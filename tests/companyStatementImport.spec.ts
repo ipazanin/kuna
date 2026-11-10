@@ -53,6 +53,7 @@ function transcribed(
       opening,
       closing,
       rows: rows.map((row) => ({ ...row, counterparty: 'Supplier d.o.o.', iban: null, description: 'Goods' })),
+      lookAlikes: 'ask',
       newAccount: null,
       part: 1,
     },
@@ -188,14 +189,14 @@ describe('an import card', () => {
 describe('an attached file', () => {
   it('reads a camt file through Import, and starts an account with no rows at its opening, saying so on the card', async () => {
     const desk = await companyDesk(used, { readStatementFile: loadImportFile })
-    const input = { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], newAccount: null, part: 1 }
+    const input = { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', newAccount: null, part: 1 }
     expect((await desk.propose([{ op: 'import-statement', input }], [attached('xml', 'camt.xml')])).isError).toBe(false)
     expect(warnings(desk)).toContain(words.accountStarted('fresh'))
     await desk.accept()
     expect(rowsOf(desk, 'fresh').length).toBeGreaterThan(0)
   })
 
-  const ATTACHED = { op: 'import-statement', input: { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], newAccount: null, part: 1 } }
+  const ATTACHED = { op: 'import-statement', input: { file: 'a1', profile: null, account: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', newAccount: null, part: 1 } }
 
   it('sends the AI to read a photo, and a sheet no saved profile reads, with read_attachment', async () => {
     const desk = await companyDesk(used, { readStatementFile: loadImportFile })
@@ -228,9 +229,14 @@ describe('an attached file', () => {
 
 describe('statements the folder sync held back', () => {
   it('files them, starting the account at the statement’s opening', async () => {
-    const statement = transcribedStatement('fresh', 'fresh-statement-001', moneyFromAmount(200), moneyFromAmount(150), [
-      { date: parseCivilDate('2026-10-20')!, amount: moneyFromAmount(-50), counterparty: 'Supplier', counterpartyIban: '', description: 'Goods' },
-    ])
+    const statement = transcribedStatement(
+      'fresh',
+      'fresh-statement-001',
+      moneyFromAmount(200),
+      moneyFromAmount(150),
+      [{ date: parseCivilDate('2026-10-20')!, amount: moneyFromAmount(-50), counterparty: 'Supplier', counterpartyIban: '', description: 'Goods' }],
+      'ask',
+    )
     const desk = await companyDesk(used, { heldStatements: () => [{ statement }] })
     await desk.propose([{ op: 'file-held-statements', input: { newAccount: null, part: 1 } }])
     await desk.accept()

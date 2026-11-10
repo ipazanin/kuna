@@ -49,6 +49,7 @@ function transcribed(desk: SpendingDesk, file: string, fields: Record<string, un
       closing: amountOf(printed.closing),
       rows: printed.rows.map((row) => ({ date: row.date, amount: amountOf(row.cents), payee: row.payee, iban: null })),
       part: 1,
+      lookAlikes: 'ask',
       ...fields,
     },
   }
@@ -155,7 +156,7 @@ describe('a statement read off a page', () => {
     const rows = Array.from({ length: ROWS_A_PART + 10 }, (_, at) => ({ date: '2026-10-15', amount: -1, payee: `Shop ${at}`, iban: null }))
     const statement = (part: number) => ({
       op: 'import-statement',
-      input: { file: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), opening: 500, closing: 500 - rows.length, rows, part },
+      input: { file: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), opening: 500, closing: 500 - rows.length, rows, part, lookAlikes: 'ask' },
     })
     const before = rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length
     await desk.propose([statement(2)])
@@ -193,7 +194,7 @@ describe('a statement read off a page', () => {
     const desk = await spendingDesk(used)
     const savings = desk.ref('account', DESK_ACCOUNTS.SAVINGS.id)
     const topUp = { date: '2026-10-30', amount: 80, payee: 'Top-up', iban: DESK_ACCOUNTS.CURRENT.iban }
-    await desk.propose([{ op: 'import-statement', input: { file: null, account: savings, opening: 300, closing: 380, rows: [topUp], part: 1 } }])
+    await desk.propose([{ op: 'import-statement', input: { file: null, account: savings, opening: 300, closing: 380, rows: [topUp], lookAlikes: 'ask', part: 1 } }])
     await desk.accept()
     const waiting = rowsOn(desk, DESK_ACCOUNTS.SAVINGS.id).find((row) => row.payee === 'Top-up')!
     expect(waiting).toMatchObject({ category: null, pair: null })
@@ -211,7 +212,7 @@ describe('a statement read off a page', () => {
       rule,
       {
         op: 'import-statement',
-        input: { file: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), opening: 500, closing: 420, rows: [{ ...topUp, amount: -80, iban: null }], part: 1 },
+        input: { file: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), opening: 500, closing: 420, rows: [{ ...topUp, amount: -80, iban: null }], lookAlikes: 'ask', part: 1 },
       },
     ])
     expect(answer.isError).toBe(false)
@@ -231,8 +232,62 @@ describe('a statement read off a page', () => {
   })
 })
 
+describe('copied rows that look like rows from another source', () => {
+  const copiedRows = (desk: SpendingDesk, rows: readonly { readonly date: string; readonly amount: number; readonly payee: string }[], lookAlikes = 'ask') => ({
+    op: 'import-statement',
+    input: { file: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), opening: null, closing: null, rows: rows.map((row) => ({ ...row, iban: null })), part: 1, lookAlikes },
+  })
+  const BAKERY_LATER = { date: '2026-10-16', amount: -20, payee: 'Bakery d.o.o.' }
+  const KIOSK = { date: '2026-11-02', amount: -9, payee: 'Kiosk' }
+
+  it('holds a look-alike, lists it on the card beside the row it looks like, and tells the model to ask', async () => {
+    const desk = await spendingDesk(used)
+    const before = rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length
+    const answer = await desk.propose([copiedRows(desk, [BAKERY_LATER, KIOSK])])
+    expect(answer.isError).toBe(false)
+    expect(answer.text).toContain(
+      'Row 1 looks like a row Kuna has from another source, with the same amount and at most 3 days apart, and waits. Ask the person whether each is another payment, and if so propose the same rows again with lookAlikes import once this card is answered.',
+    )
+    const notes = desk.cards[0]!.groups.flatMap((group) => group.notes)
+    expect(notes[0]).toEqual({
+      label: '1 row waits, not imported',
+      text: 'It looks like a row Kuna has from another source, with the same amount and at most 3 days apart. Say in the chat whether it is another payment.',
+      tone: 'info',
+      items: [{ row: expect.stringMatching(/^Bakery d\.o\.o\., .*20.*, .*16/), record: expect.stringMatching(/^Bakery, .*20.*, .*14/) }],
+    })
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length).toBe(before + 1)
+
+    expect((await desk.propose([copiedRows(desk, [BAKERY_LATER, KIOSK], 'import')])).isError).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).filter((row) => row.amount === -2000)).toHaveLength(2)
+  })
+
+  it('refuses a card of look-alikes alone, so the model asks first', async () => {
+    const desk = await spendingDesk(used)
+    const answer = await desk.propose([copiedRows(desk, [BAKERY_LATER])])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('Row 1 looks like a row Kuna has from another source, with the same amount and at most 3 days apart, and nothing else is new.')
+    expect(desk.cards).toEqual([])
+  })
+
+  it('skips a row of the same day, amount and payee, and says so on the card', async () => {
+    const desk = await spendingDesk(used)
+    const before = rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length
+    const answer = await desk.propose([copiedRows(desk, [{ date: '2026-10-14', amount: -20, payee: 'BAKERY' }, KIOSK])])
+    expect(answer.isError).toBe(false)
+    expect(answer.text).not.toContain('lookAlikes import')
+    expect(desk.cards.at(-1)!.groups.flatMap((group) => group.notes)).toEqual([
+      { label: expect.any(String), text: 'The AI read 2 rows from the chat. Kuna could not check that the statement adds up, so check them against it.', tone: 'warning' },
+      { label: expect.any(String), text: '1 row is in Kuna already and is skipped.', tone: 'neutral' },
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length).toBe(before + 1)
+  })
+})
+
 describe('an attached statement file', () => {
-  const ATTACHED = { op: 'import-statement', input: { file: 'a1', account: null, opening: null, closing: null, rows: [], part: 1 } }
+  const ATTACHED = { op: 'import-statement', input: { file: 'a1', account: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', part: 1 } }
 
   it('reads a Revolut sheet with Spending’s own reader, and imports its completed rows', async () => {
     const desk = await spendingDesk(used)

@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addMoney, subtractMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { BOOKING_DAYS_APART, bookedTwins } from '../../../../shared/money/lookAlikeBookings'
 import { normaliseIban } from '../../../../shared/text/fold'
 import { categorise } from '../../../../shared/categorising/domain/categorise'
 import type { Verdict } from '../../../../shared/categorising/domain/categorise'
@@ -12,6 +13,7 @@ import { ledgerIdOf } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { Transaction } from '../../workbook/domain/workbook'
+import { isTranscribedReference } from './importedStatement'
 import type { ImportedRow, ImportedStatement, NewAccountOffer, StatementReading } from './importedStatement'
 import { words } from './words'
 
@@ -22,6 +24,10 @@ export interface DryRunRow extends ImportedRow {
   readonly inLedger: boolean
   /** Null for a row already on the ledger, or one of a statement that will not be written. */
   readonly verdict: Verdict | null
+  /** The ledger row a copied entry looks like, set only on an entry that waits for the person to say whether it is another. */
+  readonly like?: Transaction
+  /** The row the AI copied that an entry of a file Kuna read looks like, which puts the entry on the ledger already. */
+  readonly copiedTwin?: Transaction
 }
 
 /** An account the ledger has no row of yet, which a statement starts at its opening balance once the person agrees. */
@@ -58,7 +64,10 @@ export interface DryRunStatement {
   readonly start: AccountStart | null
   /** Set for a statement of an IBAN the accounts tab lacks, named or not. */
   readonly newAccount: NewAccountStart | null
+  /** What may be wrong with the statement, for the person to check. */
   readonly notes: readonly string[]
+  /** What the import does that needs no check, such as the entries on the ledger already. */
+  readonly facts: readonly string[]
   readonly opening: Money | null
   readonly closing: Money | null
 }
@@ -75,6 +84,7 @@ export interface ImportDryRun {
 
 /** What the ledger already knows about one account. */
 interface AccountState {
+  readonly rows: Transaction[]
   readonly references: Set<string>
   readonly labels: Set<string>
   latest: { readonly date: CivilDate; readonly balance: Money } | null
@@ -109,13 +119,19 @@ export interface DryRunInputs {
  * gap. New rows are categorised by the rules, each with its category's default share. A statement of
  * an IBAN the accounts tab lacks waits until the person names its account, which the import then
  * adds and starts at the statement's opening.
+ *
+ * A copied statement's references are its own, so its entries are matched against the account's ledger rows too. One of the same
+ * day, amount and counterparty as a row is on the ledger. One that only looks like a row waits unless the person said to import
+ * it, and it holds its place in the statement as a row on the ledger does, so the entries after it still run on from the ledger.
+ * A statement Kuna read itself is matched the same way against the rows the AI copied. One that only looks like a copied row
+ * counts as on the ledger when the file gives its balance, since the balances after it then show whether the ledger holds it.
  */
 export function importDryRun(readings: readonly StatementReading[], inputs: DryRunInputs): ImportDryRun {
   const states = accountStates(inputs.transactions)
   const stateOf = (account: string): AccountState => {
     let state = states.get(account)
     if (state === undefined) {
-      state = { references: new Set(), labels: new Set(), latest: null, lastSequence: null }
+      state = { rows: [], references: new Set(), labels: new Set(), latest: null, lastSequence: null }
       states.set(account, state)
     }
     return state
@@ -125,7 +141,19 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
   const accounts = new Map<string, AddedAccount>()
   for (const reading of inBookingOrder(readings, inputs.named)) {
     if (!('statement' in reading)) {
-      statements.push({ fileName: reading.fileName, label: reading.label, account: '', rows: [], refusal: reading.refusal, start: null, newAccount: null, notes: [], opening: null, closing: null })
+      statements.push({
+        fileName: reading.fileName,
+        label: reading.label,
+        account: '',
+        rows: [],
+        refusal: reading.refusal,
+        start: null,
+        newAccount: null,
+        notes: [],
+        facts: [],
+        opening: null,
+        closing: null,
+      })
       continue
     }
     if (!('newAccount' in reading)) {
@@ -170,6 +198,7 @@ function waitingForName(statement: ImportedStatement, newAccount: NewAccountStar
     start: null,
     newAccount,
     notes: statement.notes,
+    facts: [],
     opening: statement.opening,
     closing: statement.closing,
   }
@@ -178,18 +207,46 @@ function waitingForName(statement: ImportedStatement, newAccount: NewAccountStar
 function planStatement(statement: ImportedStatement, state: AccountState, inputs: DryRunInputs): { readonly statement: Omit<DryRunStatement, 'newAccount'>; readonly added: readonly LedgerEntry[] } {
   const { account } = statement
   const notes = [...statement.notes]
+  const facts: string[] = []
   const inLedger = statement.rows.map((row) => row.reference !== '' && state.references.has(row.reference))
-  const firstNew = inLedger.indexOf(false)
+  const likeOf = new Map<ImportedRow, Transaction>()
+  const { source } = statement
+  const hit = new Set(statement.rows.filter((_, index) => inLedger[index]).map((row) => row.reference))
+  const fromOtherSource = (row: Transaction): boolean => (source.kind === 'transcribed' ? true : isTranscribedReference(row.reference))
+  const others = state.rows.filter((row) => fromOtherSource(row) && !hit.has(row.reference) && row.statement !== statement.label)
+  const copiedTwinOf = new Map<ImportedRow, Transaction>()
+  for (const [row, twin] of bookedTwins(
+    statement.rows.filter((_, index) => !inLedger[index]),
+    others,
+  )) {
+    const index = statement.rows.indexOf(row)
+    if (twin.kind === 'same') inLedger[index] = true
+    else if (source.kind === 'transcribed') {
+      if (source.lookAlikes === 'ask') likeOf.set(row, twin.booked)
+    } else if (row.balance !== null) {
+      inLedger[index] = true
+      copiedTwinOf.set(row, twin.booked)
+    }
+  }
+  if (copiedTwinOf.size > 0) facts.push(words.dryRun.matchedCopied(copiedTwinOf.size, BOOKING_DAYS_APART))
+  const held = statement.rows.map((row, index) => inLedger[index]! || likeOf.has(row))
+  const firstNew = held.indexOf(false)
   const shell = { fileName: statement.fileName, label: statement.label, account, opening: statement.opening, closing: statement.closing }
+  const shownRow = <Row extends ImportedRow>(row: Row, index: number) => {
+    const like = likeOf.get(statement.rows[index]!)
+    const copiedTwin = copiedTwinOf.get(statement.rows[index]!)
+    return { ...row, inLedger: inLedger[index]!, verdict: null, ...(like === undefined ? {} : { like }), ...(copiedTwin === undefined ? {} : { copiedTwin }) }
+  }
   const shown = (refusal: string | null, start: AccountStart | null, opening: Money | null): Omit<DryRunStatement, 'newAccount'> => ({
     ...shell,
-    rows: withBalances(statement.rows, opening).map((row, index) => ({ ...row, inLedger: inLedger[index]!, verdict: null })),
+    rows: withBalances(statement.rows, opening).map(shownRow),
     refusal,
     start,
     notes,
+    facts,
   })
   if (firstNew < 0) {
-    notes.push(statement.rows.length === 0 ? words.dryRun.noEntries : words.dryRun.allHeld)
+    if (likeOf.size === 0) notes.push(statement.rows.length === 0 ? words.dryRun.noEntries : words.dryRun.allHeld)
     return { statement: shown(null, null, statement.opening), added: [] }
   }
   if (statement.source.kind === 'table' && state.labels.has(statement.label)) {
@@ -199,14 +256,15 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
     }
   }
   const fresh = statement.rows.slice(firstNew)
-  if (inLedger.slice(firstNew).some((held) => held)) {
+  if (held.slice(firstNew).some((kept) => kept)) {
     return {
       statement: shown(words.dryRun.gap, null, statement.opening),
       added: [],
     }
   }
-  if (firstNew > 0) {
-    notes.push(words.dryRun.partlyHeld(firstNew, statement.rows.length, fresh.length))
+  const heldBefore = firstNew - likeOf.size - copiedTwinOf.size
+  if (heldBefore > 0) {
+    facts.push(words.dryRun.partlyHeld(heldBefore, fresh.length))
   }
   const unidentified = fresh.filter((row) => row.reference === '')
   if (unidentified.length > 0) {
@@ -234,7 +292,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
     }
     opening = state.latest.balance
     if (before === null) {
-      notes.push(words.dryRun.worksOutBalances(opening, account, state.latest.date))
+      facts.push(words.dryRun.worksOutBalances(opening, account, state.latest.date))
     }
   } else {
     start = { account, opening: before, date: first.date }
@@ -257,7 +315,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   }
   const balanced = withBalances(fresh, opening)
   const rows: DryRunRow[] = [
-    ...withBalances(statement.rows.slice(0, firstNew), statement.opening).map((row) => ({ ...row, inLedger: true, verdict: null })),
+    ...withBalances(statement.rows.slice(0, firstNew), statement.opening).map(shownRow),
     ...balanced.map((row) => ({
       ...row,
       inLedger: false,
@@ -274,7 +332,7 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   state.labels.add(statement.label)
   if (statement.source.kind === 'camt') state.lastSequence = Math.max(state.lastSequence ?? 0, statement.source.sequence)
   const entries = balanced.map((row, index) => ledgerEntryOfImport(statement, { ...row, verdict: rows[firstNew + index]!.verdict }, inputs.categories))
-  return { statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, notes }, added: entries.reverse() }
+  return { statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, notes, facts }, added: entries.reverse() }
 }
 
 /** The ledger entry a new entry of a statement makes, filed under its verdict with the category's default share. */
@@ -333,9 +391,10 @@ function accountStates(transactions: readonly Transaction[]): Map<string, Accoun
   for (const transaction of newestFirst) {
     let state = states.get(transaction.account)
     if (state === undefined) {
-      state = { references: new Set(), labels: new Set(), latest: { date: transaction.date, balance: transaction.balance }, lastSequence: null }
+      state = { rows: [], references: new Set(), labels: new Set(), latest: { date: transaction.date, balance: transaction.balance }, lastSequence: null }
       states.set(transaction.account, state)
     }
+    state.rows.push(transaction)
     if (transaction.reference !== '') state.references.add(transaction.reference)
     if (transaction.statement !== '') state.labels.add(transaction.statement)
     const sequence = /-statement-(\d+)$/.exec(transaction.statement)?.[1]

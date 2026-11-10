@@ -54,13 +54,14 @@ function operationSets(ports: CompanyOperationPorts): readonly CompanyOperationS
 
 /**
  * Plans the steps into one write, in order, each through the screens' own write functions on the books as the earlier steps
- * left them. A `$` name stands for what an earlier step made. Gives the lines the card shows beside what it writes.
+ * left them. A `$` name stands for what an earlier step made. Gives the lines the card shows beside what it writes, and what the model hears it holds back.
  */
-function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonly CompanyOperationSet[], steps: readonly ProposalStep[]): readonly CardNote[] {
+function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonly CompanyOperationSet[], steps: readonly ProposalStep[]): CardTold {
   refuseBesideImport(steps, IMPORTING)
   const records = cardRecords(books.records)
   const names = new Map<string, string>()
   const notes: CardNote[] = []
+  const heldBack: string[] = []
   const pack = installedPack().workbook
   const cardOn = (workbook: Workbook): CompanyCard => ({
     books,
@@ -72,6 +73,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonl
       if (as !== null) names.set(as, id)
     },
     note: (note) => notes.push(note),
+    holdBack: (text) => heldBack.push(text),
   })
   steps.forEach((step, at) => {
     const set = sets.find((candidate) => candidate.operations.some((operation) => operation.name === step.operation))
@@ -81,18 +83,25 @@ function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonl
   const card = cardOn(readWorkbook(books.workbook, records.records(), pack))
   sets.forEach((set) => set.finish?.(card))
   records.writeInto(unit)
-  return notes
+  return { notes, heldBack }
+}
+
+/** What a planned card shows beside its write, and what the model hears it holds back. */
+interface CardTold {
+  readonly notes: readonly CardNote[]
+  readonly heldBack: readonly string[]
 }
 
 /** How the chat's steps become one write of the company's books. The card's notes come from its own plan, so each check gets its own. */
 function companyWork(sets: readonly CompanyOperationSet[], pack: PackOperations | null): ProposalWork<CompanyBooks, never> {
-  let notes: readonly CardNote[] = []
+  let told: CardTold = { notes: [], heldBack: [] }
   return {
     notOpen: 'The company books are not open on this device.',
     plan: (unit, books, steps) => {
-      notes = planned(unit, books, sets, steps)
+      told = planned(unit, books, sets, steps)
     },
-    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, notes, pack),
+    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, told.notes, pack),
+    heldBack: () => (told.heldBack.length === 0 ? null : told.heldBack.join(' ')),
   }
 }
 

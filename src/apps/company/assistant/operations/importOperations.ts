@@ -12,13 +12,17 @@ import { heldSettingValue } from '../../settings/domain/settings'
 import { ACCOUNT_RECORDS, LEDGER_RECORDS } from '../../workbook/domain/coreKinds'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
+import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { ROWS_A_PART, StepRefused } from '../../../../shared/app/proposedWrites'
 import { ZERO, moneyFromAmount } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { Money } from '../../../../shared/money/money'
 import { normaliseIban } from '../../../../shared/text/fold'
-import { copiedStatementRowsWarning } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { copiedStatementRowsWarning, lookAlikesForTheModel, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { BOOKING_DAYS_APART, LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
+import type { DryRunRow, ImportDryRun } from '../../imports/domain/importDryRun'
+import type { Transaction } from '../../workbook/domain/workbook'
 import type { ChatAttachment } from '../../../../shared/ai/domain/chatAttachments'
 
 /** What the import reads an attached file with, which `app.ts` hands in: Import's own reader of a camt document or a bank's sheet. */
@@ -39,6 +43,7 @@ const IMPORT_STATEMENT: AssistantOperation = {
     "Imports a bank statement through Import's own dry run: rows already on the ledger are skipped, the rules file the new rows, and each account's rows must run on from its balance.",
     'file names the attached file by its id, or null for a statement pasted as text. For a camt XML file or a bank sheet, account, opening and closing are null and rows empty, and Kuna reads it itself. A sheet reads by a saved import profile, by its name in profile or null for the one that fits. save-import-profile on a card before saves one for a sheet no profile reads.',
     'For any other file or a pasted statement, profile is null. Read every row and copy each as written, oldest first, money out below zero. Give the opening and closing balances only when the statement prints both, and the rows must then lead from the one to the other. Never work out a balance. Without them the balances run on from the ledger and the card warns that Kuna could not check the rows.',
+    `lookAlikes says what becomes of a copied row that looks like a ledger row from another source, such as a camt file or a bank sheet: the same amount on the same account at most ${BOOKING_DAYS_APART} days apart, unless the two counterparties and descriptions share no word. ask keeps it waiting, and the card lists it and asks the person to say in the chat. import imports it once the person says it is another payment: propose the same rows again with import once the card is answered, and a row dated before the account's newest row is still refused. A row of the same day, amount and counterparty as a ledger row is skipped either way. For a file Kuna reads, lookAlikes is ask.`,
     `An account with no rows yet starts at the statement's opening, and the card says so. A statement over ${ROWS_A_PART} rows goes in parts, part 1 first, each its own card.`,
   ].join(' '),
   input: inputOf({
@@ -48,6 +53,7 @@ const IMPORT_STATEMENT: AssistantOperation = {
     opening: NUMBER_OR_NULL,
     closing: NUMBER_OR_NULL,
     rows: { type: 'array', items: inputOf({ date: TEXT, amount: NUMBER, counterparty: TEXT, iban: TEXT_OR_NULL, description: TEXT }) },
+    lookAlikes: { type: 'string', enum: [...LOOK_ALIKES] },
     ...START_FIELDS,
   }),
   refs: { file: ATTACHMENT_REF, account: ACCOUNT_RECORDS.name },
@@ -63,6 +69,7 @@ const IMPORT_STATEMENT: AssistantOperation = {
       { date: '2026-11-02', amount: -12.5, counterparty: 'Office supplies d.o.o.', iban: null, description: 'Paper' },
       { date: '2026-11-03', amount: -27, counterparty: 'Telecom d.d.', iban: null, description: 'Phone' },
     ],
+    lookAlikes: 'ask',
     newAccount: null,
     part: 1,
   },
@@ -208,7 +215,8 @@ function transcribedReadings(card: CompanyCard, field: Readonly<Record<string, n
   const label = `${account} ${days[0]!}/${days.at(-1)!}`
   const printed = (amount: number | null): Money | null => (amount === null ? null : moneyFromAmount(amount))
   try {
-    return [{ statement: transcribedStatement(account, label, printed(field['opening']), printed(field['closing']), entries) }]
+    const lookAlikes = choiceOf(LOOK_ALIKES, field['lookAlikes'], 'lookAlikes')!
+    return [{ statement: transcribedStatement(account, label, printed(field['opening']), printed(field['closing']), entries, lookAlikes) }]
   } catch (failure) {
     if (failure instanceof StatementRefused) throw new StepRefused(failure.message)
     throw failure
@@ -226,8 +234,9 @@ function upToPart(readings: readonly StatementReading[], part: number): readonly
 /**
  * Writes the statements as Import does once a person confirms: each account with no rows started at its statement's opening, or
  * at zero for copied rows that print no balances, and a statement of a new IBAN under the account the step names. A statement the dry run refuses refuses the card, with its reason.
+ * `copied` is the warning on rows the AI copied, null for a file Kuna read. The card asks about look-alikes first, then warns, then states plain facts.
  */
-function writeStatements(card: CompanyCard, readings: readonly StatementReading[], newAccount: string | null, copied: boolean): void {
+function writeStatements(card: CompanyCard, readings: readonly StatementReading[], newAccount: string | null, copied: ProposalNote | null): void {
   const { workbook } = card
   const offers = [...new Set(readings.flatMap((reading) => ('newAccount' in reading ? [reading.newAccount.iban] : [])))]
   if (offers.length > 1) throw new StepRefused('The file names several IBANs the books lack. Import it on Import, which names each account.')
@@ -238,7 +247,7 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   const startedAtZero = new Set<string>()
   for (const statement of waiting.statements) {
     if (statement.start === null || statement.newAccount !== null) continue
-    if (statement.start.opening === null && copied) {
+    if (statement.start.opening === null && copied !== null) {
       starts.set(statement.start.account, ZERO)
       startedAtZero.add(statement.start.account)
       continue
@@ -253,18 +262,30 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   const refused = run.statements.filter((statement) => statement.refusal !== null)
   if (refused.length > 0) throw new StepRefused(refused.map((statement) => `${statement.label}: ${statement.refusal}`).join(' '))
   if (run.statements.some((statement) => statement.newAccount !== null && statement.account === '')) throw new StepRefused(`${newAccount} cannot be an account's short name.`)
+  const lookAlikes = waitingLookAlikes(run)
+  const lookAlikeRows = lookAlikes.map(({ number }) => number)
+  if (run.newRows === 0 && lookAlikes.length > 0) throw new StepRefused(lookAlikesForTheModel(lookAlikeRows, true))
   if (run.newRows === 0) throw new StepRefused('Every row of the statement is on the ledger already.')
   writeImport(card.unit, run)
-  for (const account of starts.keys()) {
-    const note: ProposalNote = startedAtZero.has(account)
-      ? { label: account, text: words.accountStartsAtZero(formatMoney(ZERO)), tone: 'warning' }
-      : { label: account, text: words.accountStarted(account), tone: 'neutral' }
-    card.note({ noun: LEDGER_RECORDS.noun, note })
-  }
-  for (const { slug } of run.accounts) card.note({ noun: LEDGER_RECORDS.noun, note: { label: slug, text: words.accountAdded(slug), tone: 'neutral' } })
-  for (const statement of run.statements) {
-    for (const note of statement.notes) card.note({ noun: LEDGER_RECORDS.noun, note: { label: statement.label, text: note, tone: 'warning' } })
-  }
+  const parts = (row: Pick<Transaction, 'counterparty' | 'description' | 'amount' | 'date'>): string[] =>
+    [row.counterparty || row.description, formatMoney(row.amount), dayLabel(row.date)].filter((part) => part !== '')
+  const started = [...starts.keys()]
+  const notes: readonly ProposalNote[] = [
+    ...(lookAlikes.length === 0 ? [] : [lookAlikesNote(lookAlikes.map(({ row, like }) => ({ row: parts(row), like: parts(like) })))]),
+    ...(copied === null ? [] : [copied]),
+    ...started.filter((account) => startedAtZero.has(account)).map((account): ProposalNote => ({ label: account, text: words.accountStartsAtZero(formatMoney(ZERO)), tone: 'warning' })),
+    ...run.statements.flatMap((statement) => statement.notes.map((text): ProposalNote => ({ label: statement.label, text, tone: 'warning' }))),
+    ...started.filter((account) => !startedAtZero.has(account)).map((account): ProposalNote => ({ label: account, text: words.accountStarted(account), tone: 'neutral' })),
+    ...run.accounts.map(({ slug }): ProposalNote => ({ label: slug, text: words.accountAdded(slug), tone: 'neutral' })),
+    ...run.statements.flatMap((statement) => statement.facts.map((text): ProposalNote => ({ label: statement.label, text, tone: 'neutral' }))),
+  ]
+  for (const note of notes) card.note({ noun: LEDGER_RECORDS.noun, note })
+  if (lookAlikes.length > 0) card.holdBack(lookAlikesForTheModel(lookAlikeRows, false))
+}
+
+/** The copied rows that wait as look-alikes, each by its number among the rows the AI copied, beside the ledger row it looks like. */
+function waitingLookAlikes(run: ImportDryRun): readonly { readonly number: number; readonly row: DryRunRow; readonly like: Transaction }[] {
+  return run.statements.flatMap((statement) => statement.rows.flatMap((row, index) => (row.like === undefined ? [] : [{ number: index + 1, row, like: row.like }])))
 }
 
 function importStatement(card: CompanyCard, step: ProposalStep): void {
@@ -273,7 +294,7 @@ function importStatement(card: CompanyCard, step: ProposalStep): void {
   const part: number = field['part']
   if (isLoaded(file)) {
     if (field['account'] !== null || field['opening'] !== null || field['closing'] !== null) throw new StepRefused(KUNA_READS_IT)
-    writeStatements(card, upToPart(fileReadings(card, file, field['profile']), part), field['newAccount'], false)
+    writeStatements(card, upToPart(fileReadings(card, file, field['profile']), part), field['newAccount'], null)
     return
   }
   if (file !== null && !isAttachment(file)) throw new StepRefused('file is not a file attached to this chat.')
@@ -281,8 +302,7 @@ function importStatement(card: CompanyCard, step: ProposalStep): void {
   const rows = (field['rows'] as readonly unknown[]).length
   const onCard = Math.min(part * ROWS_A_PART, rows) - (part - 1) * ROWS_A_PART
   const label = 'statement' in readings[0]! ? readings[0].statement.label : ''
-  card.note({ noun: LEDGER_RECORDS.noun, note: { label, text: copiedStatementRowsWarning(onCard, file === null ? null : file.name, field['opening'] !== null), tone: 'warning' } })
-  writeStatements(card, readings, field['newAccount'], true)
+  writeStatements(card, readings, field['newAccount'], { label, text: copiedStatementRowsWarning(onCard, file === null ? null : file.name, field['opening'] !== null), tone: 'warning' })
 }
 
 /** The statements the last sync of the statements folder held back for a person, which `app.ts` hands in. */
@@ -292,7 +312,7 @@ function fileHeldStatements(card: CompanyCard, step: ProposalStep, held: HeldSta
   const readings = held()
   if (readings.length === 0) throw new StepRefused('The last sync held back no statement.')
   const field = fieldsOf(step)
-  writeStatements(card, upToPart(readings, field['part']), field['newAccount'], false)
+  writeStatements(card, upToPart(readings, field['part']), field['newAccount'], null)
 }
 
 function saveImportProfile(card: CompanyCard, step: ProposalStep): void {

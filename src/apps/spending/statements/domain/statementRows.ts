@@ -1,5 +1,6 @@
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
 
@@ -20,6 +21,10 @@ export function isBankSyncKey(importKey: string): boolean {
 /** What starts the import key of a row read off a printed statement, so it is never taken for a file's or the bank sync's key. */
 const TRANSCRIBED_KEY_PREFIX = 'read-'
 
+export function isTranscribedKey(importKey: string): boolean {
+  return importKey.startsWith(TRANSCRIBED_KEY_PREFIX)
+}
+
 /**
  * Import keys for rows read off a printed statement, in the statement's order: its account, day and amount, with the count
  * among equal rows before it. The payee stays out, as two reads of one page spell it differently. Reading the same statement
@@ -36,6 +41,8 @@ export interface StatementRows {
   readonly rows: readonly StatementRow[]
   /** What the reader left out and why. */
   readonly notes: readonly string[]
+  /** Set for rows the AI copied off a statement, which are matched against the rows on the file instead of by their keys alone. */
+  readonly transcribed?: { readonly lookAlikes: LookAlikes }
 }
 
 /**

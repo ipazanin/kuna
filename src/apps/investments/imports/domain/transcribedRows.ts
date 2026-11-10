@@ -1,5 +1,6 @@
 import { importableRecords } from './importDryRun'
-import type { LookAlikes, WorkbookRows } from './importDryRun'
+import type { WorkbookRows } from './importDryRun'
+import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import { WORKBOOK_COLUMNS, readPortfolioWorkbook } from './portfolioWorkbook'
 import type { SkippedRow, WorkbookColumn, WorkbookRow, WorkbookType } from './portfolioWorkbook'
 import { accountScopeOf, transcribedRowKey } from './reportKey'

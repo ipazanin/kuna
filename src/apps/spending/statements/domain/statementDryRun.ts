@@ -1,6 +1,6 @@
 import { ruleVerdicts, spendingCategorisationContext } from './spendingCategorisation'
 import type { RowChange } from './spendingCategorisation'
-import { isBankSyncKey } from './statementRows'
+import { isBankSyncKey, isTranscribedKey } from './statementRows'
 import type { StatementRow, StatementRows } from './statementRows'
 import { words } from './words'
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
@@ -13,6 +13,8 @@ import type { Transaction } from '../../workbook/domain/transaction'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { BOOKING_DAYS_APART, bookedTwins } from '../../../../shared/money/lookAlikeBookings'
+import type { BookedTwin } from '../../../../shared/money/lookAlikeBookings'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { normaliseIban } from '../../../../shared/text/fold'
@@ -21,15 +23,27 @@ import { plural } from '../../../../shared/text/translation'
 /** How far before today and before the statement's oldest new row the pairing looks for the other leg among rows on the file. */
 const PAIRING_DAYS = 30
 
-/** What happens to a row: `before-opening` is left out, `already-in` skipped, `other-source` skipped since the other of a file and the bank sync covers its day, `filled` joins a typed row, `new` is added, and `refiled` is a row already on the file that the pairing changes. */
-export type DryRunOutcome = 'before-opening' | 'already-in' | 'other-source' | 'filled' | 'new' | 'refiled'
+/**
+ * What happens to a row: `before-opening` is left out, `already-in` skipped, `other-source` skipped since the other of a file and
+ * the bank sync covers its day, `look-alike` waits since it looks like a row on the file from another source, `filled` joins a
+ * typed row, `new` is added, and `refiled` is a row already on the file that the pairing changes.
+ */
+export type DryRunOutcome = 'before-opening' | 'already-in' | 'other-source' | 'look-alike' | 'filled' | 'new' | 'refiled'
 
-export interface DryRunLine {
-  readonly row: StatementRow
-  readonly outcome: DryRunOutcome
-  /** The category it ends up with, null while it waits on review. */
-  readonly category: RecordId | null
-}
+export type DryRunLine =
+  | {
+      readonly row: StatementRow
+      readonly outcome: Exclude<DryRunOutcome, 'look-alike'>
+      /** The category it ends up with, null while it waits on review. */
+      readonly category: RecordId | null
+    }
+  | {
+      readonly row: StatementRow
+      readonly outcome: 'look-alike'
+      readonly category: null
+      /** The row on the file it looks like. */
+      readonly like: Transaction
+    }
 
 /** What importing a statement would do, with nothing written yet. */
 export interface StatementDryRun {
@@ -84,6 +98,24 @@ function sourceDaysOf(rows: readonly Pick<Transaction, 'account' | 'date' | 'imp
   return days
 }
 
+/**
+ * Each row's twin among the rows on the file from another source, but for those the statement's own keys hit and those of the
+ * statement itself, such as its other parts. A copied row looks among every row an import brought, and a file's row among the
+ * rows the AI copied.
+ */
+function twinsOnFile(rows: readonly StatementRow[], book: SpendingBook, statement: StatementRows): ReadonlyMap<StatementRow, BookedTwin<Transaction>> {
+  const keysHit = new Set(statement.rows.map((row) => `${row.account} ${row.importKey}`))
+  const fromOtherSource = (row: Transaction): boolean => (statement.transcribed === undefined ? isTranscribedKey(row.importKey) : row.importKey !== '')
+  const others = book.transactions.filter((row) => fromOtherSource(row) && row.statement !== statement.label && !keysHit.has(`${row.account} ${row.importKey}`))
+  const twins = new Map<StatementRow, BookedTwin<Transaction>>()
+  for (const account of new Set(rows.map((row) => row.account))) {
+    const copied = rows.filter((row) => row.account === account).map((row) => ({ ...row, counterparty: row.payee, row }))
+    const onFile = others.filter((row) => row.account === account).map((row) => ({ ...row, counterparty: row.payee, row }))
+    for (const [{ row }, twin] of bookedTwins(copied, onFile)) twins.set(row, { kind: twin.kind, booked: twin.booked.row })
+  }
+  return twins
+}
+
 /** One note per account for the rows the other source's days left out. */
 function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<RecordId, SourceDays>, accounts: ReadonlyMap<RecordId, Account>): readonly string[] {
   return [...new Set(rows.map((row) => row.account))].map((account) => {
@@ -104,6 +136,11 @@ function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<Recor
  * whatever a rule says, since filing it would count that money twice until you noticed. A row that moves money
  * between your accounts fills only a typed transfer leg, and a row the reader filed fills nothing. Then the new rows and the
  * unpaired rows from 30 days back are paired into transfers. `newKey` makes each new row's bare UUID.
+ *
+ * Rows the AI copied off a statement carry keys no other source gives, so they are matched against the rows on the file from
+ * another source instead, and no day belongs to a source for them. A row of the same day, amount and counterparty as one is
+ * already in. A row that only looks like one waits, unless the person said to import it. A file's row is matched the same way
+ * against the rows the AI copied, and one that only looks like one is left out with a note, as the screen asks nothing.
  */
 export function statementDryRun(book: SpendingBook, statement: StatementRows, day: CivilDate, newKey: () => string = newRecordId): StatementDryRun {
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
@@ -116,8 +153,13 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     const { lastFileDay, firstSyncDay } = sourceDays.get(row.account) ?? { lastFileDay: null, firstSyncDay: null }
     return isBankSyncKey(row.importKey) ? lastFileDay !== null && row.date <= lastFileDay : firstSyncDay !== null && row.date >= firstSyncDay
   }
-  const otherSource = new Set<StatementRow>(notOnFile.filter(coveredByOtherSource))
-  const coming = notOnFile.filter((row) => !otherSource.has(row))
+  const { transcribed } = statement
+  const otherSource = new Set<StatementRow>(transcribed === undefined ? notOnFile.filter(coveredByOtherSource) : [])
+  const toMatch = notOnFile.filter((row) => !otherSource.has(row) && (transcribed !== undefined || !isBankSyncKey(row.importKey)))
+  const twins = twinsOnFile(toMatch, book, statement)
+  const sameOnFile = new Set([...twins].flatMap(([row, twin]) => (twin.kind === 'same' ? [row] : [])))
+  const lookAlikeOf = new Map(transcribed?.lookAlikes === 'import' ? [] : [...twins].flatMap(([row, twin]) => (twin.kind === 'like' ? [[row, twin.booked] as const] : [])))
+  const coming = notOnFile.filter((row) => !otherSource.has(row) && !sameOnFile.has(row) && !lookAlikeOf.has(row))
 
   const context = spendingCategorisationContext(book)
   const transfer = book.categories.find((category) => category.kind === 'transfer')?.id ?? null
@@ -169,8 +211,10 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
 
   const fileLines = statement.rows.map((row): DryRunLine => {
     if (beforeOpening(row)) return { row, outcome: 'before-opening', category: null }
-    if (alreadyIn(row)) return { row, outcome: 'already-in', category: null }
+    if (alreadyIn(row) || sameOnFile.has(row)) return { row, outcome: 'already-in', category: null }
     if (otherSource.has(row)) return { row, outcome: 'other-source', category: null }
+    const like = lookAlikeOf.get(row)
+    if (like !== undefined) return { row, outcome: 'look-alike', category: null, like }
     const typed = typedOf.get(row)
     if (typed !== undefined) return { row, outcome: 'filled', category: typed.category }
     const fresh = newRowOf.get(row)!
@@ -191,6 +235,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
       ...(leftOut === 0 ? [] : [plural(words.beforeOpeningLeftOut(leftOut), leftOut)]),
       ...(wanting === 0 ? [] : [plural(words.pocketsWaiting(wanting), wanting)]),
       ...otherSourceNotes([...otherSource], sourceDays, accounts),
+      ...(transcribed !== undefined || lookAlikeOf.size === 0 ? [] : [plural(words.copiedLookAlikes(lookAlikeOf.size, BOOKING_DAYS_APART), lookAlikeOf.size)]),
     ],
   }
 }
