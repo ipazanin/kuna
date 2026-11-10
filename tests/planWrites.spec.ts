@@ -111,7 +111,7 @@ describe.each([
   it('refuses what the plan guards stop, naming why', async () => {
     const { store } = await harnessOf(used, grids())
     await expect(addLines(store, [ownerPayPlanLine(2027, 'board', civil('2027-06-05'))])).rejects.toThrow(
-      'Nothing was written. The owner pay switches to board on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.',
+      'The owner pay switches to board on 2027-06-05, but no row without a date sets it before then. Add the scenario 2027 starts with.',
     )
     await expect(addLines(store, [ownerPayPlanLine(2027, 'old', null)])).rejects.toThrow('The owner pay of 2027 names old, a scenario for 2026.')
     await expect(addLines(store, [dividendPlanLine(2027, 6, euros(5000)), dividendPlanLine(2027, 9, euros(1000))])).rejects.toThrow(

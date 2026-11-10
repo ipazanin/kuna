@@ -17,7 +17,7 @@ export const en = {
   notJson: 'The file is not a Kuna file: it does not read as JSON.',
   notKuna: 'The file is not a Kuna file.',
   notInShape: 'The file is not a Kuna file: its schema or its records are not in the shape the app writes.',
-  notOnce: (noun: RecordNoun) => `Nothing was written. The ${noun.en.one} the change names is not in the file once, as the write read it. Sync and look again.`,
+  notOnce: (noun: RecordNoun) => `The ${noun.en.one} the change names is not in the file once, as the write read it. Sync and look again.`,
   otherApp: (title: string, app: string, fileName: string) => `${title} holds the books of another Kuna app, ${app}. Choose ${fileName}.`,
   notReadBack: (fileName: string) => `${fileName} on Drive does not read back with the records it was given, so the app does not use it. Trash the new file in Drive and try again.`,
   outsideEdit: 'The file changed outside the app during this save. Check the backups folder.',
@@ -42,7 +42,7 @@ export const hr: Translation<typeof en> = {
   notKuna: 'Datoteka nije Kunina datoteka.',
   notInShape: 'Datoteka nije Kunina datoteka: njezina shema ili zapisi nisu u obliku koji aplikacija zapisuje.',
   notOnce: (noun) =>
-    `Ništa nije upisano. ${capitalised(noun.hr.one)} na ${agreeing(noun.hr, 'koji', 'koju', 'koje')} se promjena odnosi nije točno jednom u datoteci kakvu je upis pročitao. Sinkronizirajte i pogledajte ponovno.`,
+    `${capitalised(noun.hr.one)} na ${agreeing(noun.hr, 'koji', 'koju', 'koje')} se promjena odnosi nije točno jednom u datoteci kakvu je upis pročitao. Sinkronizirajte i pogledajte ponovno.`,
   otherApp: (title, app, fileName) => `„${title}” je datoteka druge Kunine aplikacije, ${app}. Odaberite „${fileName}”.`,
   notReadBack: (fileName) => `„${fileName}” na Driveu ne čita se sa zapisima koji su u nju upisani, pa je aplikacija ne koristi. Bacite novu datoteku u otpad na Driveu i pokušajte ponovno.`,
   outsideEdit: 'Datoteka se tijekom ovog spremanja promijenila izvan aplikacije. Provjerite mapu sa sigurnosnim kopijama.',

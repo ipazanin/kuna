@@ -543,7 +543,7 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
       if (shownAtOnce) {
         madeOnFailedWriteUpTo = nextWriteId - 1
       }
-      throw madeOnFailedWrite ? new WorkbookWriteRefused(words.nothingWritten(words.madeOnFailedWrite)) : failure
+      throw madeOnFailedWrite ? new WorkbookWriteRefused(words.madeOnFailedWrite) : failure
     } finally {
       if (state.waiting.includes(queued)) {
         leaveQueue(queued)

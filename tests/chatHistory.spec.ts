@@ -388,7 +388,7 @@ describe('a chat kept in this browser', () => {
       { state: 'ended', reason: null, checked: null },
       { state: 'refused', reason: null, checked: null },
     ])
-    expect(readFileSync('src/shared/ai/presentation/ProposalCard.vue', 'utf8')).toContain('{{ proposal.reason ?? words.proposal.refusedBeforeReload }}')
+    expect(readFileSync('src/shared/ai/presentation/ProposalCard.vue', 'utf8')).toContain('proposal.reason === null ? words.proposal.refusedBeforeReload : words.proposal.notWritten(proposal.reason)')
     expect([words.proposal.ended, words.proposal.refusedBeforeReload]).toEqual([
       'Not accepted before the page reloaded. Ask the chat again to make it anew.',
       'Not written before the page reloaded. Ask the chat again to try it.',

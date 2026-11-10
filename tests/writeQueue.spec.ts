@@ -209,7 +209,7 @@ describe('a failed write in the middle of a queue', () => {
     const outcomes = await Promise.allSettled([first, other, onTop, after])
 
     expect(outcomes.map((outcome) => outcome.status)).toEqual(['rejected', 'fulfilled', 'rejected', 'fulfilled'])
-    expect((outcomes[2] as PromiseRejectedResult).reason).toEqual(new WorkbookWriteRefused(words.nothingWritten(words.madeOnFailedWrite)))
+    expect((outcomes[2] as PromiseRejectedResult).reason).toEqual(new WorkbookWriteRefused(words.madeOnFailedWrite))
     expect(store.state.waiting).toEqual([])
     expect(labelOf(store, 'revenue')).not.toBe('A')
     expect(labelOf(store, 'revenue')).not.toBe('C')

@@ -240,7 +240,7 @@ describe.each([
 
     expect(outcome.filed).toEqual([])
     expect(outcome.receipt).toBeNull()
-    expect(outcome.problem).toBe('Nothing was written. The ledger row "2026-10-06, Typed by hand, abc, balance 1100" is in the workbook already, so it is not added again.')
+    expect(outcome.problem).toBe('The ledger row "2026-10-06, Typed by hand, abc, balance 1100" is in the workbook already, so it is not added again.')
     expect(outcome.held.map((reading) => ('statement' in reading ? reading.statement.label : reading.label))).toEqual(['2026-10-06-statement-003'])
     expect(ledgerOf(store, 'main')).toEqual(before)
     expect(store.state.writes).toEqual([])

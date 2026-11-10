@@ -231,7 +231,7 @@ async function undo(event: Event): Promise<void> {
       </div>
       <p v-else-if="proposal.state === 'refused'" class="flex items-start gap-1.5 type-body wrap-anywhere text-error" role="status" data-testid="chat-proposal-refused">
         <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        {{ proposal.reason ?? words.proposal.refusedBeforeReload }}
+        {{ proposal.reason === null ? words.proposal.refusedBeforeReload : words.proposal.notWritten(proposal.reason) }}
       </p>
       <p v-else class="type-caption" role="status" data-testid="chat-proposal-over">{{ endedWords }}</p>
     </div>
