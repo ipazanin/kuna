@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { fileRow, joinWithTyped, notAPair, pairRows, payeeCondition, rowsRuleWouldFile, writeRule } from '../application/statementWrites'
+import { fileRow, joinWithTyped, notAPair, pairRows, payeeCondition, rowsRuleWouldFile, writeRulesInto } from '../application/statementWrites'
 import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
@@ -66,7 +66,7 @@ async function makeRule(): Promise<void> {
   const current = book.value
   const asked = askedRule.value
   if (current === null || asked === null) return
-  if (await writes.write(words.rules.made, (unit) => writeRule(unit, current, asked.condition, asked.category.id), { key: 'make-rule', failedTitle: words.review.notWritten }))
+  if (await writes.write(words.rules.made, (unit) => writeRulesInto(unit, current, [asked.condition], asked.category.id), { key: 'make-rule', failedTitle: words.review.notWritten }))
     ruleDialogOpen.value = false
 }
 

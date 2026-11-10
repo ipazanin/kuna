@@ -185,6 +185,7 @@ import {
   spendingPayeePickFlow,
   spendingReviewFlowIn,
   spendingRuleFlowIn,
+  spendingRulesAddFlowIn,
   spendingTransferFlow,
   firstRunBrowserFlowIn,
   setUpInOtherTabFlow,
@@ -3183,6 +3184,7 @@ async function checkWidth(width) {
     // The same saves and Undo once the page's Google token has lapsed, as on a phone after an hour: each asks Google and goes again.
     ['spending-review-lapsed', 'drive&spending=statements&google=expired', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    ['spending-rules-add', 'drive&spending=statements', spendingRulesAddFlowIn('en'), '#/spending/settings?tab=rules', 'Settings'],
     ['investments-start', 'drive', investmentsDriveFlow, '#/investments', 'Investments'],
     ['investments-price-key', 'drive&investments=sample', investmentsPriceKeyFlow, '#/investments/settings?tab=prices', 'Settings'],
     ['investments-key-synced', 'drive&investments=sample&keys=other-browser', investmentsKeyFromOtherBrowserFlow, '#/investments/settings?tab=prices', 'Settings'],

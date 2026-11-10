@@ -6791,6 +6791,111 @@ export function spendingRuleFlowIn(language) {
   }
 }
 
+/** Sets a textarea the way typing does, so Vue's v-model sees it. */
+async function setTextArea(textarea, value) {
+  await textarea.evaluate((element, text) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set
+    setter.call(element, text)
+    element.dispatchEvent(new Event('input', { bubbles: true }))
+  }, value)
+}
+
+/** The rule group on Settings, Rules whose heading names this category. */
+async function ruleGroupOf(page, name) {
+  return page
+    .waitForFunction(
+      (wanted) =>
+        [...document.querySelectorAll('[data-testid="spending-rule-group"]')].find((group) => group.querySelector('[data-testid="spending-rule-group-name"]')?.textContent?.trim() === wanted) ?? null,
+      { timeout: 10_000 },
+      name,
+    )
+    .then((handle) => handle.asElement())
+    .catch(() => {
+      throw new Error(`no rule group named "${name}"`)
+    })
+}
+
+/**
+ * On Settings, Rules with the statements set: Add rules files three Ina stations into Fuel at once with one Undo, Groceries' own Add
+ * then takes Ina, which both groups warn about since Fuel's rules are tried first, and a Fuel rule is changed on its own.
+ */
+export function spendingRulesAddFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { rules } = words.spendingStatements
+  const fuel = words.spendingStarter.Fuel
+  const groceries = words.spendingStarter.Groceries
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const GROUP = '[data-testid="spending-rule-group"]'
+    const OVERLAP = '[data-testid="spending-rule-overlap"]'
+    await countOf(page, GROUP, 1, 'the set should start with one rule group')
+    await pressSelector(page, press, '[data-testid="spending-rules-add"]')
+    await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
+    await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), fuel)
+    const pickedFuel = `${fuel} · ${words.spendingStarter.Transport}`
+    await page
+      .waitForFunction((text) => document.querySelector('[data-testid="spending-rule-dialog-category"]')?.textContent?.trim() === text, { timeout: 5_000 }, pickedFuel)
+      .catch(() => {
+        throw new Error(`the category picker should read "${pickedFuel}"`)
+      })
+    await setTextArea(await page.$('[data-testid="spending-rule-dialog-lines"] textarea, textarea[data-testid="spending-rule-dialog-lines"]'), 'Ina Zadar\nIna Pleternica\nIna Kozjak Sjever')
+    await countOf(page, '[data-testid="spending-rule-dialog-read-line"]', 3, 'the dialog should read three payees')
+    await delay(300)
+    await inspect?.('the rule dialog with three payees for Fuel')
+    await shoot('spending-rules-add-dialog')
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
+    await toast(page, countedIn(words, rules.dialog.saved(3), 3))
+    await countOf(page, GROUP, 2, 'Fuel should join as a group')
+    const fuelGroup = await ruleGroupOf(page, fuel)
+    if ((await fuelGroup.$$('[data-testid="spending-rule"]')).length !== 3) throw new Error('Fuel should hold the three payees')
+    await undoIn(page, press, words)
+    await countOf(page, GROUP, 1, 'one Undo should take all three rules back')
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="spending-rules-add"]')
+    await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
+    await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), fuel)
+    await setTextArea(await page.$('[data-testid="spending-rule-dialog-lines"] textarea, textarea[data-testid="spending-rule-dialog-lines"]'), 'Ina Zadar\nIna Pleternica\nIna Kozjak Sjever')
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
+    await toast(page, countedIn(words, rules.dialog.saved(3), 3))
+    await countOf(page, GROUP, 2, 'Fuel should join as a group')
+    await dismissToasts(page)
+    await delay(300)
+    await inspect?.('Settings, Rules grouped by category')
+    await shoot('spending-rules-grouped')
+
+    await press(await (await ruleGroupOf(page, groceries)).$('[data-testid="spending-rule-group-add"]'))
+    await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
+    await setTextArea(await page.$('[data-testid="spending-rule-dialog-lines"] textarea, textarea[data-testid="spending-rule-dialog-lines"]'), 'Ina')
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
+    await toast(page, countedIn(words, rules.dialog.saved(1), 1))
+    await countOf(page, OVERLAP, 2, 'Fuel and Groceries should both warn that they can file one payee')
+    await dismissToasts(page)
+    await (await page.$(OVERLAP)).evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.('the overlap warning on Fuel and Groceries')
+    await shoot('spending-rules-overlap')
+
+    const kozjak = (await (await ruleGroupOf(page, fuel)).$$('[data-testid="spending-rule-edit"]')).at(-1)
+    await press(kozjak)
+    await page.waitForSelector('[data-testid="spending-rule-dialog-line"]', { visible: true, timeout: 5_000 })
+    await setField(await page.$('[data-testid="spending-rule-dialog-line"] input, input[data-testid="spending-rule-dialog-line"]'), 'Ina Kozjak')
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
+    await toast(page, rules.dialog.changed)
+    await page.waitForFunction(
+      (text) => [...document.querySelectorAll('[data-testid="spending-rule"]')].some((row) => row.textContent?.trim() === text),
+      { timeout: 5_000 },
+      rules.contains('Ina Kozjak'),
+    )
+    await undoIn(page, press, words)
+    await page.waitForFunction(
+      (text) => [...document.querySelectorAll('[data-testid="spending-rule"]')].some((row) => row.textContent?.trim() === text),
+      { timeout: 5_000 },
+      rules.contains('Ina Kozjak Sjever'),
+    )
+    await dismissToasts(page)
+  }
+}
+
 /** Money out added by touch on the sample Spending file's Transactions: the amount on the number pad, a category, saved onto today's list, and taken off again with Undo. */
 export async function spendingMoneyOutFlow(page, { press, shoot, inspect }) {
   const words = SCREEN_WORDS.en

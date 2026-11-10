@@ -1,4 +1,4 @@
-import { isIban } from '../../workbook/domain/iban'
+import { isIban } from '../../../../shared/text/iban'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { words } from './words'

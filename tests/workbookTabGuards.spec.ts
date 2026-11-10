@@ -8,7 +8,7 @@ import { clientChangeRefusals } from '../src/apps/company/settings/domain/client
 import { writeDrafts } from '../src/apps/company/settings/application/draftWrites'
 import type { Repository } from '../src/shared/storage/application/repository'
 import type { ReadRecord, RefusedRecord } from '../src/shared/storage/domain/recordsRead'
-import { isIban } from '../src/apps/company/workbook/domain/iban'
+import { isIban } from '../src/shared/text/iban'
 import { slugChangeRefusals, slugProblem } from '../src/apps/company/workbook/domain/slug'
 import { civil } from './fixtures/ledger'
 

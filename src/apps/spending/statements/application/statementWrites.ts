@@ -12,6 +12,7 @@ import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { ReceiptLine } from '../../workbook/domain/receiptLine'
 import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
+import { sameCondition } from '../../workbook/domain/spendingRule'
 import type { SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -72,10 +73,6 @@ export function joinWithTyped(unit: UnitOfWork, typed: Transaction, bank: Transa
 export function payeeCondition(row: Pick<Transaction, 'payee' | 'counterpartyIban'>): SpendingRuleCondition | null {
   if (row.counterpartyIban !== '') return { column: 'counterparty_iban', iban: row.counterpartyIban }
   return row.payee === '' ? null : { column: 'counterparty_contains', fragment: row.payee }
-}
-
-function sameCondition(one: SpendingRuleCondition, other: SpendingRuleCondition): boolean {
-  return one.column === 'counterparty_iban' ? other.column === 'counterparty_iban' && one.iban === other.iban : other.column === 'counterparty_contains' && one.fragment === other.fragment
 }
 
 function rerun(unit: UnitOfWork, book: SpendingBook, rules: readonly SpendingRule[]): void {
@@ -148,9 +145,14 @@ export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: Rul
   return run
 }
 
-/** The rule written, with the rules re-run in the same write. */
-export function writeRule(unit: UnitOfWork, book: SpendingBook, condition: SpendingRuleCondition, category: RecordId): void {
-  writeRules(unit, book, { filing: [{ condition, category }] })
+/** A rule for each condition into one category, tried after the rules there are in the order given, with the rules re-run in the same write. */
+export function writeRulesInto(unit: UnitOfWork, book: SpendingBook, conditions: readonly SpendingRuleCondition[], category: RecordId): void {
+  writeRules(unit, book, { filing: conditions.map((condition) => ({ condition, category })) })
+}
+
+/** The rule testing another condition or filing into another category, keeping its place, with the rules re-run in the same write. */
+export function changeRule(unit: UnitOfWork, book: SpendingBook, rule: SpendingRule, condition: SpendingRuleCondition, category: RecordId): void {
+  writeRules(unit, book, { fixing: [{ rule, condition, category }] })
 }
 
 /** The rule gone, and the rows it filed follow the rules that are left, in the same write. */

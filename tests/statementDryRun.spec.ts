@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { fileRow, payeeCondition, rowsRuleWouldFile, writeDryRun, writeRule, deleteRule } from '../src/apps/spending/statements/application/statementWrites'
+import { changeRule, fileRow, payeeCondition, rowsRuleWouldFile, writeDryRun, writeRulesInto, deleteRule } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { rulesRerun, spendingCategorisationContext } from '../src/apps/spending/statements/domain/spendingCategorisation'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
@@ -417,7 +417,7 @@ describe('a rule change', () => {
     const rule = ruleOf(corner, 'Food/Coffee')
     const { unit, added, changed } = noting()
 
-    writeRule(unit, bookOf([], [rule]), corner, groceries)
+    writeRulesInto(unit, bookOf([], [rule]), [corner], groceries)
 
     expect(added).toEqual([])
     expect(changed).toEqual([[rule, { ...rule, category: groceries }]])
@@ -426,9 +426,28 @@ describe('a rule change', () => {
   it('adds a new rule last', () => {
     const { unit, added } = noting()
 
-    writeRule(unit, bookOf([], [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)]), corner, groceries)
+    writeRulesInto(unit, bookOf([], [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)]), [corner], groceries)
 
     expect(added).toMatchObject([{ order: 5, condition: corner, category: groceries }])
+  })
+
+  it('adds several rules last in the order typed, in one write', () => {
+    const { unit, added } = noting()
+    const typed = ['Ina Split', 'Ina Pleternica', 'Ina Kozjak Sjever'].map((fragment): SpendingRuleCondition => ({ column: 'counterparty_contains', fragment }))
+
+    writeRulesInto(unit, bookOf([], [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)]), typed, groceries)
+
+    expect(added).toMatchObject(typed.map((condition, place) => ({ order: 5 + place, condition, category: groceries })))
+  })
+
+  it('changes a rule in its place', () => {
+    const rule = ruleOf(corner, 'Food/Coffee', 3)
+    const { unit, added, changed } = noting()
+
+    changeRule(unit, bookOf([], [rule]), rule, { column: 'counterparty_contains', fragment: 'Corner market' }, groceries)
+
+    expect(added).toEqual([])
+    expect(changed).toEqual([[rule, { ...rule, condition: { column: 'counterparty_contains', fragment: 'Corner market' }, category: groceries }]])
   })
 
   it('tests the IBAN of a row that has one, else its payee, and nothing on a row with neither', () => {

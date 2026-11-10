@@ -11,3 +11,8 @@ export interface SpendingRule {
   readonly condition: SpendingRuleCondition
   readonly category: RecordId
 }
+
+/** Whether two conditions test the same thing, as stored. */
+export function sameCondition(one: SpendingRuleCondition, other: SpendingRuleCondition): boolean {
+  return one.column === 'counterparty_iban' ? other.column === 'counterparty_iban' && one.iban === other.iban : other.column === 'counterparty_contains' && one.fragment === other.fragment
+}

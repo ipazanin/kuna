@@ -1,3 +1,5 @@
+import { IBAN_SHAPE, isIban } from '../../text/iban'
+
 /** A country code and check digits, glued to the word IBAN or not, then every word up to the next punctuation, some of which may belong to the IBAN. */
 const IBAN_RUN = /(?<![a-z0-9])(?:iban)?[a-z]{2}[\s-]*\d{2}(?:[\s-]*[a-z0-9]+)*/gi
 /** Eleven digits that are not part of a longer number, in one run or grouped as `123 456 789 01`, as an OIB stands in a description or a reference. */
@@ -6,8 +8,6 @@ const OIB = /(?<!\d)\d{3}[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{2}(?!\d)/g
 const DOMESTIC_ACCOUNT = /(?<![\d-])\d{7}-\d{10}(?![\d-])/g
 /** Thirteen to nineteen digits, in one run or in groups split by a space or a hyphen, as a card number stands in a description. */
 const CARD_RUN = /(?<!\d)\d(?:[ -]?\d){12,18}(?!\d)/g
-
-const IBAN_SHAPE = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/
 
 /**
  * Which identifiers a text is searched for. The books hold IBANs and OIBs only, since a reference in the books can pass
@@ -22,15 +22,6 @@ export interface FoundIdentifier {
   readonly written: string
   /** The identifier in upper case without spaces, hyphens or the word IBAN, so two ways of writing it compare equal. */
   readonly compact: string
-}
-
-/** Whether the text has an IBAN's shape and passes its mod-97 check, which leaves an invoice number readable. */
-function isIban(compact: string): boolean {
-  if (!IBAN_SHAPE.test(compact)) {
-    return false
-  }
-  const digits = [...`${compact.slice(4)}${compact.slice(0, 4)}`].map((character) => parseInt(character, 36)).join('')
-  return [...digits].reduce((rest, digit) => (rest * 10 + Number(digit)) % 97, 0) === 1
 }
 
 function compactIban(written: string): string {
