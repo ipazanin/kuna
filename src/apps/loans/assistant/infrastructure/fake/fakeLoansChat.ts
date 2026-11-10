@@ -1,4 +1,4 @@
-import { answered, answersSince, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, lookup, registerFakeChat, settingUp } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
@@ -86,7 +86,7 @@ function offerReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
     const step = { op: 'add-offer', input: JSON.stringify(offerInput()), as: null }
-    return lookup(0, 'propose_changes', { app: 'loans', title: says.offerTitle, steps: [step] }, tokens)
+    return lookup(0, 'propose_changes', { app: 'loans', title: says.offerTitle, steps: [step], next: settingUp(request) }, tokens)
   }
   return answered(request, answers[0]!.isError ? says.notRead : says.offerProposed, tokens)
 }
@@ -96,7 +96,7 @@ function loanReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
     const step = { op: 'add-bank-loan', input: JSON.stringify(loanInput()), as: null }
-    return lookup(0, 'propose_changes', { app: 'loans', title: says.loanTitle, steps: [step] }, tokens)
+    return lookup(0, 'propose_changes', { app: 'loans', title: says.loanTitle, steps: [step], next: settingUp(request) }, tokens)
   }
   return answered(request, answers[0]!.isError ? says.notRead : says.loanProposed, tokens)
 }
@@ -111,7 +111,7 @@ function extraReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const [loan] = records
     if (loan === undefined) return answered(request, says.noLoan, tokens)
     const step = { op: 'add-extra-payment', input: JSON.stringify({ loan: loan.ref, date: addDays(today(), 7), amount: 1000, effect: 'shorter-term' }), as: null }
-    return lookup(1, 'propose_changes', { app: 'loans', title: says.extraTitle, steps: [step] }, tokens)
+    return lookup(1, 'propose_changes', { app: 'loans', title: says.extraTitle, steps: [step], next: settingUp(request) }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.notRead : says.extraProposed, tokens)
 }

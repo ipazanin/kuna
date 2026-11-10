@@ -10,6 +10,8 @@ export interface ProposeInput {
   readonly app: string
   readonly title: string
   readonly steps: readonly { readonly op: string; readonly input: string; readonly as: string | null }[]
+  /** Another card of the job follows once the person accepts this one. */
+  readonly next: boolean
 }
 
 const TEMPORARY_NAME = /^\$[a-z0-9]+$/i
@@ -98,7 +100,7 @@ export async function proposeChanges(
   proposers: ReadonlyMap<string, AppProposer>,
   reads: ChatReads,
   attachments: readonly ChatAttachment[],
-  showProposal: (app: string, proposal: CheckedProposal) => void,
+  showProposal: (app: string, proposal: CheckedProposal, next: boolean) => void,
 ): Promise<ChatToolAnswer> {
   const proposer = proposers.get(input.app)
   if (proposer === undefined) return refusal('Nothing can be proposed in that app yet. Say what to do and link its screen.')
@@ -118,7 +120,7 @@ export async function proposeChanges(
     const sent = checked.refused.map((reason) => labelLeaving(reason, reads) ?? REFUSED_ABOUT_AN_EMPLOYEE).join(' ')
     return { text: sent, isError: true, read: { kind: 'refusal', app: reads.readers.get(input.app)?.name ?? input.app } }
   }
-  showProposal(input.app, checked)
+  showProposal(input.app, checked, input.next)
   const shown = `The card shows ${checked.count} changes. Nothing is written until the person accepts.`
   if (checked.heldBack === null) return { text: `${shown} Say so in one short line and stop.`, isError: false }
   return { text: `${shown} ${checked.heldBack} Say so in one or two short lines and stop.`, isError: false }

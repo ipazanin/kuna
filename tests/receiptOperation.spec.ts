@@ -165,7 +165,10 @@ describe('a receipt from the chat', () => {
 
     expect((await desk.propose([receipt(desk, lines('Food'))], [attachedPhoto()])).text).toContain('FLASTER')
     expect((await desk.propose([receipt(desk, lines('For the company'))], [attachedPhoto()])).text).toContain('FLASTER')
-    const answer = await desk.propose([{ op: 'add-category', input: { name: 'Pharmacy', kind: 'spending', parent: null }, as: '$pharmacy' }, receipt(desk)], [attachedPhoto()])
+    const answer = await desk.propose(
+      [{ op: 'add-category', input: { name: 'Pharmacy', kind: 'spending', parent: null, colour: null, hidden: null }, as: '$pharmacy' }, receipt(desk)],
+      [attachedPhoto()],
+    )
     expect(answer.text).toContain('A new category goes on a card before the receipt')
   })
 

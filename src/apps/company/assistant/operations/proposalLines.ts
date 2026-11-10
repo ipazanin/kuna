@@ -47,17 +47,12 @@ function filedBy(flaggedBy: string): string | null {
   return words.filedBy.person
 }
 
-/** A rule as the card says it: what it looks for, where it files, and whether it is off, leaves rows waiting, and where it is tried. */
+/** A rule as the card says it: what it looks for, where it files, and whether it is off or leaves rows waiting. Its name is the line's label. */
 function ruleInWords(row: RuleTabRow, workbook: Workbook, names: DisplayNames): string | null {
   const [rule] = readRules([row], new Set(workbook.categories.map((category) => category.slug))).rules
   if (rule === undefined) return null
   const conditions = rule.conditions.map(conditionInWords).join(', ')
-  return [
-    words.rule(conditions, names.category(rule.category)),
-    ...(rule.enabled ? [] : [words.ruleOff]),
-    ...(rule.confidence === 'review' ? [words.ruleReview] : []),
-    words.tried(String(rule.order)),
-  ].join(', ')
+  return [words.rule(conditions, names.category(rule.category)), ...(rule.enabled ? [] : [words.ruleOff]), ...(rule.confidence === 'review' ? [words.ruleReview] : [])].join(', ')
 }
 
 /** A value as a person reads it on screen: money in the books' format, days in words, categories and accounts by their names, and a category's bucket, VAT and tax class as the categories editor names them. */

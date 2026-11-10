@@ -154,7 +154,7 @@ export function companyChat(store: WorkbookStore<CompanyBooks>, ports: CompanyOp
     ref: (kind, id) => reads.refs.recordRef({ app: 'company', kind, id }),
     propose: (steps, attachments = []) =>
       proposeChanges(
-        { app: 'company', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })) },
+        { app: 'company', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })), next: false },
         proposers,
         reads,
         attachments,

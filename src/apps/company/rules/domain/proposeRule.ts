@@ -4,7 +4,7 @@ import type { Transaction, Workbook } from '../../workbook/domain/workbook'
 import { categorise } from '../../../../shared/categorising/domain/categorise'
 import { placeBefore } from './rulePlacement'
 import type { Rule, RuleCondition } from '../../../../shared/categorising/domain/rule'
-import { foldRuleText } from '../../../../shared/text/fold'
+import { fold, foldRuleText } from '../../../../shared/text/fold'
 import type { CategorisableRow, CategorisationContext } from '../../../../shared/categorising/domain/transactionFacts'
 
 /**
@@ -59,6 +59,26 @@ export function unusedId(stem: string, rules: readonly Rule[]): string {
     id = `${stem}-${suffix}`
   }
   return id
+}
+
+/** The most words of a payee or account holder a rule's name takes, so a long company name stays readable. */
+const MOST_HOLDER_WORDS = 4
+
+/**
+ * A rule's name from its category and the payee or account holder it files, such as `donations-rk-cetina-raft`, unused
+ * among the rules. Accents go, and so do single letters such as those of d.o.o. and anything but letters and digits. With no holder it is the category alone.
+ */
+export function ruleNameOf(category: string, holder: string, rules: readonly Rule[]): string {
+  const holderWords = fold(holder)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 1)
+    .slice(0, MOST_HOLDER_WORDS)
+  const categoryWords = fold(category)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word !== '')
+  return unusedId([...categoryWords, ...holderWords].join('-') || 'rule', rules)
 }
 
 function slugOf(fragment: string): string {

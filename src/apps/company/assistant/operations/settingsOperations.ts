@@ -66,6 +66,10 @@ const COLOUR_OR_NULL: StrictSchema = {
   type: ['string', 'null'],
   description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, or "" for its bucket's colour, or null to leave it.`,
 }
+const COLOUR_OR_BUCKET: StrictSchema = {
+  ...COLOUR_OR_NULL,
+  description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, or null for its bucket's colour.`,
+}
 const BUCKET: StrictSchema = { type: 'string', enum: [...BUCKETS] }
 const BUCKET_OR_NULL: StrictSchema = { type: ['string', 'null'], enum: [...BUCKETS, null], description: 'Null leaves it.' }
 const VAT: StrictSchema = { type: 'string', enum: [...VAT_TREATMENTS, ''], description: '"" for none.' }
@@ -134,8 +138,8 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
     {
       name: 'add-category',
       about:
-        'A new category as Settings, Categories adds it: a short name in lower case with hyphens, a family, a bucket, its tax class while the pack has classes, the other roles, VAT, and an owner share while owner pay is on. The class decides which VAT and buckets fit. It goes one to a card, and a later card files rows into it.',
-      input: inputOf({ category: TEXT, label: TEXT, family: TEXT, bucket: BUCKET, ...taxClassField(classes, false), roles, vat: VAT, ownerShare: TEXT }),
+        'A new category as Settings, Categories adds it: a short name in lower case with hyphens, a family, a bucket, its tax class while the pack has classes, the other roles, VAT, a colour, and an owner share while owner pay is on. The class decides which VAT and buckets fit. It goes one to a card, and a later card files rows into it.',
+      input: inputOf({ category: TEXT, label: TEXT, family: TEXT, bucket: BUCKET, ...taxClassField(classes, false), roles, vat: VAT, colour: COLOUR_OR_BUCKET, ownerShare: TEXT }),
       refs: {},
       creates: CATEGORY,
       alone: true,
@@ -147,6 +151,7 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
         ...(exampleTaxClass === null ? {} : { taxClass: exampleTaxClass }),
         roles: [],
         vat: '',
+        colour: null,
         ownerShare: '',
       },
     },
@@ -321,7 +326,7 @@ function addCategory(card: CompanyCard, step: ProposalStep): void {
     label: field['label'],
     family: field['family'],
     bucket: field['bucket'],
-    colour: '',
+    colour: (field['colour'] as string | null) ?? '',
     roles: rolesWithClass(slug, field['taxClass'], field['roles'] as readonly string[], []),
     vat: field['vat'],
     ownerShare: field['ownerShare'],

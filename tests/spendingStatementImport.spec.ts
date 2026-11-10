@@ -145,7 +145,7 @@ describe('a statement read off a page', () => {
   it('files its new rows by a rule on the same card', async () => {
     const desk = await spendingDesk(used)
     const restaurants = desk.store.state.workbook!.categories.find((category) => category.name === 'Restaurants')!
-    await desk.propose([transcribed(desk, 'statement-ties.pdf'), { op: 'add-rule', input: { row: null, fragment: 'Harbour', category: desk.ref('category', restaurants.id) } }])
+    await desk.propose([transcribed(desk, 'statement-ties.pdf'), { op: 'add-rule', input: { row: null, fragment: 'Harbour', iban: null, category: desk.ref('category', restaurants.id) } }])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).find((row) => row.payee === 'Harbour bistro')).toMatchObject({ category: restaurants.id, categorisedBy: 'rule' })
   })
@@ -169,7 +169,10 @@ describe('a statement read off a page', () => {
 
   it('refuses a new category on the import’s card, which goes on a card before it', async () => {
     const desk = await spendingDesk(used)
-    const answer = await desk.propose([{ op: 'add-category', input: { name: 'Pets', kind: 'spending', parent: null }, as: '$pets' }, transcribed(desk, 'statement-ties.pdf')])
+    const answer = await desk.propose([
+      { op: 'add-category', input: { name: 'Pets', kind: 'spending', parent: null, colour: null, hidden: null }, as: '$pets' },
+      transcribed(desk, 'statement-ties.pdf'),
+    ])
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain('Propose add-category on a card of its own first, and the import on the next card')
     expect(desk.cards).toEqual([])
@@ -196,7 +199,7 @@ describe('a statement read off a page', () => {
     expect(waiting).toMatchObject({ category: null, pair: null })
 
     const rent = desk.store.state.workbook!.categories.find((category) => category.name === 'Rent')!
-    const rule = { op: 'add-rule', input: { row: null, fragment: 'Top-up', category: desk.ref('category', rent.id) } }
+    const rule = { op: 'add-rule', input: { row: null, fragment: 'Top-up', iban: null, category: desk.ref('category', rent.id) } }
     const changesOn = (row: Transaction) => {
       const { changes } = desk.cards.at(-1)!.held as { readonly changes: readonly RuledChange[] }
       return changes.filter(({ change }) => change.verb === 'change' && (change.before as Transaction).id === row.id).map(({ change }) => change)

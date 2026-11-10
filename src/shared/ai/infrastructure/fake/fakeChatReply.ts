@@ -1,6 +1,7 @@
 import type { ModelReply, ModelRequest, ToolCall } from '../../application/modelPort'
 import type { ModelTokens } from '../../domain/modelUsage'
 import { language } from '../../../text/language'
+import { en as chatEnglish, hr as chatCroatian } from '../../presentation/words'
 
 const ANSWERS = {
   en: {
@@ -53,6 +54,33 @@ function whereTheTurnIs(request: ModelRequest): { readonly typed: string; readon
   const lastPart = person?.role === 'user' ? person.parts.at(-1) : undefined
   const typed = lastPart?.kind === 'text' ? lastPart.text : ''
   return { typed, lookups: request.turns.slice(lastPerson).filter((turn) => turn.role === 'tool-results').length }
+}
+
+/** What each person's message said, oldest first, without the context lines Kuna put before it. */
+function personMessages(request: ModelRequest): readonly string[] {
+  return request.turns.flatMap((turn) => {
+    if (turn.role !== 'user') return []
+    const last = turn.parts.at(-1)
+    return last?.kind === 'text' && !last.text.startsWith('<context>') ? [last.text] : []
+  })
+}
+
+/**
+ * How many times Kuna sent Go on for the job the person last asked for, counting the message now, when that is Go on and the job
+ * fits `task`. Null otherwise, as a model lays out a job in its first answer and proposes the next card at each Go on.
+ */
+export function goOnsInto(request: ModelRequest, task: RegExp): number | null {
+  const goOns = new Set([chatEnglish.chat.goOn, chatCroatian.chat.goOn])
+  const said = personMessages(request)
+  const asked = said.map((text) => !goOns.has(text)).lastIndexOf(true)
+  if (asked === -1 || asked === said.length - 1 || !task.test(said[asked]!)) return null
+  return said.length - 1 - asked
+}
+
+/** Whether the last line Kuna sent about where the person is names an app that is new, which a model sets up as a job of several cards. */
+export function settingUp(request: ModelRequest): boolean {
+  const places = JSON.stringify(request.turns).match(/<context>The person is in[^<]*<\/context>/g) ?? []
+  return /is new\. |has no file on this device yet\./.test(places.at(-1) ?? '')
 }
 
 export function lookup(lookups: number, name: string, args: unknown, tokens: ModelTokens): ModelReply {

@@ -89,7 +89,7 @@ export const en = {
   addKey: 'Add a key in Kuna settings to use the assistant.',
   chat: {
     open: 'Chat',
-    goOn: 'Go on with the setup.',
+    goOn: 'Go on with the next step.',
     sentByKuna: 'Sent by Kuna',
     newAppNames: 'Kuna knows nobody in this app yet, so names in the file go as written. IBANs and card numbers stay hidden.',
     close: 'Close the chat',
@@ -294,7 +294,7 @@ export const hr: Translation<typeof en> = {
   addKey: 'Dodajte ključ u postavkama Kune da biste koristili asistenta.',
   chat: {
     open: 'Razgovor',
-    goOn: 'Nastavi s postavljanjem.',
+    goOn: 'Nastavi sa sljedećim korakom.',
     sentByKuna: 'Poslala Kuna',
     newAppNames: 'Kuna u ovoj aplikaciji još ne poznaje nikoga, pa imena u datoteci idu kako su zapisana. IBAN-i i brojevi kartica ostaju sakriveni.',
     close: 'Zatvori razgovor',

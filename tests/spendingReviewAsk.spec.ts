@@ -28,8 +28,8 @@ describe("asking the chat from Spending's To review", () => {
   it('sends Suggest categories as its own request from the header, in both languages', () => {
     expect(readFileSync('src/apps/spending/statements/presentation/ReviewPanel.vue', 'utf8')).toContain("useChatElement(REVIEW_ASKED, 'card', words.review.suggestCategoriesTask)")
     expect([en.review.suggestCategoriesTask, hr.review.suggestCategoriesTask]).toEqual([
-      'Suggest categories for the rows waiting on To review.',
-      'Predloži kategorije za retke koji čekaju na kartici Za pregled.',
+      'Sort the rows waiting on To review. Propose the changes that file them, with a new category or a rule where one is needed.',
+      'Razvrstaj retke koji čekaju na kartici Za pregled. Predloži promjene koje ih razvrstavaju, s novom kategorijom ili pravilom gdje treba.',
     ])
   })
 

@@ -46,9 +46,9 @@ function said(value: unknown): unknown {
   return value === undefined || value === '' ? null : value
 }
 
-/** The card's names of the fields a change sets, leaving out the ones Kuna keeps by itself. */
-function namesSet(before: Readonly<Record<string, unknown>> | null, after: Readonly<Record<string, unknown>>): string[] {
-  const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field))
+/** The card's names of the fields a change sets, leaving out the ones Kuna keeps by itself and where a rule stands among the rules, which its card leaves off. */
+function namesSet(kind: string, before: Readonly<Record<string, unknown>> | null, after: Readonly<Record<string, unknown>>): string[] {
+  const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field) && !(kind === 'rule' && field === 'order'))
   const altered = fields.filter((field) => JSON.stringify(said(before?.[field])) !== JSON.stringify(said(after[field])))
   return altered.map((field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field)
 }
@@ -86,7 +86,7 @@ describe('every Spending operation', () => {
         return [
           {
             shown: group.lines.filter((line) => line.fields.length > 0 || line.warning === null)[at]!.fields.map((field) => field.name),
-            set: namesSet(before, change.after as Readonly<Record<string, unknown>>),
+            set: namesSet(change.kind.name, before, change.after as Readonly<Record<string, unknown>>),
           },
         ]
       })

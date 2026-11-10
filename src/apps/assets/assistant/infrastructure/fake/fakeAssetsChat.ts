@@ -30,7 +30,7 @@ function valuationReply({ request, tokens }: FakeChatTurn): ModelReply {
     const [asset] = records
     if (asset === undefined) return answered(request, says.noAsset, tokens)
     const step = { op: 'add-valuation', input: JSON.stringify({ asset: asset.ref, date: today(), value: 210000, note: '' }), as: null }
-    return lookup(1, 'propose_changes', { app: 'assets', title: says.title, steps: [step] }, tokens)
+    return lookup(1, 'propose_changes', { app: 'assets', title: says.title, steps: [step], next: false }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.notRead : says.proposed, tokens)
 }

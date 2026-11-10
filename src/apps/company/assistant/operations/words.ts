@@ -31,12 +31,11 @@ export const en = {
   filedBy: {
     person: 'you',
     rule: 'a rule',
-    ai: 'nobody yet, it waits on To review',
+    ai: 'nobody yet',
   },
   rule: (conditions: string, category: string) => `${conditions}, filed under ${category}`,
   ruleOff: 'switched off',
   ruleReview: 'left waiting on To review',
-  tried: (order: string) => `tried at ${order}`,
   suggestion: {
     'not-covered': 'Rows no rule files',
     exception: 'Rows a rule files elsewhere',
@@ -95,12 +94,11 @@ export const hr: Translation<typeof en> = {
   filedBy: {
     person: 'vi',
     rule: 'pravilo',
-    ai: 'još nitko, čeka na kartici Za provjeru',
+    ai: 'još nitko',
   },
   rule: (conditions, category) => `${conditions}, razvrstava u ${category}`,
   ruleOff: 'isključeno',
   ruleReview: 'ostavlja redak da čeka provjeru',
-  tried: (order) => `redoslijed ${order}`,
   suggestion: {
     'not-covered': 'Retci koje nijedno pravilo ne razvrstava',
     exception: 'Retci koje pravilo razvrstava drugamo',

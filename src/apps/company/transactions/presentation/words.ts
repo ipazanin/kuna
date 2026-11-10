@@ -30,7 +30,7 @@ export const en = {
     queueSummary: 'Each waits for a confirmation or another category.',
     suggestCategories: 'Suggest categories',
     /** What Suggest categories sends the chat by itself. */
-    suggestCategoriesTask: 'Suggest categories for the rows waiting on To review.',
+    suggestCategoriesTask: 'Sort the rows waiting on To review. Propose the changes that file them, with a new category or a rule where one is needed.',
     confirmed: (category: string) => `Confirmed ${category}`,
     filedAs: (category: string) => `Filed as ${category}`,
     noCounterpartyRow: 'A row with no counterparty',
@@ -211,7 +211,7 @@ export const hr: Translation<typeof en> = {
         : 'Najnovije prvo, iz svih mjeseci evidencije. Otvorite stavku da vidite što o njoj kažu pravila. Kad potvrdite stavku ili joj promijenite kategoriju, aplikacija čuva kategoriju i flagged_by u ovom pregledniku.',
     queueSummary: 'Svaka čeka potvrdu ili drugu kategoriju.',
     suggestCategories: 'Predloži kategorije',
-    suggestCategoriesTask: 'Predloži kategorije za retke koji čekaju na kartici Za provjeru.',
+    suggestCategoriesTask: 'Razvrstaj retke koji čekaju na kartici Za provjeru. Predloži promjene koje ih razvrstavaju, s novom kategorijom ili pravilom gdje treba.',
     confirmed: (category) => `Potvrđeno: ${category}`,
     filedAs: (category) => `Razvrstano: ${category}`,
     noCounterpartyRow: 'Stavka bez partnera',

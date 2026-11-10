@@ -139,7 +139,7 @@ export interface ChatTurn {
   /** A lookup started, so what the model wrote before it is not part of the answer. */
   readonly onLookup: () => void
   readonly showChip: (chip: ChatChip) => void
-  readonly showProposal: (app: string, proposal: CheckedProposal) => void
+  readonly showProposal: (app: string, proposal: CheckedProposal, next: boolean) => void
   /** A read's result went out in a request. */
   readonly onSent: (sent: SentRead) => void
 }

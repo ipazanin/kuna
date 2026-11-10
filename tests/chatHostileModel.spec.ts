@@ -275,7 +275,7 @@ describe('a chat run by a hostile model', () => {
   it('reads a row that tries to give orders as data, and it cannot write or reach anything by it', async () => {
     const model = hijackedModel([
       call('find_records', FIND),
-      call('propose_changes', { app: 'spending', title: 'x', steps: [] }),
+      call('propose_changes', { app: 'spending', title: 'x', steps: [], next: false }),
       call('accept_changes', {}),
       call('kuna_docs', { path: 'kuna-secrets.json' }),
     ])
@@ -477,10 +477,12 @@ describe('a hostile model and the attached files', () => {
     const sent = bodies.join('\n')
     // A file sent as cells may itself name another file, as a fixture's notes name its PDF. That is the file's text, not a name Kuna sent.
     const cellText = files.flatMap((file) => (file.reading.kind === 'cells' ? [new TextDecoder().decode(file.bytes)] : [])).join('\n')
+    // The instructions name what Kuna does, such as statements, so a file's name is looked for in the turns only.
+    const turnsSent = bodies.map((body) => JSON.stringify((JSON.parse(body) as { readonly turns: unknown }).turns)).join('\n')
     for (const file of files) {
       const stem = file.name.replace(/\.[a-z]+$/, '')
       if (!cellText.includes(stem)) {
-        expect(sent).not.toContain(stem)
+        expect(turnsSent).not.toContain(stem)
         expect(sent).not.toContain(file.name)
       }
       if (file.reading.kind !== 'whole') expect(sent).not.toContain(Buffer.from(file.bytes).toString('base64'))

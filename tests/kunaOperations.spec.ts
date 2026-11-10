@@ -73,7 +73,7 @@ function propose(device: KunaDevice, steps: readonly { readonly op: string; read
   const reads: ChatReads = { readers: new Map(), pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: async () => false }
   const cards: CheckedProposal[] = []
   const answer = proposeChanges(
-    { app: 'kuna', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: null })) },
+    { app: 'kuna', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: null })), next: false },
     new Map([['kuna', kunaProposer(device)]]),
     reads,
     [],

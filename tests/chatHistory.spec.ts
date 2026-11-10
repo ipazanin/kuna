@@ -144,7 +144,12 @@ describe('a chat kept in this browser', () => {
     const [attached] = first.chatPromptFiles.value as readonly { readonly attachment: { readonly id: string } }[]
     port.current = scripted([
       { kind: 'tool-calls', calls: [{ id: 'r', name: 'read_attachment', args: { attachment: attached!.attachment.id, pages: null, sheet: null, rows: '1-2' } }], raw: [], tokens: TOKENS },
-      { kind: 'tool-calls', calls: [{ id: 'p', name: 'propose_changes', args: { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }] } }], raw: [], tokens: TOKENS },
+      {
+        kind: 'tool-calls',
+        calls: [{ id: 'p', name: 'propose_changes', args: { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }], next: false } }],
+        raw: [],
+        tokens: TOKENS,
+      },
       { kind: 'answer', text: 'Card shown.', raw: [], tokens: TOKENS },
     ])
     await first.sendChatMessage('Tidy after reading it', CONTEXT, async () => ({ ...CATALOGUE, proposers: new Map([['spending', tidy]]) }))

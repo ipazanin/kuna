@@ -1,4 +1,4 @@
-import { answered, answersSince, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, goOnsInto, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
@@ -19,6 +19,11 @@ const ANSWERS = {
     statementTitle: 'Import the pasted statement',
     statementProposed: 'I misread one amount at first, so Kuna refused it as not adding up. The card below now ties from the opening balance to the closing one.',
     noPhoto: 'Attach a photo of the receipt first, and I will read its lines.',
+    pharmacy: 'Pharmacy',
+    pharmacyTitle: 'A category for the pharmacy',
+    pharmacyProposed: 'The card adds Pharmacy for the pharmacy rows waiting. Once you accept, the next card files them there with a rule.',
+    pharmacyRuleTitle: 'File the pharmacy with a rule',
+    pharmacyRuled: 'The card adds a rule for the pharmacy and files its waiting rows under Pharmacy.',
     petFood: 'Pet food',
     categoryTitle: 'A category for pet food',
     categoryFirst: 'One line is pet food, which has no category yet. Accept the card below, then ask me to read the receipt again.',
@@ -39,6 +44,11 @@ const ANSWERS = {
     statementTitle: 'Uvezi zalijepljeni izvod',
     statementProposed: 'Isprva sam krivo pročitao jedan iznos, pa ga je Kuna odbila jer se ne zbraja. Kartica ispod sada se slaže od početnog do završnog stanja.',
     noPhoto: 'Najprije priložite fotografiju fiskalnog računa, pa ću pročitati stavke.',
+    pharmacy: 'Ljekarna',
+    pharmacyTitle: 'Kategorija za ljekarnu',
+    pharmacyProposed: 'Kartica dodaje Ljekarnu za retke ljekarne koji čekaju. Kad prihvatite, sljedeća kartica razvrstava ih u nju s pravilom.',
+    pharmacyRuleTitle: 'Razvrstaj ljekarnu s pravilom',
+    pharmacyRuled: 'Kartica dodaje pravilo za ljekarnu i razvrstava njezine retke koji čekaju u Ljekarnu.',
     petFood: 'Hrana za ljubimce',
     categoryTitle: 'Kategorija za hranu za ljubimce',
     categoryFirst: 'Jedna je stavka hrana za ljubimce, za koju još nema kategorije. Prihvatite karticu ispod, pa me ponovno zamolite da pročitam račun.',
@@ -77,10 +87,13 @@ function spendingReply({ request, tokens, invents }: FakeChatTurn, says: Says): 
   return answered(request, parts.join(' '), tokens)
 }
 
-/** Reads the latest rows and proposes a rule from the first filed row with a shop's name and no IBAN, into the category that row is under, so the rule never files a person's payments. */
-function sortReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: 5, cursor: null }, tokens)
+/**
+ * Reads the latest rows and proposes a rule from the first filed row with a shop's name and no IBAN, into the category that row
+ * is under, so the rule never files a person's payments. `before` counts the lookups the turn made before it.
+ */
+function sortReply({ request, tokens }: FakeChatTurn, says: Says, before = 0): ModelReply {
+  const answers = answersSince(request).slice(before)
+  if (answers.length === 0) return lookup(before, 'find_records', { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: null, limit: 5, cursor: null }, tokens)
   if (answers[0]!.isError) return answered(request, says.notRead, tokens)
   if (answers.length === 1) {
     const { records } = JSON.parse(answers[0]!.text) as {
@@ -88,10 +101,56 @@ function sortReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     }
     const row = records.find((record) => record.category !== undefined && record.counterpartyIban === undefined && !/^(?:Person|Osoba) \d+$/.test(record.payee ?? ''))
     if (row === undefined) return answered(request, says.nothingToSort, tokens)
-    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, category: row.category }), as: null }
-    return lookup(1, 'propose_changes', { app: 'spending', title: says.proposalTitle, steps: [step] }, tokens)
+    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, iban: null, category: row.category }), as: null }
+    return lookup(before + 1, 'propose_changes', { app: 'spending', title: says.proposalTitle, steps: [step], next: false }, tokens)
   }
-  return answered(request, says.proposed, tokens)
+  return answered(request, answers[1]!.isError ? says.notRead : says.proposed, tokens)
+}
+
+/** What asks to sort the rows waiting, as Suggest categories on To review and the quick action do. */
+const SORT_JOB = /^sort the rows waiting on to review\. |^razvrstaj retke koji čekaju na kartici za pregled\. /i
+
+const findWaiting = { app: 'spending', kind: 'transaction', query: null, from: null, to: null, about: null, only: 'waiting', limit: 20, cursor: null }
+
+interface WaitingRow {
+  readonly ref: string
+  readonly payee?: string
+}
+
+function waitingRows(text: string): readonly WaitingRow[] {
+  return (JSON.parse(text) as { readonly records: readonly WaitingRow[] }).records
+}
+
+/**
+ * Reads the rows waiting and proposes a new category for the first one with a payee, as no category fits it, with a card
+ * after it. With nothing waiting it proposes a rule from the latest rows instead.
+ */
+function sortJobReply(turn: FakeChatTurn, says: Says): ModelReply {
+  const { request, tokens } = turn
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findWaiting, tokens)
+  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (waitingRows(answers[0]!.text).every((row) => row.payee === undefined)) return sortReply(turn, says, 1)
+  if (answers.length === 1) {
+    const step = { op: 'add-category', input: JSON.stringify({ name: says.pharmacy, kind: 'spending', parent: null, colour: null, hidden: null }), as: null }
+    return lookup(1, 'propose_changes', { app: 'spending', title: says.pharmacyTitle, steps: [step], next: true }, tokens)
+  }
+  return answered(request, answers[1]!.isError ? says.notRead : says.pharmacyProposed, tokens)
+}
+
+/** The card Go on asks for in the sorting job: a rule from the first waiting row with a payee into the new category. */
+function sortGoOnReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findWaiting, tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', { app: 'spending', kind: 'category', query: says.pharmacy, from: null, to: null, about: null, only: null, limit: 5, cursor: null }, tokens)
+  if (answers.length === 2) {
+    const row = waitingRows(answers[0]!.text).find((waiting) => waiting.payee !== undefined)
+    const category = recordsIn(answers[1]!.text).find((found) => found.name === says.pharmacy)?.ref
+    if (row === undefined || category === undefined) return answered(request, says.nothingToSort, tokens)
+    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, iban: null, category }), as: null }
+    return lookup(2, 'propose_changes', { app: 'spending', title: says.pharmacyRuleTitle, steps: [step], next: false }, tokens)
+  }
+  return answered(request, answers[2]!.isError ? says.notRead : says.pharmacyRuled, tokens)
 }
 
 /** A made-up IBAN that passes the check, as a person might give it for the account's new number. */
@@ -109,7 +168,7 @@ function closeAccountReply({ request, tokens }: FakeChatTurn, says: Says): Model
       input: JSON.stringify({ account: records[0]!.ref, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: NEW_IBAN, closed: 'yes' }),
       as: null,
     }
-    return lookup(1, 'propose_changes', { app: 'spending', title: says.closeTitle, steps: [step] }, tokens)
+    return lookup(1, 'propose_changes', { app: 'spending', title: says.closeTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.closeProposed, tokens)
 }
@@ -133,7 +192,7 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
     const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
     const input = { file: null, account: records[0]!.ref, opening: 500, closing: 547.5, rows: statementRows(answers.length === 1), part: 1 }
     const step = { op: 'import-statement', input: JSON.stringify(input), as: null }
-    return lookup(answers.length, 'propose_changes', { app: 'spending', title: says.statementTitle, steps: [step] }, tokens)
+    return lookup(answers.length, 'propose_changes', { app: 'spending', title: says.statementTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.statementProposed, tokens)
 }
@@ -176,8 +235,8 @@ function receiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
   const petFood = recordsIn(answers[1]!.text).find((category) => PET_FOOD.includes(category.name ?? ''))?.ref
   if (petFood === undefined) {
     if (answers.length > 2) return answered(request, says.categoryFirst, tokens)
-    const step = { op: 'add-category', input: JSON.stringify({ name: says.petFood, kind: 'spending', parent: null }), as: null }
-    return lookup(2, 'propose_changes', { app: 'spending', title: says.categoryTitle, steps: [step] }, tokens)
+    const step = { op: 'add-category', input: JSON.stringify({ name: says.petFood, kind: 'spending', parent: null, colour: null, hidden: null }), as: null }
+    return lookup(2, 'propose_changes', { app: 'spending', title: says.categoryTitle, steps: [step], next: false }, tokens)
   }
   if (answers.length === 2) return lookup(2, 'find_records', { app: 'spending', kind: 'category', query: null, from: null, to: null, about: null, only: null, limit: 50, cursor: null }, tokens)
   const categories = recordsIn(answers[2]!.text)
@@ -214,18 +273,20 @@ function receiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
       unreadable: [],
       keepPhoto: true,
     }
-    return lookup(5, 'propose_changes', { app: 'spending', title: says.receiptTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }] }, tokens)
+    return lookup(5, 'propose_changes', { app: 'spending', title: says.receiptTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, says.receiptProposed, tokens)
 }
 
 /**
- * Spending's part of the fake chat: one that starts with sort proposes a rule, one that starts with close proposes closing
+ * Spending's part of the fake chat: Suggest categories proposes a new category and, at Go on, a rule into it, any other that starts with sort proposes a rule, one that starts with close proposes closing
  * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that asks to read the receipt reads the photo attached and proposes it, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
   const { request, tokens, typed, lookups } = turn
+  if (goOnsInto(request, SORT_JOB) !== null) return sortGoOnReply(turn, says)
+  if (SORT_JOB.test(typed)) return sortJobReply(turn, says)
   if (/^sort|^razvrstaj/i.test(typed)) return sortReply(turn, says)
   if (/^close|^zatvori/i.test(typed)) return closeAccountReply(turn, says)
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)

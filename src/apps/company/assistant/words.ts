@@ -1,5 +1,6 @@
 import { language } from '../../../shared/text/language'
 import type { Translation } from '../../../shared/text/translation'
+import { en as transactionsEnglish, hr as transactionsCroatian } from '../transactions/presentation/words'
 
 /** The words on the screens a guide names, passed in so a guide calls each thing what the screen calls it. */
 export interface GuideLabels {
@@ -89,7 +90,7 @@ export const en = {
     mailDrafts: 'Whether an invoice made on this device also saves a Gmail draft with the PDF attached. Nothing is ever sent. Turning it on for books on Drive asks Google to allow Gmail drafts.',
   },
   quickActions: {
-    sort: { label: 'Sort what is waiting', prompt: 'Suggest categories for the rows waiting on To review, and propose a rule where the same counterparty keeps coming.' },
+    sort: { label: 'Sort what is waiting', prompt: transactionsEnglish.review.suggestCategoriesTask },
     month: { label: 'How did this month go?', prompt: "How do this month's income, cost and profit compare with last month?" },
     rules: { label: 'Check my rules', prompt: 'Read my category rules and the rows they file, and propose fixing any rule that files rows wrongly.' },
   },
@@ -163,7 +164,7 @@ export const hr: Translation<typeof en> = {
     mailDrafts: 'Sprema li račun izrađen na ovom uređaju i skicu u Gmailu s priloženim PDF-om. Ništa se nikad ne šalje. Kad se uključi za knjige na Driveu, Google traži dopuštenje za skice u Gmailu.',
   },
   quickActions: {
-    sort: { label: 'Razvrstaj ono što čeka', prompt: 'Predloži kategorije za retke koji čekaju na kartici Za provjeru i predloži pravilo gdje se isti partner ponavlja.' },
+    sort: { label: 'Razvrstaj ono što čeka', prompt: transactionsCroatian.review.suggestCategoriesTask },
     month: { label: 'Kako je prošao ovaj mjesec?', prompt: 'Kako se prihodi, troškovi i dobit ovog mjeseca uspoređuju s prošlim mjesecom?' },
     rules: { label: 'Provjeri moja pravila', prompt: 'Pročitaj moja pravila za kategorije i retke koje razvrstavaju te predloži ispravak pravila koje pogrešno razvrstava.' },
   },

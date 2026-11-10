@@ -88,7 +88,7 @@ function tradeReply({ request, tokens }: FakeChatTurn, says: Says, side: 'buy' |
     if (account === null || instrument === null) return answered(request, says.notRead, tokens)
     const input = { side, account, instrument, date: addDays(today(), -7), quantity: side === 'buy' ? '1' : '1000000', price: '100', fees: '1', rate: null, note: '' }
     const step = { op: 'add-trade', input: JSON.stringify(input), as: null }
-    return lookup(2, 'propose_changes', { app: 'investments', title: side === 'buy' ? says.buyTitle : says.sellTitle, steps: [step] }, tokens)
+    return lookup(2, 'propose_changes', { app: 'investments', title: side === 'buy' ? says.buyTitle : says.sellTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, answers[2]!.isError ? says.sellRefused : says.buyProposed, tokens)
 }
@@ -129,7 +129,7 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says, again: boolean
     const rows = again ? [first, deposit(addDays(today(), -8), '200')] : [first]
     const balances = [{ currency: 'EUR', opening: '0', closing: again ? '700' : '500' }]
     const input = { file: null, account, broker: 'Example Broker', lookAlikes: 'ask', rows, balances }
-    return lookup(1, 'propose_changes', { app: 'investments', title: says.copyTitle, steps: [{ op: 'import-transcribed', input: JSON.stringify(input), as: null }] }, tokens)
+    return lookup(1, 'propose_changes', { app: 'investments', title: says.copyTitle, steps: [{ op: 'import-transcribed', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.copyRefused : says.copyProposed, tokens)
 }
@@ -153,7 +153,7 @@ function fileCopyReply(turn: FakeChatTurn, says: Says, lookAlikes: 'ask' | 'impo
     if (account === null) return answered(request, says.notRead, tokens)
     const input = { file, account, broker: 'Example Broker', lookAlikes, rows: [deposit(addDays(today(), -9), '500'), deposit(addDays(today(), -6), '300')], balances: [] }
     const title = lookAlikes === 'ask' ? says.fileTitle : says.lookAlikeTitle
-    return lookup(reads + 1, 'propose_changes', { app: 'investments', title, steps: [{ op: 'import-transcribed', input: JSON.stringify(input), as: null }] }, tokens)
+    return lookup(reads + 1, 'propose_changes', { app: 'investments', title, steps: [{ op: 'import-transcribed', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   if (answers.at(-1)!.isError) return answered(request, says.copyRefused, tokens)
   return answered(request, lookAlikes === 'ask' ? says.fileProposed : says.lookAlikeProposed, tokens)
@@ -174,7 +174,7 @@ function workbookReply(turn: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
     const step = { op: 'import-workbook', input: JSON.stringify({ file, gone: 'keep' }), as: null }
-    return lookup(0, 'propose_changes', { app: 'investments', title: says.workbookTitle, steps: [step] }, tokens)
+    return lookup(0, 'propose_changes', { app: 'investments', title: says.workbookTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, answers[0]!.isError ? says.workbookRefused : says.workbookProposed, tokens)
 }
@@ -185,7 +185,7 @@ function reportReply(turn: FakeChatTurn, says: Says, file: string): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
     const step = { op: 'import-flex-report', input: JSON.stringify({ file, asked: 'hold' }), as: null }
-    return lookup(0, 'propose_changes', { app: 'investments', title: says.reportTitle, steps: [step] }, tokens)
+    return lookup(0, 'propose_changes', { app: 'investments', title: says.reportTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, answers[0]!.isError ? says.reportRefused : says.reportProposed, tokens)
 }

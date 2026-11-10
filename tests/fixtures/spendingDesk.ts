@@ -220,7 +220,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ref: (kind, id) => reads.refs.recordRef({ app: 'spending', kind, id }),
     propose: (steps, attachments = []) =>
       proposeChanges(
-        { app: 'spending', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })) },
+        { app: 'spending', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })), next: false },
         proposers,
         reads,
         attachments,

@@ -9,7 +9,7 @@ import { DISMISSAL_WRITES, dismissalOfGroup } from '../../rules/application/dism
 import { writeRuleSave, writeRulesChange } from '../../rules/application/ruleWrites'
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
 import { withoutDismissed } from '../../rules/domain/dismissedSuggestions'
-import { unusedId } from '../../rules/domain/proposeRule'
+import { ruleNameOf } from '../../rules/domain/proposeRule'
 import { readRules } from '../../rules/domain/readRules'
 import { ruleAgainst, ruleCoverage } from '../../rules/domain/ruleCoverage'
 import { blankDraft, draftChange, draftForRow, draftOfRule } from '../../rules/domain/ruleDraft'
@@ -33,7 +33,7 @@ import type { AssistantOperation, ProposalStep } from '../../../../shared/app/as
 import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
-import type { RuleConfidence } from '../../../../shared/categorising/domain/rule'
+import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
 import { moneyParts } from '../../../../shared/money/decimal'
 import { absMoney, moneyFromAmount, negateMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
@@ -53,6 +53,11 @@ const RULE_WORDS = {
   descriptionWords: 'description_contains',
   iban: 'counterparty_iban',
 } as const satisfies Readonly<Record<string, ConditionColumn>>
+
+const RULE_NAME = {
+  type: ['string', 'null'],
+  description: 'A short name in lower case with hyphens, such as donations-red-cross, or null for Kuna to name it from the category and the payee.',
+} as const
 
 const RULE_FIELDS = {
   payeeWords: { type: ['string', 'null'], description: 'Words the other side\'s name must hold, "" for none, or null to leave them.' },
@@ -79,25 +84,33 @@ const OPERATIONS: readonly AssistantOperation[] = [
     about: [
       'A rule as Settings, Category rules makes it. From a row, by its ref, it looks for what the rule editor drafts from that row. Otherwise it looks for the words or IBAN given.',
       'The rows waiting on To review that it settles are filed in the same change, and so are rows a person confirmed that it now files elsewhere, each warned on the card. Rows a rule filed, and rows another rule decides, keep their category, and the card warns on each the rules now disagree with.',
-      'before is the rule it is tried just before, or null for after every rule.',
+      'on no adds it switched off, and null adds it on. before is the rule it is tried just before, or null for after every rule. With name null Kuna names it from the category and the payee or account holder.',
     ].join(' '),
-    input: inputOf({ row: TEXT_OR_NULL, category: TEXT, before: TEXT_OR_NULL, ...RULE_FIELDS }),
+    input: inputOf({ row: TEXT_OR_NULL, category: TEXT, name: RULE_NAME, on: FLAG_OR_NULL, before: TEXT_OR_NULL, ...RULE_FIELDS }),
     refs: { row: ROW, category: CATEGORY, before: RULE },
     spellings: ['payeeWords'],
     creates: RULE,
     alone: false,
-    example: { row: null, category: 'category', before: null, payeeWords: 'MARKET', descriptionWords: null, iban: null, direction: 'out', confidence: 'rule', note: null },
+    example: { row: null, category: 'category', name: null, on: null, before: null, payeeWords: 'MARKET', descriptionWords: null, iban: null, direction: 'out', confidence: 'rule', note: null },
   },
   {
     name: 'change-rule',
     about:
-      'Changes a rule: what it looks for, its category, on or off, whether it settles rows or leaves them waiting, and where it is tried, before another rule or last. Null leaves a field as it is. Waiting rows it now settles are filed in the same change.',
-    input: inputOf({ rule: TEXT, category: TEXT_OR_NULL, on: FLAG_OR_NULL, before: TEXT_OR_NULL, last: FLAG_OR_NULL, ...RULE_FIELDS }),
+      'Changes a rule: its name, what it looks for, its category, on or off, whether it settles rows or leaves them waiting, and where it is tried, before another rule or last. Null leaves a field as it is. Waiting rows it now settles are filed in the same change.',
+    input: inputOf({
+      rule: TEXT,
+      name: { ...RULE_NAME, description: 'A new short name in lower case with hyphens, or null to keep it.' },
+      category: TEXT_OR_NULL,
+      on: FLAG_OR_NULL,
+      before: TEXT_OR_NULL,
+      last: FLAG_OR_NULL,
+      ...RULE_FIELDS,
+    }),
     refs: { rule: RULE, category: CATEGORY, before: RULE },
     spellings: ['payeeWords'],
     creates: null,
     alone: false,
-    example: { rule: 'rule', category: null, on: 'no', before: null, last: null, payeeWords: null, descriptionWords: null, iban: null, direction: null, confidence: null, note: null },
+    example: { rule: 'rule', name: null, category: null, on: 'no', before: null, last: null, payeeWords: null, descriptionWords: null, iban: null, direction: null, confidence: null, note: null },
   },
   {
     name: 'delete-rule',
@@ -275,19 +288,37 @@ function addRule(card: CompanyCard, step: ProposalStep): void {
   const { workbook } = card
   const rules = readRules(recordsOf(card.records().rules), new Set(workbook.categories.map((category) => category.slug))).rules
   const category = categoryOf(card, field['category'])
-  const fromRow = field['row'] === null ? null : draftForRow(rowOf(card, field['row']), workbook, categorisationContextOf(workbook), installedPack().workbook?.directionPairedRoles ?? [])
-  const start: RuleDraft = fromRow ?? { ...blankDraft(rules), id: unusedId(`rule-${category.slug}`, rules) }
+  const row = field['row'] === null ? null : rowOf(card, field['row'])
+  const start = row === null ? blankDraft(rules) : draftForRow({ ...row, category: category.slug }, workbook, categorisationContextOf(workbook), installedPack().workbook?.directionPairedRoles ?? [])
+  const payeeWords = field['payeeWords'] as string | readonly string[] | null
+  const holder = (Array.isArray(payeeWords) ? payeeWords[0] : payeeWords) || (row?.counterparty ?? '')
   const draft: RuleDraft = {
     ...start,
+    id: ruleNameFrom(field['name'], rules, null) ?? ruleNameOf(category.slug, holder, rules),
+    enabled: flagOf(field['on']) ?? true,
     category: category.slug,
     conditions: conditionsWith(start.conditions, field),
     confidence: confidenceOf(field['confidence'], start.confidence),
     note: (field['note'] as string | null) ?? start.note,
     before: field['before'] === null ? start.before : ruleIdOf(card, field['before']),
   }
-  if (draft.conditions.length === 0) throw new StepRefused('A rule needs a row to draft from, or words or an IBAN to look for.')
-  writeRules(card, draftChange(draft, rules, recordsOf(card.records().rules), null), draft.id)
+  if (!looksForSomething(draft.conditions)) throw new StepRefused('A rule needs a row to draft from, or words or an IBAN to look for.')
+  writeRules(card, draftChange(draft, rules, recordsOf(card.records().rules), null), draft.enabled ? draft.id : null)
   card.made(step.as, draft.id)
+}
+
+/** Whether a rule tests more than the direction, since a rule on the direction alone would file every row one way. */
+function looksForSomething(conditions: readonly DraftCondition[]): boolean {
+  return conditions.some((condition) => condition.column !== 'direction')
+}
+
+/** The name a step gives a rule, trimmed, or null when it gives none. A name another rule has is refused. */
+function ruleNameFrom(value: unknown, rules: readonly Rule[], renamed: string | null): string | null {
+  const name = typeof value === 'string' ? value.trim() : ''
+  if (name === '') return null
+  if (rules.some((rule) => rule.id.toLowerCase() === name.toLowerCase() && rule.id !== renamed))
+    throw new StepRefused(`A rule is already named ${name}. Give another name, or null for Kuna to name it.`)
+  return name
 }
 
 /** The rule a field names as the rule editor opens it, among the rules as the card's earlier steps left them. */
@@ -313,11 +344,12 @@ function changeRule(card: CompanyCard, step: ProposalStep): void {
     enabled: on ?? opened.draft.enabled,
     conditions: conditionsWith(opened.draft.conditions, field),
     confidence: confidenceOf(field['confidence'], opened.draft.confidence),
+    id: ruleNameFrom(field['name'], rules, id) ?? opened.draft.id,
     note: (field['note'] as string | null) ?? opened.draft.note,
     before: last === true ? null : field['before'] === null ? opened.draft.before : ruleIdOf(card, field['before']),
   }
-  if (draft.conditions.length === 0) throw new StepRefused('A rule needs words or an IBAN to look for.')
-  writeRules(card, draftChange(draft, rules, rows, opened.edited), draft.enabled ? id : null)
+  if (!looksForSomething(draft.conditions)) throw new StepRefused('A rule needs words or an IBAN to look for.')
+  writeRules(card, draftChange(draft, rules, rows, opened.edited), draft.enabled ? draft.id : null)
 }
 
 function deleteRule(card: CompanyCard, step: ProposalStep): void {

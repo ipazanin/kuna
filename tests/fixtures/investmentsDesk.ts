@@ -254,7 +254,7 @@ export async function investmentsDesk(used: Set<string>, rates: RateBook | null 
     ref: (kind, id) => reads.refs.recordRef({ app: 'investments', kind, id }),
     propose: (steps) =>
       proposeChanges(
-        { app: 'investments', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })) },
+        { app: 'investments', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })), next: false },
         proposers,
         reads,
         attachments,

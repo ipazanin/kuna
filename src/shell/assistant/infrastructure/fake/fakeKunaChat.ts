@@ -19,7 +19,8 @@ const ANSWERS = {
 function themeReply({ request, tokens, typed, lookups }: FakeChatTurn): ModelReply | null {
   if (!/dark|tamn/i.test(typed)) return null
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
-  if (lookups === 0) return lookup(lookups, 'propose_changes', { app: KUNA_CHAT.id, title: says.themeTitle, steps: [{ op: 'set-theme', input: JSON.stringify({ theme: 'dark' }), as: null }] }, tokens)
+  if (lookups === 0)
+    return lookup(lookups, 'propose_changes', { app: KUNA_CHAT.id, title: says.themeTitle, steps: [{ op: 'set-theme', input: JSON.stringify({ theme: 'dark' }), as: null }], next: false }, tokens)
   return answered(request, says.theme, tokens)
 }
 

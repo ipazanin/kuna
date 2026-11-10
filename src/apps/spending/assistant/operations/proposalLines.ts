@@ -42,11 +42,12 @@ function currencyOf(record: ProposedRecord, book: SpendingBook): Account['curren
 /**
  * A value as a person reads it on screen: an account's amount in its own currency, a limit in euros, a day and a month in
  * words, a name for a record it points at, a category's swatch, an account's type and bank, and a rule's words. A place
- * among siblings or in the order rules are tried reads as its number.
+ * among siblings reads as its number. Where a rule stands in the order rules are tried means nothing to a person, so it stays off.
  */
 function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, book: SpendingBook, namesOf: ReadonlyMap<unknown, string>): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
+  if (isKind(kind, RULE_RECORDS, record) && field === 'order') return null
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return swatchOf(record.colour)?.name ?? null
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'kind') return categoryWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]

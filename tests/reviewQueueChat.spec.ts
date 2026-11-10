@@ -21,8 +21,8 @@ describe("asking the chat from Company's To review", () => {
     expect([en.review.suggestCategories, hr.review.suggestCategories]).toEqual(['Suggest categories', 'Predloži kategorije'])
     expect(queue).toContain("'card',\n  words.review.suggestCategoriesTask,")
     expect([en.review.suggestCategoriesTask, hr.review.suggestCategoriesTask]).toEqual([
-      'Suggest categories for the rows waiting on To review.',
-      'Predloži kategorije za retke koji čekaju na kartici Za provjeru.',
+      'Sort the rows waiting on To review. Propose the changes that file them, with a new category or a rule where one is needed.',
+      'Razvrstaj retke koji čekaju na kartici Za provjeru. Predloži promjene koje ih razvrstavaju, s novom kategorijom ili pravilom gdje treba.',
     ])
   })
 

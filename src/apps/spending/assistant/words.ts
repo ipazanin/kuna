@@ -1,5 +1,6 @@
 import { language } from '../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../shared/text/translation'
+import { en as statementsEnglish, hr as statementsCroatian } from '../statements/presentation/words'
 
 /** The words on the screens a guide names, passed in so a guide calls each thing what the screen calls it. */
 export interface GuideLabels {
@@ -84,7 +85,7 @@ export const en = {
     changedSince: 'The account new entries start on changed in this browser since the card was made, so nothing was set.',
   },
   quickActions: {
-    sort: { label: 'Sort what is waiting', prompt: 'Sort the rows waiting on To review, and propose rules where the same payee keeps coming.' },
+    sort: { label: 'Sort what is waiting', prompt: statementsEnglish.review.suggestCategoriesTask },
     rules: { label: 'Check my rules', prompt: 'Read my rules and rows, and propose fixing or deleting any rule that files rows wrongly.' },
     higher: { label: 'Why was this month higher?', prompt: 'Why was my spending this month higher or lower than last month?' },
   },
@@ -234,7 +235,7 @@ export const hr: Translation<typeof en> = {
     changedSince: 'Račun na kojem počinju novi unosi promijenio se u ovom pregledniku otkako je kartica napravljena, pa ništa nije postavljeno.',
   },
   quickActions: {
-    sort: { label: 'Razvrstaj ono što čeka', prompt: 'Razvrstaj retke koji čekaju na kartici Za pregled i predloži pravila gdje se isti primatelj ponavlja.' },
+    sort: { label: 'Razvrstaj ono što čeka', prompt: statementsCroatian.review.suggestCategoriesTask },
     rules: { label: 'Provjeri moja pravila', prompt: 'Pročitaj moja pravila i retke te predloži ispravak ili brisanje pravila koje pogrešno razvrstava.' },
     higher: { label: 'Zašto je ovaj mjesec viši?', prompt: 'Zašto mi je potrošnja ovaj mjesec viša ili niža nego prošli mjesec?' },
   },

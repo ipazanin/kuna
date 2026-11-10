@@ -157,6 +157,8 @@ describe('rules', () => {
   const ruleInput = (desk: CompanyDesk, fields: Record<string, unknown>) => ({
     row: null,
     category: desk.ref(CATEGORY_RECORDS.name, 'office'),
+    name: null,
+    on: null,
     before: null,
     payeeWords: null,
     descriptionWords: null,
@@ -174,10 +176,10 @@ describe('rules', () => {
     expect(card.groups.map((group) => group.noun)).toEqual([RULE_RECORDS.noun, LEDGER_RECORDS.noun])
     const accepted = await desk.accept()
     expect(desk.row('REF-8')).toMatchObject({ category: 'office', flaggedBy: 'rule' })
-    expect(desk.store.state.workbook!.rules.map((rule) => rule.id)).toContain('rule-office')
+    expect(desk.store.state.workbook!.rules.map((rule) => rule.id)).toContain('office-market')
     if (accepted.kind === 'done') await accepted.undo!()
     expect(desk.row('REF-8')).toMatchObject({ flaggedBy: 'ai' })
-    expect(desk.store.state.workbook!.rules.map((rule) => rule.id)).not.toContain('rule-office')
+    expect(desk.store.state.workbook!.rules.map((rule) => rule.id)).not.toContain('office-market')
   })
 
   it('re-files each confirmed row the rule now files elsewhere, each on its own warned line, with one Undo', async () => {
@@ -189,7 +191,7 @@ describe('rules', () => {
     expect(desk.row('REF-6')).toMatchObject({ category: 'office', flaggedBy: 'rule' })
     if (accepted.kind === 'done') expect((await accepted.undo!()).kind).toBe('undone')
     expect(desk.row('REF-6')).toMatchObject({ category: 'equipment', flaggedBy: 'ivan' })
-    expect(desk.store.state.workbook!.rules.map((rule) => rule.id)).not.toContain('rule-office')
+    expect(desk.store.state.workbook!.rules.map((rule) => rule.id)).not.toContain('office-desk')
   })
 
   it('warns on a confirmed row another rule now decides, and leaves it filed', async () => {
@@ -202,13 +204,77 @@ describe('rules', () => {
     expect(desk.row('REF-6').category).toBe('equipment')
   })
 
+  it('names a rule from its category and payee, unique among the rules and the earlier steps of its card, and shows the name with no order', async () => {
+    const desk = await companyDesk(used)
+    await desk.propose([
+      { op: 'add-rule', input: ruleInput(desk, { payeeWords: 'Market One Čakovec d.o.o.' }) },
+      { op: 'add-rule', input: ruleInput(desk, { payeeWords: 'Market One Čakovec d.o.o.', descriptionWords: 'Card' }) },
+    ])
+    const rules = desk.cards[0]!.groups.find((group) => group.noun === RULE_RECORDS.noun)!
+    expect(rules.lines.map((line) => line.label)).toEqual(['office-market-one-cakovec', 'office-market-one-cakovec-2'])
+    expect(rules.lines[0]!.fields.map((field) => field.after).join(' ')).not.toMatch(/tried at \d/)
+  })
+
+  it('takes the name a step gives, and refuses one another rule has', async () => {
+    const desk = await companyDesk(used)
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { name: 'office-market-one', payeeWords: 'MARKET' }) }])
+    expect(desk.cards[0]!.groups[0]!.lines[0]!.label).toBe('office-market-one')
+    const answer = await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { name: 'Merchant-Model', payeeWords: 'MARKET' }) }])
+    expect(answer).toMatchObject({ isError: true })
+    expect(answer.text).toContain('already named Merchant-Model')
+  })
+
+  it("drafts a rule from a waiting row by that row's payee under the category given, never by its direction alone", async () => {
+    const desk = await companyDesk(used)
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-9').id), direction: 'out' }) }])
+    await desk.accept()
+    const rule = desk.store.state.workbook!.rules.find((candidate) => candidate.id === 'office-new-shop')!
+    expect(rule.conditions.map((condition) => condition.column)).toContain('counterparty_contains')
+    const answer = await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { direction: 'out' }) }])
+    expect(answer).toMatchObject({ isError: true })
+  })
+
+  it('adds a rule switched off, which files no row', async () => {
+    const desk = await companyDesk(used)
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { on: 'no', payeeWords: 'MARKET' }) }])
+    await desk.accept()
+    expect(desk.store.state.workbook!.rules.find((rule) => rule.id === 'office-market')!.enabled).toBe(false)
+    expect(desk.row('REF-8')).toMatchObject({ flaggedBy: 'ai' })
+  })
+
+  it('renames a rule', async () => {
+    const desk = await companyDesk(used)
+    const rule = desk.ref(RULE_RECORDS.name, 'merchant-model')
+    await desk.propose([
+      {
+        op: 'change-rule',
+        input: {
+          rule,
+          name: 'ai-services-model-api',
+          category: null,
+          on: null,
+          before: null,
+          last: null,
+          payeeWords: null,
+          descriptionWords: null,
+          iban: null,
+          direction: null,
+          confidence: null,
+          note: null,
+        },
+      },
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(desk.store.state.workbook!.rules.map((candidate) => candidate.id)).toEqual(['ai-services-model-api'])
+  })
+
   it('switches a rule off and moves it last, and deletes one', async () => {
     const desk = await companyDesk(used)
     const rule = desk.ref(RULE_RECORDS.name, 'merchant-model')
     await desk.propose([
       {
         op: 'change-rule',
-        input: { rule, category: null, on: 'no', before: null, last: 'yes', payeeWords: null, descriptionWords: null, iban: null, direction: null, confidence: null, note: null },
+        input: { rule, name: null, category: null, on: 'no', before: null, last: 'yes', payeeWords: null, descriptionWords: null, iban: null, direction: null, confidence: null, note: null },
       },
     ])
     expect((await desk.accept()).kind).toBe('done')
@@ -355,20 +421,31 @@ describe('settings, categories and accounts', () => {
     const answer = await desk.propose([
       {
         op: 'add-category',
-        input: { category: 'client-lunches', label: 'Client lunches', family: 'operating', bucket: 'operating', taxClass: 'representation', roles: ['watched'], vat: 'representation', ownerShare: '' },
+        input: {
+          category: 'client-lunches',
+          label: 'Client lunches',
+          family: 'operating',
+          bucket: 'operating',
+          taxClass: 'representation',
+          roles: ['watched'],
+          vat: 'representation',
+          colour: '#2A78D6',
+          ownerShare: '',
+        },
       },
     ])
 
     expect(answer.isError, answer.text).toBe(false)
     const roles = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.filter((field) => field.name === words.fields.roles))
     expect(roles[0]!.after).toMatch(/^Representation: .+, watched$/)
+    expect(desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.map((field) => field.name))).toContain(words.fields.colour)
   })
 
   it('refuses a tax class the pack lacks by naming every class, and points at the operation page', async () => {
     const desk = await companyDesk(used)
 
     const answer = await desk.propose([
-      { op: 'add-category', input: { category: 'donations', label: 'Donations', family: 'operating', bucket: 'operating', taxClass: 'donation', roles: [], vat: '', ownerShare: '' } },
+      { op: 'add-category', input: { category: 'donations', label: 'Donations', family: 'operating', bucket: 'operating', taxClass: 'donation', roles: [], vat: '', colour: null, ownerShare: '' } },
     ])
 
     expect(answer.isError).toBe(true)

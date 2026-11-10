@@ -57,11 +57,11 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-category',
     about: 'A new category in a group, or a new group with no parent. It goes one to a card, and a rule on the same card can file into it by its $ name.',
-    input: inputOf({ name: TEXT, kind: { type: 'string', enum: ['spending', 'income'] }, parent: TEXT_OR_NULL }),
+    input: inputOf({ name: TEXT, kind: { type: 'string', enum: ['spending', 'income'] }, parent: TEXT_OR_NULL, colour: COLOUR_OR_NULL, hidden: FLAG_OR_NULL }),
     refs: { parent: CATEGORY_RECORDS.name },
     creates: CATEGORY_RECORDS.name,
     alone: true,
-    example: { name: 'Pets', kind: 'spending', parent: null },
+    example: { name: 'Pets', kind: 'spending', parent: null, colour: null, hidden: null },
   },
   {
     name: 'change-category',
@@ -94,13 +94,13 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-rule',
     about:
-      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, or by words in a payee's name. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them. A rule never re-files a row a person filed.",
-    input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, category: TEXT }),
+      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, by words in a payee's name, or by the other side's IBAN. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them. A rule never re-files a row a person filed.",
+    input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT }),
     refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name },
     spellings: ['fragment'],
     creates: null,
     alone: false,
-    example: { row: 'transaction', fragment: null, category: 'category' },
+    example: { row: 'transaction', fragment: null, iban: null, category: 'category' },
   },
   {
     name: 'change-rule',
@@ -375,7 +375,14 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       case 'add-category': {
         const parent = field['parent'] === null ? null : categoryOf(field['parent']).id
         const kind = field['kind'] as Category['kind']
-        const category: Category = newCategory({ name: field['name'], kind, parent, order: lastOrder(siblingsUnder(book.categories, parent, kind)), colour: '', hidden: false })
+        const category: Category = newCategory({
+          name: field['name'],
+          kind,
+          parent,
+          order: lastOrder(siblingsUnder(book.categories, parent, kind)),
+          colour: colourOf(field['colour'], ''),
+          hidden: flagOf(field['hidden'], false),
+        })
         unit.of(CATEGORY_WRITES).add(category)
         book = { ...book, categories: [...book.categories, category] }
         if (as !== null) made.set(as, category.id)
@@ -400,11 +407,17 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       case 'add-rule': {
         const row = field['row'] === null ? null : rowOf(field['row'])
         const fragments: readonly (string | null)[] = Array.isArray(field['fragment']) ? field['fragment'] : [field['fragment']]
-        const conditions = row === null ? fragments.map((fragment) => conditionOf(fragment, null, { column: 'counterparty_contains', fragment: '' })) : [payeeCondition(row)]
+        const iban = field['iban'] as string | null
+        const conditions =
+          row !== null
+            ? [payeeCondition(row)]
+            : iban !== null && iban.trim() !== ''
+              ? [conditionOf(null, iban, { column: 'counterparty_contains', fragment: '' })]
+              : fragments.map((fragment) => conditionOf(fragment, null, { column: 'counterparty_contains', fragment: '' }))
         const category = categoryOf(field['category']).id
         for (const condition of conditions) {
           if (condition === null || (condition.column === 'counterparty_contains' && condition.fragment === ''))
-            throw new StepRefused('A rule needs a row with a payee or an IBAN, or words to look for.')
+            throw new StepRefused('A rule needs a row with a payee or an IBAN, words to look for, or an IBAN.')
           edits.filing.push({ condition, category })
         }
         break

@@ -411,7 +411,7 @@ describe('a card in the chat', () => {
 
   it('stays done with no Undo when Kuna refuses the Undo, says why, and tells the model the write stands', async () => {
     allowThisChat('anthropic', 'spending')
-    const model = scripted([lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }] }), answer('Card shown.'), answer('Noted.')])
+    const model = scripted([lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }], next: false }), answer('Card shown.'), answer('Noted.')])
     port.current = model
     await sendChatMessage('Tidy', CONTEXT, async () => WITH_TIDY)
     const card = chatLines.at(-1)!.proposals[0]!
@@ -426,7 +426,7 @@ describe('a card in the chat', () => {
 
   it('names the files the model read in the turn that made a card, and none on a card of a later turn or without a read', async () => {
     allowThisChat('anthropic', 'spending')
-    const tidy = (id: string) => lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }] }, id)
+    const tidy = (id: string) => lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }], next: false }, id)
     await attachFiles([picked('october.csv', new TextEncoder().encode('date,amount\n2026-10-01,-12.00'), 'text/csv'), picked('notes.csv', new TextEncoder().encode('note\nhello'), 'text/csv')])
     const [october] = chatPromptFiles.value as readonly Extract<PromptFile, { readonly state: 'ready' }>[]
     port.current = scripted([
@@ -451,7 +451,7 @@ describe('a card in the chat', () => {
   })
 })
 
-describe('the chat going on with a setup', () => {
+describe('the chat going on with a job of several cards', () => {
   const TIDY: AppProposer = {
     operations: [{ name: 'tidy', about: 'Tidies.', input: { type: 'object', properties: {}, required: [], additionalProperties: false }, refs: {}, creates: null, alone: false, example: {} }],
     readsBooks: false,
@@ -459,7 +459,7 @@ describe('the chat going on with a setup', () => {
   }
   const WITH_TIDY: Catalogue = { ...CATALOGUE, proposers: new Map([['spending', TIDY]]) }
   const SETTING_UP = { ...CONTEXT, setUp: [{ app: 'spending', name: 'Spending', hasFile: true, starting: ['first-account'], others: [] }] }
-  const tidy = (id = 'tidy'): ModelReply => lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }] }, id)
+  const tidy = (id = 'tidy', next = true): ModelReply => lookup('propose_changes', { app: 'spending', title: 'Tidy up', steps: [{ op: 'tidy', input: '{}', as: null }], next }, id)
   /** Every message the panel would send by itself, sent as the panel sends it. */
   const wentOn: string[] = []
 
@@ -472,13 +472,13 @@ describe('the chat going on with a setup', () => {
     })
   })
 
-  async function cardShown(where = SETTING_UP): Promise<ChatProposal> {
-    port.current = scripted([tidy(), answer('Card shown.'), tidy('next'), answer('Next card.')])
+  async function cardShown(next = true, where = SETTING_UP): Promise<ChatProposal> {
+    port.current = scripted([tidy('tidy', next), answer('Card shown.'), tidy('next'), answer('Next card.')])
     await sendChatMessage('Set up Spending', where, async () => WITH_TIDY)
     return chatLines.at(-1)!.proposals[0]! as ChatProposal
   }
 
-  it('sends Go on once a card made while its app is new is accepted, and says so on the card', async () => {
+  it('sends Go on once a card the model says another follows is accepted, and says so on the card', async () => {
     const card = await cardShown()
     expect(card.goesOn).toBe(true)
 
@@ -487,8 +487,22 @@ describe('the chat going on with a setup', () => {
     expect(wentOn).toEqual([words.chat.goOn])
   })
 
-  it('does not go on for a card of an app that is set up, or after Not now', async () => {
-    const card = await cardShown(CONTEXT)
+  it('goes on with a job laid out in steps outside a setup, such as sorting the rows waiting, and waits after Not now', async () => {
+    const card = await cardShown(true, CONTEXT)
+    expect(card.goesOn).toBe(true)
+    settleProposal(card, 'done')
+    expect(wentOn).toEqual([words.chat.goOn])
+    await vi.waitFor(() => expect(chatStatus.value).toBe('ready'))
+    const next = chatLines.at(-1)!.proposals[0]! as ChatProposal
+    expect(next.goesOn).toBe(true)
+
+    settleProposal(next, 'declined')
+
+    expect(wentOn).toEqual([words.chat.goOn])
+  })
+
+  it('does not go on for the last card of a job, or after Not now, even while the app is new', async () => {
+    const card = await cardShown(false)
     expect(card.goesOn).toBe(false)
     settleProposal(card, 'done')
     const declined = await cardShown()
@@ -713,7 +727,7 @@ describe('what a card says it leaves outside the books', () => {
 
   async function shownCard(proposer: AppProposer): Promise<ChatProposal> {
     allowThisChat('anthropic', 'spending')
-    port.current = scripted([lookup('propose_changes', { app: 'spending', title: 'Fetch prices', steps: [{ op: 'fetch', input: '{}', as: null }] }), answer('Card shown.')])
+    port.current = scripted([lookup('propose_changes', { app: 'spending', title: 'Fetch prices', steps: [{ op: 'fetch', input: '{}', as: null }], next: false }), answer('Card shown.')])
     await sendChatMessage('Fetch', CONTEXT, async () => ({ ...CATALOGUE, proposers: new Map([['spending', proposer]]) }))
     return chatLines.at(-1)!.proposals[0]! as ChatProposal
   }

@@ -106,7 +106,7 @@ export const CHAT_TOOLS: readonly ModelTool[] = [
     name: 'propose_changes',
     title: 'Propose changes on a card',
     readOnly: true,
-    description: "Checks changes against the person's books and shows them a card to accept. It writes nothing. Each step is an operation the app's page lists.",
+    description: "Checks changes against the person's books and shows them a card to accept. It writes nothing. Each step is an operation listed under Changes you can propose.",
     input: {
       type: 'object',
       properties: {
@@ -125,8 +125,9 @@ export const CHAT_TOOLS: readonly ModelTool[] = [
             additionalProperties: false,
           },
         },
+        next: { type: 'boolean', description: 'true when another card of the job you laid out follows once the person accepts this one, false when this card ends it.' },
       },
-      required: ['app', 'title', 'steps'],
+      required: ['app', 'title', 'steps', 'next'],
       additionalProperties: false,
     },
   },
@@ -166,7 +167,7 @@ export interface ChatTools {
   /** Whether the model's provider reads a PDF. */
   readonly readsPdf: boolean
   readonly showChip: (chip: ChatChip) => void
-  readonly showProposal: (app: string, proposal: CheckedProposal) => void
+  readonly showProposal: (app: string, proposal: CheckedProposal, next: boolean) => void
 }
 
 interface ShowInput {

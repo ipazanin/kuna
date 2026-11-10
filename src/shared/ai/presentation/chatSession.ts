@@ -61,7 +61,7 @@ export interface ChatLine {
 
 /**
  * Who a message comes from: what the person typed, a task a button named such as Suggest categories, or Go on after a card accepted
- * during a setup. Only Go on counts toward the messages the chat sends in a row, and leaves the files on the prompt.
+ * that another card of the job follows. Only Go on counts toward the messages the chat sends in a row, and leaves the files on the prompt.
  */
 export type MessageOrigin = 'person' | 'task' | 'goOn'
 
@@ -77,7 +77,7 @@ export interface ChatProposal extends SavedProposal {
   undo: (() => Promise<UndoResult>) | null
   /** The files the model read in the turn that made the card, by name, so a change a file asked for is recognisable. */
   readonly readFiles: readonly string[]
-  /** The card came while its app was being set up, so Accept sends the chat on to the next step by itself. */
+  /** The model said another card of its job follows this one, so Accept sends the chat on to the next step by itself. */
   readonly goesOn: boolean
 }
 
@@ -109,7 +109,7 @@ interface Spent {
 /** The chat kept in memory for this visit: it follows the person across apps and goes with a reload. */
 /** How long one message may take, its rounds together, which also ends a stream that stalls. A wait for the person's answer pauses it. */
 const MOST_RUN_MILLISECONDS = 5 * 60_000
-/** The most messages the chat sends by itself, one after each card accepted during a setup, before it waits for the person to write. */
+/** The most messages the chat sends by itself, one after each card accepted that another card follows, before it waits for the person to write. */
 const MOST_GOING_ON = 10
 
 const lines = reactive<ChatLine[]>([])
@@ -594,7 +594,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
         line.sent.push(sent)
         if (sent.read.kind === 'document' || sent.read.kind === 'cells') readThisTurn.add(sent.read.name)
       },
-      showProposal: (app, proposal) => {
+      showProposal: (app, proposal, next) => {
         if (current !== controller) return
         nextId += 1
         line.proposals.push({
@@ -608,7 +608,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
           warning: null,
           undo: null,
           readFiles: [...readThisTurn],
-          goesOn: wentOnBySelf < MOST_GOING_ON && !removesFile(proposal) && where.setUp.some((setUp) => setUp.app === app),
+          goesOn: next && wentOnBySelf < MOST_GOING_ON && !removesFile(proposal),
         })
       },
     })

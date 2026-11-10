@@ -21,16 +21,36 @@ import { words as companyTransactionWords } from '../src/apps/company/transactio
 import type { CatalogueApp } from '../src/shared/ai/application/catalogue'
 import { words as statementWords } from '../src/apps/spending/statements/presentation/words'
 
+import { assetsAcceptance, assetsProposer } from '../src/apps/assets/assistant/operations/assetsOperations'
+import { companyAcceptance, companyProposer } from '../src/apps/company/assistant/operations/companyOperations'
+import { investmentsAcceptance, investmentsProposer } from '../src/apps/investments/assistant/operations/investmentsOperations'
+import { loansAcceptance, loansProposer } from '../src/apps/loans/assistant/operations/loansOperations'
+import { spendingAcceptance, spendingProposer } from '../src/apps/spending/assistant/operations/spendingOperations'
+import { FILE_OPEN } from './fixtures/browserFile'
 import { CHAT_READING } from './fixtures/chatBook'
+import { deskPorts } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 
-const COMPANY = companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => [])
-const ASSETS_ASSISTANT = assetsAssistant({ status: () => 'none', book: () => null, index: () => 'loading', loans: () => null })
-const LOANS_ASSISTANT = loansAssistant({ status: () => 'none', book: () => null })
-const SPENDING_ASSISTANT = spendingAssistant(CHAT_READING)
-const INVESTMENTS_ASSISTANT = investmentsAssistant({ status: () => 'none', book: () => null, sources: () => null, taxShown: () => false })
+/** No store is opened: the catalogue reads only the operations a proposer declares. */
+const NO_STORE = {} as never
+const NO_PORTS = {} as never
+const COMPANY_PORTS = deskPorts()
+const COMPANY = companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => [], {
+  proposer: companyProposer(NO_STORE, COMPANY_PORTS, FILE_OPEN),
+  acceptance: companyAcceptance(NO_STORE, COMPANY_PORTS, FILE_OPEN),
+})
+const ASSETS_ASSISTANT = assetsAssistant(
+  { status: () => 'none', book: () => null, index: () => 'loading', loans: () => null },
+  { proposer: assetsProposer(NO_STORE, NO_PORTS, FILE_OPEN), acceptance: assetsAcceptance(NO_STORE, NO_PORTS, FILE_OPEN) },
+)
+const LOANS_ASSISTANT = loansAssistant({ status: () => 'none', book: () => null }, { proposer: loansProposer(NO_STORE, FILE_OPEN), acceptance: loansAcceptance(NO_STORE, FILE_OPEN) })
+const SPENDING_ASSISTANT = spendingAssistant(CHAT_READING, { proposer: spendingProposer(NO_STORE, NO_PORTS, FILE_OPEN), acceptance: spendingAcceptance(NO_STORE, NO_PORTS, FILE_OPEN) })
+const INVESTMENTS_ASSISTANT = investmentsAssistant(
+  { status: () => 'none', book: () => null, sources: () => null, taxShown: () => false },
+  { proposer: investmentsProposer(NO_STORE, NO_PORTS, FILE_OPEN), acceptance: investmentsAcceptance(NO_STORE, NO_PORTS, FILE_OPEN) },
+)
 
 function appOf(id: string, assistant: CatalogueApp['assistant'], paths: readonly `/${string}`[]): CatalogueApp {
   return { id, name: id, purpose: `What ${id} keeps.`, screens: paths.map((path) => ({ path, title: path })), assistant }
@@ -85,8 +105,36 @@ describe('the catalogue', () => {
     expect(placeAt(catalogue, '/company/transactions', {})).toBeNull()
   })
 
-  it('keeps its instructions under their budget of 4,000 tokens at three characters each', () => {
-    expect(catalogue.system.length / 3).toBeLessThan(4000)
+  it('lists every operation of every app in the instructions, by app, with its page holding the input', () => {
+    const listed = catalogue.system.split('# Changes you can propose')[1]!
+    for (const app of [KUNA, ...APPS]) {
+      const operations = app.assistant.proposer?.operations ?? []
+      expect(operations.length, app.id).toBeGreaterThan(0)
+      const linesUnder = (heading: string) => (listed.split(`${heading}\n`)[1] ?? '').split('\n## ')[0]!.split('\n')
+      const alike = linesUnder('## In several apps').flatMap((line) => {
+        const [, name, apps] = /^- ([a-z-]+) in ([a-z, -]+):/.exec(line) ?? []
+        return name !== undefined && apps!.split(', ').includes(app.id) ? [name] : []
+      })
+      const own = linesUnder(`## ${app.name} (${app.id})`).flatMap((line) => /^- ([a-z-]+):/.exec(line)?.[1] ?? [])
+      expect([...alike, ...own].sort(), app.id).toEqual(operations.map((operation) => operation.name).sort())
+      for (const operation of operations) {
+        expect(catalogue.pages.get(`${app.id}/op/${operation.name}`), operation.name).toContain('Input, as a JSON string')
+        expect(listed).not.toContain(JSON.stringify(operation.input))
+      }
+    }
+    expect(listed).toContain('- make-file in company, loans, investments, assets, spending: ')
+    expect(catalogue.pages.get('company')).not.toContain('Changes you can propose')
+  })
+
+  it('tells the model to do the whole job a message asks for, and says when a card goes on', () => {
+    expect(catalogue.system).toContain('Do the whole job a message asks for.')
+    expect(catalogue.system).toContain('propose the changes on cards rather than ask what to do')
+    expect(catalogue.system).toContain('Set next to true on each card that another card follows')
+    expect(catalogue.system).toContain('This never takes the place of doing what a message asks.')
+  })
+
+  it('keeps its instructions under their budget of 9,000 tokens at three characters each', () => {
+    expect(catalogue.system.length / 3).toBeLessThan(9000)
   })
 
   it('names every page the instructions and each app page list', () => {
@@ -113,7 +161,8 @@ describe('the catalogue', () => {
     expect(page).toContain('- counterpartyIban (identifier):')
     expect(page).toContain('- amount (amount):')
     expect(page.split('## Never read')[1]).toContain('- importKey')
-    const whole = [catalogue.system, ...catalogue.pages.values()].join('\n')
+    // An operation's example is written in the code, and may share a made-up payee with the books of this test.
+    const whole = [catalogue.system, ...[...catalogue.pages].flatMap(([path, page]) => (path.includes('/op/') ? [] : [page]))].join('\n')
     expect(whole).not.toMatch(/Horvat|Corner market|Made-up/i)
   })
 
@@ -153,7 +202,7 @@ describe('the catalogue', () => {
 
   it('holds no secret, however the code spells a key', () => {
     const whole = [catalogue.system, ...catalogue.pages.values()].join('\n')
-    expect(whole).not.toMatch(/kuna\.secret|kuna-secrets|kuna-investments-keys|made-up-|sk-[a-z]+-|ya29\.|AIza/)
+    expect(whole).not.toMatch(/kuna\.secret|kuna-secrets|kuna-investments-keys|made-up-|\bsk-[a-z]+-|ya29\.|AIza/)
   })
 
   it('tells the model to say plainly what Kuna cannot do and stop, and to link the issues page only when asked how to request a feature', () => {

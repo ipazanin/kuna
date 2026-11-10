@@ -95,8 +95,12 @@ export async function loansDesk(used: Set<string>): Promise<LoansDesk> {
     cards,
     ref: (kind, id) => reads.refs.recordRef({ app: 'loans', kind, id }),
     propose: (steps) =>
-      proposeChanges({ app: 'loans', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })) }, proposers, reads, [], (_app, card) =>
-        cards.push(card),
+      proposeChanges(
+        { app: 'loans', title: 'A title', steps: steps.map((step) => ({ op: step.op, input: JSON.stringify(step.input), as: step.as ?? null })), next: false },
+        proposers,
+        reads,
+        [],
+        (_app, card) => cards.push(card),
       ),
     accept: (at = cards.length - 1) => loansAcceptance(store, FILE_OPEN).accept(cards[at]!),
   }

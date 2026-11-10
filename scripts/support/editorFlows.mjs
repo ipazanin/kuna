@@ -9324,6 +9324,8 @@ export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
         if ((await page.$('[data-testid="spending-review"][data-chat-tagged="card"]')) === null) throw new Error('the To review card takes no outline while the chat is about it')
         await allowIfAsked(page, press)
         await elementSays(page, '[data-testid="chat-question"]', [review.suggestCategoriesTask], 'Suggest categories did not send its request by itself')
+        // The chat reads the rows waiting, so it may ask to read Spending once the request is sent.
+        await allowIfAsked(page, press)
         await page.waitForSelector('[data-testid="chat-answer"], [data-testid="chat-failure"]', { visible: true, timeout: 15_000 })
         await delay(300)
         await inspect?.('the chat about To review')
