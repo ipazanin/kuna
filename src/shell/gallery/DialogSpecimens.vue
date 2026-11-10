@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
@@ -44,7 +45,7 @@ const ROWS = [
   <GallerySection
     id="form-grid"
     title="FormGrid"
-    description="Two fields to a row from 640 px, the labels in a row of their own, so the inputs line up however long a label runs. A wide field spans the row."
+    description="Two fields to a row from 640 px, the labels in a row of their own, so the inputs line up however long a label runs. A wide field spans the row, and so does an alert, with its icon beside its title."
   >
     <AppCard as="div" class="p-5">
       <FormGrid data-testid="gallery-form-grid">
@@ -61,6 +62,15 @@ const ROWS = [
           <UInput type="date" class="w-full" />
         </UFormField>
         <USwitch v-model="subsidised" label="A subsidy pays part of each instalment" description="A switch takes the whole row." />
+        <UAlert
+          icon="i-lucide-triangle-alert"
+          color="warning"
+          variant="subtle"
+          title="Moving the first instalment later deletes what came before it"
+          description="An alert takes the whole row."
+          data-testid="gallery-form-grid-alert"
+        />
+        <UAlert color="info" variant="subtle" title="An alert without an icon takes the whole row too" />
         <UFormField label="Note" class="sm:col-span-2">
           <UInput class="w-full" />
         </UFormField>

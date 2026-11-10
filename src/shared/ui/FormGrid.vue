@@ -3,7 +3,7 @@
  * Form fields two to a row from 640 px. Each field's label sits in a row of its own, shared across the
  * grid row, so the inputs line up whatever a label's length. Every field takes one column, and one that
  * takes a whole row, such as a field around a switch or a checkbox, says `sm:col-span-2`. Anything that
- * is not a field, such as a bare radio group or a note, takes the whole row.
+ * is not a field, such as a bare radio group, a note or an alert, takes the whole row.
  */
 withDefaults(
   defineProps<{
@@ -39,11 +39,12 @@ withDefaults(
   margin-block-end: 1rem;
 }
 
-.form-grid > :deep(:not([data-orientation='vertical']:has(> [data-slot='wrapper']))) {
+.form-grid > :deep(:not([data-orientation='vertical']:has(> [data-slot='wrapper']):not(:has(> [data-slot='icon'], > [data-slot='wrapper'] > [data-slot='title'])))) {
   grid-column: 1 / -1;
 }
 
-.form-grid > :deep([data-orientation='vertical']:has(> [data-slot='wrapper'])) {
+/* A field is a vertical part with a wrapper. An alert has both too, so its icon or title tells it apart and it takes the whole row. */
+.form-grid > :deep([data-orientation='vertical']:has(> [data-slot='wrapper']):not(:has(> [data-slot='icon'], > [data-slot='wrapper'] > [data-slot='title']))) {
   display: grid;
   grid-template-rows: subgrid;
   /* A column that may shrink lets a long choice in a select truncate instead of widening the field past its card. */
