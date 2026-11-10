@@ -10,14 +10,14 @@ import { words as chatWords } from '../../shared/ai/presentation/words'
 import CompanyFooter from '../../shared/app/CompanyFooter.vue'
 import { words as sharedWords } from '../../shared/app/words'
 import { useStickyBandPart } from '../../shared/layout/stickyBand'
+import { givePageRoom } from '../../shared/layout/pageRoom'
 import { useHeightAboveKeyboard, useMediaQuery, usePhoneLayout, useWindowWidth } from '../../shared/layout/viewport'
 import { writesInFlight } from '../../shared/storage/application/writesInFlight'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import HomeLink from '../../shared/ui/HomeLink.vue'
 import WriteProgress from '../../shared/ui/WriteProgress.vue'
 import ChatResizeHandle from './ChatResizeHandle.vue'
-import type { SidebarForm } from './sidebarLayout'
-import { FOOTER_FOLDS_BELOW_HEIGHT, layoutOf, SIDEBAR_WIDTH, sidebarChoice } from './sidebarLayout'
+import { FOOTER_FOLDS_BELOW_HEIGHT, layoutOf, PAGE_INSET, pageInsetOf, SIDEBAR_WIDTH, sidebarChoice, someSidebarFits } from './sidebarLayout'
 import SidebarLayoutMenu from './SidebarLayoutMenu.vue'
 import { words } from './words'
 
@@ -40,7 +40,7 @@ const emit = defineEmits<{
 
 defineSlots<{
   default(): unknown
-  navigation(props: { rail: boolean; chat: boolean }): unknown
+  navigation(props: { rail: boolean; chat: boolean; drawer: boolean }): unknown
   chat(): unknown
   sync(props: { compact: boolean; rail: boolean }): unknown
 }>()
@@ -49,12 +49,10 @@ const phone = usePhoneLayout()
 const windowWidth = useWindowWidth()
 const chatShows = computed(() => props.chatAvailable && chatOpen.value)
 
-/** The chat's width under the pointer while its edge is dragged, and the sidebar drawn a moment before, or null. */
-const drag = ref<{ readonly width: number; readonly drawn: SidebarForm } | null>(null)
+/** The chat's width under the pointer while its edge is dragged, or null. */
+const drag = ref<number | null>(null)
 /** The layout with the chat open, which also says whether it would dock while it is closed. */
-const withChat = computed(() =>
-  layoutOf({ choice: sidebarChoice.value, windowWidth: windowWidth.value, chat: drag.value?.width ?? chatWidth.value, ...(drag.value === null ? {} : { drawn: drag.value.drawn }) }),
-)
+const withChat = computed(() => layoutOf({ choice: sidebarChoice.value, windowWidth: windowWidth.value, chat: drag.value ?? chatWidth.value }))
 const layout = computed(() => (chatShows.value ? withChat.value : layoutOf({ choice: sidebarChoice.value, windowWidth: windowWidth.value, chat: null })))
 const docks = computed(() => withChat.value.chat.at === 'dock')
 const dock = computed(() => (layout.value.chat.at === 'dock' ? layout.value.chat : null))
@@ -69,20 +67,37 @@ const short = useMediaQuery(`(max-height: ${FOOTER_FOLDS_BELOW_HEIGHT - 1}px)`)
 /** The footer as the icon sidebar's logo button, beside Sync on a short window. */
 const footerFolded = computed(() => !rail.value && short.value)
 
-function dragChat(width: number): void {
-  drag.value = { width, drawn: layout.value.sidebar }
-}
+const inset = computed(() => pageInsetOf(layout.value.page))
+const padding = computed(() => (inset.value === 'phone' ? undefined : { paddingInline: `${PAGE_INSET[inset.value].inline}px`, paddingTop: `${PAGE_INSET[inset.value].top}px` }))
+watchEffect(() => givePageRoom(layout.value.page - 2 * PAGE_INSET[inset.value].inline))
 
-/** The widths drawn now, on the root, since the toaster's viewport is portalled out of the shell and reads the chat's. */
+/**
+ * The widths and the top bar's height drawn now, on the root, since the toaster's viewport is portalled out of the shell
+ * and reads the chat's, and a page's sticky bar sits under the top bar.
+ */
 watchEffect(() => {
   const root = document.documentElement.style
   root.setProperty('--sidebar-width', `${SIDEBAR_WIDTH[sidebar.value]}px`)
+  root.setProperty('--top-bar-height', !topBar.value ? '0px' : phone.value ? 'calc(3.5rem + env(safe-area-inset-top))' : '3.5rem')
   if (dock.value === null) root.removeProperty('--chat-width')
   else root.setProperty('--chat-width', `${dock.value.width}px`)
 })
 onBeforeUnmount(() => {
-  document.documentElement.style.removeProperty('--sidebar-width')
-  document.documentElement.style.removeProperty('--chat-width')
+  for (const property of ['--sidebar-width', '--top-bar-height', '--chat-width']) document.documentElement.style.removeProperty(property)
+})
+
+/** While the window is being resized the columns follow it at once, since easing them would trail the window's edge. */
+let resizeSettles = 0
+function followResize(): void {
+  document.documentElement.classList.add('shell-resizing')
+  clearTimeout(resizeSettles)
+  resizeSettles = window.setTimeout(() => document.documentElement.classList.remove('shell-resizing'), 200)
+}
+window.addEventListener('resize', followResize)
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', followResize)
+  clearTimeout(resizeSettles)
+  document.documentElement.classList.remove('shell-resizing')
 })
 
 const columns = computed(() => {
@@ -148,7 +163,7 @@ watch(chatOpen, (open) => {
     if (window.history.state?.back) router.back()
     else void router.replace({ query: Object.fromEntries(Object.entries(route.query).filter(([name]) => name !== CHAT_QUERY)) })
   }
-  if (!open && pane.value?.contains(document.activeElement)) void nextTick(() => shell.value?.querySelector<HTMLElement>('[data-testid="chat-open"]')?.focus())
+  if (!open && focusBeforePane === null && pane.value?.contains(document.activeElement)) void nextTick(() => shell.value?.querySelector<HTMLElement>('[data-testid="chat-open"]')?.focus())
 })
 watch(
   () => route.path,
@@ -159,8 +174,31 @@ watch(
 
 /** Hiding the page collapses the document and loses its scroll, so the pane keeps it and gives it back, unless a link led to another screen. */
 let placeBeforePane: { readonly path: string; readonly scrollY: number } | null = null
+/** What held focus in the page when the chat took its place, which gets it back when the page returns. */
+let focusBeforePane: HTMLElement | null = null
 watch(inPane, (shown) => {
-  if (shown) placeBeforePane = { path: route.path, scrollY: window.scrollY }
+  if (shown) {
+    placeBeforePane = { path: route.path, scrollY: window.scrollY }
+    const focused = document.activeElement
+    if (focused instanceof HTMLElement && main.value?.contains(focused)) {
+      focusBeforePane = focused
+      void nextTick(() => pane.value?.querySelector<HTMLElement>('textarea')?.focus())
+    }
+    return
+  }
+  const back = focusBeforePane
+  focusBeforePane = null
+  if (back === null) return
+  // A chat that docks keeps the focus it has. One that closed leaves focus nowhere, and the page takes it back.
+  const leftInPane = pane.value?.contains(document.activeElement) ?? false
+  if (chatShows.value && leftInPane) return
+  void nextTick(() => (back.isConnected ? back : main.value?.querySelector<HTMLElement>('.screen-title'))?.focus())
+})
+
+/** A sidebar that folds into the drawer while it held focus hands it to the top bar's menu button. */
+watch(sidebarShows, (shows) => {
+  if (shows || !shell.value?.querySelector('[data-testid="sidebar"]')?.contains(document.activeElement)) return
+  void nextTick(() => shell.value?.querySelector<HTMLElement>('[data-testid="open-navigation"]')?.focus())
 })
 /** The page is back only once its history step is too, as Back also makes the router restore a scroll it read from the collapsed document. */
 const pageIsBack = computed(() => !inPane.value && route.query[CHAT_QUERY] === undefined)
@@ -212,7 +250,7 @@ const screenTitle = computed(() => route.meta.title ?? props.title)
           </UTooltip>
           <SidebarLayoutMenu :window-width="windowWidth" :chat="chatShows ? chatWidth : null" />
         </div>
-        <slot name="navigation" :rail="rail" :chat="chatAvailable" />
+        <slot name="navigation" :rail="rail" :chat="chatAvailable" :drawer="false" />
         <div v-if="$slots.sync && footerFolded" class="flex items-end gap-2 border-t border-default py-4 ps-4 pe-2" data-testid="sidebar-sync">
           <div class="min-w-0 flex-1">
             <slot name="sync" :compact="false" :rail="false" />
@@ -230,7 +268,11 @@ const screenTitle = computed(() => route.meta.title ?? props.title)
       </div>
     </aside>
 
-    <header v-if="topBar" ref="topBar" class="top-bar sticky top-0 z-top-bar col-start-1 row-start-1 flex h-14 items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4">
+    <header
+      v-if="topBar"
+      ref="topBar"
+      class="top-bar sticky top-0 z-top-bar col-start-1 row-start-1 flex h-(--top-bar-height) items-center gap-2 border-b border-default bg-page/85 px-2 backdrop-blur-md sm:px-4"
+    >
       <USlideover
         v-model:open="menuOpen"
         side="left"
@@ -248,11 +290,11 @@ const screenTitle = computed(() => route.meta.title ?? props.title)
         <template #actions>
           <HomeLink :label="sharedWords.homeLink" look="standard" class="flex-1" />
           <!-- The drawer's close button sits over the end of this row, so the layout menu stops short of it. -->
-          <SidebarLayoutMenu v-if="sidebar === 'hidden'" :window-width="windowWidth" :chat="chatShows ? chatWidth : null" class="me-10" />
+          <SidebarLayoutMenu v-if="someSidebarFits(windowWidth)" :window-width="windowWidth" :chat="chatShows ? chatWidth : null" class="me-10" />
         </template>
         <template #body>
           <div class="contents" @click="closeOnCurrentPage">
-            <slot name="navigation" :rail="false" :chat="false" />
+            <slot name="navigation" :rail="false" :chat="false" :drawer="true" />
           </div>
           <div class="border-t border-default px-1 py-2">
             <CompanyFooter look="sidebar" />
@@ -278,13 +320,7 @@ const screenTitle = computed(() => route.meta.title ?? props.title)
       </div>
     </header>
 
-    <main
-      v-show="!inPane"
-      ref="main"
-      tabindex="-1"
-      class="app-main row-start-2 flex min-w-0 flex-col px-4 pt-6 pb-6 outline-none sm:px-6 lg:px-10 lg:pt-9"
-      :class="sidebarShows ? 'col-start-2' : 'col-start-1'"
-    >
+    <main v-show="!inPane" ref="main" tabindex="-1" class="app-main row-start-2 flex min-w-0 flex-col pb-6 outline-none" :class="sidebarShows ? 'col-start-2' : 'col-start-1'" :style="padding">
       <div class="mx-auto w-full max-w-shell flex-1 sm:@container">
         <slot />
       </div>
@@ -301,7 +337,7 @@ const screenTitle = computed(() => route.meta.title ?? props.title)
       :data-testid="docked ? 'chat-dock' : 'chat-pane'"
     >
       <div class="relative h-full" :class="{ 'border-s border-default': docked }">
-        <ChatResizeHandle v-if="dock !== null" :width="dock.width" :widest="dock.widest" :controls="dockId" @drag="dragChat" @release="drag = null" />
+        <ChatResizeHandle v-if="dock !== null" :width="dock.width" :widest="dock.widest" :controls="dockId" @drag="drag = $event" @release="drag = null" />
         <slot name="chat" />
       </div>
     </div>

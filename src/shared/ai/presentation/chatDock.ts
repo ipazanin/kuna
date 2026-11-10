@@ -15,14 +15,12 @@ export interface AskedElement {
   readonly about: ChatElementAbout
 }
 
-/** The chat's smallest width in px, beside a screen's smallest. */
+/** The chat's smallest docked width in px. With less room beside the page the chat takes the page's place. */
 export const CHAT_MIN_WIDTH = 384
 /** The width the chat opens at until a person drags it, and the one a reset gives back. */
 export const CHAT_DEFAULT_WIDTH = CHAT_MIN_WIDTH
 /** Where the chat's own column stops growing, so a wider chat would only add margins. */
 export const CHAT_MAX_WIDTH = 704
-/** The least a screen gets beside the docked chat, which keeps a dashboard in two columns. */
-export const PAGE_MIN_WIDTH = 976
 
 const CHAT_WIDTH_KEY = 'kuna.chat-width'
 

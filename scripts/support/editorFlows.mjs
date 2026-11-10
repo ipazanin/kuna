@@ -7,7 +7,9 @@
 
 import { en as companyEnglish, hr as companyCroatian } from '../../src/apps/company/words.ts'
 import { FAKE_KEY_SAVED_AT } from '../../src/shared/secrets/infrastructure/fake/fakeSecrets.ts'
-import { FOOTER_FOLDS_BELOW_HEIGHT } from '../../src/shell/ui/sidebarLayout.ts'
+import { CHAT_MIN_WIDTH } from '../../src/shared/ai/presentation/chatDock.ts'
+import { PAGE_LEAST_WIDTH } from '../../src/shared/layout/viewport.ts'
+import { FOOTER_FOLDS_BELOW_HEIGHT, layoutOf, SIDEBAR_WIDTH } from '../../src/shell/ui/sidebarLayout.ts'
 import { en as companySettingsEnglish, hr as companySettingsCroatian } from '../../src/apps/company/settings/presentation/words.ts'
 import { en as classWordsEnglish, hr as classWordsCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
 import { en as rulesEnglish, hr as rulesCroatian } from '../../src/apps/company/rules/presentation/words.ts'
@@ -8851,7 +8853,6 @@ const COMPANY_SELECT = '[data-testid="assist-provider-select"]'
 const ALWAYS_ALLOW = '[data-testid="assist-allow"]'
 const APP_ALLOWED = '[data-testid="app-assist-card"] [data-testid="assist-allowed"]'
 const CHAT_CONSENT = '[data-testid="chat-consent"]'
-const SHELL_SETTINGS_NAME = { en: 'Kuna settings', hr: 'Postavke Kune' }
 
 /** Opens the select of AI companies, and returns what each option says, by its company's name. */
 export async function openCompanies(page, press) {
@@ -9176,7 +9177,7 @@ export function chatPanelFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const send = (message) => sendInChat(page, press, message)
-    const wide = () => page.evaluate(() => window.innerWidth >= 1416)
+    const wide = async () => layoutOf({ choice: 'expanded', windowWidth: await page.evaluate(() => document.documentElement.clientWidth), chat: CHAT_MIN_WIDTH }).chat.at === 'dock'
     const greeting = language === 'en' ? 'Hello' : 'Dobar dan'
     try {
       if (await page.$('[data-testid="chat-open"]')) throw new Error('the chat button shows with no key')
@@ -9305,13 +9306,15 @@ export function chatPanelFlowIn(language) {
       if (await wide()) {
         await page.waitForSelector('[data-testid="chat-dock"]', { visible: true, timeout: 5_000 })
         await inspect?.('the dock beside the screen a link opened')
-        await page.setViewport({ ...page.viewport(), width: 1416 })
+        // The narrowest window that docks the chat beside the expanded sidebar leaves the page its least, 640 px.
+        const narrowest = SIDEBAR_WIDTH.expanded + PAGE_LEAST_WIDTH + CHAT_MIN_WIDTH
+        await page.setViewport({ ...page.viewport(), width: narrowest })
         await delay(300)
         await inspect?.('the dock at the narrowest width it docks')
-        await page.focus('[data-testid="nav-kuna-settings"]')
-        await elementSays(page, '[role="tooltip"]', [SHELL_SETTINGS_NAME[language]], 'a row of the icon sidebar does not say its name on focus')
+        const drawn = await page.evaluate(() => ({ sidebar: document.querySelector('[data-testid="app-shell"]')?.dataset.sidebar, dock: document.querySelector('[data-testid="chat-dock"]') !== null }))
+        if (drawn.sidebar !== 'expanded' || !drawn.dock) throw new Error(`at ${narrowest} px the shell drew ${JSON.stringify(drawn)}, not the expanded sidebar beside the docked chat`)
         await page.focus('[data-testid="sync-button"], [data-testid="chat-open"]')
-        await shoot('chat-dock-1416')
+        await shoot(`chat-dock-${narrowest}`)
         await page.setViewport({ ...page.viewport(), width: 1440 })
       } else {
         await page.waitForSelector('[data-testid="chat-panel"]', { hidden: true, timeout: 5_000 }).catch(() => {

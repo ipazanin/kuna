@@ -18,8 +18,12 @@ export const en = {
     expanded: 'Expanded',
     icons: 'Icons',
     hidden: 'Hidden',
-    iconsWhileChat: 'Shows as icons while the chat needs the room',
-    chatTakesPage: "The chat moves into the page's place",
+    /** What a choice says in the menu where picking it changes something, by what it changes. */
+    effects: {
+      'wider-window': 'Shows in a wider window',
+      'chat-takes-page': "The chat moves into the page's place",
+      'chat-beside-page': 'The chat moves beside the page',
+    },
   },
   quickJump: {
     title: 'Jump to a page',
@@ -55,8 +59,11 @@ export const hr: Translation<typeof en> = {
     expanded: 'Proširena',
     icons: 'Ikone',
     hidden: 'Skrivena',
-    iconsWhileChat: 'Prikazuje se kao ikone dok razgovoru treba mjesta',
-    chatTakesPage: 'Razgovor prelazi na mjesto stranice',
+    effects: {
+      'wider-window': 'Prikazuje se u širem prozoru',
+      'chat-takes-page': 'Razgovor prelazi na mjesto stranice',
+      'chat-beside-page': 'Razgovor se premješta uz stranicu',
+    },
   },
   quickJump: {
     title: 'Idi na stranicu',

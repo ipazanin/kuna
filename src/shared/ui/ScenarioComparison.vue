@@ -38,7 +38,7 @@ export interface ComparedLine {
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { useMediaQuery } from '../layout/viewport'
+import { roomAtLeast } from '../layout/pageRoom'
 import ComparedFigure from './ComparedFigure.vue'
 import FigureTable from './FigureTable.vue'
 
@@ -87,8 +87,8 @@ const sections = computed(() =>
   }, []),
 )
 
-/** Below md a card is too narrow for a label and four figures with cents, so each column becomes a card. */
-const narrow = useMediaQuery('(max-width: 767px)')
+/** A page under 45rem is too narrow for a label and four figures with cents, so each column becomes a card. */
+const tableFits = roomAtLeast(45)
 
 function cellOf(line: ComparedLine, index: number): ComparedCell {
   return line.cells[index] ?? { text: '', best: false, difference: null }
@@ -97,7 +97,7 @@ function cellOf(line: ComparedLine, index: number): ComparedCell {
 
 <template>
   <div data-testid="scenario-comparison">
-    <div v-if="narrow" class="flex flex-col gap-3" role="group" :aria-label="label">
+    <div v-if="!tableFits" class="flex flex-col gap-3" role="group" :aria-label="label">
       <section v-for="(column, index) in columns" :key="column.key" class="rounded-control border border-default px-3 pt-2 pb-1" :aria-label="column.label" :data-column="column.key">
         <h3 class="flex flex-wrap items-baseline gap-x-2 type-card-title">
           <slot name="column" :column="column">{{ column.label }}</slot>

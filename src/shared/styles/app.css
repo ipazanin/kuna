@@ -48,9 +48,16 @@
   @apply text-base font-semibold text-highlighted tabular-nums;
 }
 
+/* The gutter stays whether or not the page scrolls, so the shell's columns never jump when a screen grows a scrollbar. */
 html {
   background: var(--surface-page);
   -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+}
+
+/* The shell sets the top bar's height as it lays out, 0 beside a sidebar. Until then a page's sticky bars sit under a top bar. */
+:root {
+  --top-bar-height: 3.5rem;
 }
 
 body {
@@ -467,19 +474,14 @@ section + section > .group-row:not(tr) {
 
 /* The chat in the page's place under the top bar, before the keyboard's height is known and where the browser cannot say. */
 .chat-below-top-bar {
-  height: calc(100dvh - 3.5rem);
+  height: calc(100dvh - var(--top-bar-height));
 }
 
 /* The installed app draws under the status bar and the gesture bar, so the phone layout clears them. */
 @media (max-width: 639px) {
   .top-bar {
-    height: calc(3.5rem + env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);
     padding-inline: max(0.25rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right));
-  }
-
-  .chat-below-top-bar {
-    height: calc(100dvh - 3.5rem - env(safe-area-inset-top));
   }
 
   .app-main {
@@ -549,6 +551,12 @@ section + section > .group-row:not(tr) {
   left: calc(50% - 1.5px);
   width: 3px;
   background: var(--accent);
+}
+
+/* While the window is resized the shell's columns follow its edge, with no easing to trail behind it. */
+html.shell-resizing,
+html.shell-resizing * {
+  transition: none !important;
 }
 
 /* While the chat's edge is dragged, the whole page shows the drag's cursor and selects no text. */

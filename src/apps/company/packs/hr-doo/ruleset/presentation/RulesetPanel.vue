@@ -220,12 +220,11 @@ watch(
 <style scoped>
 /*
  * Search and areas stay in reach while the list scrolls, as the filter bar does on the ledger
- * screens: under the top bar on a tablet, at the very top beside the sidebar, and under the sticky
- * tab row on a phone.
+ * screens: under the top bar, at the very top beside the sidebar, and under the sticky tab row on a phone.
  */
 .ruleset-bar {
   position: sticky;
-  top: 3.5rem;
+  top: var(--top-bar-height);
   z-index: 10;
   display: flex;
   flex-wrap: wrap;
@@ -239,13 +238,7 @@ watch(
 
 @media (max-width: 639px) {
   .ruleset-bar {
-    top: calc(3.5rem + env(safe-area-inset-top) + var(--page-tab-row, 0px));
-  }
-}
-
-@media (min-width: 1024px) {
-  .ruleset-bar {
-    top: 0;
+    top: calc(var(--top-bar-height) + var(--page-tab-row, 0px));
   }
 }
 

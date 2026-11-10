@@ -1,90 +1,146 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ChatPlace, SidebarChoice, SidebarForm } from '../src/shell/ui/sidebarLayout'
-import { chooseSidebar, layoutOf, sidebarChoice } from '../src/shell/ui/sidebarLayout'
+import type { ChatPlace, RoomEffect, SidebarChoice, SidebarForm } from '../src/shell/ui/sidebarLayout'
+import { chooseSidebar, layoutOf, pageInsetOf, roomEffectOf, SIDEBAR_WIDTH, sidebarChoice, someSidebarFits } from '../src/shell/ui/sidebarLayout'
 
 const CLOSED: ChatPlace = { at: 'closed' }
 const IN_PAGE: ChatPlace = { at: 'page' }
+const CHOICES: readonly SidebarChoice[] = ['expanded', 'icons', 'hidden']
+const ASKED_WIDTHS = [384, 450, 512, 600, 704]
 
 function docked(width: number, widest: number): ChatPlace {
   return { at: 'dock', width, widest }
 }
 
-describe('the sidebar with the chat closed', () => {
+/** Every window width from a phone to a wide monitor, one px apart, so a property holds at each edge. */
+function* everyWindow(): Generator<number> {
+  for (let windowWidth = 360; windowWidth <= 2600; windowWidth += 1) yield windowWidth
+}
+
+describe('the sidebar, decided by the window alone', () => {
   it.each<[SidebarChoice, number, SidebarForm]>([
     ['expanded', 1440, 'expanded'],
     ['icons', 1440, 'icons'],
     ['hidden', 1440, 'hidden'],
-    ['expanded', 1024, 'expanded'],
-    ['hidden', 1024, 'hidden'],
-    ['icons', 1023, 'drawer'],
-    ['hidden', 360, 'drawer'],
+    // 240 + 640 = 880 is the narrowest window beside the expanded sidebar.
+    ['expanded', 880, 'expanded'],
+    ['expanded', 879, 'drawer'],
+    // 56 + 640 = 696 beside the icons.
+    ['icons', 696, 'icons'],
+    ['icons', 695, 'drawer'],
+    ['hidden', 640, 'hidden'],
+    ['hidden', 639, 'drawer'],
+    ['expanded', 360, 'drawer'],
   ])('%s at %i px draws %s', (choice, windowWidth, sidebar) => {
-    expect(layoutOf({ choice, windowWidth, chat: null })).toEqual({ sidebar, chat: CLOSED })
+    expect(layoutOf({ choice, windowWidth, chat: null })).toEqual({ sidebar, chat: CLOSED, page: windowWidth - SIDEBAR_WIDTH[sidebar] })
+  })
+
+  it('offers the layout menu wherever the icons fit', () => {
+    expect(someSidebarFits(696)).toBe(true)
+    expect(someSidebarFits(695)).toBe(false)
   })
 })
 
-describe('the expanded sidebar with the chat open, decided by room', () => {
-  it.each<[number, number, SidebarForm, ChatPlace]>([
-    // 240 + 976 + 384 = 1600 holds all three side by side.
-    [1920, 384, 'expanded', docked(384, 704)],
-    [1600, 384, 'expanded', docked(384, 568)],
-    [1920, 704, 'expanded', docked(704, 704)],
-    // 240 + 976 + 704 = 1920, so a 704 px chat turns the sidebar to icons below that.
-    [1919, 704, 'icons', docked(704, 704)],
-    // 1440 leaves 1440 − 56 − 976 = 408 px beside the icons, so a wider chat draws at 408.
-    [1440, 704, 'icons', docked(408, 408)],
-    [1440, 384, 'icons', docked(384, 408)],
-    [1599, 384, 'icons', docked(384, 567)],
-    // 56 + 976 + 384 = 1416 is the narrowest window that docks the chat beside a sidebar.
-    [1416, 704, 'icons', docked(384, 384)],
-    [1415, 384, 'expanded', IN_PAGE],
-    [1280, 384, 'expanded', IN_PAGE],
-    [1024, 384, 'expanded', IN_PAGE],
-    [1023, 384, 'drawer', IN_PAGE],
-  ])('at %i px with a %i px chat draws %s and %j', (windowWidth, chat, sidebar, place) => {
-    expect(layoutOf({ choice: 'expanded', windowWidth, chat })).toEqual({ sidebar, chat: place })
-  })
-
-  it('moves to icons and back as the chat is dragged wider and narrower at one window, with 16 px to spare on the way back', () => {
-    // 1792 − 240 − 976 = 576 px is the widest chat beside the expanded sidebar.
-    const at = (chat: number, drawn?: SidebarForm): SidebarForm => layoutOf({ choice: 'expanded', windowWidth: 1792, chat, ...(drawn === undefined ? {} : { drawn }) }).sidebar
-    expect(at(576)).toBe('expanded')
-    expect(at(577)).toBe('icons')
-    expect(at(576, 'icons')).toBe('icons')
-    expect(at(561, 'icons')).toBe('icons')
-    expect(at(560, 'icons')).toBe('expanded')
-    expect(at(576, 'expanded')).toBe('expanded')
+describe('the chat in the room beside the page', () => {
+  it.each<[SidebarChoice, number, number, ChatPlace, number]>([
+    // 1264 − 240 − 640 = 384, the narrowest window that docks the chat beside the expanded sidebar.
+    ['expanded', 1264, 384, docked(384, 384), 640],
+    ['expanded', 1263, 384, IN_PAGE, 1023],
+    // 1390 − 240 − 640 = 510 px of room, so a 384 px chat leaves the page 766 px.
+    ['expanded', 1390, 384, docked(384, 510), 766],
+    ['expanded', 1390, 704, docked(510, 510), 640],
+    ['expanded', 1920, 704, docked(704, 704), 976],
+    ['expanded', 1920, 384, docked(384, 704), 1296],
+    // 56 + 640 + 384 = 1080 beside the icons.
+    ['icons', 1080, 704, docked(384, 384), 640],
+    ['icons', 1079, 384, IN_PAGE, 1023],
+    // The top bar takes no width, so the chat docks from 640 + 384 = 1024.
+    ['hidden', 1024, 384, docked(384, 384), 640],
+    ['hidden', 1023, 384, IN_PAGE, 1023],
+    ['expanded', 800, 384, IN_PAGE, 800],
+    ['expanded', 360, 384, IN_PAGE, 360],
+  ])('%s at %i px with a %i px chat places it %j and leaves the page %i px', (choice, windowWidth, chat, place, page) => {
+    expect(layoutOf({ choice, windowWidth, chat })).toEqual({ sidebar: layoutOf({ choice, windowWidth, chat: null }).sidebar, chat: place, page })
   })
 })
 
-describe('the icons and the hidden sidebar with the chat open', () => {
-  it.each<[SidebarChoice, number, number, SidebarForm, ChatPlace]>([
-    ['icons', 1920, 704, 'icons', docked(704, 704)],
-    ['icons', 1440, 704, 'icons', docked(408, 408)],
-    ['icons', 1416, 384, 'icons', docked(384, 384)],
-    ['icons', 1415, 384, 'icons', IN_PAGE],
-    // The top bar takes no width, so the chat docks from 976 + 384 = 1360.
-    ['hidden', 1440, 704, 'hidden', docked(464, 464)],
-    ['hidden', 1360, 500, 'hidden', docked(384, 384)],
-    ['hidden', 1359, 384, 'hidden', IN_PAGE],
-    ['hidden', 800, 384, 'drawer', IN_PAGE],
-  ])('%s at %i px with a %i px chat draws %s and %j', (choice, windowWidth, chat, sidebar, place) => {
-    expect(layoutOf({ choice, windowWidth, chat })).toEqual({ sidebar, chat: place })
+describe('the layout from 360 to 2,600 px', () => {
+  it('never changes the sidebar when the chat opens', () => {
+    for (const choice of CHOICES) {
+      for (const windowWidth of everyWindow()) {
+        const closed = layoutOf({ choice, windowWidth, chat: null }).sidebar
+        for (const chat of ASKED_WIDTHS) expect(layoutOf({ choice, windowWidth, chat }).sidebar).toBe(closed)
+      }
+    }
   })
 
-  it('never leaves the page under 976 px beside a docked chat', () => {
-    for (const choice of ['expanded', 'icons', 'hidden'] as const) {
-      for (let windowWidth = 1024; windowWidth <= 2000; windowWidth += 7) {
-        for (const chat of [384, 512, 704]) {
-          const { sidebar, chat: place } = layoutOf({ choice, windowWidth, chat })
-          if (place.at !== 'dock') continue
-          const sidebarWidth = { expanded: 240, icons: 56, hidden: 0, drawer: 0 }[sidebar]
-          expect(windowWidth - sidebarWidth - place.width).toBeGreaterThanOrEqual(976)
+  it('shows a sidebar only where it leaves the page 640 px, and the choice wherever it does', () => {
+    for (const choice of CHOICES) {
+      for (const windowWidth of everyWindow()) {
+        const { sidebar, page } = layoutOf({ choice, windowWidth, chat: null })
+        expect(sidebar).toBe(windowWidth - SIDEBAR_WIDTH[choice] >= 640 ? choice : 'drawer')
+        expect(page + SIDEBAR_WIDTH[sidebar]).toBe(windowWidth)
+      }
+    }
+  })
+
+  it('docks the chat exactly where it leaves the page 640 px and itself 384 px, within its asked width and the room', () => {
+    for (const choice of CHOICES) {
+      for (const windowWidth of everyWindow()) {
+        for (const chat of ASKED_WIDTHS) {
+          const { sidebar, chat: place, page } = layoutOf({ choice, windowWidth, chat })
+          const room = windowWidth - SIDEBAR_WIDTH[sidebar] - 640
+          if (room < 384) {
+            expect(place).toEqual(IN_PAGE)
+            continue
+          }
+          expect(place).toEqual(docked(Math.min(chat, room), Math.min(704, room)))
+          expect(SIDEBAR_WIDTH[sidebar] + page + Math.min(chat, room)).toBe(windowWidth)
+          expect(page).toBeGreaterThanOrEqual(640)
         }
       }
     }
+  })
+
+  it('gives way in order as the window narrows: the page down to 640 px, then the chat down to 384 px, then the chat takes the page', () => {
+    for (const choice of CHOICES) {
+      for (const chat of ASKED_WIDTHS) {
+        let wider = layoutOf({ choice, windowWidth: 2600, chat })
+        for (let windowWidth = 2599; windowWidth >= 360; windowWidth -= 1) {
+          const layout = layoutOf({ choice, windowWidth, chat })
+          if (layout.chat.at === 'dock') {
+            if (layout.chat.width < chat) expect(layout.page).toBe(640)
+            if (wider.chat.at === 'dock' && layout.sidebar === wider.sidebar) expect(layout.chat.width).toBeLessThanOrEqual(wider.chat.width)
+          }
+          if (wider.chat.at === 'page' && layout.sidebar === wider.sidebar) expect(layout.chat).toEqual(IN_PAGE)
+          wider = layout
+        }
+      }
+    }
+  })
+})
+
+describe('what the layout menu says under a choice', () => {
+  it.each<[string, SidebarChoice, number, number | null, Readonly<Record<SidebarChoice, RoomEffect | null>>]>([
+    ['an 800 px window', 'expanded', 800, null, { expanded: 'wider-window', icons: null, hidden: null }],
+    ['an 800 px window with the chat open', 'icons', 800, 384, { expanded: 'wider-window', icons: null, hidden: null }],
+    ['a 1,200 px window with icons and the chat docked', 'icons', 1200, 384, { expanded: 'chat-takes-page', icons: null, hidden: null }],
+    ['a 1,200 px window with the expanded sidebar and the chat in the page', 'expanded', 1200, 384, { expanded: null, icons: 'chat-beside-page', hidden: 'chat-beside-page' }],
+    ['a 1,440 px window with the chat docked', 'expanded', 1440, 704, { expanded: null, icons: null, hidden: null }],
+  ])('in %s', (_name, inForce, windowWidth, chat, said) => {
+    for (const picked of CHOICES) expect(roomEffectOf({ picked, inForce, windowWidth, chat })).toBe(said[picked])
+  })
+})
+
+describe('the page padding', () => {
+  it.each([
+    [1024, 'wide'],
+    [1023, 'roomy'],
+    [640, 'roomy'],
+    [639, 'phone'],
+  ] as const)('pads a %i px page column as %s', (page, inset) => {
+    expect(pageInsetOf(page)).toBe(inset)
   })
 })
 

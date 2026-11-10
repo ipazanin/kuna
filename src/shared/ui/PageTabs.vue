@@ -236,7 +236,7 @@ watch(
   .page-tabs :deep(.page-tabs-list),
   .page-tab-actions {
     position: sticky;
-    top: calc(3.5rem + env(safe-area-inset-top));
+    top: var(--top-bar-height);
     z-index: 10;
     grid-row: 1;
     background: color-mix(in srgb, var(--surface-page) 92%, transparent);

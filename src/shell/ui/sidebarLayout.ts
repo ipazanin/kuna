@@ -1,11 +1,12 @@
 import { readonly, ref } from 'vue'
 
-import { CHAT_MAX_WIDTH, chatWidthIn, PAGE_MIN_WIDTH } from '../../shared/ai/presentation/chatDock'
+import { CHAT_MAX_WIDTH, chatWidthIn } from '../../shared/ai/presentation/chatDock'
+import { PAGE_LEAST_WIDTH } from '../../shared/layout/viewport'
 
-/** How a person wants the sidebar from 1024 px: with names, as icons, or out of the way behind the top bar's menu button. */
+/** How a person wants the sidebar: with names, as icons, or out of the way behind the top bar's menu button. */
 export type SidebarChoice = 'expanded' | 'icons' | 'hidden'
 
-/** What the shell draws: the chosen sidebar, icons while the chat needs the room, or the top bar's drawer below 1024 px. */
+/** What the shell draws: the chosen sidebar, or the top bar's drawer while the window has no room for it beside the page. */
 export type SidebarForm = SidebarChoice | 'drawer'
 
 /** Where the open chat sits. Docked beside the page with its drawn width and the widest its handle may go, or in the page's place. */
@@ -14,10 +15,9 @@ export type ChatPlace = { readonly at: 'closed' } | { readonly at: 'page' } | { 
 export interface ShellLayout {
   readonly sidebar: SidebarForm
   readonly chat: ChatPlace
+  /** The page column's width in px. While the chat is in the page's place, the width the page comes back to. */
+  readonly page: number
 }
-
-/** The narrowest window that draws a sidebar. Narrower, the menu is the top bar's drawer and the choice waits. */
-export const SIDEBAR_FROM_WIDTH = 1024
 
 /** Each sidebar's width in px. Hidden and the drawer leave the top bar, which takes no width beside the page. */
 export const SIDEBAR_WIDTH: Readonly<Record<SidebarForm, number>> = { expanded: 240, icons: 56, hidden: 0, drawer: 0 }
@@ -41,7 +41,7 @@ function storedChoice(): SidebarChoice {
 
 const choice = ref<SidebarChoice>(storedChoice())
 
-/** The sidebar this device asked for. What is drawn also depends on the window and the chat, as `layoutOf` decides. */
+/** The sidebar this device asked for. What is drawn also depends on the window, as `layoutOf` decides. */
 export const sidebarChoice = readonly(choice)
 
 /** Keeps the sidebar choice on this device. Expanded is the default and forgets the choice. */
@@ -58,39 +58,63 @@ export function chooseSidebar(chosen: SidebarChoice): void {
   choice.value = chosen
 }
 
-/** How much room a dragged chat must leave beyond the expanded sidebar's need before it comes back from icons, so it does not flicker at the edge. */
-export const EXPANDED_RETURN_SLACK = 16
+/** The sidebar drawn for a window `windowWidth` px wide: the choice wherever it leaves the page its least, and the drawer otherwise. */
+function sidebarIn(chosen: SidebarChoice, windowWidth: number): SidebarForm {
+  return windowWidth >= SIDEBAR_WIDTH[chosen] + PAGE_LEAST_WIDTH ? chosen : 'drawer'
+}
+
+/** Whether some sidebar fits a window `windowWidth` px wide, so the layout menu has a choice to offer. */
+export function someSidebarFits(windowWidth: number): boolean {
+  return sidebarIn('icons', windowWidth) === 'icons'
+}
 
 /**
  * What the shell draws for a window `windowWidth` px wide, with `chat` the chat's asked width while it is open, or null.
- * The sidebar stays as chosen while it, the page at its smallest and the chat fit. An expanded sidebar otherwise shows as
- * icons while the chat is open, and the chat narrows to the room left, down to its smallest. With less room the chat
- * takes the page's place and the sidebar stays as chosen. The handle may widen the chat as far as the icons leave room,
- * so dragging moves between expanded and icons. `drawn` is the sidebar drawn a moment ago during a drag, so icons
- * turn back to expanded only with `EXPANDED_RETURN_SLACK` to spare.
+ * The window decides the sidebar, and the window and the sidebar decide the chat, so opening the chat never changes the
+ * sidebar. The chat docks in the room beside the page at its least, at its asked width or the room, and takes the page's
+ * place where that room is under its smallest. The page gets what is left.
  */
-export function layoutOf(asked: { readonly choice: SidebarChoice; readonly windowWidth: number; readonly chat: number | null; readonly drawn?: SidebarForm }): ShellLayout {
-  const { choice: chosen, windowWidth, chat, drawn } = asked
-  const sidebar: SidebarForm = windowWidth < SIDEBAR_FROM_WIDTH ? 'drawer' : chosen
-  if (chat === null) return { sidebar, chat: { at: 'closed' } }
+export function layoutOf(asked: { readonly choice: SidebarChoice; readonly windowWidth: number; readonly chat: number | null }): ShellLayout {
+  const { choice: chosen, windowWidth, chat } = asked
+  const sidebar = sidebarIn(chosen, windowWidth)
+  const beside = windowWidth - SIDEBAR_WIDTH[sidebar]
+  if (chat === null) return { sidebar, chat: { at: 'closed' }, page: beside }
 
-  const room = windowWidth - SIDEBAR_WIDTH[sidebar === 'expanded' ? 'icons' : sidebar] - PAGE_MIN_WIDTH
+  const room = beside - PAGE_LEAST_WIDTH
   const width = chatWidthIn(chat, room)
-  if (width === null) return { sidebar, chat: { at: 'page' } }
-
-  const spare = windowWidth - SIDEBAR_WIDTH.expanded - PAGE_MIN_WIDTH - width
-  const expandedFits = spare >= (drawn === 'icons' ? EXPANDED_RETURN_SLACK : 0)
-  return { sidebar: sidebar === 'expanded' && !expandedFits ? 'icons' : sidebar, chat: { at: 'dock', width, widest: Math.min(CHAT_MAX_WIDTH, room) } }
+  if (width === null) return { sidebar, chat: { at: 'page' }, page: beside }
+  return { sidebar, chat: { at: 'dock', width, widest: Math.min(CHAT_MAX_WIDTH, room) }, page: beside - width }
 }
 
-/** What the room rule does to a sidebar choice while the chat is open: the chat takes the page's place, or an expanded sidebar shows as icons. */
-export type RoomEffect = 'chat-takes-page' | 'icons-while-chat'
+/** What picking a sidebar choice changes beside the one in force: it waits for a wider window, or the open chat moves into the page's place or beside the page. */
+export type RoomEffect = 'wider-window' | 'chat-takes-page' | 'chat-beside-page'
 
-/** What choosing `picked` would change in how the shell draws, beside the choice in force, for a window `windowWidth` px wide and the chat's asked width `chat` while it is open, or null. */
+/**
+ * What the layout menu says under `picked` for a window `windowWidth` px wide, with `chat` the chat's asked width while it
+ * is open, or null. A choice too wide for the window says so even while in force, since it is why the drawer shows.
+ */
 export function roomEffectOf(asked: { readonly picked: SidebarChoice; readonly inForce: SidebarChoice; readonly windowWidth: number; readonly chat: number | null }): RoomEffect | null {
   const { picked, inForce, windowWidth, chat } = asked
-  const docked = layoutOf({ choice: inForce, windowWidth, chat }).chat.at === 'dock'
   const pickedLayout = layoutOf({ choice: picked, windowWidth, chat })
-  if (docked && pickedLayout.chat.at === 'page') return 'chat-takes-page'
-  return picked === 'expanded' && pickedLayout.sidebar === 'icons' ? 'icons-while-chat' : null
+  if (pickedLayout.sidebar === 'drawer') return 'wider-window'
+  const before = layoutOf({ choice: inForce, windowWidth, chat }).chat.at
+  if (before === 'dock' && pickedLayout.chat.at === 'page') return 'chat-takes-page'
+  if (before === 'page' && pickedLayout.chat.at === 'dock') return 'chat-beside-page'
+  return null
+}
+
+/** The page's padding steps by the page column's width, so a page beside a sidebar is padded as a window of its width. */
+export type PageInset = 'phone' | 'roomy' | 'wide'
+
+/** Each page inset's padding in px, on either side and at the top. On a phone app.css draws it, with the safe areas. */
+export const PAGE_INSET: Readonly<Record<PageInset, { readonly inline: number; readonly top: number }>> = {
+  phone: { inline: 16, top: 16 },
+  roomy: { inline: 24, top: 24 },
+  wide: { inline: 40, top: 36 },
+}
+
+/** The padding a page column `page` px wide takes: wide from 1,024 px, roomy from the page's least and the phone's below. */
+export function pageInsetOf(page: number): PageInset {
+  if (page >= 1024) return 'wide'
+  return page >= PAGE_LEAST_WIDTH ? 'roomy' : 'phone'
 }

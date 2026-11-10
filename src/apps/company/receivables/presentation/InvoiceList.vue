@@ -57,7 +57,7 @@ const STATUS = {
 </script>
 
 <template>
-  <ul class="flex flex-col" data-testid="invoice-list">
+  <ul class="flex flex-col @container" data-testid="invoice-list">
     <li v-for="invoice in invoices" :key="invoice.id" class="invoice-row">
       <div class="invoice-head">
         <div class="invoice-id min-w-0">
@@ -173,7 +173,7 @@ const STATUS = {
   box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
-@media (max-width: 767px) {
+@container (width < 45rem) {
   .invoice-head {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:

@@ -137,7 +137,7 @@ export function kunaOperations(device: KunaDevice): readonly AssistantOperation[
     {
       name: 'set-sidebar-layout',
       about:
-        'How the sidebar shows on this device from 1024 px. expanded shows page names beside the icons. icons shows only icons. hidden leaves the sidebar out and puts its menu behind a button on the top bar. While the chat is open and the window is short of room, expanded shows as icons, and the card says so.',
+        'How the sidebar shows on this device. expanded shows page names beside the icons. icons shows only icons. hidden leaves the sidebar out and puts its menu behind a button on the top bar. A sidebar shows only in a window with room for it beside the page, and opening the chat never changes it. The card says when the choice waits for a wider window or moves the chat.',
       input: inputOf({ layout: { type: 'string', enum: SIDEBARS, description: 'expanded, icons or hidden.' } }),
       refs: {},
       creates: null,
@@ -247,10 +247,6 @@ function sidebarName(choice: SidebarChoice): string {
   return shellWords.sidebarLayout[choice]
 }
 
-function roomEffectText(effect: RoomEffect): string {
-  return effect === 'chat-takes-page' ? shellWords.sidebarLayout.chatTakesPage : shellWords.sidebarLayout.iconsWhileChat
-}
-
 function homeName(home: FilesHome): string {
   return home === 'drive' ? words.home.drive : words.home.browser
 }
@@ -281,7 +277,7 @@ function groupsOf(device: KunaDevice, changes: readonly DeviceChange[]): readonl
   })
   const added = changes.flatMap((change) => (isAdding(change) ? change.added.map((id) => ({ label: device.apps().find((app) => app.id === id)?.name ?? id, fields: [], warning: null })) : []))
   const notes = changes.flatMap((change) =>
-    change.setting === 'sidebar' && change.effect !== null ? [{ label: shellWords.sidebarLayout.name, text: roomEffectText(change.effect), tone: 'neutral' as const }] : [],
+    change.setting === 'sidebar' && change.effect !== null ? [{ label: shellWords.sidebarLayout.name, text: shellWords.sidebarLayout.effects[change.effect], tone: 'neutral' as const }] : [],
   )
   return [
     ...(fields.length === 0 ? [] : [{ verb: 'change' as const, noun: DEVICE_SETTING, notes, lines: [{ label: words.thisDevice, fields, warning: null }] }]),

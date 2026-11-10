@@ -31,13 +31,13 @@ export interface AssetTotals {
 </script>
 
 <script setup lang="ts">
-import { useMediaQuery } from '../../../../../../shared/layout/viewport'
+import { roomAtLeast } from '../../../../../../shared/layout/pageRoom'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
 
-/** The assets tab with what the books make of each asset: a table on a wide screen, one card per asset below 1440 px, where ten columns do not fit beside the sidebar. */
+/** The assets tab with what the books make of each asset: a table where the page has 70rem, and one card per asset below it, where ten columns do not fit. */
 defineProps<{
   lines: readonly AssetLine[]
   totals: AssetTotals
@@ -45,11 +45,11 @@ defineProps<{
   today: string
 }>()
 
-const narrow = useMediaQuery('(max-width: 1439px)')
+const tableFits = roomAtLeast(70)
 </script>
 
 <template>
-  <div v-if="narrow" class="flex flex-col gap-2">
+  <div v-if="!tableFits" class="flex flex-col gap-2">
     <ul class="grid gap-2 sm:grid-cols-2" data-testid="asset-register">
       <li v-for="line in lines" :key="line.key" class="rounded-control border border-default px-3 py-2.5">
         <div class="flex items-start justify-between gap-3">

@@ -1,8 +1,13 @@
 import { onScopeDispose, readonly, ref, watch } from 'vue'
 import type { Ref } from 'vue'
 
-/** Below Tailwind's `sm` breakpoint: the phone layout, with its top app bar, drawer, sheets and cards. */
-export const PHONE_QUERY = '(max-width: 639px)'
+/** Tailwind's `sm` breakpoint. Below it is the phone layout, with its top app bar, drawer, sheets and cards. */
+export const PHONE_BELOW = 640
+
+/** The narrowest a page ever gets. A sidebar or a docked chat shows only where it leaves the page this much. */
+export const PAGE_LEAST_WIDTH = 640
+
+const PHONE_QUERY = `(max-width: ${PHONE_BELOW - 1}px)`
 
 /** Whether a media query matches, kept current until the calling component or scope goes away. */
 export function useMediaQuery(query: string): Readonly<Ref<boolean>> {
@@ -16,11 +21,16 @@ export function useMediaQuery(query: string): Readonly<Ref<boolean>> {
   return readonly(matches)
 }
 
-/** The window's width in px, kept current until the calling component or scope goes away. */
+/** The width the window lays a page out in, without a classic scrollbar's gutter. */
+export function windowWidthNow(): number {
+  return document.documentElement.clientWidth
+}
+
+/** The window's width in px as `windowWidthNow` reads it, kept current until the calling component or scope goes away. */
 export function useWindowWidth(): Readonly<Ref<number>> {
-  const width = ref(window.innerWidth)
+  const width = ref(windowWidthNow())
   const follow = (): void => {
-    width.value = window.innerWidth
+    width.value = windowWidthNow()
   }
   window.addEventListener('resize', follow)
   onScopeDispose(() => window.removeEventListener('resize', follow))

@@ -105,8 +105,8 @@ const uiLocale = language === 'hr' ? hr : en_gb
         <ScreenSkeleton v-if="screenLoading || !Component" />
         <component :is="Component" v-else />
       </RouterView>
-      <template #navigation="{ rail, chat }">
-        <ScreenNavigation :navigation="navigation" :rail="rail" :chat="chat" @toggle="togglePages" @open="openApp = $event" />
+      <template #navigation="{ rail, chat, drawer }">
+        <ScreenNavigation :navigation="navigation" :rail="rail" :chat="chat" :drawer="drawer" @toggle="togglePages" @open="openApp = $event" />
       </template>
       <template #chat>
         <ChatPanel :app="appOnScreen" :screen="screenName" :path="route.path" :query="route.query" :apps="installedApps()" :kuna="KUNA_CHAT" />

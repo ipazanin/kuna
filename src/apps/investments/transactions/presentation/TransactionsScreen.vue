@@ -17,7 +17,7 @@ import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { useMediaQuery } from '../../../../shared/layout/viewport'
+import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import { fold } from '../../../../shared/text/fold'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -30,7 +30,7 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 /** Every record of the Investments file, newest first by month, found by kind, account, holding and words, each opening its dialog. */
 const { state } = useInvestmentsBooks()
 const { sources } = usePortfolio()
-const wide = useMediaQuery('(min-width: 768px)')
+const wide = roomAtLeast(45)
 
 /** Every filter's "all" choice, since a select cannot hold null. */
 const ALL = 'all'

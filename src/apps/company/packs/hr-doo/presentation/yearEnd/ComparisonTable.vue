@@ -33,7 +33,7 @@ export interface ComparisonRow {
 import { computed, ref } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
-import { useMediaQuery } from '../../../../../../shared/layout/viewport'
+import { roomAtLeast } from '../../../../../../shared/layout/pageRoom'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import LineBuildUp from './LineBuildUp.vue'
@@ -43,8 +43,8 @@ import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
 
 /**
- * The accountant's lines of one statement beside ours: a table on a wide screen, one card per line
- * below 1440 px, where eight columns do not fit beside the sidebar. Each line opens on how ours is built.
+ * The accountant's lines of one statement beside ours: a table where the page has 70rem, and one card per line
+ * below it, where eight columns do not fit. Each line opens on how ours is built.
  */
 const props = defineProps<{
   rows: readonly ComparisonRow[]
@@ -54,7 +54,7 @@ const props = defineProps<{
 /** A statement the cash view has no figure for, such as the PD return, leaves out its two cash columns. */
 const hasCash = computed(() => props.rows.some((row) => row.cash !== null))
 
-const narrow = useMediaQuery('(max-width: 1439px)')
+const tableFits = roomAtLeast(70)
 const open = ref(new Set<string>())
 
 /** The table cell names this many adjustments, and the opened line all of them. */
@@ -74,7 +74,7 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
 </script>
 
 <template>
-  <ul v-if="narrow" class="grid grid-cols-[minmax(0,1fr)] gap-2 @2xl:grid-cols-2" :data-testid="testId">
+  <ul v-if="!tableFits" class="grid grid-cols-[minmax(0,1fr)] gap-2 @2xl:grid-cols-2" :data-testid="testId">
     <li v-for="row in rows" :key="row.key" class="flex min-w-0 flex-col rounded-control border border-default px-3 py-2.5" :data-status="row.status">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">

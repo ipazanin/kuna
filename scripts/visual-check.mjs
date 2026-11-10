@@ -25,7 +25,8 @@
  *
  * With saves that take seconds (`?fake=slow-writes`) the loan bucket switch on Settings and the benchmark select on Investments, Settings move at once, grayed with a
  * spinner, in Croatian too, and what is typed in the Settings form survives the switch's save.
- * With a key kept, every app shows with the chat open (`?chat=1`), docked from 1416 px and in the page's place below. A flow asks in
+ * With a key kept, every app shows with the chat open (`?chat=1`), docked where it leaves the page 640 px and in the page's place below.
+ * Every screen is also checked at 1,264, 1,390 and 1,920 px with the expanded sidebar and the chat docked. A flow asks in
  * English and Croatian, answers the dialog, follows the link the fake model shows, and a second one tags an element from the gallery.
  * Another flags a payee as a person on its Spending entry, lets the chat read Spending from its card and opens the exact text sent,
  * with that person's alias and the IBAN masked, and again with Anonymise off. A proposal shows its card with Accept and one Undo.
@@ -209,6 +210,7 @@ import { averageCostText } from '../src/apps/investments/holdings/presentation/h
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
 import { fetchedFactsBook } from '../src/apps/investments/prices/domain/factsBook.ts'
 import { FAKE_KEY_SAVED_AT } from '../src/shared/secrets/infrastructure/fake/fakeSecrets.ts'
+import { PROVIDER_PRESETS } from '../src/shared/ai/domain/providerPresets.ts'
 import { incomeByYear } from '../src/apps/investments/income/domain/incomeHistory.ts'
 import { investingRhythm } from '../src/apps/investments/income/domain/investingRhythm.ts'
 import { foreignIncomeYear } from '../src/apps/investments/tax/domain/foreignIncome.ts'
@@ -511,7 +513,7 @@ import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { MADE_UP_ANTHROPIC_KEY } from './support/chatFlows.mjs'
 import { SAMPLE_DAY, writeFlexReportSamples, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
-import { chatResizeFlow, menuLitFlow, quickJumpFlowIn, sidebarRoomWarningFlowIn, sidebarStateFlowIn, skipLinkFlow } from './support/shellFlows.mjs'
+import { chatResizeFlow, menuLitFlow, quickJumpFlowIn, shellSqueezeFlow, sidebarRoomWarningFlowIn, sidebarStateFlowIn, skipLinkFlow } from './support/shellFlows.mjs'
 import { writeClosesSamples } from './support/closesSampleFiles.mjs'
 import { writeWorkbookSamples } from './support/workbookSampleFile.mjs'
 import { runSelection } from './support/runSelection.mjs'
@@ -535,6 +537,10 @@ const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900, alignedCards: true, cardFlow: true },
   { name: 'wide', width: 1920, height: 1080, alignedCards: true, theme: 'dark' },
   { name: 'wider', width: 2560, height: 1440, alignedCards: true, theme: 'light' },
+  // The expanded sidebar beside the docked chat: at its narrowest, where the owner first met it, and on a wide monitor.
+  { name: 'docked-narrowest', width: 1264, height: 900, alignedCards: true, theme: 'light', chatDocked: true },
+  { name: 'docked-laptop', width: 1390, height: 900, alignedCards: true, theme: 'dark', chatDocked: true },
+  { name: 'docked-wide', width: 1920, height: 1080, alignedCards: true, theme: 'light', chatDocked: true },
 ]
 
 const selection = runSelection(VIEWPORTS.map((viewport) => viewport.width))
@@ -1460,6 +1466,7 @@ const SCREENS = [
   },
   {
     name: 'kuna-settings',
+    keyless: true,
     hash: '#/settings',
     title: 'Kuna settings',
     charts: 0,
@@ -1479,6 +1486,7 @@ const SCREENS = [
   },
   {
     name: 'kuna-settings-croatian',
+    keyless: true,
     query: 'lang=hr',
     hash: '#/settings',
     title: 'Postavke Kune',
@@ -1668,6 +1676,7 @@ const SCREENS = [
   },
   {
     name: 'company-settings-assist-no-key',
+    keyless: true,
     hash: '#/company/settings?tab=assistant',
     title: 'Settings',
     charts: 0,
@@ -1677,6 +1686,7 @@ const SCREENS = [
   },
   {
     name: 'company-settings-assist-no-key-croatian',
+    keyless: true,
     query: 'lang=hr',
     hash: '#/company/settings?tab=assistant',
     title: 'Postavke',
@@ -3175,6 +3185,7 @@ const SOURCE_SCREENS = [
   },
   {
     name: 'spending-settings-assist-no-key',
+    keyless: true,
     query: 'spending=drive',
     hash: '#/spending/settings?tab=assistant',
     title: 'Settings',
@@ -3185,6 +3196,7 @@ const SOURCE_SCREENS = [
   },
   {
     name: 'spending-settings-assist-no-key-croatian',
+    keyless: true,
     query: 'spending=drive&lang=hr',
     hash: '#/spending/settings?tab=assistant',
     title: 'Postavke',
@@ -4495,24 +4507,25 @@ const VISITS = [
 
 /**
  * The only cards that may scroll sideways: editors whose every column is an input, on a phone, and the grid of monthly
- * returns, which reads as a table. Each names its card, the widest viewport it may scroll at, and why.
+ * returns, which reads as a table. Each names its card, the widest content room in px it may scroll at, and why. The room
+ * is what the shell gives the page's content, so a docked chat or a sidebar narrows it as a narrower window does.
  */
 const SIDEWAYS_SCROLL_ALLOWED = [
   {
     card: 'settings.categories',
-    upTo: Infinity,
+    roomUpTo: Infinity,
     reason: 'Seven input columns at their narrowest are wider than the 100rem measure the Settings screen keeps.',
   },
-  { card: 'settings.accounts', upTo: 1024, reason: 'Every column is an input, and they fit beside each other only from 1280 px.' },
-  { card: 'invoicing.clients', upTo: Infinity, reason: 'Nine input columns, with the invoice details, are wider than any card.' },
-  { card: 'year.asset-rows', upTo: Infinity, reason: 'Ten input columns are wider than the 100rem measure the Year screen keeps.' },
-  { card: 'year.grant-rows', upTo: Infinity, reason: 'Twelve input columns are wider than the 100rem measure the Year screen keeps.' },
-  { card: 'year.accountant-lines', upTo: Infinity, reason: 'Nine input columns are wider than the 100rem measure the Year screen keeps.' },
-  { card: 'salaries.employees', upTo: Infinity, reason: 'Eleven input columns are wider than the 100rem measure the Salaries screen keeps.' },
+  { card: 'settings.accounts', roomUpTo: 959, reason: 'Every column is an input, and they fit beside each other only from 960 px of content.' },
+  { card: 'invoicing.clients', roomUpTo: Infinity, reason: 'Nine input columns, with the invoice details, are wider than any card.' },
+  { card: 'year.asset-rows', roomUpTo: Infinity, reason: 'Ten input columns are wider than the 100rem measure the Year screen keeps.' },
+  { card: 'year.grant-rows', roomUpTo: Infinity, reason: 'Twelve input columns are wider than the 100rem measure the Year screen keeps.' },
+  { card: 'year.accountant-lines', roomUpTo: Infinity, reason: 'Nine input columns are wider than the 100rem measure the Year screen keeps.' },
+  { card: 'salaries.employees', roomUpTo: Infinity, reason: 'Eleven input columns are wider than the 100rem measure the Salaries screen keeps.' },
   {
     card: 'investments.performance.months',
-    upTo: 1440,
-    reason: 'Fourteen columns of signed figures with two decimals, a year and its twelve months, are wider than the card in Croatian up to 1440 px.',
+    roomUpTo: 1120,
+    reason: 'Fourteen columns of signed figures with two decimals, a year and its twelve months, are wider than the card in Croatian up to 1120 px of content.',
   },
 ]
 
@@ -4531,6 +4544,15 @@ const overflowSeen = []
 const REFLOW_WIDTHS = [768, 1440, 1920]
 /** The dashboard grids each screen showed and the container steps its styles had, by its name and the width, such as `overview 1440`. */
 const dashboardGridsSeen = new Map()
+
+/** The visit's address with the chat opened by its query, beside any query the screen has and before a link to a part. */
+function withChatOpen(hash) {
+  const [address, part] = hash.slice(1).split('#')
+  const [path, search] = address.split('?')
+  const query = new URLSearchParams(search ?? '')
+  query.set('chat', '1')
+  return `#${path}?${query}${part === undefined ? '' : `#${part}`}`
+}
 
 /** Whether a visit's query pins Croatian, so the screen is scanned for English left on it. */
 function inCroatian(query) {
@@ -4570,6 +4592,7 @@ function readPage(page) {
     return {
       scrollWidth: doc.scrollWidth,
       clientWidth: doc.clientWidth,
+      contentRoom: Math.round(document.querySelector('main > div')?.getBoundingClientRect().width ?? 0),
       overflowing: [...new Set(overflowing)].slice(0, 6),
       title: document.querySelector('[data-testid="screen-title"]')?.textContent?.trim() ?? null,
       chartHeights: [...document.querySelectorAll('.chart-body canvas')]
@@ -4884,7 +4907,7 @@ const FLEX_REPORT_SAMPLES = writeFlexReportSamples(SCREENSHOT_DIR)
 const CLOSES_SAMPLES = writeClosesSamples(SCREENSHOT_DIR)
 
 /** The dialog flows run at every width, so the uneven form row rule sees each dialog as every width lays it out. */
-const EVERY_VIEWPORT = VIEWPORTS.map((viewport) => viewport.name)
+const EVERY_VIEWPORT = VIEWPORTS.filter((viewport) => !viewport.chatDocked).map((viewport) => viewport.name)
 /** The menu flows run at the widths where a menu's text wraps differently, so the text overlap rule sees every picker open. */
 const MENU_VIEWPORTS = ['phone', 'small-tablet', 'tablet-wide', 'desktop']
 /** The widths where the sidebar's states and the docked chat trade room. */
@@ -7646,6 +7669,7 @@ const FLOWS = [
   { name: 'sidebar-room-warning', hash: '#/company', title: 'Overview', run: sidebarRoomWarningFlowIn('en'), viewports: ['desktop'], modes: ['drive'], queries: { drive: '' } },
   { name: 'sidebar-room-warning-croatian', hash: '#/company', title: 'Pregled', run: sidebarRoomWarningFlowIn('hr'), viewports: ['desktop'], modes: ['drive'], queries: { drive: '&lang=hr' } },
   { name: 'chat-resize', hash: '#/company', title: 'Overview', run: chatResizeFlow(), viewports: ['wide'], modes: ['drive'], queries: { drive: '' } },
+  { name: 'shell-squeeze', hash: '#/company', title: 'Overview', run: shellSqueezeFlow(), viewports: ['wide'], modes: ['drive'], queries: { drive: '' } },
   {
     name: 'menu-lit',
     hash: '#/company',
@@ -7813,6 +7837,8 @@ let checked = 0
 for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
   for (const visit of visits) {
     if (!selection.takesTheme(visit.theme, viewport.theme)) continue
+    // A screen that shows what Kuna says without an AI key has no chat to dock.
+    if (viewport.chatDocked && visit.keyless) continue
     const scope = `${viewport.name} ${visit.name}`
     const context = await browser.createBrowserContext()
     const page = await context.newPage()
@@ -7820,10 +7846,13 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     const foreignRequests = watchForForeignRequests(page)
 
     if (visit.linkedRule || visit.linkedPart) await slowWebFonts(page)
-    if (visit.stored) {
+    // A docked chat needs a key. A visit that keeps a key of its own keeps it alone, so its company stays the one in use.
+    const aiKeyKept = PROVIDER_PRESETS.some((preset) => `kuna.secret.${preset.id}` in (visit.stored ?? {}))
+    const stored = viewport.chatDocked && !aiKeyKept ? { 'kuna.secret.anthropic': MADE_UP_ANTHROPIC_KEY, ...visit.stored } : visit.stored
+    if (stored) {
       await page.evaluateOnNewDocument((entries) => {
         for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, value)
-      }, visit.stored)
+      }, stored)
     }
     if (visit.collapsedBefore || visit.expandedBefore) {
       await page.evaluateOnNewDocument(
@@ -7838,7 +7867,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     await page.setViewport({ width: viewport.width, height: viewport.height })
     // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
-    await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${visit.hash}`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
 
     const drawsCharts = visit.gallery || visit.charts > 0
     const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
@@ -7892,6 +7921,9 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     }
 
     const report = await readPage(page)
+    // A first run draws without the shell, so it has no chat to dock.
+    const framed = (await page.$('[data-testid="app-shell"]')) !== null
+    if (viewport.chatDocked && rendered && framed && (await page.$('[data-testid="chat-dock"]')) === null) fail(scope, 'the chat did not dock beside the page')
     if (inCroatian(visit.query)) for (const english of await englishLeftOn(page)) fail(scope, english)
     for (const overlap of await textOverlapsOn(page)) fail(scope, overlap)
     if (!rendered) fail(scope, `nothing matched ${ready} within 10 s`)
@@ -7915,13 +7947,13 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
     for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
     for (const donut of report.crowdedDonuts) fail(scope, donut)
-    if (REFLOW_WIDTHS.includes(viewport.width)) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
+    if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
     if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
       for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
     }
     for (const wide of report.cardOverflow) {
-      const allowed = SIDEWAYS_SCROLL_ALLOWED.find((entry) => entry.card === wide.card && viewport.width <= entry.upTo)
-      overflowSeen.push({ viewport: viewport.width, screen: visit.name, theme: visit.theme, ...wide, allowed: allowed !== undefined })
+      const allowed = SIDEWAYS_SCROLL_ALLOWED.find((entry) => entry.card === wide.card && report.contentRoom <= entry.roomUpTo)
+      overflowSeen.push({ viewport: viewport.width, room: report.contentRoom, screen: visit.name, theme: visit.theme, ...wide, allowed: allowed !== undefined })
       if (!allowed) fail(scope, `"${wide.title}" is ${wide.content} px wide inside a ${wide.width} px card, by ${wide.by}`)
     }
     if (report.unrenderedIcons) fail(scope, `${report.unrenderedIcons} icon(s) did not render`)
@@ -8060,7 +8092,9 @@ if (checked === 0) fail(selection.summary(), 'checked nothing, since none of the
 if (overflowSeen.length) {
   console.log('\ncards wider than their content:')
   for (const seen of overflowSeen) {
-    console.log(`  ${String(seen.viewport).padStart(4)}px ${seen.screen} ${seen.theme}: "${seen.title}" ${seen.content} in ${seen.width} px, by ${seen.by}${seen.allowed ? ' (allowed)' : ''}`)
+    console.log(
+      `  ${String(seen.viewport).padStart(4)}px, ${seen.room} px of content, ${seen.screen} ${seen.theme}: "${seen.title}" ${seen.content} in ${seen.width} px, by ${seen.by}${seen.allowed ? ' (allowed)' : ''}`,
+    )
   }
 }
 

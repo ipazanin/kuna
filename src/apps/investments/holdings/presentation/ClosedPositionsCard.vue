@@ -8,7 +8,7 @@ import { holdingLink } from './holdingLinks'
 import { QUANTITY_PLACES, listingLine } from './holdingText'
 import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { useMediaQuery } from '../../../../shared/layout/viewport'
+import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import { sumMoney } from '../../../../shared/money/money'
 import { formatMoney, formatPercent, formatQuantity } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
@@ -25,7 +25,7 @@ const props = defineProps<{
   positions: readonly ClosedPosition[]
 }>()
 
-const wide = useMediaQuery('(min-width: 768px)')
+const wide = roomAtLeast(45)
 const sort = ref<ClosedSort | null>(null)
 const expanded = ref(false)
 

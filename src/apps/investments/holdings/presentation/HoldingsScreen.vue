@@ -32,7 +32,7 @@ import { words } from './words'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
-import { useMediaQuery } from '../../../../shared/layout/viewport'
+import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
 import { formatMoney, formatPercent, formatShare } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
@@ -52,7 +52,7 @@ const { state } = useInvestmentsBooks()
 const { sources, figures: today, facts } = usePortfolio()
 const route = useRoute()
 const router = useRouter()
-const wide = useMediaQuery('(min-width: 768px)')
+const wide = roomAtLeast(45)
 
 const find = ref('')
 const sort = ref<HoldingsSort | null>(null)

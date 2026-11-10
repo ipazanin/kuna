@@ -117,12 +117,12 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
 
 <style scoped>
 /*
- * The bar stays in reach while the screen scrolls: under the top bar on a tablet, at the very top
- * beside the sidebar on a desktop. Its height never depends on the chips, so nothing below jumps.
+ * The bar stays in reach while the screen scrolls: under the top bar, or at the very top beside
+ * the sidebar. Its height never depends on the chips, so nothing below jumps.
  */
 .filter-bar {
   position: sticky;
-  top: 3.5rem;
+  top: var(--top-bar-height);
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -131,11 +131,5 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
   padding: 0.5rem;
   background: color-mix(in srgb, var(--surface-page) 92%, transparent);
   backdrop-filter: blur(10px);
-}
-
-@media (min-width: 1024px) {
-  .filter-bar {
-    top: 0;
-  }
 }
 </style>

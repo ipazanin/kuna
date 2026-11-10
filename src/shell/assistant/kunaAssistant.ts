@@ -6,6 +6,7 @@ import { autoSyncOn, switchAutoSync } from '../../shared/sync/infrastructure/aut
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import { chooseLanguage, languageChoice } from '../../shared/text/language'
 import { chooseTheme, themeChoice } from '../../shared/theme/theme'
+import { windowWidthNow } from '../../shared/layout/viewport'
 import { foldedCards, rememberCollapse } from '../../shared/ui/cardCollapse'
 import { installedApps } from '../routing/appRegistry'
 import { kunaAcceptance, kunaProposer } from './kunaOperations'
@@ -42,7 +43,7 @@ const DEVICE: KunaDevice = {
   foldCard: rememberCollapse,
   sidebar: () => sidebarChoice.value,
   chooseSidebar,
-  roomEffect: (picked) => roomEffectOf({ picked, inForce: sidebarChoice.value, windowWidth: window.innerWidth, chat: chatOpen.value ? chatWidth.value : null }),
+  roomEffect: (picked) => roomEffectOf({ picked, inForce: sidebarChoice.value, windowWidth: windowWidthNow(), chat: chatOpen.value ? chatWidth.value : null }),
   chatWidths: { least: CHAT_MIN_WIDTH, most: CHAT_MAX_WIDTH, reset: CHAT_DEFAULT_WIDTH },
   chatWidth: () => chatWidth.value,
   resizeChat,

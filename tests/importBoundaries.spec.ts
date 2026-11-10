@@ -506,6 +506,7 @@ describe('import boundaries', () => {
         'src/shared/ai/presentation/chatDock.ts',
         'src/shared/ai/presentation/chatSession.ts',
         'src/shared/app/kunaStart.ts',
+        'src/shared/layout/viewport.ts',
         'src/shared/sync/infrastructure/autoSyncSwitch.ts',
         'src/shared/sync/presentation/pageSync.ts',
         'src/shared/text/language.ts',

@@ -222,14 +222,14 @@ describe("Kuna's own operations", () => {
     expect((await answer).text).toBe(words.refused.noneFolded)
   })
 
-  it('sets the sidebar layout, says when the room rule draws it differently, and Undo puts the old layout back', async () => {
+  it('sets the sidebar layout, says when it waits for a wider window, and Undo puts the old layout back', async () => {
     const { held, device } = fakeDevice()
     held.sidebar = 'hidden'
-    held.roomEffect = 'icons-while-chat'
+    held.roomEffect = 'wider-window'
     const { answer, cards } = propose(device, [{ op: 'set-sidebar-layout', input: { layout: 'expanded' } }])
     await answer
 
-    expect(cards[0]!.groups[0]!.notes).toEqual([{ label: shellWords.sidebarLayout.name, text: shellWords.sidebarLayout.iconsWhileChat, tone: 'neutral' }])
+    expect(cards[0]!.groups[0]!.notes).toEqual([{ label: shellWords.sidebarLayout.name, text: shellWords.sidebarLayout.effects['wider-window'], tone: 'neutral' }])
     const done = await kunaAcceptance(device).accept(cards[0]!)
     expect(held.sidebar).toBe('expanded')
     if (done.kind !== 'done' || done.undo === null) throw new Error('No Undo')

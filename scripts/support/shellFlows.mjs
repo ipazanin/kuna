@@ -1,14 +1,15 @@
 /**
  * The shell's own flows that the visual, touch and Firefox checks share: the three sidebar states with and without the
- * docked chat, the chat's edge, the lit parent of a detail screen, the skip link and Jump to a page. `press` clicks or
- * taps an element handle. A failure throws with what was wrong.
+ * docked chat, the layout menu's notes, the chat's edge, the window squeezed from wide to a phone, the lit parent of a
+ * detail screen, the skip link and Jump to a page. `press` clicks or taps an element handle. A failure throws with what was wrong.
  */
 
 import { en as appEnglish, hr as appCroatian } from '../../src/shared/app/words.ts'
 import { CHAT_MIN_WIDTH } from '../../src/shared/ai/presentation/chatDock.ts'
-import { layoutOf, SIDEBAR_WIDTH } from '../../src/shell/ui/sidebarLayout.ts'
+import { PAGE_LEAST_WIDTH } from '../../src/shared/layout/viewport.ts'
+import { layoutOf, roomEffectOf, SIDEBAR_WIDTH } from '../../src/shell/ui/sidebarLayout.ts'
 import { en as shellEnglish, hr as shellCroatian } from '../../src/shell/ui/words.ts'
-import { MADE_UP_ANTHROPIC_KEY } from './chatFlows.mjs'
+import { allowIfAsked, MADE_UP_ANTHROPIC_KEY, sendInChat } from './chatFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 
 const SHELL_WORDS = { en: shellEnglish, hr: shellCroatian }
@@ -22,7 +23,7 @@ function shellState(page) {
       return element === null ? null : Math.round(element.getBoundingClientRect().width)
     }
     return {
-      windowWidth: window.innerWidth,
+      windowWidth: document.documentElement.clientWidth,
       sidebar: document.querySelector('[data-testid="app-shell"]')?.dataset.sidebar ?? null,
       aside: width('aside[data-testid="sidebar"]'),
       dock: width('[data-testid="chat-dock"]'),
@@ -39,10 +40,24 @@ async function drawsAsDecided(page, choice, chat) {
   const decided = layoutOf({ choice, windowWidth: drawn.windowWidth, chat })
   const asideWidth = decided.sidebar === 'expanded' || decided.sidebar === 'icons' ? SIDEBAR_WIDTH[decided.sidebar] : null
   const dockWidth = decided.chat.at === 'dock' ? decided.chat.width : null
-  if (drawn.sidebar !== decided.sidebar || drawn.aside !== asideWidth || drawn.dock !== dockWidth || drawn.pane !== (decided.chat.at === 'page'))
+  const pageWidth = decided.chat.at === 'page' ? null : decided.page
+  if (drawn.sidebar !== decided.sidebar || drawn.aside !== asideWidth || drawn.dock !== dockWidth || drawn.pane !== (decided.chat.at === 'page') || drawn.main !== pageWidth)
     throw new Error(`at ${drawn.windowWidth} px with ${choice} and the chat ${chat ?? 'closed'} the shell drew ${JSON.stringify(drawn)}, not ${JSON.stringify(decided)}`)
-  if (dockWidth !== null && drawn.main < 976) throw new Error(`the page beside the docked chat is ${drawn.main} px, under 976`)
+  if (dockWidth !== null && drawn.main < PAGE_LEAST_WIDTH) throw new Error(`the page beside the docked chat is ${drawn.main} px, under ${PAGE_LEAST_WIDTH}`)
   return drawn
+}
+
+/** Fails unless every item of the open layout menu says what `roomEffectOf` says picking it changes, and nothing where it changes nothing. */
+function menuSaysWhatChanges(items, words, inForce, windowWidth, chat) {
+  for (const picked of ['expanded', 'icons', 'hidden']) {
+    const item = items.find((shown) => shown.text.startsWith(words.sidebarLayout[picked]))
+    const effect = roomEffectOf({ picked, inForce, windowWidth, chat })
+    const said = Object.entries(words.sidebarLayout.effects)
+      .filter(([, text]) => item?.text.includes(text))
+      .map(([name]) => name)
+    if (said.join() !== (effect ?? ''))
+      throw new Error(`at ${windowWidth} px with ${inForce} and the chat ${chat ?? 'closed'}, ${picked} says ${JSON.stringify(item?.text)}, not ${effect ?? 'nothing'}`)
+  }
 }
 
 async function keepChoices(page, stored) {
@@ -149,8 +164,8 @@ async function topBarHoldsTheWayBack(page, press) {
 }
 
 /**
- * One sidebar choice at this width, with the chat docked or not, walked as a person would. With the chat, the layout
- * menu says when the room shows the expanded sidebar as icons, and checks exactly one item.
+ * One sidebar choice at this width, with the chat open or not, walked as a person would. The layout menu checks exactly
+ * one item and says under each what picking it changes.
  */
 export function sidebarStateFlowIn(choice, { chat = false, language = 'en' } = {}) {
   const words = SHELL_WORDS[language]
@@ -168,10 +183,7 @@ export function sidebarStateFlowIn(choice, { chat = false, language = 'en' } = {
         const items = await layoutMenuItems(page, press)
         if (items.filter((item) => item.checked).length !== 1 || !items.find((item) => item.checked)?.text.startsWith(words.sidebarLayout[choice]))
           throw new Error(`the layout menu does not check ${choice} alone: ${JSON.stringify(items)}`)
-        const expanded = items.find((item) => item.text.startsWith(words.sidebarLayout.expanded))
-        const squeezed = chat && layoutOf({ choice: 'expanded', windowWidth: drawn.windowWidth, chat: CHAT_MIN_WIDTH }).sidebar === 'icons'
-        if (squeezed !== expanded.text.includes(words.sidebarLayout.iconsWhileChat))
-          throw new Error(`Expanded says "${expanded.text}" with the chat ${chat ? 'open' : 'closed'} at ${drawn.windowWidth} px`)
+        menuSaysWhatChanges(items, words, choice, drawn.windowWidth, chat ? CHAT_MIN_WIDTH : null)
         await shoot('menu')
         await closeMenu(page)
       }
@@ -187,29 +199,28 @@ export function sidebarStateFlowIn(choice, { chat = false, language = 'en' } = {
 }
 
 /**
- * On a window too narrow for icons, the page and the chat, the layout menu warns that Icons and Expanded move the chat
- * into the page's place, and picking Icons does so at once. Hidden docks it again.
+ * At 1,200 px with Icons and the chat docked, the layout menu warns that Expanded moves the chat into the page's place,
+ * and picking it does so at once. Then Icons and Hidden say they move it beside the page, and Icons docks it again.
  */
 export function sidebarRoomWarningFlowIn(language = 'en') {
   const words = SHELL_WORDS[language]
   return async (page, { press, shoot }) => {
     const before = page.viewport()
     try {
-      await page.setViewport({ ...before, width: 1380 })
-      await keepChoices(page, { 'kuna.sidebar': 'hidden' })
+      await page.setViewport({ ...before, width: 1200 })
+      await keepChoices(page, { 'kuna.sidebar': 'icons' })
       await openTheChat(page, press)
-      await drawsAsDecided(page, 'hidden', CHAT_MIN_WIDTH)
-      const items = await layoutMenuItems(page, press)
-      for (const label of [words.sidebarLayout.icons, words.sidebarLayout.expanded]) {
-        if (!items.find((item) => item.text.startsWith(label))?.text.includes(words.sidebarLayout.chatTakesPage))
-          throw new Error(`${label} does not warn that the chat moves: ${JSON.stringify(items)}`)
-      }
+      const { windowWidth } = await drawsAsDecided(page, 'icons', CHAT_MIN_WIDTH)
+      menuSaysWhatChanges(await layoutMenuItems(page, press), words, 'icons', windowWidth, CHAT_MIN_WIDTH)
       await shoot(`sidebar-room-warning${language === 'en' ? '' : `-${language}`}`)
+      await closeMenu(page)
+      await pickLayout(page, press, words.sidebarLayout.expanded)
+      await drawsAsDecided(page, 'expanded', CHAT_MIN_WIDTH)
+      menuSaysWhatChanges(await layoutMenuItems(page, press), words, 'expanded', windowWidth, CHAT_MIN_WIDTH)
+      await shoot(`sidebar-room-beside${language === 'en' ? '' : `-${language}`}`)
       await closeMenu(page)
       await pickLayout(page, press, words.sidebarLayout.icons)
       await drawsAsDecided(page, 'icons', CHAT_MIN_WIDTH)
-      await pickLayout(page, press, words.sidebarLayout.hidden)
-      await drawsAsDecided(page, 'hidden', CHAT_MIN_WIDTH)
     } finally {
       await forgetChoices(page)
       await page.setViewport(before)
@@ -247,8 +258,8 @@ async function expectWidth(page, width, how) {
 
 /**
  * The chat's edge at 1920 px, on Company's Overview: a drag widens the chat and keeps it on release, a reload keeps it,
- * a double-click resets it, and the keyboard follows the window splitter pattern. At 1440 px the drag stops where the
- * icons leave room, and on the way back the expanded sidebar returns only with 16 px to spare.
+ * a double-click resets it, and the keyboard follows the window splitter pattern. At 1440 px the drag stops at the room
+ * beside a 640 px page and the sidebar stays expanded.
  */
 export function chatResizeFlow() {
   return async (page, { shoot }) => {
@@ -309,36 +320,84 @@ export function chatResizeFlow() {
       await expectWidth(page, 384, 'Enter')
       await shoot('chat-resize-focused')
 
-      await page.setViewport({ ...before, width: 1800 })
-      await delay(300)
-      // 1800 − 240 − 976 = 584 px is the widest chat beside the expanded sidebar.
-      const edge = await handleBox(page)
-      await page.mouse.move(edge.x, edge.y)
-      await page.mouse.down()
-      await page.mouse.move(edge.x - 216, edge.y)
-      await delay(150)
-      if ((await readHandle(page)).sidebar !== 'icons') throw new Error('a 600 px chat at 1800 px left the sidebar expanded')
-      await page.mouse.move(edge.x - 192, edge.y)
-      await delay(150)
-      if ((await readHandle(page)).sidebar !== 'icons') throw new Error('a 576 px chat at 1800 px brought the expanded sidebar back with under 16 px to spare')
-      await page.mouse.move(edge.x - 176, edge.y)
-      await delay(150)
-      if ((await readHandle(page)).sidebar !== 'expanded') throw new Error('a 560 px chat at 1800 px did not bring the expanded sidebar back')
-      await page.mouse.up()
-
       await page.setViewport({ ...before, width: 1440 })
       await delay(300)
+      // 1440 − 240 − 640 = 560 px is the room beside the expanded sidebar and a 640 px page.
       const narrow = await handleBox(page)
       await page.mouse.move(narrow.x, narrow.y)
       await page.mouse.down()
       await page.mouse.move(narrow.x - 300, narrow.y)
+      await delay(150)
+      const held = await readHandle(page)
+      if (held.sidebar !== 'expanded' || held.max !== 560) throw new Error(`a drag at 1440 px drew ${JSON.stringify(held)}: it should keep the expanded sidebar and stop at 560 px`)
       await page.mouse.up()
-      // 1440 − 56 − 976 = 408 px is all the icons leave the chat.
-      await expectWidth(page, 408, 'a drag at 1440 px')
+      await expectWidth(page, 560, 'a drag at 1440 px')
+      await drawsAsDecided(page, 'expanded', 560)
     } finally {
       await forgetChoices(page)
       await page.setViewport(before)
       // The grid's columns ease to the new width, so the check after the flow meets them in place.
+      await delay(400)
+    }
+  }
+}
+
+/**
+ * The window squeezed from 1,920 px to a phone with the expanded sidebar and a chat with one answer and a draft. At each
+ * width the shell draws what `layoutOf` decides, on both sides of every edge: the chat leaving the dock for the page's
+ * place, the sidebar folding into the drawer and the phone step. The conversation and the draft survive every step, and
+ * the columns follow a live resize with no easing.
+ */
+export function shellSqueezeFlow() {
+  const QUESTION = 'How do I set up rules for my bank?'
+  const DRAFT = 'And the limits?'
+  const asked = CHAT_MIN_WIDTH
+  const chosen = 'expanded'
+  // Each edge in px and the width just under it: the dock, the expanded sidebar and the phone.
+  const dockFrom = SIDEBAR_WIDTH.expanded + PAGE_LEAST_WIDTH + asked
+  const sidebarFrom = SIDEBAR_WIDTH.expanded + PAGE_LEAST_WIDTH
+  const edges = [dockFrom, dockFrom - 1, sidebarFrom, sidebarFrom - 1, PAGE_LEAST_WIDTH, PAGE_LEAST_WIDTH - 1]
+  const widths = [...new Set([1600, 1390, ...edges, 1100, 1024, 768, 360])].sort((a, b) => b - a)
+  return async (page, { press, shoot, inspect }) => {
+    const before = page.viewport()
+    try {
+      await page.setViewport({ ...before, width: 1920 })
+      await keepChoices(page, { 'kuna.sidebar': null, 'kuna.chat-width': null })
+      await openTheChat(page, press)
+      await drawsAsDecided(page, chosen, asked)
+      await sendInChat(page, press, QUESTION)
+      await allowIfAsked(page, press)
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the chat gave no answer')
+      })
+      const conversation = () => page.$$eval('[data-testid="chat-question"], [data-testid="chat-answer"]', (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
+      const said = await conversation()
+      await (await page.waitForSelector('textarea[data-testid="chat-prompt"]')).type(DRAFT)
+      for (const width of widths) {
+        await page.setViewport({ ...before, width })
+        // The browser tells the page of a resize with its next frame.
+        const marked = await page
+          .waitForFunction(() => document.documentElement.classList.contains('shell-resizing'), { timeout: 1_000, polling: 'raf' })
+          .then(() => true)
+          .catch(() => false)
+        const eases = await page.evaluate(() =>
+          getComputedStyle(document.querySelector('[data-testid="app-shell"]'))
+            .transitionDuration.split(',')
+            .some((duration) => parseFloat(duration) > 0),
+        )
+        if (!marked || eases) throw new Error(`a live resize to ${width} px ${marked ? 'eased the columns' : 'left the shell unmarked'}`)
+        await delay(300)
+        const drawn = await drawsAsDecided(page, chosen, asked)
+        if (drawn.windowWidth === dockFrom || drawn.windowWidth === dockFrom - 1) await shoot(`shell-squeeze-${width}`)
+        const draft = await page.$eval('textarea[data-testid="chat-prompt"]', (prompt) => prompt.value).catch(() => null)
+        if (draft !== DRAFT) throw new Error(`at ${width} px the draft reads ${JSON.stringify(draft)}, not ${JSON.stringify(DRAFT)}`)
+        const now = await conversation()
+        if (now.join('\n') !== said.join('\n')) throw new Error(`at ${width} px the conversation reads ${JSON.stringify(now)}, not ${JSON.stringify(said)}`)
+        await inspect?.(`the shell squeezed to ${width} px`)
+      }
+    } finally {
+      await forgetChoices(page)
+      await page.setViewport(before)
       await delay(400)
     }
   }
@@ -375,7 +434,8 @@ export function menuLitFlow() {
         }
         await shoot(`menu-lit-${choice}`)
       }
-      await page.setViewport({ ...before, width: 800 })
+      // Under 56 + 640 px even the icons give way to the drawer.
+      await page.setViewport({ ...before, width: SIDEBAR_WIDTH.icons + PAGE_LEAST_WIDTH - 1 })
       await delay(300)
       await pressSelector(page, press, '[data-testid="open-navigation"]')
       await page.waitForSelector('[role="dialog"] nav', { visible: true, timeout: 5_000 })

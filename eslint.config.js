@@ -74,11 +74,12 @@ const windowGridClasses = {
   pattern: String.raw`^(?:\S*:)?(?:md|lg|xl|2xl):(?:\S*:)?(?:grid-cols|col-span|grid-flow|auto-cols)-.*$`,
   message: '"$0": a page\'s grid follows its container, such as @4xl:grid-cols-2, because the chat\'s dock narrows a page without narrowing the window.',
 }
-/**
- * The shell's own frame and a dialog's body sit outside the content area, so the window is their room. DashboardGrid sets
- * five or six tiles three to a row at lg, since 1024 px has less room than 768 px and the visual check wants 768 px to differ from 1440 px.
- */
-const windowGridFiles = ['src/shell/ui/AppShell.vue', 'src/apps/loans/scenarios/presentation/ScenarioEditor.vue', 'src/shared/ui/DashboardGrid.vue']
+// A page and a shared component answer to the room they get, the content area or a dialog, both containers, for every class.
+const windowClasses = {
+  pattern: String.raw`^(?:\S*:)?(?:max-)?(?:md|lg|xl|2xl):.*$`,
+  message: '"$0": a page or a shared component follows its container, such as @2xl:flex-row, because the sidebar and the chat\'s dock narrow a page without narrowing the window.',
+}
+const pageFiles = ['src/apps/**/*.{ts,vue}', 'src/shared/ui/**/*.{ts,vue}', 'src/shared/**/presentation/**/*.{ts,vue}']
 
 // Tailwind only knows the classes of its entry point, so a class a stylesheet declares is known where that stylesheet
 // applies: app.css and a :deep() or :slotted() selector everywhere, the rest of a scoped style block in its own
@@ -155,6 +156,13 @@ const kunaPlugin = {
     'domain-words': refusedSyntax(
       ['ImportDeclaration[source.value=/(?:^|\\/)words$/]'],
       'Domain code returns facts and presentation words them. Move the sentence to a words file beside the screen that shows it.',
+    ),
+    'window-queries': refusedSyntax(
+      [
+        "CallExpression[callee.name='useMediaQuery'] > Literal.arguments[value=/width/]",
+        "CallExpression[callee.name='useMediaQuery'] > TemplateLiteral.arguments > TemplateElement[value.raw=/width/]",
+      ],
+      "A page follows the room the shell gives it, through roomAtLeast in src/shared/layout/pageRoom.ts, since the sidebar and the chat's dock narrow a page without narrowing the window.",
     ),
     'domain-classes': refusedSyntax(
       ['ClassDeclaration:not([superClass.name=/Error$/])', 'ClassExpression:not([superClass.name=/Error$/])'],
@@ -260,10 +268,11 @@ export function kunaConfig(exempt) {
         'no-restricted-syntax': ['error', ...scriptColourStrings],
       },
     },
-    { name: 'kuna/window-grids', files: windowGridFiles, rules: { 'better-tailwindcss/no-restricted-classes': ['error', { restrict: restrictedClasses }] } },
+    { name: 'kuna/window-classes', files: pageFiles, rules: { 'better-tailwindcss/no-restricted-classes': ['error', { restrict: [...restrictedClasses, windowClasses] }] } },
     ...scopedClassConfigs,
     { name: 'kuna/plugin', plugins: { kuna: kunaPlugin } },
     { name: 'kuna/domain-classes', ...domainCode, rules: { 'kuna/domain-classes': 'error' } },
+    { name: 'kuna/window-queries', files: ['src/**/*.{ts,vue}'], rules: { 'kuna/window-queries': 'error' } },
     ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
     prettier,
   )

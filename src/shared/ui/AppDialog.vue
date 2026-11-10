@@ -7,6 +7,7 @@ import { usePhoneLayout } from '../layout/viewport'
 /**
  * The frame of every dialog: full screen on a phone and a centred panel from 640 px. Its footer puts
  * a destructive action such as Delete at the start, and Cancel with the primary action at the end.
+ * The panel is a container, so its body and footer ask how wide the dialog is with `@2xl:` and the like.
  */
 const open = defineModel<boolean>('open', { required: true })
 
@@ -26,7 +27,7 @@ const WIDTHS = { md: 'sm:max-w-md', xl: 'sm:max-w-xl', '2xl': 'sm:max-w-2xl', '3
 
 const phone = usePhoneLayout()
 // A long body must not squeeze the header and footer, which keep their padding while the body scrolls.
-const ui = computed(() => ({ content: props.width === undefined ? '' : WIDTHS[props.width], header: 'shrink-0', footer: 'shrink-0' }))
+const ui = computed(() => ({ content: props.width === undefined ? '@container' : `@container ${WIDTHS[props.width]}`, header: 'shrink-0', footer: 'shrink-0' }))
 </script>
 
 <template>

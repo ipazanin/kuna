@@ -6,7 +6,7 @@ import type { SidebarChoice } from './sidebarLayout'
 import { chooseSidebar, roomEffectOf, sidebarChoice } from './sidebarLayout'
 import { words } from './words'
 
-/** The one control that picks the sidebar. An item says what the chat's room does to it before a person picks it. */
+/** The one control that picks the sidebar. An item says what picking it changes, where it changes something. */
 const props = defineProps<{
   windowWidth: number
   /** The chat's asked width while it is open, or null. */
@@ -24,7 +24,7 @@ const inForce = computed(() => CHOICES.find((shown) => shown.value === sidebarCh
 const choices = computed(() =>
   CHOICES.map((shown) => {
     const effect = roomEffectOf({ picked: shown.value, inForce: sidebarChoice.value, windowWidth: props.windowWidth, chat: props.chat })
-    return effect === null ? shown : { ...shown, description: effect === 'chat-takes-page' ? words.sidebarLayout.chatTakesPage : words.sidebarLayout.iconsWhileChat }
+    return effect === null ? shown : { ...shown, description: words.sidebarLayout.effects[effect] }
   }),
 )
 </script>

@@ -15,12 +15,14 @@ import { words } from './words'
 withDefaults(
   defineProps<{
     navigation: Navigation
-    /** The icon sidebar while the chat is docked: every row an icon, the open app's pages under its tile, and no arrows. */
+    /** The icon sidebar: every row an icon, the open app's pages under its tile, and no arrows. */
     rail?: boolean
+    /** The top bar's drawer, where an arrow is a finger's 44 px. Beside the page it is 44 px only for a coarse pointer. */
+    drawer?: boolean
     /** Whether the chat's row closes the list, which the sidebar shows while a key is kept. The top bar has its own button. */
     chat?: boolean
   }>(),
-  { rail: false, chat: false },
+  { rail: false, chat: false, drawer: false },
 )
 
 const emit = defineEmits<{
@@ -86,7 +88,8 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
               color="neutral"
               variant="ghost"
               size="xs"
-              class="shrink-0 justify-center text-muted max-lg:size-11"
+              class="shrink-0 justify-center text-muted"
+              :class="drawer ? 'size-11' : 'pointer-coarse:size-11'"
               :aria-label="words.navigation.pages(app.name)"
               :aria-expanded="app.open"
               :aria-controls="app.open ? `${id}-${app.id}` : undefined"

@@ -218,7 +218,7 @@ async function save(): Promise<void> {
 
 <template>
   <AppDialog v-model:open="open" :title="draft?.editing ? words.editor.editTitle : words.editor.addTitle" :description="words.editor.description" width="3xl">
-    <div class="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start" data-testid="scenario-editor">
+    <div class="grid gap-4 @2xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] @2xl:items-start" data-testid="scenario-editor">
       <form id="scenario-editor" class="flex min-w-0 flex-col gap-4" @submit.prevent="save">
         <OfferTermsFields v-model="offer" v-model:more-open="moreOpen" :tried="tried" :errors="offerErrors(typed.faults)" :auto-name="autoName" :more-wrong="moreWrong">
           <template #more>
@@ -269,7 +269,7 @@ async function save(): Promise<void> {
       </AppCard>
     </div>
     <template #start>
-      <p v-if="headline" class="basis-full text-xs text-toned lg:hidden" data-testid="scenario-headline">
+      <p v-if="headline" class="basis-full text-xs text-toned @2xl:hidden" data-testid="scenario-headline">
         <span v-if="mark" class="font-semibold text-highlighted">{{ mark.letter }}</span> {{ headline }}
         <span v-if="eksWarning" class="ms-1 inline-flex items-center gap-1 font-medium text-warning" data-testid="scenario-eks-flag">
           <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" aria-hidden="true" />{{ words.editor.eksFlag }}
