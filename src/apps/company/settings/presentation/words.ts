@@ -179,10 +179,11 @@ export const en = {
     /** Deleting a category in use, whose rows and rules move to another in the same write. */
     moveAndDelete: {
       title: (name: string) => `Delete ${name}`,
-      into: 'Move its rows and rules to',
+      into: 'Move everything filed under it to',
       pick: 'Choose a category',
       moves: (uses: string) => `Moves ${uses}. Each row keeps who filed it and takes the owner share of the category it moves to.`,
-      kept: (uses: string) => `Still named by ${uses}. Change those first, then delete it here.`,
+      kept: (uses: string) => `Kuna cannot read some records that still name this category, so the move cannot change them: ${uses}. Fix them on their screen, then delete the category here.`,
+      open: (place: string) => `Open ${place}`,
       savesAtOnce: 'This saves right away, not with Save categories. Undo in the toast takes it back.',
       bucketsMove: (from: string, to: string) => `The category is in ${from} and the one you picked is in ${to}, so the figures of the rows it moves leave one line of the reports and join another.`,
       cancel: 'Cancel',
@@ -393,10 +394,12 @@ export const hr: Translation<typeof en> = {
     deleteName: (name) => (name === '' ? 'Obriši ovu kategoriju' : `Obriši „${name}”`),
     moveAndDelete: {
       title: (name) => `Obriši „${name}”`,
-      into: 'Premjesti njezine stavke i pravila u',
+      into: 'Premjesti sve što je razvrstano pod nju u',
       pick: 'Odaberite kategoriju',
       moves: (uses) => `Premješta: ${uses}. Svaka stavka zadržava onoga tko ju je razvrstao i preuzima udio vlasnika kategorije u koju prelazi.`,
-      kept: (uses) => `Na nju se još odnosi: ${uses}. Najprije to promijenite, a zatim je obrišite ovdje.`,
+      kept: (uses) =>
+        `Kuna ne može pročitati neke zapise koji još navode ovu kategoriju, pa ih premještanje ne može promijeniti: ${uses}. Ispravite ih na njihovu zaslonu, a zatim obrišite kategoriju ovdje.`,
+      open: (place) => `Otvori: ${place}`,
       savesAtOnce: 'Ovo se sprema odmah, bez gumba Spremi kategorije. Poništi u obavijesti vraća promjenu.',
       bucketsMove: (from, to) => `Kategorija je u skupini „${from}”, a odabrana u skupini „${to}”, pa iznosi premještenih stavki napuštaju jedan redak izvješća i prelaze u drugi.`,
       cancel: 'Odustani',

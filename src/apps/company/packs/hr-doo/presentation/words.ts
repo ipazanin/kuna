@@ -84,7 +84,16 @@ export const en = {
     }),
   },
   /** The pack's pages as a link names them, a page and its tab. */
-  links: { review: 'To review', yearTaxes: 'Year, Taxes', ownerTaken: 'Owner, Taken' },
+  links: { review: 'To review', yearTaxes: 'Year, Taxes', ownerTaken: 'Owner, Taken', ownerOwed: 'Owner, Who owes whom', yearStatements: 'Year, Statements', yearPlan: 'Year, Plan' },
+  /** How the categories editor and the chat name the pack's records that name a category, and what deleting it into another does to them. */
+  categoryNaming: {
+    ownerAdvances: (count: number): EnglishForms => ({ one: `${count} owner advance`, other: `${count} owner advances` }),
+    yearEndKontoRows: (count: number): EnglishForms => ({ one: `${count} year-end konto row`, other: `${count} year-end konto rows` }),
+    planRowsJoined: (count: number): EnglishForms => ({
+      one: `${count} plan tab row joins the row of the same year and month already there, and their amounts are added up.`,
+      other: `${count} plan tab rows join the rows of the same year and month already there, and their amounts are added up.`,
+    }),
+  },
   /** The company's figure on Net worth. */
   takeOut: {
     label: 'You could take out now',
@@ -533,7 +542,16 @@ export const hr: Translation<typeof en> = {
       other: `${count} uplata poreza na dobit dospijeva do ${day}, ${owed}`,
     }),
   },
-  links: { review: 'Za provjeru', yearTaxes: 'Godina, Porezi', ownerTaken: 'Vlasnik, Uzeto' },
+  links: { review: 'Za provjeru', yearTaxes: 'Godina, Porezi', ownerTaken: 'Vlasnik, Uzeto', ownerOwed: 'Vlasnik, Tko kome duguje', yearStatements: 'Godina, Izvještaji', yearPlan: 'Godina, Plan' },
+  categoryNaming: {
+    ownerAdvances: (count) => ({ one: `${count} predujam vlasnika`, few: `${count} predujma vlasnika`, other: `${count} predujmova vlasnika` }),
+    yearEndKontoRows: (count) => ({ one: `${count} konto stavka zaključka godine`, few: `${count} konto stavke zaključka godine`, other: `${count} konto stavki zaključka godine` }),
+    planRowsJoined: (count) => ({
+      one: `${count} stavka plana pridružuje se stavci iste godine i mjeseca koja već postoji, a iznosi im se zbrajaju.`,
+      few: `${count} stavke plana pridružuju se stavkama iste godine i mjeseca koje već postoje, a iznosi im se zbrajaju.`,
+      other: `${count} stavki plana pridružuje se stavkama iste godine i mjeseca koje već postoje, a iznosi im se zbrajaju.`,
+    }),
+  },
   takeOut: {
     label: 'Možete isplatiti sada',
     afterLoan: (amount) => `Nakon što ${amount} zatvori vaš dug prema tvrtki`,

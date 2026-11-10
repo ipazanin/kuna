@@ -573,9 +573,11 @@ async function pickCategoryNamed(page, press, trigger, slug) {
 }
 
 /**
- * On Settings, Categories: the bin of a category in use opens the move dialog. It shows nothing picked, a target in the same
- * bucket with what moves, a target in another bucket with the warning, and the save lands with a toast and Undo. A category
- * a pack record still names gets the warning and Close only, and the bin of a category in use waits while the table has unsaved edits.
+ * On Settings, Categories of the books with the `category-move` plan rows: the bin of a category in use opens the move dialog. It
+ * shows nothing picked, a target in the same bucket with what moves, a target in another bucket with the warning, and the save
+ * lands with a toast and Undo. AI services into software subscriptions says its plan row joins the one already there, and the
+ * save lands. Travel, which a plan row the plan tab cannot read still names, gets the warning with a button to Year, Plan and
+ * Close only, the bin of a category in use waits while the table has unsaved edits, and the button opens Year on its Plan tab.
  */
 export function categoryMoveFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -625,8 +627,23 @@ export function categoryMoveFlowIn(language) {
     await shoot('category-move-undone')
     await dismissToasts(page)
 
+    await openMove('ai-services')
+    await page.waitForSelector(dialog, { visible: true, timeout: 10_000 })
+    await pickCategoryNamed(page, press, '[data-testid="category-move-into"]', 'software-subscriptions')
+    await elementSays(page, '[data-testid="category-move-joined"]', [words.pack.categoryNaming.planRowsJoined(1).one], 'the move dialog does not say the plan row joins the one already there')
+    await delay(300)
+    await inspect?.('category move, plan row joins')
+    await shoot('category-move-joined')
+    await pressSelector(page, press, '[data-testid="confirm-category-move"]')
+    await dialogGone(page, '[data-testid="category-move"]')
+    await rowGone(page, '[data-testid="category-row"]', 'ai-services')
+    await undoIn(page, press, words)
+    await rowNamed(page, '[data-testid="category-row"]', 'ai-services')
+    await dismissToasts(page)
+
     await openMove('travel')
     await page.waitForSelector('[role="dialog"] [data-testid="category-move-kept"]', { visible: true, timeout: 10_000 })
+    await elementSays(page, '[data-testid="category-move-fix-on"]', [words.pack.links.yearPlan], 'the blocked move does not link the screen that fixes the plan row')
     if ((await page.$('[data-testid="confirm-category-move"]')) !== null || (await page.$('[data-testid="category-move-into"]')) !== null)
       throw new Error('the blocked move dialog still offers a move')
     await delay(300)
@@ -641,6 +658,14 @@ export function categoryMoveFlowIn(language) {
     const waits = await bin.evaluate((button) => button.hasAttribute('disabled') || button.getAttribute('data-disabled') !== null)
     if (!waits) throw new Error('the bin of a category in use stays on while the table has unsaved edits')
     await pressButton(page, press, 'button', said.discard)
+
+    await openMove('travel')
+    await pressSelector(page, press, '[role="dialog"] [data-testid="category-move-fix-on"]')
+    await page
+      .waitForFunction(() => location.hash.startsWith('#/company/year') && location.hash.includes('tab=plan') && !document.querySelector('[role="dialog"]'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the blocked move’s link does not open Year on its Plan tab with the dialog closed')
+      })
   }
 }
 

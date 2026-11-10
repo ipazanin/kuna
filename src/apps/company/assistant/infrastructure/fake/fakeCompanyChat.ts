@@ -29,6 +29,10 @@ const ANSWERS = {
     trainingLabel: 'Training',
     trainingFamily: 'operating',
     category: 'The card adds Training to the operating costs. Kuna counts it as a cost the profit tax allows, and its VAT is deducted.',
+    mergeTitle: 'Merge AI services into software subscriptions',
+    merge:
+      'The card deletes AI services and moves its rows, rules, konto line and plan rows into software subscriptions. Its 2027 plan row joins the one already there, so check the added amount before you accept.',
+    noMerge: 'I found no AI services or software subscriptions category to merge.',
     statementTitle: 'Import the pasted statement',
     statementProposed: 'The card imports the rows as I copied them. The statement printed no balances, so the account starts at zero.',
     statementRefused: 'Kuna refused the statement. Check the rows I copied against it.',
@@ -63,6 +67,10 @@ const ANSWERS = {
     trainingLabel: 'Edukacija',
     trainingFamily: 'poslovanje',
     category: 'Kartica dodaje Edukaciju među troškove poslovanja. Kuna je broji kao trošak koji porez na dobit priznaje, a PDV se odbija.',
+    mergeTitle: 'Spoji AI usluge s pretplatama na softver',
+    merge:
+      'Kartica briše kategoriju AI usluge i premješta njezine stavke, pravila, konto stavku i stavke plana u pretplate na softver. Njezina stavka plana za 2027. pridružuje se onoj koja već postoji, pa provjerite zbrojeni iznos prije nego što prihvatite.',
+    noMerge: 'Nisam našao kategorije AI usluge ili pretplate na softver za spajanje.',
     statementTitle: 'Uvezi zalijepljeni izvod',
     statementProposed: 'Kartica uvozi retke kako sam ih prepisao. Izvod ne ispisuje stanja, pa račun počinje od nule.',
     statementRefused: 'Kuna je odbila izvod. Usporedite retke koje sam prepisao s njim.',
@@ -269,6 +277,22 @@ function categoryReply({ request, tokens }: FakeChatTurn, says: Says): ModelRepl
   return answered(request, says.category, tokens)
 }
 
+/** Reads the categories and deletes AI services into software subscriptions, which moves what names it there in the same change. */
+function mergeReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findIn('category', null, 50), tokens)
+  if (answers[0]!.isError) return answered(request, says.notRead, tokens)
+  if (answers.length === 1) {
+    const categories = recordsOf(answers[0]!.text)
+    const ai = categories.find((category) => /^ai\b/i.test(category.label ?? ''))
+    const software = categories.find((category) => /software|softver/i.test(category.label ?? ''))
+    if (ai === undefined || software === undefined) return answered(request, says.noMerge, tokens)
+    const step = { op: 'delete-category', input: JSON.stringify({ category: ai.ref, into: software.ref }), as: null }
+    return lookup(1, 'propose_changes', { app: 'company', title: says.mergeTitle, steps: [step], next: false }, tokens)
+  }
+  return answered(request, says.merge, tokens)
+}
+
 /** Reads the accounts and copies a pasted statement that prints no balances onto the first, which has no rows yet, so Kuna starts it at zero. */
 function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
@@ -338,7 +362,7 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
  * Company's part of the fake chat, only while the person is on a Company screen: one that asks to suggest categories or sort
  * reads the rows waiting, files the sure ones and goes on at each Go on with a new category and a rule for the rest, one about an invoice links the Invoices tab, one about dollars proposes the
  * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one that tries the second rule first moves it to the top, one about training proposes a category with its tax
- * class, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account a row of which waits as a look-alike, and one that asks to explain reads the tagged build-up.
+ * class, one that starts with merge deletes AI services into software subscriptions, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account a row of which waits as a look-alike, and one that asks to explain reads the tagged build-up.
  */
 function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (!inCompany(turn.request)) return null
@@ -352,6 +376,7 @@ function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (/laptop store/i.test(typed)) return ruleReply(turn, says)
   if (/second rule first|drugo pravilo isprobava prvo/i.test(typed)) return moveReply(turn, says)
   if (/training|edukacij/i.test(typed)) return categoryReply(turn, says)
+  if (/^merge|^spoji/i.test(typed)) return mergeReply(turn, says)
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
   if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)
   if (/explain|objasni/i.test(typed)) return buildUpReply(turn, says)

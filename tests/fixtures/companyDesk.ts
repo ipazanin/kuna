@@ -164,8 +164,9 @@ export function companyChat(store: WorkbookStore<CompanyBooks>, ports: CompanyOp
   }
 }
 
-export async function companyDesk(used: Set<string>, given: DeskPorts = {}): Promise<CompanyDesk> {
-  const { store } = await browserHarness(used, deskGrids())
+/** The desk's file, with `tabs` added or put in place of its own, such as the pack's tabs a test needs. */
+export async function companyDesk(used: Set<string>, given: DeskPorts = {}, tabs: Record<string, CellValue[][]> = {}): Promise<CompanyDesk> {
+  const { store } = await browserHarness(used, { ...deskGrids(), ...tabs })
   const typed = store as unknown as WorkbookStore<CompanyBooks>
   return {
     ...companyChat(typed, deskPorts(given)),

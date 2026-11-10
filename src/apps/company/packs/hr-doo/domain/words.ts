@@ -29,10 +29,8 @@ export const en = {
       `${number} has no percent sign, so it could be ${formatRate(shareFromPercent(number))} or ${formatRate(shareFromRatio(number))}. Write the rate with its percent sign, such as 2%`,
     rateRange: 'use a rate from 0% to 100% with at most two decimals, such as 2%',
   },
-  /** How a refusal counts the pack's records that name a category, a grant or a scenario. */
+  /** How a refusal counts the pack's records that name a grant or a scenario. */
   uses: {
-    ownerAdvances: (count: number): EnglishForms => ({ one: `${count} owner advance`, other: `${count} owner advances` }),
-    yearEndKontoRows: (count: number): EnglishForms => ({ one: `${count} year-end konto row`, other: `${count} year-end konto rows` }),
     planTabRows: (count: number): EnglishForms => ({ one: `${count} plan tab row`, other: `${count} plan tab rows` }),
     assets: (count: number): EnglishForms => ({ one: `${count} asset`, other: `${count} assets` }),
   },
@@ -149,8 +147,6 @@ export const hr: Translation<typeof en> = {
     rateRange: 'upišite stopu od 0 % do 100 % s najviše dvije decimale, na primjer 2 %',
   },
   uses: {
-    ownerAdvances: (count) => ({ one: `${count} predujam vlasnika`, few: `${count} predujma vlasnika`, other: `${count} predujmova vlasnika` }),
-    yearEndKontoRows: (count) => ({ one: `${count} konto stavka zaključka godine`, few: `${count} konto stavke zaključka godine`, other: `${count} konto stavki zaključka godine` }),
     planTabRows: (count) => ({ one: `${count} stavka plana`, few: `${count} stavke plana`, other: `${count} stavki plana` }),
     assets: (count) => ({ one: `${count} sredstvo`, few: `${count} sredstva`, other: `${count} sredstava` }),
   },

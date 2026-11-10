@@ -32,12 +32,11 @@ function changeShare<R extends SharedRecord>(repository: Repository<R>, read: Re
 
 /** The installed pack's owner advances. Their records carry the share as core's `OwnerAdvance` does. */
 function ownerAdvances(records: WorkbookRecords): { readonly rules: WriteRules<SharedRecord>; readonly read: RecordsRead<SharedRecord> } {
-  const part = installedPack().workbook
-  const rules = part?.kinds.find((kind) => kind.kind.name === part.ownerAdvanceNaming.kind.name)
-  if (part === null || rules === undefined) {
+  const naming = installedPack().workbook?.ownerAdvanceNaming
+  if (naming === undefined) {
     throw new Error(words.noAdvances)
   }
-  return { rules: rules as WriteRules<SharedRecord>, read: recordsOfKindIn(records, part.ownerAdvanceNaming.kind) as RecordsRead<SharedRecord> }
+  return { rules: naming.writes as WriteRules<SharedRecord>, read: recordsOfKindIn(records, naming.writes.kind) as RecordsRead<SharedRecord> }
 }
 
 function changeShareOf(unit: UnitOfWork, records: WorkbookRecords, target: ShareTarget, shareFrom: ShareFrom): void {

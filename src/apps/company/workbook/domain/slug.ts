@@ -38,15 +38,20 @@ export function counted(phrase: (count: number) => EnglishForms | CroatianForms)
   return (count) => plural(phrase(count), count)
 }
 
-/** How many of these records name each slug, as `counted` words the count, such as "3 ledger rows". */
-export function countedBy<Named>(records: readonly Named[], slugsOf: (record: Named) => readonly string[], counted: (count: number) => string): ReadonlyMap<string, string> {
+/** How many of these records name each slug, a record that names one twice counted once. */
+export function countsBy<Named>(records: readonly Named[], slugsOf: (record: Named) => readonly string[]): ReadonlyMap<string, number> {
   const counts = new Map<string, number>()
   for (const record of records) {
     for (const slug of new Set(slugsOf(record))) {
       if (slug !== '') counts.set(slug, (counts.get(slug) ?? 0) + 1)
     }
   }
-  return new Map([...counts].map(([slug, count]) => [slug, counted(count)]))
+  return counts
+}
+
+/** How many of these records name each slug, as `counted` words the count, such as "3 ledger rows". */
+export function countedBy<Named>(records: readonly Named[], slugsOf: (record: Named) => readonly string[], counted: (count: number) => string): ReadonlyMap<string, string> {
+  return new Map([...countsBy(records, slugsOf)].map(([slug, count]) => [slug, counted(count)]))
 }
 
 /** One row's name before and after a change. `from` is null for an added row, `to` for a deleted one. */

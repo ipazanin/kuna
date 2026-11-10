@@ -6,7 +6,7 @@ import { fillShares } from '../../owner-share/application/ownerShareWrites'
 import { shareFillsOf } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
 import { writeDrafts } from '../../settings/application/draftWrites'
-import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryUses, categoryUsesAfterMove, deleteCategoryInto } from '../../settings/application/namedRecordWrites'
+import { ACCOUNT_WRITES, CATEGORY_WRITES, accountUses, categoryKeptAfterMove, categoryUses, deleteCategoryInto, joinedInWords, keptInWords } from '../../settings/application/namedRecordWrites'
 import type { RecordsOfKind } from '../../settings/application/namedRecordWrites'
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { accountDraftErrors, accountDraftsOf, accountsOfDrafts } from '../../settings/domain/accountDrafts'
@@ -18,6 +18,7 @@ import type { MadeDraft } from '../../settings/domain/recordDrafts'
 import { PERSON_PAYEES_KEY, SETTING_DEFINITIONS, readSettingsTab, settingsErrors, unreadSettingKeys } from '../../settings/domain/settings'
 import { IMPORT_PROFILE_PREFIX } from '../../imports/domain/importProfile'
 import { BUCKETS } from '../../workbook/domain/bucket'
+import { displayNamesOf } from '../../workbook/domain/displayName'
 import type { CategoryClass } from '../../workbook/domain/packPart'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, SETTING_RECORDS } from '../../workbook/domain/coreKinds'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
@@ -196,8 +197,8 @@ function operationsOf(keys: readonly string[], classes: readonly CategoryClass[]
       name: 'delete-category',
       about: [
         'Deletes a category, as Settings, Categories deletes it.',
-        "into is the category its ledger rows, split parts and rules move to in the same change, each row keeping who filed it and taking that category's owner share, or null for a category nothing names.",
-        "A category the pack's records name, such as an owner advance, a plan row or a year-end konto line, is refused until those name another.",
+        "into is the category its ledger rows, split parts, rules and the pack's records that name it move to in the same change, each row keeping who filed it and taking that category's owner share, or null for a category nothing names.",
+        'Those pack records are owner advances, plan rows and year-end konto lines. A plan row joins a row into already has for the same year and month, and the two amounts are added up.',
       ].join(' '),
       input: inputOf({ category: TEXT, into: TEXT_OR_NULL }),
       refs: { category: CATEGORY, into: CATEGORY },
@@ -377,11 +378,18 @@ function deleteCategory(card: CompanyCard, step: ProposalStep): void {
   }
   const into = categoryOf(card, field['into'])
   if (into.slug === slug) throw new StepRefused('into is another category than the one deleted.')
-  const kept = categoryUsesAfterMove(recordsOfKind).get(slug)
-  if (kept !== undefined) throw new StepRefused(`That category is still named by ${kept.join(', ')}, which a move leaves. Change those first.`)
+  const kept = categoryKeptAfterMove(recordsOfKind).get(slug)
+  if (kept !== undefined) {
+    const said = keptInWords(kept)
+    throw new StepRefused(
+      `That category is still named by ${said.uses.join(', ')} that Kuna cannot read, so a move cannot change them. Fix those on ${said.places.map((place) => place.label).join(' and ')} first.`,
+    )
+  }
   const category = recordsOf(records.categories).find((record) => record.slug === slug)
   if (category === undefined) throw new StepRefused('That category is no longer in the books.')
-  deleteCategoryInto(card.unit, records, category, into.slug, card.workbook.categories)
+  const move = deleteCategoryInto(card.unit, records, category, into.slug, card.workbook.categories)
+  const intoName = displayNamesOf(card.workbook).category(into.slug)
+  for (const joined of joinedInWords(move)) card.note({ noun: joined.noun, note: { label: intoName, text: joined.text, tone: 'neutral' } })
 }
 
 /** Saves the accounts as Settings, Accounts saves its editor's rows, after its checks. */

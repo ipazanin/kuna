@@ -66,6 +66,16 @@ export interface CategoryClassHelp {
   readonly link: { readonly label: string; readonly to: RouteLocationRaw }
 }
 
+/** How the screens and the chat name the records of one of the pack's kinds that name categories. */
+export interface CategoryNamingWords {
+  /** Such as "3 owner advances". */
+  counted(count: number): string
+  /** The screen and tab where they are changed, such as "Year, Plan". */
+  readonly editedOn: string
+  /** What deleting a category into another does to the records that join one already there, or null for a kind whose records never join. */
+  joined(count: number): string | null
+}
+
 /** The day a class's help reads the law's shares on: the newest booking's, or today's in books with none yet. */
 export function classSharesDay(workbook: Workbook | null): CivilDate {
   return newestBookingOf(workbook?.transactions ?? []) ?? today()
@@ -96,6 +106,8 @@ export interface PackContribution {
    * force on the day. They are no reading problem: the figures still count each by its bucket and VAT.
    */
   categoriesToSort(categories: readonly Category[], on: CivilDate): readonly RecordProblem[]
+  /** The words for the records of one of the kinds the pack's part names categories with, by the kind's name. */
+  categoryNamingWords(kind: string): CategoryNamingWords
   readonly onboarding: PackOnboarding | null
   /** The employees from their records, each with the IBANs they are paid into, so a row that names one or pays one can be kept from a model. */
   employees(records: WorkbookRecords): readonly KnownPerson[]
@@ -113,6 +125,9 @@ const NO_PACK: PackContribution = {
   costGroupLinks: () => null,
   categoryClassHelp: () => null,
   categoriesToSort: () => [],
+  categoryNamingWords: (kind) => {
+    throw new Error(`No pack is installed, so no ${kind} record names a category.`)
+  },
   onboarding: null,
   employees: () => [],
 }

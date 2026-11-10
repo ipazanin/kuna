@@ -15,7 +15,7 @@ import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { writeDrafts } from '../application/draftWrites'
-import { CATEGORY_WRITES, categoryUses, categoryUsesAfterMove } from '../application/namedRecordWrites'
+import { CATEGORY_WRITES, categoryKeptAfterMove, categoryUses } from '../application/namedRecordWrites'
 import type { RecordsOfKind } from '../application/namedRecordWrites'
 import { knownRoles } from '../domain/categoryGuards'
 import CategoriesEditor from './CategoriesEditor.vue'
@@ -32,7 +32,7 @@ const writes = useRecordWrites(useWorkbook())
 
 const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, kind))
 const categoriesInUse = computed(() => categoryUses(recordsOnScreen))
-const keptAfterMove = computed(() => categoryUsesAfterMove(recordsOnScreen))
+const keptAfterMove = computed(() => categoryKeptAfterMove(recordsOnScreen))
 const roles = knownRoles(installedPack().workbook?.categoryRoles ?? [])
 const classes = installedPack().workbook?.categoryClasses ?? []
 const sharesOn = computed(() => classSharesDay(state.workbook))

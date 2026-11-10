@@ -1,7 +1,7 @@
 import { packPart, recordsOfKind } from '../../../workbook/domain/packPart'
 import type { RecordCodec } from '../../../../../shared/storage/domain/recordCodec'
-import type { CategoryNaming, PackKey, PackPart } from '../../../workbook/domain/packPart'
-import { slugListOf, slugOf } from '../../../../../shared/storage/domain/storedFields'
+import type { PackKey, PackPart } from '../../../workbook/domain/packPart'
+import { CATEGORY_NAMING, OWNER_ADVANCE_NAMING } from './categoryNaming'
 import { tabProblems } from '../../../workbook/domain/workbook'
 import type { OwnerAdvance, Workbook } from '../../../workbook/domain/workbook'
 import { assetsClaimingRows, uncheckedClaimProblems } from './assets/assetRegister'
@@ -23,7 +23,6 @@ import type { OwnerPayScenario } from './scenarios/ownerPayScenarios'
 import { SCENARIO_CODEC, readScenarios } from './scenarios/scenariosReading'
 import type { YearEndLine } from './yearEnd/yearEnd'
 import { YEAR_END_CODEC, readYearEnd } from './yearEnd/yearEndReading'
-import { counted } from '../../../workbook/domain/slug'
 import { STARTING_CATEGORIES } from '../preset/domain/startingCategories'
 import { startingRules } from '../preset/domain/startingRules'
 import { CATEGORY_CLASSES } from '../preset/domain/taxClassOf'
@@ -64,8 +63,6 @@ export function hrDooWorkbook(workbook: Workbook): HrDooWorkbook {
   return { ...workbook, ...part }
 }
 
-const OWNER_ADVANCE_NAMING: CategoryNaming = { kind: OWNER_ADVANCE_RECORDS, counted: counted(words.uses.ownerAdvances), categoriesOf: (fields) => [slugOf(fields.category)] }
-
 /**
  * The pack's part, read from its records against core's categories with the rules across them:
  * assets against the grants, plan lines against the categories and the scenarios, year-end konto
@@ -77,11 +74,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   codecs: [OWNER_ADVANCE_CODEC, ASSET_CODEC, GRANT_CODEC, YEAR_END_CODEC, PLAN_CODEC, SCENARIO_CODEC, EMPLOYEE_CODEC] as readonly RecordCodec<unknown>[],
   schemaVersion: 1,
   settings: COMPANY_FACT_SETTINGS,
-  categoryNaming: [
-    OWNER_ADVANCE_NAMING,
-    { kind: YEAR_END_RECORDS, counted: counted(words.uses.yearEndKontoRows), categoriesOf: (fields) => slugListOf(fields.categories) },
-    { kind: PLAN_RECORDS, counted: counted(words.uses.planTabRows), categoriesOf: (fields) => [slugOf(fields.item)] },
-  ],
+  categoryNaming: CATEGORY_NAMING,
   ownerAdvanceNaming: OWNER_ADVANCE_NAMING,
   categoryRoles: [...Object.values(PACK_ROLES), ...TAX_FREE_ROLES],
   categoryClasses: CATEGORY_CLASSES,

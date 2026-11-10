@@ -11,6 +11,7 @@ import { ownerTakeOut } from './presentation/ownerTakeOut'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
 import { categoriesToSort } from './preset/presentation/categoriesToSort'
 import { categoryClassHelp } from './preset/presentation/categoryClassHelp'
+import { categoryNamingWords } from './presentation/categoryNamingWords'
 import { words as packWords } from './presentation/words'
 import { TAX_RULES_TAB } from './ruleset/presentation/taxRuleLinks'
 import { words as rulesetWords } from './ruleset/presentation/words'
@@ -47,6 +48,7 @@ export const hrDooPack: PackContribution = {
   costGroupLinks: (group) => COST_GROUP_LINKS[group] ?? null,
   categoryClassHelp,
   categoriesToSort,
+  categoryNamingWords,
   onboarding: packWords.onboarding,
   // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.
   employees: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map(({ record }) => ({ name: record.name || record.slug, employee: true, ibans: record.ibans })),

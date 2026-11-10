@@ -290,6 +290,18 @@ function recordFields(fields: FakeFields): RecordFields {
   return filledFields(Object.fromEntries(Object.entries(fields).map(([name, value]) => [name, typeof value === 'number' ? String(value) : value])))
 }
 
+/**
+ * The plan rows a variant ending in `category-move` adds: a 2027 row of AI services, which deleting it into software
+ * subscriptions adds to that category's 2027 row, and a travel row without its amount, which the plan tab cannot read, so travel
+ * cannot be moved until it is fixed.
+ */
+export function categoryMovePlanRecords(): readonly RecordFields[] {
+  return [
+    { year: 2027, item: 'ai-services', amount: money(60), note: 'More model seats' },
+    { year: 2027, month: 4, item: 'travel', note: 'Client visit, amount to come' },
+  ].map((fields, index) => recordFields(withFixedId('hr-doo.plan-line', fields, 100 + index)))
+}
+
 /** An amount as the file holds it, decimal text from its cents. */
 function money(amount: number): string {
   return amountText(moneyFromAmount(amount))

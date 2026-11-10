@@ -1,5 +1,6 @@
 import { en as classEnglish, hr as classCroatian } from '../../src/apps/company/packs/hr-doo/preset/presentation/classWords.ts'
 import { en as ruleEnglish, hr as ruleCroatian } from '../../src/apps/company/rules/presentation/words.ts'
+import { en as packEnglish, hr as packCroatian } from '../../src/apps/company/packs/hr-doo/presentation/words.ts'
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
 import { TWO_KEYS_ANONYMISE_OFF, acceptLooksReady, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
@@ -11,6 +12,7 @@ const TRANSACTIONS_WORDS = { en: transactionsEnglish, hr: transactionsCroatian }
 const SHARED_WORDS = { en: sharedEnglish, hr: sharedCroatian }
 const CLASS_WORDS = { en: classEnglish, hr: classCroatian }
 const RULE_WORDS = { en: ruleEnglish, hr: ruleCroatian }
+const PACK_WORDS = { en: packEnglish, hr: packCroatian }
 
 /** What the person types for each card, which the fake Company chat and Kuna's fake reply answer. */
 const PROMPTS = {
@@ -19,6 +21,7 @@ const PROMPTS = {
   refile: { en: 'Always file Laptop Store under office supplies', hr: 'Uvijek stavi Laptop Store pod uredski materijal' },
   category: { en: 'Add a category for training courses', hr: 'Dodaj kategoriju za edukacije' },
   move: { en: 'Try the second rule first', hr: 'Neka se drugo pravilo isprobava prvo' },
+  merge: { en: 'Merge AI services into software subscriptions', hr: 'Spoji AI usluge s pretplatama na softver' },
   theme: { en: 'Switch Kuna to the dark look', hr: 'Prebaci Kunu na tamni izgled' },
   explain: { en: 'Explain this figure', hr: 'Objasni ovaj iznos' },
 }
@@ -116,13 +119,17 @@ const CARDS = {
   move: async (page, language) => {
     await elementSays(page, '[data-testid="chat-proposal"]', [RULE_WORDS[language].form.tried], 'the card that moves a rule does not say where it is tried')
   },
+  merge: async (page, language) => {
+    await elementSays(page, '[data-testid="chat-proposal-note"]', [PACK_WORDS[language].categoryNaming.planRowsJoined(1).one], 'the merge card does not say the plan row joins the one already there')
+  },
 }
 
 /**
  * A chat on Company's Overview with a made-up key kept: an invoice is a link to the Invoices tab with the client picked, not a
  * card, dollars are a set-setting card with its line warned, a rule for Laptop Store re-files the rows the owner confirmed, each on a warned
  * line, a category for training is an add-category card that names its tax class as the categories editor does, and trying the second
- * rule first is a change-rule card that says where the rule is tried.
+ * rule first is a change-rule card that says where the rule is tried, and merging AI services
+ * into software subscriptions is a delete-category card that says its plan row joins the one already there, which Accept writes and Undo puts back.
  */
 export function companyChatCardFlowIn(language, card) {
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -137,7 +144,15 @@ export function companyChatCardFlowIn(language, card) {
       await acceptLooksReady(page)
       await inspect?.(`the chat's answer to ${PROMPTS[card].en}`)
       await shoot(`company-chat-${card}`)
-      if (card !== 'invoice') await pressSelector(page, press, '[data-testid="chat-proposal-decline"]')
+      if (card === 'merge') {
+        await pressSelector(page, press, '[data-testid="chat-proposal-accept"]')
+        await page.waitForSelector('[data-testid="chat-proposal-undo"]', { visible: true, timeout: 15_000 }).catch(async () => {
+          const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent?.trim())
+          throw new Error(`Accept did not write the merge card: ${refused}`)
+        })
+        await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
+        await elementSays(page, '[data-testid="chat-proposal-over"]', [ASSIST_WORDS[language].proposal.undone], 'Undo did not say it was undone')
+      } else if (card !== 'invoice') await pressSelector(page, press, '[data-testid="chat-proposal-decline"]')
       await newChat(page, press)
     } finally {
       await forgetAssist(page)

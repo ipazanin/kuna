@@ -5,6 +5,8 @@ import type { PairSides } from '../../transactions/domain/pairSides'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
+import type { ShareDefault } from '../../owner-share/domain/ownerShare'
+import type { MovedRecord } from '../../settings/domain/categoryMove'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
@@ -27,13 +29,30 @@ export function recordsOfKind<R>(records: PackRecords, kind: RecordKind<R>): Rec
   return (records.get(kind.name) ?? NO_RECORDS) as RecordsRead<R>
 }
 
-/** A kind of a pack whose records name categories, so a category they name keeps its name and its row. */
-export interface CategoryNaming {
-  readonly kind: RecordKind<unknown>
-  /** How a refusal counts the records, such as "3 owner advances". */
-  readonly counted: (count: number) => string
+/** The screen and tab where a person changes a kind's records, as a link opens it. The pack's words name it. */
+export interface EditedOn {
+  readonly path: string
+  readonly query: Readonly<Record<string, string>>
+}
+
+/** What deleting a category into another does to the records of one of a pack's kinds that name it. */
+export interface NamedRecordsMove<R> {
+  readonly changed: readonly MovedRecord<R>[]
+  /** Records whose figures joined a record already in the other category, such as a plan row added to the other's row of its month. */
+  readonly removed: readonly R[]
+}
+
+/** A kind of a pack whose records name categories, so a category they name keeps its name and its row until they move. */
+export interface CategoryNaming<R = unknown> {
+  readonly writes: WriteRules<R>
   /** The categories a record names, from its fields as stored, refused records included. */
   categoriesOf(fields: StoredFields): readonly string[]
+  readonly editedOn: EditedOn
+  /**
+   * The records that name `from`, each moved to name `into` and take what `into` gives it, such as its owner share. A record
+   * the kind refuses stays as it is, since only its own screen can fix it.
+   */
+  movedInto(records: RecordsRead<R>, from: string, into: string, categories: readonly ShareDefault[]): NamedRecordsMove<R>
 }
 
 /** A way a pack counts a category, which the category takes by carrying its role, with the VAT treatments and buckets it allows. */

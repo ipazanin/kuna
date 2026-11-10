@@ -12,17 +12,18 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { SlugUses } from '../../workbook/domain/slug'
 import CategoryPicker from '../../transactions/presentation/CategoryPicker.vue'
-import { deleteCategoryInto } from '../application/namedRecordWrites'
+import { categoryMoveOf, deleteCategoryInto, joinedInWords, keptInWords } from '../application/namedRecordWrites'
+import type { KeptByMove } from '../domain/categoryMove'
 import { useSettings } from '../application/useSettings'
 import { words } from './words'
 
-/** Deletes a category in use, its ledger rows, split parts and rules moved to another in the same write, with one Undo. */
+/** Deletes a category in use, its ledger rows, split parts, rules and the pack's records that name it moved to another in the same write, with one Undo. */
 const props = defineProps<{
   category: CategoryRecord | null
   /** What names each category outside the tab. */
   uses: SlugUses
-  /** What a move leaves naming each category, which keeps it until a person changes those. */
-  kept: SlugUses
+  /** What a move leaves naming each category, which keeps it until a person fixes those on their screen. */
+  kept: ReadonlyMap<string, readonly KeptByMove[]>
 }>()
 
 const open = defineModel<boolean>('open', { required: true })
@@ -45,9 +46,17 @@ watch(
 const slug = computed(() => props.category?.slug ?? '')
 const targets = computed(() => (store.state.workbook?.categories ?? []).filter((category) => category.slug !== slug.value))
 const target = computed(() => targets.value.find((category) => category.slug === into.value) ?? null)
-const keptUses = computed(() => props.kept.get(slug.value) ?? [])
-const moving = computed(() => listInWords((props.uses.get(slug.value) ?? []).filter((use) => !keptUses.value.includes(use))))
-const keptBy = computed(() => listInWords(keptUses.value))
+const kept = computed(() => keptInWords(props.kept.get(slug.value) ?? []))
+const moving = computed(() => listInWords(props.uses.get(slug.value) ?? []))
+const keptBy = computed(() => listInWords(kept.value.uses))
+const fixedOn = computed(() => kept.value.places)
+const joined = computed(() => {
+  const records = store.state.records
+  const workbook = store.state.workbook
+  const to = target.value
+  if (records === null || workbook === null || to === null || slug.value === '') return []
+  return joinedInWords(categoryMoveOf(records, slug.value, to.slug, workbook.categories)).map((joined) => joined.text)
+})
 const bucketsMove = computed(() => {
   const from = props.category
   const to = target.value
@@ -76,11 +85,26 @@ async function confirm(): Promise<void> {
     :title="words.categories.moveAndDelete.title(category === null ? '' : names.category(category.slug))"
     :description="keptBy ? undefined : words.categories.moveAndDelete.savesAtOnce"
   >
-    <UAlert v-if="keptBy" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :description="words.categories.moveAndDelete.kept(keptBy)" data-testid="category-move-kept" />
+    <UAlert v-if="keptBy" icon="i-lucide-triangle-alert" color="warning" variant="subtle" data-testid="category-move-kept">
+      <template #description>{{ words.categories.moveAndDelete.kept(keptBy) }}</template>
+      <template #actions>
+        <UButton
+          v-for="place in fixedOn"
+          :key="place.label"
+          :to="{ path: place.path, query: place.query }"
+          :label="words.categories.moveAndDelete.open(place.label)"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          data-testid="category-move-fix-on"
+        />
+      </template>
+    </UAlert>
     <form v-else id="category-move" class="flex flex-col gap-4" data-testid="category-move" @submit.prevent="confirm">
       <UFormField :label="words.categories.moveAndDelete.into" :help="moving && words.categories.moveAndDelete.moves(moving)">
         <CategoryPicker v-model="into" :categories="targets" :placeholder="words.categories.moveAndDelete.pick" class="w-full" data-testid="category-move-into" />
       </UFormField>
+      <UAlert v-for="sentence in joined" :key="sentence" icon="i-lucide-info" color="neutral" variant="subtle" :description="sentence" data-testid="category-move-joined" />
       <UAlert v-if="bucketsMove" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :description="bucketsMove" data-testid="category-move-buckets" />
     </form>
     <template #end>
