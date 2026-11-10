@@ -10,7 +10,20 @@ import type { PlanLine } from '../domain/forecast/plan'
 import { GRANT_RELEASES } from '../domain/grants/grants'
 import type { Grant } from '../domain/grants/grants'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
-import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../domain/hrDooKinds'
+import {
+  ASSET_RECORDS,
+  EMPLOYEE_RECORDS,
+  GRANT_RECORDS,
+  OWNER_ADVANCE_RECORDS,
+  PLAN_RECORDS,
+  SCENARIO_RECORDS,
+  TRIP_COST_RECORDS,
+  TRIP_LEG_RECORDS,
+  TRIP_RECORDS,
+  YEAR_END_RECORDS,
+} from '../domain/hrDooKinds'
+import { TRANSPORTS, TRIP_COST_KINDS, TRIP_COST_PAYERS } from '../domain/trips/trip'
+import type { Trip, TripCost, TripLeg } from '../domain/trips/trip'
 import { DIRECTOR_BASES } from '../domain/scenarios/ownerPayScenarios'
 import type { ScenarioRow } from '../domain/scenarios/scenariosReading'
 import { YEAR_END_STATEMENTS, yearEndLineDefinition } from '../domain/yearEnd/yearEnd'
@@ -138,6 +151,56 @@ const EMPLOYEE_COLUMNS: readonly TemplateColumn[] = [
   },
 ]
 
+const TRIP_COLUMNS: readonly TemplateColumn[] = [
+  { name: 'number', note: 'The travel order number, such as 3/2026. Each number once. Required.' },
+  { name: 'issued', note: 'The day the order was issued, as a date cell. Required.' },
+  { name: 'traveller', note: 'The employee who travels, by the short name on the employees tab. Required.' },
+  { name: 'role', note: "The traveller's job, as the order names it. Optional." },
+  { name: 'destination', note: 'Where the trip goes, such as Split. Optional.' },
+  { name: 'country', note: 'The two-letter code of the country, such as GB. Blank means Croatia. One foreign country per trip.' },
+  { name: 'task', note: 'What the trip is for. Optional.' },
+  { name: 'departs', note: 'The day the trip starts, as a date cell. Required.' },
+  { name: 'days', note: 'The days the order approves, a whole number from 1 to 30. Required.' },
+  { name: 'transport', note: `How the traveller goes: ${TRANSPORTS.join(', ')}. Required.` },
+  { name: 'car', note: 'The make of a private car, such as Škoda Octavia. Required with private-car.' },
+  { name: 'plate', note: 'The plate of a private car. Required with private-car.' },
+  { name: 'km_rate', note: 'What a private car is paid per kilometre, as a number. Required with private-car.' },
+  { name: 'advance', note: 'The advance paid before the trip, as a number above zero. Optional.' },
+  { name: 'settle_by', note: 'The day the trip should be settled by, as a date cell. Optional.' },
+  { name: 'left', note: 'When the traveller left, as text such as 2026-03-12 07:30. Fill it to settle.' },
+  { name: 'returned', note: 'When the traveller came back, as text such as 2026-03-13 18:00. Fill it to settle.' },
+  { name: 'border_out', note: 'Abroad: when the traveller crossed the border, or by plane when it took off, as text such as 2026-03-12 09:10.' },
+  { name: 'border_in', note: 'Abroad: when the traveller crossed the border back, or by plane when it landed in Croatia, as text.' },
+  { name: 'odometer_start', note: 'A private car: the odometer when the trip started, a whole number.' },
+  { name: 'odometer_end', note: 'A private car: the odometer when the trip ended, a whole number.' },
+  { name: 'meals', note: 'Meals paid for the traveller, one count from 0 to 2 for each line of the per-diem table, comma separated, such as 0, 1.' },
+  { name: 'report', note: 'The report on the trip, which a settled trip needs.' },
+  { name: 'settled_on', note: 'The day the trip was settled, as a date cell. Blank while it is open.' },
+  { name: 'note', note: 'Anything worth keeping with it. Optional.' },
+  ID_TEMPLATE_COLUMN,
+]
+
+const TRIP_LEG_COLUMNS: readonly TemplateColumn[] = [
+  { name: 'trip', note: 'The id of the travel order on the trips tab. Required.' },
+  { name: 'date', note: 'The day of the leg, as a date cell. Required.' },
+  { name: 'from', note: 'Where the leg starts. Optional.' },
+  { name: 'to', note: 'Where the leg ends. Optional.' },
+  { name: 'km', note: 'The kilometres driven, a whole number above zero. Required.' },
+  ID_TEMPLATE_COLUMN,
+]
+
+const TRIP_COST_COLUMNS: readonly TemplateColumn[] = [
+  { name: 'trip', note: 'The id of the travel order on the trips tab. Required.' },
+  { name: 'date', note: 'The day it was paid, as a date cell. Required.' },
+  { name: 'kind', note: `What it was for: ${TRIP_COST_KINDS.join(', ')}. Required.` },
+  { name: 'description', note: 'What the receipt says, such as Hotel, two nights. Optional.' },
+  { name: 'amount', note: 'In euros, from the card statement or at the ECB rate of the payment day, as a number above zero. Required.' },
+  { name: 'foreign_amount', note: 'The amount on a foreign receipt, as a number. Optional, with currency.' },
+  { name: 'currency', note: 'The currency of foreign_amount, such as GBP. Optional, with foreign_amount.' },
+  { name: 'paid_by', note: `Who paid: ${TRIP_COST_PAYERS.join(' or ')}. The traveller is paid back in the settlement. Required.` },
+  ID_TEMPLATE_COLUMN,
+]
+
 const FIGURE_FORMATS: Readonly<Record<YearEndFigureKind, CellFormat>> = { money: 'amount', date: 'date', rate: 'rate', count: 'count' }
 
 export const OWNER_ADVANCES_TAB: PackSpreadsheetTab<OwnerAdvanceEntry> = {
@@ -213,5 +276,47 @@ export const EMPLOYEES_TAB: PackSpreadsheetTab<Employee> = {
   columns: EMPLOYEE_COLUMNS,
 }
 
+export const TRIPS_TAB: PackSpreadsheetTab<Trip> = {
+  tab: 'trips',
+  kind: TRIP_RECORDS,
+  formatOf: byColumn({
+    issued: 'date',
+    departs: 'date',
+    days: 'number',
+    km_rate: 'amount',
+    advance: 'amount',
+    settle_by: 'date',
+    odometer_start: 'number',
+    odometer_end: 'number',
+    settled_on: 'date',
+  }),
+  columns: TRIP_COLUMNS,
+}
+
+export const TRIP_LEGS_TAB: PackSpreadsheetTab<TripLeg> = {
+  tab: 'trip-legs',
+  kind: TRIP_LEG_RECORDS,
+  formatOf: byColumn({ date: 'date', km: 'number' }),
+  columns: TRIP_LEG_COLUMNS,
+}
+
+export const TRIP_COSTS_TAB: PackSpreadsheetTab<TripCost> = {
+  tab: 'trip-costs',
+  kind: TRIP_COST_RECORDS,
+  formatOf: byColumn({ date: 'date', amount: 'amount', foreign_amount: 'number' }),
+  columns: TRIP_COST_COLUMNS,
+}
+
 /** The pack's tabs, which the company app installs with the spreadsheet adapter. */
-export const HR_DOO_TABS: readonly PackSpreadsheetTab<unknown>[] = [OWNER_ADVANCES_TAB, ASSETS_TAB, GRANTS_TAB, YEAR_END_TAB, PLAN_TAB, SCENARIOS_TAB, EMPLOYEES_TAB]
+export const HR_DOO_TABS: readonly PackSpreadsheetTab<unknown>[] = [
+  OWNER_ADVANCES_TAB,
+  ASSETS_TAB,
+  GRANTS_TAB,
+  YEAR_END_TAB,
+  PLAN_TAB,
+  SCENARIOS_TAB,
+  EMPLOYEES_TAB,
+  TRIPS_TAB,
+  TRIP_LEGS_TAB,
+  TRIP_COSTS_TAB,
+]

@@ -42,6 +42,10 @@ const ANSWERS = {
     explained: (label: string, amount: string, steps: string) => `${label} is ${amount}. Kuna builds it from ${steps}. The link opens the tax rule it rests on.`,
     keptByAnonymise:
       'That figure is about employees and their pay, so it stays on this device while Anonymise is on. Turn Anonymise off for this AI company in Kuna settings if you want it explained.',
+    tripCostTitle: 'Add the parking to travel order 3/2026',
+    parking: 'Parking garage in Rijeka',
+    tripCost: 'The card adds 18.00 of parking the traveller paid to travel order 3/2026. It is paid back in the settlement once the trip is settled.',
+    noTrip: 'I found no travel order 3/2026 in the books.',
   },
   hr: {
     sortTitle: 'Razvrstaj ono u što sam siguran',
@@ -80,6 +84,10 @@ const ANSWERS = {
     explained: (label: string, amount: string, steps: string) => `${label} iznosi ${amount}. Kuna ga računa iz ${steps}. Poveznica otvara porezno pravilo na kojem počiva.`,
     keptByAnonymise:
       'Taj se iznos odnosi na zaposlenike i njihove plaće, pa ostaje na ovom uređaju dok je anonimizacija uključena. Isključite anonimizaciju za ovu AI tvrtku u postavkama Kune ako želite da ga objasnim.',
+    tripCostTitle: 'Dodaj parkiranje putnom nalogu 3/2026',
+    parking: 'Garaža u Rijeci',
+    tripCost: 'Kartica putnom nalogu 3/2026 dodaje 18,00 eura parkiranja koje je platio putnik. Putniku se vraća u obračunu kad se put obračuna.',
+    noTrip: 'U knjigama nisam našao putni nalog 3/2026.',
   },
 }
 
@@ -90,6 +98,7 @@ interface FoundRecord {
   readonly label?: string
   readonly counterparty?: string
   readonly category?: string
+  readonly number?: string
 }
 
 /** The records a find gave, by the order the lookups ran. */
@@ -207,6 +216,19 @@ function invoiceReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
     return lookup(1, 'show_screen', { route: '/company/invoicing?tab=invoices', params: client === undefined ? [] : [{ name: 'make', value: client.ref }] }, tokens)
   }
   return answered(request, says.invoice, tokens)
+}
+
+/** Reads the travel orders and proposes a parking cost the traveller paid on order 3/2026. */
+function tripCostReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'hr-doo.trip', { limit: 10 }), tokens)
+  if (answers.length === 1) {
+    const trip = recordsOf(answers[0]!.text).find((record) => record.number === '3/2026')
+    if (trip === undefined) return answered(request, says.noTrip, tokens)
+    const input = { trip: trip.ref, date: '2026-10-01', kind: 'parking', description: says.parking, amount: '18', foreignAmount: null, currency: null, paidBy: 'traveller' }
+    return lookup(1, 'propose_changes', { app: 'company', title: says.tripCostTitle, steps: [{ op: 'add-trip-cost', input: JSON.stringify(input), as: null }], next: false }, tokens)
+  }
+  return answered(request, says.tripCost, tokens)
 }
 
 /** Proposes the books in US dollars, a setting whose line the card warns on. */
@@ -355,7 +377,7 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
  * Company's part of the fake chat, only while the person is on a Company screen: one that asks to suggest categories or sort
  * reads the rows waiting, files the sure ones and goes on at each Go on with a new category and a rule for the rest, one about an invoice links the Invoices tab, one about dollars proposes the
  * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one that tries the second rule first moves it to the top, one about training proposes a category with its tax
- * class, one that starts with merge deletes AI services into software subscriptions, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account a row of which waits as a look-alike, and one that asks to explain reads the tagged build-up.
+ * class, one that starts with merge deletes AI services into software subscriptions, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account a row of which waits as a look-alike, one that asks to explain reads the tagged build-up, and one about parking adds a cost to travel order 3/2026.
  */
 function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (!inCompany(turn.request)) return null
@@ -373,6 +395,7 @@ function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
   if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)
   if (/explain|objasni/i.test(typed)) return buildUpReply(turn, says)
+  if (/parking|parkiranj/i.test(typed)) return tripCostReply(turn, says)
   return null
 }
 

@@ -6,9 +6,12 @@ import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
 import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
+import { tripRatesDemand } from './domain/trips/tripSettlement'
+import { ruleValue } from './ruleset/ruleset'
 import { unaccountedInView } from './domain/ownerAdvances'
 import { ownerTakeOut } from './presentation/ownerTakeOut'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
+import { TRIPS_ROUTE } from './presentation/trips/tripLinks'
 import { categoriesToSort } from './preset/presentation/categoriesToSort'
 import { categoryClassHelp } from './preset/presentation/categoryClassHelp'
 import { categoryNamingWords } from './presentation/categoryNamingWords'
@@ -29,9 +32,15 @@ export const hrDooPack: PackContribution = {
     { path: '/company/owner', title: packWords.screens.owner, icon: 'i-lucide-user-round', component: () => import('./presentation/OwnerScreen.vue') },
     { path: '/company/year', title: packWords.screens.year, icon: 'i-lucide-calendar-check', component: () => import('./presentation/year/YearScreen.vue') },
     { path: '/company/salaries', title: packWords.screens.salaries, icon: 'i-lucide-users', component: () => import('./presentation/salaries/SalariesScreen.vue') },
+    { path: TRIPS_ROUTE, title: packWords.screens.trips, icon: 'i-lucide-plane', component: () => import('./presentation/trips/TripsScreen.vue') },
   ],
   waitingJobs: (workbook, asOf) => packWaitingJobs(hrDooWorkbook(workbook), asOf),
   ownerTakeOut: (workbook, asOf) => ownerTakeOut(hrDooWorkbook(workbook), asOf),
+  ratesDemand: (workbook) =>
+    tripRatesDemand(
+      hrDooWorkbook(workbook).trips.map((file) => file.trip),
+      ruleValue,
+    ),
   reviewCards: [
     {
       component: defineAsyncComponent(() => import('./presentation/UnaccountedCard.vue')),

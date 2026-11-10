@@ -83,9 +83,20 @@ export const en = {
       one: `A corporate tax payment falls due by ${day}, ${owed}`,
       other: `${count} corporate tax payments fall due by ${day}, ${owed}`,
     }),
+    tripToSettle: (number: string, traveller: string, destination: string) => `Travel order ${number}, ${traveller} to ${destination}, waits for its settlement`,
+    tripDue: (number: string, traveller: string, destination: string, day: string) => `Travel order ${number}, ${traveller} to ${destination}, waits for its settlement by ${day}`,
+    tripLate: (number: string, traveller: string, destination: string, day: string) => `Travel order ${number}, ${traveller} to ${destination}, was due to be settled by ${day}`,
   },
   /** The pack's pages as a link names them, a page and its tab. */
-  links: { review: 'To review', yearTaxes: 'Year, Taxes', ownerTaken: 'Owner, Taken', ownerOwed: 'Owner, Who owes whom', yearStatements: 'Year, Statements', yearPlan: 'Year, Plan' },
+  links: {
+    review: 'To review',
+    yearTaxes: 'Year, Taxes',
+    ownerTaken: 'Owner, Taken',
+    ownerOwed: 'Owner, Who owes whom',
+    yearStatements: 'Year, Statements',
+    yearPlan: 'Year, Plan',
+    tripSettlement: 'Trips, Settlement',
+  },
   /** How the categories editor and the chat name the pack's records that name a category, and what deleting it into another does to them. */
   categoryNaming: {
     ownerAdvances: (count: number): EnglishForms => ({ one: `${count} owner advance`, other: `${count} owner advances` }),
@@ -118,7 +129,7 @@ export const en = {
     addCostOf: (day: string) => `Add the cost the reimbursement of ${day} repaid`,
   },
   /** The pack's screens as the menu and their headers name them. */
-  screens: { owner: 'Owner', year: 'Year', salaries: 'Salaries' },
+  screens: { owner: 'Owner', year: 'Year', salaries: 'Salaries', trips: 'Trips' },
   /** The Owner screen's header and tabs. */
   owner: {
     description: 'What the owner took out, and who owes whom between the owner and the company.',
@@ -542,8 +553,19 @@ export const hr: Translation<typeof en> = {
       few: `${count} uplate poreza na dobit dospijevaju do ${day}, ${owed}`,
       other: `${count} uplata poreza na dobit dospijeva do ${day}, ${owed}`,
     }),
+    tripToSettle: (number, traveller, destination) => `Putni nalog ${number}, ${traveller}, ${destination}, čeka obračun`,
+    tripDue: (number, traveller, destination, day) => `Putni nalog ${number}, ${traveller}, ${destination}, treba obračunati do ${day}`,
+    tripLate: (number, traveller, destination, day) => `Putni nalog ${number}, ${traveller}, ${destination}, trebao je biti obračunat do ${day}`,
   },
-  links: { review: 'Za provjeru', yearTaxes: 'Godina, Porezi', ownerTaken: 'Vlasnik, Uzeto', ownerOwed: 'Vlasnik, Tko kome duguje', yearStatements: 'Godina, Izvještaji', yearPlan: 'Godina, Plan' },
+  links: {
+    review: 'Za provjeru',
+    yearTaxes: 'Godina, Porezi',
+    ownerTaken: 'Vlasnik, Uzeto',
+    ownerOwed: 'Vlasnik, Tko kome duguje',
+    yearStatements: 'Godina, Izvještaji',
+    yearPlan: 'Godina, Plan',
+    tripSettlement: 'Putni nalozi, Obračun',
+  },
   categoryNaming: {
     ownerAdvances: (count) => ({ one: `${count} predujam vlasnika`, few: `${count} predujma vlasnika`, other: `${count} predujmova vlasnika` }),
     yearEndKontoRows: (count) => ({ one: `${count} konto stavka zaključka godine`, few: `${count} konto stavke zaključka godine`, other: `${count} konto stavki zaključka godine` }),
@@ -578,7 +600,7 @@ export const hr: Translation<typeof en> = {
     addCost: 'Dodaj trošak',
     addCostOf: (day) => `Dodaj trošak koji je povrat od ${day} podmirio`,
   },
-  screens: { owner: 'Vlasnik', year: 'Godina', salaries: 'Plaće' },
+  screens: { owner: 'Vlasnik', year: 'Godina', salaries: 'Plaće', trips: 'Putni nalozi' },
   owner: {
     description: 'Što je vlasnik uzeo iz tvrtke i tko kome duguje između vlasnika i tvrtke.',
     addAdvance: 'Dodaj predujam',

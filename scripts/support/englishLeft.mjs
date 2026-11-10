@@ -175,7 +175,7 @@ const FILE_FIELDS = new Set(
 )
 
 /** File field words that are Croatian words too, so a Croatian sentence writes them in lower case for their own sake. */
-const CROATIAN_HOMOGRAPHS = new Set(['to', 'on', 'date', 'instrument'])
+const CROATIAN_HOMOGRAPHS = new Set(['to', 'on', 'date', 'instrument', 'km'])
 
 /** Each words file's English and Croatian halves, as the strings each writes. */
 const HALVES = sourcesUnder(SOURCE, (path) => path.endsWith('/words.ts')).map((source) => {

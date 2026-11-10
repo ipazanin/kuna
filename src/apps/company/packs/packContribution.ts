@@ -15,6 +15,7 @@ import { newestBookingOf } from '../workbook/domain/workbook'
 import type { Category, Workbook } from '../workbook/domain/workbook'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 import type { Money } from '../../../shared/money/money'
+import type { RatesDemand } from '../../../shared/rates/domain/ratesDemand'
 
 /**
  * A card on the To review tab of Transactions, under the rows to review. It stays mounted while it shows nothing, so
@@ -91,6 +92,8 @@ export interface PackContribution {
   waitingJobs(workbook: Workbook, asOf: CivilDate): readonly WaitingJob[]
   /** What the owner could take out on the newest booking. Null without a pack, which has no such figure. */
   ownerTakeOut(workbook: Workbook, asOf: CivilDate): OwnerTakeOut | null
+  /** The ECB rates the pack's figures need, each currency from the first day it is needed. Empty without a pack. */
+  ratesDemand(workbook: Workbook): RatesDemand
   readonly reviewCards: readonly PackReviewCard[]
   /** Tabs of Settings, after Accounts. */
   readonly settingsTabs: readonly SettingsTab[]
@@ -118,6 +121,7 @@ const NO_PACK: PackContribution = {
   screens: [],
   waitingJobs: () => [],
   ownerTakeOut: () => null,
+  ratesDemand: () => new Map(),
   reviewCards: [],
   settingsTabs: [],
   settingsCards: [],

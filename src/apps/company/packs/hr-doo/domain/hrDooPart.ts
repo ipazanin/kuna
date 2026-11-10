@@ -15,8 +15,33 @@ import type { PlanLine } from './forecast/plan'
 import { PLAN_CODEC, readPlan } from './forecast/planReading'
 import type { Grant } from './grants/grants'
 import { GRANT_CODEC, readGrants } from './grants/grantsReading'
-import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from './hrDooKinds'
-import { ASSET_WRITES, EMPLOYEE_WRITES, GRANT_WRITES, OWNER_ADVANCE_WRITES, PLAN_WRITES, SCENARIO_WRITES, YEAR_END_WRITES } from './hrDooWrites'
+import {
+  ASSET_RECORDS,
+  EMPLOYEE_RECORDS,
+  GRANT_RECORDS,
+  OWNER_ADVANCE_RECORDS,
+  PLAN_RECORDS,
+  SCENARIO_RECORDS,
+  TRIP_COST_RECORDS,
+  TRIP_LEG_RECORDS,
+  TRIP_RECORDS,
+  YEAR_END_RECORDS,
+} from './hrDooKinds'
+import {
+  ASSET_WRITES,
+  EMPLOYEE_WRITES,
+  GRANT_WRITES,
+  OWNER_ADVANCE_WRITES,
+  PLAN_WRITES,
+  SCENARIO_WRITES,
+  TRIP_CODECS,
+  TRIP_COST_WRITES,
+  TRIP_LEG_WRITES,
+  TRIP_WRITES,
+  YEAR_END_WRITES,
+  tripsOf,
+} from './hrDooWrites'
+import type { TripFile } from './trips/tripReading'
 import { OWNER_ADVANCE_CODEC, readOwnerAdvances } from './ownerAdvancesReading'
 import { PACK_ROLES, TAX_FREE_ROLES } from './packRoles'
 import type { OwnerPayScenario } from './scenarios/ownerPayScenarios'
@@ -46,6 +71,8 @@ export interface HrDooPart {
   readonly employees: readonly Employee[]
   /** The director among the employees, whose facts the owner's pay is worked out on, or null when no single row is the director's. */
   readonly director: Employee | null
+  /** The travel orders that count, each with its legs and costs, in the order the trips tab holds them. */
+  readonly trips: readonly TripFile[]
   readonly companyFacts: CompanyFacts
 }
 
@@ -70,8 +97,19 @@ export function hrDooWorkbook(workbook: Workbook): HrDooWorkbook {
  */
 export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   key: HR_DOO,
-  kinds: [OWNER_ADVANCE_WRITES, ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES, PLAN_WRITES, SCENARIO_WRITES, EMPLOYEE_WRITES],
-  codecs: [OWNER_ADVANCE_CODEC, ASSET_CODEC, GRANT_CODEC, YEAR_END_CODEC, PLAN_CODEC, SCENARIO_CODEC, EMPLOYEE_CODEC] as readonly RecordCodec<unknown>[],
+  kinds: [OWNER_ADVANCE_WRITES, ASSET_WRITES, GRANT_WRITES, YEAR_END_WRITES, PLAN_WRITES, SCENARIO_WRITES, EMPLOYEE_WRITES, TRIP_WRITES, TRIP_LEG_WRITES, TRIP_COST_WRITES],
+  codecs: [
+    OWNER_ADVANCE_CODEC,
+    ASSET_CODEC,
+    GRANT_CODEC,
+    YEAR_END_CODEC,
+    PLAN_CODEC,
+    SCENARIO_CODEC,
+    EMPLOYEE_CODEC,
+    TRIP_CODECS.trip,
+    TRIP_CODECS.leg,
+    TRIP_CODECS.cost,
+  ] as readonly RecordCodec<unknown>[],
   schemaVersion: 1,
   settings: COMPANY_FACT_SETTINGS,
   categoryNaming: CATEGORY_NAMING,
@@ -90,6 +128,10 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
     const assets = readAssets(recordsOfKind(records, ASSET_RECORDS), new Set(grants.facts.map((grant) => grant.slug)))
     const yearEndLines = readYearEnd(recordsOfKind(records, YEAR_END_RECORDS), categorySlugs)
     const employees = readEmployees(recordsOfKind(records, EMPLOYEE_RECORDS))
+    const trips = tripsOf(
+      { trips: recordsOfKind(records, TRIP_RECORDS), legs: recordsOfKind(records, TRIP_LEG_RECORDS), costs: recordsOfKind(records, TRIP_COST_RECORDS) },
+      new Set(employees.facts.map((employee) => employee.slug)),
+    )
     const planLines = readPlan(recordsOfKind(records, PLAN_RECORDS), categorySlugs, new Set(scenarios.scenarios.map((scenario) => scenario.slug)))
     return {
       part: {
@@ -101,6 +143,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
         payScenarios: scenarios.scenarios,
         employees: employees.facts,
         director: employees.director,
+        trips: trips.files,
         companyFacts,
       },
       problems: [
@@ -111,6 +154,9 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
         ...tabProblems('year-end', yearEndLines.problems),
         ...tabProblems('plan', planLines.problems),
         ...tabProblems('employees', employees.problems),
+        ...tabProblems('trips', trips.trips.problems),
+        ...tabProblems('trip-legs', trips.legs.problems),
+        ...tabProblems('trip-costs', trips.costs.problems),
       ],
     }
   },

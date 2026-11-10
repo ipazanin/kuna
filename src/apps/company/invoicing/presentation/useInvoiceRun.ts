@@ -26,7 +26,7 @@ import { filledMail, gmailComposeUrl } from '../domain/invoiceMail'
 import type { InvoiceMail } from '../domain/invoiceMail'
 import { linesTotal, plannedLines, registerItemOf } from '../domain/invoiceLines'
 import type { InvoiceLine } from '../domain/invoiceLines'
-import { nextInvoiceNumber, numberTaken } from '../domain/invoiceNumber'
+import { nextYearlyNumber, numberTaken } from '../../documents/domain/yearlyNumber'
 import { mailDraftsOn, switchMailDrafts } from '../infrastructure/mailDraftSwitch'
 import { words as receivablesWords } from '../../receivables/domain/words'
 import { words } from './words'
@@ -54,8 +54,8 @@ function linesOf(drafts: readonly LineDraft[]): InvoiceLine[] {
 }
 
 async function pdfOf(document: InvoiceDocument): Promise<Uint8Array> {
-  const [{ renderInvoicePdf }, { invoiceFonts }] = await Promise.all([import('../infrastructure/invoicePdf'), import('../infrastructure/invoiceFonts')])
-  return renderInvoicePdf(document, await invoiceFonts())
+  const [{ renderInvoicePdf }, { documentFonts }] = await Promise.all([import('../infrastructure/invoicePdf'), import('../../documents/infrastructure/documentFonts')])
+  return renderInvoicePdf(document, await documentFonts())
 }
 
 /**
@@ -142,7 +142,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   const suggestedNumber = computed(() => {
     const day = issueDay.value
     const terms = settings.value
-    return day === null || terms === null || workbook.value === null ? '' : nextInvoiceNumber(terms.invoicing.numberPattern, day, workbook.value.invoices)
+    return day === null || terms === null || workbook.value === null ? '' : nextYearlyNumber(terms.invoicing.numberPattern, day, workbook.value.invoices)
   })
   watch(
     suggestedNumber,

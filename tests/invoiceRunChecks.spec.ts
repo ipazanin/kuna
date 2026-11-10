@@ -29,7 +29,7 @@ vi.mock('../src/apps/company/invoicing/application/invoiceGoogle', () => ({
   invoiceDrive: async () => google.session.drive,
   invoiceDrafts: async () => google.session.drafts,
 }))
-vi.mock('../src/apps/company/invoicing/infrastructure/invoiceFonts', () => ({ invoiceFonts: async () => ({}) }))
+vi.mock('../src/apps/company/documents/infrastructure/documentFonts', () => ({ documentFonts: async () => ({}) }))
 vi.mock('../src/apps/company/invoicing/infrastructure/invoicePdf', () => ({
   renderInvoicePdf: async (document: { number: string }) => new TextEncoder().encode(document.number),
 }))

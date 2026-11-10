@@ -26,6 +26,9 @@ export const WORKBOOK_TABS = [
   'plan',
   'scenarios',
   'employees',
+  'trips',
+  'trip-legs',
+  'trip-costs',
   'splits',
   'dismissed',
 ] as const
@@ -33,7 +36,7 @@ export const WORKBOOK_TABS = [
 export type WorkbookTab = (typeof WORKBOOK_TABS)[number]
 
 /** The tabs the pack's records live on, which the pack maps and core keeps in the workbook format. */
-export type PackTab = Extract<WorkbookTab, 'owner-advances' | 'assets' | 'grants' | 'year-end' | 'plan' | 'scenarios' | 'employees'>
+export type PackTab = Extract<WorkbookTab, 'owner-advances' | 'assets' | 'grants' | 'year-end' | 'plan' | 'scenarios' | 'employees' | 'trips' | 'trip-legs' | 'trip-costs'>
 
 /** The tabs core maps itself. */
 export type CoreTab = Exclude<WorkbookTab, PackTab>
@@ -59,6 +62,9 @@ export const EMPTY_TABS: WorkbookTabs = {
   plan: [],
   scenarios: [],
   employees: [],
+  trips: [],
+  'trip-legs': [],
+  'trip-costs': [],
   splits: [],
   dismissed: [],
 }

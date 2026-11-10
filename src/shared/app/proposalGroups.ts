@@ -20,6 +20,8 @@ export interface ProposalDescriber {
   warns(kind: RecordKind<unknown>, field: string, after: ProposedRecord | null, before: ProposedRecord | null): boolean
   /** The values a new record of the kind has unless a person sets them, which an add leaves off its line. A change still shows them. */
   defaultsOf?(kind: RecordKind<unknown>): ProposedRecord
+  /** The fields the label of a new record already names, which an add leaves off its line. A change still shows them. */
+  inLabel?(kind: RecordKind<unknown>): ReadonlySet<string>
   /** Whether the change files a row a person confirmed under another category. Without it, no change does. */
   movesConfirmed?(kind: RecordKind<unknown>, before: ProposedRecord, after: ProposedRecord): boolean
   /** The line with what the app checks of the record as it will be held, such as a figure set beside a document's. Without it, a line shows only the fields. */
@@ -27,7 +29,8 @@ export interface ProposalDescriber {
 }
 
 function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallback: string, before: ProposedRecord | null, after: ProposedRecord | null): ProposalLine {
-  const names = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter((field) => !describer.keptByKuna.has(field))
+  const labelled = before === null ? (describer.inLabel?.(kind) ?? new Set<string>()) : new Set<string>()
+  const names = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter((field) => !describer.keptByKuna.has(field) && !labelled.has(field))
   const defaults = describer.defaultsOf?.(kind) ?? {}
   const altered =
     before !== null && after !== null

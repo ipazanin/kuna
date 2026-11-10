@@ -5,6 +5,7 @@ import type { PlanLine } from './forecast/plan'
 import type { Grant } from './grants/grants'
 import type { OwnerAdvanceEntry } from './ownerAdvancesReading'
 import type { ScenarioRow } from './scenarios/scenariosReading'
+import type { Trip, TripCost, TripLeg } from './trips/trip'
 import type { YearEndLine } from './yearEnd/yearEnd'
 
 export const OWNER_ADVANCE_RECORDS = recordKind<OwnerAdvanceEntry>('hr-doo.owner-advance', {
@@ -34,4 +35,16 @@ export const SCENARIO_RECORDS = recordKind<ScenarioRow>('hr-doo.scenario-compone
 export const EMPLOYEE_RECORDS = recordKind<Employee>('hr-doo.employee', {
   en: { one: 'employee', many: 'employees', article: 'an' },
   hr: { one: 'zaposlenik', of: 'zaposlenika', few: 'zaposlenika', other: 'zaposlenika', gender: 'masculine' },
+})
+export const TRIP_RECORDS = recordKind<Trip>('hr-doo.trip', {
+  en: { one: 'travel order', many: 'travel orders', article: 'a' },
+  hr: { one: 'putni nalog', of: 'putnog naloga', few: 'putna naloga', other: 'putnih naloga', gender: 'masculine' },
+})
+export const TRIP_LEG_RECORDS = recordKind<TripLeg>('hr-doo.trip-leg', {
+  en: { one: 'trip leg', many: 'trip legs', article: 'a' },
+  hr: { one: 'dionica puta', of: 'dionice puta', few: 'dionice puta', other: 'dionica puta', gender: 'feminine' },
+})
+export const TRIP_COST_RECORDS = recordKind<TripCost>('hr-doo.trip-cost', {
+  en: { one: 'trip cost', many: 'trip costs', article: 'a' },
+  hr: { one: 'trošak puta', of: 'troška puta', few: 'troška puta', other: 'troškova puta', gender: 'masculine' },
 })

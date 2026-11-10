@@ -213,7 +213,7 @@ export const ACTS: Readonly<Record<ActId, Act>> = {
     title: 'Odluka o visini dnevnice za službeno putovanje u inozemstvo',
     nn: ['16/24'],
     nnComplete: true,
-    textUrl: 'https://www.zakon.hr/cms.htm?id=59611',
+    textUrl: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2024_02_16_277.html',
   },
   OPZ: {
     id: 'OPZ',

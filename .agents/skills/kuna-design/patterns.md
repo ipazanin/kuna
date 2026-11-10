@@ -53,6 +53,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - The `start` slot holds a destructive action such as Delete. The `end` slot holds Cancel then the primary action.
 - Set `dismissible` to false only while a step runs that closing would cut short.
 - A dialog whose fields sit two to a row lays them out in a `FormGrid as="form"`. A single column of fields, or rows of its own such as a split's parts, can stay a plain form.
+- After Save, a dialog shows each field's problem under that field, through `tried && errors.field`. An alert holds only a rule across fields, such as an odometer that runs backwards, and shows once every field is valid.
 
 ## Undo instead of a confirm
 

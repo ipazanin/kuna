@@ -17,6 +17,7 @@
     "check": "npm run lint && npm run format:check && npm run typecheck && npm test",
     "check:visual": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/visual-check.mjs",
     "parity:year-end": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/parity-year-end.mjs",
+    "import:foreign-per-diems": "node scripts/import-foreign-per-diems.mjs",
     "import:local-rates": "node scripts/import-local-rates.mjs",
     "check:round-trip": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/round-trip-workbook.mjs",
     "check:touch": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/touch-check.mjs",

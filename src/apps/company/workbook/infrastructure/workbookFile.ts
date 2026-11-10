@@ -108,6 +108,9 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
     plan: gridFor('plan', tabs.plan),
     scenarios: gridFor('scenarios', tabs.scenarios),
     employees: gridFor('employees', tabs.employees),
+    trips: gridFor('trips', tabs.trips),
+    'trip-legs': gridFor('trip-legs', tabs['trip-legs']),
+    'trip-costs': gridFor('trip-costs', tabs['trip-costs']),
     splits: gridFor('splits', tabs.splits),
     dismissed: gridFor('dismissed', tabs.dismissed),
   }

@@ -3,7 +3,7 @@
 The Croatian law three of Kuna's apps build on, each in a folder of its own.
 
 - `investments/` is the personal income tax law behind the Investments Tax screen (`src/apps/investments/tax/`), for one case: a resident individual who invests through foreign brokers and files their own JOPPD, INO-IZJAVA and INO-DOH.
-- `company/` is the profit tax, VAT and accounting law behind the Company app's tax classes and state payments (`src/apps/company/packs/hr-doo/preset/`), for a Croatian d.o.o. whose accountant keeps the books.
+- `company/` is the profit tax, VAT, accounting and income tax law behind the Company app's tax classes, state payments (`src/apps/company/packs/hr-doo/preset/`) and business trips, for a Croatian d.o.o. whose accountant keeps the books.
 
 - `assets/` is the customs table of value loss (NN 1/2017) the Assets app estimates a car by.
 
@@ -25,6 +25,7 @@ This is research for building software. It is not legal or tax advice. Where the
 | [Filing calendar](investments/filing-calendar.md)                   | Every deadline in one table, each naming the file that owns it                       |
 | [Tax classes](company/tax-classes.md)                               | Each Company category's class, its add-back, its VAT and buckets, and the law        |
 | [State payments](company/state-payments.md)                         | The Naputak's revenue codes, model HR68, the contribution accounts, the seeded rules |
+| [Business trips](company/business-trips.md)                         | Per diems at home and abroad, private car kilometres, meals, the travel order, JOPPD |
 | [Books and kontos](company/books-and-kontos.md)                     | What the accounting act asks, why Kuna ships no chart of accounts                    |
 | [Used car value](assets/used-car-value.md)                          | Tablica 1 of NN 1/2017, how its months count, how the Assets app estimates a car     |
 | `sources/`                                                          | Where to read the law, versions and dates, marks and citations, acts, the watch list |
@@ -102,11 +103,12 @@ Citations name the act by its abbreviation and the article, as `ZPDoh Art. 67(8)
 
 ### `company/`
 
-| File                                            | Checked through       | Covers                                                                                                                                                                  |
-| ----------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Books and kontos](company/books-and-kontos.md) | NN 59/26, 2026-11-04  | What the accounting act asks of a d.o.o.'s books, why Kuna ships no chart of accounts, and what the accountant decides that Kuna only estimates                         |
-| [State payments](company/state-payments.md)     | NN 18/26, 2026-11-04  | How a d.o.o. pays the state, the Naputak's revenue codes with model HR68, the contribution accounts, and the category rules new books start with for each               |
-| [Tax classes](company/tax-classes.md)           | NN 119/26, 2026-11-04 | The tax class each Company category carries, how Kuna counts it for the profit tax and VAT, the VAT treatments and buckets it allows, and the act and article behind it |
+| File                                            | Checked through       | Covers                                                                                                                                                                                                                                   |
+| ----------------------------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [Books and kontos](company/books-and-kontos.md) | NN 59/26, 2026-11-04  | What the accounting act asks of a d.o.o.'s books, why Kuna ships no chart of accounts, and what the accountant decides that Kuna only estimates                                                                                          |
+| [Business trips](company/business-trips.md)     | NN 129/26, 2026-11-10 | Business trips of a d.o.o.'s employee, the tax-free per diems at home and abroad, private car kilometres, meals provided, the hours and the distance a trip needs, what the travel order holds, and the JOPPD code 17 with its deadlines |
+| [State payments](company/state-payments.md)     | NN 18/26, 2026-11-04  | How a d.o.o. pays the state, the Naputak's revenue codes with model HR68, the contribution accounts, and the category rules new books start with for each                                                                                |
+| [Tax classes](company/tax-classes.md)           | NN 119/26, 2026-11-04 | The tax class each Company category carries, how Kuna counts it for the profit tax and VAT, the VAT treatments and buckets it allows, and the act and article behind it                                                                  |
 
 ### `investments/`
 

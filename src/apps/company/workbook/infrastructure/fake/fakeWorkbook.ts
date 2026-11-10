@@ -36,6 +36,8 @@ export interface FakeStaff {
   readonly employees: readonly FakeFields[]
   /** The rows paid on the 12th of `paidIn` for `worked`, the month before it, both `YYYY-MM`. */
   payday(paidIn: string, worked: string): readonly FakePayment[]
+  /** The travel orders with their legs and costs, by kind, each record with its own id. */
+  readonly trips: Readonly<Record<string, readonly FakeFields[]>>
 }
 
 /** The `roles` column as the shadow-accounting Sheet seeds it. Salary and rent are paid in the month after the work, hence `arrears`. */
@@ -425,7 +427,7 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
     dismissal: [],
     ...planningRecords(),
     ...(staff !== null
-      ? { 'hr-doo.employee': staff.employees }
+      ? { 'hr-doo.employee': staff.employees, ...staff.trips }
       : source === 'drive'
         ? {}
         : {

@@ -3,9 +3,21 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { words } from '../src/apps/company/packs/hr-doo/assistant/words'
 import { hrDooOperations, PACK_OPERATIONS } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
-import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
+import {
+  ASSET_RECORDS,
+  EMPLOYEE_RECORDS,
+  GRANT_RECORDS,
+  OWNER_ADVANCE_RECORDS,
+  PLAN_RECORDS,
+  SCENARIO_RECORDS,
+  TRIP_COST_RECORDS,
+  TRIP_LEG_RECORDS,
+  TRIP_RECORDS,
+  YEAR_END_RECORDS,
+} from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
+import { saveTripCost, saveTripLeg, tripOfOrder, tripOfSettlement } from '../src/apps/company/packs/hr-doo/application/tripWrites'
 import { grantOfFields } from '../src/apps/company/packs/hr-doo/domain/grants/grantsReading'
-import { GRANT_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
+import { GRANT_WRITES, TRIP_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
 import { fakeStaffOf } from '../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
@@ -17,6 +29,7 @@ import type { RuledChange } from '../src/shared/storage/application/recordWrites
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { defaultsOnAdd } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
+import { tripFieldsInLabel } from '../src/apps/company/packs/hr-doo/assistant/operations/tripProposalLines'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { companyChat, deskPorts } from './fixtures/companyDesk'
 import type { CompanyChat } from './fixtures/companyDesk'
@@ -74,6 +87,21 @@ function exampleRecords(books: CompanyBooks): Readonly<Record<string, { readonly
       () => true,
       (employee) => employee.slug,
     ),
+    trip: first(
+      TRIP_RECORDS,
+      () => true,
+      (trip) => trip.id,
+    ),
+    'trip-leg': first(
+      TRIP_LEG_RECORDS,
+      () => true,
+      (leg) => leg.id,
+    ),
+    'trip-cost': first(
+      TRIP_COST_RECORDS,
+      () => true,
+      (cost) => cost.id,
+    ),
   }
 }
 
@@ -83,6 +111,26 @@ const EXAMPLE_TEXT: Readonly<Record<string, string>> = { scenario: 'floor-salary
 /** A grant no asset is funded by, so the example of a delete has one to take. */
 const UNUSED_GRANT = grantOfFields(storedFieldsOfValues({ grant: 'unused-grant', received: '2026-03-01', amount: '500', fixed_part: '500', variable_part: '0' }))
 
+/** A made-up order to Split by private car, which the trip operations' examples change. */
+const SPLIT_ORDER = {
+  number: '1/2026',
+  issued: '2026-03-10',
+  traveller: '',
+  role: 'Director',
+  destination: 'Split',
+  country: '',
+  task: 'Client meeting',
+  departs: '2026-03-12',
+  days: '2',
+  transport: 'private-car',
+  car: 'Made-up Estate',
+  plate: 'ZG-000-XX',
+  kmRate: '0.50',
+  advance: '',
+  settleBy: '',
+  note: '',
+}
+
 interface PackDesk extends CompanyChat {
   readonly store: WorkbookStore<CompanyBooks>
   anonymising: boolean
@@ -91,7 +139,29 @@ interface PackDesk extends CompanyChat {
 /** The fake company with five employees, and the chat proposing to it through Company's proposer with the pack's operations. */
 async function packDesk(): Promise<PackDesk> {
   const { store } = await browserHarness(used, fakeWorkbookDocument('2026-11-07T09:00:00.000Z', 'browser', fakeStaffOf('five-employees')))
-  await store.write('A grant', (unit) => unit.of(GRANT_WRITES).add(UNUSED_GRANT))
+  await store.write('A grant and a travel order', (unit) => {
+    unit.of(GRANT_WRITES).add(UNUSED_GRANT)
+    // The last employee travels, so the examples' first employee stays free to delete.
+    const traveller = recordsOf(recordsOfKindIn(store.state.records!, EMPLOYEE_RECORDS)).at(-1)!.slug
+    const ordered = tripOfOrder({ ...SPLIT_ORDER, traveller }, null)
+    if (!('made' in ordered)) throw new Error(ordered.refused)
+    const settled = tripOfSettlement(ordered.made, {
+      left: '2026-03-12 07:00',
+      returned: '2026-03-13 20:00',
+      borderOut: '',
+      borderIn: '',
+      odometerStart: '10000',
+      odometerEnd: '10900',
+      meals: '',
+      report: '',
+      settledOn: '',
+    })
+    if (!('made' in settled)) throw new Error(settled.refused)
+    const trip = settled.made
+    unit.of(TRIP_WRITES).add(trip)
+    saveTripLeg(unit, trip, { date: '2026-03-12', from: 'Zagreb', to: 'Split', km: '410' }, null)
+    saveTripCost(unit, trip, { date: '2026-03-12', kind: 'toll', description: 'Motorway', amount: '27.40', foreignAmount: '', currency: '', paidBy: 'traveller' }, null)
+  })
   const desk = { anonymising: false } as { anonymising: boolean }
   return Object.assign(desk, { ...companyChat(store, deskPorts({ pack: hrDooOperations(() => desk.anonymising) }), false), store })
 }
@@ -123,7 +193,8 @@ function fieldsOnCard(card: CheckedProposal): { readonly shown: readonly string[
     const before = (change.verb === 'change' ? change.before : defaultsOnAdd(change.kind)) as Readonly<Record<string, unknown>>
     const after = change.after as Readonly<Record<string, unknown>>
     const said = (value: unknown) => JSON.stringify(value === undefined || value === '' || (Array.isArray(value) && value.length === 0) ? null : value)
-    const set = Object.keys({ ...before, ...after }).filter((field) => !NOT_ON_CARD.has(field) && said(before[field]) !== said(after[field]))
+    const inLabel = change.verb === 'add' ? (tripFieldsInLabel(change.kind) ?? new Set<string>()) : new Set<string>()
+    const set = Object.keys({ ...before, ...after }).filter((field) => !NOT_ON_CARD.has(field) && !inLabel.has(field) && said(before[field]) !== said(after[field]))
     return [{ shown: group.lines[at]!.fields.map((field) => field.name), set: set.map((field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field) }]
   })
 }

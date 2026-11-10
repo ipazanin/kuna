@@ -1,26 +1,12 @@
-import fontkit from '@pdf-lib/fontkit'
 import { PDFDocument, rgb } from 'pdf-lib'
-import type { Color, PDFFont, PDFPage } from 'pdf-lib'
+import type { Color, PDFPage } from 'pdf-lib'
 
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO, amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { INK, embedDocumentFaces } from '../../documents/infrastructure/pdfFaces'
+import type { DocumentFontFiles } from '../../documents/infrastructure/pdfFaces'
 import type { InvoiceDocument } from '../domain/invoiceDocument'
-
-/**
- * One weight of Inter as the app ships it: the basic Latin file and the Latin Extended one, which
- * holds č, ć, ž, š and đ. A letter the basic file lacks is drawn from the extended one.
- */
-export interface FontPair {
-  readonly latin: Uint8Array
-  readonly extended: Uint8Array
-}
-
-export interface InvoiceFontFiles {
-  readonly regular: FontPair
-  readonly bold: FontPair
-  readonly italic: FontPair
-}
 
 const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
@@ -30,7 +16,6 @@ const TEXT_LEFT = 52.6
 const VALUE_LEFT = 257.4
 const SIZE = 7.8
 const LINE = 13.5
-const INK = rgb(0, 0, 0)
 const SHADE = rgb(0.85, 0.85, 0.85)
 
 /** The table's column edges, from # to the total price, as the template draws them. */
@@ -38,67 +23,6 @@ const COLUMNS = [LEFT, 80.5, 250.7, 290, 368.5, 434, RIGHT] as const
 const HEADER_HEIGHT = 14.5
 const ROW_HEIGHT = 28.5
 const TOTALS_ROW = 13.1
-
-interface Face {
-  width(text: string, size: number): number
-  /** Draws the text with its top at `top`, measured from the top of the page. */
-  draw(page: PDFPage, text: string, x: number, top: number, size: number): void
-  drawRight(page: PDFPage, text: string, right: number, top: number, size: number): void
-  drawCentred(page: PDFPage, text: string, centre: number, top: number, size: number): void
-  /** The text broken into lines no wider than `width`, at spaces. */
-  wrap(text: string, width: number, size: number): string[]
-}
-
-function faceFrom(latin: PDFFont, extended: PDFFont): Face {
-  const latinSet = new Set(latin.getCharacterSet())
-  const runs = (text: string): { font: PDFFont; text: string }[] => {
-    const cut: { font: PDFFont; text: string }[] = []
-    for (const letter of text) {
-      const font = latinSet.has(letter.codePointAt(0)!) ? latin : extended
-      const last = cut[cut.length - 1]
-      if (last !== undefined && last.font === font) {
-        last.text += letter
-      } else {
-        cut.push({ font, text: letter })
-      }
-    }
-    return cut
-  }
-  const width = (text: string, size: number): number => runs(text).reduce((sum, run) => sum + run.font.widthOfTextAtSize(run.text, size), 0)
-  const draw = (page: PDFPage, text: string, x: number, top: number, size: number): void => {
-    const baseline = PAGE_HEIGHT - top - size * 0.95
-    let left = x
-    for (const run of runs(text)) {
-      page.drawText(run.text, { x: left, y: baseline, size, font: run.font, color: INK })
-      left += run.font.widthOfTextAtSize(run.text, size)
-    }
-  }
-  return {
-    width,
-    draw,
-    drawRight: (page, text, right, top, size) => draw(page, text, right - width(text, size), top, size),
-    drawCentred: (page, text, centre, top, size) => draw(page, text, centre - width(text, size) / 2, top, size),
-    wrap: (text, maxWidth, size) => {
-      const lines: string[] = []
-      let line = ''
-      for (const word of text.split(/\s+/).filter((part) => part !== '')) {
-        const candidate = line === '' ? word : `${line} ${word}`
-        if (line !== '' && width(candidate, size) > maxWidth) {
-          lines.push(line)
-          line = word
-        } else {
-          line = candidate
-        }
-      }
-      return line === '' ? [''] : [...lines, line]
-    },
-  }
-}
-
-async function faceOf(document: PDFDocument, pair: FontPair): Promise<Face> {
-  const [latin, extended] = await Promise.all([document.embedFont(pair.latin, { subset: true }), document.embedFont(pair.extended, { subset: true })])
-  return faceFrom(latin, extended)
-}
 
 /** A date as the template prints it, such as 21.09.2026. */
 export function printedDate(date: CivilDate): string {
@@ -131,14 +55,13 @@ function line(page: PDFPage, from: readonly [number, number], to: readonly [numb
 }
 
 /** The invoice on one A4 page, laid out as the Sheet template the invoice generator exported. */
-export async function renderInvoicePdf(invoice: InvoiceDocument, fonts: InvoiceFontFiles): Promise<Uint8Array> {
+export async function renderInvoicePdf(invoice: InvoiceDocument, fonts: DocumentFontFiles): Promise<Uint8Array> {
   const document = await PDFDocument.create()
-  document.registerFontkit(fontkit)
   document.setTitle(`Invoice ${invoice.number}`)
   document.setAuthor(invoice.issuer.name)
   document.setCreator('Kuna')
   document.setProducer('Kuna')
-  const [regular, bold, italic] = await Promise.all([faceOf(document, fonts.regular), faceOf(document, fonts.bold), faceOf(document, fonts.italic)])
+  const { regular, bold, italic } = await embedDocumentFaces(document, fonts)
   const page = document.addPage([PAGE_WIDTH, PAGE_HEIGHT])
   const { issuer, recipient } = invoice
 

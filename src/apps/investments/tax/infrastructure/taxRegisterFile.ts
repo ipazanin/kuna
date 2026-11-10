@@ -12,20 +12,17 @@ import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { hr as croatianWords } from '../../workbook/domain/words'
 import type { RateBook } from '../../../../shared/money/rateBook'
-import { civilDate, serialFromCivilDate } from '../../../../shared/calendar/civilDate'
+import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO, addDecimal, decimalText, subtractDecimal, sumDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { ZERO, amountOf } from '../../../../shared/money/money'
-import type { Money } from '../../../../shared/money/money'
+import { ZERO } from '../../../../shared/money/money'
 import type { MoneyFormat } from '../../../../shared/money/moneyFormat'
 import { percentText } from '../../../../shared/money/percent'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { INTL_LOCALES } from '../../../../shared/text/language'
+import { dayCell, eurosCell } from '../../../../shared/xlsx/cells'
 import { sheetJs } from '../../../../shared/xlsx/sheetGrids'
-
-const DAY_FORMAT = 'd.m.yyyy.'
-const EURO_FORMAT = '#,##0.00'
 
 /** A text, a number shown as typed, a formatted number, or a blank. */
 type Cell = string | number | CellObject | undefined
@@ -105,14 +102,6 @@ function joppdDutyOf(gains: CapitalGainsYear): string {
 
 export function taxRegisterFileName(year: number): string {
   return `kuna-porez-${year}.xlsx`
-}
-
-function dayCell(day: CivilDate): CellObject {
-  return { t: 'n', v: serialFromCivilDate(day), z: DAY_FORMAT }
-}
-
-function eurosCell(money: Money | null): Cell {
-  return money === null ? undefined : { t: 'n', v: amountOf(money), z: EURO_FORMAT }
 }
 
 /** Read from the decimal's exact text, so the cell holds the nearest number to it and no float sum has moved it. */

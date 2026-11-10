@@ -187,6 +187,10 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#SCENARIO_WRITES.change', anyOperation: true, operations: SCENARIO_OPERATIONS },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#EMPLOYEE_WRITES', operations: ['add-employee', 'change-employee'].map((name) => ({ name, renames: EMPLOYEE_RENAMES })) },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#YEAR_END_WRITES', operations: ['add-year-end-line', 'change-year-end-line'].map((name) => ({ name, renames: YEAR_END_RENAMES })) },
+  { path: 'src/apps/company/packs/hr-doo/application/tripWrites.ts#saveTripOrder', from: ['draft'], operations: ['add-trip', 'change-trip'] },
+  { path: 'src/apps/company/packs/hr-doo/application/tripWrites.ts#settleTrip', from: ['draft'], operations: ['settle-trip'] },
+  { path: 'src/apps/company/packs/hr-doo/application/tripWrites.ts#saveTripLeg', from: ['draft'], operations: ['add-trip-leg', 'change-trip-leg'] },
+  { path: 'src/apps/company/packs/hr-doo/application/tripWrites.ts#saveTripCost', from: ['draft'], operations: ['add-trip-cost', 'change-trip-cost'] },
   {
     path: 'src/apps/investments/holdings/application/mixWrites.ts#FUND_MIX_WRITES',
     operations: [{ name: 'change-instrument', renames: { 'slice.group': ['sectors.group', 'countries.group'], percent: ['sectors.percent', 'countries.percent'] } }],

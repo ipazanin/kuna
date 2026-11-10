@@ -5,7 +5,7 @@ import italicLatinUrl from '@fontsource/inter/files/inter-latin-400-italic.woff?
 import regularExtendedUrl from '@fontsource/inter/files/inter-latin-ext-400-normal.woff?url'
 import regularLatinUrl from '@fontsource/inter/files/inter-latin-400-normal.woff?url'
 
-import type { FontPair, InvoiceFontFiles } from './invoicePdf'
+import type { DocumentFontFiles, FontPair } from './pdfFaces'
 import { words } from './words'
 
 async function bytesOf(url: string): Promise<Uint8Array> {
@@ -21,10 +21,10 @@ async function pairOf(latinUrl: string, extendedUrl: string): Promise<FontPair> 
   return { latin, extended }
 }
 
-let loaded: Promise<InvoiceFontFiles> | null = null
+let loaded: Promise<DocumentFontFiles> | null = null
 
-/** Inter as the app ships it, the WOFF files beside the WOFF2 ones the screens use. Loaded once, on the first invoice. */
-export function invoiceFonts(): Promise<InvoiceFontFiles> {
+/** Inter as the app ships it, the WOFF files beside the WOFF2 ones the screens use. Loaded once, on the first document. */
+export function documentFonts(): Promise<DocumentFontFiles> {
   loaded ??= Promise.all([pairOf(regularLatinUrl, regularExtendedUrl), pairOf(boldLatinUrl, boldExtendedUrl), pairOf(italicLatinUrl, italicExtendedUrl)]).then(([regular, bold, italic]) => ({
     regular,
     bold,

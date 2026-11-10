@@ -200,6 +200,12 @@ const [ADVANCE_A, ADVANCE_B, ADVANCE_C, ADVANCE_R] = ids('04', 4)
 const [ASSET_A, ASSET_B, ASSET_C, ASSET_R] = ids('05', 4)
 const [YEAR_END_A, YEAR_END_B, YEAR_END_C, YEAR_END_R] = ids('06', 4)
 const [PLAN_A, PLAN_B, PLAN_C, PLAN_R] = ids('07', 4)
+const [TRIP_A, TRIP_B, TRIP_C, TRIP_R, TRIP_SEEDED] = ids('08', 5)
+const [LEG_A, LEG_B, LEG_C, LEG_R] = ids('09', 4)
+const [COST_A, COST_B, COST_C, COST_R] = ids('10', 4)
+const TRAVELLER = { employee: 'dora', residence_city: 'Zagreb', from: '2025-06-05' }
+const TRIP_ORDER = { traveller: 'dora', issued: '2026-10-05', departs: '2026-10-06', days: '1', transport: 'train' }
+const TRIP_SEED: Seed = { 'hr-doo.employee': [TRAVELLER], 'hr-doo.trip': [{ ...TRIP_ORDER, number: '9/2026', id: TRIP_SEEDED! }] }
 const SPLIT_ROW = { date: '2026-10-05', account: 'main', row_amount: '-10.00', row_balance: '90.00' }
 
 const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
@@ -462,6 +468,51 @@ const COMPANY_FIXTURES: Readonly<Record<string, KindFixture>> = {
       fields: { employee: 'mia', residence_city: 'Atlantida', from: '2026-02-01' },
       reason: 'is not a Croatian city or municipality',
       fixed: { employee: 'mia', residence_city: 'Osijek', from: '2026-02-01' },
+    },
+  },
+  'hr-doo.trip': {
+    seed: { 'hr-doo.employee': [TRAVELLER] },
+    records: [
+      { ...TRIP_ORDER, number: '1/2026', destination: 'Split', task: 'Client meeting', id: TRIP_A! },
+      { ...TRIP_ORDER, number: '2/2026', destination: 'Rijeka', id: TRIP_B! },
+    ],
+    outside: { ...TRIP_ORDER, number: '3/2026', id: TRIP_C! },
+    change: { field: 'destination', value: 'Split, Riva' },
+    cleared: 'task',
+    refused: {
+      fields: { ...TRIP_ORDER, number: '4/2026', transport: 'rocket', id: TRIP_R! },
+      reason: '"rocket" is not a transport',
+      fixed: { ...TRIP_ORDER, number: '4/2026', id: TRIP_R! },
+    },
+  },
+  'hr-doo.trip-leg': {
+    seed: TRIP_SEED,
+    records: [
+      { trip: TRIP_SEEDED!, date: '2026-10-06', from: 'Zagreb', to: 'Karlovac', km: '56', id: LEG_A! },
+      { trip: TRIP_SEEDED!, date: '2026-10-06', km: '12', id: LEG_B! },
+    ],
+    outside: { trip: TRIP_SEEDED!, date: '2026-10-06', km: '3', id: LEG_C! },
+    change: { field: 'km', value: '58' },
+    cleared: 'from',
+    refused: {
+      fields: { trip: TRIP_SEEDED!, date: '2026-10-06', km: '0', id: LEG_R! },
+      reason: 'km "0" is not a whole number from 1',
+      fixed: { trip: TRIP_SEEDED!, date: '2026-10-06', km: '5', id: LEG_R! },
+    },
+  },
+  'hr-doo.trip-cost': {
+    seed: TRIP_SEED,
+    records: [
+      { trip: TRIP_SEEDED!, date: '2026-10-06', kind: 'ticket', description: 'Train ticket', amount: '24.50', paid_by: 'traveller', id: COST_A! },
+      { trip: TRIP_SEEDED!, date: '2026-10-06', kind: 'parking', amount: '6.00', paid_by: 'company', id: COST_B! },
+    ],
+    outside: { trip: TRIP_SEEDED!, date: '2026-10-06', kind: 'other', amount: '2.00', paid_by: 'traveller', id: COST_C! },
+    change: { field: 'amount', value: '26.00' },
+    cleared: 'description',
+    refused: {
+      fields: { trip: TRIP_SEEDED!, date: '2026-10-06', kind: 'toll', amount: '3.00', paid_by: 'friend', id: COST_R! },
+      reason: '"friend" is not a paid_by',
+      fixed: { trip: TRIP_SEEDED!, date: '2026-10-06', kind: 'toll', amount: '3.00', paid_by: 'traveller', id: COST_R! },
     },
   },
 }
@@ -1071,7 +1122,7 @@ const STORAGES = [
 
 it('has a fixture for every kind, core’s and the pack’s', () => {
   expect(COMPANY_KINDS.map(([name]) => name).filter((name) => COMPANY_FIXTURES[name] === undefined)).toEqual([])
-  expect(COMPANY_KINDS).toHaveLength(17)
+  expect(COMPANY_KINDS).toHaveLength(20)
 })
 
 it('has a fixture for every Loans kind', () => {

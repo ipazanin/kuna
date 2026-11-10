@@ -24,6 +24,7 @@ const PROMPTS = {
   merge: { en: 'Merge AI services into software subscriptions', hr: 'Spoji AI usluge s pretplatama na softver' },
   theme: { en: 'Switch Kuna to the dark look', hr: 'Prebaci Kunu na tamni izgled' },
   explain: { en: 'Explain this figure', hr: 'Objasni ovaj iznos' },
+  'trip-cost': { en: 'Add 18 euros of parking I paid to travel order 3/2026', hr: 'Dodaj 18 eura parkiranja koje sam platio putnom nalogu 3/2026' },
 }
 
 /** Types into the open chat and sends, and allows the read when the chat asks first. */
@@ -97,6 +98,9 @@ export function companyReviewAskFlowIn(language) {
   }
 }
 
+/** The choices a card's chat needs kept beside the key. A travel order names its traveller, so the chat reads trips only with Anonymise off. */
+const CARD_CHOICES = { 'trip-cost': { 'kuna.assist-anonymise': 'anthropic' } }
+
 /** What each card flow waits for and checks, by the card it asks for. */
 const CARDS = {
   invoice: async (page) => {
@@ -119,6 +123,9 @@ const CARDS = {
   move: async (page, language) => {
     await elementSays(page, '[data-testid="chat-proposal"]', [RULE_WORDS[language].form.tried], 'the card that moves a rule does not say where it is tried')
   },
+  'trip-cost': async (page) => {
+    await elementSays(page, '[data-testid="chat-proposal"]', ['3/2026'], 'the trip cost card does not name its travel order')
+  },
   merge: async (page, language) => {
     await elementSays(page, '[data-testid="chat-proposal-note"]', [PACK_WORDS[language].categoryNaming.planRowsJoined(1).one], 'the merge card does not say the plan row joins the one already there')
   },
@@ -130,12 +137,13 @@ const CARDS = {
  * line, a category for training is an add-category card that names its tax class as the categories editor does, and trying the second
  * rule first is a change-rule card that says where the rule is tried, and merging AI services
  * into software subscriptions is a delete-category card that says its plan row joins the one already there, which Accept writes and Undo puts back.
+ * Parking paid on travel order 3/2026 is an add-trip-cost card that names the order, read with Anonymise off since a trip names its traveller.
  */
 export function companyChatCardFlowIn(language, card) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
-      await keepAiKey(page)
+      await keepAiKey(page, CARD_CHOICES[card] ?? {})
       await openChat(page, press)
       await ask(page, press, PROMPTS[card][language])
       await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })

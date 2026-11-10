@@ -3,6 +3,7 @@
 import { ACTS } from '../acts'
 import { basisPoints, cents, count, day, flag, table, text } from '../schema'
 import type { CountTerm, FlagTerm, LegalSource, MoneyTerm, OpenItem, RateTerm, RuleIn, TableTerm, TextTerm } from '../schema'
+import { FOREIGN_PER_DIEM_ROWS } from './generatedForeignPerDiems'
 import { LOCAL_RATE_TABLES } from './generatedLocalRates'
 
 /** One city or municipality: its official name, its rates, its type as the statutory ranges name it and its county. */
@@ -118,7 +119,28 @@ export interface OwnerPayValues {
     }>
   }
   'hr.pit.foreign-per-diem': {
-    readonly perDiems: TableTerm<{ readonly country: TextTerm; readonly fullDay: MoneyTerm; readonly halfDayShare: RateTerm }>
+    /** Keyed by ISO 3166-1 alpha-2, XK for Kosovo, and `other` for every state the Odluka does not list. `fullDay` is in the row's own currency. */
+    readonly perDiems: TableTerm<{ readonly country: TextTerm; readonly fullDay: MoneyTerm; readonly currency: TextTerm; readonly halfDayShare: RateTerm }>
+  }
+  'hr.pit.foreign-per-diem-rate': {
+    /** The ECB reference rate of this day turns a per diem the Odluka states in dollars into euros. */
+    readonly rateDay: TextTerm
+  }
+  'hr.pit.business-trip': {
+    /** A block or a last part longer than this earns half a per diem. */
+    readonly halfDayOverHours: CountTerm
+    /** A block or a last part longer than this earns a full per diem. */
+    readonly fullDayOverHours: CountTerm
+    /** A trip of several days splits into blocks of this many hours from departure. */
+    readonly blockHours: CountTerm
+    readonly longestTripDays: CountTerm
+    /** From the place of work or of residence to the destination. */
+    readonly shortestDistanceKm: CountTerm
+    /** The cut of the tax-free per diem when the employer provides lunch or dinner. */
+    readonly oneMealCut: RateTerm
+    readonly twoMealsCut: RateTerm
+    /** By air, foreign hours start this long before take-off from the last Croatian airport. */
+    readonly airportHoursBeforeTakeOff: CountTerm
   }
   'hr.pit.loan-benefit': {
     /** A loan to an employee below this yearly interest rate gives a benefit in kind of the difference. */
@@ -290,6 +312,35 @@ function localRatesVersionData(validFrom: string): LocalRatesVersionData {
 const localRatesEarly2025 = localRatesVersionData('2025-01-01')
 const localRates2025 = localRatesVersionData('2025-03-01')
 const localRates2026 = localRatesVersionData('2026-01-01')
+
+const PRAVPDOH_PROPISI_URL = 'https://porezna-uprava.gov.hr/Propisi/GetBasicData/4'
+
+/** The chain of the Porezna uprava consolidation the trip paragraphs were read in. */
+const PRAVPDOH_CONSOLIDATED_NN = ['10/17', '128/17', '106/18', '1/19', '80/19', '1/20', '74/20', '1/21', '102/22', '112/22', '156/22', '1/23', '56/23', '143/23', '16/25', '157/25']
+
+const TRIP_LAW_LOADED_ON = day('2026-11-10')
+
+function tripParagraphSource(article: string, quote: string): LegalSource {
+  return { act: 'PravPDoh', nn: PRAVPDOH_CONSOLIDATED_NN, article, url: PRAVPDOH_PROPISI_URL, loadedOn: TRIP_LAW_LOADED_ON, quote }
+}
+
+const businessTripSources: readonly LegalSource[] = [
+  {
+    act: 'PravPDoh',
+    nn: ['16/25'],
+    article: '7(2) items 19 to 22',
+    url: NN_16_25_PRAVILNIK_URL,
+    loadedOn: TRIP_LAW_LOADED_ON,
+    quote: 'koje traje više od 12 sati dnevno ... koje traje više od 8 sati, a manje od 12 sati dnevno',
+  },
+  tripParagraphSource('7(8), 7(14)', 'putovanje do 30 dana neprekidno'),
+  tripParagraphSource('7(11)', 'a udaljenosti najmanje 30 kilometara'),
+  tripParagraphSource(
+    '7(13)',
+    'osiguran jedan obrok (ručak ili večera) neoporezivi iznos dnevnice iz stavka 2. r.br. 19. i/ili r.br. 20. i/ili r.br. 21. i/ili r.br. 22. ovoga članka koji se isplaćuje u novcu umanjuje se za 30% odnosno za 60% ako su osigurana dva obroka (ručak i večera). Doručak koji je uračunat u cijenu noćenja smatra se troškom noćenja i ne smatra se osiguranom prehranom.',
+  ),
+  tripParagraphSource('7(18)', 'inozemna dnevnica se obračunava dva sata prije vremena predviđenog polijetanja zrakoplova iz posljednje zračne luke u Republici Hrvatskoj'),
+]
 
 const NO_DECISION_NOTE = 'A unit listed with NN 114/23 alone, the amendment of the income tax act, adopted no decision and has 20% and 30%.'
 
@@ -886,14 +937,55 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         validFrom: day('2025-01-01'),
         validTo: null,
         value: {
-          perDiems: table([{ country: text('GB'), fullDay: cents(8000), halfDayShare: basisPoints(5000) }]),
+          perDiems: table(FOREIGN_PER_DIEM_ROWS.map((row) => ({ country: text(row.country), fullDay: cents(row.fullDay), currency: text(row.currency), halfDayShare: basisPoints(5000) }))),
         },
         sources: [
-          { act: 'OdlukaDnevniceInozemstvo', nn: ['16/24'], article: 'item 101', url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2024_02_16_277.html', loadedOn: LOADED_ON },
+          { act: 'OdlukaDnevniceInozemstvo', nn: ['16/24'], article: 'item I', url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2024_02_16_277.html', loadedOn: TRIP_LAW_LOADED_ON },
           { act: 'PravPDoh', nn: ['16/25'], article: '7(2) items 21, 22', url: NN_16_25_URL, loadedOn: LOADED_ON },
         ],
         confidence: 'confirmed-nn',
-        note: 'Only the United Kingdom row is transcribed, read in the Narodne novine text of the Odluka, which is in force from 8 February 2024. The Odluka sets full days only. Half for 8 to 12 hours comes from the Pravilnik items 21 and 22. The amounts of the other countries are not transcribed. A search found no later Odluka, but that is not a check of every NN issue, so whether one replaced the table is unconfirmed. 2027 is assumed unless one is found.',
+        note: 'Every row of the Odluka, generated from its Narodne novine text, in force from 8 February 2024. It sets 47 amounts in euros and 59 in US dollars, among them the row for every state it does not list. How a dollar amount turns into euros is hr.pit.foreign-per-diem-rate. The Odluka sets full days only. Half for more than 8 and less than 12 hours comes from the Pravilnik items 21 and 22. A title search of the Narodne novine through NN 129/26 found no newer Odluka. 2027 is assumed unless one is found.',
+      },
+    ],
+  },
+  {
+    id: 'hr.pit.foreign-per-diem-rate',
+    area: 'owner-pay',
+    title: 'Exchange rate for a foreign per diem in dollars',
+    appliesBy: 'event-date',
+    versions: [
+      {
+        validFrom: day('2025-01-01'),
+        validTo: null,
+        value: { rateDay: text('the day the traveller left') },
+        sources: [{ act: 'OdlukaDnevniceInozemstvo', nn: ['16/24'], article: 'item I', url: 'https://narodne-novine.nn.hr/clanci/sluzbeni/2024_02_16_277.html', loadedOn: TRIP_LAW_LOADED_ON }],
+        confidence: 'unconfirmed',
+        note: 'The Odluka sets 59 per diems in US dollars, and neither it nor the Pravilnik says how a dollar amount turns into euros. Kuna converts at the ECB reference rate of the day the traveller left, which is its reading. An answer from Porezna uprava, or its guidance on the day of the rate, would settle it. 2027 is assumed.',
+      },
+    ],
+  },
+  {
+    id: 'hr.pit.business-trip',
+    area: 'owner-pay',
+    title: 'Per diem rules for a business trip',
+    appliesBy: 'event-date',
+    versions: [
+      {
+        validFrom: day('2025-01-01'),
+        validTo: null,
+        value: {
+          halfDayOverHours: count(8),
+          fullDayOverHours: count(12),
+          blockHours: count(24),
+          longestTripDays: count(30),
+          shortestDistanceKm: count(30),
+          oneMealCut: basisPoints(3000),
+          twoMealsCut: basisPoints(6000),
+          airportHoursBeforeTakeOff: count(2),
+        },
+        sources: businessTripSources,
+        confidence: 'reading',
+        note: 'The Pravilnik gives a full per diem for more than 12 hours a day and half for more than 8 and less than 12 hours, at home and abroad. It names nothing for exactly 12 hours. Kuna reads a trip of several days as 24-hour blocks from departure, with the last part counted the same way, and counts exactly 12 hours as half and exactly 8 hours as nothing. Those two choices are the reading. The rest was read in the Porezna uprava consolidation through NN 157/25. A trip lasts at most 30 days in a row and reaches a place at least 30 km away. Lunch or dinner the employer provides cuts the tax-free per diem by 30% for one meal and 60% for two, domestic and foreign alike, since Art. 7(13) names items 19 to 22. Breakfast in the room price does not count. By air, foreign hours start 2 hours before take-off from the last Croatian airport. 2027 is assumed until the Pravilnik is aligned with bill PZ 339.',
       },
     ],
   },
@@ -1026,14 +1118,6 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
 ]
 
 export const ownerPayOpenItems: readonly OpenItem[] = [
-  {
-    id: 'hr.pit.per-diem-meal-reduction',
-    area: 'owner-pay',
-    title: 'Per diem reduction for meals provided by the employer',
-    status: 'unconfirmed',
-    note: 'A meal paid by the employer is reported to cut the domestic per diem by 30% for one meal and 60% for two. The wording of the Pravilnik was never loaded, so the rule is not used. Load the current Pravilnik text to settle it.',
-    url: null,
-  },
   {
     id: 'hr.pit.bill-pz-339',
     area: 'owner-pay',

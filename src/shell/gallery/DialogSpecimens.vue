@@ -7,6 +7,7 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../shared/ui/AppCard.vue'
 import AppDialog from '../../shared/ui/AppDialog.vue'
+import CurrencySelect from '../../shared/ui/CurrencySelect.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FormGrid from '../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../shared/ui/MoneyInput.vue'
@@ -26,6 +27,10 @@ const typedMoney = ref('')
 const givenMoney = ref(plainAmount(moneyFromCents(150000)))
 const disabledMoney = ref(plainAmount(moneyFromCents(150000)))
 const wrongMoney = ref('')
+const pickedCurrency = ref('EUR')
+const namedCurrency = ref('USD')
+const optionalCurrency = ref('')
+const keptCurrency = ref('EUR')
 const readMoney = computed(() => typedAmount(typedMoney.value))
 
 const ROWS = [
@@ -87,6 +92,29 @@ const ROWS = [
           <template v-if="readMoney === null">The first field reads no amount yet.</template>
           <template v-else>The first field reads <MoneyText :cents="readMoney" />.</template>
         </p>
+      </FormGrid>
+    </AppCard>
+  </GallerySection>
+
+  <GallerySection
+    id="currency-select"
+    title="CurrencySelect"
+    description="A currency picked by its code, bound with v-model to the code. The euro comes first unless the screen names other codes to list first, the rest follow in alphabetical order, and typing searches them. A field that may stay empty passes the label of a choice of no currency."
+  >
+    <AppCard as="div" class="p-5">
+      <FormGrid>
+        <UFormField label="Currency">
+          <CurrencySelect v-model="pickedCurrency" search="Find a currency" class="w-full" />
+        </UFormField>
+        <UFormField label="Those the file names first" help="USD and GBP before the rest.">
+          <CurrencySelect v-model="namedCurrency" search="Find a currency" :first="['USD', 'GBP']" class="w-full" />
+        </UFormField>
+        <UFormField label="May stay empty">
+          <CurrencySelect v-model="optionalCurrency" search="Find a currency" :first="[]" none="No other currency" class="w-full" />
+        </UFormField>
+        <UFormField label="Disabled" help="An account with entries keeps its currency.">
+          <CurrencySelect v-model="keptCurrency" search="Find a currency" disabled class="w-full" />
+        </UFormField>
       </FormGrid>
     </AppCard>
   </GallerySection>

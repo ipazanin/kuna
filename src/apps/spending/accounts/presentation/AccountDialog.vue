@@ -5,7 +5,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { words } from './words'
@@ -22,6 +21,7 @@ import { CURRENCY_CODES, EURO } from '../../../../shared/money/currencyCode'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import CurrencySelect from '../../../../shared/ui/CurrencySelect.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
@@ -45,7 +45,6 @@ const NONE = 'none'
 
 const KIND_OPTIONS = ACCOUNT_KINDS.map((kind) => ({ value: kind, label: words.kinds[kind] }))
 const BANK_ITEMS = [{ label: words.dialog.noBank, value: NONE }, ...ACCOUNT_BANKS.map((bank) => ({ label: words.banks[bank], value: bank }))]
-const CURRENCY_ITEMS = [EURO, ...CURRENCY_CODES.filter((code) => code !== EURO)].map((code) => ({ label: code, value: code as string }))
 
 const name = ref('')
 const kind = ref<AccountKind>('bank')
@@ -142,7 +141,7 @@ async function remove(): Promise<void> {
         <USelect v-model="bank" :items="BANK_ITEMS" class="w-full" data-testid="spending-account-bank" />
       </UFormField>
       <UFormField :label="words.dialog.currency" v-bind="hasEntries ? { help: words.dialog.currencyKept } : {}">
-        <USelectMenu v-model="currency" :items="CURRENCY_ITEMS" value-key="value" :disabled="hasEntries" class="w-full" data-testid="spending-account-currency" />
+        <CurrencySelect v-model="currency" :search="words.dialog.findCurrency" :disabled="hasEntries" class="w-full" data-testid="spending-account-currency" />
       </UFormField>
       <div class="flex flex-col gap-2">
         <UFormField :label="words.dialog.opening" :help="words.dialog.openingHelp" :error="(tried && errors.opening) || false">

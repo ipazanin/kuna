@@ -6,7 +6,8 @@ import { invoiceProblems } from '../src/apps/company/invoicing/domain/invoiceDoc
 import { DEFAULT_FILE_PATH, filePathProblem, filingPathOf, pathInWords } from '../src/apps/company/invoicing/domain/invoiceFiling'
 import { linesTotal, plannedLines, registerItemOf } from '../src/apps/company/invoicing/domain/invoiceLines'
 import { DEFAULT_MAIL_BODY, filledMail, gmailComposeUrl, mailTemplateProblem, monthInLanguage } from '../src/apps/company/invoicing/domain/invoiceMail'
-import { DEFAULT_NUMBER_PATTERN, nextInvoiceNumber, numberPatternProblem, numberTaken } from '../src/apps/company/invoicing/domain/invoiceNumber'
+import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../src/apps/company/invoicing/domain/invoiceNumber'
+import { nextYearlyNumber, numberTaken } from '../src/apps/company/documents/domain/yearlyNumber'
 import { rawInvoiceMessage } from '../src/apps/company/invoicing/infrastructure/invoiceMessage'
 import { DEFAULT_SETTINGS, parseSettings, settingsErrors } from '../src/apps/company/settings/domain/settings'
 import { CLIENT_RECORDS, SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
@@ -36,7 +37,7 @@ describe('invoice numbers and dates, as the generator set them', () => {
     REGISTER.forEach((row, index) => {
       const before = REGISTER.slice(0, index).map((earlier) => ({ number: earlier.number, issued: civil(earlier.issued) }))
       const dates = newInvoiceDates(civil(row.issued))
-      expect(nextInvoiceNumber(DEFAULT_NUMBER_PATTERN, civil(row.issued), before)).toBe(row.number)
+      expect(nextYearlyNumber(DEFAULT_NUMBER_PATTERN, civil(row.issued), before)).toBe(row.number)
       expect(dates).toEqual({ due: row.due, periodFrom: row.from, periodTo: row.to })
       expect(pathInWords(filingPathOf(DEFAULT_FILE_PATH, { issued: civil(row.issued), client: 'north', number: row.number }))).toBe(
         `${row.issued.slice(0, 4)}/${row.issued.slice(0, 7)}/${row.issued.slice(0, 7)}-north-invoice.pdf`,
@@ -50,10 +51,10 @@ describe('invoice numbers and dates, as the generator set them', () => {
       { number: 'LL-003', issued: civil('2026-08-14') },
       { number: '12-1-25', issued: civil('2025-12-31') },
     ]
-    expect(nextInvoiceNumber(DEFAULT_NUMBER_PATTERN, civil('2026-10-21'), invoices)).toBe('8-1-26')
-    expect(nextInvoiceNumber(DEFAULT_NUMBER_PATTERN, civil('2027-01-20'), invoices)).toBe('1-1-27')
-    expect(nextInvoiceNumber('INV-{yyyy}-{n}', civil('2026-10-21'), [{ number: 'INV-2026-4', issued: civil('2026-03-01') }])).toBe('INV-2026-5')
-    expect(nextInvoiceNumber('{n}', civil('2027-02-01'), [{ number: '9', issued: civil('2026-11-01') }])).toBe('1')
+    expect(nextYearlyNumber(DEFAULT_NUMBER_PATTERN, civil('2026-10-21'), invoices)).toBe('8-1-26')
+    expect(nextYearlyNumber(DEFAULT_NUMBER_PATTERN, civil('2027-01-20'), invoices)).toBe('1-1-27')
+    expect(nextYearlyNumber('INV-{yyyy}-{n}', civil('2026-10-21'), [{ number: 'INV-2026-4', issued: civil('2026-03-01') }])).toBe('INV-2026-5')
+    expect(nextYearlyNumber('{n}', civil('2027-02-01'), [{ number: '9', issued: civil('2026-11-01') }])).toBe('1')
   })
 
   it('keeps each number once across clients, and refuses a pattern without the sequence', () => {

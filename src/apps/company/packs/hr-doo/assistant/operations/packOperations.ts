@@ -33,6 +33,7 @@ import { yearEndLineOfFields } from '../../domain/yearEnd/yearEndReading'
 import { EMPLOYEE_COLUMNS, GRANT_COLUMNS, YEAR_END_COLUMNS, assetColumns } from '../../presentation/editorColumns'
 import { words as scenarioWords } from '../../presentation/payScenarios/words'
 import { packDescriber } from './proposalLines'
+import { TRIP_OPERATIONS, plannedTripStep } from './tripOperations'
 import type { AssistantOperation, ProposalStep } from '../../../../../../shared/app/assistantOperations'
 import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, inputOf } from '../../../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../../../shared/app/proposedWrites'
@@ -325,6 +326,7 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
       change: { iban: 'HR1210010051863000160' },
     },
   ),
+  ...TRIP_OPERATIONS,
 ]
 
 /** What only a person changes while Anonymise is on: the employees and the pay a scenario gives a person. Which scenario the owner's pay follows in the plan is the owner's own. */
@@ -611,6 +613,7 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
         writeEditorRow(unit, books, name as EditorName, verb, field)
         return
       }
+      if (plannedTripStep(unit, books, { operation, input, as: null }, idOf, anonymising)) return
       throw new StepRefused('There is no such operation.')
     }
   }

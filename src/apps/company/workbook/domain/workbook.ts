@@ -200,6 +200,9 @@ export interface WorkbookProblem extends RecordProblem {
     | 'plan'
     | 'scenarios'
     | 'employees'
+    | 'trips'
+    | 'trip-legs'
+    | 'trip-costs'
     | 'splits'
     | 'dismissed'
 }

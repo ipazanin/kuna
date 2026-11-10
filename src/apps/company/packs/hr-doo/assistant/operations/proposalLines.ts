@@ -14,6 +14,7 @@ import type { YearEndFigure } from '../../domain/yearEnd/yearEnd'
 import { words as forecastWords } from '../../presentation/forecast/words'
 import { words as packWords } from '../../presentation/words'
 import { words } from '../words'
+import { TRIP_KINDS, tripFieldsInLabel, tripLabel, tripShownValue } from './tripProposalLines'
 import type { ProposedRecord } from '../../../../../../shared/app/proposalGroups'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
@@ -140,12 +141,16 @@ export function packDescriber(workbook: Workbook): PackDescriber {
   const names = displayNamesOf(workbook)
   const category = (slug: string): string => names.category(slug)
   return {
-    kinds: new Set([OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS, ASSET_RECORDS, GRANT_RECORDS, EMPLOYEE_RECORDS].map((kind) => kind.name)),
+    kinds: new Set([OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS, ASSET_RECORDS, GRANT_RECORDS, EMPLOYEE_RECORDS, ...TRIP_KINDS].map((kind) => kind.name)),
     keptByKuna: KEPT_BY_KUNA,
     fieldName: (field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
-    shown: (kind, field, record) => shownValue(kind, field, record, format, category),
-    label: (kind, record, fallback) => labelOf(kind, record, fallback, category),
+    shown: (kind, field, record) => {
+      const trip = tripShownValue(kind, field, record, format, workbook)
+      return trip === undefined ? shownValue(kind, field, record, format, category) : trip
+    },
+    label: (kind, record, fallback) => tripLabel(kind, record, fallback, workbook) ?? labelOf(kind, record, fallback, category),
     defaultsOf: defaultsOnAdd,
+    inLabel: (kind) => tripFieldsInLabel(kind) ?? new Set(),
     warns: (kind, field) => kind.name === EMPLOYEE_RECORDS.name && field === 'ibans',
     settingNames: {
       hr_company_registered: packWords.facts.registered,

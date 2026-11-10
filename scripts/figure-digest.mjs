@@ -97,6 +97,9 @@ import { payScenarios } from '../src/apps/company/packs/hr-doo/domain/scenarios/
 import { missingAccrualRoles } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualRoles.ts'
 import { packWaiting } from '../src/apps/company/packs/hr-doo/domain/packWaiting.ts'
 import { paydayYears, salaryYearRows } from '../src/apps/company/packs/hr-doo/domain/salaries/salaryFigures.ts'
+import { nextTripNumber } from '../src/apps/company/packs/hr-doo/domain/trips/tripDefaults.ts'
+import { tripSettlement } from '../src/apps/company/packs/hr-doo/domain/trips/tripSettlement.ts'
+import { tripWarnings } from '../src/apps/company/packs/hr-doo/domain/trips/tripWarnings.ts'
 import { taxByType } from '../src/apps/company/packs/hr-doo/domain/taxByType.ts'
 import { yearOptions } from '../src/apps/company/packs/hr-doo/domain/yearChoice.ts'
 import { compareYearEnd } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEndComparison.ts'
@@ -389,6 +392,17 @@ if (companyAsked) {
   const reconciliation = salaryReconciliation(salaryBooks)
   group('salaries.paydays', reconciliation)
   group('salaries.years', () => paydayYears(reconciliation).map((year) => salaryYearRows(reconciliation, year, null, ledgerWindowOf(salaryBooks.transactions).partMonth)))
+
+  if (salaryBooks.trips.length > 0) {
+    group('trips.settlements', () => salaryBooks.trips.map((file) => [file.trip.number, tripSettlement(file, ruleValue)]))
+    group('trips.warnings', () => salaryBooks.trips.map((file) => tripWarnings(file, salaryBooks.employees.find((employee) => employee.slug === file.trip.traveller) ?? null, ruleValue)))
+    group('trips.next-number', () =>
+      nextTripNumber(
+        today,
+        salaryBooks.trips.map((file) => file.trip),
+      ),
+    )
+  }
 }
 
 const loans = loansAsked ? loansGroups(group) : null

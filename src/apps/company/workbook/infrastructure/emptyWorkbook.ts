@@ -57,6 +57,9 @@ export function emptyWorkbookTabs(on: CivilDate, settings: Settings = DEFAULT_SE
     plan: [],
     scenarios: [],
     employees: [],
+    trips: [],
+    'trip-legs': [],
+    'trip-costs': [],
     splits: [],
     dismissed: [],
   }

@@ -255,6 +255,7 @@ import {
   chatConsentCellsFlow,
 } from './support/editorFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
+import { tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
 import { companyChatAcceptLapsedFlowIn, companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { onFreshDevice, setUpChatGoesOnFlowIn, setUpChatHomeFlowIn } from './support/setUpChatFlows.mjs'
@@ -1527,6 +1528,8 @@ async function checkWidth(width) {
     ['mail-window', '&fake=mail-nothing-new', mailWindowFlow],
     ['sync-access-closed', '&fake=google-closed', accessClosedFlow],
     ['salaries', '&fake=five-employees', salariesFlow, '#/company/salaries', 'Salaries'],
+    ['trips', '&fake=one-employee', tripsFlow, '#/company/trips', 'Trips'],
+    ['trips-croatian', '&fake=one-employee&lang=hr', tripsFlowIn('hr'), '#/company/trips', 'Putni nalozi'],
     ['owner-net', '&fake=browser', ownerNetFlow, '#/company/owner?p=2026', 'Owner'],
     ['owner-net-unregistered', '', ownerNetUnregisteredFlow, '#/company/owner?p=2026', 'Owner'],
   ]) {

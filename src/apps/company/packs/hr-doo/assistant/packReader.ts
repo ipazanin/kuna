@@ -39,6 +39,7 @@ import type { Money } from '../../../../../shared/money/money'
 import { writtenPercent } from '../../../../../shared/money/percent'
 import type { FieldDocs } from '../../../../../shared/privacy/domain/exposure'
 import { HR_DOO_TRACE_RULES } from './buildUpRead'
+import { tripKinds } from './tripReads'
 import { words } from './words'
 
 /** A plan row as the chat reads it, whichever kind of row it is, its amount zero on a row that holds none. */
@@ -369,7 +370,7 @@ function taxesReport(yearBooks: YearBooks, period: string | null): readonly Repo
 }
 
 /**
- * What the chat reads of the Croatian d.o.o. pack: its seven kinds with every field classified, the year's forecast and
+ * What the chat reads of the Croatian d.o.o. pack: its ten kinds with every field classified, the year's forecast and
  * taxes from the Year screen's own functions, and the ruleset behind its build-ups. An employee's record, and each part
  * of a pay scenario, names the person, so the shared read keeps it on the device while Anonymise is on.
  */
@@ -412,6 +413,7 @@ export function hrDooReader(reading: CompanyReading): PackReader {
       readableKind({ kind: ASSET_RECORDS, about: words.reads.asset, fields: ASSET_FIELDS, dated: 'bought', rows: () => recordsOf(ASSET_RECORDS), currencyOf: currency }),
       readableKind({ kind: GRANT_RECORDS, about: words.reads.grant, fields: GRANT_FIELDS, dated: 'received', rows: () => recordsOf(GRANT_RECORDS).map(grantOf), currencyOf: currency }),
       readableKind({ kind: EMPLOYEE_RECORDS, about: words.reads.employee, fields: EMPLOYEE_FIELDS, dated: null, rows: () => recordsOf(EMPLOYEE_RECORDS).map(employeeOf), currencyOf: currency }),
+      ...tripKinds(reading, currency),
     ],
     settingKeys: new Set(COMPANY_FACT_SETTINGS.definitions.map(({ key }) => key)),
     reports: [

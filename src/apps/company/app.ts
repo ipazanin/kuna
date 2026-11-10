@@ -137,6 +137,7 @@ export const companyApp: AppContribution = {
   firstRun: () => isFirstRun(state),
   startPath: ONBOARDING_ROUTE,
   syncGroup: companySyncGroup,
+  ratesDemand: () => (state.workbook === null ? null : installedPack().ratesDemand(state.workbook)),
   // Written inline so the production build folds it away with the gallery's chunk.
   ...(import.meta.env.DEV || import.meta.env.VITE_FAKE_WORKBOOK === 'true' ? { gallery: async () => (await import('./gallery/CompanyGallery.vue')).default } : {}),
   // Each open of the books on Drive on a device that syncs as it opens fetches the page's one token first.

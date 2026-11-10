@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { createRequire } from 'node:module'
-
 import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 
@@ -9,7 +6,7 @@ import type { DriveEntry, RegisterChange, RunPlan, RunPorts } from '../src/apps/
 import { DEFAULT_FILE_PATH, filingPathOf } from '../src/apps/company/invoicing/domain/invoiceFiling'
 import { createFakeInvoiceGoogle, FAKE_INVOICE_FOLDER } from '../src/apps/company/invoicing/infrastructure/fake/fakeInvoiceGoogle'
 import { renderInvoicePdf } from '../src/apps/company/invoicing/infrastructure/invoicePdf'
-import type { InvoiceFontFiles } from '../src/apps/company/invoicing/infrastructure/invoicePdf'
+import { documentFontFiles } from './fixtures/documentFonts'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { invoiceOf } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
@@ -197,12 +194,7 @@ describe('the run', () => {
 })
 
 describe('the PDF', () => {
-  const fontFile = (name: string) => readFileSync(createRequire(import.meta.url).resolve(`@fontsource/inter/files/${name}.woff`))
-  const pair = (weight: number, style: string) => ({
-    latin: fontFile(`inter-latin-${weight}-${style}`),
-    extended: fontFile(`inter-latin-ext-${weight}-${style}`),
-  })
-  const fonts: InvoiceFontFiles = { regular: pair(400, 'normal'), bold: pair(600, 'normal'), italic: pair(400, 'italic') }
+  const fonts = documentFontFiles()
 
   it('draws one A4 page with the Croatian letters in Inter', async () => {
     const issuer = {

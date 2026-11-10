@@ -4,8 +4,10 @@ import { storedFieldsOf } from '../../../../../shared/storage/domain/recordsRead
 import { counted, countedBy, slugChangeRefusals, usesOf } from '../../../workbook/domain/slug'
 import { words } from './words'
 import type { SlugEdit } from '../../../workbook/domain/slug'
-import { slugOf, wholeNumberOf } from '../../../../../shared/storage/domain/storedFields'
-import type { StoredField } from '../../../../../shared/storage/domain/storedFields'
+import { slugOf, textOf, wholeNumberOf } from '../../../../../shared/storage/domain/storedFields'
+import type { StoredField, StoredFields } from '../../../../../shared/storage/domain/storedFields'
+import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
+import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import { pickedEdits, pickedUntouched } from '../../../../../shared/storage/domain/writeRules'
 import type { FreshRecords, KindChange, WriteRules } from '../../../../../shared/storage/domain/writeRules'
 import { readAssets } from './assets/assetsReading'
@@ -17,7 +19,18 @@ import type { PlanLine } from './forecast/plan'
 import { readPlan } from './forecast/planReading'
 import type { Grant } from './grants/grants'
 import { readGrants } from './grants/grantsReading'
-import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from './hrDooKinds'
+import {
+  ASSET_RECORDS,
+  EMPLOYEE_RECORDS,
+  GRANT_RECORDS,
+  OWNER_ADVANCE_RECORDS,
+  PLAN_RECORDS,
+  SCENARIO_RECORDS,
+  TRIP_COST_RECORDS,
+  TRIP_LEG_RECORDS,
+  TRIP_RECORDS,
+  YEAR_END_RECORDS,
+} from './hrDooKinds'
 import { readOwnerAdvances } from './ownerAdvancesReading'
 import type { OwnerAdvanceEntry } from './ownerAdvancesReading'
 import { scenarioGuards } from './scenarios/scenarioGuards'
@@ -26,6 +39,13 @@ import { scenarioName } from './scenarios/startingScenarios'
 import type { ScenarioRow } from './scenarios/scenariosReading'
 import type { YearEndLine } from './yearEnd/yearEnd'
 import { readYearEndLines } from './yearEnd/yearEndReading'
+import type { Trip, TripCost, TripLeg } from './trips/trip'
+import { TRIP_FIELD, readTrips, tripCodecs } from './trips/tripReading'
+import type { TripCodecs, TripFault, TripWording } from './trips/tripReading'
+import type { TripProblem } from './trips/tripRules'
+import type { TripRecords, TripsReading } from './trips/tripReading'
+import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
+import type { RecordsRead } from '../../../../../shared/storage/domain/recordsRead'
 
 const SCENARIO_ON_PLAN = 'owner_pay_scenario'
 
@@ -166,11 +186,146 @@ export const SCENARIO_WRITES: WriteRules<ScenarioRow> = {
   refusals: scenarioRefusals,
 }
 
-/** An employee keeps to the slug format and is on its tab once. */
+/** An employee keeps to the slug format, is on its tab once, and keeps the name travel orders give as their traveller. */
 export const EMPLOYEE_WRITES: WriteRules<Employee> = {
   kind: EMPLOYEE_RECORDS,
-  reads: [],
+  reads: [TRIP_RECORDS],
   undoable: true,
   read: (read) => readEmployees(read),
-  refusals: (change) => slugChangeRefusals('employee', { edits: slugEdits(change, 'employee'), untouched: untouchedSlugs(change, 'employee') }, usesOf([]), true),
+  refusals: (change, fresh) =>
+    slugChangeRefusals(
+      'employee',
+      { edits: slugEdits(change, 'employee'), untouched: untouchedSlugs(change, 'employee') },
+      usesOf([countedBy(storedFieldsOf(fresh.of(TRIP_RECORDS)), (fields) => [slugOf(fields.traveller)], counted(words.uses.trips))]),
+      true,
+    ),
+}
+
+const TRIP_KINDS = [TRIP_RECORDS, TRIP_LEG_RECORDS, TRIP_COST_RECORDS, EMPLOYEE_RECORDS]
+
+function tripFaultText(fault: TripFault): string {
+  const said = words.tripReading
+  switch (fault.kind) {
+    case 'none':
+      return said.none(fault.field)
+    case 'not-a-moment':
+      return said.notAMoment(fault.field, fault.text)
+    case 'not-whole-from':
+      return said.notWholeFrom(fault.field, fault.text, fault.least)
+    case 'km-rate-above-zero':
+      return said.kmRateAboveZero
+    case 'go-together':
+      return said.goTogether(fault.first, fault.second)
+    case 'odometer-backwards':
+      return said.odometerBackwards(fault.start, fault.end)
+    case 'not-meals':
+      return said.notMeals(fault.entry, fault.most)
+    case 'not-foreign-amount':
+      return said.notForeignAmount(fault.text)
+    case 'not-a-currency':
+      return said.notACurrency(fault.text)
+  }
+}
+
+function tripProblemText(problem: TripProblem): string {
+  const said = words.tripReading
+  switch (problem.kind) {
+    case 'number-twice':
+      return said.numberTwice(problem.number)
+    case 'no-traveller':
+      return said.noTraveller(problem.traveller)
+    case 'unknown-country':
+      return said.unknownCountry(problem.country)
+    case 'returned-without-left':
+      return said.returnedWithoutLeft
+    case 'returned-before-left':
+      return said.returnedBeforeLeft
+    case 'abroad-needs-borders':
+      return said.abroadNeedsBorders
+    case 'borders-at-home':
+      return said.bordersAtHome
+    case 'borders-out-of-order':
+      return said.bordersOutOfOrder
+    case 'borders-outside-trip':
+      return said.bordersOutsideTrip
+    case 'too-many-days':
+      return said.tooManyDays(problem.days, problem.longest)
+    case 'lasted-too-long':
+      return said.lastedTooLong(problem.longest)
+    case 'car-without-private-car':
+      return said.carWithoutPrivateCar
+    case 'private-car-needs-car':
+      return said.privateCarNeedsCar
+    case 'private-car-needs-odometer':
+      return said.privateCarNeedsOdometer
+    case 'legs-beyond-odometer':
+      return said.legsBeyondOdometer(problem.legs, problem.driven)
+    case 'meals-without-times':
+      return said.mealsWithoutTimes
+    case 'too-many-meals':
+      return said.tooManyMeals(problem.meals, problem.lines)
+    case 'settled-without-times':
+      return said.settledWithoutTimes
+    case 'settled-without-report':
+      return said.settledWithoutReport
+    case 'no-trip':
+      return said.noTrip
+  }
+}
+
+/** The trip kinds' faults and problems in the pack's reading words, which the problems card and a refused write show. */
+const TRIP_WORDING: TripWording = { fault: tripFaultText, problem: tripProblemText, unnumbered: words.tripReading.unnumbered, leg: words.tripReading.leg, cost: words.tripReading.cost }
+
+export const TRIP_CODECS: TripCodecs = tripCodecs(TRIP_WORDING)
+
+/** The trips the records make, against the employees they name. */
+export function tripsOf(records: TripRecords, employees: ReadonlySet<string>): TripsReading {
+  return readTrips(records, employees, TRIP_WORDING)
+}
+
+/** The trips the records make, with one kind's records as `read` gives them. */
+function tripsWith<R>(kind: RecordKind<R>, read: RecordsRead<R>, records: FreshRecords): TripsReading {
+  const of = <K>(other: RecordKind<K>): RecordsRead<K> => (other.name === kind.name ? (read as RecordsRead<unknown> as RecordsRead<K>) : records.of(other))
+  const tripRecords: TripRecords = { trips: of(TRIP_RECORDS), legs: of(TRIP_LEG_RECORDS), costs: of(TRIP_COST_RECORDS) }
+  return tripsOf(tripRecords, new Set(readEmployees(records.of(EMPLOYEE_RECORDS)).facts.map((employee) => employee.slug)))
+}
+
+/** A travel order the write removes keeps no leg or cost that names it, which goes in the same write. */
+function tripsStillNamed(change: KindChange<Trip>, after: FreshRecords): string[] {
+  const removed = change.edits.flatMap((edit) => (edit.before !== null && edit.after === null && edit.before.id !== null ? [{ id: edit.before.id, label: edit.before.label }] : []))
+  return removed.flatMap(({ id, label }) => {
+    const named = [...storedFieldsOf(after.of(TRIP_LEG_RECORDS)), ...storedFieldsOf(after.of(TRIP_COST_RECORDS))].filter((fields) => keyOfTrip(fields) === id)
+    return named.length === 0 ? [] : [words.writes.tripStillNamed(label, named.length)]
+  })
+}
+
+function keyOfTrip(fields: StoredFields): RecordId {
+  return recordIdOf(TRIP_RECORDS, textOf(fields[TRIP_FIELD]))
+}
+
+/** A travel order is checked by the trips reader against the employees and its legs, and is removed only with its legs and costs. */
+export const TRIP_WRITES: WriteRules<Trip> = {
+  kind: TRIP_RECORDS,
+  reads: TRIP_KINDS,
+  undoable: true,
+  read: (read, records) => tripsWith(TRIP_RECORDS, read, records).trips,
+  refusals: (change, _fresh, after) => tripsStillNamed(change, after),
+}
+
+/** A leg names a travel order that counts, and the legs of a trip by private car fit its odometer. */
+export const TRIP_LEG_WRITES: WriteRules<TripLeg> = {
+  kind: TRIP_LEG_RECORDS,
+  reads: TRIP_KINDS,
+  undoable: true,
+  read: (read, records) => tripsWith(TRIP_LEG_RECORDS, read, records).legs,
+  refusals: () => [],
+}
+
+/** A cost names a travel order that counts. */
+export const TRIP_COST_WRITES: WriteRules<TripCost> = {
+  kind: TRIP_COST_RECORDS,
+  reads: TRIP_KINDS,
+  undoable: true,
+  read: (read, records) => tripsWith(TRIP_COST_RECORDS, read, records).costs,
+  refusals: () => [],
 }

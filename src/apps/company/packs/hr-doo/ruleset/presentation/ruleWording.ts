@@ -122,18 +122,25 @@ function isCoefficient(key: string): boolean {
 export interface TermFormat {
   readonly percent: Intl.NumberFormat
   readonly factor: Intl.NumberFormat
-  readonly euros: Intl.NumberFormat
+  readonly money: (currency: string) => Intl.NumberFormat
 }
 
 /**
  * Rates in the law go to two decimals, such as 4.38%, which the app's one-decimal share format would round away.
- * Amounts in Croatian law are in euros whatever currency the workbook keeps.
+ * Amounts in Croatian law are in euros whatever currency the workbook keeps, except a table row that names its own currency.
  */
 export function termFormat(locale: string): TermFormat {
+  const moneyFormats = new Map<string, Intl.NumberFormat>()
   return {
     percent: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }),
     factor: new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 4 }),
-    euros: new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR' }),
+    money: (currency) => {
+      const known = moneyFormats.get(currency)
+      if (known !== undefined) return known
+      const made = new Intl.NumberFormat(locale, { style: 'currency', currency })
+      moneyFormats.set(currency, made)
+      return made
+    },
   }
 }
 
@@ -142,12 +149,12 @@ function textWording(wording: string): string {
   return /^[a-z0-9-]+$/.test(wording) && /[a-z]/.test(wording) ? wording.replace(/-/g, ' ') : wording
 }
 
-export function scalarWording(key: string, term: ScalarTerm, format: TermFormat): string {
+export function scalarWording(key: string, term: ScalarTerm, format: TermFormat, currency = 'EUR'): string {
   switch (term.kind) {
     case 'rate':
       return isCoefficient(key) ? format.factor.format(shareOfPercent(term.basisPoints)) : format.percent.format(shareOfPercent(term.basisPoints))
     case 'money':
-      return format.euros.format(amountOf(term.cents))
+      return format.money(currency).format(amountOf(term.cents))
     case 'count':
       return String(term.count)
     case 'flag':
@@ -306,7 +313,7 @@ function tableView(key: string, versions: readonly RuleVersion<RuleTerms>[], per
     table.rows.map((row) =>
       columnKeys.map((columnKey) => {
         const cell = row[columnKey]
-        return cell === undefined ? '–' : scalarWording(columnKey, cell, format)
+        return cell === undefined ? '–' : scalarWording(columnKey, cell, format, row.currency?.kind === 'text' ? row.currency.text : undefined)
       }),
     )
   return {
