@@ -152,6 +152,9 @@ describe('the benchmark', () => {
     const index = {
       name: 'Example Index',
       symbol: 'EXI',
+      quoted: null,
+      coupon: null,
+      maturity: null,
       type: null,
       class: null,
       isin: '',
@@ -181,6 +184,9 @@ describe('an instrument', () => {
     input: {
       name: 'Example Fund',
       symbol: 'EXF',
+      quoted: null,
+      coupon: null,
+      maturity: null,
       type: 'fund',
       class: null,
       isin: '',
@@ -197,6 +203,25 @@ describe('an instrument', () => {
       countries: [],
       ...fields,
     },
+  })
+
+  it('adds a bond priced in percent with its coupon and maturity, and says so on the card', async () => {
+    const desk = await investmentsDesk(used)
+
+    await desk.propose([fund({ name: 'Example Bond', symbol: 'EXB', type: null, quoted: 'percent', coupon: '3.5', maturity: '2030-03-02' })])
+    const fields = desk.cards[0]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.map((field) => [field.name, field.after])))
+    await desk.accept()
+
+    expect(fields).toContainEqual([assistantWords.proposals.fields.quoted, expect.stringContaining('Percent of nominal')])
+    expect(bookOf(desk).instruments.find((instrument) => instrument.name === 'Example Bond')).toMatchObject({ type: 'bond', quoted: { kind: 'percent' } })
+  })
+
+  it('refuses a bond without its coupon and maturity', async () => {
+    const desk = await investmentsDesk(used)
+
+    const answer = await desk.propose([fund({ quoted: 'percent' })])
+
+    expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('coupon: A yearly coupon in percent such as 3.5') })
   })
 
   it.each([

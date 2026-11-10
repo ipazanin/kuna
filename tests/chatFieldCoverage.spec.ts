@@ -193,9 +193,15 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   },
   {
     path: 'src/apps/investments/holdings/application/holdingWrites.ts#INSTRUMENT_WRITES',
-    operations: ['add-instrument', 'change-instrument'].map((name) => ({ name, renames: { benchmark: 'set-benchmark:instrument' } })),
+    operations: ['add-instrument', 'change-instrument'].map((name) => ({
+      name,
+      renames: { benchmark: 'set-benchmark:instrument', 'quoted.kind': 'quoted', 'quoted.coupon': 'coupon', 'quoted.maturity': 'maturity' },
+    })),
   },
-  { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INSTRUMENT_WRITES.change', operations: [{ name: 'change-instrument', renames: { benchmark: 'set-benchmark:instrument' } }] },
+  {
+    path: 'src/apps/investments/holdings/application/holdingWrites.ts#INSTRUMENT_WRITES.change',
+    operations: [{ name: 'change-instrument', renames: { benchmark: 'set-benchmark:instrument', 'quoted.kind': 'quoted', 'quoted.coupon': 'coupon', 'quoted.maturity': 'maturity' } }],
+  },
   { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.add', operations: ['add-account'] },
   { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.change', operations: ['change-account'] },
   { path: 'src/apps/investments/mail/application/mailReaderWrites.ts#MAIL_READER_WRITES', operations: ['set-mail-reader'] },

@@ -4686,6 +4686,35 @@ export function investmentsInstrumentSearchFlowIn(language) {
 export const investmentsInstrumentSearchFlow = investmentsInstrumentSearchFlowIn('en')
 
 /**
+ * Investments Settings on the sample: Add a benchmark opens the holding dialog, whose Price is menu turns it into a bond
+ * priced in percent. The coupon and maturity appear, the type becomes Bond, and a save without them marks both.
+ */
+export function investmentsBondFlowIn(language) {
+  const croatian = language === 'hr'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(croatian ? `${name}-${language}` : name)
+    await pressSelector(page, press, '[data-testid="benchmark-add"]')
+    await page.waitForSelector('[data-testid="instrument-form"]', { visible: true, timeout: 10_000 })
+    await delay(600)
+    await shoot('investments-instrument-quoted-unit')
+    await chooseStartingWith(page, press, '[data-testid="instrument-quoted"]', croatian ? 'Postotak nominale' : 'Percent of nominal')
+    await elementSays(page, '[data-testid="instrument-type"]', [croatian ? 'Obveznica' : 'Bond'], 'the bond quoting does not set the type')
+    await fill(page, 'instrument-name', 'Example Treasury Bond')
+    await fill(page, 'instrument-symbol', 'EXB')
+    await pressSelector(page, press, '[data-testid="instrument-save"]')
+    await elementSays(page, '[data-testid="instrument-form"]', [croatian ? 'Odaberite datum' : 'Pick a date'], 'a bond without a maturity is not marked')
+    await scrollIntoDialogView(page, '[data-testid="instrument-coupon"]')
+    await inspect?.('the holding dialog for a bond without its coupon and maturity')
+    await shoot('investments-instrument-quoted-bond-marked')
+    await fill(page, 'instrument-coupon', croatian ? '3,5' : '3.5')
+    await fill(page, 'instrument-maturity', '2030-03-02')
+    await shoot('investments-instrument-quoted-bond')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="instrument-form"]')
+  }
+}
+
+/**
  * A cursor a little beside the 8 Sep buy on Example Tech's daily Price chart still opens that buy's tooltip, though
  * a day on the long line is about a pixel wide. The buy dots are found by their colour on the canvas, then the
  * pointer moves out from inside the dot until the tooltip stops naming it.

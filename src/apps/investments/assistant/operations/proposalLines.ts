@@ -60,7 +60,7 @@ import { countryName } from '../../../../shared/text/countryName'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself or an import brought, which no operation sets, so a card leaves them off. */
-const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'importKey', 'dividend', 'quoted', 'recipe'])
+const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'importKey', 'dividend', 'recipe'])
 
 /** The mail reader's fields by the names its card gives them. */
 const MAIL_FIELD_NAMES: Readonly<Record<string, string>> = {
@@ -205,12 +205,18 @@ function transactionValue(kind: RecordKind<unknown>, field: string, record: Prop
   return undefined
 }
 
+function quotingText(quoted: Instrument['quoted']): string {
+  const label = holdingsWords.instrumentDialog.quotings[quoted.kind]
+  return quoted.kind === 'percent' ? words.proposals.bondQuoting(label, percentText(quoted.coupon), dayLabel(quoted.maturity)) : label
+}
+
 /** A field of an instrument or a line of its mix in the holding dialog's words, or undefined for a field shown as it is. */
 function holdingValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, namesOf: ReadonlyMap<unknown, string>): string | null | undefined {
   if (isKind(kind, INSTRUMENT_RECORDS, record)) {
     const shown: Partial<Record<keyof Instrument, string | null>> = {
       type: record.type === null ? null : holdingsWords.types[record.type],
       class: holdingsWords.classes[record.class],
+      quoted: quotingText(record.quoted),
       prices: VENDOR_NAMES[record.prices],
       sector: record.sector === null ? null : holdingsWords.sectors[record.sector],
       country: record.country === null ? null : countryText(record.country),

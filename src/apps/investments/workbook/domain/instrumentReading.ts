@@ -1,4 +1,4 @@
-import { CLASS_OF_TYPE, FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from './instrument'
+import { CLASS_OF_TYPE, FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, PRICE_SOURCES, QUOTING_KINDS, TYPE_OF_QUOTING } from './instrument'
 import type { FundDistribution, Instrument, InstrumentClass, InstrumentType, Quoting } from './instrument'
 import { decimalField, optionalCountry, optionalUnsigned, requiredCurrency } from './investmentFields'
 import { INSTRUMENT_RECORDS } from './investmentKinds'
@@ -12,8 +12,6 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { booleanOf, optionalDate, ownId, refuse, requiredChoice, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { words as storedWords } from '../../../../shared/storage/domain/words'
-
-const QUOTINGS = ['unit', 'percent', 'gram'] as const
 
 /** Two letters of the country, nine of the security and a check digit. */
 export const ISIN = /^[A-Z]{2}[A-Z0-9]{9}\d$/
@@ -32,7 +30,7 @@ function optionalMatching(fields: StoredFields, name: string, pattern: RegExp, r
 }
 
 function quotingOf(fields: StoredFields): Quoting {
-  const kind = requiredChoice(fields, 'quoted', QUOTINGS, 'way of quoting')
+  const kind = requiredChoice(fields, 'quoted', QUOTING_KINDS, 'way of quoting')
   const coupon = optionalUnsigned(fields, 'coupon')
   const maturity = optionalDate(fields, 'maturity')
   if (kind !== 'percent') {

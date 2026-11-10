@@ -110,11 +110,8 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
-    reason: "Fields no screen form shows, which Kuna keeps as the record has them: how a bond is quoted, a trade's accrued interest and the dividend facts an import brings.",
+    reason: "Fields no screen form shows, which Kuna keeps as the record has them: a trade's accrued interest and the dividend facts an import brings.",
     fields: [
-      'investments: Instrument.quoted.kind',
-      'investments: Instrument.quoted.coupon',
-      'investments: Instrument.quoted.maturity',
       'investments: Trade.accrued',
       'investments: Income.dividend.exDate',
       'investments: Income.dividend.payDate',

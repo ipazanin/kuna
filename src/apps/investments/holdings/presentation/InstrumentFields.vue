@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import CurrencyField from './CurrencyField.vue'
-import { COUNTRY_ITEMS, DISTRIBUTION_ITEMS, NOT_SET, SECTOR_ITEMS, classOfType, typeItems } from './instrumentForm'
+import { COUNTRY_ITEMS, DISTRIBUTION_ITEMS, NOT_SET, SECTOR_ITEMS, classOfType, typeItems, withQuoting } from './instrumentForm'
 import type { InstrumentErrors, InstrumentTexts } from './instrumentForm'
 import { words } from './words'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
-import { INSTRUMENT_CLASSES, PRICE_SOURCES } from '../../workbook/domain/instrument'
-import type { Quoting } from '../../workbook/domain/instrument'
+import { INSTRUMENT_CLASSES, PRICE_SOURCES, QUOTING_KINDS } from '../../workbook/domain/instrument'
+import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 
 /** A holding's facts and the source of its daily closes, as fields inside a FormGrid. */
@@ -22,16 +24,20 @@ const props = withDefaults(
     /** Whether a save was tried, after which each field shows what it lacks. */
     tried: boolean
     book: InvestmentBook
-    /** How the instrument is quoted, which the fields do not change and which limits its type. */
-    quoted?: Quoting['kind']
+    /** The instrument being changed, or null for a new one. */
+    instrument?: Instrument | null
     /** Starts every field's test id, such as `instrument-name`. */
     testId?: string
   }>(),
-  { quoted: 'unit', testId: 'instrument' },
+  { instrument: null, testId: 'instrument' },
 )
 
 const text = words.instrumentDialog
 
+/** Whether changing the quoting of an instrument that has trades changes how they read. */
+const rereadsTrades = computed(() => props.instrument !== null && texts.value.quoted !== props.instrument.quoted.kind && props.book.trades.some((trade) => trade.instrument === props.instrument?.id))
+
+const QUOTING_ITEMS = QUOTING_KINDS.map((value) => ({ value, label: text.quotings[value] }))
 const CLASS_ITEMS = INSTRUMENT_CLASSES.map((value) => ({ value, label: words.classes[value] }))
 const SOURCE_ITEMS = PRICE_SOURCES.map((value) => {
   const vendor = PRICE_VENDORS.find((candidate) => candidate.id === value)
@@ -58,10 +64,29 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
   <UFormField :label="text.symbol" :help="text.symbolHelp" :error="shown(errors.symbol)">
     <UInput :model-value="texts.symbol" autocapitalize="characters" :spellcheck="false" class="w-full" :data-testid="`${testId}-symbol`" @update:model-value="update('symbol', String($event))" />
   </UFormField>
-  <UFormField :label="text.type" :help="text.typeHelp">
+  <UFormField :label="text.quoted" :help="rereadsTrades ? '' : text.quotedHelp[texts.quoted]">
+    <USelect :model-value="texts.quoted" :items="QUOTING_ITEMS" class="w-full" :data-testid="`${testId}-quoted`" @update:model-value="texts = withQuoting(texts, $event, instrument?.type ?? '')" />
+    <template v-if="rereadsTrades" #help>
+      <span class="flex items-start gap-1 text-warning" :data-testid="`${testId}-quoted-rereads`">
+        <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+        {{ text.quotedRereads }}
+      </span>
+    </template>
+  </UFormField>
+  <template v-if="texts.quoted === 'percent'">
+    <UFormField :label="text.coupon" :help="text.couponHelp" :error="shown(errors.coupon)">
+      <UInput :model-value="texts.coupon" inputmode="decimal" class="w-full" :data-testid="`${testId}-coupon`" @update:model-value="update('coupon', String($event))">
+        <template #trailing><span class="text-muted">%</span></template>
+      </UInput>
+    </UFormField>
+    <UFormField :label="text.maturity" :error="shown(errors.maturity)">
+      <UInput :model-value="texts.maturity" type="date" class="w-full" :data-testid="`${testId}-maturity`" @update:model-value="update('maturity', String($event))" />
+    </UFormField>
+  </template>
+  <UFormField :label="text.type" :help="text.typeHelp" :error="shown(errors.type)">
     <USelectMenu
       :model-value="texts.type || NOT_SET"
-      :items="[NOT_SET_ROW, ...typeItems(quoted)]"
+      :items="[NOT_SET_ROW, ...typeItems(texts.quoted)]"
       value-key="value"
       :search-input="false"
       class="w-full"

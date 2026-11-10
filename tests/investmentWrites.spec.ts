@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { INSTRUMENT_WRITES, INVESTMENT_ACCOUNT_WRITES } from '../src/apps/investments/holdings/application/holdingWrites'
 import { FUND_MIX_WRITES, TARGET_WRITES, replaceRows } from '../src/apps/investments/holdings/application/mixWrites'
-import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, instrumentErrors, instrumentOfTexts, instrumentTexts, typeItems } from '../src/apps/investments/holdings/presentation/instrumentForm'
+import { COUNTRY_ITEMS, NOT_SET, SECTOR_ITEMS, instrumentErrors, instrumentOfTexts, instrumentTexts, typeItems, withQuoting } from '../src/apps/investments/holdings/presentation/instrumentForm'
 import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts, mixSum } from '../src/apps/investments/holdings/presentation/instrumentMixForm'
 import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
 import { writeTransaction } from '../src/apps/investments/transactions/application/transactionWrites'
@@ -503,12 +503,12 @@ describe('the instrument form', () => {
   it('reads a sector, a country or region and a TER typed with either decimal mark, and keeps blank as none', () => {
     const typed = { ...instrumentTexts(null), name: 'Example Fund', symbol: 'EMF', sector: 'financials' as const, country: 'europe', ter: '0,2' }
 
-    expect(instrumentOfTexts(typed, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), { quoted: { kind: 'unit' }, benchmark: false })).toMatchObject({
+    expect(instrumentOfTexts(typed, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), { benchmark: false })).toMatchObject({
       sector: 'financials',
       country: 'europe',
       ter: decimal('0.2'),
     })
-    expect(instrumentOfTexts({ ...typed, sector: '', country: '', ter: ' ' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), { quoted: { kind: 'unit' }, benchmark: false })).toMatchObject({
+    expect(instrumentOfTexts({ ...typed, sector: '', country: '', ter: ' ' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), { benchmark: false })).toMatchObject({
       sector: null,
       country: null,
       ter: null,
@@ -519,7 +519,7 @@ describe('the instrument form', () => {
 
   it('takes the class from a type that holds one, keeps the class field for a fund, and offers a percent bond or gold in grams its one type', () => {
     const typed = { ...instrumentTexts(null), name: 'Example Coin', symbol: 'XCN', class: 'stocks' as const }
-    const unit = { quoted: { kind: 'unit' }, benchmark: false } as const
+    const unit = { benchmark: false } as const
 
     expect(instrumentOfTexts({ ...typed, type: 'crypto' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'crypto', class: 'crypto' })
     expect(instrumentOfTexts({ ...typed, type: 'fund', class: 'gold' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'fund', class: 'gold' })
@@ -540,12 +540,39 @@ describe('the instrument form', () => {
 
   it('keeps a fund’s dividends as typed, blank as none, and drops them once the type is no longer a fund', () => {
     const typed = { ...instrumentTexts(null), name: 'Example Fund', symbol: 'EMF', type: 'fund' as const, distribution: 'accumulating' as const }
-    const unit = { quoted: { kind: 'unit' }, benchmark: false } as const
+    const unit = { benchmark: false } as const
 
     expect(instrumentOfTexts(typed, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'fund', distribution: 'accumulating' })
     expect(instrumentOfTexts({ ...typed, distribution: '' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ distribution: null })
     expect(instrumentOfTexts({ ...typed, type: 'share' }, [], recordIdOf(INSTRUMENT_RECORDS, 'new'), unit)).toMatchObject({ type: 'share', distribution: null })
     expect(instrumentTexts({ ...SHARE, type: 'fund', distribution: 'distributing' }).distribution).toBe('distributing')
+  })
+
+  it('prices a bond in percent with its coupon and maturity, and reads them back', () => {
+    const id = recordIdOf(INSTRUMENT_RECORDS, 'new')
+    const kept = { benchmark: false }
+    const typed = withQuoting({ ...instrumentTexts(null), name: 'Example Bond', symbol: 'EXB' }, 'percent', '')
+
+    expect(typed.type).toBe('bond')
+    expect(instrumentErrors(typed, [])).toMatchObject({ coupon: 'A yearly coupon in percent such as 3.5', maturity: 'Pick a date' })
+    expect(instrumentOfTexts(typed, [], id, kept)).toBeNull()
+
+    const bond = instrumentOfTexts({ ...typed, coupon: '3.5', maturity: '2030-03-02' }, [], id, kept)
+    expect(bond).toMatchObject({ type: 'bond', class: 'bonds', quoted: { kind: 'percent', coupon: decimal('3.5'), maturity: civil('2030-03-02') } })
+    expect(instrumentTexts(bond)).toMatchObject({ quoted: 'percent', coupon: '3.5', maturity: '2030-03-02', type: 'bond' })
+    expect(withQuoting({ ...typed, coupon: '3.5', maturity: '2030-03-02' }, 'unit', '')).toMatchObject({ quoted: 'unit', coupon: '', maturity: '', type: '' })
+    expect(withQuoting({ ...typed, type: 'bond' }, 'unit', 'fund')).toMatchObject({ type: 'fund' })
+    expect(withQuoting({ ...instrumentTexts(null), type: 'share' }, 'unit', '')).toMatchObject({ type: 'share' })
+  })
+
+  it('refuses a coupon on an instrument priced per unit and a type that its quoting does not allow', () => {
+    const errors = instrumentErrors({ ...instrumentTexts(null), coupon: '3', maturity: '2030-03-02', quoted: 'gram', type: 'share' }, [])
+
+    expect(errors).toMatchObject({
+      coupon: 'Only a bond quoted in percent has a coupon',
+      maturity: 'Only a bond quoted in percent has a maturity',
+      type: 'This way of quoting goes with the type Physical gold',
+    })
   })
 
   it('says what a fund’s mix lacks: a group, a group on one line only, a percent above 0 and at most 100, and lines that add up to 100%', () => {

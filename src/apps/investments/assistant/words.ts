@@ -83,6 +83,7 @@ export const en = {
   proposals: {
     units: (quantity: string, instrument: string) => `${quantity} of ${instrument}`,
     percent: (value: string) => `${value}%`,
+    bondQuoting: (quoting: string, coupon: string, maturity: string) => `${quoting}, coupon ${coupon} a year, matures ${maturity}`,
     pricesFetched: (instruments: readonly string[]) => `Kuna fetches the prices of ${listInWords(instruments)} after Accept. Undo leaves the prices it fetched.`,
     ratesMissing: (currencies: string, from: CivilDate, place: string) =>
       `The prices file lacks the ECB rates of ${currencies} from ${dayLabel(from)}, which the rows need. Import with ${place}, which fetches them first.`,
@@ -139,6 +140,7 @@ export const en = {
       accrued: 'Accrued interest',
       kind: 'Kind',
       currency: 'Currency',
+      quoted: 'Price is',
       gross: 'Gross',
       withheld: 'Tax withheld',
       amount: 'Amount',
@@ -254,6 +256,7 @@ export const hr: Translation<typeof en> = {
   proposals: {
     units: (quantity, instrument) => `${quantity} instrumenta ${instrument}`,
     percent: (value) => `${value}\u00a0%`,
+    bondQuoting: (quoting, coupon, maturity) => `${quoting}, kupon ${coupon} godišnje, dospijeva ${maturity}`,
     pricesFetched: (instruments) =>
       `Kuna nakon prihvaćanja dohvaća cijene ${instruments.length === 1 ? 'instrumenta' : 'instrumenata'} ${listInWords(instruments)}. Poništavanje ostavlja dohvaćene cijene.`,
     ratesMissing: (currencies, from, place) =>
@@ -332,6 +335,7 @@ export const hr: Translation<typeof en> = {
       accrued: 'Stečena kamata',
       kind: 'Vrsta',
       currency: 'Valuta',
+      quoted: 'Cijena je',
       gross: 'Bruto',
       withheld: 'Obustavljeni porez',
       amount: 'Iznos',

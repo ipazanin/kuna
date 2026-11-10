@@ -1,10 +1,10 @@
 import { INSTRUMENT_WRITES } from '../../holdings/application/holdingWrites'
 import { FUND_MIX_WRITES, replaceRows } from '../../holdings/application/mixWrites'
-import { instrumentErrors, instrumentOfTexts, instrumentTexts } from '../../holdings/presentation/instrumentForm'
+import { instrumentErrors, instrumentOfTexts, instrumentTexts, withQuoting } from '../../holdings/presentation/instrumentForm'
 import type { InstrumentTexts } from '../../holdings/presentation/instrumentForm'
 import { fundMixChanges, fundMixErrors, fundMixTexts, mixLineTexts } from '../../holdings/presentation/instrumentMixForm'
 import type { FundMix, FundMixTexts } from '../../holdings/presentation/instrumentMixForm'
-import { FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, NEW_INSTRUMENT_DEFAULTS, PRICE_SOURCES } from '../../workbook/domain/instrument'
+import { FUND_DISTRIBUTIONS, INSTRUMENT_CLASSES, INSTRUMENT_TYPES, NEW_INSTRUMENT_DEFAULTS, PRICE_SOURCES, QUOTING_KINDS } from '../../workbook/domain/instrument'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { INSTRUMENT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { FUND_MIXES, REGIONS, SECTORS } from '../../workbook/domain/mixGroup'
@@ -35,6 +35,12 @@ const MIX: StrictSchema = { type: 'string', enum: ['keep', 'replace'], descripti
 const INSTRUMENT_FIELDS: Readonly<Record<string, StrictSchema>> = {
   name: TEXT_OR_NULL,
   symbol: { type: ['string', 'null'], description: 'Its ticker as the broker shows it.' },
+  quoted: choices(
+    QUOTING_KINDS,
+    'how its price reads: percent for a bond priced in percent of its nominal, which needs coupon and maturity and takes the type bond, gram for gold weighed in grams, or null to leave it.',
+  ),
+  coupon: { type: ['string', 'null'], description: 'A bond\'s yearly coupon in percent with a point, such as 3.5, "" for none, or null to leave it.' },
+  maturity: { type: ['string', 'null'], description: 'A bond\'s maturity as YYYY-MM-DD, "" for none, or null to leave it.' },
   type: choices(INSTRUMENT_TYPES, '"" for not typed, or null to leave it.'),
   class: choices(INSTRUMENT_CLASSES, 'which only a fund or an instrument with no type takes, or null to leave it.'),
   isin: { type: ['string', 'null'], description: 'Twelve letters and digits, "" for none, or null to leave it.' },
@@ -55,14 +61,20 @@ const MIX_FIELDS: Readonly<Record<FundMix, string>> = { sector: 'sectors', count
 
 /** The dialog's fields with the step's values in place of those it names. */
 function textsOfStep(before: Instrument | null, field: Readonly<Record<string, unknown>>): InstrumentTexts {
-  const texts = instrumentTexts(before)
+  const held = instrumentTexts(before)
   const text = (name: keyof InstrumentTexts): string | null => (field[name] as string | null) ?? null
   const pick = <T extends string>(name: keyof InstrumentTexts, values: readonly T[]): T | '' | null => {
     const value = text(name)
     return value === '' ? '' : choiceOf(values, value, name)
   }
+  const quoted = (pick('quoted', QUOTING_KINDS) || null) ?? held.quoted
+  const texts = quoted === held.quoted ? held : withQuoting(held, quoted, before?.type ?? '')
   const ter = text('ter')
+  const coupon = text('coupon')
   return {
+    quoted,
+    coupon: coupon === null ? texts.coupon : coupon === '' ? '' : decimalShown(decimalOf(coupon, 'coupon')),
+    maturity: text('maturity') ?? texts.maturity,
     name: text('name') ?? texts.name,
     symbol: text('symbol') ?? texts.symbol,
     type: pick('type', INSTRUMENT_TYPES) ?? texts.type,
@@ -122,7 +134,7 @@ function savedInstrument(unit: Parameters<InvestmentSteps['write']>[0], card: Ca
   const mixTexts = mixTextsOfStep(fundMixTexts(heldLines), field)
   const refused = refusals(texts, mixTexts, others)
   if (refused.length > 0) throw new StepRefused(refused.join(' '))
-  const record = instrumentOfTexts(texts, others, id, before ?? { quoted: { kind: 'unit' }, ...NEW_INSTRUMENT_DEFAULTS })!
+  const record = instrumentOfTexts(texts, others, id, before ?? NEW_INSTRUMENT_DEFAULTS)!
   const mixes = fundMixChanges(mixTexts, heldLines, id)!
   if (before === null) unit.of(INSTRUMENT_WRITES).add(record)
   else unit.of(INSTRUMENT_WRITES).change(before, record)
@@ -166,6 +178,9 @@ export const INSTRUMENT_STEPS: InvestmentSteps = {
       example: {
         name: 'Example World ETF',
         symbol: 'EXW',
+        quoted: 'unit',
+        coupon: '',
+        maturity: '',
         type: 'fund',
         class: 'stocks',
         isin: '',

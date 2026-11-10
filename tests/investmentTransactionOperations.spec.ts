@@ -265,6 +265,9 @@ describe('accounts and instruments', () => {
       input: {
         name: `Listed ${prices}`,
         symbol: 'LST',
+        quoted: null,
+        coupon: null,
+        maturity: null,
         type: 'share',
         class: null,
         isin: null,
@@ -292,7 +295,7 @@ describe('accounts and instruments', () => {
 
   it('says nothing about fetching closes for a change that keeps the price source and ticker', async () => {
     const desk = await investmentsDesk(used)
-    const fields = ['name', 'symbol', 'type', 'class', 'isin', 'exchange', 'currency', 'prices', 'sourceSymbol', 'sector', 'country', 'ter', 'distribution']
+    const fields = ['name', 'symbol', 'quoted', 'coupon', 'maturity', 'type', 'class', 'isin', 'exchange', 'currency', 'prices', 'sourceSymbol', 'sector', 'country', 'ter', 'distribution']
     const change = (changed: Readonly<Record<string, unknown>>) => ({
       op: 'change-instrument',
       input: { instrument: desk.ref('instrument', DESK.SHARE.id), ...Object.fromEntries(fields.map((name) => [name, null])), note: 'Checked', sectors: [], countries: [], mix: 'keep', ...changed },
@@ -311,7 +314,9 @@ describe('accounts and instruments', () => {
       input: {
         instrument: desk.ref('instrument', DESK.FUND.id),
         ...Object.fromEntries(
-          ['name', 'symbol', 'type', 'class', 'isin', 'exchange', 'currency', 'prices', 'sourceSymbol', 'sector', 'country', 'ter', 'distribution', 'note'].map((name) => [name, null]),
+          ['name', 'symbol', 'quoted', 'coupon', 'maturity', 'type', 'class', 'isin', 'exchange', 'currency', 'prices', 'sourceSymbol', 'sector', 'country', 'ter', 'distribution', 'note'].map(
+            (name) => [name, null],
+          ),
         ),
         sectors: [],
         countries: [],

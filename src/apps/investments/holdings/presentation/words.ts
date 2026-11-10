@@ -1,5 +1,5 @@
 import type { HoldingGroup, HoldingsGrouping } from '../domain/holdingsList'
-import type { FundDistribution, InstrumentType } from '../../workbook/domain/instrument'
+import type { FundDistribution, InstrumentType, Quoting } from '../../workbook/domain/instrument'
 import type { Mix, Region, Sector } from '../../workbook/domain/mixGroup'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -340,6 +340,16 @@ export const en = {
     name: 'Name',
     symbol: 'Symbol',
     symbolHelp: 'As your broker shows it',
+    quoted: 'Price is',
+    quotedHelp: { unit: 'The price of one unit, such as one share', percent: 'A bond’s price in percent of its nominal', gram: 'The price of one gram, for physical gold' } satisfies Record<
+      Quoting['kind'],
+      string
+    >,
+    quotedRereads: 'Trades already recorded are read this way too, so change it only to correct a mistake',
+    quotings: { unit: 'Per unit', percent: 'Percent of nominal (a bond)', gram: 'Per gram (physical gold)' } satisfies Record<Quoting['kind'], string>,
+    coupon: 'Coupon',
+    couponHelp: 'Paid once a year on the day of the maturity, in percent of the nominal',
+    maturity: 'Maturity',
     type: 'Type',
     typeHelp: 'Only a share’s country is read from its ISIN',
     class: 'Class',
@@ -395,6 +405,11 @@ export const en = {
       exchange: 'Four letters or digits, or blank',
       currency: 'Pick a currency',
       ter: 'A yearly cost in percent such as 0.20, or blank',
+      quotedType: (type: string) => `This way of quoting goes with the type ${type}`,
+      coupon: 'A yearly coupon in percent such as 3.5',
+      couponOfBond: 'Only a bond quoted in percent has a coupon',
+      maturity: 'Pick a date',
+      maturityOfBond: 'Only a bond quoted in percent has a maturity',
       mixGroup: 'Choose a group',
       mixGroupTwice: 'On another line too',
       mixPercent: 'A percent above 0, at most 100',
@@ -764,6 +779,13 @@ export const hr: Translation<typeof en> = {
     name: 'Naziv',
     symbol: 'Simbol',
     symbolHelp: 'Kako ga prikazuje vaš broker',
+    quoted: 'Cijena je',
+    quotedHelp: { unit: 'Cijena jedne jedinice, na primjer jedne dionice', percent: 'Cijena obveznice u postotku njezine nominale', gram: 'Cijena jednog grama, za fizičko zlato' },
+    quotedRereads: 'Ovako se čitaju i već upisane transakcije, pa ovo mijenjajte samo radi ispravka pogreške',
+    quotings: { unit: 'Po jedinici', percent: 'Postotak nominale (obveznica)', gram: 'Po gramu (fizičko zlato)' },
+    coupon: 'Kupon',
+    couponHelp: 'Isplaćuje se jednom godišnje na dan dospijeća, u postotku nominale',
+    maturity: 'Dospijeće',
     type: 'Vrsta',
     typeHelp: 'Država se iz ISIN-a čita samo za dionicu',
     class: 'Klasa',
@@ -819,6 +841,11 @@ export const hr: Translation<typeof en> = {
       exchange: 'Četiri slova ili znamenke, ili prazno',
       currency: 'Odaberite valutu',
       ter: 'Godišnji trošak u postotku, na primjer 0,20, ili prazno',
+      quotedType: (type) => `Uz ovaj način kotiranja ide vrsta: ${type}`,
+      coupon: 'Godišnji kupon u postotku, na primjer 3,5',
+      couponOfBond: 'Kupon ima samo obveznica koja kotira u postotku',
+      maturity: 'Odaberite datum',
+      maturityOfBond: 'Dospijeće ima samo obveznica koja kotira u postotku',
       mixGroup: 'Odaberite skupinu',
       mixGroupTwice: 'Već je u drugom retku',
       mixPercent: 'Postotak veći od 0, najviše 100',

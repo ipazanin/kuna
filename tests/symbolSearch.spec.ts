@@ -86,7 +86,7 @@ describe('a listing picked in the instrument dialog', () => {
   }
 
   it('fills a blank symbol, the name, the proposed type, the exchange, the currency and the vendor that prices it with its symbol there', () => {
-    expect(withListing(instrumentTexts(null), listing, 'unit')).toMatchObject({
+    expect(withListing(instrumentTexts(null), listing)).toMatchObject({
       symbol: 'XYZ.DEX',
       name: 'Example World UCITS ETF',
       type: 'fund',
@@ -99,17 +99,17 @@ describe('a listing picked in the instrument dialog', () => {
 
   it('keeps a typed symbol and name, the source when no vendor of the listing prices it on a free key, and a type the quoting does not allow', () => {
     const typed = { ...instrumentTexts(null), symbol: 'XYZ', name: 'My world fund', prices: 'manual' as const }
-    expect(withListing(typed, { ...listing, sources: [] }, 'unit')).toMatchObject({ symbol: 'XYZ', name: 'My world fund', prices: 'manual', sourceSymbol: '', type: 'fund' })
-    expect(withListing({ ...typed, type: 'bond' }, listing, 'percent')).toMatchObject({ symbol: 'XYZ', type: 'bond', prices: 'alphavantage', sourceSymbol: 'XYZ.DEX' })
+    expect(withListing(typed, { ...listing, sources: [] })).toMatchObject({ symbol: 'XYZ', name: 'My world fund', prices: 'manual', sourceSymbol: '', type: 'fund' })
+    expect(withListing({ ...typed, type: 'bond', quoted: 'percent' }, listing)).toMatchObject({ symbol: 'XYZ', type: 'bond', prices: 'alphavantage', sourceSymbol: 'XYZ.DEX' })
   })
 
   it('leaves Twelve Data off a European listing its search found, as its free key prices none', () => {
     const european: SearchedListing = { ...listing, symbol: 'XYZ', foundBy: ['Twelve Data'], sources: [], type: 'ETF' }
-    expect(withListing(instrumentTexts(null), european, 'unit')).toMatchObject({ symbol: 'XYZ', prices: 'twelvedata', sourceSymbol: '', exchange: 'XETR' })
+    expect(withListing(instrumentTexts(null), european)).toMatchObject({ symbol: 'XYZ', prices: 'twelvedata', sourceSymbol: '', exchange: 'XETR' })
   })
 
   it('keeps the source already chosen when it is one of the vendors that price the listing', () => {
     const both: SearchedListing = { ...listing, sources: ['twelvedata', 'alphavantage'] }
-    expect(withListing({ ...instrumentTexts(null), prices: 'alphavantage' }, both, 'unit')).toMatchObject({ prices: 'alphavantage', sourceSymbol: 'XYZ.DEX' })
+    expect(withListing({ ...instrumentTexts(null), prices: 'alphavantage' }, both)).toMatchObject({ prices: 'alphavantage', sourceSymbol: 'XYZ.DEX' })
   })
 })

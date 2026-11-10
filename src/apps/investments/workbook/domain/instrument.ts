@@ -42,6 +42,9 @@ export const PRICE_SOURCES = ['twelvedata', 'alphavantage', 'manual'] as const
 
 export type PriceSource = (typeof PRICE_SOURCES)[number]
 
+/** The ways a price can read. */
+export const QUOTING_KINDS = ['unit', 'percent', 'gram'] as const
+
 /** Units at a price per unit, such as shares, funds and crypto. */
 export interface UnitQuoting {
   readonly kind: 'unit'
@@ -95,5 +98,5 @@ export interface Instrument {
   readonly note: string
 }
 
-/** What a new instrument holds unless a person sets it: no benchmark. */
-export const NEW_INSTRUMENT_DEFAULTS: Pick<Instrument, 'benchmark'> = { benchmark: false }
+/** What a new instrument holds unless a person sets it: priced per unit and no benchmark. */
+export const NEW_INSTRUMENT_DEFAULTS: Pick<Instrument, 'benchmark' | 'quoted'> = { quoted: { kind: 'unit' }, benchmark: false }

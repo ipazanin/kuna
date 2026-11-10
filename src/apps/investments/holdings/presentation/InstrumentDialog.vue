@@ -70,7 +70,7 @@ async function save(): Promise<void> {
   tried.value = true
   const before = props.instrument
   const id = before?.id ?? recordIdOf(INSTRUMENT_RECORDS, newRecordId())
-  const record = instrumentOfTexts(texts.value, others.value, id, before ?? { quoted: { kind: 'unit' }, benchmark: props.asBenchmark })
+  const record = instrumentOfTexts(texts.value, others.value, id, before ?? { benchmark: props.asBenchmark })
   const mixes = fundMixChanges(mixTexts.value, heldLines.value, id)
   if (record === null || mixes === null) return
   const writeMixes = (unit: UnitOfWork): void => mixes.forEach((mix) => replaceRows(unit, FUND_MIX_WRITES, mix.held, mix.wanted))
@@ -119,8 +119,8 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog v-model:open="open" :title="instrument !== null ? text.changeTitle : asBenchmark ? text.addBenchmarkTitle : text.addTitle" :description="text.description" width="2xl">
     <FormGrid id="instrument" as="form" data-testid="instrument-form" @submit.prevent="save">
-      <InstrumentSearch @pick="texts = withListing(texts, $event, instrument?.quoted.kind ?? 'unit')" />
-      <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" :quoted="instrument?.quoted.kind ?? 'unit'" />
+      <InstrumentSearch @pick="texts = withListing(texts, $event)" />
+      <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" :instrument="instrument" />
       <InstrumentMixRows v-model="mixTexts" :errors="mixErrors" :tried="tried" />
     </FormGrid>
     <template #start>
