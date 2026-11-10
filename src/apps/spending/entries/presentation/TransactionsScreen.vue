@@ -13,8 +13,8 @@ import { words as accountWords } from '../../accounts/presentation/words'
 import { accountNamed, categoryIdNamed, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
 import { categoriesOfRow } from '../../categories/domain/rowSide'
 import { euroRows } from '../../rates/domain/euroRows'
-import { ratesIn } from '../../rates/domain/ratesState'
-import { useRates } from '../../rates/presentation/useRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
+import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as screenWords } from '../../screenWords'
 import ReceiptDialog from '../../receipts/presentation/ReceiptDialog.vue'
 import { receiptAccounts } from '../../receipts/domain/receiptMatch'
@@ -107,7 +107,7 @@ const rows = computed(() => {
   if (book === null) return []
   const account = pickedAccount.value
   const under = filedUnder.value
-  return euroRows(book, ratesIn(rates.value))
+  return euroRows(book, everydayRates(rates.value))
     .filter(
       (row) => monthOf(row.transaction.date) === month.value && (account === null || row.transaction.account === account.id) && (under === null || categoriesOfRow(row).some((id) => under.has(id))),
     )

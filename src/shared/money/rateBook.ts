@@ -7,9 +7,9 @@ import { decimalOfAccountMoney, decimalOfText, inEuros } from './decimal'
 import type { Decimal } from './decimal'
 import type { Money } from './money'
 
-/** The ECB's daily euro reference rates, in units of a currency per euro. */
+/** Daily rates per euro, in units of a currency per euro, from whichever source the book was built of. */
 export interface RateBook {
-  /** The rate of the day, or of the latest earlier day the ECB published one. Null before the series starts. */
+  /** The rate of the day, or of the latest earlier day the book has one. Null before the series starts. */
   unitsPerEuroOnOrBefore(currency: CurrencyCode, day: CivilDate): Decimal | null
   /** The day of the newest rate of the currency, null when there is none. */
   newestDay(currency: CurrencyCode): CivilDate | null
@@ -18,8 +18,8 @@ export interface RateBook {
 /** Rates before any have loaded, which convert nothing. */
 export const NO_RATES: RateBook = { unitsPerEuroOnOrBefore: () => null, newestDay: () => null }
 
-/** The amount in euros at the ECB rate on or before the day. Null for a foreign amount the series has no rate for yet. */
-export function eurosAtEcbRate(amount: Decimal, currency: CurrencyCode, day: CivilDate, rates: RateBook): Money | null {
+/** The amount in euros at the rate on or before the day. Null for a foreign amount the series has no rate for yet. */
+export function eurosAtRate(amount: Decimal, currency: CurrencyCode, day: CivilDate, rates: RateBook): Money | null {
   if (currency === EURO) {
     return inEuros(amount, null)
   }
@@ -27,13 +27,13 @@ export function eurosAtEcbRate(amount: Decimal, currency: CurrencyCode, day: Civ
   return rate === null ? null : inEuros(amount, rate)
 }
 
-/** An account's amount in euros at the ECB rate on or before the day, the one place account money becomes `Money`. Null while the series has no rate for the currency yet. */
+/** An account's amount in euros at the rate on or before the day, the one place account money becomes `Money`. Null while the series has no rate for the currency yet. */
 export function eurosOfAccountMoney(amount: AccountMoney, currency: CurrencyCode, day: CivilDate, rates: RateBook): Money | null {
-  return eurosAtEcbRate(decimalOfAccountMoney(amount), currency, day, rates)
+  return eurosAtRate(decimalOfAccountMoney(amount), currency, day, rates)
 }
 
-/** One day's rate as the ECB writes it, in units of the currency per euro. */
-export type EcbRate = readonly [day: string, rate: string]
+/** One day's rate as text, in units of the currency per euro, such as `["2026-11-06", "1.1165"]`. */
+export type DatedRate = readonly [day: string, rate: string]
 
 /** A value on a day, such as a rate or a close. */
 export interface DatedDecimal {
@@ -64,8 +64,8 @@ export function rateBookOfSeries(seriesOf: (currency: CurrencyCode) => readonly 
   }
 }
 
-/** The ECB's rates of each currency as it wrote them, oldest first, as a book. A day or a rate that does not read is left out. */
-export function rateBookOfEcbRates(series: ReadonlyMap<CurrencyCode, readonly EcbRate[]>): RateBook {
+/** The rates of each currency as text, oldest first, as a book. A day or a rate that does not read is left out. */
+export function rateBookOfDatedRates(series: ReadonlyMap<string, readonly DatedRate[]>): RateBook {
   const read = new Map(
     [...series].map(([currency, rates]) => [
       currency,

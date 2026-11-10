@@ -1,6 +1,7 @@
 import { countedAccounts, unconvertedCount } from '../../rates/domain/euroRows'
-import { ratesIn, waitsForRates } from '../../rates/domain/ratesState'
-import type { RatesState } from '../../rates/domain/ratesState'
+import { waitsForRates } from '../../rates/presentation/waitsForRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
+import type { RatesState } from '../../../../shared/rates/domain/ratesState'
 import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { CountedHubPart, HubFigures } from '../../../../shared/app/appContribution'
@@ -12,7 +13,7 @@ import { words } from './words'
 /** What Spending adds to Net worth: what its accounts hold in euros today, and what the overdrawn ones owe. A closed account counts while it still holds money. */
 export function spendingHubFigures(book: Pick<SpendingBook, 'accounts' | 'transactions'>, rates: RatesState, day: CivilDate): HubFigures<CountedHubPart> | 'opening' | null {
   if (book.accounts.length === 0) return null
-  const counted = countedAccounts(book, day, ratesIn(rates))
+  const counted = countedAccounts(book, day, everydayRates(rates))
   const accounts = counted.map((shown) => shown.account)
   if (waitsForRates(accounts, rates)) return 'opening'
   const converted = counted.flatMap((shown) => (shown.euros === null ? [] : [shown.euros]))

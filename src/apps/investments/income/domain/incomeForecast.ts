@@ -3,7 +3,7 @@ import type { PortfolioSources } from '../../holdings/domain/holding'
 import { investmentLots } from '../../holdings/domain/lots'
 import { recordsOn } from '../../performance/domain/portfolioPerformance'
 import type { FactsBook } from '../../prices/domain/factsBook'
-import { eurosAtEcbRate } from '../../../../shared/money/rateBook'
+import { eurosAtRate } from '../../../../shared/money/rateBook'
 import type { Income } from '../../workbook/domain/income'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -93,9 +93,7 @@ export function incomeForecast(sources: PortfolioSources, facts: FactsBook): Inc
     }
     const gross = scaledDecimal(payment.gross, now, then)
     const withheld = scaledDecimal(payment.withheld, now, then)
-    return [
-      { kind: 'copied', instrument, copied: payment, date, currency: payment.currency, gross, withheld, received: eurosAtEcbRate(subtractDecimal(gross, withheld), payment.currency, today, rates) },
-    ]
+    return [{ kind: 'copied', instrument, copied: payment, date, currency: payment.currency, gross, withheld, received: eurosAtRate(subtractDecimal(gross, withheld), payment.currency, today, rates) }]
   })
 
   /** The units a dividend pays on: those held now while its ex day is to come, else those held the day before it, in today's units. */
@@ -118,7 +116,7 @@ export function incomeForecast(sources: PortfolioSources, facts: FactsBook): Inc
         }
         const gross = timesDecimal(dividend.amount, units)
         const withheld = share === null ? DECIMAL_ZERO : timesDecimal(gross, share)
-        const received = eurosAtEcbRate(subtractDecimal(gross, withheld), instrument.currency, today, rates)
+        const received = eurosAtRate(subtractDecimal(gross, withheld), instrument.currency, today, rates)
         return [{ kind: 'announced', instrument, date: dividend.paymentDay, currency: instrument.currency, gross, withheld, received }]
       })
   })

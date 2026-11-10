@@ -1,4 +1,4 @@
-import { eurosAtEcbRate } from '../../../../shared/money/rateBook'
+import { eurosAtRate } from '../../../../shared/money/rateBook'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
 import type { Exchange } from '../../workbook/domain/exchange'
@@ -21,7 +21,7 @@ export function tradeFeesInEuros(trade: Trade): Money {
 
 /** The fees of each exchange that names any. */
 export function exchangeFeesInEuros(exchanges: readonly Exchange[], rates: RateBook): ExchangeFee[] {
-  return exchanges.flatMap((exchange) => (exchange.fees === null ? [] : [{ exchange, euros: eurosAtEcbRate(exchange.fees.amount, exchange.fees.currency, exchange.date, rates) }]))
+  return exchanges.flatMap((exchange) => (exchange.fees === null ? [] : [{ exchange, euros: eurosAtRate(exchange.fees.amount, exchange.fees.currency, exchange.date, rates) }]))
 }
 
 /** The account fees less their refunds, in euros at each movement's rate. Deposits and withdrawals count nothing. */

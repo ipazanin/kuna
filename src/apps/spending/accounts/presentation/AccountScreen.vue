@@ -11,8 +11,8 @@ import EntryDialog from '../../entries/presentation/EntryDialog.vue'
 import EntryList from '../../entries/presentation/EntryList.vue'
 import { accountNamed, SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { accountOnDay, euroRows } from '../../rates/domain/euroRows'
-import { ratesIn } from '../../rates/domain/ratesState'
-import { useRates } from '../../rates/presentation/useRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
+import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -39,11 +39,11 @@ const TREND_DAYS = 90
 const account = computed(() => (state.workbook === null ? null : accountNamed(state.workbook.accounts, route.query.account)))
 const transactions = computed(() => state.workbook?.transactions ?? [])
 
-const onDay = computed(() => (account.value === null ? null : accountOnDay(account.value, transactions.value, day, ratesIn(rates.value))))
+const onDay = computed(() => (account.value === null ? null : accountOnDay(account.value, transactions.value, day, everydayRates(rates.value))))
 const euro = computed(() => (onDay.value === null ? null : euroLine(onDay.value, rates.value, day)))
 const balanceCaption = computed(() => {
   if (euro.value === null) return ''
-  if (euro.value.euros === '') return euro.value.caption === '' ? rateWords.step.failed : euro.value.caption
+  if (euro.value.euros === '') return euro.value.caption === '' ? rateWords.failed : euro.value.caption
   return `${euro.value.euros} · ${euro.value.caption}`
 })
 
@@ -69,7 +69,7 @@ const rows = computed(() => {
   const book = state.workbook
   const shown = account.value
   if (book === null || shown === null) return []
-  return euroRows({ accounts: [shown], transactions: book.transactions, lines: book.lines }, ratesIn(rates.value)).reverse()
+  return euroRows({ accounts: [shown], transactions: book.transactions, lines: book.lines }, everydayRates(rates.value)).reverse()
 })
 const expanded = ref(false)
 const listed = computed(() => (expanded.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))

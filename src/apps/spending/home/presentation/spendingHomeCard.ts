@@ -2,9 +2,10 @@ import { spendingFigures } from '../../analytics/presentation/spendingFigures'
 import { bankLinkLines } from '../../bankSync/presentation/bankLinkLines'
 import { leftToSpend } from '../../budgets/domain/budgetCarry'
 import { reviewCount } from '../../statements/domain/reviewQueue'
-import { ratesIn, waitsForRates } from '../../rates/domain/ratesState'
+import { waitsForRates } from '../../rates/presentation/waitsForRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { unratedNote } from '../../rates/presentation/unratedNote'
-import { useRates } from '../../rates/presentation/useRates'
+import { useRates } from '../../../../shared/rates/application/pageRates'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { AppHomeCard } from '../../../../shared/app/appContribution'
 import { homeCardFigures } from '../../../../shared/app/homeCardFigures'
@@ -25,7 +26,7 @@ export const SPENDING_HOME_CARD: AppHomeCard = {
       if (book.accounts.length === 0) return null
       if (waitsForRates(book.accounts, rates.value)) return 'opening'
       const month = monthOf(today())
-      const figures = spendingFigures(book, ratesIn(rates.value))
+      const figures = spendingFigures(book, everydayRates(rates.value))
       const totals = figures.totalsOf(month)
       const limits = figures.limitsIn(month)
       // This month's rows are all in the month's own count, so only the earlier months the limits carry from add to it.

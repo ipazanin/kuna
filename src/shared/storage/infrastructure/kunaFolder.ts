@@ -2,12 +2,10 @@ import { FOLDER_MIME_TYPE } from '../../google/driveClient'
 import { MAIL_SOURCE_PROPERTY } from '../../mail-filing/domain/mailSource'
 import { DriveMoveRefused } from '../application/driveMoveRefused'
 import type { DriveFileBeside, DriveMovePlan, KunaFilesFolder, KunaFilesInFolder } from '../application/workbookPorts'
+import { APP_PROPERTY, KUNA_FOLDER_MARK } from '../domain/driveMarks'
 import { KUNA_FOLDER_NAME } from '../domain/kunaFolderName'
-import { APP_PROPERTY, backupDayOf, BACKUPS_FOLDER } from './driveDocument'
+import { backupDayOf, BACKUPS_FOLDER } from './driveDocument'
 import type { DocumentDrive } from './driveDocument'
-
-/** The mark on that folder, under the key the apps' files use, so a search from any device finds it wherever the person put it. */
-const KUNA_FOLDER_MARK = 'folder'
 
 /** The property a moved file carries, naming the folder the rest of it still sits in, until the move has brought the rest. */
 const MOVED_FROM = 'movedFrom'

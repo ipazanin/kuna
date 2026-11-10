@@ -4,7 +4,7 @@ import { typedAmount } from './typedAmount'
 
 /**
  * An amount as a whole number of cents of an account's own currency, which may not be euros. It is a different type from
- * `Money` so that dollars never pass for euros. Only `eurosOfAccountMoney` turns it into `Money`, at the ECB rate of a day.
+ * `Money` so that dollars never pass for euros. Only `eurosOfAccountMoney` turns it into `Money`, at a rate book's rate of a day.
  */
 export type AccountMoney = number & { readonly __unit: 'account-cents' }
 

@@ -1,5 +1,5 @@
 import { tradeTotal } from './lots'
-import { eurosAtEcbRate } from '../../../../shared/money/rateBook'
+import { eurosAtRate } from '../../../../shared/money/rateBook'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import { addsCash } from '../../workbook/domain/cashMovement'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -77,14 +77,14 @@ export function accountCash(book: InvestmentBook, rates: RateBook, refused: Read
         ? inEuros(exchange.sold, null)
         : exchange.boughtCurrency === EURO
           ? inEuros(exchange.bought, null)
-          : eurosAtEcbRate(exchange.sold, exchange.soldCurrency, exchange.date, rates)
+          : eurosAtRate(exchange.sold, exchange.soldCurrency, exchange.date, rates)
     move(exchange.account, exchange.soldCurrency, negateDecimal(exchange.sold), euros === null ? null : negateMoney(euros), exchange.id)
     move(exchange.account, exchange.boughtCurrency, exchange.bought, euros, exchange.id)
   }
   for (const transfer of book.transfers) {
     if (transfer.moved.kind === 'cash') {
       const { currency, amount } = transfer.moved
-      const euros = eurosAtEcbRate(amount, currency, transfer.date, rates)
+      const euros = eurosAtRate(amount, currency, transfer.date, rates)
       move(transfer.from, currency, negateDecimal(amount), euros === null ? null : negateMoney(euros), transfer.id)
       move(transfer.to, currency, amount, euros, transfer.id)
     }

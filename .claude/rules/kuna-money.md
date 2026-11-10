@@ -7,7 +7,7 @@ paths:
 
 # Money and percentages
 
-- Amounts are `Money`, whole cents in the module's base currency. A foreign amount is a `Decimal` beside a `CurrencyCode`. Spending's rows, openings, balances and receipt lines are `AccountMoney`, cents of the account's own currency, a brand `Money` does not accept. `eurosOfAccountMoney` turns it into euros at the ECB rate of a day, and `eurosAtEcbRate` does the same for a `Decimal`. Those two are the only conversions.
+- Amounts are `Money`, whole cents in the module's base currency. A foreign amount is a `Decimal` beside a `CurrencyCode`. Spending's rows, openings, balances and receipt lines are `AccountMoney`, cents of the account's own currency, a brand `Money` does not accept. `eurosOfAccountMoney` turns it into euros at a `RateBook`'s rate of a day, and `eurosAtRate` does the same for a `Decimal`. Those two are the only conversions.
 - A rate applied to money is a `Percent`, in basis points. A measured ratio is a `Share`, where 1 is the whole. Loans keeps `YearlyRate`, and `OwnerShare` and `Decimal` percents stay as they are.
 - `formatMoney`, `formatCompactMoney` and `MoneyText` take `Money`, and `formatPercent`, `formatShare`, `formatCostShare`, `formatPercentChange` and `formatRate` take a `Share`, so a bare number does not compile. An account's amount shows through `formatAccountMoney` or `AccountMoneyText`, and a chart's value through `formatChartMoney` or `shareFromRatio`.
 - Round only through `src/shared/money`, half away from zero to the cent, once per business line, and let totals add rounded lines. Half away from zero is Kuna's convention, since `docs/law` states no rounding rule.

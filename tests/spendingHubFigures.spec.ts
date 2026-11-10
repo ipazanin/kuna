@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
 import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures'
-import { rateBookOfEcbRates } from '../src/shared/money/rateBook'
-import type { RatesState } from '../src/apps/spending/rates/domain/ratesState'
+import { rateBookOfDatedRates } from '../src/shared/money/rateBook'
+import type { RatesState } from '../src/shared/rates/domain/ratesState'
 import { euros } from './fixtures/ledger'
 import { ACCOUNTS, CASH, DAY, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, row } from './fixtures/spending'
 
-const LOADED: RatesState = { book: RATES, failed: false }
+const LOADED: RatesState = { everyday: RATES, failed: false }
 
 describe('what Spending adds to Net worth', () => {
   it("is the worked example's €2,390.46 of bank and cash across 4 accounts, the dollars at 4 Nov's 1.0900", () => {
@@ -31,7 +31,7 @@ describe('what Spending adds to Net worth', () => {
   })
 
   it('counts the dollar account as nothing with a note when the rates failed', () => {
-    const failed: RatesState = { book: rateBookOfEcbRates(new Map()), failed: true }
+    const failed: RatesState = { everyday: rateBookOfDatedRates(new Map()), failed: true }
 
     // 1,850.00 + 320.50 + 64.00.
     expect(spendingHubFigures({ accounts: ACCOUNTS, transactions: ROWS }, failed, DAY)).toEqual({

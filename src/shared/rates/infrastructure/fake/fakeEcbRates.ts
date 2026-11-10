@@ -26,3 +26,10 @@ export const fakeEcbFetch: RatesFetch = async (url) => {
   }
   return { status: 200, text: ['KEY,TIME_PERIOD,OBS_VALUE', ...lines].join('\r\n') }
 }
+
+/** The fake build's ECB as `?rates=` names it: `opening` never answers, `failed` gets no answer, and anything else answers made-up rates. */
+export function fakeRatesFetch(variant: string | null): RatesFetch {
+  if (variant === 'opening') return () => new Promise(() => {})
+  if (variant === 'failed') return () => Promise.reject(new Error('The fake ECB is down.'))
+  return fakeEcbFetch
+}

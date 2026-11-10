@@ -13,8 +13,9 @@ import {
   SPENDING_TRANSACTIONS_ROUTE,
 } from './overview/presentation/spendingLinks'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
-import { ratesIn } from './rates/domain/ratesState'
-import { startRates, useRates } from './rates/presentation/useRates'
+import { ratesNeeded } from './rates/domain/ratesNeeded'
+import { useRates } from '../../shared/rates/application/pageRates'
+import { everydayRates } from '../../shared/rates/domain/ratesState'
 import { words as screenWords } from './screenWords'
 import { SPENDING_ASSIST } from './assistant/spendingAssist'
 import type { ReceiptPorts } from './assistant/operations/receiptOperation'
@@ -124,7 +125,7 @@ export const spendingApp: AppContribution = {
       {
         status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
         book: () => state.workbook,
-        rates: () => ratesIn(rates.value),
+        rates: () => everydayRates(rates.value),
         bankSetup: heldBankSetup,
       },
       { proposer: spendingProposer(store, ports, file), acceptance: spendingAcceptance(store, ports, file) },
@@ -138,12 +139,12 @@ export const spendingApp: AppContribution = {
   firstRun: () => isFirstRun(state),
   startPath: SPENDING_START_ROUTE,
   syncGroup: spendingSyncGroup,
+  ratesDemand: () => (state.workbook === null ? null : ratesNeeded(state.workbook)),
   asksGoogleOnOpen: () => loadWorkbookChoice(SPENDING_APP)?.source === 'drive' && autoSyncOn.value,
   // The shell hands over only a find or a pick the Spending file asked Google for. The page's sync resumes a sync.
   start(router, googleReturn) {
-    const stopRates = startRates()
     openBankSyncAfterReturn(router)
     resumeFileLookup({ store: useSpendingBooks(), words: fileWords, startRoute: SPENDING_START_ROUTE, overviewRoute: SPENDING_OVERVIEW_ROUTE }, router, googleReturn)
-    return stopRates
+    return () => {}
   },
 }

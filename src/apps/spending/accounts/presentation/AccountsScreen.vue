@@ -12,8 +12,8 @@ import { spendingHubFigures } from '../../home/presentation/spendingHubFigures'
 import { words as homeWords } from '../../home/presentation/words'
 import { accountLink } from '../../overview/presentation/spendingLinks'
 import { countedAccounts, unconvertedCount } from '../../rates/domain/euroRows'
-import { ratesIn } from '../../rates/domain/ratesState'
-import { useRates } from '../../rates/presentation/useRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
+import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -40,7 +40,7 @@ const owed = computed(() => (totals.value === null || totals.value === 'opening'
 const shown = computed(() =>
   state.workbook === null
     ? []
-    : accountsOnDay(state.workbook, day, ratesIn(rates.value)).map((onDay) => ({
+    : accountsOnDay(state.workbook, day, everydayRates(rates.value)).map((onDay) => ({
         account: onDay.account,
         balance: formatAccountMoney(onDay.balance, onDay.account.currency),
         euro: euroLine(onDay, rates.value, day),
@@ -54,7 +54,7 @@ const sections = computed(() =>
   ].filter((section) => section.rows.length > 0),
 )
 
-const unconverted = computed(() => (state.workbook === null || rates.value === 'loading' ? 0 : unconvertedCount(countedAccounts(state.workbook, day, ratesIn(rates.value)))))
+const unconverted = computed(() => (state.workbook === null || rates.value === 'loading' ? 0 : unconvertedCount(countedAccounts(state.workbook, day, everydayRates(rates.value)))))
 
 function kindLine(account: Account): string {
   return [words.kinds[account.kind], account.bank === null ? '' : words.banks[account.bank], account.currency].filter((part) => part !== '').join(' · ')

@@ -1,4 +1,4 @@
-import type { RatesFetch } from '../../../../shared/rates/infrastructure/ecbRates'
+import type { RatesFetch } from './ecbRates'
 
 /** A plain GET with no headers of its own, so the browser sends it without a CORS preflight. */
 export const browserRatesFetch: RatesFetch = async (url) => {

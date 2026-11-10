@@ -9,9 +9,10 @@ import { leftToSpend, limitsUnrated } from '../domain/budgetCarry'
 import { spendingFigures } from '../../analytics/presentation/spendingFigures'
 import { categoryTree } from '../../categories/domain/categoryTree'
 import { categoryColours } from '../../categories/presentation/categoryColours'
-import { ratesIn, waitsForRates } from '../../rates/domain/ratesState'
+import { waitsForRates } from '../../rates/presentation/waitsForRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { unratedNote } from '../../rates/presentation/unratedNote'
-import { useRates } from '../../rates/presentation/useRates'
+import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -62,7 +63,7 @@ const ordered = computed(() =>
   categoryTree(categories.value, ['spending']).flatMap((entry) => [{ category: entry.group, group: null }, ...entry.children.map((child) => ({ category: child, group: entry.group }))]),
 )
 
-const limits = computed(() => (state.workbook === null ? [] : spendingFigures(state.workbook, ratesIn(rates.value)).limitsIn(shown.value)))
+const limits = computed(() => (state.workbook === null ? [] : spendingFigures(state.workbook, everydayRates(rates.value)).limitsIn(shown.value)))
 const rows = computed(() =>
   ordered.value.flatMap(({ category, group }) => {
     const limit = limits.value.find((entry) => entry.category === category.id)

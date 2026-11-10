@@ -247,15 +247,13 @@ import { spendingFigures } from '../src/apps/spending/analytics/presentation/spe
 import { leftToSpend } from '../src/apps/spending/budgets/domain/budgetCarry.ts'
 import { en as budgetsEnglish, hr as budgetsCroatian } from '../src/apps/spending/budgets/presentation/words.ts'
 import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures.ts'
-import { ratesStateOf } from '../src/apps/spending/rates/domain/ratesState.ts'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
 import { en as netWorthEnglish } from '../src/shell/netWorth/words.ts'
 import { monthOf } from '../src/shared/calendar/monthKey.ts'
 import { EURO } from '../src/shared/money/currencyCode.ts'
-import { ecbRates } from '../src/shared/rates/infrastructure/ecbRates.ts'
-import { fakeEcbFetch } from '../src/shared/rates/infrastructure/fake/fakeEcbRates.ts'
+import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRatesState.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
@@ -648,12 +646,7 @@ async function fakeSpending(set, ratesFailed = false) {
   const at = new Date().toISOString()
   const meta = { id: 'visual', source: 'browser', title: 'visual', syncedAt: at }
   const book = SPENDING_DOCUMENT.read({ meta, document: fakeSpendingDocument(at, set) }).workbook
-  const answers = new Map()
-  for (const [currency, from] of ratesNeeded(book)) {
-    const answer = ratesFailed ? null : await ecbRates(fakeEcbFetch, currency, from)
-    answers.set(currency, answer?.kind === 'rates' ? answer.rates : null)
-  }
-  return { book, rates: ratesStateOf(answers) }
+  return { book, rates: await fakeRatesState(ratesNeeded(book), today(), ratesFailed) }
 }
 
 /**
@@ -668,14 +661,14 @@ async function fakeSpendingShows(sample) {
   const day = today()
   const month = monthOf(day)
   const both = (cents, sign = 'negative') => ({ english: formatMoney(cents, sign), croatian: formatMoney(cents, sign, CROATIAN_MONEY) })
-  const figures = spendingFigures(sample.book, sample.rates.book)
+  const figures = spendingFigures(sample.book, sample.rates.everyday)
   const totals = figures.totalsOf(month)
   const limits = figures.limitsIn(month)
   const food = limits.find((limit) => sample.book.categories.find((category) => category.id === limit.category)?.name === 'Food')
   const [held] = spendingHubFigures(sample.book, sample.rates, day).parts
   const [heldWhileFailed] = spendingHubFigures(failed.book, failed.rates, day).parts
-  const dollars = accountsOnDay(sample.book, day, sample.rates.book).find((entry) => entry.account.currency !== EURO)
-  const overspent = spendingFigures(over.book, over.rates.book)
+  const dollars = accountsOnDay(sample.book, day, sample.rates.everyday).find((entry) => entry.account.currency !== EURO)
+  const overspent = spendingFigures(over.book, over.rates.everyday)
     .limitsIn(month)
     .filter((limit) => limit.left < 0)
   return {

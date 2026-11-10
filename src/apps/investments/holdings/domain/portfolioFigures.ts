@@ -5,7 +5,7 @@ import { dayChange, holdingFigures, lastDayOf } from './holding'
 import type { DayChange, HoldingFigures, LastDayDates, PortfolioSources } from './holding'
 import { investmentLots, paidBackOf, receivedInEuros, withheldInEuros } from './lots'
 import type { InstrumentLots } from './lots'
-import { eurosAtEcbRate } from '../../../../shared/money/rateBook'
+import { eurosAtRate } from '../../../../shared/money/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -90,7 +90,7 @@ export function portfolioFigures(sources: PortfolioSources): PortfolioFigures {
     unweighted.filter(isHeld).map((holding) => holding.instrument),
     sources,
   )
-  const cashValueOn = (balance: CashBalance, day: CivilDate): Money | null => (balance.balance === DECIMAL_ZERO ? ZERO : eurosAtEcbRate(balance.balance, balance.currency, day, rates))
+  const cashValueOn = (balance: CashBalance, day: CivilDate): Money | null => (balance.balance === DECIMAL_ZERO ? ZERO : eurosAtRate(balance.balance, balance.currency, day, rates))
   const cashFigures = cash.balances.map((balance): CashFigures => {
     const balanceValue = cashValueOn(balance, today)
     const earlier = dates === null ? null : cashValueOn(balance, dates.from)

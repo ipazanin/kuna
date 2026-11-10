@@ -1,5 +1,5 @@
 import type { AccountOnDay } from '../../rates/domain/euroRows'
-import type { RatesState } from '../../rates/domain/ratesState'
+import type { RatesState } from '../../../../shared/rates/domain/ratesState'
 import { words as rateWords } from '../../rates/presentation/words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -17,6 +17,6 @@ export function euroLine(shown: AccountOnDay, rates: RatesState, day: CivilDate)
   if (currency === EURO) return null
   if (rates === 'loading') return { euros: '', caption: rateWords.loading }
   if (shown.euros === null) return { euros: '', caption: '' }
-  const newest = rates.book.newestDay(currency)
+  const newest = rates.everyday.newestDay(currency)
   return { euros: formatMoney(shown.euros), caption: rateWords.atRate(newest !== null && newest < day ? newest : day) }
 }

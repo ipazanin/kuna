@@ -18,9 +18,10 @@ import { leftToSpend, limitsUnrated } from '../../budgets/domain/budgetCarry'
 import { categoryTree, fixedCategories } from '../../categories/domain/categoryTree'
 import { categoryColours } from '../../categories/presentation/categoryColours'
 import { words as homeWords } from '../../home/presentation/words'
-import { ratesIn, waitsForRates } from '../../rates/domain/ratesState'
+import { waitsForRates } from '../../rates/presentation/waitsForRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { unratedNote } from '../../rates/presentation/unratedNote'
-import { useRates } from '../../rates/presentation/useRates'
+import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -67,7 +68,7 @@ const fileNote = computed(() => fileKeptNote(state.choice, words.empty))
 
 /** While the ECB rates load, a file with a foreign account shows no euro figure rather than one that leaves its rows out. */
 const waiting = computed(() => waitsForRates(state.workbook?.accounts ?? [], rates.value))
-const figures = computed(() => (state.workbook === null ? null : spendingFigures(state.workbook, ratesIn(rates.value))))
+const figures = computed(() => (state.workbook === null ? null : spendingFigures(state.workbook, everydayRates(rates.value))))
 const totals = computed(() => figures.value?.totalsOf(month) ?? null)
 const limits = computed(() => figures.value?.limitsIn(month) ?? [])
 const savingsRate = computed(() => (totals.value === null ? null : (monthFlow([totals.value])[0]?.savingsRate ?? null)))

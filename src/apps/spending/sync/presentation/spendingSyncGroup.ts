@@ -1,11 +1,12 @@
 import { BANK_SYNC_SCOPE } from '../../bankSync/presentation/bankSyncPort'
 import { BANK_SYNC_STEP } from '../../bankSync/presentation/bankSyncStep'
 import { SPENDING_SETTINGS_ROUTE } from '../../overview/presentation/spendingLinks'
-import { RATES_STEP } from '../../rates/presentation/ratesStep'
+import { ratesNeeded } from '../../rates/domain/ratesNeeded'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { SPENDING_APP } from '../../workbook/domain/spendingBooks'
 import LocalSpendingStatus from '../../workbook/presentation/LocalSpendingStatus.vue'
 import { assistOn } from '../../../../shared/ai/application/assistSettings'
+import { ratesStep } from '../../../../shared/rates/presentation/ratesStep'
 import { secretsNeeds, secretsStep } from '../../../../shared/secrets/presentation/secretsStep'
 import { BOOKS_STEP } from '../../../../shared/sync/application/syncRun'
 import type { AppSyncGroup } from '../../../../shared/sync/presentation/pageSync'
@@ -16,9 +17,14 @@ export function spendingSyncGroup(): AppSyncGroup {
   const savedScript = (): boolean => (store.state.workbook?.settings.bankSyncDeployment ?? '') !== ''
   const assistWanted = (): boolean => assistOn(SPENDING_APP)
   const keysStep = secretsStep(assistWanted)
+  // Before the file is first read the step counts as on, as every step does.
+  const ratesOfFile = ratesStep(
+    () => store.state.workbook === null || ratesNeeded(store.state.workbook).size > 0,
+    () => store.state.choice?.id ?? null,
+  )
   return {
     store,
-    steps: () => [keysStep, RATES_STEP, ...(savedScript() ? [BANK_SYNC_STEP] : [])],
+    steps: () => [keysStep, ratesOfFile, ...(savedScript() ? [BANK_SYNC_STEP] : [])],
     needs: () => [
       ...BOOKS_STEP.scopes.map((scope) => ({ scope, label: BOOKS_STEP.label })),
       ...(savedScript() ? [{ scope: BANK_SYNC_SCOPE, label: BANK_SYNC_STEP.label }] : []),

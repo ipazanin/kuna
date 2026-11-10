@@ -8,6 +8,7 @@ import { assistKeyKept } from '../shared/ai/presentation/aiProvider'
 import { resumedBy } from '../shared/google/googleRedirect'
 import type { RedirectReturn } from '../shared/google/googleRedirect'
 import { DEFAULT_MONEY_FORMAT, setMoneyFormat } from '../shared/money/moneyFormat'
+import { startRates } from '../shared/rates/application/pageRates'
 import { language } from '../shared/text/language'
 import { startPageSync } from '../shared/sync/presentation/pageSync'
 import { appAt, firstRunAt, installedApps } from './routing/appRegistry'
@@ -55,7 +56,12 @@ const pageSync = startPageSync(installedApps())
 /** The sync or export control has nothing to show until some app has a file, so its place stays out of the shell too. */
 const someFileChosen = computed(() => pageSync.groups.some((group) => group.store.state.choice !== null))
 // Each app resumes only the find or pick it asked Google for, and the page's sync resumes after them.
-const stops = [...installedApps().map((app) => app.start(router, resumedBy(props.googleReturn, app.id))), keepPageSynced(pageSync, props.googleReturn), warnWhileSaving()]
+const stops = [
+  ...installedApps().map((app) => app.start(router, resumedBy(props.googleReturn, app.id))),
+  keepPageSynced(pageSync, props.googleReturn),
+  warnWhileSaving(),
+  startRates(() => installedApps().map((app) => app.ratesDemand?.() ?? null)),
+]
 onBeforeUnmount(() => stops.forEach((stop) => stop()))
 
 // The home formats each card in its own app's format, so outside the apps the page keeps the default.

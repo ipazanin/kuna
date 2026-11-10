@@ -11,21 +11,20 @@
  *   npm run check:figures -- --fake-investments sample [--today yyyy-mm-dd]
  *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-assets <sample, house-and-car or loan-gone> [--today yyyy-mm-dd]
- *   npm run check:figures -- --spending <path to a Kuna Spending file> [--spending-rates <folder of saved ECB answers>] [--today yyyy-mm-dd]
+ *   npm run check:figures -- --spending <path to a Kuna Spending file> [--rates <path to a Kuna exchange rates file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-spending <sample, foreign, over, statements or receipts> [--today yyyy-mm-dd]
  *
  * A Loans, an Investments, an Assets or a Spending input goes with the others or alone, and its groups follow the
  * company's, in that order. With two or more, a last group adds them up as Net worth does. An Investments file
  * without its prices file is valued with no closes and no rates, and an Assets file without a saved DZS answer as if
  * the house price index failed. The fake Assets sets take the fake index. An asset's loan is read from the Loans input,
- * and without one Loans counts as not set up. The Spending rates folder holds the ECB's csvdata answer of each foreign
- * currency in a file named by it, such as USD.csv, and a currency without one, or a Spending file without the folder,
- * leaves its rows unrated. The fake Spending sets take the fake ECB.
+ * and without one Loans counts as not set up. A Spending file reads its rates from the
+ * exchange rates file, and without one leaves its foreign rows unrated. The fake Spending sets take the fake ECB through
+ * the rates file, as the page does.
  */
 
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 
 import { billingTotals } from '../src/apps/company/billingPlan/domain/billingTotals.ts'
@@ -176,15 +175,15 @@ import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/
 import { rowsAfterDryRun, statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun.ts'
 import { SAMPLE_REVOLUT_FILE_NAME, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
 import { readFirstSheet } from '../src/shared/xlsx/sheetGrids.ts'
-import { ratesStateOf } from '../src/apps/spending/rates/domain/ratesState.ts'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow.ts'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures.ts'
 import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures.ts'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
-import { ecbRates } from '../src/shared/rates/infrastructure/ecbRates.ts'
-import { fakeEcbFetch } from '../src/shared/rates/infrastructure/fake/fakeEcbRates.ts'
+import { decodeRatesFile, emptyRatesFile } from '../src/shared/rates/domain/ratesFile.ts'
+import { everydayBook } from '../src/shared/rates/domain/rateBooks.ts'
+import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRatesState.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
@@ -202,7 +201,7 @@ const { values: options } = parseArgs({
     'house-index': { type: 'string' },
     'fake-assets': { type: 'string' },
     spending: { type: 'string' },
-    'spending-rates': { type: 'string' },
+    rates: { type: 'string' },
     'fake-spending': { type: 'string' },
     today: { type: 'string', default: '2026-10-28' },
   },
@@ -222,7 +221,7 @@ if (
   (options.assets !== undefined && options['fake-assets'] !== undefined) ||
   (options['house-index'] !== undefined && options.assets === undefined) ||
   (options.spending !== undefined && options['fake-spending'] !== undefined) ||
-  (options['spending-rates'] !== undefined && options.spending === undefined) ||
+  (options.rates !== undefined && options.spending === undefined) ||
   (!companyAsked && !loansAsked && !investmentsAsked && !assetsAsked && !spendingAsked) ||
   (options.fake !== undefined && !knownFake) ||
   (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal'].includes(options['fake-loans'])) ||
@@ -232,7 +231,7 @@ if (
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--spending-rates <folder of USD.csv and the like>] | --fake-spending <sample, foreign, over, statements or receipts>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements or receipts>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -615,27 +614,20 @@ function assetsGroups(add, loansBook) {
   return () => assetsHubFigures(workbook, today, index, loans)
 }
 
-/** The ECB answer of each saved file in the Spending rates folder, by the currency its name gives. */
-function savedRates() {
-  const folder = options['spending-rates']
-  if (folder === undefined) {
-    return new Map()
-  }
-  const saved = readdirSync(folder).filter((name) => /^[A-Z]{3}\.csv$/.test(name))
-  return new Map(saved.map((name) => [name.slice(0, 3), readFileSync(join(folder, name), 'utf8')]))
-}
-
-/** The rates of a Spending input as the page holds them once fetched: the fake ECB's for a fake set, else the saved answers, a currency without one failed. */
+/** The rates of a Spending input as the page holds them: the fake ECB's through the rates file for a fake set, else the rates file given, or none. */
 async function ratesOfInput(workbook) {
-  const saved = savedRates()
-  const fetchOf = (currency) => (options['fake-spending'] !== undefined ? fakeEcbFetch : async () => (saved.has(currency) ? { status: 200, text: saved.get(currency) } : { status: 404, text: '' }))
-  const answers = await Promise.all([...ratesNeeded(workbook)].map(async ([currency, from]) => [currency, await ecbRates(fetchOf(currency), currency, from)]))
-  const unreadable = answers.find(([, answer]) => answer.kind === 'unreadable')
-  if (unreadable !== undefined) {
-    console.error(`The saved ECB answer of ${unreadable[0]} has no TIME_PERIOD and OBS_VALUE columns.`)
+  if (options['fake-spending'] !== undefined) {
+    return fakeRatesState(ratesNeeded(workbook), today)
+  }
+  if (options.rates === undefined) {
+    return { everyday: everydayBook(emptyRatesFile()), failed: false }
+  }
+  const read = decodeRatesFile(readFileSync(options.rates, 'utf8'))
+  if (read.kind === 'refused') {
+    console.error(`The rates file does not read: ${read.reason}.`)
     process.exit(2)
   }
-  return ratesStateOf(new Map(answers.map(([currency, answer]) => [currency, answer.kind === 'rates' ? answer.rates : null])))
+  return { everyday: everydayBook(read.file), failed: false }
 }
 
 /**
@@ -671,10 +663,10 @@ async function spendingGroups(add) {
   add('spending.read.problems', workbook.problems)
   const rates = await ratesOfInput(workbook)
   for (const [place, account] of workbook.accounts.entries()) {
-    const { balance, euros } = accountOnDay(account, workbook.transactions, today, rates.book)
+    const { balance, euros } = accountOnDay(account, workbook.transactions, today, rates.everyday)
     add(`spending.account-${place + 1}.balance`, [balance, euros])
   }
-  const figures = spendingFigures(workbook, rates.book)
+  const figures = spendingFigures(workbook, rates.everyday)
   const thisMonth = monthOf(today)
   // The book keeps its rows oldest first.
   const oldest = workbook.transactions[0]?.date ?? null

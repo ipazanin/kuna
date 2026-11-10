@@ -134,7 +134,7 @@ function isStorageAdapter(file: string): boolean {
 /** The spreadsheet adapter's mapping of kinds to tabs, which a pack's own mappings build on. */
 const SPREADSHEET_MAPPING = ['spreadsheetTab.ts', 'packTabs.ts', 'workbookTemplate.ts', 'cellFormats.ts'].map((file) => `src/apps/company/workbook/infrastructure/${file}`)
 
-/** The files that wire adapters to the application: each workbook store, the invoice run's Google ports, the model adapters, the saved chat, the chat's attached files and its read of a PDF's pages. */
+/** The files that wire adapters to the application: each workbook store, the invoice run's Google ports, the model adapters, the saved chat, the chat's attached files and its read of a PDF's pages, and the page's exchange rates. */
 const ADAPTER_WIRING = [
   'src/apps/company/workbook/application/workbookStore.ts',
   'src/apps/company/invoicing/application/invoiceGoogle.ts',
@@ -146,6 +146,7 @@ const ADAPTER_WIRING = [
   'src/shared/ai/application/savedChat.ts',
   'src/shared/ai/application/attachmentReads.ts',
   'src/shared/ai/application/chatFiles.ts',
+  'src/shared/rates/application/pageRates.ts',
 ]
 
 /** What presentation in the shared kernel still imports from an adapter, a list that only shrinks. */

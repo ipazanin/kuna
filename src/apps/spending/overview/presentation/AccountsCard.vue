@@ -5,8 +5,8 @@ import { euroLine } from '../../accounts/presentation/euroLine'
 import { spendingHubFigures } from '../../home/presentation/spendingHubFigures'
 import { words as homeWords } from '../../home/presentation/words'
 import { countedAccounts, unconvertedCount } from '../../rates/domain/euroRows'
-import { ratesIn } from '../../rates/domain/ratesState'
-import type { RatesState } from '../../rates/domain/ratesState'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
+import type { RatesState } from '../../../../shared/rates/domain/ratesState'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { SPENDING_ACCOUNTS_ROUTE, accountLink } from './spendingLinks'
 import { words } from './words'
@@ -24,7 +24,7 @@ const props = defineProps<{
   day: CivilDate
 }>()
 
-const counted = computed(() => countedAccounts(props.book, props.day, ratesIn(props.rates)))
+const counted = computed(() => countedAccounts(props.book, props.day, everydayRates(props.rates)))
 const rows = computed(() => counted.value.map((entry) => ({ ...entry, euro: euroLine(entry, props.rates, props.day) })))
 
 const totals = computed(() => {

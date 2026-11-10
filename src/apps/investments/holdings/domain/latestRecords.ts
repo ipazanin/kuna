@@ -1,5 +1,5 @@
 import { tradeTotal } from './lots'
-import { eurosAtEcbRate } from '../../../../shared/money/rateBook'
+import { eurosAtRate } from '../../../../shared/money/rateBook'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import { addsCash } from '../../workbook/domain/cashMovement'
 import type { CashMovement } from '../../workbook/domain/cashMovement'
@@ -76,7 +76,7 @@ export function latestRecords(book: InvestmentBook, rates: RateBook, count?: num
         ? inEuros(exchange.sold, null)
         : exchange.boughtCurrency === EURO
           ? inEuros(exchange.bought, null)
-          : eurosAtEcbRate(exchange.sold, exchange.soldCurrency, exchange.date, rates)
+          : eurosAtRate(exchange.sold, exchange.soldCurrency, exchange.date, rates)
     add(account === null ? null : { kind: 'exchange', record: exchange, account, euros })
   }
   for (const transfer of book.transfers) {
@@ -84,7 +84,7 @@ export function latestRecords(book: InvestmentBook, rates: RateBook, count?: num
     const to = accountOf(transfer.to)
     const { moved } = transfer
     const instrument = moved.kind === 'units' ? instrumentOf(moved.instrument) : null
-    const euros = moved.kind === 'cash' ? eurosAtEcbRate(moved.amount, moved.currency, transfer.date, rates) : null
+    const euros = moved.kind === 'cash' ? eurosAtRate(moved.amount, moved.currency, transfer.date, rates) : null
     add(from === null || to === null || (moved.kind === 'units' && instrument === null) ? null : { kind: 'transfer', record: transfer, from, to, instrument, euros })
   }
   for (const split of book.splits) {

@@ -1,5 +1,5 @@
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories'
-import { rateBookOfEcbRates } from '../../src/shared/money/rateBook'
+import { rateBookOfDatedRates } from '../../src/shared/money/rateBook'
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Budget } from '../../src/apps/spending/workbook/domain/budget'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
@@ -123,7 +123,7 @@ export const ROWS: readonly Transaction[] = [
 ]
 
 /** The ECB's made-up dollar rates: none before 1 Sep, 1.0800 on 10 Oct, 1.0850 on Friday 30 Oct and 1.0900 on 4 Nov. */
-export const RATES = rateBookOfEcbRates(
+export const RATES = rateBookOfDatedRates(
   new Map([
     [
       USD,

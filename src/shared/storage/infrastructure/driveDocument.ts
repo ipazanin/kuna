@@ -4,6 +4,7 @@ import { FOLDER_MIME_TYPE } from '../../google/driveClient'
 import type { DriveFile, DriveRevision } from '../../google/driveClient'
 import type { DocumentHome, DocumentSave, Rewrite, StoredDocument } from '../application/documentHome'
 import type { DriveFilePlace } from '../application/workbookPorts'
+import { APP_PROPERTY } from '../domain/driveMarks'
 import { plural } from '../../text/translation'
 import { words } from './words'
 
@@ -42,8 +43,6 @@ export interface DocumentDrive {
   findOwnedByAppProperty(key: string, value: string): Promise<readonly string[]>
 }
 
-/** The `appProperties` key that names which Kuna app a document belongs to. */
-export const APP_PROPERTY = 'kuna'
 /** Drive refuses a 201st kept revision, so the app deletes its oldest beyond this many. */
 const KEPT_REVISIONS = 100
 const DAILY_BACKUPS = 30

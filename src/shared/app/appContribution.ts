@@ -4,6 +4,7 @@ import type { RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
 import type { AppData } from '../storage/application/appData'
+import type { RatesDemand } from '../rates/domain/ratesDemand'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
@@ -230,6 +231,8 @@ export interface AppContribution {
   readonly assist?: AppAssist
   /** What the app tells the chat about itself, which loads only once a chat starts. */
   readonly assistant: () => Promise<AppAssistant>
+  /** The exchange rates the app's records need, for an app that holds other currencies, or null before its file is read. */
+  readonly ratesDemand?: () => RatesDemand | null
   /** Whether the page should fetch its Google token on the way in, with no screen at Google. */
   asksGoogleOnOpen(): boolean
   /**

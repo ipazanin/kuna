@@ -1,5 +1,6 @@
 import { parseCivilDate } from '../../calendar/civilDate'
-import type { EcbRate } from '../../money/rateBook'
+import type { DatedRate } from '../../money/rateBook'
+import type { RatesUpdatePorts } from '../application/ratesPorts'
 
 /** What a server answered: its HTTP status and the body as text. */
 export interface RatesAnswer {
@@ -12,7 +13,7 @@ export type RatesFetch = (url: string) => Promise<RatesAnswer>
 
 /** The ECB's rates oldest first, or why there are none: no answer, a status other than 200, or a body without its columns. */
 export type EcbRates =
-  { readonly kind: 'rates'; readonly rates: readonly EcbRate[] } | { readonly kind: 'no-answer' } | { readonly kind: 'status'; readonly status: number } | { readonly kind: 'unreadable' }
+  { readonly kind: 'rates'; readonly rates: readonly DatedRate[] } | { readonly kind: 'no-answer' } | { readonly kind: 'status'; readonly status: number } | { readonly kind: 'unreadable' }
 
 const RATE = /^\d+(\.\d{1,12})?$/
 
@@ -60,7 +61,7 @@ export async function ecbRates(fetch: RatesFetch, currency: string, from: string
   if (column.day < 0 || column.rate < 0) {
     return { kind: 'unreadable' }
   }
-  const rates: EcbRate[] = []
+  const rates: DatedRate[] = []
   for (const line of lines) {
     const fields = csvFields(line)
     const [day, rate] = [fields[column.day] ?? '', fields[column.rate] ?? '']
@@ -69,4 +70,12 @@ export async function ecbRates(fetch: RatesFetch, currency: string, from: string
     }
   }
   return { kind: 'rates', rates: rates.sort(([earlier], [later]) => (earlier < later ? -1 : 1)) }
+}
+
+/** The ECB's rates as the rates update asks for them, any failure read as none. */
+export function ecbAnswers(fetch: RatesFetch): RatesUpdatePorts['ecbRates'] {
+  return async (currency, from) => {
+    const answer = await ecbRates(fetch, currency, from)
+    return answer.kind === 'rates' ? answer : { kind: 'failed' }
+  }
 }

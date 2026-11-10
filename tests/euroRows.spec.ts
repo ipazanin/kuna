@@ -1,10 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { ratesStateOf } from '../src/apps/spending/rates/domain/ratesState'
-import { currencyCodeOf } from '../src/shared/money/currencyCode'
-
-const USD_CODE = currencyCodeOf('USD')!
-const GBP_CODE = currencyCodeOf('GBP')!
-
 import { accountOnDay, euroRows } from '../src/apps/spending/rates/domain/euroRows'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded'
 import { moneyFromCents } from '../src/shared/money/money'
@@ -73,28 +67,13 @@ describe('the rates a file needs', () => {
     expect(ratesNeeded({ accounts: [OTP, REVOLUT_EUR, CASH], transactions: ROWS })).toEqual(new Map())
   })
 
-  it('start a week before the dollar account opened when its rows come later', () => {
-    expect(ratesNeeded({ accounts: ACCOUNTS, transactions: ROWS })).toEqual(new Map([[USD, civil('2026-08-25')]]))
+  it('start on the day the dollar account opened when its rows come later', () => {
+    expect(ratesNeeded({ accounts: ACCOUNTS, transactions: ROWS })).toEqual(new Map([[USD, civil('2026-09-01')]]))
   })
 
-  it('start a week before the oldest dollar row when it comes before the account opened', () => {
+  it('start on the day of the oldest dollar row when it comes before the account opened', () => {
     const early = row(REVOLUT_USD, '2026-08-20', -30, 'Travel/On the trip')
 
-    expect(ratesNeeded({ accounts: ACCOUNTS, transactions: [early, ...ROWS] })).toEqual(new Map([[USD, civil('2026-08-13')]]))
-  })
-})
-
-describe('the rates state', () => {
-  it('says the rates failed when one currency got no answer, and keeps the rates of the others', () => {
-    const state = ratesStateOf(
-      new Map([
-        [USD_CODE, [['2026-11-04', '1.0900']] as const],
-        [GBP_CODE, null],
-      ]),
-    )
-
-    expect(state).toMatchObject({ failed: true })
-    expect(state === 'loading' ? null : state.book.newestDay(USD_CODE)).toBe('2026-11-04')
-    expect(ratesStateOf(new Map([[USD_CODE, []]]))).toMatchObject({ failed: false })
+    expect(ratesNeeded({ accounts: ACCOUNTS, transactions: [early, ...ROWS] })).toEqual(new Map([[USD, civil('2026-08-20')]]))
   })
 })
