@@ -7893,6 +7893,22 @@ for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => flows.some((flo
 const browser = await launch(chromeLaunch(selection.classicScrollbars))
 let checked = 0
 
+/**
+ * The gutter this browser keeps beside the shell from the phone step up, in px. A docked viewport names the shell's width,
+ * so its window is wider by this much, as a person's with a classic scrollbar is. Linux Chrome keeps one even for a hidden scrollbar.
+ */
+async function shellGutter() {
+  const context = await browser.createBrowserContext()
+  const page = await context.newPage()
+  if (selection.classicScrollbars) await drawClassicScrollbars(page)
+  await page.setViewport({ width: 1024, height: 768 })
+  await page.goto(BASE, { waitUntil: 'load' })
+  const kept = await page.evaluate(() => window.innerWidth - document.body.clientWidth)
+  await context.close()
+  return kept
+}
+const gutter = VIEWPORTS.some((viewport) => viewport.chatDocked && selection.takesWidth(viewport.width)) ? await shellGutter() : 0
+
 for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
   for (const visit of visits) {
     if (!selection.takesTheme(visit.theme, viewport.theme)) continue
@@ -7924,13 +7940,10 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
         visit.expandedBefore ?? [],
       )
     }
-    await page.setViewport({ width: viewport.width, height: viewport.height })
+    await page.setViewport({ width: viewport.chatDocked ? viewport.width + gutter : viewport.width, height: viewport.height })
     // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
     await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
-    // A docked viewport names the shell's width, so the window widens by the gutter a scrollbar keeps. Linux keeps one even for a hidden scrollbar.
-    const gutter = viewport.chatDocked ? await page.evaluate(() => window.innerWidth - document.body.clientWidth) : 0
-    if (gutter > 0) await page.setViewport({ width: viewport.width + gutter, height: viewport.height })
 
     const drawsCharts = visit.gallery || visit.charts > 0
     const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
