@@ -3,7 +3,7 @@ import { en as ruleEnglish, hr as ruleCroatian } from '../../src/apps/company/ru
 import { en as packEnglish, hr as packCroatian } from '../../src/apps/company/packs/hr-doo/presentation/words.ts'
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../../src/apps/company/transactions/presentation/words.ts'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../src/shared/app/words.ts'
-import { TWO_KEYS_ANONYMISE_OFF, acceptLooksReady, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, sendInChat } from './chatFlows.mjs'
+import { TWO_KEYS_ANONYMISE_OFF, acceptLooksReady, allowIfAsked, forgetAssist, giveThePageBack, keepAiKey, newChat, openChat, panelSettled, sendInChat } from './chatFlows.mjs'
 import { ASSIST_WORDS, elementSays, goToRoute, openCompanies, pickCompany, queueRow } from './editorFlows.mjs'
 import { FIGURE_ASKS } from './figureAskFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
@@ -36,7 +36,8 @@ async function ask(page, press, text) {
 /**
  * Company's To review with a made-up key kept: the queue's header keeps Suggest categories, which opens the chat about the
  * queue with its card outlined and sends the request by itself. The chat files the row it is sure of on a card, which Accept
- * writes with one Undo. An opened row's Ask the chat then tags that row alone and sends nothing.
+ * writes with one Undo and then goes on to a card for the row no category fits. An opened row's Ask the chat then tags that
+ * row alone and sends nothing.
  */
 export function companyReviewAskFlowIn(language) {
   const words = TRANSACTIONS_WORDS[language]
@@ -74,6 +75,11 @@ export function companyReviewAskFlowIn(language) {
         .catch(() => {
           throw new Error('Accept left the filed row waiting')
         })
+      // Accept sends Go on, and the chat scrolls to the card that answers it, so a press on Undo before then lands where Undo was.
+      await page.waitForSelector('[data-testid="chat-proposal"][data-state="open"] [data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('Accept did not go on to the card for the row no category fits')
+      })
+      await panelSettled(page)
       await pressSelector(page, press, '[data-testid="chat-proposal-undo"]')
       await elementSays(page, '[data-testid="chat-proposal-over"]', [assist.proposal.undone], 'Undo did not say it was undone')
       await newChat(page, press)
