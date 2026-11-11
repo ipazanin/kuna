@@ -84,7 +84,7 @@ function updateSenders(text: string): void {
       </FormGrid>
       <div class="flex flex-col gap-3">
         <h3 class="text-sm font-medium text-highlighted">{{ words.card.lastSync }}</h3>
-        <MailPlanList :plan="mail.state.plan" :stopped="mail.state.stopped" />
+        <MailPlanList :plan="mail.state.plan" :stopped="mail.state.stopped" :why="words.card.searchedFrom" />
       </div>
     </div>
   </AppCard>

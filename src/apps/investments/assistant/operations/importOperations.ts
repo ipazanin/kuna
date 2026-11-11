@@ -7,13 +7,14 @@ import type { WorkbookRow } from '../../imports/domain/portfolioWorkbook'
 import { copiedRowRefusal, daysPartlyOnCard, transcribedRows } from '../../imports/domain/transcribedRows'
 import type { CashOff, CopiedRowRefusal, TranscribedBalance, TranscribedRow } from '../../imports/domain/transcribedRows'
 import { ratesWanted } from '../../imports/domain/workbookRates'
-import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/presentation/importChoices'
-import type { AskedChoice, ClosesOf, ImportChoices, SettledImport } from '../../imports/presentation/importChoices'
+import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/domain/importChoices'
+import type { AskedChoice, ClosesOf, ImportChoices, SettledImport } from '../../imports/domain/importChoices'
 import { lookAlikesOf, waitText } from '../../imports/presentation/dryRunLines'
 import { MAIL_READER_WRITES, heldOrNewReader, writeLeftOut } from '../../mail/application/mailReaderWrites'
 import { ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
-import { mailReaderErrors, mailReaderTexts, withMailField } from '../../mail/presentation/mailReaderForm'
-import type { MailReaderField, MailReaderTexts } from '../../mail/presentation/mailReaderForm'
+import { mailReaderFaults, mailReaderTexts, withMailField } from '../../mail/domain/mailReaderTexts'
+import type { MailReaderField, MailReaderTexts } from '../../mail/domain/mailReaderTexts'
+import { mailReaderErrors } from '../../mail/presentation/words'
 import { seriesKey } from '../../prices/domain/pricesFile'
 import { transactionRecordKind } from '../../transactions/application/transactionWrites'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -461,7 +462,7 @@ export const IMPORT_STEPS: InvestmentSteps = {
     const shown = mailReaderTexts(held)
     const given = (name: MailReaderField): string => (field[name] as string | null) ?? shown[name]
     const texts: MailReaderTexts = { senders: given('senders'), subject: given('subject'), contents: given('contents'), since: given('since') }
-    const errors = mailReaderErrors(texts, on)
+    const errors = mailReaderErrors(mailReaderFaults(texts, on))
     const refused = MAIL_FIELDS.flatMap((name) => (field[name] === null || errors[name] === null ? [] : [`${name}: ${errors[name]}`]))
     if (refused.length > 0) throw new StepRefused(refused.join(' '))
     const typed = MAIL_FIELDS.reduce((reader, name) => (field[name] === null ? reader : withMailField(reader, name, texts)), heldOrNewReader(held))

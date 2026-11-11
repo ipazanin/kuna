@@ -1,10 +1,7 @@
-import { SETTING_RECORDS } from './spendingKinds'
-import { words } from './words'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
-import { ANY_VALUE, settingCodec, settingValue } from '../../../../shared/storage/domain/settingRows'
-import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
+import { settingValue } from '../../../../shared/storage/domain/settingRows'
+import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import { personPayeesOf } from '../../../../shared/privacy/domain/personPayees'
 
 /** The banks the bank sync can link. */
@@ -39,7 +36,13 @@ export const BANK_ACCOUNTS_KEEP_MINE_KEY = 'bank_sync_keep_mine'
 /** One bank account per line: its IBAN, or the bank's hash for an account without one, then its currency. */
 const BANK_ACCOUNT_LINE = /^\S+ [A-Z]{3}$/
 
-function linesOf(value: string): readonly string[] {
+/** Whether a line of a bank accounts setting names one bank account as it should. */
+export function isBankAccountLine(line: string): boolean {
+  return BANK_ACCOUNT_LINE.test(line)
+}
+
+/** The lines of a setting's value that hold something, trimmed. */
+export function linesOf(value: string): readonly string[] {
   return value
     .split('\n')
     .map((line) => line.trim())
@@ -49,10 +52,6 @@ function linesOf(value: string): readonly string[] {
 /** The bank accounts as the setting's value holds them, one per line. */
 export function bankAccountsText(keys: readonly string[]): string {
   return keys.join('\n')
-}
-
-function bankAccountLinesCheck(key: string): SettingValueCheck {
-  return (value: string) => linesOf(value).flatMap((line) => (BANK_ACCOUNT_LINE.test(line) ? [] : [words.settingNotABankAccount(key, line)]))
 }
 
 export function bankLinkKey(bank: LinkableBank): string {
@@ -66,23 +65,10 @@ export function bankFetchedKey(bank: LinkableBank): string {
 /** A UTC time as `toISOString` writes it, such as 2026-11-09T07:40:00.000Z. */
 const UTC_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/
 
-function utcTimeOf(value: string): number | null {
+export function utcTimeOf(value: string): number | null {
   const time = UTC_TIME.test(value) ? Date.parse(value) : Number.NaN
   return Number.isFinite(time) ? time : null
 }
-
-/** Each key Spending knows, a bank's link ending only on a day, and a bank's last fetch only at a UTC time. */
-export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingValueCheck>([
-  [BANK_SYNC_DEPLOYMENT_KEY, ANY_VALUE],
-  [COMPANY_OIB_KEY, ANY_VALUE],
-  [PERSON_PAYEES_KEY, ANY_VALUE],
-  [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY)],
-  [BANK_ACCOUNTS_KEEP_MINE_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_KEEP_MINE_KEY)],
-  ...LINKABLE_BANKS.map(bankLinkKey).map((key) => [key, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : [])] as const),
-  ...LINKABLE_BANKS.map(bankFetchedKey).map((key) => [key, (value: string) => (utcTimeOf(value) === null ? [words.settingNotATime(key, value)] : [])] as const),
-])
-
-export const SETTING_CODEC: RecordCodec<SettingRow> = settingCodec(SETTING_RECORDS)
 
 /** The settings the rows that count hold, and the defaults for the rest. */
 export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSettings {

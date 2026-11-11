@@ -1,4 +1,5 @@
 import type { RuleMark, TaxRule } from '../domain/taxRules'
+import { en as workbookEn, hr as workbookHr } from '../../workbook/domain/words'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -84,13 +85,13 @@ export const en = {
     rateSettled: 'Rate settled, field a reading',
     payoutSettled: 'Amount settled, method a reading',
     cityNotChosen: 'City not chosen',
-    chooseCity: 'Choose it under Your city in 2023',
+    chooseCity: `Choose it under ${workbookEn.settingLabels.surtaxCity2023}`,
     surtaxAt: (percent: string, city: string) => `${percent} of field 14.1 for ${city}. A reading.`,
     noSurtax: 'Your 2023 city set no surtax. A reading.',
     paymentWithSurtax: (amount: string) => `1, ${amount} less field 14.2`,
   },
   surtaxCity: {
-    title: 'Your city in 2023',
+    title: workbookEn.settingLabels.surtaxCity2023,
     subtitle: 'Surtax on the tax of 2023 goes to the city or municipality you lived in',
     field: 'City or municipality',
     notChosen: 'Not chosen',
@@ -349,13 +350,13 @@ export const hr: Translation<typeof en> = {
     rateSettled: 'Stopa utvrđena, polje tumačenje',
     payoutSettled: 'Iznos utvrđen, način tumačenje',
     cityNotChosen: 'Grad nije odabran',
-    chooseCity: 'Odaberite ga pod Vaš grad u 2023.',
+    chooseCity: `Odaberite ga pod ${workbookHr.settingLabels.surtaxCity2023}`,
     surtaxAt: (percent, city) => `${percent} polja 14.1 za ${city}. Tumačenje.`,
     noSurtax: 'Vaš grad u 2023. nije imao prirez. Tumačenje.',
     paymentWithSurtax: (amount) => `1, ${amount} umanjeno za polje 14.2`,
   },
   surtaxCity: {
-    title: 'Vaš grad u 2023.',
+    title: workbookHr.settingLabels.surtaxCity2023,
     subtitle: 'Prirez na porez za 2023. pripada gradu ili općini u kojoj ste živjeli',
     field: 'Grad ili općina',
     notChosen: 'Nije odabran',

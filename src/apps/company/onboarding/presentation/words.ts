@@ -1,3 +1,4 @@
+import { en as settingsEn, hr as settingsHr } from '../../settings/domain/words'
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -81,7 +82,7 @@ export const en = {
     noBooks: 'There are no books on screen yet',
     noBooksNote: 'Go back a step to make them.',
     namePlaceholder: 'Example Studio',
-    numberStyle: 'Number style',
+    numberStyle: settingsEn.settingLabels.numberLocale,
     no: 'No',
   },
   statement: {
@@ -146,10 +147,10 @@ export const en = {
     bankMail: (senders: readonly string[], subject: string) => `Mail from ${senders.join(', ')} with ${subject} in the subject.`,
     typeBelow: 'Type its address and subject words below.',
     anotherBank: 'Another bank',
-    since: 'Mail since',
+    since: settingsEn.settingLabels.mailSince,
     sinceHelp: 'The earliest mail the first sync reads.',
-    from: 'The bank mails statements from',
-    subject: 'Subject words',
+    from: settingsEn.settingLabels.statementsMailFrom,
+    subject: settingsEn.settingLabels.statementsMailSubject,
     subjectHelp: 'The words before the statement number.',
     subjectPlaceholder: 'Statement',
     pickerTitle: 'Choose the folder of your bank statements',
@@ -236,7 +237,7 @@ export const hr: Translation<typeof en> = {
     noBooks: 'Na zaslonu još nema datoteke',
     noBooksNote: 'Vratite se korak natrag da je izradite.',
     namePlaceholder: 'Primjer d.o.o.',
-    numberStyle: 'Zapis brojeva',
+    numberStyle: settingsHr.settingLabels.numberLocale,
     no: 'Ne',
   },
   statement: {
@@ -305,10 +306,10 @@ export const hr: Translation<typeof en> = {
     bankMail: (senders, subject) => `Pošta ${plural({ one: 's adrese', few: 's adresa', other: 's adresa' }, senders.length)} ${senders.join(', ')} s riječima „${subject}” u predmetu.`,
     typeBelow: 'Upišite njezinu adresu i riječi u predmetu ispod.',
     anotherBank: 'Druga banka',
-    since: 'Pošta od',
+    since: settingsHr.settingLabels.mailSince,
     sinceHelp: 'Najstarija poruka koju čita prva sinkronizacija.',
-    from: 'Banka šalje izvode s adresa',
-    subject: 'Riječi u predmetu',
+    from: settingsHr.settingLabels.statementsMailFrom,
+    subject: settingsHr.settingLabels.statementsMailSubject,
     subjectHelp: 'Riječi ispred broja izvoda.',
     subjectPlaceholder: 'Izvadak',
     pickerTitle: 'Odaberite mapu svojih bankovnih izvoda',

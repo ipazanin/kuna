@@ -1,4 +1,5 @@
 import { IBKR_FLEX_RECIPE } from '../domain/ibkrFlexRecipe'
+import type { MailReaderFault, MailReaderField } from '../domain/mailReaderTexts'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -143,3 +144,14 @@ export const hr: Translation<typeof en> = {
 }
 
 export const words = language === 'hr' ? hr : en
+
+/** What each field of the mail card says it lacks: senders their help, the first day a pick, and a phrase Gmail cannot search for the search's own reason. */
+export function mailReaderErrors(faults: Readonly<Record<MailReaderField, MailReaderFault | null>>): Readonly<Record<MailReaderField, string | null>> {
+  const text = (field: MailReaderField): string | null => {
+    const fault = faults[field]
+    if (fault === null) return null
+    if (fault.kind === 'unsearchable') return fault.reason
+    return field === 'since' ? words.card.sinceMissing : words.card.sendersHelp
+  }
+  return { senders: text('senders'), subject: text('subject'), contents: text('contents'), since: text('since') }
+}

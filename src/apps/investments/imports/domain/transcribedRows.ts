@@ -12,7 +12,7 @@ import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, accountMoneyOfDecimal, decimalOfText, decimalText, magnitude, negateDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { statementTies } from '../../../../shared/money/statementTies'
+import { splitDays, statementTies } from '../../../../shared/money/statementTies'
 import type { StatementTie } from '../../../../shared/money/statementTies'
 import { factKey, occurrenceKeys } from '../../../../shared/text/factKey'
 import { fold } from '../../../../shared/text/fold'
@@ -231,11 +231,9 @@ export function transcribedRows(file: TranscribedFile, lookAlikes: LookAlikes): 
 export function daysPartlyOnCard(rows: WorkbookRows, book: InvestmentBook, fileName: string): CivilDate[] {
   if (fileName === '') return []
   const cardKeys = new Set(workbookEntries(rows.rows).map((entry) => entry.key))
+  const scopesHeld = importableRecords(book).flatMap(({ record: { importKey } }) => (importKey === null || cardKeys.has(importKey) ? [] : [accountScopeOf(importKey)]))
   const dayOf = new Map(rows.rows.map((row) => [accountScopeOf(row.key), row.date]))
-  const days = importableRecords(book).flatMap(({ record: { importKey } }) => {
-    if (importKey === null || cardKeys.has(importKey)) return []
-    const day = dayOf.get(accountScopeOf(importKey))
-    return day === undefined ? [] : [day]
-  })
-  return [...new Set(days)].sort()
+  return splitDays(scopesHeld, [...dayOf.keys()])
+    .map((scope) => dayOf.get(scope)!)
+    .sort()
 }

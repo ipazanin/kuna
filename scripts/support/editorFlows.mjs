@@ -6224,7 +6224,8 @@ export const spendingEntryFlow = spendingEntryFlowIn('en')
 export function spendingCreditToTransferFlowIn(language) {
   const words = SCREEN_WORDS[language]
   const { dialog } = words.spendingEntries
-  return async (page, { press, inspect }) => {
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await newSpendingEntry(page, press, words, 'in')
     await typeAmount(page, press, 'spending-entry-amount', '25')
     await chooseStartingWith(page, press, '[data-testid="spending-entry-account"]', 'OTP current')
@@ -6235,13 +6236,16 @@ export function spendingCreditToTransferFlowIn(language) {
     await openSpendingRow(page, press, SPENDING_PAYEE, 2500)
     await pressButton(page, press, '[data-testid="spending-entry-kind"] button', dialog.kinds.transfer)
     await delay(300)
-    await inspect?.('money in turned into a move between two accounts')
+    await shoot('spending-credit-to-transfer')
     await saveSpendingEntry(page, press, dialog.saved)
-    await spendingRowShown(page, 'OTP current', 2500, true)
-    await spendingRowShown(page, SPENDING_PAYEE, -2500, true)
+    const betweenAccounts = words.spendingStarter['Between my accounts']
+    await spendingRowShown(page, betweenAccounts, 2500, true)
+    await spendingRowShown(page, betweenAccounts, -2500, true)
+    await spendingRowShown(page, SPENDING_PAYEE, 2500, false)
     await spendingRowShown(page, 'OTP current', -2500, false)
     await undoIn(page, press, words)
-    await spendingRowShown(page, SPENDING_PAYEE, -2500, false)
+    await spendingRowShown(page, SPENDING_PAYEE, 2500, true)
+    await spendingRowShown(page, betweenAccounts, -2500, false)
     await dismissToasts(page)
   }
 }

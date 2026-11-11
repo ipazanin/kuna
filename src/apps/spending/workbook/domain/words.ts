@@ -76,6 +76,20 @@ export const en = {
   settingNotADay: (key: string, text: string) => `${key} "${text}" is not a date such as 2027-05-03`,
   settingNotATime: (key: string, text: string) => `${key} "${text}" is not a UTC time such as 2026-11-09T07:40:00.000Z`,
   settingNotABankAccount: (key: string, line: string) => `${key} line "${line}" is not an IBAN and a currency such as LT000000000000000001 USD`,
+  /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
+  settingLabels: {
+    deployment: 'Script deployment ID',
+    companyOib: 'Company OIB',
+    personPayees: 'Payees who are people',
+    notInKuna: 'Bank accounts not in Kuna',
+    keepMine: 'Accounts that keep their own bank and kind',
+    bankLink: (bank: string) => `${bank} link expiry`,
+    bankFetched: (bank: string) => `Last answer from ${bank}`,
+  },
+  /** Sentences that name a setting, kept beside its label so a rename sees them. */
+  settingSentences: {
+    companyOibSaved: 'Company OIB saved',
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -130,6 +144,18 @@ export const hr: Translation<typeof en> = {
   settingNotADay: (key, text) => `${key} „${text}” nije datum kao 2027-05-03`,
   settingNotATime: (key, text) => `${key} „${text}” nije UTC vrijeme kao 2026-11-09T07:40:00.000Z`,
   settingNotABankAccount: (key, line) => `${key} redak „${line}” nije IBAN i valuta kao LT000000000000000001 USD`,
+  settingLabels: {
+    deployment: 'ID implementacije skripte',
+    companyOib: 'OIB tvrtke',
+    personPayees: 'Primatelji koji su osobe',
+    notInKuna: 'Bankovni računi koji nisu u Kuni',
+    keepMine: 'Računi koji zadržavaju svoju banku i vrstu',
+    bankLink: (bank) => `Istek veze s bankom ${bank}`,
+    bankFetched: (bank) => `Zadnji odgovor banke ${bank}`,
+  },
+  settingSentences: {
+    companyOibSaved: 'OIB tvrtke je spremljen',
+  },
 }
 
 /** A stored month as Croatian names it, or the text as it is when it is no month. */

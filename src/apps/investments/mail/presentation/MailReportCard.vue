@@ -8,12 +8,12 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { MAIL_READER_WRITES, heldOrNewReader } from '../application/mailReaderWrites'
 import type { ReportMail } from '../application/mailReports'
-import { mailReaderErrors, mailReaderTexts, withMailField } from './mailReaderForm'
-import type { MailReaderField } from './mailReaderForm'
+import { mailReaderFaults, mailReaderTexts, withMailField } from '../domain/mailReaderTexts'
+import type { MailReaderField } from '../domain/mailReaderTexts'
 import MailReportReview from './MailReportReview.vue'
 import MailReportUpload from './MailReportUpload.vue'
 import { MAIL_SCOPE, misfitLine, useMailReports } from './useMailReports'
-import { words } from './words'
+import { mailReaderErrors, words } from './words'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { dateFormat } from '../../../../shared/calendar/dateFormat'
@@ -48,7 +48,7 @@ watch(shown, (now, before) => {
 })
 
 const on = computed(() => reader.value?.on === true)
-const errors = computed(() => mailReaderErrors(texts.value, on.value))
+const errors = computed(() => mailReaderErrors(mailReaderFaults(texts.value, on.value)))
 
 const summary = computed(() => (on.value ? words.card.readFrom(reader.value?.senders ?? []) : words.card.off))
 const revealed = computed(() => route.hash === '#mail')

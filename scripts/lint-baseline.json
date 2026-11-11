@@ -265,7 +265,6 @@
     "src/apps/spending/workbook/domain/receiptReading.ts",
     "src/apps/spending/workbook/domain/recordReference.ts",
     "src/apps/spending/workbook/domain/ruleReading.ts",
-    "src/apps/spending/workbook/domain/spendingSettings.ts",
     "src/apps/spending/workbook/domain/transactionReading.ts",
     "src/shared/mail-filing/domain/mailSource.ts",
     "src/shared/storage/domain/recordCodec.ts",

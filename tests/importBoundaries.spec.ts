@@ -183,8 +183,6 @@ const OPERATIONS_ON_PRESENTATION = [
   'src/apps/company/packs/hr-doo/assistant/operations/packOperations.ts -> src/apps/company/packs/hr-doo/presentation/editorColumns.ts',
   'src/apps/company/packs/hr-doo/assistant/operations/packOperations.ts -> src/apps/company/settings/presentation/factTabColumns.ts',
   'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/imports/presentation/dryRunLines.ts',
-  'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/imports/presentation/importChoices.ts',
-  'src/apps/investments/assistant/operations/importOperations.ts -> src/apps/investments/mail/presentation/mailReaderForm.ts',
   'src/apps/investments/assistant/operations/pricesOperations.ts -> src/apps/investments/overview/presentation/investmentLinks.ts',
   'src/apps/investments/assistant/operations/pricesOperations.ts -> src/apps/investments/prices/presentation/runProblem.ts',
   'src/apps/investments/assistant/operations/proposalLines.ts -> src/apps/investments/holdings/presentation/holdingText.ts',
@@ -335,6 +333,11 @@ describe('import boundaries', () => {
           (entry.target !== null && ((isDomain(entry.target) && appOf(entry.target) === appOf(entry.from)) || DOMAIN_SHARED.some((folder) => entry.target!.startsWith(folder)))),
       ),
     ).toEqual([])
+  })
+
+  it('keeps the rule that a copied card may not split a day in the shared statement ties, which every app that imports copied rows calls', () => {
+    const callers = linesHolding(/\b(splitDays|partRefusal)\(/, (file) => file === 'src/shared/money/statementTies.ts').map((line) => appOf(line))
+    expect([...new Set(callers)].sort()).toEqual(['company', 'investments', 'spending'])
   })
 
   it('leaves row numbers to the spreadsheet adapter, and record ids to their maker', () => {

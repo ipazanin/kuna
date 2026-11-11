@@ -1,3 +1,4 @@
+import { en as settingsEn, hr as settingsHr } from '../../settings/domain/words'
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
@@ -33,9 +34,9 @@ export const en = {
   panel: {
     fillRest: (year: number | null) => `Fill the rest of ${year}`,
     fillYear: (year: number | null) => `Fill ${year}`,
-    monthlyFee: 'Monthly fee',
-    subscriptions: 'Monthly subscriptions',
-    bonus: 'Yearly bonus',
+    monthlyFee: settingsEn.settingLabels.billing.monthlyAmount,
+    subscriptions: settingsEn.settingLabels.billing.subscriptionAmount,
+    bonus: settingsEn.settingLabels.billing.bonusAmount,
     filledEveryMonth: 'filled for every month',
     forReference: 'for reference, never filled',
     emptyTitle: 'No plan rows yet',
@@ -170,9 +171,9 @@ export const hr: Translation<typeof en> = {
   panel: {
     fillRest: (year) => `Popuni ostatak ${year}.`,
     fillYear: (year) => `Popuni ${year}.`,
-    monthlyFee: 'Mjesečna naknada',
-    subscriptions: 'Mjesečne pretplate',
-    bonus: 'Godišnji bonus',
+    monthlyFee: settingsHr.settingLabels.billing.monthlyAmount,
+    subscriptions: settingsHr.settingLabels.billing.subscriptionAmount,
+    bonus: settingsHr.settingLabels.billing.bonusAmount,
     filledEveryMonth: 'popunjava se za svaki mjesec',
     forReference: 'radi usporedbe, nikad se ne popunjava',
     emptyTitle: 'Još nema stavki plana',

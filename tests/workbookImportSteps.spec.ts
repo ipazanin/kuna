@@ -4,10 +4,11 @@ import type { WorkbookRows } from '../src/apps/investments/imports/domain/import
 import { readPortfolioWorkbook } from '../src/apps/investments/imports/domain/portfolioWorkbook'
 import { sampleWorkbookGrid } from '../src/apps/investments/imports/infrastructure/fake/sampleWorkbook'
 import { dryRunGroups, dryRunSummary } from '../src/apps/investments/imports/presentation/dryRunLines'
-import { NO_CHOICES, settledImport } from '../src/apps/investments/imports/presentation/importChoices'
-import type { ImportChoices, NewIds, SettledImport } from '../src/apps/investments/imports/presentation/importChoices'
+import { NO_CHOICES, settledImport } from '../src/apps/investments/imports/domain/importChoices'
+import type { ImportChoices, NewIds, SettledImport } from '../src/apps/investments/imports/domain/importChoices'
 import { words } from '../src/apps/investments/imports/presentation/words'
 import { instrumentTexts } from '../src/apps/investments/holdings/domain/instrumentDraft'
+import { instrumentErrors } from '../src/apps/investments/holdings/presentation/words'
 import { transactionCount } from '../src/apps/investments/transactions/domain/listedTransactions'
 import type { InvestmentBook } from '../src/apps/investments/workbook/domain/investmentBook'
 import { decimalText } from '../src/shared/money/decimal'
@@ -46,12 +47,12 @@ function withParent(settled: SettledImport, choices: ImportChoices = NO_CHOICES)
 describe('the steps with no choice made', () => {
   it('names every account as proposed and adds every holding from its guess', () => {
     const settled = settle()
-    expect(settled.accounts.map((step) => [step.question.account, step.question.rows, step.choice, step.problem])).toEqual([
-      ['U0000001', 17, { kind: 'new', name: 'IBKR' }, null],
-      ['U0000002', 4, { kind: 'new', name: 'IBKR 2' }, null],
-      ['RVL-1', 5, { kind: 'new', name: 'Revolut' }, null],
+    expect(settled.accounts.map((step) => [step.question.account, step.question.rows, step.choice, step.nameMissing])).toEqual([
+      ['U0000001', 17, { kind: 'new', name: 'IBKR' }, false],
+      ['U0000002', 4, { kind: 'new', name: 'IBKR 2' }, false],
+      ['RVL-1', 5, { kind: 'new', name: 'Revolut' }, false],
     ])
-    expect(settled.instruments.map((step) => [step.question.identity, step.choice.kind === 'new' && step.choice.texts.sourceSymbol, step.errors?.name])).toEqual([
+    expect(settled.instruments.map((step) => [step.question.identity, step.choice.kind === 'new' && step.choice.texts.sourceSymbol, step.faults?.name])).toEqual([
       ['US0000000001', 'ABC', null],
       ['NEWCO', 'NEWCO', null],
       ['IE0000000002', 'XYZ.DEX', null],
@@ -62,9 +63,9 @@ describe('the steps with no choice made', () => {
   it('settles the split at the ratio its shares make once its holding is answered, and holds the spin-off for its parent', () => {
     const settled = settle()
     // 6 + 1 held the day before, and 7 added: 2 for 1.
-    expect(settled.splits.map((step) => [decimalText(step.question.held!), step.texts, step.problem])).toEqual([['7', { newUnits: '2', oldUnits: '1' }, null]])
+    expect(settled.splits.map((step) => [decimalText(step.question.held!), step.texts, step.ratioMissing])).toEqual([['7', { newUnits: '2', oldUnits: '1' }, false]])
     expect([outcomeAt(settled, 15), outcomeAt(settled, 16)]).toEqual(['new', 'waiting: spin-off'])
-    expect(settled.spinOffs.map((step) => [step.parent, step.costShare, step.problems.parent])).toEqual([[null, '', words.questions.parentMissing]])
+    expect(settled.spinOffs.map((step) => [step.parent, step.costShare, step.parentMissing])).toEqual([[null, '', true]])
   })
 
   it('proposes the spin-off share once its parent is picked, from the worth received over the cost the parent held, shown to two places', () => {
@@ -115,9 +116,9 @@ describe('the steps with choices', () => {
       accounts: { 'RVL-1': { kind: 'new', name: '  ' } },
       instruments: { DEF: { kind: 'new', texts: { ...instrumentTexts(null), name: 'DEF Inc', symbol: 'DEF', currency: 'USD', isin: 'IE0000000002' } } },
     })
-    expect(settled.accounts[2]!.problem).toBe(words.accounts.nameMissing)
+    expect(settled.accounts[2]!.nameMissing).toBe(true)
     expect(outcomeAt(settled, 24)).toBe('waiting: account')
-    expect([settled.instruments[2]!.errors?.isin, settled.instruments[3]!.errors?.isin]).toEqual([
+    expect([instrumentErrors(settled.instruments[2]!.faults!).isin, instrumentErrors(settled.instruments[3]!.faults!).isin]).toEqual([
       'DEF Inc has this ISIN already',
       `${instrumentTexts(settled.instruments[2]!.question.proposal).name} has this ISIN already`,
     ])
@@ -130,7 +131,7 @@ describe('the steps with choices', () => {
     const typed = settle({ ...NO_CHOICES, splits: { [split]: { newUnits: '3', oldUnits: '1' } } })
     expect(typed.dryRun.added.splits.map((added) => [added.newUnits, added.oldUnits])).toEqual([[3, 1]])
     const wrong = settle({ ...NO_CHOICES, splits: { [split]: { newUnits: '2.5', oldUnits: '1' } } })
-    expect(wrong.splits[0]!.problem).toBe(words.questions.ratioProblem)
+    expect(wrong.splits[0]!.ratioMissing).toBe(true)
     expect(outcomeAt(wrong, 15)).toBe('waiting: split-ratio')
   })
 
@@ -141,7 +142,7 @@ describe('the steps with choices', () => {
     const typed = settle({ ...parented, spinOffs: { [key]: { ...parented.spinOffs[key]!, costShare: '2.5' } } })
     expect(typed.dryRun.added.spinOffs.map((spinOff) => decimalText(spinOff.costShare))).toEqual(['0.025'])
     const over = settle({ ...parented, spinOffs: { [key]: { ...parented.spinOffs[key]!, costShare: '120' } } })
-    expect(over.spinOffs[0]!.problems.costShare).toBe(words.questions.costShareProblem)
+    expect(over.spinOffs[0]!.costShareFault).toBe('out-of-range')
     expect(outcomeAt(over, 16)).toBe('waiting: spin-off')
   })
 })

@@ -11,7 +11,7 @@ import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operat
 import { INVESTMENT_SETTING_CHECKS } from '../src/apps/investments/workbook/application/settingWrites'
 import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
-import { SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import type { AssistantOperation } from '../src/shared/app/assistantOperations'
 import { kunaOperations } from '../src/shell/assistant/kunaOperations'

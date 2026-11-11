@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { transcribedImportKeys } from '../src/apps/spending/statements/domain/statementRows'
 import { tieRefusal } from '../src/apps/spending/assistant/operations/statementImport'
 import type { AccountMoney } from '../src/shared/money/accountMoney'
-import { statementTies } from '../src/shared/money/statementTies'
+import { partRefusal, splitDays, statementTies } from '../src/shared/money/statementTies'
 import type { PrintedStatement } from '../src/shared/money/statementTies'
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import { EURO } from '../src/shared/money/currencyCode'
@@ -73,5 +73,21 @@ describe('the import keys of transcribed rows', () => {
     const reread = rows.map((row) => ({ ...row, payee: row.payee === 'Cafe on the square' ? 'CAFE ON THE SQ.' : row.payee.replace(' d.o.o.', '') }))
 
     expect(transcribedImportKeys(reread)).toEqual(transcribedImportKeys(rows))
+  })
+})
+
+describe('the days a copied card splits', () => {
+  it('are the days of the card that Kuna holds other rows of from the same source, each once', () => {
+    expect(splitDays(['2026-03-02', '2026-03-04', '2026-03-04'], ['2026-03-04', '2026-03-03', '2026-03-04', '2026-03-02'])).toEqual(['2026-03-02', '2026-03-04'])
+  })
+
+  it('are none when the rows Kuna holds are on other days', () => {
+    expect(splitDays(['2026-03-01'], ['2026-03-02', '2026-03-03'])).toEqual([])
+  })
+
+  it('never let a later part of a statement start on a day the parts before it reach', () => {
+    expect(partRefusal(2, ['2026-03-01', '2026-03-02'], '2026-03-02')).toBe('day-reached')
+    expect(partRefusal(2, ['2026-03-01'], '2026-03-02')).toBeNull()
+    expect(partRefusal(2, [], '2026-03-02')).toBe('parts-before-missing')
   })
 })

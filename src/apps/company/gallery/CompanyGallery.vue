@@ -5,6 +5,7 @@ import { civilDate } from '../../../shared/calendar/civilDate'
 import { anchorWindow } from '../../../shared/calendar/ledgerWindow'
 import type { MailPlan, PlanEntry, PlannedMail } from '../../../shared/mail-filing/application/mailFiling'
 import MailPlanList from '../../../shared/mail-filing/presentation/MailPlanList.vue'
+import { words as mailWords } from '../mail/presentation/words'
 import AppCard from '../../../shared/ui/AppCard.vue'
 import type { FilterChip } from '../filters/domain/filterChips'
 import type { Period } from '../filters/domain/filterState'
@@ -86,13 +87,13 @@ const STOPPED = 'Gmail asked us to slow down. Sync again in a minute.'
     <h3 class="type-label">Mail list</h3>
     <AppCard data-testid="gallery-mail-plan">
       <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-        <MailPlanList :plan="MAIL_PLAN" :stopped="null" />
+        <MailPlanList :plan="MAIL_PLAN" :stopped="null" :why="mailWords.card.searchedFrom" />
       </div>
     </AppCard>
     <h3 class="type-label">Mail list after a step that stopped</h3>
     <AppCard data-testid="gallery-mail-stopped">
       <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-        <MailPlanList :plan="null" :stopped="STOPPED" />
+        <MailPlanList :plan="null" :stopped="STOPPED" :why="mailWords.card.searchedFrom" />
       </div>
     </AppCard>
   </div>

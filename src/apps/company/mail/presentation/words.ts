@@ -1,3 +1,4 @@
+import { en as settingsEn, hr as settingsHr } from '../../settings/domain/words'
 import { withFullStop } from '../../../../shared/text/withFullStop'
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
@@ -21,12 +22,13 @@ export const en = {
     notRead: 'Bank mail is not read.',
     readFrom: (senders: readonly string[], since: string) => `Bank mail from ${senders.join(', ')}, since ${since}.`,
     startOfLastYear: 'the start of last year',
-    senders: 'The bank mails statements from',
+    searchedFrom: { newest: 'a week before the newest file in its folder', since: 'the mail-since day' },
+    senders: settingsEn.settingLabels.statementsMailFrom,
     sendersHelp: "Mail addresses, comma separated. Blank leaves the bank's mail unread, and Gmail is not asked for.",
     sendersPlaceholder: 'Not read',
-    subject: 'Subject words',
+    subject: settingsEn.settingLabels.statementsMailSubject,
     subjectHelp: 'The words before the statement number, such as Izvadak.',
-    since: 'Mail since',
+    since: settingsEn.settingLabels.mailSince,
     sinceHelp:
       'The earliest mail a sync reads. Once a folder holds files, a sync starts a week before the newest one. Blank is the start of last year, so a sync early in January still finds mail from December.',
     lastSync: 'What the last sync found',
@@ -48,12 +50,13 @@ export const hr: Translation<typeof en> = {
     notRead: 'Pošta banke se ne čita.',
     readFrom: (senders, since) => `Pošta banke ${plural({ one: 's adrese', few: 's adresa', other: 's adresa' }, senders.length)} ${senders.join(', ')}, od ${withFullStop(since)}`,
     startOfLastYear: 'početka prošle godine',
-    senders: 'Banka šalje izvode s adresa',
+    searchedFrom: { newest: 'tjedan dana prije najnovije datoteke u mapi', since: `dana iz postavke ${settingsHr.settingLabels.mailSince}` },
+    senders: settingsHr.settingLabels.statementsMailFrom,
     sendersHelp: 'Adrese e-pošte, odvojene zarezom. Ako je prazno, pošta banke se ne čita i ne traži se pristup Gmailu.',
     sendersPlaceholder: 'Ne čita se',
-    subject: 'Riječi u predmetu',
+    subject: settingsHr.settingLabels.statementsMailSubject,
     subjectHelp: 'Riječi ispred broja izvoda, na primjer Izvadak.',
-    since: 'Pošta od',
+    since: settingsHr.settingLabels.mailSince,
     sinceHelp:
       'Najstarija poruka koju sinkronizacija čita. Kad mapa već ima datoteke, sinkronizacija počinje tjedan dana prije najnovije. Prazno znači početak prošle godine, pa sinkronizacija početkom siječnja i dalje pronalazi poštu iz prosinca.',
     lastSync: 'Što je pronašla zadnja sinkronizacija',

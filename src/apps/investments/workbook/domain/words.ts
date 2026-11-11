@@ -129,6 +129,8 @@ export const en = {
   mailReaderNoRecipe: 'it names no recipe',
   mailReaderNoSender: 'it is on, but has no sender',
   checkChangesNothing: 'threshold is blank or the default, and off is not true, so it changes nothing',
+  /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
+  settingLabels: { surtaxCity2023: 'Your city in 2023' },
 }
 
 export const hr: Translation<typeof en> = {
@@ -204,6 +206,7 @@ export const hr: Translation<typeof en> = {
   mailReaderNoRecipe: 'ne navodi recept',
   mailReaderNoSender: 'uključeno je, ali nema pošiljatelja',
   checkChangesNothing: 'polje threshold je prazno ili jednako zadanom, a off nije true, pa zapis ništa ne mijenja',
+  settingLabels: { surtaxCity2023: 'Vaš grad u 2023.' },
 }
 
 export const words = language === 'hr' ? hr : en

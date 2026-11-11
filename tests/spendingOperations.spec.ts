@@ -121,7 +121,7 @@ describe('transfers', () => {
     await desk.propose([
       {
         op: 'add-transfer',
-        input: { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, toAmount: null, payee: '', note: '' },
+        input: { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, toAmount: null, note: '' },
       },
     ])
     const result = await desk.accept()
@@ -136,7 +136,7 @@ describe('transfers', () => {
   it('asks what reached an account in another currency, and refuses one account on both sides', async () => {
     const desk = await spendingDesk(used)
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
-    const transfer = (to: string, toAmount: number | null) => ({ op: 'add-transfer', input: { from: current, to, date: '2026-11-02', amount: 50, toAmount, payee: '', note: '' } })
+    const transfer = (to: string, toAmount: number | null) => ({ op: 'add-transfer', input: { from: current, to, date: '2026-11-02', amount: 50, toAmount, note: '' } })
     const dollars = desk.ref('account', DESK_ACCOUNTS.DOLLARS.id)
     expect((await desk.propose([transfer(dollars, null)])).text).toContain('toAmount')
     expect((await desk.propose([transfer(current, null)])).isError).toBe(true)
@@ -145,13 +145,13 @@ describe('transfers', () => {
     expect(bookOf(desk).transactions.at(-1)!.amount).toBe(5820)
   })
 
-  it('turns a plain entry into the leg its money is, and a kind turns a leg back into a plain entry with its other leg gone', async () => {
+  it('turns a plain entry into the leg its money is with no payee, and a kind turns a leg back into a plain entry with its other leg gone', async () => {
     const desk = await spendingDesk(used)
     const entry = EXAMPLE_RECORDS['transaction']!
     await desk.propose([
       {
         op: 'change-transfer',
-        input: { entry: desk.ref('transaction', entry), from: null, to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: null, amount: null, toAmount: null, payee: null, note: null },
+        input: { entry: desk.ref('transaction', entry), from: null, to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: null, amount: null, toAmount: null, note: null },
       },
     ])
     expect((await desk.accept()).kind).toBe('done')
@@ -160,6 +160,7 @@ describe('transfers', () => {
     expect(leg.category).toBe(categoryNamed(desk, 'Between my accounts').id)
     const other = leg.pair!
     expect(rowOf(desk, other)!.amount).toBe(4530)
+    expect([leg.payee, rowOf(desk, other)!.payee]).toEqual(['', ''])
 
     await desk.propose([
       {
@@ -186,7 +187,7 @@ describe('transfers', () => {
     await desk.propose([
       {
         op: 'add-transfer',
-        input: { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, toAmount: null, payee: '', note: '' },
+        input: { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, toAmount: null, note: '' },
       },
     ])
     await desk.accept()

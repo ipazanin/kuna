@@ -18,7 +18,8 @@ import type { StartDayMove } from '../../accounts/domain/startDayMove'
 import { setLimit } from '../../budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/application/categoryWrites'
 import { lastOrder, siblingsUnder, swappedPlaces } from '../../categories/domain/categoryPlaces'
-import { TRANSACTION_WRITES, newEntry, newTransfer, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
+import { newTransfer } from '../../entries/domain/transfer'
+import { TRANSACTION_WRITES, newEntry, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
 import { entrySplit } from '../../entries/domain/entrySplit'
 import type { PartDraft, SplitRefusal } from '../../entries/domain/entrySplit'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
@@ -203,22 +204,22 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-transfer',
     about:
-      "Money moved between two of your accounts, as two legs under Between my accounts that name each other. amount is what left from, above zero. toAmount is what reached to in its own currency, and is needed only when the two accounts' currencies differ.",
-    input: inputOf({ from: TEXT, to: TEXT, date: TEXT, amount: NUMBER, toAmount: NUMBER_OR_NULL, payee: TEXT, note: TEXT }),
+      "Money moved between two of your accounts, as two legs under Between my accounts that name each other and have no payee, since the money stays yours. amount is what left from, above zero. toAmount is what reached to in its own currency, and is needed only when the two accounts' currencies differ.",
+    input: inputOf({ from: TEXT, to: TEXT, date: TEXT, amount: NUMBER, toAmount: NUMBER_OR_NULL, note: TEXT }),
     refs: { from: ACCOUNT_RECORDS.name, to: ACCOUNT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { from: 'account', to: 'account-other', date: '2026-11-02', amount: 50, toAmount: null, payee: '', note: '' },
+    example: { from: 'account', to: 'account-other', date: '2026-11-02', amount: 50, toAmount: null, note: '' },
   },
   {
     name: 'change-transfer',
     about:
-      'Makes an entry a transfer between two of your accounts, or changes a transfer through either leg. The entry stays the leg its money already is, so an entry that is no transfer yet needs the account on its other side. Amounts are above zero as in add-transfer. Null leaves a field as it is.',
-    input: inputOf({ entry: TEXT, from: TEXT_OR_NULL, to: TEXT_OR_NULL, date: TEXT_OR_NULL, amount: NUMBER_OR_NULL, toAmount: NUMBER_OR_NULL, payee: TEXT_OR_NULL, note: TEXT_OR_NULL }),
+      'Makes an entry a transfer between two of your accounts, or changes a transfer through either leg. The entry stays the leg its money already is, so an entry that is no transfer yet needs the account on its other side, and its payee goes, as a transfer has none. Amounts are above zero as in add-transfer. Null leaves a field as it is.',
+    input: inputOf({ entry: TEXT, from: TEXT_OR_NULL, to: TEXT_OR_NULL, date: TEXT_OR_NULL, amount: NUMBER_OR_NULL, toAmount: NUMBER_OR_NULL, note: TEXT_OR_NULL }),
     refs: { entry: TRANSACTION_RECORDS.name, from: ACCOUNT_RECORDS.name, to: ACCOUNT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { entry: 'transaction', from: null, to: 'account-other', date: null, amount: null, toAmount: null, payee: null, note: null },
+    example: { entry: 'transaction', from: null, to: 'account-other', date: null, amount: null, toAmount: null, note: null },
   },
   {
     name: 'delete-entry',
@@ -374,24 +375,12 @@ function openedBy(day: CivilDate, accounts: readonly Account[]): CivilDate {
 }
 
 /** The two legs of a transfer the step asks for, with the amount that reached the other account when its currency differs. */
-function transferLegs(
-  book: SpendingBook,
-  from: Account,
-  to: Account,
-  day: CivilDate,
-  amount: AccountMoney,
-  arrived: AccountMoney | null,
-  entry: Pick<Transaction, 'payee' | 'note'>,
-): readonly [Transaction, Transaction] {
+function transferLegs(book: SpendingBook, from: Account, to: Account, day: CivilDate, amount: AccountMoney, arrived: AccountMoney | null, note: string): readonly [Transaction, Transaction] {
   const transfer = book.categories.find((category) => category.kind === 'transfer')
   if (transfer === undefined) throw new StepRefused('The file has no Between my accounts category to file a transfer under.')
   if (from.id === to.id) throw new StepRefused('A transfer moves money between two different accounts.')
   if (from.currency !== to.currency && arrived === null) throw new StepRefused("The two accounts' currencies differ, so toAmount says what reached the other one.")
-  return newTransfer(
-    { account: from.id, amount },
-    { account: to.id, amount: from.currency === to.currency ? amount : arrived! },
-    { date: openedBy(day, [from, to]), payee: entry.payee, note: entry.note, category: transfer.id },
-  )
+  return newTransfer({ account: from.id, amount }, { account: to.id, amount: from.currency === to.currency ? amount : arrived! }, { date: openedBy(day, [from, to]), note, category: transfer.id })
 }
 
 /** A transfer's legs from either one, the money-out leg first, or null for a plain entry. */
@@ -605,7 +594,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         const from = accountOf(field['from'])
         const to = accountOf(field['to'])
         const arrived = field['toAmount'] === null ? null : positiveOf(field['toAmount'])
-        writeTransfer(unit, null, null, transferLegs(book, from, to, dayOf(field['date']), positiveOf(field['amount']), arrived, { payee: field['payee'], note: field['note'] }))
+        writeTransfer(unit, null, null, transferLegs(book, from, to, dayOf(field['date']), positiveOf(field['amount']), arrived, field['note'] as string))
         break
       }
       case 'change-transfer': {
@@ -626,8 +615,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         if (amount === null) throw new StepRefused('amount says what left the other account in its own currency.')
         const arrived = field['toAmount'] === null ? keptArrived : positiveOf(field['toAmount'])
         const day = field['date'] === null ? (legs?.[0].date ?? before.date) : dayOf(field['date'])
-        const entry = { payee: (field['payee'] as string | null) ?? before.payee, note: (field['note'] as string | null) ?? before.note }
-        writeTransfer(unit, before, legs, transferLegs(book, from, to, day, amount, arrived, entry))
+        writeTransfer(unit, before, legs, transferLegs(book, from, to, day, amount, arrived, (field['note'] as string | null) ?? before.note))
         break
       }
       case 'delete-entry':

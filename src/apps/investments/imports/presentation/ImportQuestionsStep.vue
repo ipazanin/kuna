@@ -7,8 +7,8 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import { askedLine, lookAlikesOf } from './dryRunLines'
 import type { LookAlike } from './dryRunLines'
 import ImportLines from './ImportLines.vue'
-import { accountNamer } from './importChoices'
-import type { AskedChoice, SettledImport, SpinOffStep, SplitStep } from './importChoices'
+import { accountNamer } from '../domain/importChoices'
+import type { AskedChoice, CostShareFault, SettledImport, SpinOffRowFault, SpinOffStep, SplitStep } from '../domain/importChoices'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
 import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
@@ -50,6 +50,14 @@ function splitLine(step: SplitStep): string {
   const count = Number(decimalText(added))
   if (held === null) return plural(words.questions.splitNoHolding(count, units(added)), count)
   return held > 0n ? plural(words.questions.splitRows(count, units(added), units(held)), count) : plural(words.questions.splitNothingHeld(count, units(added)), count)
+}
+
+function rowFaultLine(fault: SpinOffRowFault): string {
+  return fault.kind === 'parent-not-found' ? words.questions.parentNotFound(fault.from) : words.questions.costShareUnreadable(fault.text)
+}
+
+function costShareError(fault: CostShareFault): string {
+  return fault === 'reading-missing' ? words.questions.costShareReadingMissing : words.questions.costShareProblem
 }
 
 const asked = computed(() => ({
@@ -181,7 +189,7 @@ function shareHelp(step: SpinOffStep): string {
             <span v-if="step.unlisted" class="type-caption" data-testid="import-split-unlisted">{{ unlistedLine(step) }}</span>
           </p>
           <FormGrid>
-            <UFormField :label="words.questions.newUnits" :help="words.questions.ratioHelp" :error="step.problem ?? false">
+            <UFormField :label="words.questions.newUnits" :help="words.questions.ratioHelp" :error="step.ratioMissing && words.questions.ratioProblem">
               <UInput :model-value="step.texts.newUnits" inputmode="numeric" class="w-full" data-testid="import-split-new" @update:model-value="typeSplit(step, 'newUnits', String($event))" />
             </UFormField>
             <UFormField :label="words.questions.oldUnits">
@@ -199,10 +207,10 @@ function shareHelp(step: SpinOffStep): string {
           <p class="flex flex-col gap-0.5">
             <span class="type-label">{{ words.questions.spinOff(nameOf(step.question.identity), dayLabel(step.question.date)) }}</span>
             <span class="type-caption">{{ spinOffLine(step) }}</span>
-            <span v-if="step.workbookProblem" class="type-caption text-warning" data-testid="import-spin-off-row-problem">{{ step.workbookProblem }}</span>
+            <span v-if="step.rowFault" class="type-caption text-warning" data-testid="import-spin-off-row-problem">{{ rowFaultLine(step.rowFault) }}</span>
           </p>
           <FormGrid>
-            <UFormField :label="words.questions.parent" :error="(tried && step.problems.parent) || false">
+            <UFormField :label="words.questions.parent" :error="tried && step.parentMissing && words.questions.parentMissing">
               <USelect
                 v-bind="step.parent === null ? {} : { modelValue: step.parent }"
                 :items="parentItems(step)"
@@ -212,7 +220,7 @@ function shareHelp(step: SpinOffStep): string {
                 @update:model-value="pickParent(step, String($event))"
               />
             </UFormField>
-            <UFormField :label="words.questions.costShare" :help="shareHelp(step)" :error="(step.parent !== null && step.problems.costShare) || false">
+            <UFormField :label="words.questions.costShare" :help="shareHelp(step)" :error="step.parent !== null && step.costShareFault !== null && costShareError(step.costShareFault)">
               <template v-if="step.costShareReadings" #description>
                 <div class="flex flex-col gap-1.5">
                   <p class="type-caption text-warning" data-testid="import-spin-off-unclear">{{ unclearLine(step, step.costShareReadings) }}</p>

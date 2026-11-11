@@ -112,6 +112,11 @@ export interface InvoicingTerms {
   readonly reverseChargeNote: string
 }
 
+/** The company's OIB, the digits of its VAT ID, which a Croatian VAT ID writes after HR. Blank while the VAT ID is. */
+export function companyOib(terms: Pick<InvoicingTerms, 'vatId'>): string {
+  return terms.vatId.replace(/\D/g, '')
+}
+
 export const DEFAULT_REVERSE_CHARGE_NOTE = 'Not subject to VAT in accordance with Article 17 of the Croatian VAT Law - reverse charge'
 
 /**
@@ -222,6 +227,8 @@ type BucketLabelKey = `label_${string}`
  */
 export interface SettingDefinition<Values> {
   readonly key: string
+  /** What its screen calls it, in the language of the app, which names it in a change and in any sentence. */
+  readonly label: string
   /** What the key means, as the template's note on it says. */
   readonly note: string
   readonly type: SettingType
@@ -249,6 +256,7 @@ export function bucketLabelKey(bucket: DefinedBucket): BucketLabelKey {
 
 const BUCKET_LABEL_DEFINITIONS: readonly SettingDefinition<Settings>[] = BUCKETS.map((bucket) => ({
   key: bucketLabelKey(bucket),
+  label: words.settingLabels.bucketLabel(bucket),
   note: `What the ${bucket} bucket is called on screen. The bucket itself keeps its name in the categories tab.`,
   type: 'text',
   valueOf: (settings) => (settings.bucketLabels[bucket] === DEFAULT_BUCKET_LABELS[bucket] ? STORED_BUCKET_LABELS[bucket] : settings.bucketLabels[bucket]),
@@ -270,6 +278,7 @@ export type BillingItemField = 'monthlyItem' | 'subscriptionItem' | 'bonusItem'
 function billingAmountDefinition(key: string, field: BillingAmountField, note: string): SettingDefinition<Settings> {
   return {
     key,
+    label: words.settingLabels.billing[field],
     note,
     type: 'number',
     valueOf: (settings) => {
@@ -283,9 +292,13 @@ function billingAmountDefinition(key: string, field: BillingAmountField, note: s
   }
 }
 
+/** The amount whose rows an item names. */
+const AMOUNT_OF_ITEM: Readonly<Record<BillingItemField, BillingAmountField>> = { monthlyItem: 'monthlyAmount', subscriptionItem: 'subscriptionAmount', bonusItem: 'bonusAmount' }
+
 function billingItemDefinition(key: string, field: BillingItemField, note: string): SettingDefinition<Settings> {
   return {
     key,
+    label: words.settingLabels.billingItem(words.settingLabels.billing[AMOUNT_OF_ITEM[field]]),
     note,
     type: 'text',
     valueOf: (settings) => settings.billing[field],
@@ -314,6 +327,7 @@ const BILLING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   billingItemDefinition('billing_bonus_item', 'bonusItem', 'The item text of the bonus rows on the outgoing-plan tab. Needed with billing_bonus_amount.'),
   {
     key: 'billing_client',
+    label: words.settingLabels.billing.client,
     note: 'The client the filled rows are for, by the client name in the clients tab, such as northwind. Optional.',
     type: 'text',
     valueOf: (settings) => settings.billing.client,
@@ -343,6 +357,7 @@ function invoicingProblem(field: InvoicingField, value: string): string | null {
 function invoicingDefinition(key: string, field: InvoicingField, note: string): SettingDefinition<Settings> {
   return {
     key,
+    label: words.settingLabels.invoicing[field],
     note,
     type: 'text',
     valueOf: (settings) => settings.invoicing[field],
@@ -389,6 +404,7 @@ export const PERSON_PAYEES_KEY = 'person_payees'
 export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   {
     key: 'template_version',
+    label: words.settingLabels.templateVersion,
     note: 'The workbook format. Leave it as the app wrote it.',
     type: 'number',
     valueOf: (settings) => String(settings.templateVersion),
@@ -405,6 +421,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'company_name',
+    label: words.settingLabels.companyName,
     note: 'Shown in the app and used in the name of an exported file. Leave it blank to use the file name.',
     type: 'text',
     valueOf: (settings) => settings.companyName,
@@ -412,6 +429,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'currency',
+    label: words.settingLabels.currency,
     note: 'The three-letter ISO code of the money in the ledger, such as EUR, USD or GBP.',
     type: 'text',
     valueOf: (settings) => settings.currency,
@@ -423,6 +441,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'number_locale',
+    label: words.settingLabels.numberLocale,
     note: 'How amounts are written: en-GB gives 1,234.56 and de-DE gives 1.234,56. Blank follows the language of the app, and dates always do.',
     type: 'text',
     valueOf: (settings) => settings.numberLocale,
@@ -435,6 +454,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   ...BUCKET_LABEL_DEFINITIONS,
   {
     key: 'owner_pay_module',
+    label: words.settingLabels.ownerPay,
     note: 'TRUE shows owner pay and owner earns, and the installed pack with them. FALSE, the default, hides them, and the owner-pay rows then count as operating cost.',
     type: 'flag',
     valueOf: (settings) => flagText(settings.ownerPayModule),
@@ -445,6 +465,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'review_label',
+    label: words.settingLabels.reviewLabel,
     note: 'What flagged_by says on a row a person confirmed, such as human or your first name. rule and ai are taken.',
     type: 'text',
     valueOf: (settings) => settings.reviewLabel,
@@ -456,6 +477,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'card_settlement_ibans',
+    label: words.settingLabels.cardIbans,
     note: 'The bank accounts a card purchase settles against, comma separated. A row with one of them as counterparty reads as a card purchase. Optional.',
     type: 'text',
     valueOf: (settings) => settings.cardSettlementIbans.join(', '),
@@ -469,6 +491,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   ...INVOICING_DEFINITIONS,
   {
     key: 'statements_folder',
+    label: words.settingLabels.statementsFolder,
     note: 'The Google Drive folder the bank’s camt statements are filed in, as a path from My Drive with a folder for each year inside, or from the folder of the books file when it starts with ./ as in ./statements. Blank names none, and statements come in through Import.',
     type: 'text',
     valueOf: (settings) => settings.statementsFolder.join('/'),
@@ -480,6 +503,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'statements_sync',
+    label: words.settingLabels.statementsSync,
     note: 'TRUE files the new statements of the statements folder on every sync, once statements_folder names one. FALSE leaves them to Import.',
     type: 'flag',
     valueOf: (settings) => flagText(settings.statementsSync),
@@ -490,6 +514,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'statements_mail_from',
+    label: words.settingLabels.statementsMailFrom,
     note: 'The addresses the bank mails its statements from, comma separated. Each sync then looks in Gmail for them. Blank leaves the bank’s mail unread.',
     type: 'text',
     valueOf: (settings) => settings.statementsMailFrom.join(', '),
@@ -500,6 +525,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'statements_mail_subject',
+    label: words.settingLabels.statementsMailSubject,
     note: 'The words before the statement number in the subject of the bank’s statement mail, such as Izvadak. Needed with statements_mail_from.',
     type: 'text',
     valueOf: (settings) => settings.statementsMailSubject,
@@ -510,6 +536,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: 'mail_since',
+    label: words.settingLabels.mailSince,
     note: 'The day the earliest mail a sync looks at may come, as a date or as text such as 2026-01-01. Blank means the first day of last year, so a sync early in January still finds mail from December. Once a kind of mail has files in its folder, a sync starts a week before the newest one, never before this day.',
     type: 'date',
     valueOf: (settings) => settings.mailSince ?? '',
@@ -520,6 +547,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   {
     key: PERSON_PAYEES_KEY,
+    label: words.settingLabels.personPayees,
     note: 'The counterparties that are people, one per line, whose names the assistant sends as aliases. A row in To review flags one. Optional.',
     type: 'text',
     valueOf: (settings) => personPayeesText(settings.personPayees),
@@ -536,6 +564,13 @@ function keyOfRow(row: SettingEntry): string {
 /** The type of a key's value, core's or the pack's. Any other key, such as an import profile, holds text. */
 export function settingTypeOf(key: string, pack: PackSettings<unknown> | null): SettingType {
   return (DEFINITION_BY_KEY.get(key) ?? pack?.definitions.find((definition) => definition.key === key))?.type ?? 'text'
+}
+
+/** What a key's screen calls it, core's or the pack's, an import profile by its name, and any other key, such as a retired one, as it is stored. */
+export function settingLabel(key: string, pack: PackSettings<unknown> | null): string {
+  const defined = DEFINITION_BY_KEY.get(key) ?? pack?.definitions.find((definition) => definition.key === key)
+  if (defined !== undefined) return defined.label
+  return key.startsWith(IMPORT_PROFILE_PREFIX) ? words.settingLabels.importProfile(key.slice(IMPORT_PROFILE_PREFIX.length)) : key
 }
 
 /** A stored value as text of its key's type: a date cell as its day and a checkbox as TRUE or FALSE. */
@@ -555,7 +590,7 @@ export function settingCodec(packSettings: () => PackSettings<unknown> | null): 
   return {
     kind: SETTING_RECORDS,
     key: (fields) => filledKey(slugOf(fields.key)),
-    label: (fields) => labelWords([slugOf(fields.key)]),
+    label: (fields) => labelWords([settingLabel(slugOf(fields.key), packSettings())]),
     make: (fields, id) => ({ id: ownId(id), key: textOf(fields.key), value: settingValueOf(fields.value, typeOf(textOf(fields.key))) }),
     fieldsOf: (setting) => {
       const flag = typeOf(setting.key) === 'flag' && (setting.value === 'TRUE' || setting.value === 'FALSE')

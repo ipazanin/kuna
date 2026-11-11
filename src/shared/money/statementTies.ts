@@ -35,7 +35,7 @@ export function givesPrintedBalances(opening: number | null, closing: number | n
 
 /**
  * Why a part after the first of a copied statement cannot go yet: no row of the parts before it is in Kuna, or it starts on a day
- * they reach. A part starts on a day after the one before it ends, since rows of one day are told apart by their count on that day.
+ * they reach. A part starts on a day after the one before it ends, so no part splits a day as `splitDays` forbids.
  */
 export type PartRefusal = 'parts-before-missing' | 'day-reached'
 
@@ -44,4 +44,14 @@ export function partRefusal(part: number, earlierDays: readonly string[], firstD
   if (part === 1) return null
   if (earlierDays.length === 0) return 'parts-before-missing'
   return earlierDays.some((day) => day >= firstDay) ? 'day-reached' : null
+}
+
+/**
+ * The days of a card on which Kuna holds rows of the same source that the card does not give, so the card holds only part of each
+ * day. Rows of one day are told apart by their count on that day, so an equal row on a split day would be taken for one Kuna has.
+ * A day is any text that names one day of the source, such as a date or a key that holds it.
+ */
+export function splitDays<Day extends string>(daysHeld: readonly Day[], cardDays: readonly Day[]): Day[] {
+  const held = new Set(daysHeld)
+  return [...new Set(cardDays.filter((day) => held.has(day)))].sort()
 }

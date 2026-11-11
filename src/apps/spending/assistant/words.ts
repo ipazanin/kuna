@@ -1,6 +1,7 @@
 import { language } from '../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../shared/text/translation'
 import { en as statementsEnglish, hr as statementsCroatian } from '../statements/presentation/words'
+import { en as workbookEn, hr as workbookHr } from '../workbook/domain/words'
 
 /** The words on the screens a guide names, passed in so a guide calls each thing what the screen calls it. */
 export interface GuideLabels {
@@ -26,9 +27,9 @@ export const en = {
     },
   },
   settings: {
-    bankSyncDeployment: "The bank sync script's API executable deployment. Blank leaves the whole sync off.",
+    bankSyncDeployment: `${workbookEn.settingLabels.deployment}, the bank sync script's API executable deployment. Blank leaves the whole sync off.`,
     bankLink: (bank: string) => `The day the approval for ${bank} runs out, set by linking the bank.`,
-    companyOib: "The company's OIB, which tells an R1 receipt for it.",
+    companyOib: `${workbookEn.settingLabels.companyOib}, which tells an R1 receipt for the company.`,
   },
   proposals: {
     ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
@@ -186,9 +187,9 @@ export const hr: Translation<typeof en> = {
     },
   },
   settings: {
-    bankSyncDeployment: 'ID implementacije skripte. Ako je prazno, sinkronizacija je isključena.',
+    bankSyncDeployment: `${workbookHr.settingLabels.deployment}. Ako je prazno, sinkronizacija je isključena.`,
     bankLink: (bank) => `Datum isteka odobrenja za ${bank}. Postavlja se povezivanjem banke.`,
-    companyOib: 'OIB tvrtke, po kojem se prepoznaje R1 račun za nju.',
+    companyOib: `${workbookHr.settingLabels.companyOib}, po kojem se prepoznaje R1 račun za nju.`,
   },
   proposals: {
     ibanRule: (iban) => `Razvrstava svaki redak s ovog IBAN-a: ${iban}`,

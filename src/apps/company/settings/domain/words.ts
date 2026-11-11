@@ -2,6 +2,7 @@ import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import type { Translation } from '../../../../shared/text/translation'
+import type { InvoicingField } from './settings'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A role and a category keep their names as the categories tab stores them, such as owner-benefit and travel. A bucket takes its Croatian name in quotes.
@@ -118,6 +119,54 @@ export const en = {
     nameTheItem: 'name the item its rows carry on the outgoing-plan tab',
     notAnIban: (text: string) => `"${text}" is not an IBAN`,
   },
+  /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
+  settingLabels: {
+    templateVersion: 'Workbook format',
+    companyName: 'Company name',
+    currency: 'Currency',
+    numberLocale: 'Number style',
+    bucketLabel: (bucket: string) => `Label of the ${bucket} bucket`,
+    ownerPay: 'Owner-pay module',
+    reviewLabel: 'Review label',
+    cardIbans: 'Card settlement IBANs',
+    statementsFolder: 'Statements folder',
+    statementsSync: 'File new statements on sync',
+    statementsMailFrom: 'The bank mails statements from',
+    statementsMailSubject: 'Subject words',
+    mailSince: 'Mail since',
+    personPayees: 'Counterparties who are people',
+    importProfile: (name: string) => `Import profile ${name}`,
+    billing: { monthlyAmount: 'Monthly fee', subscriptionAmount: 'Monthly subscriptions', bonusAmount: 'Yearly bonus', client: 'Client the rows are for' },
+    billingItem: (term: string) => `${term}, item`,
+    invoicing: {
+      name: 'Company name on the invoice',
+      address: 'Address',
+      country: 'Country',
+      vatId: 'VAT ID',
+      phone: 'Phone',
+      mail: 'Mail',
+      iban: 'IBAN',
+      swift: 'SWIFT',
+      bank: 'Bank',
+      courtRegister: 'Court register number',
+      shareCapital: 'Share capital',
+      place: 'Place of issue',
+      issueTime: 'Issuing time',
+      signatory: 'Signatory',
+      signatoryTitle: 'Signatory’s role',
+      numberPattern: 'Number pattern',
+      filePath: 'File path',
+      folderId: 'Invoice folder',
+      mailSubject: 'Mail subject',
+      mailBody: 'Mail text',
+      reverseChargeNote: 'Reverse-charge note',
+    } satisfies Record<InvoicingField, string>,
+  },
+  /** Sentences that name a setting, kept beside its label so a rename sees them. */
+  settingSentences: {
+    invoiceFolderSaved: 'Invoice folder saved',
+    ownerPayOff: 'The owner-pay module is off',
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -196,6 +245,52 @@ export const hr: Translation<typeof en> = {
     itemTooLong: (most) => `stavka može imati najviše ${most} znakova`,
     nameTheItem: 'upišite stavku koju njezini retci imaju u planu naplate',
     notAnIban: (text) => `„${text}” nije IBAN`,
+  },
+  settingLabels: {
+    templateVersion: 'Format radne knjige',
+    companyName: 'Naziv tvrtke',
+    currency: 'Valuta',
+    numberLocale: 'Zapis brojeva',
+    bucketLabel: (bucket) => `Naziv skupine ${bucket}`,
+    ownerPay: 'Modul isplata vlasniku',
+    reviewLabel: 'Oznaka provjere',
+    cardIbans: 'IBAN-ovi za namiru kartica',
+    statementsFolder: 'Mapa izvoda',
+    statementsSync: 'Upisuj nove izvode pri sinkronizaciji',
+    statementsMailFrom: 'Banka šalje izvode s adresa',
+    statementsMailSubject: 'Riječi u predmetu',
+    mailSince: 'Pošta od',
+    personPayees: 'Druge strane koje su osobe',
+    importProfile: (name) => `Profil učitavanja ${name}`,
+    billing: { monthlyAmount: 'Mjesečna naknada', subscriptionAmount: 'Mjesečne pretplate', bonusAmount: 'Godišnji bonus', client: 'Klijent za kojeg su stavke' },
+    billingItem: (term) => `${term}, stavka`,
+    invoicing: {
+      name: 'Naziv tvrtke na računu',
+      address: 'Adresa',
+      country: 'Država',
+      vatId: 'PDV ID',
+      phone: 'Telefon',
+      mail: 'E-pošta',
+      iban: 'IBAN',
+      swift: 'SWIFT',
+      bank: 'Banka',
+      courtRegister: 'MBS (matični broj subjekta)',
+      shareCapital: 'Temeljni kapital',
+      place: 'Mjesto izdavanja',
+      issueTime: 'Vrijeme izdavanja',
+      signatory: 'Potpisnik',
+      signatoryTitle: 'Funkcija potpisnika',
+      numberPattern: 'Uzorak broja',
+      filePath: 'Putanja datoteke',
+      folderId: 'Mapa računa',
+      mailSubject: 'Predmet poruke',
+      mailBody: 'Tekst poruke',
+      reverseChargeNote: 'Napomena o prijenosu porezne obveze',
+    },
+  },
+  settingSentences: {
+    invoiceFolderSaved: 'Mapa računa je spremljena',
+    ownerPayOff: 'Modul isplata vlasniku je isključen',
   },
 }
 

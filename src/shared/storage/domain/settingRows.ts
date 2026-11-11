@@ -25,12 +25,12 @@ export type SettingChecks = ReadonlyMap<string, SettingValueCheck>
 /** The check of a key whose value is free text. */
 export const ANY_VALUE: SettingValueCheck = () => []
 
-/** How an app keeps its settings, one row per key, in its own kind. */
-export function settingCodec(kind: RecordKind<SettingRow>): RecordCodec<SettingRow> {
+/** How an app keeps its settings, one row per key, in its own kind, each named by the label `labelOf` gives its key. */
+export function settingCodec(kind: RecordKind<SettingRow>, labelOf: (key: string) => string): RecordCodec<SettingRow> {
   return {
     kind,
     key: (fields) => filledKey(slugOf(fields.key)),
-    label: (fields) => labelWords([slugOf(fields.key)]),
+    label: (fields) => labelWords([labelOf(slugOf(fields.key))]),
     make: (fields, id) => ({ id: ownId(id), key: textOf(fields.key), value: textOf(fields.value) }),
     fieldsOf: (setting) => filledFields({ key: setting.key, value: setting.value }),
   }

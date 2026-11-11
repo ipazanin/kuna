@@ -7,6 +7,7 @@ import { useRates } from '../../../../../../shared/rates/application/pageRates'
 import { everydayRates } from '../../../../../../shared/rates/domain/ratesState'
 import { downloadFile } from '../../../../../../shared/files/downloadFile'
 import { XLSX_MIME_TYPE } from '../../../../../../shared/xlsx/sheetGrids'
+import { companyOib } from '../../../../settings/domain/settings'
 import type { InvoicingTerms } from '../../../../settings/domain/settings'
 import type { Employee } from '../../domain/employees/employees'
 import type { TripFile } from '../../domain/trips/tripReading'
@@ -28,7 +29,7 @@ const making = ref<'pdf' | 'xlsx' | null>(null)
 function context() {
   const { company } = props
   return {
-    issuer: { name: company.name, oib: company.vatId.replace(/\D/g, ''), address: company.address },
+    issuer: { name: company.name, oib: companyOib(company), address: company.address },
     traveller: travellerName(props.file.trip.traveller, props.employees),
     place: company.place,
   }

@@ -14,6 +14,8 @@ const props = defineProps<{
   plan: MailPlan | null
   /** Why the last mail step stopped before it had a plan, or null. */
   stopped: string | null
+  /** Why each search started where it did, in the words of the setting that sets its first day. */
+  why: MailSearchShown['why']
 }>()
 
 const dayFormat = dateFormat({ day: 'numeric', month: 'short', year: 'numeric' })
@@ -32,7 +34,7 @@ const sources = computed(() =>
   (props.plan?.sources ?? []).map((source) => ({
     source,
     entries: source.kind === 'planned' ? [...source.entries].sort((first, second) => ORDER.indexOf(first.kind) - ORDER.indexOf(second.kind)) : [],
-    search: source.kind === 'planned' ? ({ window: source.window, query: source.query, why: words.plan.searchedFromWhy } satisfies MailSearchShown) : null,
+    search: source.kind === 'planned' ? ({ window: source.window, query: source.query, why: props.why } satisfies MailSearchShown) : null,
   })),
 )
 

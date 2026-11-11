@@ -7,7 +7,7 @@ import { percentText } from '../../../../../shared/money/percent'
 import type { Percent } from '../../../../../shared/money/percent'
 import { language } from '../../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../../shared/text/translation'
-import { croatianBucket } from '../../../settings/domain/words'
+import { croatianBucket, en as settingsEn, hr as settingsHr } from '../../../settings/domain/words'
 import { uncapitalised } from '../../../../../shared/text/capitalised'
 import { monthCase } from '../../../../../shared/calendar/monthCase'
 import { hr as assetsCroatian } from './assets/words'
@@ -165,7 +165,7 @@ export const en = {
     nonDeductible: 'PD lines 9, 11 and 24 add back no fine or private cost',
   },
   ownerPayOff: {
-    title: 'The owner-pay module is off',
+    title: settingsEn.settingSentences.ownerPayOff,
     description: 'This workbook sets owner_pay_module to FALSE, so owner pay counts as operating cost and this screen has nothing to show.',
     openSettings: 'Open Settings',
   },
@@ -632,7 +632,7 @@ export const hr: Translation<typeof en> = {
     nonDeductible: 'retci 9, 11 i 24 obrasca PD ne dodaju osnovici nikakvu kaznu ni privatni trošak',
   },
   ownerPayOff: {
-    title: 'Modul isplata vlasniku je isključen',
+    title: settingsHr.settingSentences.ownerPayOff,
     description: 'Ova datoteka postavlja owner_pay_module na FALSE, pa se isplate vlasniku broje kao poslovni rashodi, a ovaj zaslon nema što prikazati.',
     openSettings: 'Otvori Postavke',
   },

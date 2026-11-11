@@ -12,7 +12,8 @@ import EntrySplitDialog from './EntrySplitDialog.vue'
 import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
 import { words } from './words'
 import { knownPayees, payeeChoices } from '../domain/knownPayees'
-import { newEntry, newTransfer, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
+import { newTransfer } from '../domain/transfer'
+import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
 import RowLines from '../../receipts/presentation/RowLines.vue'
@@ -204,11 +205,7 @@ function transferWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate)
   const fixed = transferCategory.value
   if (toAccountPicked === null || fixed === null) return null
   const arrived = twoCurrencies.value ? (positive(toAmount.value) ?? typed) : typed
-  const [outLeg, inLeg] = newTransfer(
-    { account: fromAccount.id, amount: typed },
-    { account: toAccountPicked.id, amount: arrived },
-    { date: on, payee: payee.value, note: note.value, category: fixed.id },
-  )
+  const [outLeg, inLeg] = newTransfer({ account: fromAccount.id, amount: typed }, { account: toAccountPicked.id, amount: arrived }, { date: on, note: note.value, category: fixed.id })
   const before = props.entry
   const pair = legs.value
   return (unit) => writeTransfer(unit, before, pair, [outLeg, inLeg])
@@ -273,7 +270,7 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.date" :error="(tried && errors.date) || false">
         <UInput v-model="date" type="date" class="w-full" data-testid="spending-entry-date" />
       </UFormField>
-      <UFormField :label="words.dialog.payee">
+      <UFormField v-if="kind !== 'transfer'" :label="words.dialog.payee">
         <UInputMenu
           v-model="payee"
           mode="autocomplete"
@@ -288,7 +285,7 @@ async function remove(): Promise<void> {
           @focusout="payeeListOpen = false"
         />
       </UFormField>
-      <UFormField :label="spendingWords.form.note" class="sm:col-span-2">
+      <UFormField :label="spendingWords.form.note" :class="twoCurrencies ? '' : 'sm:col-span-2'">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
@@ -326,7 +323,7 @@ async function remove(): Promise<void> {
       <div v-else-if="entry !== null && legs === null && kind !== 'transfer'" class="sm:col-span-2">
         <UButton :label="words.split.action" icon="i-lucide-split" color="neutral" variant="outline" data-testid="spending-entry-split" @click="splitOpen = true" />
       </div>
-      <div v-if="savedPayee !== '' && assistKeyKept" class="flex flex-col items-start gap-1 sm:col-span-2" data-testid="spending-entry-person">
+      <div v-if="savedPayee !== '' && assistKeyKept && kind !== 'transfer'" class="flex flex-col items-start gap-1 sm:col-span-2" data-testid="spending-entry-person">
         <UButton
           :label="payeeIsPerson ? words.dialog.asCompany : words.dialog.asPerson"
           :icon="payeeIsPerson ? 'i-lucide-store' : 'i-lucide-user-round'"

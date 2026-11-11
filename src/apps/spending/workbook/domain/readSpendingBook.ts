@@ -9,7 +9,20 @@ import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
-import { SPENDING_SETTING_CHECKS, spendingSettingsOf } from './spendingSettings'
+import {
+  BANK_ACCOUNTS_KEEP_MINE_KEY,
+  BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
+  BANK_SYNC_DEPLOYMENT_KEY,
+  COMPANY_OIB_KEY,
+  LINKABLE_BANKS,
+  PERSON_PAYEES_KEY,
+  bankFetchedKey,
+  bankLinkKey,
+  isBankAccountLine,
+  linesOf,
+  spendingSettingsOf,
+  utcTimeOf,
+} from './spendingSettings'
 import type { SpendingSettings } from './spendingSettings'
 import { rowKey } from './transaction'
 import type { Transaction } from './transaction'
@@ -22,10 +35,26 @@ import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/r
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { readSettingRows } from '../../../../shared/storage/domain/settingRows'
-import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
+import { ANY_VALUE, readSettingRows } from '../../../../shared/storage/domain/settingRows'
+import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
+import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 import { listInWords } from '../../../../shared/text/listInWords'
+
+function bankAccountLinesCheck(key: string): SettingValueCheck {
+  return (value: string) => linesOf(value).flatMap((line) => (isBankAccountLine(line) ? [] : [words.settingNotABankAccount(key, line)]))
+}
+
+/** Each key Spending knows, a bank's link ending only on a day, and a bank's last fetch only at a UTC time. */
+export const SPENDING_SETTING_CHECKS: SettingChecks = new Map<string, SettingValueCheck>([
+  [BANK_SYNC_DEPLOYMENT_KEY, ANY_VALUE],
+  [COMPANY_OIB_KEY, ANY_VALUE],
+  [PERSON_PAYEES_KEY, ANY_VALUE],
+  [BANK_ACCOUNTS_NOT_IN_KUNA_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_NOT_IN_KUNA_KEY)],
+  [BANK_ACCOUNTS_KEEP_MINE_KEY, bankAccountLinesCheck(BANK_ACCOUNTS_KEEP_MINE_KEY)],
+  ...LINKABLE_BANKS.map(bankLinkKey).map((key) => [key, (value: string) => (parseCivilDate(value) === null ? [words.settingNotADay(key, value)] : [])] as const),
+  ...LINKABLE_BANKS.map(bankFetchedKey).map((key) => [key, (value: string) => (utcTimeOf(value) === null ? [words.settingNotATime(key, value)] : [])] as const),
+])
 
 /** What the Spending file holds of each kind. */
 export interface SpendingRecords {

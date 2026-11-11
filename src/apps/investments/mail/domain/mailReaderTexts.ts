@@ -1,5 +1,4 @@
-import { IBKR_FLEX_RECIPE } from '../domain/ibkrFlexRecipe'
-import { words } from './words'
+import { IBKR_FLEX_RECIPE } from './ibkrFlexRecipe'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { mailAddressesOf, mailAddressesProblem, mailContentsProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
@@ -20,14 +19,18 @@ export function mailReaderTexts(saved: MailReader | null): MailReaderTexts {
   return { senders: senders.join(', '), subject, contents, since: saved?.since ?? today() }
 }
 
+/** A field that names nothing it needs, or one Gmail cannot search for, with the mail search's own reason. */
+export type MailReaderFault = { readonly kind: 'missing' } | { readonly kind: 'unsearchable'; readonly reason: string }
+
 /** What each field lacks, null for one that reads. A switched-off reader may name no sender. */
-export function mailReaderErrors(texts: MailReaderTexts, on: boolean): Readonly<Record<MailReaderField, string | null>> {
+export function mailReaderFaults(texts: MailReaderTexts, on: boolean): Readonly<Record<MailReaderField, MailReaderFault | null>> {
+  const unsearchable = (reason: string | null): MailReaderFault | null => (reason === null ? null : { kind: 'unsearchable', reason })
   const senders = mailAddressesOf(texts.senders)
   return {
-    senders: senders.length === 0 ? (on ? words.card.sendersHelp : null) : mailAddressesProblem(senders),
-    subject: mailSubjectProblem(texts.subject),
-    contents: mailContentsProblem(texts.contents),
-    since: parseCivilDate(texts.since) === null ? words.card.sinceMissing : null,
+    senders: senders.length === 0 ? (on ? { kind: 'missing' } : null) : unsearchable(mailAddressesProblem(senders)),
+    subject: unsearchable(mailSubjectProblem(texts.subject)),
+    contents: unsearchable(mailContentsProblem(texts.contents)),
+    since: parseCivilDate(texts.since) === null ? { kind: 'missing' } : null,
   }
 }
 

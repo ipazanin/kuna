@@ -2,6 +2,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
+import { en as workbookEn, hr as workbookHr } from '../../workbook/domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Račun is both an account and a receipt, so a receipt is fiskalni račun wherever both could be meant.
 
@@ -54,10 +55,10 @@ export const en = {
   settings: {
     title: 'Fiscal receipts',
     subtitle: 'A receipt whose buyer is your company files every line under For the company. With no OIB saved, any receipt naming a buyer does.',
-    companyOib: 'Company OIB',
+    companyOib: workbookEn.settingLabels.companyOib,
     oibWrong: "The OIB's check digit is wrong",
     save: 'Save',
-    saved: 'Company OIB saved',
+    saved: workbookEn.settingSentences.companyOibSaved,
   },
 }
 
@@ -110,10 +111,10 @@ export const hr: Translation<typeof en> = {
   settings: {
     title: 'Fiskalni računi',
     subtitle: 'Fiskalni račun na kojem je kupac vaša tvrtka sve stavke stavlja pod Za tvrtku. Bez spremljenog OIB-a to čini svaki račun koji navodi kupca.',
-    companyOib: 'OIB tvrtke',
+    companyOib: workbookHr.settingLabels.companyOib,
     oibWrong: 'Kontrolna znamenka OIB-a nije ispravna',
     save: 'Spremi',
-    saved: 'OIB tvrtke je spremljen',
+    saved: workbookHr.settingSentences.companyOibSaved,
   },
 }
 

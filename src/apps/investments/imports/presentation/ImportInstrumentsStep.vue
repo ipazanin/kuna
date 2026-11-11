@@ -5,14 +5,13 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import type { InstrumentStep, SettledImport } from './importChoices'
+import type { InstrumentStep, SettledImport } from '../domain/importChoices'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
 import InstrumentFields from '../../holdings/presentation/InstrumentFields.vue'
 import { instrumentTexts } from '../../holdings/domain/instrumentDraft'
 import type { InstrumentTexts } from '../../holdings/domain/instrumentDraft'
-import { hasInstrumentErrors } from '../../holdings/presentation/instrumentForm'
-import { words as holdingWords } from '../../holdings/presentation/words'
+import { instrumentErrors, words as holdingWords } from '../../holdings/presentation/words'
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { plural } from '../../../../shared/text/translation'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -66,8 +65,12 @@ function guessOf(texts: InstrumentTexts): string {
   return words.instruments.guess(texts.name, texts.type === '' ? holdingWords.classes[texts.class] : holdingWords.types[texts.type], texts.currency, source)
 }
 
+function needsLook(step: InstrumentStep): boolean {
+  return step.faults !== null && Object.values(step.faults).some((fault) => fault !== null)
+}
+
 function opened(step: InstrumentStep): boolean {
-  return changing.value.has(step.question.identity) || (step.errors !== null && hasInstrumentErrors(step.errors))
+  return changing.value.has(step.question.identity) || needsLook(step)
 }
 </script>
 
@@ -93,7 +96,7 @@ function opened(step: InstrumentStep): boolean {
           <InstrumentFields
             v-if="step.choice.kind === 'new' && opened(step)"
             :model-value="step.choice.texts"
-            :errors="step.errors!"
+            :errors="instrumentErrors(step.faults!)"
             tried
             :book="book!"
             test-id="import-instrument"
@@ -103,11 +106,11 @@ function opened(step: InstrumentStep): boolean {
         <template v-if="step.choice.kind === 'new'">
           <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <p class="flex min-w-0 items-start gap-2 type-caption" data-testid="import-instrument-guess">
-              <UIcon v-if="step.errors && hasInstrumentErrors(step.errors)" name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-              <span class="min-w-0 break-words">{{ step.errors && hasInstrumentErrors(step.errors) ? words.instruments.needsLook : guessOf(step.choice.texts) }}</span>
+              <UIcon v-if="needsLook(step)" name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
+              <span class="min-w-0 break-words">{{ needsLook(step) ? words.instruments.needsLook : guessOf(step.choice.texts) }}</span>
             </p>
             <UButton
-              v-if="!(step.errors && hasInstrumentErrors(step.errors))"
+              v-if="!needsLook(step)"
               :label="opened(step) ? words.instruments.done : words.instruments.edit"
               :icon="opened(step) ? 'i-lucide-check' : 'i-lucide-pencil'"
               color="neutral"

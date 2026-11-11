@@ -50,6 +50,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
   definitions: [
     {
       key: 'hr_company_registered',
+      label: words.settingNames.registered,
       note: 'The day the company was registered, as a date or as text such as 2025-05-12. It starts the first tax period.',
       type: 'date',
       valueOf: (facts) => facts.companyRegistered ?? '',
@@ -60,6 +61,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
     {
       key: 'hr_cit_return',
+      label: words.settingNames.citReturn,
       note: 'pd for the corporate tax return on the accrual profit, pd-nn for the return on cash received and paid.',
       type: 'text',
       valueOf: (facts) => facts.citReturn,
@@ -70,6 +72,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
     {
       key: 'hr_vat_principle',
+      label: words.settingNames.vatPrinciple,
       note: 'invoice when VAT falls due on the invoice date, cash when it falls due on payment.',
       type: 'text',
       valueOf: (facts) => facts.vatPrinciple,
@@ -80,6 +83,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
     {
       key: 'hr_depreciation_doubled',
+      label: words.settingNames.doubled,
       note: 'TRUE when the accountant doubles the depreciation rates by default. An asset row can still say otherwise.',
       type: 'flag',
       valueOf: (facts) => flagText(facts.depreciationDoubled),
@@ -90,6 +94,7 @@ export const COMPANY_FACT_SETTINGS: PackSettings<CompanyFacts> = {
     },
     {
       key: 'hr_owner_loan_interest',
+      label: words.settingNames.loanInterest,
       note: "The yearly interest rate the owner's loans from the company carry, with its percent sign, such as 2%. Blank means 0%. Below the income tax law's rate the difference is a benefit in kind.",
       type: 'number',
       valueOf: (facts) => `${writtenPercent(facts.ownerLoanInterest)}%`,

@@ -1,4 +1,5 @@
-import { PERSON_PAYEES_KEY, SPENDING_SETTING_CHECKS, spendingSettingsOf } from '../domain/spendingSettings'
+import { PERSON_PAYEES_KEY, spendingSettingsOf } from '../domain/spendingSettings'
+import { SPENDING_SETTING_CHECKS } from '../domain/readSpendingBook'
 import { SETTING_RECORDS } from '../domain/spendingKinds'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { setSetting, settingWrites } from '../../../../shared/storage/application/settingWrites'

@@ -1,5 +1,5 @@
 import type { WaitReason } from '../domain/importDryRun'
-import type { UnlistedSplit } from './importChoices'
+import type { UnlistedSplit } from '../domain/importChoices'
 import type { WorkbookType } from '../domain/portfolioWorkbook'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'

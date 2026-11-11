@@ -7,8 +7,8 @@ import { OPTIONAL_COLUMNS, WORKBOOK_COLUMNS, readPortfolioWorkbook } from '../sr
 import { ratesWanted } from '../src/apps/investments/imports/domain/workbookRates'
 import { portfolioTemplateFile } from '../src/apps/investments/imports/infrastructure/portfolioTemplate'
 import { dryRunGroups } from '../src/apps/investments/imports/presentation/dryRunLines'
-import { NO_CHOICES, settledImport } from '../src/apps/investments/imports/presentation/importChoices'
-import type { SplitsAnswer } from '../src/apps/investments/imports/presentation/importChoices'
+import { NO_CHOICES, settledImport } from '../src/apps/investments/imports/domain/importChoices'
+import type { SplitsAnswer } from '../src/apps/investments/imports/domain/importChoices'
 import { words } from '../src/apps/investments/imports/presentation/words'
 import { tradeTotal } from '../src/apps/investments/holdings/domain/lots'
 import type { Trade } from '../src/apps/investments/workbook/domain/trade'
@@ -169,7 +169,7 @@ describe('a spin-off whose row names its parent and its share of the cost', () =
   it('reads the share as a percent from 1 up, and as a percent in text with a percent sign, whatever its size', () => {
     for (const costShare of [5.2051, '5.2051%', '5,2051 %']) {
       const settled = spinOffWith({ spinOffFrom: 'ABC', costShare })
-      expect(settled.spinOffs[0]).toMatchObject({ answeredByRow: true, workbookProblem: null })
+      expect(settled.spinOffs[0]).toMatchObject({ answeredByRow: true, rowFault: null })
       expect(settled.dryRun.added.spinOffs.map((spinOff) => decimalText(spinOff.costShare))).toEqual(['0.052051'])
     }
   })
@@ -186,8 +186,8 @@ describe('a spin-off whose row names its parent and its share of the cost', () =
       [0.052051, ['0.052051', '5.2051']],
     ] as const) {
       const settled = spinOffWith({ spinOffFrom: 'ABC', costShare })
-      expect(settled.spinOffs[0]).toMatchObject({ answeredByRow: false, workbookProblem: null, costShare: '', costShareReadings: readings })
-      expect(settled.spinOffs[0]?.problems.costShare).toBe(words.questions.costShareReadingMissing)
+      expect(settled.spinOffs[0]).toMatchObject({ answeredByRow: false, rowFault: null, costShare: '', costShareReadings: readings })
+      expect(settled.spinOffs[0]?.costShareFault).toBe('reading-missing')
       // A proposal stands by the field, and is not taken in place of the answer.
       expect(settled.spinOffs[0]?.proposed).not.toBeNull()
       expect(settled.dryRun.added.spinOffs).toEqual([])
@@ -215,16 +215,16 @@ describe('a spin-off whose row names its parent and its share of the cost', () =
 
   it('asks as before when a cell is blank, cannot be read or names no holding, saying which', () => {
     const blank = spinOffWith({})
-    expect(blank.spinOffs[0]).toMatchObject({ answeredByRow: false, workbookProblem: null, parent: null })
+    expect(blank.spinOffs[0]).toMatchObject({ answeredByRow: false, rowFault: null, parent: null })
 
     const unreadable = spinOffWith({ spinOffFrom: 'ABC', costShare: 'about five' })
-    expect(unreadable.spinOffs[0]).toMatchObject({ answeredByRow: false, workbookProblem: words.questions.costShareUnreadable('about five') })
+    expect(unreadable.spinOffs[0]).toMatchObject({ answeredByRow: false, rowFault: { kind: 'cost-share-unreadable', text: 'about five' } })
     // The parent the row names is still picked, so the share is proposed from its cost.
     expect(unreadable.spinOffs[0]?.parent).not.toBeNull()
     expect(unreadable.spinOffs[0]?.proposed).not.toBeNull()
 
     const stranger = spinOffWith({ spinOffFrom: 'ZZZ', costShare: 5 })
-    expect(stranger.spinOffs[0]).toMatchObject({ answeredByRow: false, parent: null, workbookProblem: words.questions.parentNotFound('ZZZ') })
+    expect(stranger.spinOffs[0]).toMatchObject({ answeredByRow: false, parent: null, rowFault: { kind: 'parent-not-found', from: 'ZZZ' } })
 
     expect(spinOffWith({ spinOffFrom: 'ABC', costShare: 120 }).spinOffs[0]?.answeredByRow).toBe(false)
   })
@@ -249,7 +249,7 @@ describe('a split answered from the splits its vendor lists', () => {
     const cases: [SplitsAnswer, string][] = [
       [{ kind: 'no-key' }, 'no-key'],
       [{ kind: 'pending' }, 'pending'],
-      [{ kind: 'failed', reason: 'limit' }, 'failed'],
+      [{ kind: 'failed' }, 'failed'],
       [{ kind: 'splits', splits: [{ date: '2024-06-10', newUnits: '2', oldUnits: '1' }] }, 'none-near'],
     ]
     for (const [answer, unlisted] of cases) {

@@ -1,24 +1,8 @@
-import { NO_ANSWERS, costShareFromCloses, proposedCostShare, workbookDryRun } from '../domain/importDryRun'
-import type {
-  AccountQuestion,
-  InstrumentQuestion,
-  LookAlikeAnswer,
-  SpinOffAnswer,
-  SpinOffQuestion,
-  SplitQuestion,
-  SplitRatio,
-  WorkbookAnswers,
-  WorkbookDryRun,
-  WorkbookRows,
-} from '../domain/importDryRun'
-import type { WorkbookRow } from '../domain/portfolioWorkbook'
-import { words } from './words'
+import { NO_ANSWERS, costShareFromCloses, proposedCostShare, workbookDryRun } from './importDryRun'
+import type { AccountQuestion, InstrumentQuestion, LookAlikeAnswer, SpinOffAnswer, SpinOffQuestion, SplitQuestion, SplitRatio, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from './importDryRun'
+import type { WorkbookRow } from './portfolioWorkbook'
 import { instrumentFaults, instrumentOfTexts, instrumentTexts } from '../../holdings/domain/instrumentDraft'
-import type { InstrumentTexts } from '../../holdings/domain/instrumentDraft'
-import { instrumentErrors } from '../../holdings/presentation/words'
-import type { InstrumentErrors } from '../../holdings/presentation/words'
-import type { ReportedSplit } from '../../prices/application/priceVendor'
-import type { SplitsLookedUp } from '../../prices/application/splitLookup'
+import type { InstrumentFaults, InstrumentTexts } from '../../holdings/domain/instrumentDraft'
 import type { CloseRow } from '../../prices/domain/pricesFile'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
@@ -73,18 +57,26 @@ export type NewIds = (key: string) => string
 export interface AccountStep {
   readonly question: AccountQuestion
   readonly choice: AccountChoice
-  readonly problem: string | null
+  /** A new account's name is blank. */
+  readonly nameMissing: boolean
 }
 
 export interface InstrumentStep {
   readonly question: InstrumentQuestion
   readonly choice: InstrumentChoice
   /** What a new holding's fields lack, null for one Kuna has. */
-  readonly errors: InstrumentErrors | null
+  readonly faults: InstrumentFaults | null
 }
 
-/** What the lookup has of a symbol's splits: nothing asked without a key, nothing yet while it asks, or the vendor's answer. */
-export type SplitsAnswer = { readonly kind: 'no-key' } | { readonly kind: 'pending' } | SplitsLookedUp
+/** A split a vendor lists, each figure as the vendor sent it. */
+export interface ListedSplit {
+  readonly date: string
+  readonly newUnits: string
+  readonly oldUnits: string
+}
+
+/** What the lookup has of a symbol's splits: nothing asked without a key, nothing yet while it asks, the splits the vendor lists or its failure. */
+export type SplitsAnswer = { readonly kind: 'no-key' } | { readonly kind: 'pending' } | { readonly kind: 'splits'; readonly splits: readonly ListedSplit[] } | { readonly kind: 'failed' }
 
 export type SplitsOf = (symbol: string) => SplitsAnswer
 
@@ -104,11 +96,18 @@ export interface SplitStep {
   /** The symbol its splits are looked up under, null while its holding has no answer or is priced by hand. */
   readonly symbol: string | null
   /** The split the vendor lists near the row's day, which answers the question so it is not asked. */
-  readonly listed: ReportedSplit | null
+  readonly listed: ListedSplit | null
   readonly unlisted: UnlistedSplit | null
   readonly texts: SplitTexts
-  readonly problem: string | null
+  /** The ratio typed is not two whole numbers above zero. */
+  readonly ratioMissing: boolean
 }
+
+/** Why a spin-off's cost share gives no answer: an unclear cell whose reading is not picked, or a share that is not above 0 and at most 100 percent. */
+export type CostShareFault = 'reading-missing' | 'out-of-range'
+
+/** What the row's own Spin-off from or Cost share cell gave that cannot be used. */
+export type SpinOffRowFault = { readonly kind: 'parent-not-found'; readonly from: string } | { readonly kind: 'cost-share-unreadable'; readonly text: string }
 
 export interface SpinOffStep {
   readonly question: SpinOffQuestion
@@ -122,9 +121,9 @@ export interface SpinOffStep {
   readonly proposed: Decimal | null
   /** The day of both closes the proposal comes from, or null when it is the units' worth over the cost held. */
   readonly proposedOn: CivilDate | null
-  readonly problems: { readonly parent: string | null; readonly costShare: string | null }
-  /** What the row's own Spin-off from or Cost share cell gave that cannot be used, or null. */
-  readonly workbookProblem: string | null
+  readonly parentMissing: boolean
+  readonly costShareFault: CostShareFault | null
+  readonly rowFault: SpinOffRowFault | null
   /** The row's own columns answer it whole, so it is not asked. */
   readonly answeredByRow: boolean
 }
@@ -228,11 +227,11 @@ function accountStep(question: AccountQuestion, book: InvestmentBook, choices: I
           ? { kind: 'existing', account: question.likely!.account }
           : { kind: 'new', name: question.proposedName }
   if (choice.kind === 'existing') {
-    return { step: { question, choice, problem: null }, answer: existing(choice.account)! }
+    return { step: { question, choice, nameMissing: false }, answer: existing(choice.account)! }
   }
   const name = choice.name.trim()
   return {
-    step: { question, choice, problem: name === '' ? words.accounts.nameMissing : null },
+    step: { question, choice, nameMissing: name === '' },
     answer: name === '' ? null : { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, newIds(`account:${question.account}`)), name, note: '' },
   }
 }
@@ -243,10 +242,10 @@ function instrumentSteps(questions: readonly InstrumentQuestion[], book: Investm
   const fresh = chosen.flatMap(({ question, choice, id }) => (choice.kind === 'new' ? (instrumentOfTexts(choice.texts, book.instruments, id, question.proposal) ?? []) : []))
   return chosen.map(({ question, choice, id }) => {
     if (choice.kind === 'existing') {
-      return { step: { question, choice, errors: null }, answer: book.instruments.find((instrument) => instrument.id === choice.instrument) ?? null }
+      return { step: { question, choice, faults: null }, answer: book.instruments.find((instrument) => instrument.id === choice.instrument) ?? null }
     }
     const others = [...book.instruments, ...fresh.filter((other) => other.id !== id)]
-    return { step: { question, choice, errors: instrumentErrors(instrumentFaults(choice.texts, others)) }, answer: instrumentOfTexts(choice.texts, others, id, question.proposal) }
+    return { step: { question, choice, faults: instrumentFaults(choice.texts, others) }, answer: instrumentOfTexts(choice.texts, others, id, question.proposal) }
   })
 }
 
@@ -284,7 +283,7 @@ function splitStep(question: SplitQuestion, instrument: Instrument | null, choic
         : { newUnits: String(proposal.newUnits), oldUnits: String(proposal.oldUnits) })
   const [newUnits, oldUnits] = [texts.newUnits.trim(), texts.oldUnits.trim()]
   const ratio = WHOLE.test(newUnits) && WHOLE.test(oldUnits) && Number(newUnits) > 0 && Number(oldUnits) > 0 ? { newUnits: Number(newUnits), oldUnits: Number(oldUnits) } : null
-  return { step: { question, symbol, listed, unlisted, texts, problem: ratio === null ? words.questions.ratioProblem : null }, answer: ratio }
+  return { step: { question, symbol, listed, unlisted, texts, ratioMissing: ratio === null }, answer: ratio }
 }
 
 /**
@@ -324,11 +323,11 @@ function spinOffStep(
   const costShare = typed ?? decimalShown(fromRow !== null ? timesDecimal(fromRow, PERCENT) : shownProposal)
   const percent = typed === null ? null : typedDecimal(typed)
   const fraction = typed === null ? (unclear === null ? (fromRow ?? proposed) : null) : percent === null || percent <= DECIMAL_ZERO || percent > PERCENT ? null : scaledDecimal(percent, 1n, 100n)
-  const workbookProblem =
+  const rowFault: SpinOffRowFault | null =
     question.from !== '' && named === null
-      ? words.questions.parentNotFound(question.from)
+      ? { kind: 'parent-not-found', from: question.from }
       : question.costShareText !== '' && fromRow === null && unclear === null
-        ? words.questions.costShareUnreadable(question.costShareText)
+        ? { kind: 'cost-share-unreadable', text: question.costShareText }
         : null
   return {
     step: {
@@ -339,11 +338,9 @@ function spinOffStep(
       costShareReadings,
       proposed,
       proposedOn: fromCloses?.day ?? null,
-      problems: {
-        parent: parent === null ? words.questions.parentMissing : null,
-        costShare: fraction === null ? (unclear !== null && typed === null ? words.questions.costShareReadingMissing : words.questions.costShareProblem) : null,
-      },
-      workbookProblem,
+      parentMissing: parent === null,
+      costShareFault: fraction === null ? (unclear !== null && typed === null ? 'reading-missing' : 'out-of-range') : null,
+      rowFault,
       answeredByRow: named !== null && fromRow !== null,
     },
     answer: parent === null || fraction === null ? null : { parent, costShare: fraction },

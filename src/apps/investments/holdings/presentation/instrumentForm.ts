@@ -1,5 +1,4 @@
 import { words } from './words'
-import type { InstrumentErrors } from './words'
 import type { SearchedListing } from '../../prices/application/symbolSearch'
 import type { InstrumentTexts } from '../domain/instrumentDraft'
 import { FUND_DISTRIBUTIONS, INSTRUMENT_TYPES, PRICE_SOURCES, TYPE_OF_QUOTING } from '../../workbook/domain/instrument'
@@ -28,10 +27,6 @@ export const COUNTRY_ITEMS: { readonly value: string; readonly label: string }[]
   ...REGIONS.map((value) => ({ value, label: words.regions[value] })),
   ...COUNTRY_CODES.map((value) => ({ value, label: `${countryName(value)} (${value})` })).sort((left, right) => naturalOrder(left.label, right.label)),
 ]
-
-export function hasInstrumentErrors(errors: InstrumentErrors): boolean {
-  return Object.values(errors).some((error) => error !== null)
-}
 
 /**
  * The fields with a listing a search found: its symbol where none is typed, its name where none is typed, the type

@@ -1,4 +1,5 @@
 import { en as domainEn, hr as domainHr } from '../domain/words'
+import { en as workbookEn, hr as workbookHr } from '../../workbook/domain/words'
 import { language } from '../../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -7,7 +8,7 @@ import type { CroatianForms, EnglishForms, Translation } from '../../../../share
 export const en = {
   title: 'Bank sync',
   subtitle: 'Brings booked rows from your banks through a script of your own, into the same review as a statement.',
-  deployment: 'Script deployment ID',
+  deployment: workbookEn.settingLabels.deployment,
   deploymentHelp: "From Deploy, Manage deployments in the script's editor. Without it Kuna asks Google for nothing more and sends no request.",
   save: 'Save',
   saved: 'Bank sync script saved',
@@ -101,7 +102,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   title: 'Sinkronizacija s bankom',
   subtitle: 'Donosi proknjižene retke iz vaših banaka preko vaše vlastite skripte, u isti pregled kao i izvod.',
-  deployment: 'ID implementacije skripte',
+  deployment: workbookHr.settingLabels.deployment,
   deploymentHelp: 'Iz Deploy, Manage deployments u uređivaču skripte. Bez njega Kuna ne traži od Googlea ništa novo i ne šalje nijedan zahtjev.',
   save: 'Spremi',
   saved: 'Skripta za sinkronizaciju spremljena',

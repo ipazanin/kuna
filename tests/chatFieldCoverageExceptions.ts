@@ -12,6 +12,10 @@ export interface NoFieldPaths {
 
 export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   {
+    reason: "A transfer moves money between your own accounts, so its legs write no payee. A plain entry's payee goes through add-entry and change-entry.",
+    fields: ['spending: Transaction.payee'],
+  },
+  {
     reason: "Ids Kuna makes. A person never types a record's id, and an operation names the record it changes by a ref.",
     fields: [
       'assets: Asset.id',

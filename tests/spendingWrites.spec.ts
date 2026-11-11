@@ -5,7 +5,8 @@ import { accountBalance } from '../src/apps/spending/accounts/domain/accountBala
 import { ACCOUNT_WRITES, keptAccount } from '../src/apps/spending/accounts/application/accountWrites'
 import { setLimit } from '../src/apps/spending/budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
-import { TRANSACTION_WRITES, newEntry, newTransfer, deleteComesBack, removeEntry, retypedEntry, transferOver } from '../src/apps/spending/entries/application/entryWrites'
+import { newTransfer } from '../src/apps/spending/entries/domain/transfer'
+import { TRANSACTION_WRITES, newEntry, deleteComesBack, removeEntry, retypedEntry, transferOver } from '../src/apps/spending/entries/application/entryWrites'
 import { answerHeldRow } from '../src/apps/spending/bankSync/application/heldRowWrites'
 import { fileRow, joinWithTyped, notAPair, pairRows, writeDryRun, writeRulesInto } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
@@ -52,7 +53,7 @@ function topUp(amount = 200, into = REVOLUT_EUR, received = amount) {
   return newTransfer(
     { account: OTP.id, amount: accountMoneyFromAmount(amount) },
     { account: into.id, amount: accountMoneyFromAmount(received) },
-    { date: civil('2026-10-03'), payee: ' Top-up ', note: '', category: BETWEEN.id },
+    { date: civil('2026-10-03'), note: '', category: BETWEEN.id },
   )
 }
 
@@ -70,7 +71,7 @@ describe('Spending writes', () => {
     expect(store.state.workbook!.problems).toEqual([])
   })
 
-  it("writes a transfer's two legs in one write, each naming the other, out of one account and into the other", async () => {
+  it("writes a transfer's two legs in one write, each naming the other, out of one account and into the other, with no payee", async () => {
     const store = await spendingStore()
     const [out, into] = topUp()
 
@@ -79,8 +80,8 @@ describe('Spending writes', () => {
     expect(store.state.writes).toHaveLength(1)
     expect(store.state.workbook!.problems).toEqual([])
     expect(store.state.workbook!.transactions.map((leg) => [leg.account, leg.amount, leg.payee, leg.pair])).toEqual([
-      [OTP.id, accountMoneyFromAmount(-200), 'Top-up', into.id],
-      [REVOLUT_EUR.id, accountMoneyFromAmount(200), 'Top-up', out.id],
+      [OTP.id, accountMoneyFromAmount(-200), '', into.id],
+      [REVOLUT_EUR.id, accountMoneyFromAmount(200), '', out.id],
     ])
     // OTP 1,550.00 − 200.00 and Revolut EUR 300.00 + 200.00.
     expect([OTP, REVOLUT_EUR].map((account) => accountBalance(account, store.state.workbook!.transactions, DAY))).toEqual([accountMoneyFromAmount(1_350), accountMoneyFromAmount(500)])

@@ -4,7 +4,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
-import type { AccountStep, SettledImport } from './importChoices'
+import type { AccountStep, SettledImport } from '../domain/importChoices'
 import type { WorkbookImport } from './useWorkbookImport'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
@@ -62,7 +62,7 @@ function name(step: AccountStep, text: string): void {
               @update:model-value="pick(step, String($event))"
             />
           </UFormField>
-          <UFormField v-if="step.choice.kind === 'new'" :label="words.accounts.name" :help="words.accounts.nameHelp" :error="step.problem ?? false">
+          <UFormField v-if="step.choice.kind === 'new'" :label="words.accounts.name" :help="words.accounts.nameHelp" :error="step.nameMissing && words.accounts.nameMissing">
             <UInput :model-value="step.choice.name" class="w-full" data-testid="import-account-name" @update:model-value="name(step, String($event))" />
           </UFormField>
         </FormGrid>
