@@ -18,7 +18,7 @@ describe("the person flag on Spending's entry", () => {
 
   it('shows only for an entry whose saved payee is not blank, while an AI key is kept', () => {
     expect(dialog).toContain("const savedPayee = computed(() => props.entry?.payee.trim() ?? '')")
-    expect(tagOf(dialog, 'spending-entry-person')).toContain(`v-if="savedPayee !== '' && assistKeyKept"`)
+    expect(tagOf(dialog, 'spending-entry-person')).toContain(`v-if="savedPayee !== '' && assistKeyKept && kind !== 'transfer'"`)
   })
 
   it('reads as its reverse once the payee is flagged, by the same words in any order', () => {

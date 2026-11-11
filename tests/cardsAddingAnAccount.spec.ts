@@ -32,7 +32,7 @@ describe('a card that adds an account and what goes on it', () => {
   it('shows each Spending entry in the new account’s currency', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
-      { op: 'add-account', input: { name: 'Dollars', kind: 'bank', bank: null, currency: 'USD', opening: 0, openedOn: '2026-11-01', iban: null }, as: '$dollars' },
+      { op: 'add-account', input: { name: 'Dollars', kind: 'bank', bank: null, currency: 'USD', opening: 0, openedOn: '2026-11-01', iban: null, rowsFrom: 'by-hand' }, as: '$dollars' },
       { op: 'add-entry', input: { account: '$dollars', date: '2026-11-02', amount: -12.5, payee: 'A shop', category: null, note: '' } },
       { op: 'add-entry', input: { account: '$dollars', date: '2026-11-03', amount: 40, payee: 'A refund', category: null, note: '' } },
     ])
