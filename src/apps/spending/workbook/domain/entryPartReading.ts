@@ -14,10 +14,13 @@ import type { StoredFields } from '../../../../shared/storage/domain/storedField
 export function entryPartOf(fields: StoredFields, id: RecordId | null): EntryPart {
   const amount = requiredAccountMoney(fields, 'amount')
   if (amount === 0) refuse(words.amountIsZero)
+  const transaction = optionalReference(fields, 'transaction', TRANSACTION_RECORDS)
+  const receipt = optionalReference(fields, 'receipt', RECEIPT_RECORDS)
+  if (transaction === null && receipt === null) refuse(words.partEntryOrReceipt)
   return {
     id: ownId(id),
-    transaction: requiredReference(fields, 'transaction', TRANSACTION_RECORDS),
-    receipt: optionalReference(fields, 'receipt', RECEIPT_RECORDS),
+    transaction,
+    receipt,
     printed: textOf(fields.printed),
     text: textOf(fields.text),
     amount,
@@ -27,7 +30,7 @@ export function entryPartOf(fields: StoredFields, id: RecordId | null): EntryPar
 
 export const PART_CODEC: RecordCodec<EntryPart> = withIdField(PART_RECORDS, words.partLabel, entryPartOf, (part) =>
   filledFields({
-    transaction: keyOfRecordId(TRANSACTION_RECORDS, part.transaction),
+    transaction: part.transaction === null ? null : keyOfRecordId(TRANSACTION_RECORDS, part.transaction),
     receipt: part.receipt === null ? null : keyOfRecordId(RECEIPT_RECORDS, part.receipt),
     printed: part.printed,
     text: part.text,

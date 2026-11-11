@@ -4,6 +4,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { WaitingRow } from '../domain/reviewQueue'
+import ReviewItem from './ReviewItem.vue'
 import { words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { entryAsked } from '../../entries/presentation/entryAsked'
@@ -15,7 +16,6 @@ import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
-import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
 
@@ -65,14 +65,14 @@ function picked(id: string | undefined): void {
 </script>
 
 <template>
-  <li class="flex flex-col gap-2 px-4 py-3 sm:px-5" v-bind="marked" data-testid="spending-review-row">
-    <div class="flex items-start gap-3">
-      <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span class="break-words text-sm text-highlighted">{{ waiting.row.payee || waiting.row.description }}</span>
-        <span class="break-words type-caption">{{ [dayLabel(waiting.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ') }}</span>
-      </span>
-      <AccountMoneyText :cents="waiting.row.amount" :currency="currency" sign="always" tone="flow" class="shrink-0 text-sm" />
-    </div>
+  <ReviewItem
+    :title="waiting.row.payee || waiting.row.description"
+    :caption="[dayLabel(waiting.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ')"
+    :cents="waiting.row.amount"
+    :currency="currency"
+    v-bind="marked"
+    data-testid="spending-review-row"
+  >
     <div class="flex items-center gap-2">
       <USelectMenu
         :items="items"
@@ -98,5 +98,5 @@ function picked(id: string | undefined): void {
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-transfer">{{ transferLine }}</span>
       <UButton color="neutral" variant="outline" :label="words.review.pair" data-testid="spending-review-pair" @click="emit('pair')" />
     </div>
-  </li>
+  </ReviewItem>
 </template>

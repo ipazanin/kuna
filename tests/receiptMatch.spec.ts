@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches, rowsTakingReceipt, splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
+import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches, splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
+import { rowsTakingReceipt } from '../src/apps/spending/statements/domain/reviewQueue'
 import { RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
@@ -95,6 +96,7 @@ describe('which rows a receipt may split', () => {
     const receipt: Receipt = {
       id: recordIdOf(RECEIPT_RECORDS, '5e000000-0000-4000-8000-000000006001'),
       transaction: card.id,
+      account: null,
       merchant: '',
       merchantOib: '',
       buyerOib: '',
@@ -203,6 +205,7 @@ describe('a fiscal receipt already on the file', () => {
   const receipt = (jir: string, zki: string): Receipt => ({
     id: recordIdOf(RECEIPT_RECORDS, '5e000000-0000-4000-8000-000000006002'),
     transaction: row(OTP, '2026-11-04', -1, null).id,
+    account: null,
     merchant: '',
     merchantOib: '',
     buyerOib: '',

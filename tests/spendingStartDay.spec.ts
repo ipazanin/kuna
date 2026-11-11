@@ -48,6 +48,7 @@ const [RENT, TOP_UP_OUT, TOP_UP_IN, SALARY] = [ROWS[0]!, ROWS[1]!, ROWS[2]!, ROW
 const RENT_RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, key(6001)),
   transaction: RENT.id,
+  account: null,
   merchant: 'Landlord',
   merchantOib: '',
   buyerOib: '',

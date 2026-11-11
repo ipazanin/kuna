@@ -6,6 +6,9 @@ import { words } from './words'
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import { cashAccountsFor, isWithdrawal, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
+import { receiptsArriving } from '../../receipts/domain/waitingReceipts'
+import type { PlacedReceipt } from '../../receipts/domain/waitingReceipts'
+import { words as receiptWords } from '../../receipts/domain/words'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
 import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
@@ -84,6 +87,8 @@ export interface StatementDryRun {
   readonly questions: readonly TwinQuestion[]
   /** The rows to add. */
   readonly added: readonly Transaction[]
+  /** The receipts that waited for the bank's row and go on one of the rows added, which they file. */
+  readonly receipts: readonly PlacedReceipt[]
   /** The sync's rows that look like rows Kuna has, put on hold on To review until the person answers. */
   readonly held: readonly HeldBankRow[]
   /** The rows on the file that change: typed rows a bank row filled, and rows that became a transfer's leg. */
@@ -211,6 +216,7 @@ function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<Recor
  * unpaired rows from 30 days back are paired into transfers. A new row that takes cash out, as the bank's row type or the rule
  * that files it says, goes under Between my accounts and comes in paired with its leg on the cash account its rule names or
  * the one cash account of its currency. With no such account, or several, it waits on To review for the person to say which.
+ * A receipt that waited for the bank's row goes on a new row it clearly is, as `receiptsArriving` says, and files it.
  * `newKey` makes each new row's bare UUID.
  *
  * A statement that names the days it brings, such as a file for a gap the sync left, is taken for those days alone. On them no
@@ -333,7 +339,10 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
       return cash === undefined || others.length > 0 ? [] : [[row, withCashLeg(row, cash, transfer!, newKey)] as const]
     }),
   )
-  const added = comingIn.flatMap((row) => cashLegs.get(row) ?? [row])
+  const arriving = comingIn.flatMap((row) => cashLegs.get(row) ?? [row])
+  const receipts = receiptsArriving(book, arriving, receiptWords.difference, newKey)
+  const filedByReceipt = new Map(receipts.map((placed) => [placed.before, placed.row]))
+  const added = arriving.map((row) => filedByReceipt.get(row) ?? row)
   const replacedRows: RowChange[] = [...replacedOf].map(([before, replaced]) => ({ before, after: asTransfers.get(replaced) ?? replaced }))
   const replacements = new Set(replacedOf.values())
   const pairedOnFile = onFileToPair.flatMap((before) => {
@@ -356,7 +365,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     if (typed !== undefined) return { row, outcome: 'filled', category: typed.category }
     const fresh = newRowOf.get(row)!
     const after = asTransfers.get(fresh) ?? fresh
-    return { row, outcome: 'new', category: after.category, withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1] ?? null } : null }
+    return { row, outcome: 'new', category: (filedByReceipt.get(after) ?? after).category, withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1] ?? null } : null }
   })
   const held = fileLines.flatMap((line): HeldBankRow[] =>
     line.outcome === 'look-alike' && isBankSyncKey(line.row.importKey) && !heldKeys.has(rowKey(line.row))
@@ -384,6 +393,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     lines,
     questions,
     added,
+    receipts,
     held,
     changed: [...filledRows, ...replacedRows, ...pairedOnFile],
     newRows: comingIn.length,

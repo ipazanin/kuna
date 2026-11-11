@@ -469,7 +469,7 @@ describe('categories and accounts', () => {
     const book = bookOf(desk)
     expect(book.accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)).toMatchObject({ openedOn: '2026-10-29', opening: accountMoneyFromAmount(573.7) })
     expect(book.transactions.filter((row) => row.account === DESK_ACCOUNTS.CURRENT.id).map((row) => row.id)).toEqual([EXAMPLE_RECORDS['transaction-split']])
-    expect(book.receipts).toEqual([])
+    expect(book.receipts.map((receipt) => receipt.id)).toEqual([EXAMPLE_RECORDS['receipt-waiting']])
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction-paired']!.replace('paired-out', 'paired-in'))).toMatchObject({ pair: null, category: categoryNamed(desk, 'Between my accounts').id })
     expect(book.problems).toEqual([])
   })
@@ -589,7 +589,7 @@ describe('an entry’s receipt and payee', () => {
     expect((await desk.propose([{ op: 'remove-receipt', input: { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) } }])).isError).toBe(true)
     await desk.propose([{ op: 'remove-receipt', input: { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!) } }])
     expect((await desk.accept()).kind).toBe('done')
-    expect(bookOf(desk).receipts).toEqual([])
+    expect(bookOf(desk).receipts.map((receipt) => receipt.id)).toEqual([EXAMPLE_RECORDS['receipt-waiting']])
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction-receipt']!)).toBeDefined()
   })
 

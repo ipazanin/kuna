@@ -106,7 +106,7 @@ describe('a confirmed receipt', () => {
     const card = row(OTP, '2026-11-04', -23.49, null, { payee: 'POS 0412' })
 
     expect(receiptSplit({ ...DRAFT, merchant: '' }, { row: card, handParts: [] }, WHOLE).receipt.merchant).toBe('POS 0412')
-    expect(receiptSplit(DRAFT, { row: card, handParts: [] }, WHOLE).row.payee).toBe('POS 0412')
+    expect(receiptSplit(DRAFT, { row: card, handParts: [] }, WHOLE).row!.payee).toBe('POS 0412')
   })
 
   it('adds one Difference line for a near match, so the lines add up to the row and its spending is what left the account', async () => {
@@ -166,12 +166,12 @@ describe('a confirmed receipt', () => {
     expect(book.lines).toHaveLength(1)
   })
 
-  it('makes a typed row on a cash account, since no statement ever fills it, and a receipt row on a bank account for the statement to fill', async () => {
+  it('makes a typed row on a cash account, since no statement ever fills it, and a receipt row on a bank account kept by hand for the statement to fill', async () => {
     const onCash = receiptSplit(DRAFT, { account: CASH }, WHOLE)
     const onBank = receiptSplit(DRAFT, { account: OTP }, WHOLE)
 
-    expect([onCash.row.account, onCash.row.source]).toEqual([CASH.id, 'typed'])
-    expect([onBank.row.account, onBank.row.source]).toEqual([OTP.id, 'receipt'])
+    expect([onCash.row!.account, onCash.row!.source]).toEqual([CASH.id, 'typed'])
+    expect([onBank.row!.account, onBank.row!.source]).toEqual([OTP.id, 'receipt'])
   })
 
   it('stays out of the balance: the row moves it once, whichever lines it has', async () => {
@@ -391,7 +391,7 @@ describe('reading receipts and lines', () => {
     const book = readSpendingBook({
       accounts: read(ACCOUNTS),
       categories: read(CATEGORIES),
-      transactions: read([one.row]),
+      transactions: read([one.row!]),
       budgets: read([]),
       rules: read([]),
       receipts: read([one.receipt]),

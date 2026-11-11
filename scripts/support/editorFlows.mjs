@@ -6651,6 +6651,68 @@ export function spendingReceiptPickFlowIn(language, photos) {
 }
 
 /**
+ * The receipts set with the bank sync set up, so its accounts take their rows from the bank: a receipt nothing matches on OTP
+ * makes no entry and waits on To review, beside the set's own waiting receipts, until removed with an Undo. The kiosk receipt
+ * two payments may be asks which, and goes on the one picked.
+ */
+export function spendingReceiptWaitsFlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  const receipt = words.spendingReceipts
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await uploadReceiptPhoto(page, press, photos.noMatch)
+    await waitForTextIn(page, '[data-testid="spending-receipt-no-match"]', receipt.noMatchWaits)
+    await pickReceiptCategory(page, press, words, 'Groceries')
+    await fill(page, 'spending-receipt-merchant', SPENDING_PAYEE)
+    await chooseStartingWith(page, press, '[data-testid="spending-receipt-account"]', 'OTP')
+    await waitForTextIn(page, '[data-testid="spending-receipt-waits"]', receipt.accountWaits)
+    await delay(300)
+    await inspect?.('a receipt on an account the bank fills')
+    await shoot('spending-receipt-waits')
+    await saveReceipt(page, press, words)
+    await spendingRowShown(page, SPENDING_PAYEE, -1700, false)
+    await dismissToasts(page)
+    await page.evaluate(() => {
+      window.location.hash = '#/spending/transactions?tab=review'
+    })
+    await page
+      .waitForFunction(() => document.querySelectorAll('[data-testid="spending-review-receipt"]').length === 2, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('To review does not list both waiting receipts')
+      })
+    await waitForTextIn(page, '[data-testid="spending-review-receipts"]', SPENDING_PAYEE)
+    await delay(300)
+    await inspect?.('To review with receipts waiting for the bank')
+    await shoot('spending-review-receipts')
+    const removing = await page.$$('[data-testid="spending-review-receipt-remove"]')
+    await press(removing.at(-1))
+    await toast(page, receipt.waiting.removed)
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="spending-review-receipt"]').length === 1, { timeout: 10_000 })
+    await undoIn(page, press, words)
+    await page.waitForFunction(() => document.querySelectorAll('[data-testid="spending-review-receipt"]').length === 2, { timeout: 10_000 })
+    await dismissToasts(page)
+    await waitForTextIn(page, '[data-testid="spending-review-receipt-place"]', receipt.waiting.pick)
+    const [payment] = await page.$$('[data-testid="spending-review-receipt-place"] [data-testid="question-choice"] button')
+    await payment.evaluate((button) => button.scrollIntoView({ block: 'center' }))
+    await press(payment)
+    await toast(page, receipt.waiting.placed)
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="spending-review-receipt-place"]') === null, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the kiosk receipt still asks which payment it is')
+      })
+    await page
+      .waitForFunction(() => document.activeElement?.closest('[data-testid="spending-review-receipts"]') != null, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('focus dropped to the page once the last question was answered and the card moved')
+      })
+    await delay(300)
+    await inspect?.('To review once the kiosk receipt is on its payment')
+    await shoot('spending-review-receipt-placed')
+  }
+}
+
+/**
  * A made-up JPEG with GPS in its Exif: the dialog shows the place before Save, and the entry shows the coordinates with a link
  * that leaves only on a tap. The set's own split row shows its place too.
  */
@@ -10621,6 +10683,25 @@ export function chatReceiptPathFlowIn(language, photos, path) {
         await rowLinesAre(page, 'Harbour bistro', -3300, 3)
         await undoCard(press, page, card, words)
         await rowLinesAre(page, 'Harbour bistro', -3300, 2)
+        return
+      }
+      if (path === 'card-waits') {
+        await attachToChat(page, photos.noMatch)
+        await sendInChat(page, press, english ? 'Read the receipt' : 'Pročitaj fiskalni račun')
+        await allowIfAsked(page, press)
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 1, { timeout: 15_000 })
+        await sendInChat(page, press, english ? 'No, by card' : 'Ne, karticom')
+        await allowIfAsked(page, press)
+        const card = await newestCard(page, 1, 'the chat proposed no card receipt once told it was by card')
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
+        const notes = await card.$$eval('[data-testid="chat-proposal-note"]', (shown) => shown.map((note) => note.textContent ?? '').join(' '))
+        if (!notes.includes(receiptWords.waits('OTP current'))) throw new Error(`the card receipt does not say it waits for the bank's row, and notes "${notes}"`)
+        await panelSettled(page)
+        await card.$eval('[data-testid="chat-proposal-note"]', (note) => note.scrollIntoView({ block: 'start' }))
+        await delay(300)
+        await inspect?.("a card receipt that waits for the bank's row")
+        await shoot('chat-receipt-card-waits')
+        await acceptCard(press, page, card)
         return
       }
       if (path === 'pick' || path === 'none') {

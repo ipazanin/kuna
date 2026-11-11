@@ -6,6 +6,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { notCash, writeCashLegs } from '../application/statementWrites'
 import type { WithdrawalWithoutCash } from '../domain/reviewQueue'
 import type { RowQuestion } from './rowParts'
+import ReviewItem from './ReviewItem.vue'
 import { words } from './words'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
@@ -124,26 +125,31 @@ async function answer(key: string, choice: string): Promise<void> {
     <div class="flex flex-col gap-4 pt-1 pb-4">
       <template v-if="proposed.length > 0">
         <ul class="divide-y divide-default">
-          <li v-for="{ row, cash } in shownProposed" :key="row.id" class="flex items-start gap-3 px-4 py-3 sm:px-5" data-testid="spending-review-cash-row">
-            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span class="break-words text-sm text-highlighted">{{ row.payee || row.description }}</span>
-              <span class="break-words type-caption">{{ captionOf(row) }}</span>
+          <ReviewItem
+            v-for="{ row, cash } in shownProposed"
+            :key="row.id"
+            :title="row.payee || row.description"
+            :caption="captionOf(row)"
+            :cents="row.amount"
+            :currency="accountOf(row)?.currency ?? EURO"
+            data-testid="spending-review-cash-row"
+          >
+            <template #details>
               <span class="break-words type-caption" data-testid="spending-review-cash-to">{{
                 words.review.cash.toCash(formatAccountMoney(negateAccountMoney(row.amount), cash.currency, 'always'), cash.name)
               }}</span>
-              <UButton
-                class="self-start"
-                :label="words.review.cash.notCash"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                :loading="writes.saving(`not-cash-${row.id}`)"
-                data-testid="spending-review-cash-not-cash"
-                @click="leaveFiled(row)"
-              />
-            </span>
-            <AccountMoneyText :cents="row.amount" :currency="accountOf(row)?.currency ?? EURO" sign="always" tone="flow" class="shrink-0 text-sm" />
-          </li>
+            </template>
+            <UButton
+              class="self-start"
+              :label="words.review.cash.notCash"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :loading="writes.saving(`not-cash-${row.id}`)"
+              data-testid="spending-review-cash-not-cash"
+              @click="leaveFiled(row)"
+            />
+          </ReviewItem>
         </ul>
         <div v-if="proposed.length > FIRST_SHOWN" class="px-4 sm:px-5">
           <ShowAllButton v-model:expanded="allShown" :total="proposed.length" />
@@ -175,23 +181,26 @@ async function answer(key: string, choice: string): Promise<void> {
           data-testid="spending-review-cash-add-account"
         />
         <ul class="divide-y divide-default">
-          <li v-for="row in rows" :key="row.id" class="flex items-start gap-3 px-4 py-3 sm:px-5" data-testid="spending-review-cash-wanting-row">
-            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span class="break-words text-sm text-highlighted">{{ row.payee || row.description }}</span>
-              <span class="break-words type-caption">{{ captionOf(row) }}</span>
-              <UButton
-                class="self-start"
-                :label="words.review.cash.notCash"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                :loading="writes.saving(`not-cash-${row.id}`)"
-                data-testid="spending-review-cash-not-cash"
-                @click="leaveFiled(row)"
-              />
-            </span>
-            <AccountMoneyText :cents="row.amount" :currency="currency" sign="always" tone="flow" class="shrink-0 text-sm" />
-          </li>
+          <ReviewItem
+            v-for="row in rows"
+            :key="row.id"
+            :title="row.payee || row.description"
+            :caption="captionOf(row)"
+            :cents="row.amount"
+            :currency="currency"
+            data-testid="spending-review-cash-wanting-row"
+          >
+            <UButton
+              class="self-start"
+              :label="words.review.cash.notCash"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :loading="writes.saving(`not-cash-${row.id}`)"
+              data-testid="spending-review-cash-not-cash"
+              @click="leaveFiled(row)"
+            />
+          </ReviewItem>
         </ul>
       </section>
     </div>

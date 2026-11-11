@@ -36,7 +36,7 @@ export const ADD_RECEIPT: AssistantOperation = {
     'Kuna reads the QR code and the place the photo was taken from the photo itself, and their date and total win over yours.',
     'paid says how the receipt was paid: "cash" for GOTOVINA or NOVČANICE, "card" for KARTICA or a card\'s name. When the receipt says neither, ask the person.',
     "entry is the payment it splits: the entry tagged, as a row's camera tags the one the receipt was taken for, else the one match_records with kind receipt finds ready, or the one the person picks when it finds several. Any entry that can take a receipt goes, even days or cents away, and the card warns on the difference, which a Difference line makes up. Cash goes only on an entry on a cash account, and a card never on one. An entry split by hand loses those parts to the receipt's lines.",
-    "With entry null a new entry is made, which goes only when no payment paid that way may be this receipt. For cash, account is null and Kuna takes the one cash account in euros. With several, ask which and name it in account. With none, ask how much cash the person had before paying, and put add-account for a cash account in euros first on the same card, with that opening and openedOn the receipt's day. For a card, account names the euro account the card is on.",
+    "With entry null a new entry is made, which goes only when no payment paid that way may be this receipt. For cash, account is null and Kuna takes the one cash account in euros. With several, ask which and name it in account. With none, ask how much cash the person had before paying, and put add-account for a cash account in euros first on the same card, with that opening and openedOn the receipt's day. For a card, account names the euro account the card is on. On an account the bank fills, the receipt makes no entry: it waits on To review and goes on the bank's row when the sync or a file brings it.",
     'Amounts are euros above zero, a discount below zero. Each line gets a category ref Kuna handed out, a spending category with no categories under it.',
     'A line whose category does not exist yet waits: propose that category on a card of its own first, and this receipt on the next card once it is accepted.',
     'A receipt marked R1, or naming a buyer, with no buyer\'s OIB readable needs the person to say whose it is: whose is "company" or "personal", as they said. A buyer\'s OIB Kuna can read decides by itself, so whose is null then, as for every other receipt.',
@@ -270,14 +270,18 @@ function placeNotes(split: ReceiptSplit, book: SpendingBook): readonly string[] 
   ]
 }
 
-/** What the card warns on for one receipt: the read's checks that failed and what differs on the entry it goes on. */
-function warningOf(notes: readonly string[], split: ReceiptSplit): ProposalNote | null {
-  return notes.length === 0 ? null : { label: split.receipt.merchant, text: notes.map(sentence).join(' '), tone: 'warning' }
+/** What the card says of one receipt: the read's checks that failed and what differs on the entry it goes on, as a warning, and that it waits for the bank's row. */
+function notesOf(warnings: readonly string[], split: ReceiptSplit, book: SpendingBook): readonly ProposalNote[] {
+  const waitsOn = split.receipt.account === null ? undefined : book.accounts.find((account) => account.id === split.receipt.account)
+  return [
+    ...(warnings.length === 0 ? [] : [{ label: split.receipt.merchant, text: warnings.map(sentence).join(' '), tone: 'warning' as const }]),
+    ...(waitsOn === undefined ? [] : [{ label: split.receipt.merchant, text: words.receipts.waits(waitsOn.name), tone: 'neutral' as const }]),
+  ]
 }
 
 /**
  * Plans one receipt into the write, through the dialog's own split and write: checked as a read, its R1 answered, placed on
- * its row or a new entry. Gives the split, so later steps see it, and the card's warning on it.
+ * its row, a new entry, or to wait for the bank's row. Gives the split, so later steps see it, and the card's notes on it.
  */
 export function writeReceiptStep(
   unit: UnitOfWork,
@@ -286,7 +290,7 @@ export function writeReceiptStep(
   idOf: (value: unknown) => string,
   ports: Pick<ReceiptPorts, 'keepsOnDrive' | 'mayKeepNow' | 'reader'>,
   photoId: string,
-): { readonly split: ReceiptSplit; readonly warning: ProposalNote | null } {
+): { readonly split: ReceiptSplit; readonly notes: readonly ProposalNote[] } {
   const photo = photoOf(field)
   if (field['keepPhoto'] === true && !ports.keepsOnDrive()) throw new StepRefused('The photo is kept only beside a Spending file on Drive. Propose it with keepPhoto false.')
   if (field['keepPhoto'] === true && !ports.mayKeepNow())
@@ -316,7 +320,12 @@ export function writeReceiptStep(
       `${unfiled.map((line) => line.printed).join(', ')}: a line goes under a spending category a person can pick, with none under it. For the company comes only through the R1 rule or whose.`,
     )
   const held = heldReceiptOf(read, book.receipts)
-  if (held !== null) throw new StepRefused('This fiscal receipt is already on the file, as its JIR or ZKI says. Removing it from its entry comes first.')
+  if (held !== null)
+    throw new StepRefused(
+      held.transaction === null
+        ? "This fiscal receipt is already on the file, as its JIR or ZKI says, waiting for the bank's row. remove-waiting-receipt takes it off first."
+        : 'This fiscal receipt is already on the file, as its JIR or ZKI says. Removing it from its entry comes first.',
+    )
   const split = receiptSplit(
     {
       merchant: read.merchant,
@@ -336,5 +345,5 @@ export function writeReceiptStep(
     read.lines.map((line) => ({ printed: line.printed, text: line.text, amount: line.amount, category: line.category! })),
   )
   writeReceiptSplit(unit, split)
-  return { split, warning: warningOf([...drafted.notes, ...placeNotes(split, book)], split) }
+  return { split, notes: notesOf([...drafted.notes, ...placeNotes(split, book)], split, book) }
 }

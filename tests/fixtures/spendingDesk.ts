@@ -91,7 +91,7 @@ function row(key: string, date: string, amount: number, payee: string, fields: P
   }
 }
 
-/** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, a typed row split by hand, and cash taken out with no cash leg yet. */
+/** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, a typed row split by hand, cash taken out with no cash leg yet, and a Revolut payment a waiting receipt may be. */
 const ROWS: readonly Transaction[] = [
   row('transaction-typed', '2026-10-12', -45.3, 'Corner market', { source: 'typed', category: GROCERIES.id, categorisedBy: 'person' }),
   row('transaction-receipt', '2026-10-14', -20, 'Bakery', { category: GROCERIES.id, categorisedBy: 'rule', importKey: 'made-up-2' }),
@@ -103,6 +103,7 @@ const ROWS: readonly Transaction[] = [
   row('transaction-paired-in', '2026-10-28', 100, '', { account: SAVINGS.id, importKey: 'made-up-8', category: TRANSFER.id, pair: recordIdOf(TRANSACTION_RECORDS, 'transaction-paired-out') }),
   row('transaction-split', '2026-10-30', -60, 'Hardware store', { source: 'typed', category: RENT.id, categorisedBy: 'person' }),
   row('transaction-withdrawal', '2026-10-29', -50, 'Cash at Ilica ATM', { account: REVOLUT.id, importKey: 'made-up-9', category: TRANSFER.id, cashWithdrawal: true }),
+  row('transaction-waiting-match', '2026-10-27', -18, 'KIOSK TISAK', { account: REVOLUT.id, importKey: 'made-up-10', category: GROCERIES.id, categorisedBy: 'rule' }),
 ]
 
 function handPart(key: string, amount: number, category: Category): EntryPart {
@@ -122,6 +123,7 @@ const HAND_PARTS: readonly EntryPart[] = [handPart('line-hardware-rent', -40, RE
 const RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-bakery'),
   transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-receipt'),
+  account: null,
   merchant: 'Bakery d.o.o.',
   merchantOib: '12345678903',
   buyerOib: '',
@@ -134,6 +136,30 @@ const RECEIPT: Receipt = {
   photo: '',
   latitude: '',
   longitude: '',
+}
+
+/** A receipt for a card payment on Revolut that waits for the bank's row, with its one line. */
+const WAITING_RECEIPT: Receipt = {
+  ...RECEIPT,
+  id: recordIdOf(RECEIPT_RECORDS, 'receipt-waiting'),
+  transaction: null,
+  account: REVOLUT.id,
+  merchant: 'Kiosk',
+  merchantOib: '',
+  issuedOn: on('2026-10-26'),
+  total: moneyFromAmount(18),
+  jir: '',
+  zki: '',
+}
+
+const WAITING_LINE: EntryPart = {
+  id: recordIdOf(PART_RECORDS, 'line-kiosk'),
+  transaction: null,
+  receipt: WAITING_RECEIPT.id,
+  printed: 'NOVINE',
+  text: 'novine',
+  amount: accountMoneyFromAmount(-18),
+  category: GROCERIES.id,
 }
 
 const RULE: SpendingRule = { id: recordIdOf(RULE_RECORDS, 'rule-corner'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner' }, category: GROCERIES.id, withdrawal: null }
@@ -185,12 +211,14 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'category-other': GROCERIES.id,
   'category-child': RESTAURANTS.id,
   transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-typed'),
-  'transaction-receipt': RECEIPT.transaction,
+  'transaction-receipt': recordIdOf(TRANSACTION_RECORDS, 'transaction-receipt'),
   'transaction-split': recordIdOf(TRANSACTION_RECORDS, 'transaction-split'),
   'transaction-joinable': recordIdOf(TRANSACTION_RECORDS, 'transaction-pharmacy-bank'),
   'transaction-pairable': recordIdOf(TRANSACTION_RECORDS, 'transaction-out'),
   'transaction-paired': recordIdOf(TRANSACTION_RECORDS, 'transaction-paired-out'),
   'transaction-withdrawal': recordIdOf(TRANSACTION_RECORDS, 'transaction-withdrawal'),
+  'transaction-waiting-match': recordIdOf(TRANSACTION_RECORDS, 'transaction-waiting-match'),
+  'receipt-waiting': WAITING_RECEIPT.id,
   account: CURRENT.id,
   'account-other': SAVINGS.id,
   'account-empty': WALLET.id,
@@ -251,8 +279,8 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY]),
     ...stored(TRANSACTION_RECORDS, ROWS),
     ...stored(RULE_RECORDS, [RULE]),
-    ...stored(RECEIPT_RECORDS, [RECEIPT]),
-    ...stored(PART_RECORDS, HAND_PARTS),
+    ...stored(RECEIPT_RECORDS, [RECEIPT, WAITING_RECEIPT]),
+    ...stored(PART_RECORDS, [...HAND_PARTS, WAITING_LINE]),
     ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),
   })
   const { store } = await browserHarness(used, document, SPENDING)

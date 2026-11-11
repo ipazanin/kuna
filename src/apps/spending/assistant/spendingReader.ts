@@ -11,6 +11,7 @@ import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup
 import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { fiscalQrOn } from '../receipts/domain/fiscalQr'
 import { receiptMatches } from '../receipts/domain/receiptMatch'
+import { waitsForBank } from '../receipts/domain/waitingReceipts'
 import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
 import { bankLinkOffered } from '../workbook/domain/account'
 import type { Account } from '../workbook/domain/account'
@@ -173,7 +174,8 @@ const RULE_FIELDS: FieldDocs<SpendingRule> = {
 
 const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   id: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
-  transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry it split.' },
+  transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it split, or null while it waits for the bank's row." },
+  account: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: "The account the bank fills that it waits on for the bank's row, or null once it is on its entry." },
   merchant: { exposure: 'party', meaning: 'The shop. An alias for a person Kuna knows.' },
   merchantOib: { exposure: 'identifier', meaning: "The shop's OIB." },
   buyerOib: { exposure: 'identifier', meaning: 'The buyer named on an R1 receipt.' },
@@ -190,7 +192,7 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
 
 const PART_FIELDS: FieldDocs<EntryPart> = {
   id: { exposure: 'ref', to: PART_RECORDS.name, meaning: 'The part.' },
-  transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry it is part of.' },
+  transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it is part of, or null for a line of a receipt that waits for the bank's row." },
   receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand.' },
   printed: { exposure: 'free-text', meaning: 'As the till printed it, or empty.' },
   text: { exposure: 'free-text', meaning: 'In plain words, or empty.' },
@@ -376,7 +378,15 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({ kind: CATEGORY_RECORDS, about: words.reads.category, fields: CATEGORY_FIELDS, dated: null, rows: () => rows((book) => book.categories), currencyOf: () => EURO }),
       readableKind({ kind: BUDGET_RECORDS, about: words.reads.budget, fields: BUDGET_FIELDS, dated: 'from', rows: () => rows((book) => book.budgets), currencyOf: () => EURO }),
       readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: RULE_FIELDS, dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),
-      readableKind({ kind: RECEIPT_RECORDS, about: words.reads.receipt, fields: RECEIPT_FIELDS, dated: 'issuedOn', rows: () => rows((book) => book.receipts), currencyOf: () => EURO }),
+      readableKind<Receipt>({
+        kind: RECEIPT_RECORDS,
+        about: words.reads.receipt,
+        fields: RECEIPT_FIELDS,
+        dated: 'issuedOn',
+        rows: () => rows((book) => book.receipts),
+        currencyOf: () => EURO,
+        sets: [{ name: 'waiting', about: words.reads.waitingReceipt, holds: waitsForBank }],
+      }),
       readableKind({
         kind: PART_RECORDS,
         about: words.reads.line,

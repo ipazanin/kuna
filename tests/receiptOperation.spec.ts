@@ -9,6 +9,10 @@ import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, deskPorts, receiptPorts, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
+import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
+import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { setSetting } from '../src/shared/storage/application/settingWrites'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -114,6 +118,30 @@ describe('a receipt from the chat', () => {
 
     expect(bookOf(desk).transactions).toHaveLength(before + 1)
     expect(bookOf(desk).transactions.filter((row) => row.source === 'receipt')).toMatchObject([{ amount: -777, payee: 'Pharmacy', date: '2026-10-21' }])
+  })
+
+  it("makes no entry on an account the bank fills: the receipt waits there for the bank's row, as the card says", async () => {
+    const desk = await spendingDesk(used)
+    const current = bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
+    await desk.store.write('Linked', (unit) => {
+      setSetting(unit, SETTING_WRITES, bookOf(desk).readings.settings.facts, BANK_SYNC_DEPLOYMENT_KEY, 'made-up-deployment')
+      unit.of(ACCOUNT_WRITES).change(current, { ...current, rowsFrom: 'bank-link' })
+    })
+    const before = bookOf(desk).transactions
+
+    await desk.propose([receipt(desk, { ...unmatched(desk), entry: null, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) })], [attachedPhoto()])
+    expect(desk.cards[0]!.groups.flatMap((group) => group.notes).map((note) => note.text)).toEqual([words.receipts.waits('Current')])
+    expect((await desk.accept()).kind).toBe('done')
+
+    expect(bookOf(desk).transactions).toEqual(before)
+    const waiting = bookOf(desk).receipts.find((held) => held.account === DESK_ACCOUNTS.CURRENT.id)
+    expect(waiting).toMatchObject({ transaction: null, total: 777 })
+    expect(
+      bookOf(desk)
+        .lines.filter((held) => held.receipt === waiting!.id)
+        .map((held) => held.transaction),
+    ).toEqual([null, null])
+    expect(bookOf(desk).problems).toEqual([])
   })
 
   it('refuses a new entry while a payment on the file may be this receipt, so the model names that payment', async () => {

@@ -4,7 +4,8 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 /** A part of an entry, which a receipt or a person split it into. The parts of an entry add up to its amount, and the figures count them instead of the entry's category. */
 export interface EntryPart {
   readonly id: RecordId
-  readonly transaction: RecordId
+  /** Null on a line of a receipt that waits for the bank's row. */
+  readonly transaction: RecordId | null
   /** The receipt whose line it is, or null for a part split by hand. */
   readonly receipt: RecordId | null
   /** As the till printed it, or blank. */

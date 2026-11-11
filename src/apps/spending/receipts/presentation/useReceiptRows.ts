@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 
-import { rowsTakingReceipt } from '../domain/receiptMatch'
+import { rowsTakingReceipt } from '../../statements/domain/reviewQueue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { today } from '../../../../shared/calendar/civilDate'

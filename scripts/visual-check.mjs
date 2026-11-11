@@ -324,6 +324,7 @@ import {
   spendingAccountStartDayFlowIn,
   spendingReceiptPickFlowIn,
   spendingReceiptPlaceFlowIn,
+  spendingReceiptWaitsFlowIn,
   spendingReviewNearFlowIn,
   spendingLimitFlowIn,
   spendingReviewFlowIn,
@@ -5385,7 +5386,7 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=receipts&lang=hr' },
   },
-  // The receipt paths beyond a payment that matches: two that may be it, none, one the person picked and split by hand, and cash with one, no or two cash accounts.
+  // The receipt paths beyond a payment that matches: two that may be it, none, one the person picked and split by hand, cash with one, no or two cash accounts, and a card payment the bank has not brought yet.
   ...[
     ['pick', 'receipts'],
     ['none', 'receipts'],
@@ -5393,6 +5394,7 @@ const FLOWS = [
     ['cash', 'receipts'],
     ['cash-none', 'foreign'],
     ['cash-several', 'receipts'],
+    ['card-waits', 'receipts&banksync=saved'],
   ].flatMap(([path, set]) => [
     {
       name: `chat-receipt-${path}`,
@@ -6701,6 +6703,24 @@ const FLOWS = [
     run: spendingReceiptPlaceFlowIn('en', SPENDING_RECEIPT_SAMPLES),
     modes: ['drive'],
     queries: { drive: '&spending=receipts' },
+  },
+  {
+    name: 'spending-receipt-waits',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingReceiptWaitsFlowIn('en', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts&banksync=saved' },
+  },
+  {
+    name: 'spending-receipt-waits-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingReceiptWaitsFlowIn('hr', SPENDING_RECEIPT_SAMPLES),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=receipts&banksync=saved&lang=hr' },
   },
   {
     name: 'spending-review-near',

@@ -28,7 +28,7 @@ import { rowKey } from './transaction'
 import type { Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
-import { sumAccountMoney } from '../../../../shared/money/accountMoney'
+import { accountMoneyOfEuros, negateAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { plainAmount } from '../../../../shared/money/money'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
@@ -225,38 +225,56 @@ function readRules(read: RecordsRead<SpendingRule>, categories: readonly Categor
   return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }
 }
 
-function readReceipts(read: RecordsRead<Receipt>, transactions: ReadonlySet<string>): Reading<Receipt> {
-  const sharingRow = sharedKeys(read.records, (stored) => stored.record.transaction)
+function readReceipts(read: RecordsRead<Receipt>, transactions: ReadonlySet<string>, accounts: ReadonlyMap<string, Account>): Reading<Receipt> {
+  const sharingRow = sharedKeys(
+    read.records.filter((stored) => stored.record.transaction !== null),
+    (stored) => stored.record.transaction ?? '',
+  )
   const codes = read.records.flatMap(({ record }) => [record.jir, record.zki].filter((code) => code !== ''))
   const sharingCode = sharedKeys(codes, (code) => code)
   return readEach(read, ({ record: receipt }) => {
-    if (!transactions.has(receipt.transaction)) return [words.noEntry]
-    if (sharingRow.has(receipt.transaction)) return [words.entryHasReceipt]
+    if (receipt.transaction === null) {
+      if (receipt.account === null || !accounts.has(receipt.account)) return [words.waitingOnNoAccount]
+    } else {
+      if (!transactions.has(receipt.transaction)) return [words.noEntry]
+      if (sharingRow.has(receipt.transaction)) return [words.entryHasReceipt]
+    }
     return sharingCode.has(receipt.jir) || sharingCode.has(receipt.zki) ? [words.fiscalCodeShared] : []
   })
 }
 
+/** What the parts of an entry add up to: the entry's amount, or for the lines of a receipt that waits, minus its total. */
+function wholeOfParts(transactions: readonly Transaction[], receipts: readonly Receipt[]): ReadonlyMap<RecordId, AccountMoney> {
+  return new Map<RecordId, AccountMoney>([
+    ...transactions.map((row) => [row.id, row.amount] as const),
+    ...receipts.flatMap((receipt) => (receipt.transaction === null ? [[receipt.id, negateAccountMoney(accountMoneyOfEuros(receipt.total))] as const] : [])),
+  ])
+}
+
 function readParts(read: RecordsRead<EntryPart>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>): Reading<EntryPart> {
-  const rows = new Map(transactions.map((row) => [row.id, row]))
+  const wholes = wholeOfParts(transactions, receipts)
   const receiptOf = new Map(receipts.map((receipt) => [receipt.id, receipt]))
+  /** The entry the part is of, or the waiting receipt whose line it is, which its siblings share. */
+  const wholeOf = (part: EntryPart): RecordId | null => part.transaction ?? part.receipt
   const ownReason = (part: EntryPart): string | null => {
-    if (!rows.has(part.transaction)) return words.noEntry
+    const whole = wholeOf(part)
+    if (whole === null || !wholes.has(whole)) return part.transaction === null ? words.noReceipt : words.noEntry
     if (part.receipt !== null && receiptOf.get(part.receipt)?.transaction !== part.transaction) return words.noReceipt
     return categories.has(part.category) ? null : words.noCategory
   }
-  const sums = new Map<RecordId, AccountMoney[]>()
-  const brokenRows = new Set<RecordId>()
+  const sums = new Map<RecordId | null, AccountMoney[]>()
+  const brokenWholes = new Set<RecordId | null>()
   for (const { record: part } of read.records) {
-    sums.set(part.transaction, [...(sums.get(part.transaction) ?? []), part.amount])
-    if (ownReason(part) !== null) brokenRows.add(part.transaction)
+    sums.set(wholeOf(part), [...(sums.get(wholeOf(part)) ?? []), part.amount])
+    if (ownReason(part) !== null) brokenWholes.add(wholeOf(part))
   }
   return readEach(read, ({ record: part }) => {
     const own = ownReason(part)
     if (own !== null) return [own]
     // All or none, since parts left counting without their sibling would drop its money from every figure.
-    if (brokenRows.has(part.transaction)) return [words.siblingPartLeftOut]
-    const sum = sumAccountMoney(sums.get(part.transaction) ?? [])
-    const amount = rows.get(part.transaction)?.amount
+    if (brokenWholes.has(wholeOf(part))) return [words.siblingPartLeftOut]
+    const sum = sumAccountMoney(sums.get(wholeOf(part)) ?? [])
+    const amount = wholes.get(wholeOf(part)!)
     return sum === amount ? [] : [words.partsDoNotAddUp(plainAmount(sum), plainAmount(amount ?? sum))]
   })
 }
@@ -282,8 +300,8 @@ function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, 
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
  * three fixed kinds is one category. An entry names an account that counts, on or after its start day, and a category that counts, and its other leg names it
  * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
- * same months. A rule names a category that counts, and one that spots a withdrawal files into Between my accounts and names a cash account or none. A receipt names an entry that counts, which no other receipt names, and no other receipt holds its JIR or ZKI. A part
- * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. The parts of an entry add up to its amount and count all or none. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, and a second category of a fixed
+ * same months. A rule names a category that counts, and one that spots a withdrawal files into Between my accounts and names a cash account or none. A receipt names an entry that counts, which no other receipt names, or while it waits for the bank's row an account that counts, and no other receipt holds its JIR or ZKI. A part
+ * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. A line of a waiting receipt names that receipt and no entry. The parts of an entry add up to its amount, and the lines of a waiting receipt to minus its total, and count all or none. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, and a second category of a fixed
  * kind, count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
  * `readHeld` refuses.
  */
@@ -295,7 +313,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const transactions = readTransactions(records.transactions, accountsById, categoryIds)
   const budgets = readBudgets(records.budgets, categories.facts)
   const rules = readRules(records.rules, categories.facts, accounts.facts)
-  const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)))
+  const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)), accountsById)
   const lines = readParts(records.lines, transactions.facts, receipts.facts, categoryIds)
   const held = readHeld(records.held, accountsById, transactions.facts)
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS)

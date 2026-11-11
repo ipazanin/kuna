@@ -56,6 +56,7 @@ function row(place: number, date: string, amount: number, payee: string, categor
 const RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-a'),
   transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-2'),
+  account: null,
   merchant: 'Corner market d.o.o.',
   merchantOib: '12345678903',
   buyerOib: '',

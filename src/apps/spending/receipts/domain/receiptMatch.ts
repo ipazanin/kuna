@@ -1,11 +1,9 @@
 import { inWindow, isNear } from '../../pairing/domain/sameMoney'
-import { reviewQueue } from '../../statements/domain/reviewQueue'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { accountMoneyOfEuros, addAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -21,7 +19,7 @@ export interface ReceiptCandidate {
   readonly difference: AccountMoney
 }
 
-/** One clear candidate offered ready, several to pick from, or none, which makes a new row. */
+/** One clear candidate offered ready, several to pick from, or none, which makes a new row or waits for the bank's. */
 export type ReceiptMatches =
   { readonly kind: 'ready'; readonly candidates: readonly ReceiptCandidate[] } | { readonly kind: 'pick'; readonly candidates: readonly ReceiptCandidate[] } | { readonly kind: 'none' }
 
@@ -95,23 +93,23 @@ export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories
 }
 
 /**
- * The rows that offer to take a receipt photo: those a receipt may split, but for a row To review still asks about as maybe a
- * transfer, which waits until that question is answered.
- */
-export function rowsTakingReceipt(book: SpendingBook, day: CivilDate): ReadonlySet<Transaction['id']> {
-  const maybeTransfer = new Set(reviewQueue(book, day).waiting.flatMap((waiting) => (waiting.maybeTransfer === null ? [] : [waiting.row.id])))
-  return new Set(splittableRows(book).flatMap((row) => (maybeTransfer.has(row.id) ? [] : [row.id])))
-}
-
-/**
- * The splittable rows this receipt may be. Rows at minus the total within `sameMoney`'s window come first, by the merchant's words among the row's words and then
- * the nearest day. One is clear when more of the merchant's words name it than the next, or when it is alone and no merchant is known to
- * disagree with it. Only with none of those do the near ones show, such as a card payment with a tip, and those are always a pick.
- * A receipt that says how it was paid matches only rows on accounts paid that way, and one that does not say matches on any.
+ * The splittable rows this receipt may be. A receipt that says how it was paid matches only rows on accounts paid that way,
+ * and one that does not say matches on any. `matchesAmong` gives the order and the rule.
  */
 export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>, paid: ReceiptPayment | null): ReceiptMatches {
   const paidThere = new Set(book.accounts.filter((account) => paid === null || paidOn(paid, account)).map((account) => account.id))
-  const open = splittableRows(book).filter((row) => paidThere.has(row.account))
+  return matchesAmong(
+    receipt,
+    splittableRows(book).filter((row) => paidThere.has(row.account)),
+  )
+}
+
+/**
+ * Which of these rows the receipt may be. Rows at minus the total within `sameMoney`'s window come first, by the merchant's words among the row's words and then
+ * the nearest day. One is clear when more of the merchant's words name it than the next, or when it is alone and no merchant is known to
+ * disagree with it. Only with none of those do the near ones show, such as a card payment with a tip, and those are always a pick.
+ */
+export function matchesAmong(receipt: ReceiptFacts, open: readonly Transaction[]): ReceiptMatches {
   const total = accountMoneyOfEuros(receipt.total)
   const asTyped = { date: receipt.issuedOn, amount: negateAccountMoney(total) }
   const words = distinctWords(receipt.merchant)

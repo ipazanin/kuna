@@ -2,10 +2,16 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** A fiscal receipt and the entry it split. A fiscal receipt's total is in euros. */
+/**
+ * A fiscal receipt and the entry it split, or the account it waits on while the bank has not brought that payment's row yet. A
+ * fiscal receipt's total is in euros.
+ */
 export interface Receipt {
   readonly id: RecordId
-  readonly transaction: RecordId
+  /** The entry it split, or null while it waits for the bank's row. */
+  readonly transaction: RecordId | null
+  /** The account the bank fills that a receipt with no entry waits on, or null once it is on its entry. */
+  readonly account: RecordId | null
   readonly merchant: string
   /** Blank until a read gives it. */
   readonly merchantOib: string

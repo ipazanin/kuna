@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -8,6 +8,9 @@ import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
 import CashWithdrawalsCard from './CashWithdrawalsCard.vue'
+import ReviewItem from './ReviewItem.vue'
+import WaitingReceiptsCard from '../../receipts/presentation/WaitingReceiptsCard.vue'
+import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingReceipts'
 import ReviewRow from './ReviewRow.vue'
 import { useHeldRows } from '../../bankSync/presentation/useHeldRows'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
@@ -36,7 +39,7 @@ import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 
-/** The rows waiting for a category, the withdrawals waiting for their cash leg, the transfers the pairing made and the lone legs waiting for their other side. */
+/** The rows waiting for a category, the withdrawals waiting for their cash leg, the receipts waiting for the bank's row, the transfers the pairing made and the lone legs waiting for their other side. */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
@@ -51,6 +54,18 @@ const book = computed(() => store.state.workbook)
 const held = useHeldRows()
 const { ask: askAboutQueue, marked: queueMarked } = useChatElement(REVIEW_ASKED, 'card', words.review.suggestCategoriesTask)
 const queue = computed(() => (book.value === null ? null : reviewQueue(book.value, today())))
+const receipts = computed(() => (book.value === null ? [] : waitingReceipts(book.value)))
+/** Waiting receipts sit beside the pairs and lone legs, which also only wait, unless one asks which payment it is. */
+const receiptsAsk = computed(() => receipts.value.some(asksForPayment))
+const receiptsBelow = useTemplateRef('receiptsBelow')
+// The card moves below the pairs once its last question is answered, which takes the focused button with it.
+watch(
+  receiptsAsk,
+  (asking, asked) => {
+    if (asked && !asking) receiptsBelow.value?.keepFocus()
+  },
+  { flush: 'post' },
+)
 const accounts = computed(() => book.value?.accounts ?? [])
 /** What your rules would file a row under, which To review only suggests for a row that may be the same money as a typed one. */
 const ruleSays = computed(() => (book.value === null ? null : ruleVerdicts(book.value.rules, book.value)))
@@ -119,8 +134,9 @@ async function undoPair(legs: TransferPair): Promise<void> {
       </div>
     </AppCard>
     <CashWithdrawalsCard v-if="queue.withdrawals.length > 0" :withdrawals="queue.withdrawals" />
+    <WaitingReceiptsCard v-if="receiptsAsk" :waiting="receipts" />
     <EmptyState
-      v-if="queue.waiting.length === 0 && held.items.value.length === 0 && queue.withdrawals.length === 0"
+      v-if="queue.waiting.length === 0 && held.items.value.length === 0 && queue.withdrawals.length === 0 && receipts.length === 0"
       icon="i-lucide-inbox"
       :title="words.review.empty"
       :description="words.review.emptyDescription"
@@ -151,14 +167,15 @@ async function undoPair(legs: TransferPair): Promise<void> {
     </AppCard>
     <AppCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :title="words.review.pairs" :subtitle="words.review.pairsSubtitle" data-testid="spending-pairs">
       <ul class="divide-y divide-default pt-1 pb-1">
-        <li v-for="legs in queue.pairs" :key="legs.debit.id" class="flex flex-col gap-2 px-4 py-3 sm:px-5" data-testid="spending-pair">
-          <div class="flex items-start gap-3">
-            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span class="break-words text-sm text-highlighted">{{ accountOf(legs.debit)?.name }} → {{ accountOf(legs.credit)?.name }}</span>
-              <span class="break-words type-caption">{{ dayLabel(legs.debit.date) }}</span>
-            </span>
-            <AccountMoneyText :cents="legs.debit.amount" :currency="currencyOf(legs.debit)" sign="always" tone="flow" class="shrink-0 text-sm" />
-          </div>
+        <ReviewItem
+          v-for="legs in queue.pairs"
+          :key="legs.debit.id"
+          :title="`${accountOf(legs.debit)?.name ?? ''} → ${accountOf(legs.credit)?.name ?? ''}`"
+          :caption="dayLabel(legs.debit.date)"
+          :cents="legs.debit.amount"
+          :currency="currencyOf(legs.debit)"
+          data-testid="spending-pair"
+        >
           <UButton
             class="self-start"
             color="neutral"
@@ -168,11 +185,17 @@ async function undoPair(legs: TransferPair): Promise<void> {
             data-testid="spending-not-a-pair"
             @click="undoPair(legs)"
           />
-        </li>
-        <li v-for="leg in queue.loneLegs" :key="leg.id" class="flex items-start gap-3 px-4 py-3 sm:px-5" data-testid="spending-lone-leg">
-          <span class="flex min-w-0 flex-1 flex-col gap-1">
-            <span class="break-words text-sm text-highlighted">{{ leg.payee }}</span>
-            <span class="break-words type-caption">{{ dayLabel(leg.date) }} · {{ accountOf(leg)?.name }}</span>
+        </ReviewItem>
+        <ReviewItem
+          v-for="leg in queue.loneLegs"
+          :key="leg.id"
+          :title="leg.payee"
+          :caption="`${dayLabel(leg.date)} · ${accountOf(leg)?.name ?? ''}`"
+          :cents="leg.amount"
+          :currency="currencyOf(leg)"
+          data-testid="spending-lone-leg"
+        >
+          <template #details>
             <UBadge
               :label="wantsSavingsAccount(leg, accounts) ? words.review.wantsSavings : words.review.waitingForOther"
               color="neutral"
@@ -181,11 +204,11 @@ async function undoPair(legs: TransferPair): Promise<void> {
               class="self-start"
               data-testid="spending-lone-leg-state"
             />
-          </span>
-          <AccountMoneyText :cents="leg.amount" :currency="currencyOf(leg)" sign="always" tone="flow" class="shrink-0 text-sm" />
-        </li>
+          </template>
+        </ReviewItem>
       </ul>
     </AppCard>
+    <WaitingReceiptsCard v-if="receipts.length > 0 && !receiptsAsk" ref="receiptsBelow" :waiting="receipts" />
     <AppDialog v-model:open="ruleDialogOpen" :title="words.review.always" :description="askedRule === null ? undefined : `${ruleTestOf(askedRule.condition)} → ${askedRule.category.name}`">
       <p class="text-sm text-highlighted" data-testid="spending-rule-files">{{ plural(words.rules.files(rowsFiled), rowsFiled) }}</p>
       <template #end>

@@ -7,6 +7,7 @@ import type { CardWarnings } from './proposalLines'
 import { ADD_RECEIPT, keptPhotos, receiptsOutside, withPhotosRead, writeReceiptStep } from './receiptOperation'
 import type { KeptPhotos, ReceiptPorts } from './receiptOperation'
 import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'
+import { WAITING_RECEIPT_OPERATIONS, writeWaitingReceiptStep } from './waitingReceiptOperations'
 import { IMPORT_STATEMENT, importedStatement } from './statementImport'
 import type { CardStatement } from './statementImport'
 import { SET_STARTING_ACCOUNT, acceptStartingAccount, setsStartingAccount, startingAccountCheck } from './startingAccountOperation'
@@ -302,6 +303,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     example: { entry: 'transaction' },
   },
   ...REVIEW_OPERATIONS,
+  ...WAITING_RECEIPT_OPERATIONS,
   IMPORT_STATEMENT,
   ...BANK_SETUP_OPERATIONS,
   SET_STARTING_ACCOUNT,
@@ -678,14 +680,15 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         break
       }
       case 'add-receipt': {
-        const { split, warning } = writeReceiptStep(unit, book, field, idOf, ports.receipts, kept?.[at] ?? '')
+        const { split, notes } = writeReceiptStep(unit, book, field, idOf, ports.receipts, kept?.[at] ?? '')
+        const { before, row: filed } = split
         book = {
           ...book,
-          transactions: split.before === null ? [...book.transactions, split.row] : book.transactions.map((row) => (row.id === split.row.id ? split.row : row)),
+          transactions: filed === null ? book.transactions : before === null ? [...book.transactions, filed] : book.transactions.map((row) => (row.id === filed.id ? filed : row)),
           receipts: [...book.receipts, split.receipt],
           lines: [...book.lines.filter((part) => !split.replaced.includes(part)), ...split.lines],
         }
-        if (warning !== null) receiptWarnings.push(warning)
+        receiptWarnings.push(...notes)
         break
       }
       case 'flag-person': {
@@ -702,6 +705,10 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         break
       case 'move-to-cash':
         writeReviewStep(unit, book, operation, rowOf(field['row']), field['cash_account'] === null ? null : accountOf(field['cash_account']))
+        break
+      case 'place-waiting-receipt':
+      case 'remove-waiting-receipt':
+        writeWaitingReceiptStep(unit, book, books.records, operation, field, idOf)
         break
       case 'import-statement':
         if (imported !== null) throw new StepRefused('A card imports one statement.')

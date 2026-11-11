@@ -233,6 +233,7 @@ describe('a line remembered from a confirmed receipt', () => {
   const receipt = (key: string, merchant: string, merchantOib: string, issuedOn: string) => ({
     id: recordIdOf(RECEIPT_RECORDS, key),
     transaction: recordIdOf(RECEIPT_RECORDS, key),
+    account: null,
     merchant,
     merchantOib,
     buyerOib: '',

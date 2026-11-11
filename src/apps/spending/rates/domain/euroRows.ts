@@ -24,7 +24,9 @@ export interface EuroRow {
 export function euroRows(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'lines'>, rates: RateBook): EuroRow[] {
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
   const linesOf = new Map<RecordId, EntryPart[]>()
-  for (const line of book.lines) linesOf.set(line.transaction, [...(linesOf.get(line.transaction) ?? []), line])
+  for (const line of book.lines) {
+    if (line.transaction !== null) linesOf.set(line.transaction, [...(linesOf.get(line.transaction) ?? []), line])
+  }
   return book.transactions.flatMap((transaction) => {
     const account = accounts.get(transaction.account)
     return account === undefined ? [] : [{ transaction, account, euros: eurosOfAccountMoney(transaction.amount, account.currency, transaction.date, rates), lines: linesOf.get(transaction.id) ?? [] }]

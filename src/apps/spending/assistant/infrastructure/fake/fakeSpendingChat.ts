@@ -47,6 +47,9 @@ const ANSWERS = {
     taggedTitle: 'The receipt on the entry you took it for',
     taggedProposed: 'The card below puts the receipt on the entry you took the photo for. Check what the card says differs before you accept.',
     cashTitle: 'A cash receipt',
+    cardTitle: 'A card receipt',
+    cardProposed: 'The card below keeps the receipt with the lines I read until the bank brings the payment. Nothing changes until you accept it.',
+    noCardAccount: 'You keep no euro account the bank fills, so tell me which account the card is on.',
     cashProposed: 'The card below makes the cash payment with the lines I read. Nothing changes until you accept it.',
     howMuchCash: 'You keep no cash account in euros yet. How much cash did you have before you paid?',
     cashAccountFirst: 'The card below adds a cash account with what you had and puts the receipt on it.',
@@ -105,6 +108,9 @@ const ANSWERS = {
     taggedTitle: 'Fiskalni račun na unosu za koji ste ga snimili',
     taggedProposed: 'Kartica ispod stavlja fiskalni račun na unos za koji ste ga snimili. Prije nego što prihvatite, provjerite što kartica kaže da se razlikuje.',
     cashTitle: 'Fiskalni račun plaćen gotovinom',
+    cardTitle: 'Fiskalni račun plaćen karticom',
+    cardProposed: 'Kartica ispod čuva fiskalni račun sa stavkama koje sam pročitao dok banka ne donese plaćanje. Ništa se ne mijenja dok je ne prihvatite.',
+    noCardAccount: 'Nemate račun u eurima koji puni banka, pa mi recite na kojem je računu kartica.',
     cashProposed: 'Kartica ispod upisuje plaćanje gotovinom sa stavkama koje sam pročitao. Ništa se ne mijenja dok je ne prihvatite.',
     howMuchCash: 'Još nemate račun gotovine u eurima. Koliko ste gotovine imali prije plaćanja?',
     cashAccountFirst: 'Kartica ispod dodaje račun gotovine s iznosom koji ste imali i stavlja fiskalni račun na njega.',
@@ -295,6 +301,7 @@ interface FoundRecord {
   readonly currency?: string
   readonly closed?: boolean
   readonly kind?: string
+  readonly rowsFrom?: string
 }
 
 function recordsIn(text: string): readonly FoundRecord[] {
@@ -465,6 +472,25 @@ function cashReceiptReply({ request, tokens, typed }: FakeChatTurn, says: Says):
   return lookup(3, 'propose_changes', { app: 'spending', title: says.cashTitle, steps, next: false }, tokens)
 }
 
+/**
+ * Reads the attached photo as the sample €17.00 receipt paid by card, under Groceries, and puts it on the first euro account the
+ * bank fills. The bank has not brought that payment yet, so the card says the receipt waits for the bank's row.
+ */
+function cardReceiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+  const photo = lastPhotoId(request)
+  if (photo === null) return answered(request, says.noPhoto, tokens)
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
+  if (answers.length === 2) return lookup(2, 'find_records', findRecordsArgs('spending', 'account'), tokens)
+  if (answers.length > 3) return answered(request, says.cardProposed, tokens)
+  const account = recordsIn(answers[2]!.text).find((found) => found.kind === 'bank' && found.currency === 'EUR' && found.rowsFrom === 'bank-link' && found.closed !== true)
+  if (account === undefined) return answered(request, says.noCardAccount, tokens)
+  const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
+  const step = { op: 'add-receipt', input: JSON.stringify(receiptOf17(photo, 'card', groceries, { entry: null, account: account.ref })), as: null }
+  return lookup(3, 'propose_changes', { app: 'spending', title: says.cardTitle, steps: [step], next: false }, tokens)
+}
+
 /** Proposes a second cash account in euros, so a cash receipt has two to go on. */
 function purseReply({ request, tokens, lookups }: FakeChatTurn, says: Says): ModelReply {
   if (lookups > 0) return answered(request, says.purseProposed, tokens)
@@ -595,7 +621,7 @@ function biggestReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
 
 /**
  * Spending's part of the fake chat: Suggest categories proposes a new category and, at Go on, a rule into it, any other that starts with sort proposes a rule, one that starts with close proposes closing
- * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, on the entry tagged when one is, one that asks to read the cash receipt, says yes to cash or says how much cash there was, proposes it as cash, one that asks to put the receipt on Harbour bistro proposes it on that payment, one that asks to add a cash purse proposes a second cash account, one that starts with split proposes splitting the latest spend or the Harbour bistro one, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
+ * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, on the entry tagged when one is, one that asks to read the cash receipt, says yes to cash or says how much cash there was, proposes it as cash, one that says no, by card proposes it on the first euro account the bank fills, where it waits for the bank's row, one that asks to put the receipt on Harbour bistro proposes it on that payment, one that asks to add a cash purse proposes a second cash account, one that starts with split proposes splitting the latest spend or the Harbour bistro one, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
@@ -611,6 +637,7 @@ function spendingChat(turn: FakeChatTurn): ModelReply | null {
   if (/biggest spends|najveći troškovi/i.test(typed)) return biggestReply(turn, says)
   if (/^read the cash receipt|^pročitaj gotovinski račun|^yes, (in )?cash|^da, gotovinom|^i had|^imao sam|^imala sam/i.test(typed)) return cashReceiptReply(turn, says)
   if (/^put the receipt on|^stavi (fiskalni )?račun na/i.test(typed)) return pickedReceiptReply(turn, says)
+  if (/^no, by card|^ne, karticom/i.test(typed)) return cardReceiptReply(turn, says)
   if (/^add a cash purse|^dodaj novčanik/i.test(typed)) return purseReply(turn, says)
   if (/^read (the|this|a)( attached)? receipt|^pročitaj (priloženi )?(fiskalni )?račun/i.test(typed)) return receiptReply(turn, says)
   if (/^split|^podijeli/i.test(typed)) return splitReply(turn, says)

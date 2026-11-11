@@ -17,11 +17,16 @@ export function lastAccountId(): RecordId | null {
   }
 }
 
-/** The account a new entry starts on: the one this browser last saved an entry on while it is open and kept by hand, else the first such account. */
-export function startingAccount(accounts: readonly Account[]): Account | null {
-  const open = accounts.filter((account) => !account.closed && takesRowsByHand(account))
+/** Of these accounts, the one this browser last saved an entry on while it is open, else the first open one. */
+export function lastUsedAccount(accounts: readonly Account[]): Account | null {
+  const open = accounts.filter((account) => !account.closed)
   const last = lastAccountId()
   return open.find((account) => account.id === last) ?? open[0] ?? null
+}
+
+/** The account a new entry starts on: the last used of those kept by hand. */
+export function startingAccount(accounts: readonly Account[]): Account | null {
+  return lastUsedAccount(accounts.filter(takesRowsByHand))
 }
 
 export function rememberLastAccount(account: Account): void {

@@ -6,6 +6,7 @@ import { rulesRerun } from '../domain/spendingCategorisation'
 import type { StatementRows } from '../domain/statementRows'
 import { isMadeCashLeg, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { legsOfPair } from '../../pairing/domain/transferPairs'
+import { writeReceiptPlaced } from '../../receipts/application/receiptWrites'
 import { words as receiptWords } from '../../receipts/domain/words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
@@ -42,12 +43,13 @@ export const HELD_ROW_WRITES: WriteRules<HeldBankRow> = {
   refusals: (_change, fresh, after) => dependentRefusals(['held'], fresh, after),
 }
 
-/** Everything the import does in one write, so one Undo takes it all back. */
-export function writeDryRun(unit: UnitOfWork, run: Pick<StatementDryRun, 'added' | 'changed' | 'held'>): void {
+/** Everything the import does in one write, with the waiting receipts that go on its rows, so one Undo takes it all back. */
+export function writeDryRun(unit: UnitOfWork, run: Pick<StatementDryRun, 'added' | 'changed' | 'held' | 'receipts'>): void {
   const entries = unit.of(TRANSACTION_WRITES)
   run.added.forEach((row) => entries.add(row))
   run.changed.forEach(({ before, after }) => entries.change(before, after))
   run.held.forEach((held) => unit.of(HELD_ROW_WRITES).add(held))
+  run.receipts.forEach((placed) => writeReceiptPlaced(unit, placed))
 }
 
 /** The row under the category you picked, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it. */
@@ -181,7 +183,7 @@ export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: Rul
   const run = statementDryRun({ ...book, rules, transactions: book.transactions.map((row) => refiledTo.get(row) ?? row) }, statement, day)
   const changedByRun = run.changed.map(({ before, after }) => ({ before: refiledFrom.get(before) ?? before, after }))
   const startsOfRun = new Set(changedByRun.map(({ before }) => before))
-  writeDryRun(unit, { added: run.added, changed: [...refiled.filter(({ before }) => !startsOfRun.has(before)), ...changedByRun], held: run.held })
+  writeDryRun(unit, { added: run.added, changed: [...refiled.filter(({ before }) => !startsOfRun.has(before)), ...changedByRun], held: run.held, receipts: run.receipts })
   return run
 }
 

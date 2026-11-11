@@ -1,6 +1,8 @@
 import { decidingRule } from './spendingCategorisation'
 import { cashAccountsFor, isWithdrawal } from '../../pairing/domain/cashWithdrawals'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
+import { splittableRows } from '../../receipts/domain/receiptMatch'
+import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingReceipts'
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import type { NearMatch } from '../../pairing/domain/sameMoney'
 import { isPairable, transferPairs } from '../../pairing/domain/transferPairs'
@@ -50,11 +52,15 @@ export function isWaiting(row: Transaction): boolean {
   return row.category === null
 }
 
-/** How many rows wait on To review: those for a category, the bank rows on hold, and the withdrawals filed with no cash leg. */
+/**
+ * How many things wait on To review for the person: rows for a category, the bank rows on hold, the withdrawals filed with no
+ * cash leg, and the waiting receipts that ask which payment they are.
+ */
 export function reviewCount(book: SpendingBook): number {
   const transfer = transferOf(book)
   const filedWithoutCash = withdrawalsWithoutCash(book, transfer).filter(({ row }) => !isWaiting(row)).length
-  return book.transactions.filter(isWaiting).length + book.held.length + filedWithoutCash
+  const receiptsAsking = waitingReceipts(book).filter(asksForPayment).length
+  return book.transactions.filter(isWaiting).length + book.held.length + filedWithoutCash + receiptsAsking
 }
 
 function transferOf(book: Pick<SpendingBook, 'categories'>): RecordId | undefined {
@@ -108,4 +114,13 @@ export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
     wantingSavings: book.transactions.filter((row) => row.pair === null && wantsSavingsAccount(row, book.accounts)).length,
     withdrawals,
   }
+}
+
+/**
+ * The rows that offer to take a receipt photo: those a receipt may split, but for a row To review still asks about as maybe a
+ * transfer, which waits until that question is answered.
+ */
+export function rowsTakingReceipt(book: SpendingBook, day: CivilDate): ReadonlySet<Transaction['id']> {
+  const maybeTransfer = new Set(reviewQueue(book, day).waiting.flatMap((waiting) => (waiting.maybeTransfer === null ? [] : [waiting.row.id])))
+  return new Set(splittableRows(book).flatMap((row) => (maybeTransfer.has(row.id) ? [] : [row.id])))
 }

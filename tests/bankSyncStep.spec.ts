@@ -36,7 +36,7 @@ function openedWithOtpFetchedAt(fetchedAt: number): void {
     { id: 'x', key: 'bank_link_otp', value: '2027-01-01' },
     { id: 'y', key: 'bank_sync_fetched_otp', value: new Date(fetchedAt).toISOString() },
   ]
-  store.state.workbook = { accounts: ACCOUNTS, categories: [], rules: [], transactions: [], held: [], settings: spendingSettingsOf(rows as never) }
+  store.state.workbook = { accounts: ACCOUNTS, categories: [], rules: [], transactions: [], receipts: [], lines: [], held: [], settings: spendingSettingsOf(rows as never) }
 }
 
 afterEach(() => {

@@ -9,11 +9,11 @@ export function madeByHand(row: Pick<Transaction, 'importKey'>): boolean {
 }
 
 /**
- * Whether a new row may not go on the account: a typed or copied one on an account the bank fills, which takes its rows from
- * the bank alone. A row a receipt made still goes there and waits for the bank's row to fill it.
+ * Whether a new row may not go on the account: one a person typed, a receipt made or the chat copied, on an account the bank
+ * fills, which takes its rows from the bank alone. A receipt there waits for the bank's row instead.
  */
-export function refusedOnAccount(row: Pick<Transaction, 'importKey' | 'source'>, account: Pick<Account, 'rowsFrom'>): boolean {
-  return !takesRowsByHand(account) && madeByHand(row) && row.source !== 'receipt'
+export function refusedOnAccount(row: Pick<Transaction, 'importKey'>, account: Pick<Account, 'rowsFrom'>): boolean {
+  return !takesRowsByHand(account) && madeByHand(row)
 }
 
 /** Whether the bank fixed the row's amount and day: a row it brought onto an account it fills, whose balance it checks against them. */

@@ -41,7 +41,8 @@ import { language } from '../../../../../shared/text/language'
  * set with a row the AI copied that the export's Unknown shop looks like, `synced` the statements set with a row the bank sync
  * brought that the export's Corner market looks like, `cash` the statements set with cash withdrawals already on the file
  * and no cash leg, two dollar cash accounts and a pound account at Revolut, and `receipts` the sample with the payments the
- * sample receipt photos match and a row a receipt split. Each figure is made up.
+ * sample receipt photos match and a row a receipt split, and with the bank sync set up two receipts that wait for the bank's row on OTP, one of which two kiosk payments may be.
+ * Each figure is made up.
  */
 export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people'
 
@@ -314,6 +315,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
       {
         id: receipt,
         transaction: row,
+        account: null,
         merchant: 'Corner market',
         merchantOib: '',
         buyerOib: '',
@@ -446,7 +448,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
   if (set === 'cash') transactions.push(...withdrawalRows(day, idOf))
   if (set === 'copied') transactions.push(copiedRow(day, idOf))
   if (set === 'synced') transactions.push(syncedRow(day))
-  if (set === 'receipts') transactions.push(...receiptRows(day, idOf))
+  if (set === 'receipts') transactions.push(...receiptRows(day, idOf), ...(bankSync === null ? [] : kioskRows(day, idOf)))
   if (set === 'people') transactions.push(...peopleRows(day, idOf))
   if (set !== 'foreign') {
     const [out, into] = [fixedId(TRANSACTION_RECORDS, 1501), fixedId(TRANSACTION_RECORDS, 1502)]
@@ -474,9 +476,58 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     ...stored(TRANSACTION_RECORDS, transactions),
     ...stored(BUDGET_RECORDS, budgets),
     ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
-    ...(set === 'receipts' ? storedReceipts(splitRowReceipt(day, idOf)) : {}),
+    ...(set === 'receipts' ? storedReceipts(withWaiting(splitRowReceipt(day, idOf), bankSync === null ? null : waitingReceipts(day, idOf))) : {}),
     ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
   })
+}
+
+/** The two equal kiosk payments on OTP the waiting kiosk receipt could be, which the bank brought already. */
+function kioskRows(day: CivilDate, idOf: (path: string) => RecordId): readonly Transaction[] {
+  const before = addDays(day, -1) < firstDayOf(monthOf(day)) ? day : addDays(day, -1)
+  const filed = { category: idOf('Food/Groceries'), categorisedBy: 'rule' as const }
+  return [statementRow(1964, OTP, before, -9.8, 'TISAK MEDIA', filed), statementRow(1965, OTP, day, -9.8, 'TISAK MEDIA', filed)]
+}
+
+/**
+ * Two receipts for card payments on OTP that wait for the bank's row with their lines: a bakery's, which no payment on the
+ * file may be yet, and a kiosk's, which either of two equal kiosk payments may be, so To review asks which.
+ */
+function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): ReturnType<typeof splitRowReceipt> {
+  const waiting = (place: number, merchant: string, issuedTime: string, total: number, jir: string): Receipt => ({
+    id: fixedId(RECEIPT_RECORDS, place),
+    transaction: null,
+    account: OTP,
+    merchant,
+    merchantOib: '',
+    buyerOib: '',
+    issuedOn: day,
+    issuedTime,
+    total: moneyFromAmount(total),
+    jir,
+    zki: '',
+    readBy: '',
+    photo: '',
+    latitude: '',
+    longitude: '',
+  })
+  const line = (place: number, receipt: number, printed: string, text: string, amount: number): EntryPart => ({
+    id: fixedId(PART_RECORDS, place),
+    transaction: null,
+    receipt: fixedId(RECEIPT_RECORDS, receipt),
+    printed,
+    text,
+    amount: accountMoneyFromAmount(amount),
+    category: idOf('Food/Groceries'),
+  })
+  return {
+    receipts: [waiting(1961, 'Bakery on the corner', '08:05', 7.4, '3c4d5e6f-0000-4000-8000-1234567890ab'), waiting(1966, 'Tisak', '07:40', 9.8, '4d5e6f70-0000-4000-8000-1234567890ab')],
+    lines: [line(1962, 1961, 'KRUH', 'kruh', -2.9), line(1963, 1961, 'KROASAN', 'kroasan', -4.5), line(1967, 1966, 'ŽVAKAĆE', 'žvakaće gume', -9.8)],
+  }
+}
+
+/** The receipts and lines of the set, with a receipt that waits for the bank's row once the bank fills the accounts. */
+function withWaiting(split: ReturnType<typeof splitRowReceipt>, waiting: ReturnType<typeof splitRowReceipt> | null): ReturnType<typeof splitRowReceipt> {
+  return waiting === null ? split : { receipts: [...split.receipts, ...waiting.receipts], lines: [...split.lines, ...waiting.lines] }
 }
 
 function storedReceipts({ receipts, lines }: ReturnType<typeof splitRowReceipt>): WorkbookDocument['records'] {

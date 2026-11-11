@@ -20,10 +20,10 @@ import type { ReceiptCandidate } from '../domain/receiptMatch'
 import { receiptSplit, rowPlace, wholeReceipt } from '../domain/receiptSplit'
 import type { ReceiptPlace } from '../domain/receiptSplit'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
-import { rememberLastAccount, startingAccount } from '../../entries/infrastructure/lastAccount'
+import { lastUsedAccount, rememberLastAccount } from '../../entries/infrastructure/lastAccount'
 import { words as entryWords } from '../../entries/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { beforeStartDay } from '../../workbook/domain/account'
+import { beforeStartDay, takesRowsByHand } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -68,7 +68,7 @@ watch(picked, (file) => {
 watch(open, (opened) => {
   if (opened) {
     typedDate.value = today()
-    account.value = startingAccount(euroAccounts.value)?.id ?? ''
+    account.value = lastUsedAccount(euroAccounts.value)?.id ?? ''
     keepAllowed.value = canKeepPhotoNow()
     return
   }
@@ -125,7 +125,7 @@ const placeItems = computed(() => [
       .filter((part) => part !== '')
       .join(' · '),
   })),
-  { value: NEW_ENTRY, label: words.newEntry },
+  { value: NEW_ENTRY, label: waits.value ? words.waitForBank : words.newEntry },
 ])
 
 /** The category of the row picked is the first offer. */
@@ -141,17 +141,17 @@ const category = computed<string>({
 const onDrive = computed(() => store.state.choice?.source === 'drive')
 const keepReason = computed(() => (!onDrive.value ? words.keepOnlyDrive : keepAllowed.value ? null : words.keepNeedsAccess))
 
-/** The entry that holds this fiscal receipt already, as its QR code's JIR or ZKI names it. */
-const heldRow = computed(() => {
-  const held = qr.value === null ? null : heldReceiptOf(qr.value, book.value?.receipts ?? [])
-  return held === null ? null : (book.value?.transactions.find((row) => row.id === held.transaction) ?? null)
-})
+/** This fiscal receipt as the file holds it already, as its QR code's JIR or ZKI names it. */
+const heldReceipt = computed(() => (qr.value === null ? null : heldReceiptOf(qr.value, book.value?.receipts ?? [])))
+const heldRow = computed(() => book.value?.transactions.find((row) => row.id === heldReceipt.value?.transaction) ?? null)
 
 const newAccount = computed(() => euroAccounts.value.find((candidate) => candidate.id === account.value) ?? null)
 const newEntryPlaced = computed(() => place.value === NEW_ENTRY)
+/** On an account the bank fills, a receipt with no payment yet waits for the bank's row instead of making one. */
+const waits = computed(() => newAccount.value !== null && !takesRowsByHand(newAccount.value))
 
 const errors = computed(() => ({
-  held: heldRow.value === null ? null : words.alreadyHeld(heldRow.value.date, formatAccountMoney(heldRow.value.amount, EURO)),
+  held: heldReceipt.value === null ? null : heldRow.value === null ? words.alreadyWaiting : words.alreadyHeld(heldRow.value.date, formatAccountMoney(heldRow.value.amount, EURO)),
   total: total.value === null ? words.aTotal : null,
   date: issuedOn.value === null ? spendingWords.form.aDate(civilDate(2026, 3, 15)) : null,
   place: place.value === '' ? words.pickError : null,
@@ -259,10 +259,11 @@ function closeAsked(wanted: boolean): void {
         @update:model-value="pickedPlace = String($event)"
       />
       <p v-if="tried && errors.place !== null" class="text-sm text-error" data-testid="spending-receipt-place-error">{{ errors.place }}</p>
-      <p v-if="matches?.kind === 'none'" class="text-sm text-muted" data-testid="spending-receipt-no-match">{{ words.noMatch }}</p>
-      <UFormField v-if="newEntryPlaced" :label="words.account" :help="words.accountHelp" :error="(tried && errors.account) || false">
+      <p v-if="matches?.kind === 'none'" class="text-sm text-muted" data-testid="spending-receipt-no-match">{{ waits ? words.noMatchWaits : words.noMatch }}</p>
+      <UFormField v-if="newEntryPlaced" :label="words.account" :help="words.accountHelp" :error="(tried && errors.account) || false" data-testid="spending-receipt-account-field">
         <USelect v-model="account" :items="accountItems" class="w-full" data-testid="spending-receipt-account" />
       </UFormField>
+      <UAlert v-if="newEntryPlaced && waits" icon="i-lucide-clock" color="info" variant="subtle" :title="words.accountWaits" class="sm:col-span-2" data-testid="spending-receipt-waits" />
       <UFormField class="sm:col-span-2">
         <USwitch v-model="keepPhoto" :label="words.keep" :description="keepReason ?? words.keepHelp" :disabled="keepReason !== null" data-testid="spending-receipt-keep" />
       </UFormField>
