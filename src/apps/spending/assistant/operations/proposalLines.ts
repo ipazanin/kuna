@@ -134,7 +134,7 @@ export interface StatementLeftOut {
 export function statementLeftOut({ statement, copied }: CardStatement, run: Pick<StatementDryRun, 'lines'>): StatementLeftOut {
   return {
     label: statement.label,
-    rows: run.lines.filter((line) => line.outcome === 'before-opening' || line.outcome === 'other-source').length,
+    rows: run.lines.filter((line) => line.outcome === 'before-opening' || line.outcome === 'other-source' || line.outcome === 'outside-days').length,
     copied,
     inKuna: run.lines.filter((line) => line.outcome === 'already-in').length,
     lookAlikes: run.lines.flatMap((line) => (line.outcome === 'look-alike' ? [{ number: statement.rows.indexOf(line.row) + 1, line }] : [])),

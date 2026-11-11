@@ -6324,9 +6324,10 @@ export function spendingImportLookAlikeFlowIn(language, paths) {
 }
 
 /**
- * On Spending's Import with the synced set: the sample Revolut export's Corner market looks like the row the bank sync brought a
- * day later, so the dry run asks about it above its rows, naming that synced row. Use the file's row makes it take the synced
- * row's place. Nothing is imported.
+ * On Spending's Import with the synced set: the bank sync brought a row on the export's last day, so the dry run names the days
+ * before it as the days the file brings and leaves out the rows of that day, which show so. The export's Corner market looks like the synced
+ * row a day later, so the dry run asks about it above its rows, naming that synced row. Use the file's row makes it take the
+ * synced row's place. Nothing is imported.
  */
 export function spendingImportSyncedLookAlikeFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
@@ -6335,12 +6336,21 @@ export function spendingImportSyncedLookAlikeFlowIn(language, paths) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropSpendingFile(page, paths.revolut)
     await elementSays(page, '[data-testid="question"]', ['CORNER MARKET D.O.O.'], 'the question does not name the synced row the file row looks like')
+    await page.waitForSelector('[data-testid="spending-import-days-from"] input, input[data-testid="spending-import-days-from"]', { visible: true, timeout: 10_000 })
+    await page.$eval('[data-testid="spending-import-days"]', (element) => element.scrollIntoView({ block: 'center' }))
+    await delay(300)
+    await inspect?.('the Revolut dry run naming the days the file brings beside the bank sync')
+    await shoot('spending-import-gap-days')
+    if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
+    await centreOn(page, '[data-testid="spending-dry-run-row"]', panel.outcome.outsideDays)
+    await delay(300)
+    await inspect?.('a row of the export outside the days the file brings')
+    await shoot('spending-import-outside-days')
     await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
     await delay(300)
     await inspect?.('the Revolut dry run asking about a row that looks like a synced row')
     await shoot('spending-import-synced-lookalike')
     await pressSelector(page, press, `[data-testid="question-choice"] ${USE_FILE_ROW}`)
-    if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replacedSynced], "the file's row does not say it takes the synced row's place")
     await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
     await delay(300)

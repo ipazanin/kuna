@@ -1,10 +1,12 @@
 import { COPY_THE_FILE, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import { copiedStatementRows, copiedStatementTie, earlierPartRows } from '../../statements/domain/copiedStatement'
+import type { CopiedRow } from '../../statements/domain/copiedStatement'
 import type { StatementRows } from '../../statements/domain/statementRows'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words as statementWords } from '../../statements/domain/words'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
 import { ROWS_A_PART, StepRefused } from '../../../../shared/app/proposedWrites'
@@ -27,6 +29,7 @@ export const IMPORT_STATEMENT: AssistantOperation = {
     'Read every row and copy each as written, money out below zero, on the one account it is for. statementName names the statement in words as it names itself, such as its number or the month it covers, never as a key or as dates joined by a slash. Give the opening and closing balances only as the statement prints them, and never work one out. Without them the card warns that Kuna could not check the rows.',
     `lookAlikes says what becomes of a copied row that looks like a row Kuna has from another source, such as a Revolut export or the bank sync: the same amount on the same account at most ${BOOKING_DAYS_APART} days apart, unless the two payees share no word. ask keeps it waiting and lists it on the card, which asks the person to say in the chat. import imports it once the person says it is another payment: propose the same rows again with import once the card is answered. A row of the same day, amount and payee as one Kuna has is skipped either way.`,
     `A card carries at most ${ROWS_A_PART} copied rows. A longer statement goes in parts, oldest first, each its own card with only its own rows and the same statementName, part 1 first and each part once the one before is accepted. A part ends at the end of a day. Part 1 gives the opening alone and the last part both balances, and the parts between give neither. Kuna checks on the last part that the rows of every part lead from the opening to the closing. A statement in one part gives both or neither.`,
+    'fromDay and toDay name the days the statement brings, such as a gap the bank sync left, when the person names them, and are null otherwise. Its rows on other days are left out. Null on one side reaches the first or last copied row. Copied rows are matched row by row against the rows the bank sync brought either way, so a statement over synced days needs no days to book each row once.',
     'Rules on the same card file its new rows. A new category goes on an earlier card. When a card with an import holds too many changes, put its rules on a card of their own before the import.',
   ].join(' '),
   input: inputOf({
@@ -38,6 +41,8 @@ export const IMPORT_STATEMENT: AssistantOperation = {
     rows: { type: 'array', items: inputOf({ date: TEXT, amount: NUMBER, payee: TEXT, iban: TEXT_OR_NULL }) },
     part: { type: 'integer', description: 'Which part of the statement this card imports, from 1.' },
     lookAlikes: { type: 'string', enum: [...LOOK_ALIKES] },
+    fromDay: TEXT_OR_NULL,
+    toDay: TEXT_OR_NULL,
   }),
   refs: { file: ATTACHMENT_REF, account: ACCOUNT_RECORDS.name },
   creates: null,
@@ -54,6 +59,8 @@ export const IMPORT_STATEMENT: AssistantOperation = {
     ],
     part: 1,
     lookAlikes: 'ask',
+    fromDay: null,
+    toDay: null,
   },
 }
 
@@ -81,20 +88,22 @@ export interface CardStatement {
 /** What a later part's tie counts, since a row an earlier part found in Kuna already is not among them. */
 const EARLIER_PARTS_COUNTED = 'Its rows are those its parts put in Kuna and this part, so a row of an earlier part that Kuna had already from another source counts as missing.'
 
-/** What a step names of a statement the AI copied: the account, the statement's name, its part and the balances the card gives. */
+/** What a step names of a statement the AI copied: the account, the statement's name, its part, the balances the card gives and the days it brings. */
 interface CopiedPart {
   readonly account: Account | null
   readonly name: string | null
   readonly part: number
   readonly opening: number | null
   readonly closing: number | null
+  readonly fromDay: string | null
+  readonly toDay: string | null
 }
 
 /**
  * One part of a statement the AI copied off a page, a file or the chat. A card that gives both printed balances ties them, against
  * the rows its earlier parts put in Kuna too, and a statement without them goes in with the card warning that Kuna could not check it.
  */
-function copiedStatement({ account, name, part, opening, closing }: CopiedPart, rows: readonly TranscribedRow[], lookAlikes: LookAlikes, book: SpendingBook): StatementRows {
+function copiedStatement({ account, name, part, opening, closing, fromDay, toDay }: CopiedPart, rows: readonly TranscribedRow[], lookAlikes: LookAlikes, book: SpendingBook): StatementRows {
   if (account === null) throw new StepRefused('Copied rows name the account they are on.')
   if (name === null || name.trim() === '') throw new StepRefused('statementName names the statement, the same on every part of it.')
   if (!Number.isInteger(part) || part < 1) throw new StepRefused('part counts from 1.')
@@ -107,7 +116,7 @@ function copiedStatement({ account, name, part, opening, closing }: CopiedPart, 
   if (rows.length > ROWS_A_PART) throw new StepRefused(`A card carries at most ${ROWS_A_PART} copied rows. Put the rest on the next part, which starts on the day after this one ends.`)
   if (rows.some((row) => accountMoneyFromAmount(row.amount) === 0)) throw new StepRefused('Every row has an amount other than zero.')
   const copied = rows.map((row) => ({ date: dayOf(row.date), amount: accountMoneyFromAmount(row.amount), payee: row.payee, iban: row.iban }))
-  const statement = copiedStatementRows(account, name, copied, lookAlikes)
+  const statement = { ...copiedStatementRows(account, name, copied, lookAlikes), days: namedDays(fromDay, toDay, copied) }
   const earlier = part === 1 ? [] : earlierPartRows(book.transactions, statement)
   const refusal = partRefusal(
     part,
@@ -123,6 +132,15 @@ function copiedStatement({ account, name, part, opening, closing }: CopiedPart, 
   return statement
 }
 
+/** The days a step says its statement brings, a blank side reaching its first or last copied row, or undefined when it names none. */
+function namedDays(fromDay: string | null, toDay: string | null, rows: readonly Pick<CopiedRow, 'date'>[]): DateRange | undefined {
+  if (fromDay === null && toDay === null) return undefined
+  const days = rows.map((row) => row.date).sort()
+  const named = { from: fromDay === null ? days[0]! : dayOf(fromDay), to: toDay === null ? days[days.length - 1]! : dayOf(toDay) }
+  if (named.to < named.from) throw new StepRefused(`toDay ${named.to} comes before fromDay ${named.from}.`)
+  return named
+}
+
 /** The statement an import step names, from the rows the AI copied onto it. `accountOf` finds the account the step names among the books as the proposal left them. */
 export function importedStatement(input: Readonly<Record<string, never>>, book: SpendingBook, accountOf: (value: unknown) => Account): CardStatement {
   const file: unknown = input['file']
@@ -131,7 +149,7 @@ export function importedStatement(input: Readonly<Record<string, never>>, book: 
   if (file !== null && rows.length === 0) throw new StepRefused(COPY_THE_FILE)
   const lookAlikes = choiceOf(LOOK_ALIKES, input['lookAlikes'], 'lookAlikes')!
   const account = input['account'] === null ? null : accountOf(input['account'])
-  const part = { account, name: input['statementName'], part: input['part'], opening: input['opening'], closing: input['closing'] }
+  const part = { account, name: input['statementName'], part: input['part'], opening: input['opening'], closing: input['closing'], fromDay: input['fromDay'], toDay: input['toDay'] }
   const statement = copiedStatement(part, rows, lookAlikes, book)
   return { statement, copied: { count: statement.rows.length, file: file === null ? null : file.name, check: copiedStatementCheck(part) } }
 }

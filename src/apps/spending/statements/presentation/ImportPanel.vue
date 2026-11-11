@@ -2,17 +2,20 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UFormField from '@nuxt/ui/components/FormField.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
+import UInput from '@nuxt/ui/components/Input.vue'
 
 import { writeDryRun } from '../application/statementWrites'
 import { addRevolutAccounts, revolutStatement } from '../domain/revolutStatement'
-import { statementDryRun } from '../domain/statementDryRun'
+import { statementDryRun, syncGapOf } from '../domain/statementDryRun'
 import DryRunLines from './DryRunLines.vue'
 import { rowParts, twinCaption } from './rowParts'
 import MissingAccountsOffer from './MissingAccountsOffer.vue'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { today } from '../../../../shared/calendar/civilDate'
+import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
 import { TWIN_CHOICES, twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
@@ -22,6 +25,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
+import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { readFirstSheet } from '../../../../shared/xlsx/sheetGrids'
 
 /** A dropped file's dry run, worked out again as the file changes, so an Undo brings it back. Nothing is written until the button. */
@@ -59,10 +63,47 @@ const reading = computed(() => {
 })
 const refusal = computed(() => (reading.value !== null && 'refusal' in reading.value ? reading.value.refusal : null))
 const missing = computed(() => reading.value?.missing ?? [])
+const statement = computed(() => (reading.value !== null && 'statement' in reading.value ? reading.value.statement : null))
+
+/** The days the bank sync left in the file, which the days it brings start from. Null while the sync covers none of its days. */
+const gap = computed(() => (store.state.workbook === null || statement.value === null ? null : syncGapOf(store.state.workbook.transactions, statement.value)))
+const typedFrom = ref('')
+const typedTo = ref('')
+watch(
+  () => (gap.value === null ? '' : `${gap.value.from} ${gap.value.to}`),
+  () => {
+    typedFrom.value = gap.value?.from ?? ''
+    typedTo.value = gap.value?.to ?? ''
+  },
+)
+/** The file's first and last day, which a cleared field takes. */
+const fileDays = computed((): DateRange | null => {
+  const days = (statement.value?.rows ?? []).map((row) => row.date).sort()
+  return days.length === 0 ? null : { from: days[0]!, to: days[days.length - 1]! }
+})
+const backwards = computed(() => {
+  const from = parseCivilDate(typedFrom.value)
+  const to = parseCivilDate(typedTo.value)
+  return from !== null && to !== null && to < from
+})
+/** The days the dry run takes: the typed ones, or the last ones typed in order while the last day comes before the first. */
+const days = ref<DateRange | undefined>(undefined)
+watch([typedFrom, typedTo, gap, fileDays], () => {
+  if (gap.value === null || fileDays.value === null) {
+    days.value = undefined
+    return
+  }
+  const from = parseCivilDate(typedFrom.value)
+  const to = parseCivilDate(typedTo.value)
+  if (from === null) typedFrom.value = fileDays.value.from
+  else if (to === null) typedTo.value = fileDays.value.to
+  else if (from <= to) days.value = { from, to }
+})
+
 const dryRun = computed(() => {
   const book = store.state.workbook
-  if (book === null || reading.value === null || !('statement' in reading.value)) return null
-  return statementDryRun(book, { ...reading.value.statement, twinAnswers: new Map(Object.entries(twinAnswers.value)) }, today())
+  if (book === null || statement.value === null) return null
+  return statementDryRun(book, { ...statement.value, twinAnswers: new Map(Object.entries(twinAnswers.value)), days: days.value }, today())
 })
 
 const twinItems = computed(() => {
@@ -103,6 +144,18 @@ async function confirm(): Promise<void> {
     </AppCard>
     <AppCard v-if="dryRun !== null && loaded !== null" :title="loaded.name" data-testid="spending-dry-run">
       <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
+        <section v-if="days !== undefined && fileDays !== null" class="flex flex-col gap-1" data-testid="spending-import-days">
+          <h3 class="type-card-title">{{ words.import.days.title }}</h3>
+          <p class="type-caption">{{ words.import.days.intro }}</p>
+          <FormGrid class="mt-2">
+            <UFormField :label="words.import.days.from">
+              <UInput v-model="typedFrom" type="date" :min="fileDays.from" :max="fileDays.to" class="w-full" data-testid="spending-import-days-from" />
+            </UFormField>
+            <UFormField :label="words.import.days.to" :error="backwards ? words.import.days.backwards : false">
+              <UInput v-model="typedTo" type="date" :min="fileDays.from" :max="fileDays.to" class="w-full" data-testid="spending-import-days-to" />
+            </UFormField>
+          </FormGrid>
+        </section>
         <p class="text-sm text-highlighted" data-testid="spending-dry-run-summary">{{ words.import.summary(dryRun.newRows, dryRun.alreadyIn, dryRun.filled) }}</p>
         <ul v-if="dryRun.notes.length > 0" class="flex flex-col gap-1 text-sm text-muted" data-testid="spending-dry-run-notes">
           <li v-for="note in dryRun.notes" :key="note">{{ note }}</li>

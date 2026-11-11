@@ -23,7 +23,7 @@ Every `.vue` in `src/shared/ui` has a row here and a specimen in the gallery at 
 | Component       | Props                                                                                                                                                                   | Company | Loans | Investments | Assets | Spending | Shell | Shared |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ----- | ----------- | ------ | -------- | ----- | ------ |
 | `DashboardGrid` | `layout?: 'tiles' \| 'cards' \| 'pair'`. Follows the shell's content area, so the sidebar and the chat's dock count                                                     | 11      | 6     | 10          | 2      | 3        | 3     | 1      |
-| `FormGrid`      | `as?: 'div' \| 'form'`. A field takes a whole row with `sm:col-span-2`                                                                                                  | 18      | 10    | 12          | 2      | 6        | 0     | 0      |
+| `FormGrid`      | `as?: 'div' \| 'form'`. A field takes a whole row with `sm:col-span-2`                                                                                                  | 18      | 10    | 12          | 2      | 7        | 0     | 0      |
 | `AppDialog`     | `v-model:open`, `title`, `description?`, `width?: 'md' \| 'xl' \| '2xl' \| '3xl'`, `dismissible?`. Slots default, `start`, `end`. A container, so its body asks `@2xl:` | 29      | 8     | 6           | 2      | 8        | 3     | 3      |
 
 ## Charts

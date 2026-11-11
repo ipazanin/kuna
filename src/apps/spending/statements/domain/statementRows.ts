@@ -1,6 +1,7 @@
 import type { OpeningEvidence } from '../../accounts/domain/bankOpening'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { DateRange } from '../../../../shared/calendar/dateRange'
 import type { TwinAnswer, LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
@@ -51,6 +52,11 @@ export interface StatementRows {
   readonly transcribed?: { readonly lookAlikes: LookAlikes }
   /** What the person said of the file's rows that look like rows Kuna has from another source, by `rowKey`. */
   readonly twinAnswers?: ReadonlyMap<string, TwinAnswer>
+  /**
+   * The days the person said the file brings, such as a gap the bank sync left. Its rows on other days are left out, and its rows
+   * on these days are matched row by row against the rows of the other sources, whichever days the sync covers.
+   */
+  readonly days?: DateRange | undefined
 }
 
 /** An account a file needs that Kuna does not keep, drafted to start on the earliest day its rows allow, with what its opening is worked out from on a later day. */

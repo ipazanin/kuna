@@ -727,8 +727,8 @@ function spendingWork(ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPho
       const lookAlikes = (warnings.leftOut?.lookAlikes ?? []).map(({ number }) => number)
       const leftOut =
         rows === 1
-          ? '1 row of the statement is left out, as it falls before the account opened or the bank sync covers its day.'
-          : `${rows} rows of the statement are left out, as they fall before the account opened or the bank sync covers their day.`
+          ? '1 row of the statement is left out, as it falls before the account opened, outside the days the card names or on a day the bank sync covers.'
+          : `${rows} rows of the statement are left out, as they fall before the account opened, outside the days the card names or on a day the bank sync covers.`
       const told = [...(lookAlikes.length === 0 ? [] : [lookAlikesForTheModel(lookAlikes, false)]), ...(rows === 0 ? [] : [`${leftOut} Tell the person, and ask before proposing them another way.`])]
       return told.length === 0 ? null : told.join(' ')
     },

@@ -12,7 +12,7 @@ import type { BankSession, BankTransaction, LinkedAccount } from '../src/apps/sp
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync'
 import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
-import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
+import { statementDryRun, syncGapOf } from '../src/apps/spending/statements/domain/statementDryRun'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
 import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
@@ -209,6 +209,70 @@ describe('a file against rows a sync brought', () => {
       DAY,
     )
     expect(run.added.every((added) => added.pair !== null)).toBe(true)
+  })
+})
+
+describe('a file for the days it names on a synced account', () => {
+  const synced = (date: string, payee = 'Corner bakery', amount = -6.5) => row(OTP, date, amount, null, { payee, source: 'statement', importKey: `bank-${date}-${payee}`, statement: 'Enable Banking' })
+  const on = (date: string, payee = 'Corner bakery', amount = -6.5): Partial<StatementRow> => ({ date: civil(date), payee, amount: accountMoneyFromAmount(amount) })
+  const days = (from: string, to: string) => ({ from: civil(from), to: civil(to) })
+
+  it('books the rows the sync brought on both ends of the days once, adds the gap between, and leaves out the rest', () => {
+    const book = bookOf([synced('2026-10-05'), synced('2026-10-25')])
+    const file = fileStatement([on('2026-10-04', 'Kiosk', -2), on('2026-10-05'), on('2026-10-12', 'Pharmacy', -20), on('2026-10-25'), on('2026-10-26', 'Kiosk', -2)])
+    const run = statementDryRun(book, { ...file, days: days('2026-10-05', '2026-10-25') }, DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['outside-days', 'already-in', 'new', 'already-in', 'outside-days'])
+    expect(run.added.map((added) => added.payee)).toEqual(['Pharmacy'])
+    expect(run.notes).toEqual(['2 rows left out, since the file brings only the days from 5 Oct 2026 to 25 Oct 2026.'])
+  })
+
+  it('asks about a row on an end of the days that only looks like the synced one, instead of adding it twice', () => {
+    const book = bookOf([synced('2026-10-05', 'CORNER BAKERY D.O.O.')])
+    const run = statementDryRun(book, { ...fileStatement([on('2026-10-04'), on('2026-10-12', 'Pharmacy', -20)]), days: days('2026-10-04', '2026-10-12') }, DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['look-alike', 'new'])
+    expect(run.questions.map((question) => question.booked)).toEqual([book.transactions[0]])
+  })
+
+  it('adds nothing for days the sync already covers whole', () => {
+    const book = bookOf([synced('2026-10-05'), synced('2026-10-06', 'Market', -30)])
+    const run = statementDryRun(book, { ...fileStatement([on('2026-10-05'), on('2026-10-06', 'Market', -30)]), days: days('2026-10-05', '2026-10-06') }, DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'already-in'])
+    expect([run.added, run.changed, run.notes]).toEqual([[], [], []])
+  })
+
+  it('takes the rows of the days on an account the sync brought nothing to, and leaves out the rest', () => {
+    const run = statementDryRun(bookOf([]), { ...fileStatement([on('2026-10-01'), on('2026-10-15', 'Pharmacy', -20), on('2026-10-30')]), days: days('2026-10-10', '2026-10-20') }, DAY)
+    expect(run.lines.map((line) => line.outcome)).toEqual(['outside-days', 'new', 'outside-days'])
+    expect(run.added.map((added) => added.payee)).toEqual(['Pharmacy'])
+  })
+
+  it('takes no row when the last day comes before the first', () => {
+    const run = statementDryRun(bookOf([]), { ...fileStatement([on('2026-10-15')]), days: days('2026-10-20', '2026-10-10') }, DAY)
+    expect([run.lines.map((line) => line.outcome), run.added]).toEqual([['outside-days'], []])
+  })
+})
+
+describe('syncGapOf', () => {
+  const synced = (account: Account, date: string) => row(account, date, -1, null, { source: 'statement', importKey: `bank-${account.id}-${date}`, statement: 'Enable Banking' })
+  const file = (...dates: string[]) => fileStatement(dates.map((date) => ({ date: civil(date) })))
+
+  it('names the longest run of the file’s days the sync brought no row on', () => {
+    const transactions = [synced(OTP, '2026-10-01'), synced(OTP, '2026-10-02'), synced(OTP, '2026-10-20'), synced(OTP, '2026-10-21'), synced(OTP, '2026-10-24')]
+    expect(syncGapOf(transactions, file('2026-09-28', '2026-10-05', '2026-10-15', '2026-10-25'))).toEqual({ from: civil('2026-10-03'), to: civil('2026-10-19') })
+  })
+
+  it('names the file’s own days when they all fall between two synced days', () => {
+    expect(syncGapOf([synced(OTP, '2026-10-01'), synced(OTP, '2026-10-30')], file('2026-10-10', '2026-10-12'))).toEqual({ from: civil('2026-10-10'), to: civil('2026-10-12') })
+  })
+
+  it('names nothing for a file the sync’s days leave whole, or one whose every day the sync brought rows on', () => {
+    expect(syncGapOf([synced(OTP, '2026-10-20')], file('2026-10-01', '2026-10-19'))).toBeNull()
+    expect(syncGapOf([synced(REVOLUT_EUR, '2026-10-01')], file('2026-10-05'))).toBeNull()
+    expect(syncGapOf([synced(OTP, '2026-10-05'), synced(OTP, '2026-10-06')], file('2026-10-05', '2026-10-06'))).toBeNull()
+  })
+
+  it('names nothing for rows the AI copied, since no day belongs to a source for them', () => {
+    expect(syncGapOf([synced(OTP, '2026-10-01')], { ...file('2026-10-10'), transcribed: { lookAlikes: 'ask' } })).toBeNull()
   })
 })
 

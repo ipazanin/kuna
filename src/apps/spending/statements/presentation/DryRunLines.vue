@@ -32,7 +32,7 @@ const shown = computed(() => {
       line,
       outcome,
       account: accounts.get(line.row.account) ?? null,
-      skipped: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
+      skipped: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'outside-days' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
     }
   })
 })
@@ -52,6 +52,8 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
       return { label: words.import.outcome.filled, color: 'info' }
     case 'replaced':
       return { label: isBankSyncKey(line.like.importKey) ? words.import.outcome.replacedSynced : words.import.outcome.replaced, color: 'info' }
+    case 'outside-days':
+      return { label: words.import.outcome.outsideDays, color: 'neutral' }
     case 'before-opening':
       return { label: words.import.outcome.beforeOpening, color: 'neutral' }
     case 'refiled':

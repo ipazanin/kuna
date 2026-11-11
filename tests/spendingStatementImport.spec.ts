@@ -51,6 +51,8 @@ function transcribed(desk: SpendingDesk, file: string, fields: Record<string, un
       rows: printed.rows.map((row) => ({ date: row.date, amount: amountOf(row.cents), payee: row.payee, iban: null })),
       part: 1,
       lookAlikes: 'ask',
+      fromDay: null,
+      toDay: null,
       ...fields,
     },
   }
@@ -177,7 +179,12 @@ describe('a statement read off a page', () => {
     const desk = await spendingDesk(used)
     const savings = desk.ref('account', DESK_ACCOUNTS.SAVINGS.id)
     const topUp = { date: '2026-10-30', amount: 80, payee: 'Top-up', iban: DESK_ACCOUNTS.CURRENT.iban }
-    await desk.propose([{ op: 'import-statement', input: { file: null, account: savings, statementName: 'Statement 3', opening: 300, closing: 380, rows: [topUp], lookAlikes: 'ask', part: 1 } }])
+    await desk.propose([
+      {
+        op: 'import-statement',
+        input: { file: null, account: savings, statementName: 'Statement 3', opening: 300, closing: 380, rows: [topUp], lookAlikes: 'ask', part: 1, fromDay: null, toDay: null },
+      },
+    ])
     await desk.accept()
     const waiting = rowsOn(desk, DESK_ACCOUNTS.SAVINGS.id).find((row) => row.payee === 'Top-up')!
     expect(waiting).toMatchObject({ category: null, pair: null })
@@ -204,6 +211,8 @@ describe('a statement read off a page', () => {
           rows: [{ ...topUp, amount: -80, iban: null }],
           lookAlikes: 'ask',
           part: 1,
+          fromDay: null,
+          toDay: null,
         },
       },
     ])
@@ -236,6 +245,8 @@ describe('copied rows that look like rows from another source', () => {
       rows: rows.map((row) => ({ ...row, iban: null })),
       part: 1,
       lookAlikes,
+      fromDay: null,
+      toDay: null,
     },
   })
   const BAKERY_LATER = { date: '2026-10-16', amount: -20, payee: 'Bakery d.o.o.' }
@@ -285,6 +296,24 @@ describe('copied rows that look like rows from another source', () => {
     expect((await desk.accept()).kind).toBe('done')
     expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length).toBe(before + 1)
   })
+  it('brings only the days the card names, and warns on the rows it leaves out', async () => {
+    const desk = await spendingDesk(used)
+    const before = rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length
+    const step = copiedRows(desk, [BAKERY_LATER, KIOSK])
+    const answer = await desk.propose([{ ...step, input: { ...step.input, fromDay: '2026-10-20', toDay: null } }])
+    expect(answer.isError).toBe(false)
+    expect(answer.text).toContain('1 row of the statement is left out, as it falls before the account opened, outside the days the card names or on a day the bank sync covers.')
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).length).toBe(before + 1)
+  })
+
+  it('refuses a last day before the first', async () => {
+    const desk = await spendingDesk(used)
+    const step = copiedRows(desk, [KIOSK])
+    const answer = await desk.propose([{ ...step, input: { ...step.input, fromDay: '2026-11-05', toDay: '2026-11-01' } }])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('toDay 2026-11-01 comes before fromDay 2026-11-05.')
+  })
 })
 
 describe('a statement in parts', () => {
@@ -305,6 +334,8 @@ describe('a statement in parts', () => {
       rows: PARTS[number - 1],
       part: number,
       lookAlikes: 'ask',
+      fromDay: null,
+      toDay: null,
       ...fields,
     },
   })
@@ -360,7 +391,7 @@ describe('a statement in parts', () => {
 })
 
 describe('an attached statement file', () => {
-  const ATTACHED = { op: 'import-statement', input: { file: 'a1', account: null, statementName: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', part: 1 } }
+  const ATTACHED = { op: 'import-statement', input: { file: 'a1', account: null, statementName: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', part: 1, fromDay: null, toDay: null } }
 
   it('sends the AI to read and copy any attached file it gave no rows of, a Revolut export included, and refuses a file not attached', async () => {
     const desk = await spendingDesk(used)

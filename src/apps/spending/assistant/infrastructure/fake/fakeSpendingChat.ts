@@ -253,7 +253,18 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
   if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
   if (answers.length < 3) {
     const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
-    const input = { file: null, account: records[0]!.ref, statementName: '41/2026', opening: 500, closing: 547.5, rows: statementRows(answers.length === 1), part: 1, lookAlikes: 'ask' }
+    const input = {
+      file: null,
+      account: records[0]!.ref,
+      statementName: '41/2026',
+      opening: 500,
+      closing: 547.5,
+      rows: statementRows(answers.length === 1),
+      part: 1,
+      lookAlikes: 'ask',
+      fromDay: null,
+      toDay: null,
+    }
     const step = { op: 'import-statement', input: JSON.stringify(input), as: null }
     return lookup(answers.length, 'propose_changes', { app: 'spending', title: says.statementTitle, steps: [step], next: false }, tokens)
   }
@@ -459,7 +470,7 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
   if (answers.length === 1) {
     const rows = otpStatementRows().map((row) => ({ ...row, amount: Number(row.amount), iban: null }))
-    const input = { file: null, account: otpRef(answers[0]!.text), opening: null, closing: null, rows, statementName: '12/2026', part: 1, lookAlikes: 'ask' }
+    const input = { file: null, account: otpRef(answers[0]!.text), opening: null, closing: null, rows, statementName: '12/2026', part: 1, lookAlikes: 'ask', fromDay: null, toDay: null }
     return lookup(1, 'propose_changes', { app: 'spending', title: says.copyTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, says.copyProposed, tokens)
@@ -490,7 +501,7 @@ function revolutCopyReply({ request, tokens }: FakeChatTurn, says: Says): ModelR
   if (answers.length === 2) {
     const { records } = JSON.parse(answers[1]!.text) as { readonly records: readonly { readonly ref: string; readonly bank?: string }[] }
     const account = (records.find((record) => record.bank === 'revolut') ?? records[0]!).ref
-    const input = { file, account, statementName: says.revolutName, opening: null, closing: null, rows: revolutRows(answers[0]!.text), part: 1, lookAlikes: 'ask' }
+    const input = { file, account, statementName: says.revolutName, opening: null, closing: null, rows: revolutRows(answers[0]!.text), part: 1, lookAlikes: 'ask', fromDay: null, toDay: null }
     return lookup(2, 'propose_changes', { app: 'spending', title: says.revolutTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, answers[2]!.isError ? says.revolutRefused : says.revolutProposed, tokens)

@@ -32,6 +32,10 @@ export const en = {
   }),
   balanceDiffers: (product: string, balance: string, worked: string) => `The export's last ${product} balance is ${balance}, but its rows add up to ${worked}, so a row may be missing.`,
   beforeOpeningLeftOut: (count: number): EnglishForms => ({ one: '1 row before its account opened left out.', other: `${count} rows before their accounts opened left out.` }),
+  outsideDaysLeftOut: (count: number, from: string, to: string): EnglishForms => ({
+    one: `1 row left out, since the file brings only the days from ${from} to ${to}.`,
+    other: `${count} rows left out, since the file brings only the days from ${from} to ${to}.`,
+  }),
   coveredByFile: (count: number, account: string, day: string): EnglishForms => ({
     one: `1 row of ${account} left out, since a file covers the days up to ${day}.`,
     other: `${count} rows of ${account} left out, since a file covers the days up to ${day}.`,
@@ -99,6 +103,11 @@ export const hr: Translation<typeof en> = {
     one: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
     few: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
     other: `Izostavljeno redaka prije otvaranja računa: ${count}.`,
+  }),
+  outsideDaysLeftOut: (count, from, to): CroatianForms => ({
+    one: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
+    few: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
+    other: `Izostavljeno redaka: ${count}, jer datoteka donosi samo dane od ${from} do ${to}`,
   }),
   coveredByFile: (count, account, day): CroatianForms => ({
     one: `Izostavljeno redaka računa ${account}: ${count}, jer datoteka pokriva dane do ${day}`,
