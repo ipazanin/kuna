@@ -233,7 +233,7 @@ function closeAccountReply({ request, tokens }: FakeChatTurn, says: Says): Model
     const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
     const step = {
       op: 'change-account',
-      input: JSON.stringify({ account: records[0]!.ref, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: NEW_IBAN, closed: 'yes' }),
+      input: JSON.stringify({ account: records[0]!.ref, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: NEW_IBAN, closed: 'yes', rowsFrom: null }),
       as: null,
     }
     return lookup(1, 'propose_changes', { app: 'spending', title: says.closeTitle, steps: [step], next: false }, tokens)
@@ -460,7 +460,7 @@ function cashReceiptReply({ request, tokens, typed }: FakeChatTurn, says: Says):
   if (answers.length > 3) return answered(request, cash.length === 0 ? says.cashAccountFirst : says.cashProposed, tokens)
   const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
   const receipt = (account: string | null) => ({ op: 'add-receipt', input: JSON.stringify(receiptOf17(photo, 'cash', groceries, { entry: null, account })), as: null })
-  const account = { name: says.cashName, kind: 'cash', bank: null, currency: 'EUR', opening, openedOn: fakeSpendingDayHere(), iban: null }
+  const account = { name: says.cashName, kind: 'cash', bank: null, currency: 'EUR', opening, openedOn: fakeSpendingDayHere(), iban: null, rowsFrom: 'by-hand' }
   const steps = cash.length === 0 ? [{ op: 'add-account', input: JSON.stringify(account), as: '$cash' }, receipt('$cash')] : [receipt(null)]
   return lookup(3, 'propose_changes', { app: 'spending', title: says.cashTitle, steps, next: false }, tokens)
 }
@@ -468,7 +468,7 @@ function cashReceiptReply({ request, tokens, typed }: FakeChatTurn, says: Says):
 /** Proposes a second cash account in euros, so a cash receipt has two to go on. */
 function purseReply({ request, tokens, lookups }: FakeChatTurn, says: Says): ModelReply {
   if (lookups > 0) return answered(request, says.purseProposed, tokens)
-  const account = { name: says.purse, kind: 'cash', bank: null, currency: 'EUR', opening: 0, openedOn: addDays(fakeSpendingDayHere(), -30), iban: null }
+  const account = { name: says.purse, kind: 'cash', bank: null, currency: 'EUR', opening: 0, openedOn: addDays(fakeSpendingDayHere(), -30), iban: null, rowsFrom: 'by-hand' }
   return lookup(0, 'propose_changes', { app: 'spending', title: says.purseTitle, steps: [{ op: 'add-account', input: JSON.stringify(account), as: null }], next: false }, tokens)
 }
 
@@ -539,7 +539,7 @@ function matchReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
   if (answers.length === 1) {
     const rows = otpStatementRows().map(({ date, amount, payee }) => ({ date, amount, counterparty: payee, description: '' }))
-    return lookup(1, 'match_records', { app: 'spending', kind: 'transaction', account: otpRef(answers[0]!.text), rows }, tokens)
+    return lookup(1, 'match_records', { app: 'spending', kind: 'transaction', account: otpRef(answers[0]!.text), rows, receipts: [] }, tokens)
   }
   const { matches } = JSON.parse(answers[1]!.text) as { readonly matches: readonly { readonly row: number; readonly match: 'same' | 'like' | 'none' }[] }
   return answered(request, matches.map(({ row, match }) => `- ${says.matched[match](row)}`).join('\n'), tokens)
