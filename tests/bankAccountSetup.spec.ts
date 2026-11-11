@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { readBanks } from '../src/apps/spending/bankSync/application/bankRead'
+import { revolutIban } from '../src/apps/spending/accounts/domain/accountDraft'
 import { addBankAccounts, bringBackBankDetails, fixOpening, keepMine, keepOutOfKuna, takeBankDetails } from '../src/apps/spending/bankSync/application/bankSetupWrites'
 import {
   bankAccountKey,
@@ -209,6 +210,13 @@ describe('the day a drafted account starts on', () => {
 })
 
 describe('a drafted account', () => {
+  it('shares the IBAN of the Revolut accounts of its kind, and has none while they hold none or more than one', () => {
+    const revolut = (kind: 'bank' | 'savings', iban: string) => ({ bank: 'revolut' as const, kind, iban })
+    expect(revolutIban('bank', [revolut('bank', 'LT01'), revolut('bank', 'LT01'), revolut('savings', 'LT02'), { bank: 'otp', kind: 'bank', iban: 'HR03' }])).toBe('LT01')
+    expect(revolutIban('savings', [revolut('bank', 'LT01')])).toBe('')
+    expect(revolutIban('bank', [revolut('bank', 'LT01'), revolut('bank', 'LT04')])).toBe('')
+  })
+
   it("takes the IBAN's last four characters when another account has its name", () => {
     const id = recordIdOf(ACCOUNT_RECORDS, 'x')
     expect(draftAccount(linked('u', 'LT000000000000000003', 'USD'), 'revolut', USD, id, DAY, ACCOUNTS).name).toBe('Revolut USD 0003')

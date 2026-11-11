@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { ACCOUNT_WRITES, keptAccount } from '../src/apps/spending/accounts/application/accountWrites'
+import { bankLinkOffered, rowsFromRefusal } from '../src/apps/spending/workbook/domain/account'
 import { setLimit } from '../src/apps/spending/budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
 import { newTransfer } from '../src/apps/spending/entries/domain/transfer'
@@ -465,6 +466,21 @@ describe('Spending account writes', () => {
     expect(keptAccount({ ...OTP, iban: '  ' })).toMatchObject({ iban: '', rowsFrom: 'by-hand' })
     expect(keptAccount({ ...OTP, rowsFrom: 'by-hand' }).rowsFrom).toBe('by-hand')
     expect(keptAccount(OTP).rowsFrom).toBe('bank-link')
+  })
+
+  it('offers a bank link once a bank sync deployment is saved, or to an account linked already, and never to cash', () => {
+    const [none, saved] = [{ bankSyncDeployment: '' }, { bankSyncDeployment: 'AKfy-deployment' }]
+    expect([bankLinkOffered('bank', null, none), bankLinkOffered('bank', null, saved), bankLinkOffered('cash', null, saved)]).toEqual([false, true, false])
+    expect(bankLinkOffered('savings', OTP, none)).toBe(true)
+    expect(bankLinkOffered('bank', { rowsFrom: 'by-hand' }, none)).toBe(false)
+  })
+
+  it('refuses a bank link that is not offered or has no IBAN, and never refuses by hand', () => {
+    const saved = { bankSyncDeployment: 'AKfy-deployment' }
+    expect(rowsFromRefusal({ ...OTP, rowsFrom: 'bank-link' }, null, { bankSyncDeployment: '' })).toBe('bank-link-not-offered')
+    expect(rowsFromRefusal({ ...OTP, iban: ' ', rowsFrom: 'bank-link' }, null, saved)).toBe('bank-link-without-iban')
+    expect(rowsFromRefusal({ ...OTP, rowsFrom: 'bank-link' }, null, saved)).toBeNull()
+    expect(rowsFromRefusal({ ...OTP, kind: 'cash', iban: '', rowsFrom: 'by-hand' }, null, { bankSyncDeployment: '' })).toBeNull()
   })
 
   it('refuses a new currency on an account its entries name, and allows it on one without entries', async () => {

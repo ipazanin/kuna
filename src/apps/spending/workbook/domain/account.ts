@@ -2,6 +2,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { SpendingSettings } from './spendingSettings'
 
 /** A current account at a bank, cash in hand, or savings kept apart. */
 export const ACCOUNT_KINDS = ['bank', 'cash', 'savings'] as const
@@ -42,6 +43,25 @@ export const NEW_ACCOUNT_DEFAULTS: Pick<Account, 'closed'> = { closed: false }
 /** How an account reads that does not say how its rows come in: by its bank when it is not cash and has an IBAN, since the bank sync finds an account by its IBAN, and by hand otherwise. A write keeps an account by hand whenever this says so. */
 export function rowsFromOfDetails(account: Pick<Account, 'kind' | 'iban'>): RowsFrom {
   return account.kind !== 'cash' && account.iban !== '' ? 'bank-link' : 'by-hand'
+}
+
+/** Whether a person may have the bank sync bring an account's rows: never on cash, and only once a bank sync deployment is saved, unless the account takes them from the bank already. */
+export function bankLinkOffered(kind: AccountKind, before: Pick<Account, 'rowsFrom'> | null, settings: Pick<SpendingSettings, 'bankSyncDeployment'>): boolean {
+  return kind !== 'cash' && (settings.bankSyncDeployment !== '' || before?.rowsFrom === 'bank-link')
+}
+
+/** Why an account cannot take its rows from where a person said: a bank link not offered to it, or one with no IBAN, since the bank sync finds an account by its IBAN. */
+export type RowsFromRefusal = 'bank-link-not-offered' | 'bank-link-without-iban'
+
+/** Why the account as a person typed it cannot take its rows from where it says, or null when it can. `before` is the account as the file has it, or null for a new one. */
+export function rowsFromRefusal(
+  account: Pick<Account, 'kind' | 'iban' | 'rowsFrom'>,
+  before: Pick<Account, 'rowsFrom'> | null,
+  settings: Pick<SpendingSettings, 'bankSyncDeployment'>,
+): RowsFromRefusal | null {
+  if (account.rowsFrom === 'by-hand') return null
+  if (!bankLinkOffered(account.kind, before, settings)) return 'bank-link-not-offered'
+  return account.iban.trim() === '' ? 'bank-link-without-iban' : null
 }
 
 /**

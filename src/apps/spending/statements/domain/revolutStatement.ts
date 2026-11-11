@@ -1,6 +1,6 @@
 import type { DraftedAccount, StatementReading, StatementRow } from './statementRows'
 import { words } from './words'
-import { draftedAccount } from '../../accounts/domain/accountDraft'
+import { draftedAccount, revolutIban } from '../../accounts/domain/accountDraft'
 import { earliestStart, openingOn } from '../../accounts/domain/bankOpening'
 import { bankFeesCategory } from '../../categories/domain/starterCategories'
 import type { Account } from '../../workbook/domain/account'
@@ -146,7 +146,7 @@ export function revolutStatement(grid: readonly (readonly SheetCell[])[], fileNa
  * The Revolut account a product's rows in one currency need, opening on their first day at their first balance as their
  * last balance and the rows give it, or at zero where the file prints no balance. Null for a currency Kuna does not keep.
  */
-function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Account, 'name'>[]): DraftedAccount | null {
+function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Account, 'name' | 'bank' | 'kind' | 'iban'>[]): DraftedAccount | null {
   const first = chain[0]!
   const currency = currencyCodeOf(first.currency)
   if (currency === null) return null
@@ -158,7 +158,8 @@ function draftFor(chain: readonly CompletedRow[], accounts: readonly Pick<Accoun
       .at(-1)?.balance ?? null
   const evidence = { rows, stated, pending: false }
   const { opening, openedOn } = openingOn(evidence, earliestStart(evidence) ?? first.started.date)
-  return { account: draftedAccount({ kind: first.onSavings ? 'savings' : 'bank', bank: 'revolut', currency, iban: '', opening, openedOn }, accounts), evidence }
+  const kind = first.onSavings ? 'savings' : 'bank'
+  return { account: draftedAccount({ kind, bank: 'revolut', currency, iban: revolutIban(kind, accounts), opening, openedOn }, accounts), evidence }
 }
 
 /** What to add to bring in the rows the drafted accounts would keep: the whole file when it was refused for them, else the savings rows left out. */

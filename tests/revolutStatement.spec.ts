@@ -140,7 +140,7 @@ describe("Revolut's export", () => {
     expect(reading).toEqual({ refusal: 'More than one open Revolut account keeps EUR: Revolut EUR, Second Revolut. Close the one the file is not for', missing: [] })
   })
 
-  it('refuses a file in currencies no Revolut account keeps, saying what to add for every currency at once, each drafted from the file', () => {
+  it('refuses a file in currencies no Revolut account keeps, saying what to add for every currency at once, each drafted from the file under the IBAN the Revolut current account already holds', () => {
     const at = (started: string, amount: string, fee: string, currency: string, balance: string, product = 'Current') => {
       const row = line('CARD_PAYMENT', started, 'Pub', amount, fee, currency, 'COMPLETED', product)
       row[9] = balance
@@ -164,8 +164,28 @@ describe("Revolut's export", () => {
     expect({ ...reading, missing: reading.missing.map(({ account }) => account) }).toEqual({
       refusal: 'Add Revolut bank accounts in GBP and CHF and a Revolut savings account in GBP to bring in this file',
       missing: [
-        { name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(100), openedOn: civil('2026-10-02'), rowsFrom: 'by-hand', closed: false },
-        { name: 'Revolut CHF', kind: 'bank', bank: 'revolut', currency: 'CHF', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-02'), rowsFrom: 'by-hand', closed: false },
+        {
+          name: 'Revolut GBP',
+          kind: 'bank',
+          bank: 'revolut',
+          currency: 'GBP',
+          iban: REVOLUT_EUR.iban,
+          opening: accountMoneyFromAmount(100),
+          openedOn: civil('2026-10-02'),
+          rowsFrom: 'bank-link',
+          closed: false,
+        },
+        {
+          name: 'Revolut CHF',
+          kind: 'bank',
+          bank: 'revolut',
+          currency: 'CHF',
+          iban: REVOLUT_EUR.iban,
+          opening: accountMoneyFromAmount(0),
+          openedOn: civil('2026-10-02'),
+          rowsFrom: 'bank-link',
+          closed: false,
+        },
         {
           name: 'Revolut GBP savings',
           kind: 'savings',
@@ -187,7 +207,17 @@ describe("Revolut's export", () => {
     expect({ ...reading, missing: reading.missing.map(({ account }) => account) }).toEqual({
       refusal: 'Add a Revolut bank account in GBP to bring in this file',
       missing: [
-        { name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-01'), rowsFrom: 'by-hand', closed: false },
+        {
+          name: 'Revolut GBP',
+          kind: 'bank',
+          bank: 'revolut',
+          currency: 'GBP',
+          iban: REVOLUT_EUR.iban,
+          opening: accountMoneyFromAmount(0),
+          openedOn: civil('2026-10-01'),
+          rowsFrom: 'bank-link',
+          closed: false,
+        },
       ],
     })
   })

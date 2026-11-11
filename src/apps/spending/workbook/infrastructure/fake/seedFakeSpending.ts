@@ -37,7 +37,11 @@ function isSet(variant: string | null): variant is FakeSpendingSet {
 export async function seedFakeSpending(variant: string | null, bankSync: string | null, day: CivilDate): Promise<void> {
   const now = Date.now()
   const savedAt = new Date(now).toISOString()
-  const document = isSet(variant) ? fakeSpendingDocument(savedAt, variant, day, bankSync) : variant === 'opening' || variant === 'failed' ? fakeSpendingDocument(savedAt) : fakeStarterDocument(savedAt)
+  const document = isSet(variant)
+    ? fakeSpendingDocument(savedAt, variant, day, bankSync)
+    : variant === 'opening' || variant === 'failed'
+      ? fakeSpendingDocument(savedAt)
+      : fakeStarterDocument(savedAt, bankSync, day)
   const text = encodeDocument(document)
   if (variant === 'drive' || isSet(variant) || variant === 'other-device' || variant === 'opening' || variant === 'failed') {
     const created = await createDriveDocument(fakeDriveSession(), await fakeBooksFolder(), SPENDING_APP, text)

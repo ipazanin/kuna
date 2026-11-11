@@ -7026,6 +7026,38 @@ export function spendingImportMissingFlowIn(language, paths) {
   }
 }
 
+/**
+ * With a bank sync deployment saved, the offer for the accounts an export needs asks how each one's rows come in. Each draft
+ * starts linked to the bank under the IBAN the file's Revolut account holds. A cleared IBAN stops Add with the reason under it,
+ * and the IBAN typed back adds both.
+ */
+export function spendingImportMissingBankFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  const choice = words.spendingAccounts.rowsFromChoice
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const offer = '[data-testid="spending-import-missing-accounts"]'
+    const ibans = '[data-testid="spending-import-missing-account-iban"]'
+    await dropSpendingFile(page, paths.missing)
+    await countOf(page, '[data-testid="spending-import-missing-account-rows-from"]', 2, 'the choice of how each missing account takes its rows')
+    const picked = await page.$$eval('[data-testid="spending-import-missing-account-rows-from"] [aria-pressed="true"]', (buttons) => buttons.map((button) => button.textContent?.trim() ?? ''))
+    if (picked.some((label) => label !== words.spendingAccounts.rowsFrom['bank-link'])) throw new Error(`the drafts start as ${picked.join(', ')}, not linked to the bank`)
+    const filled = await page.$$eval(`input${ibans}, ${ibans} input`, (inputs) => inputs.map((input) => input.value))
+    if (filled.length !== 2 || filled.some((iban) => iban !== 'LT000000000000000001')) throw new Error(`the drafts do not share the Revolut account's IBAN: ${filled.join(', ')}`)
+    await fill(page, 'spending-import-missing-account-iban', '')
+    await pressSelector(page, press, '[data-testid="spending-import-add-accounts"]')
+    await waitForTextIn(page, offer, choice.ibanNeeded)
+    await delay(300)
+    await inspect?.('the missing accounts linked to the bank, one with its IBAN cleared')
+    await shoot('spending-import-missing-bank')
+    await fill(page, 'spending-import-missing-account-iban', 'LT000000000000000001')
+    await pressSelector(page, press, '[data-testid="spending-import-add-accounts"]')
+    const added = words.spendingAccounts.addedCount(2)
+    await toast(page, language === 'en' ? added.other : added.few)
+    await dismissToasts(page)
+  }
+}
+
 /** Drops the export whose pocket moves have no savings account: the dry run shows once, with the offer to add that account under its notes and no second note for the same gap. */
 export function spendingImportMissingSavingsFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
@@ -11041,26 +11073,58 @@ export async function spendingAccountOpensTodayFlow(page, { press }) {
   await delay(300)
 }
 
-/** A new Spending file asks for one account in place, then says what comes next and opens Import. */
-export async function spendingFirstAccountFlow(page, { press, shoot, inspect }) {
-  await page.waitForSelector('[data-testid="spending-empty"]', { visible: true, timeout: 10_000 })
-  await pressSelector(page, press, '[data-testid="spending-overview-add-account"]')
-  await page.waitForSelector('[data-testid="spending-account-dialog"]', { visible: true, timeout: 10_000 })
-  await delay(300)
-  const openedOn = await page.$eval('input[data-testid="spending-account-opened-on"], [data-testid="spending-account-opened-on"] input', (input) => input.value)
-  if (!openedOn.endsWith('-01')) throw new Error(`the first account on Overview opens on ${openedOn}, not the first of the month`)
-  await inspect?.('the account dialog on an empty Overview')
-  await shoot('spending-first-account')
-  await fill(page, 'spending-account-name', 'Current account')
-  await pressSelector(page, press, '[data-testid="spending-account-save"]')
-  await page.waitForSelector('[data-testid="getting-set-up"] [data-line="first-entries"]', { visible: true, timeout: 10_000 }).catch(() => {
-    throw new Error('Overview does not say what comes after the first account')
-  })
-  await dismissToasts(page)
-  await pressSelector(page, press, '[data-line="first-entries"] a')
-  await page
-    .waitForFunction(() => window.location.hash.includes('tab=import'), { timeout: 10_000 })
-    .catch(() => {
-      throw new Error('The first entries line did not open Import')
-    })
+/**
+ * A new Spending file with a bank sync deployment saved offers Link a bank beside Add by hand. Link a bank opens the account
+ * dialog with its rows from the bank, and Add asks for the IBAN the bank sync finds the account by.
+ */
+export function spendingFirstAccountBankFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const choice = words.spendingAccounts.rowsFromChoice
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-empty"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('the empty Overview with a bank sync deployment saved')
+    await shoot('spending-first-account-bank-empty')
+    await pressSelector(page, press, '[data-testid="spending-overview-link-bank"]')
+    await page.waitForSelector(SPENDING_ACCOUNT_DIALOG, { visible: true, timeout: 10_000 })
+    await delay(300)
+    const picked = await page.$eval('[data-testid="spending-account-rows-from"] [aria-pressed="true"]', (button) => button.textContent?.trim() ?? '')
+    if (picked !== words.spendingAccounts.rowsFrom['bank-link']) throw new Error(`Link a bank opens the account dialog with "${picked}" picked`)
+    await fill(page, 'spending-account-name', language === 'en' ? 'Current account' : 'Tekući račun')
+    await pressSelector(page, press, '[data-testid="spending-account-save"]')
+    await waitForTextIn(page, SPENDING_ACCOUNT_DIALOG, choice.ibanNeeded)
+    await delay(300)
+    await inspect?.('the account dialog linked to a bank with no IBAN')
+    await shoot('spending-first-account-bank')
+  }
 }
+
+/** A new Spending file asks for one account in place, then says what comes next and opens Import. */
+export function spendingFirstAccountFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-empty"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-overview-add-account"]')
+    await page.waitForSelector('[data-testid="spending-account-dialog"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    const openedOn = await page.$eval('input[data-testid="spending-account-opened-on"], [data-testid="spending-account-opened-on"] input', (input) => input.value)
+    if (!openedOn.endsWith('-01')) throw new Error(`the first account on Overview opens on ${openedOn}, not the first of the month`)
+    await inspect?.('the account dialog on an empty Overview')
+    await shoot('spending-first-account')
+    await fill(page, 'spending-account-name', 'Current account')
+    await pressSelector(page, press, '[data-testid="spending-account-save"]')
+    await page.waitForSelector('[data-testid="getting-set-up"] [data-line="first-entries"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Overview does not say what comes after the first account')
+    })
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-line="first-entries"] a')
+    await page
+      .waitForFunction(() => window.location.hash.includes('tab=import'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('The first entries line did not open Import')
+      })
+  }
+}
+
+export const spendingFirstAccountFlow = spendingFirstAccountFlowIn('en')

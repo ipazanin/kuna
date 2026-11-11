@@ -189,13 +189,24 @@ describe('a receipt from the chat', () => {
   it('asks which cash account takes a cash receipt among several, and with none asks how much cash there was and adds one with that opening first on the same card', async () => {
     const desk = await spendingDesk(used)
     const cash = (fields: Readonly<Record<string, unknown>> = {}) => receipt(desk, { paid: 'cash', entry: null, ...fields })
-    const addCash = { op: 'add-account', input: { name: 'Purse', kind: 'cash', bank: null, currency: 'EUR', opening: 50, openedOn: '2026-10-21', iban: null }, as: '$cash' }
+    const addCash = { op: 'add-account', input: { name: 'Purse', kind: 'cash', bank: null, currency: 'EUR', opening: 50, openedOn: '2026-10-21', iban: null, rowsFrom: 'by-hand' }, as: '$cash' }
 
     await desk.propose(
       [
         {
           op: 'change-account',
-          input: { account: desk.ref('account', DESK_ACCOUNTS.WALLET.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, closed: 'yes' },
+          input: {
+            account: desk.ref('account', DESK_ACCOUNTS.WALLET.id),
+            name: null,
+            kind: null,
+            bank: null,
+            currency: null,
+            opening: null,
+            openedOn: null,
+            iban: null,
+            rowsFrom: null,
+            closed: 'yes',
+          },
         },
       ],
       [],

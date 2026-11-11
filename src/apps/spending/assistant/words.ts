@@ -103,6 +103,7 @@ export const en = {
     receipt: 'Fiscal receipts and the entry each split.',
     line: 'The parts an entry is split into, by a receipt or by hand, which the figures count instead of the entry.',
     waiting: 'The rows waiting on To review for a category, which count nowhere until filed.',
+    bankSync: 'Whether the bank sync can bring a new account its rows, which needs a bank sync deployment saved on Settings, Bank sync.',
     bankAccount:
       "Each currency of each account the linked banks gave at this page's last bank sync, against your Spending accounts, as Settings, Bank sync lists them. A new sync or a reload changes them, and after a reload no rows are held.",
   },
@@ -118,7 +119,7 @@ export const en = {
       body: [
         'Have a statement of each account ready. Every statement, a Revolut export included, goes to the AI company as text cell by cell, as a PDF or as a photo.',
         'The cards, in this order:',
-        '1. The accounts, on one card, each with the opening balance and the day the statement prints.',
+        '1. The accounts, on one card, each with the opening balance, the day the statement prints and whether its rows come from a linked bank or by hand. A linked bank needs the IBAN and a bank sync deployment saved on Settings, Bank sync.',
         '2. Each new category, on a card of its own.',
         '3. The rules and the import together, in parts of 150 rows.',
         'Linking a bank stays with the person, on Settings, Bank sync. Limits wait until a month of entries is in.',
@@ -267,6 +268,7 @@ export const hr: Translation<typeof en> = {
     receipt: 'Fiskalni računi i unos koji je svaki podijelio.',
     line: 'Dijelovi na koje je unos podijeljen, fiskalnim računom ili ručno, a iznosi broje njih umjesto unosa.',
     waiting: 'Retci koji na Za pregled čekaju kategoriju i ne broje se nigdje dok se ne razvrstaju.',
+    bankSync: 'Može li sinkronizacija s bankom donositi retke novom računu, za što treba spremiti implementaciju sinkronizacije u Postavkama, na kartici Banke.',
     bankAccount:
       'Svaka valuta svakog računa koji su povezane banke dale pri zadnjoj sinkronizaciji na ovoj stranici, uz vaše račune u Potrošnji, kako ih navodi Postavke, Sinkronizacija s bankom. Nova sinkronizacija ili ponovno učitavanje ih mijenja, a nakon ponovnog učitavanja nijedan redak nije zadržan.',
   },
@@ -282,7 +284,7 @@ export const hr: Translation<typeof en> = {
       body: [
         'Pripremite izvod svakog računa. Svaki izvod, i izvoz iz Revoluta, ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija.',
         'Kartice, ovim redom:',
-        '1. Računi, na jednoj kartici, svaki s početnim stanjem i danom koje izvod ispisuje.',
+        '1. Računi, na jednoj kartici, svaki s početnim stanjem, danom koje izvod ispisuje i načinom na koji mu dolaze retci, iz povezane banke ili ručno. Za povezanu banku potrebni su IBAN i spremljena implementacija sinkronizacije u Postavkama, na kartici Banke.',
         '2. Svaka nova kategorija, na svojoj kartici.',
         '3. Pravila i uvoz zajedno, u dijelovima od 150 redaka.',
         'Povezivanje banke ostaje osobi, u Postavkama, na kartici Banke. Limiti čekaju dok ne uđe mjesec unosa.',

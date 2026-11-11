@@ -8,7 +8,11 @@ export const en = {
   empty: {
     title: 'Start with one account',
     description: 'The account you use most, with what it held on the first of this month. Then import a Revolut export on Import or type a few entries. The other accounts can wait.',
+    /** The description while a bank link is offered, so it leads with the two ways to add the account. */
+    descriptionWithBank: 'The account you use most. Link a bank and the bank sync brings its rows, or add it by hand with what it held on the first of this month. The other accounts can wait.',
     addAccount: 'Add an account',
+    linkABank: 'Link a bank',
+    addByHand: 'Add by hand',
     onDrive: (name: string) => `Your Spending file is ready, kept on Google Drive as ${name}.`,
     inBrowser: 'Your Spending file is ready, kept in this browser.',
   },
@@ -69,7 +73,11 @@ export const hr: Translation<typeof en> = {
   empty: {
     title: 'Počnite s jednim računom',
     description: 'Račun kojim se najviše služite i njegovo stanje prvog u mjesecu. Zatim u Uvozu uvezite izvoz iz Revoluta ili upišite nekoliko unosa. Ostali računi mogu pričekati.',
+    descriptionWithBank:
+      'Račun kojim se najviše služite. Povežite banku pa mu retke donosi sinkronizacija s bankom ili ga dodajte ručno s njegovim stanjem prvog u mjesecu. Ostali računi mogu pričekati.',
     addAccount: 'Dodaj račun',
+    linkABank: 'Poveži banku',
+    addByHand: 'Dodaj ručno',
     onDrive: (name) => `Datoteka potrošnje je spremna i čuva se na Google Driveu kao „${name}”.`,
     inBrowser: 'Datoteka potrošnje je spremna i čuva se u ovom pregledniku.',
   },

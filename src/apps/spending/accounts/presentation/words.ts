@@ -28,6 +28,14 @@ export const en = {
   kinds: { bank: 'Bank account', cash: 'Cash', savings: 'Savings' },
   banks: { otp: 'OTP', revolut: 'Revolut', other: 'Other bank' },
   rowsFrom: { 'bank-link': 'From the bank', 'by-hand': 'By hand' },
+  /** The choice of how a new or changed account's rows come in. */
+  rowsFromChoice: {
+    label: 'Rows come in',
+    /** Says which field holds the day the bank sync fetches from, by the label the person sees on it. */
+    bankLinkHelp: (field: string) => `The bank sync finds it by its IBAN and fetches its rows from the day in “${field}”.`,
+    byHandHelp: 'You type its rows, import its statement files or add them through the chat.',
+    ibanNeeded: "Linking a bank needs the account's IBAN",
+  },
   /** The day an account drafted from a bank or its file starts on. */
   startDay: {
     label: 'Track from',
@@ -103,6 +111,12 @@ export const hr: Translation<typeof en> = {
   kinds: { bank: 'Bankovni račun', cash: 'Gotovina', savings: 'Štednja' },
   banks: { otp: 'OTP', revolut: 'Revolut', other: 'Druga banka' },
   rowsFrom: { 'bank-link': 'Iz banke', 'by-hand': 'Ručno' },
+  rowsFromChoice: {
+    label: 'Retci dolaze',
+    bankLinkHelp: (field) => `Sinkronizacija s bankom pronalazi ga po IBAN-u i dohvaća retke od dana u polju „${field}”.`,
+    byHandHelp: 'Retke upisujete sami, uvozite iz datoteka izvoda ili dodajete kroz razgovor.',
+    ibanNeeded: 'Za povezivanje banke potreban je IBAN računa',
+  },
   startDay: {
     label: 'Prati se od',
     help: 'Retci prije ovog dana ostaju izvan Kune.',

@@ -14,8 +14,8 @@ import { cutoverWords } from './startDayMoveWords'
 import { deletesRecords, startDayMove } from '../domain/startDayMove'
 import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, rowsFromOfDetails } from '../../workbook/domain/account'
-import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, bankLinkOffered, rowsFromRefusal } from '../../workbook/domain/account'
+import type { Account, AccountBank, AccountKind, RowsFrom } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -31,7 +31,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
-/** One of your accounts in one currency: its name, kind, bank, what it held on the day you start counting from, and its IBAN. One with entries is closed rather than deleted. */
+/** One of your accounts in one currency: its name, kind, bank, how its rows come in, what it held on the day you start counting from, and its IBAN. One with entries is closed rather than deleted. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -43,6 +43,8 @@ const props = defineProps<{
   startingKind?: AccountKind
   /** The currency a new account starts in, for a screen that asks for one. Otherwise euros. */
   startingCurrency?: CurrencyCode
+  /** How a new account's rows come in, for a screen that asks for one. Otherwise by hand. */
+  startingRowsFrom?: RowsFrom
 }>()
 
 const store = useSpendingBooks()
@@ -53,6 +55,7 @@ const router = useRouter()
 const NONE = 'none'
 
 const KIND_OPTIONS = ACCOUNT_KINDS.map((kind) => ({ value: kind, label: words.kinds[kind] }))
+const ROWS_FROM_OPTIONS = ROWS_FROM.map((rowsFrom) => ({ value: rowsFrom, label: words.rowsFrom[rowsFrom] }))
 const BANK_ITEMS = [{ label: words.dialog.noBank, value: NONE }, ...ACCOUNT_BANKS.map((bank) => ({ label: words.banks[bank], value: bank }))]
 
 const name = ref('')
@@ -64,6 +67,7 @@ const opening = ref('')
 const overdrawn = ref(false)
 const openedOn = ref('')
 const iban = ref('')
+const rowsFrom = ref<RowsFrom>('by-hand')
 const tried = ref(false)
 
 /** An account that entries name keeps its currency, since their amounts are in it. */
@@ -90,6 +94,7 @@ watch(open, (opened) => {
   }
   openedOn.value = account?.openedOn ?? props.openingDay ?? today()
   iban.value = account?.iban ?? ''
+  rowsFrom.value = account?.rowsFrom ?? props.startingRowsFrom ?? 'by-hand'
   tried.value = false
 })
 
@@ -119,12 +124,18 @@ const shownCutover = computed(() => {
 })
 const earlierFromBank = computed(() => move.value?.direction === 'earlier' && kind.value !== 'cash')
 
+const settings = computed(() => store.state.workbook?.settings ?? { bankSyncDeployment: '' })
+const offersBankLink = computed(() => bankLinkOffered(kind.value, props.account, settings.value))
+/** By hand wherever the choice is not offered, as on cash. */
+const pickedRowsFrom = computed<RowsFrom>(() => (offersBankLink.value ? rowsFrom.value : 'by-hand'))
+
 const pickedCurrency = computed(() => CURRENCY_CODES.find((code) => code === currency.value) ?? null)
 
 const errors = computed(() => ({
   name: name.value.trim() === '' ? words.dialog.nameError : null,
   opening: openingAmount.value === null ? words.dialog.anAmount : null,
   openedOn: openedDay.value === null ? spendingWords.form.aDate(civilDate(2026, 1, 1)) : null,
+  iban: rowsFromRefusal({ kind: kind.value, iban: iban.value, rowsFrom: pickedRowsFrom.value }, props.account, settings.value) === null ? null : words.rowsFromChoice.ibanNeeded,
 }))
 
 async function save(): Promise<void> {
@@ -141,7 +152,7 @@ async function save(): Promise<void> {
     opening: amount,
     openedOn: day,
     iban: iban.value,
-    rowsFrom: props.account?.rowsFrom ?? rowsFromOfDetails({ kind: kind.value, iban: iban.value.trim() }),
+    rowsFrom: pickedRowsFrom.value,
     closed: props.account?.closed ?? NEW_ACCOUNT_DEFAULTS.closed,
   })
   const before = props.account
@@ -178,6 +189,17 @@ async function remove(): Promise<void> {
       <UFormField :label="words.dialog.kind" class="sm:col-span-2">
         <ChoiceButtons v-model="kind" :options="KIND_OPTIONS" :label="words.dialog.kind" data-testid="spending-account-kind" />
       </UFormField>
+      <UFormField
+        v-if="offersBankLink"
+        :label="words.rowsFromChoice.label"
+        :help="rowsFrom === 'bank-link' ? words.rowsFromChoice.bankLinkHelp(words.dialog.openedOn) : words.rowsFromChoice.byHandHelp"
+        class="sm:col-span-2"
+      >
+        <ChoiceButtons v-model="rowsFrom" :options="ROWS_FROM_OPTIONS" :label="words.rowsFromChoice.label" data-testid="spending-account-rows-from" />
+      </UFormField>
+      <UFormField v-if="kind !== 'cash'" :label="words.dialog.iban" :error="(tried && errors.iban) || false" class="sm:col-span-2">
+        <UInput v-model="iban" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-iban" />
+      </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.bank">
         <USelect v-model="bank" :items="BANK_ITEMS" class="w-full" data-testid="spending-account-bank" />
       </UFormField>
@@ -203,9 +225,6 @@ async function remove(): Promise<void> {
           <p class="mt-2">{{ shownCutover.opening }}</p>
         </template>
       </UAlert>
-      <UFormField v-if="kind !== 'cash'" :label="words.dialog.iban" class="sm:col-span-2">
-        <UInput v-model="iban" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-iban" />
-      </UFormField>
       <p v-if="account !== null && hasEntries" class="type-caption sm:col-span-2" data-testid="spending-account-has-entries">{{ words.dialog.hasEntries }}</p>
     </FormGrid>
     <template #start>

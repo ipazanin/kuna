@@ -82,7 +82,6 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'loans: LoanScenario.start.terms',
       'spending: Category.kind',
       'spending: Account.closed',
-      'spending: Account.rowsFrom',
       'spending: Transaction.category',
       'spending: fixOpening.opening',
     ],

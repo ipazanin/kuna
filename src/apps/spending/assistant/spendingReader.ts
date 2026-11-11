@@ -12,6 +12,7 @@ import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { fiscalQrOn } from '../receipts/domain/fiscalQr'
 import { receiptMatches } from '../receipts/domain/receiptMatch'
 import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
+import { bankLinkOffered } from '../workbook/domain/account'
 import type { Account } from '../workbook/domain/account'
 import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
@@ -46,6 +47,7 @@ import type { Money } from '../../../shared/money/money'
 import { nearestBasisPoints, pointsOfShare } from '../../../shared/money/percent'
 import type { RateBook } from '../../../shared/money/rateBook'
 import type { RecordId } from '../../../shared/storage/domain/recordId'
+import type { RecordKind } from '../../../shared/storage/domain/recordKind'
 import { words } from './words'
 
 /** What the reader reads from, which `app.ts` hands in over the app's own store, so this folder holds no store. */
@@ -284,6 +286,29 @@ const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
   },
 }
 
+/** Whether a new account can take its rows from a bank link, as one line for the chat. The deployment itself stays with the person. */
+interface BankSyncLine {
+  readonly id: string
+  readonly bankLinkOffered: boolean
+}
+
+/** The one line that says whether a bank link is offered. It is no record of the file. */
+export const BANK_SYNC_LINES: Pick<RecordKind, 'name' | 'noun'> = {
+  name: 'bank-sync',
+  noun: {
+    en: { one: 'bank sync', many: 'bank syncs', article: 'a' },
+    hr: { one: 'sinkronizacija s bankom', of: 'sinkronizacije s bankom', few: 'sinkronizacije s bankom', other: 'sinkronizacija s bankom', gender: 'feminine' },
+  },
+}
+
+const BANK_SYNC_FIELDS: FieldDocs<BankSyncLine> = {
+  id: { exposure: 'plain', meaning: 'The one line.' },
+  bankLinkOffered: {
+    exposure: 'plain',
+    meaning: 'Whether a bank sync deployment is saved, so a new bank or savings account can take rowsFrom bank-link. Without it, add-account takes by-hand.',
+  },
+}
+
 /** The bank set-up list as the chat reads it, matched against the file as it stands. */
 function bankAccountLines(setup: BankSetup, book: SpendingBook): readonly BankAccountLine[] {
   const differences = currentDifferences(setup.differences, book.accounts)
@@ -370,6 +395,14 @@ export function spendingReader(reading: SpendingReading): AppReader {
           return setup === null ? [] : rows((book) => bankAccountLines(setup, book))
         },
         currencyOf: (line) => line.currency,
+      }),
+      readableKind<BankSyncLine>({
+        kind: BANK_SYNC_LINES,
+        about: words.reads.bankSync,
+        fields: BANK_SYNC_FIELDS,
+        dated: null,
+        rows: () => rows((book) => [{ id: BANK_SYNC_LINES.name, bankLinkOffered: bankLinkOffered('bank', null, book.settings) }]),
+        currencyOf: () => EURO,
       }),
     ],
     reports: [

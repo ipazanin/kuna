@@ -29,6 +29,8 @@ import AccountsCard from './AccountsCard.vue'
 import LimitsCard from './LimitsCard.vue'
 import { SPENDING_BUDGETS_ROUTE, SPENDING_OVERVIEW_ROUTE, categoryIdNamed, transactionsLink } from './spendingLinks'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
+import { bankLinkOffered } from '../../workbook/domain/account'
+import type { RowsFrom } from '../../workbook/domain/account'
 import { spendingRing } from './spendingRing'
 import { spendingSetUp } from './spendingSetUp'
 import { words } from './words'
@@ -62,6 +64,14 @@ const day = today()
 const month = monthOf(day)
 
 const addingAccount = ref(false)
+/** How the rows of the account the empty file adds come in, as the button that opened the dialog says. */
+const addingRowsFrom = ref<RowsFrom>('by-hand')
+const offersBankLink = computed(() => state.workbook !== null && bankLinkOffered('bank', null, state.workbook.settings))
+
+function addAccount(rowsFrom: RowsFrom): void {
+  addingRowsFrom.value = rowsFrom
+  addingAccount.value = true
+}
 
 const loading = computed(() => state.workbook === null && state.status !== 'error')
 const fileNote = computed(() => fileKeptNote(state.choice, words.empty))
@@ -127,12 +137,16 @@ function openGroupMonth(selection: ChartPointSelection): void {
       />
       <EmptyState v-if="state.workbook.accounts.length === 0" icon="i-lucide-wallet" :title="words.empty.title" data-testid="spending-empty">
         <template #description>
-          <span class="block">{{ words.empty.description }}</span>
+          <span class="block">{{ offersBankLink ? words.empty.descriptionWithBank : words.empty.description }}</span>
         </template>
         <template #actions>
           <div class="flex flex-col items-center gap-4">
             <div class="flex flex-wrap justify-center gap-2">
-              <UButton :label="words.empty.addAccount" icon="i-lucide-plus" data-testid="spending-overview-add-account" @click="addingAccount = true" />
+              <template v-if="offersBankLink">
+                <UButton :label="words.empty.linkABank" icon="i-lucide-landmark" data-testid="spending-overview-link-bank" @click="addAccount('bank-link')" />
+                <UButton :label="words.empty.addByHand" icon="i-lucide-plus" color="neutral" variant="outline" data-testid="spending-overview-add-account" @click="addAccount('by-hand')" />
+              </template>
+              <UButton v-else :label="words.empty.addAccount" icon="i-lucide-plus" data-testid="spending-overview-add-account" @click="addAccount('by-hand')" />
               <AskChatButton :text="chatWords.ask.setUp" size="md" data-testid="set-up-chat" @ask="askChat(assistantWords.guides.setUp.title)" />
             </div>
             <span class="type-caption">{{ fileNote }}</span>
@@ -249,6 +263,6 @@ function openGroupMonth(selection: ChartPointSelection): void {
         </DashboardGrid>
       </template>
     </template>
-    <AccountDialog v-model:open="addingAccount" :account="null" :opening-day="firstDayOf(month)" />
+    <AccountDialog v-model:open="addingAccount" :account="null" :opening-day="firstDayOf(month)" :starting-rows-from="addingRowsFrom" />
   </section>
 </template>

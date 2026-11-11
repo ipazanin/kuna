@@ -17,6 +17,9 @@ import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, deskBankSetup, deskPorts, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
+import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
@@ -236,7 +239,7 @@ describe('an entry’s day and account', () => {
   it('refuses another account that opened after the day the entry keeps', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
-      { op: 'add-account', input: { name: 'New card', kind: 'bank', bank: null, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban: null }, as: '$card' },
+      { op: 'add-account', input: { name: 'New card', kind: 'bank', bank: null, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban: null, rowsFrom: 'by-hand' }, as: '$card' },
       changeEntry(desk, EXAMPLE_RECORDS['transaction']!, { account: '$card' }),
     ])
     expect(answer.isError).toBe(true)
@@ -244,14 +247,55 @@ describe('an entry’s day and account', () => {
   })
 })
 
-describe('a new account', () => {
-  it('takes its rows from the bank when it has an IBAN, and by hand without one or as cash', async () => {
+describe('where an account takes its rows from', () => {
+  const added = (name: string, kind: string, iban: string | null, rowsFrom: string) => ({
+    op: 'add-account',
+    input: { name, kind, bank: null, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban, rowsFrom },
+  })
+  const saveDeployment = (desk: SpendingDesk) => desk.store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], BANK_SYNC_DEPLOYMENT_KEY, 'AKfy-deployment'))
+  const rowsFromOf = (desk: SpendingDesk, name: string) => bookOf(desk).accounts.find((account) => account.name === name)?.rowsFrom
+
+  it('refuses a bank link until a bank sync deployment is saved, then takes one with an IBAN', async () => {
     const desk = await spendingDesk(used)
-    const added = (name: string, kind: string, iban: string | null) => ({ op: 'add-account', input: { name, kind, bank: null, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban } })
-    await desk.propose([added('Card', 'bank', 'HR1723600001101234565'), added('Typed card', 'bank', null), added('Jar', 'cash', null)])
+    expect((await desk.propose([added('Card', 'bank', 'HR1723600001101234565', 'bank-link')])).text).toContain('once the person saves a bank sync deployment')
+    await saveDeployment(desk)
+    expect((await desk.propose([added('Card', 'bank', null, 'bank-link')])).text).toContain("needs the account's IBAN")
+    expect((await desk.propose([added('Jar', 'cash', null, 'bank-link')])).isError).toBe(true)
+    await desk.propose([added('Card', 'bank', 'HR1723600001101234565', 'bank-link'), added('Typed card', 'bank', 'HR1723600001101234566', 'by-hand')])
     expect((await desk.accept()).kind).toBe('done')
-    const rowsFromOf = (name: string) => bookOf(desk).accounts.find((account) => account.name === name)?.rowsFrom
-    expect(['Card', 'Typed card', 'Jar'].map(rowsFromOf)).toEqual(['bank-link', 'by-hand', 'by-hand'])
+    expect(['Card', 'Typed card'].map((name) => rowsFromOf(desk, name))).toEqual(['bank-link', 'by-hand'])
+  })
+
+  it('tells the chat whether a bank link is offered, and never the deployment', async () => {
+    const desk = await spendingDesk(used)
+    const offered = () => {
+      const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null })
+      return reader.kinds
+        .find((kind) => kind.name === 'bank-sync')!
+        .rows()[0]!
+        .fields.find((field) => field.name === 'bankLinkOffered')
+    }
+    expect(offered()).toMatchObject({ value: false })
+    await saveDeployment(desk)
+    expect(offered()).toMatchObject({ value: true })
+    expect(JSON.stringify(offered())).not.toContain('AKfy-deployment')
+  })
+
+  it('switches an account typed by hand to a bank link only while a deployment is saved, and back to by hand', async () => {
+    const desk = await spendingDesk(used)
+    const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
+    const change = (rowsFrom: string) => ({
+      op: 'change-account',
+      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, rowsFrom, closed: null },
+    })
+    expect((await desk.propose([change('bank-link')])).isError).toBe(true)
+    await saveDeployment(desk)
+    await desk.propose([change('bank-link')])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowsFromOf(desk, 'Current')).toBe('bank-link')
+    await desk.propose([change('by-hand')])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowsFromOf(desk, 'Current')).toBe('by-hand')
   })
 })
 
@@ -365,7 +409,7 @@ describe('categories and accounts', () => {
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
     const change = (fields: Record<string, unknown>) => ({
       op: 'change-account',
-      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, closed: null, ...fields },
+      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, rowsFrom: null, closed: null, ...fields },
     })
     expect((await desk.propose([change({ currency: 'USD' })])).isError).toBe(true)
     expect((await desk.propose([{ op: 'delete-account', input: { account: current } }])).isError).toBe(true)
@@ -376,7 +420,7 @@ describe('categories and accounts', () => {
 
   const moveStart = (desk: SpendingDesk, openedOn: string) => ({
     op: 'change-account',
-    input: { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn, iban: null, closed: null },
+    input: { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn, iban: null, rowsFrom: null, closed: null },
   })
 
   it('moves the start day later as the dialog does: the card says what goes, the opening keeps the balance, and the other leg stays alone', async () => {

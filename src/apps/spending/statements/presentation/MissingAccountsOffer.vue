@@ -11,7 +11,8 @@ import { openingOn, startDays, startsWithin } from '../../accounts/domain/bankOp
 import { words as accountWords } from '../../accounts/presentation/words'
 import type { DraftedAccount } from '../domain/statementRows'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import type { Account } from '../../workbook/domain/account'
+import { ROWS_FROM, bankLinkOffered, rowsFromRefusal } from '../../workbook/domain/account'
+import type { Account, RowsFrom } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -19,17 +20,25 @@ import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 
 /**
- * The accounts a file needs that Kuna does not keep, drafted from the file, each starting on the day typed beside it, added with one tap.
- * The file's dry run then reads again on its own.
+ * The accounts a file needs that Kuna does not keep, drafted from the file, each starting on the day typed beside it and with its rows
+ * coming in as picked beside it, added with one tap. The file's dry run then reads again on its own.
  */
 const props = defineProps<{ title: string; missing: readonly DraftedAccount[] }>()
 
-const writes = useRecordWrites(useSpendingBooks())
+const store = useSpendingBooks()
+const writes = useRecordWrites(store)
+
+const ROWS_FROM_OPTIONS = ROWS_FROM.map((rowsFrom) => ({ value: rowsFrom, label: accountWords.rowsFrom[rowsFrom] }))
+const settings = computed(() => store.state.workbook?.settings ?? { bankSyncDeployment: '' })
 
 /** The start day typed for each draft, by its kind and currency. One not typed starts on the earliest day its rows allow. */
 const typedStarts = ref<Readonly<Record<string, string>>>({})
+/** How each draft's rows come in, and the IBAN typed for one linked to a bank, by its kind and currency. One not picked comes in as its draft says while a bank link is offered. */
+const pickedRowsFrom = ref<Readonly<Record<string, RowsFrom>>>({})
+const typedIbans = ref<Readonly<Record<string, string>>>({})
 const tried = ref(false)
 
 function keyOf({ account }: DraftedAccount): string {
@@ -44,27 +53,59 @@ function typeStart(drafted: DraftedAccount, typed: string): void {
   typedStarts.value = { ...typedStarts.value, [keyOf(drafted)]: typed }
 }
 
+function offersBankLink({ account }: DraftedAccount): boolean {
+  return bankLinkOffered(account.kind, null, settings.value)
+}
+
+function rowsFromOf(drafted: DraftedAccount): RowsFrom {
+  return offersBankLink(drafted) ? (pickedRowsFrom.value[keyOf(drafted)] ?? drafted.account.rowsFrom) : 'by-hand'
+}
+
+function pickRowsFrom(drafted: DraftedAccount, rowsFrom: RowsFrom): void {
+  pickedRowsFrom.value = { ...pickedRowsFrom.value, [keyOf(drafted)]: rowsFrom }
+}
+
+function typedIban(drafted: DraftedAccount): string {
+  return typedIbans.value[keyOf(drafted)] ?? drafted.account.iban
+}
+
+function typeIban(drafted: DraftedAccount, typed: string): void {
+  typedIbans.value = { ...typedIbans.value, [keyOf(drafted)]: typed }
+}
+
+/** The draft's IBAN and how its rows come in, or null while it is linked to a bank with no IBAN typed. */
+function sourceOf(drafted: DraftedAccount): Pick<Account, 'iban' | 'rowsFrom'> | null {
+  const rowsFrom = rowsFromOf(drafted)
+  const iban = rowsFrom === 'bank-link' ? typedIban(drafted) : drafted.account.iban
+  return rowsFromRefusal({ kind: drafted.account.kind, iban, rowsFrom }, null, settings.value) === null ? { iban, rowsFrom } : null
+}
+
 /** The typed day, or null while it is not one the draft can start on, which runs to today. */
 function startOf(drafted: DraftedAccount): CivilDate | null {
   const startsOn = parseCivilDate(typedStart(drafted))
   return startsOn !== null && startsWithin(drafted.evidence, startsOn, today()) ? startsOn : null
 }
 
-/** The draft starting on the typed day, at the file's last balance less its rows from that day on, or null while the day is out of range. */
+/** The draft starting on the typed day, at the file's last balance less its rows from that day on, with its rows coming in as picked, or null while the day is out of range or a bank link has no IBAN. */
 function startedDraft(drafted: DraftedAccount): Omit<Account, 'id'> | null {
   const startsOn = startOf(drafted)
-  if (startsOn === null) return null
+  const source = sourceOf(drafted)
+  if (startsOn === null || source === null) return null
   const { opening, openedOn } = openingOn(drafted.evidence, startsOn)
-  return { ...drafted.account, opening, openedOn }
+  return { ...drafted.account, ...source, opening, openedOn }
 }
 
 /** Each draft as the typed day starts it. */
-const shown = computed(() => props.missing.map((drafted) => ({ drafted, started: startedDraft(drafted) })))
+const shown = computed(() => props.missing.map((drafted) => ({ drafted, started: startedDraft(drafted), rowsFrom: rowsFromOf(drafted) })))
 
 function startError(drafted: DraftedAccount): string | false {
   if (!tried.value || startOf(drafted) !== null) return false
   const { earliest, latest } = startDays(drafted.evidence, today())
   return accountWords.startDay.between(earliest, latest)
+}
+
+function ibanError(drafted: DraftedAccount): string | false {
+  return tried.value && sourceOf(drafted) === null ? accountWords.rowsFromChoice.ibanNeeded : false
 }
 
 async function add(): Promise<void> {
@@ -83,8 +124,8 @@ async function add(): Promise<void> {
 <template>
   <UAlert icon="i-lucide-wallet" color="info" variant="subtle" :title="title" data-testid="spending-import-missing-accounts">
     <template #description>
-      <ul class="flex flex-col gap-3">
-        <li v-for="{ drafted, started } in shown" :key="keyOf(drafted)" class="flex flex-col gap-1.5" data-testid="spending-import-missing-account">
+      <ul class="flex flex-col divide-y divide-default">
+        <li v-for="{ drafted, started, rowsFrom } in shown" :key="keyOf(drafted)" class="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0" data-testid="spending-import-missing-account">
           <span data-testid="spending-import-missing-account-draft">{{
             started === null ? drafted.account.name : words.import.draftLine(started.name, started.openedOn, formatAccountMoney(started.opening, started.currency))
           }}</span>
@@ -97,6 +138,30 @@ async function add(): Promise<void> {
               class="w-full max-w-60"
               data-testid="spending-import-missing-account-start"
               @update:model-value="typeStart(drafted, String($event))"
+            />
+          </UFormField>
+          <UFormField
+            v-if="offersBankLink(drafted)"
+            :label="accountWords.rowsFromChoice.label"
+            :help="rowsFrom === 'bank-link' ? accountWords.rowsFromChoice.bankLinkHelp(accountWords.startDay.label) : accountWords.rowsFromChoice.byHandHelp"
+            data-testid="spending-import-missing-account-rows-from-field"
+          >
+            <ChoiceButtons
+              :model-value="rowsFrom"
+              :options="ROWS_FROM_OPTIONS"
+              :label="accountWords.rowsFromChoice.label"
+              data-testid="spending-import-missing-account-rows-from"
+              @update:model-value="pickRowsFrom(drafted, $event)"
+            />
+          </UFormField>
+          <UFormField v-if="rowsFrom === 'bank-link'" :label="accountWords.dialog.iban" :error="ibanError(drafted)">
+            <UInput
+              :model-value="typedIban(drafted)"
+              autocomplete="off"
+              spellcheck="false"
+              class="w-full max-w-80"
+              data-testid="spending-import-missing-account-iban"
+              @update:model-value="typeIban(drafted, String($event))"
             />
           </UFormField>
         </li>

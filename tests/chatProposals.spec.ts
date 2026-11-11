@@ -101,7 +101,18 @@ describe('a proposal', () => {
     await d.propose([
       {
         op: 'change-account',
-        input: { account: d.ref('account', account.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: 'HR1210010051863000160', closed: 'yes' },
+        input: {
+          account: d.ref('account', account.id),
+          name: null,
+          kind: null,
+          bank: null,
+          currency: null,
+          opening: null,
+          openedOn: null,
+          iban: 'HR1210010051863000160',
+          rowsFrom: null,
+          closed: 'yes',
+        },
       },
       { op: 'add-entry', input: { account: d.ref('account', account.id), date: '2026-11-03', amount: -12.5, payee: 'Corner market', category: null, note: '' } },
     ])
@@ -175,7 +186,10 @@ describe('a proposal', () => {
     const iban = d.reads.pseudonyms.identifierToken('HR1210010051863000160')
     await d.propose([
       { op: 'add-rule', input: { row: null, fragment: alias, iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
-      { op: 'change-account', input: { account: d.ref('account', bookOf(d).accounts[0]!.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban, closed: null } },
+      {
+        op: 'change-account',
+        input: { account: d.ref('account', bookOf(d).accounts[0]!.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban, rowsFrom: null, closed: null },
+      },
     ])
     const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
     expect(lines.some((line) => line.fields.some((field) => field.warns))).toBe(true)

@@ -488,9 +488,9 @@ function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {
   ]
 }
 
-/** The starter categories alone, with fixed keys, as a new file on the fake Drive holds them. */
-export function fakeStarterDocument(savedAt: string): WorkbookDocument {
-  return spendingDocumentOf(savedAt, stored(CATEGORY_RECORDS, fakeCategories().categories))
+/** The starter categories alone, with fixed keys, as a new file on the fake Drive holds them, and the bank sync's settings `?banksync=` names. */
+export function fakeStarterDocument(savedAt: string, bankSync: string | null = null, day: CivilDate = today()): WorkbookDocument {
+  return spendingDocumentOf(savedAt, { ...stored(CATEGORY_RECORDS, fakeCategories().categories), ...stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day)) })
 }
 
 function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument['records'] {
