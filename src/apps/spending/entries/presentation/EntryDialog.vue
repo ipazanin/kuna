@@ -20,7 +20,8 @@ import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
 import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { beforeStartDay } from '../../workbook/domain/account'
+import { fixedByBank } from '../domain/bankRows'
+import { beforeStartDay, takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
@@ -89,16 +90,21 @@ const receiptPlace = computed(() => {
 })
 const splitOpen = ref(false)
 
-/** The open accounts, and the closed ones the entry is already on. */
+/** The open accounts kept by hand, and the ones the entry is already on, closed or filled by the bank. */
 const choosable = computed(() => {
   const own = new Set([props.entry?.account, ...(legs.value ?? []).map((leg) => leg.account)])
-  return accounts.value.filter((candidate) => !candidate.closed || own.has(candidate.id))
+  return accounts.value.filter((candidate) => (!candidate.closed && takesRowsByHand(candidate)) || own.has(candidate.id))
 })
 const accountItems = computed(() => choosable.value.map((candidate) => ({ label: candidate.name, value: candidate.id as string, description: candidate.currency })))
 
+/** A row the bank booked keeps the way its money went, since out and in set the amount's sign. */
 const kindOptions = computed(() => [
-  { value: 'out' as const, label: words.dialog.kinds.out },
-  { value: 'in' as const, label: words.dialog.kinds.in },
+  ...(props.entry !== null && bookedByBank(props.entry)
+    ? [props.entry.amount < 0 ? { value: 'out' as const, label: words.dialog.kinds.out } : { value: 'in' as const, label: words.dialog.kinds.in }]
+    : [
+        { value: 'out' as const, label: words.dialog.kinds.out },
+        { value: 'in' as const, label: words.dialog.kinds.in },
+      ]),
   ...(transferCategory.value !== null && (choosable.value.length > 1 || legs.value !== null) ? [{ value: 'transfer' as const, label: words.dialog.kinds.transfer }] : []),
 ])
 
@@ -153,6 +159,24 @@ const rowOnFrom = computed(() => legs.value?.[0] ?? (kind.value !== 'transfer' |
 const rowOnTo = computed(() => legs.value?.[1] ?? (kind.value === 'transfer' && (props.entry?.amount ?? 0) > 0 ? props.entry : null))
 const fromFixed = computed(() => (rowOnFrom.value?.importKey ?? '') !== '')
 const toFixed = computed(() => (rowOnTo.value?.importKey ?? '') !== '')
+
+/** Whether the bank fixed the amount and day of the row on a side, as on an account it fills, whose balance it checks. */
+function bookedByBank(row: Transaction | null): boolean {
+  const on = row === null ? null : accountOf(row.account)
+  return row !== null && on !== null && fixedByBank(row, on)
+}
+const fromBooked = computed(() => bookedByBank(rowOnFrom.value))
+const toBooked = computed(() => bookedByBank(rowOnTo.value))
+
+/** Where the entry came from, said once under its kind: what the bank fixed on it, and that a statement brings it back once deleted. */
+const sourceNote = computed(() =>
+  [fromBooked.value || toBooked.value ? words.dialog.bookedByBank : null, deleteComesBack(legs.value ?? (props.entry === null ? [] : [props.entry])) ? words.dialog.comesBack : null]
+    .filter((sentence): sentence is string => sentence !== null)
+    .join(' '),
+)
+
+/** Whether the account can be picked while an open account is left off the list because the bank fills it. */
+const bankAccountsHidden = computed(() => !fromFixed.value && !split.value && accounts.value.some((candidate) => !candidate.closed && !choosable.value.includes(candidate)))
 
 /** An amount above zero, or null. */
 function positive(text: string): AccountMoney | null {
@@ -250,10 +274,15 @@ async function remove(): Promise<void> {
       <UFormField v-if="!split" :label="words.dialog.kind" class="sm:col-span-2">
         <ChoiceButtons v-model="kind" :options="kindOptions" :label="words.dialog.kind" data-testid="spending-entry-kind" />
       </UFormField>
+      <p v-if="sourceNote !== ''" class="type-caption sm:col-span-2" data-testid="spending-entry-source-note">{{ sourceNote }}</p>
       <UFormField :label="words.dialog.amountIn(from?.currency ?? '')" :error="(tried && errors.amount) || false">
-        <MoneyInput v-model="amount" :placeholder="spendingWords.form.amountPlaceholder" :disabled="split" class="w-full" data-testid="spending-entry-amount" />
+        <MoneyInput v-model="amount" :placeholder="spendingWords.form.amountPlaceholder" :disabled="split || fromBooked" class="w-full" data-testid="spending-entry-amount" />
       </UFormField>
-      <UFormField :label="kind === 'transfer' ? words.dialog.fromAccount : words.dialog.account" :error="(tried && errors.account) || false">
+      <UFormField
+        :label="kind === 'transfer' ? words.dialog.fromAccount : words.dialog.account"
+        :help="bankAccountsHidden ? words.dialog.bankAccountsHidden : ''"
+        :error="(tried && errors.account) || false"
+      >
         <USelect v-model="account" :items="accountItems" :disabled="fromFixed || split" class="w-full" data-testid="spending-entry-account" />
       </UFormField>
       <template v-if="kind === 'transfer'">
@@ -261,14 +290,14 @@ async function remove(): Promise<void> {
           <USelect v-model="toAccount" :items="accountItems" :disabled="toFixed" class="w-full" data-testid="spending-entry-to-account" />
         </UFormField>
         <UFormField v-if="twoCurrencies" :label="words.dialog.amountIn(to?.currency ?? '')" :help="words.dialog.arrivedHelp" :error="(tried && errors.toAmount) || false">
-          <MoneyInput v-model="toAmount" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-entry-to-amount" />
+          <MoneyInput v-model="toAmount" :placeholder="spendingWords.form.amountPlaceholder" :disabled="toBooked" class="w-full" data-testid="spending-entry-to-amount" />
         </UFormField>
       </template>
       <UFormField v-else-if="!split" :label="words.dialog.category" :error="(tried && errors.category) || false">
         <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.dialog.pickCategory" class="w-full" data-testid="spending-entry-category" />
       </UFormField>
       <UFormField :label="words.dialog.date" :error="(tried && errors.date) || false">
-        <UInput v-model="date" type="date" class="w-full" data-testid="spending-entry-date" />
+        <UInput v-model="date" type="date" :disabled="fromBooked || toBooked" class="w-full" data-testid="spending-entry-date" />
       </UFormField>
       <UFormField v-if="kind !== 'transfer'" :label="words.dialog.payee">
         <UInputMenu
@@ -336,7 +365,6 @@ async function remove(): Promise<void> {
         />
         <p class="type-caption">{{ words.dialog.asPersonHelp }}</p>
       </div>
-      <p v-if="deleteComesBack(legs ?? (entry === null ? [] : [entry]))" class="type-caption sm:col-span-2" data-testid="spending-entry-comes-back">{{ words.dialog.comesBack }}</p>
     </FormGrid>
     <EntrySplitDialog v-if="entry !== null" v-model:open="splitOpen" :entry="entry" :currency="from?.currency ?? EURO" @saved="open = false" />
     <template #start>

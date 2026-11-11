@@ -11,6 +11,7 @@ import EntryList from './EntryList.vue'
 import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
 import { accountNamed, categoryIdNamed, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
+import { takesRowsByHand } from '../../workbook/domain/account'
 import { categoriesOfRow } from '../../categories/domain/rowSide'
 import { euroRows } from '../../rates/domain/euroRows'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
@@ -121,7 +122,9 @@ const tabs = computed(() => [
   { value: 'import', label: statementWords.tabs.import, icon: 'i-lucide-file-up' },
 ])
 
-const canAdd = computed(() => accounts.value.some((candidate) => !candidate.closed))
+const canAdd = computed(() => accounts.value.some((candidate) => !candidate.closed && takesRowsByHand(candidate)))
+/** Whether the open accounts are all ones the bank fills, so no entry can be typed until one kept by hand is added. */
+const allFromBank = computed(() => !canAdd.value && accounts.value.some((candidate) => !candidate.closed))
 const canAddReceipt = computed(() => receiptAccounts(accounts.value).length > 0)
 
 const receiptOpen = ref(false)
@@ -149,8 +152,11 @@ function openEntry(entry: Transaction | null): void {
 
 <template>
   <section class="flex max-w-measure flex-col gap-6">
-    <PageHeader :title="screenWords.entries">
-      <template v-if="canAdd" #actions>
+    <PageHeader :title="screenWords.entries" :description="allFromBank ? words.allFromBank : ''">
+      <template v-if="allFromBank && transactions.length > 0" #actions>
+        <UButton :label="accountWords.add" icon="i-lucide-landmark" color="neutral" variant="outline" :to="SPENDING_ACCOUNTS_ROUTE" data-testid="spending-header-go-to-accounts" />
+      </template>
+      <template v-else-if="canAdd" #actions>
         <template v-if="canAddReceipt && assistKeyKept">
           <MenuButton :label="receiptWords.add" icon="i-lucide-receipt" :choices="receiptChoices" data-testid="spending-add-receipt" @pick="addReceipt" />
         </template>
@@ -165,7 +171,7 @@ function openEntry(entry: Transaction | null): void {
           v-if="transactions.length === 0"
           icon="i-lucide-list"
           :title="words.noEntries"
-          :description="canAdd ? words.noEntriesDescription : words.needsAccount"
+          :description="canAdd ? words.noEntriesDescription : allFromBank ? words.allFromBank : words.needsAccount"
           data-testid="spending-transactions-empty"
         >
           <template #actions>

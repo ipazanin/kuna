@@ -79,6 +79,9 @@ export const CASH = account(4, { name: 'Cash', kind: 'cash', bank: null, currenc
 
 export const ACCOUNTS: readonly Account[] = [OTP, REVOLUT_EUR, REVOLUT_USD, CASH]
 
+/** The same accounts, each kept by hand, for a check of rows a person types, which an account the bank fills refuses. */
+export const ACCOUNTS_BY_HAND: readonly Account[] = ACCOUNTS.map((account) => ({ ...account, rowsFrom: 'by-hand' }))
+
 let rowPlace = 2000
 
 /** A typed row on the account, in its currency, on a starter category or waiting on review. */

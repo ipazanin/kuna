@@ -1,3 +1,4 @@
+import { takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -16,9 +17,9 @@ export function lastAccountId(): RecordId | null {
   }
 }
 
-/** The account a new entry starts on: the one this browser last saved an entry on while it is open, else the first open account. */
+/** The account a new entry starts on: the one this browser last saved an entry on while it is open and kept by hand, else the first such account. */
 export function startingAccount(accounts: readonly Account[]): Account | null {
-  const open = accounts.filter((account) => !account.closed)
+  const open = accounts.filter((account) => !account.closed && takesRowsByHand(account))
   const last = lastAccountId()
   return open.find((account) => account.id === last) ?? open[0] ?? null
 }

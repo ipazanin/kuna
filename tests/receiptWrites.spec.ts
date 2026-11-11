@@ -30,8 +30,11 @@ import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, CASH, CATEGORIES, OTP, category, row } from './fixtures/spending'
+import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, category, row } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
+
+/** The fixture's accounts kept by hand, since these checks type rows, which an account the bank fills refuses. */
+const [OTP] = ACCOUNTS_BY_HAND
 
 const used = new Set<string>()
 
@@ -45,7 +48,7 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]) {
 }
 
 async function spendingStore(): Promise<WorkbookStore<SpendingBooks>> {
-  const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, ACCOUNTS), ...stored(CATEGORY_RECORDS, CATEGORIES) })
+  const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, ACCOUNTS_BY_HAND), ...stored(CATEGORY_RECORDS, CATEGORIES) })
   const { store } = await browserHarness(used, document, SPENDING)
   return store
 }

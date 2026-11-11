@@ -45,6 +45,16 @@ export function rowsFromOfDetails(account: Pick<Account, 'kind' | 'iban'>): Rows
   return account.kind !== 'cash' && account.iban !== '' ? 'bank-link' : 'by-hand'
 }
 
+/** Whether a person's own rows may go on the account. One the bank fills takes its rows from the bank alone. */
+export function takesRowsByHand(account: Pick<Account, 'rowsFrom'>): boolean {
+  return account.rowsFrom === 'by-hand'
+}
+
+/** Whether the account says the bank brings its rows but holds no IBAN to find it by, which a write refuses and a reading doubts. */
+export function bankLinkWithoutIban(account: Pick<Account, 'rowsFrom' | 'iban'>): boolean {
+  return account.rowsFrom === 'bank-link' && account.iban.trim() === ''
+}
+
 /** Whether a person may have the bank sync bring an account's rows: never on cash, and only once a bank sync deployment is saved, unless the account takes them from the bank already. */
 export function bankLinkOffered(kind: AccountKind, before: Pick<Account, 'rowsFrom'> | null, settings: Pick<SpendingSettings, 'bankSyncDeployment'>): boolean {
   return kind !== 'cash' && (settings.bankSyncDeployment !== '' || before?.rowsFrom === 'bank-link')
@@ -61,7 +71,7 @@ export function rowsFromRefusal(
 ): RowsFromRefusal | null {
   if (account.rowsFrom === 'by-hand') return null
   if (!bankLinkOffered(account.kind, before, settings)) return 'bank-link-not-offered'
-  return account.iban.trim() === '' ? 'bank-link-without-iban' : null
+  return bankLinkWithoutIban(account) ? 'bank-link-without-iban' : null
 }
 
 /**

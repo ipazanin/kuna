@@ -614,7 +614,7 @@ describe('fetchFrom', () => {
 
 describe('the fake Spending file', () => {
   it("brings the fake answer's rows into a dry run with rows a file brought skipped", async () => {
-    const document = fakeSpendingDocument('2026-10-30T09:00:00.000Z', 'statements', DAY)
+    const document = fakeSpendingDocument('2026-10-30T09:00:00.000Z', 'statements', DAY, 'linked')
     const { workbook } = SPENDING_DOCUMENT.read({
       meta: { id: 'fake', source: 'browser', title: 'fake', syncedAt: '2026-10-30T09:00:00.000Z', lastExportedAt: null, unexportedSince: null },
       revision: '1',

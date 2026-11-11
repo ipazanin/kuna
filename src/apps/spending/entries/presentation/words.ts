@@ -12,6 +12,7 @@ export const en = {
   noEntries: 'No entries yet',
   noEntriesDescription: 'Import a Revolut export on Import, or add what went out of an account or came in. It shows here by day.',
   needsAccount: 'Add an account first, then what goes out of it and comes in.',
+  allFromBank: 'Your accounts all take their rows from the bank. Add a cash account to type entries.',
   noMatch: 'No entries match these filters.',
   waitsOnReview: 'Waits on review',
   filters: {
@@ -29,6 +30,8 @@ export const en = {
     kinds: { out: 'Money out', in: 'Money in', transfer: 'Between my accounts' },
     amountIn: (currency: string) => `Amount in ${currency}`,
     arrivedHelp: 'What reached the other account',
+    bookedByBank: 'The bank booked this entry, so its kind, amount, date and account stay.',
+    bankAccountsHidden: 'Accounts the bank fills are not listed',
     anAmount: 'An amount above zero with at most two decimals',
     category: 'Category',
     pickCategory: 'Pick a category',
@@ -100,6 +103,7 @@ export const hr: Translation<typeof en> = {
   noEntries: 'Još nema unosa',
   noEntriesDescription: 'Uvezite izvoz iz Revoluta u Uvozu ili dodajte što je otišlo s računa ili stiglo na njega. Prikazat će se ovdje po danima.',
   needsAccount: 'Najprije dodajte račun, a zatim što s njega odlazi i na njega stiže.',
+  allFromBank: 'Svi vaši računi dobivaju retke iz banke. Dodajte gotovinski račun da biste upisivali unose.',
   noMatch: 'Nijedan unos ne odgovara ovim filtrima.',
   waitsOnReview: 'Čeka pregled',
   filters: {
@@ -117,6 +121,8 @@ export const hr: Translation<typeof en> = {
     kinds: { out: 'Isplata', in: 'Uplata', transfer: 'Između mojih računa' },
     amountIn: (currency) => `Iznos u valuti ${currency}`,
     arrivedHelp: 'Iznos koji je stigao na drugi račun',
+    bookedByBank: 'Proknjižila ga je banka, pa vrsta, iznos, datum i račun ostaju.',
+    bankAccountsHidden: 'Računi koje puni banka nisu na popisu',
     anAmount: 'Iznos veći od nule s najviše dvije decimale',
     category: 'Kategorija',
     pickCategory: 'Odaberite kategoriju',

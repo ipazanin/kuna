@@ -22,9 +22,12 @@ import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { civil } from './fixtures/ledger'
-import { ACCOUNTS, CATEGORIES, DAY, OTP, REVOLUT_EUR, ROWS, category, row } from './fixtures/spending'
+import { ACCOUNTS_BY_HAND, CATEGORIES, DAY, ROWS, category, row } from './fixtures/spending'
 
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
+
+/** The fixture's accounts kept by hand, since these checks type rows, which an account the bank fills refuses. */
+const [OTP, REVOLUT_EUR] = ACCOUNTS_BY_HAND
 
 const used = new Set<string>()
 
@@ -98,7 +101,7 @@ const NEW_HOLD = held(2, '2026-10-13', ROWS[5]!)
 /** A store whose file holds the worked example's accounts, categories and October rows, with a receipt, a hand split and two rows on hold. */
 async function spendingStore(rows: readonly Transaction[] = ROWS, extra: ReturnType<typeof stored> = {}): Promise<WorkbookStore<SpendingBooks>> {
   const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', {
-    ...stored(ACCOUNT_RECORDS, ACCOUNTS),
+    ...stored(ACCOUNT_RECORDS, ACCOUNTS_BY_HAND),
     ...stored(CATEGORY_RECORDS, CATEGORIES),
     ...stored(TRANSACTION_RECORDS, rows),
     ...stored(RECEIPT_RECORDS, [RENT_RECEIPT]),

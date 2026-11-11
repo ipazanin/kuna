@@ -1,9 +1,10 @@
+import { refusedOnAccount } from '../domain/bankRows'
 import type { EntrySplit } from '../domain/entrySplit'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { EntryPart } from '../../workbook/domain/entryPart'
-import { PART_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, PART_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words } from '../../workbook/domain/words'
@@ -12,11 +13,12 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { textOf } from '../../../../shared/storage/domain/storedFields'
 import { pickedEdits } from '../../../../shared/storage/domain/writeRules'
-import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
+import type { FreshRecords, KindChange, WriteRules } from '../../../../shared/storage/domain/writeRules'
 
 /**
  * An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought
- * stays on its account. A row split into parts keeps the amount its parts add up to, and one a bank row on hold looks like stays.
+ * stays on its account, and a row a person made goes on no account the bank fills. A row split into parts keeps the amount its
+ * parts add up to, and one a bank row on hold looks like stays.
  */
 export const TRANSACTION_WRITES: WriteRules<Transaction> = {
   kind: TRANSACTION_RECORDS,
@@ -27,8 +29,22 @@ export const TRANSACTION_WRITES: WriteRules<Transaction> = {
     ...pickedEdits(change, (fields) => ({ account: textOf(fields.account), importKey: textOf(fields.import_key) })).flatMap(({ before, after: changed }) =>
       before !== null && changed !== null && before.importKey !== '' && before.account !== changed.account ? [words.accountOfStatementRow] : [],
     ),
+    ...byHandOnBankAccounts(change, after),
     ...dependentRefusals(['transactions', 'receipts', 'lines', 'held'], fresh, after),
   ],
+}
+
+/** Each row the write puts on an account the bank fills, newly or by moving it there, that a person made. */
+function byHandOnBankAccounts(change: KindChange<Transaction>, after: FreshRecords): readonly string[] {
+  const accounts = new Map(recordsOf(after.of(ACCOUNT_RECORDS)).map((account) => [account.id, account]))
+  return change.edits.flatMap((edit) => {
+    if (edit.after === null || !('record' in edit.after)) return []
+    const row = edit.after.record
+    const before = edit.before !== null && 'record' in edit.before ? edit.before.record : null
+    const account = accounts.get(row.account)
+    if (account === undefined || before?.account === row.account || !refusedOnAccount(row, account)) return []
+    return [words.byHandOnBankAccount(account.name)]
+  })
 }
 
 /** The parts of an entry add up to its amount, so a write changes them together or not at all. */

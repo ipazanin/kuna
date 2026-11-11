@@ -54,9 +54,10 @@ describe("the fake build's Spending sets", () => {
     }
   })
 
-  it('take the bank accounts from the bank and cash by hand, and keep the dollar account by hand in the by-hand, by-hand-savings and iban-blank variants', () => {
+  it('keep every account by hand without the bank sync, take the bank accounts from the bank with it, and keep the dollar account by hand in the by-hand, by-hand-savings and iban-blank variants', () => {
     const rowsFrom = (bankSync: string | null) => bookOf(fakeSpendingDocument(SAVED_AT, 'cash', civil('2026-11-04'), bankSync)).accounts.map((account) => [account.name, account.rowsFrom])
-    expect(rowsFrom(null)).toEqual([
+    expect(new Set(rowsFrom(null).map(([, from]) => from))).toEqual(new Set(['by-hand']))
+    expect(rowsFrom('saved')).toEqual([
       ['OTP current', 'bank-link'],
       ['Revolut EUR', 'bank-link'],
       ['Revolut USD', 'bank-link'],

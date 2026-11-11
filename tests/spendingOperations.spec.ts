@@ -20,6 +20,10 @@ import { forgetCaches } from './fixtures/writeBack'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
+import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
+import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
+import { TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
@@ -279,6 +283,33 @@ describe('where an account takes its rows from', () => {
     await saveDeployment(desk)
     expect(offered()).toMatchObject({ value: true })
     expect(JSON.stringify(offered())).not.toContain('AKfy-deployment')
+  })
+
+  it("keeps the date and amount of the bank's row on an account the bank fills, and files it all the same", async () => {
+    const desk = await spendingDesk(used)
+    await saveDeployment(desk)
+    const current = bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
+    const synced = {
+      ...bookOf(desk).transactions.find((row) => row.id === EXAMPLE_RECORDS['transaction'])!,
+      id: recordIdOf(TRANSACTION_RECORDS, 'synced-row'),
+      account: current.id,
+      source: 'statement' as const,
+      importKey: 'bank-synced-row',
+      pair: null,
+    }
+    await desk.store.write('Linked', (unit) => {
+      unit.of(ACCOUNT_WRITES).change(current, { ...current, rowsFrom: 'bank-link' })
+      unit.of(TRANSACTION_WRITES).add(synced)
+    })
+    const change = (fields: Record<string, unknown>) => ({
+      op: 'change-entry',
+      input: { entry: desk.ref('transaction', synced.id), account: null, kind: null, category: null, date: null, amount: null, payee: null, note: null, ...fields },
+    })
+    expect((await desk.propose([change({ amount: -1 })])).text).toContain('so its date and amount stay')
+    expect((await desk.propose([change({ date: '2026-11-02' })])).isError).toBe(true)
+    await desk.propose([change({ note: 'Checked', payee: 'Corner market' })])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(bookOf(desk).transactions.find((row) => row.id === synced.id)).toMatchObject({ note: 'Checked', amount: synced.amount, date: synced.date })
   })
 
   it('switches an account typed by hand to a bank link only while a deployment is saved, and back to by hand', async () => {

@@ -14,7 +14,10 @@ import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { Account } from '../src/apps/spending/workbook/domain/account'
+import { fixedByBank } from '../src/apps/spending/entries/domain/bankRows'
+import { startingAccount } from '../src/apps/spending/entries/infrastructure/lastAccount'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
@@ -22,8 +25,11 @@ import { recordsChangeInWords } from '../src/shared/storage/presentation/records
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, CATEGORIES, DAY, OTP, REVOLUT_EUR, REVOLUT_USD, category } from './fixtures/spending'
+import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, DAY, category, row } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
+
+/** The fixture's accounts kept by hand, since these checks type rows, which an account the bank fills refuses. */
+const [OTP, REVOLUT_EUR, REVOLUT_USD] = ACCOUNTS_BY_HAND
 
 const used = new Set<string>()
 
@@ -36,9 +42,9 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]) {
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
-/** A store whose file holds the worked example's four accounts and the English starter categories. */
-async function spendingStore(): Promise<WorkbookStore<SpendingBooks>> {
-  const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, ACCOUNTS), ...stored(CATEGORY_RECORDS, CATEGORIES) })
+/** A store whose file holds the worked example's four accounts, kept by hand unless `accounts` says otherwise, and the English starter categories. */
+async function spendingStore(accounts: readonly Account[] = ACCOUNTS_BY_HAND): Promise<WorkbookStore<SpendingBooks>> {
+  const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, accounts), ...stored(CATEGORY_RECORDS, CATEGORIES) })
   const { store } = await browserHarness(used, document, SPENDING)
   return store
 }
@@ -459,19 +465,25 @@ describe('Spending account writes', () => {
   })
 
   it('keeps a cash account by hand, with no bank and no IBAN, whatever it held before', () => {
-    expect(keptAccount({ ...OTP, kind: 'cash' })).toMatchObject({ kind: 'cash', bank: null, iban: '', rowsFrom: 'by-hand' })
+    expect(keptAccount({ ...OTP, kind: 'cash', rowsFrom: 'bank-link' })).toMatchObject({ kind: 'cash', bank: null, iban: '', rowsFrom: 'by-hand' })
   })
 
-  it('keeps an account by hand once its IBAN is cleared, since the bank sync could not find it, and otherwise keeps where its rows come from', () => {
-    expect(keptAccount({ ...OTP, iban: '  ' })).toMatchObject({ iban: '', rowsFrom: 'by-hand' })
-    expect(keptAccount({ ...OTP, rowsFrom: 'by-hand' }).rowsFrom).toBe('by-hand')
-    expect(keptAccount(OTP).rowsFrom).toBe('bank-link')
+  it('keeps where an account takes its rows from, with its IBAN trimmed', () => {
+    expect(keptAccount({ ...OTP, iban: '  ', rowsFrom: 'bank-link' })).toMatchObject({ iban: '', rowsFrom: 'bank-link' })
+    expect(keptAccount(OTP).rowsFrom).toBe('by-hand')
+  })
+
+  it('refuses an account the bank fills with no IBAN, since the bank sync finds an account by it', async () => {
+    const store = await spendingStore()
+    await expect(store.write('Changed', (unit) => unit.of(ACCOUNT_WRITES).change(OTP, keptAccount({ ...OTP, iban: ' ', rowsFrom: 'bank-link' })))).rejects.toThrow(
+      '"OTP current" takes its rows from the bank, so it needs the IBAN the bank sync finds it by',
+    )
   })
 
   it('offers a bank link once a bank sync deployment is saved, or to an account linked already, and never to cash', () => {
     const [none, saved] = [{ bankSyncDeployment: '' }, { bankSyncDeployment: 'AKfy-deployment' }]
     expect([bankLinkOffered('bank', null, none), bankLinkOffered('bank', null, saved), bankLinkOffered('cash', null, saved)]).toEqual([false, true, false])
-    expect(bankLinkOffered('savings', OTP, none)).toBe(true)
+    expect(bankLinkOffered('savings', { rowsFrom: 'bank-link' }, none)).toBe(true)
     expect(bankLinkOffered('bank', { rowsFrom: 'by-hand' }, none)).toBe(false)
   })
 
@@ -583,5 +595,45 @@ describe('Spending limit writes', () => {
     await expect(store.write('Set', (unit) => setLimit(unit, store.state.records!, category('Income/Salary').id, month('2026-09'), moneyFromAmount(100)))).rejects.toThrow(
       'is on a category that is not spending',
     )
+  })
+})
+
+describe('an account the bank fills', () => {
+  const [bankOtp] = ACCOUNTS
+  const typedOn = (account: Account) =>
+    newEntry({ account: account.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-12), payee: 'Kiosk', category: category('Food/Groceries').id, note: '' })
+
+  it("refuses a typed or copied row, takes the bank sync's and a file's, and still takes a typed row on cash", async () => {
+    const store = await spendingStore(ACCOUNTS)
+    const refusal = 'OTP current takes its rows from the bank, so a typed or copied row cannot go on it'
+    await expect(store.write('Added', (unit) => unit.of(TRANSACTION_WRITES).add(typedOn(bankOtp!)))).rejects.toThrow(refusal)
+    const copied = row(bankOtp!, '2026-10-11', -5, 'Food/Groceries', { source: 'statement', importKey: 'read-otp-1' })
+    await expect(store.write('Added', (unit) => unit.of(TRANSACTION_WRITES).add(copied))).rejects.toThrow(refusal)
+    const synced = row(bankOtp!, '2026-10-12', -7, 'Food/Groceries', { source: 'statement', importKey: 'bank-otp-1' })
+    const filed = row(bankOtp!, '2026-10-13', -9, 'Food/Groceries', { source: 'statement', importKey: 'otp-file-1' })
+    await store.write('Added', (unit) => [synced, filed, typedOn(CASH)].forEach((added) => unit.of(TRANSACTION_WRITES).add(added)))
+    expect(store.state.workbook!.transactions).toHaveLength(3)
+  })
+
+  it('refuses moving a typed row onto it, and keeps one typed there before for the bank to fill', async () => {
+    const typed = row(ACCOUNTS[0]!, '2026-10-10', -12, 'Food/Groceries')
+    const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', {
+      ...stored(ACCOUNT_RECORDS, ACCOUNTS),
+      ...stored(CATEGORY_RECORDS, CATEGORIES),
+      ...stored(TRANSACTION_RECORDS, [typed, row(CASH, '2026-10-10', -3, 'Food/Groceries')]),
+    })
+    const { store } = await browserHarness(used, document, SPENDING)
+    await store.write('Changed', (unit) => unit.of(TRANSACTION_WRITES).change(typed, { ...typed, category: category('Food/Restaurants').id, note: 'Lunch' }))
+    const onCash = store.state.workbook!.transactions.find((kept) => kept.account === CASH.id)!
+    await expect(store.write('Moved', (unit) => unit.of(TRANSACTION_WRITES).change(onCash, { ...onCash, account: bankOtp!.id }))).rejects.toThrow('takes its rows from the bank')
+  })
+
+  it("fixes the amount and day of the bank's row on it, and of no row a person made or on an account kept by hand", () => {
+    const synced = row(bankOtp!, '2026-10-12', -7, null, { source: 'statement', importKey: 'bank-otp-1' })
+    expect([fixedByBank(synced, bankOtp!), fixedByBank(row(bankOtp!, '2026-10-12', -7, null), bankOtp!), fixedByBank(synced, OTP!)]).toEqual([true, false, false])
+  })
+
+  it('never starts a new entry on it', () => {
+    expect(startingAccount(ACCOUNTS)?.id).toBe(CASH.id)
   })
 })

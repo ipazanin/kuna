@@ -6250,6 +6250,53 @@ export function spendingCreditToTransferFlowIn(language) {
   }
 }
 
+/**
+ * With the bank sync set up, a row the bank synced onto Revolut EUR opens with its amount, day and way its money went locked,
+ * saying why, and a new entry lists only the accounts kept by hand, so Cash and none of the accounts the bank fills.
+ */
+export function spendingBankRowFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { dialog } = words.spendingEntries
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'CORNER MARKET', -1230)
+    const locked = await page.$$eval('[data-testid="spending-entry-amount"], [data-testid="spending-entry-date"]', (fields) =>
+      fields.map((field) => (field.matches('input') ? field : field.querySelector('input'))?.disabled ?? false),
+    )
+    if (locked.length !== 2 || locked.some((disabled) => !disabled)) throw new Error(`the bank's row leaves its amount or day open: ${locked.join(', ')}`)
+    await waitForTextIn(page, '[data-testid="spending-entry-source-note"]', dialog.bookedByBank)
+    const kinds = await page.$$eval('[data-testid="spending-entry-kind"] button', (buttons) => buttons.map((button) => button.textContent?.trim() ?? ''))
+    if (kinds.includes(dialog.kinds.in)) throw new Error(`the bank's money out offers to become money in: ${kinds.join(', ')}`)
+    await inspect?.("the bank's row in the entry dialog")
+    await shoot('spending-entry-bank-row')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await pressSelector(page, press, '[data-testid="spending-add-entry"]')
+    await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 10_000 })
+    await delay(300)
+    await pressSelector(page, press, '[data-testid="spending-entry-account"]')
+    const listed = await page
+      .waitForFunction(
+        () => {
+          const options = [...document.querySelectorAll('[role="option"]')].map((option) => option.textContent?.trim() ?? '')
+          return options.length > 0 ? options : null
+        },
+        { timeout: 5_000 },
+      )
+      .then((handle) => handle.jsonValue())
+    if (listed.some((option) => option.startsWith('OTP current') || option.startsWith('Revolut'))) throw new Error(`a new entry lists accounts the bank fills: ${listed.join(', ')}`)
+    await waitForTextIn(page, SPENDING_ENTRY_DIALOG, dialog.bankAccountsHidden)
+    await delay(300)
+    await inspect?.('the accounts a new entry lists')
+    await shoot('spending-entry-accounts')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => document.querySelector('[role="listbox"]') === null, { timeout: 5_000 })
+    await delay(300)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
 /** A statement row of the statements set opened in its dialog says that deleting it brings it back with the next export. */
 export function spendingDeleteNoteFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -6261,7 +6308,7 @@ export function spendingDeleteNoteFlowIn(language) {
     await openSpendingRow(page, press, 'Transfer to Revolut', -7500)
     const wanted = words.spendingEntries.dialog.comesBack
     await page
-      .waitForFunction((text) => document.querySelector('[data-testid="spending-entry-comes-back"]')?.textContent?.includes(text) ?? false, { timeout: 10_000 }, wanted)
+      .waitForFunction((text) => document.querySelector('[data-testid="spending-entry-source-note"]')?.textContent?.includes(text) ?? false, { timeout: 10_000 }, wanted)
       .catch(() => {
         throw new Error('a statement row does not say that deleting it brings it back')
       })

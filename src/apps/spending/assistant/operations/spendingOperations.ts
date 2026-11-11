@@ -20,6 +20,7 @@ import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/appli
 import { lastOrder, siblingsUnder, swappedPlaces } from '../../categories/domain/categoryPlaces'
 import { newTransfer } from '../../entries/domain/transfer'
 import { TRANSACTION_WRITES, newEntry, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
+import { fixedByBank } from '../../entries/domain/bankRows'
 import { entrySplit } from '../../entries/domain/entrySplit'
 import type { PartDraft, SplitRefusal } from '../../entries/domain/entrySplit'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
@@ -204,7 +205,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'change-entry',
     about:
-      "Files a row under a category, or fixes its account, kind, date, amount, payee or note. kind is out or in, and sets the amount's sign. A row a statement brought keeps its account and what the bank said. A transfer's leg given a kind or another category becomes a plain entry, and its other leg goes. Otherwise a leg takes a new account, date or amount only through change-transfer. Null leaves a field as it is.",
+      "Files a row under a category, or fixes its account, kind, date, amount, payee or note. kind is out or in, and sets the amount's sign. A row a statement brought keeps its account and what the bank said, and on an account the bank fills its date and amount too. A transfer's leg given a kind or another category becomes a plain entry, and its other leg goes. Otherwise a leg takes a new account, date or amount only through change-transfer. Null leaves a field as it is.",
     input: inputOf({
       entry: TEXT,
       account: TEXT_OR_NULL,
@@ -602,6 +603,9 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
           category: filedUnder?.id ?? before.category,
           pair: plain ? null : before.pair,
         }
+        const onAccount = accountOf(before.account)
+        if (fixedByBank(before, onAccount) && (typed.date !== before.date || typed.amount !== before.amount))
+          throw new StepRefused(`The bank booked that row on ${onAccount.name}, so its date and amount stay. Its category, payee, note and split can change.`)
         if (legs !== null && !plain && (typed.account !== before.account || typed.date !== before.date || typed.amount !== before.amount))
           throw new StepRefused("That entry is a transfer's leg, so its account, date or amount change through change-transfer, which keeps both legs in step.")
         if (field['account'] !== null || field['date'] !== null) openedBy(date, [account])
@@ -633,6 +637,9 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         if (amount === null) throw new StepRefused('amount says what left the other account in its own currency.')
         const arrived = field['toAmount'] === null ? keptArrived : positiveOf(field['toAmount'])
         const day = field['date'] === null ? (legs?.[0].date ?? before.date) : dayOf(field['date'])
+        const moved = (row: Transaction): boolean => row.date !== day || absAccountMoney(row.amount) !== (row.amount < 0 ? amount : (arrived ?? amount))
+        const booked = (legs ?? [before]).find((row) => fixedByBank(row, accountOf(row.account)) && moved(row))
+        if (booked !== undefined) throw new StepRefused(`The bank booked that leg on ${accountOf(booked.account).name}, so its date and amount stay.`)
         writeTransfer(unit, before, legs, transferLegs(book, from, to, day, amount, arrived, (field['note'] as string | null) ?? before.note))
         break
       }

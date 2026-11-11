@@ -1,7 +1,7 @@
 import { starterCategories } from '../../../categories/domain/starterCategories'
 import { accountBalance } from '../../../accounts/domain/accountBalance'
 import { codecOfSpendingKind } from '../../application/spendingCodecs'
-import type { Account } from '../../domain/account'
+import type { Account, RowsFrom } from '../../domain/account'
 import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
 import type { Receipt } from '../../domain/receipt'
@@ -237,12 +237,12 @@ function withdrawalRows(day: CivilDate, idOf: (path: string) => RecordId): reado
   ]
 }
 
-/** The accounts the cash set adds: two dollar cash accounts and a pound account at Revolut. */
-function cashSetAccounts(openedOn: CivilDate): readonly Account[] {
+/** The accounts the cash set adds: two dollar cash accounts and a pound account at Revolut, whose rows come in as `rowsFrom` says. */
+function cashSetAccounts(openedOn: CivilDate, rowsFrom: RowsFrom): readonly Account[] {
   return [
     { id: HOME_DOLLARS, name: 'Dollars at home', kind: 'cash', bank: null, currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', iban: '', closed: false },
     { id: TRAVEL_DOLLARS, name: 'Travel wallet', kind: 'cash', bank: null, currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', iban: '', closed: false },
-    { id: REVOLUT_GBP, name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: GBP, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'bank-link', iban: 'LT000000000000000001', closed: false },
+    { id: REVOLUT_GBP, name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: GBP, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'LT000000000000000001', closed: false },
   ]
 }
 
@@ -389,9 +389,11 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
   const month = monthOf(day)
   const [twoBack, oneBack] = [addMonths(month, -2), addMonths(month, -1)]
   const openedOn = firstDayOf(addMonths(month, -3))
+  // The bank accounts take their rows from the bank once `?banksync=` sets the sync up, and are kept by hand otherwise, as their rows are typed.
+  const rowsFrom: RowsFrom = bankSync === null ? 'by-hand' : 'bank-link'
   const accounts: readonly Account[] = [
-    { id: OTP, name: 'OTP current', kind: 'bank', bank: 'otp', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'bank-link', iban: 'HR0000000000000000001', closed: false },
-    { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'bank-link', iban: 'LT000000000000000001', closed: false },
+    { id: OTP, name: 'OTP current', kind: 'bank', bank: 'otp', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'HR0000000000000000001', closed: false },
+    { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'LT000000000000000001', closed: false },
     // `iban-blank` keeps it as typed by hand without its IBAN, which the bank sync then offers to fill, and `by-hand` and `by-hand-savings` keep its IBAN with its rows typed by hand.
     {
       id: REVOLUT_USD,
@@ -401,7 +403,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
       currency: USD,
       opening: ZERO_ACCOUNT_MONEY,
       openedOn,
-      rowsFrom: bankSync === 'iban-blank' || bankSync === 'by-hand' || bankSync === 'by-hand-savings' ? 'by-hand' : 'bank-link',
+      rowsFrom: bankSync === 'iban-blank' || bankSync === 'by-hand' || bankSync === 'by-hand-savings' ? 'by-hand' : rowsFrom,
       iban: bankSync === 'iban-blank' ? '' : 'LT000000000000000001',
       closed: false,
     },
@@ -422,7 +424,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
           },
         ]
       : []),
-    ...(set === 'cash' ? cashSetAccounts(openedOn) : []),
+    ...(set === 'cash' ? cashSetAccounts(openedOn, rowsFrom) : []),
   ]
   const shown = set === 'foreign' ? accounts.filter((account) => account.id === REVOLUT_USD) : accounts
   const rows: Row[] = set === 'foreign' ? dollarRows(oneBack, day) : [...monthRows(twoBack, 2, day), ...monthRows(oneBack, 1, day), ...monthSoFar(month), ...dollarRows(oneBack, day)]

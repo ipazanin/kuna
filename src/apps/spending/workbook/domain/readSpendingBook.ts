@@ -1,4 +1,4 @@
-import { beforeStartDay } from './account'
+import { bankLinkWithoutIban, beforeStartDay } from './account'
 import type { Account } from './account'
 import { ibanKey } from './accountReading'
 import type { Budget } from './budget'
@@ -143,7 +143,7 @@ function readAccounts(read: RecordsRead<Account>): Reading<Account> {
     readEach(read, () => []),
     read,
     (account) => {
-      if (account.rowsFrom === 'bank-link' && account.iban === '') return words.bankLinkWithoutIban
+      if (bankLinkWithoutIban(account)) return words.bankLinkWithoutIban
       const key = ibanOf(account)
       const others = key === null ? [] : read.records.filter((stored) => stored.record !== account && ibanOf(stored.record) === key).map((stored) => stored.record.name.trim())
       return others.length === 0 ? null : words.ibanShared(listInWords(others), ibanKey(account.iban), account.currency)

@@ -709,17 +709,17 @@ async function spendingGroups(add) {
   if (options['fake-spending'] === 'statements') {
     const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook)
     add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))
-    // `pocket` adds a savings account to the file, so each variant reads the file it is built against.
+    // The bank sync reads only accounts the bank fills, which the fake file's are once the sync is set up. `pocket` adds a savings account to the file, so each variant reads the file it is built against.
+    const linkedBook = (variant) =>
+      SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document: fakeSpendingDocument(AT, 'statements', today, variant) }).workbook
+    const linked = linkedBook('linked')
     for (const [variant, group] of [
       ['linked', 'spending.import.bank-sync'],
       ['exchange', 'spending.import.bank-sync.exchange'],
       ['pocket', 'spending.import.bank-sync.pocket'],
       ['withdrawal', 'spending.import.bank-sync.withdrawal'],
     ]) {
-      const book =
-        variant === 'pocket'
-          ? SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document: fakeSpendingDocument(AT, 'statements', today, variant) }).workbook
-          : workbook
+      const book = variant === 'pocket' ? linkedBook(variant) : linked
       const bankRead = await readBanks(fakeBankSync(variant, today), book, today)
       add(group, () => {
         let place = 0
@@ -728,14 +728,14 @@ async function spendingGroups(add) {
     }
     // The accounts a link drafts, each starting on the day of the fetch and on the earliest day its bank's rows reach, with the opening its bank's rows and balance give then, and the opening a differing balance offers.
     let drafted = 0
-    const proposed = await readBanks(fakeBankSync('new-accounts', today), workbook, today, [], () => `account:fa4e3100-0000-4000-8000-${String((drafted += 1)).padStart(12, '0')}`)
+    const proposed = await readBanks(fakeBankSync('new-accounts', today), linked, today, [], () => `account:fa4e3100-0000-4000-8000-${String((drafted += 1)).padStart(12, '0')}`)
     add('spending.import.bank-sync.new-accounts', () =>
       proposed.proposals.map((proposal) => [proposal.fetchedOn, startDays(proposal).earliest].map((startsOn) => startedAccount({ proposal, startsOn }))),
     )
-    const offBy = await readBanks(fakeBankSync('opening-off', today), workbook, today)
+    const offBy = await readBanks(fakeBankSync('opening-off', today), linked, today)
     let row = 0
-    const offByRun = statementDryRun(workbook, offBy.statement, today, () => `fa4e3200-0000-4000-8000-${String((row += 1)).padStart(12, '0')}`)
-    add('spending.import.bank-sync.opening-off', () => balanceDifferences(offBy.stated, rowsAfterDryRun(workbook.transactions, offByRun), today))
+    const offByRun = statementDryRun(linked, offBy.statement, today, () => `fa4e3200-0000-4000-8000-${String((row += 1)).padStart(12, '0')}`)
+    add('spending.import.bank-sync.opening-off', () => balanceDifferences(offBy.stated, rowsAfterDryRun(linked.transactions, offByRun), today))
   }
   if (options['fake-spending'] === 'cash') {
     // Each cash account's place, balance and euros on the day once To review's proposed withdrawals have their cash legs, as Move to cash writes them.

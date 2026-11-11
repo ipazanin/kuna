@@ -5,7 +5,7 @@ import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entry
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { HELD_ROW_WRITES } from '../../statements/application/statementWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
-import { rowsFromOfDetails } from '../../workbook/domain/account'
+import { bankLinkWithoutIban } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { ACCOUNT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -13,7 +13,10 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** An account keeps the entries that name it, so one with entries is closed rather than deleted, and keeps the currency their amounts are in. A cash account a rule names stays cash. */
+/**
+ * An account keeps the entries that name it, so one with entries is closed rather than deleted, and keeps the currency their
+ * amounts are in. A cash account a rule names stays cash, and one the bank fills holds the IBAN the bank sync finds it by.
+ */
 export const ACCOUNT_WRITES: WriteRules<Account> = {
   kind: ACCOUNT_RECORDS,
   reads: SPENDING_KINDS,
@@ -26,16 +29,15 @@ export const ACCOUNT_WRITES: WriteRules<Account> = {
         ? [words.currencyKept(edit.before.label, edit.before.record.currency)]
         : [],
     )
-    return [...currencyChanged, ...dependentRefusals(['transactions', 'held', 'rules'], fresh, after)]
+    const withoutIban = change.edits.flatMap((edit) => (edit.after !== null && 'record' in edit.after && bankLinkWithoutIban(edit.after.record) ? [words.bankLinkWithoutIban(edit.after.label)] : []))
+    return [...currencyChanged, ...withoutIban, ...dependentRefusals(['transactions', 'held', 'rules'], fresh, after)]
   },
 }
 
-/** An account as the file keeps it: its text trimmed, cash with no bank and no IBAN, and by hand wherever the bank sync could not find it. */
+/** An account as the file keeps it: its text trimmed, and cash by hand with no bank and no IBAN. */
 export function keptAccount(account: Account): Account {
   const cash = account.kind === 'cash'
-  const iban = cash ? '' : account.iban.trim()
-  const findable = rowsFromOfDetails({ kind: account.kind, iban }) === 'bank-link'
-  return { ...account, name: account.name.trim(), bank: cash ? null : account.bank, iban, rowsFrom: findable ? account.rowsFrom : 'by-hand' }
+  return { ...account, name: account.name.trim(), bank: cash ? null : account.bank, iban: cash ? '' : account.iban.trim(), rowsFrom: cash ? 'by-hand' : account.rowsFrom }
 }
 
 /** A new account as the file keeps it, with an id of its own. */

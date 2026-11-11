@@ -1,3 +1,4 @@
+import { takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
@@ -17,7 +18,8 @@ export interface LastAccountPorts {
 
 export const SET_STARTING_ACCOUNT: AssistantOperation = {
   name: 'set-starting-account',
-  about: 'The open account a new entry or receipt starts on in this browser, which is otherwise the one last saved on. It changes this device and not the books, so it goes on a card of its own.',
+  about:
+    'The open account kept by hand that a new entry or receipt starts on in this browser, which is otherwise the one last saved on. It changes this device and not the books, so it goes on a card of its own.',
   input: inputOf({ account: TEXT }),
   refs: { account: ACCOUNT_RECORDS.name },
   creates: null,
@@ -46,6 +48,7 @@ export function startingAccountCheck(title: string, steps: readonly ProposalStep
   if (steps.length > 1) return { refused: [`${SET_STARTING_ACCOUNT.name} changes this device and not the books, so it goes on a card of its own.`] }
   const after = found(accounts, String(steps[0]!.input['account']), 'account')
   if (after.closed) return { refused: ['A new entry starts only on an open account.'] }
+  if (!takesRowsByHand(after)) return { refused: ['That account takes its rows from the bank, so a new entry never starts on it.'] }
   const before = ports.startingAccount(accounts)
   if (before?.id === after.id) return { refused: ['New entries already start on that account.'] }
   const kept = ports.lastAccountId()
