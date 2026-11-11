@@ -411,6 +411,45 @@ describe('splits and owner shares', () => {
     expect(answer.text).toContain('add up to the whole row')
   })
 
+  it('refuses amounts that leave one cent of the row out of the parts', async () => {
+    const desk = await companyDesk(used)
+    const answer = await desk.propose([
+      {
+        op: 'split-row',
+        input: {
+          row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-6').id),
+          by: 'amount',
+          parts: [
+            { amount: 40, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
+            { amount: 19.99, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+          ],
+        },
+      },
+    ])
+    expect(answer.text).toContain('add up to the whole row')
+  })
+
+  it('splits a row by amounts that already add up to it, each with the row sign', async () => {
+    const desk = await companyDesk(used)
+    const row = desk.row('REF-6')
+    await desk.propose([
+      {
+        op: 'split-row',
+        input: {
+          row: desk.ref(LEDGER_RECORDS.name, row.id),
+          by: 'amount',
+          parts: [
+            { amount: 40, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
+            { amount: 20, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+          ],
+        },
+      },
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    const split = desk.store.state.workbook!.splits.find((candidate) => candidate.row.id === row.id)!
+    expect(split.parts.map((part) => part.amount)).toEqual([-4000, -2000])
+  })
+
   it("sets a split part's share, and refuses a share on a row still waiting", async () => {
     const desk = await companyDesk(used)
     await desk.propose([{ op: 'set-owner-share', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-7').id), part: 2, share: 50 } }])

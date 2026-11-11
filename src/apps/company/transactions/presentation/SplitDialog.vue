@@ -5,8 +5,9 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { ZERO, addMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { restOfWhole } from '../../../../shared/money/partsOfWhole'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
@@ -71,8 +72,12 @@ watch(
 const whole = computed(() => (props.row.amount < 0 ? negateMoney(props.row.amount) : props.row.amount))
 
 const typed = computed(() => parts.value.map((part) => typedAmount(part.amount)))
-const placed = computed(() => sumMoney(typed.value.map((amount) => amount ?? ZERO)))
-const remainder = computed(() => subtractMoney(whole.value, placed.value))
+const remainder = computed(() =>
+  restOfWhole(
+    whole.value,
+    typed.value.map((amount) => amount ?? ZERO),
+  ),
+)
 
 /** Why a pack keeps the row whole, or null when it may be split. */
 const keptWhole = computed(() => store.state.workbook?.rowsKeptWhole.get(props.row.id) ?? null)
@@ -103,7 +108,12 @@ function removePart(id: number): void {
 function takeRest(index: number): void {
   const part = parts.value[index]
   if (part === undefined || remainder.value <= 0) return
-  part.amount = amountForTyping(addMoney(typed.value[index] ?? ZERO, remainder.value))
+  part.amount = amountForTyping(
+    restOfWhole(
+      whole.value,
+      typed.value.flatMap((amount, at) => (at === index || amount === null ? [] : [amount])),
+    ),
+  )
 }
 
 /** The parts of the split as the app read them, larger first. A change writes only the fields that differ, so a field left alone is never rewritten. */

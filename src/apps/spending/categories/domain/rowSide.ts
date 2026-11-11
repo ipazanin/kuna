@@ -1,7 +1,7 @@
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
-import { addAccountMoney, ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
-import { ZERO, dividedRounded, moneyFromCents, negateMoney, subtractMoney } from '../../../../shared/money/money'
+import { moneyParts } from '../../../../shared/money/decimal'
+import { negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -30,25 +30,17 @@ export function sideOf(category: Category | null): Side {
   }
 }
 
-/**
- * Each line's euros, the row's own for a row in euros. In another currency each line takes its share of the row's euros by
- * the running sum, so the shares always add up to the row.
- */
-function eurosOfLines({ transaction, euros, lines }: EuroRow): readonly (Money | null)[] {
+/** Each line's share of the row's euros, a discount line's of the other sign, so the shares add up to the row. */
+function eurosOfLines({ euros, lines }: EuroRow): readonly (Money | null)[] {
   if (euros === null) return lines.map(() => null)
-  let running = ZERO_ACCOUNT_MONEY
-  let shared = ZERO
-  return lines.map((line) => {
-    running = addAccountMoney(running, line.amount)
-    const upToHere = moneyFromCents(Math.sign(transaction.amount) * dividedRounded(running * euros, Math.abs(transaction.amount)))
-    const share = subtractMoney(upToHere, shared)
-    shared = upToHere
-    return share
-  })
+  return moneyParts(
+    euros,
+    lines.map((line) => BigInt(line.amount)),
+  )
 }
 
 /**
- * What a row counts as, by the kind of its category, or part by part when a receipt split it into lines. Money out on a
+ * What a row counts as, by the kind of its category, or part by part when a receipt or you split it. Money out on a
  * spending category is spending and money in a refund that lowers it. Money in on an income category is income. Money out
  * to Saved to investments is saved. A transfer between your accounts, money for the company, and a row waiting on review
  * count nowhere.
@@ -64,7 +56,7 @@ export function rowSide(row: EuroRow, categories: ReadonlyMap<RecordId, Category
   return row.lines.map((line, place) => partOf(line.category, euros[place] ?? null))
 }
 
-/** The categories a row counts under: its lines' when a receipt split it, else its own. */
+/** The categories a row counts under: its parts' when it is split, else its own. */
 export function categoriesOfRow({ transaction, lines }: Pick<EuroRow, 'transaction' | 'lines'>): readonly RecordId[] {
   if (lines.length > 0) return lines.map((line) => line.category)
   return transaction.category === null ? [] : [transaction.category]

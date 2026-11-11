@@ -221,6 +221,14 @@ describe('parts of a total', () => {
     expect(decimalCentParts(decimal('1.006'), [9995n, 5n]).map(decimalText)).toEqual(['1.006', '0'])
   })
 
+  it('gives a weight of the other sign, as a discount line, a part of the other sign, wherever it stands', () => {
+    // €-27.78 over lines of $-32.00 and a $2.00 discount: the running sum -27.78 × 3,200 ÷ 3,000 = -29.632 rounds to -29.63, past the total.
+    expect(moneyParts(moneyFromCents(-2_778), [-3_200n, 200n])).toEqual([-2_963, 185])
+    // The discount first: -27.78 × -200 ÷ 3,000 = 1.852 rounds to 1.85.
+    expect(moneyParts(moneyFromCents(-2_778), [200n, -3_200n])).toEqual([185, -2_963])
+    expect(moneyParts(moneyFromCents(2_778), [3_200n, -200n])).toEqual([2_963, -185])
+  })
+
   it('gives the whole total to the last part when the weights are all zero, and nothing to split for no weights', () => {
     expect(moneyParts(moneyFromCents(500), [0n, 0n])).toEqual([0, 500])
     expect(moneyParts(moneyFromCents(500), [])).toEqual([])

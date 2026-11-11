@@ -129,8 +129,9 @@ export function roundedDecimal(value: Decimal, places: number): Decimal {
 
 /**
  * The total split in proportion to the weights, each part the rise of a running sum rounded half away from zero to
- * twelve places. So the parts add up to the total, and none has the opposite sign. Weights are zero or more, and when
- * all are zero the last part takes the whole total.
+ * twelve places. So the parts add up to the total. A weight may have the other sign to the rest, as a discount line does,
+ * and its part then has the other sign to the total. No other part does. When the weights add up to zero the last part
+ * takes the whole total.
  */
 export function decimalParts(total: Decimal, weights: readonly bigint[]): Decimal[] {
   return proportionalParts(total, weights, 1n) as Decimal[]
@@ -164,14 +165,21 @@ function decimalOfDigits(negative: boolean, whole: string, fraction: string): De
   return (negative ? -steps : steps) as Decimal
 }
 
+/**
+ * Weights that add up below zero are negated, so the divisor stays above zero. Rounding to the cent may carry a running sum
+ * that lies inside the total past it, and then the total caps it. A running sum the weights themselves carry past the total stays.
+ */
 function proportionalParts(total: bigint, weights: readonly bigint[], step: bigint): bigint[] {
-  const whole = weights.reduce((sum, weight) => sum + weight, 0n)
+  const sum = weights.reduce((running, weight) => running + weight, 0n)
+  const direction = sum < 0n ? -1n : 1n
+  const whole = sum * direction
   let weightSoFar = 0n
   let sharedSoFar = 0n
   return weights.map((weight, index) => {
-    weightSoFar += weight
+    weightSoFar += weight * direction
     const rounded = whole === 0n ? 0n : dividedHalfAwayFromZero(total * weightSoFar, whole * step) * step
-    const upToHere = index === weights.length - 1 || absolute(rounded) > absolute(total) ? total : rounded
+    const roundedPast = weightSoFar >= 0n && weightSoFar <= whole && absolute(rounded) > absolute(total)
+    const upToHere = index === weights.length - 1 || roundedPast ? total : rounded
     const part = upToHere - sharedSoFar
     sharedSoFar = upToHere
     return part

@@ -36,7 +36,8 @@ import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
 import { moneyParts } from '../../../../shared/money/decimal'
-import { absMoney, moneyFromAmount, negateMoney, sumMoney } from '../../../../shared/money/money'
+import { restOfWhole } from '../../../../shared/money/partsOfWhole'
+import { absMoney, moneyFromAmount, negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { NO_RECORDS, recordWithId, recordsOf } from '../../../../shared/storage/domain/recordsRead'
 
@@ -385,7 +386,7 @@ function partAmounts(row: Transaction, by: string, given: readonly number[]): re
   } else {
     amounts = given.map((amount) => moneyFromAmount(amount))
     if (amounts.some((amount) => amount <= 0)) throw new StepRefused('Each part has an amount above zero.')
-    if (sumMoney(amounts) !== whole) throw new StepRefused('The parts add up to the whole row, no more and no less.')
+    if (restOfWhole(whole, amounts) !== 0) throw new StepRefused('The parts add up to the whole row, no more and no less.')
   }
   if (amounts.some((amount) => amount === 0)) throw new StepRefused('Each part has an amount above zero.')
   return row.amount < 0 ? amounts.map(negateMoney) : amounts

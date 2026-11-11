@@ -46,4 +46,11 @@ describe('the rest of a whole', () => {
     expect(restOfWhole(accountMoneyFromCents(-2_000), [accountMoneyFromCents(-2_349)])).toBe(349)
     expect(Object.is(restOfWhole(cents(100), [cents(100)]), 0)).toBe(true)
   })
+
+  it('leaves one cent when the amounts fall one cent short, and none once they add up', () => {
+    expect(restOfWhole(cents(6_000), [cents(4_000), cents(1_999)])).toBe(1)
+    expect(restOfWhole(cents(-6_000), [cents(-4_000), cents(-1_999)])).toBe(-1)
+    expect(partsOfWhole(cents(6_000), [cents(4_000), cents(1_999), 'rest'])).toEqual({ parts: [4_000, 1_999, 1] })
+    expect(Object.is(restOfWhole(cents(6_000), [cents(4_000), cents(2_000)]), 0)).toBe(true)
+  })
 })

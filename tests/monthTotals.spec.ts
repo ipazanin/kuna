@@ -110,6 +110,27 @@ describe("a split row's totals", () => {
     expect(rows[0]!.euros).toEqual(euros(-27.78))
   })
 
+  it("gives a foreign row's discount line a share of its euros of the other sign", () => {
+    const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Food/Groceries')
+    const rows = euroRows(
+      {
+        accounts: ACCOUNTS,
+        transactions: [dollars],
+        lines: linesOf(dollars, [
+          [-32, 'Food/Groceries'],
+          [2, 'Food/Coffee'],
+        ]),
+      },
+      RATES,
+    )
+    const october = monthTotals(rows, CATEGORIES, month('2026-10'))
+
+    // €27.78 × 32 ÷ 30 = 29.632 rounds to 29.63 on groceries, and the discount takes the 1.85 left off coffee.
+    expect(october.spent).toEqual(euros(27.78))
+    expect(october.byCategory.get(category('Food/Groceries').id)).toEqual(euros(29.63))
+    expect(october.byCategory.get(category('Food/Coffee').id)).toEqual(euros(-1.85))
+  })
+
   it('counts a foreign row the rates do not reach once, however many lines it has', () => {
     const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip')
     const rows = euroRows(
