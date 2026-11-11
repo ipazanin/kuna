@@ -1,7 +1,8 @@
 import { answered, answersSince, findRecordsArgs, goOnsInto, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
-import { addDays, today } from '../../../../../shared/calendar/civilDate'
+import { addDays } from '../../../../../shared/calendar/civilDate'
+import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
 import { addMonths, monthOf } from '../../../../../shared/calendar/monthKey'
 import { language } from '../../../../../shared/text/language'
 
@@ -208,7 +209,7 @@ function closeAccountReply({ request, tokens }: FakeChatTurn, says: Says): Model
 
 /** Rows as a model would read them off a pasted statement, all made up, dated in the last week so every account is open by then. */
 function statementRows(misread: boolean): readonly { readonly date: string; readonly amount: number; readonly payee: string; readonly iban: null }[] {
-  const day = today()
+  const day = fakeSpendingDayHere()
   return [
     { date: addDays(day, -6), amount: -12.5, payee: 'Corner market', iban: null },
     { date: addDays(day, -5), amount: misread ? -40.01 : -40, payee: 'Harbour bistro', iban: null },
@@ -288,7 +289,7 @@ function receiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
       buyerOib: null,
       markedR1: false,
       whose: null,
-      issuedOn: today(),
+      issuedOn: fakeSpendingDayHere(),
       issuedAt: '18:42',
       jir: null,
       zki: null,
@@ -314,7 +315,7 @@ function receiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
  * file has it, the one of four days back a day later and spelled longer, and a new kiosk row.
  */
 function otpStatementRows(): readonly { readonly date: string; readonly amount: string; readonly payee: string }[] {
-  const day = today()
+  const day = fakeSpendingDayHere()
   return [
     { date: addDays(day, -9), amount: '-12.00', payee: 'City pharmacy' },
     { date: addDays(day, -3), amount: '-18.90', payee: 'CITY PHARMACY 22 ZAGREB' },
@@ -410,7 +411,7 @@ function splitReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
 function biggestReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
-    const month = addMonths(monthOf(today()), -1)
+    const month = addMonths(monthOf(fakeSpendingDayHere()), -1)
     const spends = findRecordsArgs('spending', 'transaction', {
       from: month,
       to: month,

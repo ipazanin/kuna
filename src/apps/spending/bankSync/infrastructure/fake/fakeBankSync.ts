@@ -2,7 +2,8 @@ import { BankScriptFailure } from '../../application/bankSync'
 import type { BankSyncPort } from '../../application/bankSync'
 import type { BankBalance, BankSession, BankTransaction, LinkedAccount } from '../../domain/bankAnswer'
 import { words } from '../../domain/words'
-import { addDays, today } from '../../../../../shared/calendar/civilDate'
+import { addDays } from '../../../../../shared/calendar/civilDate'
+import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 
 const OTP_UID = 'fake-otp-account'
@@ -157,7 +158,7 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
  * `exchange` and `pocket` bring a move between your accounts, `look-alike` books the file's Old Town Bookshop three days later
  * under a longer name, and a link's trip comes straight back to this address.
  */
-export function fakeBankSync(variant: string | null, day: CivilDate = today()): BankSyncPort {
+export function fakeBankSync(variant: string | null, day: CivilDate): BankSyncPort {
   const failed = (): void => {
     if (variant === 'failed') throw new BankScriptFailure(words.didNotAnswer('HTTP 503'))
   }
@@ -182,4 +183,9 @@ export function fakeBankSync(variant: string | null, day: CivilDate = today()): 
     transactions: async (accountUid) => fakeBankTransactions(accountUid, day, variant),
     balances: async (accountUid) => fakeBalances(accountUid, variant),
   }
+}
+
+/** The fake sync this address names with `?banksync=`, dating its rows from the same day as the fake file. */
+export function fakeBankSyncHere(): BankSyncPort {
+  return fakeBankSync(new URLSearchParams(window.location.search).get('banksync'), fakeSpendingDayHere())
 }

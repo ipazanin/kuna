@@ -337,6 +337,11 @@ export function fakeSpendingDay(requested: string | null): CivilDate {
   return (requested === null ? null : parseCivilDate(requested)) ?? today()
 }
 
+/** The day this address names. The fake file, bank sync and chat all date their rows from it, so a check that runs past midnight still sees them line up. */
+export function fakeSpendingDayHere(): CivilDate {
+  return fakeSpendingDay(new URLSearchParams(window.location.search).get('day'))
+}
+
 export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today(), bankSync: string | null = null): WorkbookDocument {
   const { categories, idOf } = fakeCategories()
   const month = monthOf(day)

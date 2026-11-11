@@ -10,8 +10,8 @@ export const BANK_SYNC_SCOPE: GoogleScope = 'script.external_request'
 export async function bankSyncPort(deployment: string, personHere = false): Promise<BankSyncPort> {
   // Inline, not hoisted, so a production build folds the fake away.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
-    const { fakeBankSync } = await import('../infrastructure/fake/fakeBankSync')
-    return fakeBankSync(new URLSearchParams(window.location.search).get('banksync'))
+    const { fakeBankSyncHere } = await import('../infrastructure/fake/fakeBankSync')
+    return fakeBankSyncHere()
   }
   return appsScriptBankSync(
     deployment,
