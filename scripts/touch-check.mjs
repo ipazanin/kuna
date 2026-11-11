@@ -94,7 +94,7 @@ import { en as overviewEnglish, hr as overviewCroatian } from '../src/apps/compa
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../src/apps/company/transactions/presentation/words.ts'
 import { en as invoicingEnglish, hr as invoicingCroatian } from '../src/apps/company/invoicing/presentation/words.ts'
 import { en as writesEnglish, hr as writesCroatian } from '../src/shared/storage/presentation/words.ts'
-import { chromeLaunch, drawClassicScrollbars } from './support/browsers.mjs'
+import { chromeLaunch, floatPhoneScrollbars } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
@@ -355,6 +355,12 @@ const CLOSES_SAMPLES = writeClosesSamples(OUTPUT_DIR)
 const CHAT_ATTACHMENT_SAMPLES = await writeChatAttachmentSamples(OUTPUT_DIR)
 
 const failures = []
+
+/** Prints the failure as it is found, so a run that is cut short still shows it, and keeps it for the summary. */
+function fail(failure) {
+  failures.push(failure)
+  console.error(`  ✗ ${failure}`)
+}
 let checked = 0
 const browser = await launch(chromeLaunch(selection.classicScrollbars))
 
@@ -366,8 +372,8 @@ try {
   await browser.close()
 }
 const unmatched = selection.unmatched()
-if (unmatched !== null) failures.push(unmatched)
-if (checked === 0) failures.push(`${selection.summary()} checked nothing`)
+if (unmatched !== null) fail(unmatched)
+if (checked === 0) fail(`${selection.summary()} checked nothing`)
 
 if (failures.length) {
   console.error(`\n${failures.length} problem(s):`)
@@ -379,7 +385,7 @@ console.log(selection.limited ? `\nevery step of this limited run clean (${selec
 async function checkWidth(width) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  if (selection.classicScrollbars) await drawClassicScrollbars(page)
+  if (selection.classicScrollbars) await floatPhoneScrollbars(page)
   const errors = []
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text())
@@ -406,7 +412,7 @@ async function checkWidth(width) {
       await inspect(page, scope, within)
       console.log(`${scope.padEnd(36)} ok  ${((Date.now() - startedAt) / 1000).toFixed(1)} s`)
     } catch (error) {
-      failures.push(`[${scope}] ${error.message}`)
+      fail(`[${scope}] ${error.message}`)
       await page.screenshot({ path: join(OUTPUT_DIR, `${width}-${name}-failed.png`) }).catch(() => {})
     }
   }
@@ -1808,7 +1814,7 @@ async function checkWidth(width) {
 
   await step('write-leaving-warns', async () => {
     const leaving = await context.newPage()
-    if (selection.classicScrollbars) await drawClassicScrollbars(leaving)
+    if (selection.classicScrollbars) await floatPhoneScrollbars(leaving)
     await leaving.setViewport({ width, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
     const dialogs = []
     leaving.on('dialog', async (dialog) => {
@@ -3358,8 +3364,8 @@ async function checkWidth(width) {
     await shoot('newer-file')
   })
 
-  if (errors.length) failures.push(`[${width}px] console errors: ${errors.slice(0, 3).join(' | ')}`)
-  if (foreign.length) failures.push(`[${width}px] requests to other origins: ${foreign.slice(0, 3).join(' | ')}`)
+  if (errors.length) fail(`[${width}px] console errors: ${errors.slice(0, 3).join(' | ')}`)
+  if (foreign.length) fail(`[${width}px] requests to other origins: ${foreign.slice(0, 3).join(' | ')}`)
   await context.close()
 }
 

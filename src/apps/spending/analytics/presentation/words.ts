@@ -1,4 +1,5 @@
 import { language } from '../../../../shared/text/language'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence.
@@ -31,7 +32,7 @@ export const hr: Translation<typeof en> = {
   savingsRate: 'Stopa štednje',
   groups: {
     span: (first, last) => `Potrošnja po skupinama za svaki mjesec od ${first} do ${last}.`,
-    most: (month, amount) => `Najviše je bilo ${amount} u mjesecu ${month}.`,
+    most: (month, amount) => `Najviše je bilo ${amount} u mjesecu ${withFullStop(month)}`,
     running: (month) => `Mjesec ${month} još traje.`,
     nothing: 'U ovim mjesecima nema potrošnje.',
   },

@@ -68,6 +68,8 @@ jobs:
           - { check: visual, selection: --shard 8/10 }
           - { check: visual, selection: --shard 9/10 }
           - { check: visual, selection: --shard 10/10 }
+          # The shards run with hidden scrollbars, so the shell's flows and the docked chat run once more with a classic scrollbar's gutter.
+          - { check: visual, selection: '--classic-scrollbars --only sidebar,chat-resize,shell-squeeze,menu-lit,skip-link,quick-jump' }
           - { check: touch, selection: --widths 360 }
           - { check: touch, selection: --widths 430 }
           - { check: firefox, selection: '' }

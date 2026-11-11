@@ -266,7 +266,7 @@ import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
 import { formatAccountMoney, formatMoney, formatPercent, formatPercentChange } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
-import { chromeLaunch, drawClassicScrollbars } from './support/browsers.mjs'
+import { chromeLaunch, floatPhoneScrollbars } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { englishLeftOn } from './support/englishLeft.mjs'
 import { textOverlapsOn } from './support/textOverlap.mjs'
@@ -4609,8 +4609,11 @@ function inCroatian(query) {
   return new URLSearchParams(query ?? '').get('lang') === 'hr'
 }
 
+/** Prints the failure as it is found, so a run that is cut short still shows it, and keeps it for the summary. */
 function fail(scope, message) {
-  failures.push(`[${scope}] ${message}`)
+  const failure = `[${scope}] ${message}`
+  failures.push(failure)
+  console.error(`  ✗ ${failure}`)
 }
 
 function watchForErrors(page) {
@@ -8199,7 +8202,7 @@ let checked = 0
 async function shellGutter() {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  if (selection.classicScrollbars) await drawClassicScrollbars(page)
+  if (selection.classicScrollbars) await floatPhoneScrollbars(page)
   await page.setViewport({ width: 1024, height: 768 })
   await page.goto(BASE, { waitUntil: 'load' })
   const kept = await page.evaluate(() => window.innerWidth - document.body.clientWidth)
@@ -8216,7 +8219,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     const scope = `${viewport.name} ${visit.name}`
     const context = await browser.createBrowserContext()
     const page = await context.newPage()
-    if (selection.classicScrollbars) await drawClassicScrollbars(page)
+    if (selection.classicScrollbars) await floatPhoneScrollbars(page)
     const errors = watchForErrors(page)
     const foreignRequests = watchForForeignRequests(page)
 
@@ -8405,7 +8408,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
         const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
         const context = await browser.createBrowserContext()
         const page = await context.newPage()
-        if (selection.classicScrollbars) await drawClassicScrollbars(page)
+        if (selection.classicScrollbars) await floatPhoneScrollbars(page)
         const errors = watchForErrors(page)
         const foreignRequests = watchForForeignRequests(page)
         await page.setViewport({ width: viewport.width, height: viewport.height })

@@ -175,6 +175,26 @@ describe('full stops in Croatian', () => {
   })
 })
 
+describe('every words file in Croatian', () => {
+  it('ends a sentence on a date with the date’s own full stop', async () => {
+    const loaders = import.meta.glob<{ readonly hr: unknown }>('../src/**/words.ts')
+    const dictionaries = await inCroatian(() => Promise.all(Object.entries(loaders).map(async ([path, load]) => [path, (await load()).hr] as const)))
+    const { dayLabel } = await import('../src/shared/calendar/dayLabel')
+    const { monthLabel } = await import('../src/shared/calendar/monthLabel')
+    const samples: DateSamples = {
+      typed: [civil('2026-10-01'), monthKey(2026, 10), 2026, { from: civil('2026-10-01'), to: civil('2027-03-31') }],
+      worded: [dayLabel(civil('2026-10-01')), monthLabel(monthKey(2026, 10))],
+    }
+    const doubled = dictionaries.flatMap(([path, croatian]) =>
+      sentencesOf(croatian, samples)
+        .filter((sentence) => /(?<!\.)\.\.(?!\.)/.test(sentence))
+        .map((sentence) => `${path}: ${sentence}`),
+    )
+
+    expect([...new Set(doubled)]).toEqual([])
+  })
+})
+
 describe('Company names Kuna seeds, in Croatian', () => {
   it('names every category and family new books start with', async () => {
     const { displayName } = await inCroatian(() => import('../src/apps/company/workbook/domain/displayName'))
@@ -222,11 +242,8 @@ describe('Company record labels and sentences in Croatian', () => {
     expect(rulesChangeInWords({ appended: null, edited: [], removed: added })).toBe('Obrisano: merchant-bistro')
   })
 
-  it('ends a ruleset sentence on its date’s own full stop', async () => {
+  it('writes two years of the ruleset each with its own full stop', async () => {
     const { words } = await inCroatian(() => import('../src/apps/company/packs/hr-doo/ruleset/presentation/words'))
-    const sentences = [words.intro('28. 10. 2026.'), words.detail.checkedOn('28. 10. 2026.'), words.detail.forPeriods('2025. i 2026.'), words.watch.about('1. 9. 2026.')]
-
-    expect(sentences.filter((sentence) => sentence.includes('..'))).toEqual([])
     expect(words.periods.twoYears(2025, 2026)).toBe('2025. i 2026.')
   })
 })
@@ -267,34 +284,6 @@ describe('imports, sync and mail in Croatian', () => {
     expect(words.dryRun.sequenceGap(30, 27, 'main', 2)).toContain('pa u evidenciji nedostaju 2 izvoda.')
     expect(words.dryRun.partlyHeld(1, 2)).toBe('Stavke izvoda već u evidenciji: 1. Nove stavke koje dolaze nakon njih: 2.')
     expect(words.camt.summaryCount('TtlDbtNtries', 3, 2, 'debit')).toBe('TtlDbtNtries navodi 3 stavke, a aplikacija je pročitala 2 stavke proknjiženih terećenja.')
-  })
-
-  it('never ends a date with a second full stop in a statement import’s sentences', async () => {
-    const { words } = await inCroatian(() => import('../src/apps/company/imports/domain/words'))
-    const { moneyFromAmount } = await import('../src/shared/money/money')
-    const day = civilDate(2026, 10, 8)
-    const later = civilDate(2026, 10, 12)
-    const amount = moneyFromAmount(1234.5)
-    const { dryRun, transcribed } = words
-    const sentences: Record<keyof typeof dryRun, string> = {
-      noEntries: dryRun.noEntries,
-      allHeld: dryRun.allHeld,
-      importedBefore: dryRun.importedBefore('promet', true),
-      gap: dryRun.gap,
-      partlyHeld: dryRun.partlyHeld(2, 3),
-      noReference: dryRun.noReference(2),
-      beforeNewest: dryRun.beforeNewest(day, later, 'main'),
-      missingBetween: dryRun.missingBetween('main', amount, day, amount),
-      worksOutBalances: dryRun.worksOutBalances(amount, 'main', day),
-      sequenceGap: dryRun.sequenceGap(30, 27, 'main', 2),
-      sequenceNotAfter: dryRun.sequenceNotAfter(27, 30, 'main'),
-      labelHeld: dryRun.labelHeld('promet'),
-      replacedCopied: dryRun.replacedCopied(2),
-      replaceBlocked: dryRun.replaceBlocked('Parking', day),
-    }
-    const all = [...Object.values(sentences), transcribed.doesNotTie(amount, amount, amount, amount, amount), transcribed.oneBalance]
-
-    expect(all.filter((sentence) => sentence.includes('..'))).toEqual([])
   })
 
   it('counts the mail step’s files and names the ones it could not file', async () => {
@@ -350,12 +339,9 @@ describe('invoicing and billing in Croatian', () => {
     expect(counted(billing.words.fill.addCount)).toEqual(['Dodaj 1 stavku', 'Dodaj 2 stavke', 'Dodaj 5 stavki', 'Dodaj 21 stavku'])
   })
 
-  it('ends a sentence on a period with one full stop, whether the period ends in a year or a word', async () => {
+  it('ends a sentence on a period that ends in a word with one full stop', async () => {
     const { words } = await inCroatian(() => import('../src/apps/company/receivables/presentation/words'))
-    const sentences = [words.panel.daysSubtitle('listopad 2025. – rujan 2026.'), words.panel.daysSubtitle('studeni 2025. – listopad 2026., listopad do danas')]
-
-    expect(sentences.filter((sentence) => sentence.includes('..'))).toEqual([])
-    expect(sentences[1]).toMatch(/^studeni 2025\. – listopad 2026\., listopad do danas\. Svaka točka/)
+    expect(words.panel.daysSubtitle('studeni 2025. – listopad 2026., listopad do danas')).toMatch(/^studeni 2025\. – listopad 2026\., listopad do danas\. Svaka točka/)
   })
 })
 
@@ -450,18 +436,13 @@ describe('overview and analysis in Croatian', () => {
   it('ends a sentence on a month or a period with one full stop', async () => {
     const trends = await inCroatian(() => import('../src/apps/company/trends/presentation/words'))
     const compare = await import('../src/apps/company/period-review/presentation/words')
-    const cash = await import('../src/apps/company/cash/presentation/words')
     const sentences = [
-      trends.words.cumulativeDescription('1.000,00 €', 'listopad 2026.'),
-      trends.words.rollingDescription('listopad 2026.', '1,00 €', null),
-      trends.words.profitAndLoss.running('listopad 2026.'),
       compare.words.coverage.sameMonths('2026. broji samo siječanj – rujan 2026.', '2025.'),
       compare.words.coverage.noChange('Evidencija nema nijedan cijeli mjesec razdoblja Q3 2025.'),
-      cash.words.atTheEnd('rujan 2026.', '5,00 €'),
     ]
 
     expect(sentences.filter((sentence) => sentence.includes('..'))).toEqual([])
-    expect(sentences[2]).toBe('Listopad 2026. još traje i ne ulazi ni u jedan prosjek.')
+    expect(trends.words.profitAndLoss.running('listopad 2026.')).toBe('Listopad 2026. još traje i ne ulazi ni u jedan prosjek.')
     expect(compare.words.period.quarter(3, 2026)).toBe('Q3 2026.')
   })
 })
@@ -599,3 +580,49 @@ describe('a row that looks like one Kuna has, in Croatian', () => {
     )
   })
 })
+
+/** Dates as a builder takes them: typed values it words itself, and dates already worded for a parameter named for one. */
+interface DateSamples {
+  readonly typed: readonly unknown[]
+  readonly worded: readonly string[]
+}
+
+/** How a builder names a parameter that takes a worded date. One that takes a day of the month, a year or an amount is named otherwise, such as dayNumber. */
+const DATE_PARAMETER = /^(date|day|days|month|months|period|periods|on|from|to|until|since|start|end|deadline)$|(Date|Day|Days|Month|Months|Period|Periods|On|From|Until|Since|Start|End|Deadline)$/
+
+/**
+ * Every string a words module gives, with each builder called with each sample date in each place it fits and a filler
+ * in the others. A builder that refuses its arguments is skipped, since the filler is not always of the type it takes.
+ */
+function sentencesOf(words: unknown, samples: DateSamples, depth = 0): string[] {
+  if (typeof words === 'string') {
+    return [words]
+  }
+  if (depth > 6 || words === null || (typeof words !== 'object' && typeof words !== 'function')) {
+    return []
+  }
+  if (typeof words !== 'function') {
+    return Object.values(words).flatMap((part) => sentencesOf(part, samples, depth + 1))
+  }
+  const builder = words as (...args: unknown[]) => unknown
+  const names = parameterNames(builder)
+  const calls = names.flatMap((name, place) => [...samples.typed, ...(DATE_PARAMETER.test(name) ? samples.worded : [])].map((sample) => names.map((_, other) => (other === place ? sample : 2))))
+  return calls.flatMap((args) => {
+    try {
+      return sentencesOf(builder(...args), samples, depth + 1)
+    } catch {
+      return []
+    }
+  })
+}
+
+/** A function's parameter names as its source spells them, or one unnamed place when it takes none or they are destructured. */
+function parameterNames(builder: (...args: unknown[]) => unknown): string[] {
+  const source = builder.toString()
+  const list = /^(?:async\s*)?(?:function\s*\w*\s*)?\(([^)]*)\)/.exec(source)?.[1] ?? /^(?:async\s+)?(\w+)\s*=>/.exec(source)?.[1] ?? ''
+  const names = list
+    .split(',')
+    .map((parameter) => parameter.trim().split(/[\s=]/)[0] ?? '')
+    .filter((name) => name !== '')
+  return names.length === 0 ? [''] : names
+}

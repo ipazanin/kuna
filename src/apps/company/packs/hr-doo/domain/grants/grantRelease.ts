@@ -5,7 +5,8 @@ import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 import { addMonths, lastDayOf, monthKey, monthOf, monthsFrom, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../../shared/calendar/monthKey'
-import { ZERO, addMoney, dividedRounded, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
+import { ZERO, addMoney, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
+import { moneyParts } from '../../../../../../shared/money/decimal'
 import type { Money } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
@@ -59,9 +60,8 @@ export interface ClawbackExposure {
 }
 
 interface PolicyPlan {
-  readonly lastMonth: MonthKey
-  /** Everything released by the end of the month, never before the month of receipt. */
-  readonly releasedThrough: (month: MonthKey) => Money
+  /** From the month of receipt to the last month that releases anything. */
+  readonly months: readonly GrantMonth[]
   readonly yearSteps: (year: number, released: Money) => readonly TracedFigure[]
   readonly neverReleased: TracedFigure
 }
@@ -74,11 +74,7 @@ interface PolicyPlan {
  */
 export function grantRelease(grant: Grant, schedules: readonly DepreciationSchedule[], policy: GrantRelease = grant.release, rules: RuleSource = ruleValue): GrantReleaseSchedule {
   const plan = policy === 'fixed-then-assets' ? fixedThenAssets(grant, schedules) : straightLine(grant)
-  const receiptMonth = monthOf(grant.received)
-  const months = monthsFrom(receiptMonth, plan.lastMonth).map((month): GrantMonth => ({
-    month,
-    released: subtractMoney(plan.releasedThrough(month), month === receiptMonth ? ZERO : plan.releasedThrough(addMonths(month, -1))),
-  }))
+  const months = plan.months
   const released = [...new Set(months.map((entry) => yearOfMonth(entry.month)))].map((year) => {
     const recognition = rules('hr.acc.grant-recognition', civilDate(year, 1, 1))
     const amount = sumMoney(months.filter((entry) => yearOfMonth(entry.month) === year).map((entry) => entry.released))
@@ -157,7 +153,7 @@ function fixedThenAssets(grant: Grant, schedules: readonly DepreciationSchedule[
     const funded = sumMoney(costs.filter((cost) => cost.month <= month).map((cost) => cost.figure.amount))
     return funded < variable ? funded : variable
   }
-  const releasedThrough = (month: MonthKey): Money => (month < receiptMonth ? ZERO : addMoney(fixed, variableThrough(month)))
+  const releasedThrough = (month: MonthKey): Money => addMoney(fixed, variableThrough(month))
 
   const yearSteps = (year: number, released: Money): TracedFigure[] => {
     const inWindow = (month: MonthKey) => month <= monthKey(year, 12) && (year === yearOf(grant.received) || month > monthKey(year - 1, 12))
@@ -180,7 +176,11 @@ function fixedThenAssets(grant: Grant, schedules: readonly DepreciationSchedule[
   const laterMonths = [...new Set(costs.map((cost) => cost.month))].filter((month) => month > receiptMonth).sort()
   const candidates = [receiptMonth, ...laterMonths]
   const lastMonth = candidates.find((month) => variableThrough(month) === variable) ?? candidates[candidates.length - 1] ?? receiptMonth
-  return { lastMonth, releasedThrough, yearSteps, neverReleased }
+  const months = monthsFrom(receiptMonth, lastMonth).map((month): GrantMonth => ({
+    month,
+    released: subtractMoney(releasedThrough(month), month === receiptMonth ? ZERO : releasedThrough(addMonths(month, -1))),
+  }))
+  return { months, yearSteps, neverReleased }
 }
 
 function straightLine(grant: Grant): PolicyPlan {
@@ -191,15 +191,20 @@ function straightLine(grant: Grant): PolicyPlan {
   const receiptMonth = monthOf(grant.received)
   const totalDays = daysBetween(period.from, period.to) + 1
   const daysThrough = (month: MonthKey): number => (month < receiptMonth ? 0 : daysCovered(period, lastDayOf(month)))
-  const releasedThrough = (month: MonthKey): Money => moneyFromCents(dividedRounded(grant.amount * daysThrough(month), totalDays))
   const lastMonth = monthOf(period.to) > receiptMonth ? monthOf(period.to) : receiptMonth
+  const spanned = monthsFrom(receiptMonth, lastMonth)
+  const released = moneyParts(
+    grant.amount,
+    spanned.map((month) => BigInt(daysThrough(month) - daysThrough(addMonths(month, -1)))),
+  )
+  const months = spanned.map((month, index): GrantMonth => ({ month, released: released[index] ?? ZERO }))
 
   const yearSteps = (year: number): TracedFigure[] => {
     const before = year === yearOf(grant.received) ? 0 : daysThrough(monthKey(year - 1, 12))
     const days = daysThrough(monthKey(year, 12)) - before
     return [tracedFigure(words.release.wholeSpread(days, totalDays), grant.amount, 'assets', [])]
   }
-  return { lastMonth, releasedThrough, yearSteps, neverReleased: tracedFigure(words.release.nothingNever, ZERO, 'assets', []) }
+  return { months, yearSteps, neverReleased: tracedFigure(words.release.nothingNever, ZERO, 'assets', []) }
 }
 
 function deferredBy(grant: Grant, months: readonly GrantMonth[], released: readonly TracedFigure[], on: CivilDate): TracedFigure {

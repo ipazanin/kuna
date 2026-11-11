@@ -56,7 +56,7 @@ export const en = {
     costs: 'Tax and fees',
     noStepsTitle: 'Nothing moved the value',
     noStepsDescription: 'No money went in or out and nothing gained, lost or cost anything in the period.',
-    description: (start: string, steps: string, end: string) => `${start} at the start, then ${steps}, gives ${end} at the end.`,
+    description: (startValue: string, steps: string, endValue: string) => `${startValue} at the start, then ${steps}, gives ${endValue} at the end.`,
     tradingFees: (amount: string) => `Trading fees of ${amount} are inside these figures.`,
   },
   drivers: {
@@ -252,7 +252,7 @@ export const hr: Translation<typeof en> = {
     costs: 'Porez i naknade',
     noStepsTitle: 'Ništa nije promijenilo vrijednost',
     noStepsDescription: 'U razdoblju ništa nije uloženo ni isplaćeno, i ništa nije donijelo dobit, gubitak ni trošak.',
-    description: (start, steps, end) => `Na početku ${start}, zatim ${steps}, pa je na kraju ${end}.`,
+    description: (startValue, steps, endValue) => `Na početku ${startValue}, zatim ${steps}, pa je na kraju ${endValue}.`,
     tradingFees: (amount) => `Naknade trgovanja od ${amount} već su u ovim iznosima.`,
   },
   drivers: {

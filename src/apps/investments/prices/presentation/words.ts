@@ -90,7 +90,7 @@ export const en = {
     perMinute === null
       ? { one: `${vendor} asks Kuna to slow down, waiting 1 second`, other: `${vendor} asks Kuna to slow down, waiting ${seconds} seconds` }
       : { one: `${vendor} allows ${perMinute} a minute, waiting 1 second`, other: `${vendor} allows ${perMinute} a minute, waiting ${seconds} seconds` },
-  lastCounts: (asked: number, upToDate: number) => (asked === 0 ? `Every series was up to date, ${upToDate} in all.` : `Asked for ${asked} series, ${upToDate} already up to date.`),
+  lastCounts: (asked: number, alreadyCurrent: number) => (asked === 0 ? `Every series was up to date, ${alreadyCurrent} in all.` : `Asked for ${asked} series, ${alreadyCurrent} already up to date.`),
   lastFacts: (asked: number): EnglishForms => ({ one: 'Asked for 1 fact about the holdings.', other: `Asked for ${asked} facts about the holdings.` }),
   factsLeft: (left: number): EnglishForms => ({ one: "1 is left for tomorrow by a vendor's daily limit.", other: `${left} are left for tomorrow by a vendor's daily limit.` }),
   fetchNow: 'Fetch now',
@@ -211,7 +211,7 @@ export const hr: Translation<typeof en> = {
     const said = perMinute === null ? `${vendor}: traži sporije slanje` : `${vendor}: dopušta ${perMinute} u minuti`
     return { one: `${said}, čeka se ${seconds} sekundu`, few: `${said}, čeka se ${seconds} sekunde`, other: `${said}, čeka se ${seconds} sekundi` }
   },
-  lastCounts: (asked, upToDate) => (asked === 0 ? `Svi nizovi bili su ažurni, njih ${upToDate}.` : `Zatraženo nizova: ${asked}, već ažurnih: ${upToDate}.`),
+  lastCounts: (asked, alreadyCurrent) => (asked === 0 ? `Svi nizovi bili su ažurni, njih ${alreadyCurrent}.` : `Zatraženo nizova: ${asked}, već ažurnih: ${alreadyCurrent}.`),
   lastFacts: (asked) => ({
     one: `Zatražen je ${asked} podatak o pozicijama.`,
     few: `Zatražena su ${asked} podatka o pozicijama.`,

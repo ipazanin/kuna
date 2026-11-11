@@ -4,6 +4,7 @@ import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -308,7 +309,7 @@ export const hr: Translation<typeof en> = {
     fees: 'Naknade',
     feesHelp: (currency) => `U valuti ${currency}, provizija i porezi na transakciju`,
     ratePer: (currency) => `Tečaj, ${currency} za 1 EUR`,
-    rateFromEcb: (day) => `Zadnji referentni tečaj ESB-a na dan ${day}. Upišite brokerov ako se razlikuje.`,
+    rateFromEcb: (day) => `Zadnji referentni tečaj ESB-a na dan ${withFullStop(day)} Upišite brokerov ako se razlikuje.`,
     rateTyped: 'Kako ga je knjižio broker',
     incomeKind: 'Vrsta prihoda',
     currency: 'Valuta',

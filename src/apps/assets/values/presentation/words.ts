@@ -1,4 +1,5 @@
 import { language } from '../../../../shared/text/language'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence.
@@ -36,9 +37,9 @@ export const hr: Translation<typeof en> = {
   valuation: (date) => `Procjena od ${date}`,
   price: (date) => `Plaćena cijena ${date}`,
   carried: (value, date, quarter, region) => `Procjena: ${value} od ${date}, preračunato na ${quarter} indeksom DZS-a za područje ${region}`,
-  indexNotOut: (quarter, base, date) => `DZS još nema indeks za ${quarter}, pa je ovo ${base === 'price' ? `plaćena cijena od ${date}` : `procjena od ${date}`}.`,
+  indexNotOut: (quarter, base, date) => `DZS još nema indeks za ${quarter}, pa je ovo ${base === 'price' ? 'plaćena cijena' : 'procjena'} od ${withFullStop(date)}`,
   indexNotReached: (first, base, date) =>
-    `Indeks DZS-a vodi se za ${first} i kasnije, pa ne može preračunati ${base === 'price' ? `plaćenu cijenu od ${date}` : `procjenu od ${date}`}. Dodajte procjenu.`,
+    `Indeks DZS-a vodi se za ${first} i kasnije, pa ne može preračunati ${base === 'price' ? 'plaćenu cijenu' : 'procjenu'} od ${withFullStop(date)} Dodajte procjenu.`,
   indexFailed: 'Indeks DZS-a nije se učitao, pa stanovi pokazuju procjenu ili plaćenu cijenu.',
   indexDefinition: 'Indeks prati tržište područja, ne vašu zgradu.',
   customsNew: (share, months) => `Procjena prema carinskoj tablici: ${share} cijene nakon ${months} od prve registracije`,

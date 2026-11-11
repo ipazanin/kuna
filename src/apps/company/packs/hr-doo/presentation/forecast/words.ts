@@ -335,7 +335,7 @@ export const hr: Translation<typeof en> = {
     none: 'Nema mjeseci za prikaz.',
     byMonth: (from, to, total) => `Prihodi i troškovi po mjesecima, ${monthLabel(from)} – ${monthLabel(to)}, s dobiti prije oporezivanja kao crtom, ${total} za godinu.`,
     everyMonthFromLedger: 'Svaki mjesec dolazi iz evidencije.',
-    standsIn: (months) => `Redak plana ili prosjek zamjenjuje dio mjeseci: ${months}.`,
+    standsIn: (months) => `Redak plana ili prosjek zamjenjuje dio mjeseci: ${withFullStop(months)}`,
     stillRunning: (month) => `${month} je još u tijeku i broji se kao prognoza.`,
   },
   panel: {

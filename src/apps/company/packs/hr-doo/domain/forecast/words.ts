@@ -34,7 +34,7 @@ export const en = {
     notAScenario: (scenario: string) => `"${scenario}" is not a scenario on the scenarios tab`,
     notAnItem: (item: string, keywords: readonly string[]) => `"${item}" is neither ${keywords.join(', ')} nor a category on the categories tab`,
     scenarioFrom: (from: CivilDate | null, year: number) => `An owner pay scenario from ${from ?? `1 January ${year}`}`,
-    itemFor: (item: string, month: number | null, year: number) => `${item} for ${month === null ? 'every month of' : `month ${month} of`} ${year}`,
+    itemFor: (item: string, monthNumber: number | null, year: number) => `${item} for ${monthNumber === null ? 'every month of' : `month ${monthNumber} of`} ${year}`,
   },
   /** What stops the plan tab from being planned with, year by year. */
   guards: {
@@ -170,7 +170,7 @@ export const hr: Translation<typeof en> = {
     notAScenario: (scenario) => `„${scenario}” nije scenarij na listu „scenarios”`,
     notAnItem: (item, keywords) => `„${item}” nije ni ${keywords.join(', ')} ni kategorija na listu „categories”`,
     scenarioFrom: (from, year) => `Scenarij isplata vlasniku od ${from ?? `1. siječnja ${year}.`}`,
-    itemFor: (item, month, year) => `${item} za ${month === null ? `svaki mjesec ${year}.` : `${month}. mjesec ${year}.`}`,
+    itemFor: (item, monthNumber, year) => `${item} za ${monthNumber === null ? `svaki mjesec ${year}.` : `${monthNumber}. mjesec ${year}.`}`,
   },
   guards: {
     oneDividend: (year, months) => `Plan za ${year}. isplaćuje dividendu u mjesecima ${listInWords(months.map(String))}. Planirajte jednu isplatu godišnje.`,

@@ -1,5 +1,6 @@
 import { monthCase } from '../../../../shared/calendar/monthCase'
 import { language } from '../../../../shared/text/language'
+import { withFullStop } from '../../../../shared/text/withFullStop'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. A lot is a kupnja, the units one buy left open.
@@ -103,9 +104,9 @@ export const en = {
     fromToday: (amount: string) => `from ${amount} today`,
     takeOut: (rate: string) => `At ${rate} a year you could take out`,
     yearlyAndMonthly: (monthly: string) => `a year, or ${monthly} a month`,
-    description: (years: number, monthly: string, rate: string, start: string, end: string): EnglishForms => ({
-      one: `With ${monthly} each month at ${rate} a year, ${start} today grows to ${end} in 1 year.`,
-      other: `With ${monthly} each month at ${rate} a year, ${start} today grows to ${end} in ${years} years.`,
+    description: (years: number, monthly: string, rate: string, startValue: string, endValue: string): EnglishForms => ({
+      one: `With ${monthly} each month at ${rate} a year, ${startValue} today grows to ${endValue} in 1 year.`,
+      other: `With ${monthly} each month at ${rate} a year, ${startValue} today grows to ${endValue} in ${years} years.`,
     }),
   },
 }
@@ -137,7 +138,7 @@ export const hr: Translation<typeof en> = {
     title: 'Po mjesecima',
     subtitle: 'Primljeno, nakon zadržanog poreza',
     description: (amount, from, to) => `Od ${from} do ${to} primljeno je ${amount}.`,
-    largest: (month, amount) => ` Najviše je bilo ${amount}, za ${month}.`,
+    largest: (month, amount) => ` Najviše je bilo ${amount}, za ${withFullStop(month)}`,
   },
   byYear: {
     title: 'Po godinama',
@@ -210,10 +211,10 @@ export const hr: Translation<typeof en> = {
     fromToday: (amount) => `od današnjih ${amount}`,
     takeOut: (rate) => `Uz ${rate} godišnje mogli biste isplaćivati`,
     yearlyAndMonthly: (monthly) => `godišnje ili ${monthly} mjesečno`,
-    description: (years, monthly, rate, start, end) => ({
-      one: `Uz ${monthly} svaki mjesec i ${rate} godišnje, današnja vrijednost od ${start} za ${years} godinu naraste na ${end}.`,
-      few: `Uz ${monthly} svaki mjesec i ${rate} godišnje, današnja vrijednost od ${start} za ${years} godine naraste na ${end}.`,
-      other: `Uz ${monthly} svaki mjesec i ${rate} godišnje, današnja vrijednost od ${start} za ${years} godina naraste na ${end}.`,
+    description: (years, monthly, rate, startValue, endValue) => ({
+      one: `Uz ${monthly} svaki mjesec i ${rate} godišnje, današnja vrijednost od ${startValue} za ${years} godinu naraste na ${endValue}.`,
+      few: `Uz ${monthly} svaki mjesec i ${rate} godišnje, današnja vrijednost od ${startValue} za ${years} godine naraste na ${endValue}.`,
+      other: `Uz ${monthly} svaki mjesec i ${rate} godišnje, današnja vrijednost od ${startValue} za ${years} godina naraste na ${endValue}.`,
     }),
   },
 }
