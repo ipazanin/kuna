@@ -62,7 +62,7 @@ function currencyOf(record: ProposedRecord, book: SpendingBook): Account['curren
 
 /**
  * A value as a person reads it on screen: an account's amount in its own currency, a limit in euros, a day and a month in
- * words, a name for a record it points at, a category's swatch, an account's type and bank, and a rule's words and where
+ * words, a name for a record it points at, a category's swatch, an account's type, bank and where its rows come from, and a rule's words and where
  * its cash goes. A place among siblings reads as its number. Where a rule stands in the order rules are tried means nothing to
  * a person, so it stays off.
  */
@@ -78,6 +78,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'kind') return categoryWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank === null ? null : accountWords.banks[record.bank]
+  if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'rowsFrom') return accountWords.rowsFrom[record.rowsFrom]
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   if (isKind(kind, RULE_RECORDS, record) && field === 'condition') {
     return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment

@@ -3176,6 +3176,50 @@ async function checkWidth(width) {
       'Settings',
     ],
     [
+      'spending-bank-sync-by-hand',
+      'drive&spending=statements&banksync=by-hand',
+      spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-by-hand', {
+        waitFor: '[data-testid="spending-bank-account-update"]',
+        tap: '[data-testid="spending-bank-account-update"]',
+        done: (screen) => screen.spendingBankSync.setup.updated,
+      }),
+      '#/spending/settings?tab=bank-sync',
+      'Settings',
+    ],
+    [
+      'spending-bank-sync-keep-by-hand',
+      'drive&spending=statements&banksync=by-hand',
+      spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-keep-by-hand', {
+        waitFor: '[data-testid="spending-bank-account-keep-mine"]',
+        tap: '[data-testid="spending-bank-account-keep-mine"]',
+        done: (screen) => screen.spendingBankSync.setup.keptByHandToast,
+      }),
+      '#/spending/settings?tab=bank-sync',
+      'Settings',
+    ],
+    [
+      'spending-bank-sync-by-hand-croatian',
+      'drive&spending=statements&banksync=by-hand&lang=hr',
+      spendingBankSyncSetupFlowIn('hr', 'spending-bank-sync-by-hand', {
+        waitFor: '[data-testid="spending-bank-account-update"]',
+        tap: '[data-testid="spending-bank-account-update"]',
+        done: (screen) => screen.spendingBankSync.setup.updated,
+      }),
+      '#/spending/settings?tab=bank-sync',
+      'Postavke',
+    ],
+    [
+      'spending-bank-sync-keep-by-hand-croatian',
+      'drive&spending=statements&banksync=by-hand&lang=hr',
+      spendingBankSyncSetupFlowIn('hr', 'spending-bank-sync-keep-by-hand', {
+        waitFor: '[data-testid="spending-bank-account-keep-mine"]',
+        tap: '[data-testid="spending-bank-account-keep-mine"]',
+        done: (screen) => screen.spendingBankSync.setup.keptByHandToast,
+      }),
+      '#/spending/settings?tab=bank-sync',
+      'Postavke',
+    ],
+    [
       'spending-bank-sync-set-opening',
       'drive&spending=statements&banksync=opening-off',
       spendingBankSyncSetupFlowIn('en', 'spending-bank-sync-set-opening', {

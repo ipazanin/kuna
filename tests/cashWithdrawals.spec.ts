@@ -28,8 +28,18 @@ import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const DAY = civil('2026-10-30')
 const BETWEEN = category('Between my accounts').id
-const WALLET = account(5, { name: 'Wallet', kind: 'cash', bank: null, currency: CASH.currency, opening: accountMoneyFromAmount(0), openedOn: CASH.openedOn, iban: '', closed: false })
-const DOLLARS = account(6, { name: 'Dollars', kind: 'cash', bank: null, currency: USD, opening: accountMoneyFromAmount(0), openedOn: CASH.openedOn, iban: '', closed: false })
+const WALLET = account(5, {
+  name: 'Wallet',
+  kind: 'cash',
+  bank: null,
+  currency: CASH.currency,
+  opening: accountMoneyFromAmount(0),
+  openedOn: CASH.openedOn,
+  rowsFrom: 'by-hand',
+  iban: '',
+  closed: false,
+})
+const DOLLARS = account(6, { name: 'Dollars', kind: 'cash', bank: null, currency: USD, opening: accountMoneyFromAmount(0), openedOn: CASH.openedOn, rowsFrom: 'by-hand', iban: '', closed: false })
 
 function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRule[] = [], accounts: readonly Account[] = ACCOUNTS): SpendingBook {
   return {

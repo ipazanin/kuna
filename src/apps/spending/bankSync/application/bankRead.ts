@@ -56,9 +56,14 @@ function reasonOf(failure: unknown): string {
   return failure instanceof Error ? failure.message : String(failure)
 }
 
-/** The Spending accounts more than one linked account of a session fits, as when a pocket comes under the current account's IBAN. Which one is which cannot be told, so neither is read. */
+/** The accounts whose rows come from a bank link, which are the only ones the sync reads. */
+function readByBank(accounts: readonly Account[]): readonly Account[] {
+  return accounts.filter((account) => account.rowsFrom === 'bank-link')
+}
+
+/** The bank-linked accounts more than one linked account of a session fits, as when a pocket comes under the current account's IBAN. Which one is which cannot be told, so neither is read. */
 function accountsFitTwice(linkedAccounts: readonly LinkedAccount[], accounts: readonly Account[]): ReadonlySet<Account> {
-  const fits = linkedAccounts.flatMap((linked) => accountsOfLinked(linked, accounts))
+  const fits = linkedAccounts.flatMap((linked) => readByBank(accountsOfLinked(linked, accounts)))
   return new Set(fits.filter((account) => fits.indexOf(account) !== fits.lastIndexOf(account)))
 }
 
@@ -73,10 +78,11 @@ function currenciesLeft(linked: LinkedAccount, kept: readonly Account[], answer:
 }
 
 /**
- * Asks the script for every session's accounts and each account's transactions and balance. The rows of kept accounts go
- * into one statement for the dry run, with the legs of each exchange and pocket move among them keyed to pair. An account
- * Kuna does not keep is fetched too and drafted, with its rows held, since a bank gives its older rows only just after a
- * link. One you said is not in Kuna is not fetched unless you keep an account under its IBAN. A bank or an account that
+ * Asks the script for every session's accounts and each bank-linked account's transactions and balance. The rows of those
+ * accounts go into one statement for the dry run, with the legs of each exchange and pocket move among them keyed to pair.
+ * An account Kuna does not keep is fetched too and drafted, with its rows held, since a bank gives its older rows only just
+ * after a link. One you said is not in Kuna is not fetched unless you keep an account under its IBAN. One whose accounts in
+ * Kuna all take their rows by hand is neither fetched nor drafted, since those accounts keep it. A bank or an account that
  * fails is a problem line and leaves the others' rows. Google turning the token away ends it all, since no later call
  * would go through. `freshLinks` are the banks linked just before this fetch, whose missing older rows a new link cannot bring.
  * `leftAlone` are banks asked too recently, whose accounts are listed from the session and none of them read.
@@ -120,8 +126,9 @@ export async function readBanks(
     const fitTwice = accountsFitTwice(offered, book.accounts)
     fitTwice.forEach((account) => problems.push(words.sameAccountTwice(session.bank, account.name)))
     for (const linked of offered) {
-      const accounts = accountsOfLinked(linked, book.accounts)
-      if (accounts.some((account) => fitTwice.has(account))) continue
+      const kept = accountsOfLinked(linked, book.accounts)
+      const accounts = readByBank(kept)
+      if (accounts.some((account) => fitTwice.has(account)) || (kept.length > 0 && accounts.length === 0)) continue
       const starts = accounts.map((account) => fetchFrom(account, book.transactions, day))
       const latest = addDays(day, -1)
       const from = starts.map((start) => start.from).reduce((earliest, date) => (date < earliest ? date : earliest), addDays(day, accounts.length === 0 ? -NEW_ACCOUNT_HISTORY_DAYS : 0))
@@ -161,7 +168,7 @@ export async function readBanks(
         const balance = statedBalance(balances, account.currency)
         if (balance !== null) stated.push({ account, balance, pending: pendingMoney(answer, account.currency) })
       }
-      for (const currency of currenciesLeft(linked, accounts, answer, balances)) {
+      for (const currency of currenciesLeft(linked, kept, answer, balances)) {
         const code = currencyCodeOf(currency)
         if (linked.currency === NO_SINGLE_CURRENCY || currency === linked.currency) {
           if (code !== null) proposals.push(proposeAccount(linked, bank, code, answer, balances, newId(), day, [...book.accounts, ...proposals.map((proposal) => proposal.account)]))

@@ -24,7 +24,7 @@ import type { PartDraft, SplitRefusal } from '../../entries/domain/entrySplit'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { SETTING_WRITES, treatPayeeAsPerson } from '../../workbook/application/settingWrites'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, beforeStartDay } from '../../workbook/domain/account'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, beforeStartDay, rowsFromOfDetails } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
@@ -510,14 +510,17 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       case 'add-account': {
         const currency = currencyCodeOf(field['currency'])
         if (currency === null) throw new StepRefused('That currency is not one Kuna knows. Write its three-letter ISO code, such as EUR or USD.')
+        const kind = field['kind'] as AccountKind
+        const iban = ((field['iban'] as string | null) ?? '').trim()
         const account = newAccount({
           name: field['name'],
-          kind: field['kind'] as AccountKind,
+          kind,
           bank: choiceOf(ACCOUNT_BANKS, field['bank'], 'bank'),
           currency,
           opening: accountMoneyFromAmount(field['opening']),
           openedOn: dayOf(field['openedOn']),
-          iban: (field['iban'] as string | null) ?? '',
+          iban,
+          rowsFrom: rowsFromOfDetails({ kind, iban }),
           ...NEW_ACCOUNT_DEFAULTS,
         })
         unit.of(ACCOUNT_WRITES).add(account)

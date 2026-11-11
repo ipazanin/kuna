@@ -188,6 +188,7 @@ describe('the dry run of a statement', () => {
       currency: REVOLUT_EUR.currency,
       opening: accountMoneyFromAmount(0),
       openedOn: civil('2026-09-01'),
+      rowsFrom: 'by-hand',
       iban: '',
       closed: false,
     })

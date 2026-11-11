@@ -164,9 +164,19 @@ describe("Revolut's export", () => {
     expect({ ...reading, missing: reading.missing.map(({ account }) => account) }).toEqual({
       refusal: 'Add Revolut bank accounts in GBP and CHF and a Revolut savings account in GBP to bring in this file',
       missing: [
-        { name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(100), openedOn: civil('2026-10-02'), closed: false },
-        { name: 'Revolut CHF', kind: 'bank', bank: 'revolut', currency: 'CHF', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-02'), closed: false },
-        { name: 'Revolut GBP savings', kind: 'savings', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-04'), closed: false },
+        { name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(100), openedOn: civil('2026-10-02'), rowsFrom: 'by-hand', closed: false },
+        { name: 'Revolut CHF', kind: 'bank', bank: 'revolut', currency: 'CHF', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-02'), rowsFrom: 'by-hand', closed: false },
+        {
+          name: 'Revolut GBP savings',
+          kind: 'savings',
+          bank: 'revolut',
+          currency: 'GBP',
+          iban: '',
+          opening: accountMoneyFromAmount(0),
+          openedOn: civil('2026-10-04'),
+          rowsFrom: 'by-hand',
+          closed: false,
+        },
       ],
     })
   })
@@ -176,7 +186,9 @@ describe("Revolut's export", () => {
 
     expect({ ...reading, missing: reading.missing.map(({ account }) => account) }).toEqual({
       refusal: 'Add a Revolut bank account in GBP to bring in this file',
-      missing: [{ name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-01'), closed: false }],
+      missing: [
+        { name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: 'GBP', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-01'), rowsFrom: 'by-hand', closed: false },
+      ],
     })
   })
 
@@ -203,6 +215,7 @@ describe("Revolut's export", () => {
       currency: REVOLUT_EUR.currency,
       opening: accountMoneyFromAmount(0),
       openedOn: civil('2026-09-01'),
+      rowsFrom: 'by-hand',
       iban: '',
       closed: false,
     })
@@ -210,7 +223,17 @@ describe("Revolut's export", () => {
     expect(left.rows).toEqual([])
     expect(left.notes).toEqual([])
     expect(revolutStatement([HEADER, row], 'export.csv', BOOK).missing.map(({ account }) => account)).toEqual([
-      { name: 'Revolut EUR savings', kind: 'savings', bank: 'revolut', currency: 'EUR', iban: '', opening: accountMoneyFromAmount(0), openedOn: civil('2026-10-01'), closed: false },
+      {
+        name: 'Revolut EUR savings',
+        kind: 'savings',
+        bank: 'revolut',
+        currency: 'EUR',
+        iban: '',
+        opening: accountMoneyFromAmount(0),
+        openedOn: civil('2026-10-01'),
+        rowsFrom: 'by-hand',
+        closed: false,
+      },
     ])
     expect(addRevolutAccounts(revolutStatement([HEADER, row], 'export.csv', BOOK).missing, 'savings')).toBe('Add a Revolut savings account in EUR to bring in the savings rows left out')
     expect(read([row], { accounts: [...ACCOUNTS, savings], categories: CATEGORIES }).rows[0]?.account).toBe(savings.id)
@@ -235,6 +258,7 @@ describe("Revolut's export", () => {
       currency: REVOLUT_EUR.currency,
       opening: accountMoneyFromAmount(0),
       openedOn: civil('2026-09-01'),
+      rowsFrom: 'by-hand',
       iban: '',
       closed: false,
     })
@@ -305,6 +329,7 @@ describe("Revolut's export", () => {
       currency: REVOLUT_EUR.currency,
       opening: accountMoneyFromAmount(0),
       openedOn: civil('2026-09-01'),
+      rowsFrom: 'by-hand',
       iban: '',
       closed: false,
     })

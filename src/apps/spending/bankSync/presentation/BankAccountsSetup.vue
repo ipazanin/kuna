@@ -110,7 +110,12 @@ function heldLine(account: StartedAccount): string {
   return [openingLine(account), account.opening.rows === 0 ? null : words.setup.rowsHeld].filter((part): part is string => part !== null).join(' ')
 }
 
-/** What Update account changes, and why the IBAN is one another account already has when the bank gives one IBAN for every currency. */
+/** Whether a line offers to have the bank bring the rows of an account kept by hand. */
+function offersSync(line: SetupLine): boolean {
+  return line.kind === 'kept' && line.account.rowsFrom === 'by-hand' && line.update?.rowsFrom === 'bank-link'
+}
+
+/** What Update account or Switch to bank changes, and why the IBAN is one another account already has when the bank gives one IBAN for every currency. */
 function changes(line: Extract<SetupLine, { kind: 'kept' | 'fits' }> & { readonly update: Account }): string {
   const { account, update } = line
   const details = [
@@ -120,12 +125,12 @@ function changes(line: Extract<SetupLine, { kind: 'kept' | 'fits' }> & { readonl
     ...(account.kind === update.kind ? [] : [words.setup.detailKind(accountWords.kinds[update.kind])]),
   ]
   const shared = account.iban !== update.iban && lines.value.some((other) => other.kind === 'kept' && other.bank === line.bank && other.account.id !== account.id && other.account.iban === update.iban)
-  const gives = words.setup.updateGives(account.name, details.join(', '))
+  const gives = offersSync(line) ? words.setup.switchGives(details.join(', ')) : words.setup.updateGives(account.name, details.join(', '))
   return shared ? `${gives} ${words.setup.sharedIban(words.banks[line.bank])}` : gives
 }
 
 function stateLine(line: SetupLine): string {
-  if (line.kind === 'kept') return words.setup.keptAs(line.account.name)
+  if (line.kind === 'kept') return line.account.rowsFrom === 'by-hand' ? words.setup.keptByHand(line.account.name) : words.setup.keptAs(line.account.name)
   if (line.kind === 'fits') return changes(line)
   return words.setup.notKept
 }
@@ -159,10 +164,10 @@ async function leaveOut(linked: LinkedAccount, out: boolean, key: string): Promi
   await writes.write(out ? words.setup.markedOut : words.setup.broughtBack, (unit) => keepOutOfKuna(unit, open, linked, out), { key, failedTitle: words.notSaved })
 }
 
-async function keepTheirs(linked: LinkedAccount, key: string): Promise<void> {
+async function keepTheirs(line: SetupLine, key: string): Promise<void> {
   const open = book.value
   if (open === null) return
-  await writes.write(words.setup.keptMine, (unit) => keepMine(unit, open, linked), { key, failedTitle: words.notSaved })
+  await writes.write(offersSync(line) ? words.setup.keptByHandToast : words.setup.keptMine, (unit) => keepMine(unit, open, line.linked), { key, failedTitle: words.notSaved })
 }
 
 async function bringBackMine(linked: LinkedAccount, key: string): Promise<void> {
@@ -240,7 +245,7 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
             />
             <UButton
               v-if="(line.kind === 'kept' || line.kind === 'fits') && line.update !== null"
-              :label="words.setup.update"
+              :label="offersSync(line) ? words.setup.switchToBank : words.setup.update"
               color="neutral"
               variant="outline"
               size="sm"
@@ -250,13 +255,13 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
             />
             <UButton
               v-if="setupActions(line).includes('keep-mine')"
-              :label="words.setup.keepMine"
+              :label="offersSync(line) ? words.setup.keepByHand : words.setup.keepMine"
               color="neutral"
               variant="ghost"
               size="sm"
               :loading="writes.saving(`mine-${setupLineKey(line)}`)"
               data-testid="spending-bank-account-keep-mine"
-              @click="keepTheirs(line.linked, `mine-${setupLineKey(line)}`)"
+              @click="keepTheirs(line, `mine-${setupLineKey(line)}`)"
             />
             <UButton
               v-if="setupActions(line).includes('leave-out')"
@@ -336,7 +341,7 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
         </span>
         <UButton
           v-if="setupActions(line).includes('bring-back-mine')"
-          :label="words.setup.bringBack"
+          :label="line.account.rowsFrom === 'by-hand' ? words.setup.offerBankAgain : words.setup.bringBack"
           color="neutral"
           variant="ghost"
           size="sm"

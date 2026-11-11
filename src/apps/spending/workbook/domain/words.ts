@@ -28,6 +28,8 @@ export const en = {
   notACurrency: (text: string) => `currency "${text}" is not a currency code such as EUR or USD`,
   bankOnCash: 'bank is for a bank or savings account, not cash',
   ibanOnCash: 'iban is for a bank or savings account, not cash',
+  bankLinkOnCash: 'rows_from bank-link is for a bank or savings account, since cash comes in by hand',
+  bankLinkWithoutIban: 'takes its rows from a bank link but has no IBAN, so the bank sync cannot find it',
   notAFlag: (name: string, text: string) => `${name} "${text}" is neither true nor false`,
   notAWholeNumber: (name: string, text: string) => `${name} "${text}" is not a whole number`,
   ibanShared: (accounts: string, iban: string, currency: string) =>
@@ -82,6 +84,8 @@ export const hr: Translation<typeof en> = {
   notACurrency: (text) => `currency „${text}” nije oznaka valute kao EUR ili USD`,
   bankOnCash: 'bank vrijedi za bankovni ili štedni račun, ne za gotovinu',
   ibanOnCash: 'iban vrijedi za bankovni ili štedni račun, ne za gotovinu',
+  bankLinkOnCash: 'rows_from bank-link vrijedi za bankovni ili štedni račun, jer se gotovina unosi ručno',
+  bankLinkWithoutIban: 'retke dobiva iz povezane banke, ali nema IBAN, pa ga sinkronizacija s bankom ne može pronaći',
   notAFlag: (name, text) => `${name} „${text}” nije ni true ni false`,
   notAWholeNumber: (name, text) => `${name} „${text}” nije cijeli broj`,
   ibanShared: (accounts, iban, currency) =>

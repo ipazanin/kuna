@@ -1,4 +1,4 @@
-import { ACCOUNT_BANKS, ACCOUNT_KINDS } from './account'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS, ROWS_FROM, rowsFromOfDetails } from './account'
 import type { Account } from './account'
 import { flagOf, optionalAccountMoney } from './fieldReading'
 import { ACCOUNT_RECORDS } from './spendingKinds'
@@ -29,6 +29,8 @@ export function accountOf(fields: StoredFields, id: RecordId | null): Account {
   const currency = currencyCodeOf(currencyText) ?? refuse(words.notACurrency(currencyText))
   const iban = ibanKey(textOf(fields.iban))
   if (iban !== '' && kind === 'cash') refuse(words.ibanOnCash)
+  const rowsFrom = fields.rows_from === undefined ? rowsFromOfDetails({ kind, iban }) : requiredChoice(fields, 'rows_from', ROWS_FROM, 'way its rows come in')
+  if (rowsFrom === 'bank-link' && kind === 'cash') refuse(words.bankLinkOnCash)
   return {
     id: ownId(id),
     name,
@@ -37,6 +39,7 @@ export function accountOf(fields: StoredFields, id: RecordId | null): Account {
     currency,
     opening: optionalAccountMoney(fields, 'opening') ?? ZERO_ACCOUNT_MONEY,
     openedOn: requiredDate(fields, 'opened_on'),
+    rowsFrom,
     iban,
     closed: flagOf(fields, 'closed'),
   }
@@ -54,6 +57,7 @@ export const ACCOUNT_CODEC: RecordCodec<Account> = withIdField(
       currency: account.currency,
       opening: amountText(account.opening),
       opened_on: account.openedOn,
+      rows_from: account.rowsFrom,
       iban: account.iban,
       closed: account.closed ? true : null,
     }),

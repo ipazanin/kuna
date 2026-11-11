@@ -116,7 +116,7 @@ function fakeBalances(accountUid: string, variant: string | null): readonly Bank
  * The sessions the fake script holds, with Revolut as one account per currency under one IBAN, as the first real run gave
  * it. `multi-currency` has Revolut as one account in `XXX`, `unknown-account` has one more account at OTP, `new-accounts`
  * `not-in-kuna` and `new-pending` a dollar account and a savings account more at Revolut, `otp-failed` has OTP not answering, `ended` has
- * OTP's approval over early, `pocket` has a Revolut pocket as an account of its own, and `kind-differs` has Revolut call
+ * OTP's approval over early, `pocket` has a Revolut pocket as an account of its own, and `kind-differs` and `by-hand-savings` have Revolut call
  * the dollar account savings, and `settled` does too with older rows given, so keeping the file's kind leaves nothing to set up.
  */
 export function fakeBankSessions(variant: string | null): readonly BankSession[] {
@@ -126,7 +126,7 @@ export function fakeBankSessions(variant: string | null): readonly BankSession[]
       ? [linkedAccount(REVOLUT_UID, revolutIban, 'XXX')]
       : [
           linkedAccount(REVOLUT_UID, revolutIban, 'EUR', { cashAccountType: 'CACC' }),
-          linkedAccount(REVOLUT_USD_UID, revolutIban, 'USD', { cashAccountType: variant === 'kind-differs' || variant === 'settled' ? 'SVGS' : 'CACC' }),
+          linkedAccount(REVOLUT_USD_UID, revolutIban, 'USD', { cashAccountType: variant === 'kind-differs' || variant === 'settled' || variant === 'by-hand-savings' ? 'SVGS' : 'CACC' }),
         ]
   const added =
     variant === 'new-accounts' || variant === 'not-in-kuna' || variant === 'new-pending'

@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
-import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
+import { ACCOUNT_WRITES, keptAccount } from '../src/apps/spending/accounts/application/accountWrites'
 import { setLimit } from '../src/apps/spending/budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
 import { TRANSACTION_WRITES, newEntry, newTransfer, deleteComesBack, removeEntry, retypedEntry, transferOver } from '../src/apps/spending/entries/application/entryWrites'
@@ -454,6 +454,16 @@ describe('Spending account writes', () => {
     expect(store.state.workbook!.problems).toEqual([])
     expect(store.state.workbook!.accounts.find((account) => account.id === OTP.id)).toMatchObject({ name: 'OTP current, overdraft', opening: accountMoneyFromAmount(-300) })
     expect(accountBalance(store.state.workbook!.accounts[0]!, [], DAY)).toEqual(accountMoneyFromAmount(-300))
+  })
+
+  it('keeps a cash account by hand, with no bank and no IBAN, whatever it held before', () => {
+    expect(keptAccount({ ...OTP, kind: 'cash' })).toMatchObject({ kind: 'cash', bank: null, iban: '', rowsFrom: 'by-hand' })
+  })
+
+  it('keeps an account by hand once its IBAN is cleared, since the bank sync could not find it, and otherwise keeps where its rows come from', () => {
+    expect(keptAccount({ ...OTP, iban: '  ' })).toMatchObject({ iban: '', rowsFrom: 'by-hand' })
+    expect(keptAccount({ ...OTP, rowsFrom: 'by-hand' }).rowsFrom).toBe('by-hand')
+    expect(keptAccount(OTP).rowsFrom).toBe('bank-link')
   })
 
   it('refuses a new currency on an account its entries name, and allows it on one without entries', async () => {

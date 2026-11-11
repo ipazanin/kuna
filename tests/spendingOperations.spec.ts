@@ -243,6 +243,17 @@ describe('an entry’s day and account', () => {
   })
 })
 
+describe('a new account', () => {
+  it('takes its rows from the bank when it has an IBAN, and by hand without one or as cash', async () => {
+    const desk = await spendingDesk(used)
+    const added = (name: string, kind: string, iban: string | null) => ({ op: 'add-account', input: { name, kind, bank: null, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban } })
+    await desk.propose([added('Card', 'bank', 'HR1723600001101234565'), added('Typed card', 'bank', null), added('Jar', 'cash', null)])
+    expect((await desk.accept()).kind).toBe('done')
+    const rowsFromOf = (name: string) => bookOf(desk).accounts.find((account) => account.name === name)?.rowsFrom
+    expect(['Card', 'Typed card', 'Jar'].map(rowsFromOf)).toEqual(['bank-link', 'by-hand', 'by-hand'])
+  })
+})
+
 describe('To review', () => {
   it('joins, pairs and unpairs only what To review offers', async () => {
     const desk = await spendingDesk(used)
@@ -542,10 +553,11 @@ describe('bank account set-up', () => {
     expect(lines.map((line) => line.id)).toEqual([EXAMPLE_RECORDS['bank-account-missing'], EXAMPLE_RECORDS['bank-account-update'], EXAMPLE_RECORDS['bank-account-left-out']])
     expect([0, 1, 2].map((at) => fieldOf(at, 'offers'))).toMatchObject([{ value: ['add', 'leave-out'] }, { value: ['update', 'keep-mine'] }, { value: ['bring-back'] }])
     expect(fieldOf(1, 'account')).toMatchObject({ exposure: 'ref', id: DESK_ACCOUNTS.CURRENT.id })
+    expect(fieldOf(1, 'takesRowsFrom')).toMatchObject({ value: 'bank-link' })
     expect(fieldOf(1, 'fixedOpening')).toMatchObject({ cents: 90000, currency: 'EUR' })
   })
 
-  it("adds the draft, gives the kept account the bank's kind, and sets the opening the bank's balance gives", async () => {
+  it("adds the draft, gives the kept account the bank's kind and its rows from the bank, and sets the opening the bank's balance gives", async () => {
     const desk = await spendingDesk(used)
     const line = (name: string) => desk.ref(BANK_ACCOUNT_LINES.name, EXAMPLE_RECORDS[name]!)
     await desk.propose([
@@ -555,7 +567,7 @@ describe('bank account set-up', () => {
     expect((await desk.accept()).kind).toBe('done')
     const current = () => bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
     expect(bookOf(desk).accounts.map((account) => account.currency)).toContain('GBP')
-    expect(current()).toMatchObject({ kind: 'savings', name: 'Current', opening: DESK_ACCOUNTS.CURRENT.opening })
+    expect(current()).toMatchObject({ kind: 'savings', rowsFrom: 'bank-link', name: 'Current', opening: DESK_ACCOUNTS.CURRENT.opening })
     await desk.propose([{ op: 'fix-opening', input: { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) } }])
     expect((await desk.accept()).kind).toBe('done')
     expect(current().opening).toBe(90000)

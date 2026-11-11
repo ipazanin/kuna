@@ -5,6 +5,7 @@ import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entry
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { HELD_ROW_WRITES } from '../../statements/application/statementWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
+import { rowsFromOfDetails } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { ACCOUNT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -29,10 +30,12 @@ export const ACCOUNT_WRITES: WriteRules<Account> = {
   },
 }
 
-/** An account as the file keeps it: its text trimmed, and cash with no bank and no IBAN. */
+/** An account as the file keeps it: its text trimmed, cash with no bank and no IBAN, and by hand wherever the bank sync could not find it. */
 export function keptAccount(account: Account): Account {
   const cash = account.kind === 'cash'
-  return { ...account, name: account.name.trim(), bank: cash ? null : account.bank, iban: cash ? '' : account.iban.trim() }
+  const iban = cash ? '' : account.iban.trim()
+  const findable = rowsFromOfDetails({ kind: account.kind, iban }) === 'bank-link'
+  return { ...account, name: account.name.trim(), bank: cash ? null : account.bank, iban, rowsFrom: findable ? account.rowsFrom : 'by-hand' }
 }
 
 /** A new account as the file keeps it, with an id of its own. */

@@ -647,7 +647,7 @@ async function ratesOfInput(workbook) {
 }
 
 /**
- * The Spending groups: the records and problems, then per account, named by its place in the file and never by its
+ * The Spending groups: the records, where each account's rows come from and the problems, then per account, named by its place in the file and never by its
  * name, its balance on the day in its currency and in euros, then income, spending and saved for every month from the
  * oldest row to the day's, then for the newest complete month and the day's month what each category and group counts
  * and each limit with its carry, then Net worth's part. Returns how Net worth reads the file.
@@ -658,8 +658,11 @@ async function spendingGroups(add) {
   // The bank's fields and the kinds only statements use have a group of their own, so a file with none of them keeps this digest.
   const { accounts, categories, transactions, budgets, rules } = records
   const typedFieldsOf = ({ description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, ...typedFields }) => typedFields
+  // Where each account's rows come from has a group of its own, so the records keep their digest.
+  const accountFieldsOf = ({ rowsFrom, ...accountFields }) => accountFields
+  const storedAccountFieldsOf = ({ rows_from, ...storedFields }) => storedFields
   add('spending.read.records', {
-    accounts,
+    accounts: { ...accounts, records: accounts.records.map((stored) => ({ ...stored, record: accountFieldsOf(stored.record), fields: storedAccountFieldsOf(stored.fields) })) },
     categories,
     budgets,
     transactions: { ...transactions, records: transactions.records.map((stored) => ({ ...stored, record: typedFieldsOf(stored.record) })) },
@@ -678,6 +681,10 @@ async function spendingGroups(add) {
       ...(cashWithdrawal ? [cashWithdrawal] : []),
     ]),
   })
+  add(
+    'spending.read.sources',
+    accounts.records.map(({ record }) => record.rowsFrom),
+  )
   add('spending.read.problems', workbook.problems)
   const rates = await ratesOfInput(workbook)
   for (const [place, account] of workbook.accounts.entries()) {

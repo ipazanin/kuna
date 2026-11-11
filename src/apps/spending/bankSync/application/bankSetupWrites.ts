@@ -33,19 +33,19 @@ export function addBankAccounts(unit: UnitOfWork, book: SpendingBook, starts: re
 }
 
 /**
- * The account as it stands takes the bank's details, its bank, IBAN, currency and kind, and the rows held for it come in the same write.
- * Its name, its opening and any change made to it since the fetch stay.
+ * The account as it stands takes the bank's details, its bank, IBAN, currency and kind, and from then on the bank brings its
+ * rows. The rows held for it come in the same write. Its name, its opening and any change made to it since the fetch stay.
  */
 export function takeBankDetails(
   unit: UnitOfWork,
   book: SpendingBook,
   account: Account,
-  bankDetails: Pick<Account, 'bank' | 'iban' | 'currency' | 'kind'>,
+  bankDetails: Pick<Account, 'bank' | 'iban' | 'currency' | 'kind' | 'rowsFrom'>,
   proposal: AccountProposal | null,
   day: CivilDate,
 ): void {
-  const { bank, iban, currency, kind } = bankDetails
-  const update = { ...account, bank, iban, currency, kind }
+  const { bank, iban, currency, kind, rowsFrom } = bankDetails
+  const update = { ...account, bank, iban, currency, kind, rowsFrom }
   unit.of(ACCOUNT_WRITES).change(account, update)
   writeHeldRows(unit, book, [{ account: update, rows: proposal?.rows.rows ?? [] }], day)
 }
@@ -63,7 +63,7 @@ export function keepOutOfKuna(unit: UnitOfWork, book: Pick<SpendingBook, 'readin
   markBankAccount(unit, book, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, book.settings.bankAccountsNotInKuna, linked, out)
 }
 
-/** Keeps the Spending account's own bank and kind for the linked account, so the sync stops offering the bank's. */
+/** Keeps the Spending account's own bank and kind, and its rows by hand, for the linked account, so the sync stops offering the bank's. */
 export function keepMine(unit: UnitOfWork, book: Pick<SpendingBook, 'readings' | 'settings'>, linked: LinkedAccount): void {
   markBankAccount(unit, book, BANK_ACCOUNTS_KEEP_MINE_KEY, book.settings.bankAccountsKeepMine, linked, true)
 }

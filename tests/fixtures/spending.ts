@@ -49,6 +49,7 @@ export const OTP = account(1, {
   currency: EURO,
   opening: accountMoneyFromAmount(1_550),
   openedOn: OPENED_ON,
+  rowsFrom: 'bank-link',
   iban: 'HR0000000000000000001',
   closed: false,
 })
@@ -59,6 +60,7 @@ export const REVOLUT_EUR = account(2, {
   currency: EURO,
   opening: accountMoneyFromAmount(300),
   openedOn: OPENED_ON,
+  rowsFrom: 'bank-link',
   iban: 'LT000000000000000001',
   closed: false,
 })
@@ -69,10 +71,11 @@ export const REVOLUT_USD = account(3, {
   currency: USD,
   opening: accountMoneyFromAmount(200),
   openedOn: OPENED_ON,
+  rowsFrom: 'bank-link',
   iban: 'LT000000000000000001',
   closed: false,
 })
-export const CASH = account(4, { name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: accountMoneyFromAmount(100), openedOn: OPENED_ON, iban: '', closed: false })
+export const CASH = account(4, { name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: accountMoneyFromAmount(100), openedOn: OPENED_ON, rowsFrom: 'by-hand', iban: '', closed: false })
 
 export const ACCOUNTS: readonly Account[] = [OTP, REVOLUT_EUR, REVOLUT_USD, CASH]
 

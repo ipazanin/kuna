@@ -75,9 +75,10 @@ export function startedAccount({ proposal, startsOn }: BankAccountStart): Starte
 
 /**
  * One line of the setup list for one currency of a linked account. `kept` has a Spending account by IBAN and currency,
- * `fits` has an account that would keep it once it takes the bank's details, `missing` has none, and `not-in-kuna` is one
- * you said Kuna does not keep. `update` is the account with the bank's details, when they differ from what it holds and
- * you did not say to keep yours, which `keptMine` tells.
+ * whose rows come from the bank or by hand, `fits` has an account that would keep it once it takes the bank's details,
+ * `missing` has none, and `not-in-kuna` is one you said Kuna does not keep. `update` is the account with the bank's details,
+ * when they differ from what it holds and you did not say to keep yours, which `keptMine` tells. An account kept by hand
+ * differs in where its rows come from.
  */
 export type SetupLine =
   | { readonly kind: 'kept'; readonly bank: LinkableBank; readonly linked: LinkedAccount; readonly account: Account; readonly update: Account | null; readonly keptMine: boolean }
@@ -123,13 +124,13 @@ export function proposeAccount(
   return { ...held, account: startedAccount({ proposal: held, startsOn: day }).account }
 }
 
-/** The account with the bank's details: its bank, IBAN and currency, and its kind where the bank states one. Its name and opening stay. */
+/** The account with the bank's details: its bank, IBAN and currency, its kind where the bank states one, and its rows from the bank. Its name and opening stay. */
 export function withBankDetails(account: Account, linked: LinkedAccount, bank: LinkableBank, currency: CurrencyCode): Account {
-  return { ...account, bank, iban: ibanKey(linked.iban), currency, kind: kindOfBankAccount(linked) ?? account.kind }
+  return { ...account, bank, iban: ibanKey(linked.iban), currency, kind: kindOfBankAccount(linked) ?? account.kind, rowsFrom: 'bank-link' }
 }
 
 function sameDetails(one: Account, other: Account): boolean {
-  return one.bank === other.bank && one.iban === other.iban && one.currency === other.currency && one.kind === other.kind
+  return one.bank === other.bank && one.iban === other.iban && one.currency === other.currency && one.kind === other.kind && one.rowsFrom === other.rowsFrom
 }
 
 /**

@@ -56,8 +56,10 @@ const sections = computed(() =>
 
 const unconverted = computed(() => (state.workbook === null || rates.value === 'loading' ? 0 : unconvertedCount(countedAccounts(state.workbook, day, everydayRates(rates.value)))))
 
-function kindLine(account: Account): string {
-  return [words.kinds[account.kind], account.bank === null ? '' : words.banks[account.bank], account.currency].filter((part) => part !== '').join(' · ')
+/** The account's kind, bank and currency, and By hand only on a bank or savings account kept by hand, since that is the exception. */
+function kindParts(account: Account): readonly string[] {
+  const byHand = account.kind !== 'cash' && account.rowsFrom === 'by-hand' ? words.rowsFrom['by-hand'] : ''
+  return [words.kinds[account.kind], account.bank === null ? '' : words.banks[account.bank], account.currency, byHand].filter((part) => part !== '')
 }
 
 const adding = ref(false)
@@ -102,7 +104,12 @@ const adding = ref(false)
                   <span class="figure shrink-0 text-sm text-highlighted" data-testid="spending-account-balance">{{ row.balance }}</span>
                 </span>
                 <span class="flex items-baseline justify-between gap-3 text-xs text-muted">
-                  <span class="min-w-0 break-words">{{ kindLine(row.account) }}</span>
+                  <span class="min-w-0" data-testid="spending-account-kind">
+                    <template v-for="(part, place) in kindParts(row.account)" :key="place">
+                      <template v-if="place > 0"> · </template>
+                      <span class="whitespace-nowrap">{{ part }}</span>
+                    </template>
+                  </span>
                   <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure shrink-0 text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
                 </span>
                 <span v-if="row.euro !== null && row.euro.caption !== ''" class="text-end text-xs text-muted">{{ row.euro.caption }}</span>

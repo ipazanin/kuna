@@ -393,6 +393,12 @@ describe('what the step says', () => {
     expect('line' in result && result.line).toContain(`Revolut has an account in USD that ${REVOLUT_USD.name} keeps once you update it with the bank's details.`)
   })
 
+  it('stays quiet about a linked account kept by hand, which the person chose', () => {
+    const byHand = { ...REVOLUT_USD, rowsFrom: 'by-hand' as const }
+    const book = { ...bookNow(), accounts: [...bookNow().accounts.filter((account) => account.id !== REVOLUT_USD.id), byHand] }
+    expect(bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: linked('usd', REVOLUT_USD.iban, 'USD') }] }, book, null, 0)).toMatchObject({ kind: 'done' })
+  })
+
   it('stays quiet about an account added since the fetch', () => {
     const added = { ...OTP, id: 'account:added', iban: 'HR0000000000000000077' } as typeof OTP
     const book = { ...bookNow(), accounts: [...bookNow().accounts, added] }

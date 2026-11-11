@@ -27,6 +27,7 @@ export const en = {
   noEntries: 'No entries on this account yet.',
   kinds: { bank: 'Bank account', cash: 'Cash', savings: 'Savings' },
   banks: { otp: 'OTP', revolut: 'Revolut', other: 'Other bank' },
+  rowsFrom: { 'bank-link': 'From the bank', 'by-hand': 'By hand' },
   /** The day an account drafted from a bank or its file starts on. */
   startDay: {
     label: 'Track from',
@@ -101,6 +102,7 @@ export const hr: Translation<typeof en> = {
   noEntries: 'Na ovom računu još nema unosa.',
   kinds: { bank: 'Bankovni račun', cash: 'Gotovina', savings: 'Štednja' },
   banks: { otp: 'OTP', revolut: 'Revolut', other: 'Druga banka' },
+  rowsFrom: { 'bank-link': 'Iz banke', 'by-hand': 'Ručno' },
   startDay: {
     label: 'Prati se od',
     help: 'Retci prije ovog dana ostaju izvan Kune.',

@@ -54,6 +54,20 @@ describe("the fake build's Spending sets", () => {
     }
   })
 
+  it('take the bank accounts from the bank and cash by hand, and keep the dollar account by hand in the by-hand, by-hand-savings and iban-blank variants', () => {
+    const rowsFrom = (bankSync: string | null) => bookOf(fakeSpendingDocument(SAVED_AT, 'cash', civil('2026-11-04'), bankSync)).accounts.map((account) => [account.name, account.rowsFrom])
+    expect(rowsFrom(null)).toEqual([
+      ['OTP current', 'bank-link'],
+      ['Revolut EUR', 'bank-link'],
+      ['Revolut USD', 'bank-link'],
+      ['Cash', 'by-hand'],
+      ['Dollars at home', 'by-hand'],
+      ['Travel wallet', 'by-hand'],
+      ['Revolut GBP', 'bank-link'],
+    ])
+    for (const variant of ['by-hand', 'by-hand-savings', 'iban-blank']) expect(rowsFrom(variant)).toContainEqual(['Revolut USD', 'by-hand'])
+  })
+
   it("carry Food's limit as the worked example does, −€30.00 into the day's month, in the sample", () => {
     const day = civil('2026-11-04')
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'sample', day))

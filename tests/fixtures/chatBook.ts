@@ -27,6 +27,7 @@ const ACCOUNT: Account = {
   currency: currencyCodeOf('EUR')!,
   opening: accountMoneyFromAmount(1000),
   openedOn: on('2026-01-01'),
+  rowsFrom: 'bank-link',
   iban: 'HR6523400091110000001',
   closed: false,
 }

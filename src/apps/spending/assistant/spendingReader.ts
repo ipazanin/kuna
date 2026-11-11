@@ -72,6 +72,7 @@ interface BankAccountLine {
   readonly takesBank: string | null
   readonly takesIban: string | null
   readonly takesKind: string | null
+  readonly takesRowsFrom: string | null
   readonly bankBalance: AccountMoney | null
   readonly fixedOpening: AccountMoney | null
 }
@@ -91,6 +92,7 @@ const ACCOUNT_FIELDS: FieldDocs<Account> = {
   opening: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'What it held at the start of openedOn.' },
   openedOn: { exposure: 'plain', meaning: 'The day its figures start.' },
   iban: { exposure: 'identifier', meaning: "The account's own IBAN." },
+  rowsFrom: { exposure: 'plain', meaning: 'bank-link when the bank sync brings its rows, or by-hand when typing, the chat and files do. Cash is always by-hand.' },
   closed: { exposure: 'plain', meaning: 'Closed by the owner.' },
 }
 
@@ -252,6 +254,7 @@ const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
   takesBank: { exposure: 'plain', meaning: 'The bank update gives the account, when it differs.' },
   takesIban: { exposure: 'identifier', meaning: 'The IBAN update gives the account, when it differs.' },
   takesKind: { exposure: 'plain', meaning: 'The kind update gives the account, when it differs.' },
+  takesRowsFrom: { exposure: 'plain', meaning: 'bank-link when update has the bank bring the rows of an account kept by hand. keep-mine keeps it by hand and stops the offer.' },
   bankBalance: { exposure: 'plain', amount: 'account', sign: 'either', meaning: "The bank's balance at the fetch, when it differs from Kuna's." },
   fixedOpening: {
     exposure: 'plain',
@@ -286,6 +289,7 @@ function bankAccountLines(setup: BankSetup, book: SpendingBook): readonly BankAc
       takesBank: differs('bank'),
       takesIban: differs('iban'),
       takesKind: differs('kind'),
+      takesRowsFrom: differs('rowsFrom'),
       bankBalance: difference?.stated ?? null,
       fixedOpening: difference?.fixedOpening ?? null,
     }

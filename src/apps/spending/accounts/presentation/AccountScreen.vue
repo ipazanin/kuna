@@ -50,7 +50,9 @@ const balanceCaption = computed(() => {
 const description = computed(() => {
   const shown = account.value
   if (shown === null) return ''
-  return [words.kinds[shown.kind], shown.bank === null ? '' : words.banks[shown.bank], shown.currency, shown.iban, shown.closed ? words.closed : ''].filter((part) => part !== '').join(' · ')
+  return [words.kinds[shown.kind], shown.bank === null ? '' : words.banks[shown.bank], shown.currency, shown.iban, words.rowsFrom[shown.rowsFrom], shown.closed ? words.closed : '']
+    .filter((part) => part !== '')
+    .join(' · ')
 })
 
 const trendFrom = computed(() => {

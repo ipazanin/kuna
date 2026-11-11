@@ -6866,8 +6866,9 @@ export function spendingBankSyncPendingFlowIn(language) {
 /**
  * On Settings, Bank sync, the setup list after a fetch: shoots it under `shot`, then when `tap` names a button, taps the
  * first, waits for the toast `done` names, shoots it under `shot` and `after` when that is given, and takes it back.
+ * `openKept` opens the card of accounts kept before that second shot and shoots it from its top.
  */
-export function spendingBankSyncSetupFlowIn(language, shot, { waitFor, tap = null, done = null, after = null }) {
+export function spendingBankSyncSetupFlowIn(language, shot, { waitFor, tap = null, done = null, after = null, openKept = false }) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
@@ -6883,6 +6884,12 @@ export function spendingBankSyncSetupFlowIn(language, shot, { waitFor, tap = nul
     await pressSelector(page, press, tap)
     await toast(page, done(words))
     if (after !== null) {
+      if (openKept) {
+        const kept = '[data-card="spending.bank-sync.kept"]'
+        if ((await page.$eval(kept, (card) => card.dataset.collapsed)) === 'true') await pressSelector(page, press, `${kept} .card-toggle`)
+        await page.waitForSelector(`${kept}[data-collapsed="false"] [data-testid="spending-bank-account-bring-back-mine"]`, { visible: true, timeout: 5_000 })
+        await page.$eval(kept, (card) => window.scrollTo({ top: card.getBoundingClientRect().top + window.scrollY - 140 }))
+      }
       await delay(300)
       await shoot(after)
     }

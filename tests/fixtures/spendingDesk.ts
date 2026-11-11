@@ -41,7 +41,19 @@ const on = (date: string) => parseCivilDate(date)!
 const EUR = currencyCodeOf('EUR')!
 
 function account(key: string, name: string, fields: Partial<Account> = {}): Account {
-  return { id: recordIdOf(ACCOUNT_RECORDS, key), name, kind: 'bank', bank: 'otp', currency: EUR, opening: accountMoneyFromAmount(1000), openedOn: on('2026-01-01'), iban: '', closed: false, ...fields }
+  return {
+    id: recordIdOf(ACCOUNT_RECORDS, key),
+    name,
+    kind: 'bank',
+    bank: 'otp',
+    currency: EUR,
+    opening: accountMoneyFromAmount(1000),
+    openedOn: on('2026-01-01'),
+    rowsFrom: 'by-hand',
+    iban: '',
+    closed: false,
+    ...fields,
+  }
 }
 
 function category(key: string, name: string, kind: Category['kind'], parent: Category | null, order: number): Category {

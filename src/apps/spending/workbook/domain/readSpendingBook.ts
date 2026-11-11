@@ -107,12 +107,14 @@ function doubted<R>(reading: Reading<R>, read: RecordsRead<R>, reasonOf: (record
   return { facts: reading.facts, problems: [...reading.problems, ...problems] }
 }
 
+/** Accounts count, but one that shares its IBAN and currency with another, or takes its rows from a bank link with no IBAN, is doubted. */
 function readAccounts(read: RecordsRead<Account>): Reading<Account> {
   const ibanOf = (account: Account): string | null => (account.iban === '' ? null : `${ibanKey(account.iban)} ${account.currency}`)
   return doubted(
     readEach(read, () => []),
     read,
     (account) => {
+      if (account.rowsFrom === 'bank-link' && account.iban === '') return words.bankLinkWithoutIban
       const key = ibanOf(account)
       const others = key === null ? [] : read.records.filter((stored) => stored.record !== account && ibanOf(stored.record) === key).map((stored) => stored.record.name.trim())
       return others.length === 0 ? null : words.ibanShared(listInWords(others), ibanKey(account.iban), account.currency)
@@ -252,7 +254,7 @@ function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, 
  * three fixed kinds is one category. An entry names an account that counts, on or after its start day, and a category that counts, and its other leg names it
  * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
  * same months. A rule names a category that counts, and one that spots a withdrawal files into Between my accounts and names a cash account or none. A receipt names an entry that counts, which no other receipt names, and no other receipt holds its JIR or ZKI. A part
- * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. The parts of an entry add up to its amount and count all or none. Two accounts with one IBAN and currency, and a second category of a fixed
+ * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. The parts of an entry add up to its amount and count all or none. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, and a second category of a fixed
  * kind, count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
  * `readHeld` refuses.
  */

@@ -68,8 +68,8 @@ function unreviewed(id: number, fields: RecordFields): RecordFields {
 describe('the Spending file', () => {
   it('writes every kind back field for field as it read it', () => {
     const kinds: [RecordKind<unknown>, RecordFields][] = [
-      [ACCOUNT_RECORDS, { ...ACCOUNTS[0]!, closed: true }],
-      [ACCOUNT_RECORDS, ACCOUNTS[3]!],
+      [ACCOUNT_RECORDS, { ...ACCOUNTS[0]!, rows_from: 'bank-link', closed: true }],
+      [ACCOUNT_RECORDS, { ...ACCOUNTS[3]!, rows_from: 'by-hand' }],
       [CATEGORY_RECORDS, { ...CATEGORIES[1]!, colour: '#d4e8ff', hidden: true }],
       [CATEGORY_RECORDS, CATEGORIES[5]!],
       [TRANSACTION_RECORDS, entry(101, { note: 'Weekly shop' })],
@@ -118,6 +118,57 @@ describe('the Spending file', () => {
 
     expect(book.problems).toEqual([])
     expect(book.accounts).toMatchObject([{ bank: null, currency: 'EUR', opening: euros(0), iban: '' }])
+  })
+})
+
+describe("where a Spending account's rows come from", () => {
+  it('reads an account that does not say by its IBAN: from the bank with one, by hand without, and cash always by hand', () => {
+    const book = bookOf({
+      account: [
+        ...ACCOUNTS,
+        { ...ACCOUNTS[0]!, id: uuid(5), name: 'Other bank', bank: 'other', iban: 'HR0000000000000000005' },
+        { id: uuid(6), name: 'No bank', kind: 'bank', currency: 'EUR', opened_on: '2026-09-01', iban: 'HR0000000000000000006' },
+        { ...ACCOUNTS[0]!, id: uuid(7), name: 'Typed without IBAN', iban: '' },
+      ],
+    })
+
+    expect(book.problems).toEqual([])
+    expect(book.accounts.map((account) => [account.name, account.rowsFrom])).toEqual([
+      ['OTP current', 'bank-link'],
+      ['Revolut EUR', 'bank-link'],
+      ['Revolut USD', 'bank-link'],
+      ['Cash', 'by-hand'],
+      ['Other bank', 'bank-link'],
+      ['No bank', 'bank-link'],
+      ['Typed without IBAN', 'by-hand'],
+    ])
+  })
+
+  it('reads what an account says over what its IBAN would give', () => {
+    const book = bookOf({
+      account: [
+        { ...ACCOUNTS[0]!, rows_from: 'by-hand' },
+        { ...ACCOUNTS[1]!, rows_from: 'bank-link' },
+      ],
+    })
+
+    expect(book.accounts.map((account) => account.rowsFrom)).toEqual(['by-hand', 'bank-link'])
+  })
+
+  it('refuses a bank link on cash or a way it does not know, and doubts a bank link with no IBAN, which the sync cannot find', () => {
+    expect(
+      problemsOf({
+        account: [
+          { ...ACCOUNTS[3]!, rows_from: 'bank-link' },
+          { ...ACCOUNTS[0]!, id: uuid(5), name: 'By mail', rows_from: 'mail' },
+          { ...ACCOUNTS[0]!, id: uuid(6), name: 'Lost IBAN', iban: '', rows_from: 'bank-link' },
+        ],
+      }),
+    ).toEqual([
+      ['account', 'Cash', 'rows_from bank-link is for a bank or savings account, since cash comes in by hand'],
+      ['account', 'By mail', '"mail" is not a way its rows come in. Use bank-link, by-hand'],
+      ['account', 'Lost IBAN', 'takes its rows from a bank link but has no IBAN, so the bank sync cannot find it'],
+    ])
   })
 })
 
