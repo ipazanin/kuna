@@ -113,8 +113,11 @@ export const PAGE_INSET: Readonly<Record<PageInset, { readonly inline: number; r
   wide: { inline: 40, top: 36 },
 }
 
-/** The padding a page column `page` px wide takes: wide from 1,024 px, roomy from the page's least and the phone's below. */
-export function pageInsetOf(page: number): PageInset {
-  if (page >= 1024) return 'wide'
-  return page >= PAGE_LEAST_WIDTH ? 'roomy' : 'phone'
+/**
+ * The padding a page column `page` px wide takes: the phone's below the phone step, which the window decides, then wide
+ * from 1,024 px and roomy below. A classic scrollbar's gutter can leave a column under 640 px in a window past the step.
+ */
+export function pageInsetOf(page: number, phone: boolean): PageInset {
+  if (phone) return 'phone'
+  return page >= 1024 ? 'wide' : 'roomy'
 }

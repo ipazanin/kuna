@@ -135,12 +135,14 @@ describe('what the layout menu says under a choice', () => {
 
 describe('the page padding', () => {
   it.each([
-    [1024, 'wide'],
-    [1023, 'roomy'],
-    [640, 'roomy'],
-    [639, 'phone'],
-  ] as const)('pads a %i px page column as %s', (page, inset) => {
-    expect(pageInsetOf(page)).toBe(inset)
+    [1024, false, 'wide'],
+    [1023, false, 'roomy'],
+    [640, false, 'roomy'],
+    // A window past the phone step whose classic scrollbar keeps its gutter.
+    [625, false, 'roomy'],
+    [639, true, 'phone'],
+  ] as const)('pads a %i px page column, on a phone %s, as %s', (page, phone, inset) => {
+    expect(pageInsetOf(page, phone)).toBe(inset)
   })
 })
 

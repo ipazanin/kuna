@@ -48,11 +48,19 @@
   @apply text-base font-semibold text-highlighted tabular-nums;
 }
 
-/* The gutter stays whether or not the page scrolls, so the shell's columns never jump when a screen grows a scrollbar. */
 html {
   background: var(--surface-page);
   -webkit-text-size-adjust: 100%;
-  scrollbar-gutter: stable;
+}
+
+/*
+ * From the phone step a classic scrollbar's gutter stays whether or not the page scrolls, and while a dialog locks it, so
+ * the shell's columns never move under a person. A phone floats its scrollbar over the page.
+ */
+@media (min-width: 640px) {
+  html {
+    scrollbar-gutter: stable;
+  }
 }
 
 /* The shell sets the top bar's height as it lays out, 0 beside a sidebar. Until then a page's sticky bars sit under a top bar. */

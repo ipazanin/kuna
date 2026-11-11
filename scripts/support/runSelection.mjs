@@ -6,6 +6,7 @@
  *   --widths 360,1440      only these of the check's widths
  *   --shard 3/8            the third of eight shares of the visual check's screens and flows, so CI runs the shares side by side
  *   --every-theme          the dark and the light theme at every width, as a design review needs, not only at the widths that check both
+ *   --classic-scrollbars   scrollbars that take a 15 px gutter, as Linux and Windows draw them, in place of hidden ones
  */
 
 import { parseArgs } from 'node:util'
@@ -17,7 +18,7 @@ import { parseArgs } from 'node:util'
 export function runSelection(widths) {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { only: { type: 'string' }, widths: { type: 'string' }, shard: { type: 'string' }, 'every-theme': { type: 'boolean' } },
+    options: { only: { type: 'string' }, widths: { type: 'string' }, shard: { type: 'string' }, 'every-theme': { type: 'boolean' }, 'classic-scrollbars': { type: 'boolean' } },
   })
   const listOf = (text) =>
     (text ?? '')
@@ -41,6 +42,7 @@ export function runSelection(widths) {
     base: positionals[0] ?? 'http://localhost:4173/kuna/',
     limited: only !== null || chosenWidths !== null || shard !== null,
     sharded: shard !== null,
+    classicScrollbars: values['classic-scrollbars'] === true,
     /** Whether the run takes this width. */
     takesWidth: (width) => chosenWidths === null || chosenWidths.includes(width),
     /** Whether the run takes this theme at a width that checks only `pinned`, or both while `pinned` is undefined. */
@@ -75,6 +77,7 @@ export function runSelection(widths) {
         chosenWidths === null ? '' : `--widths ${chosenWidths.join(',')}`,
         shard === null ? '' : `--shard ${shard.join('/')}`,
         everyTheme ? '--every-theme' : '',
+        values['classic-scrollbars'] === true ? '--classic-scrollbars' : '',
       ]
         .filter((part) => part !== '')
         .join(' '),

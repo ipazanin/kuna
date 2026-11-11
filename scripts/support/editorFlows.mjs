@@ -105,6 +105,7 @@ import {
   sendInChat,
 } from './chatFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
+import { scrollbarGutter, shellRoom } from './shellFlows.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
@@ -9283,7 +9284,7 @@ export function chatPanelFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const send = (message) => sendInChat(page, press, message)
-    const wide = async () => layoutOf({ choice: 'expanded', windowWidth: await page.evaluate(() => document.documentElement.clientWidth), chat: CHAT_MIN_WIDTH }).chat.at === 'dock'
+    const wide = async () => layoutOf({ choice: 'expanded', windowWidth: await shellRoom(page), chat: CHAT_MIN_WIDTH }).chat.at === 'dock'
     const greeting = language === 'en' ? 'Hello' : 'Dobar dan'
     try {
       if (await page.$('[data-testid="chat-open"]')) throw new Error('the chat button shows with no key')
@@ -9414,7 +9415,7 @@ export function chatPanelFlowIn(language) {
         await inspect?.('the dock beside the screen a link opened')
         // The narrowest window that docks the chat beside the expanded sidebar leaves the page its least, 640 px.
         const narrowest = SIDEBAR_WIDTH.expanded + PAGE_LEAST_WIDTH + CHAT_MIN_WIDTH
-        await page.setViewport({ ...page.viewport(), width: narrowest })
+        await page.setViewport({ ...page.viewport(), width: narrowest + (await scrollbarGutter(page)) })
         await delay(300)
         await inspect?.('the dock at the narrowest width it docks')
         const drawn = await page.evaluate(() => ({ sidebar: document.querySelector('[data-testid="app-shell"]')?.dataset.sidebar, dock: document.querySelector('[data-testid="chat-dock"]') !== null }))

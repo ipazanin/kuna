@@ -92,7 +92,8 @@ const uiLocale = language === 'hr' ? hr : en_gb
 </script>
 
 <template>
-  <UApp :toaster="toaster" :locale="uiLocale">
+  <!-- A dialog locks the page without padding the body for its scrollbar, since the page keeps the scrollbar's gutter itself. -->
+  <UApp :toaster="toaster" :locale="uiLocale" :scroll-body="false">
     <RouterView v-if="bare" />
     <AppShell
       v-else-if="inFirstRun === null"

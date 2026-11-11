@@ -182,6 +182,8 @@
  * While working on one screen, `--only billing,owner` limits the run to the screens and flows with those names,
  * or names that start with them and a hyphen, and `--widths 360,1440` to those widths. A limited
  * run keeps the other screenshots and says it was limited. The full run without options is the check.
+ * `--classic-scrollbars` draws 15 px scrollbars from 640 px up, as Linux and Windows do, where a Mac floats them over the page,
+ * so a run here finds what a scrollbar's room changes. The docked widths then name the shell's width, without the scrollbar.
  * `--every-theme` shoots both themes at every width, for a design review, which looks at 360, 640, 1024 and 1440 px:
  *   npm run check:visual -- http://localhost:4173/kuna/ --every-theme --widths 360,640,1024,1440 --only chat-read
  *
@@ -262,7 +264,7 @@ import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
 import { formatAccountMoney, formatMoney, formatPercent, formatPercentChange } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
-import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
+import { chromeLaunch, CLASSIC_SCROLLBAR_WIDTH, drawClassicScrollbars } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { englishLeftOn } from './support/englishLeft.mjs'
 import { textOverlapsOn } from './support/textOverlap.mjs'
@@ -7888,7 +7890,7 @@ for (const stale of readdirSync(SCREENSHOT_DIR).filter((file) => flows.some((flo
   rmSync(join(SCREENSHOT_DIR, stale))
 }
 
-const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars', ENGLISH_CHROME_ARG] })
+const browser = await launch(chromeLaunch(selection.classicScrollbars))
 let checked = 0
 
 for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(candidate.width))) {
@@ -7899,6 +7901,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     const scope = `${viewport.name} ${visit.name}`
     const context = await browser.createBrowserContext()
     const page = await context.newPage()
+    if (selection.classicScrollbars) await drawClassicScrollbars(page)
     const errors = watchForErrors(page)
     const foreignRequests = watchForForeignRequests(page)
 
@@ -7921,7 +7924,9 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
         visit.expandedBefore ?? [],
       )
     }
-    await page.setViewport({ width: viewport.width, height: viewport.height })
+    // A docked viewport names the shell's width, so a classic scrollbar's gutter widens its window by as much.
+    const gutter = viewport.chatDocked && selection.classicScrollbars ? CLASSIC_SCROLLBAR_WIDTH : 0
+    await page.setViewport({ width: viewport.width + gutter, height: viewport.height })
     // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
     await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
@@ -8086,6 +8091,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
         const scope = `${viewport.name} ${mode.name} ${flow.name} ${theme}`
         const context = await browser.createBrowserContext()
         const page = await context.newPage()
+        if (selection.classicScrollbars) await drawClassicScrollbars(page)
         const errors = watchForErrors(page)
         const foreignRequests = watchForForeignRequests(page)
         await page.setViewport({ width: viewport.width, height: viewport.height })

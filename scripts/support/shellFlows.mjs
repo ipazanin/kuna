@@ -6,7 +6,7 @@
 
 import { en as appEnglish, hr as appCroatian } from '../../src/shared/app/words.ts'
 import { CHAT_MIN_WIDTH } from '../../src/shared/ai/presentation/chatDock.ts'
-import { PAGE_LEAST_WIDTH } from '../../src/shared/layout/viewport.ts'
+import { PAGE_LEAST_WIDTH, PHONE_BELOW } from '../../src/shared/layout/viewport.ts'
 import { layoutOf, roomEffectOf, SIDEBAR_WIDTH } from '../../src/shell/ui/sidebarLayout.ts'
 import { en as shellEnglish, hr as shellCroatian } from '../../src/shell/ui/words.ts'
 import { allowIfAsked, MADE_UP_ANTHROPIC_KEY, sendInChat } from './chatFlows.mjs'
@@ -23,7 +23,7 @@ function shellState(page) {
       return element === null ? null : Math.round(element.getBoundingClientRect().width)
     }
     return {
-      windowWidth: document.documentElement.clientWidth,
+      windowWidth: document.body.clientWidth,
       sidebar: document.querySelector('[data-testid="app-shell"]')?.dataset.sidebar ?? null,
       aside: width('aside[data-testid="sidebar"]'),
       dock: width('[data-testid="chat-dock"]'),
@@ -31,6 +31,16 @@ function shellState(page) {
       main: document.querySelector('main')?.offsetParent === null ? null : width('main'),
     }
   })
+}
+
+/** The width the shell is laid out in, as the app reads it: the body's, after a classic scrollbar's gutter. */
+export function shellRoom(page) {
+  return page.evaluate(() => document.body.clientWidth)
+}
+
+/** How much of the window a classic scrollbar's gutter takes from the shell, from the phone step up. Zero where scrollbars float. */
+export async function scrollbarGutter(page) {
+  return (await page.evaluate(() => window.innerWidth)) - (await shellRoom(page))
 }
 
 /** Fails unless the page draws what `layoutOf` says for this window, the stored choice and the chat at `chat` px, or closed. */
@@ -322,17 +332,18 @@ export function chatResizeFlow() {
 
       await page.setViewport({ ...before, width: 1440 })
       await delay(300)
-      // 1440 − 240 − 640 = 560 px is the room beside the expanded sidebar and a 640 px page.
+      // The room beside the expanded sidebar and a 640 px page: 1440 − 240 − 640 = 560 px where scrollbars float.
+      const room = (await shellRoom(page)) - SIDEBAR_WIDTH.expanded - PAGE_LEAST_WIDTH
       const narrow = await handleBox(page)
       await page.mouse.move(narrow.x, narrow.y)
       await page.mouse.down()
       await page.mouse.move(narrow.x - 300, narrow.y)
       await delay(150)
       const held = await readHandle(page)
-      if (held.sidebar !== 'expanded' || held.max !== 560) throw new Error(`a drag at 1440 px drew ${JSON.stringify(held)}: it should keep the expanded sidebar and stop at 560 px`)
+      if (held.sidebar !== 'expanded' || held.max !== room) throw new Error(`a drag at 1440 px drew ${JSON.stringify(held)}: it should keep the expanded sidebar and stop at ${room} px`)
       await page.mouse.up()
-      await expectWidth(page, 560, 'a drag at 1440 px')
-      await drawsAsDecided(page, 'expanded', 560)
+      await expectWidth(page, room, 'a drag at 1440 px')
+      await drawsAsDecided(page, 'expanded', room)
     } finally {
       await forgetChoices(page)
       await page.setViewport(before)
@@ -353,7 +364,7 @@ export function shellSqueezeFlow() {
   const DRAFT = 'And the limits?'
   const asked = CHAT_MIN_WIDTH
   const chosen = 'expanded'
-  // Each edge in px and the width just under it: the dock, the expanded sidebar and the phone.
+  // Each edge in px of the shell's width, and the width just under it: the dock, the expanded sidebar and the phone.
   const dockFrom = SIDEBAR_WIDTH.expanded + PAGE_LEAST_WIDTH + asked
   const sidebarFrom = SIDEBAR_WIDTH.expanded + PAGE_LEAST_WIDTH
   const edges = [dockFrom, dockFrom - 1, sidebarFrom, sidebarFrom - 1, PAGE_LEAST_WIDTH, PAGE_LEAST_WIDTH - 1]
@@ -373,8 +384,10 @@ export function shellSqueezeFlow() {
       const conversation = () => page.$$eval('[data-testid="chat-question"], [data-testid="chat-answer"]', (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
       const said = await conversation()
       await (await page.waitForSelector('textarea[data-testid="chat-prompt"]')).type(DRAFT)
+      // A window past the phone step keeps a classic scrollbar's gutter, so it is that much wider than the shell it lays out.
+      const gutter = await scrollbarGutter(page)
       for (const width of widths) {
-        await page.setViewport({ ...before, width })
+        await page.setViewport({ ...before, width: width + gutter >= PHONE_BELOW ? width + gutter : width })
         // The browser tells the page of a resize with its next frame.
         const marked = await page
           .waitForFunction(() => document.documentElement.classList.contains('shell-resizing'), { timeout: 1_000, polling: 'raf' })
@@ -388,7 +401,8 @@ export function shellSqueezeFlow() {
         if (!marked || eases) throw new Error(`a live resize to ${width} px ${marked ? 'eased the columns' : 'left the shell unmarked'}`)
         await delay(300)
         const drawn = await drawsAsDecided(page, chosen, asked)
-        if (drawn.windowWidth === dockFrom || drawn.windowWidth === dockFrom - 1) await shoot(`shell-squeeze-${width}`)
+        if (drawn.windowWidth !== width) throw new Error(`a ${width} px shell was laid out in ${drawn.windowWidth} px`)
+        if (width === dockFrom || width === dockFrom - 1) await shoot(`shell-squeeze-${width}`)
         const draft = await page.$eval('textarea[data-testid="chat-prompt"]', (prompt) => prompt.value).catch(() => null)
         if (draft !== DRAFT) throw new Error(`at ${width} px the draft reads ${JSON.stringify(draft)}, not ${JSON.stringify(DRAFT)}`)
         const now = await conversation()

@@ -67,7 +67,7 @@ const short = useMediaQuery(`(max-height: ${FOOTER_FOLDS_BELOW_HEIGHT - 1}px)`)
 /** The footer as the icon sidebar's logo button, beside Sync on a short window. */
 const footerFolded = computed(() => !rail.value && short.value)
 
-const inset = computed(() => pageInsetOf(layout.value.page))
+const inset = computed(() => pageInsetOf(layout.value.page, phone.value))
 const padding = computed(() => (inset.value === 'phone' ? undefined : { paddingInline: `${PAGE_INSET[inset.value].inline}px`, paddingTop: `${PAGE_INSET[inset.value].top}px` }))
 watchEffect(() => givePageRoom(layout.value.page - 2 * PAGE_INSET[inset.value].inline))
 

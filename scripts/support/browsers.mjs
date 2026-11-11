@@ -30,6 +30,35 @@ export function chromePath() {
   return process.env.CHROME_PATH ?? found(CHROME_CANDIDATES, 'Set CHROME_PATH to your Chrome, Chromium or Edge executable and re-run.')
 }
 
+/**
+ * Chrome's launch for a check: scrollbars hidden, as a phone floats them over the page, or with `classic` kept, so a page
+ * given `drawClassicScrollbars` lays out around a gutter as on Linux and Windows. Puppeteer hides them unless told not to.
+ */
+export function chromeLaunch(classic) {
+  return classic
+    ? { executablePath: chromePath(), headless: true, args: [ENGLISH_CHROME_ARG], ignoreDefaultArgs: ['--hide-scrollbars'] }
+    : { executablePath: chromePath(), headless: true, args: ['--hide-scrollbars', ENGLISH_CHROME_ARG] }
+}
+
+/** How wide a classic scrollbar is on Linux and Windows, in px. */
+export const CLASSIC_SCROLLBAR_WIDTH = 15
+
+/**
+ * Gives every document the page opens a classic scrollbar from the phone step up, which a Mac otherwise floats over the
+ * page and so never shows a gutter. A phone floats its scrollbar, so below the step it stays as it is. Chrome drops a
+ * styled scrollbar's stable gutter where the page does not scroll or a dialog locks it, which it keeps for a native one,
+ * so the page always scrolls here.
+ */
+export async function drawClassicScrollbars(page) {
+  await page.evaluateOnNewDocument((width) => {
+    document.addEventListener('DOMContentLoaded', () => {
+      const style = document.createElement('style')
+      style.textContent = `@media (min-width: 640px) { html { overflow-y: scroll } ::-webkit-scrollbar { width: ${width}px; height: ${width}px } ::-webkit-scrollbar-thumb { background: #888 } }`
+      document.head.append(style)
+    })
+  }, CLASSIC_SCROLLBAR_WIDTH)
+}
+
 /** Firefox, from FIREFOX_PATH or a well-known location. Exits when none is found. */
 export function firefoxPath() {
   return process.env.FIREFOX_PATH ?? found(FIREFOX_CANDIDATES, 'Set FIREFOX_PATH to your Firefox executable and re-run.')

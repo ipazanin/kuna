@@ -21,19 +21,22 @@ export function useMediaQuery(query: string): Readonly<Ref<boolean>> {
   return readonly(matches)
 }
 
-/** The width the window lays a page out in, without a classic scrollbar's gutter. */
+/**
+ * The width the shell is laid out in: the body's, after the gutter a classic scrollbar keeps. The viewport's own width can
+ * count a scrollbar that is hidden but still keeps its gutter, so it is not read here.
+ */
 export function windowWidthNow(): number {
-  return document.documentElement.clientWidth
+  return document.body.clientWidth
 }
 
-/** The window's width in px as `windowWidthNow` reads it, kept current until the calling component or scope goes away. */
+/** The width `windowWidthNow` reads, kept current as the window or a classic scrollbar changes it, until the calling component or scope goes away. */
 export function useWindowWidth(): Readonly<Ref<number>> {
   const width = ref(windowWidthNow())
-  const follow = (): void => {
+  const observer = new ResizeObserver(() => {
     width.value = windowWidthNow()
-  }
-  window.addEventListener('resize', follow)
-  onScopeDispose(() => window.removeEventListener('resize', follow))
+  })
+  observer.observe(document.body)
+  onScopeDispose(() => observer.disconnect())
   return readonly(width)
 }
 

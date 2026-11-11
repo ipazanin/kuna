@@ -94,7 +94,7 @@ import { en as overviewEnglish, hr as overviewCroatian } from '../src/apps/compa
 import { en as transactionsEnglish, hr as transactionsCroatian } from '../src/apps/company/transactions/presentation/words.ts'
 import { en as invoicingEnglish, hr as invoicingCroatian } from '../src/apps/company/invoicing/presentation/words.ts'
 import { en as writesEnglish, hr as writesCroatian } from '../src/shared/storage/presentation/words.ts'
-import { chromePath, ENGLISH_CHROME_ARG } from './support/browsers.mjs'
+import { chromeLaunch, drawClassicScrollbars } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
@@ -353,7 +353,7 @@ const CHAT_ATTACHMENT_SAMPLES = await writeChatAttachmentSamples(OUTPUT_DIR)
 
 const failures = []
 let checked = 0
-const browser = await launch({ executablePath: chromePath(), headless: true, args: ['--hide-scrollbars', ENGLISH_CHROME_ARG] })
+const browser = await launch(chromeLaunch(selection.classicScrollbars))
 
 try {
   for (const width of WIDTHS.filter(selection.takesWidth)) {
@@ -376,6 +376,7 @@ console.log(selection.limited ? `\nevery step of this limited run clean (${selec
 async function checkWidth(width) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
+  if (selection.classicScrollbars) await drawClassicScrollbars(page)
   const errors = []
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text())
@@ -1798,6 +1799,7 @@ async function checkWidth(width) {
 
   await step('write-leaving-warns', async () => {
     const leaving = await context.newPage()
+    if (selection.classicScrollbars) await drawClassicScrollbars(leaving)
     await leaving.setViewport({ width, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
     const dialogs = []
     leaving.on('dialog', async (dialog) => {
