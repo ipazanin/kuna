@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -9,6 +9,8 @@ import { words } from './words'
 import { accountBalance } from '../domain/accountBalance'
 import EntryDialog from '../../entries/presentation/EntryDialog.vue'
 import EntryList from '../../entries/presentation/EntryList.vue'
+import ReceiptPhotoPicker from '../../receipts/presentation/ReceiptPhotoPicker.vue'
+import { useReceiptRows } from '../../receipts/presentation/useReceiptRows'
 import { accountNamed, SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { accountOnDay, euroRows } from '../../rates/domain/euroRows'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
@@ -26,8 +28,9 @@ import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import SparkLine from '../../../../shared/ui/SparkLine.vue'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
+import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
 
-/** One account: what it holds today, in euros too for a foreign one, its balance over the last 90 days, and its entries newest first, each opening the entry dialog. */
+/** One account: what it holds today, in euros too for a foreign one, its balance over the last 90 days, and its entries newest first, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat. */
 const { state } = useSpendingBooks()
 const rates = useRates()
 const route = useRoute()
@@ -80,6 +83,9 @@ const editing = ref(false)
 const entryOpen = ref(false)
 const entry = ref<Transaction | null>(null)
 
+const takesReceipt = useReceiptRows()
+const receiptPicker = useTemplateRef('receiptPicker')
+
 function openEntry(picked: Transaction): void {
   entry.value = picked
   entryOpen.value = true
@@ -112,12 +118,21 @@ function openEntry(picked: Transaction): void {
       <AppCard :title="words.entries" :subtitle="words.entriesSubtitle" data-testid="spending-account-entries">
         <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5">{{ words.noEntries }}</p>
         <template v-else>
-          <EntryList :rows="listed" :categories="state.workbook?.categories ?? []" :show-account="false" heading="h3" @open="openEntry" />
+          <EntryList
+            :rows="listed"
+            :categories="state.workbook?.categories ?? []"
+            :show-account="false"
+            heading="h3"
+            :takes-receipt="takesReceipt"
+            @open="openEntry"
+            @receipt="receiptPicker?.take($event)"
+          />
           <ShowAllButton v-if="rows.length > FIRST_SHOWN" v-model:expanded="expanded" :total="rows.length" class="px-4 pb-4 sm:px-5" />
         </template>
       </AppCard>
       <AccountDialog v-model:open="editing" :account="account" />
       <EntryDialog v-model:open="entryOpen" :entry="entry" />
+      <ReceiptPhotoPicker v-if="assistKeyKept" ref="receiptPicker" />
     </template>
     <ScreenSkeleton v-else-if="state.workbook === null && state.status !== 'error'" />
     <template v-else-if="state.workbook !== null">

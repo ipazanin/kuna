@@ -8,7 +8,7 @@ import type { Translation } from '../../../../shared/text/translation'
 
 export const en = {
   add: 'Add an entry',
-  receipt: { typeIn: 'Type it in', readInChat: 'Read the photo in the chat', readTask: 'Read the attached receipt and add it to its payment.' },
+  receipt: { typeIn: 'Type it in', readInChat: 'Read the photo in the chat' },
   noEntries: 'No entries yet',
   noEntriesDescription: 'Import a Revolut export on Import, or add what went out of an account or came in. It shows here by day.',
   needsAccount: 'Add an account first, then what goes out of it and comes in.',
@@ -96,7 +96,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   add: 'Dodaj unos',
-  receipt: { typeIn: 'Upiši ga ručno', readInChat: 'Pročitaj račun u razgovoru', readTask: 'Pročitaj priloženi račun i pridruži ga plaćanju.' },
+  receipt: { typeIn: 'Upiši ga ručno', readInChat: 'Pročitaj račun u razgovoru' },
   noEntries: 'Još nema unosa',
   noEntriesDescription: 'Uvezite izvoz iz Revoluta u Uvozu ili dodajte što je otišlo s računa ili stiglo na njega. Prikazat će se ovdje po danima.',
   needsAccount: 'Najprije dodajte račun, a zatim što s njega odlazi i na njega stiže.',

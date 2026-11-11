@@ -26,6 +26,7 @@ import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
+import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -38,6 +39,13 @@ import { EURO } from '../../../../shared/money/currencyCode'
 /** The rows waiting for a category, the withdrawals waiting for their cash leg, the transfers the pairing made and the lone legs waiting for their other side. */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
+
+defineProps<{
+  /** Whether a waiting row shows the camera for its receipt. */
+  takesReceipt: (entry: Transaction) => boolean
+}>()
+
+const emit = defineEmits<{ receipt: [entry: AskedElement] }>()
 
 const book = computed(() => store.state.workbook)
 const held = useHeldRows()
@@ -125,10 +133,12 @@ async function undoPair(legs: TransferPair): Promise<void> {
           :waiting="waiting"
           :categories="categories"
           :accounts="accounts"
+          :takes-receipt="takesReceipt(waiting.row)"
           :rule-category="waiting.maybeTyped === null ? null : (categories.find((category) => category.id === ruleSays?.(waiting.row)) ?? null)"
           @file="file(waiting.row, $event)"
           @join="join(waiting)"
           @pair="pair(waiting)"
+          @receipt="emit('receipt', $event)"
         />
       </ul>
       <div v-if="queue.waiting.length > FIRST_SHOWN" class="px-4 pb-3 sm:px-5">

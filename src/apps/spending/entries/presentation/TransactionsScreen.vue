@@ -17,6 +17,8 @@ import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as screenWords } from '../../screenWords'
 import ReceiptDialog from '../../receipts/presentation/ReceiptDialog.vue'
+import ReceiptPhotoPicker from '../../receipts/presentation/ReceiptPhotoPicker.vue'
+import { useReceiptRows } from '../../receipts/presentation/useReceiptRows'
 import { receiptAccounts } from '../../receipts/domain/receiptMatch'
 import { words as receiptWords } from '../../receipts/presentation/words'
 import { reviewCount } from '../../statements/domain/reviewQueue'
@@ -39,7 +41,7 @@ import MenuButton from '../../../../shared/ui/MenuButton.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
-/** The entries of a month by day, newest first, found by account and category, each opening the entry dialog, with the rows to review and the statement import on tabs of their own. The filters live in `?month=`, `?account=` and `?category=`. */
+/** The entries of a month by day, newest first, found by account and category, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat, with the rows to review and the statement import on tabs of their own. The filters live in `?month=`, `?account=` and `?category=`. */
 const { state } = useSpendingBooks()
 const rates = useRates()
 const route = useRoute()
@@ -126,7 +128,8 @@ const receiptOpen = ref(false)
 const dialogOpen = ref(false)
 const editing = ref<Transaction | null>(null)
 
-const receiptPicker = useTemplateRef<HTMLInputElement>('receiptPicker')
+const receiptPicker = useTemplateRef('receiptPicker')
+const takesReceipt = useReceiptRows()
 
 const receiptChoices = [
   { value: 'type', label: words.receipt.typeIn, icon: 'i-lucide-keyboard' },
@@ -135,17 +138,7 @@ const receiptChoices = [
 
 function addReceipt(way: (typeof receiptChoices)[number]['value']): void {
   if (way === 'type') receiptOpen.value = true
-  else receiptPicker.value?.click()
-}
-
-/** Starts a chat with the photo picked or taken, or joins one going on, and asks for it to be read once it is. The chat's code loads only then. */
-async function receiptToChat(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement
-  const files = [...(input.files ?? [])]
-  input.value = ''
-  if (files.length === 0) return
-  const { startChatWith } = await import('../../../../shared/ai/presentation/chatSession')
-  await startChatWith({ files, task: words.receipt.readTask }, 'page')
+  else receiptPicker.value?.take(null)
 }
 
 function openEntry(entry: Transaction | null): void {
@@ -160,7 +153,6 @@ function openEntry(entry: Transaction | null): void {
       <template v-if="canAdd" #actions>
         <template v-if="canAddReceipt && assistKeyKept">
           <MenuButton :label="receiptWords.add" icon="i-lucide-receipt" :choices="receiptChoices" data-testid="spending-add-receipt" @pick="addReceipt" />
-          <input ref="receiptPicker" type="file" accept="image/*" capture="environment" class="hidden" data-testid="spending-receipt-to-chat-input" @change="receiptToChat" />
         </template>
         <UButton v-else-if="canAddReceipt" :label="receiptWords.add" icon="i-lucide-receipt" color="neutral" variant="outline" data-testid="spending-add-receipt" @click="receiptOpen = true" />
         <UButton :label="words.add" icon="i-lucide-plus" data-testid="spending-add-entry" @click="openEntry(null)" />
@@ -197,11 +189,11 @@ function openEntry(entry: Transaction | null): void {
             />
           </div>
           <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="spending-transactions-none">{{ words.noMatch }}</p>
-          <EntryList v-else :rows="rows" :categories="categories" data-testid="spending-transactions-list" @open="openEntry" />
+          <EntryList v-else :rows="rows" :categories="categories" :takes-receipt="takesReceipt" data-testid="spending-transactions-list" @open="openEntry" @receipt="receiptPicker?.take($event)" />
         </AppCard>
       </template>
       <template #review>
-        <ReviewPanel />
+        <ReviewPanel :takes-receipt="takesReceipt" @receipt="receiptPicker?.take($event)" />
       </template>
       <template #import>
         <ImportPanel />
@@ -209,5 +201,6 @@ function openEntry(entry: Transaction | null): void {
     </PageTabs>
     <EntryDialog v-if="state.workbook !== null" v-model:open="dialogOpen" :entry="editing" />
     <ReceiptDialog v-if="state.workbook !== null" v-model:open="receiptOpen" />
+    <ReceiptPhotoPicker v-if="assistKeyKept" ref="receiptPicker" />
   </section>
 </template>

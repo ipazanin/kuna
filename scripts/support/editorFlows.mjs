@@ -10192,8 +10192,8 @@ export function chatStatementLookAlikeFlowIn(language, name) {
 
 /**
  * Spending's To review with a made-up key kept. `queue`: the card's header offers Suggest categories, which opens the chat about
- * To review with the card outlined and sends the request by itself. `row`: a waiting row's Ask the chat tags that row alone, named by its day
- * and account, never its payee, and sends nothing.
+ * To review with the card outlined and sends the request by itself. `row`: a waiting row shows a camera for its receipt and Ask the chat beside its category picker,
+ * neither naming its payee, with room left for the payee beside its amount, and Ask the chat tags that row alone, named by its day and account, and sends nothing.
  */
 export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
   const words = SCREEN_WORDS[language]
@@ -10227,6 +10227,14 @@ export function spendingReviewAskFlowIn(language, parts = ['queue', 'row']) {
       if (parts.includes('row')) {
         const row = await page.waitForSelector('[data-testid="spending-review-row"]', { visible: true, timeout: 10_000 })
         const payee = await row.$eval('.text-highlighted', (element) => element.textContent?.trim() ?? '')
+        const camera = await row.$eval('[data-testid="spending-review-row-receipt"]', (button) => button.getAttribute('aria-label') ?? '').catch(() => null)
+        if (camera === null) throw new Error('a waiting payment shows no camera for its receipt')
+        if (payee !== '' && camera.includes(payee)) throw new Error(`the receipt camera names the row by its payee ${payee}`)
+        const narrowest = await page.$$eval('[data-testid="spending-review-row"] .text-highlighted', (names) => Math.min(...names.map((name) => name.getBoundingClientRect().width)))
+        if (narrowest < 120) throw new Error(`a waiting row leaves its payee ${Math.round(narrowest)} px beside its amount`)
+        await delay(300)
+        await inspect?.('To review with a camera and Ask the chat on each waiting row')
+        await shoot('spending-review-camera')
         await press(await row.$('[data-testid="spending-review-row-ask"]'))
         await page.waitForSelector('[data-testid="spending-review-row"][data-chat-tagged="row"]', { timeout: 10_000 }).catch(() => {
           throw new Error('the row asked about takes no highlight')
@@ -10326,7 +10334,7 @@ export function chatReceiptFlowIn(language, photos, { accept = false, joins = fa
   const words = ASSIST_WORDS[language]
   const request = language === 'en' ? 'Read the receipt' : 'Pročitaj fiskalni račun'
   const earlier = language === 'en' ? 'How much did I spend this month?' : 'Koliko sam potrošio ovaj mjesec?'
-  const task = SCREEN_WORDS[language].spendingEntries.receipt.readTask
+  const task = SCREEN_WORDS[language].spendingReceipts.readTask
   const petFood = language === 'en' ? 'Pet food' : 'Hrana za ljubimce'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
@@ -10460,6 +10468,66 @@ async function receiptCardFor(page, press, photo, request, cards, failure) {
   await delay(300)
   await acceptLooksReady(page)
   return card
+}
+
+/**
+ * On the receipts set's Entries with a made-up key kept: the camera on the Harbour bistro payment of €33.00, named by its day and
+ * account and not its payee, and none on the Corner market payment a receipt split already, opens the rear camera's file picker. The €17.00 photo starts a new chat tagged with that row, which
+ * takes the highlight, and once the photo is read the chat sends the receipt's task for the person. The card puts the receipt
+ * on that row, warning that the amount differs, and Accept leaves its two lines and a Difference line until Undo takes them back.
+ */
+export function chatReceiptRowFlowIn(language, photos) {
+  const words = ASSIST_WORDS[language]
+  const photoWords = SCREEN_WORDS[language].spendingReceipts
+  const receiptWords = (language === 'en' ? spendingAssistantEnglish : spendingAssistantCroatian).receipts
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const bistro = '[data-testid="spending-row"][data-amount="-3300"]'
+    try {
+      await keepAiKey(page)
+      await page.waitForSelector(bistro, { visible: true, timeout: 10_000 })
+      const camera = await page.evaluateHandle((selector) => document.querySelector(selector)?.closest('li')?.querySelector('[data-testid="spending-row-receipt"]') ?? null, bistro)
+      if ((await camera.evaluate((button) => button === null)) === true) throw new Error('the Harbour bistro payment shows no camera for its receipt')
+      const label = await camera.evaluate((button) => button.getAttribute('aria-label') ?? '')
+      if (!label.startsWith(photoWords.addPhoto(''))) throw new Error(`the receipt camera reads "${label}"`)
+      if (label.includes('Harbour bistro') || /\d+[.,]\d{2}/.test(label)) throw new Error(`the receipt camera names the payment by its payee or amount: "${label}"`)
+      const splitAlready = await page.$eval('[data-testid="spending-row"][data-amount="-6120"]', (row) => row.closest('li')?.querySelector('[data-testid="spending-row-receipt"]') !== null)
+      if (splitAlready) throw new Error('the Corner market payment a receipt split already shows a camera')
+      await delay(300)
+      await inspect?.('Entries with a camera on each payment that can take a receipt')
+      await shoot('spending-entries-camera')
+
+      const [chooser] = await Promise.all([page.waitForFileChooser({ timeout: 10_000 }), press(camera)])
+      await chooser.accept([photos.noMatch])
+      await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
+      const tag = await page.$eval('[data-testid="chat-tag"]', (chip) => chip.textContent ?? '').catch(() => null)
+      if (tag === null) throw new Error("the chat from a row's camera shows no chip for the row")
+      if (tag.includes('Harbour bistro')) throw new Error('the chip names the row by its payee')
+      await page
+        .waitForFunction((selector) => document.querySelector(selector)?.closest('li')?.dataset.chatTagged === 'row', { timeout: 10_000 }, bistro)
+        .catch(() => {
+          throw new Error('the row photographed for takes no highlight')
+        })
+      await allowIfAsked(page, press)
+      if (!(await chatShowsQuestion(page, photoWords.readTask))) throw new Error('the chat did not send the receipt task once the photo was read')
+      const card = await newestCard(page, 1, 'the chat proposed no receipt on the row photographed for')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      const notes = await card.$$eval('[data-testid="chat-proposal-note"]', (shown) => shown.map((note) => note.textContent ?? '').join(' '))
+      const differs = receiptWords.otherAmount('', '').split(',').at(-1).trim()
+      if (!notes.includes(differs)) throw new Error(`the receipt card does not warn that the amount differs, and notes "${notes}"`)
+      await delay(300)
+      await acceptLooksReady(page)
+      await inspect?.("the chat started from a row's camera, with the receipt on that row")
+      await shoot('chat-receipt-row')
+      await acceptCard(press, page, card)
+      await rowLinesAre(page, 'Harbour bistro', -3300, 3)
+      await undoCard(press, page, card, words)
+      await rowLinesAre(page, 'Harbour bistro', -3300, 0)
+    } finally {
+      await newChat(page, press)
+      await forgetAssist(page)
+    }
+  }
 }
 
 /**

@@ -35,7 +35,7 @@ export const ADD_RECEIPT: AssistantOperation = {
     'Adds a fiscal receipt from a photo attached to the chat, as Entries, Add a receipt does, splitting the payment into its lines. Read the photo with read_attachment first and copy what is printed. Never guess hidden or cut-off text: use null, and name the part in unreadable.',
     'Kuna reads the QR code and the place the photo was taken from the photo itself, and their date and total win over yours.',
     'paid says how the receipt was paid: "cash" for GOTOVINA or NOVČANICE, "card" for KARTICA or a card\'s name. When the receipt says neither, ask the person.',
-    "entry is the payment it splits: the one match_records with kind receipt finds ready, or the one the person picks when it finds several. Any entry that can take a receipt goes, even days or cents away, and the card warns on the difference, which a Difference line makes up. Cash goes only on an entry on a cash account, and a card never on one. An entry split by hand loses those parts to the receipt's lines.",
+    "entry is the payment it splits: the entry tagged, as a row's camera tags the one the receipt was taken for, else the one match_records with kind receipt finds ready, or the one the person picks when it finds several. Any entry that can take a receipt goes, even days or cents away, and the card warns on the difference, which a Difference line makes up. Cash goes only on an entry on a cash account, and a card never on one. An entry split by hand loses those parts to the receipt's lines.",
     "With entry null a new entry is made, which goes only when no payment paid that way may be this receipt. For cash, account is null and Kuna takes the one cash account in euros. With several, ask which and name it in account. With none, ask how much cash the person had before paying, and put add-account for a cash account in euros first on the same card, with that opening and openedOn the receipt's day. For a card, account names the euro account the card is on.",
     'Amounts are euros above zero, a discount below zero. Each line gets a category ref Kuna handed out, a spending category with no categories under it.',
     'A line whose category does not exist yet waits: propose that category on a card of its own first, and this receipt on the next card once it is accepted.',
@@ -230,7 +230,7 @@ function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, rec
     if (field['account'] !== null) throw new StepRefused('A receipt splits the entry named, or with entry null makes a new entry, not both.')
     const entry = idOf(field['entry'])
     const row = splittableRows(book).find((candidate) => candidate.id === entry)
-    if (row === undefined) throw new StepRefused('That entry cannot take a receipt: it is not on a euro account, a receipt split it already, or it moves money between your accounts.')
+    if (row === undefined) throw new StepRefused('That entry cannot take a receipt: it is not a payment out of a euro account, a receipt split it already, or it moves money between your accounts.')
     if (!paidOn(paid, found(book.accounts, row.account, 'account')))
       throw new StepRefused(
         paid === 'cash'

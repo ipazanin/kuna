@@ -44,6 +44,8 @@ const ANSWERS = {
     wasItCash: 'No payment in Spending matches this receipt. Did you pay in cash?',
     pickedTitle: 'The receipt on Harbour bistro',
     pickedProposed: 'The card below puts the receipt on the Harbour bistro payment you picked. Check what the card says differs before you accept.',
+    taggedTitle: 'The receipt on the entry you took it for',
+    taggedProposed: 'The card below puts the receipt on the entry you took the photo for. Check what the card says differs before you accept.',
     cashTitle: 'A cash receipt',
     cashProposed: 'The card below makes the cash payment with the lines I read. Nothing changes until you accept it.',
     howMuchCash: 'You keep no cash account in euros yet. How much cash did you have before you paid?',
@@ -100,6 +102,8 @@ const ANSWERS = {
     wasItCash: 'Nijedno plaćanje u Potrošnji ne odgovara ovom računu. Jeste li platili gotovinom?',
     pickedTitle: 'Fiskalni račun na plaćanju Harbour bistro',
     pickedProposed: 'Kartica ispod stavlja fiskalni račun na plaćanje Harbour bistro koje ste odabrali. Prije nego što prihvatite, provjerite što kartica kaže da se razlikuje.',
+    taggedTitle: 'Fiskalni račun na unosu za koji ste ga snimili',
+    taggedProposed: 'Kartica ispod stavlja fiskalni račun na unos za koji ste ga snimili. Prije nego što prihvatite, provjerite što kartica kaže da se razlikuje.',
     cashTitle: 'Fiskalni račun plaćen gotovinom',
     cashProposed: 'Kartica ispod upisuje plaćanje gotovinom sa stavkama koje sam pročitao. Ništa se ne mijenja dok je ne prihvatite.',
     howMuchCash: 'Još nemate račun gotovine u eurima. Koliko ste gotovine imali prije plaćanja?',
@@ -277,6 +281,12 @@ function lastPhotoId(request: FakeChatTurn['request']): string | null {
   return [...said.matchAll(/\b(a\d+) \(photo\)/g)].at(-1)?.[1] ?? null
 }
 
+/** The ref of the entry the chat is tagged with, as a row's camera tags it, or null for none. */
+function taggedEntry(request: FakeChatTurn['request']): string | null {
+  const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : [])).join('\n')
+  return [...said.matchAll(/Tagged element: the transaction (\S+) of spending\b/g)].at(-1)?.[1] ?? null
+}
+
 interface FoundRecord {
   readonly ref: string
   readonly name?: string
@@ -307,14 +317,17 @@ function receiptMatchedIn(text: string): ReceiptMatched {
 }
 
 /**
- * Reads the attached photo as the sample €23.49 receipt of the day and asks Kuna which payments it may be, which Kuna answers
+ * With an entry tagged, the receipt goes on it. Otherwise reads the attached photo as the sample €23.49 receipt of the day and asks Kuna which payments it may be, which Kuna answers
  * from the photo's own QR code. With several it asks which one, and with none whether it was paid in cash. With one ready it
  * looks Pet food up by name. That has no category yet, so the first time it proposes that category alone, and once it is
  * there it proposes the receipt that splits the payment.
  */
-function receiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+function receiptReply(turn: FakeChatTurn, says: Says): ModelReply {
+  const { request, tokens } = turn
   const photo = lastPhotoId(request)
   if (photo === null) return answered(request, says.noPhoto, tokens)
+  const tagged = taggedEntry(request)
+  if (tagged !== null) return taggedReceiptReply(turn, says, photo, tagged)
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
   if (answers.length === 1) {
@@ -407,6 +420,19 @@ function pickedReceiptReply({ request, tokens }: FakeChatTurn, says: Says): Mode
     return lookup(2, 'propose_changes', { app: 'spending', title: says.pickedTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }], next: false }, tokens)
   }
   return answered(request, says.pickedProposed, tokens)
+}
+
+/** Reads the attached photo as the sample €17.00 receipt and puts it on the entry the chat is tagged with, under Groceries, so the card warns on what differs. */
+function taggedReceiptReply({ request, tokens }: FakeChatTurn, says: Says, photo: string, entry: string): ModelReply {
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
+  if (answers.length === 2) {
+    const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
+    const input = receiptOf17(photo, 'card', groceries, { entry, account: null })
+    return lookup(2, 'propose_changes', { app: 'spending', title: says.taggedTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }], next: false }, tokens)
+  }
+  return answered(request, says.taggedProposed, tokens)
 }
 
 /** The amount of cash the person says they had, such as "I had €50" or "Imao sam 50,00 €", or null when the message names none. */
@@ -569,7 +595,7 @@ function biggestReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
 
 /**
  * Spending's part of the fake chat: Suggest categories proposes a new category and, at Go on, a rule into it, any other that starts with sort proposes a rule, one that starts with close proposes closing
- * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, one that asks to read the cash receipt, says yes to cash or says how much cash there was, proposes it as cash, one that asks to put the receipt on Harbour bistro proposes it on that payment, one that asks to add a cash purse proposes a second cash account, one that starts with split proposes splitting the latest spend or the Harbour bistro one, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
+ * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, on the entry tagged when one is, one that asks to read the cash receipt, says yes to cash or says how much cash there was, proposes it as cash, one that asks to put the receipt on Harbour bistro proposes it on that payment, one that asks to add a cash purse proposes a second cash account, one that starts with split proposes splitting the latest spend or the Harbour bistro one, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']

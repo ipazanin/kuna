@@ -4,39 +4,43 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { WaitingRow } from '../domain/reviewQueue'
-import { waitingRowAsked } from './reviewAsks'
 import { words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
+import { entryAsked } from '../../entries/presentation/entryAsked'
+import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
+import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
 
-/** One row waiting for a category: picking one files it, what the file offers for it sits underneath, and the chat can be asked about it. */
+/** One row waiting for a category: picking one files it, the chat can be asked about it or given its receipt beside the picker, and what the file offers for it sits underneath. */
 const props = defineProps<{
   waiting: WaitingRow
   categories: readonly Category[]
   accounts: readonly Account[]
   /** What a rule would file this row under, offered beside joining it with what you typed. */
   ruleCategory: Category | null
+  takesReceipt: boolean
 }>()
 
 const emit = defineEmits<{
   file: [category: Category]
   join: []
   pair: []
+  receipt: [entry: AskedElement]
 }>()
 
 const accountOf = (id: string): Account | undefined => props.accounts.find((account) => account.id === id)
 
 const account = computed(() => accountOf(props.waiting.row.account))
 const currency = computed(() => account.value?.currency ?? EURO)
-const asked = computed(() => waitingRowAsked(props.waiting.row, account.value))
+const asked = computed(() => entryAsked(props.waiting.row, account.value))
 const { ask, marked } = useChatElement(asked, 'row')
 
 const items = computed(() => entryCategoryChoices(props.categories, props.waiting.row.amount < 0 ? 'out' : 'in', null, true))
@@ -68,17 +72,20 @@ function picked(id: string | undefined): void {
         <span class="break-words type-caption">{{ [dayLabel(waiting.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ') }}</span>
       </span>
       <AccountMoneyText :cents="waiting.row.amount" :currency="currency" sign="always" tone="flow" class="shrink-0 text-sm" />
-      <AskChatButton :label="asked.label" icon-only class="shrink-0" data-testid="spending-review-row-ask" @ask="ask" />
     </div>
-    <USelectMenu
-      :items="items"
-      value-key="value"
-      :placeholder="words.review.pickCategory"
-      :aria-label="words.review.pickCategory"
-      class="w-full sm:w-72"
-      data-testid="spending-review-category"
-      @update:model-value="picked"
-    />
+    <div class="flex items-center gap-2">
+      <USelectMenu
+        :items="items"
+        value-key="value"
+        :placeholder="words.review.category"
+        :aria-label="words.review.pickCategory"
+        class="min-w-0 flex-1 sm:w-72 sm:flex-none"
+        data-testid="spending-review-category"
+        @update:model-value="picked"
+      />
+      <AskChatButton :label="asked.label" icon-only class="shrink-0" data-testid="spending-review-row-ask" @ask="ask" />
+      <ReceiptCameraButton :label="asked.label" :available="takesReceipt" testid="spending-review-row-receipt" class="shrink-0" @take="emit('receipt', asked)" />
+    </div>
     <div v-if="typedLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-typed">{{ typedLine }}</span>
       <UButton color="neutral" variant="outline" :label="words.review.join" data-testid="spending-review-join" @click="emit('join')" />

@@ -2,18 +2,18 @@
 import { computed } from 'vue'
 
 import { categoryColours } from '../../categories/presentation/categoryColours'
-import RowLines from '../../receipts/presentation/RowLines.vue'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
+import EntryRow from './EntryRow.vue'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
-import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 
-/** Entries by day in the order given, each a row that opens it: who was paid or paid you, its category with its colour, its account and its amount in the account's currency, with euros under a foreign one. */
+/** Entries by day in the order given, each a row that opens it, with a camera for its receipt: who was paid or paid you, its category with its colour, its account and its amount in the account's currency, with euros under a foreign one. */
 const props = withDefaults(
   defineProps<{
     /** Newest first. */
@@ -22,11 +22,13 @@ const props = withDefaults(
     /** False on an account's own page, where every row is on that account. */
     showAccount?: boolean
     heading?: 'h2' | 'h3'
+    /** Whether an entry offers to take a receipt photo. */
+    takesReceipt: (entry: Transaction) => boolean
   }>(),
   { showAccount: true, heading: 'h2' },
 )
 
-const emit = defineEmits<{ open: [entry: Transaction] }>()
+const emit = defineEmits<{ open: [entry: Transaction]; receipt: [entry: AskedElement] }>()
 
 const colours = computed(() => categoryColours(props.categories))
 const byId = computed(() => new Map(props.categories.map((category) => [category.id, category])))
@@ -65,26 +67,19 @@ const days = computed(() => {
     <section v-for="group in days" :key="group.day">
       <component :is="heading" class="group-row px-4 py-2.5 type-body sm:px-5" data-testid="spending-day">{{ dayLabel(group.day) }}</component>
       <ul>
-        <li v-for="line in group.lines" :key="line.row.transaction.id" class="border-t border-default first:border-t-0">
-          <button
-            type="button"
-            class="flex w-full items-center gap-3 px-4 py-2.5 text-start transition-colors hover:bg-elevated/40 sm:px-5"
-            data-testid="spending-row"
-            :data-amount="line.row.transaction.amount"
-            @click="emit('open', line.row.transaction)"
-          >
-            <span class="size-2.5 shrink-0 rounded-full" :style="{ background: line.colour }" aria-hidden="true" />
-            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span class="break-words text-sm text-highlighted">{{ line.title }}</span>
-              <span v-if="line.details !== ''" class="break-words type-caption">{{ line.details }}</span>
-              <RowLines v-if="line.row.lines.length > 0" :lines="line.row.lines" :categories="categories" :currency="line.row.account.currency" />
-            </span>
-            <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
-              <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" sign="always" tone="flow" />
-              <span v-if="line.euros !== ''" class="figure type-caption">{{ line.euros }}</span>
-            </span>
-          </button>
-        </li>
+        <EntryRow
+          v-for="line in group.lines"
+          :key="line.row.transaction.id"
+          :row="line.row"
+          :categories="categories"
+          :title="line.title"
+          :colour="line.colour"
+          :details="line.details"
+          :euros="line.euros"
+          :takes-receipt="takesReceipt(line.row.transaction)"
+          @open="emit('open', $event)"
+          @receipt="emit('receipt', $event)"
+        />
       </ul>
     </section>
   </div>

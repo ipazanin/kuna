@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { spendingAssistant } from '../src/apps/spending/assistant/spendingAssistant'
-import { REVIEW_ASKED, waitingRowAsked } from '../src/apps/spending/statements/presentation/reviewAsks'
+import { entryAsked } from '../src/apps/spending/entries/presentation/entryAsked'
+import { en as receiptWords, hr as receiptHr } from '../src/apps/spending/receipts/presentation/words'
+import { REVIEW_ASKED } from '../src/apps/spending/statements/presentation/reviewAsks'
 import { en, hr } from '../src/apps/spending/statements/presentation/words'
 import { chatElement, closeChat, removeChatElement, useChatElement } from '../src/shared/ai/presentation/chatDock'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
@@ -34,7 +36,7 @@ describe("asking the chat from Spending's To review", () => {
   })
 
   it('asks about a waiting row as its record, named by day and account, never by its payee or amount', () => {
-    const asked = waitingRowAsked(ROW, { name: 'Current' })
+    const asked = entryAsked(ROW, { name: 'Current' })
 
     expect(asked.about).toEqual({ kind: 'record', app: 'spending', recordKind: TRANSACTION_RECORDS.name, id: ROW.id })
     expect(asked.label).toContain('Current')
@@ -42,10 +44,16 @@ describe("asking the chat from Spending's To review", () => {
     expect(asked.label).not.toMatch(/42/)
   })
 
+  it("names a row's receipt camera by the row's day and account, in both languages", () => {
+    const { label } = entryAsked(ROW, { name: 'Current' })
+
+    expect([receiptWords.addPhoto(label), receiptHr.addPhoto(label)]).toEqual([`Add a receipt photo for this entry: ${label}`, `Dodaj fotografiju fiskalnog računa za ovaj unos: ${label}`])
+  })
+
   it('marks only the row asked about with the row shape, and the queue with the card shape', () => {
     const queue = useChatElement(REVIEW_ASKED, 'card')
-    const row = useChatElement(waitingRowAsked(ROW, { name: 'Current' }), 'row')
-    const other = useChatElement(waitingRowAsked({ ...ROW, id: recordIdOf(TRANSACTION_RECORDS, 'made-up-other') }, { name: 'Current' }), 'row')
+    const row = useChatElement(entryAsked(ROW, { name: 'Current' }), 'row')
+    const other = useChatElement(entryAsked({ ...ROW, id: recordIdOf(TRANSACTION_RECORDS, 'made-up-other') }, { name: 'Current' }), 'row')
 
     row.ask()
     expect([queue.marked.value, row.marked.value, other.marked.value]).toEqual([{}, { 'data-chat-tagged': 'row' }, {}])

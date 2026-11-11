@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatch'
+import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches, rowsTakingReceipt, splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
 import { RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
+import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil, euros } from './fixtures/ledger'
@@ -132,6 +134,37 @@ describe('which rows a receipt may split', () => {
     expect(matchesOf([parking], 'Pekara').kind).toBe('pick')
     expect(matchesOf([parking], 'Parking Zagreb').kind).toBe('ready')
     expect(matchesOf([parking]).kind).toBe('ready')
+  })
+})
+
+describe('the rows that can take a receipt', () => {
+  it('are payments out, never money in', () => {
+    const spend = row(OTP, '2026-11-04', -23.49, null)
+    const salary = row(OTP, '2026-11-04', 1200, 'Income/Salary')
+
+    expect(splittableRows({ accounts: ACCOUNTS, categories: CATEGORIES, transactions: [spend, salary], receipts: [] })).toEqual([spend])
+  })
+
+  it('leave out a payment To review asks about as maybe a transfer, until that is answered', () => {
+    const topUp = row(OTP, '2026-11-04', -60, null, { source: 'statement', payee: 'Card top-up' })
+    const toppedUp = row(REVOLUT_EUR, '2026-11-04', 60, null, { source: 'statement', payee: 'Top-up by card' })
+    const spend = row(OTP, '2026-11-04', -23.49, null, { source: 'statement', payee: 'Corner market' })
+    const book = (transactions: readonly Transaction[]): SpendingBook => ({
+      accounts: ACCOUNTS,
+      categories: CATEGORIES,
+      transactions,
+      budgets: [],
+      rules: [],
+      receipts: [],
+      lines: [],
+      held: [],
+      settings: spendingSettingsOf([]),
+      readings: {} as SpendingBook['readings'],
+      problems: [],
+    })
+
+    expect([...rowsTakingReceipt(book([topUp, toppedUp, spend]), ISSUED)]).toEqual([spend.id])
+    expect([...rowsTakingReceipt(book([topUp, spend]), ISSUED)]).toEqual([topUp.id, spend.id])
   })
 })
 

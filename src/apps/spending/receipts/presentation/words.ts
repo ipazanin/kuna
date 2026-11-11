@@ -8,6 +8,8 @@ import { en as workbookEn, hr as workbookHr } from '../../workbook/domain/words'
 
 export const en = {
   add: 'Add a receipt',
+  readTask: 'Read the attached receipt and add it to its payment.',
+  addPhoto: (entry: string) => `Add a receipt photo for this entry: ${entry}`,
   description: 'A fiscal receipt splits the payment it matches. The photo stays in this browser unless you keep it.',
   take: 'Take a photo',
   takeHelp: 'With the camera, on a phone',
@@ -64,6 +66,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   add: 'Dodaj fiskalni račun',
+  readTask: 'Pročitaj priloženi račun i pridruži ga plaćanju.',
+  addPhoto: (entry) => `Dodaj fotografiju fiskalnog računa za ovaj unos: ${entry}`,
   description: 'Fiskalni račun dijeli plaćanje kojem odgovara. Fotografija ostaje u ovom pregledniku ako je ne spremite.',
   take: 'Fotografiraj',
   takeHelp: 'Kamerom, na mobitelu',

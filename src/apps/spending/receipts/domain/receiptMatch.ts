@@ -1,9 +1,11 @@
 import { inWindow, isNear } from '../../pairing/domain/sameMoney'
+import { reviewQueue } from '../../statements/domain/reviewQueue'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { accountMoneyOfEuros, addAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -71,9 +73,9 @@ export function heldReceiptOf(codes: Pick<Receipt, 'jir' | 'zki'>, receipts: rea
 }
 
 /**
- * The rows a receipt may split, which only a row on a euro account can, since a fiscal total is in euros and a row on
- * another account is not the same money at the same number. No row a receipt split already and no row that moves money
- * between your accounts. A row split by hand may take one, and the receipt's lines replace its parts.
+ * The rows a receipt may split: payments out of a euro account, since a fiscal total is in euros and a row on another
+ * account is not the same money at the same number. No row a receipt split already and no row that moves money between
+ * your accounts. A row split by hand may take one, and the receipt's lines replace its parts.
  */
 export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>): readonly Transaction[] {
   const euroAccounts = new Set(book.accounts.filter((account) => account.currency === EURO).map((account) => account.id))
@@ -82,6 +84,7 @@ export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories
   const withReceipt = new Set(book.receipts.map((receipt) => receipt.transaction))
   return book.transactions.filter(
     (row) =>
+      row.amount < 0 &&
       euroAccounts.has(row.account) &&
       !withReceipt.has(row.id) &&
       row.pair === null &&
@@ -89,6 +92,15 @@ export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories
       (transfer === null || row.category !== transfer) &&
       !ownIbans.has(normaliseIban(row.counterpartyIban)),
   )
+}
+
+/**
+ * The rows that offer to take a receipt photo: those a receipt may split, but for a row To review still asks about as maybe a
+ * transfer, which waits until that question is answered.
+ */
+export function rowsTakingReceipt(book: SpendingBook, day: CivilDate): ReadonlySet<Transaction['id']> {
+  const maybeTransfer = new Set(reviewQueue(book, day).waiting.flatMap((waiting) => (waiting.maybeTransfer === null ? [] : [waiting.row.id])))
+  return new Set(splittableRows(book).flatMap((row) => (maybeTransfer.has(row.id) ? [] : [row.id])))
 }
 
 /**
