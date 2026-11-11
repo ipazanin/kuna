@@ -264,7 +264,7 @@ import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
 import { formatAccountMoney, formatMoney, formatPercent, formatPercentChange } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
-import { chromeLaunch, CLASSIC_SCROLLBAR_WIDTH, drawClassicScrollbars } from './support/browsers.mjs'
+import { chromeLaunch, drawClassicScrollbars } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { englishLeftOn } from './support/englishLeft.mjs'
 import { textOverlapsOn } from './support/textOverlap.mjs'
@@ -7924,12 +7924,13 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
         visit.expandedBefore ?? [],
       )
     }
-    // A docked viewport names the shell's width, so a classic scrollbar's gutter widens its window by as much.
-    const gutter = viewport.chatDocked && selection.classicScrollbars ? CLASSIC_SCROLLBAR_WIDTH : 0
-    await page.setViewport({ width: viewport.width + gutter, height: viewport.height })
+    await page.setViewport({ width: viewport.width, height: viewport.height })
     // Headless Chrome reports a light preference unless told otherwise. The pin makes the theme explicit.
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: visit.theme }])
     await page.goto(`${BASE}?theme=${visit.theme}${visit.query ? `&${visit.query}` : ''}${viewport.chatDocked ? withChatOpen(visit.hash) : visit.hash}`, { waitUntil: 'networkidle0' })
+    // A docked viewport names the shell's width, so the window widens by the gutter a scrollbar keeps. Linux keeps one even for a hidden scrollbar.
+    const gutter = viewport.chatDocked ? await page.evaluate(() => window.innerWidth - document.body.clientWidth) : 0
+    if (gutter > 0) await page.setViewport({ width: viewport.width + gutter, height: viewport.height })
 
     const drawsCharts = visit.gallery || visit.charts > 0
     const ready = visit.ready ?? (drawsCharts ? '.chart-body canvas' : '[data-testid="screen-title"]')
