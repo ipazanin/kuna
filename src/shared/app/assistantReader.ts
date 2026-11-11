@@ -30,13 +30,17 @@ export interface ReadableSet {
   ids(): ReadonlySet<string>
 }
 
+/** A field of a kind as its page lists it, with the sign of an amount and null for any other field, and the kind a ref field points at. */
+export type ReadableFieldDoc =
+  | { readonly name: string; readonly meaning: string; readonly exposure: Exclude<Exposure, 'ref'>; readonly amount: AmountSign | null }
+  | { readonly name: string; readonly meaning: string; readonly exposure: 'ref'; readonly amount: null; readonly to: string }
+
 /** A kind of record the chat can read: what its fields mean, which needs no books, and its rows, which do. */
 export interface ReadableKind {
   readonly name: string
   readonly noun: RecordNoun
   readonly about: string
-  /** Each field, with the sign of an amount and null for any other field. */
-  readonly fields: readonly { readonly name: string; readonly meaning: string; readonly exposure: Exposure; readonly amount: AmountSign | null }[]
+  readonly fields: readonly ReadableFieldDoc[]
   /** The field a date filter and the newest-first order read, or null for a kind with no date. */
   readonly dated: string | null
   rows(): readonly ReadableRow[]
@@ -83,7 +87,11 @@ export function readableKind<R extends { readonly id: string }>(kind: ReadableKi
     name: kind.kind.name,
     noun: kind.kind.noun,
     about: kind.about,
-    fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]) => ({ name, meaning: doc.meaning, exposure: doc.exposure, amount: 'sign' in doc ? doc.sign : null })),
+    fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]): ReadableFieldDoc =>
+      doc.exposure === 'ref'
+        ? { name, meaning: doc.meaning, exposure: 'ref', amount: null, to: doc.to }
+        : { name, meaning: doc.meaning, exposure: doc.exposure, amount: 'sign' in doc ? doc.sign : null },
+    ),
     dated: kind.dated,
     rows: () => kind.rows().map((record) => ({ id: record.id, fields: readableFields(kind, record) })),
     ...(kind.sets === undefined ? {} : { sets: kind.sets.map(({ name, about, holds }) => ({ name, about, ids: () => new Set(kind.rows().flatMap((record) => (holds(record) ? [record.id] : []))) })) }),

@@ -58,7 +58,7 @@ function rowLeaving(row: readonly string[], identifiers: ReadonlySet<number>, re
     if (identifiers.has(column) && holdsIdentifier(cell)) return reads.pseudonyms.identifierToken(cell)
     return cell.replace(ACCOUNT_TAGGED, (_tagged, tag: string, account: string) => `${tag}${reads.pseudonyms.identifierToken(account)}`)
   })
-  const aliased = reads.anonymising() ? reads.pseudonyms.pseudonymisedRow(tokened) : tokened.map((cell) => reads.pseudonyms.identifiersTokened(cell))
+  const aliased = reads.anonymising() ? reads.pseudonyms.pseudonymisedRow(tokened) : tokened.map((cell) => reads.pseudonyms.identifiersTokened(cell, 'written'))
   return { cells: aliased.map(cutCell), keysRemoved }
 }
 

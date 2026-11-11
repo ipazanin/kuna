@@ -106,10 +106,18 @@ describe('what a read gives the chat', () => {
     expect((await findRecords({ ...ALL, kind: 'setting' }, reads)).isError).toBe(true)
   })
 
-  it('sends real names with the setting off, and the model loop still cuts identifiers', async () => {
-    const { records } = await found({}, readsOf({ anonymising: () => false }))
-    expect(records[1]!['payee']).toBe('Ana Horvat')
-    expect(records[1]!['counterpartyIban']).toBe(IBAN_OF_ANA)
+  it('sends real names with the setting off, and identifiers under tokens still', async () => {
+    const { answer, records } = await found({}, readsOf({ anonymising: () => false }))
+    expect(records[1]).toMatchObject({ payee: 'Ana Horvat', counterpartyIban: 'HR•• ••••0160', note: 'OIB [OIB]' })
+    expect(answer.text).not.toMatch(/12345678903|1001005/)
+  })
+
+  it('filters by an identifier’s token with the setting off, and finds no identifier by its digits', async () => {
+    const reads = readsOf({ anonymising: () => false })
+    await found({}, reads)
+    expect((await found({ filters: [{ field: 'counterpartyIban', op: 'is', values: ['HR•• ••••0160'] }] }, reads)).total).toBe(2)
+    expect((await findRecords({ ...ALL, filters: [{ field: 'counterpartyIban', op: 'is', values: [IBAN_OF_ANA] }] }, reads)).isError).toBe(true)
+    expect((await found({ query: '12345678903' }, reads)).total).toBe(0)
   })
 
   it('finds every spelling of a person by the alias, and no identifier by its digits', async () => {
@@ -295,6 +303,13 @@ describe('a search with filters, a sort and fields', () => {
     expect((await findRecords({ ...ALL, filters: [{ field: 'category', op: 'is', values: ['category-1'] }] }, readsOf())).isError).toBe(true)
   })
 
+  it('refuses a ref of another kind on a ref field by both kinds, rather than finding nothing', async () => {
+    const reads = readsOf()
+    const { records } = await found({}, reads)
+    const answer = await findRecords({ ...ALL, filters: [{ field: 'category', op: 'is', values: [records[1]!['account']!] }] }, reads)
+    expect(answer).toEqual({ text: 'category takes refs of the kind category, and that ref is of the kind account.', isError: true })
+  })
+
   it('refuses a field the kind never reads or does not have, naming the fields it reads', async () => {
     for (const field of ['importKey', 'secret']) {
       const answer = await findRecords({ ...ALL, filters: [{ field, op: 'not-empty', values: [] }] }, readsOf())
@@ -414,8 +429,8 @@ describe('a field that holds a list', () => {
     expect((await found({ kind: 'holder' }, listReads({ persons: () => [{ name: 'Mia Izmišljena', employee: true, ibans: [IBAN_OF_ANA] }] }))).total).toBe(0)
   })
 
-  it('sends the list as stored with Anonymise off', async () => {
+  it('sends names as stored with Anonymise off, and each IBAN of the list under its token', async () => {
     const { records } = await found({ kind: 'holder' }, listReads({ anonymising: () => false }))
-    expect(records[0]).toMatchObject({ ibans: [IBAN_OF_ANA, 'HR6523400091110000001'], names: ['Ana Horvat', 'Corner market'] })
+    expect(records[0]).toMatchObject({ ibans: ['HR•• ••••0160', 'HR•• ••••0001'], names: ['Ana Horvat', 'Corner market'] })
   })
 })

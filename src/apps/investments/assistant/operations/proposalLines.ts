@@ -299,14 +299,11 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
 }
 
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. Each step's notes sit on the group of its records. */
-export function proposalGroupsOf(checked: CheckedWrite, book: InvestmentBook, notes: readonly CardNote[] = []): readonly ProposalGroup[] {
+export function proposalGroupsOf(checked: CheckedWrite, before: InvestmentBook, notes: readonly CardNote[] = []): readonly ProposalGroup[] {
+  // A trade or a price of an instrument the same card adds shows in that instrument's currency, and each added record by its name.
+  const added = <R>(kind: RecordKind<R>): R[] => checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === kind.name ? [change.after as R] : []))
+  const book: InvestmentBook = { ...before, accounts: [...before.accounts, ...added(INVESTMENT_ACCOUNT_RECORDS)], instruments: [...before.instruments, ...added(INSTRUMENT_RECORDS)] }
   const namesOf = new Map<unknown, string>([...book.accounts, ...book.instruments].map((record) => [record.id, record.name]))
-  checked.changes.forEach(({ change }) => {
-    if (change.verb === 'add' && (change.kind.name === INVESTMENT_ACCOUNT_RECORDS.name || change.kind.name === INSTRUMENT_RECORDS.name)) {
-      const added = change.after as { readonly id: string; readonly name: string }
-      namesOf.set(added.id, added.name)
-    }
-  })
   const originals: Originals = new WeakMap()
   const comparableWrite: CheckedWrite = { ...checked, changes: checked.changes.map((ruled) => ({ ...ruled, change: comparableChange(ruled.change, originals) })) }
   const original = (record: ProposedRecord): ProposedRecord => originals.get(record) ?? record

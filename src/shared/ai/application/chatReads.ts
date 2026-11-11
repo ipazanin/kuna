@@ -145,18 +145,21 @@ function aboutAnEmployee(row: ReadableRow, employees: readonly KnownPerson[]): b
   )
 }
 
-/** A text as it leaves while Anonymise is on: an identifier under its token, and known people under their alias in what a person wrote. */
-function pseudonymisedText(field: ValueOfRow, text: string, pseudonyms: Pseudonyms): string {
+/**
+ * A text as it leaves: each IBAN and OIB under its token whatever the setting, so a filter can name it back, and known
+ * people under their alias in what a person wrote while Anonymise is on.
+ */
+function leavingText(field: ValueOfRow, text: string, reads: ChatReads): string {
   if (text === '' || field.exposure === 'plain') return text
-  return field.exposure === 'identifier' ? pseudonyms.identifierToken(text) : pseudonyms.pseudonymised(text, 'books')
+  if (field.exposure === 'identifier') return reads.pseudonyms.identifierToken(text)
+  return reads.anonymising() ? reads.pseudonyms.pseudonymised(text, 'books') : reads.pseudonyms.identifiersTokened(text, 'books')
 }
 
-/** A field's value as it leaves: pseudonymised while Anonymise is on, each text of a list on its own, or as stored otherwise. The model loop masks IBANs and OIBs either way. */
+/** A field's value as it leaves, each text of a list on its own. */
 function leaving(field: ValueOfRow, reads: ChatReads): StoredValue {
   const { value } = field
-  if (!reads.anonymising()) return value
-  if (typeof value === 'string') return pseudonymisedText(field, value, reads.pseudonyms)
-  return Array.isArray(value) ? value.map((text) => pseudonymisedText(field, text, reads.pseudonyms)) : value
+  if (typeof value === 'string') return leavingText(field, value, reads)
+  return Array.isArray(value) ? value.map((text) => leavingText(field, text, reads)) : value
 }
 
 /** A record's amount as a figure the answer can cite, in an account's currency or the app's, or null for a currency Kuna does not know. */
@@ -255,6 +258,7 @@ function comparedField(fieldClass: FieldClass, field: ReadableField | undefined,
  */
 function filterTests(
   app: string,
+  kind: ReadableKind,
   filters: readonly RecordFilter[],
   fields: ReadonlyMap<string, FieldClass>,
   reads: ChatReads,
@@ -263,6 +267,8 @@ function filterTests(
   for (const filter of filters) {
     const fieldClass = fields.get(filter.field)
     if (fieldClass === undefined) return unknownField(fields)
+    const wrongKind = wrongKindOfRef(app, kind, filter, reads)
+    if (wrongKind !== null) return refusal(wrongKind)
     const values = filterValues(app, filter, fieldClass, reads)
     if (values === null) return refusal(opsRefusal(filter.field, fieldClass))
     const test = fieldTest(filter.field, fieldClass, filter.op, values, (words) => isAlias(words, reads))
@@ -270,6 +276,14 @@ function filterTests(
     tests.push({ field: filter.field, fieldClass, test })
   }
   return tests
+}
+
+/** Why a filter on a ref field holds a ref of another kind than the field points at, naming both kinds, or null when none does. */
+function wrongKindOfRef(app: string, kind: ReadableKind, filter: RecordFilter, reads: ChatReads): string | null {
+  const field = kind.fields.find((candidate) => candidate.name === filter.field)
+  if (field?.exposure !== 'ref') return null
+  const other = filter.values.map((value) => reads.refs.recordOf(value)).find((record) => record !== null && record.app === app && record.kind !== field.to)
+  return other === undefined || other === null ? null : `${filter.field} takes refs of the kind ${field.to}, and that ref is of the kind ${other.kind}.`
 }
 
 /** A filter's values as its field compares them: the records a ref field's refs stand for, by kind and id, the normalised values an identifier's tokens stand for, or as written. Null for a value Kuna did not hand out. */
@@ -317,7 +331,7 @@ export function findRecords(input: FindRecordsInput, reads: ChatReads): ChatTool
     const sortable = [...fields].flatMap(([name, fieldClass]) => (sorts(fieldClass) ? [name] : []))
     return refusal(`That field does not sort. A sort takes one of: ${sortable.join(', ')}.`)
   }
-  const tests = filterTests(input.app, input.filters, fields, reads)
+  const tests = filterTests(input.app, kind, input.filters, fields, reads)
   if ('isError' in tests) return tests
 
   if (!reads.mayRead()) return refusal(NOT_ALLOWED)

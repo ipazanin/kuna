@@ -1,6 +1,6 @@
 import type { AppAssistant, AssistantPlace } from '../../app/appContribution'
 import type { AppProposer, AssistantOperation } from '../../app/assistantOperations'
-import type { AppReader, AssistantReport, ReadableKind } from '../../app/assistantReader'
+import type { AppReader, AssistantReport, ReadableFieldDoc, ReadableKind } from '../../app/assistantReader'
 import type { KnownPerson } from '../../privacy/domain/pseudonyms'
 import { OPS_OF, fieldClassOf, sorts } from '../domain/recordFilters'
 import type { FieldClass } from '../domain/recordFilters'
@@ -132,6 +132,12 @@ function classLine(fieldClass: FieldClass): string {
   return `- ${name}: ${OPS_OF[fieldClass].join(', ')}, ${CLASS_RULES[fieldClass]}. ${sorts(fieldClass) ? 'Sorts either way.' : 'Never sorts.'}`
 }
 
+/** How a field arrives, as its line on a kind's page says it: an amount with its sign, and a ref with the kind it points at. */
+function fieldClassText(field: ReadableFieldDoc): string {
+  if (field.exposure === 'ref') return `ref to ${field.to}`
+  return field.amount === null ? field.exposure : `amount, ${field.amount === 'either' ? 'either sign' : 'zero or more'}`
+}
+
 /** What each field of a kind means and how it arrives, with the sign of each amount, what never arrives, and what filters each field takes. */
 function kindPage(kind: ReadableKind, linksToPage: boolean): string {
   const read = kind.fields.filter((field) => field.exposure !== 'never' && field.name !== 'id')
@@ -142,7 +148,7 @@ function kindPage(kind: ReadableKind, linksToPage: boolean): string {
     kind.about,
     ...section(
       'Fields',
-      read.map((field) => `- ${field.name} (${field.amount === null ? field.exposure : `amount, ${field.amount === 'either' ? 'either sign' : 'zero or more'}`}): ${field.meaning}`),
+      read.map((field) => `- ${field.name} (${fieldClassText(field)}): ${field.meaning}`),
     ),
     ...section('Never read', [...kept.map((field) => `- ${field.name}`)]),
     ...section('Filters by the class in brackets', classes.map(classLine)),

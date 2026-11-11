@@ -51,8 +51,8 @@ export interface Pseudonyms {
    * person under their alias, a name split across cells such as `Ana` and `Horvat` included.
    */
   pseudonymisedRow(cells: readonly string[]): readonly string[]
-  /** The text with each IBAN and OIB under its token, each card and domestic account number masked, and every name as written, as a file's text leaves while Anonymise is off. */
-  identifiersTokened(text: string): string
+  /** The text with each IBAN and OIB under its token, each card and domestic account number the reach covers masked, and every name as written, as text leaves while Anonymise is off. */
+  identifiersTokened(text: string, reach: IdentifierReach): string
   /** A field that holds one identifier, under its token whatever its shape. */
   identifierToken(value: string): string
   /** What a token or an alias stands for, or null for text Kuna never handed out. */
@@ -142,8 +142,8 @@ export function newPseudonyms(personWord: PersonWord = 'Person', kept: AliasMap 
       const named = longestNameFirst().filter((person) => nameIn(row, person.name))
       return tokened.map((cell) => named.reduce((aliased, person) => aliasedRuns(aliased, person, namePartRuns), cell))
     },
-    identifiersTokened(text) {
-      return eachIdentifier(text, tokenOf, 'written')
+    identifiersTokened(text, reach) {
+      return eachIdentifier(text, tokenOf, reach)
     },
     identifierToken(value) {
       const compact = compactOf(value)

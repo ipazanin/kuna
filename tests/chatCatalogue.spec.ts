@@ -155,9 +155,10 @@ describe('the catalogue', () => {
     expect(company).not.toContain(PERSON_PAYEES_KEY)
   })
 
-  it('says what each field of a kind means and how it arrives, with what never does, and reads nothing from the books to say it', () => {
+  it('says what each field of a kind means and how it arrives, with the kind a ref points at and what never arrives, and reads nothing from the books to say it', () => {
     const page = catalogue.pages.get('spending/kind/transaction')!
     expect(page).toContain('- payee (party):')
+    expect(page).toContain('- category (ref to category):')
     expect(page).toContain('- counterpartyIban (identifier):')
     expect(page).toContain('- amount (amount, either sign):')
     expect(page.split('## Never read')[1]).toContain('- importKey')
