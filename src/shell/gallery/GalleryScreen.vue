@@ -230,8 +230,8 @@ type GalleryAnswer = (typeof GALLERY_ANSWERS)[number]['value']
 const galleryAnswers = ref<Readonly<Record<string, GalleryAnswer>>>({ bakery: 'both' })
 const galleryQuestions = computed(() =>
   [
-    { key: 'market', row: 'Corner market · −12.30 € · 9 Nov 2026 · Main account', caption: 'Looks like: CORNER MARKET LTD, −12.30 €, 10 Nov 2026' },
-    { key: 'bakery', row: 'Bakery · −4.20 € · 8 Nov 2026 · Main account', caption: 'Looks like: BAKERY 22, −4.20 €, 8 Nov 2026' },
+    { key: 'market', row: 'Corner market · 9 Nov 2026 · Main account', caption: 'Looks like: CORNER MARKET LTD, −12.30 €, 10 Nov 2026', amount: moneyFromCents(-1230) },
+    { key: 'bakery', row: 'Bakery · 8 Nov 2026 · Main account', caption: 'Looks like: BAKERY 22, −4.20 €, 8 Nov 2026', amount: moneyFromCents(-420) },
   ].map((item) => ({ ...item, choice: galleryAnswers.value[item.key] ?? ('later' as const) })),
 )
 const GALLERY_RECEIPT_WAYS = [
@@ -968,10 +968,10 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
     <GallerySection
       id="question-list"
       title="QuestionList"
-      description="Rows that each ask for one of a few choices, with an intro and a heading the card may already give. The answer being written shows busy."
+      description="Rows that each ask for one of a few choices, with an intro and a heading the card may already give. The answer being written shows busy. The amount slot puts a figure at the end of each row's words, right-aligned."
     >
       <DashboardGrid>
-        <AppCard title="With its heading">
+        <AppCard title="With its heading and amounts">
           <div class="px-4 pt-3 pb-4 sm:px-5">
             <QuestionList
               :items="galleryQuestions"
@@ -981,7 +981,11 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
               intro="Each looks like a row you have, with the same amount and at most 3 days apart."
               :saving="{ key: 'market', choice: 'kept' }"
               @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
-            />
+            >
+              <template #amount="{ item }">
+                <MoneyText :cents="item.amount" sign="always" tone="flow" class="shrink-0 text-sm" />
+              </template>
+            </QuestionList>
           </div>
         </AppCard>
         <AppCard title="Inside a card that names the rows">

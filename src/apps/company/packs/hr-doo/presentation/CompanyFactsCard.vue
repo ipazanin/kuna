@@ -10,6 +10,7 @@ import { parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import { writtenPercent } from '../../../../../shared/money/percent'
 import type { Percent } from '../../../../../shared/money/percent'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
+import DayField from '../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../shared/ui/FormGrid.vue'
 import { typedLoanInterest } from '../domain/companyFacts'
 import type { CitReturn, CompanyFacts, CompanyFactsDraft, CompanyFactsField, VatPrinciple } from '../domain/companyFacts'
@@ -80,7 +81,7 @@ const vatPrincipleItems: { value: VatPrinciple; label: string }[] = [
     <div class="flex flex-col gap-4 px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
       <FormGrid>
         <UFormField id="company-registered" :label="words.facts.registered" :help="words.facts.registeredHelp">
-          <UInput :model-value="facts.companyRegistered ?? ''" type="date" class="w-full" @update:model-value="updateFact('companyRegistered', parseCivilDate(String($event ?? '')))" />
+          <DayField :model-value="facts.companyRegistered ?? ''" class="w-full" @change="updateFact('companyRegistered', parseCivilDate($event))" />
         </UFormField>
         <UFormField id="owner-loan-interest" :label="words.facts.loanInterest" :error="errors.ownerLoanInterest ?? false" :help="words.facts.loanInterestHelp">
           <UInput :model-value="loanInterestText" inputmode="decimal" class="w-full" data-testid="owner-loan-interest" @update:model-value="updateLoanInterest(String($event))" />

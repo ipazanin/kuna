@@ -9,6 +9,7 @@ import InfoPopover from './InfoPopover.vue'
 /**
  * The raised card every screen is built from. With a title it has a header, and with a collapse id
  * the header gets a toggle that hides the body. Without a title it is the bare surface, for tiles.
+ * The header's actions sit beside the title from 640 px while the title keeps 12rem, and on a phone on a row of their own under it.
  */
 const props = withDefaults(
   defineProps<{
@@ -68,6 +69,7 @@ function toggle(): void {
     class="flex min-w-0 flex-col rounded-card border border-default bg-raised shadow-raised"
     :class="{ 'h-fit': collapsed }"
     :aria-labelledby="title === undefined ? undefined : titleId"
+    data-app-card
     :data-card="collapseId"
     :data-collapsed="collapseId === undefined ? undefined : String(collapsed)"
   >
@@ -75,7 +77,7 @@ function toggle(): void {
       <header class="flex flex-col gap-3 px-4 pt-4 sm:px-5" :class="{ 'pb-4': collapsed || !$slots.default }">
         <div class="flex items-start gap-3">
           <div class="flex min-w-0 flex-1 flex-wrap items-start justify-between gap-3">
-            <div class="min-w-0 flex-1 basis-48">
+            <div class="min-w-0 flex-1 basis-full sm:basis-48">
               <component :is="heading" :id="titleId" class="flex items-center gap-2 text-sm font-medium text-highlighted">
                 <slot name="title">{{ title }}</slot>
               </component>
@@ -84,7 +86,7 @@ function toggle(): void {
                 <slot name="subtitle">{{ subtitle }}</slot>
               </p>
             </div>
-            <div v-if="$slots.actions && !collapsed" class="flex shrink-0 flex-wrap items-center gap-2">
+            <div v-if="$slots.actions && !collapsed" class="flex shrink-0 flex-wrap items-center gap-2" data-testid="card-actions">
               <slot name="actions" />
             </div>
           </div>

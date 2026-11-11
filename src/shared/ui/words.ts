@@ -16,6 +16,7 @@ export const en = {
   showAll: (total: number) => `Show all ${total}`,
   shownOf: (shown: number, total: number) => `${shown} of ${total} shown`,
   verdict: { unchanged: 'unchanged', better: 'better', worse: 'worse' },
+  pickDay: 'Pick a day',
   chart: {
     emptyTitle: 'Nothing to show for this period',
     emptyDescription: 'Pick a longer period or clear a filter.',
@@ -47,6 +48,7 @@ export const hr: Translation<typeof en> = {
   showAll: (total) => `Prikaži sve (${total})`,
   shownOf: (shown, total) => `Prikazano ${shown} od ${total}`,
   verdict: { unchanged: 'bez promjene', better: 'bolje', worse: 'lošije' },
+  pickDay: 'Odaberite dan',
   chart: {
     emptyTitle: 'Za ovo razdoblje nema ništa za prikaz',
     emptyDescription: 'Odaberite dulje razdoblje ili uklonite filtar.',

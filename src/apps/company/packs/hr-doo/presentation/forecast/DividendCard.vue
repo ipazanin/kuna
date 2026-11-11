@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
+import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import type { PayoutOptionId } from '../../domain/dividend/dividendCapacity'
@@ -33,6 +33,7 @@ const emit = defineEmits<{
 }>()
 
 const option = computed(() => props.payouts.find((entry) => entry.id === props.chosen) ?? props.payouts[0])
+const payoutChoices = computed(() => props.payouts.map((entry) => ({ value: entry.id, label: entry.name })))
 </script>
 
 <template>
@@ -57,18 +58,7 @@ const option = computed(() => props.payouts.find((entry) => entry.id === props.c
       </div>
 
       <div v-if="option" class="flex min-w-0 flex-col gap-3">
-        <div class="flex flex-wrap gap-1.5" role="group" :aria-label="words.dividend.howToPay" data-testid="payout-switch">
-          <UButton
-            v-for="entry in payouts"
-            :key="entry.id"
-            :label="entry.name"
-            size="sm"
-            color="neutral"
-            :variant="entry.id === option.id ? 'solid' : 'outline'"
-            :aria-pressed="entry.id === option.id"
-            @click="emit('choose', entry.id)"
-          />
-        </div>
+        <ChoiceButtons :model-value="option.id" :options="payoutChoices" :label="words.dividend.howToPay" data-testid="payout-switch" @update:model-value="emit('choose', $event)" />
         <div class="flex flex-col gap-1">
           <p class="flex flex-wrap items-center gap-2 text-sm text-highlighted">
             {{ option.label }}

@@ -7,6 +7,7 @@ import InstrumentField from './InstrumentField.vue'
 import type { TransactionTexts } from '../domain/transactionDraft'
 import type { TransactionErrors } from './words'
 import { words } from './words'
+import DayField from '../../../../shared/ui/DayField.vue'
 
 /** A split of a holding: new units for old ones, both whole numbers, from a day on. */
 const texts = defineModel<TransactionTexts>({ required: true })
@@ -29,6 +30,6 @@ const shown = (field: keyof TransactionTexts): string | false => (props.tried &&
     <UInput v-model="texts.oldUnits" inputmode="numeric" class="w-full" data-testid="transaction-old-units" />
   </UFormField>
   <UFormField :label="words.fields.date" :error="shown('date')">
-    <UInput v-model="texts.date" type="date" class="w-full" data-testid="transaction-date" />
+    <DayField v-model="texts.date" class="w-full" data-testid="transaction-date" />
   </UFormField>
 </template>

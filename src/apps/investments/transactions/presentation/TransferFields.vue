@@ -10,6 +10,7 @@ import type { TransactionTexts } from '../domain/transactionDraft'
 import type { TransactionErrors } from './words'
 import { words } from './words'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
 /** Units of a holding or cash moved from one of the user's accounts to another. */
@@ -37,7 +38,7 @@ const shown = (field: keyof TransactionTexts): string | false => (props.tried &&
   <AccountField v-model="texts.toAccount" :label="words.fields.to" :error="shown('toAccount')" :book="book" test-id="transaction-to-account" />
   <InstrumentField v-if="texts.moves === 'units'" v-model="texts.instrument" :label="words.fields.holding" :error="shown('instrument')" :book="book" test-id="transaction-instrument" />
   <UFormField :label="words.fields.date" :error="shown('date')">
-    <UInput v-model="texts.date" type="date" class="w-full" data-testid="transaction-date" />
+    <DayField v-model="texts.date" class="w-full" data-testid="transaction-date" />
   </UFormField>
   <UFormField v-if="texts.moves === 'units'" :label="words.fields.units" :help="words.fields.unitsHelp" :error="shown('quantity')">
     <UInput v-model="texts.quantity" inputmode="decimal" class="w-full" data-testid="transaction-quantity" />

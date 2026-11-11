@@ -21,6 +21,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 
 /**
  * The accounts a file needs that Kuna does not keep, drafted from the file, each starting on the day typed beside it and with its rows
@@ -130,14 +131,13 @@ async function add(): Promise<void> {
             started === null ? drafted.account.name : words.import.draftLine(started.name, started.openedOn, formatAccountMoney(started.opening, started.currency))
           }}</span>
           <UFormField :label="accountWords.startDay.label" :error="startError(drafted)" data-testid="spending-import-missing-account-start-field">
-            <UInput
+            <DayField
               :model-value="typedStart(drafted)"
-              type="date"
               :min="startDays(drafted.evidence, today()).earliest"
               :max="today()"
               class="w-full max-w-60"
               data-testid="spending-import-missing-account-start"
-              @update:model-value="typeStart(drafted, String($event))"
+              @update:model-value="typeStart(drafted, $event)"
             />
           </UFormField>
           <UFormField

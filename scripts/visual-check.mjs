@@ -14,7 +14,9 @@
  * just below the search bar, marked, and keep it there once slow web fonts swap in. Deep links into
  * a collapsed card must open it and land on their row. At 360, 430 and 1440 px each screen
  * collapses and expands one card. The total and the label in the middle of every donut must sit
- * inside the ring's hole with 2 px to spare.
+ * inside the ring's hole with 2 px to spare. In a titled card a table's first cell that shows starts its text where the
+ * title does, a card's header actions sit under its title on a phone, a tab's one card of words and fields keeps to 42rem,
+ * and a DrillLink wears the colour of the text class it is given.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px
  * and no label may be cut to under half its width with no ellipsis, other than what `support/textOverlap.mjs` allows by name.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
@@ -4657,6 +4659,83 @@ function readPage(page) {
       containerSteps: containerSteps(),
       handBuiltGrids: handBuiltGrids(cardSelector),
       crowdedDonuts: crowdedDonuts(cardSelector),
+      offsetTables: offsetTables(),
+      phoneHeaderActions: phoneHeaderActions(),
+      wideLoneCards: wideLoneCards(),
+      drillLinksOffColour: drillLinksOffColour(),
+    }
+
+    const titleOf = (card) => (card.querySelector(':scope > header :is(h1, h2, h3)')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 48)
+
+    /**
+     * Tables straight in a titled card's body whose first cell that shows, in the head and in the body's first row, does
+     * not start its text where the card's title starts, as when a column hidden on a phone takes the inset with it.
+     */
+    function offsetTables() {
+      const found = []
+      for (const table of document.querySelectorAll('.data-table')) {
+        const frame = table.parentElement
+        const card = frame.parentElement?.parentElement
+        if (!card?.matches('[data-app-card]') || table.getClientRects().length === 0 || frame.scrollLeft > 0) continue
+        const title = card.querySelector(':scope > header :is(h1, h2, h3)')
+        if (title === null) continue
+        const titleStart = title.getBoundingClientRect().left
+        for (const row of [table.tHead?.rows[0], table.tBodies[0]?.rows[0]]) {
+          const cell = [...(row?.cells ?? [])].find((candidate) => getComputedStyle(candidate).display !== 'none')
+          if (cell === undefined) continue
+          const style = getComputedStyle(cell)
+          const textStart = cell.getBoundingClientRect().left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft)
+          if (Math.abs(textStart - titleStart) > 1.5) {
+            found.push(`"${titleOf(card)}" starts its first cell "${cell.textContent.trim().slice(0, 24)}" ${Math.round(textStart - titleStart)} px from its title`)
+            break
+          }
+        }
+      }
+      return found
+    }
+
+    /** Below 640 px a card's header actions sit on a row of their own under its title, starting where the title does. */
+    function phoneHeaderActions() {
+      if (window.innerWidth >= 640) return []
+      const found = []
+      for (const actions of document.querySelectorAll('[data-testid="card-actions"]')) {
+        const titleBlock = actions.previousElementSibling
+        if (titleBlock === null || actions.getClientRects().length === 0) continue
+        const placed = actions.getBoundingClientRect()
+        const title = titleBlock.getBoundingClientRect()
+        if (placed.top < title.bottom - 1 || Math.abs(placed.left - title.left) > 1) found.push(`"${titleOf(actions.closest('[data-app-card]'))}" keeps its header actions beside its title on a phone`)
+      }
+      return found
+    }
+
+    /** A tab that holds one card of words and fields keeps it to 42rem, the welcome's measure. A card with a table or a chart takes the tab's width. */
+    function wideLoneCards() {
+      const measure = 42 * parseFloat(getComputedStyle(document.documentElement).fontSize)
+      const found = []
+      for (const panel of document.querySelectorAll('[role="tabpanel"]')) {
+        const shown = [...panel.children].filter((child) => child.getClientRects().length > 0)
+        const card = shown[0]
+        if (shown.length !== 1 || !card.matches('[data-app-card]') || card.querySelector('table, canvas') !== null) continue
+        const width = card.getBoundingClientRect().width
+        if (width > measure + 1) found.push(`"${titleOf(card)}", the one card of its tab, is ${Math.round(width)} px wide, past the 42rem measure`)
+      }
+      return found
+    }
+
+    /** A DrillLink takes the colour of the text class its caller gives it, which a style of its own once overrode. */
+    function drillLinksOffColour() {
+      const found = []
+      for (const link of document.querySelectorAll('a.drill-link')) {
+        const colourClass = [...link.classList].find((name) => /^text-(?:highlighted|default|toned|muted|dimmed|primary|error|success|warning|info)$/.test(name))
+        if (colourClass === undefined || link.getClientRects().length === 0) continue
+        const probe = document.createElement('span')
+        probe.className = colourClass
+        link.parentElement.append(probe)
+        const wanted = getComputedStyle(probe).color
+        probe.remove()
+        if (getComputedStyle(link).color !== wanted) found.push(`the link "${link.textContent.trim().slice(0, 32)}" ignores its ${colourClass}`)
+      }
+      return found
     }
 
     /**
@@ -4711,7 +4790,8 @@ function readPage(page) {
      * control to line up.
      */
     function unevenFieldRows() {
-      const control = 'input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="file"]), select, textarea, [role="combobox"]'
+      const control =
+        'input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="file"], [aria-hidden="true"]), select, textarea, [role="combobox"], [data-slot="base"]:has(> [data-slot="segment"])'
       const fields = [...document.querySelectorAll('[data-slot="root"]:has(> [data-slot="wrapper"])')].flatMap((field) => {
         const input = [...field.querySelectorAll(control)].find((element) => element.getClientRects().length > 0)
         if (input === undefined) return []
@@ -8222,6 +8302,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
     for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
     for (const donut of report.crowdedDonuts) fail(scope, donut)
+    for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour]) fail(scope, problem)
     if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
     if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
       for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
@@ -8316,8 +8397,15 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
           const report = await readPage(page)
           if (report.scrollWidth > report.clientWidth + 1) fail(scope, `${when}: horizontal overflow, scrollWidth ${report.scrollWidth} > clientWidth ${report.clientWidth}`)
           for (const row of report.unevenFieldRows) fail(scope, `${when}: uneven form row: ${row}`)
-          // A text left in English or an overlap stays on screen through the states after it, so each is told once.
-          const lingering = [...(await textOverlapsOn(page)), ...(inCroatian(query) ? await englishLeftOn(page) : [])]
+          // A text left in English, an overlap or a card laid out off its rule stays on screen through the states after it, so each is told once.
+          const lingering = [
+            ...(await textOverlapsOn(page)),
+            ...(inCroatian(query) ? await englishLeftOn(page) : []),
+            ...report.offsetTables,
+            ...report.phoneHeaderActions,
+            ...report.wideLoneCards,
+            ...report.drillLinksOffColour,
+          ]
           for (const problem of lingering.filter((text) => !toldOnce.has(text))) {
             toldOnce.add(problem)
             fail(scope, `${when}: ${problem}`)

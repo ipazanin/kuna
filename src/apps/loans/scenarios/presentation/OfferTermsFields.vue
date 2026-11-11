@@ -14,6 +14,7 @@ import SubsidyFields from '../../bankLoans/presentation/SubsidyFields.vue'
 import { typedTerm } from '../../bankLoans/domain/typedTerm'
 import { useLoanWords } from '../../bankLoans/presentation/useLoanWords'
 import { words as loansWords } from '../../words'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
@@ -78,16 +79,16 @@ const shown = (error: string | null): string | false => (props.tried && error) |
             <UInput v-model="texts.lender" :placeholder="loanWords.loanDialog.lenderPlaceholder" class="w-full" data-testid="offer-lender" />
           </UFormField>
           <UFormField :label="words.editor.payout" :help="words.editor.payoutHelp" :error="shown(errors.drawdown)">
-            <UInput v-model="texts.payout" type="date" class="w-full" data-testid="offer-drawdown" />
+            <DayField v-model="texts.payout" class="w-full" data-testid="offer-drawdown" />
           </UFormField>
           <UFormField :label="loanWords.loanDialog.firstInstalment" :help="words.editor.firstInstalmentHelp" :error="shown(errors.firstInstalment)">
-            <UInput v-model="texts.firstInstalment" type="date" class="w-full" data-testid="offer-first-instalment" />
+            <DayField v-model="texts.firstInstalment" class="w-full" data-testid="offer-first-instalment" />
           </UFormField>
           <UFormField :label="loanWords.loanDialog.interim" :help="loanWords.loanDialog.interimHelp" :error="shown(errors.interim)">
             <MoneyInput v-model="texts.interimAmount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="offer-interim" />
           </UFormField>
           <UFormField :label="loanWords.loanDialog.interimDate">
-            <UInput v-model="texts.interimDate" type="date" class="w-full" />
+            <DayField v-model="texts.interimDate" class="w-full" />
           </UFormField>
           <UFormField :label="words.editor.fixedFor" :help="words.editor.fixedForHelp" :error="shown(errors.fixedYears)">
             <UInput v-model="texts.fixedYears" inputmode="numeric" class="w-full" data-testid="offer-fixed-years" />

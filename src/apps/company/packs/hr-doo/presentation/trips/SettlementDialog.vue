@@ -9,6 +9,7 @@ import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
 import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { settleTrip, settlementDraftOf, tripOfSettlement } from '../../application/tripWrites'
@@ -136,7 +137,7 @@ async function save(): Promise<void> {
         <UTextarea v-model="fields.report" :rows="3" autoresize class="w-full" data-testid="trip-report" />
       </UFormField>
       <UFormField :label="words.settlementDialog.settledOn" :help="words.settlementDialog.settledHelp" :error="(tried && errors.settledOn) || false">
-        <UInput v-model="fields.settledOn" type="date" class="w-full" />
+        <DayField v-model="fields.settledOn" class="w-full" />
       </UFormField>
       <UAlert
         v-if="tried && fieldsValid(errors) && refusal"

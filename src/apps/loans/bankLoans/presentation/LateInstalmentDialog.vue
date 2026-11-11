@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { LATE_INSTALMENT_WRITES, newLateInstalment } from '../application/bankLoanWrites'
@@ -16,6 +15,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { words as loansWords } from '../../words'
 import { useLoanWords } from './useLoanWords'
@@ -94,7 +94,7 @@ async function remove(): Promise<void> {
         />
       </UFormField>
       <UFormField :label="loanWords.lateDialog.paidOn" :error="(tried && errors.paid) || false">
-        <UInput v-model="paid" type="date" class="w-full" data-testid="late-instalment-paid" />
+        <DayField v-model="paid" class="w-full" data-testid="late-instalment-paid" />
       </UFormField>
     </FormGrid>
     <template #start>

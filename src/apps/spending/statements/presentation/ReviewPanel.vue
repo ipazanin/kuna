@@ -111,7 +111,11 @@ async function undoPair(legs: TransferPair): Promise<void> {
     <p v-if="queue.wantingSavings > 0" class="text-sm text-muted" data-testid="spending-wants-savings">{{ plural(words.review.pocketsWaiting(queue.wantingSavings), queue.wantingSavings) }}</p>
     <AppCard v-if="held.items.value.length > 0" :title="words.review.held" data-testid="spending-review-held">
       <div class="px-4 pt-3 pb-4 sm:px-5">
-        <QuestionList :items="held.items.value" :options="held.options" :label="twinWords.choice" :intro="twinWords.intro.sync" :saving="held.saving.value" @answer="held.answer" />
+        <QuestionList :items="held.items.value" :options="held.options" :label="twinWords.choice" :intro="twinWords.intro.sync" :saving="held.saving.value" @answer="held.answer">
+          <template #amount="{ item }">
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" class="shrink-0 text-sm" />
+          </template>
+        </QuestionList>
       </div>
     </AppCard>
     <CashWithdrawalsCard v-if="queue.withdrawals.length > 0" :withdrawals="queue.withdrawals" />

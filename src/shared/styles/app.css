@@ -132,15 +132,19 @@ body {
   white-space: nowrap;
 }
 
-/* In a phone's card the cells sit closer, so three columns of figures with cents fit without scrolling. The first cell keeps its full inset, which puts its text under the card's title. */
+/*
+ * In a phone's card the cells sit closer, so three columns of figures with cents fit without scrolling. The first cell
+ * that shows keeps its full inset, which puts its text under the card's title. A first column hidden at this width, as
+ * `hidden @md:table-cell` hides it, hands the inset to the next.
+ */
 @container (max-width: 26rem) {
   .data-table th,
   .data-table td {
     padding-inline: 0.125rem 0.25rem;
   }
 
-  .data-table th:first-child,
-  .data-table td:first-child {
+  .data-table :is(th, td):first-child,
+  .data-table :is(th, td).hidden:first-child + :is(th, td) {
     padding-inline-start: 0.75rem;
   }
 }
@@ -209,10 +213,26 @@ section + section > .group-row:not(tr) {
  * so it wins over the Tailwind sizes of Nuxt UI's small buttons, but only below the phone breakpoint.
  */
 @media (max-width: 639px) {
-  :where(button:not([role='switch'], [role='checkbox'], [role='radio']), a[href], select, textarea, [role='button'], [role='combobox'], [role='tab'], [role='menuitem']),
-  :where(input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='file'])) {
+  :where(
+    button:not([role='switch'], [role='checkbox'], [role='radio']),
+    a[href],
+    select,
+    textarea,
+    [role='button'],
+    [role='combobox'],
+    [role='tab'],
+    [role='menuitem'],
+    [role='option'],
+    [data-slot='base']:has(> [data-slot='segment'])
+  ),
+  :where(input:not([type='hidden'], [type='checkbox'], [type='radio'], [type='file'], [aria-hidden='true'])) {
     min-height: 44px;
     min-width: 44px;
+  }
+
+  /* A row of a select or a suggestion list keeps its text in the middle of the height it grows to. */
+  [role='option'] {
+    align-items: center;
   }
 
   /* A switch, a checkbox or a radio stays its own size. Its label, which toggles it too, carries the height. */

@@ -37,6 +37,7 @@ import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -297,7 +298,7 @@ async function remove(): Promise<void> {
         <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.dialog.pickCategory" class="w-full" data-testid="spending-entry-category" />
       </UFormField>
       <UFormField :label="words.dialog.date" :error="(tried && errors.date) || false">
-        <UInput v-model="date" type="date" :disabled="fromBooked || toBooked" class="w-full" data-testid="spending-entry-date" />
+        <DayField v-model="date" :disabled="fromBooked || toBooked" class="w-full" data-testid="spending-entry-date" />
       </UFormField>
       <UFormField v-if="kind !== 'transfer'" :label="words.dialog.payee">
         <UInputMenu

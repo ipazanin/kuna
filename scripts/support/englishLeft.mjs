@@ -312,6 +312,11 @@ export const ENGLISH_ALLOWED = [
     selector: '[data-testid="chat-sent-text"]',
   },
   {
+    name: 'an empty day field',
+    reason: 'A DayField with no day shows its parts as Croatian writes them, dd. mm. gggg., and mm is the month there as in English.',
+    selector: '[data-slot="segment"]',
+  },
+  {
     name: 'identifier style',
     reason: 'A setting key, a slug or a file name in the identifier style is shown as the file stores it.',
     selector: '.identifier',

@@ -66,7 +66,7 @@
  * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.
- * After each step it asserts that no text overlaps other text, by `support/textOverlap.mjs`, that every visible control is at least 44 by 44 px and that nothing
+ * After each step it asserts that no text overlaps other text, by `support/textOverlap.mjs`, that every visible control, a row of an open list included, is at least 44 by 44 px and that nothing
  * scrolls the page sideways. No console errors and no request to another origin are allowed.
  *
  * Run against a preview of the fake build:
@@ -282,7 +282,7 @@ import { runSelection } from './support/runSelection.mjs'
 import { textOverlapsOn } from './support/textOverlap.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
-import { delay } from './support/pressing.mjs'
+import { delay, typeDay } from './support/pressing.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 /** The ids of the sample Loans file's bank loan, its informal loan you owe and its informal loan owed to you whose borrower is behind on the plan, `?loans=sample`. */
@@ -840,6 +840,9 @@ async function checkWidth(width) {
     await page.waitForSelector('[role="listbox"] [role="option"]')
     await page.keyboard.type('travel')
     const travel = await waitForText(page, '[role="option"]', 'Travel')
+    // The list scales in as it opens, so its rows are measured once they stand at their size.
+    await delay(300)
+    await inspect(page, `${width}px suggestions open`, '[role="listbox"]')
     await travel.tap()
     await page.waitForFunction(() => window.location.hash.includes('travel'))
     await page.keyboard.press('Escape')
@@ -861,6 +864,9 @@ async function checkWidth(width) {
     await open(page, '#/company/transactions?p=all', 'Transactions')
     await page.tap('[aria-label="Group rows"]')
     const byCategory = await waitForText(page, '[role="option"]', 'By category')
+    // The list scales in as it opens, so its rows are measured once they stand at their size.
+    await delay(300)
+    await inspect(page, `${width}px grouping open`, '[role="listbox"]')
     await byCategory.tap()
     await page.waitForSelector('[data-testid="transaction-group"]')
     // The option list fades out. A tap before it is gone lands on it.
@@ -2355,11 +2361,7 @@ async function checkWidth(width) {
     await add.tap()
     await page.waitForSelector('[data-testid="extra-payment-form"]')
     await delay(300)
-    await page.tap('[data-testid="extra-payment-date"]')
-    await page.$eval('[data-testid="extra-payment-date"]', (input) => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '2026-11-25')
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-    })
+    await typeDay(await page.$('[data-testid="extra-payment-date"]'), '2026-11-25')
     await page.tap('[data-testid="extra-payment-amount"]')
     await page.type('[data-testid="extra-payment-amount"]', '3000')
     await (await waitForText(page, '[data-testid="extra-payment-effect"] label', 'Shorter term')).tap()
@@ -2633,11 +2635,7 @@ async function checkWidth(width) {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Holdings')
     await page.waitForSelector('[data-testid="holdings-rows"] a[data-testid="holding-row"]', { visible: true })
-    await page.$eval('[data-testid="holdings-on"] input, input[data-testid="holdings-on"]', (input) => {
-      input.value = '2025-12-31'
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-      input.dispatchEvent(new Event('change', { bubbles: true }))
-    })
+    await typeDay(await page.waitForSelector('[data-testid="holdings-on"]', { visible: true }), '2025-12-31')
     await page.waitForFunction(() => window.location.hash.includes('on=2025-12-31'), { timeout: 5_000 })
     await waitForText(page, 'header p', 'Holdings at the close of')
     const today = await page.waitForSelector('[data-testid="holdings-today"]', { visible: true })
@@ -3536,14 +3534,14 @@ async function expect(valuePromise, holds, message) {
 }
 
 /**
- * Every visible control at least 44 by 44 px, its label counted when the label toggles it too, no two links in running text
+ * Every visible control, a row of an open list included, at least 44 by 44 px, its label counted when the label toggles it too, no two links in running text
  * sharing a tap area, and no sideways page scroll.
  * With `within`, a selector, only the controls inside it are measured.
  */
 async function inspect(page, scope, within = null) {
   const report = await page.evaluate(
     (smallest, within) => {
-      const controls = 'a[href], button, input:not([type="hidden"]), select, textarea, [role="button"], [role="switch"], [role="checkbox"], [role="combobox"], [role="tab"]'
+      const controls = 'a[href], button, input:not([type="hidden"]), select, textarea, [role="button"], [role="switch"], [role="checkbox"], [role="combobox"], [role="tab"], [role="option"]'
       const tooSmall = []
       for (const element of document.querySelectorAll(controls)) {
         if (element.closest('[aria-hidden="true"], [inert]')) continue

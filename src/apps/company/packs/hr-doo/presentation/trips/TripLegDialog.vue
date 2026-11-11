@@ -7,6 +7,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { legDraftOf, legOfDraft, removeTripLeg, saveTripLeg } from '../../application/tripWrites'
@@ -70,7 +71,7 @@ async function remove(): Promise<void> {
         <UInput v-model="fields.to" class="w-full" data-testid="trip-leg-to" />
       </UFormField>
       <UFormField :label="words.legDialog.date" :error="(tried && errors.date) || false">
-        <UInput v-model="fields.date" type="date" class="w-full" />
+        <DayField v-model="fields.date" class="w-full" />
       </UFormField>
       <UFormField :label="words.legDialog.km" :error="(tried && errors.km) || false">
         <UInput v-model="fields.km" inputmode="numeric" class="w-full" data-testid="trip-leg-km" />

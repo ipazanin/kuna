@@ -164,6 +164,18 @@ const kunaPlugin = {
       ],
       "A page follows the room the shell gives it, through roomAtLeast in src/shared/layout/pageRoom.ts, since the sidebar and the chat's dock narrow a page without narrowing the window.",
     ),
+    'choice-buttons': refusedSyntax(
+      ["VAttribute[directive=false][key.name='aria-pressed']", "VAttribute[directive=true][key.argument.name='aria-pressed']"],
+      'A row of buttons that picks one of a few choices is a ChoiceButtons, which keeps them looking and behaving alike. A setting that is on or off is a USwitch.',
+    ),
+    'day-fields': refusedSyntax(
+      ["VAttribute[directive=false][key.name='type'][value.value='date']"],
+      "A day is typed in a DayField, which shows it in the app's language. A native date field shows it in the browser's.",
+    ),
+    'day-field-labels': refusedSyntax(
+      ["VElement[name='label'] VElement[rawName='DayField']"],
+      'A DayField names itself with aria-label or a UFormField. A label around it sends a tap on the day to its calendar button.',
+    ),
     'domain-classes': refusedSyntax(
       ['ClassDeclaration:not([superClass.name=/Error$/])', 'ClassExpression:not([superClass.name=/Error$/])'],
       'A domain model is an immutable record with pure functions beside it. check:figures reads object shapes, so a class can hide a figure from it. Only an Error subclass stays.',
@@ -273,6 +285,8 @@ export function kunaConfig(exempt) {
     { name: 'kuna/plugin', plugins: { kuna: kunaPlugin } },
     { name: 'kuna/domain-classes', ...domainCode, rules: { 'kuna/domain-classes': 'error' } },
     { name: 'kuna/window-queries', files: ['src/**/*.{ts,vue}'], rules: { 'kuna/window-queries': 'error' } },
+    { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
+    { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
     ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
     prettier,
   )

@@ -23,6 +23,7 @@ import { plainAmount } from '../../../../shared/money/money'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
@@ -109,7 +110,7 @@ async function remove(): Promise<void> {
         <ChoiceButtons v-model="kind" :options="KIND_OPTIONS" :label="words.assetDialog.kind" data-testid="asset-kind" />
       </UFormField>
       <UFormField :label="words.assetDialog.bought" :error="(tried && errors.bought) || false">
-        <UInput v-model="bought" type="date" class="w-full" data-testid="asset-bought" />
+        <DayField v-model="bought" class="w-full" data-testid="asset-bought" />
       </UFormField>
       <UFormField :label="words.assetDialog.price" :help="words.assetDialog.priceHelp" :error="(tried && errors.price) || false">
         <MoneyInput v-model="price" :placeholder="assetsWords.form.amountPlaceholder" class="w-full" data-testid="asset-price" />
@@ -124,7 +125,7 @@ async function remove(): Promise<void> {
         :error="(tried && errors.firstRegistration) || false"
         class="sm:col-span-2"
       >
-        <UInput v-model="firstRegistration" type="date" class="w-full" data-testid="asset-first-registration" />
+        <DayField v-model="firstRegistration" class="w-full" data-testid="asset-first-registration" />
       </UFormField>
       <UFormField :label="words.assetDialog.loan" :help="loanReason" class="sm:col-span-2">
         <USelect v-model="loan" :items="loanItems" :disabled="loanReason !== ''" class="w-full" data-testid="asset-loan" />

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
+import DayField from '../../../../shared/ui/DayField.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import { typedLoanTerms } from '../domain/loanTermsTexts'
@@ -30,6 +31,6 @@ const errors = computed(() => loanTermsErrors(typedLoanTerms(texts.value).faults
     <MoneyInput v-model="texts.interimAmount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" />
   </UFormField>
   <UFormField :label="loanWords.loanDialog.interimDate">
-    <UInput v-model="texts.interimDate" type="date" class="w-full" />
+    <DayField v-model="texts.interimDate" class="w-full" />
   </UFormField>
 </template>

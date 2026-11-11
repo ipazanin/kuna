@@ -6,6 +6,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 - A screen opens with `PageHeader`, then cards. Every card is an `AppCard`, with a title, or bare for a tile.
 - The welcome on a fresh device has no `PageHeader` and no subtitle. Its card is the page, with its title as the `h1` and `max-w-2xl` for a measure that suits a laptop.
+- A card's header actions sit beside its title from 640 px while the title keeps 12rem, and below that on a row of their own. On a phone they always sit on a row of their own under the title, starting at its edge, so every card on a phone looks alike whatever its words. The visual check fails a phone card that keeps them beside the title.
 - A long list or table sits in a collapsible `AppCard` with a `collapse-id` named as screen and card, such as `invoicing.months`. Its `summary` is the one line shown when collapsed. A deep link into a card passes `reveal`.
 - A screen made of one table, one list or one form keeps the narrower measure (`max-w-measure`). A dashboard screen widens with `DashboardGrid`.
 - A screen whose books are still opening shows `ScreenSkeleton` below its header.
@@ -17,13 +18,14 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 - A row of `KpiTile` goes in `DashboardGrid layout="tiles"`. Each tile has a label, a figure, an optional change against a comparison, an optional trend and a caption. The tile itself opens the rows behind it.
 - A cost where a rise is bad news sets `higher-is-better` to false. The arrow and colour follow.
-- A figure that opens rows is a `DrillLink`. With no rows behind it, `to` is null and it shows as plain text.
+- A figure that opens rows is a `DrillLink`. With no rows behind it, `to` is null and it shows as plain text. It wears the colour of the text class its caller gives it, such as `text-highlighted`, and inherits the text's colour without one. A hover underlines it in the accent and keeps its colour. The visual check fails a link that ignores its class.
 - A share of a whole, such as what is paid back, is a `ProgressMeter`, with a stripe on a part someone else pays. Labelled figures inside a card, such as a loan's dates, are a `FactGrid`.
 
 ## Tabs
 
 - A screen's inner tabs are `PageTabs`, kept in `?tab=`. The first tab is the default and stays out of the address. A count shows where something waits.
 - A page's Filters button moves into the tab row on a phone through the `above` slot.
+- A tab that holds one card of words and fields, such as each app's Assistant tab, keeps it to 42rem, the welcome's measure, so its lines stay readable. `PageTabs` sets it, and the visual check fails a lone card wider. A card with a table or a chart takes the tab's width.
 
 ## Charts
 
@@ -53,7 +55,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - The `start` slot holds a destructive action such as Delete. The `end` slot holds Cancel then the primary action.
 - Set `dismissible` to false only while a step runs that closing would cut short.
 - A dialog whose fields sit two to a row lays them out in a `FormGrid as="form"`. A single column of fields, or rows of its own such as a split's parts, can stay a plain form.
-- After Save, a dialog shows each field's problem under that field, through `tried && errors.field`. An alert holds only a rule across fields, such as an odometer that runs backwards, and shows once every field is valid.
+- After Save, a dialog shows each field's problem under that field, through `tried && errors.field`. An alert holds only a rule across fields, such as an odometer that runs backwards, and shows once every field is valid. `tests/dialogErrors.spec.ts` fails on a dialog whose refusal alert sits beside fields that bind no `:error`.
 
 ## Undo instead of a confirm
 
@@ -69,11 +71,14 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## Forms
 
 - Fields go in `FormGrid`: two to a row from 640 px, labels in one row and inputs in the next, so inputs line up whatever a label's length. Every field takes one column, and one that takes a whole row, such as a field around a switch or a checkbox, says `sm:col-span-2`. Anything that is not a field, such as a bare radio group or a note, takes the whole row. A card whose fields have lines between them, such as the assistant's, stacks its fields in one column.
+- A day is a `DayField`, which shows it in the language on screen whatever the browser's and offers a calendar beside it. Its value is the day as YYYY-MM-DD, blank while no whole day is typed, and follows each keystroke, so a field that writes as soon as it changes listens to `change`, which comes once the field is left or a day is picked. It is named by a `UFormField` or `aria-label`, never a `<label>` around it. Lint refuses a native `type="date"`, whose order follows the browser, and a `DayField` inside a `<label>`.
+- One of a few choices in a row of buttons is a `ChoiceButtons`, such as a year, a payday or a period. A count after a choice, such as the rules in an area, is its `count`. A setting that is on or off is a `USwitch`. Lint refuses `aria-pressed` under `src/apps`, so no screen builds its own.
 - An amount of money is a `MoneyInput` bound to text that `typedAmount` reads. A rate, a percent or a count stays a `UInput` with its own `inputmode`.
 - `MoneyInput`'s k and m need a hardware keyboard or a paste, since a phone's decimal keypad has no letters. Ctrl+Z does not undo its edits, because it writes the field itself.
 - A `USelect` or `USelectMenu` that may stay empty offers the words for empty, such as Not set, as a row of its own whose value is a stand-in such as `-`, which the field maps to blank and back. No item has a blank value, because the list throws on one and its search then drops matches. A row also stays reachable by keyboard, touch and search, which a `clear` button is not.
+- The row of a list that Enter picks wears the accented surface, set for every select, suggestion list and menu in `vite.config.ts`.
 - A field that takes free text with suggestions is a `UInputMenu` with `mode="autocomplete"`, such as the Assistant card's model. Its value is the text as typed, so a screen keeps what the field shows apart from what it stores while the field has focus. When the suggestions come only from what is typed, such as the payees in Spending's entry dialog, the field has no chevron, its list stays closed while nothing matches, and it closes when focus leaves, so a new value never shows an empty list.
-- A plain table of figures is a `FigureTable`. Sortable columns use `SortableHeader`. `UTable` is only for grouped or sorted lists.
+- A plain table of figures is a `FigureTable`, straight in its card's body with `px-1 sm:px-2`, so the text of its first cell that shows starts where the card's title does. On a phone a first column hidden at that width hands its inset to the next, and the visual check fails a table whose first cell starts elsewhere. Sortable columns use `SortableHeader`. `UTable` is only for grouped or sorted lists.
 - A group of rows starts with a heading row of class `group-row`, a table's `tr` or the heading over a phone's list. `app.css` sets it on the elevated surface under a strong line with space above every group but the first, and keeps a phone's heading below the top bar. It names the group, its count and its total, and does not collapse.
 - A line inside a table's body that sums up the rest, such as what you pay in all, is a `tr` of class `total-row`. `app.css` draws a strong line above it. A table's own total in its `tfoot` needs no class.
 
@@ -118,7 +123,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Phone
 
-- Below 640 px every control is at least 44 px. The rule is in `app.css`. A switch, checkbox or radio stays its size and its label carries the height. A link that ends a sentence goes on its own line with `inline-target`. `DrillLink in-prose` is only for a link in the middle of a sentence, and it is underlined on a phone.
+- Below 640 px every control is at least 44 px, and so is every row of a select or suggestion list. The rule is in `app.css`, and the touch check measures the rows of an open list. A switch, checkbox or radio stays its size and its label carries the height. A link that ends a sentence goes on its own line with `inline-target`. `DrillLink in-prose` is only for a link in the middle of a sentence, and it is underlined on a phone.
 - A sheet that rises from the bottom is `.phone-sheet`. The navigation drawer is `.phone-drawer`. Both clear the safe areas.
 - The top bar's one action, Sync or Export, uses `.top-bar-action`.
 - Check Croatian copy at 360 px. Croatian labels run a third longer.

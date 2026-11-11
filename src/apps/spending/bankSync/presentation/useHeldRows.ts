@@ -3,17 +3,18 @@ import type { ComputedRef, Ref } from 'vue'
 
 import { answerHeldRow } from '../application/heldRowWrites'
 import { words } from './words'
-import { rowParts, twinCaption } from '../../statements/presentation/rowParts'
+import { rowNamed, twinCaption } from '../../statements/presentation/rowParts'
+import type { RowQuestion } from '../../statements/presentation/rowParts'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { rowKey } from '../../workbook/domain/transaction'
 import { today } from '../../../../shared/calendar/civilDate'
+import { EURO } from '../../../../shared/money/currencyCode'
 import { TWIN_CHOICES, twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import type { TwinChoice } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
-import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
 
 interface HeldRows {
-  readonly items: ComputedRef<readonly QuestionItem<TwinChoice>[]>
+  readonly items: ComputedRef<readonly RowQuestion<TwinChoice>[]>
   readonly options: (typeof TWIN_CHOICES)['sync']
   /** The answer being written, which its button shows until the write lands. */
   readonly saving: Readonly<Ref<{ readonly key: string; readonly choice: TwinChoice } | null>>
@@ -35,12 +36,11 @@ export function useHeldRows(shown: (key: string) => boolean = () => true): HeldR
     const rows = new Map(book.transactions.map((row) => [row.id, row]))
     return book.held
       .filter((held) => shown(rowKey(held)))
-      .map((held): QuestionItem<TwinChoice> => {
+      .map((held): RowQuestion<TwinChoice> => {
         const account = accounts.get(held.account)
         const like = rows.get(held.like)
-        const row = [...rowParts(held, account), account?.name ?? ''].filter((part) => part !== '').join(' · ')
-        const key = rowKey(held)
-        return like === undefined ? { key, row, caption: twinWords.gone, choice: 'later', options: TWIN_CHOICES.gone } : { key, row, caption: twinCaption(like, account), choice: 'later' }
+        const asked = { key: rowKey(held), row: rowNamed(held, account), choice: 'later' as const, amount: held.amount, currency: account?.currency ?? EURO }
+        return like === undefined ? { ...asked, caption: twinWords.gone, options: TWIN_CHOICES.gone } : { ...asked, caption: twinCaption(like, account) }
       })
   })
   return {

@@ -15,6 +15,7 @@ import type { BillingItem } from '../../workbook/domain/billingPlan'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { BILLING_WRITES, newBillingItem } from '../application/billingWrites'
 import type { BillingRowLine } from './billingView'
@@ -137,7 +138,7 @@ async function remove(): Promise<void> {
         />
       </UFormField>
       <UFormField :label="words.dialog.billableFrom" :error="(tried && errors.date) || false" :help="words.dialog.billableHelp">
-        <UInput v-model="date" type="date" class="w-full" />
+        <DayField v-model="date" class="w-full" />
       </UFormField>
       <UFormField :label="words.dialog.amount" :error="(tried && errors.amount) || false">
         <UInput v-model="amount" inputmode="decimal" :placeholder="words.dialog.amountPlaceholder" class="w-full" data-testid="billing-row-amount" />

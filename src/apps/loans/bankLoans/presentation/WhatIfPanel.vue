@@ -30,6 +30,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
@@ -158,7 +159,7 @@ function saveTried(): void {
             <MoneyInput v-model="amount" :placeholder="loanWords.whatIf.amountPlaceholder" class="w-full" data-testid="what-if-amount" />
           </UFormField>
           <UFormField :label="loanWords.whatIf.paidOn">
-            <UInput v-model="date" type="date" class="w-full" data-testid="what-if-date" />
+            <DayField v-model="date" class="w-full" data-testid="what-if-date" />
           </UFormField>
         </FormGrid>
         <UAlert

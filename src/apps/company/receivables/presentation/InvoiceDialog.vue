@@ -17,6 +17,7 @@ import type { StoredField, StoredFields } from '../../../../shared/storage/domai
 import type { Invoice } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { INVOICE_WRITES } from '../application/invoiceWrites'
 import { invoiceDatesProblems } from '../domain/invoiceGuards'
@@ -184,16 +185,16 @@ async function remove(): Promise<void> {
         <UInput v-model="fields.amount" inputmode="decimal" :placeholder="words.dialog.amountPlaceholder" class="w-full" data-testid="invoice-amount" />
       </UFormField>
       <UFormField :label="words.dialog.issued" :error="(tried && errors.issued) || false" :help="words.dialog.issuedHelp">
-        <UInput v-model="fields.issued" type="date" class="w-full" data-testid="invoice-issued" />
+        <DayField v-model="fields.issued" class="w-full" data-testid="invoice-issued" />
       </UFormField>
       <UFormField :label="words.dialog.due" :error="(tried && errors.due) || false" :help="words.dialog.dueHelp">
-        <UInput v-model="fields.due" type="date" class="w-full" />
+        <DayField v-model="fields.due" class="w-full" />
       </UFormField>
       <UFormField :label="words.dialog.workFrom" :error="(tried && errors.period) || false">
-        <UInput v-model="fields.period_from" type="date" class="w-full" />
+        <DayField v-model="fields.period_from" class="w-full" />
       </UFormField>
       <UFormField :label="words.dialog.workTo">
-        <UInput v-model="fields.period_to" type="date" class="w-full" />
+        <DayField v-model="fields.period_to" class="w-full" />
       </UFormField>
       <p class="-mt-2 text-xs text-muted">{{ words.dialog.periodHelp }}</p>
     </FormGrid>

@@ -4,6 +4,9 @@ import ui from '@nuxt/ui/vite'
 import { devContentSecurityPolicy } from './scripts/devContentSecurityPolicy.ts'
 import { offlineApp } from './scripts/pwa.ts'
 
+// The row of a list that Enter picks or a pointer is over, on the accented surface, so it shows on a card and in a popover in both themes.
+const highlightedRow = 'data-highlighted:not-data-disabled:before:bg-accented'
+
 // Project site: https://ipazanin.github.io/kuna/
 // The leading and trailing slashes are both required, or every asset 404s once deployed.
 export default defineConfig({
@@ -34,7 +37,17 @@ export default defineConfig({
             footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]',
           },
         },
+        select: { slots: { item: highlightedRow } },
+        selectMenu: { slots: { item: highlightedRow } },
+        inputMenu: { slots: { item: highlightedRow } },
+        commandPalette: { variants: { active: { false: { item: highlightedRow } } } },
+        dropdownMenu: { variants: { active: { false: { item: 'data-highlighted:before:bg-accented data-[state=open]:before:bg-accented' } } } },
+        // An unchecked box or radio draws its edge in a colour that passes 3:1, where Nuxt's border-strong does not.
+        checkbox: { slots: { base: 'ring-control-edge' } },
+        radioGroup: { slots: { base: 'ring-control-edge' } },
         switch: {
+          // Nuxt's off track and thumb nearly vanish on a dark card, so an off switch draws its edge and thumb in a colour that passes 3:1.
+          slots: { base: 'data-[state=unchecked]:border-control-edge', thumb: 'data-[state=unchecked]:bg-control-edge' },
           // Nuxt only dims an amber track, which still reads as on. The thumb keeps showing the value.
           compoundVariants: [{ loading: true, class: { base: 'data-[state=checked]:bg-accented', icon: 'group-data-[state=checked]:text-muted' } }],
         },

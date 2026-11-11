@@ -19,6 +19,7 @@ import type { Money } from '../../../../../../shared/money/money'
 import { amountForTyping, typedAmount } from '../../../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { SCENARIO_WRITES } from '../../domain/hrDooWrites'
 import { scenarioRowOfComponent } from '../../domain/scenarios/scenariosReading'
@@ -225,10 +226,10 @@ async function remove(): Promise<void> {
         :error="(tried && errors.from) || false"
         :help="kind === 'nontaxable' ? words.componentDialog.withJanuary : words.componentDialog.fromJanuary"
       >
-        <UInput v-model="from" type="date" class="w-full" data-testid="component-from" />
+        <DayField v-model="from" class="w-full" data-testid="component-from" />
       </UFormField>
       <UFormField v-if="hasEnd" :label="words.componentDialog.to" :error="(tried && errors.to) || false" :help="words.componentDialog.toDecember">
-        <UInput v-model="to" type="date" class="w-full" data-testid="component-to" />
+        <DayField v-model="to" class="w-full" data-testid="component-to" />
       </UFormField>
     </FormGrid>
     <template #start>

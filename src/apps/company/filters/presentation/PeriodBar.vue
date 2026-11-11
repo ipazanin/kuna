@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import type { Period, Quarter } from '../domain/filterState'
 import { periodInWords } from '../domain/periodInWords'
 import { ledgerYears, periodWithPreset } from '../domain/periodPresets'
@@ -18,13 +19,14 @@ const props = withDefaults(
     window: LedgerWindow
     /** The presets this screen offers, in the bar's order. */
     presets?: readonly PeriodPreset[]
-    /** One control per row, the presets wrapping instead of scrolling, as in the phone's filter sheet. */
+    /** One control per row, as in the phone's filter sheet. */
     stacked?: boolean
   }>(),
   { presets: () => ['l3', 'l12', 'year', 'quarter', 'custom', 'all'], stacked: false },
 )
 
 const rangeText = computed(() => periodInWords(period.value, props.window))
+const presetChoices = computed(() => props.presets.map((preset) => ({ value: preset, label: words.presets[preset] })))
 
 const QUARTERS = [
   { label: 'Q1', value: 1 },
@@ -55,8 +57,8 @@ const selectedQuarter = computed({
 const customRange = computed(() => (period.value.preset === 'custom' ? period.value.range : null))
 
 /** Moving one end past the other drags the other along, so the range never turns inside out. */
-function setCustomEnd(end: 'from' | 'to', text: string | number): void {
-  const date = parseCivilDate(String(text))
+function setCustomEnd(end: 'from' | 'to', text: string): void {
+  const date = parseCivilDate(text)
   const range = customRange.value
   if (date === null || range === null) {
     return
@@ -74,12 +76,8 @@ function choosePreset(preset: PeriodPreset): void {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="period-bar">
-    <div role="group" :aria-label="words.period" class="presets flex max-w-full rounded-control border border-default bg-raised p-0.5" :class="stacked ? 'presets-stacked w-full' : 'overflow-x-auto'">
-      <button v-for="preset in presets" :key="preset" type="button" class="preset" :aria-pressed="period.preset === preset" @click="choosePreset(preset)">
-        {{ words.presets[preset] }}
-      </button>
-    </div>
+  <div class="flex flex-wrap gap-x-3 gap-y-2" :class="stacked ? 'flex-col items-start' : 'items-center'" data-testid="period-bar">
+    <ChoiceButtons :model-value="period.preset" :options="presetChoices" :label="words.period" @update:model-value="choosePreset" />
 
     <div v-if="period.preset === 'year' || period.preset === 'quarter'" class="flex items-center gap-2">
       <USelect v-model="selectedYear" :items="yearItems" size="sm" :aria-label="words.year" class="w-24" />
@@ -87,53 +85,11 @@ function choosePreset(preset: PeriodPreset): void {
     </div>
 
     <div v-if="customRange" class="flex flex-wrap items-center gap-2">
-      <UInput type="date" size="sm" :aria-label="words.from" :model-value="customRange.from" class="w-40" @change="(event: Event) => setCustomEnd('from', (event.target as HTMLInputElement).value)" />
+      <DayField size="sm" :aria-label="words.from" :model-value="customRange.from" class="w-40" @change="setCustomEnd('from', $event)" />
       <span class="text-xs text-muted">{{ words.until }}</span>
-      <UInput type="date" size="sm" :aria-label="words.to" :model-value="customRange.to" class="w-40" @change="(event: Event) => setCustomEnd('to', (event.target as HTMLInputElement).value)" />
+      <DayField size="sm" :aria-label="words.to" :model-value="customRange.to" class="w-40" @change="setCustomEnd('to', $event)" />
     </div>
 
     <p v-if="!customRange" class="figure text-sm text-toned" data-testid="period-range">{{ rangeText }}</p>
   </div>
 </template>
-
-<style scoped>
-.presets {
-  scrollbar-width: none;
-}
-
-.presets-stacked {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
-  gap: 0.125rem;
-}
-
-.preset {
-  flex-shrink: 0;
-  padding: 0.3125rem 0.625rem;
-  border-radius: 4px;
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
-  color: var(--ink-muted);
-  white-space: nowrap;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.preset:hover {
-  color: var(--ink-strong);
-  background: var(--surface-elevated);
-}
-
-.preset[aria-pressed='true'] {
-  color: var(--accent-strong);
-  background: var(--accent-wash);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
-  font-weight: 500;
-}
-
-.preset:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-</style>

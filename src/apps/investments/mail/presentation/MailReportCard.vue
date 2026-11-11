@@ -24,6 +24,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
 /**
@@ -149,7 +150,7 @@ function rowOf(entry: ReportMail, index: number): MailResultRow {
           <UInput v-model="texts.contents" :loading="writes.saving('contents')" class="w-full" @change="commit('contents')" />
         </UFormField>
         <UFormField :label="words.card.since" :help="words.card.sinceHelp" :error="errors.since ?? false" data-testid="investments-mail-since">
-          <UInput v-model="texts.since" type="date" :loading="writes.saving('since')" class="w-full" @change="commit('since')" />
+          <DayField v-model="texts.since" :loading="writes.saving('since')" class="w-full" @change="commit('since')" />
         </UFormField>
       </FormGrid>
       <div class="flex flex-col gap-3">

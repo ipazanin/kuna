@@ -13,6 +13,7 @@ import { purchasePlanLine, replacePlanLines } from '../../application/planWrites
 import { GROUP_WORDS, fieldAmount } from './planWording'
 import { typedAmount } from '../../../../../../shared/money/typedAmount'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import { usePlanWrites } from './usePlanWrites'
 import { words } from './words'
@@ -93,7 +94,7 @@ async function remove(): Promise<void> {
         <UInput v-model="name" :placeholder="words.planDialogs.purchase.namePlaceholder" class="w-full" data-testid="purchase-name" />
       </UFormField>
       <UFormField :label="words.planDialogs.purchase.date" :error="(tried && errors.date) || false">
-        <UInput v-model="date" type="date" class="w-full" data-testid="purchase-date" />
+        <DayField v-model="date" class="w-full" data-testid="purchase-date" />
       </UFormField>
       <UFormField :label="words.planDialogs.purchase.cost" :help="words.planDialogs.purchase.costHelp" :error="(tried && errors.amount) || false">
         <UInput v-model="amount" inputmode="decimal" :placeholder="words.planDialogs.amountPlaceholder" class="w-full" data-testid="purchase-amount" />

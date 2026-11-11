@@ -19,6 +19,7 @@ import { typedAmount } from '../../../../shared/money/typedAmount'
 import { typedCount } from '../../../../shared/text/typedCount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
@@ -145,7 +146,7 @@ async function remove(): Promise<void> {
         <MoneyInput v-model="opening" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="informal-loan-opening" />
       </UFormField>
       <UFormField :label="words.loanDialog.start" :error="(tried && errors.start) || false">
-        <UInput v-model="start" type="date" class="w-full" data-testid="informal-loan-start" />
+        <DayField v-model="start" class="w-full" data-testid="informal-loan-start" />
       </UFormField>
       <UFormField :label="loansWords.form.note" class="sm:col-span-2">
         <UInput v-model="note" class="w-full" />
@@ -156,7 +157,7 @@ async function remove(): Promise<void> {
           <MoneyInput v-model="planMonthly" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="informal-loan-plan-monthly" />
         </UFormField>
         <UFormField :label="words.loanDialog.planFrom" :error="(tried && errors.from) || false" :help="words.loanDialog.planFromHelp">
-          <UInput v-model="planFrom" type="date" class="w-full" data-testid="informal-loan-plan-from" />
+          <DayField v-model="planFrom" class="w-full" data-testid="informal-loan-plan-from" />
         </UFormField>
         <UFormField :label="words.loanDialog.planDay" :error="(tried && errors.day) || false" :help="words.loanDialog.planDayHelp">
           <UInput v-model="planDay" inputmode="numeric" class="w-full" data-testid="informal-loan-plan-day" />

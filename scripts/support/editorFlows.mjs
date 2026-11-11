@@ -104,7 +104,7 @@ import {
   savedChatGone,
   sendInChat,
 } from './chatFlows.mjs'
-import { delay, pressSelector } from './pressing.mjs'
+import { delay, pressSelector, typeDay } from './pressing.mjs'
 import { scrollbarGutter, shellRoom } from './shellFlows.mjs'
 import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
@@ -314,6 +314,7 @@ function countedIn(words, forms, count) {
 
 /** Sets a field the way typing does, so Vue's v-model sees it. */
 async function setField(input, value) {
+  if ((await input.$('[data-segment="day"]')) !== null) return typeDay(input, value)
   await input.evaluate((element, text) => {
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
     setter.call(element, text)
@@ -340,7 +341,7 @@ async function rowGone(page, rowSelector, name) {
 }
 
 async function fieldIn(row, label) {
-  const input = await row.$(`input[aria-label="${label}"]`)
+  const input = await row.$(`input[aria-label="${label}"], [data-slot="base"][aria-label="${label}"]`)
   if (input === null) throw new Error(`no field "${label}" in the row`)
   return input
 }
@@ -3461,7 +3462,7 @@ export function onboardingDeliveryFlowIn(language) {
     })
     await delay(400)
     if (!(await fields.evaluate((element) => element.textContent ?? '')).includes('netbanking.support@erstebank.hr')) throw new Error('the Erste preset does not name the address it mails from')
-    const since = await page.$eval('input[data-testid="statement-delivery-since"]', (input) => input.value)
+    const since = await page.$eval('[data-testid="statement-delivery-since"] input', (input) => input.value)
     if (since !== `${new Date().getFullYear()}-01-01`) throw new Error(`mail since starts at ${since}, not the first day of this year`)
     await inspect?.('the delivery dialog with mail from Erste')
     await shoot('onboarding-delivery')
@@ -4114,7 +4115,7 @@ export function salariesFlowIn(language) {
     await inspect?.('the Over time tab')
     await shoot('salaries-over-time')
     await pressSelector(page, press, '[data-testid="salaries-months"] [data-payday="2026-04"] a')
-    await page.waitForSelector('[data-testid="salaries-paydays"] [data-payday="2026-04"][aria-pressed="true"]', { timeout: 10_000 }).catch(() => {
+    await page.waitForSelector('[data-testid="salaries-paydays"] [data-value="2026-04"][aria-pressed="true"]', { timeout: 10_000 }).catch(() => {
       throw new Error('a month of the Over time table did not open on the Month tab')
     })
     await elementSays(page, '[data-testid="salaries-strip"]', ['Mia Primjer'], 'the month opened without the employee picked')
@@ -6387,7 +6388,7 @@ export function spendingImportSyncedLookAlikeFlowIn(language, paths) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropSpendingFile(page, paths.revolut)
     await elementSays(page, '[data-testid="question"]', ['CORNER MARKET D.O.O.'], 'the question does not name the synced row the file row looks like')
-    await page.waitForSelector('[data-testid="spending-import-days-from"] input, input[data-testid="spending-import-days-from"]', { visible: true, timeout: 10_000 })
+    await page.waitForSelector('[data-testid="spending-import-days-from"]', { visible: true, timeout: 10_000 })
     await page.$eval('[data-testid="spending-import-days"]', (element) => element.scrollIntoView({ block: 'center' }))
     await delay(300)
     await inspect?.('the Revolut dry run naming the days the file brings beside the bank sync')
@@ -6969,12 +6970,12 @@ export function spendingBankSyncStartDayFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const line = '[data-testid="spending-bank-account"][data-kind="missing"]'
-    const start = `${line} input[data-testid="spending-bank-account-start"], ${line} [data-testid="spending-bank-account-start"] input`
+    const start = `${line} [data-testid="spending-bank-account-start"]`
     await bankSyncSettled(page, press, '[data-testid="spending-bank-sync-setup"]')
     await page.waitForSelector(start, { visible: true, timeout: 5_000 })
     await dismissToasts(page)
     const input = await page.$(start)
-    const { value, min, max } = await input.evaluate((element) => ({ value: element.value, min: element.min, max: element.max }))
+    const { value, min, max } = await input.$eval('input', (element) => ({ value: element.value, min: element.min, max: element.max }))
     if (value !== max || min >= max) throw new Error(`the first account to add should start on the day of the fetch, ${max}, and reach back to ${min}, not ${value}`)
     const before = new Date(Date.parse(`${min}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10)
     await setField(input, before)
@@ -11179,7 +11180,7 @@ export async function investmentsAddHeldFlow(page, { press, shoot, inspect }) {
 export async function spendingAccountOpensTodayFlow(page, { press }) {
   await pressSelector(page, press, '[data-testid="spending-add-account"]')
   await page.waitForSelector('[data-testid="spending-account-dialog"]', { visible: true, timeout: 10_000 })
-  const shown = await page.$eval('input[data-testid="spending-account-opened-on"], [data-testid="spending-account-opened-on"] input', (input) => input.value)
+  const shown = await page.$eval('[data-testid="spending-account-opened-on"] input', (input) => input.value)
   const local = await page.evaluate(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
@@ -11223,7 +11224,7 @@ export function spendingFirstAccountFlowIn(language) {
     await pressSelector(page, press, '[data-testid="spending-overview-add-account"]')
     await page.waitForSelector('[data-testid="spending-account-dialog"]', { visible: true, timeout: 10_000 })
     await delay(300)
-    const openedOn = await page.$eval('input[data-testid="spending-account-opened-on"], [data-testid="spending-account-opened-on"] input', (input) => input.value)
+    const openedOn = await page.$eval('[data-testid="spending-account-opened-on"] input', (input) => input.value)
     if (!openedOn.endsWith('-01')) throw new Error(`the first account on Overview opens on ${openedOn}, not the first of the month`)
     await inspect?.('the account dialog on an empty Overview')
     await shoot('spending-first-account')

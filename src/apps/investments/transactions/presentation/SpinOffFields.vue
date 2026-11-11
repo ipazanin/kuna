@@ -7,6 +7,7 @@ import InstrumentField from './InstrumentField.vue'
 import type { TransactionTexts } from '../domain/transactionDraft'
 import type { TransactionErrors } from './words'
 import { words } from './words'
+import DayField from '../../../../shared/ui/DayField.vue'
 
 /** Units of a new holding received for holding another, with the share of that holding's cost that moves to them. */
 const texts = defineModel<TransactionTexts>({ required: true })
@@ -24,7 +25,7 @@ const shown = (field: keyof TransactionTexts): string | false => (props.tried &&
   <InstrumentField v-model="texts.instrument" :label="words.fields.parent" :error="shown('instrument')" :book="book" test-id="transaction-instrument" />
   <InstrumentField v-model="texts.received" :label="words.fields.received" :error="shown('received')" :book="book" test-id="transaction-received" />
   <UFormField :label="words.fields.date" :error="shown('date')">
-    <UInput v-model="texts.date" type="date" class="w-full" data-testid="transaction-date" />
+    <DayField v-model="texts.date" class="w-full" data-testid="transaction-date" />
   </UFormField>
   <UFormField :label="words.fields.receivedUnits" :error="shown('quantity')">
     <UInput v-model="texts.quantity" inputmode="decimal" class="w-full" data-testid="transaction-quantity" />

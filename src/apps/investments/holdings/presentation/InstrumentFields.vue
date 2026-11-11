@@ -16,6 +16,7 @@ import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { INSTRUMENT_CLASSES, PRICE_SOURCES, QUOTING_KINDS } from '../../workbook/domain/instrument'
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
+import DayField from '../../../../shared/ui/DayField.vue'
 
 /** A holding's facts and the source of its daily closes, as fields inside a FormGrid. */
 const texts = defineModel<InstrumentTexts>({ required: true })
@@ -82,7 +83,7 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
       </UInput>
     </UFormField>
     <UFormField :label="text.maturity" :error="shown(errors.maturity)">
-      <UInput :model-value="texts.maturity" type="date" class="w-full" :data-testid="`${testId}-maturity`" @update:model-value="update('maturity', String($event))" />
+      <DayField :model-value="texts.maturity" class="w-full" :data-testid="`${testId}-maturity`" @update:model-value="update('maturity', $event)" />
     </UFormField>
   </template>
   <UFormField :label="text.type" :help="text.typeHelp" :error="shown(errors.type)">

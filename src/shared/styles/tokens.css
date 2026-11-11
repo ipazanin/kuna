@@ -49,6 +49,7 @@
   --color-loss-1: var(--loss-1);
   --color-loss-2: var(--loss-2);
   --color-loss-3: var(--loss-3);
+  --color-control-edge: var(--control-edge);
   --shadow-raised: var(--elevation-raised);
   --shadow-overlay: var(--elevation-overlay);
 }
@@ -310,6 +311,9 @@
    */
   --invest-buy: var(--chart-dot);
   --invest-sale: var(--series-2);
+
+  /* The edge of a checkbox or a radio, and the edge and thumb of a switch that is off. It passes 3:1 as a mark on the page, a card and a popover in both themes. */
+  --control-edge: var(--ink-muted);
 
   /*
    * Ink inside a filled mark. It keeps at least 3:1 on every swatch in both themes, enough for an

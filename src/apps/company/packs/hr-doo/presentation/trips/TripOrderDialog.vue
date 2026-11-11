@@ -15,6 +15,7 @@ import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import { countryName } from '../../../../../../shared/text/countryName'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../../../shared/ui/MoneyInput.vue'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
@@ -218,7 +219,7 @@ async function remove(): Promise<void> {
         <UInput v-model="fields.role" class="w-full" />
       </UFormField>
       <UFormField :label="words.orderDialog.issued" :error="(tried && errors.issued) || false">
-        <UInput v-model="fields.issued" type="date" class="w-full" />
+        <DayField v-model="fields.issued" class="w-full" />
       </UFormField>
       <UFormField :label="words.orderDialog.number" :error="(tried && errors.number) || false">
         <UInput v-model="fields.number" class="w-full" data-testid="trip-number" @input="numberTyped = true" />
@@ -233,7 +234,7 @@ async function remove(): Promise<void> {
         <UInput v-model="fields.task" class="w-full" />
       </UFormField>
       <UFormField :label="words.orderDialog.departs" :error="(tried && errors.departs) || false">
-        <UInput v-model="fields.departs" type="date" class="w-full" />
+        <DayField v-model="fields.departs" class="w-full" />
       </UFormField>
       <UFormField :label="words.orderDialog.days">
         <UInput v-model="fields.days" inputmode="numeric" class="w-full" />
@@ -256,7 +257,7 @@ async function remove(): Promise<void> {
         <MoneyInput v-model="fields.advance" class="w-full" />
       </UFormField>
       <UFormField :label="words.orderDialog.settleBy">
-        <UInput v-model="fields.settleBy" type="date" class="w-full" />
+        <DayField v-model="fields.settleBy" class="w-full" />
       </UFormField>
       <UFormField :label="words.orderDialog.note" class="sm:col-span-2">
         <UTextarea v-model="fields.note" :rows="2" autoresize class="w-full" />

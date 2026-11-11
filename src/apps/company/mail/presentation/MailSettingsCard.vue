@@ -7,6 +7,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import type { Settings, SettingsField } from '../../settings/domain/settings'
 import { mailAddressesOf } from '../../../../shared/mail-filing/domain/mailSource'
@@ -79,7 +80,7 @@ function updateSenders(text: string): void {
           <UInput :model-value="settings.statementsMailSubject" class="w-full" @update:model-value="update('statementsMailSubject', String($event))" />
         </UFormField>
         <UFormField :label="words.card.since" :help="words.card.sinceHelp" data-testid="mail-since">
-          <UInput :model-value="settings.mailSince ?? ''" type="date" class="w-full" @update:model-value="update('mailSince', parseCivilDate(String($event ?? '')))" />
+          <DayField :model-value="settings.mailSince ?? ''" class="w-full" @change="update('mailSince', parseCivilDate($event))" />
         </UFormField>
       </FormGrid>
       <div class="flex flex-col gap-3">

@@ -24,8 +24,12 @@ const TEXT_SURFACES: readonly Swatch[] = [
   { name: 'elevated', token: '--surface-elevated' },
 ]
 
-/** What a swatch's contrast is measured against: none, the token as text on each text surface, or ink on the token as a tint. */
-type Measure = 'none' | 'as-text' | 'under-ink'
+/** What a swatch's contrast is measured against: none, the token as text or as a mark on each text surface, or ink on the token as a tint. */
+type Measure = 'none' | 'as-text' | 'as-mark' | 'under-ink'
+
+/** WCAG 2's minimum for body text, and for a mark such as an icon or a control's edge. */
+const TEXT = 4.5
+const MARK = 3
 
 const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measure; readonly swatches: readonly Swatch[] }[] = [
   {
@@ -39,6 +43,11 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
       { name: 'Border', token: '--border-default' },
       { name: 'Border strong', token: '--border-strong' },
     ],
+  },
+  {
+    title: 'The edge of a checkbox or a radio, and the edge and thumb of a switch that is off, a mark with its contrast on the page, a card and a popover',
+    measure: 'as-mark',
+    swatches: [{ name: 'Control edge', token: '--control-edge' }],
   },
   {
     title: 'Ink, with its contrast on the page, a card and a popover',
@@ -153,9 +162,12 @@ const groups = computed(() =>
   })),
 )
 
-function contrastsOf(value: string, measure: Measure): readonly { readonly against: string; readonly ratio: number | null }[] {
-  if (measure === 'as-text') return TEXT_SURFACES.map((surface) => ({ against: `on ${surface.name}`, ratio: contrastRatio(value, tokenColour(surface.token)) }))
-  if (measure === 'under-ink') return [{ against: 'under ink', ratio: contrastRatio(tokenColour('--ink'), value) }]
+function contrastsOf(value: string, measure: Measure): readonly { readonly against: string; readonly ratio: number | null; readonly minimum: number }[] {
+  if (measure === 'as-text' || measure === 'as-mark') {
+    const minimum = measure === 'as-text' ? TEXT : MARK
+    return TEXT_SURFACES.map((surface) => ({ against: `on ${surface.name}`, ratio: contrastRatio(value, tokenColour(surface.token)), minimum }))
+  }
+  if (measure === 'under-ink') return [{ against: 'under ink', ratio: contrastRatio(tokenColour('--ink'), value), minimum: TEXT }]
   return []
 }
 
@@ -170,7 +182,7 @@ const TYPE_ROLES = [
 </script>
 
 <template>
-  <GallerySection id="colour" title="Colour" description="Every token in the theme on screen. A text token shows its contrast, and one under 4.5:1 says so.">
+  <GallerySection id="colour" title="Colour" description="Every token in the theme on screen. A text token shows its contrast, and one under 4.5:1 says so. A mark says so under 3:1.">
     <div class="flex flex-col gap-6">
       <div v-for="group in groups" :key="group.title">
         <h3 class="mb-2 type-label">{{ group.title }}</h3>
@@ -183,8 +195,14 @@ const TYPE_ROLES = [
               <span class="block text-highlighted">{{ swatch.name }}</span>
               <span class="identifier block text-muted">{{ swatch.token }}</span>
               <span class="identifier block text-muted">{{ swatch.value }}</span>
-              <span v-for="contrast in swatch.contrasts" :key="contrast.against" class="figure block" :class="contrast.ratio !== null && contrast.ratio < 4.5 ? 'text-error' : 'text-toned'">
-                {{ contrast.ratio === null ? '–' : `${contrast.ratio.toFixed(2)}:1` }} {{ contrast.against }}<template v-if="contrast.ratio !== null && contrast.ratio < 4.5">, fails</template>
+              <span
+                v-for="contrast in swatch.contrasts"
+                :key="contrast.against"
+                class="figure block"
+                :class="contrast.ratio !== null && contrast.ratio < contrast.minimum ? 'text-error' : 'text-toned'"
+              >
+                {{ contrast.ratio === null ? '–' : `${contrast.ratio.toFixed(2)}:1` }} {{ contrast.against
+                }}<template v-if="contrast.ratio !== null && contrast.ratio < contrast.minimum">, fails</template>
               </span>
             </span>
           </li>

@@ -24,19 +24,15 @@ withDefaults(
 
 <style scoped>
 .drill-link {
-  color: inherit;
   border-radius: 3px;
   text-decoration-line: underline;
   text-decoration-color: transparent;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
-  transition:
-    text-decoration-color 120ms ease,
-    color 120ms ease;
+  transition: text-decoration-color 120ms ease;
 }
 
 .drill-link:hover {
-  color: var(--ink-strong);
   text-decoration-color: var(--accent);
 }
 

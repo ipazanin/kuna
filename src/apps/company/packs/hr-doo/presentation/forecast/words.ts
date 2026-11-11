@@ -92,7 +92,7 @@ export const en = {
   },
   panel: {
     unregisteredTitle: 'The forecast needs the day the company was registered',
-    unregisteredDescription: `The tax periods, the advances and the balance due all count from it. Fill in “${domainEn.settingNames.registered}” on Settings, such as 2025-05-12.`,
+    unregisteredDescription: `The tax periods, the advances and the balance due all count from it. Fill in “${domainEn.settingNames.registered}” on Settings.`,
     setOnSettings: 'Set it on Settings',
     failedTitle: 'The year could not be forecast',
     openSettings: 'Open Settings',
@@ -340,7 +340,7 @@ export const hr: Translation<typeof en> = {
   },
   panel: {
     unregisteredTitle: 'Za prognozu treba dan registracije tvrtke',
-    unregisteredDescription: `Od njega se računaju porezna razdoblja, predujmovi i razlika za uplatu. Upišite ga u postavku „${domainHr.settingNames.registered}”, na primjer 2025-05-12.`,
+    unregisteredDescription: `Od njega se računaju porezna razdoblja, predujmovi i razlika za uplatu. Upišite ga u postavku „${domainHr.settingNames.registered}”.`,
     setOnSettings: 'Postavite ga u Postavkama',
     failedTitle: 'Za godinu se nije mogla izraditi prognoza',
     openSettings: 'Otvori Postavke',

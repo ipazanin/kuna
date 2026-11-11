@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 
 import CurrencyField from '../../holdings/presentation/CurrencyField.vue'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -8,6 +7,7 @@ import AccountField from './AccountField.vue'
 import type { TransactionTexts } from '../domain/transactionDraft'
 import type { TransactionErrors } from './words'
 import { words } from './words'
+import DayField from '../../../../shared/ui/DayField.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
 /** Cash of one currency changed into another in an account, each amount as booked, with the fees it charged. */
@@ -25,7 +25,7 @@ const shown = (field: keyof TransactionTexts): string | false => (props.tried &&
 <template>
   <AccountField v-model="texts.account" :label="words.fields.account" :error="shown('account')" :book="book" test-id="transaction-account" />
   <UFormField :label="words.fields.date" :error="shown('date')">
-    <UInput v-model="texts.date" type="date" class="w-full" data-testid="transaction-date" />
+    <DayField v-model="texts.date" class="w-full" data-testid="transaction-date" />
   </UFormField>
   <UFormField :label="words.fields.sold" :help="words.fields.soldHelp" :error="shown('amount')">
     <MoneyInput v-model="texts.amount" class="w-full" data-testid="transaction-amount" />

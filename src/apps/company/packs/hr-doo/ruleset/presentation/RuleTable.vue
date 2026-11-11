@@ -99,7 +99,7 @@ const status = computed(() =>
             <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" :aria-label="words.table.clearSearch" @click="search = ''" />
           </template>
         </UInput>
-        <UButton :label="showAll ? words.table.showFewer : words.table.showAll" color="neutral" variant="outline" :aria-pressed="showAll" data-testid="table-show-all" @click="toggleShowAll" />
+        <UButton :label="showAll ? words.table.showFewer : words.table.showAll" color="neutral" variant="outline" data-testid="table-show-all" @click="toggleShowAll" />
         <p class="figure text-xs text-muted" aria-live="polite" data-testid="table-count">{{ status }}</p>
       </div>
       <p v-if="rowsShown.length === 0" class="text-sm text-muted">

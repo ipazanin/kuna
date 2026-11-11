@@ -38,6 +38,7 @@ import { formatMoney, formatPercent, formatShare } from '../../../../shared/mone
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -124,10 +125,10 @@ const description = computed(() => {
     <PageHeader :title="words.title" :description="description">
       <template v-if="state.workbook !== null" #actions>
         <template v-if="!noTransactions && sources !== null">
-          <label class="flex items-center gap-2 type-label">
-            {{ words.onDay.label }}
-            <UInput v-model="picked" type="date" :max="sources.today" data-testid="holdings-on" />
-          </label>
+          <div class="flex items-center gap-2 type-label">
+            <span aria-hidden="true">{{ words.onDay.label }}</span>
+            <DayField v-model="picked" :max="sources.today" :aria-label="words.onDay.label" data-testid="holdings-on" />
+          </div>
           <UButton v-if="on !== null" :label="words.onDay.today" color="neutral" variant="outline" data-testid="holdings-today" @click="picked = sources.today" />
         </template>
         <UButton :label="transactionWords.add" icon="i-lucide-plus" data-testid="holdings-add-transaction" @click="adding = true" />

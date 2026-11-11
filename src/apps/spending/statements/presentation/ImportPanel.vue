@@ -4,26 +4,28 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 
 import { writeDryRun } from '../application/statementWrites'
 import { addRevolutAccounts, revolutStatement } from '../domain/revolutStatement'
 import { statementDryRun, syncGapOf } from '../domain/statementDryRun'
 import DryRunLines from './DryRunLines.vue'
-import { rowParts, twinCaption } from './rowParts'
+import { rowNamed, twinCaption } from './rowParts'
+import type { RowQuestion } from './rowParts'
 import MissingAccountsOffer from './MissingAccountsOffer.vue'
 import { words } from './words'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
+import { EURO } from '../../../../shared/money/currencyCode'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
-import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
 import { TWIN_CHOICES, twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import type { TwinChoice } from '../../../../shared/ai/presentation/copiedRowsWords'
 import type { TwinAnswer } from '../../../../shared/money/lookAlikeBookings'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { readFirstSheet } from '../../../../shared/xlsx/sheetGrids'
@@ -76,7 +78,7 @@ watch(
     typedTo.value = gap.value?.to ?? ''
   },
 )
-/** The file's first and last day, which a cleared field takes. */
+/** The file's first and last day, which a cleared field takes once it is left. */
 const fileDays = computed((): DateRange | null => {
   const days = (statement.value?.rows ?? []).map((row) => row.date).sort()
   return days.length === 0 ? null : { from: days[0]!, to: days[days.length - 1]! }
@@ -108,10 +110,16 @@ const dryRun = computed(() => {
 
 const twinItems = computed(() => {
   const accounts = new Map((store.state.workbook?.accounts ?? []).map((account) => [account.id, account]))
-  return (dryRun.value?.questions ?? []).map((question): QuestionItem<TwinChoice> => {
+  return (dryRun.value?.questions ?? []).map((question): RowQuestion<TwinChoice> => {
     const account = accounts.get(question.row.account)
-    const row = [...rowParts(question.row, account), account?.name ?? ''].filter((part) => part !== '').join(' · ')
-    return { key: question.key, row, caption: twinCaption(question.booked, account), choice: question.keep ?? 'later' }
+    return {
+      key: question.key,
+      row: rowNamed(question.row, account),
+      caption: twinCaption(question.booked, account),
+      choice: question.keep ?? 'later',
+      amount: question.row.amount,
+      currency: account?.currency ?? EURO,
+    }
   })
 })
 
@@ -149,10 +157,10 @@ async function confirm(): Promise<void> {
           <p class="type-caption">{{ words.import.days.intro }}</p>
           <FormGrid class="mt-2">
             <UFormField :label="words.import.days.from">
-              <UInput v-model="typedFrom" type="date" :min="fileDays.from" :max="fileDays.to" class="w-full" data-testid="spending-import-days-from" />
+              <DayField v-model="typedFrom" :min="fileDays.from" :max="fileDays.to" class="w-full" data-testid="spending-import-days-from" />
             </UFormField>
             <UFormField :label="words.import.days.to" :error="backwards ? words.import.days.backwards : false">
-              <UInput v-model="typedTo" type="date" :min="fileDays.from" :max="fileDays.to" class="w-full" data-testid="spending-import-days-to" />
+              <DayField v-model="typedTo" :min="fileDays.from" :max="fileDays.to" class="w-full" data-testid="spending-import-days-to" />
             </UFormField>
           </FormGrid>
         </section>
@@ -169,7 +177,11 @@ async function confirm(): Promise<void> {
           :heading="twinWords.title"
           :intro="twinWords.intro.file"
           @answer="answerTwin"
-        />
+        >
+          <template #amount="{ item }">
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" class="shrink-0 text-sm" />
+          </template>
+        </QuestionList>
         <DryRunLines :lines="dryRun.lines" />
         <UButton
           v-if="changes > 0"

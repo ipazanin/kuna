@@ -17,6 +17,7 @@ import { useLoanWords } from '../../bankLoans/presentation/useLoanWords'
 import { EXTRA_PAYMENT_EFFECTS } from '../../workbook/domain/extraPayment'
 import { words as loansWords } from '../../words'
 import { plural } from '../../../../shared/text/translation'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
@@ -66,7 +67,7 @@ const shown = (error: string | null | undefined): string | false => (props.tried
     </template>
     <FormGrid>
       <UFormField v-if="texts.kind === 'extra-payment'" :label="words.editor.paidOn" :error="shown(errors.date)">
-        <UInput v-model="texts.date" type="date" class="w-full" data-testid="scenario-change-date" />
+        <DayField v-model="texts.date" class="w-full" data-testid="scenario-change-date" />
       </UFormField>
       <UFormField
         v-else
@@ -86,7 +87,7 @@ const shown = (error: string | null | undefined): string | false => (props.tried
         />
       </UFormField>
       <UFormField v-if="texts.kind === 'regular-extra-payment'" :label="words.editor.until" :error="shown(errors.until)" :help="words.editor.untilHelp">
-        <UInput v-model="texts.until" type="date" class="w-full" data-testid="scenario-change-until" />
+        <DayField v-model="texts.until" class="w-full" data-testid="scenario-change-until" />
       </UFormField>
       <UFormField v-if="texts.kind === 'extra-payment' || texts.kind === 'regular-extra-payment'" :label="words.editor.amount" :error="shown(errors.amount)">
         <MoneyInput v-model="texts.amount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="scenario-change-amount" />

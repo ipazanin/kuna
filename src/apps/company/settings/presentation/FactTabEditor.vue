@@ -11,6 +11,7 @@ import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import type { Reading, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { draftOutcomes, draftsOfRecords, fieldsOfDrafts, kindOfColumn, madeOfDrafts } from '../domain/recordDrafts'
 import { storedOf } from '../../../../shared/storage/domain/recordsRead'
+import DayField from '../../../../shared/ui/DayField.vue'
 import type { DraftFieldKind, DraftFactory, FieldReader, RecordDraft } from '../domain/recordDrafts'
 import type { ChoiceItem, EditorColumn } from './factTabColumns'
 import IbanTagsField from './IbanTagsField.vue'
@@ -144,10 +145,17 @@ function save(): void {
                 :class="column.width"
                 @update:model-value="update(index, column.name, $event.join(', '))"
               />
+              <DayField
+                v-else-if="kindOf(column, draft) === 'date'"
+                :model-value="draft.fields[column.name] ?? ''"
+                :aria-label="column.label"
+                size="sm"
+                :class="column.width"
+                @update:model-value="update(index, column.name, $event)"
+              />
               <UInput
                 v-else
                 :model-value="draft.fields[column.name] ?? ''"
-                :type="kindOf(column, draft) === 'date' ? 'date' : 'text'"
                 :inputmode="['amount', 'whole-number', 'percent'].includes(kindOf(column, draft)) ? 'decimal' : undefined"
                 :placeholder="column.placeholderOf?.(fieldReader(draft)) ?? ''"
                 :aria-label="column.label"

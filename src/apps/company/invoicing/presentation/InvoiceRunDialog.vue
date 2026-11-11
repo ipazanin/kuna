@@ -8,6 +8,7 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
+import DayField from '../../../../shared/ui/DayField.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -125,19 +126,19 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
             />
           </UFormField>
           <UFormField :label="words.run.issued" :help="words.run.issuedHelp">
-            <UInput v-model="run.issued.value" type="date" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-issued" @change="run.issueChanged()" />
+            <DayField v-model="run.issued.value" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-issued" @change="run.issueChanged()" />
           </UFormField>
           <UFormField :label="words.run.number" :help="reexport ? words.run.issuedUnder : words.run.nextNumber(run.suggestedNumber.value)">
             <UInput :model-value="run.number.value" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-number" @update:model-value="run.typeNumber(String($event))" />
           </UFormField>
           <UFormField :label="words.run.due" :help="words.run.dueHelp">
-            <UInput v-model="run.due.value" type="date" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-due" />
+            <DayField v-model="run.due.value" class="w-full" :disabled="reexport || !editable" data-testid="invoice-run-due" />
           </UFormField>
           <UFormField :label="words.run.workFrom" :help="words.run.workFromHelp">
-            <UInput v-model="run.periodFrom.value" type="date" class="w-full" :disabled="reexport || !editable" />
+            <DayField v-model="run.periodFrom.value" class="w-full" :disabled="reexport || !editable" />
           </UFormField>
           <UFormField :label="words.run.workTo">
-            <UInput v-model="run.periodTo.value" type="date" class="w-full" :disabled="reexport || !editable" />
+            <DayField v-model="run.periodTo.value" class="w-full" :disabled="reexport || !editable" />
           </UFormField>
         </FormGrid>
 

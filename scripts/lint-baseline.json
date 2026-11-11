@@ -6,7 +6,6 @@
     "src/apps/company/billingPlan/presentation/FillYearDialog.vue",
     "src/apps/company/data-source/presentation/DataSourceChoices.vue",
     "src/apps/company/filters/presentation/FilterBar.vue",
-    "src/apps/company/filters/presentation/PeriodBar.vue",
     "src/apps/company/imports/presentation/DryRunStatementCard.vue",
     "src/apps/company/invoicing/presentation/InvoiceLinesEditor.vue",
     "src/apps/company/invoicing/presentation/InvoiceRunDialog.vue",

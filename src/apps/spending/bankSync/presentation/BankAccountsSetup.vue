@@ -3,7 +3,6 @@ import { computed, nextTick, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 
 import { addBankAccounts, bringBackBankDetails, fixOpening, keepMine, keepOutOfKuna, takeBankDetails } from '../application/bankSetupWrites'
 import type { BankSetup } from '../application/bankSync'
@@ -26,6 +25,7 @@ import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 
 /** The Bank sync tab's list of every account the linked banks give, each kept, offered to add, offered to update, or left out of Kuna, and the fixes the last fetch's balances suggest. */
 const props = defineProps<{ outcome: BankSetup }>()
@@ -211,14 +211,13 @@ async function setOpening(difference: BalanceDifference, key: string): Promise<v
                   class="my-1.5"
                   data-testid="spending-bank-account-start-field"
                 >
-                  <UInput
+                  <DayField
                     :model-value="typedStart(line.proposal, setupLineKey(line))"
-                    type="date"
                     :min="startDays(line.proposal).earliest"
                     :max="startDays(line.proposal).latest"
                     class="w-full max-w-60"
                     data-testid="spending-bank-account-start"
-                    @update:model-value="typeStart(setupLineKey(line), String($event))"
+                    @update:model-value="typeStart(setupLineKey(line), $event)"
                   />
                 </UFormField>
                 <template v-if="started.has(setupLineKey(line))">

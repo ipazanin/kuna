@@ -111,7 +111,7 @@ export const en = {
   },
   dialog: {
     itemError: 'Choose the kind of item, or type a new one',
-    dateError: 'A date, such as 2026-10-31',
+    dateError: 'Type a day or pick one',
     amountError: 'An amount above zero with at most two decimals',
     clientError: 'Choose the client',
     named: (item: string, client: string, day: string) => `${item} for ${client}, ${day}`,
@@ -256,7 +256,7 @@ export const hr: Translation<typeof en> = {
   },
   dialog: {
     itemError: 'Odaberite vrstu stavke ili upišite novu',
-    dateError: 'Datum, na primjer 31. 10. 2026.',
+    dateError: 'Upišite ili odaberite dan',
     amountError: 'Iznos veći od nule, s najviše dvije decimale',
     clientError: 'Odaberite klijenta',
     named: (item, client, day) => `${item} za „${client}”, ${day}`,

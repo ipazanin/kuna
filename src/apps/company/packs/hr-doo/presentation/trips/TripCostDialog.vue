@@ -9,6 +9,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import { useRecordWrites } from '../../../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../../../shared/ui/AppDialog.vue'
 import CurrencySelect from '../../../../../../shared/ui/CurrencySelect.vue'
+import DayField from '../../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../../../shared/ui/MoneyInput.vue'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
@@ -89,7 +90,7 @@ async function remove(): Promise<void> {
   <AppDialog v-model:open="open" :title="editing ? words.costDialog.changeTitle : words.costDialog.addTitle">
     <FormGrid id="trip-cost" as="form" data-testid="trip-cost-form" @submit.prevent="save">
       <UFormField :label="words.costDialog.date" :error="(tried && errors.date) || false">
-        <UInput v-model="fields.date" type="date" class="w-full" />
+        <DayField v-model="fields.date" class="w-full" />
       </UFormField>
       <UFormField :label="words.costDialog.kind">
         <USelect v-model="fields.kind" :items="kindItems" class="w-full" data-testid="trip-cost-kind" />

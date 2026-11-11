@@ -10,6 +10,7 @@ import type { TransactionTexts } from '../domain/transactionDraft'
 import type { TransactionErrors } from './words'
 import { words } from './words'
 import { EURO } from '../../../../shared/money/currencyCode'
+import DayField from '../../../../shared/ui/DayField.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
 /** A buy's or a sale's holding, account, day, units, price and fees, the price and fees in the holding's currency. */
@@ -29,7 +30,7 @@ const currency = computed(() => props.book.instruments.find((instrument) => inst
   <InstrumentField v-model="texts.instrument" :label="words.fields.holding" :error="shown('instrument')" :book="book" test-id="transaction-instrument" />
   <AccountField v-model="texts.account" :label="words.fields.account" :error="shown('account')" :book="book" test-id="transaction-account" />
   <UFormField :label="words.fields.tradeDate" :error="shown('date')">
-    <UInput v-model="texts.date" type="date" class="w-full" data-testid="transaction-date" />
+    <DayField v-model="texts.date" class="w-full" data-testid="transaction-date" />
   </UFormField>
   <UFormField :label="words.fields.units" :help="words.fields.unitsHelp" :error="shown('quantity')">
     <UInput v-model="texts.quantity" inputmode="decimal" class="w-full" data-testid="transaction-quantity" />

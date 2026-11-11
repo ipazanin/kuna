@@ -11,6 +11,7 @@ import { useStickyBandPart } from '../../../../../../shared/layout/stickyBand'
 import { usePhoneLayout } from '../../../../../../shared/layout/viewport'
 import { fold } from '../../../../../../shared/text/fold'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
+import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import InfoPopover from '../../../../../../shared/ui/InfoPopover.vue'
 import { useSettings } from '../../../../settings/application/useSettings'
 import { amountLocaleOf } from '../../../../settings/domain/settings'
@@ -75,8 +76,8 @@ const rulesShown = computed(() => rulesFound.value.filter((rule) => area.value =
 const watchShown = computed(() => watched.filter((item) => (area.value === 'all' || item.area === area.value) && matchesSearch(item.searchText)))
 
 const areaChoices = computed(() => [
-  { area: 'all' as const, label: words.allAreas, count: rulesFound.value.length },
-  ...areas.map((choice) => ({ area: choice, label: words.areas[choice].label, count: rulesFound.value.filter((rule) => rule.area === choice).length })),
+  { value: 'all' as const, label: words.allAreas, count: rulesFound.value.length },
+  ...areas.map((choice) => ({ value: choice, label: words.areas[choice].label, count: rulesFound.value.filter((rule) => rule.area === choice).length })),
 ])
 
 const sections = computed(() =>
@@ -131,17 +132,14 @@ watch(
   <div class="flex flex-col gap-6">
     <p class="max-w-[75ch] text-sm text-muted">{{ words.intro(checkedOn) }}</p>
 
+    <ChoiceButtons v-model="area" :options="areaChoices" :label="words.area" />
+
     <div ref="filterBar" role="search" class="ruleset-bar" data-testid="ruleset-bar">
       <UInput v-model="search" icon="i-lucide-search" enterkeyhint="search" :placeholder="words.search" :aria-label="words.searchLabel" class="ruleset-search" data-testid="ruleset-search">
         <template v-if="search" #trailing>
           <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" :aria-label="words.clearSearch" @click="search = ''" />
         </template>
       </UInput>
-      <div role="group" :aria-label="words.area" class="areas flex rounded-control border border-default bg-raised p-0.5">
-        <button v-for="choice in areaChoices" :key="choice.area" type="button" class="area" :aria-pressed="area === choice.area" :data-testid="`area-${choice.area}`" @click="area = choice.area">
-          {{ choice.label }} <span class="figure text-muted">{{ choice.count }}</span>
-        </button>
-      </div>
       <p class="figure text-xs text-muted" aria-live="polite" data-testid="ruleset-count">
         {{ rulesShown.length === rules.length ? plural(words.count(rules.length), rules.length) : words.shownOf(rulesShown.length, rules.length) }}
       </p>
@@ -219,8 +217,9 @@ watch(
 
 <style scoped>
 /*
- * Search and areas stay in reach while the list scrolls, as the filter bar does on the ledger
- * screens: under the top bar, at the very top beside the sidebar, and under the sticky tab row on a phone.
+ * Search and its count stay in reach while the list scrolls, as the filter bar does on the ledger screens: under the top
+ * bar, at the very top beside the sidebar, and under the sticky tab row on a phone. The areas above it scroll away, since
+ * a row of them that wraps would pin much of a phone's screen.
  */
 .ruleset-bar {
   position: sticky;
@@ -250,42 +249,6 @@ watch(
   .ruleset-search {
     width: 20rem;
   }
-}
-
-.areas {
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.area {
-  flex-shrink: 0;
-  padding: 0.3125rem 0.625rem;
-  border-radius: 4px;
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
-  color: var(--ink-muted);
-  white-space: nowrap;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.area:hover {
-  color: var(--ink-strong);
-  background: var(--surface-elevated);
-}
-
-.area[aria-pressed='true'] {
-  color: var(--accent-strong);
-  background: var(--accent-wash);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
-  font-weight: 500;
-}
-
-.area:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
 }
 
 /* An area's heading stays under the search bar while its rules scroll past. */

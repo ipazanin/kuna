@@ -10,12 +10,12 @@ export interface QuestionItem<Value extends string> {
 }
 </script>
 
-<script setup lang="ts" generic="Value extends string">
+<script setup lang="ts" generic="Value extends string, Item extends QuestionItem<Value>">
 import ChoiceButtons from './ChoiceButtons.vue'
 
-/** A list of rows that each ask for one of a few choices, under an optional heading and an intro. */
+/** A list of rows that each ask for one of a few choices, under an optional heading and an intro, with an optional figure at the end of each row's words. */
 defineProps<{
-  items: readonly QuestionItem<Value>[]
+  items: readonly Item[]
   options: readonly { readonly value: Value; readonly label: string }[]
   /** What each choice is about, read out as its group's name. */
   label: string
@@ -26,6 +26,7 @@ defineProps<{
   saving?: { readonly key: string; readonly choice: Value } | null
 }>()
 const emit = defineEmits<{ answer: [key: string, choice: Value] }>()
+defineSlots<{ amount?: (props: { item: Item }) => unknown }>()
 </script>
 
 <template>
@@ -34,10 +35,13 @@ const emit = defineEmits<{ answer: [key: string, choice: Value] }>()
     <p class="type-caption">{{ intro }}</p>
     <ul class="flex flex-col">
       <li v-for="item in items" :key="item.key" class="flex flex-col gap-1.5 border-t border-default py-3 first:border-t-0" data-testid="question">
-        <p class="flex flex-col gap-0.5">
-          <span class="break-words type-body text-highlighted">{{ item.row }}</span>
-          <span class="break-words type-caption">{{ item.caption }}</span>
-        </p>
+        <div class="flex items-start gap-3">
+          <p class="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span class="break-words type-body text-highlighted">{{ item.row }}</span>
+            <span class="break-words type-caption">{{ item.caption }}</span>
+          </p>
+          <slot name="amount" :item="item" />
+        </div>
         <ChoiceButtons
           :model-value="saving?.key === item.key ? saving.choice : item.choice"
           :options="item.options ?? options"

@@ -18,6 +18,7 @@ import DryRunLines from '../../statements/presentation/DryRunLines.vue'
 import { rowKey } from '../../workbook/domain/transaction'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -166,7 +167,11 @@ onMounted(() => {
           :intro="twinWords.intro.sync"
           :saving="held.saving.value"
           @answer="held.answer"
-        />
+        >
+          <template #amount="{ item }">
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" class="shrink-0 text-sm" />
+          </template>
+        </QuestionList>
         <DryRunLines v-if="sync.lastOutcome.value.dryRun.lines.length > 0" :lines="sync.lastOutcome.value.dryRun.lines" />
         <p v-else class="text-sm text-muted">{{ words.nothing }}</p>
       </div>

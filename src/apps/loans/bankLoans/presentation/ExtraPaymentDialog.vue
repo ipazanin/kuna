@@ -9,7 +9,6 @@ export type ExtraPaymentStart = Pick<ExtraPayment, 'date' | 'amount' | 'effect'>
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 
 import { EXTRA_PAYMENT_WRITES, newExtraPayment } from '../application/bankLoanWrites'
@@ -21,6 +20,7 @@ import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
@@ -92,7 +92,7 @@ async function remove(): Promise<void> {
   <AppDialog v-model:open="open" :title="editing === null ? loanWords.extraDialog.addTitle : loanWords.extraDialog.changeTitle" :description="loanWords.extraDialog.description">
     <FormGrid id="extra-payment" as="form" data-testid="extra-payment-form" @submit.prevent="save">
       <UFormField :label="loanWords.extraDialog.paidOn" :error="(tried && errors.date) || false">
-        <UInput v-model="date" type="date" class="w-full" data-testid="extra-payment-date" />
+        <DayField v-model="date" class="w-full" data-testid="extra-payment-date" />
       </UFormField>
       <UFormField :label="loanWords.extraDialog.amount" :error="(tried && errors.amount) || false">
         <MoneyInput v-model="amount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="extra-payment-amount" />

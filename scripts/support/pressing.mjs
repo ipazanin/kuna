@@ -17,3 +17,22 @@ export async function pressSelector(page, press, selector) {
   await press(handle)
   return handle
 }
+
+/**
+ * Types a day as YYYY-MM-DD into a DayField the way a person does, segment by segment. The year goes first and the day
+ * last, so a day such as the 31st is never cut to fit the month the field held before.
+ */
+export async function typeDay(field, day) {
+  const [year, month, date] = day.split('-')
+  for (const [part, digits] of [
+    ['year', year],
+    ['month', month],
+    ['day', date],
+  ]) {
+    const segment = await field.$(`[data-segment="${part}"]`)
+    if (segment === null) throw new Error(`the day field has no ${part} segment`)
+    await segment.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await segment.click()
+    await field.frame.page().keyboard.type(digits)
+  }
+}

@@ -5,6 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import { notCash, writeCashLegs } from '../application/statementWrites'
 import type { WithdrawalWithoutCash } from '../domain/reviewQueue'
+import type { RowQuestion } from './rowParts'
 import { words } from './words'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
@@ -23,7 +24,6 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
-import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
 
 /**
  * The cash withdrawals with no cash leg yet. Those with one cash account of their currency move there together in one
@@ -60,11 +60,13 @@ const shownProposed = computed(() => (allShown.value ? proposed.value : proposed
 const LATER = 'later'
 const NOT_CASH = 'not-cash'
 const questions = computed(() =>
-  asking.value.map(({ row, cashAccounts }): QuestionItem<string> => ({
+  asking.value.map(({ row, cashAccounts }): RowQuestion<string> => ({
     key: row.id,
-    row: [row.payee || row.description, formatAccountMoney(row.amount, accountOf(row)?.currency ?? EURO)].join(' · '),
+    row: row.payee || row.description,
     caption: captionOf(row),
     choice: LATER,
+    amount: row.amount,
+    currency: accountOf(row)?.currency ?? EURO,
     options: [...cashAccounts.map((account) => ({ value: account.id, label: account.name })), { value: NOT_CASH, label: words.review.cash.notCash }, { value: LATER, label: words.review.cash.later }],
   })),
 )
@@ -156,7 +158,11 @@ async function answer(key: string, choice: string): Promise<void> {
         />
       </template>
       <div v-if="questions.length > 0" class="px-4 sm:px-5">
-        <QuestionList :items="questions" :options="[]" :label="words.review.cash.which" :heading="words.review.cash.which" :intro="words.review.cash.whichIntro" :saving="saving" @answer="answer" />
+        <QuestionList :items="questions" :options="[]" :label="words.review.cash.which" :heading="words.review.cash.which" :intro="words.review.cash.whichIntro" :saving="saving" @answer="answer">
+          <template #amount="{ item }">
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" class="shrink-0 text-sm" />
+          </template>
+        </QuestionList>
       </div>
       <section v-for="{ currency, rows, openingDay: firstDay } in wanting" :key="currency" class="flex flex-col gap-1" data-testid="spending-review-cash-wanting">
         <UAlert

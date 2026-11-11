@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { OwnerPayScenario } from '../../domain/scenarios/ownerPayScenarios'
@@ -16,6 +15,7 @@ import { ownerPayPlanLine, replacePlanLines } from '../../application/planWrites
 import type { KeyedLine } from '../../application/planWrites'
 import { usePlanWrites } from './usePlanWrites'
 import { words } from './words'
+import DayField from '../../../../../../shared/ui/DayField.vue'
 
 type OwnerPayLine = Extract<PlanLine, { readonly kind: 'owner-pay-scenario' }>
 
@@ -119,7 +119,7 @@ async function clear(): Promise<void> {
           :error="(tried && errors.switchOn) || false"
           :help="suggestedSwitch === null ? words.planDialogs.ownerPay.switchOnHelp : words.planDialogs.ownerPay.switchOnSuggested"
         >
-          <UInput v-model="switchOn" type="date" class="w-full" data-testid="owner-pay-switch-on" />
+          <DayField v-model="switchOn" class="w-full" data-testid="owner-pay-switch-on" />
         </UFormField>
       </template>
     </form>

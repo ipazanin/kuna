@@ -2,11 +2,11 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
-import UButton from '@nuxt/ui/components/Button.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { yearOfMonth } from '../../../../../../shared/calendar/monthKey'
 import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
+import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import PageHeader from '../../../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../../../../shared/ui/PageTabs.vue'
@@ -54,7 +54,13 @@ const payday = computed(() => {
 
 const year = computed(() => (payday.value === null ? null : yearOfMonth(payday.value.payday)))
 const years = computed(() => (reconciliation.value === null ? [] : paydayYears(reconciliation.value)))
-const monthsOfYear = computed(() => reconciliation.value?.paydays.filter((entry) => yearOfMonth(entry.payday) === year.value).map((entry) => entry.payday) ?? [])
+const yearChoices = computed(() => years.value.map((option) => ({ value: String(option), label: String(option) })))
+const paydayChoices = computed(
+  () =>
+    reconciliation.value?.paydays
+      .filter((entry) => yearOfMonth(entry.payday) === year.value)
+      .map((entry) => ({ value: entry.payday, label: shortMonthName(entry.payday), ariaLabel: words.screen.paidIn(monthLabel(entry.payday)) })) ?? [],
+)
 
 const employees = computed(() => workbook.value?.employees ?? [])
 const employee = computed(() => {
@@ -122,32 +128,14 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
         <PageTabs v-if="employees.length > 0 && payday && month" :tabs="tabs" :label="words.screen.tabs.label" data-testid="salaries-tabs">
           <template #above>
             <div class="flex flex-col gap-3" data-testid="salaries-choice">
-              <div class="flex flex-wrap items-center gap-1.5" role="group" :aria-label="words.screen.year">
-                <UButton
-                  v-for="option in years"
-                  :key="option"
-                  :label="String(option)"
-                  size="sm"
-                  color="neutral"
-                  :variant="option === year ? 'solid' : 'outline'"
-                  :aria-pressed="option === year"
-                  @click="choose({ year: String(option), month: null })"
-                />
-              </div>
-              <div class="flex flex-wrap items-center gap-1.5" role="group" :aria-label="words.screen.payday" data-testid="salaries-paydays">
-                <UButton
-                  v-for="option in monthsOfYear"
-                  :key="option"
-                  :label="shortMonthName(option)"
-                  :aria-label="words.screen.paidIn(monthLabel(option))"
-                  size="sm"
-                  color="neutral"
-                  :variant="option === payday.payday ? 'subtle' : 'ghost'"
-                  :aria-pressed="option === payday.payday"
-                  :data-payday="option"
-                  @click="choose({ year: option.slice(0, 4), month: option })"
-                />
-              </div>
+              <ChoiceButtons :model-value="String(year)" :options="yearChoices" :label="words.screen.year" @update:model-value="choose({ year: $event, month: null })" />
+              <ChoiceButtons
+                :model-value="payday.payday"
+                :options="paydayChoices"
+                :label="words.screen.payday"
+                data-testid="salaries-paydays"
+                @update:model-value="choose({ year: $event.slice(0, 4), month: $event })"
+              />
               <USelect
                 v-if="employees.length >= 2"
                 :model-value="employee ?? EVERYONE"

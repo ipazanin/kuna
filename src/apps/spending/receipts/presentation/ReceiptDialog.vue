@@ -31,6 +31,7 @@ import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyF
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
@@ -237,7 +238,7 @@ function closeAsked(wanted: boolean): void {
           <MoneyInput v-model="typedTotal" :placeholder="spendingWords.form.amountPlaceholder" class="w-full" data-testid="spending-receipt-total" />
         </UFormField>
         <UFormField :label="words.date" :error="(tried && errors.date) || false">
-          <UInput v-model="typedDate" type="date" class="w-full" data-testid="spending-receipt-date" />
+          <DayField v-model="typedDate" class="w-full" data-testid="spending-receipt-date" />
         </UFormField>
       </template>
       <UFormField :label="words.merchant" :help="words.merchantHelp">

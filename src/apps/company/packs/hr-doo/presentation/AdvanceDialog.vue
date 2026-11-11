@@ -35,6 +35,7 @@ import type { Category } from '../../../workbook/domain/workbook'
 import { useWorkbook } from '../../../workbook/application/workbookStore'
 import { useRecordWrites } from '../../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../../shared/ui/FormGrid.vue'
 import { words } from './words'
 
@@ -146,7 +147,7 @@ async function remove(): Promise<void> {
   >
     <FormGrid id="add-advance" as="form" data-testid="add-advance" @submit.prevent="save">
       <UFormField :label="words.advanceDialog.date" :error="(tried && errors.date) || false">
-        <UInput v-model="date" type="date" class="w-full" />
+        <DayField v-model="date" class="w-full" />
       </UFormField>
       <UFormField :label="words.advanceDialog.amount" :error="(tried && errors.amount) || false">
         <UInput v-model="amount" inputmode="decimal" :placeholder="words.advanceDialog.amountPlaceholder" class="w-full" />

@@ -212,6 +212,11 @@ watch(
   display: none;
 }
 
+/* A tab that holds one card of words and fields keeps the welcome's measure, max-w-2xl, so its lines stay readable. A card with a table or a chart takes the tab's width. */
+.page-tabs :deep([data-slot='content'] > [data-app-card]:only-child:not(:has(table, canvas))) {
+  max-width: var(--container-2xl);
+}
+
 .page-tabs-frame.has-above > .page-tabs {
   margin-top: 1rem;
 }

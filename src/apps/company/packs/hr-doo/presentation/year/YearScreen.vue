@@ -2,12 +2,12 @@
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
-import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { yearOf } from '../../../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import { yearOfMonth } from '../../../../../../shared/calendar/monthKey'
+import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import PageHeader from '../../../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../../../shared/ui/PageTabs.vue'
@@ -79,6 +79,8 @@ const options = computed(() => {
   const accountantYears = [...new Set(current.workbook.yearEndLines.map((line) => line.year))]
   return yearOptions(accountantYears, yearOfMonth(current.window.firstMonth), yearOf(day))
 })
+
+const yearChoices = computed(() => options.value.map((option) => ({ value: option.year, label: String(option.year) })))
 
 const askedYear = computed(() => (typeof route.query.year === 'string' && route.query.year !== '' ? Number(route.query.year) : null))
 
@@ -192,19 +194,8 @@ const unregistered = computed(() => closed.value?.view?.unregistered ?? false)
 <template>
   <section class="flex max-w-measure flex-col gap-6">
     <PageHeader :title="packWords.screens.year" :description="words.description">
-      <template v-if="options.length > 1 && settings.ownerPayModule" #actions>
-        <div class="flex flex-wrap gap-1.5" role="group" :aria-label="words.picker" data-testid="year-picker">
-          <UButton
-            v-for="option in options"
-            :key="option.year"
-            :label="String(option.year)"
-            size="sm"
-            color="neutral"
-            :variant="option.year === shown?.year ? 'solid' : 'outline'"
-            :aria-pressed="option.year === shown?.year"
-            @click="pickYear(option.year)"
-          />
-        </div>
+      <template v-if="options.length > 1 && settings.ownerPayModule && shown" #actions>
+        <ChoiceButtons :model-value="shown.year" :options="yearChoices" :label="words.picker" data-testid="year-picker" @update:model-value="pickYear" />
       </template>
     </PageHeader>
     <OwnerPayOff v-if="!settings.ownerPayModule" />

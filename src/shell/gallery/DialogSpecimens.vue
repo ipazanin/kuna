@@ -4,11 +4,14 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
+import UCheckbox from '@nuxt/ui/components/Checkbox.vue'
+import URadioGroup from '@nuxt/ui/components/RadioGroup.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../shared/ui/AppCard.vue'
 import AppDialog from '../../shared/ui/AppDialog.vue'
 import CurrencySelect from '../../shared/ui/CurrencySelect.vue'
+import DayField from '../../shared/ui/DayField.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FormGrid from '../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../shared/ui/MoneyInput.vue'
@@ -21,9 +24,18 @@ const formOpen = ref(false)
 const tableOpen = ref(false)
 const confirmOpen = ref(false)
 const tried = ref(false)
+const boxTicked = ref(false)
+const radioPicked = ref('A radio picked')
 const gridInterest = ref('')
 const dialogInterest = ref('')
 const subsidised = ref(true)
+const firstInstalment = ref('2026-07-12')
+const blankDay = ref('')
+const laterDay = ref('2026-11-20')
+const savingDay = ref('2026-03-01')
+const earlierDay = ref('2026-10-30')
+const wrongDay = ref('')
+const changedDay = ref<string | null>(null)
 const typedMoney = ref('')
 const givenMoney = ref(plainAmount(moneyFromCents(150000)))
 const disabledMoney = ref(plainAmount(moneyFromCents(150000)))
@@ -59,7 +71,7 @@ const ROWS = [
           <UInput inputmode="numeric" class="w-full" />
         </UFormField>
         <UFormField label="First instalment">
-          <UInput type="date" class="w-full" />
+          <DayField v-model="firstInstalment" class="w-full" />
         </UFormField>
         <USwitch v-model="subsidised" label="A subsidy pays part of each instalment" description="A switch takes the whole row." />
         <UAlert
@@ -75,7 +87,11 @@ const ROWS = [
           <UInput class="w-full" />
         </UFormField>
       </FormGrid>
-      <USwitch v-model="tried" label="Show the errors" class="mt-4" />
+      <div class="mt-4 flex flex-wrap items-start gap-6">
+        <USwitch v-model="tried" label="Show the errors" />
+        <UCheckbox v-model="boxTicked" label="A checkbox, unticked" />
+        <URadioGroup v-model="radioPicked" :items="['A radio picked', 'One not picked']" />
+      </div>
     </AppCard>
   </GallerySection>
 
@@ -101,6 +117,46 @@ const ROWS = [
         <p class="type-caption sm:col-span-2">
           <template v-if="readMoney === null">The first field reads no amount yet.</template>
           <template v-else>The first field reads <MoneyText :cents="readMoney" />.</template>
+        </p>
+      </FormGrid>
+    </AppCard>
+  </GallerySection>
+
+  <GallerySection
+    id="day-field"
+    title="DayField"
+    description="A day typed or picked from the calendar beside it, shown in the language on screen whatever the browser's, bound with v-model to the day as YYYY-MM-DD, blank while no whole day is typed. The value follows each keystroke, and change comes once the field is left or a day is picked, so a field that writes listens to change. A native date field shows the browser's order, which lint refuses."
+  >
+    <AppCard as="div" class="p-5">
+      <FormGrid>
+        <UFormField label="Opened on">
+          <DayField v-model="firstInstalment" class="w-full" data-testid="gallery-day-field" @change="changedDay = $event" />
+        </UFormField>
+        <UFormField label="Blank" help="No day yet.">
+          <DayField v-model="blankDay" class="w-full" />
+        </UFormField>
+        <UFormField label="From today on" help="Takes no day before 11 Nov 2026.">
+          <DayField v-model="laterDay" min="2026-11-11" class="w-full" />
+        </UFormField>
+        <UFormField label="Up to today" help="Takes no day after 11 Nov 2026.">
+          <DayField v-model="earlierDay" max="2026-11-11" class="w-full" />
+        </UFormField>
+        <UFormField label="With an error" error="A day, such as 1 Mar 2026">
+          <DayField v-model="wrongDay" class="w-full" />
+        </UFormField>
+        <UFormField label="Disabled" help="A day that another field sets.">
+          <DayField v-model="savingDay" disabled class="w-full" />
+        </UFormField>
+        <UFormField label="Saving">
+          <DayField v-model="savingDay" loading class="w-full" />
+        </UFormField>
+        <UFormField label="Small" help="As in a filter bar or an editor's row.">
+          <DayField v-model="earlierDay" size="sm" class="w-40" />
+        </UFormField>
+        <p class="type-caption sm:col-span-2">
+          The first field holds <span class="identifier">{{ firstInstalment || 'blank' }}</span
+          >, and its last change said <span class="identifier">{{ changedDay ?? 'nothing yet' }}</span
+          >.
         </p>
       </FormGrid>
     </AppCard>

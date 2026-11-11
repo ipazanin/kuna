@@ -4,6 +4,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import { typedLoanTerms } from '../domain/loanTermsTexts'
 import type { LoanTermsTexts } from '../domain/loanTermsTexts'
+import DayField from '../../../../shared/ui/DayField.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
 import RepaymentChoice from './RepaymentChoice.vue'
@@ -31,9 +32,9 @@ const errors = computed(() => loanTermsErrors(typedLoanTerms(texts.value).faults
     <UInput v-model="texts.instalments" inputmode="numeric" class="w-full" data-testid="bank-loan-instalments" />
   </UFormField>
   <UFormField :label="loanWords.loanDialog.drawdown" :error="(tried && errors.drawdown) || false" :help="loanWords.loanDialog.drawdownHelp">
-    <UInput v-model="texts.drawdown" type="date" class="w-full" data-testid="bank-loan-drawdown" />
+    <DayField v-model="texts.drawdown" class="w-full" data-testid="bank-loan-drawdown" />
   </UFormField>
   <UFormField :label="loanWords.loanDialog.firstInstalment" :error="(tried && errors.firstInstalment) || false" :help="loanWords.loanDialog.firstInstalmentHelp">
-    <UInput v-model="texts.firstInstalment" type="date" class="w-full" data-testid="bank-loan-first-instalment" />
+    <DayField v-model="texts.firstInstalment" class="w-full" data-testid="bank-loan-first-instalment" />
   </UFormField>
 </template>

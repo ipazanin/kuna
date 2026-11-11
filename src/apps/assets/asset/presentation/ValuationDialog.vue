@@ -15,6 +15,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { plainAmount } from '../../../../shared/money/money'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
@@ -74,7 +75,7 @@ async function remove(): Promise<void> {
   <AppDialog v-model:open="open" :title="editing === null ? words.valuationDialog.addTitle : words.valuationDialog.changeTitle" :description="words.valuationDialog.description(entry.asset.name)">
     <FormGrid id="valuation" as="form" data-testid="valuation-form" @submit.prevent="save">
       <UFormField :label="words.valuationDialog.date" :error="(tried && errors.date) || false">
-        <UInput v-model="date" type="date" class="w-full" data-testid="valuation-date" />
+        <DayField v-model="date" class="w-full" data-testid="valuation-date" />
       </UFormField>
       <UFormField :label="words.valuationDialog.value" :error="(tried && errors.value) || false">
         <MoneyInput v-model="value" :placeholder="assetsWords.form.amountPlaceholder" class="w-full" data-testid="valuation-value" />

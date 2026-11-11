@@ -11,6 +11,7 @@ import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import { BANK_PRESETS } from '../../mail/domain/bankPresets'
 import { setSettings } from '../../settings/application/settingWrites'
@@ -86,7 +87,7 @@ async function save(): Promise<void> {
           <USelect :model-value="mail.bank" :items="BANKS" class="w-full" data-testid="statement-delivery-bank" @update:model-value="chooseMail({ bank: String($event) })" />
         </UFormField>
         <UFormField :label="text.since" :help="text.sinceHelp">
-          <UInput :model-value="since" type="date" class="w-full" data-testid="statement-delivery-since" @update:model-value="chooseMail({ since: parseCivilDate(String($event ?? '')) })" />
+          <DayField :model-value="since" class="w-full" data-testid="statement-delivery-since" @update:model-value="chooseMail({ since: parseCivilDate($event) })" />
         </UFormField>
         <template v-if="mail.bank === OTHER_BANK">
           <UFormField :label="text.from" :error="problems.from ?? false" class="sm:col-span-2">

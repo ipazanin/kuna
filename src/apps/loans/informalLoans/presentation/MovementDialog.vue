@@ -17,6 +17,7 @@ import { plainAmount } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import { words as loansWords } from '../../words'
@@ -91,7 +92,7 @@ async function remove(): Promise<void> {
   <AppDialog v-model:open="open" :title="editing === null ? words.movementDialog.addTitle : words.movementDialog.changeTitle" :description="words.movementDialog.description(book.loan.name)">
     <FormGrid id="movement" as="form" data-testid="movement-form" @submit.prevent="save">
       <UFormField :label="words.movementDialog.date" :error="(tried && errors.date) || false">
-        <UInput v-model="date" type="date" class="w-full" data-testid="movement-date" />
+        <DayField v-model="date" class="w-full" data-testid="movement-date" />
       </UFormField>
       <UFormField :label="words.movementDialog.amount" :error="(tried && errors.amount) || false">
         <MoneyInput v-model="amount" :placeholder="loansWords.form.amountPlaceholder" class="w-full" data-testid="movement-amount" />

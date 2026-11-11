@@ -12,6 +12,7 @@ import { formatPercent } from '../../../../shared/money/moneyFormat'
 import { pointsOfShare } from '../../../../shared/money/percent'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ChartCard from '../../../../shared/ui/ChartCard.vue'
+import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
@@ -45,6 +46,8 @@ const asOf = computed(() => newestBookingOf(state.workbook?.transactions ?? []))
 const figures = useBillingPlan(asOf)
 
 const years = computed(() => (figures.value === null || asOf.value === null ? [] : billingYears(figures.value, asOf.value)))
+
+const yearChoices = computed(() => years.value.map((entry) => ({ value: entry, label: String(entry) })))
 
 /** The year and the opened month live in the address, so a tile's link or a shared link opens the same place. */
 const year = computed(() => {
@@ -143,18 +146,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
         </template>
       </EmptyState>
       <template v-else-if="view && figures">
-        <div v-if="years.length > 1" class="flex flex-wrap gap-1.5" role="group" :aria-label="words.panel.year" data-testid="year-picker">
-          <UButton
-            v-for="entry in years"
-            :key="entry"
-            :label="String(entry)"
-            size="sm"
-            color="neutral"
-            :variant="entry === year ? 'solid' : 'outline'"
-            :aria-pressed="entry === year"
-            @click="pickYear(entry)"
-          />
-        </div>
+        <ChoiceButtons v-if="years.length > 1 && year !== null" :model-value="year" :options="yearChoices" :label="words.panel.year" data-testid="year-picker" @update:model-value="pickYear" />
 
         <div data-testid="billing-year-line">
           <dl class="year-line">

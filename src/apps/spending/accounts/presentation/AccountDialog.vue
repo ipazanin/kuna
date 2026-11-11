@@ -28,6 +28,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import CurrencySelect from '../../../../shared/ui/CurrencySelect.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
@@ -213,7 +214,7 @@ async function remove(): Promise<void> {
         <USwitch v-model="overdrawn" :label="words.dialog.overdrawn" class="min-h-11" data-testid="spending-account-overdrawn" />
       </div>
       <UFormField :label="words.dialog.openedOn" :error="(tried && errors.openedOn) || false" v-bind="earlierFromBank ? { help: words.dialog.earlierStart } : {}">
-        <UInput v-model="openedOn" type="date" class="w-full" data-testid="spending-account-opened-on" />
+        <DayField v-model="openedOn" class="w-full" data-testid="spending-account-opened-on" />
       </UFormField>
       <UAlert v-if="shownCutover !== null" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :title="shownCutover.title" data-testid="spending-account-cutover">
         <template #description>
