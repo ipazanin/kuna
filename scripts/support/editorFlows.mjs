@@ -10385,6 +10385,165 @@ export function chatReceiptFlowIn(language, photos, { accept = false, joins = fa
   }
 }
 
+/** Accepts a card and waits for it to land, or says why not. */
+async function acceptCard(press, page, card) {
+  await press(await card.$('[data-testid="chat-proposal-accept"]'))
+  await card.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
+    const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
+    throw new Error(`Accept did not land: ${refused}`)
+  })
+}
+
+/** Takes a card back with its Undo and waits until it says so. */
+async function undoCard(press, page, card, words) {
+  await press(await card.$('[data-testid="chat-proposal-undo"]'))
+  await page
+    .waitForFunction((held, text) => held.textContent?.includes(text) ?? false, { timeout: 10_000 }, card, words.proposal.undone)
+    .catch(() => {
+      throw new Error('Undo did not say it was undone')
+    })
+}
+
+/** Attaches a photo to the chat, sends the request and waits for its card, which it returns once the answer under it is in. */
+async function receiptCardFor(page, press, photo, request, cards, failure) {
+  await attachToChat(page, photo)
+  await sendInChat(page, press, request)
+  await allowIfAsked(page, press)
+  const card = await newestCard(page, cards, failure)
+  await page.waitForFunction((answers) => document.querySelectorAll('[data-testid="chat-answer"]').length >= answers, { timeout: 15_000 }, cards)
+  await delay(300)
+  await acceptLooksReady(page)
+  return card
+}
+
+/**
+ * The receipt paths the chat takes beyond a payment that matches, each on a made-up key with the sample €17.00 photo but `pick`.
+ * `pick`: the photo whose QR code two payments share makes the chat ask which one, and proposes nothing. `none`: a photo no payment
+ * matches makes the chat ask whether it was cash, and Yes, cash brings the cash card, which Accept writes. `picked`:the Harbour bistro payment of €33.00 is split by hand first, and the receipt the person puts on it warns that the
+ * amount differs, lists the parts it replaces, and Accept leaves its two lines and a Difference line until Undo brings the split back.
+ * `cash`: a cash receipt becomes an entry on the one cash account in euros. `cash-none`: with no cash account in euros, the
+ * chat asks how much cash there was, and told €50 the same card adds one with that opening first. `cash-several`: once a second cash account is in, the chat asks which one the cash came from.
+ */
+export function chatReceiptPathFlowIn(language, photos, path) {
+  const words = ASSIST_WORDS[language]
+  const receiptWords = (language === 'en' ? spendingAssistantEnglish : spendingAssistantCroatian).receipts
+  const english = language === 'en'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(english ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      if (path === 'picked') {
+        await sendInChat(page, press, english ? 'Split the Harbour bistro' : 'Podijeli Harbour bistro')
+        await allowIfAsked(page, press)
+        const split = await newestCard(page, 1, 'the chat proposed no split of Harbour bistro')
+        await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+        await acceptCard(press, page, split)
+        await rowLinesAre(page, 'Harbour bistro', -3300, 2)
+        const card = await receiptCardFor(
+          page,
+          press,
+          photos.noMatch,
+          english ? 'Put the receipt on Harbour bistro' : 'Stavi fiskalni račun na Harbour bistro',
+          2,
+          'the chat proposed no receipt on Harbour bistro',
+        )
+        const notes = await card.$$eval('[data-testid="chat-proposal-note"]', (shown) => shown.map((note) => note.textContent ?? '').join(' '))
+        const replaced = receiptWords.replacesSplit('').replace(/: $/, '')
+        if (!notes.includes(replaced)) throw new Error(`the receipt card does not say which parts of the split go, and notes "${notes}"`)
+        const differs = receiptWords.otherAmount('', '').split(',').at(-1).trim()
+        if (!notes.includes(differs)) throw new Error(`the receipt card does not warn that the amount differs, and notes "${notes}"`)
+        await inspect?.('the receipt on a payment picked and split by hand')
+        await shoot('chat-receipt-picked')
+        await acceptCard(press, page, card)
+        await rowLinesAre(page, 'Harbour bistro', -3300, 3)
+        await undoCard(press, page, card, words)
+        await rowLinesAre(page, 'Harbour bistro', -3300, 2)
+        return
+      }
+      if (path === 'pick' || path === 'none') {
+        await attachToChat(page, path === 'pick' ? photos.twoMatches : photos.noMatch)
+        await sendInChat(page, press, english ? 'Read the receipt' : 'Pročitaj fiskalni račun')
+        await allowIfAsked(page, press)
+        const asked = path === 'pick' ? (english ? 'Which one was it?' : 'Koje je to bilo?') : english ? 'Did you pay in cash?' : 'Jeste li platili gotovinom?'
+        await page
+          .waitForFunction((text) => [...document.querySelectorAll('[data-testid="chat-answer"]')].some((answer) => answer.textContent?.includes(text)), { timeout: 15_000 }, asked)
+          .catch(() => {
+            throw new Error(path === 'pick' ? 'the chat did not ask which payment the receipt is' : 'the chat did not ask whether the receipt was paid in cash')
+          })
+        if ((await page.$$('[data-testid="chat-proposal"]')).length !== 0) throw new Error(`the chat proposed a card before asking, on a receipt that matches ${path}`)
+        await panelSettled(page)
+        await inspect?.(`the chat asking on a receipt that matches ${path}`)
+        await shoot(`chat-receipt-${path}`)
+        if (path === 'pick') return
+        await sendInChat(page, press, english ? 'Yes, cash' : 'Da, gotovinom')
+        await allowIfAsked(page, press)
+        const card = await newestCard(page, 1, 'the chat proposed no cash receipt once told it was cash')
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
+        await acceptCard(press, page, card)
+        await rowLinesAre(page, 'Harbour bistro', -1700, 2)
+        return
+      }
+      if (path === 'cash-several') {
+        await sendInChat(page, press, english ? 'Add a cash purse' : 'Dodaj novčanik')
+        await allowIfAsked(page, press)
+        const purse = await newestCard(page, 1, 'the chat proposed no second cash account')
+        await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+        await acceptCard(press, page, purse)
+        await attachToChat(page, photos.noMatch)
+        await sendInChat(page, press, english ? 'Read the cash receipt' : 'Pročitaj gotovinski račun')
+        await allowIfAsked(page, press)
+        const asked = english ? 'Which cash account' : 'S kojeg ste računa gotovine'
+        await page
+          .waitForFunction((text) => [...document.querySelectorAll('[data-testid="chat-answer"]')].some((answer) => answer.textContent?.includes(text)), { timeout: 15_000 }, asked)
+          .catch(() => {
+            throw new Error('the chat did not ask which cash account the receipt goes on')
+          })
+        if ((await page.$$('[data-testid="chat-proposal"]')).length !== 1) throw new Error('the chat proposed a cash receipt with two cash accounts to pick from')
+        await panelSettled(page)
+        await inspect?.('the chat asking which cash account')
+        await shoot('chat-receipt-cash-several')
+        return
+      }
+      const request = english ? 'Read the cash receipt' : 'Pročitaj gotovinski račun'
+      let card
+      if (path === 'cash-none') {
+        await attachToChat(page, photos.noMatch)
+        await sendInChat(page, press, request)
+        await allowIfAsked(page, press)
+        const asked = english ? 'How much cash did you have' : 'Koliko ste gotovine imali'
+        await page
+          .waitForFunction((text) => [...document.querySelectorAll('[data-testid="chat-answer"]')].some((answer) => answer.textContent?.includes(text)), { timeout: 15_000 }, asked)
+          .catch(() => {
+            throw new Error('the chat did not ask how much cash there was before adding a cash account')
+          })
+        if ((await page.$$('[data-testid="chat-proposal"]')).length !== 0) throw new Error('the chat proposed a cash account before asking how much cash there was')
+        await sendInChat(page, press, english ? 'I had €50' : 'Imao sam 50 €')
+        card = await newestCard(page, 1, 'the chat proposed no cash account and receipt once told how much cash there was')
+        await page.waitForFunction(() => document.querySelectorAll('[data-testid="chat-answer"]').length >= 2, { timeout: 15_000 })
+        await delay(300)
+        await acceptLooksReady(page)
+      } else {
+        card = await receiptCardFor(page, press, photos.noMatch, request, 1, 'the chat proposed no cash receipt')
+      }
+      const says = await card.evaluate((element) => element.textContent ?? '')
+      const cashName = path === 'cash-none' && !english ? 'Gotovina' : 'Cash'
+      if (path === 'cash-none' && (await card.$$('[data-testid="chat-proposal-group"]')).length < 2) throw new Error(`the cash receipt card does not add a cash account first, and says "${says}"`)
+      if (path === 'cash-none' && !says.replace(/\s/g, ' ').includes(english ? '€50.00' : '50,00 €'))
+        throw new Error(`the cash account the card adds does not open with the €50.00 said, and the card says "${says}"`)
+      if (!says.includes(cashName)) throw new Error(`the cash receipt card does not name the cash account, and says "${says}"`)
+      await inspect?.(`the cash receipt card, ${path}`)
+      await shoot(`chat-receipt-${path}`)
+      await acceptCard(press, page, card)
+      await rowLinesAre(page, 'Harbour bistro', -1700, 2)
+      await undoCard(press, page, card, words)
+    } finally {
+      await newChat(page, press)
+      await forgetAssist(page)
+    }
+  }
+}
+
 /**
  * On the sample Spending file with a made-up key kept: asked to split the latest spend, the chat proposes a card that files
  * this month's rent and adds its two parts, and Accept splits the row until Undo takes the parts off again.

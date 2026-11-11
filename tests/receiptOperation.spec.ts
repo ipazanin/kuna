@@ -29,6 +29,7 @@ function receipt(desk: SpendingDesk, fields: Readonly<Record<string, unknown>> =
     op: 'add-receipt',
     input: {
       photo: 'a1',
+      paid: 'card',
       entry: desk.ref('transaction', PHARMACY),
       account: null,
       merchant: 'Pharmacy',
@@ -125,13 +126,91 @@ describe('a receipt from the chat', () => {
     expect(desk.cards).toEqual([])
   })
 
-  it('refuses a payment that Entries, Add a receipt would not offer for this receipt', async () => {
+  it('takes an entry the person picked outside the match window, warns that its day and amount differ, and a Difference line makes it add up', async () => {
+    const desk = await spendingDesk(used)
+    const picked = EXAMPLE_RECORDS['transaction']!
+
+    expect((await desk.propose([receipt(desk, { entry: desk.ref('transaction', picked) })], [attachedPhoto()])).isError).toBe(false)
+    const warned = desk.cards[0]!.groups.flatMap((group) => group.notes)
+    expect(warned.map((shown) => shown.text)).toEqual([`${words.receipts.otherDay('12 Oct 2026', '21 Oct 2026')}. ${words.receipts.otherAmount('€45.30', '€31.00')}.`])
+    await desk.accept()
+
+    expect(
+      bookOf(desk)
+        .lines.filter((candidate) => candidate.transaction === picked)
+        .map((candidate) => [candidate.text, candidate.amount]),
+    ).toEqual([
+      ['vitamin c', -2000],
+      ['flaster', -1100],
+      ['Difference', -1430],
+    ])
+  })
+
+  it('replaces the parts of an entry split by hand in the same write, says on the card which go, and Undo brings them back', async () => {
+    const desk = await spendingDesk(used)
+    const split = EXAMPLE_RECORDS['transaction-split']!
+    const handParts = bookOf(desk).lines.filter((candidate) => candidate.transaction === split)
+
+    await desk.propose(
+      [receipt(desk, { entry: desk.ref('transaction', split), issuedOn: '2026-10-30', lines: [line(desk, 'VITAMIN C', 40), line(desk, 'FLASTER', 20)], total: 60 })],
+      [attachedPhoto()],
+    )
+    const [card] = desk.cards
+    expect(card!.groups.flatMap((group) => group.notes).map((shown) => shown.text)).toEqual([`${words.receipts.replacesSplit('Rent −€40.00 and Groceries −€20.00')}.`])
+    expect(card!.groups.find((group) => group.verb === 'remove')?.lines.map((shown) => shown.label)).toEqual(['Rent', 'Groceries'])
+    const result = await desk.accept()
+
+    expect(
+      bookOf(desk)
+        .lines.filter((candidate) => candidate.transaction === split)
+        .map((candidate) => candidate.text),
+    ).toEqual(['vitamin c', 'flaster'])
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).lines.filter((candidate) => candidate.transaction === split)).toEqual(handParts)
+  })
+
+  it('makes a cash receipt with no cash payment on the file into a typed entry on the one cash account in euros, whatever a card payment says', async () => {
     const desk = await spendingDesk(used)
 
-    const answer = await desk.propose([receipt(desk, { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })], [attachedPhoto()])
+    expect((await desk.propose([receipt(desk, { paid: 'cash', entry: null })], [attachedPhoto()])).isError).toBe(false)
+    await desk.accept()
 
-    expect(answer.text).toContain('That payment is not one this receipt may be')
+    expect(bookOf(desk).transactions.filter((row) => row.account === DESK_ACCOUNTS.WALLET.id)).toMatchObject([{ source: 'typed', amount: -3100, payee: 'Pharmacy', date: '2026-10-21' }])
+  })
+
+  it('refuses cash on an entry off a cash account, and a card on one', async () => {
+    const desk = await spendingDesk(used)
+
+    expect((await desk.propose([receipt(desk, { paid: 'cash' })], [attachedPhoto()])).text).toContain('not on a cash account')
+    expect((await desk.propose([receipt(desk, { ...unmatched(desk), entry: null, account: desk.ref('account', DESK_ACCOUNTS.WALLET.id) })], [attachedPhoto()])).text).toContain('not cash')
     expect(desk.cards).toEqual([])
+  })
+
+  it('asks which cash account takes a cash receipt among several, and with none asks how much cash there was and adds one with that opening first on the same card', async () => {
+    const desk = await spendingDesk(used)
+    const cash = (fields: Readonly<Record<string, unknown>> = {}) => receipt(desk, { paid: 'cash', entry: null, ...fields })
+    const addCash = { op: 'add-account', input: { name: 'Purse', kind: 'cash', bank: null, currency: 'EUR', opening: 50, openedOn: '2026-10-21', iban: null }, as: '$cash' }
+
+    await desk.propose(
+      [
+        {
+          op: 'change-account',
+          input: { account: desk.ref('account', DESK_ACCOUNTS.WALLET.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, closed: 'yes' },
+        },
+      ],
+      [],
+    )
+    await desk.accept()
+    expect((await desk.propose([cash()], [attachedPhoto()])).text).toContain('Ask the person how much cash they had before paying')
+    expect((await desk.propose([addCash, cash({ account: '$cash' })], [attachedPhoto()])).isError).toBe(false)
+    await desk.accept()
+    const purse = bookOf(desk).accounts.find((account) => account.name === 'Purse')!
+    expect(purse.opening).toBe(5000)
+    expect(bookOf(desk).transactions.filter((row) => row.account === purse.id)).toMatchObject([{ source: 'typed', amount: -3100 }])
+
+    await desk.propose([{ ...addCash, input: { ...addCash.input, name: 'Drawer' } }], [])
+    await desk.accept()
+    expect((await desk.propose([cash(unmatched(desk))], [attachedPhoto()])).text).toContain('ask the person which one')
   })
 
   it('refuses a dollar account, an entry that has a receipt, and a fiscal receipt already on the file', async () => {

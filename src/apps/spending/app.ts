@@ -126,6 +126,7 @@ export const spendingApp: AppContribution = {
         book: () => state.workbook,
         rates: () => everydayRates(rates.value),
         bankSetup: heldBankSetup,
+        qrTextOn,
       },
       { proposer: spendingProposer(store, ports, file), acceptance: spendingAcceptance(store, ports, file) },
     )

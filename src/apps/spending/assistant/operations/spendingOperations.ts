@@ -670,6 +670,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
           ...book,
           transactions: split.before === null ? [...book.transactions, split.row] : book.transactions.map((row) => (row.id === split.row.id ? split.row : row)),
           receipts: [...book.receipts, split.receipt],
+          lines: [...book.lines.filter((part) => !split.replaced.includes(part)), ...split.lines],
         }
         if (warning !== null) receiptWarnings.push(warning)
         break

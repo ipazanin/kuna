@@ -25,7 +25,7 @@
  * a made-up AI key typed, saved, tested, given Opus 5.5, removed and put back on Kuna settings, a key refused, a key fetched from Google, a switch of company that keeps the other key, Company's Assistant tab and Spending's, and Company's switch still on after a reload,
  * Ask the chat beside a build-up amount on Owner, Salaries, Year's Pay tab and a closed year's open items opening the chat with the figure's build-up as the tag,
  * Spending's To review asking the chat from its header and from a waiting row, a receipt photo from Entries read by the chat into a
- * category card and then a receipt card, accepted and undone, Company's queue sorted by the chat from Suggest categories, and an
+ * category card and then a receipt card, accepted and undone, a receipt two payments may be and one none is, a receipt on a payment picked and split by hand, a cash receipt with one, no and two cash accounts, Company's queue sorted by the chat from Suggest categories, and an
  * Set up with the chat on a first run's home step and the empty overview of a device that keeps nothing, a goes-on card accepted that sends Go on,
  * invoice asked of the chat answered with a link to the Invoices tab, a loan offer, a bank loan from its contract, a buy and an Assets valuation each proposed
  * on a card, accepted and undone, and a sale over the units held refused, a text note beside a photo refused on the chat's
@@ -111,6 +111,7 @@ import {
   chatStatementCardFlowIn,
   chatStatementLookAlikeFlowIn,
   chatReceiptFlowIn,
+  chatReceiptPathFlowIn,
   chatSplitFlowIn,
   spendingReviewAskFlowIn,
   assistSwitchFlow,
@@ -3277,6 +3278,12 @@ async function checkWidth(width) {
     ['chat-split', 'drive&spending=sample', chatSplitFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['chat-receipt', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { accept: true }), '#/spending/transactions', 'Entries'],
     ['chat-receipt-joins', 'drive&spending=receipts', chatReceiptFlowIn('en', SPENDING_RECEIPT_SAMPLES, { joins: true }), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-pick', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'pick'), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-none', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'none'), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-picked', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'picked'), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-cash', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'cash'), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-cash-none', 'drive&spending=foreign', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'cash-none'), '#/spending/transactions', 'Entries'],
+    ['chat-receipt-cash-several', 'drive&spending=receipts', chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, 'cash-several'), '#/spending/transactions', 'Entries'],
     // Company's ways into the chat.
     ['company-review-sort', 'drive', companyReviewAskFlowIn('en'), '#/company/transactions?tab=review', 'Transactions'],
     ['company-chat-invoice', 'drive', companyChatCardFlowIn('en', 'invoice'), '#/company', 'Overview'],

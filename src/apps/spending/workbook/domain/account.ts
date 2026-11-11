@@ -51,3 +51,8 @@ export function rowsFromOfDetails(account: Pick<Account, 'kind' | 'iban'>): Rows
 export function beforeStartDay(account: Pick<Account, 'openedOn'>, day: CivilDate): boolean {
   return day < account.openedOn
 }
+
+/** The open cash accounts in the currency that a row of the day can go on. */
+export function cashAccountsOn(accounts: readonly Account[], currency: CurrencyCode, day: CivilDate): readonly Account[] {
+  return accounts.filter((account) => account.kind === 'cash' && !account.closed && account.currency === currency && !beforeStartDay(account, day))
+}

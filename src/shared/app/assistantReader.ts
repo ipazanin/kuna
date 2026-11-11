@@ -1,5 +1,6 @@
 import type { AmountSign, Exposure, FieldDoc, FieldDocs, StoredValue } from '../privacy/domain/exposure'
 import type { FigureTrace } from '../ai/domain/chatElement'
+import type { CivilDate } from '../calendar/civilDate'
 import type { AccountMoney } from '../money/accountMoney'
 import type { CurrencyCode } from '../money/currencyCode'
 import { decimalText } from '../money/decimal'
@@ -130,6 +131,44 @@ export interface AppReader {
   readonly traceRules?: TraceRules
   /** The bookings of each bank account, which rows copied off a statement are matched against, for an app that keeps any. */
   readonly bookings?: AccountBookings
+  /** The payments a fiscal receipt may be, for an app that splits payments by receipts. */
+  readonly receipts?: ReceiptPayments
+}
+
+/** A fiscal receipt as the chat read it, with the photo it was read off when there is one. */
+export interface ReceiptRead {
+  readonly date: CivilDate
+  readonly total: Money
+  readonly merchant: string
+  readonly photo: Blob | null
+}
+
+/** A payment a receipt may be: the record that holds it, its day and amount, and how far its amount is from the receipt's total. */
+export interface ReceiptCandidateRead {
+  readonly id: string
+  readonly date: CivilDate
+  readonly amount: AccountMoney
+  readonly difference: AccountMoney
+  readonly currency: CurrencyCode
+}
+
+/**
+ * What an app found for a receipt: the date and total it matched on, the QR code's when the photo holds one, and one payment
+ * ready, several to pick from, or none.
+ */
+export interface ReceiptPaymentsFound {
+  readonly date: CivilDate
+  readonly total: Money
+  readonly fromCode: boolean
+  readonly match: 'ready' | 'pick' | 'none'
+  readonly candidates: readonly ReceiptCandidateRead[]
+}
+
+/** An app's payments as a fiscal receipt is matched against them. */
+export interface ReceiptPayments {
+  /** The kind of the records a receipt may split, such as Spending's transactions. */
+  readonly kind: string
+  match(receipt: ReceiptRead): Promise<ReceiptPaymentsFound>
 }
 
 /** A booking in the books, by the id of the record that holds it. */

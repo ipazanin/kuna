@@ -6,6 +6,7 @@ import { PART_WRITES, TRANSACTION_WRITES, removeSplitOf, writeEntrySplit } from 
 import { differencePart, entrySplit, mainCategoryOf } from '../src/apps/spending/entries/domain/entrySplit'
 import type { EntrySplit, PartDraft } from '../src/apps/spending/entries/domain/entrySplit'
 import { splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
+import { rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { EntryPart } from '../src/apps/spending/workbook/domain/entryPart'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
@@ -168,10 +169,12 @@ describe('the file with parts no receipt split', () => {
     ])
   })
 
-  it('keeps a row split by hand out of the rows a receipt may split', async () => {
+  it('lets a row split by hand take a receipt, whose lines then replace its parts', async () => {
     const other = row(OTP, '2026-11-04', -12, 'Food/Groceries')
     const store = await storeWith([spend, other], handParts)
-    expect(splittableRows(store.state.workbook!).map((held) => held.id)).toEqual([other.id])
+    const book = store.state.workbook!
+    expect(splittableRows(book).map((held) => held.id)).toEqual([spend.id, other.id])
+    expect(rowPlace(spend, book.lines)).toEqual({ row: spend, handParts })
   })
 })
 

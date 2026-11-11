@@ -755,7 +755,7 @@ async function spendingGroups(add) {
     })
   }
   if (options['fake-spending'] === 'receipts') {
-    add('spending.receipts.matches', () => Object.values(SAMPLE_RECEIPT_TOTALS).map((total) => receiptMatches({ merchant: '', issuedOn: today, total }, workbook)))
+    add('spending.receipts.matches', () => Object.values(SAMPLE_RECEIPT_TOTALS).map((total) => receiptMatches({ merchant: '', issuedOn: today, total }, workbook, null)))
   }
   return () => spendingHubFigures(workbook, rates, today)
 }

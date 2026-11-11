@@ -547,7 +547,7 @@ describe('bank account set-up', () => {
 
   it('reads each line of the list with what it offers, the account that keeps it and the opening a fix sets', async () => {
     const desk = await spendingDesk(used)
-    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup })
+    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null })
     const lines = reader.kinds.find((kind) => kind.name === BANK_ACCOUNT_LINES.name)!.rows()
     const fieldOf = (at: number, name: string) => lines[at]!.fields.find((field) => field.name === name)
     expect(lines.map((line) => line.id)).toEqual([EXAMPLE_RECORDS['bank-account-missing'], EXAMPLE_RECORDS['bank-account-update'], EXAMPLE_RECORDS['bank-account-left-out']])

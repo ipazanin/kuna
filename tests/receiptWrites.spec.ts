@@ -83,7 +83,7 @@ describe('a confirmed receipt', () => {
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, null, { source: 'statement', importKey: 'key-1', categorisedBy: null }))
     const before = store.state.workbook!.transactions
 
-    const written = await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card }, WHOLE)))
+    const written = await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card, handParts: [] }, WHOLE)))
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
@@ -102,14 +102,14 @@ describe('a confirmed receipt', () => {
   it("takes the merchant from the row when you typed none, and keeps the row's own payee when you did", async () => {
     const card = row(OTP, '2026-11-04', -23.49, null, { payee: 'POS 0412' })
 
-    expect(receiptSplit({ ...DRAFT, merchant: '' }, { row: card }, WHOLE).receipt.merchant).toBe('POS 0412')
-    expect(receiptSplit(DRAFT, { row: card }, WHOLE).row.payee).toBe('POS 0412')
+    expect(receiptSplit({ ...DRAFT, merchant: '' }, { row: card, handParts: [] }, WHOLE).receipt.merchant).toBe('POS 0412')
+    expect(receiptSplit(DRAFT, { row: card, handParts: [] }, WHOLE).row.payee).toBe('POS 0412')
   })
 
   it('adds one Difference line for a near match, so the lines add up to the row and its spending is what left the account', async () => {
     const store = await spendingStore()
     const card = await withRow(store, row(OTP, '2026-11-04', -25, null))
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card, handParts: [] }, WHOLE)))
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
@@ -122,7 +122,7 @@ describe('a confirmed receipt', () => {
 
   it('makes a row of source receipt when none matched, on the account picked, which a later import fills and keeps split', async () => {
     const store = await spendingStore()
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP.id }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP }, WHOLE)))
     const [made] = store.state.workbook!.transactions
     expect(made).toMatchObject({
       account: OTP.id,
@@ -163,10 +163,18 @@ describe('a confirmed receipt', () => {
     expect(book.lines).toHaveLength(1)
   })
 
+  it('makes a typed row on a cash account, since no statement ever fills it, and a receipt row on a bank account for the statement to fill', async () => {
+    const onCash = receiptSplit(DRAFT, { account: CASH }, WHOLE)
+    const onBank = receiptSplit(DRAFT, { account: OTP }, WHOLE)
+
+    expect([onCash.row.account, onCash.row.source]).toEqual([CASH.id, 'typed'])
+    expect([onBank.row.account, onBank.row.source]).toEqual([OTP.id, 'receipt'])
+  })
+
   it('stays out of the balance: the row moves it once, whichever lines it has', async () => {
     const store = await spendingStore()
     const balances = bookSums(store)
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: CASH.id }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: CASH }, WHOLE)))
 
     const after = bookSums(store)
     expect(after[3]! - balances[3]!).toBe(accountMoneyFromAmount(-23.49))
@@ -183,7 +191,7 @@ describe('a receipt read into lines', () => {
   it('files the row under the category most of the money is under, with a line each', async () => {
     const store = await spendingStore()
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, null))
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card }, PARTS)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card, handParts: [] }, PARTS)))
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
@@ -197,7 +205,7 @@ describe('a receipt read into lines', () => {
   })
 
   it('keeps the lines as confirmed when they do not add up, and shows what is left as one Difference line', () => {
-    const { lines } = receiptSplit(DRAFT, { account: OTP.id }, [{ ...PARTS[0]!, amount: accountMoneyFromAmount(-14.5) }, PARTS[1]!])
+    const { lines } = receiptSplit(DRAFT, { account: OTP }, [{ ...PARTS[0]!, amount: accountMoneyFromAmount(-14.5) }, PARTS[1]!])
 
     expect(lines.map((line) => [line.amount, line.text === 'Difference'])).toEqual([
       [accountMoneyFromAmount(-14.5), false],
@@ -215,7 +223,7 @@ describe('a receipt read into lines', () => {
         unit,
         receiptSplit(
           { ...DRAFT, buyerOib: '11111111119' },
-          { row: card },
+          { row: card, handParts: [] },
           PARTS.map((part) => ({ ...part, category: company })),
         ),
       ),
@@ -240,7 +248,7 @@ describe('a row a receipt split', () => {
   async function splitStore() {
     const store = await spendingStore()
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, null))
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card, handParts: [] }, WHOLE)))
     return { store, split: store.state.workbook!.transactions[0]! }
   }
 
@@ -307,7 +315,7 @@ describe('a row a receipt split', () => {
 
   it('takes a Difference line when a near bank row joins it, so its lines keep adding up', async () => {
     const store = await spendingStore()
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP.id }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP }, WHOLE)))
     const statement = {
       label: 'export.csv',
       rows: [
@@ -343,7 +351,7 @@ describe('a row a receipt split', () => {
 describe("a receipt's place", () => {
   it('is stored as text with the receipt, whether or not the photo is kept, and read back', async () => {
     const store = await spendingStore()
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit({ ...DRAFT, latitude: '43.508100', longitude: '16.440200', photo: '' }, { account: OTP.id }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit({ ...DRAFT, latitude: '43.508100', longitude: '16.440200', photo: '' }, { account: OTP }, WHOLE)))
 
     expect(store.state.workbook!.problems).toEqual([])
     expect(store.state.workbook!.receipts[0]).toMatchObject({ latitude: '43.508100', longitude: '16.440200', photo: '' })
@@ -353,17 +361,17 @@ describe("a receipt's place", () => {
 describe('reading receipts and lines', () => {
   it('refuses the same fiscal receipt a second time, on another row, so it cannot count twice', async () => {
     const store = await spendingStore()
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP.id }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP }, WHOLE)))
 
-    await expect(store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP.id }, WHOLE)))).rejects.toThrow(/JIR/)
+    await expect(store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP }, WHOLE)))).rejects.toThrow(/JIR/)
     expect(store.state.workbook!.transactions).toHaveLength(1)
   })
 
   it('lets two receipts with no code stand side by side', async () => {
     const store = await spendingStore()
     const typed = { ...DRAFT, jir: '' }
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(typed, { account: OTP.id }, WHOLE)))
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(typed, { account: CASH.id }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(typed, { account: OTP }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(typed, { account: CASH }, WHOLE)))
 
     expect(store.state.workbook!.problems).toEqual([])
     expect(store.state.workbook!.receipts).toHaveLength(2)
@@ -371,7 +379,7 @@ describe('reading receipts and lines', () => {
 
   it("leaves all of a row's lines out when one is refused, so the row counts whole under its own category", () => {
     const split = row(OTP, '2026-11-04', -30, 'Food/Coffee')
-    const one = receiptSplit({ ...DRAFT, total: moneyFromAmount(30) }, { row: split }, [
+    const one = receiptSplit({ ...DRAFT, total: moneyFromAmount(30) }, { row: split, handParts: [] }, [
       { printed: '', text: '', amount: accountMoneyFromAmount(-10), category: GROCERIES.id },
       { printed: '', text: '', amount: accountMoneyFromAmount(-20), category: GROCERIES.id },
     ])
@@ -396,7 +404,7 @@ describe('reading receipts and lines', () => {
   it('refuses lines that do not add up and counts the row under its own category instead', async () => {
     const store = await spendingStore()
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Coffee'))
-    const split = receiptSplit(DRAFT, { row: card }, WHOLE)
+    const split = receiptSplit(DRAFT, { row: card, handParts: [] }, WHOLE)
     const broken = { ...split.lines[0]!, amount: accountMoneyFromAmount(-20) }
 
     await expect(store.write('Saved', (unit) => writeReceiptSplit(unit, { ...split, lines: [broken] }))).rejects.toThrow(/add up/)
@@ -407,9 +415,9 @@ describe('reading receipts and lines', () => {
   it('refuses a second receipt on a row', async () => {
     const store = await spendingStore()
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, null))
-    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card }, WHOLE)))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: card, handParts: [] }, WHOLE)))
     const held = store.state.workbook!.transactions[0]!
 
-    await expect(store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: held }, WHOLE)))).rejects.toThrow()
+    await expect(store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(DRAFT, { row: held, handParts: [] }, WHOLE)))).rejects.toThrow()
   })
 })

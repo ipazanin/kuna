@@ -9,6 +9,8 @@ import type { BankSetup } from '../bankSync/application/bankSync'
 import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setupLines, startDays } from '../bankSync/domain/bankAccountSetup'
 import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
 import { currentDifferences } from '../bankSync/domain/bankBalance'
+import { fiscalQrOn } from '../receipts/domain/fiscalQr'
+import { receiptMatches } from '../receipts/domain/receiptMatch'
 import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
 import type { Account } from '../workbook/domain/account'
 import type { Budget } from '../workbook/domain/budget'
@@ -31,7 +33,7 @@ import type { LinkableBank } from '../workbook/domain/spendingSettings'
 import type { SpendingRule } from '../workbook/domain/spendingRule'
 import type { Transaction } from '../workbook/domain/transaction'
 import { readableKind } from '../../../shared/app/assistantReader'
-import type { AppReader, ReportFigure } from '../../../shared/app/assistantReader'
+import type { AppReader, ReceiptPayments, ReportFigure } from '../../../shared/app/assistantReader'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
 import { parseCivilDate, today } from '../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../shared/calendar/civilDate'
@@ -53,6 +55,24 @@ export interface SpendingReading {
   rates(): RateBook
   /** What the bank set-up list works from, held by the page, or null before any fetch on this device. */
   bankSetup(): BankSetup | null
+  /** The text of the QR code on a photo, or null for none. Throws for a photo this browser cannot decode. */
+  qrTextOn(photo: Blob): Promise<string | null>
+}
+
+/** The payments a receipt may be, as Entries, Add a receipt finds them, on the QR code's date and total when the photo holds one. */
+function receiptPayments(reading: SpendingReading): ReceiptPayments {
+  return {
+    kind: TRANSACTION_RECORDS.name,
+    match: async ({ date, total, merchant, photo }) => {
+      const qr = photo === null ? null : await fiscalQrOn(photo, reading.qrTextOn)
+      const issuedOn = qr?.issuedOn ?? date
+      const totalOn = qr?.total ?? total
+      const book = reading.book()
+      const matches = book === null ? { kind: 'none' as const } : receiptMatches({ merchant, issuedOn, total: totalOn }, book, null)
+      const candidates = matches.kind === 'none' ? [] : matches.candidates.map(({ row, difference }) => ({ id: row.id, date: row.date, amount: row.amount, difference, currency: EURO }))
+      return { date: issuedOn, total: totalOn, fromCode: qr !== null, match: matches.kind, candidates }
+    },
+  }
 }
 
 /** One line of the bank set-up list as the chat reads it. */
@@ -371,5 +391,6 @@ export function spendingReader(reading: SpendingReading): AppReader {
         return accounts.length === 1 ? accounts[0]!.id : null
       },
     },
+    receipts: receiptPayments(reading),
   }
 }

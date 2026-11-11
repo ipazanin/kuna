@@ -54,3 +54,13 @@ export function fiscalQr(text: string): FiscalQr | null {
   if (issuedOn === null || total === null) return null
   return { jir: JIR.test(jir) ? jir : '', zki: ZKI.test(zki) ? zki : '', issuedOn, issuedTime: `${hour}:${minute}`, total }
 }
+
+/** The fiscal QR code on a photo, or null for none and for a photo this browser cannot decode, whose date and total are then read off the print. */
+export async function fiscalQrOn(photo: Blob, qrTextOn: (photo: Blob) => Promise<string | null>): Promise<FiscalQr | null> {
+  try {
+    const text = await qrTextOn(photo)
+    return text === null ? null : fiscalQr(text)
+  } catch {
+    return null
+  }
+}

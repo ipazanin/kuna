@@ -497,6 +497,7 @@ import {
   chatStatementLookAlikeFlowIn,
   chatLookupFlowIn,
   chatReceiptFlowIn,
+  chatReceiptPathFlowIn,
   chatSplitFlowIn,
   spendingReceiptDialogFlowIn,
   spendingReviewAskFlowIn,
@@ -5299,6 +5300,34 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=receipts&lang=hr' },
   },
+  // The receipt paths beyond a payment that matches: two that may be it, none, one the person picked and split by hand, and cash with one, no or two cash accounts.
+  ...[
+    ['pick', 'receipts'],
+    ['none', 'receipts'],
+    ['picked', 'receipts'],
+    ['cash', 'receipts'],
+    ['cash-none', 'foreign'],
+    ['cash-several', 'receipts'],
+  ].flatMap(([path, set]) => [
+    {
+      name: `chat-receipt-${path}`,
+      hash: '#/spending/transactions',
+      title: 'Entries',
+      run: chatReceiptPathFlowIn('en', SPENDING_RECEIPT_SAMPLES, path),
+      modes: ['drive'],
+      viewports: DESIGN_REVIEW_VIEWPORTS,
+      queries: { drive: `&spending=${set}` },
+    },
+    {
+      name: `chat-receipt-${path}-croatian`,
+      hash: '#/spending/transactions',
+      title: 'Unosi',
+      run: chatReceiptPathFlowIn('hr', SPENDING_RECEIPT_SAMPLES, path),
+      modes: ['drive'],
+      viewports: DESIGN_REVIEW_VIEWPORTS,
+      queries: { drive: `&spending=${set}&lang=hr` },
+    },
+  ]),
   {
     name: 'spending-account-dialog',
     hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,

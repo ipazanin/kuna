@@ -1,4 +1,5 @@
 import { legsOfPair } from './transferPairs'
+import { cashAccountsOn } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
@@ -24,7 +25,7 @@ export function isWithdrawal(row: Pick<Transaction, 'account' | 'amount' | 'pair
  */
 export function cashAccountsFor(row: Pick<Transaction, 'account' | 'date'>, named: RecordId | null, accounts: readonly Account[]): readonly Account[] {
   const currency = accounts.find((account) => account.id === row.account)?.currency
-  const fitting = accounts.filter((account) => account.kind === 'cash' && !account.closed && account.currency === currency && account.openedOn <= row.date)
+  const fitting = currency === undefined ? [] : cashAccountsOn(accounts, currency, row.date)
   const namedAccount = fitting.find((account) => account.id === named)
   return namedAccount === undefined ? fitting : [namedAccount]
 }

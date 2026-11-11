@@ -291,10 +291,10 @@ describe('the catalogue', () => {
   it('calls things in a guide what the screen calls them, in both languages', () => {
     const guide = catalogue.pages.get('spending/guide/first-rules')!
     expect(guide).toContain(statementWords.review.always)
-    const labels = { entries: 'E', review: 'R', import: 'I', always: 'A', settings: 'S', rules: 'U', bankSync: 'B', limits: 'L', general: 'G', deployment: 'D' }
+    const labels = { entries: 'E', review: 'R', import: 'I', always: 'A', settings: 'S', rules: 'U', bankSync: 'B', limits: 'L', general: 'G', deployment: 'D', addReceipt: 'R1' }
     for (const words of [spendingWords, spendingCroatian]) {
       expect(words.guides.rules.body(labels)).toContain('A')
-      expect(Object.keys(words.guides)).toEqual(['setUp', 'rules', 'import', 'bankSync', 'limits', 'categories'])
+      expect(Object.keys(words.guides)).toEqual(['setUp', 'rules', 'import', 'bankSync', 'limits', 'categories', 'receipts'])
     }
   })
 })

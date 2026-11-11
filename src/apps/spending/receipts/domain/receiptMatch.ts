@@ -35,6 +35,16 @@ function distinctWords(text: string): ReadonlySet<string> {
   )
 }
 
+/** How a fiscal receipt says it was paid: GOTOVINA is cash, KARTICA a card. */
+export const RECEIPT_PAYMENTS = ['cash', 'card'] as const
+
+export type ReceiptPayment = (typeof RECEIPT_PAYMENTS)[number]
+
+/** Whether money paid this way can be on the account: cash only on a cash account, and a card never on one. */
+export function paidOn(paid: ReceiptPayment, account: Pick<Account, 'kind'>): boolean {
+  return (account.kind === 'cash') === (paid === 'cash')
+}
+
 /** The accounts a fiscal receipt can be on: open and in euros, since its total is. */
 export function receiptAccounts(accounts: readonly Account[]): readonly Account[] {
   return accounts.filter((account) => !account.closed && account.currency === EURO)
@@ -62,17 +72,18 @@ export function heldReceiptOf(codes: Pick<Receipt, 'jir' | 'zki'>, receipts: rea
 
 /**
  * The rows a receipt may split, which only a row on a euro account can, since a fiscal total is in euros and a row on
- * another account is not the same money at the same number. No row already split, by a receipt or by hand, and no row that moves money between your accounts.
+ * another account is not the same money at the same number. No row a receipt split already and no row that moves money
+ * between your accounts. A row split by hand may take one, and the receipt's lines replace its parts.
  */
-export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts' | 'lines'>): readonly Transaction[] {
+export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>): readonly Transaction[] {
   const euroAccounts = new Set(book.accounts.filter((account) => account.currency === EURO).map((account) => account.id))
   const ownIbans = new Set(book.accounts.flatMap((account) => (account.iban === '' ? [] : [normaliseIban(account.iban)])))
   const transfer = book.categories.find((category) => category.kind === 'transfer')?.id ?? null
-  const split = new Set([...book.receipts, ...book.lines].map((held) => held.transaction))
+  const withReceipt = new Set(book.receipts.map((receipt) => receipt.transaction))
   return book.transactions.filter(
     (row) =>
       euroAccounts.has(row.account) &&
-      !split.has(row.id) &&
+      !withReceipt.has(row.id) &&
       row.pair === null &&
       row.movedAt === '' &&
       (transfer === null || row.category !== transfer) &&
@@ -84,9 +95,11 @@ export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories
  * The splittable rows this receipt may be. Rows at minus the total within `sameMoney`'s window come first, by the merchant's words among the row's words and then
  * the nearest day. One is clear when more of the merchant's words name it than the next, or when it is alone and no merchant is known to
  * disagree with it. Only with none of those do the near ones show, such as a card payment with a tip, and those are always a pick.
+ * A receipt that says how it was paid matches only rows on accounts paid that way, and one that does not say matches on any.
  */
-export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts' | 'lines'>): ReceiptMatches {
-  const open = splittableRows(book)
+export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>, paid: ReceiptPayment | null): ReceiptMatches {
+  const paidThere = new Set(book.accounts.filter((account) => paid === null || paidOn(paid, account)).map((account) => account.id))
+  const open = splittableRows(book).filter((row) => paidThere.has(row.account))
   const total = accountMoneyOfEuros(receipt.total)
   const asTyped = { date: receipt.issuedOn, amount: negateAccountMoney(total) }
   const words = distinctWords(receipt.merchant)

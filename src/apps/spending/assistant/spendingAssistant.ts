@@ -10,6 +10,7 @@ import {
   SPENDING_SETTINGS_ROUTE,
   SPENDING_TRANSACTIONS_ROUTE,
 } from '../overview/presentation/spendingLinks'
+import { words as receiptWords } from '../receipts/presentation/words'
 import { words as screenWords } from '../screenWords'
 import { words as settingsWords } from '../settings/presentation/words'
 import { words as statementWords } from '../statements/presentation/words'
@@ -54,6 +55,7 @@ const LABELS: GuideLabels = {
   limits: screenWords.limits,
   general: settingsWords.tabs.general,
   deployment: bankSyncWords.deployment,
+  addReceipt: receiptWords.add,
 }
 
 /** What Spending tells the chat: what it keeps and where things are, with the first guides, its automation and what it can read. */
@@ -73,6 +75,7 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
     { id: 'link-a-bank', title: words.guides.bankSync.title, body: words.guides.bankSync.body(LABELS), places: [SPENDING_BANK_SYNC_LINK] },
     { id: 'first-limit', title: words.guides.limits.title, body: words.guides.limits.body(LABELS), places: [SPENDING_BUDGETS_ROUTE] },
     { id: 'categories', title: words.guides.categories.title, body: words.guides.categories.body(LABELS), places: [SPENDING_SETTINGS_ROUTE] },
+    { id: 'receipts', title: words.guides.receipts.title, body: words.guides.receipts.body(LABELS), places: [SPENDING_TRANSACTIONS_ROUTE] },
   ],
   setUp: [
     { key: 'first-account', about: 'The file has no account yet.', operations: ['add-account'] },

@@ -17,7 +17,7 @@ import { words } from './words'
 import { writeReceiptSplit } from '../application/receiptWrites'
 import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches } from '../domain/receiptMatch'
 import type { ReceiptCandidate } from '../domain/receiptMatch'
-import { receiptSplit, wholeReceipt } from '../domain/receiptSplit'
+import { receiptSplit, rowPlace, wholeReceipt } from '../domain/receiptSplit'
 import type { ReceiptPlace } from '../domain/receiptSplit'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { rememberLastAccount, startingAccount } from '../../entries/infrastructure/lastAccount'
@@ -94,7 +94,7 @@ const issuedOn = computed(() => qr.value?.issuedOn ?? parseCivilDate(typedDate.v
 
 const matches = computed(() => {
   const current = book.value
-  return current === null || total.value === null || issuedOn.value === null ? null : receiptMatches({ merchant: merchant.value, issuedOn: issuedOn.value, total: total.value }, current)
+  return current === null || total.value === null || issuedOn.value === null ? null : receiptMatches({ merchant: merchant.value, issuedOn: issuedOn.value, total: total.value }, current, null)
 })
 
 const candidates = computed((): readonly ReceiptCandidate[] => (matches.value === null || matches.value.kind === 'none' ? [] : matches.value.candidates))
@@ -115,7 +115,12 @@ const placeItems = computed(() => [
   ...candidates.value.map(({ row, difference }) => ({
     value: row.id as string,
     label: `${row.payee === '' ? (accountOfRow(row.account)?.name ?? '') : row.payee} · ${formatAccountMoney(row.amount, EURO)}`,
-    description: [dayLabel(row.date), accountOfRow(row.account)?.name ?? '', difference === 0 ? '' : words.differs(formatAccountMoney(difference, EURO, 'always'))]
+    description: [
+      dayLabel(row.date),
+      accountOfRow(row.account)?.name ?? '',
+      difference === 0 ? '' : words.differs(formatAccountMoney(difference, EURO, 'always')),
+      rowPlace(row, book.value?.lines ?? []).handParts.length > 0 ? words.replacesSplit : '',
+    ]
       .filter((part) => part !== '')
       .join(' · '),
   })),
@@ -169,7 +174,7 @@ async function save(): Promise<void> {
   const row = chosenRow.value
   const chosenAccount = newAccount.value
   const filed = categories.value.find((candidate) => candidate.id === category.value)
-  const where: ReceiptPlace | null = row !== null ? { row } : chosenAccount === null ? null : { account: chosenAccount.id }
+  const where: ReceiptPlace | null = row !== null ? rowPlace(row, book.value?.lines ?? []) : chosenAccount === null ? null : { account: chosenAccount }
   if (Object.values(errors.value).some((error) => error !== null) || file === null || day === null || sum === null || where === null || filed === undefined) return
   const draft = {
     merchant: merchant.value,

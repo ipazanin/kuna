@@ -14,6 +14,7 @@ export interface GuideLabels {
   readonly limits: string
   readonly general: string
   readonly deployment: string
+  readonly addReceipt: string
 }
 
 export const en = {
@@ -78,6 +79,9 @@ export const en = {
   receipts: {
     keepNoAccess: 'Kuna cannot reach Drive on this device now, so nothing was kept or saved. Add the receipt on Entries after a sync.',
     photoStays: 'The photo stays in the Receipts folder on Drive after Undo.',
+    otherDay: (entry: string, receipt: string) => `The entry is from ${entry} and the receipt from ${receipt}`,
+    otherAmount: (entry: string, receipt: string) => `The entry is ${entry} and the receipt ${receipt}, so a Difference line makes up the rest`,
+    replacesSplit: (parts: string) => `The receipt's lines replace your split: ${parts}`,
   },
   startingAccount: {
     thisDevice: 'This device',
@@ -159,6 +163,17 @@ export const en = {
       title: 'Change your categories',
       body: (labels: GuideLabels) => `Groups and categories are on ${labels.settings}, ${labels.general}. A hidden category keeps its entries.`,
     },
+    receipts: {
+      title: 'Add a receipt with the chat',
+      body: (labels: GuideLabels) =>
+        [
+          `Attach a photo of a fiscal receipt in the chat, or take one from ${labels.entries}, ${labels.addReceipt}. The chat copies its lines, and Kuna reads the QR code's date and total itself.`,
+          '1. The chat asks Kuna which payments the receipt may be, with match_records and kind receipt.',
+          '2. With one payment ready, the card puts the receipt on it. When several may be, the chat asks you which one. Any other payment you name goes too, and the card warns when its day or amount differ.',
+          "3. When none is, the chat asks whether you paid in cash. Cash becomes a new entry on your cash account in euros, and the chat asks which one when you keep several. With none, it asks how much cash you had before paying, and the card adds a cash account with that opening from the receipt's day, so its balance is right from the start.",
+          '4. A receipt on an entry you split by hand replaces your parts with its lines, and the card lists the parts that go.',
+        ].join('\n'),
+    },
   },
 }
 
@@ -228,6 +243,9 @@ export const hr: Translation<typeof en> = {
   receipts: {
     keepNoAccess: 'Kuna sada na ovom uređaju ne može doći do Drivea, pa ništa nije spremljeno. Dodajte fiskalni račun na zaslonu Unosi nakon sinkronizacije.',
     photoStays: 'Fotografija ostaje u mapi Receipts na Driveu i nakon poništavanja.',
+    otherDay: (entry, receipt) => `Unos je od ${entry}, a fiskalni račun od ${receipt}`,
+    otherAmount: (entry, receipt) => `Unos iznosi ${entry}, a fiskalni račun ${receipt}, pa ostatak pokriva stavka Razlika`,
+    replacesSplit: (parts) => `Stavke fiskalnog računa zamjenjuju vašu podjelu: ${parts}`,
   },
   startingAccount: {
     thisDevice: 'Ovaj uređaj',
@@ -308,6 +326,17 @@ export const hr: Translation<typeof en> = {
     categories: {
       title: 'Promijenite kategorije',
       body: (labels) => `Skupine i kategorije nalaze se na zaslonu ${labels.settings}, na kartici ${labels.general}. Skrivena kategorija zadržava svoje unose.`,
+    },
+    receipts: {
+      title: 'Dodajte fiskalni račun kroz razgovor',
+      body: (labels) =>
+        [
+          `Priložite fotografiju fiskalnog računa u razgovoru ili je snimite na zaslonu ${labels.entries}, pod ${labels.addReceipt}. Razgovor prepisuje stavke, a Kuna sama čita datum i ukupan iznos iz QR koda.`,
+          '1. Razgovor pita Kunu koja bi plaćanja mogla biti taj račun, alatom match_records s vrstom receipt.',
+          '2. Kad je spremno jedno plaćanje, kartica stavlja račun na njega. Kad ih može biti više, razgovor vas pita koje. Ide i svako drugo plaćanje koje navedete, a kartica upozorava kad se dan ili iznos razlikuju.',
+          '3. Kad nijedno ne odgovara, razgovor pita jeste li platili gotovinom. Gotovina postaje novi unos na vašem računu gotovine u eurima, a razgovor pita koji kad ih imate više. Ako ga nemate, pita koliko ste gotovine imali prije plaćanja, a kartica dodaje račun gotovine s tim početnim stanjem od dana računa, pa je stanje točno od početka.',
+          '4. Fiskalni račun na unosu koji ste ručno podijelili zamjenjuje vaše dijelove svojim stavkama, a kartica navodi dijelove koji odlaze.',
+        ].join('\n'),
     },
   },
 }

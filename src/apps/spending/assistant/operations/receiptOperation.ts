@@ -1,21 +1,20 @@
 import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, found, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import type { ReceiptPhotos } from '../../receipts/application/receiptPhotos'
 import { writeReceiptSplit } from '../../receipts/application/receiptWrites'
-import { fiscalQr } from '../../receipts/domain/fiscalQr'
+import { fiscalQrOn } from '../../receipts/domain/fiscalQr'
 import type { FiscalQr } from '../../receipts/domain/fiscalQr'
 import { placeInPhoto } from '../../receipts/domain/photoPlace'
 import type { PhotoPlace } from '../../receipts/domain/photoPlace'
 import { LINE_KINDS, receiptDraft, withR1Answer } from '../../receipts/domain/receiptDraft'
 import type { AnsweredLine, R1Answer, ReceiptAnswer } from '../../receipts/domain/receiptDraft'
-import { heldReceiptOf, receiptAccounts, receiptMatches, splittableRows } from '../../receipts/domain/receiptMatch'
-import type { ReceiptFacts } from '../../receipts/domain/receiptMatch'
-import { receiptSplit } from '../../receipts/domain/receiptSplit'
+import { RECEIPT_PAYMENTS, heldReceiptOf, paidOn, receiptAccounts, receiptMatches, splittableRows } from '../../receipts/domain/receiptMatch'
+import type { ReceiptFacts, ReceiptPayment } from '../../receipts/domain/receiptMatch'
+import { receiptSplit, rowPlace } from '../../receipts/domain/receiptSplit'
 import type { ReceiptPlace, ReceiptSplit } from '../../receipts/domain/receiptSplit'
-import { beforeStartDay } from '../../workbook/domain/account'
+import { beforeStartDay, cashAccountsOn } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
-import type { Transaction } from '../../workbook/domain/transaction'
 import { words } from '../words'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
 import type { AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -23,7 +22,9 @@ import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
+import { accountMoneyOfEuros, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
+import { listInWords } from '../../../../shared/text/listInWords'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 
 const ANSWERS: readonly R1Answer[] = ['company', 'personal']
@@ -33,8 +34,9 @@ export const ADD_RECEIPT: AssistantOperation = {
   about: [
     'Adds a fiscal receipt from a photo attached to the chat, as Entries, Add a receipt does, splitting the payment into its lines. Read the photo with read_attachment first and copy what is printed. Never guess hidden or cut-off text: use null, and name the part in unreadable.',
     'Kuna reads the QR code and the place the photo was taken from the photo itself, and their date and total win over yours.',
-    'entry is the payment it splits, found with find_records near its day and total. Only a payment Entries, Add a receipt would offer can go: the same total near the day, or a near total when none is the same.',
-    'With entry null, account names the euro account of a new entry, which goes only when no payment on the file may be this receipt.',
+    'paid says how the receipt was paid: "cash" for GOTOVINA or NOVČANICE, "card" for KARTICA or a card\'s name. When the receipt says neither, ask the person.',
+    "entry is the payment it splits: the one match_records with kind receipt finds ready, or the one the person picks when it finds several. Any entry that can take a receipt goes, even days or cents away, and the card warns on the difference, which a Difference line makes up. Cash goes only on an entry on a cash account, and a card never on one. An entry split by hand loses those parts to the receipt's lines.",
+    "With entry null a new entry is made, which goes only when no payment paid that way may be this receipt. For cash, account is null and Kuna takes the one cash account in euros. With several, ask which and name it in account. With none, ask how much cash the person had before paying, and put add-account for a cash account in euros first on the same card, with that opening and openedOn the receipt's day. For a card, account names the euro account the card is on.",
     'Amounts are euros above zero, a discount below zero. Each line gets a category ref Kuna handed out, a spending category with no categories under it.',
     'A line whose category does not exist yet waits: propose that category on a card of its own first, and this receipt on the next card once it is accepted.',
     'A receipt marked R1, or naming a buyer, with no buyer\'s OIB readable needs the person to say whose it is: whose is "company" or "personal", as they said. A buyer\'s OIB Kuna can read decides by itself, so whose is null then, as for every other receipt.',
@@ -42,6 +44,7 @@ export const ADD_RECEIPT: AssistantOperation = {
   ].join(' '),
   input: inputOf({
     photo: TEXT,
+    paid: { type: 'string', enum: [...RECEIPT_PAYMENTS] },
     entry: TEXT_OR_NULL,
     account: TEXT_OR_NULL,
     merchant: TEXT,
@@ -75,6 +78,7 @@ export const ADD_RECEIPT: AssistantOperation = {
   alone: false,
   example: {
     photo: 'photo',
+    paid: 'card',
     entry: null,
     account: 'account',
     merchant: 'Corner market',
@@ -127,16 +131,6 @@ function isPhotoRead(photo: unknown): photo is PhotoRead {
   return typeof photo === 'object' && photo !== null && 'attached' in photo && 'file' in photo && 'qr' in photo && 'place' in photo
 }
 
-/** The QR code a photo holds, or null for none and for a photo this browser cannot decode, whose date and total the model then reads. */
-async function qrOf(photo: Blob, ports: Pick<ReceiptPorts, 'qrTextOn'>): Promise<FiscalQr | null> {
-  try {
-    const text = await ports.qrTextOn(photo)
-    return text === null ? null : fiscalQr(text)
-  } catch {
-    return null
-  }
-}
-
 /** The steps with each receipt's photo read for its QR code and place, since a dry run cannot wait for a file. Or why a file is no receipt photo. */
 export async function withPhotosRead(steps: readonly ProposalStep[], ports: Pick<ReceiptPorts, 'qrTextOn'>): Promise<readonly ProposalStep[] | { readonly refused: readonly string[] }> {
   const read: ProposalStep[] = []
@@ -149,7 +143,7 @@ export async function withPhotosRead(steps: readonly ProposalStep[], ports: Pick
     if (!isAttachment(photo)) return { refused: ['photo is not a file attached to this chat.'] }
     if (photo.kind !== 'photo') return { refused: ['A receipt is added from a photo. Read a PDF receipt and type it into an entry instead.'] }
     const file = new File([photo.original], photo.name, { type: photo.original.type })
-    const photoRead: PhotoRead = { attached: photo.original, file, qr: await qrOf(file, ports), place: await placeInPhoto(file) }
+    const photoRead: PhotoRead = { attached: photo.original, file, qr: await fiscalQrOn(file, ports.qrTextOn), place: await placeInPhoto(file) }
     read.push({ ...step, input: { ...step.input, photo: photoRead } })
   }
   return read
@@ -211,40 +205,72 @@ function sentence(note: string): string {
   return /[.!?]$/.test(note) ? note : `${note}.`
 }
 
-/**
- * The row the receipt splits, among the payments Entries, Add a receipt offers for it, or the euro account of the new entry it
- * makes. A new entry goes only when no payment may be this receipt, so the model names the payment rather than doubling it.
- */
-function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, receipt: ReceiptFacts, idOf: (value: unknown) => string): ReceiptPlace {
-  const matches = receiptMatches(receipt, book)
-  const candidates = matches.kind === 'none' ? [] : matches.candidates.map((candidate) => candidate.row)
-  if (field['entry'] !== null) {
-    if (field['account'] !== null) throw new StepRefused('A receipt splits the entry named, or with entry null makes a new entry on account, not both.')
-    const entry = idOf(field['entry'])
-    if (!splittableRows(book).some((row) => row.id === entry))
-      throw new StepRefused('That entry cannot take a receipt: it is not on a euro account, it has a receipt, or it moves money between your accounts.')
-    const row: Transaction | undefined = candidates.find((candidate) => candidate.id === entry)
-    if (row === undefined)
-      throw new StepRefused(
-        "That payment is not one this receipt may be. Entries, Add a receipt offers a payment of the same total near the receipt's day, or a near total when none is the same. Name one of those, or propose entry null with an account when none is on the file.",
-      )
-    return { row }
+/** The cash account in euros a new cash entry goes on: the one named, else the only one open by the receipt's day. */
+function cashAccountOf(field: Readonly<Record<string, never>>, book: SpendingBook, day: CivilDate, idOf: (value: unknown) => string): Account {
+  const open = cashAccountsOn(book.accounts, EURO, day)
+  if (field['account'] !== null) {
+    const account = found(book.accounts, idOf(field['account']), 'account')
+    if (!open.includes(account)) throw new StepRefused('A cash receipt goes on a cash account in euros that is open by its day.')
+    return account
   }
-  if (field['account'] === null) throw new StepRefused('A receipt splits the entry named, or with entry null makes a new entry on account.')
-  if (candidates.length > 0)
-    throw new StepRefused(
-      `A payment on the file may be this receipt: ${candidates
-        .slice(0, 3)
-        .map((row) => `${formatAccountMoney(row.amount, EURO)} on ${dayLabel(row.date)}`)
-        .join(', ')}. Find it with find_records and name it in entry. If the person says none of them is this receipt, link Entries, where Add a receipt makes a new entry.`,
-    )
-  const account: Account = found(book.accounts, idOf(field['account']), 'account')
-  if (!receiptAccounts(book.accounts).includes(account)) throw new StepRefused('A fiscal receipt is in euros, so a new entry goes on an open euro account.')
-  if (beforeStartDay(account, receipt.issuedOn)) throw new StepRefused('That day is before the account opened.')
-  return { account: account.id }
+  const [only, another] = open
+  if (only !== undefined && another === undefined) return only
+  if (only !== undefined) throw new StepRefused(`Spending has ${open.length} cash accounts in euros. Find them with find_records, ask the person which one the cash came from, and name it in account.`)
+  throw new StepRefused(
+    'Spending has no cash account in euros open by that day. Ask the person how much cash they had before paying this receipt. Then propose add-account for one, kind cash, currency EUR, opening that amount and openedOn the receipt\'s day, as the first step of this same card with as "$cash", and this receipt with account "$cash".',
+  )
 }
 
-/** What the card warns on for one receipt: the read's checks that failed. */
+/**
+ * The row the receipt splits, which may be any row that can take a receipt on an account paid that way, or the account of the
+ * new entry it makes. A new entry goes only when no payment paid that way may be this receipt, so the model names the payment rather than doubling it.
+ */
+function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, receipt: ReceiptFacts, paid: ReceiptPayment, idOf: (value: unknown) => string): ReceiptPlace {
+  if (field['entry'] !== null) {
+    if (field['account'] !== null) throw new StepRefused('A receipt splits the entry named, or with entry null makes a new entry, not both.')
+    const entry = idOf(field['entry'])
+    const row = splittableRows(book).find((candidate) => candidate.id === entry)
+    if (row === undefined) throw new StepRefused('That entry cannot take a receipt: it is not on a euro account, a receipt split it already, or it moves money between your accounts.')
+    if (!paidOn(paid, found(book.accounts, row.account, 'account')))
+      throw new StepRefused(
+        paid === 'cash'
+          ? 'The receipt says cash, and that entry is not on a cash account. Ask the person which entry it is, or propose entry null for a new cash entry.'
+          : 'The receipt says card, and that entry is on a cash account. Ask the person how it was paid.',
+      )
+    return rowPlace(row, book.lines)
+  }
+  const matches = receiptMatches(receipt, book, paid)
+  if (matches.kind !== 'none') {
+    const payments = matches.candidates.slice(0, 3).map(({ row }) => `${formatAccountMoney(row.amount, EURO)} on ${dayLabel(row.date)}`)
+    throw new StepRefused(
+      `A payment on the file may be this receipt: ${payments.join(', ')}. Ask the person which one, as match_records with kind receipt lists them, and name it in entry. If the person says none of them is this receipt, link Entries, where Add a receipt makes a new entry.`,
+    )
+  }
+  if (paid === 'cash') return { account: cashAccountOf(field, book, receipt.issuedOn, idOf) }
+  if (field['account'] === null) throw new StepRefused('A card receipt with entry null makes a new entry on account, the euro account the card is on.')
+  const account: Account = found(book.accounts, idOf(field['account']), 'account')
+  if (!receiptAccounts(book.accounts).includes(account) || !paidOn(paid, account))
+    throw new StepRefused('A fiscal receipt is in euros, so a new card entry goes on an open euro account that is not cash.')
+  if (beforeStartDay(account, receipt.issuedOn)) throw new StepRefused('That day is before the account opened.')
+  return { account }
+}
+
+/** What the card says of the entry a receipt goes on beyond the read's checks: a day or an amount that differ, and the parts of a split by hand it replaces. */
+function placeNotes(split: ReceiptSplit, book: SpendingBook): readonly string[] {
+  if (split.before === null) return []
+  const { before, receipt } = split
+  const total = negateAccountMoney(accountMoneyOfEuros(receipt.total))
+  const nameOf = (category: string): string => book.categories.find((held) => held.id === category)?.name ?? ''
+  return [
+    ...(before.date === receipt.issuedOn ? [] : [words.receipts.otherDay(dayLabel(before.date), dayLabel(receipt.issuedOn))]),
+    ...(before.amount === total ? [] : [words.receipts.otherAmount(formatAccountMoney(before.amount, EURO, 'magnitude'), formatAccountMoney(total, EURO, 'magnitude'))]),
+    ...(split.replaced.length === 0
+      ? []
+      : [words.receipts.replacesSplit(listInWords(split.replaced.map((part) => `${part.text === '' ? nameOf(part.category) : part.text} ${formatAccountMoney(part.amount, EURO)}`)))]),
+  ]
+}
+
+/** What the card warns on for one receipt: the read's checks that failed and what differs on the entry it goes on. */
 function warningOf(notes: readonly string[], split: ReceiptSplit): ProposalNote | null {
   return notes.length === 0 ? null : { label: split.receipt.merchant, text: notes.map(sentence).join(' '), tone: 'warning' }
 }
@@ -267,6 +293,8 @@ export function writeReceiptStep(
     throw new StepRefused(
       'Kuna cannot reach Drive on this device without leaving the page, so it cannot keep the photo now. Propose it with keepPhoto false, or link Entries, where Add a receipt keeps it after a sync.',
     )
+  const paid = RECEIPT_PAYMENTS.find((payment) => payment === field['paid'])
+  if (paid === undefined) throw new StepRefused('paid is "cash" or "card".')
   const whose = ANSWERS.find((answer) => answer === field['whose']) ?? null
   if (whose === null && field['whose'] !== null) throw new StepRefused('whose is "company", "personal" or null.')
   const answer = answerOf(field)
@@ -304,9 +332,9 @@ export function writeReceiptStep(
       latitude: photo.place?.latitude ?? '',
       longitude: photo.place?.longitude ?? '',
     },
-    placeOf(field, book, { merchant: read.merchant, issuedOn: read.issuedOn, total: read.total }, idOf),
+    placeOf(field, book, { merchant: read.merchant, issuedOn: read.issuedOn, total: read.total }, paid, idOf),
     read.lines.map((line) => ({ printed: line.printed, text: line.text, amount: line.amount, category: line.category! })),
   )
   writeReceiptSplit(unit, split)
-  return { split, warning: warningOf(drafted.notes, split) }
+  return { split, warning: warningOf([...drafted.notes, ...placeNotes(split, book)], split) }
 }
