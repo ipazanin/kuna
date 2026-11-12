@@ -1,6 +1,6 @@
 import { installedPack } from '../../packs/packContribution'
 import { RULE_CODEC } from '../../rules/domain/readRules'
-import { settingCodec } from '../../settings/domain/settings'
+import { companySettingCodec } from '../../settings/domain/settings'
 import { ACCOUNT_CODEC } from '../domain/accountsReading'
 import { BILLING_CODEC } from '../domain/billingPlanReading'
 import { CATEGORY_CODEC } from '../domain/categoriesReading'
@@ -16,7 +16,7 @@ const CORE_CODECS = [
   LEDGER_CODEC,
   CATEGORY_CODEC,
   ACCOUNT_CODEC,
-  settingCodec(() => installedPack().workbook?.settings ?? null),
+  companySettingCodec(() => installedPack().workbook?.settings ?? null),
   RULE_CODEC,
   INVOICE_CODEC,
   CLIENT_CODEC,

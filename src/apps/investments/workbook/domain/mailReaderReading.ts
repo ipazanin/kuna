@@ -1,7 +1,8 @@
 import { MAIL_READER_RECORDS } from './investmentKinds'
 import type { MailReader } from './mailReader'
 import { words } from './words'
-import { mailAddressesOf, mailAddressesProblem, mailContentsProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
+import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
+import { words as mailWords } from '../../../../shared/mail-filing/domain/words'
 import { labelWords, withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
@@ -18,8 +19,8 @@ export function mailReaderOf(fields: StoredFields, id: RecordId | null): MailRea
   const subject = textOf(fields.subject)
   const contents = textOf(fields.contents)
   if (on && senders.length === 0) refuse(words.mailReaderNoSender)
-  const problem = mailAddressesProblem(senders) ?? mailSubjectProblem(subject) ?? mailContentsProblem(contents)
-  if (problem !== null) refuse(problem)
+  const fault = mailAddressesFault(senders) ?? mailPhraseFault('subject', subject) ?? mailPhraseFault('contents', contents)
+  if (fault !== null) refuse(mailWords.searchFault(fault))
   const leftOut = textOf(fields.left_out)
   return {
     id: ownId(id),

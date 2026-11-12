@@ -13,6 +13,7 @@ import { SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/re
 import { flaggedAsPerson, personPayeesOf, withPayeeAsPerson } from '../src/shared/privacy/domain/personPayees'
 import { changesOf } from '../src/shared/storage/application/recordWrites'
 import { readSettingRows, settingRow } from '../src/shared/storage/domain/settingRows'
+import { words as recordWords } from '../src/shared/storage/domain/words'
 import type { SettingRow } from '../src/shared/storage/domain/settingRows'
 import type { RecordsRead } from '../src/shared/storage/domain/recordsRead'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
@@ -49,13 +50,13 @@ describe("Spending's person_payees setting", () => {
   it('reads one payee per line with blank lines dropped, and none by default', () => {
     const rows = [settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat\n\nMarko Kovač\n')]
 
-    expect(readSettingRows(spendingRead(rows), SPENDING_SETTING_CHECKS).problems).toEqual([])
+    expect(readSettingRows(spendingRead(rows), SPENDING_SETTING_CHECKS, recordWords.settingUnknown).problems).toEqual([])
     expect(spendingSettingsOf(rows).personPayees).toEqual(['Ana Horvat', 'Marko Kovač'])
     expect(spendingSettingsOf([]).personPayees).toEqual([])
   })
 
   it('still refuses a key it does not know', () => {
-    const reading = readSettingRows(spendingRead([settingRow(SETTING_RECORDS, 'person_payee', 'Ana Horvat')]), SPENDING_SETTING_CHECKS)
+    const reading = readSettingRows(spendingRead([settingRow(SETTING_RECORDS, 'person_payee', 'Ana Horvat')]), SPENDING_SETTING_CHECKS, recordWords.settingUnknown)
 
     expect(reading.facts).toEqual([])
     expect(reading.problems.map((problem) => problem.reason)).toEqual(['this Kuna knows no setting person_payee'])

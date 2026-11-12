@@ -1,6 +1,5 @@
 import { civilDate } from '../../calendar/civilDate'
 import type { CivilDate } from '../../calendar/civilDate'
-import { words } from './words'
 
 /** One file attached to a mail, by Gmail's id and the name the sender gave it. */
 export interface MailAttachment {
@@ -40,14 +39,14 @@ export const MAIL_DATE_PROPERTY = 'kuna-mail-date'
 /** Drive keeps a property only while its key and value together take at most 124 bytes of UTF-8. */
 const PROPERTY_MAX_BYTES = 124
 
-/** The properties of a file filed from this mail for this source. Throws for one Drive would refuse as too long. */
-export function filedMailProperties(source: string, mail: Pick<MailMessage, 'id' | 'date'>): Readonly<Record<string, string>> {
+/** The properties of a file filed from a mail, or the one Drive would refuse as longer than the bytes it keeps. */
+export type FiledMailProperties = { readonly kind: 'kept'; readonly properties: Readonly<Record<string, string>> } | { readonly kind: 'too-long'; readonly key: string; readonly most: number }
+
+/** The properties of a file filed from this mail for this source. */
+export function filedMailProperties(source: string, mail: Pick<MailMessage, 'id' | 'date'>): FiledMailProperties {
   const properties: Readonly<Record<string, string>> = { [MAIL_SOURCE_PROPERTY]: source, [MAIL_ID_PROPERTY]: mail.id, [MAIL_DATE_PROPERTY]: new Date(mail.date).toISOString() }
   const tooLong = Object.entries(properties).find(([key, value]) => new TextEncoder().encode(`${key}${value}`).length > PROPERTY_MAX_BYTES)
-  if (tooLong !== undefined) {
-    throw new Error(words.propertyTooLong(tooLong[0], PROPERTY_MAX_BYTES))
-  }
-  return properties
+  return tooLong === undefined ? { kind: 'kept', properties } : { kind: 'too-long', key: tooLong[0], most: PROPERTY_MAX_BYTES }
 }
 
 const WINDOW_OVERLAP_MS = 7 * 86_400_000
@@ -142,22 +141,25 @@ export function mailAddressesOf(text: string): string[] {
   ]
 }
 
+/** A phrase a search looks for in a mail. */
+export type MailPhrase = 'subject' | 'contents'
+
+/** Why Gmail cannot search for a list of senders or a phrase: addresses that are not mail addresses, a double quote that would end the phrase, or a phrase longer than `most` characters. */
+export type MailSearchFault =
+  | { readonly kind: 'not-addresses'; readonly addresses: readonly string[] }
+  | { readonly kind: 'quote'; readonly phrase: MailPhrase }
+  | { readonly kind: 'too-long'; readonly phrase: MailPhrase; readonly most: number }
+
 /** Why a list of sender addresses cannot be searched for, or null. */
-export function mailAddressesProblem(addresses: readonly string[]): string | null {
+export function mailAddressesFault(addresses: readonly string[]): MailSearchFault | null {
   const malformed = addresses.filter((address) => !MAIL_ADDRESS.test(address))
-  return malformed.length === 0 ? null : words.notAddresses(malformed)
+  return malformed.length === 0 ? null : { kind: 'not-addresses', addresses: malformed }
 }
 
-const SUBJECT_MAX_LENGTH = 80
+const PHRASE_MAX_LENGTH = 80
 
-/** Why a subject phrase cannot be searched for, or null. */
-export function mailSubjectProblem(subject: string): string | null {
-  if (subject.includes('"')) return words.subjectQuote
-  return subject.length > SUBJECT_MAX_LENGTH ? words.subjectTooLong(SUBJECT_MAX_LENGTH) : null
-}
-
-/** Why a phrase of a mail's contents cannot be searched for, or null. */
-export function mailContentsProblem(contents: string): string | null {
-  if (contents.includes('"')) return words.contentsQuote
-  return contents.length > SUBJECT_MAX_LENGTH ? words.contentsTooLong(SUBJECT_MAX_LENGTH) : null
+/** Why a subject or contents phrase cannot be searched for, or null. */
+export function mailPhraseFault(phrase: MailPhrase, text: string): MailSearchFault | null {
+  if (text.includes('"')) return { kind: 'quote', phrase }
+  return text.length > PHRASE_MAX_LENGTH ? { kind: 'too-long', phrase, most: PHRASE_MAX_LENGTH } : null
 }

@@ -106,7 +106,7 @@ import {
 } from './chatFlows.mjs'
 import { delay, pressSelector, typeDay } from './pressing.mjs'
 import { scrollbarGutter, shellRoom } from './shellFlows.mjs'
-import { en as mailDomainEnglish, hr as mailDomainCroatian } from '../../src/shared/mail-filing/domain/words.ts'
+import { en as mailFilingEnglish, hr as mailFilingCroatian } from '../../src/shared/mail-filing/application/words.ts'
 import { en as assistEnglish, hr as assistCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/secrets/presentation/words.ts'
 
@@ -203,7 +203,7 @@ const SCREEN_WORDS = {
     myDrive: textEnglish.myDrive,
     mailFiled: /Filed \d+/,
     companyHome: companyHomeEnglish,
-    mailCounts: mailDomainEnglish.counts,
+    mailCounts: mailFilingEnglish.counts,
     loansHome: loansHomeEnglish,
     investmentsHome: investmentsHomeEnglish,
     investmentsOverview: investmentsOverviewEnglish.title,
@@ -289,7 +289,7 @@ const SCREEN_WORDS = {
     myDrive: textCroatian.myDrive,
     mailFiled: /Spremljeno \d+/,
     companyHome: companyHomeCroatian,
-    mailCounts: mailDomainCroatian.counts,
+    mailCounts: mailFilingCroatian.counts,
     loansHome: loansHomeCroatian,
     investmentsHome: investmentsHomeCroatian,
     investmentsOverview: investmentsOverviewCroatian.title,

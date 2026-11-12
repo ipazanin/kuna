@@ -9,7 +9,7 @@ import {
   parseSettings,
   readPackSettings,
   readSettingsTab,
-  settingCodec,
+  companySettingCodec,
   settingsErrors,
   settingsTabEntries,
   unreadSettingKeys,
@@ -29,7 +29,7 @@ import { words as hrDooWords } from '../src/apps/company/packs/hr-doo/domain/wor
 /** A cell of the value column, undefined for a blank one. */
 type Cell = string | number | boolean | undefined
 
-const SETTINGS = settingCodec(() => COMPANY_FACT_SETTINGS as PackSettings<unknown>)
+const SETTINGS = companySettingCodec(() => COMPANY_FACT_SETTINGS as PackSettings<unknown>)
 
 /** The settings rows a tab of these cells holds, each value typed by its key as reading the workbook types it. */
 function rows(...entries: [string, Cell][]): SettingRow[] {

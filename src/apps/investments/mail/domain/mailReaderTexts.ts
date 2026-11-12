@@ -1,7 +1,8 @@
 import { IBKR_FLEX_RECIPE } from './ibkrFlexRecipe'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
-import { mailAddressesOf, mailAddressesProblem, mailContentsProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
+import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
+import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
 
 /** The fields of the mail card a person types. */
 export interface MailReaderTexts {
@@ -19,17 +20,17 @@ export function mailReaderTexts(saved: MailReader | null): MailReaderTexts {
   return { senders: senders.join(', '), subject, contents, since: saved?.since ?? today() }
 }
 
-/** A field that names nothing it needs, or one Gmail cannot search for, with the mail search's own reason. */
-export type MailReaderFault = { readonly kind: 'missing' } | { readonly kind: 'unsearchable'; readonly reason: string }
+/** A field that names nothing it needs, or one Gmail cannot search for, with the mail search's own fault. */
+export type MailReaderFault = { readonly kind: 'missing' } | { readonly kind: 'unsearchable'; readonly search: MailSearchFault }
 
 /** What each field lacks, null for one that reads. A switched-off reader may name no sender. */
 export function mailReaderFaults(texts: MailReaderTexts, on: boolean): Readonly<Record<MailReaderField, MailReaderFault | null>> {
-  const unsearchable = (reason: string | null): MailReaderFault | null => (reason === null ? null : { kind: 'unsearchable', reason })
+  const unsearchable = (search: MailSearchFault | null): MailReaderFault | null => (search === null ? null : { kind: 'unsearchable', search })
   const senders = mailAddressesOf(texts.senders)
   return {
-    senders: senders.length === 0 ? (on ? { kind: 'missing' } : null) : unsearchable(mailAddressesProblem(senders)),
-    subject: unsearchable(mailSubjectProblem(texts.subject)),
-    contents: unsearchable(mailContentsProblem(texts.contents)),
+    senders: senders.length === 0 ? (on ? { kind: 'missing' } : null) : unsearchable(mailAddressesFault(senders)),
+    subject: unsearchable(mailPhraseFault('subject', texts.subject)),
+    contents: unsearchable(mailPhraseFault('contents', texts.contents)),
     since: parseCivilDate(texts.since) === null ? { kind: 'missing' } : null,
   }
 }

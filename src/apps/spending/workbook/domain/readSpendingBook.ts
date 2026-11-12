@@ -36,6 +36,7 @@ import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRe
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ANY_VALUE, readSettingRows } from '../../../../shared/storage/domain/settingRows'
+import { words as recordWords } from '../../../../shared/storage/domain/words'
 import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
@@ -316,7 +317,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)), accountsById)
   const lines = readParts(records.lines, transactions.facts, receipts.facts, categoryIds)
   const held = readHeld(records.held, accountsById, transactions.facts)
-  const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS)
+  const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS, recordWords.settingUnknown)
   const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, lines, held, settings }
   return {
     accounts: accounts.facts,

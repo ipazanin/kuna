@@ -8,6 +8,7 @@ import { readSettingRows, settingRow } from '../../../../shared/storage/domain/s
 import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import { personPayeesOf, personPayeesText, withPayeeAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import { slugOf } from '../../../../shared/storage/domain/storedFields'
+import { words as recordWords } from '../../../../shared/storage/domain/words'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { PERSON_PAYEES_KEY, bucketLabelsClash, companySettingChecks, heldSettingValue } from '../domain/settings'
 import type { SettingEntry } from '../domain/settings'
@@ -28,6 +29,7 @@ export const SETTING_WRITES: WriteRules<SettingRow> = {
         read.records.map((stored) => stored.record.key),
         installedPack().workbook?.settings ?? null,
       ),
+      recordWords.settingUnknown,
     ),
   refusals: (change) => {
     const stored = storedOf(change.before)

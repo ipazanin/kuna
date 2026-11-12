@@ -3,6 +3,7 @@ import type { RecordKind } from '../domain/recordKind'
 import { readSettingRows, settingRow } from '../domain/settingRows'
 import type { SettingChecks, SettingRow } from '../domain/settingRows'
 import type { WriteRules } from '../domain/writeRules'
+import { words } from '../domain/words'
 
 /** How an app's settings are written. They read nothing else and keep Undo. */
 export function settingWrites(kind: RecordKind<SettingRow>, checks: SettingChecks): WriteRules<SettingRow> {
@@ -10,7 +11,7 @@ export function settingWrites(kind: RecordKind<SettingRow>, checks: SettingCheck
     kind,
     reads: [],
     undoable: true,
-    read: (read) => readSettingRows(read, checks),
+    read: (read) => readSettingRows(read, checks, words.settingUnknown),
     refusals: () => [],
   }
 }

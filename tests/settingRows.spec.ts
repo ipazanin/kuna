@@ -4,6 +4,7 @@ import { changesOf } from '../src/shared/storage/application/recordWrites'
 import { setSetting, settingWrites } from '../src/shared/storage/application/settingWrites'
 import { recordKind } from '../src/shared/storage/domain/recordKind'
 import { ANY_VALUE, readSettingRows, settingRow, settingValue } from '../src/shared/storage/domain/settingRows'
+import { words as recordWords } from '../src/shared/storage/domain/words'
 import type { SettingRow } from '../src/shared/storage/domain/settingRows'
 
 const KIND = recordKind<SettingRow>('setting', {
@@ -23,7 +24,7 @@ function changes(rows: readonly SettingRow[], key: string, value: string) {
 describe("an app's setting rows", () => {
   it('reads a known key, and lists an unknown key and a value its check refuses', () => {
     const rows = [settingRow(KIND, 'note', 'anything'), settingRow(KIND, 'size', 'big'), settingRow(KIND, 'constructor', 'x')]
-    const reading = readSettingRows({ records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: {} })), refused: [] }, CHECKS)
+    const reading = readSettingRows({ records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: {} })), refused: [] }, CHECKS, recordWords.settingUnknown)
 
     expect([reading.facts.map((row) => row.key), reading.problems.map((problem) => problem.reason)]).toEqual([['note'], ['size "big" is not a number', 'this Kuna knows no setting constructor']])
     expect([settingValue(rows, 'note'), settingValue(rows, 'missing')]).toEqual(['anything', ''])

@@ -8,6 +8,7 @@ import { SETTING_RECORDS } from '../src/apps/investments/workbook/domain/investm
 import { SURTAX_CITY_2023_KEY } from '../src/apps/investments/workbook/domain/investmentSettings'
 import { writtenPercent } from '../src/shared/money/percent'
 import { readSettingRows, settingRow } from '../src/shared/storage/domain/settingRows'
+import { words as recordWords } from '../src/shared/storage/domain/words'
 import type { SettingRow } from '../src/shared/storage/domain/settingRows'
 
 function rateOf(code: string): number | null {
@@ -50,7 +51,8 @@ describe("Porezna's table of surtax rates for 2023", () => {
 })
 
 describe("the owner's 2023 city", () => {
-  const read = (rows: readonly SettingRow[]) => readSettingRows({ records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: {} })), refused: [] }, INVESTMENT_SETTING_CHECKS)
+  const read = (rows: readonly SettingRow[]) =>
+    readSettingRows({ records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: {} })), refused: [] }, INVESTMENT_SETTING_CHECKS, recordWords.settingUnknown)
 
   it('reads a code of the table, none for a city the table leaves out, and nothing for a code it lacks', () => {
     const of = (value: string) => cityOf2023([settingRow(SETTING_RECORDS, SURTAX_CITY_2023_KEY, value)])

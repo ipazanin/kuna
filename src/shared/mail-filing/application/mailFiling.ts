@@ -1,7 +1,6 @@
 import { isUnauthorized } from '../../google/googleApi'
 import { filedMailProperties, mailQuery, mailWindow, windowReaches, yearFolderName } from '../domain/mailSource'
 import type { AttachmentNaming, MailAttachment, MailCounts, MailMessage, MailTerms, MailWindow, SourceTerms } from '../domain/mailSource'
-import { words as sourceWords } from '../domain/words'
 import { words } from './words'
 
 /** Gmail still asking the app to slow down after it waited and tried again, which stops the step. */
@@ -146,7 +145,7 @@ export async function fileMail<Books>(ports: MailFilingPorts<Books>): Promise<Ma
       const terms = source.terms(ports.books)
       if (terms.kind === 'off') return null
       if (terms.kind === 'incomplete') {
-        return { kind: 'failed', id: source.id, label: source.label, reason: sourceWords.incompleteOnSettings(terms.missing) }
+        return { kind: 'failed', id: source.id, label: source.label, reason: words.incompleteOnSettings(terms.missing) }
       }
       show(source, words.searching)
       try {
@@ -334,8 +333,10 @@ interface ToFile {
 /** Downloads one attachment and makes its file, or says why it could not, unless the failure stops the step. */
 async function fileOne<Books>(filing: ToFile, source: MailSource<Books>, terms: MailTerms, folders: MailFolders): Promise<PlanEntry> {
   const { at } = filing
+  const filed = filedMailProperties(source.id, at.mail)
+  if (filed.kind === 'too-long') return { kind: 'not-filed', ...at, reason: words.propertyTooLong(filed.key, filed.most) }
   try {
-    await folders.create(terms.folder, filing.folders, { name: at.name, properties: filedMailProperties(source.id, at.mail), bytes: await filing.bytes() })
+    await folders.create(terms.folder, filing.folders, { name: at.name, properties: filed.properties, bytes: await filing.bytes() })
     return { kind: 'filed', ...at }
   } catch (failure) {
     if (stopsTheStep(failure)) throw failure
@@ -383,7 +384,7 @@ export function mailCounts(entries: readonly PlanEntry[]): MailCounts {
 /** The files of a source whose upload failed, named in a sentence, or null when none did. */
 export function notFiledLine(entries: readonly PlanEntry[]): string | null {
   const names = entries.flatMap((entry) => (entry.kind === 'not-filed' ? [entry.name] : []))
-  return names.length === 0 ? null : sourceWords.notFiled(names)
+  return names.length === 0 ? null : words.notFiled(names)
 }
 
 /** Whether a source failed or an upload did, which fails the step. */
@@ -402,5 +403,5 @@ export function planLine(plan: MailPlan): string {
     return problem === null ? [] : [`${source.label}: ${problem}`]
   })
   const ran = plan.sources.some((source) => source.kind === 'planned')
-  return [ran ? `${sourceWords.counts(mailCounts(planned))}.` : '', ...problems].filter((sentence) => sentence !== '').join(' ')
+  return [ran ? `${words.counts(mailCounts(planned))}.` : '', ...problems].filter((sentence) => sentence !== '').join(' ')
 }

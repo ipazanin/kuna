@@ -172,7 +172,7 @@ describe('invoice settings and client details', () => {
     ])
     expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, iban: 'HR00', oib: 'HR 1234 5678', numberPattern: '{yy}' } })).toEqual({
       iban: '"HR00" is not an IBAN',
-      oib: '"12345678" is not an OIB, which is eleven digits',
+      oib: '"12345678" is not an OIB, which is eleven digits ending in its check digit',
       numberPattern: 'the pattern needs {n}, the sequence, exactly once',
     })
   })
@@ -199,24 +199,27 @@ describe('invoice settings and client details', () => {
 
 describe("the company's VAT ID", () => {
   it('is HR and its OIB, and blank while the OIB is', () => {
-    expect([companyVatId({ oib: '12345678901' }), companyVatId({ oib: '' })]).toEqual(['HR12345678901', ''])
+    expect([companyVatId({ oib: '12345678903' }), companyVatId({ oib: '' })]).toEqual(['HR12345678903', ''])
   })
 
-  it('takes a pasted VAT ID as its OIB, and holds eleven digits', () => {
-    const { settings, problems } = parseSettings([{ key: 'invoice_oib', value: 'hr 123 4567 8901' }])
-    expect(settings.invoicing.oib).toBe('12345678901')
+  it('takes a pasted VAT ID as its OIB, and holds eleven digits ending in their check digit', () => {
+    const { settings, problems } = parseSettings([{ key: 'invoice_oib', value: 'hr 123 4567 8903' }])
+    expect(settings.invoicing.oib).toBe('12345678903')
     expect(problems).toEqual([])
-    expect(typedOib(' HR12345678901 ')).toBe('12345678901')
-    expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, oib: 'HR 123 456 789 01' } })).toEqual({})
-    expect(changedSettings(DEFAULT_SETTINGS, { ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, oib: 'HR 123 456 789 01' } })).toEqual([{ key: 'invoice_oib', value: '12345678901' }])
+    expect(typedOib(' HR12345678903 ')).toBe('12345678903')
+    expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, oib: 'HR 123 456 789 03' } })).toEqual({})
+    expect(changedSettings(DEFAULT_SETTINGS, { ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, oib: 'HR 123 456 789 03' } })).toEqual([{ key: 'invoice_oib', value: '12345678903' }])
+    expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, oib: '12345678901' } })).toEqual({
+      oib: '"12345678901" is not an OIB, which is eleven digits ending in its check digit',
+    })
   })
 
   it('follows the OIB, whatever VAT ID older books typed', () => {
     const { settings, problems } = parseSettings([
       { key: 'invoice_vat_id', value: 'HR99999999999' },
-      { key: 'invoice_oib', value: '12345678901' },
+      { key: 'invoice_oib', value: '12345678903' },
     ])
-    expect(companyVatId(settings.invoicing)).toBe('HR12345678901')
+    expect(companyVatId(settings.invoicing)).toBe('HR12345678903')
     expect(problems).toEqual([])
   })
 })

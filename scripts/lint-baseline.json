@@ -264,10 +264,8 @@
     "src/apps/spending/workbook/domain/recordReference.ts",
     "src/apps/spending/workbook/domain/ruleReading.ts",
     "src/apps/spending/workbook/domain/transactionReading.ts",
-    "src/shared/mail-filing/domain/mailSource.ts",
     "src/shared/storage/domain/recordCodec.ts",
     "src/shared/storage/domain/recordsRead.ts",
-    "src/shared/storage/domain/settingRows.ts",
     "src/shared/storage/domain/storedFields.ts"
   ]
 }

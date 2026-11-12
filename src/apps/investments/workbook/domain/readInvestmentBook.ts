@@ -40,6 +40,7 @@ import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/r
 import { readEach } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { readSettingRows } from '../../../../shared/storage/domain/settingRows'
+import { words as recordWords } from '../../../../shared/storage/domain/words'
 import type { SettingChecks, SettingRow } from '../../../../shared/storage/domain/settingRows'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
 
@@ -215,7 +216,7 @@ export function readInvestmentBook(records: InvestmentsRecords, settingChecks: S
   const readersShared = sharedKeys(records.mailReaders.records, ({ record }) => record.recipe)
   const mailReaders = readEach(records.mailReaders, ({ record: reader }) => (readersShared.has(reader.recipe) ? [words.mailReaderShared(reader.recipe)] : []))
 
-  const settings = readSettingRows(records.settings, settingChecks)
+  const settings = readSettingRows(records.settings, settingChecks, recordWords.settingUnknown)
 
   const readings: InvestmentReadings = {
     accounts: accountReading,

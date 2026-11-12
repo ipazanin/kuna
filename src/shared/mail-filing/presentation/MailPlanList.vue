@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import { dateFormat } from '../../calendar/dateFormat'
-import { words as sourceWords } from '../domain/words'
+import { words as filingWords } from '../application/words'
 import { mailCounts, notFiledLine } from '../application/mailFiling'
 import type { MailPlan, PlanEntry, SourcePlan } from '../application/mailFiling'
 import MailSearchResults from './MailSearchResults.vue'
@@ -39,7 +39,7 @@ const sources = computed(() =>
 )
 
 function headline(source: SourcePlan): string {
-  return source.kind === 'failed' ? source.reason.replace(/\.?$/, '.') : [`${sourceWords.counts(mailCounts(source.entries))}.`, notFiledLine(source.entries) ?? ''].join(' ').trim()
+  return source.kind === 'failed' ? source.reason.replace(/\.?$/, '.') : [`${filingWords.counts(mailCounts(source.entries))}.`, notFiledLine(source.entries) ?? ''].join(' ').trim()
 }
 
 /** The folders and the name of where an entry goes, each folder with its slash, so a narrow screen breaks the path after a slash. */

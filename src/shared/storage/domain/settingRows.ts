@@ -1,13 +1,14 @@
 import { filledKey, labelWords } from './recordCodec'
 import type { RecordCodec } from './recordCodec'
 import { filledFields } from './recordFields'
+import type { FieldValue } from './recordFields'
 import { recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
 import type { RecordKind } from './recordKind'
 import { readEach } from './recordsRead'
 import type { Reading, RecordsRead } from './recordsRead'
 import { ownId, slugOf, textOf } from './storedFields'
-import { words } from './words'
+import type { StoredField } from './storedFields'
 
 /** One setting as stored, kept by its key. */
 export interface SettingRow {
@@ -25,14 +26,26 @@ export type SettingChecks = ReadonlyMap<string, SettingValueCheck>
 /** The check of a key whose value is free text. */
 export const ANY_VALUE: SettingValueCheck = () => []
 
-/** How an app keeps its settings, one row per key, in its own kind, each named by the label `labelOf` gives its key. */
-export function settingCodec(kind: RecordKind<SettingRow>, labelOf: (key: string) => string): RecordCodec<SettingRow> {
+/** How a key's value is stored: the text a stored field holds for it, and the field its text is written as. */
+export interface SettingValueStorage {
+  read(field: StoredField | undefined, key: string): string
+  write(value: string, key: string): FieldValue
+}
+
+/** Every value as the text the cell holds. */
+const AS_TEXT: SettingValueStorage = {
+  read: (field) => textOf(field),
+  write: (value) => value,
+}
+
+/** How an app keeps its settings, one row per key, in its own kind, each named by the label `labelOf` gives its key and each value stored as `storage` stores it. */
+export function settingCodec(kind: RecordKind<SettingRow>, labelOf: (key: string) => string, storage: SettingValueStorage = AS_TEXT): RecordCodec<SettingRow> {
   return {
     kind,
     key: (fields) => filledKey(slugOf(fields.key)),
     label: (fields) => labelWords([labelOf(slugOf(fields.key))]),
-    make: (fields, id) => ({ id: ownId(id), key: textOf(fields.key), value: textOf(fields.value) }),
-    fieldsOf: (setting) => filledFields({ key: setting.key, value: setting.value }),
+    make: (fields, id) => ({ id: ownId(id), key: textOf(fields.key), value: storage.read(fields.value, textOf(fields.key)) }),
+    fieldsOf: (setting) => filledFields({ key: setting.key, value: storage.write(setting.value, setting.key) }),
   }
 }
 
@@ -41,11 +54,14 @@ export function settingRow(kind: RecordKind<SettingRow>, key: string, value: str
   return { id: recordIdOf(kind, key), key, value }
 }
 
-/** A key the app does not know, and a value its key's check refuses, are listed and left out, so a newer app's setting never stops the file from opening. */
-export function readSettingRows(read: RecordsRead<SettingRow>, checks: SettingChecks): Reading<SettingRow> {
+/**
+ * A key the app does not know, with the reason `unknownKey` words for it, and a value its key's check
+ * refuses, are listed and left out, so a newer app's setting never stops the file from opening.
+ */
+export function readSettingRows(read: RecordsRead<SettingRow>, checks: SettingChecks, unknownKey: (key: string) => string): Reading<SettingRow> {
   return readEach(read, ({ record: { key, value } }) => {
     const check = checks.get(key)
-    return check === undefined ? [words.settingUnknown(key)] : check(value)
+    return check === undefined ? [unknownKey(key)] : check(value)
   })
 }
 

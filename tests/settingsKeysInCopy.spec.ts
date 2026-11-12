@@ -6,7 +6,7 @@ import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/c
 import { en, hr } from '../src/apps/company/packs/hr-doo/domain/words'
 import { en as presentationEn, hr as presentationHr } from '../src/apps/company/packs/hr-doo/presentation/words'
 import { IMPORT_PROFILE_PREFIX } from '../src/apps/company/imports/domain/importProfile'
-import { SETTING_DEFINITIONS, settingCodec } from '../src/apps/company/settings/domain/settings'
+import { SETTING_DEFINITIONS, companySettingCodec } from '../src/apps/company/settings/domain/settings'
 import type { PackSettings } from '../src/apps/company/settings/domain/settings'
 import { en as companyEn, hr as companyHr } from '../src/apps/company/settings/domain/words'
 import { codecOfInvestmentsKind } from '../src/apps/investments/workbook/application/investmentsCodecs'
@@ -117,7 +117,7 @@ describe('settings keys in copy', () => {
   })
 
   it("names a setting in a change by its label in the app's language, never by its key", () => {
-    const company = settingCodec(() => COMPANY_FACT_SETTINGS as PackSettings<unknown>)
+    const company = companySettingCodec(() => COMPANY_FACT_SETTINGS as PackSettings<unknown>)
     const labels = [
       ...[...SETTING_DEFINITIONS, ...COMPANY_FACT_SETTINGS.definitions].map(({ key }) => labelOfKey(company, key)),
       labelOfKey(company, `${IMPORT_PROFILE_PREFIX}otp`),

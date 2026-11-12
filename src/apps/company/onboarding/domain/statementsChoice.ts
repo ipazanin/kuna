@@ -2,7 +2,9 @@ import { civilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { BOOKS_FOLDER } from '../../../../shared/text/folderPath'
 import { BANK_PRESETS } from '../../mail/domain/bankPresets'
-import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
+import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
+import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
+import { words as mailWords } from '../../../../shared/mail-filing/domain/words'
 import type { Settings } from '../../settings/domain/settings'
 import { words } from './words'
 
@@ -47,8 +49,9 @@ function mailTermsOf(mail: StatementMail): { readonly senders: readonly string[]
 export function statementMailProblems(mail: StatementMail): { readonly from?: string; readonly subject?: string } {
   if (mail.bank !== OTHER_BANK) return {}
   const { senders, subject } = mailTermsOf(mail)
-  const from = senders.length === 0 ? words.typeSender : mailAddressesProblem(senders)
-  const subjectWords = subject === '' ? words.typeSubject : mailSubjectProblem(subject)
+  const worded = (fault: MailSearchFault | null): string | null => (fault === null ? null : mailWords.searchFault(fault))
+  const from = senders.length === 0 ? words.typeSender : worded(mailAddressesFault(senders))
+  const subjectWords = subject === '' ? words.typeSubject : worded(mailPhraseFault('subject', subject))
   return { ...(from === null ? {} : { from }), ...(subjectWords === null ? {} : { subject: subjectWords }) }
 }
 

@@ -147,7 +147,7 @@ describe("what the chat reads of the company's books", () => {
       )
     expect(fieldsOf('owner_pay_module')).toEqual({ key: 'owner_pay_module', value: '', switch: 'TRUE', identifiers: [] })
     expect(fieldsOf('card_settlement_ibans')).toEqual({ key: 'card_settlement_ibans', value: '', switch: '', identifiers: ['HR1210010051863000160', 'HR2124020061100000000'] })
-    expect(fieldsOf('invoice_oib').identifiers).toEqual(['00000000000'])
+    expect(fieldsOf('invoice_oib').identifiers).toEqual(['00000000001'])
   })
 
   it('gives a category, an account and a client its short name as its id, so a row’s ref and the record’s are one', () => {

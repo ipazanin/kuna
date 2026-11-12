@@ -1,5 +1,6 @@
 import type { FiscalQr } from './fiscalQr'
-import { isValidOib, oibIn } from './oib'
+import { isValidOib } from '../../../../shared/text/oib'
+import { oibIn } from './oib'
 import { words } from './words'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { isValidOib, oibIn } from '../src/apps/spending/receipts/domain/oib'
+import { isValidOib } from '../src/shared/text/oib'
+import { oibIn } from '../src/apps/spending/receipts/domain/oib'
 import { MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeSpendingChat'
 
 describe('an OIB', () => {

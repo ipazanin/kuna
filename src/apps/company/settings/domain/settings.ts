@@ -10,15 +10,14 @@ import type { DefinedBucket } from '../../workbook/domain/bucket'
 import { SETTING_RECORDS } from '../../workbook/domain/coreKinds'
 import { ibanListOf } from '../../workbook/domain/iban'
 import { isIban } from '../../../../shared/text/iban'
-import { filledKey, labelWords } from '../../../../shared/storage/domain/recordCodec'
+import { isValidOib } from '../../../../shared/text/oib'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
-import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
+import { amountText } from '../../../../shared/storage/domain/recordFields'
 import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { ownId, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredField } from '../../../../shared/storage/domain/storedFields'
 import { sharedKeys } from '../../../../shared/storage/domain/sharedKeys'
-import { ANY_VALUE } from '../../../../shared/storage/domain/settingRows'
+import { ANY_VALUE, settingCodec } from '../../../../shared/storage/domain/settingRows'
 import type { SettingChecks, SettingRow, SettingValueCheck } from '../../../../shared/storage/domain/settingRows'
 import { IMPORT_PROFILE_PREFIX, profileKey, profileValue, readProfile } from '../../imports/domain/importProfile'
 import type { ImportProfile } from '../../imports/domain/importProfile'
@@ -26,7 +25,9 @@ import { BOOKS_FOLDER, folderPathOf } from '../../../../shared/text/folderPath'
 import { DEFAULT_FILE_PATH, filePathProblem } from '../../invoicing/domain/invoiceFiling'
 import { DEFAULT_MAIL_BODY, DEFAULT_MAIL_SUBJECT, mailTemplateProblem } from '../../invoicing/domain/invoiceMail'
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../../invoicing/domain/invoiceNumber'
-import { mailAddressesOf, mailAddressesProblem, mailSubjectProblem } from '../../../../shared/mail-filing/domain/mailSource'
+import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
+import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
+import { words as mailWords } from '../../../../shared/mail-filing/domain/words'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
 import { personPayeesOf, personPayeesText } from '../../../../shared/privacy/domain/personPayees'
 import { words } from './words'
@@ -338,8 +339,6 @@ const BILLING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
 
 export type InvoicingField = keyof InvoicingTerms
 
-const OIB = /^\d{11}$/
-
 /** An OIB as typed or pasted, with spaces and a leading HR dropped, so a pasted VAT ID such as HR 123 456 789 01 gives its OIB. */
 export function typedOib(text: string): string {
   return text.replace(/\s/g, '').replace(/^HR/i, '')
@@ -365,7 +364,7 @@ function invoicingProblem(field: InvoicingField, value: string): string | null {
     case 'iban':
       return value === '' || isIban(value) ? null : words.terms.notAnIban(value)
     case 'oib':
-      return value === '' || OIB.test(value) ? null : words.terms.notAnOib(value)
+      return value === '' || isValidOib(value) ? null : words.terms.notAnOib(value)
     case 'numberPattern':
       return numberPatternProblem(value)
     case 'filePath':
@@ -426,6 +425,11 @@ const RETIRED_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id'])
 
 /** The key of the counterparties the owner flagged as people. Only a person sets it, from a row in To review. */
 export const PERSON_PAYEES_KEY = 'person_payees'
+
+/** Why Gmail cannot search for what a mail setting holds, worded, or null. */
+function searchProblem(fault: MailSearchFault | null): string | null {
+  return fault === null ? null : mailWords.searchFault(fault)
+}
 
 /** Every key the app reads, in the order the template lists them. */
 export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
@@ -547,7 +551,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     valueOf: (settings) => settings.statementsMailFrom.join(', '),
     apply: (settings, value) => {
       const senders = mailAddressesOf(value)
-      return mailAddressesProblem(senders) ?? { ...settings, statementsMailFrom: senders }
+      return searchProblem(mailAddressesFault(senders)) ?? { ...settings, statementsMailFrom: senders }
     },
   },
   {
@@ -558,7 +562,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
     valueOf: (settings) => settings.statementsMailSubject,
     apply: (settings, value) => {
       const subject = value.trim()
-      return mailSubjectProblem(subject) ?? { ...settings, statementsMailSubject: subject }
+      return searchProblem(mailPhraseFault('subject', subject)) ?? { ...settings, statementsMailSubject: subject }
     },
   },
   {
@@ -612,18 +616,12 @@ function settingValueOf(field: StoredField | undefined, type: SettingType): stri
  * How settings are stored, each value typed by its key, core's or those of the pack `packSettings`
  * gives: a flag the app wrote as TRUE or FALSE is stored as a flag, and anything else as text.
  */
-export function settingCodec(packSettings: () => PackSettings<unknown> | null): RecordCodec<SettingRow> {
+export function companySettingCodec(packSettings: () => PackSettings<unknown> | null): RecordCodec<SettingRow> {
   const typeOf = (key: string): SettingType => settingTypeOf(key.trim().toLowerCase(), packSettings())
-  return {
-    kind: SETTING_RECORDS,
-    key: (fields) => filledKey(slugOf(fields.key)),
-    label: (fields) => labelWords([settingLabel(slugOf(fields.key), packSettings())]),
-    make: (fields, id) => ({ id: ownId(id), key: textOf(fields.key), value: settingValueOf(fields.value, typeOf(textOf(fields.key))) }),
-    fieldsOf: (setting) => {
-      const flag = typeOf(setting.key) === 'flag' && (setting.value === 'TRUE' || setting.value === 'FALSE')
-      return filledFields({ key: setting.key, value: flag ? setting.value === 'TRUE' : setting.value })
-    },
-  }
+  return settingCodec(SETTING_RECORDS, (key) => settingLabel(key, packSettings()), {
+    read: (field, key) => settingValueOf(field, typeOf(key)),
+    write: (value, key) => (typeOf(key) === 'flag' && (value === 'TRUE' || value === 'FALSE') ? value === 'TRUE' : value),
+  })
 }
 
 /**
@@ -847,9 +845,9 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   if (review !== null) errors.reviewLabel = review
   const cardAccounts = ibanListProblem(settings.cardSettlementIbans)
   if (cardAccounts !== null) errors.cardSettlementIbans = cardAccounts
-  const senders = mailAddressesProblem(settings.statementsMailFrom)
+  const senders = searchProblem(mailAddressesFault(settings.statementsMailFrom))
   if (senders !== null) errors.statementsMailFrom = senders
-  const subject = mailSubjectProblem(settings.statementsMailSubject)
+  const subject = searchProblem(mailPhraseFault('subject', settings.statementsMailSubject))
   if (subject !== null) errors.statementsMailSubject = subject
   else if (settings.statementsMailFrom.length > 0 && settings.statementsMailSubject === '') errors.statementsMailSubject = words.settings.nameTheSubject
   Object.assign(errors, billingErrors(settings.billing))
