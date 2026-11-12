@@ -207,7 +207,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'change-entry',
     about:
-      "Files a row under a category, or fixes its account, kind, date, amount, payee or note. kind is out or in, and sets the amount's sign. A row a statement brought keeps its account and what the bank said, and on an account the bank fills its date and amount too. A transfer's leg given a kind or another category becomes a plain entry, and its other leg goes. Otherwise a leg takes a new account, date or amount only through change-transfer. Null leaves a field as it is.",
+      "Files a row under a category, or fixes its account, kind, date, amount, payee or note. kind is out or in, and sets the amount's sign. A row a statement brought keeps its account and what the bank said, and on an account the bank fills its date and amount too. A transfer's leg given a kind or another category becomes a plain entry, and its other leg goes. Otherwise a leg takes a new account, date or amount only through change-transfer, and no payee. Null leaves a field as it is.",
     input: inputOf({
       entry: TEXT,
       account: TEXT_OR_NULL,
@@ -597,6 +597,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
           throw new StepRefused(`The bank booked that row on ${onAccount.name}, so its date and amount stay. Its category, payee, note and split can change.`)
         if (legs !== null && !plain && (typed.account !== before.account || typed.date !== before.date || typed.amount !== before.amount))
           throw new StepRefused("That entry is a transfer's leg, so its account, date or amount change through change-transfer, which keeps both legs in step.")
+        if (legs !== null && !plain && typed.payee !== before.payee) throw new StepRefused("That entry is a transfer's leg, a move between the person's own accounts, so it takes no payee.")
         if (field['account'] !== null || field['date'] !== null) openedBy(date, [account])
         writeEntry(unit, before, typed, plain ? (legs.find((leg) => leg !== before) ?? null) : null)
         break

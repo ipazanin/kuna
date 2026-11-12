@@ -9,7 +9,7 @@ import { DEFAULT_MAIL_BODY, filledMail, gmailComposeUrl, mailTemplateProblem, mo
 import { DEFAULT_NUMBER_PATTERN, numberPatternProblem } from '../src/apps/company/invoicing/domain/invoiceNumber'
 import { nextYearlyNumber, numberTaken } from '../src/apps/company/documents/domain/yearlyNumber'
 import { rawInvoiceMessage } from '../src/apps/company/invoicing/infrastructure/invoiceMessage'
-import { DEFAULT_SETTINGS, parseSettings, settingsErrors } from '../src/apps/company/settings/domain/settings'
+import { DEFAULT_SETTINGS, changedSettings, companyVatId, parseSettings, settingsErrors, typedOib } from '../src/apps/company/settings/domain/settings'
 import { CLIENT_RECORDS, SETTING_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { Client } from '../src/apps/company/workbook/domain/workbook'
 import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
@@ -106,12 +106,12 @@ describe('invoice lines', () => {
 
 describe('what keeps an invoice from being made', () => {
   const client: Client = { slug: 'north', name: 'North Ltd', ibans: [], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Road', reverseCharge: true } }
-  const issuer = { ...DEFAULT_SETTINGS.invoicing, name: 'Example Studio', address: 'Street 1', vatId: 'HR1', iban: 'HR6212345670000000001', place: 'Split', signatory: 'Ana' }
+  const issuer = { ...DEFAULT_SETTINGS.invoicing, name: 'Example Studio', address: 'Street 1', oib: '12345678901', iban: 'HR6212345670000000001', place: 'Split', signatory: 'Ana' }
   const line = { description: 'Work', amount: euros(100) }
 
   it('needs the issuer’s details, the client’s address and reverse charge, and lines above zero', () => {
     expect(invoiceProblems(issuer, client, [line])).toEqual([])
-    expect(invoiceProblems({ ...issuer, vatId: '', place: '' }, client, [line])).toEqual(['The invoice terms on Invoicing, Clients need your VAT ID, the place of issue.'])
+    expect(invoiceProblems({ ...issuer, oib: '', place: '' }, client, [line])).toEqual(['The invoice terms on Invoicing, Clients need your OIB, the place of issue.'])
     expect(invoiceProblems(issuer, { ...client, invoicing: { ...client.invoicing, address: '', reverseCharge: false } }, [{ description: '', amount: euros(0) }])).toEqual([
       'Invoicing, Clients needs an address for North Ltd.',
       'The app makes invoices without VAT for clients on reverse charge only. Tick reverse charge for North Ltd on Invoicing, Clients if it accounts for the VAT, or make this invoice elsewhere.',
@@ -170,8 +170,9 @@ describe('invoice settings and client details', () => {
     expect(problems).toEqual([
       { id: recordIdOf(SETTING_RECORDS, 'invoice_file_path'), label: 'invoice_file_path', reason: 'the path ends in a file name such as {yyyy}-{mm}-{client}-invoice.pdf, so the default is used' },
     ])
-    expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, iban: 'HR00', numberPattern: '{yy}' } })).toEqual({
+    expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, iban: 'HR00', oib: 'HR 1234 5678', numberPattern: '{yy}' } })).toEqual({
       iban: '"HR00" is not an IBAN',
+      oib: '"12345678" is not an OIB, which is eleven digits',
       numberPattern: 'the pattern needs {n}, the sequence, exactly once',
     })
   })
@@ -193,5 +194,29 @@ describe('invoice settings and client details', () => {
       { id: recordIdOf(CLIENT_RECORDS, 'south'), label: 'south', reason: '"not a language tag" is not a language such as en or hr, so the mail is written in English' },
       { id: recordIdOf(CLIENT_RECORDS, 'south'), label: 'south', reason: 'reverse_charge "maybe" is neither TRUE nor FALSE, so it reads as FALSE' },
     ])
+  })
+})
+
+describe("the company's VAT ID", () => {
+  it('is HR and its OIB, and blank while the OIB is', () => {
+    expect([companyVatId({ oib: '12345678901' }), companyVatId({ oib: '' })]).toEqual(['HR12345678901', ''])
+  })
+
+  it('takes a pasted VAT ID as its OIB, and holds eleven digits', () => {
+    const { settings, problems } = parseSettings([{ key: 'invoice_oib', value: 'hr 123 4567 8901' }])
+    expect(settings.invoicing.oib).toBe('12345678901')
+    expect(problems).toEqual([])
+    expect(typedOib(' HR12345678901 ')).toBe('12345678901')
+    expect(settingsErrors({ ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, oib: 'HR 123 456 789 01' } })).toEqual({})
+    expect(changedSettings(DEFAULT_SETTINGS, { ...DEFAULT_SETTINGS, invoicing: { ...DEFAULT_SETTINGS.invoicing, oib: 'HR 123 456 789 01' } })).toEqual([{ key: 'invoice_oib', value: '12345678901' }])
+  })
+
+  it('follows the OIB, whatever VAT ID older books typed', () => {
+    const { settings, problems } = parseSettings([
+      { key: 'invoice_vat_id', value: 'HR99999999999' },
+      { key: 'invoice_oib', value: '12345678901' },
+    ])
+    expect(companyVatId(settings.invoicing)).toBe('HR12345678901')
+    expect(problems).toEqual([])
   })
 })

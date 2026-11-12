@@ -92,15 +92,18 @@ function createBillingItem(field: BillingItemField, text: string): void {
 const NOT_SET = '-'
 const clientItems = computed(() => [{ label: words.terms.notSet, value: NOT_SET }, ...props.clients.map((client) => ({ label: client.name || client.slug, value: client.slug }))])
 
-/** A field with `lines` is a text box that grows, so a long path or subject wraps instead of scrolling inside the card. */
-const INVOICING_FIELDS: readonly { readonly field: InvoicingField; readonly lines?: number; readonly wide?: boolean }[] = [
+/**
+ * A field with `lines` is a text box that grows, so a long path or subject wraps instead of scrolling inside the card. An `identifier`
+ * shows in the identifier face, and a `numeric` field opens the number keyboard.
+ */
+const INVOICING_FIELDS: readonly { readonly field: InvoicingField; readonly lines?: number; readonly wide?: boolean; readonly identifier?: boolean; readonly numeric?: boolean }[] = [
   { field: 'name' },
   { field: 'address' },
   { field: 'country' },
-  { field: 'vatId' },
+  { field: 'oib', identifier: true, numeric: true },
   { field: 'phone' },
   { field: 'mail' },
-  { field: 'iban' },
+  { field: 'iban', identifier: true },
   { field: 'swift' },
   { field: 'bank' },
   { field: 'courtRegister' },
@@ -111,7 +114,7 @@ const INVOICING_FIELDS: readonly { readonly field: InvoicingField; readonly line
   { field: 'signatoryTitle' },
   { field: 'numberPattern' },
   { field: 'filePath', lines: 1, wide: true },
-  { field: 'folderId', lines: 1, wide: true },
+  { field: 'folderId', lines: 1, wide: true, identifier: true },
   { field: 'mailSubject', lines: 1, wide: true },
   { field: 'mailBody', lines: 6, wide: true },
   { field: 'reverseChargeNote', lines: 2, wide: true },
@@ -182,15 +185,16 @@ function updateInvoicing(field: InvoicingField, value: string): void {
             autoresize
             :placeholder="words.terms.notSet"
             class="w-full"
-            :class="{ identifier: entry.field === 'folderId' }"
+            :class="{ identifier: entry.identifier }"
             @update:model-value="updateInvoicing(entry.field, String($event))"
           />
           <UInput
             v-else
             :model-value="draft.invoicing[entry.field]"
             :placeholder="words.terms.notSet"
+            :inputmode="entry.numeric ? 'numeric' : undefined"
             class="w-full"
-            :class="{ identifier: entry.field === 'iban' }"
+            :class="{ identifier: entry.identifier }"
             @update:model-value="updateInvoicing(entry.field, String($event))"
           />
         </UFormField>

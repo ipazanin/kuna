@@ -46,7 +46,7 @@ function googleWorkbook(): Workbook {
         ...DEFAULT_SETTINGS.invoicing,
         name: 'Primjer d.o.o.',
         address: 'Ulica 1, Split',
-        vatId: 'HR1',
+        oib: '12345678901',
         iban: 'HR6212345670000000001',
         place: 'Split',
         signatory: 'Ana Čičić',

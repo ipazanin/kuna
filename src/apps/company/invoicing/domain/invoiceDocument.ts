@@ -39,7 +39,7 @@ export function recipientOf(client: Client): InvoiceRecipient {
 export const REQUIRED_ISSUER: readonly (readonly [keyof InvoicingTerms, string])[] = [
   ['name', words.issuer.name],
   ['address', words.issuer.address],
-  ['vatId', words.issuer.vatId],
+  ['oib', words.issuer.oib],
   ['iban', words.issuer.iban],
   ['place', words.issuer.place],
   ['signatory', words.issuer.signatory],

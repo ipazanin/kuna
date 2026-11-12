@@ -78,7 +78,7 @@ const READ_SETTING_KEYS: ReadonlySet<string> = new Set([
   'invoice_company_name',
   'invoice_address',
   'invoice_country',
-  'invoice_vat_id',
+  'invoice_oib',
   'invoice_phone',
   'invoice_swift',
   'invoice_bank',
@@ -95,7 +95,7 @@ const READ_SETTING_KEYS: ReadonlySet<string> = new Set([
 /** The settings that are a switch, read as written. */
 const SWITCH_SETTING_KEYS: ReadonlySet<string> = new Set(['owner_pay_module'])
 /** The settings that hold IBANs or a tax number, comma separated, each read as an identifier. */
-const IDENTIFIER_SETTING_KEYS: ReadonlySet<string> = new Set(['card_settlement_ibans', 'invoice_vat_id'])
+const IDENTIFIER_SETTING_KEYS: ReadonlySet<string> = new Set(['card_settlement_ibans', 'invoice_oib'])
 
 /** A ledger row as the chat reads it: who set its category in Kuna's words, never the review label, and its codes joined. */
 interface LedgerRowView {

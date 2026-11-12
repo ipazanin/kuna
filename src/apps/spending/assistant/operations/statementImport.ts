@@ -16,7 +16,7 @@ import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { BOOKING_DAYS_APART, LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
 import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
-import { givesPrintedBalances, partRefusal } from '../../../../shared/money/statementTies'
+import { cardDaysRefusal, givesPrintedBalances } from '../../../../shared/money/statementTies'
 import type { StatementTie } from '../../../../shared/money/statementTies'
 import { copiedStatementCheck } from '../../../../shared/ai/presentation/copiedRowsWords'
 import type { CopiedStatementCheck } from '../../../../shared/ai/presentation/copiedRowsWords'
@@ -118,13 +118,13 @@ function copiedStatement({ account, name, part, opening, closing, fromDay, toDay
   const copied = rows.map((row) => ({ date: dayOf(row.date), amount: accountMoneyFromAmount(row.amount), payee: row.payee, iban: row.iban }))
   const statement = { ...copiedStatementRows(account, name, copied, lookAlikes), days: namedDays(fromDay, toDay, copied) }
   const earlier = part === 1 ? [] : earlierPartRows(book.transactions, statement)
-  const refusal = partRefusal(
-    part,
+  const refusal = cardDaysRefusal(
     earlier.map((row) => row.date),
-    copied.map((row) => row.date).sort()[0]!,
+    copied.map((row) => row.date),
+    part,
   )
-  if (refusal === 'parts-before-missing') throw new StepRefused(`No row of ${statement.label} is in Kuna yet. Propose its parts in order from part 1, each once the one before is accepted.`)
-  if (refusal === 'day-reached') throw new StepRefused(`The parts of ${statement.label} in Kuna reach the first day of part ${part}. A part starts on the day after the one before it ends.`)
+  if (refusal?.kind === 'parts-before-missing') throw new StepRefused(`No row of ${statement.label} is in Kuna yet. Propose its parts in order from part 1, each once the one before is accepted.`)
+  if (refusal?.kind === 'split') throw new StepRefused(`The parts of ${statement.label} in Kuna reach the first day of part ${part}. A part starts on the day after the one before it ends.`)
   if (opening !== null && closing !== null) {
     const tie = copiedStatementTie(statement, earlier, accountMoneyFromAmount(opening), accountMoneyFromAmount(closing))
     if (tie.kind === 'off') throw new StepRefused(part === 1 ? tieRefusal(tie, account.currency) : `${tieRefusal(tie, account.currency)} ${EARLIER_PARTS_COUNTED}`)

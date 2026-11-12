@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { transcribedImportKeys } from '../src/apps/spending/statements/domain/statementRows'
 import { tieRefusal } from '../src/apps/spending/assistant/operations/statementImport'
 import type { AccountMoney } from '../src/shared/money/accountMoney'
-import { partRefusal, splitDays, statementTies } from '../src/shared/money/statementTies'
+import { cardDaysRefusal, statementTies } from '../src/shared/money/statementTies'
 import type { PrintedStatement } from '../src/shared/money/statementTies'
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import { EURO } from '../src/shared/money/currencyCode'
@@ -78,16 +78,23 @@ describe('the import keys of transcribed rows', () => {
 
 describe('the days a copied card splits', () => {
   it('are the days of the card that Kuna holds other rows of from the same source, each once', () => {
-    expect(splitDays(['2026-03-02', '2026-03-04', '2026-03-04'], ['2026-03-04', '2026-03-03', '2026-03-04', '2026-03-02'])).toEqual(['2026-03-02', '2026-03-04'])
+    expect(cardDaysRefusal(['2026-03-02', '2026-03-04', '2026-03-04'], ['2026-03-04', '2026-03-03', '2026-03-04', '2026-03-02'], null)).toEqual({
+      kind: 'split',
+      days: ['2026-03-02', '2026-03-04'],
+    })
   })
 
   it('are none when the rows Kuna holds are on other days', () => {
-    expect(splitDays(['2026-03-01'], ['2026-03-02', '2026-03-03'])).toEqual([])
+    expect(cardDaysRefusal(['2026-03-01'], ['2026-03-02', '2026-03-03'], null)).toBeNull()
   })
 
   it('never let a later part of a statement start on a day the parts before it reach', () => {
-    expect(partRefusal(2, ['2026-03-01', '2026-03-02'], '2026-03-02')).toBe('day-reached')
-    expect(partRefusal(2, ['2026-03-01'], '2026-03-02')).toBeNull()
-    expect(partRefusal(2, [], '2026-03-02')).toBe('parts-before-missing')
+    expect(cardDaysRefusal(['2026-03-01', '2026-03-03'], ['2026-03-02', '2026-03-04'], 2)).toEqual({ kind: 'split', days: ['2026-03-02'] })
+    expect(cardDaysRefusal(['2026-03-01'], ['2026-03-02'], 2)).toBeNull()
+    expect(cardDaysRefusal([], ['2026-03-02'], 2)).toEqual({ kind: 'parts-before-missing' })
+  })
+
+  it('let part 1 of a statement go whatever Kuna holds', () => {
+    expect(cardDaysRefusal(['2026-03-02'], ['2026-03-02'], 1)).toBeNull()
   })
 })

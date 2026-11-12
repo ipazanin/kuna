@@ -62,7 +62,7 @@ export const hr: Translation<typeof en> = {
     effects: {
       'wider-window': 'Prikazuje se u širem prozoru',
       'chat-takes-page': 'Razgovor prelazi na mjesto stranice',
-      'chat-beside-page': 'Razgovor se premješta uz stranicu',
+      'chat-beside-page': 'Razgovor prelazi uz stranicu',
     },
   },
   quickJump: {

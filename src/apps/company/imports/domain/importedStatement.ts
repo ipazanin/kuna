@@ -3,7 +3,7 @@ import type { Money } from '../../../../shared/money/money'
 import { absMoney, addMoney, subtractMoney } from '../../../../shared/money/money'
 import type { TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import { occurrenceKeys } from '../../../../shared/text/factKey'
-import { givesPrintedBalances, partRefusal, statementTies } from '../../../../shared/money/statementTies'
+import { cardDaysRefusal, givesPrintedBalances, statementTies } from '../../../../shared/money/statementTies'
 import type { StatementTie } from '../../../../shared/money/statementTies'
 import { words } from './words'
 import type { LookAlikes } from '../../../../shared/money/lookAlikeBookings'
@@ -119,9 +119,13 @@ export function transcribedStatement(
   const references = transcribedReferences(account, rows)
   const onCard = new Set(references)
   const earlierDays = ledger.filter((row) => row.account === account && row.statement === label && !onCard.has(row.reference)).map((row) => row.date)
-  const refusal = partRefusal(part, earlierDays, rows.map((row) => row.date).sort()[0] ?? '')
-  if (refusal === 'parts-before-missing') throw new StatementRefused(words.transcribed.partsBeforeMissing(label))
-  if (refusal === 'day-reached') throw new StatementRefused(words.transcribed.dayReached(label, part))
+  const refusal = cardDaysRefusal(
+    earlierDays,
+    rows.map((row) => row.date),
+    part,
+  )
+  if (refusal?.kind === 'parts-before-missing') throw new StatementRefused(words.transcribed.partsBeforeMissing(label))
+  if (refusal?.kind === 'split') throw new StatementRefused(words.transcribed.dayReached(label, part))
   if (part === 1 && opening !== null && closing !== null) {
     const tie = statementTies({ opening, amounts: rows.map((row) => row.amount), closing })
     if (tie.kind === 'off') throw new StatementRefused(tieRefusal(tie))

@@ -11,7 +11,7 @@ const INVOICING_FIELDS: Readonly<Record<string, InvoicingField>> = {
   invoice_company_name: 'name',
   invoice_address: 'address',
   invoice_country: 'country',
-  invoice_vat_id: 'vatId',
+  invoice_oib: 'oib',
   invoice_phone: 'phone',
   invoice_mail: 'mail',
   invoice_iban: 'iban',

@@ -6,6 +6,7 @@ import { ZERO, amountOf } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { INK, embedDocumentFaces } from '../../documents/infrastructure/pdfFaces'
 import type { DocumentFontFiles } from '../../documents/infrastructure/pdfFaces'
+import { companyVatId } from '../../settings/domain/settings'
 import type { InvoiceDocument } from '../domain/invoiceDocument'
 
 const PAGE_WIDTH = 595.28
@@ -64,11 +65,12 @@ export async function renderInvoicePdf(invoice: InvoiceDocument, fonts: Document
   const { regular, bold, italic } = await embedDocumentFaces(document, fonts)
   const page = document.addPage([PAGE_WIDTH, PAGE_HEIGHT])
   const { issuer, recipient } = invoice
+  const vatId = companyVatId(issuer)
 
   const issuerLines = [
     issuer.address,
     issuer.country,
-    issuer.vatId === '' ? '' : `VAT ID: ${issuer.vatId}`,
+    vatId === '' ? '' : `VAT ID: ${vatId}`,
     issuer.phone === '' ? '' : `Mob: ${issuer.phone}`,
     issuer.mail === '' ? '' : `Mail: ${issuer.mail}`,
   ].filter((text) => text !== '')
@@ -163,7 +165,7 @@ export async function renderInvoicePdf(invoice: InvoiceDocument, fonts: Document
   const footerTop = Math.max(676, paymentTop + LINE * 9 + 60)
   line(page, [LEFT, footerTop], [RIGHT, footerTop], 1.2, true)
   const footer = [
-    [issuer.name, issuer.address, issuer.vatId === '' ? '' : `VAT ID: ${issuer.vatId}`, issuer.courtRegister === '' ? '' : `Court register ID number: ${issuer.courtRegister}`]
+    [issuer.name, issuer.address, vatId === '' ? '' : `VAT ID: ${vatId}`, issuer.courtRegister === '' ? '' : `Court register ID number: ${issuer.courtRegister}`]
       .filter((part) => part !== '')
       .join('; '),
     issuer.shareCapital === '' ? '' : `Share capital: ${issuer.shareCapital};`,

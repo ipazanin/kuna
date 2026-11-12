@@ -211,6 +211,27 @@ describe('transfers', () => {
     expect(rowOf(desk, out!.id)).toMatchObject({ note: 'Rent money', pair: into!.id, date: out!.date, amount: out!.amount })
   })
 
+  it('refuses a payee on one leg of a transfer, and takes one once a kind makes the leg a plain entry', async () => {
+    const desk = await spendingDesk(used)
+    await desk.propose([
+      {
+        op: 'add-transfer',
+        input: { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, toAmount: null, note: '' },
+      },
+    ])
+    await desk.accept()
+    const [out, into] = bookOf(desk).transactions.slice(-2)
+
+    const answer = await desk.propose([changeEntry(desk, out!.id, { payee: 'Landlord' })])
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('takes no payee')
+    expect([rowOf(desk, out!.id), rowOf(desk, into!.id)]).toEqual([out, into])
+
+    expect((await desk.propose([changeEntry(desk, out!.id, { kind: 'out', payee: 'Landlord' })])).isError).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowOf(desk, out!.id)).toMatchObject({ payee: 'Landlord', pair: null })
+  })
+
   it('refuses moving a row a statement brought to another account', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([

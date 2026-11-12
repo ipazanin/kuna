@@ -33,25 +33,23 @@ export function givesPrintedBalances(opening: number | null, closing: number | n
   return (opening === null) === (closing === null) || (part === 1 && closing === null)
 }
 
-/**
- * Why a part after the first of a copied statement cannot go yet: no row of the parts before it is in Kuna, or it starts on a day
- * they reach. A part starts on a day after the one before it ends, so no part splits a day as `splitDays` forbids.
- */
-export type PartRefusal = 'parts-before-missing' | 'day-reached'
+/** Why a copied card cannot go in beside the rows Kuna holds of the same source: the parts before it are missing, or it splits these days. */
+export type CardDaysRefusal<Day extends string> = { readonly kind: 'parts-before-missing' } | { readonly kind: 'split'; readonly days: readonly Day[] }
 
-/** Why the part cannot follow the rows its statement's earlier parts put in Kuna, given by their days, or null. Part 1 always can. */
-export function partRefusal(part: number, earlierDays: readonly string[], firstDay: string): PartRefusal | null {
+/**
+ * Why a card the AI copied cannot go in beside the rows Kuna holds of the same source, given by their days, or null. Rows of one day
+ * are told apart by their count on that day, so a card gives every row of each of its days, or an equal row on a split day would be
+ * taken for one Kuna has. A day is any text that names one day of the source, such as a date or a key that holds it.
+ *
+ * A part of a statement is stricter, and its days are dates. Part 1 always can. A later part needs rows of the parts before it in
+ * Kuna, and starts on a day after they end, so every day of the card up to the last day they reach counts as split. A card that
+ * is no part of a statement passes null for its part.
+ */
+export function cardDaysRefusal<Day extends string>(daysHeld: readonly Day[], cardDays: readonly Day[], part: number | null): CardDaysRefusal<Day> | null {
   if (part === 1) return null
-  if (earlierDays.length === 0) return 'parts-before-missing'
-  return earlierDays.some((day) => day >= firstDay) ? 'day-reached' : null
-}
-
-/**
- * The days of a card on which Kuna holds rows of the same source that the card does not give, so the card holds only part of each
- * day. Rows of one day are told apart by their count on that day, so an equal row on a split day would be taken for one Kuna has.
- * A day is any text that names one day of the source, such as a date or a key that holds it.
- */
-export function splitDays<Day extends string>(daysHeld: readonly Day[], cardDays: readonly Day[]): Day[] {
+  if (part !== null && daysHeld.length === 0) return { kind: 'parts-before-missing' }
   const held = new Set(daysHeld)
-  return [...new Set(cardDays.filter((day) => held.has(day)))].sort()
+  const lastHeld = [...daysHeld].sort().at(-1)
+  const split = cardDays.filter((day) => (part === null ? held.has(day) : lastHeld !== undefined && day <= lastHeld))
+  return split.length === 0 ? null : { kind: 'split', days: [...new Set(split)].sort() }
 }

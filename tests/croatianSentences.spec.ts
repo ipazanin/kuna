@@ -307,7 +307,7 @@ describe('invoicing and billing in Croatian', () => {
     const client = { slug: 'north', name: 'North Ltd', ibans: [], invoicing: { ...NO_CLIENT_INVOICING, address: '1 Road', reverseCharge: false } }
 
     expect(invoiceProblems(issuer, client, [{ description: 'Work', amount: moneyFromAmount(100) }])).toEqual([
-      'U uvjetima računa pod Računi, Klijenti nedostaje: vaš PDV ID i mjesto izdavanja.',
+      'U uvjetima računa pod Računi, Klijenti nedostaje: vaš OIB i mjesto izdavanja.',
       'Aplikacija izrađuje račune bez PDV-a samo za klijente s prijenosom porezne obveze. Ako PDV obračunava klijent „North Ltd”, označite mu prijenos porezne obveze pod Računi, Klijenti, ili ovaj račun izradite drugdje.',
     ])
   })

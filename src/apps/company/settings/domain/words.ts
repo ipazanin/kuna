@@ -118,6 +118,7 @@ export const en = {
     itemTooLong: (most: number) => `an item can be at most ${most} characters`,
     nameTheItem: 'name the item its rows carry on the outgoing-plan tab',
     notAnIban: (text: string) => `"${text}" is not an IBAN`,
+    notAnOib: (text: string) => `"${text}" is not an OIB, which is eleven digits`,
   },
   /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
   settingLabels: {
@@ -142,7 +143,7 @@ export const en = {
       name: 'Company name on the invoice',
       address: 'Address',
       country: 'Country',
-      vatId: 'VAT ID',
+      oib: 'OIB',
       phone: 'Phone',
       mail: 'Mail',
       iban: 'IBAN',
@@ -245,6 +246,7 @@ export const hr: Translation<typeof en> = {
     itemTooLong: (most) => `stavka može imati najviše ${most} znakova`,
     nameTheItem: 'upišite stavku koju njezini retci imaju u planu naplate',
     notAnIban: (text) => `„${text}” nije IBAN`,
+    notAnOib: (text) => `„${text}” nije OIB, koji ima jedanaest znamenki`,
   },
   settingLabels: {
     templateVersion: 'Format radne knjige',
@@ -268,7 +270,7 @@ export const hr: Translation<typeof en> = {
       name: 'Naziv tvrtke na računu',
       address: 'Adresa',
       country: 'Država',
-      vatId: 'PDV ID',
+      oib: 'OIB',
       phone: 'Telefon',
       mail: 'E-pošta',
       iban: 'IBAN',

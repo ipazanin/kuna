@@ -1,6 +1,5 @@
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { capitalised } from '../../../../shared/text/capitalised'
@@ -41,11 +40,11 @@ export const en = {
     },
   },
   ledger: {
-    beforeNewest: (account: string, date: CivilDate, newest: CivilDate) => `A new ${account} row is dated ${date}, before ${newest}, the newest row of ${account} on the tab now.`,
+    beforeNewest: (account: string, date: CivilDate, newest: CivilDate) => `A new ${account} row is dated ${dayLabel(date)}, before ${dayLabel(newest)}, the newest row of ${account} on the tab now.`,
     opensElsewhere: (account: string, opens: Money, leaves: Money) =>
-      `The new ${account} rows open at ${plainAmount(opens)}, but the tab now leaves ${account} at ${plainAmount(leaves)}. Look at the dry run again.`,
+      `The new ${account} rows open at ${formatMoney(opens)}, but the tab now leaves ${account} at ${formatMoney(leaves)}. Look at the dry run again.`,
     bookedAfter: (account: string, date: CivilDate, balance: Money) =>
-      `The ${account} row of ${date} with the balance ${plainAmount(balance)} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`,
+      `The ${account} row of ${dayLabel(date)} with the balance ${formatMoney(balance)} is booked after the rows to take out, so its balance follows from them. Take it out first, or leave the rows.`,
     notACategory: (category: string) => `"${category}" is not a category on the categories tab.`,
     keepsRowId: (label: string) => `The ledger row "${label}" keeps the id it was given, since split parts and assets find it by that id.`,
   },

@@ -201,7 +201,7 @@ describe('the PDF', () => {
       ...DEFAULT_SETTINGS.invoicing,
       name: 'Primjer d.o.o.',
       address: 'Ulica 1, Đakovo',
-      vatId: 'HR1',
+      oib: '12345678901',
       iban: 'HR6212345670000000001',
       place: 'Đakovo',
       signatory: 'Ana Čičić, Šimić-Žužić',

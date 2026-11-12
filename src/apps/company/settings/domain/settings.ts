@@ -83,7 +83,8 @@ export interface InvoicingTerms {
   readonly name: string
   readonly address: string
   readonly country: string
-  readonly vatId: string
+  /** The company's OIB, eleven digits, which the invoice prints as its VAT ID. */
+  readonly oib: string
   readonly phone: string
   readonly mail: string
   /** Normalised. The account the client pays into. */
@@ -112,9 +113,9 @@ export interface InvoicingTerms {
   readonly reverseChargeNote: string
 }
 
-/** The company's OIB, the digits of its VAT ID, which a Croatian VAT ID writes after HR. Blank while the VAT ID is. */
-export function companyOib(terms: Pick<InvoicingTerms, 'vatId'>): string {
-  return terms.vatId.replace(/\D/g, '')
+/** The company's VAT ID, which a Croatian company writes as HR and its OIB. Blank while the OIB is. */
+export function companyVatId(terms: Pick<InvoicingTerms, 'oib'>): string {
+  return terms.oib === '' ? '' : `HR${terms.oib}`
 }
 
 export const DEFAULT_REVERSE_CHARGE_NOTE = 'Not subject to VAT in accordance with Article 17 of the Croatian VAT Law - reverse charge'
@@ -172,7 +173,7 @@ export const DEFAULT_SETTINGS: Settings = {
     name: '',
     address: '',
     country: '',
-    vatId: '',
+    oib: '',
     phone: '',
     mail: '',
     iban: '',
@@ -337,11 +338,34 @@ const BILLING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
 
 export type InvoicingField = keyof InvoicingTerms
 
+const OIB = /^\d{11}$/
+
+/** An OIB as typed or pasted, with spaces and a leading HR dropped, so a pasted VAT ID such as HR 123 456 789 01 gives its OIB. */
+export function typedOib(text: string): string {
+  return text.replace(/\s/g, '').replace(/^HR/i, '')
+}
+
+/** An invoicing value as the settings hold it, from what was typed. */
+function invoicingText(field: InvoicingField, typed: string): string {
+  switch (field) {
+    case 'iban':
+      return normaliseIban(typed)
+    case 'oib':
+      return typedOib(typed)
+    case 'mailBody':
+      return typed.replaceAll('\r\n', '\n').trim()
+    default:
+      return typed.replace(/\s*[\r\n]+\s*/g, ' ').trim()
+  }
+}
+
 /** What is wrong with one invoicing value, or null. Only the fields the app fills in or files by have a rule. */
 function invoicingProblem(field: InvoicingField, value: string): string | null {
   switch (field) {
     case 'iban':
       return value === '' || isIban(value) ? null : words.terms.notAnIban(value)
+    case 'oib':
+      return value === '' || OIB.test(value) ? null : words.terms.notAnOib(value)
     case 'numberPattern':
       return numberPatternProblem(value)
     case 'filePath':
@@ -360,9 +384,9 @@ function invoicingDefinition(key: string, field: InvoicingField, note: string): 
     label: words.settingLabels.invoicing[field],
     note,
     type: 'text',
-    valueOf: (settings) => settings.invoicing[field],
+    valueOf: (settings) => invoicingText(field, settings.invoicing[field]),
     apply: (settings, typed) => {
-      const text = field === 'iban' ? normaliseIban(typed) : field === 'mailBody' ? typed.replaceAll('\r\n', '\n').trim() : typed.replace(/\s*[\r\n]+\s*/g, ' ').trim()
+      const text = invoicingText(field, typed)
       return invoicingProblem(field, text) ?? { ...settings, invoicing: { ...settings.invoicing, [field]: text } }
     },
   }
@@ -373,7 +397,7 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   invoicingDefinition('invoice_company_name', 'name', 'Your company’s name as the invoice prints it, such as Example Studio d.o.o. Needed to make an invoice.'),
   invoicingDefinition('invoice_address', 'address', 'Your street and town, such as Example Street 1, Zagreb. Needed to make an invoice.'),
   invoicingDefinition('invoice_country', 'country', 'Your country, printed under the address. Optional.'),
-  invoicingDefinition('invoice_vat_id', 'vatId', 'Your VAT ID, such as HR00000000000. Needed to make an invoice.'),
+  invoicingDefinition('invoice_oib', 'oib', 'Your company’s OIB, eleven digits, or your VAT ID, whose HR is dropped. The invoice prints HR and the OIB as your VAT ID. Needed to make an invoice.'),
   invoicingDefinition('invoice_phone', 'phone', 'The phone number the invoice prints. Optional.'),
   invoicingDefinition('invoice_mail', 'mail', 'The mail address the invoice prints. Optional.'),
   invoicingDefinition('invoice_iban', 'iban', 'The IBAN the client pays into. Needed to make an invoice.'),
@@ -396,6 +420,9 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   invoicingDefinition('invoice_mail_body', 'mailBody', 'The text of the invoice mail, with the same words in braces as the subject. Blank means a short note signed by the signatory.'),
   invoicingDefinition('invoice_reverse_charge_note', 'reverseChargeNote', 'The note a reverse-charge invoice prints under its totals. Blank means the Croatian VAT law’s Article 17 note.'),
 ]
+
+/** Keys core no longer reads that older books may still hold. They read silently, and a save leaves their rows alone. */
+const RETIRED_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id'])
 
 /** The key of the counterparties the owner flagged as people. Only a person sets it, from a row in To review. */
 export const PERSON_PAYEES_KEY = 'person_payees'
@@ -653,7 +680,7 @@ function readCoreKeys(rows: readonly SettingEntry[], packKeys: ReadonlySet<strin
       problems.push({ id: null, label: recordWords.unnamed, reason: words.settings.noKey })
       continue
     }
-    if (packKeys.has(key)) {
+    if (packKeys.has(key) || RETIRED_KEYS.has(key)) {
       continue
     }
     const definition = DEFINITION_BY_KEY.get(key)
@@ -685,18 +712,18 @@ function readCoreKeys(rows: readonly SettingEntry[], packKeys: ReadonlySet<strin
 
 /** A key neither core, the pack nor an import profile reads, which the tab keeps and the app reports. */
 function isUnknownSettingKey(key: string, packKeys: ReadonlySet<string>): boolean {
-  return key !== '' && !packKeys.has(key) && !DEFINITION_BY_KEY.has(key) && !key.startsWith(IMPORT_PROFILE_PREFIX)
+  return key !== '' && !packKeys.has(key) && !RETIRED_KEYS.has(key) && !DEFINITION_BY_KEY.has(key) && !key.startsWith(IMPORT_PROFILE_PREFIX)
 }
 
 /**
- * The keys of the settings that no setting of core or the pack reads and the pack did not retire, unknown keys
+ * The keys of the settings that no setting of core or the pack reads and neither retired, unknown keys
  * and import profiles, each with how many rows hold it. A person may take one off the tab while one row holds it,
  * since a write refuses a key on two rows.
  */
 export function unreadSettingKeys(rows: readonly SettingEntry[], pack: PackSettings<unknown> | null): ReadonlyMap<string, number> {
   const packKeys = packSettingKeys(pack)
   const holding = new Map<string, number>()
-  for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
+  for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !RETIRED_KEYS.has(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
     holding.set(key, (holding.get(key) ?? 0) + 1)
   }
   return holding
@@ -730,7 +757,7 @@ export function readSettingsTab<Values>(
 
 /**
  * The check the value of each of these keys must pass for a write to keep its row: core's and the pack's keys as they read,
- * and an import profile by the columns it names. A key the pack retired, and one nothing reads, which the settings keep
+ * and an import profile by the columns it names. A retired key, and one nothing reads, which the settings keep
  * unused, take any value.
  */
 export function companySettingChecks(keys: readonly string[], pack: PackSettings<unknown> | null): SettingChecks {
@@ -827,7 +854,7 @@ export function settingsErrors(settings: Settings): Partial<Record<SettingsField
   else if (settings.statementsMailFrom.length > 0 && settings.statementsMailSubject === '') errors.statementsMailSubject = words.settings.nameTheSubject
   Object.assign(errors, billingErrors(settings.billing))
   for (const [field, value] of Object.entries(settings.invoicing) as [InvoicingField, string][]) {
-    const problem = invoicingProblem(field, value)
+    const problem = invoicingProblem(field, invoicingText(field, value))
     if (problem !== null) errors[field] = problem
   }
   const seen = new Map<string, DefinedBucket>()

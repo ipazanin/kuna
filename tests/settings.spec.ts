@@ -297,7 +297,7 @@ describe('company facts', () => {
     ).toEqual(['hr_residence_city', 'hr_birth_year', 'hr_pension_pillar_2', 'hr_dependants'])
   })
 
-  it('read the retired rows of the accountant’s mail silently, list none of them as unread, and leave them out of a save', () => {
+  it('read the retired rows of the accountant’s mail and the typed VAT ID silently, list none of them as unread, and leave them out of a save', () => {
     const retired = rows(
       ['hr_accountant_sync', true],
       ['hr_accountant_mail_from', 'office@bookkeeper.example.com'],
@@ -310,6 +310,7 @@ describe('company facts', () => {
       ['hr_payroll_folder', 'finance/payroll'],
       ['hr_vat_returns_folder', ' / '],
       ['hr_incoming_invoices_folder', 'finance/incoming-invoices'],
+      ['invoice_vat_id', 'HR00000000000'],
       ['old_switch', 'TRUE'],
     )
     const read = readSettingsTab(retired, COMPANY_FACT_SETTINGS)

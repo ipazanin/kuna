@@ -12,7 +12,7 @@ import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, accountMoneyOfDecimal, decimalOfText, decimalText, magnitude, negateDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
-import { splitDays, statementTies } from '../../../../shared/money/statementTies'
+import { cardDaysRefusal, statementTies } from '../../../../shared/money/statementTies'
 import type { StatementTie } from '../../../../shared/money/statementTies'
 import { factKey, occurrenceKeys } from '../../../../shared/text/factKey'
 import { fold } from '../../../../shared/text/fold'
@@ -233,7 +233,6 @@ export function daysPartlyOnCard(rows: WorkbookRows, book: InvestmentBook, fileN
   const cardKeys = new Set(workbookEntries(rows.rows).map((entry) => entry.key))
   const scopesHeld = importableRecords(book).flatMap(({ record: { importKey } }) => (importKey === null || cardKeys.has(importKey) ? [] : [accountScopeOf(importKey)]))
   const dayOf = new Map(rows.rows.map((row) => [accountScopeOf(row.key), row.date]))
-  return splitDays(scopesHeld, [...dayOf.keys()])
-    .map((scope) => dayOf.get(scope)!)
-    .sort()
+  const refusal = cardDaysRefusal(scopesHeld, [...dayOf.keys()], null)
+  return refusal?.kind === 'split' ? refusal.days.map((scope) => dayOf.get(scope)!).sort() : []
 }

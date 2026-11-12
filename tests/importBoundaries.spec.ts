@@ -336,7 +336,7 @@ describe('import boundaries', () => {
   })
 
   it('keeps the rule that a copied card may not split a day in the shared statement ties, which every app that imports copied rows calls', () => {
-    const callers = linesHolding(/\b(splitDays|partRefusal)\(/, (file) => file === 'src/shared/money/statementTies.ts').map((line) => appOf(line))
+    const callers = linesHolding(/\bcardDaysRefusal\(/, (file) => file === 'src/shared/money/statementTies.ts').map((line) => appOf(line))
     expect([...new Set(callers)].sort()).toEqual(['company', 'investments', 'spending'])
   })
 

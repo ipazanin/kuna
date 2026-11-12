@@ -11,7 +11,6 @@ import type { TripDocumentContext } from '../src/apps/company/packs/hr-doo/infra
 import { tripPdf } from '../src/apps/company/packs/hr-doo/infrastructure/tripPdf'
 import { tripWorkbookFile } from '../src/apps/company/packs/hr-doo/infrastructure/tripWorkbookFile'
 import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
-import { companyOib } from '../src/apps/company/settings/domain/settings'
 import { serialFromCivilDate } from '../src/shared/calendar/civilDate'
 import type { RecordCodec } from '../src/shared/storage/domain/recordCodec'
 import type { RecordFields } from '../src/shared/storage/domain/recordFields'
@@ -167,11 +166,5 @@ describe('the travel order xlsx', () => {
   it('names both files after the order number', () => {
     expect(tripFileName('3/2026', 'pdf')).toBe('putni-nalog-3-2026.pdf')
     expect(tripFileName(' 3/2026 ', 'xlsx')).toBe('putni-nalog-3-2026.xlsx')
-  })
-})
-
-describe("the company's OIB", () => {
-  it('is the digits of its VAT ID, and blank while the VAT ID is', () => {
-    expect([companyOib({ vatId: 'HR12345678901' }), companyOib({ vatId: 'HR 123 4567 8901' }), companyOib({ vatId: '' })]).toEqual(['12345678901', '12345678901', ''])
   })
 })

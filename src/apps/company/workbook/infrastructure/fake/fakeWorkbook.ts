@@ -334,7 +334,7 @@ const FAKE_INVOICING: readonly (readonly [key: string, value: string])[] = [
   ['invoice_company_name', 'Example Studio d.o.o.'],
   ['invoice_address', 'Primjerna ulica 12, Đakovo'],
   ['invoice_country', 'Croatia'],
-  ['invoice_vat_id', 'HR00000000000'],
+  ['invoice_oib', '00000000000'],
   ['invoice_phone', '+385 1 000 0000'],
   ['invoice_mail', 'billing@example.com'],
   ['invoice_iban', 'HR6212345670000000001'],

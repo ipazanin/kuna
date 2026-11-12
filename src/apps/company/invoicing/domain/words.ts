@@ -10,7 +10,7 @@ export const en = {
   issuer: {
     name: 'your company name',
     address: 'your address',
-    vatId: 'your VAT ID',
+    oib: 'your OIB',
     iban: 'your IBAN',
     place: 'the place of issue',
     signatory: 'the signatory',
@@ -35,7 +35,7 @@ export const hr: Translation<typeof en> = {
   issuer: {
     name: 'naziv vaše tvrtke',
     address: 'vaša adresa',
-    vatId: 'vaš PDV ID',
+    oib: 'vaš OIB',
     iban: 'vaš IBAN',
     place: 'mjesto izdavanja',
     signatory: 'potpisnik',

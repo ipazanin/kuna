@@ -237,7 +237,7 @@ describe.each([
     const run = dryRun(store, creditStatement())
     const moved = run.added.map((entry) => ({ ...entry, balance: moneyFromCents(192_316) }))
 
-    await expect(importRows(store, moved)).rejects.toThrow('The new main rows open at 1000.01, but the tab now leaves main at 1000.00.')
+    await expect(importRows(store, moved)).rejects.toThrow('The new main rows open at €1,000.01, but the tab now leaves main at €1,000.00.')
   })
 
   it('starts an account the ledger had no row of and puts its rows by date', async () => {
@@ -261,7 +261,7 @@ describe.each([
       .replace('<LglSeqNb>42</LglSeqNb>', '<LglSeqNb>43</LglSeqNb>')
     await importRows(store, dryRun(store, later).added)
 
-    await expect(store.undo(imported)).rejects.toThrow('The main row of 2031-03-13 with the balance 2846.30 is booked after the rows to take out, so its balance follows from them.')
+    await expect(store.undo(imported)).rejects.toThrow('The main row of 13 Mar 2031 with the balance €2,846.30 is booked after the rows to take out, so its balance follows from them.')
   })
 })
 

@@ -51,8 +51,6 @@ const NAMES_BEYOND_SETTINGS = new Set([
   'src/apps/company/packs/hr-doo/domain/accrual/words.ts: Temeljni kapital',
   'src/apps/company/packs/hr-doo/presentation/yearEnd/words.ts: Prijava poreza na dobit',
   'src/apps/company/packs/hr-doo/presentation/forecast/words.ts: Prijava poreza na dobit',
-  'src/apps/company/invoicing/domain/words.ts: VAT ID',
-  'src/apps/company/invoicing/domain/words.ts: PDV ID',
   'src/apps/company/imports/application/words.ts: Mapa izvoda',
   'src/apps/company/billingPlan/presentation/words.ts: Mjesečna naknada',
   'src/apps/investments/tax/presentation/words.ts: Vaš grad u 2023.',
