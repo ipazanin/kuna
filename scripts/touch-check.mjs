@@ -419,6 +419,11 @@ async function checkWidth(width) {
     } catch (error) {
       fail(`[${scope}] ${error.message}`)
       await page.screenshot({ path: join(OUTPUT_DIR, `${width}-${name}-failed.png`) }).catch(() => {})
+      // A page the step opened and never closed stays in front, and the shared page behind it stops drawing frames, so every later wait hangs.
+      for (const opened of await context.pages()) {
+        if (opened !== page) await opened.close().catch(() => {})
+      }
+      await page.bringToFront()
     }
   }
   const shoot = (name) => page.screenshot({ path: join(OUTPUT_DIR, `${width}-${name}.png`), fullPage: false })
@@ -3386,8 +3391,19 @@ function topBarTitle(page) {
 async function waitForText(page, selector, text) {
   const handle = await page
     .waitForFunction(
-      // A collapsed card keeps its body on the page, hidden, so nothing inside one counts.
-      (css, wanted) => [...document.querySelectorAll(css)].find((element) => !element.closest('[data-collapsed="true"]') && element.textContent?.trim().startsWith(wanted)) ?? null,
+      // A collapsed card keeps its body on the page, hidden, so nothing inside one counts. An element named by its parts reads in the order of that name, as a screen reader says it.
+      (css, wanted) => {
+        const reading = (element) => {
+          const parts = element.getAttribute('aria-labelledby')
+          return parts === null
+            ? (element.textContent ?? '')
+            : parts
+                .split(' ')
+                .map((part) => document.getElementById(part)?.textContent?.trim() ?? '')
+                .join(' ')
+        }
+        return [...document.querySelectorAll(css)].find((element) => !element.closest('[data-collapsed="true"]') && reading(element).trim().startsWith(wanted)) ?? null
+      },
       { timeout: 10_000 },
       selector,
       text,
