@@ -46,8 +46,8 @@ describe('the Investments reader', () => {
   it.each([
     ['zagreb', ['133']],
     ['Grad Zagreb', ['133']],
-    ['Sveti Ivan Zelina', ['429']],
-    ['sv. ivan zelina', ['429']],
+    ['Sveti Ivan Zelina', ['550', '429']],
+    ['sv. ivan zelina', ['550', '429']],
     ['Sv.Ivan Zelina', ['550', '429']],
     ['Sveti Petar u Šumi', ['433']],
     ['sv. petar u sumi', ['433']],

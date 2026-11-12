@@ -50,7 +50,7 @@ describe('categoriesToSort', () => {
     const deductible = { ...representation, vat: 'deductible-25' } as const
 
     expect(categoriesToSort([deductible], day)).toEqual([
-      lineOf(deductible, `It carries "${representationName}", which takes representation, and its VAT reads deductible-25. Change one of them on Settings, Categories.`),
+      lineOf(deductible, `It carries "${representationName}", which takes Representation, and its VAT reads Input VAT 25\u00a0%. Change one of them on Settings, Categories.`),
     ])
   })
 })

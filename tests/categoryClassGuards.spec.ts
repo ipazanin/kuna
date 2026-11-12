@@ -129,7 +129,7 @@ describe.each([
         .categoriesToSort(store.state.workbook!.categories, civil('2026-10-30'))
         .map((line) => line.reason)
     const dinnersLine =
-      'It carries "Representation: 50% added back to the profit tax base, no VAT back", which takes representation, and its VAT reads deductible-25. Change one of them on Settings, Categories.'
+      'It carries "Representation: 50% added back to the profit tax base, no VAT back", which takes Representation, and its VAT reads Input VAT 25\u00a0%. Change one of them on Settings, Categories.'
 
     expect(reported()).toEqual([dinnersLine])
     // The line asks for a change and leaves nothing out, so it is never among the rows the reader could not use.
