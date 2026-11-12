@@ -665,7 +665,7 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
   return printed
 }
 
-/** How the chat's steps become one write of the Loans file. The model hears when an instalment differs, as the card's warning never reaches it. */
+/** How the chat's steps become one write of the Loans file. Beside the count of the card's warnings, the model hears what to check when an instalment differs. */
 function loansWork(appName: string): ProposalWork<LoansBooks, never, ReadonlyMap<string, Money>> {
   return {
     appName,

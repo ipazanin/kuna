@@ -21,7 +21,7 @@ export interface CompanyCard {
   made(as: string | null, id: string): void
   /** Shows a note on the card beside what the write does, such as a confirmed row a rule now disagrees with. */
   note(note: CardNote): void
-  /** Tells the model, beside the card, what the card leaves out for the person to answer, such as copied rows that wait. */
+  /** Tells the model, beside the card, what the card leaves out, such as copied rows that wait or rows on the ledger already. */
   holdBack(text: string): void
   /** Names a rule, by its name before the step, that the step moves among the rules, so the card says where it is tried now. */
   movesRule(id: string): void

@@ -147,6 +147,32 @@ describe('a statement read off a page', () => {
   })
 })
 
+describe('what the model hears beside an import card', () => {
+  it('counts the rows on the ledger already beside the warnings the card shows', async () => {
+    const desk = await companyDesk(used)
+    await desk.propose([transcribed(desk, 720.5)])
+    await desk.accept()
+    const again = await desk.propose([
+      transcribed(desk, 710.5, [
+        { date: '2026-11-02', amount: -12.5 },
+        { date: '2026-11-03', amount: -27 },
+        { date: '2026-11-04', amount: -10 },
+      ]),
+    ])
+    expect(again.isError, again.text).toBe(false)
+    expect(again.text).toContain('2 rows of the statement are on the ledger already and skipped.')
+    // The card warns that the AI copied the rows and that the statement is on the ledger already.
+    expect(again.text).toContain('The card warns of 2 things. Tell the person to read the warnings before accepting.')
+  })
+
+  it('says no row was skipped of a statement whose rows are all new, and counts only the warning on copied rows', async () => {
+    const desk = await companyDesk(used)
+    const answer = await desk.propose([transcribed(desk, 720.5)])
+    expect(answer.text).not.toContain('on the ledger already')
+    expect(answer.text).toContain('The card warns of 1 thing.')
+  })
+})
+
 describe('a statement in parts', () => {
   /** Three rows on each of three days from the given one in November, after the main account's newest row. */
   const partRows = (firstDay: number) => [0, 1, 2].map((offset) => ({ date: `2026-11-${String(firstDay + offset).padStart(2, '0')}`, amount: -(firstDay + offset) }))
@@ -301,5 +327,23 @@ describe('statements the folder sync held back', () => {
     await desk.propose([stepOf(COMPANY_OPERATIONS, 'file-held-statements', { part: 1 })])
     await desk.accept()
     expect(rowsOf(desk, 'fresh').map((row) => row.balance)).toEqual([15000])
+  })
+
+  it("files a later part without counting the earlier parts' rows as skipped", async () => {
+    // A part's worth of rows on one day and one more on the next, so part 2 holds a single new row.
+    const rows = Array.from({ length: ROWS_A_PART + 1 }, (_, at) => ({
+      date: parseCivilDate(at < ROWS_A_PART ? '2026-10-20' : '2026-10-21')!,
+      amount: moneyFromAmount(-0.01),
+      counterparty: 'Supplier',
+      counterpartyIban: '',
+      description: 'Goods',
+    }))
+    const statement = transcribedStatement('fresh', 'fresh-statement-002', moneyFromAmount(200), null, rows, 'ask')
+    const desk = await companyDesk(used, { heldStatements: () => [{ statement }] })
+    expect((await desk.propose([stepOf(COMPANY_OPERATIONS, 'file-held-statements', { part: 1 })])).isError).toBe(false)
+    await desk.accept()
+    const second = await desk.propose([stepOf(COMPANY_OPERATIONS, 'file-held-statements', { part: 2 })])
+    expect(second.isError, second.text).toBe(false)
+    expect(second.text).not.toContain('on the ledger already')
   })
 })

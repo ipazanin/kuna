@@ -41,14 +41,29 @@ export async function readEveryTab(bytes: ArrayBuffer | Uint8Array): Promise<She
   })
 }
 
-/** Every tab of an xlsx, xls or ods file, each cell as the sheet shows it, so a date reads as its format writes it rather than as a serial number. */
+/** How a day reads where the sheet's format leaves it unclear: the short date each reader's Excel shows its own way, which SheetJS writes month first. */
+const PLAIN_DAY = 'yyyy-mm-dd'
+
+/**
+ * Every tab of an xlsx, xls or ods file, each cell as the sheet shows it, so a date reads as its format writes it rather than as a
+ * serial number. The short date, and a day format SheetJS cannot write, such as the `dd.mm.yyyy` of Croatian exports, read as `yyyy-mm-dd`.
+ */
 export async function readEveryTabAsShown(bytes: ArrayBuffer | Uint8Array): Promise<SheetTab[]> {
   const XLSX = await sheetJs()
-  const book = XLSX.read(bytes, { type: 'array' })
+  const book = XLSX.read(bytes, { type: 'array', cellNF: true, dateNF: PLAIN_DAY })
   return book.SheetNames.flatMap((name) => {
     const sheet = book.Sheets[name]
-    return sheet === undefined ? [] : [{ name, grid: gridOf(XLSX, sheet, false) }]
+    return sheet === undefined ? [] : [{ name, grid: gridOf(XLSX, withDaysWritten(XLSX, sheet), false) }]
   })
+}
+
+/** The sheet with each day cell SheetJS could not write as text written as a plain day, with its time when it has one. */
+function withDaysWritten(XLSX: typeof import('xlsx'), sheet: WorkSheet): WorkSheet {
+  for (const [address, cell] of Object.entries(sheet)) {
+    if (address.startsWith('!') || cell.t !== 'n' || cell.w !== undefined || typeof cell.z !== 'string' || !XLSX.SSF.is_date(cell.z)) continue
+    cell.w = XLSX.SSF.format(Number.isInteger(cell.v) ? PLAIN_DAY : `${PLAIN_DAY} hh:mm`, cell.v)
+  }
+  return sheet
 }
 
 /**

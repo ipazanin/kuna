@@ -8,6 +8,8 @@ const OIB = /(?<!\d)\d{3}[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{2}(?!\d)/g
 const DOMESTIC_ACCOUNT = /(?<![\d-])\d{7}-\d{10}(?![\d-])/g
 /** Thirteen to nineteen digits, in one run or in groups split by a space or a hyphen, as a card number stands in a description. */
 const CARD_RUN = /(?<!\d)\d(?:[ -]?\d){12,18}(?!\d)/g
+/** A day and time written as one run of fourteen digits, as OFX stamps each entry, which passes the card check one time in ten. */
+const DAY_AND_TIME = /^(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])(?:[01]\d|2[0-3])[0-5]\d[0-5]\d$/
 
 /**
  * Which identifiers a text is searched for. The books hold IBANs and OIBs only, since a reference in the books can pass
@@ -63,7 +65,7 @@ function passesLuhn(digits: string): boolean {
 function replacedCards(text: string, replace: (identifier: FoundIdentifier) => string): string {
   return text.replace(CARD_RUN, (written) => {
     const compact = written.replace(/[\s-]/g, '')
-    return passesLuhn(compact) ? replace({ kind: 'card', written, compact }) : written
+    return passesLuhn(compact) && !DAY_AND_TIME.test(written) ? replace({ kind: 'card', written, compact }) : written
   })
 }
 

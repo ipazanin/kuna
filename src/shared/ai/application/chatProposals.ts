@@ -1,4 +1,4 @@
-import { ATTACHMENT_REF } from '../../app/assistantOperations'
+import { ATTACHMENT_REF, cardWarnings } from '../../app/assistantOperations'
 import type { AppProposer, CheckedProposal, ProposalStep } from '../../app/assistantOperations'
 import type { ChatAttachment } from '../domain/chatAttachments'
 import { schemaProblems } from '../domain/strictSchema'
@@ -122,6 +122,11 @@ export async function proposeChanges(
   }
   showProposal(input.app, checked, input.next)
   const shown = `The card shows ${checked.count} changes. Nothing is written until the person accepts.`
-  if (checked.heldBack === null) return { text: `${shown} Say so in one short line and stop.`, isError: false }
-  return { text: `${shown} ${checked.heldBack} Say so in one or two short lines and stop.`, isError: false }
+  const warned = cardWarnings(checked)
+  const told = [
+    ...(warned === 0 ? [] : [`The card warns of ${warned === 1 ? '1 thing' : `${warned} things`}. Tell the person to read the warnings before accepting.`]),
+    ...(checked.heldBack === null ? [] : [checked.heldBack]),
+  ]
+  if (told.length === 0) return { text: `${shown} Say so in one short line and stop.`, isError: false }
+  return { text: `${shown} ${told.join(' ')} Say so in one or two short lines and stop.`, isError: false }
 }

@@ -32,6 +32,11 @@ describe('masking the identifiers in a row Kuna builds', () => {
     expect(maskIdentifiers(text, 'written')).toBe(masked)
   })
 
+  it('leaves a day and time of fourteen digits that passes the card check readable in written text, as OFX stamps an entry', () => {
+    expect(maskIdentifiers('<DTPOSTED>20311102120000[+1:CET]', 'written')).toBe('<DTPOSTED>20311102120000[+1:CET]')
+    expect(maskIdentifiers('card 2031 1102 1200 00', 'written')).toBe('card [card ••••0000]')
+  })
+
   it('leaves a reference in the books that passes the card check readable', () => {
     expect(maskIdentifiers('poziv na broj 4111111111111111', 'books')).toBe('poziv na broj 4111111111111111')
     expect(maskIdentifiers('to 2360000-1101234567', 'books')).toBe('to 2360000-1101234567')

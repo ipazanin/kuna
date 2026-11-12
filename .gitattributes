@@ -1,0 +1,2 @@
+# Bank export fixtures keep the line ends a bank sends, CRLF included.
+tests/fixtures/bank-exports/** -text

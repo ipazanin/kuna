@@ -189,8 +189,9 @@ function upToPart(readings: readonly StatementReading[], part: number): readonly
  * Writes the statements as Import does once a person confirms: each account with no rows started at its statement's opening, or
  * at zero for copied rows that print no balances, and a statement of a new IBAN under the account the step names. A statement the dry run refuses refuses the card, with its reason.
  * `copied` is the warning on rows the AI copied, null for held statements, and its label names the statement on every note. The card asks about look-alikes first, then warns, then states plain facts.
+ * `earlierRows` is how many rows of each statement the parts before this card's hold, which the model does not hear of again.
  */
-function writeStatements(card: CompanyCard, readings: readonly StatementReading[], newAccount: string | null, copied: ProposalNote | null): void {
+function writeStatements(card: CompanyCard, readings: readonly StatementReading[], newAccount: string | null, copied: ProposalNote | null, earlierRows = 0): void {
   const { workbook } = card
   const offers = [...new Set(readings.flatMap((reading) => ('newAccount' in reading ? [reading.newAccount.iban] : [])))]
   if (offers.length > 1) throw new StepRefused('The file names several IBANs the books lack. Import it on Import, which names each account.')
@@ -243,6 +244,8 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   ]
   for (const note of notes) card.note({ noun: LEDGER_RECORDS.noun, note })
   if (lookAlikes.length > 0) card.holdBack(lookAlikesForTheModel(lookAlikeRows, false))
+  const onLedger = run.statements.flatMap((statement) => statement.rows.slice(earlierRows).filter((row) => row.inLedger)).length
+  if (onLedger > 0) card.holdBack(`${onLedger === 1 ? '1 row of the statement is' : `${onLedger} rows of the statement are`} on the ledger already and skipped.`)
 }
 
 /** The copied rows that wait as look-alikes, each by its number among the rows the AI copied, beside the ledger row it looks like. */
@@ -271,7 +274,8 @@ function fileHeldStatements(card: CompanyCard, step: ProposalStep, held: HeldSta
   const readings = held()
   if (readings.length === 0) throw new StepRefused('The last sync held back no statement.')
   const field = fieldsOf(step)
-  writeStatements(card, upToPart(readings, field['part']), field['newAccount'], null)
+  const part: number = field['part']
+  writeStatements(card, upToPart(readings, part), field['newAccount'], null, (part - 1) * ROWS_A_PART)
 }
 
 function saveImportProfile(card: CompanyCard, step: ProposalStep): void {

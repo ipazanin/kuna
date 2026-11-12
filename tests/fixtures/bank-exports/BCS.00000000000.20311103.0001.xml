@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02 ./camt.053.001.02.xsd">
+<BkToCstmrStmt>
+  <GrpHdr>
+    <MsgId>BCS00000000000203111030001</MsgId>
+    <CreDtTm>2031-11-03T06:00:00.000</CreDtTm>
+    <AddtlInf>Obavještavamo Vas o promjeni naknada. Informacija je na web stranici Banke.</AddtlInf>
+  </GrpHdr>
+  <Stmt>
+    <Id>777001</Id>
+    <LglSeqNb>41</LglSeqNb>
+    <CreDtTm>2031-11-03T06:00:00.000</CreDtTm>
+    <FrToDt>
+      <FrDtTm>2031-11-02T00:00:00.000</FrDtTm>
+      <ToDtTm>2031-11-02T23:59:59.999</ToDtTm>
+    </FrToDt>
+    <RptgSrc>
+      <Prtry>PRIMHR2X0000000000001</Prtry>
+    </RptgSrc>
+    <Acct>
+      <Id>
+        <IBAN>HR4599999991000000017</IBAN>
+      </Id>
+      <Ccy>EUR</Ccy>
+      <Nm>Redovni račun</Nm>
+      <Ownr>
+        <Nm>Primjer Studio d.o.o.</Nm>
+        <PstlAdr>
+          <AdrLine>Zagreb</AdrLine>
+          <AdrLine>Primjerna ulica 1</AdrLine>
+        </PstlAdr>
+      </Ownr>
+    </Acct>
+    <Bal>
+      <Tp>
+        <CdOrPrtry>
+          <Cd>OPBD</Cd>
+        </CdOrPrtry>
+      </Tp>
+      <Amt Ccy="EUR">1000.00</Amt>
+      <CdtDbtInd>CRDT</CdtDbtInd>
+      <Dt>
+        <Dt>2031-11-02</Dt>
+      </Dt>
+    </Bal>
+    <Bal>
+      <Tp>
+        <CdOrPrtry>
+          <Cd>CLBD</Cd>
+        </CdOrPrtry>
+      </Tp>
+      <Amt Ccy="EUR">1076.50</Amt>
+      <CdtDbtInd>CRDT</CdtDbtInd>
+      <Dt>
+        <Dt>2031-11-02</Dt>
+      </Dt>
+    </Bal>
+    <TxsSummry>
+      <TtlCdtNtries>
+        <NbOfNtries>2 </NbOfNtries>
+        <Sum>512.00 </Sum>
+      </TtlCdtNtries>
+      <TtlDbtNtries>
+        <NbOfNtries>2 </NbOfNtries>
+        <Sum>435.50 </Sum>
+      </TtlDbtNtries>
+    </TxsSummry>
+    <Ntry>
+      <NtryRef>REF-0001 </NtryRef>
+      <Amt Ccy="EUR">500.00</Amt>
+      <CdtDbtInd>CRDT</CdtDbtInd>
+      <RvslInd>FALSE </RvslInd>
+      <Sts>BOOK</Sts>
+      <BookgDt>
+        <Dt>2031-11-02</Dt>
+      </BookgDt>
+      <ValDt>
+        <Dt>2031-11-02</Dt>
+      </ValDt>
+      <AcctSvcrRef>REF-0001 </AcctSvcrRef>
+      <BkTxCd>
+        <Domn>
+          <Cd>PMNT </Cd>
+          <Fmly>
+            <Cd>RCDT </Cd>
+            <SubFmlyCd>OTHR </SubFmlyCd>
+          </Fmly>
+        </Domn>
+      </BkTxCd>
+      <NtryDtls>
+        <TxDtls>
+          <Refs>
+            <AcctSvcrRef>REF-0001 </AcctSvcrRef>
+            <EndToEndId>HR00 12-1-2031</EndToEndId>
+          </Refs>
+          <AmtDtls>
+            <TxAmt>
+              <Amt Ccy="EUR">500.00</Amt>
+            </TxAmt>
+          </AmtDtls>
+          <RltdPties>
+            <Dbtr>
+              <Nm>Primjer Trgovina d.o.o. </Nm>
+              <PstlAdr>
+                <Ctry>HR</Ctry>
+                <AdrLine>Split</AdrLine>
+              </PstlAdr>
+            </Dbtr>
+            <DbtrAcct>
+              <Id>
+                <IBAN>HR2399999991000000025</IBAN>
+              </Id>
+            </DbtrAcct>
+          </RltdPties>
+          <Purp>
+            <Cd>OTHR </Cd>
+          </Purp>
+          <RmtInf>
+            <Ustrd>Plaćanje računa 12-1-2031</Ustrd>
+          </RmtInf>
+        </TxDtls>
+      </NtryDtls>
+    </Ntry>
+    <Ntry>
+      <NtryRef>REF-0002 </NtryRef>
+      <Amt Ccy="EUR">400.00</Amt>
+      <CdtDbtInd>DBIT</CdtDbtInd>
+      <RvslInd>FALSE </RvslInd>
+      <Sts>BOOK</Sts>
+      <BookgDt>
+        <Dt>2031-11-02</Dt>
+      </BookgDt>
+      <ValDt>
+        <Dt>2031-11-02</Dt>
+      </ValDt>
+      <AcctSvcrRef>REF-0002 </AcctSvcrRef>
+      <BkTxCd>
+        <Domn>
+          <Cd>PMNT </Cd>
+          <Fmly>
+            <Cd>ICDT </Cd>
+            <SubFmlyCd>OTHR </SubFmlyCd>
+          </Fmly>
+        </Domn>
+      </BkTxCd>
+      <NtryDtls>
+        <Btch>
+          <MsgId>UN203111020001 </MsgId>
+          <PmtInfId>Grupa 1</PmtInfId>
+          <NbOfTxs> 3 </NbOfTxs>
+          <TtlAmt Ccy="EUR"> 400.00</TtlAmt>
+          <CdtDbtInd>DBIT </CdtDbtInd>
+        </Btch>
+        <TxDtls>
+          <RltdPties>
+            <Cdtr>
+              <Nm>Razni korisnici</Nm>
+            </Cdtr>
+          </RltdPties>
+          <Purp>
+            <Cd>SALA </Cd>
+          </Purp>
+        </TxDtls>
+      </NtryDtls>
+    </Ntry>
+    <Ntry>
+      <NtryRef>REF-0003 </NtryRef>
+      <Amt Ccy="EUR">35.50</Amt>
+      <CdtDbtInd>DBIT</CdtDbtInd>
+      <RvslInd>FALSE </RvslInd>
+      <Sts>BOOK</Sts>
+      <BookgDt>
+        <Dt>2031-11-02</Dt>
+      </BookgDt>
+      <ValDt>
+        <Dt>2031-11-02</Dt>
+      </ValDt>
+      <AcctSvcrRef>REF-0003 </AcctSvcrRef>
+      <BkTxCd>
+        <Prtry>
+          <Cd>NOTPROVIDED</Cd>
+        </Prtry>
+      </BkTxCd>
+      <NtryDtls>
+        <TxDtls>
+          <Refs>
+            <AcctSvcrRef>REF-0003 </AcctSvcrRef>
+            <EndToEndId>HR01 123456-2031</EndToEndId>
+          </Refs>
+          <RltdPties>
+            <Cdtr>
+              <Nm>Telekom Primjer d.d.</Nm>
+            </Cdtr>
+            <CdtrAcct>
+              <Id>
+                <IBAN>HR9899999991000000033</IBAN>
+              </Id>
+            </CdtrAcct>
+          </RltdPties>
+          <Purp>
+            <Cd>OTHR </Cd>
+          </Purp>
+          <RmtInf>
+            <Strd>
+              <CdtrRefInf>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>SCOR </Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Ref>HR01 123456-2031</Ref>
+              </CdtrRefInf>
+            </Strd>
+          </RmtInf>
+        </TxDtls>
+      </NtryDtls>
+    </Ntry>
+    <Ntry>
+      <NtryRef>REF-0004 </NtryRef>
+      <Amt Ccy="EUR">12.00</Amt>
+      <CdtDbtInd>CRDT</CdtDbtInd>
+      <RvslInd>TRUE </RvslInd>
+      <Sts>BOOK</Sts>
+      <BookgDt>
+        <Dt>2031-11-02</Dt>
+      </BookgDt>
+      <ValDt>
+        <Dt>2031-11-02</Dt>
+      </ValDt>
+      <AcctSvcrRef>REF-0004 </AcctSvcrRef>
+      <BkTxCd>
+        <Domn>
+          <Cd>PMNT </Cd>
+          <Fmly>
+            <Cd>CCRD </Cd>
+            <SubFmlyCd>POSD </SubFmlyCd>
+          </Fmly>
+        </Domn>
+      </BkTxCd>
+      <NtryDtls>
+        <TxDtls>
+          <RltdPties>
+            <Cdtr>
+              <Nm>KAVANA PRIMJER</Nm>
+            </Cdtr>
+          </RltdPties>
+          <RmtInf>
+            <Ustrd>Storno kartične transakcije</Ustrd>
+          </RmtInf>
+        </TxDtls>
+      </NtryDtls>
+    </Ntry>
+    <Ntry>
+      <NtryRef>REF-0005 </NtryRef>
+      <Amt Ccy="EUR">9.99</Amt>
+      <CdtDbtInd>DBIT</CdtDbtInd>
+      <RvslInd>FALSE </RvslInd>
+      <Sts>PDNG</Sts>
+      <BookgDt>
+        <Dt>2031-11-02</Dt>
+      </BookgDt>
+      <BkTxCd>
+        <Domn>
+          <Cd>PMNT </Cd>
+          <Fmly>
+            <Cd>CCRD </Cd>
+            <SubFmlyCd>POSD </SubFmlyCd>
+          </Fmly>
+        </Domn>
+      </BkTxCd>
+    </Ntry>
+  </Stmt>
+</BkToCstmrStmt>
+</Document>

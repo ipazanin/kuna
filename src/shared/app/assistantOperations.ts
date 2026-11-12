@@ -140,6 +140,21 @@ export interface CheckedProposal {
   readonly held: object
 }
 
+/**
+ * How many things a card warns of while it waits for the person, each shown in the warning tone: its warning notes, its lines'
+ * warnings, the fields that say where money or mail goes, and a missing Undo.
+ */
+export function cardWarnings(proposal: Pick<CheckedProposal, 'groups' | 'undoable'>): number {
+  const onGroups = proposal.groups.reduce(
+    (count, group) =>
+      count +
+      group.notes.filter((note) => note.tone === 'warning').length +
+      group.lines.reduce((onLines, line) => onLines + (line.warning === null ? 0 : 1) + line.fields.filter((field) => field.warns).length, 0),
+    0,
+  )
+  return onGroups + (proposal.undoable ? 0 : 1)
+}
+
 /** What the chat's tools get of an app's changes: a dry run, and no way to write. */
 export interface AppProposer {
   readonly operations: readonly AssistantOperation[]

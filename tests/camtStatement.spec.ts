@@ -132,7 +132,12 @@ describe('reading a camt.053 statement', () => {
     const unreferenced = statementOf(withCreditEntry((entry) => entry.replace(/<NtryRef>.*?<\/NtryRef>/, '').replace(/(<\/RvslInd>[\s\S]*?)<AcctSvcrRef>.*?<\/AcctSvcrRef>/, '$1')))
 
     expect(reversal.rows[0]?.reviewReasons).toEqual(['reversal'])
+    for (const written of ['1', 'TRUE']) {
+      expect(statementOf(withCreditEntry((entry) => entry.replace('<RvslInd>false</RvslInd>', `<RvslInd>${written}</RvslInd>`)))).toMatchObject({ rows: [{ reviewReasons: ['reversal'] }] })
+    }
     expect(batched.rows[0]?.reviewReasons).toEqual(['batched entry'])
+    const counted = statementOf(withCreditEntry((entry) => entry.replace('<NtryDtls>', '<NtryDtls><Btch><NbOfTxs>3</NbOfTxs></Btch>')))
+    expect(counted.rows[0]?.reviewReasons).toEqual(['batched entry'])
     expect(valueDated.rows[0]).toMatchObject({ date: '2031-03-11', reviewReasons: ['value date used'] })
     expect(unreferenced.rows[0]).toMatchObject({ reference: '', reviewReasons: ['no bank reference'] })
   })
@@ -161,10 +166,13 @@ describe('reading a camt.053 statement', () => {
     expect(statement.rows[0]?.reference).toBe(statementOf(DEBITS).rows[1]?.reference)
   })
 
-  it('leaves a pending entry out, since it has not moved the balance', () => {
+  it('leaves a pending entry out, since it has not moved the balance, and says how many it left out', () => {
     const pending = CREDIT_ENTRY.replace('<Cd>BOOK</Cd>', '<Cd>PDNG</Cd>').replace(/<AcctSvcrRef>(.*?)<\/AcctSvcrRef>/g, '<AcctSvcrRef>PENDING</AcctSvcrRef>')
+    const statement = statementOf(CREDIT.replace(CREDIT_ENTRY, `${CREDIT_ENTRY}${pending}${pending}`))
 
-    expect(statementOf(CREDIT.replace(CREDIT_ENTRY, `${CREDIT_ENTRY}${pending}`)).rows).toHaveLength(1)
+    expect(statement.rows).toHaveLength(1)
+    expect(statement.notes).toContain('2 entries the bank has not booked yet, such as pending ones, are left out, since they have not moved the balance.')
+    expect(statementOf(CREDIT).notes.join(' ')).not.toContain('not booked')
   })
 
   it('reads a camt.053.001.02 document by local names', () => {

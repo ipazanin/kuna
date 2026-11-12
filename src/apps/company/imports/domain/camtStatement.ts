@@ -47,7 +47,7 @@ interface CamtEntry {
 
 /**
  * The statements of a camt.053 document: elements found by local name, so any camt.053 version
- * reads, every amount read in cents from its decimal text, booked entries only, in booking-date
+ * reads, every amount read in cents from its decimal text, booked entries only, with a note counting the rest, in booking-date
  * order with ties kept in document order, and the four checks against the statement's own balances
  * and totals. A document may carry several Stmt, and each is read, or refused, on its own.
  * `accountsByIban` names the account of each IBAN, normalised, as the accounts tab does. A statement
@@ -113,11 +113,9 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
   }
   const opening = balanceByCode(statement, 'OPBD', currency)
   const closing = balanceByCode(statement, 'CLBD', currency)
-  const entries = inBookingOrder(
-    childrenNamed(statement, 'Ntry')
-      .filter((entry) => textAt(entry, ['Sts', 'Cd']) === 'BOOK' || textAt(entry, ['Sts']) === 'BOOK')
-      .map((entry) => entryOf(entry, context)),
-  )
+  const listed = childrenNamed(statement, 'Ntry')
+  const booked = listed.filter((entry) => textAt(entry, ['Sts', 'Cd']) === 'BOOK' || textAt(entry, ['Sts']) === 'BOOK')
+  const entries = inBookingOrder(booked.map((entry) => entryOf(entry, context)))
   let balance = opening
   const rows: ImportedRow[] = entries.map((entry) => {
     balance = addMoney(balance, entry.row.amount)
@@ -129,7 +127,8 @@ function readStatement(statement: Element, fileName: string, accountsByIban: Rea
     const debits = sumMoney(entries.filter((entry) => !entry.credit).map((entry) => entry.magnitude))
     throw new StatementRefused(words.camt.chainOpen(opening, credits, debits, tie.reached, closing))
   }
-  const notes: string[] = []
+  const notBooked = listed.length - booked.length
+  const notes: string[] = notBooked === 0 ? [] : [words.camt.notBooked(notBooked)]
   const summary = childNamed(statement, 'TxsSummry')
   if (summary === null) {
     if (BANKS_THAT_SUMMARISE.has(servicerBic)) {
@@ -202,7 +201,8 @@ function entryOf(entry: Element, context: StatementContext): CamtEntry {
   if (entryCurrency !== context.currency) {
     throw new StatementRefused(words.camt.entryCurrency(named, entryCurrency, context.currency))
   }
-  if (textAt(entry, ['RvslInd']) === 'true') {
+  // xs:boolean writes true as `true` or `1`, and the Croatian banks' camt guide writes `TRUE`.
+  if (['true', '1'].includes(textAt(entry, ['RvslInd']).toLowerCase())) {
     // Flagged, never acted on: banks disagree on which way CdtDbtInd reads on a reversal.
     reviewReasons.push(REVIEW_REASONS.reversal)
   }
@@ -214,9 +214,11 @@ function entryOf(entry: Element, context: StatementContext): CamtEntry {
   if (bookingDate === null) {
     reviewReasons.push(REVIEW_REASONS.valueDate)
   }
-  // One booking for several payees carries a TxDtls per payee. The row takes the first payee.
-  const legs = childrenNamed(entry, 'NtryDtls').reduce((count, details) => count + childrenNamed(details, 'TxDtls').length, 0)
-  if (legs > 1) {
+  // One booking for several payees carries a TxDtls per payee, or one Btch that counts them, as a Croatian payroll does. The row takes the first payee.
+  const entryDetails = childrenNamed(entry, 'NtryDtls')
+  const legs = entryDetails.reduce((count, detail) => count + childrenNamed(detail, 'TxDtls').length, 0)
+  const batched = entryDetails.some((detail) => Number(textAt(detail, ['Btch', 'NbOfTxs'])) > 1)
+  if (legs > 1 || batched) {
     reviewReasons.push(REVIEW_REASONS.batched)
   }
   const party = partyOf(entry, credit, context)

@@ -32,6 +32,14 @@ export const en = {
       `The balance chain does not close: opening ${formatMoney(opening)} plus credits ${formatMoney(credits)} less debits ${formatMoney(debits)} is ${formatMoney(expected)}, but CLBD reports ${formatMoney(closing)}.`,
     summaryRequired: 'The statement carries no TxsSummry, which this bank always sends, so its entries cannot be counted against the totals the bank reports.',
     noSummary: 'The statement carries no TxsSummry, so its entries are checked against its balances only, not against counts and totals from the bank.',
+    notBooked: (count: number) =>
+      plural(
+        {
+          one: `${count} entry the bank has not booked yet, such as a pending one, is left out, since it has not moved the balance.`,
+          other: `${count} entries the bank has not booked yet, such as pending ones, are left out, since they have not moved the balance.`,
+        },
+        count,
+      ),
     noBalance: (code: string) => `The statement carries no ${code} balance, so its chain cannot be closed.`,
     balanceCurrency: (code: string, balanceCurrency: string, currency: string) => `The ${code} balance is in "${balanceCurrency}" but the account is in ${currency}.`,
     /** What an amount the reader could not read is, as a refusal names it. */
@@ -140,6 +148,7 @@ export const hr: Translation<typeof en> = {
       `Salda se ne zatvaraju: početno stanje ${formatMoney(opening)} plus odobrenja ${formatMoney(credits)} minus terećenja ${formatMoney(debits)} iznosi ${formatMoney(expected)}, a CLBD navodi ${formatMoney(closing)}.`,
     summaryRequired: 'Izvod nema TxsSummry, koji ova banka uvijek šalje, pa se stavke ne mogu usporediti sa zbrojevima koje banka navodi.',
     noSummary: 'Izvod nema TxsSummry, pa se stavke provjeravaju samo prema saldima, a ne prema broju stavki i zbrojevima banke.',
+    notBooked: (count) => `Stavke koje banka još nije proknjižila, primjerice one na čekanju, nisu uvezene jer nisu promijenile saldo: ${count}.`,
     noBalance: (code) => `Izvod nema saldo ${code}, pa se salda ne mogu zatvoriti.`,
     balanceCurrency: (code, balanceCurrency, currency) => `Saldo ${code} je u valuti „${balanceCurrency}”, a račun se vodi u valuti ${currency}.`,
     balanceAmount: (code) => `saldo ${code}`,
