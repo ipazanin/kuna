@@ -17,12 +17,17 @@ export interface RowQuestion<Value extends string> extends QuestionItem<Value> {
 
 /** A row as a person tells it from others: its payee, amount and day. */
 function rowParts(row: Pick<Transaction, 'payee' | 'description' | 'amount' | 'date'>, account: Account | undefined): string[] {
-  return [row.payee || row.description, formatAccountMoney(row.amount, account?.currency ?? EURO), dayLabel(row.date)].filter((part) => part !== '')
+  return [rowTitle(row), formatAccountMoney(row.amount, account?.currency ?? EURO), dayLabel(row.date)].filter((part) => part !== '')
 }
 
-/** A row as a list asks about it beside its amount: its payee, day and account. */
-export function rowNamed(row: Pick<Transaction, 'payee' | 'description' | 'date'>, account: Account | undefined): string {
-  return [row.payee || row.description, dayLabel(row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ')
+/** What names a row in a list: its payee, or its description when the bank gave no payee. */
+export function rowTitle(row: Pick<Transaction, 'payee' | 'description'>): string {
+  return row.payee || row.description
+}
+
+/** The line under a row's title in a list: its day and account. */
+export function rowCaption(row: Pick<Transaction, 'date'>, account: Account | undefined): string {
+  return [dayLabel(row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ')
 }
 
 /** The caption that names the row on the file a row looks like, and where that row came from. */

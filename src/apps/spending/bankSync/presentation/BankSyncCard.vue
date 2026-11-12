@@ -172,7 +172,7 @@ onMounted(() => {
             <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
           </template>
         </QuestionList>
-        <DryRunLines v-if="sync.lastOutcome.value.dryRun.lines.length > 0" :lines="sync.lastOutcome.value.dryRun.lines" />
+        <DryRunLines v-if="sync.lastOutcome.value.dryRun.lines.length > 0" :lines="sync.lastOutcome.value.dryRun.lines" :below-questions="held.items.value.length > 0" />
         <p v-else class="text-sm text-muted">{{ words.nothing }}</p>
       </div>
     </AppCard>

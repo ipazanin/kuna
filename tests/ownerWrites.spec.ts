@@ -124,14 +124,15 @@ describe.each([
     expect(store.state.workbook?.ownerAdvances).toHaveLength(1)
   })
 
-  it('moves both loan categories between owner pay and financing, and refuses once a bucket changed since the read', async () => {
+  it('moves both loan categories between owner pay and financing, changes nothing when asked again, and refuses another change once a bucket changed since the read', async () => {
     const { store } = await harnessOf(used, gridsWithOwnerTabs())
     const stale = loanCategory(store, 'owner-loan-out')
 
     await switchLoans(store, 'financing')
 
     expect(store.state.workbook?.categories.filter((category) => category.slug.startsWith('owner-loan')).map((category) => category.bucket)).toEqual(['financing', 'financing'])
-    await expect(store.write('Switched', (unit) => unit.of(CATEGORY_WRITES).change(stale, { ...stale, bucket: 'financing' }))).rejects.toThrow(
+    expect(await store.write('Switched', (unit) => unit.of(CATEGORY_WRITES).change(stale, { ...stale, bucket: 'financing' }))).toBeNull()
+    await expect(store.write('Renamed', (unit) => unit.of(CATEGORY_WRITES).change(stale, { ...stale, label: 'Loans out' }))).rejects.toThrow(
       'The category "owner-loan-out" changed since the app read it',
     )
   })

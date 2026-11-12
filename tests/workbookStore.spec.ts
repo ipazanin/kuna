@@ -1205,7 +1205,7 @@ describe('workbook store queueing what happens to its file', () => {
     holdNextUpload()
     const first = store.write('First', addAccount('first'))
     await uploading()
-    const refused = store.write('Same again', addAccount('first'))
+    const refused = store.write('Same name, other IBAN', (unit: UnitOfWork) => unit.of(ACCOUNT_WRITES).add({ ...accountOf('first'), iban: 'HR1210010051863000160' }))
     const after = store.write('After', addAccount('after'))
     letUploadGo()
 

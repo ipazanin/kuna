@@ -5,12 +5,12 @@ import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { WaitingRow } from '../domain/reviewQueue'
 import { words } from './words'
+import { rowCaption, rowTitle } from './rowParts'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { entryAsked } from '../../entries/presentation/entryAsked'
 import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
@@ -66,12 +66,7 @@ function picked(id: string | undefined): void {
 </script>
 
 <template>
-  <ProposalRow
-    :title="waiting.row.payee || waiting.row.description"
-    :caption="[dayLabel(waiting.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ')"
-    v-bind="marked"
-    data-testid="spending-review-row"
-  >
+  <ProposalRow :title="rowTitle(waiting.row)" :caption="rowCaption(waiting.row, account)" v-bind="marked" data-testid="spending-review-row">
     <template #amount>
       <AccountMoneyText :cents="waiting.row.amount" :currency="currency" sign="always" tone="flow" />
     </template>

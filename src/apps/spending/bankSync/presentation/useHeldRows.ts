@@ -3,7 +3,7 @@ import type { ComputedRef, Ref } from 'vue'
 
 import { answerHeldRow } from '../application/heldRowWrites'
 import { words } from './words'
-import { rowNamed, twinCaption } from '../../statements/presentation/rowParts'
+import { rowCaption, rowTitle, twinCaption } from '../../statements/presentation/rowParts'
 import type { RowQuestion } from '../../statements/presentation/rowParts'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { rowKey } from '../../workbook/domain/transaction'
@@ -39,8 +39,8 @@ export function useHeldRows(shown: (key: string) => boolean = () => true): HeldR
       .map((held): RowQuestion<TwinChoice> => {
         const account = accounts.get(held.account)
         const like = rows.get(held.like)
-        const asked = { key: rowKey(held), row: rowNamed(held, account), choice: 'later' as const, amount: held.amount, currency: account?.currency ?? EURO }
-        return like === undefined ? { ...asked, caption: twinWords.gone, options: TWIN_CHOICES.gone } : { ...asked, caption: twinCaption(like, account) }
+        const asked = { key: rowKey(held), row: rowTitle(held), caption: rowCaption(held, account), choice: 'later' as const, amount: held.amount, currency: account?.currency ?? EURO }
+        return like === undefined ? { ...asked, note: twinWords.gone, options: TWIN_CHOICES.gone } : { ...asked, note: twinCaption(like, account) }
       })
   })
   return {

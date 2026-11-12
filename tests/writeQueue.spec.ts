@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { GoogleTimedOut } from '../src/shared/google/googleApi'
 import { writeCheck } from '../src/apps/investments/overview/application/checkWrites'
 import { emptyInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
 import type { InvestmentsBooks } from '../src/apps/investments/workbook/domain/investmentsBooks'
@@ -247,6 +248,63 @@ describe('a failed write in the middle of a queue', () => {
     expect(labelOf(store, 'revenue')).toBe('A')
     expect(heldLabelOf(store.state.snapshot!.document, 'revenue')).toBe('A')
     expect(heldLabelOf(await held(), 'revenue')).toBe('A')
+  })
+})
+
+describe('a Drive request that gave up waiting', () => {
+  it('fails its write, flips its control back, and the writes queued behind it land', async () => {
+    const { store, drive, held } = await companyOnDrive()
+    const upload = holdNextUpload(drive)
+
+    const hung = relabel(store, 'revenue', 'A')
+    await upload.uploading()
+    const behind = relabel(store, 'equipment', 'B')
+    await vi.waitFor(() => expect(store.state.waiting).toHaveLength(2))
+
+    upload.fail(new GoogleTimedOut())
+    const outcomes = await Promise.allSettled([hung, behind])
+
+    expect((outcomes[0] as PromiseRejectedResult).reason).toBeInstanceOf(GoogleTimedOut)
+    expect(outcomes[1]?.status).toBe('fulfilled')
+    expect(store.state.waiting).toEqual([])
+    expect(labelOf(store, 'revenue')).not.toBe('A')
+    expect(heldLabelOf(await held(), 'equipment')).toBe('B')
+  })
+
+  it('shows what the file holds when the upload reached Drive before the wait ran out, and the same write asked again changes nothing', async () => {
+    const { store, drive, held } = await companyOnDrive()
+    const upload = drive.upload.bind(drive)
+    vi.spyOn(drive, 'upload').mockImplementationOnce(async (...request) => {
+      await upload(...request)
+      throw new GoogleTimedOut()
+    })
+    const before = categoryNamed(store, 'revenue')
+    const work = (unit: UnitOfWork) => unit.of(CATEGORY_WRITES).change(before, { ...before, label: 'A' })
+
+    await expect(store.write('Label A', work, { key: 'revenue', shownAtOnce: true })).rejects.toBeInstanceOf(GoogleTimedOut)
+    expect(labelOf(store, 'revenue')).toBe('A')
+
+    const uploads = drive.requests.filter((request) => request === 'upload').length
+    expect(await store.write('Label A', work, { key: 'revenue', shownAtOnce: true })).toBeNull()
+    expect(await store.write('Label A', work)).toBeNull()
+    expect(drive.requests.filter((request) => request === 'upload')).toHaveLength(uploads)
+    expect(store.state.writes).toEqual([])
+    expect(heldLabelOf(await held(), 'revenue')).toBe('A')
+  })
+})
+
+describe('a write the file already holds', () => {
+  it('changes nothing for an add whose record is already there as asked, and still refuses one whose identity holds another record', async () => {
+    const { store, drive } = await companyOnDrive()
+    const account = recordOf(ACCOUNT_WRITES.kind, { account: 'savings', iban: '' })
+    const addSavings = (unit: UnitOfWork) => unit.of(ACCOUNT_WRITES).add(account)
+
+    expect(await store.write('Savings added', addSavings)).not.toBeNull()
+    const uploads = drive.requests.filter((request) => request === 'upload').length
+
+    expect(await store.write('Savings added', addSavings)).toBeNull()
+    expect(drive.requests.filter((request) => request === 'upload')).toHaveLength(uploads)
+    await expect(store.write('Savings added', (unit) => unit.of(ACCOUNT_WRITES).add({ ...account, iban: 'HR1210010051863000160' }))).rejects.toBeInstanceOf(WorkbookWriteRefused)
   })
 })
 

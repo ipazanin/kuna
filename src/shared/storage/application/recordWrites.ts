@@ -113,6 +113,16 @@ function isRead(stored: StoredRecord<unknown>): stored is Extract<StoredRecord<u
   return 'record' in stored
 }
 
+/**
+ * Whether the file already holds what an add or a change writes, by its identity, as when a save reached Drive and its answer
+ * was lost. Asking for that save again then changes nothing, rather than being refused for a record changed since.
+ */
+function alreadyMade(storage: StorageView, fresh: FreshRecords, change: RecordChange): boolean {
+  if (change.verb !== 'add' && change.verb !== 'change') return false
+  const id = storage.identify(change.kind, change.after)
+  return id !== null && storedOf(fresh.of(change.kind)).some((stored) => stored.id === id && isRead(stored) && sameRecord(stored.record, change.after))
+}
+
 /** The fields of a record a change alters, by name. */
 function alteredFields(before: unknown, after: unknown): string[] {
   const fields = [...new Set([...Object.keys(before as object), ...Object.keys(after as object)])]
@@ -187,16 +197,21 @@ function readerRefusals(rules: WriteRules<unknown>, change: KindChange<unknown>,
  * record is found by its identity and must still hold what the app read, an added record's identity
  * must be free, a change touches only the fields its kind lets it, then each kind's own checks run
  * and its reader must keep every record it kept. Throws `WorkbookWriteRefused` with every reason.
- * Null when no change alters anything.
+ * Null when no change alters anything, or the file already holds every add and change.
  */
 export async function checkWrite(storage: StorageView, title: string, ruled: readonly RuledChange[], options: { readonly undoing: boolean }): Promise<CheckedWrite | null> {
-  const changes = ruled.filter(({ change }) => change.verb !== 'change' || !sameRecord(change.before, change.after))
+  const altering = ruled.filter(({ change }) => change.verb !== 'change' || !sameRecord(change.before, change.after))
+  if (altering.length === 0) {
+    return null
+  }
+  const alteringRules = [...new Map(altering.map(({ rules }) => [rules.kind.name, rules])).values()]
+  const kinds = [...new Map([...alteringRules.map((rules) => rules.kind), ...alteringRules.flatMap((rules) => rules.reads)].map((kind) => [kind.name, kind])).values()]
+  const fresh = await storage.read(kinds)
+  const changes = altering.filter(({ change }) => !alreadyMade(storage, fresh, change))
   if (changes.length === 0) {
     return null
   }
   const ruleSets = [...new Map(changes.map(({ rules }) => [rules.kind.name, rules])).values()]
-  const kinds = [...new Map([...ruleSets.map((rules) => rules.kind), ...ruleSets.flatMap((rules) => rules.reads)].map((kind) => [kind.name, kind])).values()]
-  const fresh = await storage.read(kinds)
 
   const refusals: string[] = []
   const claimed = new Set<RecordId | StoredRecord<unknown>>()

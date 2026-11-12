@@ -125,7 +125,6 @@ export const en = {
     askedLeaveOut: 'Leave out for good',
     lookAlikesIntro:
       "No record in Kuna holds the report's id for these rows, but each has the account, day and amounts of a record Kuna has, perhaps one you typed or imported from the workbook. Say whether it is that record.",
-    lookAlikeKept: (record: string) => `In Kuna: ${record}`,
     lookAlikeChoice: 'Is this row that record',
     lookAlikeLater: 'Decide later',
     lookAlikeSame: 'Same record',
@@ -391,7 +390,6 @@ export const hr: Translation<typeof en> = {
     askedLeaveOut: 'Izostavi zauvijek',
     lookAlikesIntro:
       'Nijedan zapis u Kuni nema oznaku izvješća za ove retke, ali svaki ima račun, dan i iznose zapisa koji Kuna ima, možda onog koji ste upisali ručno ili uvezli iz radne knjige. Recite je li to taj zapis.',
-    lookAlikeKept: (record) => `U Kuni: ${record}`,
     lookAlikeChoice: 'Je li ovaj redak taj zapis',
     lookAlikeLater: 'Odluči poslije',
     lookAlikeSame: 'Isti zapis',

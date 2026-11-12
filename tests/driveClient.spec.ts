@@ -13,9 +13,10 @@ import {
   deleteRevision,
   uploadContent,
 } from '../src/shared/google/driveClient'
-import { GoogleApiError } from '../src/shared/google/googleApi'
+import { GoogleApiError, GoogleTimedOut } from '../src/shared/google/googleApi'
 import { DriveFileMissing } from '../src/shared/storage/application/driveFileMissing'
 import { words as storageWords } from '../src/shared/storage/application/words'
+import { hangingFetch } from './fixtures/hangingFetch'
 import { googleDocumentDrive } from '../src/shared/storage/infrastructure/googleDocumentDrive'
 
 interface SentRequest {
@@ -214,5 +215,59 @@ describe('deleting a file', () => {
     await deleteFile('token', 'keys 1')
     expect([sent[0]!.method, sent[0]!.url.href]).toEqual(['DELETE', 'https://www.googleapis.com/drive/v3/files/keys%201'])
     expect(sent[0]!.headers.get('Authorization')).toBe('Bearer token')
+  })
+})
+
+describe('a Drive request that hangs', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('gives up on an upload after two minutes and says Drive did not answer in time', async () => {
+    const drive = hangingFetch()
+    const upload = uploadContent('token', 'file-1', '{}', 'application/json', true)
+    drive.giveUp()
+
+    await expect(upload).rejects.toBeInstanceOf(GoogleTimedOut)
+    expect(drive.waits).toEqual([120_000])
+  })
+
+  it('gives up on a read of fields after half a minute', async () => {
+    const drive = hangingFetch()
+    const read = getFile('token', 'file-1', ['headRevisionId'])
+    drive.giveUp()
+
+    await expect(read).rejects.toBeInstanceOf(GoogleTimedOut)
+    expect(drive.waits).toEqual([30_000])
+  })
+
+  it('gives up the same way when the answer started and its body stalled, which Firefox fails with an AbortError', async () => {
+    const waits: number[] = []
+    const controller = new AbortController()
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
+      waits.push(milliseconds)
+      return controller.signal
+    })
+    const stalled = new ReadableStream<Uint8Array>({
+      start(stream) {
+        controller.signal.addEventListener('abort', () => stream.error(new DOMException('The operation was aborted.', 'AbortError')))
+      },
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(stalled)),
+    )
+
+    const download = downloadFile('token', 'file-1')
+    await vi.waitFor(() => expect(waits).toEqual([120_000]))
+    controller.abort(new DOMException('signal timed out', 'TimeoutError'))
+
+    await expect(download).rejects.toBeInstanceOf(GoogleTimedOut)
+  })
+
+  it("passes Drive's own refusal on unchanged while the wait has not run out", async () => {
+    stubDrive(new Response('Backend Error', { status: 500 }))
+
+    await expect(getFile('token', 'file-1', ['headRevisionId'])).rejects.toBeInstanceOf(GoogleApiError)
   })
 })

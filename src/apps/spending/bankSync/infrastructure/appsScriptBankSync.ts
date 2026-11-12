@@ -2,7 +2,7 @@ import { BankScriptFailure } from '../application/bankSync'
 import type { BankSyncPort } from '../application/bankSync'
 import type { BankBalance, BankSession, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
 import { words } from '../domain/words'
-import { googleFetch, isUnauthorized } from '../../../../shared/google/googleApi'
+import { googleRequest, isUnauthorized } from '../../../../shared/google/googleApi'
 
 const SCRIPT_API = 'https://script.googleapis.com/v1/scripts'
 
@@ -33,6 +33,9 @@ function sessionOf({ accounts, ...session }: AnsweredSession): BankSession {
   }
 }
 
+/** How long a run of the script waits. Apps Script stops a run after 6 minutes, so its own answer of that comes first. */
+const RUN_WAIT_MS = 7 * 60_000
+
 /** The bank sync script, called with the page's Google token through the Apps Script API. `psuUserAgent` is the browser's on a fetch a person started, and goes with each call that reads a bank. */
 export function appsScriptBankSync(deployment: string, tokenFor: () => string, psuUserAgent: string | null = null): BankSyncPort {
   const present = psuUserAgent === null ? [] : [psuUserAgent]
@@ -40,12 +43,13 @@ export function appsScriptBankSync(deployment: string, tokenFor: () => string, p
   async function run<Answer>(name: string, parameters: readonly unknown[]): Promise<Answer> {
     let answer: RunAnswer
     try {
-      const response = await googleFetch(`${SCRIPT_API}/${encodeURIComponent(deployment)}:run`, tokenFor(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ function: name, parameters }),
-      })
-      answer = (await response.json()) as RunAnswer
+      answer = await googleRequest(
+        `${SCRIPT_API}/${encodeURIComponent(deployment)}:run`,
+        tokenFor(),
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ function: name, parameters }) },
+        (response) => response.json() as Promise<RunAnswer>,
+        RUN_WAIT_MS,
+      )
     } catch (failure) {
       if (isUnauthorized(failure)) throw failure
       throw new Error(words.didNotAnswer(failure instanceof Error ? failure.message : String(failure)))

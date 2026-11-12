@@ -4,6 +4,8 @@ export interface QuestionItem<Value extends string> {
   readonly key: string
   readonly row: string
   readonly caption: string
+  /** A further line under the caption, such as the row this one looks like. */
+  readonly note?: string
   readonly choice: Value
   /** Choices of its own, in place of the list's, as when the row it was asked against is gone. */
   readonly options?: readonly { readonly value: Value; readonly label: string }[]
@@ -14,7 +16,10 @@ export interface QuestionItem<Value extends string> {
 import ChoiceButtons from './ChoiceButtons.vue'
 import ProposalRow from './ProposalRow.vue'
 
-/** A list of rows that each ask for one of a few choices, under an optional heading and an intro, with an optional figure in a column beside each row's words. */
+/**
+ * A list of rows that each ask for one of a few choices, under an optional heading and an intro, with an optional figure in a column beside each row's words.
+ * The details slot draws the lines under a row's caption its own way, in place of its note.
+ */
 defineProps<{
   items: readonly Item[]
   options: readonly { readonly value: Value; readonly label: string }[]
@@ -27,7 +32,7 @@ defineProps<{
   saving?: { readonly key: string; readonly choice: Value } | null
 }>()
 const emit = defineEmits<{ answer: [key: string, choice: Value] }>()
-defineSlots<{ amount?: (props: { item: Item }) => unknown }>()
+defineSlots<{ amount?: (props: { item: Item }) => unknown; details?: (props: { item: Item }) => unknown }>()
 </script>
 
 <template>
@@ -36,6 +41,11 @@ defineSlots<{ amount?: (props: { item: Item }) => unknown }>()
     <p class="type-caption">{{ intro }}</p>
     <ul class="flex flex-col divide-y divide-default">
       <ProposalRow v-for="item in items" :key="item.key" :title="item.row" :caption="item.caption" flush data-testid="question">
+        <template v-if="item.note || $slots.details" #details>
+          <slot name="details" :item="item">
+            <span class="break-words type-caption" data-testid="question-note">{{ item.note }}</span>
+          </slot>
+        </template>
         <template v-if="$slots.amount" #amount>
           <slot name="amount" :item="item" />
         </template>

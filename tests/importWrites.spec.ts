@@ -221,13 +221,13 @@ describe.each([
     expect(ledgerCells(store)).toEqual(before)
   })
 
-  it('refuses rows another device filed since the dry run, and writes nothing', async () => {
+  it('changes nothing for rows another device filed as they are since the dry run', async () => {
     const { store } = await harnessOf(used, grids())
     const run = dryRun(store, creditStatement())
     await importRows(store, run.added)
     const after = ledgerCells(store)
 
-    await expect(importRows(store, run.added)).rejects.toThrow('The ledger row "2031-03-11, Northwind Analytics Ltd, 923.15, balance 1923.15" is in the workbook already, so it is not added again.')
+    expect(await importRows(store, run.added)).toBeNull()
     expect(ledgerCells(store)).toEqual(after)
     expect(after).toHaveLength(5)
   })

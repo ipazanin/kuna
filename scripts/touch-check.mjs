@@ -62,7 +62,7 @@
  * run, imported and undone, a receipt photo read by its QR code, split and undone, a pick of two payments, a near one and a new entry, a receipt's place read from its photo,
  * Not a pair and a category on To review undone, and a rule made from To review, read on Settings,
  * Rules, deleted and brought back,
- * saves that wait: a switch that moves at once and spins, a second review row while the first saves, one that fails and flips back (`?fake=save-fails`), and the browser's warning on closing the page during a save,
+ * saves that wait: a switch that moves at once and spins, a second review row while the first saves, one that fails and flips back (`?fake=save-fails`) and lands with its toast's Try again, and the browser's warning on closing the page during a save,
  * and every screen. The
  * writes go to the fake workbook kept in this browser. Each screen collapses and expands a card, and
  * the payee breakdown has to stay inside the window and off its own row.

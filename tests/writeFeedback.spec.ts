@@ -9,7 +9,7 @@ import type { WorkbookStore, BooksRead } from '../src/shared/storage/application
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import type { WriteOptions } from '../src/shared/storage/application/writeQueue'
 import { trackWrite, writesInFlight } from '../src/shared/storage/application/writesInFlight'
-import { GoogleApiError } from '../src/shared/google/googleApi'
+import { GoogleApiError, GoogleTimedOut } from '../src/shared/google/googleApi'
 import { words } from '../src/shared/storage/presentation/words'
 import { useRecordWrites } from '../src/shared/storage/presentation/useRecordWrites'
 
@@ -18,7 +18,7 @@ interface ToastShown {
   readonly title?: string
   readonly description?: string
   readonly orientation?: string
-  readonly actions?: readonly unknown[]
+  readonly actions?: readonly { readonly label?: string; readonly onClick?: () => void }[]
 }
 
 const toasts = ref<ToastShown[]>([])
@@ -187,6 +187,33 @@ describe('what a toast says of a write', () => {
 
     expect(toasts.value).toHaveLength(1)
     expect(toasts.value[0]?.description).toBe(`First, Second: ${words.driveFailed}`)
+  })
+
+  it('says a Drive request that gave up waiting in the same sentence, with Try again that asks for each named write again in order', async () => {
+    toasts.value = []
+    const asked: string[] = []
+    const store = {
+      state: shallowReactive({ waiting: [], writes: [] }),
+      write: async (title: string) => {
+        asked.push(title)
+        throw new GoogleTimedOut()
+      },
+      undo: async () => {},
+    } as unknown as Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>
+    const writes = useRecordWrites(store)
+    await writes.write('First', () => {})
+    await writes.write('Second', () => {})
+
+    expect(toasts.value).toHaveLength(1)
+    expect(toasts.value[0]?.description).toBe(`First, Second: ${words.driveFailed}`)
+    const tryAgain = toasts.value[0]?.actions?.find((action) => action.label === words.tryAgain)
+    expect(tryAgain).toBeDefined()
+
+    toasts.value = []
+    tryAgain?.onClick?.()
+    await vi.waitFor(() => expect(asked).toEqual(['First', 'Second', 'First', 'Second']))
+    // Both failed again, and the new toast names each once, not with the two before.
+    await vi.waitFor(() => expect(toasts.value[0]?.description).toBe(`First, Second: ${words.driveFailed}`))
   })
 
   it('gives the reason of a refusal under its title alone, so the title of a write that did not happen never leads it', async () => {

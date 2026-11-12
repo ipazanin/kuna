@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { BankScriptFailure } from '../src/apps/spending/bankSync/application/bankSync'
 import { appsScriptBankSync } from '../src/apps/spending/bankSync/infrastructure/appsScriptBankSync'
+import { words as googleWords } from '../src/shared/google/words'
+import { hangingFetch } from './fixtures/hangingFetch'
 import { civil } from './fixtures/ledger'
 
 /** Answers every request with the body given, and keeps the requests. */
@@ -21,6 +23,21 @@ const port = appsScriptBankSync('AKfycb-made-up', () => 'script-token')
 
 afterEach(() => {
   vi.unstubAllGlobals()
+})
+
+describe('a run of the script that never answers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('gives up after seven minutes, past the six Apps Script allows a run, and says Google did not answer in time', async () => {
+    const google = hangingFetch()
+    const sessions = port.sessions()
+    google.giveUp()
+
+    await expect(sessions).rejects.toThrow(googleWords.googleTimedOut)
+    expect(google.waits).toEqual([420_000])
+  })
 })
 
 describe('appsScriptBankSync', () => {

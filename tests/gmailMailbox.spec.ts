@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MailRateLimited } from '../src/shared/mail-filing/application/mailFiling'
 import { gmailMailbox } from '../src/shared/mail-filing/infrastructure/gmailMailbox'
 import { googleMailFolders } from '../src/shared/mail-filing/infrastructure/googleMailFolders'
+import { GoogleTimedOut } from '../src/shared/google/googleApi'
+import { hangingFetch } from './fixtures/hangingFetch'
 
 /** A Google that answers each request with what the handler gives for its URL, and records every request. */
 function stubGoogle(answer: (url: URL) => unknown): URL[] {
@@ -302,5 +304,24 @@ describe('googleMailFolders making a file', () => {
     const upload = requests.find((request) => request.url.pathname.startsWith('/upload'))!
     expect(JSON.parse(/\r\n\r\n(\{.*\})\r\n/.exec(upload.body)![1]!)).toMatchObject({ parents: ['y2031'] })
     expect(requests.some((request) => request.url.searchParams.get('q')?.startsWith("'root'"))).toBe(false)
+  })
+})
+
+describe('a Gmail that never answers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('gives up on a search after half a minute and on an attachment after three, and sends neither again', async () => {
+    const google = hangingFetch()
+    const mailbox = gmailMailbox('token', async () => {})
+    const search = mailbox.search('q', null)
+    const attachment = mailbox.attachment('m1', 'a1')
+    google.giveUp()
+
+    await expect(search).rejects.toBeInstanceOf(GoogleTimedOut)
+    await expect(attachment).rejects.toBeInstanceOf(GoogleTimedOut)
+    expect(google.waits).toEqual([30_000, 180_000])
   })
 })

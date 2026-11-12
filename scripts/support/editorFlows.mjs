@@ -2371,7 +2371,7 @@ export async function savesWaitingBenchmarkFlow(page, { press, shoot }) {
   if ((await savingControl(page, selector)).value === was) throw new Error('the select went back after its save landed')
 }
 
-/** Settings, General, with a save that fails: the switch moves at once, then flips back, and a toast says why. */
+/** Settings, General, with a save that fails: the switch moves at once, then flips back, a toast says why, and its Try again saves it. */
 export async function saveFailsFlow(page, { press, shoot }) {
   const handle = await page.waitForSelector(LOAN_SWITCH, { visible: true, timeout: 10_000 })
   await handle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
@@ -2379,7 +2379,8 @@ export async function saveFailsFlow(page, { press, shoot }) {
   const { value: was } = await savingControl(page, LOAN_SWITCH)
   await press(handle)
   await controlSaving(page, LOAN_SWITCH, was)
-  const plainSentence = (await page.evaluate(() => document.documentElement.lang)) === 'hr' ? writesCroatian.driveFailed : writesEnglish.driveFailed
+  const writes = (await page.evaluate(() => document.documentElement.lang)) === 'hr' ? writesCroatian : writesEnglish
+  const plainSentence = writes.driveFailed
   await page
     .waitForFunction((sentence) => [...document.querySelectorAll('[data-slot="description"]')].some((toast) => toast.textContent?.endsWith(`: ${sentence}`)), { timeout: 15_000 }, plainSentence)
     .catch(() => {
@@ -2387,7 +2388,31 @@ export async function saveFailsFlow(page, { press, shoot }) {
     })
   await controlLanded(page, LOAN_SWITCH)
   if ((await savingControl(page, LOAN_SWITCH)).value !== was) throw new Error('the switch did not flip back after its save failed')
+  const tryAgain = await page
+    .waitForFunction((label) => [...document.querySelectorAll('[data-slot="actions"] button')].find((button) => button.textContent?.trim() === label) ?? null, { timeout: 5_000 }, writes.tryAgain)
+    .catch(() => {
+      throw new Error('the toast of the failed save offers no Try again')
+    })
+  // The toast slides in, so the shot waits until it stands still and Try again sits inside the window.
+  await page
+    .waitForFunction(
+      (button) => {
+        const box = button.getBoundingClientRect()
+        const still = window.tryAgainLeft === box.left
+        window.tryAgainLeft = box.left
+        return still && box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight
+      },
+      { polling: 100, timeout: 5_000 },
+      tryAgain,
+    )
+    .catch(() => {
+      throw new Error('Try again on the toast of the failed save does not settle inside the window')
+    })
   await shoot(await shotInLanguage(page, 'save-fails'))
+  await press(tryAgain.asElement())
+  await controlSaving(page, LOAN_SWITCH, was)
+  await controlLanded(page, LOAN_SWITCH)
+  if ((await savingControl(page, LOAN_SWITCH)).value === was) throw new Error('the switch went back after Try again saved it')
 }
 
 export async function syncRunningFlow(page, { press, shoot, inspect }) {
@@ -9023,16 +9048,18 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
     await pressSelector(page, press, '[data-testid="workbook-import-next"]')
     if (variant === 'typed') {
       await importStep(page, 'questions')
-      const rows = await page.$$('[data-testid="import-look-alike"]')
+      const rows = await page.$$('[data-testid="import-look-alikes"] [data-testid="question"]')
       if (rows.length !== 2) throw new Error(`the questions step asks about ${rows.length} rows like records Kuna has, not 2`)
       await inspect?.('the rows like records Kuna has')
       await shoot('investments-mail-look-alikes')
       // The first row is the deposit Kuna has, and the second another withdrawal.
-      const answer = async (row, button) => press((await page.$$(`[data-testid="import-look-alike"]:nth-child(${row}) [data-testid="import-look-alike-choice"] button`))[button])
+      const answer = async (row, button) => press((await page.$$(`[data-testid="import-look-alikes"] [data-testid="question"]:nth-child(${row}) [data-testid="question-choice"] button`))[button])
       await answer(1, 1)
       await answer(2, 2)
       await delay(300)
-      const pressed = await page.$$eval('[data-testid="import-look-alike-choice"] button[aria-pressed="true"]', (buttons) => buttons.map((button) => button.textContent.trim()))
+      const pressed = await page.$$eval('[data-testid="import-look-alikes"] [data-testid="question-choice"] button[aria-pressed="true"]', (buttons) =>
+        buttons.map((button) => button.textContent.trim()),
+      )
       if (pressed.length !== 2 || pressed[0] === pressed[1]) throw new Error(`the answers to the rows like records Kuna has did not hold: ${pressed.join(', ')}`)
       await inspect?.('the rows like records Kuna has, answered')
       await shoot('investments-mail-look-alikes-answered')
@@ -9040,12 +9067,12 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
     }
     if (variant === 'unseen') {
       await importStep(page, 'questions')
-      const rows = await page.$$('[data-testid="import-asked-row"]')
+      const rows = await page.$$('[data-testid="import-asked"] [data-testid="question"]')
       // Each of the two mails adds six unseen rows on its own first day, so twelve rows are asked about, each once.
       if (rows.length !== 12) throw new Error(`the questions step asks about ${rows.length} rows, not 12`)
       await inspect?.('the rows not seen yet')
       await shoot('investments-mail-asked')
-      const leaveOut = await page.$('[data-testid="import-asked-row"] [data-testid="import-asked-choice"] button:last-child')
+      const leaveOut = await page.$('[data-testid="import-asked"] [data-testid="question-choice"] button:last-child')
       if (leaveOut === null) throw new Error('a row not seen yet offers no way to leave it out')
       await press(leaveOut)
       await pressSelector(page, press, '[data-testid="workbook-import-next"]')

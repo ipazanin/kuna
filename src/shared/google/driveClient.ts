@@ -1,7 +1,10 @@
 import { startsAtBooksFolder } from '../text/folderPath'
 import { words as textWords } from '../text/words'
-import { googleFetch } from './googleApi'
+import { ANSWER_WAIT_MS, googleRequest, noAnswer } from './googleApi'
 import { words } from './words'
+
+/** How long a request that carries a file's content waits. Drive takes at most 5 MB in one media upload, about 110 seconds on a 384 kbit/s phone connection. */
+const CONTENT_WAIT_MS = 120_000
 
 const DRIVE_FILES_API = 'https://www.googleapis.com/drive/v3/files'
 const DRIVE_UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3/files'
@@ -78,8 +81,13 @@ export async function listChildren<Field extends keyof DriveFile>(
     if (pageToken !== undefined) {
       parameters.set('pageToken', pageToken)
     }
-    const response = await googleFetch(`${DRIVE_FILES_API}?${parameters}`, accessToken)
-    const page = (await response.json()) as { files?: Pick<DriveFile, Field>[]; nextPageToken?: string }
+    const page = await googleRequest(
+      `${DRIVE_FILES_API}?${parameters}`,
+      accessToken,
+      {},
+      (response) => response.json() as Promise<{ files?: Pick<DriveFile, Field>[]; nextPageToken?: string }>,
+      ANSWER_WAIT_MS,
+    )
     files.push(...(page.files ?? []))
     pageToken = page.nextPageToken
   } while (pageToken !== undefined)
@@ -147,15 +155,19 @@ function inAnyOf(folderIds: readonly string[]): string {
 
 /** The contents of a file that is not a Google document, never from the browser's HTTP cache, which could hold an older revision. */
 export async function downloadFile(accessToken: string, fileId: string): Promise<ArrayBuffer> {
-  const response = await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?alt=media`, accessToken, { cache: 'no-store' })
-  return response.arrayBuffer()
+  return googleRequest(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?alt=media`, accessToken, { cache: 'no-store' }, (response) => response.arrayBuffer(), CONTENT_WAIT_MS)
 }
 
 /** One file's fields, never from the browser's HTTP cache, which could hold an older head revision. */
 export async function getFile<Field extends keyof DriveFile>(accessToken: string, fileId: string, fields: readonly Field[]): Promise<Pick<DriveFile, Field>> {
   const query = new URLSearchParams({ fields: fields.join(',') })
-  const response = await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?${query}`, accessToken, { cache: 'no-store' })
-  return (await response.json()) as Pick<DriveFile, Field>
+  return googleRequest(
+    `${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?${query}`,
+    accessToken,
+    { cache: 'no-store' },
+    (response) => response.json() as Promise<Pick<DriveFile, Field>>,
+    ANSWER_WAIT_MS,
+  )
 }
 
 /** Deeper than any folder a person keeps books in, so a loop in the parents cannot run on. */
@@ -192,12 +204,17 @@ export async function filesWithAppProperty<Field extends keyof DriveFile>(access
 
 /** Makes a folder in the parent, or at the top of My Drive for a null parent, where Drive puts a file that names none. */
 export async function createFolder(accessToken: string, parentId: string | null, name: string, appProperties?: Readonly<Record<string, string>>): Promise<Pick<DriveFile, 'id' | 'name' | 'mimeType'>> {
-  const response = await googleFetch(`${DRIVE_FILES_API}?fields=id,name,mimeType`, accessToken, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, mimeType: FOLDER_MIME_TYPE, ...(appProperties === undefined ? {} : { appProperties }), ...(parentId === null ? {} : { parents: [parentId] }) }),
-  })
-  return (await response.json()) as Pick<DriveFile, 'id' | 'name' | 'mimeType'>
+  return googleRequest(
+    `${DRIVE_FILES_API}?fields=id,name,mimeType`,
+    accessToken,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, mimeType: FOLDER_MIME_TYPE, ...(appProperties === undefined ? {} : { appProperties }), ...(parentId === null ? {} : { parents: [parentId] }) }),
+    },
+    (response) => response.json() as Promise<Pick<DriveFile, 'id' | 'name' | 'mimeType'>>,
+    ANSWER_WAIT_MS,
+  )
 }
 
 /** Creates a file with its metadata and content in one multipart upload. */
@@ -208,12 +225,13 @@ export async function createFile<Field extends keyof DriveFile>(accessToken: str
     { type: `multipart/related; boundary=${boundary}` },
   )
   const query = new URLSearchParams({ uploadType: 'multipart', fields: fields.join(',') })
-  const response = await googleFetch(`${DRIVE_UPLOAD_API}?${query}`, accessToken, {
-    method: 'POST',
-    headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-    body,
-  })
-  return (await response.json()) as Pick<DriveFile, Field>
+  return googleRequest(
+    `${DRIVE_UPLOAD_API}?${query}`,
+    accessToken,
+    { method: 'POST', headers: { 'Content-Type': `multipart/related; boundary=${boundary}` }, body },
+    (response) => response.json() as Promise<Pick<DriveFile, Field>>,
+    CONTENT_WAIT_MS,
+  )
 }
 
 /**
@@ -225,45 +243,53 @@ export async function uploadContent(accessToken: string, fileId: string, content
   if (keepForever) {
     query.set('keepRevisionForever', 'true')
   }
-  const response = await googleFetch(`${DRIVE_UPLOAD_API}/${encodeURIComponent(fileId)}?${query}`, accessToken, {
-    method: 'PATCH',
-    headers: { 'Content-Type': mimeType },
-    body: new Blob([content], { type: mimeType }),
-  })
-  return ((await response.json()) as Pick<DriveFile, 'headRevisionId'>).headRevisionId
+  const uploaded = await googleRequest(
+    `${DRIVE_UPLOAD_API}/${encodeURIComponent(fileId)}?${query}`,
+    accessToken,
+    { method: 'PATCH', headers: { 'Content-Type': mimeType }, body: new Blob([content], { type: mimeType }) },
+    (response) => response.json() as Promise<Pick<DriveFile, 'headRevisionId'>>,
+    CONTENT_WAIT_MS,
+  )
+  return uploaded.headRevisionId
 }
 
 /** Moves a file or a folder from one folder to another in one request, with these properties set by the same request. Its id and its revisions stay as they are. */
 export async function moveFile(accessToken: string, fileId: string, fromParentId: string, toParentId: string, appProperties?: Readonly<Record<string, string>>): Promise<void> {
   const query = new URLSearchParams({ addParents: toParentId, removeParents: fromParentId, fields: 'id' })
-  await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?${query}`, accessToken, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(appProperties === undefined ? {} : { appProperties }),
-  })
+  await googleRequest(
+    `${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?${query}`,
+    accessToken,
+    { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(appProperties === undefined ? {} : { appProperties }) },
+    noAnswer,
+    ANSWER_WAIT_MS,
+  )
 }
 
 /** Sets a property only this app sees, or removes it for null. A property is metadata, so the file's content and revisions stay as they are. */
 export async function setAppProperty(accessToken: string, fileId: string, key: string, value: string | null): Promise<void> {
-  await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?fields=id`, accessToken, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ appProperties: { [key]: value } }),
-  })
+  await googleRequest(
+    `${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?fields=id`,
+    accessToken,
+    { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appProperties: { [key]: value } }) },
+    noAnswer,
+    ANSWER_WAIT_MS,
+  )
 }
 
 /** Moves a file to the bin, from which a person can still restore it for 30 days. */
 export async function trashFile(accessToken: string, fileId: string): Promise<void> {
-  await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?fields=id`, accessToken, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ trashed: true }),
-  })
+  await googleRequest(
+    `${DRIVE_FILES_API}/${encodeURIComponent(fileId)}?fields=id`,
+    accessToken,
+    { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) },
+    noAnswer,
+    ANSWER_WAIT_MS,
+  )
 }
 
 /** Deletes a file for good, without the bin. The only way to remove a file in the app's hidden folder, which Drive does not let into the bin. */
 export async function deleteFile(accessToken: string, fileId: string): Promise<void> {
-  await googleFetch(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}`, accessToken, { method: 'DELETE' })
+  await googleRequest(`${DRIVE_FILES_API}/${encodeURIComponent(fileId)}`, accessToken, { method: 'DELETE' }, noAnswer, ANSWER_WAIT_MS)
 }
 
 /** Every revision of a file's content, in Drive's order, read page by page and never from the browser's HTTP cache. */
@@ -275,8 +301,13 @@ export async function listRevisions(accessToken: string, fileId: string): Promis
     if (pageToken !== undefined) {
       parameters.set('pageToken', pageToken)
     }
-    const response = await googleFetch(`${revisionsOf(fileId)}?${parameters}`, accessToken, { cache: 'no-store' })
-    const page = (await response.json()) as { revisions?: DriveRevision[]; nextPageToken?: string }
+    const page = await googleRequest(
+      `${revisionsOf(fileId)}?${parameters}`,
+      accessToken,
+      { cache: 'no-store' },
+      (response) => response.json() as Promise<{ revisions?: DriveRevision[]; nextPageToken?: string }>,
+      ANSWER_WAIT_MS,
+    )
     revisions.push(...(page.revisions ?? []).map((revision) => ({ ...revision, keepForever: revision.keepForever === true })))
     pageToken = page.nextPageToken
   } while (pageToken !== undefined)
@@ -285,13 +316,12 @@ export async function listRevisions(accessToken: string, fileId: string): Promis
 
 /** The content of one revision. Drive downloads only a revision kept forever, or the head. */
 export async function downloadRevision(accessToken: string, fileId: string, revisionId: string): Promise<ArrayBuffer> {
-  const response = await googleFetch(`${revisionsOf(fileId)}/${encodeURIComponent(revisionId)}?alt=media`, accessToken)
-  return response.arrayBuffer()
+  return googleRequest(`${revisionsOf(fileId)}/${encodeURIComponent(revisionId)}?alt=media`, accessToken, {}, (response) => response.arrayBuffer(), CONTENT_WAIT_MS)
 }
 
 /** Deletes a revision for good, which frees its place among the 200 kept ones. Drive refuses to clear `keepForever`, so this is the only way to free it. */
 export async function deleteRevision(accessToken: string, fileId: string, revisionId: string): Promise<void> {
-  await googleFetch(`${revisionsOf(fileId)}/${encodeURIComponent(revisionId)}`, accessToken, { method: 'DELETE' })
+  await googleRequest(`${revisionsOf(fileId)}/${encodeURIComponent(revisionId)}`, accessToken, { method: 'DELETE' }, noAnswer, ANSWER_WAIT_MS)
 }
 
 function revisionsOf(fileId: string): string {

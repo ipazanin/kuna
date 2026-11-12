@@ -5,17 +5,22 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import type { DryRunLine } from '../domain/statementDryRun'
 import { isBankSyncKey } from '../domain/statementRows'
+import { rowCaption, rowTitle } from './rowParts'
 import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 
 /** Each row of a statement and what importing it would do. */
-const props = defineProps<{ lines: readonly DryRunLine[] }>()
+const props = defineProps<{
+  lines: readonly DryRunLine[]
+  /** Whether questions about rows sit above the list, which a line then parts it from. */
+  belowQuestions: boolean
+}>()
 
 const { state } = useSpendingBooks()
 
@@ -31,7 +36,7 @@ const shown = computed(() => {
     return {
       line,
       outcome,
-      account: accounts.get(line.row.account) ?? null,
+      account: accounts.get(line.row.account),
       skipped: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'outside-days' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
     }
   })
@@ -75,24 +80,23 @@ function cashOutcomeOf(cashLeg: Transaction | null): { readonly label: string; r
 </script>
 
 <template>
-  <ul class="divide-y divide-default rounded-control border border-default" data-testid="spending-dry-run-rows">
-    <li v-for="({ line, outcome, account, skipped }, place) in shown" :key="place" class="flex flex-col gap-1 px-3 py-2.5" data-testid="spending-dry-run-row">
-      <span class="flex items-start gap-3">
-        <span class="flex min-w-0 flex-1 flex-col gap-1">
-          <span class="break-words text-sm" :class="skipped ? 'text-muted' : 'text-highlighted'">{{ line.row.payee }}</span>
-          <span class="break-words type-caption">{{ [dayLabel(line.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ') }}</span>
-          <UBadge :label="outcome.label" :color="outcome.color" variant="subtle" size="sm" class="self-start" data-testid="spending-dry-run-outcome" />
-        </span>
-        <AccountMoneyText
-          :cents="line.row.amount"
-          :currency="account?.currency ?? EURO"
-          sign="always"
-          :tone="skipped ? undefined : 'flow'"
-          class="shrink-0 text-sm"
-          :class="{ 'text-muted': skipped }"
-        />
-      </span>
-    </li>
+  <ul class="flex flex-col divide-y divide-default" :class="{ 'border-t border-default': belowQuestions }" data-testid="spending-dry-run-rows">
+    <ProposalRow
+      v-for="({ line, outcome, account, skipped }, place) in shown"
+      :key="place"
+      :title="rowTitle(line.row)"
+      :caption="rowCaption(line.row, account)"
+      :quiet="skipped"
+      flush
+      data-testid="spending-dry-run-row"
+    >
+      <template #details>
+        <UBadge :label="outcome.label" :color="outcome.color" variant="subtle" size="sm" class="mt-1 self-start" data-testid="spending-dry-run-outcome" />
+      </template>
+      <template #amount>
+        <AccountMoneyText :cents="line.row.amount" :currency="account?.currency ?? EURO" sign="always" :tone="skipped ? undefined : 'flow'" :class="{ 'text-muted': skipped }" />
+      </template>
+    </ProposalRow>
   </ul>
   <ShowAllButton v-if="lines.length > FIRST_SHOWN" v-model:expanded="allShown" :total="lines.length" class="self-start" />
 </template>

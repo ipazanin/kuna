@@ -51,12 +51,13 @@ function rowParts(row: Pick<Transaction, 'counterparty' | 'description' | 'amoun
   return [row.counterparty || row.description, formatMoney(row.amount), dayLabel(row.date)].filter((part) => part !== '')
 }
 
-/** A copied row's question, its own amount in the column beside its words and the row it looks like in a sentence under them. */
+/** A copied row's question, named as the rows under it are, its own amount in the column beside its words and the row it looks like in a sentence under them. */
 const twinItems = computed(() =>
   props.statement.questions.map((question): QuestionItem<TwinChoice> & { readonly amount: Money } => ({
     key: question.key,
-    row: [question.row.counterparty || question.row.description, dayLabel(question.row.date)].filter((part) => part !== '').join(' · '),
-    caption: likeCaption('copied', rowParts(question.copied)),
+    row: question.row.counterparty || question.row.description || words.statement.noCounterparty,
+    caption: dayLabel(question.row.date),
+    note: likeCaption('copied', rowParts(question.copied)),
     choice: question.keep ?? 'later',
     amount: question.row.amount,
   })),
@@ -165,7 +166,7 @@ function grouped(iban: string): string {
             </span>
           </template>
           <template #amount>
-            <MoneyText :cents="row.amount" :tone="row.inLedger ? undefined : 'flow'" :class="{ 'text-muted': row.inLedger }" />
+            <MoneyText :cents="row.amount" sign="always" :tone="row.inLedger ? undefined : 'flow'" :class="{ 'text-muted': row.inLedger }" />
             <MoneyText v-if="row.balance !== null" :cents="row.balance" class="type-caption" />
           </template>
         </ProposalRow>

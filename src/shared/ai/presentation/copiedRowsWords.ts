@@ -44,6 +44,7 @@ const en = {
   likeCopied: (row: string) => `Looks like a row the AI copied: ${row}`,
   likeSynced: (row: string) => `Looks like a row the bank sync brought: ${row}`,
   likeFiled: (row: string) => `Looks like a row a file brought: ${row}`,
+  likeKept: (row: string) => `Looks like a row Kuna has: ${row}`,
   twins: {
     title: 'Rows that look like ones Kuna has',
     intro: (days: number) =>
@@ -102,6 +103,7 @@ const hr = {
   likeCopied: (row: string) => `Nalikuje retku koji je AI prepisao: ${row}`,
   likeSynced: (row: string) => `Nalikuje retku koji je donijela sinkronizacija s bankom: ${row}`,
   likeFiled: (row: string) => `Nalikuje retku koji je donijela datoteka: ${row}`,
+  likeKept: (row: string) => `Nalikuje retku koji Kuna ima: ${row}`,
   twins: {
     title: 'Retci nalik onima koje Kuna ima',
     intro: (days: number) =>
@@ -162,10 +164,19 @@ export function lookAlikesNote(lookAlikes: readonly CopiedLookAlike[], phrase: L
   }
 }
 
-/** The caption under a row that names the row it looks like, given as its parts in the app's own format, by where that row came from. */
-export function likeCaption(source: 'copied' | 'sync' | 'file', booked: readonly string[]): string {
+/** The caption under a row that names the row it looks like, given as its parts in the app's own format, by where that row came from, or `kept` where Kuna does not keep that. */
+export function likeCaption(source: 'copied' | 'sync' | 'file' | 'kept', booked: readonly string[]): string {
   const row = booked.join(', ')
-  return source === 'copied' ? words.likeCopied(row) : source === 'sync' ? words.likeSynced(row) : words.likeFiled(row)
+  switch (source) {
+    case 'copied':
+      return words.likeCopied(row)
+    case 'sync':
+      return words.likeSynced(row)
+    case 'file':
+      return words.likeFiled(row)
+    case 'kept':
+      return words.likeKept(row)
+  }
 }
 
 /** What Kuna asks of rows that look like rows it has from another source, on Import, on the bank sync's card and on To review. */

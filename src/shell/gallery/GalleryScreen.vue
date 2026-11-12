@@ -239,8 +239,9 @@ type GalleryAnswer = (typeof GALLERY_ANSWERS)[number]['value']
 const galleryAnswers = ref<Readonly<Record<string, GalleryAnswer>>>({ bakery: 'both' })
 const galleryQuestions = computed(() =>
   [
-    { key: 'market', row: 'Corner market · 9 Nov 2026 · Main account', caption: 'Looks like: CORNER MARKET LTD, −12.30 €, 10 Nov 2026', amount: moneyFromCents(-1230) },
-    { key: 'bakery', row: 'Bakery · 8 Nov 2026 · Main account', caption: 'Looks like: BAKERY 22, −4.20 €, 8 Nov 2026', amount: moneyFromCents(-420) },
+    { key: 'market', row: 'Corner market', caption: '9 Nov 2026 · Main account', note: 'Looks like: CORNER MARKET LTD, −12.30 €, 10 Nov 2026', amount: moneyFromCents(-1230) },
+    { key: 'bakery', row: 'Bakery', caption: '8 Nov 2026 · Main account', note: 'Looks like: BAKERY 22, −4.20 €, 8 Nov 2026', amount: moneyFromCents(-420) },
+    { key: 'pharmacy', row: 'Pharmacy', caption: '7 Nov 2026 · Main account', amount: moneyFromCents(-1890) },
   ].map((item) => ({ ...item, choice: galleryAnswers.value[item.key] ?? ('later' as const) })),
 )
 const GALLERY_RECEIPT_WAYS = [

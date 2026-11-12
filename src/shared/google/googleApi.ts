@@ -1,3 +1,16 @@
+import { words } from './words'
+
+/** How long a Google request that carries no file waits for its answer. A healthy Google API answers in a second or two. */
+export const ANSWER_WAIT_MS = 30_000
+
+/** A Google request that gave no full answer within its wait. One that sent something may still have reached Google. */
+export class GoogleTimedOut extends Error {
+  constructor() {
+    super(words.googleTimedOut)
+    this.name = 'GoogleTimedOut'
+  }
+}
+
 /** A failed Google REST call, with the status and the raw body Google sent back. */
 export class GoogleApiError extends Error {
   readonly status: number
@@ -24,15 +37,29 @@ function reasonOf(body: string): string | null {
   }
 }
 
-export async function googleFetch(url: string, accessToken: string, init: RequestInit = {}): Promise<Response> {
+/**
+ * Google's answer as `read` takes it from the response, within the wait, its body included, or `GoogleApiError` for a refusal.
+ * Firefox fails a body read cut short with an `AbortError` and Chrome with a `TimeoutError`, so the wait running out is told
+ * by the signal and not by the error.
+ */
+export async function googleRequest<Answer>(url: string, accessToken: string, init: RequestInit, read: (response: Response) => Promise<Answer>, waitMs: number): Promise<Answer> {
   const headers = new Headers(init.headers)
   headers.set('Authorization', `Bearer ${accessToken}`)
-  const response = await fetch(url, { ...init, headers })
-  if (!response.ok) {
-    throw new GoogleApiError(url, response.status, await response.text())
+  const signal = AbortSignal.timeout(waitMs)
+  try {
+    const response = await fetch(url, { ...init, headers, signal })
+    if (!response.ok) {
+      throw new GoogleApiError(url, response.status, await response.text())
+    }
+    return await read(response)
+  } catch (failure) {
+    if (signal.aborted) throw new GoogleTimedOut()
+    throw failure
   }
-  return response
 }
+
+/** For a request whose answer says nothing the caller needs. */
+export async function noAnswer(): Promise<void> {}
 
 /** Whether Google turned the call's token away, as it does once the token runs out or loses its grant. */
 export function isUnauthorized(failure: unknown): boolean {

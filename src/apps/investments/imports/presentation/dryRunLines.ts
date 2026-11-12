@@ -18,6 +18,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { AskedRow, AskedWhy } from '../../../../shared/recipes/domain/runRecipe'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { plural } from '../../../../shared/text/translation'
+import { likeCaption } from '../../../../shared/ai/presentation/copiedRowsWords'
 
 /** The places a cell of the workbook keeps, so a figure worth a look shows the digits it was read with. */
 const CELL_PLACES = 12
@@ -218,7 +219,7 @@ export function lookAlikesOf(dryRun: WorkbookDryRun, book: InvestmentBook, rates
       fileRow: row.fileRow,
       row: [capitalised(words.dryRun.row(row.fileRow)), ...rowParts(row, accountName)],
       record,
-      line: rowLine(key, row, rowsLabelOf(rows), accountName, words.questions.lookAlikeKept(record.join(', '))),
+      line: rowLine(key, row, rowsLabelOf(rows), accountName, likeCaption('kept', record)),
     }
   })
 }

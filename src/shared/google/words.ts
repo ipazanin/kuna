@@ -24,6 +24,7 @@ export const en = {
   /** Why a folder path leads nowhere, as a refusal starts it. */
   noFolder: (where: string, name: string) => `${where} holds no folder named "${name}"`,
   severalFolders: (where: string, count: number, name: string) => `${where} holds ${count} folders named "${name}"`,
+  googleTimedOut: 'Google did not answer in time, so Kuna stopped waiting.',
 }
 
 export const hr: Translation<typeof en> = {
@@ -45,6 +46,7 @@ export const hr: Translation<typeof en> = {
   booksFolder: 'Mapa datoteke',
   noFolder: (where, name) => `${where} nema mapu „${name}”`,
   severalFolders: (where, count, name) => `${where} ima ${plural({ one: `${count} mapu`, few: `${count} mape`, other: `${count} mapa` }, count)} naziva „${name}”`,
+  googleTimedOut: 'Google nije odgovorio na vrijeme, pa je Kuna prestala čekati.',
 }
 
 export const words = language === 'hr' ? hr : en

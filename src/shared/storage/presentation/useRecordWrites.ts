@@ -39,7 +39,8 @@ const SAVE_KEY = 'save'
 let composablesMade = 0
 
 const DRIVE_FAILED_TOAST = 'drive-failed'
-let titlesFailedOnDrive: readonly string[] = []
+/** The writes and undos the shared Drive toast names, each with how to ask for it again. */
+let failedOnDriveSoFar: readonly { readonly title: string; readonly again: () => Promise<unknown> }[] = []
 
 export interface RecordWrites {
   /** True while a write of this composable waits or runs. */
@@ -73,18 +74,31 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
 
   /**
    * Says why a write failed. Writes that fail on Drive share one toast that names each, since a queue offline would otherwise
-   * say the same sentence once for each. A refused write gives its reason under the title alone, since its title says what it
-   * would have done. A write that may not have finished and an undo name the write.
+   * say the same sentence once for each, and its Try again asks for each again in order. The queue checks each on a fresh read,
+   * so one that reached Drive before it failed is refused rather than written twice. A refused write gives its reason under the
+   * title alone, since its title says what it would have done. A write that may not have finished and an undo name the write.
    */
-  function refused(title: string, failure: unknown, writeTitle: string, naming: 'drive-only' | 'always'): void {
+  function refused(title: string, failure: unknown, writeTitle: string, naming: 'drive-only' | 'always', again: () => Promise<unknown>): void {
     const shared = { title, icon: 'i-lucide-triangle-alert', color: 'error' as const, duration: UNDO_TOAST_DURATION }
     if (failedOnDrive(failure)) {
-      titlesFailedOnDrive = toast.toasts.value.some((shown) => shown.id === DRIVE_FAILED_TOAST) ? [...titlesFailedOnDrive, writeTitle] : [writeTitle]
-      toast.add({ ...shared, id: DRIVE_FAILED_TOAST, description: `${titlesFailedOnDrive.join(', ')}: ${words.driveFailed}` })
+      const failed = { title: writeTitle, again }
+      failedOnDriveSoFar = toast.toasts.value.some((shown) => shown.id === DRIVE_FAILED_TOAST) ? [...failedOnDriveSoFar, failed] : [failed]
+      toast.add({
+        ...shared,
+        id: DRIVE_FAILED_TOAST,
+        description: `${failedOnDriveSoFar.map((named) => named.title).join(', ')}: ${words.driveFailed}`,
+        actions: [{ label: words.tryAgain, icon: 'i-lucide-rotate-cw', color: 'neutral' as const, variant: 'outline' as const, onClick: tryAgain }],
+      })
       return
     }
     const reason = writeFailureInWords(failure)
     toast.add({ ...shared, description: naming === 'always' ? `${writeTitle}: ${reason}` : reason })
+  }
+
+  function tryAgain(): void {
+    const failed = failedOnDriveSoFar
+    failedOnDriveSoFar = []
+    for (const { again } of failed) void again()
   }
 
   async function undo(write: SessionWrite): Promise<void> {
@@ -95,7 +109,7 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
       const description = write.shownAtOnce ? write.receipt.title : undone === undefined ? null : recordsChangeInWords(undone.receipt, undone.undid)
       toast.add({ title: words.undone, ...(description === null ? {} : { description }), icon: 'i-lucide-undo-2', color: 'neutral' })
     } catch (failure) {
-      refused(words.notUndone, failure, write.receipt.title, 'always')
+      refused(words.notUndone, failure, write.receipt.title, 'always', () => undo(write))
     } finally {
       running.value -= 1
     }
@@ -130,8 +144,9 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
       return true
     } catch (failure) {
       // Any other failure may come after the file took the save, such as an edit from outside the app during it.
-      if (failure instanceof WorkbookWriteRefused) refused(options.failedTitle ?? words.nothingWritten, failure, title, 'drive-only')
-      else refused(words.mayNotHaveFinished, failure, title, 'always')
+      const again = (): Promise<boolean> => write(title, work, options)
+      if (failure instanceof WorkbookWriteRefused) refused(options.failedTitle ?? words.nothingWritten, failure, title, 'drive-only', again)
+      else refused(words.mayNotHaveFinished, failure, title, 'always', again)
       return false
     } finally {
       running.value -= 1

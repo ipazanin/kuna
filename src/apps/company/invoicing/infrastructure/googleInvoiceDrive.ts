@@ -1,4 +1,4 @@
-import { googleFetch } from '../../../../shared/google/googleApi'
+import { googleRequest, noAnswer } from '../../../../shared/google/googleApi'
 import { createFile, createFolder, FOLDER_MIME_TYPE, listChildren, queryLiteral, uploadContent } from '../../../../shared/google/driveClient'
 import { pickFromDrive } from '../../../../shared/google/picker'
 import type { DriveEntry, InvoiceDrive, MailDrafts } from '../application/invoiceRun'
@@ -37,15 +37,20 @@ export function googleInvoiceDrive(accessToken: string): InvoiceDrive {
   }
 }
 
+/** How long saving a draft waits, since it carries the invoice's PDF, as long as a Drive upload of a file's content. */
+const DRAFT_WAIT_MS = 120_000
+
 /** Gmail drafts with a `gmail.compose` token. */
 export function gmailDrafts(accessToken: string): MailDrafts {
   return {
     async create(mail, attachment) {
-      await googleFetch(GMAIL_DRAFTS_API, accessToken, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: { raw: rawInvoiceMessage(mail, attachment.fileName, attachment.pdf) } }),
-      })
+      await googleRequest(
+        GMAIL_DRAFTS_API,
+        accessToken,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: { raw: rawInvoiceMessage(mail, attachment.fileName, attachment.pdf) } }) },
+        noAnswer,
+        DRAFT_WAIT_MS,
+      )
     },
   }
 }

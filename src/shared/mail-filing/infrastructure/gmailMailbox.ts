@@ -1,9 +1,12 @@
-import { backoff, googleFetch, isRateLimited } from '../../google/googleApi'
+import { ANSWER_WAIT_MS, backoff, googleRequest, isRateLimited } from '../../google/googleApi'
 import { MailRateLimited } from '../application/mailFiling'
 import type { Mailbox } from '../application/mailFiling'
 import type { MailAttachment } from '../domain/mailSource'
 
 const GMAIL_MESSAGES_API = 'https://gmail.googleapis.com/gmail/v1/users/me/messages'
+
+/** How long an attachment's download waits. Gmail takes files up to 25 MB, about 34 MB in base64, a little over two minutes at 2 Mbit/s. */
+const ATTACHMENT_WAIT_MS = 180_000
 
 /** The most ids `messages.list` gives in one page. */
 const PAGE_SIZE = '500'
@@ -42,10 +45,10 @@ function pauseFor(milliseconds: number): Promise<void> {
  * times, then throws `MailRateLimited`.
  */
 export function gmailMailbox(accessToken: string, pause: (milliseconds: number) => Promise<void> = pauseFor): Mailbox {
-  async function patiently(url: string): Promise<Response> {
+  async function patiently<Answer>(url: string, waitMs = ANSWER_WAIT_MS): Promise<Answer> {
     for (let retry = 0; ; retry += 1) {
       try {
-        return await googleFetch(url, accessToken)
+        return await googleRequest(url, accessToken, {}, (response) => response.json() as Promise<Answer>, waitMs)
       } catch (failure) {
         if (!isRateLimited(failure)) throw failure
         if (retry === RETRIES) throw new MailRateLimited()
@@ -58,19 +61,19 @@ export function gmailMailbox(accessToken: string, pause: (milliseconds: number) 
     async search(query, pageToken) {
       const parameters = new URLSearchParams({ q: query, maxResults: PAGE_SIZE })
       if (pageToken !== null) parameters.set('pageToken', pageToken)
-      const page = (await (await patiently(`${GMAIL_MESSAGES_API}?${parameters}`)).json()) as { messages?: { id: string }[]; nextPageToken?: string }
+      const page = await patiently<{ messages?: { id: string }[]; nextPageToken?: string }>(`${GMAIL_MESSAGES_API}?${parameters}`)
       return { ids: (page.messages ?? []).map((message) => message.id), next: page.nextPageToken ?? null }
     },
 
     async message(id) {
-      const message = (await (await patiently(`${GMAIL_MESSAGES_API}/${encodeURIComponent(id)}?format=full`)).json()) as { id: string; internalDate: string; payload: MessagePart }
+      const message = await patiently<{ id: string; internalDate: string; payload: MessagePart }>(`${GMAIL_MESSAGES_API}/${encodeURIComponent(id)}?format=full`)
       const subject = message.payload.headers?.find((header) => header.name.toLowerCase() === 'subject')?.value ?? ''
       return { id: message.id, subject, date: Number(message.internalDate), attachments: attachmentsOf(message.payload) }
     },
 
     async attachment(messageId, attachmentId) {
-      const response = await patiently(`${GMAIL_MESSAGES_API}/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`)
-      return bytesOfBase64Url(((await response.json()) as { data: string }).data)
+      const attachment = await patiently<{ data: string }>(`${GMAIL_MESSAGES_API}/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`, ATTACHMENT_WAIT_MS)
+      return bytesOfBase64Url(attachment.data)
     },
   }
 }

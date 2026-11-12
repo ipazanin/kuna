@@ -6,7 +6,6 @@ import USelect from '@nuxt/ui/components/Select.vue'
 
 import { askedLine, lookAlikesOf } from './dryRunLines'
 import type { LookAlike } from './dryRunLines'
-import ImportLines from './ImportLines.vue'
 import { accountNamer } from '../domain/importChoices'
 import type { AskedChoice, CostShareFault, SettledImport, SpinOffRowFault, SpinOffStep, SplitStep } from '../domain/importChoices'
 import type { WorkbookImport } from './useWorkbookImport'
@@ -17,6 +16,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCurrencyAmount, formatQuantity } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
+import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
@@ -87,14 +87,32 @@ function lookAlikeChoice(lookAlike: LookAlike): LookAlikeChoice {
   return answer.same ? 'same' : 'another'
 }
 
-function answerLookAlike(lookAlike: LookAlike, choice: LookAlikeChoice): void {
-  props.workbookImport.answerLookAlike(lookAlike.key, choice === 'later' ? null : { like: lookAlike.like, same: choice === 'same' })
+const lookAlikeQuestions = computed(() =>
+  lookAlikes.value.map((lookAlike) => ({
+    key: lookAlike.key,
+    row: lookAlike.line.title,
+    caption: lookAlike.line.caption,
+    note: lookAlike.line.note,
+    figure: lookAlike.line.figure,
+    choice: lookAlikeChoice(lookAlike),
+  })),
+)
+
+function answerLookAlike(key: string, choice: LookAlikeChoice): void {
+  const lookAlike = lookAlikes.value.find((asked) => asked.key === key)
+  if (lookAlike === undefined) return
+  props.workbookImport.answerLookAlike(key, choice === 'later' ? null : { like: lookAlike.like, same: choice === 'same' })
 }
 
 const askedItems: { value: AskedChoice; label: string }[] = [
   { value: 'hold', label: words.questions.askedHold },
   { value: 'leave-out', label: words.questions.askedLeaveOut },
 ]
+
+/** Each row the report's recipe asks about, its columns as the file writes them. */
+const askedQuestions = computed(() =>
+  askedRows.value.map((row) => ({ key: row.key, row: row.title, caption: '', columns: row.caption, note: row.note, choice: props.workbookImport.choices.value.asked[row.key] ?? 'hold' })),
+)
 
 function unlistedLine(step: SplitStep): string {
   return step.unlisted === null ? '' : words.questions.unlisted[step.unlisted](props.workbookImport.splitVendor)
@@ -145,39 +163,36 @@ function shareHelp(step: SpinOffStep): string {
   <div class="flex flex-col gap-6" data-testid="import-questions">
     <p class="type-body">{{ words.questions.intro }}</p>
 
-    <section v-if="lookAlikes.length > 0" class="flex flex-col gap-1" data-testid="import-look-alikes">
-      <h3 class="type-card-title">{{ twinWords.title }}</h3>
-      <p class="type-caption">{{ words.questions.lookAlikesIntro }}</p>
-      <ul class="flex flex-col">
-        <li v-for="lookAlike in lookAlikes" :key="lookAlike.key" class="flex flex-col gap-1 border-t border-default pb-4 first:border-t-0" data-testid="import-look-alike">
-          <ImportLines :lines="[lookAlike.line]" />
-          <ChoiceButtons
-            :model-value="lookAlikeChoice(lookAlike)"
-            :options="lookAlikeItems"
-            :label="words.questions.lookAlikeChoice"
-            data-testid="import-look-alike-choice"
-            @update:model-value="answerLookAlike(lookAlike, $event as LookAlikeChoice)"
-          />
-        </li>
-      </ul>
-    </section>
+    <QuestionList
+      v-if="lookAlikeQuestions.length > 0"
+      :items="lookAlikeQuestions"
+      :options="lookAlikeItems"
+      :label="words.questions.lookAlikeChoice"
+      :heading="twinWords.title"
+      :intro="words.questions.lookAlikesIntro"
+      data-testid="import-look-alikes"
+      @answer="answerLookAlike"
+    >
+      <template #amount="{ item }">
+        <span v-if="item.figure !== ''" class="figure text-muted">{{ item.figure }}</span>
+      </template>
+    </QuestionList>
 
-    <section v-if="askedRows.length > 0" class="flex flex-col gap-1" data-testid="import-asked">
-      <h3 class="type-card-title">{{ words.questions.asked }}</h3>
-      <p class="type-caption">{{ words.questions.askedIntro }}</p>
-      <ul class="flex flex-col">
-        <li v-for="row in askedRows" :key="row.key" class="flex flex-col gap-1 border-t border-default pb-4 first:border-t-0" data-testid="import-asked-row">
-          <ImportLines :lines="[row]" warns verbatim />
-          <ChoiceButtons
-            :model-value="workbookImport.choices.value.asked[row.key] ?? 'hold'"
-            :options="askedItems"
-            :label="words.questions.askedChoice"
-            data-testid="import-asked-choice"
-            @update:model-value="workbookImport.choose('asked', row.key, $event as AskedChoice)"
-          />
-        </li>
-      </ul>
-    </section>
+    <QuestionList
+      v-if="askedQuestions.length > 0"
+      :items="askedQuestions"
+      :options="askedItems"
+      :label="words.questions.askedChoice"
+      :heading="words.questions.asked"
+      :intro="words.questions.askedIntro"
+      data-testid="import-asked"
+      @answer="(key, choice) => workbookImport.choose('asked', key, choice)"
+    >
+      <template #details="{ item }">
+        <span v-if="item.columns !== ''" class="break-words type-caption identifier">{{ item.columns }}</span>
+        <span class="break-words type-caption">{{ item.note }}</span>
+      </template>
+    </QuestionList>
 
     <section v-if="asked.splits.length > 0" class="flex flex-col gap-1" data-testid="import-splits">
       <h3 class="type-card-title">{{ words.questions.splits }}</h3>

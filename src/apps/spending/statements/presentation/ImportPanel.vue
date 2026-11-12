@@ -9,7 +9,7 @@ import { writeDryRun } from '../application/statementWrites'
 import { addRevolutAccounts, revolutStatement } from '../domain/revolutStatement'
 import { statementDryRun, syncGapOf } from '../domain/statementDryRun'
 import DryRunLines from './DryRunLines.vue'
-import { rowNamed, twinCaption } from './rowParts'
+import { rowCaption, rowTitle, twinCaption } from './rowParts'
 import type { RowQuestion } from './rowParts'
 import MissingAccountsOffer from './MissingAccountsOffer.vue'
 import { words } from './words'
@@ -114,8 +114,9 @@ const twinItems = computed(() => {
     const account = accounts.get(question.row.account)
     return {
       key: question.key,
-      row: rowNamed(question.row, account),
-      caption: twinCaption(question.booked, account),
+      row: rowTitle(question.row),
+      caption: rowCaption(question.row, account),
+      note: twinCaption(question.booked, account),
       choice: question.keep ?? 'later',
       amount: question.row.amount,
       currency: account?.currency ?? EURO,
@@ -182,7 +183,7 @@ async function confirm(): Promise<void> {
             <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
           </template>
         </QuestionList>
-        <DryRunLines :lines="dryRun.lines" />
+        <DryRunLines :lines="dryRun.lines" :below-questions="twinItems.length > 0" />
         <UButton
           v-if="changes > 0"
           class="self-start"

@@ -5,6 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import { notCash, writeCashLegs } from '../application/statementWrites'
 import type { WithdrawalWithoutCash } from '../domain/reviewQueue'
+import { rowCaption, rowTitle } from './rowParts'
 import type { RowQuestion } from './rowParts'
 import { words } from './words'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
@@ -14,7 +15,6 @@ import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { negateAccountMoney } from '../../../../shared/money/accountMoney'
@@ -39,7 +39,7 @@ const writes = useRecordWrites(store)
 const accounts = computed(() => store.state.workbook?.accounts ?? [])
 const transfer = computed(() => store.state.workbook?.categories.find((category) => category.kind === 'transfer') ?? null)
 const accountOf = (row: Transaction): Account | undefined => accounts.value.find((account) => account.id === row.account)
-const captionOf = (row: Transaction): string => [dayLabel(row.date), accountOf(row)?.name ?? ''].filter((part) => part !== '').join(' · ')
+const captionOf = (row: Transaction): string => rowCaption(row, accountOf(row))
 
 const proposed = computed(() => props.withdrawals.flatMap(({ row, cashAccounts }) => (cashAccounts.length === 1 ? [{ row, cash: cashAccounts[0]! }] : [])))
 const asking = computed(() => props.withdrawals.filter(({ cashAccounts }) => cashAccounts.length > 1))
@@ -63,7 +63,7 @@ const NOT_CASH = 'not-cash'
 const questions = computed(() =>
   asking.value.map(({ row, cashAccounts }): RowQuestion<string> => ({
     key: row.id,
-    row: row.payee || row.description,
+    row: rowTitle(row),
     caption: captionOf(row),
     choice: LATER,
     amount: row.amount,
@@ -125,7 +125,7 @@ async function answer(key: string, choice: string): Promise<void> {
     <div class="flex flex-col gap-4 pt-1 pb-4">
       <template v-if="proposed.length > 0">
         <ul class="divide-y divide-default">
-          <ProposalRow v-for="{ row, cash } in shownProposed" :key="row.id" :title="row.payee || row.description" :caption="captionOf(row)" data-testid="spending-review-cash-row">
+          <ProposalRow v-for="{ row, cash } in shownProposed" :key="row.id" :title="rowTitle(row)" :caption="captionOf(row)" data-testid="spending-review-cash-row">
             <template #amount>
               <AccountMoneyText :cents="row.amount" :currency="accountOf(row)?.currency ?? EURO" sign="always" tone="flow" />
             </template>
@@ -176,7 +176,7 @@ async function answer(key: string, choice: string): Promise<void> {
           data-testid="spending-review-cash-add-account"
         />
         <ul class="divide-y divide-default">
-          <ProposalRow v-for="row in rows" :key="row.id" :title="row.payee || row.description" :caption="captionOf(row)" data-testid="spending-review-cash-wanting-row">
+          <ProposalRow v-for="row in rows" :key="row.id" :title="rowTitle(row)" :caption="captionOf(row)" data-testid="spending-review-cash-wanting-row">
             <template #amount>
               <AccountMoneyText :cents="row.amount" :currency="currency" sign="always" tone="flow" />
             </template>
