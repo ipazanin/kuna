@@ -181,8 +181,8 @@
  *   npm run build:fake && npm run preview:fake -- --port 4173
  *   npm run check:visual -- http://localhost:4173/kuna/
  *
- * While working on one screen, `--only billing,owner` limits the run to the screens and flows with those names,
- * or names that start with them and a hyphen, and `--widths 360,1440` to those widths. A limited
+ * While working on one screen, `--only billing,owner` limits the run to the screens and flows with exactly those names,
+ * `--only 'chat-receipt*'` to those whose names start so, and `--widths 360,1440` to those widths. A limited
  * run keeps the other screenshots and says it was limited. The full run without options is the check.
  * `--classic-scrollbars` draws 15 px scrollbars from 640 px up, as Linux and Windows do, where a Mac floats them over the page,
  * so a run here finds what a scrollbar's room changes. The docked widths then name the shell's width, without the scrollbar.

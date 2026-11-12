@@ -143,7 +143,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   panel: {
     noWorkbook: 'Najprije otvorite datoteku',
-    noWorkbookDescription: 'Izvodi se upisuju u evidenciju datoteke na zaslonu. Odaberite je u Postavke, Datoteka.',
+    noWorkbookDescription: 'Izvodi se upisuju u evidenciju datoteke na zaslonu. Odaberite je u Postavkama, Datoteka.',
     intro: 'Dodajte bankovni izvod u evidenciju: camt.053 datoteku ili tablicu koju je banka izvezla, a čita je spremljeni profil. Ništa se ne upisuje dok ne potvrdite.',
     file: 'Datoteka izvoda',
     fileSubtitle: 'Izvod camt.053 (.xml) ili izvoz u obliku .xlsx, .xls, .ods ili .csv.',

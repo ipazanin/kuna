@@ -73,8 +73,8 @@
  *   npm run build:fake && npm run preview:fake -- --port 4173
  *   npm run check:touch -- http://localhost:4173/kuna/
  *
- * While working on one screen, `--only billing,owner` limits the run to the steps with those names,
- * or names that start with them and a hyphen, and `--widths 360,1440` to those widths. A limited
+ * While working on one screen, `--only billing,owner` limits the run to the steps with exactly those names,
+ * `--only 'chat-receipt*'` to the steps whose names start so, and `--widths 360,1440` to those widths. A limited
  * run keeps the other screenshots and says it was limited. The full run without options is the check.
  *
  * Screenshots go to visual-check/touch/ (gitignored), or to TOUCH_OUTPUT_DIR.
@@ -98,6 +98,7 @@ import { chromeLaunch, floatPhoneScrollbars } from './support/browsers.mjs'
 import { collapseAndExpand } from './support/cardFlows.mjs'
 import { pageTabsFlow, yearTabLinkFlow } from './support/pageTabFlows.mjs'
 import {
+  shootAt,
   accessClosedFlow,
   advanceFlow,
   advanceFlowIn,
@@ -1025,9 +1026,7 @@ async function checkWidth(width) {
     await toggle.tap()
     const buildUp = await page.waitForSelector('[data-testid="comparison-pl"] [data-testid="line-build-up"]')
     await inspect(page, `${width}px year end, a line opened`)
-    await buildUp.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await shoot('year-end-line')
+    await shootAt(page, shoot, buildUp, 'year-end-line')
     const rows = await page.waitForSelector('[data-testid="comparison-pl"] [data-testid="line-build-up"] a[aria-label$="open the rows"]')
     await rows.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -1924,10 +1923,7 @@ async function checkWidth(width) {
       (text) => text.includes('Confirmed a row') && text.includes('GADGET CORNER') && text.includes('human'),
       'the session entry does not say what changed',
     )
-    await page.evaluate(() => document.querySelector('[data-testid="session-changes"]').scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect(page, `${width}px session panel open`)
-    await shoot('session-panel')
+    await shootAt(page, shoot, '[data-testid="session-changes"]', 'session-panel', { inspected: () => inspect(page, `${width}px session panel open`) })
     await page.tap('[data-testid="session-undo"]')
     await waitForText(page, '[data-slot="title"]', 'Undone')
     await expect(reviewCount(page), (count) => count === 2, 'Undo from the session panel did not bring the row back')
@@ -1955,9 +1951,7 @@ async function checkWidth(width) {
       (text) => text.includes('GADGET CORNER'),
       'the back-test does not list the row the rule settles',
     )
-    await page.evaluate(() => document.querySelector('[data-testid="backtest-conflicts"]').scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await shoot('rule-backtest')
+    await shootAt(page, shoot, '[data-testid="backtest-conflicts"]', 'rule-backtest')
     await page.evaluate(() => document.querySelector('[data-testid="rule-files-waiting"]').scrollIntoView({ block: 'center' }))
     await waitForText(page, '[data-testid="rule-files-waiting"]', 'Saving files them')
     await delay(300)
@@ -2011,10 +2005,7 @@ async function checkWidth(width) {
       (text) => text.includes('merchant-laptop-store files them as') && !text.includes('Make this a rule'),
       'the exception does not name the rule that files it, or still offers a rule',
     )
-    await page.evaluate(() => document.querySelector('[data-testid="coverage-exceptions"]').scrollIntoView({ block: 'end' }))
-    await delay(300)
-    await inspect(page, `${width}px coverage with exceptions`)
-    await shoot('coverage-split')
+    await shootAt(page, shoot, '[data-testid="coverage-exceptions"]', 'coverage-split', { block: 'end', inspected: () => inspect(page, `${width}px coverage with exceptions`) })
     await (await exception.$('[data-testid="coverage-open-rule"]')).tap()
     await page.waitForFunction(() => window.location.hash.includes('rule=merchant-laptop-store'))
     await page.waitForSelector('[data-testid="rule-row"][aria-current="true"]')
@@ -2081,10 +2072,7 @@ async function checkWidth(width) {
     await page.tap('[data-testid="rule-row"] [role="switch"]')
     // Switching off own-account hands the two transfer legs to review, so the change needs an explicit yes.
     const accept = await page.waitForSelector('[data-testid="accept-backtest"][role="checkbox"], [data-testid="accept-backtest"] [role="checkbox"]')
-    await accept.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect(page, `${width}px rule switch-off back-test`)
-    await shoot('rule-switch-off')
+    await shootAt(page, shoot, accept, 'rule-switch-off', { inspected: () => inspect(page, `${width}px rule switch-off back-test`) })
     await accept.tap()
     await (await waitForText(page, '[data-testid="save-rules-change"]', 'Switch off')).tap()
     await waitForText(page, '[data-slot="title"]', 'Switched off own-account')
@@ -2537,10 +2525,7 @@ async function checkWidth(width) {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holding?instrument=${SAMPLE_INDEX_FUND}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Example Index Fund')
     const typeMix = await page.waitForSelector('[data-testid="holding-type-mix"]', { visible: true })
-    await typeMix.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect(page, `${width}px a fund with no mix`)
-    await shoot('investments-holding-no-mix')
+    await shootAt(page, shoot, typeMix, 'investments-holding-no-mix', { inspected: () => inspect(page, `${width}px a fund with no mix`) })
     await typeMix.tap()
     await page.waitForSelector('[data-testid="instrument-form"]', { visible: true })
     await page.waitForSelector('[data-testid="instrument-distribution"]', { visible: true })
@@ -2607,10 +2592,7 @@ async function checkWidth(width) {
       await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holding?instrument=${SAMPLE_WORLD_ETF}`, { waitUntil: 'networkidle0' })
       await waitForTitle(page, 'Example World ETF')
       const warning = await waitForText(page, '[data-testid="holding-fact-problem"]', 'Alpha Vantage sent no fund profile for XYZ.DEX')
-      await warning.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-      await delay(200)
-      await inspect(page, `${width}px a fund with an empty fund profile`)
-      await shoot('investments-holding-fact-problem')
+      await shootAt(page, shoot, warning, 'investments-holding-fact-problem', { inspected: () => inspect(page, `${width}px a fund with an empty fund profile`) })
       await (await waitForText(page, '[data-testid="holding-fact-problem"] button', 'Ask again')).tap()
       await page.waitForFunction(() => !document.querySelector('[data-testid="holding-fact-problem"]'), { timeout: 15_000 })
       await page.waitForFunction(() => document.querySelector('[data-testid="holding-details"]')?.textContent?.includes('Fund size') === true, { timeout: 5_000 })
@@ -2625,9 +2607,7 @@ async function checkWidth(width) {
     await page.goto(`${BASE}?theme=dark&investments=sample&load=${Date.now()}#/investments/holdings`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Holdings')
     const row = await page.waitForSelector('[data-testid="closed-rows"] a[data-testid="closed-row"]', { visible: true })
-    await row.scrollIntoView()
-    await inspect(page, `${width}px Holdings with its closed positions`)
-    await shoot('investments-holdings-closed')
+    await shootAt(page, shoot, row, 'investments-holdings-closed', { inspected: () => inspect(page, `${width}px Holdings with its closed positions`) })
     const name = await row.evaluate((element) => element.querySelector('span > span')?.textContent?.trim() ?? '')
     await row.tap()
     await waitForTitle(page, name)

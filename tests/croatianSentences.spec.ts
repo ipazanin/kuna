@@ -12,6 +12,7 @@ import { percentFromBasisPoints, shareFromPercent } from '../src/shared/money/pe
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { civil, euros } from './fixtures/ledger'
+import { DATE_PARAMETER } from '../scripts/support/dateParameters.mjs'
 
 /** The sentences Croatian builds from a record's noun, with the language on screen pinned to Croatian. */
 async function croatian(): Promise<typeof import('../src/shared/storage/presentation/words')> {
@@ -176,7 +177,8 @@ describe('full stops in Croatian', () => {
 })
 
 describe('every words file in Croatian', () => {
-  it('ends a sentence on a date with the date’s own full stop', async () => {
+  /** Every Croatian sentence of every words file, by its file. */
+  async function croatianSentences(): Promise<readonly (readonly [string, string])[]> {
     const loaders = import.meta.glob<{ readonly hr: unknown }>('../src/**/words.ts')
     const dictionaries = await inCroatian(() => Promise.all(Object.entries(loaders).map(async ([path, load]) => [path, (await load()).hr] as const)))
     const { dayLabel } = await import('../src/shared/calendar/dayLabel')
@@ -185,13 +187,19 @@ describe('every words file in Croatian', () => {
       typed: [civil('2026-10-01'), monthKey(2026, 10), 2026, { from: civil('2026-10-01'), to: civil('2027-03-31') }],
       worded: [dayLabel(civil('2026-10-01')), monthLabel(monthKey(2026, 10))],
     }
-    const doubled = dictionaries.flatMap(([path, croatian]) =>
-      sentencesOf(croatian, samples)
-        .filter((sentence) => /(?<!\.)\.\.(?!\.)/.test(sentence))
-        .map((sentence) => `${path}: ${sentence}`),
-    )
+    return dictionaries.flatMap(([path, croatian]) => sentencesOf(croatian, samples).map((sentence) => [path, sentence] as const))
+  }
+
+  it('ends a sentence on a date with the date’s own full stop', async () => {
+    const doubled = (await croatianSentences()).filter(([, sentence]) => /(?<!\.)\.\.(?!\.)/.test(sentence)).map(([path, sentence]) => `${path}: ${sentence}`)
 
     expect([...new Set(doubled)]).toEqual([])
+  })
+
+  it('puts a place on screen after a preposition in a form its name takes', async () => {
+    const slips = (await croatianSentences()).flatMap(([path, sentence]) => placeSlipsIn(sentence).map((slip) => `${path}: ${slip}`))
+
+    expect([...new Set(slips)]).toEqual([])
   })
 })
 
@@ -581,14 +589,42 @@ describe('a row that looks like one Kuna has, in Croatian', () => {
   })
 })
 
+/**
+ * The Croatian names of places on screen, each with the forms a preposition may put it in. A name that does not decline,
+ * such as a tab named by a phrase, has none and follows pod. Any place takes u, never na.
+ */
+const PLACES: Readonly<Record<string, readonly string[]>> = {
+  'Za pregled': [],
+  'Za provjeru': [],
+  Pregled: ['Pregled', 'Pregleda', 'Pregledu', 'Pregledom'],
+  Transakcije: ['Transakcije', 'Transakcija', 'Transakcijama'],
+  Postavke: ['Postavke', 'Postavki', 'Postavkama'],
+  Plaće: ['Plaće', 'Plaća', 'Plaćama'],
+  Tvrtka: ['Tvrtku', 'Tvrtke', 'Tvrtki', 'Tvrtkom'],
+  Krediti: ['Kredite', 'Kredita', 'Kreditima'],
+  Ulaganja: ['Ulaganja', 'Ulaganjima'],
+  Imovina: ['Imovinu', 'Imovine', 'Imovini', 'Imovinom'],
+  Potrošnja: ['Potrošnju', 'Potrošnje', 'Potrošnji', 'Potrošnjom'],
+}
+const PREPOSITIONS = ['u', 'na', 'iz', 'do', 'od', 's', 'sa', 'o', 'po', 'prema', 'kroz', 'pod']
+
+/** The places a sentence puts after a preposition in a form their name does not take, or na a screen. */
+function placeSlipsIn(sentence: string): string[] {
+  const names = Object.entries(PLACES).flatMap(([name, forms]) => [name, ...forms])
+  const prepositions = PREPOSITIONS.flatMap((preposition) => [preposition, `${preposition[0]!.toUpperCase()}${preposition.slice(1)}`])
+  const pattern = new RegExp(`(?<!\\p{L})(${prepositions.join('|')}) (${[...new Set(names)].sort((one, other) => other.length - one.length).join('|')})(?!\\p{L})`, 'gu')
+  const declined = new Set(Object.values(PLACES).flat())
+  return [...sentence.matchAll(pattern)].flatMap(([phrase, preposition, form]) => {
+    const after = preposition!.toLowerCase()
+    return after !== 'pod' && (after === 'na' || !declined.has(form!)) ? [phrase] : []
+  })
+}
+
 /** Dates as a builder takes them: typed values it words itself, and dates already worded for a parameter named for one. */
 interface DateSamples {
   readonly typed: readonly unknown[]
   readonly worded: readonly string[]
 }
-
-/** How a builder names a parameter that takes a worded date. One that takes a day of the month, a year or an amount is named otherwise, such as dayNumber. */
-const DATE_PARAMETER = /^(date|day|days|month|months|period|periods|on|from|to|until|since|start|end|deadline)$|(Date|Day|Days|Month|Months|Period|Periods|On|From|Until|Since|Start|End|Deadline)$/
 
 /**
  * Every string a words module gives, with each builder called with each sample date in each place it fits and a filler

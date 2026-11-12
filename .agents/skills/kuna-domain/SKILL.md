@@ -56,6 +56,7 @@ The [module map](../../../docs/architecture/modules.md) says what each module ow
 - A renamed key moves that group, and so does a changed scale.
 - A figure that becomes a class with public fields hashes as a record instead of a number, so every group holding it moves. So does nesting an amount and its currency into one object.
 - A class with `#private` fields has no keys, so every value hashes alike and the check goes blind without failing.
+- A Spending group hashes each row and account, and Company's records each ledger row, without the fields and stored cells `scripts/support/figureFields.mjs` leaves out, wherever they sit. A new field or cell on one fails `tests/figureFields.spec.ts` until it is named a figure or left out.
 
 To check a refactor, run `npm run check:figures` on both trees with the same `--today`, over each fake set and the owner's real exports, and diff the output. The digest sees no words, so a parser or format change also needs a table test.
 

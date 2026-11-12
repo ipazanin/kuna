@@ -279,7 +279,7 @@ export const hr: Translation<typeof en> = {
     receipt: 'Fiskalni računi i unos koji je svaki podijelio. Fiskalni račun za plaćanje karticom koje banka još nije donijela nema unos i čeka na svom računu dok ne stigne redak iz banke.',
     waitingReceipt: 'Fiskalni računi još bez unosa, koji čekaju redak iz banke za svoje plaćanje i navedeni su pod Za pregled. Do tada se ne broje nigdje.',
     line: 'Dijelovi na koje je unos podijeljen, fiskalnim računom ili ručno, a iznosi broje njih umjesto unosa.',
-    waiting: 'Retci koji na Za pregled čekaju kategoriju i ne broje se nigdje dok se ne razvrstaju.',
+    waiting: 'Retci koji pod Za pregled čekaju kategoriju i ne broje se nigdje dok se ne razvrstaju.',
     linkInstalment: (loan, due) => `rata kredita ${loan} s dospijećem ${due}, u Kreditima`,
     linkInformalLoan: (name) => `pozajmica ${name}, u Kreditima`,
     linkGone: 'zapis kojeg Krediti više nemaju',

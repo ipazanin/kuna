@@ -270,6 +270,11 @@ function refsOf(fields: readonly FormField[]): Record<string, string> {
   )
 }
 
+/** A noun with the English article it takes, an before a vowel. */
+function withArticle(noun: string): string {
+  return /^[aeiou]/.test(noun) ? `an ${noun}` : `a ${noun}`
+}
+
 function operationsOf(form: TransactionForm): AssistantOperation[] {
   const recordRef = { [RECORD]: RECORD_KINDS[form.kind] }
   return [
@@ -284,7 +289,7 @@ function operationsOf(form: TransactionForm): AssistantOperation[] {
     },
     {
       name: `change-${form.noun}`,
-      about: `Changes a ${form.noun} as its dialog does. Null leaves a field as it is, and "" clears one that may be blank.`,
+      about: `Changes ${withArticle(form.noun)} as its dialog does. Null leaves a field as it is, and "" clears one that may be blank.`,
       input: inputOf({ [RECORD]: TEXT, ...Object.fromEntries(form.fields.map((field) => [field.name, schemaOf(field, true)])) }),
       refs: { ...refsOf(form.fields), ...recordRef },
       creates: null,
@@ -293,7 +298,7 @@ function operationsOf(form: TransactionForm): AssistantOperation[] {
     },
     {
       name: `delete-${form.noun}`,
-      about: form.countedOn === true ? `Deletes a ${form.noun}. One that a later sale or transfer counts on is refused.` : `Deletes a ${form.noun}.`,
+      about: form.countedOn === true ? `Deletes ${withArticle(form.noun)}. One that a later sale or transfer counts on is refused.` : `Deletes ${withArticle(form.noun)}.`,
       input: inputOf({ [RECORD]: TEXT }),
       refs: recordRef,
       creates: null,

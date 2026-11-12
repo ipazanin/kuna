@@ -196,6 +196,7 @@ import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRate
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
+import { companyFiguresOf, spendingFiguresOf } from './support/figureFields.mjs'
 
 const { values: options } = parseArgs({
   options: {
@@ -281,7 +282,7 @@ if (companyAsked) {
   // Without the registration day Year shows what it needs in place of the forecast and the pay scenarios.
   const unregistered = books.companyFacts.companyRegistered === null
 
-  group('read.records', records)
+  group('read.records', companyFiguresOf(records))
   // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
   group('read.workbook', [raw, raw.categories.map((category) => [category.label, category.family, category.colour.stored, category.roles])])
   group('settings.problems', booked.problems)
@@ -673,22 +674,13 @@ async function ratesOfInput(workbook) {
  * oldest row to the day's, then for the newest complete month and the day's month what each category and group counts
  * and each limit with its carry, then Net worth's part. Returns how Net worth reads the file.
  */
-async function spendingGroups(add) {
+async function spendingGroups(addGroup) {
+  const add = (name, figures) => addGroup(name, typeof figures === 'function' ? () => spendingFiguresOf(figures()) : spendingFiguresOf(figures))
   const document = options.spending === undefined ? fakeSpendingDocument(AT, options['fake-spending'], today) : decodeDocument(readFileSync(options.spending, 'utf8'))
   const { records, workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   // The bank's fields and the kinds only statements use have a group of their own, so a file with none of them keeps this digest.
   const { accounts, categories, transactions, budgets, rules } = records
-  // A row's link has the published group below, so a file with no links keeps this digest.
-  const typedFieldsOf = ({ description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, link, ...typedFields }) => typedFields
-  // Where each account's rows come from has a group of its own, so the records keep their digest.
-  const accountFieldsOf = ({ rowsFrom, ...accountFields }) => accountFields
-  const storedAccountFieldsOf = ({ rows_from, ...storedFields }) => storedFields
-  add('spending.read.records', {
-    accounts: { ...accounts, records: accounts.records.map((stored) => ({ ...stored, record: accountFieldsOf(stored.record), fields: storedAccountFieldsOf(stored.fields) })) },
-    categories,
-    budgets,
-    transactions: { ...transactions, records: transactions.records.map((stored) => ({ ...stored, record: typedFieldsOf(stored.record) })) },
-  })
+  add('spending.read.records', { accounts, categories, budgets, transactions })
   add('spending.read.statements', {
     rules,
     // A row the bank marks as a withdrawal adds the mark, so a file with none keeps this digest.

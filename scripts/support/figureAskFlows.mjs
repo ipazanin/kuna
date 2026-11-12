@@ -1,4 +1,5 @@
 import { forgetAssist, keepAiKey } from './chatFlows.mjs'
+import { shootAt } from './editorFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 
 /** Opens each card, unless it is open. */
@@ -58,7 +59,7 @@ export const FIGURE_ASKS = {
  */
 export function figureAskFlowIn(language, screen) {
   const { figures, before } = FIGURE_ASKS[screen]
-  return async (page, { press, shoot: shootAs, inspect }) => {
+  return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const [{ at: asked, shape }] = figures
     const askButton = `${asked} [data-testid="ask-chat"]`
@@ -83,10 +84,7 @@ export function figureAskFlowIn(language, screen) {
           if (roomIn !== undefined && Math.abs(amount - ask) > 12) throw new Error(`the ask at ${at} sits under its amount, not beside it`)
         }
       }
-      await page.$eval(asked, (element) => element.scrollIntoView({ block: 'center' }))
-      await delay(300)
-      await inspect?.(`the asks beside the build-up amounts on ${screen}`)
-      await shoot(`${screen}-figure-ask`)
+      await shootAt(page, shoot, asked, `${screen}-figure-ask`)
 
       const named = await page.$eval(askButton, (element) => element.getAttribute('aria-label') ?? '')
       if (/\d[.,]\d{2}\b/.test(named)) throw new Error(`the ask's name holds an amount: ${named}`)
@@ -102,11 +100,10 @@ export function figureAskFlowIn(language, screen) {
       if (docked) {
         const marked = await page.$eval(asked, (element) => element.getAttribute('data-chat-tagged'))
         if (marked !== shape) throw new Error(`the asked figure is highlighted as ${marked}, not as a ${shape}`)
-        await page.$eval(asked, (element) => element.scrollIntoView({ block: 'center' }))
-        await delay(200)
+        await shootAt(page, shoot, asked, `${screen}-figure-asked`)
+      } else {
+        await shoot(`${screen}-figure-asked`)
       }
-      await inspect?.(`the chat about a build-up on ${screen}`)
-      await shoot(`${screen}-figure-asked`)
 
       await pressSelector(page, press, '[data-testid="chat-tag-remove"]')
       await page.waitForSelector('[data-testid="chat-tag"]', { hidden: true, timeout: 5_000 })

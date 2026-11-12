@@ -2,7 +2,7 @@
  * The options that limit the visual and the touch check to some screens, flows or steps and to some
  * widths, for a quick look while working. A run without them is the full check.
  *
- *   --only billing,owner   a name picks what is called that, and whatever is called that and a hyphen and more
+ *   --only billing,owner   a name picks only what is called exactly that, and a name ending in * whatever starts with the rest, such as 'sidebar*' quoted for the shell
  *   --widths 360,1440      only these of the check's widths
  *   --shard 3/8            the third of eight shares of the visual check's screens and flows, so CI runs the shares side by side
  *   --every-theme          the dark and the light theme at every width, as a design review needs, not only at the widths that check both
@@ -12,11 +12,12 @@
 import { parseArgs } from 'node:util'
 
 /**
- * Reads the base address and the options from the command line. `widths` are the widths the check
+ * Reads the base address and the options from the command line, or from `args`. `widths` are the widths the check
  * knows, and a width it does not know stops the run.
  */
-export function runSelection(widths) {
+export function runSelection(widths, args = process.argv.slice(2)) {
   const { values, positionals } = parseArgs({
+    args,
     allowPositionals: true,
     options: { only: { type: 'string' }, widths: { type: 'string' }, shard: { type: 'string' }, 'every-theme': { type: 'boolean' }, 'classic-scrollbars': { type: 'boolean' } },
   })
@@ -53,7 +54,7 @@ export function runSelection(widths) {
     takes(name) {
       seen.add(name)
       if (only === null) return true
-      const entries = only.filter((candidate) => name === candidate || name.startsWith(`${candidate}-`))
+      const entries = only.filter((candidate) => (candidate.endsWith('*') ? name.startsWith(candidate.slice(0, -1)) : name === candidate))
       for (const entry of entries) matched.add(entry)
       return entries.length > 0
     },

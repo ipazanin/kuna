@@ -168,7 +168,7 @@ export const en = {
     planDividend: 'Plan a dividend',
     noDividend: 'None planned. Dividend capacity on the Pay tab sets out what the year can pay.',
     editDividend: 'Dividend: edit',
-    paidIn: (when: string) => `Paid in ${when}`,
+    paidIn: (period: string) => `Paid in ${period}`,
   },
   /** The plan dialogs, as their buttons, fields and toasts word them. */
   planDialogs: {
@@ -423,7 +423,7 @@ export const hr: Translation<typeof en> = {
     planDividend: 'Planiraj dividendu',
     noDividend: 'Ništa nije planirano. Mogućnost isplate dividende na kartici Isplate pokazuje koliko godina može isplatiti.',
     editDividend: 'Dividenda: uredi',
-    paidIn: (when) => `Isplata: ${when}`,
+    paidIn: (period) => `Isplata: ${period}`,
   },
   planDialogs: {
     cancel: 'Odustani',

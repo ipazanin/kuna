@@ -141,6 +141,12 @@ describe('the catalogue', () => {
     }
   })
 
+  it('writes an, not a, before a vowel in the instructions and every page they list', () => {
+    const slips = [catalogue.system, ...catalogue.pages.values()].flatMap((text) => [...text.matchAll(/\ba [aeiou]\w*/gi)].map(([slip]) => slip))
+
+    expect([...new Set(slips)]).toEqual([])
+  })
+
   it('tells the model to do the whole job a message asks for, and says when a card goes on', () => {
     expect(catalogue.system).toContain('Do the whole job a message asks for.')
     expect(catalogue.system).toContain('propose the changes on cards rather than ask what to do')

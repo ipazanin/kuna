@@ -112,6 +112,30 @@ import { en as secretsEnglish, hr as secretsCroatian } from '../../src/shared/se
 
 const TOAST = 'li[data-slot="base"]'
 
+/**
+ * Scrolls what `target` names, a selector or an element, into view at `block` and shoots `name`. It fails when the element
+ * is still not wholly in view, or fills less of the page than it could, so a shot shows what it is taken for. `inspected`
+ * runs once it is in view, for a check whose own shoot does not inspect the page.
+ */
+export async function shootAt(page, shoot, target, name, { block = 'center', inspected } = {}) {
+  const element =
+    typeof target === 'string'
+      ? await page.waitForSelector(target, { visible: true, timeout: 10_000 }).catch(() => {
+          throw new Error(`${name}: nothing shows ${target} to shoot`)
+        })
+      : target
+  await element.evaluate((shown, at) => shown.scrollIntoView({ block: at, inline: 'nearest' }), block)
+  await delay(300)
+  const inView = await element.evaluate((shown) => {
+    const box = shown.getBoundingClientRect()
+    const fits = (start, end, room) => Math.min(end, room) - Math.max(start, 0) >= Math.min(end - start, room) - 1
+    return box.width > 0 && box.height > 0 && fits(box.top, box.bottom, innerHeight) && fits(box.left, box.right, innerWidth)
+  })
+  if (!inView) throw new Error(`${name}: ${typeof target === 'string' ? target : 'the element it is taken for'} is off screen, so the shot would not show it`)
+  await inspected?.()
+  await shoot(name)
+}
+
 /** The starter categories' names in a language by their English names, as a new Spending file and the fake sets name them. */
 function spendingStarterIn(language) {
   const english = starterCategories('en')
@@ -678,15 +702,11 @@ export const categoryMoveFlow = categoryMoveFlowIn('en')
 
 /** On a phone, the rule editor opened from a review row shows the box that says Save files the rows it settles. */
 export function ruleWaitingFlowIn(language) {
-  return async (page, { press, shoot: shootAs, inspect }) => {
+  return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await press(await queueRow(page, 'GADGET CORNER'))
     await pressSelector(page, press, '[data-testid="make-rule"]')
-    await page.waitForSelector('[data-testid="rule-files-waiting"]', { visible: true, timeout: 10_000 })
-    await page.$eval('[data-testid="rule-files-waiting"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(400)
-    await inspect?.('rule editor waiting box')
-    await shoot('rule-waiting')
+    await shootAt(page, shoot, '[data-testid="rule-files-waiting"]', 'rule-waiting')
   }
 }
 
@@ -1843,23 +1863,17 @@ export const importCamtFlow = (path) => importCamtFlowIn('en', path)
 export function importCamtLookAlikeFlowIn(language, path) {
   const words = SCREEN_WORDS[language]
   const panel = words.imports.panel
-  return async (page, { press, shoot: shootAs, inspect }) => {
+  return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropFile(page, path)
     await dryRunSays(page, countedIn(words, panel.addsRows(3), 3))
     await elementSays(page, '[data-testid="dry-run-row"]', [words.imports.statement.waitsForAnswer], 'the payment does not say it waits for an answer')
     await elementSays(page, '[data-testid="question"]', ['NORTHWIND ANALYTICS'], 'the question does not name the copied row the payment looks like')
-    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.('the camt dry run asking about a payment that looks like a copied row')
-    await shoot('import-camt-lookalike')
+    await shootAt(page, shoot, '[data-testid="questions"]', 'import-camt-lookalike')
     await pressSelector(page, press, `[data-testid="question-choice"] ${USE_FILE_ROW}`)
     await dryRunSays(page, countedIn(words, panel.addsRows(4), 4))
     await elementSays(page, '[data-testid="dry-run-row"]', [words.imports.statement.replacesCopied], "the payment does not say it takes the copied row's place")
-    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.("the camt dry run with the payment taking the copied row's place")
-    await shoot('import-camt-lookalike-replaced')
+    await shootAt(page, shoot, '[data-testid="questions"]', 'import-camt-lookalike-replaced')
   }
 }
 
@@ -2092,15 +2106,12 @@ const FILED = /Filed statement \d+, 4 rows/
  * step, not in a toast. Undo in the step's line on Kuna settings takes it out, the card's
  * Sync again files it again, and Import lists it. A last sync finds nothing new and says so there.
  */
-export async function statementSyncFlow(page, { press, shoot, inspect }) {
+export async function statementSyncFlow(page, { press, shoot }) {
   await syncAndSettle(page, press)
   await noToast(page, 'a sync that filed a statement showed a toast')
   await openKunaSettings(page)
   await stepSays(page, SYNC_CARD, 'statements', 'done', FILED)
-  await page.$eval(SYNC_CARD, (element) => element.scrollIntoView({ block: 'start' }))
-  await delay(300)
-  await inspect?.('the statements filed')
-  await shoot('statements-filed')
+  await shootAt(page, shoot, SYNC_CARD, 'statements-filed', { block: 'start' })
   await pressSelector(page, press, `${SYNC_CARD} [data-step="statements"] [data-testid="sync-step-undo"]`)
   await toast(page, 'Undone')
   await page
@@ -2687,9 +2698,7 @@ export async function mailFailedFlow(page, { press, shoot, inspect }) {
   await openMailList(page, press, '')
   const lines = await mailListShows(page, ['statements:failed'])
   if (lines[0] !== 'Gmail did not answer the search. Sync again later.') throw new Error(`the failed source reads "${lines[0]}"`)
-  await page.$eval(`${MAIL_PLAN} [data-source="statements"]`, (element) => element.scrollIntoView({ block: 'center' }))
-  await delay(300)
-  await shoot('mail-failed-list')
+  await shootAt(page, shoot, `${MAIL_PLAN} [data-source="statements"]`, 'mail-failed-list')
 }
 
 /** A token without Gmail read shows Allow access for the mail step as the app opens, and that tap runs it. */
@@ -2782,10 +2791,7 @@ export async function mailRateLimitedFlow(page, { press, shoot, inspect }) {
       throw new Error('the mail card does not say why the last sync stopped')
     })
   if (said !== 'Gmail asked us to slow down. Sync again in a minute.') throw new Error(`the mail card says "${said}"`)
-  await page.$eval(`${MAIL_PLAN} [data-testid="mail-stopped"]`, (paragraph) => paragraph.scrollIntoView({ block: 'center' }))
-  await delay(300)
-  await inspect?.('the mail card after Gmail asked to slow down')
-  await shoot('mail-rate-limited-card')
+  await shootAt(page, shoot, `${MAIL_PLAN} [data-testid="mail-stopped"]`, 'mail-rate-limited-card')
 }
 
 /** With every mail already in its folder, filed by another app, the source searches from a week before the newest file there and not from the mail-since day. */
@@ -2964,10 +2970,7 @@ export function statementsFolderFlowIn(language) {
     await press(await saveSettingsButton(page, true, words))
     await toast(page, words.settings.saved)
     await saveSettingsButton(page, false, words)
-    await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(200)
-    await inspect?.('the statements folder saved')
-    await shoot('statements-folder-saved')
+    await shootAt(page, shoot, field, 'statements-folder-saved')
     await dismissToasts(page)
   }
 }
@@ -6270,22 +6273,14 @@ export function spendingCreditToTransferFlowIn(language) {
  * Loans no longer has, in `goneMonth`. A key is kept, so each row carries its receipt camera as it does for a person with one.
  */
 export function spendingLinkFlowIn(language, goneMonth) {
-  return async (page, { press, shoot: shootAs, inspect }) => {
+  return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
     await page.reload({ waitUntil: 'networkidle0' })
     const shootLinked = async (state) => {
-      const line = await page.waitForSelector('[data-testid="spending-row-link"]', { visible: true, timeout: 10_000 })
-      await line.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-      await delay(200)
-      await inspect?.(`a ${state} link on Entries`)
-      await shoot(state === 'there' ? 'spending-row-link' : 'spending-row-link-gone')
+      await shootAt(page, shoot, '[data-testid="spending-row-link"]', state === 'there' ? 'spending-row-link' : 'spending-row-link-gone')
       await openSpendingRow(page, press, 'Example Bank', -65000)
-      const block = await page.waitForSelector('[data-testid="spending-entry-link-remove"]', { visible: true, timeout: 10_000 })
-      await block.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-      await delay(200)
-      await inspect?.(`a ${state} link in the entry dialog`)
-      await shoot(state === 'there' ? 'spending-entry-link' : 'spending-entry-link-gone')
+      await shootAt(page, shoot, '[data-testid="spending-entry-link"]', state === 'there' ? 'spending-entry-link' : 'spending-entry-link-gone')
       await page.keyboard.press('Escape')
       await dialogGone(page, SPENDING_ENTRY_DIALOG)
     }
@@ -6394,23 +6389,17 @@ const USE_FILE_ROW = 'button:nth-child(3)'
 export function spendingImportLookAlikeFlowIn(language, paths) {
   const words = SCREEN_WORDS[language]
   const panel = words.spendingStatements.import
-  return async (page, { press, shoot: shootAs, inspect }) => {
+  return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await dropSpendingFile(page, paths.revolut)
     await spendingDryRunSays(page, panel.summary(8, 1, 1))
     await elementSays(page, '[data-testid="question"]', ['UNKNOWN SHOP ZAGREB'], 'the question does not name the copied row the file row looks like')
     if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.lookAlike], 'the look-alike does not say it waits for an answer')
-    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.('the Revolut dry run asking about a row that looks like a copied row')
-    await shoot('spending-import-lookalike')
+    await shootAt(page, shoot, '[data-testid="questions"]', 'spending-import-lookalike')
     await pressSelector(page, press, `[data-testid="question-choice"] ${USE_FILE_ROW}`)
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replaced], "the file's row does not say it takes the copied row's place")
-    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.("the Revolut dry run with the file's row taking the copied row's place")
-    await shoot('spending-import-lookalike-replaced')
+    await shootAt(page, shoot, '[data-testid="questions"]', 'spending-import-lookalike-replaced')
     await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
     await toast(page, panel.imported)
     await spendingDryRunSays(page, panel.summary(0, 11, 0))
@@ -6434,25 +6423,16 @@ export function spendingImportSyncedLookAlikeFlowIn(language, paths) {
     await dropSpendingFile(page, paths.revolut)
     await elementSays(page, '[data-testid="question"]', ['CORNER MARKET D.O.O.'], 'the question does not name the synced row the file row looks like')
     await page.waitForSelector('[data-testid="spending-import-days-from"]', { visible: true, timeout: 10_000 })
-    await page.$eval('[data-testid="spending-import-days"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.('the Revolut dry run naming the days the file brings beside the bank sync')
-    await shoot('spending-import-gap-days')
+    await shootAt(page, shoot, '[data-testid="spending-import-days"]', 'spending-import-gap-days')
     if (await page.$('[data-testid="spending-dry-run"] [data-testid="show-all"]')) await pressSelector(page, press, '[data-testid="spending-dry-run"] [data-testid="show-all"]')
     await centreOn(page, '[data-testid="spending-dry-run-row"]', panel.outcome.outsideDays)
     await delay(300)
     await inspect?.('a row of the export outside the days the file brings')
     await shoot('spending-import-outside-days')
-    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.('the Revolut dry run asking about a row that looks like a synced row')
-    await shoot('spending-import-synced-lookalike')
+    await shootAt(page, shoot, '[data-testid="questions"]', 'spending-import-synced-lookalike')
     await pressSelector(page, press, `[data-testid="question-choice"] ${USE_FILE_ROW}`)
     await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.replacedSynced], "the file's row does not say it takes the synced row's place")
-    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.("the Revolut dry run with the file's row taking the synced row's place")
-    await shoot('spending-import-synced-lookalike-replaced')
+    await shootAt(page, shoot, '[data-testid="questions"]', 'spending-import-synced-lookalike-replaced')
   }
 }
 
@@ -6916,10 +6896,7 @@ export function spendingBankSyncLookAlikeFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await bankSyncSettled(page, press, '[data-testid="questions"]')
     await elementSays(page, '[data-testid="question"]', ['OLD TOWN BOOKSHOP D.O.O.', 'Old Town Bookshop'], 'the sync card does not name both rows of the look-alike')
-    await page.$eval('[data-testid="questions"]', (element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.("the bank sync card asking about a row that looks like the file's")
-    await shoot('spending-bank-sync-lookalike')
+    await shootAt(page, shoot, '[data-testid="questions"]', 'spending-bank-sync-lookalike')
     await dismissToasts(page)
     await page.evaluate(() => {
       window.location.hash = '#/spending/transactions?tab=review'
@@ -7460,10 +7437,7 @@ export function spendingRulesAddFlowIn(language) {
     await toast(page, countedIn(words, rules.dialog.saved(1), 1))
     await countOf(page, OVERLAP, 2, 'Fuel and Groceries should both warn that they can file one payee')
     await dismissToasts(page)
-    await (await page.$(OVERLAP)).evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.('the overlap warning on Fuel and Groceries')
-    await shoot('spending-rules-overlap')
+    await shootAt(page, shoot, OVERLAP, 'spending-rules-overlap')
 
     const kozjak = (await (await ruleGroupOf(page, fuel)).$$('[data-testid="spending-rule-edit"]')).at(-1)
     await press(kozjak)
@@ -7497,10 +7471,7 @@ export function spendingRuleWithdrawalFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const group = await ruleGroupOf(page, words.spendingStarter['Between my accounts'])
     await elementSays(page, '[data-testid="spending-rule-goes-to"]', [rules.withdrawalByCurrency], 'the Bankomat rule does not say where its cash goes')
-    await group.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.('the rule that spots cash taken out')
-    await shoot('spending-rules-withdrawal')
+    await shootAt(page, shoot, group, 'spending-rules-withdrawal')
     await press(await group.$('[data-testid="spending-rule-edit"]'))
     await page.waitForSelector('[data-testid="spending-rule-dialog-goes-to"]', { visible: true, timeout: 5_000 })
     await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-goes-to"]'), 'Cash')
@@ -8018,17 +7989,14 @@ export function loansEditorFlowIn(language) {
 /** The bank loan's what-if: an extra payment inside the subsidy's window shows both effects and the warning, and Apply fills the extra payment dialog. */
 export function loansWhatIfFlowIn(language) {
   const { whatIf } = SCREEN_WORDS[language]
-  return async (page, { press, shoot: shootAs, inspect }) => {
+  return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await fill(page, 'what-if-amount', '10000')
     await fill(page, 'what-if-date', '2027-06-20')
     await elementSays(page, '[data-testid="what-if-outcomes"]', [whatIf.shorter, whatIf.lower, whatIf.interestSaved, whatIf.newInstalment], 'the what-if does not show both effects')
     await elementSays(page, '[data-testid="what-if-subsidy"]', [whatIf.subsidyTitle], 'the what-if does not warn about the subsidy')
     const panel = await page.$('[data-testid="what-if"]')
-    await panel.evaluate((element) => element.scrollIntoView({ block: 'start' }))
-    await delay(200)
-    await inspect?.('the what-if panel')
-    await shoot('loans-what-if')
+    await shootAt(page, shoot, panel, 'loans-what-if', { block: 'start' })
     await pressSelector(page, press, '[data-testid="what-if-apply-lower"]')
     await page.waitForSelector('[data-testid="extra-payment-form"]', { visible: true })
     const filled = await page.$eval('[data-testid="extra-payment-amount"]', (input) => input.value)
@@ -8256,10 +8224,7 @@ export function loansSavedTriesFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const title = await saveRateTry(page, press, words)
     const tries = await page.$('[data-testid="saved-tries"]')
-    await tries.evaluate((element) => element.scrollIntoView({ block: 'start' }))
-    await delay(300)
-    await inspect?.('the rate change saved in Saved tries')
-    await shoot('loans-saved-tries')
+    await shootAt(page, shoot, tries, 'loans-saved-tries', { block: 'start' })
     await dismissToasts(page)
     await deleteTry(page, press, title)
     await triesHold(page, title, false, 'Delete left the try in Saved tries')
@@ -8975,10 +8940,7 @@ export function investmentsImportFlowIn(language, { workbook: path, edited }, { 
     const gone = await page.waitForSelector('[data-testid="import-gone"] [data-testid="import-gone-now"]', { visible: true, timeout: 5_000 }).catch(() => {
       throw new Error('the dry run does not show the edited deposit beside the one in Kuna')
     })
-    await gone.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.('an edited row as new and gone')
-    await shoot('investments-import-edited')
+    await shootAt(page, shoot, gone, 'investments-import-edited')
     if ((await page.$('[data-testid="import-gone-kept"]')) === null) throw new Error('the edited deposit does not say that both count while it is kept')
     await pressSelector(page, press, '[data-testid="import-gone-delete"]')
     await importSummarySays(page, croatian ? 'Briše 1 zapis kojeg više nema u radnoj knjizi.' : 'It deletes 1 record gone from the workbook.')
@@ -9015,9 +8977,7 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
     const banner = await page.waitForSelector('[data-testid="mail-report-review"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('the Overview offers no review after the sync read the report')
     })
-    await banner.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await inspect?.('the Overview offering the review')
-    await shoot(`investments-mail-review-${variant}`)
+    await shootAt(page, shoot, banner, `investments-mail-review-${variant}`)
     await pressSelector(page, press, '[data-testid="mail-report-open"]')
     await importStep(page, 'accounts')
     if (variant === 'typed') {
@@ -9070,9 +9030,7 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
       const inKuna = await page.waitForSelector('[data-testid="import-group-in-kuna"]', { visible: true, timeout: 5_000 }).catch(() => {
         throw new Error('the review does not list the row matched to a record Kuna has')
       })
-      await inKuna.evaluate((element) => element.scrollIntoView({ block: 'start' }))
-      await delay(300)
-      await shoot('investments-mail-dry-run-typed-in-kuna')
+      await shootAt(page, shoot, inKuna, 'investments-mail-dry-run-typed-in-kuna', { block: 'start' })
     }
     await pressSelector(page, press, '[data-testid="workbook-import-confirm"]')
     await dialogGone(page, '[data-testid="workbook-import"]')
@@ -9108,10 +9066,7 @@ export function investmentsMailUploadFlowIn(language, { flexReport, misfit }) {
     const failed = await page.waitForSelector('[data-testid="mail-report-upload-failed"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('a report that does not fit did not say why')
     })
-    await failed.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await delay(300)
-    await inspect?.('an uploaded report that does not fit')
-    await shoot('investments-mail-upload-misfit')
+    await shootAt(page, shoot, failed, 'investments-mail-upload-misfit')
     await input.uploadFile(flexReport)
     await page.waitForSelector('[data-testid="workbook-import"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('the uploaded report opened no review')
@@ -9692,10 +9647,7 @@ export function spendingFlagPersonFlowIn(language) {
 async function flagSpendingPayee(page, press, dialog, shoot, inspect) {
   await openSpendingRow(page, press, PERSON_PAYEE, PERSON_PAYEE_CENTS)
   await elementSays(page, '[data-testid="spending-entry-person"]', [dialog.asPerson, dialog.asPersonHelp], 'the entry dialog does not offer to treat the payee as a person')
-  await page.$eval('[data-testid="spending-entry-person"]', (element) => element.scrollIntoView({ block: 'center' }))
-  await delay(200)
-  await inspect?.('the entry dialog with its payee not flagged')
-  await shoot('spending-flag-person')
+  await shootAt(page, shoot, '[data-testid="spending-entry-person"]', 'spending-flag-person')
   await treatSpendingPayeeAsPerson(page, press, dialog)
   await inspect?.('the entry dialog with its payee flagged as a person')
   await shoot('spending-flag-person-done')
@@ -9727,10 +9679,7 @@ async function flagReviewCounterparty(page, press, review, shoot, inspect) {
     throw new Error('the opened row does not offer to treat its counterparty as a person')
   })
   await elementSays(page, '[data-testid="review-person"]', [review.item.asPerson, review.item.asPersonHelp], 'the opened row does not offer to treat its counterparty as a person')
-  await page.$eval('[data-testid="review-person"]', (element) => element.scrollIntoView({ block: 'center' }))
-  await delay(300)
-  await inspect?.('a row of the queue with its counterparty not flagged')
-  await shoot('review-flag-person')
+  await shootAt(page, shoot, '[data-testid="review-person"]', 'review-flag-person')
   await pressSelector(page, press, '[data-testid="treat-counterparty"]')
   await toast(page, review.treatedAsPerson)
   await elementSays(page, '[data-testid="review-person"]', [review.item.asCompany], 'the row does not offer to treat its counterparty as a shop or company again')
@@ -9980,8 +9929,7 @@ export function chatTagFlowIn(language) {
         await elementSays(page, '[data-testid="chat-tag"]', ['Rent'], 'the panel does not show the row as the tag')
         if ((await tagged(row)) !== 'row') throw new Error('the tagged row is not highlighted as a row')
         if ((await tagged(card)) !== null) throw new Error('the card stayed highlighted after the row was asked about')
-        await page.$eval(row, (element) => element.scrollIntoView({ block: 'center' }))
-        await shoot('chat-tag-row')
+        await shootAt(page, shoot, row, 'chat-tag-row')
       }
       await pressSelector(page, press, '[data-testid="chat-tag-remove"]')
       await page.waitForSelector('[data-testid="chat-tag"]', { hidden: true, timeout: 5_000 })
@@ -10569,9 +10517,7 @@ export function chatReceiptFlowIn(language, photos, { accept = false, joins = fa
       }
       await inspect?.('the receipt card')
       await shoot('chat-receipt-card')
-      await outside.evaluate((line) => line.scrollIntoView({ block: 'center' }))
-      await delay(300)
-      await shoot('chat-card-outside')
+      await shootAt(page, shoot, outside, 'chat-card-outside')
       await press(await receipt.$('[data-testid="chat-proposal-accept"]'))
       await receipt.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
         const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
@@ -10742,10 +10688,7 @@ export function chatReceiptPathFlowIn(language, photos, path) {
         const notes = await card.$$eval('[data-testid="chat-proposal-note"]', (shown) => shown.map((note) => note.textContent ?? '').join(' '))
         if (!notes.includes(receiptWords.waits('OTP current'))) throw new Error(`the card receipt does not say it waits for the bank's row, and notes "${notes}"`)
         await panelSettled(page)
-        await card.$eval('[data-testid="chat-proposal-note"]', (note) => note.scrollIntoView({ block: 'start' }))
-        await delay(300)
-        await inspect?.("a card receipt that waits for the bank's row")
-        await shoot('chat-receipt-card-waits')
+        await shootAt(page, shoot, await card.$('[data-testid="chat-proposal-note"]'), 'chat-receipt-card-waits', { block: 'start' })
         await acceptCard(press, page, card)
         return
       }
@@ -11004,9 +10947,7 @@ export function kunaWelcomeAiFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {
       const question = await page.waitForSelector('[data-testid="kuna-welcome-ai"]', { visible: true, timeout: 10_000 })
-      await question.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-      await inspect?.('the welcome with its AI question')
-      await shoot('kuna-welcome-ai-question')
+      await shootAt(page, shoot, question, 'kuna-welcome-ai-question')
       await reachKeyStep(page, press, language, [screen.company, screen.loans])
       await elementSays(page, SET_UP, [words.card.steps.credit, words.card.pay('Anthropic'), words.retention.anthropic], 'the key step leaves out what a key takes')
       await inspect?.('the key step')

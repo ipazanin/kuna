@@ -8,6 +8,8 @@ import { getDefaultSelectors } from 'eslint-plugin-better-tailwindcss/defaults'
 import vue from 'eslint-plugin-vue'
 import typescript from 'typescript-eslint'
 
+import { DATE_PARAMETER, DATE_WORDS } from './scripts/support/dateParameters.mjs'
+
 const root = fileURLToPath(new URL('.', import.meta.url))
 const tailwindTheme = readFileSync(fileURLToPath(import.meta.resolve('tailwindcss/theme.css')), 'utf8')
 const paletteHues = [...new Set([...tailwindTheme.matchAll(/--color-([a-z]+)-\d+\s*:/g)].map(([, hue]) => hue))].join('|')
@@ -156,8 +158,65 @@ const moneyToneColours = {
   },
 }
 
+/** A type a worded date comes as: text, maybe missing, or no type at all where the builder's type gives it. */
+const isTextType = (annotation) =>
+  annotation === undefined ||
+  annotation.type === 'TSStringKeyword' ||
+  (annotation.type === 'TSUnionType' && annotation.types.every((member) => ['TSStringKeyword', 'TSNullKeyword', 'TSUndefinedKeyword'].includes(member.type)))
+
+/**
+ * A words builder's parameter whose name says it takes a date as text, but which tests/croatianSentences.spec.ts would not
+ * try with a worded date. A typed date needs no name, since the spec tries every parameter with one.
+ */
+const dateParameters = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const check = (builder) => {
+      for (const parameter of builder.params) {
+        const named = parameter.type === 'AssignmentPattern' ? parameter.left : parameter
+        if (named.type !== 'Identifier' || DATE_PARAMETER.test(named.name) || /(?:Number|Count)$/.test(named.name) || !isTextType(named.typeAnnotation?.typeAnnotation)) continue
+        if (named.name.split(/(?=[A-Z])/).some((word) => DATE_WORDS.has(word.toLowerCase()))) {
+          context.report({
+            node: named,
+            message: `"${named.name}" takes a worded date, so name it as the Croatian sentences spec looks for one, such as day, month, period or dueDay. A day of the month or a count ends in Number or Count.`,
+          })
+        }
+      }
+    }
+    return { ArrowFunctionExpression: check, FunctionExpression: check, FunctionDeclaration: check }
+  },
+}
+
+/**
+ * A check's flow that scrolls an element into view and then shoots, with at most a wait or an inspection between. shootAt does
+ * both and fails when the element is still off screen, so a shot always shows what it is named for.
+ */
+const shootAt = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const calledName = (statement) => {
+      const expression = statement.type === 'ExpressionStatement' ? statement.expression : null
+      const call = expression?.type === 'AwaitExpression' ? expression.argument : expression
+      const callee = call?.type === 'ChainExpression' ? call.expression.callee : call?.type === 'CallExpression' ? call.callee : null
+      return callee?.type === 'Identifier' ? callee.name : null
+    }
+    const check = (block) => {
+      block.body.forEach((statement, at) => {
+        if (statement.type !== 'ExpressionStatement' || !context.sourceCode.getText(statement).includes('scrollIntoView')) return
+        const next = block.body.slice(at + 1).find((later) => !['delay', 'inspect'].includes(calledName(later)))
+        if (next !== undefined && calledName(next) === 'shoot') {
+          context.report({ node: statement, message: 'Scroll to what a shot is taken for with shootAt from scripts/support/editorFlows.mjs, which fails when it is still off screen.' })
+        }
+      })
+    }
+    return { BlockStatement: check, Program: check }
+  },
+}
+
 const kunaPlugin = {
   rules: {
+    'shoot-at': shootAt,
+    'date-parameters': dateParameters,
     'money-tone-colours': moneyToneColours,
     'money-casts': refusedSyntax(
       [...castedAs('TSAsExpression'), ...castedAs('TSTypeAssertion')],
@@ -311,6 +370,8 @@ export function kunaConfig(exempt) {
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },
+    { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },
+    { name: 'kuna/date-parameters', files: ['src/**/words.ts'], rules: { 'kuna/date-parameters': 'error' } },
     ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
     prettier,
   )

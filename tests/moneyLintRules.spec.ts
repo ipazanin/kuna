@@ -15,6 +15,8 @@ async function rulesBroken(file: string, code: string): Promise<string[]> {
 
 const DOMAIN = 'src/apps/loans/planted/domain/planted.ts'
 const SCREEN = 'src/apps/loans/planted/presentation/Planted.vue'
+const WORDS = 'src/apps/loans/planted/presentation/words.ts'
+const FLOWS = 'scripts/support/plantedFlows.mjs'
 
 describe('money and domain lint rules', { timeout: 120_000 }, () => {
   it.each([
@@ -41,6 +43,15 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ['a class expression', DOMAIN, 'export const Loan = class {}', 'kuna/domain-classes'],
     ['a text colour on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" class="font-medium text-highlighted" /></template>', 'kuna/money-tone-colours'],
     ['a text colour on an account figure with a bound tone', SCREEN, '<template><AccountMoneyText :cents="a" currency="EUR" :tone="t" class="text-error" /></template>', 'kuna/money-tone-colours'],
+    ['a scroll then a shot', FLOWS, "export async function a(page, shoot) {\n  await page.$eval('#a', (element) => element.scrollIntoView())\n  await shoot('a')\n}", 'kuna/shoot-at'],
+    [
+      'a scroll, a wait, an inspection and a shot',
+      FLOWS,
+      "export async function a(page, shoot, inspect) {\n  await row.scrollIntoView()\n  await delay(300)\n  await inspect?.('a row')\n  await shoot('a')\n}",
+      'kuna/shoot-at',
+    ],
+    ['a worded date under another name', WORDS, 'export const en = { paidIn: (when: string) => `Paid in ${when}` }', 'kuna/date-parameters'],
+    ['an untyped date of a Croatian builder', WORDS, 'export const hr = { since: (startDate, payMonth) => `${startDate} ${payMonth}`, run: (dates) => dates }', 'kuna/date-parameters'],
   ])('refuses %s', async (_name, file, code, rule) => {
     expect(await rulesBroken(file, code)).toContain(rule)
   })
@@ -60,6 +71,9 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ['a class on a screen', 'src/apps/loans/planted/presentation/planted.ts', 'export class Loan {}'],
     ['a text colour on a figure with no tone', SCREEN, '<template><MoneyText :cents="a" class="text-muted" /></template>'],
     ['a size on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" class="text-sm font-medium" /></template>'],
+    ['a scroll before a tap and then a shot', FLOWS, "export async function a(page, shoot) {\n  await row.scrollIntoView()\n  await row.tap()\n  await shoot('a')\n}"],
+    ['a worded date named for one', WORDS, 'export const en = { paidIn: (period: string, dueDay: string | null, since = "") => `${period} ${dueDay} ${since}` }'],
+    ['a day number, a count and a typed date', WORDS, 'export const en = { mealsOn: (dayNumber: number, daysCount: string, bought: CivilDate) => `${dayNumber} ${daysCount} ${bought}` }'],
   ])('allows %s', async (_name, file, code) => {
     expect(await rulesBroken(file, code)).toEqual([])
   })

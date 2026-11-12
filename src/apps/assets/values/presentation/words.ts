@@ -23,8 +23,8 @@ export const en = {
   indexFailed: 'The DZS index did not load, so flats show their valuation or the price paid.',
   indexDefinition: "The index follows the region's market, not your building.",
   customsNew: (share: string, months: string) => `Estimate by the customs table: ${share} of the price after ${months} from first registration`,
-  customsUsed: (share: string, months: string, sharePaid: string, monthsPaid: string) =>
-    `Estimate by the customs table: ${share} at ${months} from first registration, from the price paid at ${monthsPaid}, when the share was ${sharePaid}`,
+  customsUsed: (share: string, months: string, sharePaid: string, paidAfterMonths: string) =>
+    `Estimate by the customs table: ${share} at ${months} from first registration, from the price paid at ${paidAfterMonths}, when the share was ${sharePaid}`,
   noValue: 'No value yet',
   waitingForIndex: 'Waiting for the DZS index',
 }
@@ -43,8 +43,8 @@ export const hr: Translation<typeof en> = {
   indexFailed: 'Indeks DZS-a nije se učitao, pa stanovi pokazuju procjenu ili plaćenu cijenu.',
   indexDefinition: 'Indeks prati tržište područja, ne vašu zgradu.',
   customsNew: (share, months) => `Procjena prema carinskoj tablici: ${share} cijene nakon ${months} od prve registracije`,
-  customsUsed: (share, months, sharePaid, monthsPaid) =>
-    `Procjena prema carinskoj tablici: ${share} nakon ${months} od prve registracije, od plaćene cijene nakon ${monthsPaid}, kad je udio bio ${sharePaid}`,
+  customsUsed: (share, months, sharePaid, paidAfterMonths) =>
+    `Procjena prema carinskoj tablici: ${share} nakon ${months} od prve registracije, od plaćene cijene nakon ${paidAfterMonths}, kad je udio bio ${sharePaid}`,
   noValue: 'Još nema vrijednosti',
   waitingForIndex: 'Čeka se indeks DZS-a',
 }
