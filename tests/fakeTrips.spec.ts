@@ -31,6 +31,7 @@ describe('the made-up trips', () => {
     expect(workbook.trips.map((file) => [file.trip.number, file.legs.length, file.costs.length])).toEqual([
       ['1/2025', 0, 1],
       ['1/2026', 2, 1],
+      ['5/2026', 0, 0],
       ['2/2026', 0, 2],
       ['3/2026', 0, 0],
       ['4/2026', 0, 1],
@@ -63,13 +64,22 @@ describe('the made-up trips', () => {
     expect(settlement.kind === 'worked' ? settlement.companyCosts : null).toBe(euros(412.3))
   })
 
-  it('has the open order wait for its times and odometer, and for a settlement on Overview', () => {
+  it('has the open order wait for its times and odometer, and for a settlement on Overview, beside the payments Kuna found to link and the one code 17 line past its day not yet reported', () => {
     expect(settlementOf(byNumber('3/2026'), NO_RATES)).toEqual({ kind: 'waiting', gaps: ['times', 'odometer'] })
     const asOf = newestBookingOf(workbook.transactions)
     if (asOf === null) throw new Error('the fake ledger is empty')
-    expect(packWaitingJobs(workbook, asOf).filter((job) => job.key.startsWith('trip-'))).toEqual([
+    expect(packWaitingJobs(workbook, asOf, NO_RATES).filter((job) => job.key.startsWith('trip-'))).toEqual([
       expect.objectContaining({ key: 'trip-3/2026', tone: 'warning', link: expect.objectContaining({ to: expect.objectContaining({ path: '/company/trips' }) }) }),
+      expect.objectContaining({ key: 'trip-payout-2/2026', tone: 'info' }),
+      expect.objectContaining({ key: 'trip-advance-3/2026', tone: 'info' }),
+      expect.objectContaining({ key: 'trip-joppd-2/2026', tone: 'negative' }),
     ])
+  })
+
+  it("has Zadar's payout linked and filed by its settlement, and New York's advance linked", () => {
+    expect([byNumber('1/2026').trip.payoutRow !== null, byNumber('4/2026').trip.advanceRow !== null, byNumber('2/2026').trip.payoutRow]).toEqual([true, true, null])
+    const zadar = workbook.splits.find((split) => split.row.rowId === byNumber('1/2026').trip.payoutRow)
+    expect(zadar?.parts.map((part) => part.category).sort()).toEqual(['car-kilometres', 'per-diems', 'trip-costs'])
   })
 
   it('leaves the other variants without trips', () => {

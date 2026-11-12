@@ -14,6 +14,7 @@ import { useFilters } from '../../../../filters/application/filterStore'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import { useSettings } from '../../../../settings/application/useSettings'
 import FactTabCard from '../../../../settings/presentation/FactTabCard.vue'
+import { presentedWorkbook } from '../../../../transactions/domain/presentedWorkbook'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { ledgerWindowOf } from '../../../../workbook/domain/workbook'
 import LedgerGate from '../../../../workbook/presentation/LedgerGate.vue'
@@ -26,6 +27,7 @@ import OwnerPayOff from '../OwnerPayOff.vue'
 import SalaryMonthPanel from './SalaryMonthPanel.vue'
 import SalaryOverTimePanel from './SalaryOverTimePanel.vue'
 import SalaryPeoplePanel from './SalaryPeoplePanel.vue'
+import TripReportsCard from './TripReportsCard.vue'
 import { chosenPayday, paydayYears, salaryYearRows } from '../../domain/salaries/salaryFigures'
 import { employeeName, peopleRows, salaryMonthView } from './salariesView'
 import { words as packWords } from '../words'
@@ -38,7 +40,8 @@ const { drillLocation } = useFilters()
 const route = useRoute()
 const router = useRouter()
 
-const workbook = computed(() => (state.workbook === null ? null : hrDooWorkbook(state.workbook)))
+/** With split rows in their parts, so a part in a pay or tax-free category counts on its own. */
+const workbook = computed(() => (state.workbook === null ? null : hrDooWorkbook(presentedWorkbook(state.workbook))))
 const ledgerWindow = computed(() => (workbook.value === null ? null : ledgerWindowOf(workbook.value.transactions)))
 const reconciliation = computed(() => (workbook.value === null ? null : salaryReconciliation(workbook.value)))
 
@@ -149,6 +152,7 @@ function monthLink(paydayMonth: string, slug: string | null = employee.value) {
           </template>
           <template #month>
             <SalaryMonthPanel :view="month" />
+            <TripReportsCard :workbook="workbook" :month="payday.payday" :employee="employee" class="mt-6" />
           </template>
           <template #over-time>
             <SalaryOverTimePanel v-if="overTime && year !== null" :rows="overTime" :year="year" :month-link="monthLink" />

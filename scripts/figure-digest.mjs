@@ -100,6 +100,8 @@ import { paydayYears, salaryYearRows } from '../src/apps/company/packs/hr-doo/do
 import { nextTripNumber } from '../src/apps/company/packs/hr-doo/domain/trips/tripDefaults.ts'
 import { tripSettlement } from '../src/apps/company/packs/hr-doo/domain/trips/tripSettlement.ts'
 import { tripWarnings } from '../src/apps/company/packs/hr-doo/domain/trips/tripWarnings.ts'
+import { filedBySettlement, tripRowProblems, tripRowSuggestions, tripRowsSplit } from '../src/apps/company/packs/hr-doo/domain/trips/tripBankRows.ts'
+import { tripReports } from '../src/apps/company/packs/hr-doo/domain/trips/tripPayments.ts'
 import { taxByType } from '../src/apps/company/packs/hr-doo/domain/taxByType.ts'
 import { yearOptions } from '../src/apps/company/packs/hr-doo/domain/yearChoice.ts'
 import { compareYearEnd } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEndComparison.ts'
@@ -189,6 +191,7 @@ import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructu
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
 import { decodeRatesFile, emptyRatesFile } from '../src/shared/rates/domain/ratesFile.ts'
 import { everydayBook } from '../src/shared/rates/domain/rateBooks.ts'
+import { NO_RATES } from '../src/shared/money/rateBook.ts'
 import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRatesState.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
@@ -391,7 +394,7 @@ if (companyAsked) {
     ]
   })
 
-  const salaryBooks = hrDooWorkbook(raw)
+  const salaryBooks = books
   const reconciliation = salaryReconciliation(salaryBooks)
   group('salaries.paydays', reconciliation)
   group('salaries.years', () => paydayYears(reconciliation).map((year) => salaryYearRows(reconciliation, year, null, ledgerWindowOf(salaryBooks.transactions).partMonth)))
@@ -399,6 +402,22 @@ if (companyAsked) {
   if (salaryBooks.trips.length > 0) {
     group('trips.settlements', () => salaryBooks.trips.map((file) => [file.trip.number, tripSettlement(file, ruleValue)]))
     group('trips.warnings', () => salaryBooks.trips.map((file) => tripWarnings(file, salaryBooks.employees.find((employee) => employee.slug === file.trip.traveller) ?? null, ruleValue)))
+    group('trips.code-17', () => tripReports(salaryBooks.trips, ruleValue, NO_RATES))
+    group('trips.bank-rows', () =>
+      salaryBooks.trips.map((file) => {
+        const settlement = tripSettlement(file, ruleValue)
+        const worked = settlement.kind === 'worked' ? settlement : null
+        const traveller = salaryBooks.employees.find((employee) => employee.slug === file.trip.traveller) ?? null
+        const trips = salaryBooks.trips.map((entry) => entry.trip)
+        const split = worked === null ? null : tripRowsSplit(file, worked, salaryBooks.transactions, salaryBooks.categories)
+        return {
+          number: file.trip.number,
+          problems: tripRowProblems([file.trip], salaryBooks.transactions),
+          suggestions: tripRowSuggestions(file, worked, traveller, trips, salaryBooks.transactions).map((suggestion) => [suggestion.link, suggestion.row.id]),
+          split: split === null || 'refused' in split ? split : split.rows.map((row) => ({ link: row.link, parts: row.parts, filed: filedBySettlement(row, salaryBooks.splits) })),
+        }
+      }),
+    )
     group('trips.next-number', () =>
       nextTripNumber(
         today,

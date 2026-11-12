@@ -39,8 +39,11 @@ import {
   TRIP_LEG_WRITES,
   TRIP_WRITES,
   YEAR_END_WRITES,
+  tripRowProblemText,
   tripsOf,
 } from './hrDooWrites'
+import { tripRowProblems } from './trips/tripBankRows'
+import { problemOf } from '../../../../../shared/storage/domain/recordsRead'
 import type { TripFile } from './trips/tripReading'
 import { OWNER_ADVANCE_CODEC, readOwnerAdvances } from './ownerAdvancesReading'
 import { PACK_ROLES, TAX_FREE_ROLES } from './packRoles'
@@ -154,7 +157,10 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
         ...tabProblems('year-end', yearEndLines.problems),
         ...tabProblems('plan', planLines.problems),
         ...tabProblems('employees', employees.problems),
-        ...tabProblems('trips', trips.trips.problems),
+        ...tabProblems('trips', [
+          ...trips.trips.problems,
+          ...tripRowProblems(trips.trips.facts, core.transactions).map(({ trip, problem }) => problemOf({ id: trip.id, label: trip.number }, tripRowProblemText(problem))),
+        ]),
         ...tabProblems('trip-legs', trips.legs.problems),
         ...tabProblems('trip-costs', trips.costs.problems),
       ],

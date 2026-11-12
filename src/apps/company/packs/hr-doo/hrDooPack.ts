@@ -35,7 +35,7 @@ export const hrDooPack: PackContribution = {
     { path: '/company/salaries', title: packWords.screens.salaries, icon: 'i-lucide-users', component: () => import('./presentation/salaries/SalariesScreen.vue') },
     { path: TRIPS_ROUTE, title: packWords.screens.trips, icon: 'i-lucide-plane', component: () => import('./presentation/trips/TripsScreen.vue') },
   ],
-  waitingJobs: (workbook, asOf) => packWaitingJobs(hrDooWorkbook(workbook), asOf),
+  waitingJobs: (workbook, asOf, rates) => packWaitingJobs(hrDooWorkbook(workbook), asOf, rates),
   ownerTakeOut: (workbook, asOf) => ownerTakeOut(hrDooWorkbook(workbook), asOf),
   ratesDemand: (workbook) =>
     tripRatesDemand(

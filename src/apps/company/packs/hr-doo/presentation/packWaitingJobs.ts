@@ -4,6 +4,7 @@ import { yearOf } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../../shared/calendar/dayLabel'
 import { monthInYear } from '../../../../../shared/calendar/monthLabel'
+import { negateMoney } from '../../../../../shared/money/money'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import { plural } from '../../../../../shared/text/translation'
 import type { WaitingJob } from '../../../overview/presentation/waitingForYou'
@@ -13,7 +14,10 @@ import type { HrDooWorkbook } from '../domain/hrDooPart'
 import { packWaiting } from '../domain/packWaiting'
 import type { CorporateTaxWaiting, MissedPayroll } from '../domain/packWaiting'
 import type { Trip } from '../domain/trips/trip'
+import { tripsWaiting } from '../domain/trips/tripPayments'
 import { waitsForSettlement } from '../domain/trips/tripSettlement'
+import type { RateBook } from '../../../../../shared/money/rateBook'
+import { ruleValue } from '../ruleset/ruleset'
 import { employeeName } from './salaries/salariesView'
 import { SETTLEMENT_TAB, tripLink } from './trips/tripLinks'
 import { words } from './words'
@@ -24,13 +28,39 @@ function taxesTab(card: string): RouteLocationRaw {
 }
 
 /** What waits in the pack's books, said in a line each with the page and tab that does it. */
-export function packWaitingJobs(workbook: HrDooWorkbook, asOf: CivilDate): WaitingJob[] {
+export function packWaitingJobs(workbook: HrDooWorkbook, asOf: CivilDate, rates: RateBook): WaitingJob[] {
   const { unaccounted, payroll, corporateTax } = packWaiting(workbook, asOf)
   const core = [unaccountedJob(unaccounted), payroll === null ? null : payrollJob(payroll, workbook, asOf), corporateTax === null ? null : corporateTaxJob(corporateTax)].flatMap((job) =>
     job === null ? [] : [job],
   )
   const trips = workbook.trips.map((file) => file.trip).filter((trip) => waitsForSettlement(trip, asOf))
-  return [...core, ...trips.map((trip) => tripJob(trip, workbook, asOf))]
+  const { toLink, reports } = tripsWaiting(workbook.trips, workbook.employees, workbook.transactions, asOf, ruleValue, rates)
+  const nameOf = (slug: string) => {
+    const traveller = workbook.employees.find((employee) => employee.slug === slug)
+    return traveller === undefined ? slug : employeeName(traveller)
+  }
+  return [
+    ...core,
+    ...trips.map((trip) => tripJob(trip, workbook, asOf)),
+    ...toLink.map(({ trip, link, row }): WaitingJob => ({
+      key: `trip-${link}-${trip.number}`,
+      text: words.waiting.tripRowToLink[link](trip.number, nameOf(trip.traveller), formatMoney(negateMoney(row.amount)), dayLabel(row.date)),
+      tone: 'info',
+      link: { label: words.links.tripSettlement, to: tripLink(trip.id, SETTLEMENT_TAB) },
+    })),
+    ...reports.flatMap(({ report, late }): WaitingJob[] =>
+      report.amount === null
+        ? []
+        : [
+            {
+              key: `trip-joppd-${report.trip.number}`,
+              text: (late ? words.waiting.tripReportLate : words.waiting.tripReportDue)(report.trip.number, nameOf(report.trip.traveller), formatMoney(report.amount), dayLabel(report.dueOn)),
+              tone: late ? 'negative' : 'info',
+              link: { label: words.links.salaries, to: { path: '/company/salaries', query: { year: report.month.slice(0, 4), month: report.month } } },
+            },
+          ],
+    ),
+  ]
 }
 
 /** A travel order whose traveller is back and which is not settled yet, with its settle-by day, late once that day has passed. */

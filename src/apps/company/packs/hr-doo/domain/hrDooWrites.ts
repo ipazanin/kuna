@@ -1,5 +1,6 @@
 import { definedCategories, definedCategorySlugs } from '../../../workbook/domain/categoriesReading'
-import { CATEGORY_RECORDS } from '../../../workbook/domain/coreKinds'
+import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
+import { readLedger } from '../../../workbook/domain/ledgerReading'
 import { storedFieldsOf } from '../../../../../shared/storage/domain/recordsRead'
 import { counted, countedBy, slugChangeRefusals, usesOf } from '../../../workbook/domain/slug'
 import { words } from './words'
@@ -9,7 +10,7 @@ import type { StoredField, StoredFields } from '../../../../../shared/storage/do
 import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import { pickedEdits, pickedUntouched } from '../../../../../shared/storage/domain/writeRules'
-import type { FreshRecords, KindChange, WriteRules } from '../../../../../shared/storage/domain/writeRules'
+import type { FreshRecords, KindChange, RecordEdit, WriteRules } from '../../../../../shared/storage/domain/writeRules'
 import { readAssets } from './assets/assetsReading'
 import type { Asset } from './assets/assets'
 import type { Employee } from './employees/employees'
@@ -43,6 +44,8 @@ import type { Trip, TripCost, TripLeg } from './trips/trip'
 import { TRIP_FIELD, readTrips, tripCodecs } from './trips/tripReading'
 import type { TripCodecs, TripFault, TripWording } from './trips/tripReading'
 import type { TripProblem } from './trips/tripRules'
+import { TRIP_ROW_LINKS, tripRowProblem } from './trips/tripBankRows'
+import type { TripRowLink, TripRowProblem } from './trips/tripBankRows'
 import type { TripRecords, TripsReading } from './trips/tripReading'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
 import type { RecordsRead } from '../../../../../shared/storage/domain/recordsRead'
@@ -303,13 +306,45 @@ function keyOfTrip(fields: StoredFields): RecordId {
   return recordIdOf(TRIP_RECORDS, textOf(fields[TRIP_FIELD]))
 }
 
-/** A travel order is checked by the trips reader against the employees and its legs, and is removed only with its legs and costs. */
+/** What a problem with a trip's link to a bank row says, on the problems card and in a refused write. */
+export function tripRowProblemText(problem: TripRowProblem): string {
+  const said = words.tripReading
+  switch (problem.kind) {
+    case 'row-gone':
+      return said.rowGone(ROW_FIELDS[problem.link], problem.rowId)
+    case 'no-advance':
+      return said.noAdvanceToLink
+    case 'linked-twice':
+      return said.rowLinkedTwice(ROW_FIELDS[problem.link], problem.number)
+  }
+}
+
+const ROW_FIELDS: Readonly<Record<TripRowLink, string>> = { advance: 'advance_row', payout: 'payout_row' }
+
+/** A link the write sets or changes holds against the ledger and the other trips' links. */
+function linkRefusals(change: KindChange<Trip>, fresh: FreshRecords): string[] {
+  const linked = (edit: RecordEdit<Trip>, link: TripRowLink) =>
+    textOf(edit.after?.fields[ROW_FIELDS[link]]) !== '' && textOf(edit.after?.fields[ROW_FIELDS[link]]) !== textOf(edit.before?.fields[ROW_FIELDS[link]])
+  const set = change.edits.flatMap((edit) => {
+    const after = edit.after
+    return after !== null && 'record' in after ? TRIP_ROW_LINKS.filter((link) => linked(edit, link)).map((link) => ({ trip: after.record, link })) : []
+  })
+  if (set.length === 0) return []
+  const transactions = readLedger(fresh.of(LEDGER_RECORDS), definedCategories(fresh.of(CATEGORY_RECORDS))).facts
+  const trips = change.after.records.map((stored) => stored.record)
+  return set.flatMap(({ trip, link }) => {
+    const problem = tripRowProblem(trip, link, trips, transactions)
+    return problem === null ? [] : [`${trip.number}: ${tripRowProblemText(problem)}`]
+  })
+}
+
+/** A travel order is checked by the trips reader against the employees and its legs, is removed only with its legs and costs, and links only a bank row that can be its. */
 export const TRIP_WRITES: WriteRules<Trip> = {
   kind: TRIP_RECORDS,
-  reads: TRIP_KINDS,
+  reads: [...TRIP_KINDS, LEDGER_RECORDS, CATEGORY_RECORDS],
   undoable: true,
   read: (read, records) => tripsWith(TRIP_RECORDS, read, records).trips,
-  refusals: (change, _fresh, after) => tripsStillNamed(change, after),
+  refusals: (change, fresh, after) => [...tripsStillNamed(change, after), ...linkRefusals(change, fresh)],
 }
 
 /** A leg names a travel order that counts, and the legs of a trip by private car fit its odometer. */

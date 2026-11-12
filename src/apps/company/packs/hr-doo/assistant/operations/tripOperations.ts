@@ -1,4 +1,12 @@
 import type { CompanyBooks } from '../../../../workbook/domain/readWorkbook'
+import { LEDGER_RECORDS } from '../../../../workbook/domain/coreKinds'
+import { amountText } from '../../../../../../shared/storage/domain/recordFields'
+import { dismissTripRow, fileTripRows, linkTripRow, markTripReported } from '../../application/tripRowWrites'
+import { tripRowProblemText } from '../../domain/hrDooWrites'
+import { TRIP_ROW_LINKS, tripRowProblem, tripRowsSplit, withLinkedRow } from '../../domain/trips/tripBankRows'
+import type { TripRowLink, TripSplitRefusal } from '../../domain/trips/tripBankRows'
+import { tripSettlement } from '../../domain/trips/tripSettlement'
+import { ruleValue } from '../../ruleset/ruleset'
 import {
   costDraftOf,
   costOfDraft,
@@ -124,6 +132,54 @@ export const TRIP_OPERATIONS: readonly AssistantOperation[] = [
     example: { trip: 'trip' },
   },
   {
+    name: 'link-trip-row',
+    about:
+      "Links the ledger row that paid a travel order's advance, or the one that paid out its settlement, as the trip's Bank rows card does. Only a payment out with a row id, which no other trip links. An advance row needs an order with an advance. The row's category stays as it is until file-trip-rows.",
+    input: inputOf({ trip: TEXT, link: { type: 'string', enum: [...TRIP_ROW_LINKS], description: 'advance or payout.' }, row: TEXT }),
+    refs: { trip: TRIP_RECORDS.name, row: LEDGER_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { trip: 'trip', link: 'payout', row: 'ledger-row' },
+  },
+  {
+    name: 'dismiss-trip-row',
+    about:
+      "Sets aside a payment Kuna offered as a travel order's advance or payout row, as the Bank rows card's Not this one does, when the person says it is not that trip's. Kuna offers it for that trip no more.",
+    input: inputOf({ trip: TEXT, row: TEXT }),
+    refs: { trip: TRIP_RECORDS.name, row: LEDGER_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { trip: 'trip', row: 'ledger-row' },
+  },
+  {
+    name: 'mark-trip-reported',
+    about: "Marks a settled travel order's JOPPD code 17 line as reported on a day, as the Reported tick on Salaries does, so Waiting for you stops listing it, or clears the mark with an empty day.",
+    input: inputOf({ trip: TEXT, reportedOn: { type: 'string', description: 'The day it was reported, such as 2026-04-10, or "" to clear the mark.' } }),
+    refs: { trip: TRIP_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { trip: 'trip', reportedOn: '2026-04-10' },
+  },
+  {
+    name: 'unlink-trip-row',
+    about: "Unlinks a travel order's advance or payout row. The row keeps its category and its split.",
+    input: inputOf({ trip: TEXT, link: { type: 'string', enum: [...TRIP_ROW_LINKS], description: 'advance or payout.' } }),
+    refs: { trip: TRIP_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { trip: 'trip', link: 'advance' },
+  },
+  {
+    name: 'file-trip-rows',
+    about:
+      "Files a settled travel order's linked rows by its settlement, as File by the settlement does: per diems, kilometres and the costs the traveller paid, each in the category with its tax-free role. The advance row takes the first lines and the payout row the rest. A row of one line takes that category whole, and a row of more is split.",
+    input: inputOf({ trip: TEXT }),
+    refs: { trip: TRIP_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { trip: 'trip' },
+  },
+  {
     name: 'add-trip-leg',
     about: 'A drive of a travel order by private car, with its kilometres. The legs of a trip fit within its odometer.',
     input: inputOf({ trip: TEXT, ...LEG_FIELDS }),
@@ -181,7 +237,17 @@ export const TRIP_OPERATIONS: readonly AssistantOperation[] = [
 ]
 
 /** The operations on a travel order, which names its traveller, an employee, so the chat makes none while Anonymise is on. */
-const NAMES_A_PERSON: ReadonlySet<string> = new Set(['add-trip', 'change-trip', 'settle-trip', 'delete-trip'])
+const NAMES_A_PERSON: ReadonlySet<string> = new Set([
+  'add-trip',
+  'change-trip',
+  'settle-trip',
+  'delete-trip',
+  'link-trip-row',
+  'dismiss-trip-row',
+  'mark-trip-reported',
+  'unlink-trip-row',
+  'file-trip-rows',
+])
 
 const ANONYMISING =
   'A travel order names its traveller, an employee, so it stays on this device while Anonymise is on and the chat cannot change it. Ask the person to turn Anonymise off for this AI company, or to make the change on the Trips screen.'
@@ -203,6 +269,31 @@ function fileOf(books: CompanyBooks, id: string): TripFile {
 function madeOrRefused<R>(made: { readonly made: R } | { readonly refused: string }): R {
   if ('refused' in made) throw new StepRefused(made.refused)
   return made.made
+}
+
+function linkOf(field: Field): TripRowLink {
+  const link = TRIP_ROW_LINKS.find((candidate) => candidate === String(field['link']))
+  if (link === undefined) throw new StepRefused('A link is advance or payout.')
+  return link
+}
+
+function splitRefusalText(refusal: TripSplitRefusal): string {
+  switch (refusal.kind) {
+    case 'not-settled':
+      return 'The rows are filed once the trip is settled.'
+    case 'nothing-linked':
+      return 'The trip links no row yet. Link its advance or payout row first.'
+    case 'row-gone':
+      return `The ${refusal.link} row is no longer in the ledger.`
+    case 'no-category':
+      return `No category has the role tax-free:${refusal.payment}. Give one that role on Settings, Categories, first.`
+    case 'advance-differs':
+      return `The advance row pays ${amountText(refusal.row)}, and the order's advance is ${amountText(refusal.advance)}.`
+    case 'payout-differs':
+      return `The payout row pays ${amountText(refusal.row)}, and the settlement pays out ${amountText(refusal.payout)}.`
+    case 'no-category-for-return':
+      return 'The advance row has no category to keep what the traveller returns in. File it first.'
+  }
 }
 
 const BLANK_ORDER: TripOrderDraft = {
@@ -258,6 +349,46 @@ export function plannedTripStep(unit: UnitOfWork, books: CompanyBooks, { operati
     case 'delete-trip':
       removeTrip(unit, fileOf(books, idOf(field['trip'])))
       return true
+    case 'link-trip-row': {
+      const { trip } = fileOf(books, idOf(field['trip']))
+      const row = books.workbook.transactions.find((candidate) => candidate.id === idOf(field['row']))
+      if (row === undefined) throw new StepRefused('That ledger row is no longer in the books.')
+      if (row.rowId === null) throw new StepRefused('That ledger row has no id yet. Give the ledger rows their ids on Settings, Books file, first.')
+      const link = linkOf(field)
+      const problem = tripRowProblem(withLinkedRow(trip, link, row.rowId), link, trips(), books.workbook.transactions)
+      if (problem !== null) throw new StepRefused(tripRowProblemText(problem))
+      linkTripRow(unit, trip, link, row.rowId)
+      return true
+    }
+    case 'dismiss-trip-row': {
+      const { trip } = fileOf(books, idOf(field['trip']))
+      const row = books.workbook.transactions.find((candidate) => candidate.id === idOf(field['row']))
+      if (row === undefined) throw new StepRefused('That ledger row is no longer in the books.')
+      if (row.rowId === null) throw new StepRefused('That ledger row has no id yet. Give the ledger rows their ids on Settings, Books file, first.')
+      dismissTripRow(unit, trip, row.rowId)
+      return true
+    }
+    case 'mark-trip-reported': {
+      const { trip } = fileOf(books, idOf(field['trip']))
+      const typed = String(field['reportedOn']).trim()
+      if (typed !== '' && trip.settledOn === null) throw new StepRefused('Only a settled travel order has a code 17 line to report.')
+      markTripReported(unit, trip, typed === '' ? null : dayOf(typed))
+      return true
+    }
+    case 'unlink-trip-row': {
+      const { trip } = fileOf(books, idOf(field['trip']))
+      linkTripRow(unit, trip, linkOf(field), null)
+      return true
+    }
+    case 'file-trip-rows': {
+      const file = fileOf(books, idOf(field['trip']))
+      const settlement = tripSettlement(file, ruleValue)
+      if (settlement.kind === 'waiting') throw new StepRefused(`The settlement still waits for ${settlement.gaps.join(', ')}, so its rows cannot be filed by it yet.`)
+      const split = tripRowsSplit(file, settlement, books.workbook.transactions, books.workbook.categories)
+      if ('refused' in split) throw new StepRefused(splitRefusalText(split.refused))
+      fileTripRows(unit, books, split.rows, books.workbook.settings.reviewLabel)
+      return true
+    }
     case 'add-trip-leg': {
       const { trip } = fileOf(books, idOf(field['trip']))
       const draft = typedOver(BLANK_LEG, field)

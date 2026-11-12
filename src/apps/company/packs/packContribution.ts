@@ -16,6 +16,7 @@ import type { Category, Transaction, Workbook } from '../workbook/domain/workboo
 import type { UnitOfWork } from '../../../shared/storage/application/repository'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 import type { Money } from '../../../shared/money/money'
+import type { RateBook } from '../../../shared/money/rateBook'
 import type { RatesDemand } from '../../../shared/rates/domain/ratesDemand'
 
 /**
@@ -90,7 +91,7 @@ export interface PackContribution {
   /** Screens of the pack's own, listed after the core screens. The routes exist whatever the switch says, and their menu items show only while it is on, like the slots below. */
   readonly screens: readonly AppScreen[]
   /** Jobs for Overview's Waiting for you, listed after the core jobs. */
-  waitingJobs(workbook: Workbook, asOf: CivilDate): readonly WaitingJob[]
+  waitingJobs(workbook: Workbook, asOf: CivilDate, rates: RateBook): readonly WaitingJob[]
   /** What the owner could take out on the newest booking. Null without a pack, which has no such figure. */
   ownerTakeOut(workbook: Workbook, asOf: CivilDate): OwnerTakeOut | null
   /** The ECB rates the pack's figures need, each currency from the first day it is needed. Empty without a pack. */

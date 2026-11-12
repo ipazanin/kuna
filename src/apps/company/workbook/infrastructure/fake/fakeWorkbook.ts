@@ -38,6 +38,25 @@ export interface FakeStaff {
   payday(paidIn: string, worked: string): readonly FakePayment[]
   /** The travel orders with their legs and costs, by kind, each record with its own id. */
   readonly trips: Readonly<Record<string, readonly FakeFields[]>>
+  /** The rows that paid the travel orders' advances and payouts. */
+  readonly tripPayments: readonly FakeTripPayment[]
+  /** Categories the trips' rows are filed in, each with its roles and its label in the language on screen. */
+  readonly categories: readonly (readonly [category: string, roles: string, label: string])[]
+}
+
+/** A row that paid a travel order's advance or payout, linked to the trip when `linked`, and split into `parts` when they are given. */
+export interface FakeTripPayment {
+  readonly date: string
+  readonly counterparty: string
+  readonly iban: string
+  readonly description: string
+  readonly amount: number
+  readonly category: string
+  readonly trip: string
+  readonly link: 'advance' | 'payout'
+  readonly linked: boolean
+  /** Each part's category and amount, the first taking the rest. */
+  readonly parts: readonly (readonly [category: string, amount: number | null])[]
 }
 
 /** The `roles` column as the shadow-accounting Sheet seeds it. Salary and rent are paid in the month after the work, hence `arrears`. */
@@ -358,7 +377,7 @@ const setting = ([key, value]: readonly [string, FieldValue | number]): FakeFiel
 
 function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Record<string, readonly FakeFields[]>> {
   const { bookings, invoices } = fakeBooks(staff)
-  const ledger = ledgerRecords(bookings)
+  const ledger = withTripPaymentsLast(ledgerRecords(bookings), staff)
   return {
     setting:
       source === 'drive'
@@ -384,17 +403,20 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
             ...FAKE_INVOICING.map(setting),
           ],
     'ledger-row': ledger,
-    category: CATEGORY_SEED.flatMap((group) =>
-      group.categories.map(([category, bucket]) => ({
-        category,
-        family: group.family,
-        bucket,
-        colour: CATEGORY_COLOURS[category] ?? group.colour,
-        roles: CATEGORY_ROLES[category],
-        vat: CATEGORY_VAT[category],
-        owner_share: CATEGORY_OWNER_SHARES[category],
-      })),
-    ),
+    category: [
+      ...CATEGORY_SEED.flatMap((group) =>
+        group.categories.map(([category, bucket]) => ({
+          category,
+          family: group.family,
+          bucket,
+          colour: CATEGORY_COLOURS[category] ?? group.colour,
+          roles: CATEGORY_ROLES[category],
+          vat: CATEGORY_VAT[category],
+          owner_share: CATEGORY_OWNER_SHARES[category],
+        })),
+      ),
+      ...(staff?.categories ?? []).map(([category, roles, label]) => ({ category, label, family: 'owner', bucket: 'owner-pay', colour: '#e4e1f6', roles })),
+    ],
     account: Object.entries(ACCOUNTS).map(([account, iban]) => ({ account, iban })),
     rule: ruleRecords(),
     invoice: invoices.map((invoice) => ({
@@ -427,11 +449,11 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
       { date: '2026-08-21', amount: money(89), description: 'Design tool, annual plan on the owner’s card', category: 'software-subscriptions', owner_share: 25 },
       { date: '2026-09-30', amount: money(34.2), description: 'Printer paper', category: 'office-supplies' },
     ],
-    'split-part': splitRecords(ledger),
+    'split-part': [...splitRecords(ledger), ...tripSplitRecords(staff, ledger)],
     dismissal: [],
     ...planningRecords(),
     ...(staff !== null
-      ? { 'hr-doo.employee': staff.employees, ...staff.trips }
+      ? { 'hr-doo.employee': staff.employees, ...staff.trips, 'hr-doo.trip': linkedTrips(staff, ledger) }
       : source === 'drive'
         ? {}
         : {
@@ -619,6 +641,47 @@ const SPLIT_ROWS: readonly FakeSplit[] = [
     ],
   },
 ]
+
+/** The ledger with the trip payments' rows at its end, so every other row keeps the fixed id it has without them. */
+function withTripPaymentsLast(ledger: readonly FakeFields[], staff: FakeStaff | null): FakeFields[] {
+  const paid = (fields: FakeFields) => (staff?.tripPayments ?? []).some((payment) => fields.date === payment.date && fields.description === payment.description)
+  return [...ledger.filter((fields) => !paid(fields)), ...ledger.filter(paid)]
+}
+
+/** The ledger row a trip payment booked. */
+function tripPaymentRow(payment: FakeTripPayment, ledger: readonly FakeFields[]): FakeFields {
+  const row = ledger.find((fields) => fields.date === payment.date && fields.description === payment.description)
+  if (row === undefined) throw new Error(`The fake ledger has no row "${payment.description}" on ${payment.date}.`)
+  return row
+}
+
+/** The staff's travel orders, each linked to the rows the fake links, by the rows' fixed ids. */
+function linkedTrips(staff: FakeStaff, ledger: readonly FakeFields[]): FakeFields[] {
+  return (staff.trips['hr-doo.trip'] ?? []).map((trip) => {
+    const links = staff.tripPayments.filter((payment) => payment.linked && payment.trip === trip.id)
+    return links.reduce<FakeFields>((linked, payment) => ({ ...linked, [`${payment.link}_row`]: fixedIdOf(FIXED_IDS['ledger-row']!, ledger.indexOf(tripPaymentRow(payment, ledger))) }), trip)
+  })
+}
+
+/** The parts of the trip payments the fake files by their settlement. */
+function tripSplitRecords(staff: FakeStaff | null, ledger: readonly FakeFields[]): FakeFields[] {
+  return (staff?.tripPayments ?? [])
+    .filter((payment) => payment.parts.length > 1)
+    .flatMap((payment) => {
+      const row = tripPaymentRow(payment, ledger)
+      const fixed = payment.parts.reduce((sum, [, part]) => sum + (part ?? 0), 0)
+      return payment.parts.map(([category, part]) => ({
+        date: row.date,
+        account: row.account,
+        row_amount: row.amount,
+        row_balance: row.balance,
+        row_id: fixedIdOf(FIXED_IDS['ledger-row']!, ledger.indexOf(row)),
+        amount: money(part === null ? roundToCent(Number(row.amount) + fixed) : -part),
+        category,
+        note: '',
+      }))
+    })
+}
 
 function splitRecords(ledger: readonly FakeFields[]): FakeFields[] {
   return SPLIT_ROWS.flatMap((split) => {
@@ -817,6 +880,9 @@ function fakeBooks(staff: FakeStaff | null): { readonly bookings: Booking[]; rea
     booking('2026-10-06', PAYEES.owner.name, PAYEES.owner.iban, 'Refund of a parking fee', -38.5, 'reimbursement-to-owner', undefined, 'human'),
     booking('2026-10-08', 'SNACK KIOSK', '', 'Card purchase', -6.4, 'card-purchase-unknown', undefined, 'ai'),
   )
+  const tripPayments = staff?.tripPayments ?? []
+  all.push(...tripPayments.map((payment) => booking(payment.date, payment.counterparty, payment.iban, payment.description, payment.amount, payment.category, undefined, 'human')))
+  staffDifference = roundToCent(staffDifference - tripPayments.reduce((sum, payment) => sum + payment.amount, 0))
   if (staff !== null && staffDifference !== 0) {
     // The main account then ends where the flat salary leaves it, so the statements folder's sample carries it on.
     all.push(

@@ -27,6 +27,7 @@ import FigureDialog from '../FigureDialog.vue'
 import { figureDetail } from '../tracedFigureView'
 import type { AskableDetail } from '../tracedFigureView'
 import SettlementDialog from './SettlementDialog.vue'
+import TripBankRows from './TripBankRows.vue'
 import { perDiemLineFigure, settlementBuildUps } from './tripBuildUps'
 import TripCostDialog from './TripCostDialog.vue'
 import TripLegDialog from './TripLegDialog.vue'
@@ -191,6 +192,8 @@ function route(leg: TripLeg): string {
         <BuildUpButton :cents="buildUps.companyCosts.amount" :label="words.totals.companyPaid" class="text-toned" @open="opened = detailOf(buildUps.companyCosts)" />
       </p>
     </AppCard>
+
+    <TripBankRows :file="file" :settlement="settlement" :employees="employees" />
 
     <AppCard v-if="perDiemLines.length > 0" :title="words.perDiems.title" :subtitle="words.perDiems.subtitle" collapse-id="trips.per-diems" data-testid="trip-per-diems">
       <FigureTable class="px-1 pb-2 sm:px-2" :label="words.perDiems.title">

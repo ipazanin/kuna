@@ -86,6 +86,12 @@ export const en = {
     tripToSettle: (number: string, traveller: string, destination: string) => `Travel order ${number}, ${traveller} to ${destination}, waits for its settlement`,
     tripDue: (number: string, traveller: string, destination: string, day: string) => `Travel order ${number}, ${traveller} to ${destination}, waits for its settlement by ${day}`,
     tripLate: (number: string, traveller: string, destination: string, day: string) => `Travel order ${number}, ${traveller} to ${destination}, was due to be settled by ${day}`,
+    tripRowToLink: {
+      advance: (number: string, traveller: string, amount: string, day: string) => `Travel order ${number}: Kuna found ${amount} paid to ${traveller} on ${day}, which may be its advance`,
+      payout: (number: string, traveller: string, amount: string, day: string) => `Travel order ${number}: Kuna found ${amount} paid to ${traveller} on ${day}, which may be its payout`,
+    },
+    tripReportDue: (number: string, traveller: string, amount: string, day: string) => `Travel order ${number}, ${traveller}: ${amount} under JOPPD code 17, to report by ${day}`,
+    tripReportLate: (number: string, traveller: string, amount: string, day: string) => `Travel order ${number}, ${traveller}: ${amount} under JOPPD code 17 was due to be reported by ${day}`,
   },
   /** The pack's pages as a link names them, a page and its tab. */
   links: {
@@ -96,6 +102,7 @@ export const en = {
     yearStatements: 'Year, Statements',
     yearPlan: 'Year, Plan',
     tripSettlement: 'Trips, Settlement',
+    salaries: 'Salaries',
   },
   /** How the categories editor and the chat name the pack's records that name a category, and what deleting it into another does to them. */
   categoryNaming: {
@@ -556,6 +563,12 @@ export const hr: Translation<typeof en> = {
     tripToSettle: (number, traveller, destination) => `Putni nalog ${number}, ${traveller}, ${destination}, čeka obračun`,
     tripDue: (number, traveller, destination, day) => `Putni nalog ${number}, ${traveller}, ${destination}, treba obračunati do ${day}`,
     tripLate: (number, traveller, destination, day) => `Putni nalog ${number}, ${traveller}, ${destination}, trebao je biti obračunat do ${day}`,
+    tripRowToLink: {
+      advance: (number, traveller, amount, day) => `Putni nalog ${number}: Kuna je našla plaćanje od ${amount} za ${traveller} ${day}, koje bi moglo biti predujam`,
+      payout: (number, traveller, amount, day) => `Putni nalog ${number}: Kuna je našla plaćanje od ${amount} za ${traveller} ${day}, koje bi moglo biti isplata`,
+    },
+    tripReportDue: (number, traveller, amount, day) => `Putni nalog ${number}, ${traveller}: ${amount} pod oznakom 17 u JOPPD-u, prijaviti do ${day}`,
+    tripReportLate: (number, traveller, amount, day) => `Putni nalog ${number}, ${traveller}: ${amount} pod oznakom 17 u JOPPD-u trebalo je prijaviti do ${day}`,
   },
   links: {
     review: 'Za provjeru',
@@ -565,6 +578,7 @@ export const hr: Translation<typeof en> = {
     yearStatements: 'Godina, Izvještaji',
     yearPlan: 'Godina, Plan',
     tripSettlement: 'Putni nalozi, Obračun',
+    salaries: 'Plaće',
   },
   categoryNaming: {
     ownerAdvances: (count) => ({ one: `${count} predujam vlasnika`, few: `${count} predujma vlasnika`, other: `${count} predujmova vlasnika` }),

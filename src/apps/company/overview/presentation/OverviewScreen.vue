@@ -14,6 +14,8 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
+import { useRates } from '../../../../shared/rates/application/pageRates'
+import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { balanceSeries, latestBalances } from '../../cash/domain/balances'
 import { accountColours, balanceChart } from '../../cash/presentation/cashChart'
 import { words as cashWords } from '../../cash/presentation/words'
@@ -52,6 +54,7 @@ import { subtractMoney } from '../../../../shared/money/money'
 
 const ledger = useFilteredLedger()
 const { state } = useWorkbook()
+const rates = useRates()
 const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
@@ -70,7 +73,7 @@ const statements = useStatementSync()
 const waiting = computed(() => {
   if (ledger.value === null || state.workbook === null) return []
   const held = statementsJob(statements.held.value?.length ?? 0, statements.state.outcome?.problem ?? null)
-  return [...(held === null ? [] : [held]), ...waitingJobs(ledger.value.booked, state.workbook.transactions)]
+  return [...(held === null ? [] : [held]), ...waitingJobs(ledger.value.booked, state.workbook.transactions, everydayRates(rates.value))]
 })
 
 const overview = computed(() => {
@@ -320,6 +323,10 @@ const overview = computed(() => {
   height: 0.5rem;
   flex: none;
   border-radius: 50%;
+}
+
+.waiting-dot.info {
+  background: var(--tone-info);
 }
 
 .waiting-dot.warning {

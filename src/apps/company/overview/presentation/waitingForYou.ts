@@ -1,4 +1,6 @@
 import type { RouteLocationRaw } from 'vue-router'
+import { NO_RATES } from '../../../../shared/money/rateBook'
+import type { RateBook } from '../../../../shared/money/rateBook'
 
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -26,7 +28,8 @@ export interface WaitingJob {
   readonly key: string
   readonly text: string
   /** `negative` for something already late, `warning` for something due. */
-  readonly tone: 'warning' | 'negative'
+  /** Info for something Kuna offers to do, warning for something due, negative for something late. */
+  readonly tone: 'info' | 'warning' | 'negative'
   readonly link: { readonly label: string; readonly to: RouteLocationRaw }
 }
 
@@ -36,13 +39,13 @@ export interface WaitingJob {
  * invoices past their due date, ledger rows that have no id yet, then the pack's jobs while its module is on. `bankRows` are the
  * ledger rows as read, since a person reviews the row the bank booked.
  */
-export function waitingJobs(workbook: Workbook, bankRows: readonly Transaction[]): WaitingJob[] {
+export function waitingJobs(workbook: Workbook, bankRows: readonly Transaction[], rates: RateBook = NO_RATES): WaitingJob[] {
   const asOf = newestBookingOf(workbook.transactions)
   if (asOf === null) {
     return []
   }
   const core = [reviewJob(bankRows), invoiceJob(workbook, asOf), overdueJob(workbook, asOf), rowIdsJob(bankRows)].flatMap((job) => (job === null ? [] : [job]))
-  return [...core, ...shownPack(workbook.settings).waitingJobs(workbook, asOf)]
+  return [...core, ...shownPack(workbook.settings).waitingJobs(workbook, asOf, rates)]
 }
 
 /** The statements the last sync held, or why it could not read the folder, with the Import tab that shows them. */

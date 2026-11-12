@@ -173,6 +173,9 @@ export const en = {
     settledWithoutTimes: 'a settled trip needs left and returned',
     settledWithoutReport: 'a settled trip needs the report on the trip',
     noTrip: 'it names no travel order that counts',
+    rowGone: (field: string, rowId: string) => `no payment on the ledger carries its ${field} ${rowId}, so it is linked to no bank row`,
+    noAdvanceToLink: 'advance_row links an advance, and the order has none',
+    rowLinkedTwice: (field: string, number: string) => `the row in ${field} is linked to travel order ${number} as well`,
   },
 }
 
@@ -327,6 +330,9 @@ export const hr: Translation<typeof en> = {
     settledWithoutTimes: 'obračunani put treba left i returned',
     settledWithoutReport: 'obračunani put treba izvješće s puta',
     noTrip: 'ne navodi putni nalog koji se broji',
+    rowGone: (field, rowId) => `nijedno plaćanje u evidenciji nema njegov ${field} ${rowId}, pa nije povezan ni s jednom bankovnom stavkom`,
+    noAdvanceToLink: 'advance_row povezuje predujam, a nalog ga nema',
+    rowLinkedTwice: (field, number) => `stavka iz ${field} povezana je i s putnim nalogom ${number}`,
   },
 }
 

@@ -7,6 +7,10 @@ import { decimalText } from '../../../../../shared/money/decimal'
 import type { FieldDocs } from '../../../../../shared/privacy/domain/exposure'
 import { TRIP_COST_RECORDS, TRIP_LEG_RECORDS, TRIP_RECORDS } from '../domain/hrDooKinds'
 import { hrDooWorkbook } from '../domain/hrDooPart'
+import type { HrDooWorkbook } from '../domain/hrDooPart'
+import { linkedRow, tripRowSuggestions } from '../domain/trips/tripBankRows'
+import type { TripRowLink } from '../domain/trips/tripBankRows'
+import { LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
 import type { TripCost, TripLeg } from '../domain/trips/trip'
 import { tripMomentText } from '../domain/trips/tripMoment'
 import type { TripFile } from '../domain/trips/tripReading'
@@ -46,6 +50,10 @@ interface TripView {
   readonly kilometres: Money
   readonly payout: Money
   readonly waitsFor: string
+  readonly advanceRow: string
+  readonly payoutRow: string
+  readonly suggestedAdvanceRow: string
+  readonly suggestedPayoutRow: string
 }
 
 interface TripCostView {
@@ -91,6 +99,10 @@ const TRIP_FIELDS: FieldDocs<TripView> = {
   kilometres: { exposure: 'plain', amount: 'app', meaning: 'The kilometres of a private car times its rate.' },
   payout: { exposure: 'plain', amount: 'app', meaning: 'What the company pays the traveller after the advance, below zero what the traveller pays back.' },
   waitsFor: { exposure: 'plain', meaning: 'What the settlement still needs: times, borders, odometer or rate, or empty.' },
+  advanceRow: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row linked as the one that paid the advance, or empty.' },
+  payoutRow: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row linked as the one that paid out the settlement, or empty.' },
+  suggestedAdvanceRow: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: "A payment of the advance to the traveller's IBAN that Kuna offers to link, for the person to confirm, or empty." },
+  suggestedPayoutRow: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: "A payment of the payout to the traveller's IBAN that Kuna offers to link, for the person to confirm, or empty." },
 }
 
 const TRIP_LEG_FIELDS: FieldDocs<TripLeg> = {
@@ -113,10 +125,20 @@ const TRIP_COST_FIELDS: FieldDocs<TripCostView> = {
   paidBy: { exposure: 'plain', meaning: 'traveller, paid back in the settlement, or company.' },
 }
 
-function tripViewOf(file: TripFile, travellerName: string): TripView {
+function tripViewOf(file: TripFile, travellerName: string, workbook: HrDooWorkbook): TripView {
   const { trip } = file
   const settlement = tripSettlement(file, ruleValue)
   const worked = settlement.kind === 'worked' ? settlement : null
+  const { transactions } = workbook
+  const traveller = workbook.employees.find((employee) => employee.slug === trip.traveller) ?? null
+  const suggestions = tripRowSuggestions(
+    file,
+    worked,
+    traveller,
+    workbook.trips.map((entry) => entry.trip),
+    transactions,
+  )
+  const suggested = (link: TripRowLink) => suggestions.find((suggestion) => suggestion.link === link)?.row.id ?? ''
   return {
     id: trip.id,
     number: trip.number,
@@ -148,6 +170,10 @@ function tripViewOf(file: TripFile, travellerName: string): TripView {
     kilometres: worked?.kilometres?.amount ?? ZERO,
     payout: worked?.payout ?? ZERO,
     waitsFor: settlement.kind === 'waiting' ? settlement.gaps.join(', ') : '',
+    advanceRow: linkedRow(trip.advanceRow, transactions)?.id ?? '',
+    payoutRow: linkedRow(trip.payoutRow, transactions)?.id ?? '',
+    suggestedAdvanceRow: suggested('advance'),
+    suggestedPayoutRow: suggested('payout'),
   }
 }
 
@@ -181,7 +207,10 @@ export function tripKinds(reading: CompanyReading, currency: () => string): read
       about: words.reads.trip,
       fields: TRIP_FIELDS,
       dated: 'departs',
-      rows: () => files().map((file) => tripViewOf(file, nameOf(file.trip.traveller))),
+      rows: () => {
+        const workbook = reading.workbook()
+        return workbook === null ? [] : hrDooWorkbook(workbook).trips.map((file) => tripViewOf(file, nameOf(file.trip.traveller), hrDooWorkbook(workbook)))
+      },
       currencyOf: currency,
     }),
     readableKind({ kind: TRIP_LEG_RECORDS, about: words.reads.tripLeg, fields: TRIP_LEG_FIELDS, dated: 'date', rows: () => files().flatMap((file) => file.legs), currencyOf: currency }),

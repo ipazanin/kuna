@@ -191,6 +191,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/company/packs/hr-doo/application/tripWrites.ts#settleTrip', from: ['draft'], operations: ['settle-trip'] },
   { path: 'src/apps/company/packs/hr-doo/application/tripWrites.ts#saveTripLeg', from: ['draft'], operations: ['add-trip-leg', 'change-trip-leg'] },
   { path: 'src/apps/company/packs/hr-doo/application/tripWrites.ts#saveTripCost', from: ['draft'], operations: ['add-trip-cost', 'change-trip-cost'] },
+  { path: 'src/apps/company/packs/hr-doo/application/tripRowWrites.ts#markTripReported', from: ['on'], operations: [{ name: 'mark-trip-reported', renames: { on: 'reportedOn' } }] },
   {
     path: 'src/apps/investments/holdings/application/mixWrites.ts#FUND_MIX_WRITES',
     operations: [{ name: 'change-instrument', renames: { 'slice.group': ['sectors.group', 'countries.group'], percent: ['sectors.percent', 'countries.percent'] } }],

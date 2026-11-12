@@ -39,6 +39,7 @@ const CROATIAN_RULE_TITLES: Readonly<Record<RuleId, string>> = {
   'hr.pit.foreign-per-diem': 'Inozemna dnevnica za službeni put',
   'hr.pit.foreign-per-diem-rate': 'Tečaj za inozemnu dnevnicu u dolarima',
   'hr.pit.business-trip': 'Pravila dnevnica za službeni put',
+  'hr.pit.trip-joppd': 'Redak JOPPD-a za službeni put',
   'hr.pit.loan-benefit': 'Primitak u naravi od povoljne pozajmice zaposleniku',
   'hr.pit.rent': 'Porez na dohodak od najma koji se plaća vlasniku',
   'hr.pit.dividend': 'Porez na dohodak od dividende',

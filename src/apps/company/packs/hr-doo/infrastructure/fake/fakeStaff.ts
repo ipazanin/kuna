@@ -1,6 +1,6 @@
 import { amountText } from '../../../../../../shared/storage/domain/recordFields'
 import { FAKE_OWNER } from '../../../../workbook/infrastructure/fake/fakeWorkbook'
-import type { FakeFields, FakePayment, FakeStaff } from '../../../../workbook/infrastructure/fake/fakeWorkbook'
+import type { FakeFields, FakePayment, FakeStaff, FakeTripPayment } from '../../../../workbook/infrastructure/fake/fakeWorkbook'
 import { civilDate, weekdaysBetween } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, lastDayOf, monthNumber, parseMonthKey, yearOfMonth } from '../../../../../../shared/calendar/monthKey'
@@ -10,6 +10,7 @@ import { payrollMonth } from '../../domain/payroll/payrollMonth'
 import type { PayrollMonth } from '../../domain/payroll/payrollMonth'
 import { CONTRIBUTION_ACCOUNTS } from '../../domain/salaries/contributionAccounts'
 import { ruleValue } from '../../ruleset/ruleset'
+import { language } from '../../../../../../shared/text/language'
 
 /** A made-up person a fake variant pays, every one of them on full months. */
 interface FakeEmployee {
@@ -33,6 +34,7 @@ interface FakeStaffing {
   readonly healthShort: Readonly<Record<string, number>>
   /** The travel orders with their legs and costs, by kind. */
   readonly trips: Readonly<Record<string, readonly FakeFields[]>>
+  readonly tripPayments: readonly FakeTripPayment[]
 }
 
 const MEAL = 100
@@ -52,13 +54,15 @@ const OSIJEK = tripId(20, 2)
 const LONDON = tripId(20, 3)
 const RIJEKA = tripId(20, 4)
 const NEW_YORK = tripId(20, 5)
+const VARAZDIN = tripId(20, 6)
 const CAR = { car: 'Made-up Estate', plate: 'ZG-000-XX', km_rate: '0.50' } as const
 
 /**
  * The owner's trips: Zadar by private car over two days with one lunch paid, a ten-hour day in Osijek by
  * train, London by plane with the ticket paid privately and the hotel on the company card, an order to Rijeka
  * at a km rate over the tax-free cap with an advance whose days are over, which waits for its settlement, and
- * New York by plane, whose per diem the table states in dollars.
+ * New York by plane, whose per diem the table states in dollars, and a day by train to Varaždin settled in the same month as Zadar,
+ * so March reports two trips. The code 17 lines of Osijek, Zadar and Varaždin are reported, and London's is late.
  */
 const ALEX_TRIPS: Readonly<Record<string, readonly FakeFields[]>> = {
   'hr-doo.trip': [
@@ -78,6 +82,7 @@ const ALEX_TRIPS: Readonly<Record<string, readonly FakeFields[]>> = {
       returned: '2025-11-19 16:30',
       report: 'Ran the workshop and agreed the next steps.',
       settled_on: '2025-11-21',
+      reported_on: '2025-12-12',
     },
     {
       id: ZADAR,
@@ -99,6 +104,25 @@ const ALEX_TRIPS: Readonly<Record<string, readonly FakeFields[]>> = {
       meals: '1, 0',
       report: 'Met the client, saw the site and signed the order.',
       settled_on: '2026-03-16',
+      reported_on: '2026-04-14',
+    },
+    {
+      id: VARAZDIN,
+      number: '5/2026',
+      issued: '2026-03-17',
+      traveller: 'alex',
+      role: 'Managing director',
+      destination: 'Varaždin',
+      country: 'HR',
+      task: 'Training day at a client',
+      departs: '2026-03-19',
+      days: 1,
+      transport: 'train',
+      left: '2026-03-19 07:00',
+      returned: '2026-03-19 17:30',
+      report: 'Ran the training day.',
+      settled_on: '2026-03-20',
+      reported_on: '2026-04-14',
     },
     {
       id: LONDON,
@@ -180,6 +204,36 @@ const ALEX_TRIPS: Readonly<Record<string, readonly FakeFields[]>> = {
   ],
 }
 
+/** The categories the trips' rows are filed in by their settlement, one per tax-free payment, named as the owner would in each language. */
+const TRIP_CATEGORIES: readonly (readonly [string, string, string])[] = (
+  [
+    ['per-diems', 'tax-free:domestic-per-diem-over-12-hours', 'Per diems', 'Dnevnice'],
+    ['half-per-diems', 'tax-free:domestic-per-diem-8-to-12-hours', 'Half per diems', 'Pola dnevnice'],
+    ['foreign-per-diems', 'tax-free:foreign-per-diem', 'Foreign per diems', 'Inozemne dnevnice'],
+    ['car-kilometres', 'tax-free:private-car-business-travel', 'Car kilometres', 'Kilometraža'],
+    ['trip-costs', 'tax-free:business-travel-cost', 'Trip costs', 'Putni troškovi'],
+  ] as const
+).map(([category, roles, english, croatian]) => [category, roles, language === 'hr' ? croatian : english])
+
+function tripPayment(date: string, description: string, amount: number, trip: string, link: FakeTripPayment['link'], linked = false, parts: FakeTripPayment['parts'] = []): FakeTripPayment {
+  return { date, counterparty: FAKE_OWNER.name, iban: FAKE_OWNER.iban, description, amount: -amount, category: 'travel', trip, link, linked, parts }
+}
+
+/**
+ * The rows that paid the owner's trips, each on a day the main account books other rows, so the statements keep their numbers: Zadar's payout linked and filed by its settlement, London's payout and Rijeka's advance
+ * waiting for a person to link them, and New York's advance linked but not filed yet.
+ */
+const ALEX_TRIP_PAYMENTS: readonly FakeTripPayment[] = [
+  tripPayment('2026-03-20', 'Travel order 1/2026', 383.4, ZADAR, 'payout', true, [
+    ['car-kilometres', null],
+    ['per-diems', 51],
+    ['trip-costs', 47.4],
+  ]),
+  tripPayment('2026-06-28', 'Travel order 2/2026', 526.4, LONDON, 'payout'),
+  tripPayment('2026-09-28', 'Advance, travel order 3/2026', 150, RIJEKA, 'advance'),
+  tripPayment('2026-09-28', 'Advance, travel order 4/2026', 300, NEW_YORK, 'advance', true),
+]
+
 /**
  * The made-up staffs by variant. `one-employee` is the owner alone at the director floor, as one
  * person's company runs. `five-employees` adds four ordinary employees on agreed salaries in three
@@ -190,6 +244,7 @@ const STAFFINGS: Readonly<Record<string, FakeStaffing>> = {
     employees: [ALEX],
     healthShort: {},
     trips: ALEX_TRIPS,
+    tripPayments: ALEX_TRIP_PAYMENTS,
   },
   'five-employees': {
     employees: [
@@ -201,6 +256,7 @@ const STAFFINGS: Readonly<Record<string, FakeStaffing>> = {
     ],
     healthShort: { '2026-09': 10 },
     trips: {},
+    tripPayments: [],
   },
 }
 
@@ -223,6 +279,8 @@ export function fakeStaffOf(variant: string | null): FakeStaff | null {
     })),
     payday: (paidIn, worked) => paydayRows(staffing, paidIn, worked),
     trips: staffing.trips,
+    tripPayments: staffing.tripPayments,
+    categories: staffing.tripPayments.length === 0 ? [] : TRIP_CATEGORIES,
   }
 }
 

@@ -31,7 +31,13 @@ import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { defaultsOnAdd } from '../src/apps/company/packs/hr-doo/assistant/operations/proposalLines'
 import { tripFieldsInLabel } from '../src/apps/company/packs/hr-doo/assistant/operations/tripProposalLines'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
+import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
+import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
+import { addMoney, negateMoney, subtractMoney } from '../src/shared/money/money'
+import { amountText } from '../src/shared/storage/domain/recordFields'
 import { companyChat, deskPorts } from './fixtures/companyDesk'
+import { civil, euros } from './fixtures/ledger'
+import { recordOf } from './fixtures/records'
 import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
@@ -102,8 +108,25 @@ function exampleRecords(books: CompanyBooks): Readonly<Record<string, { readonly
       () => true,
       (cost) => cost.id,
     ),
+    'ledger-row': { kind: LEDGER_RECORDS.name, id: tripRows(books).payout.id },
   }
 }
+
+/** The traveller's first two payments, which the desk's trip takes as its advance and its payout. */
+function tripRows(books: CompanyBooks): { readonly advance: Transaction; readonly payout: Transaction } {
+  const iban = recordsOf(recordsOfKindIn(books.records, EMPLOYEE_RECORDS)).at(-1)!.ibans[0]
+  const [advance, payout] = books.workbook.transactions
+    .filter((row) => row.amount < 0 && row.rowId !== null && row.counterpartyIban === iban)
+    .sort((first, second) => first.date.localeCompare(second.date))
+  return { advance: advance!, payout: payout! }
+}
+
+/** Categories that hold the tax-free payments of the desk's trip, so its rows can be filed by its settlement. */
+const TRIP_CATEGORIES: readonly (readonly [string, string])[] = [
+  ['per-diems', 'tax-free:domestic-per-diem-over-12-hours'],
+  ['car-kilometres', 'tax-free:private-car-business-travel'],
+  ['trip-costs', 'tax-free:business-travel-cost'],
+]
 
 /** The short names an example writes as text, a scenario being no record of its own. */
 const EXAMPLE_TEXT: Readonly<Record<string, string>> = { scenario: 'floor-salary', 'scenario-unplanned': 'early-exit' }
@@ -158,9 +181,18 @@ async function packDesk(): Promise<PackDesk> {
     })
     if (!('made' in settled)) throw new Error(settled.refused)
     const trip = settled.made
-    unit.of(TRIP_WRITES).add(trip)
-    saveTripLeg(unit, trip, { date: '2026-03-12', from: 'Zagreb', to: 'Split', km: '410' }, null)
-    saveTripCost(unit, trip, { date: '2026-03-12', kind: 'toll', description: 'Motorway', amount: '27.40', foreignAmount: '', currency: '', paidBy: 'traveller' }, null)
+    // The advance is the traveller's first payment, linked, and a ticket brings what the trip owes to that and their second payment.
+    const { advance, payout } = tripRows(store.state as CompanyBooks)
+    const linked = { ...trip, advance: negateMoney(advance.amount), advanceRow: advance.rowId, report: 'Met the client.', settledOn: civil('2026-03-16') }
+    unit.of(TRIP_WRITES).add(linked)
+    saveTripLeg(unit, linked, { date: '2026-03-12', from: 'Zagreb', to: 'Split', km: '410' }, null)
+    saveTripCost(unit, linked, { date: '2026-03-12', kind: 'toll', description: 'Motorway', amount: '27.40', foreignAmount: '', currency: '', paidBy: 'traveller' }, null)
+    // 60.00 of per diems for two days over 12 hours and 410 km at 0.50, beside the toll.
+    const ticket = subtractMoney(negateMoney(addMoney(advance.amount, payout.amount)), euros(60 + 205 + 27.4))
+    saveTripCost(unit, linked, { date: '2026-03-12', kind: 'ticket', description: 'Ferry', amount: amountText(ticket), foreignAmount: '', currency: '', paidBy: 'traveller' }, null)
+    for (const [category, role] of TRIP_CATEGORIES) {
+      unit.of(CATEGORY_WRITES).add(recordOf(CATEGORY_RECORDS, { category, family: 'owner', bucket: 'owner-pay', roles: role }))
+    }
   })
   const desk = { anonymising: false } as { anonymising: boolean }
   return Object.assign(desk, { ...companyChat(store, deskPorts({ pack: hrDooOperations(() => desk.anonymising) }), false), store })

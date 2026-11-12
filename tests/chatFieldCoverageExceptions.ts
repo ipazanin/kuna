@@ -216,6 +216,9 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/statements/application/statementWrites.ts#writeCashLegs',
       'src/apps/spending/statements/application/statementWrites.ts#notCash',
       'src/apps/spending/receipts/application/receiptWrites.ts#placeWaitingReceipt',
+      'src/apps/company/packs/hr-doo/application/tripRowWrites.ts#linkTripRow',
+      'src/apps/company/packs/hr-doo/application/tripRowWrites.ts#fileTripRows',
+      'src/apps/company/packs/hr-doo/application/tripRowWrites.ts#dismissTripRow',
     ],
   },
   {

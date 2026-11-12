@@ -22,6 +22,7 @@ import type { RuleSource } from '../payroll/payrollArithmetic'
 import { payrollMonth } from '../payroll/payrollMonth'
 import type { PayrollMonth, PayrollWarning } from '../payroll/payrollMonth'
 import { CONTRIBUTION_ACCOUNTS } from './contributionAccounts'
+import { tripUnitsOf } from '../trips/tripPayments'
 import { words } from '../words'
 
 /** The lines of one employee's pay, named as `PayrollMonth` names them. */
@@ -138,12 +139,23 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
       return payment === null ? [] : [[category.slug, payment] as const]
     }),
   )
+  const settledTrips = new Map(
+    workbook.trips.flatMap((file) => (file.trip.settledOn === null ? [] : [file.trip.advanceRow, file.trip.payoutRow].flatMap((rowId) => (rowId === null ? [] : [[rowId, file] as const])))),
+  )
+  const counted = new Set<string>()
   const taxFreeParts = payParts.flatMap((pay): TaxFreePart[] => {
     const payment = taxFree.get(pay.part.category)
-    return pay.employee !== null && payment !== undefined && pay.part.amount < 0 ? [{ ...pay, employee: pay.employee, payment, unit: capUnitOf(payment, pay.part.date, rules) }] : []
+    if (pay.employee === null || payment === undefined || pay.part.amount >= 0) return []
+    const unit = capUnitOf(payment, pay.part.date, rules)
+    const file = pay.whole.rowId === null ? undefined : settledTrips.get(pay.whole.rowId)
+    if (file === undefined || file.trip.settledOn === null) return [{ ...pay, employee: pay.employee, payment, unit, paidOn: pay.part.date, units: null }]
+    const key = `${file.trip.id} ${payment}`
+    const units = unit === null || counted.has(key) ? 0 : tripUnitsOf(file, payment, rules)
+    counted.add(key)
+    return [{ ...pay, employee: pay.employee, payment, unit, paidOn: file.trip.settledOn, units }]
   })
   const extras = employees.flatMap((employee) => extrasOf(employee, taxFreeParts, rules))
-  const unitless = taxFreeParts.flatMap((pay) => (pay.unit === null ? [] : [{ payday: monthOf(pay.part.date), problem: needsUnits(pay, pay.unit) }]))
+  const unitless = taxFreeParts.flatMap((pay) => (pay.unit === null || pay.units !== null ? [] : [{ payday: monthOf(pay.part.date), problem: needsUnits(pay, pay.unit) }]))
   const overCaps = extras.flatMap((extra) => extra.usage.filter((usage) => usage.excess.amount > 0).map((usage) => ({ payday: lastPaidMonth(usage), employee: extra.employee, usage })))
   const inLedger = (month: MonthKey) => window.firstMonth <= month && month <= window.partMonth
   const expected = (employee: Employee, payday: MonthKey) => window.firstCompleteMonth <= payday && payday <= window.lastCompleteMonth && weekdaysEmployed(employee, addMonths(payday, -1)) !== null
@@ -278,18 +290,24 @@ function lineCheck<Line extends string>(line: Line, app: TracedFigure | null, ba
   return { line, app, bank, agrees: app === null || bank === null || app.amount === bank.amount }
 }
 
-/** A part paid to an employee in a `tax-free:` category, with what its cap counts per unit, if anything. */
+/**
+ * A part paid to an employee in a `tax-free:` category, with what its cap counts per unit, if anything. A part of a row a settled
+ * trip links counts on the day the trip was settled, and takes the trip's days or kilometres once per trip and payment.
+ */
 interface TaxFreePart extends PayPart {
   readonly employee: Employee
   readonly payment: string
   readonly unit: string | null
+  readonly paidOn: CivilDate
+  /** Null for a part no settled trip links, whose cap cannot be checked when it counts units. */
+  readonly units: number | null
 }
 
 /** The employee's payments in `tax-free:` categories, by year, against the caps, leaving out a part whose cap counts units the bank row does not state. */
 function extrasOf(employee: Employee, parts: readonly TaxFreePart[], rules: RuleSource): EmployeeExtras[] {
   const made: NontaxablePaymentMade[] = parts
-    .filter((pay) => pay.employee === employee && pay.unit === null)
-    .map((pay) => ({ payment: pay.payment, paidOn: pay.part.date, amount: negateMoney(pay.part.amount) }))
+    .filter((pay) => pay.employee === employee && (pay.unit === null || pay.units !== null))
+    .map((pay) => ({ payment: pay.payment, paidOn: pay.paidOn, amount: negateMoney(pay.part.amount), ...(pay.units === null ? {} : { units: pay.units }) }))
   const years = [...new Set(made.map((payment) => yearOf(payment.paidOn)))].sort()
   return years.map((year) => ({ employee, year, usage: nontaxableUsage(made, year, 'ledger', rules) }))
 }

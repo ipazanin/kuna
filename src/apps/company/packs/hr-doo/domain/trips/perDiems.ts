@@ -98,12 +98,18 @@ function blocksOf(span: Span, blockHours: number, fullOverHours: number, halfOve
   return blocks
 }
 
-/** How many lines the per-diem table of a trip with both times has, which the meals list follows. Null without both times. */
-export function perDiemLineCount(trip: Trip, rules: RuleSource): number | null {
+/** Where each line of the per-diem table of a trip with both times is and what share it earns, without the amounts, which need no rate. Null without both times. */
+export function perDiemShares(trip: Trip, rules: RuleSource): { readonly place: 'abroad' | 'home'; readonly share: PerDiemShare }[] | null {
   if (trip.left === null || trip.returned === null || minutesBetween(trip.left, trip.returned) <= 0) return null
   const law = rules('hr.pit.business-trip', trip.left.day).value
-  return spansOf(trip, trip.left, trip.returned, law.airportHoursBeforeTakeOff.count).flatMap((span) => blocksOf(span, law.blockHours.count, law.fullDayOverHours.count, law.halfDayOverHours.count))
-    .length
+  return spansOf(trip, trip.left, trip.returned, law.airportHoursBeforeTakeOff.count).flatMap((span) =>
+    blocksOf(span, law.blockHours.count, law.fullDayOverHours.count, law.halfDayOverHours.count).map((block) => ({ place: span.place, share: block.share })),
+  )
+}
+
+/** How many lines the per-diem table of a trip with both times has, which the meals list follows. Null without both times. */
+export function perDiemLineCount(trip: Trip, rules: RuleSource): number | null {
+  return perDiemShares(trip, rules)?.length ?? null
 }
 
 /** The full and the half per diem of a place. At home the law caps each, and abroad the half is the table's share of the full one. */

@@ -142,6 +142,14 @@ export interface OwnerPayValues {
     /** By air, foreign hours start this long before take-off from the last Croatian airport. */
     readonly airportHoursBeforeTakeOff: CountTerm
   }
+  'hr.pit.trip-joppd': {
+    /** The JOPPD code of the per diems and private car kilometres of a business trip, up to the tax-free amounts. */
+    readonly code: TextTerm
+    /** The month whose report holds a trip's line. */
+    readonly month: TextTerm
+    /** The report of a month is due by this day of the next month. */
+    readonly reportedByDay: CountTerm
+  }
   'hr.pit.loan-benefit': {
     /** A loan to an employee below this yearly interest rate gives a benefit in kind of the difference. */
     readonly minimumInterestRate: RateTerm
@@ -178,6 +186,7 @@ const ZMP_URL = 'https://www.zakon.hr/z/400/zakon-o-minimalnoj-placi'
 const NN_152_24_URL = 'https://narodne-novine.nn.hr/clanci/sluzbeni/2024_12_152_2505.html'
 const NN_16_25_URL = 'https://narodne-novine.nn.hr/eli/sluzbeni/2025/16/pdf'
 const NN_16_25_PRAVILNIK_URL = 'https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_148.html'
+const NN_157_25_PRAVILNIK_URL = 'https://narodne-novine.nn.hr/clanci/sluzbeni/2025_12_157_2365.html'
 
 function zdopSource(article: string, issues: readonly string[] = ACTS.ZDop.nn, quote?: string): LegalSource {
   return { act: 'ZDop', nn: issues, article, url: ZDOP_URL, loadedOn: LOADED_ON, ...(quote === undefined ? {} : { quote }) }
@@ -986,6 +995,29 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         sources: businessTripSources,
         confidence: 'reading',
         note: 'The Pravilnik gives a full per diem for more than 12 hours a day and half for more than 8 and less than 12 hours, at home and abroad. It names nothing for exactly 12 hours. Kuna reads a trip of several days as 24-hour blocks from departure, with the last part counted the same way, and counts exactly 12 hours as half and exactly 8 hours as nothing. Those two choices are the reading. The rest was read in the Porezna uprava consolidation through NN 157/25. A trip lasts at most 30 days in a row and reaches a place at least 30 km away. Lunch or dinner the employer provides cuts the tax-free per diem by 30% for one meal and 60% for two, domestic and foreign alike, since Art. 7(13) names items 19 to 22. Breakfast in the room price does not count. By air, foreign hours start 2 hours before take-off from the last Croatian airport. 2027 is assumed until the Pravilnik is aligned with bill PZ 339.',
+      },
+    ],
+  },
+  {
+    id: 'hr.pit.trip-joppd',
+    area: 'owner-pay',
+    title: 'JOPPD line of a business trip',
+    appliesBy: 'event-date',
+    versions: [
+      {
+        validFrom: day('2025-01-01'),
+        validTo: null,
+        value: { code: text('17'), month: text('the month the trip is settled'), reportedByDay: count(15) },
+        sources: [
+          tripParagraphSource('79(6)', 'najkasnije do petnaestog dana u mjesecu za primitak koji je ostvaren, odnosno isplaćen u prethodnom mjesecu'),
+          tripParagraphSource(
+            '79(9)',
+            'Isplaćeni predujmovi dnevnica i/ili naknada za korištenje privatnog automobila u svrhu službenog putovanja iskazuju se na Obrascu JOPPD nakon konačnog obračuna tih primitaka.',
+          ),
+          { act: 'PravPDoh', nn: ['157/25'], article: 'JOPPD annex 4, code 17', url: NN_157_25_PRAVILNIK_URL, loadedOn: TRIP_LAW_LOADED_ON },
+        ],
+        confidence: 'reading',
+        note: 'Per diems and private car kilometres of a business trip, up to the tax-free amounts, go under code 17, by the 15th of the month after the month they were paid in (Art. 79(6)). An advance is reported only after the final settlement (Art. 79(9)). The Pravilnik does not name the month of a settlement that pays nothing more, or one paid out a month later. Kuna puts the whole trip in the month of the settled day, which is how a Porezna uprava opinion of 10 October 2014 (KLASA 410-01/14-01/2324) reads it: by the 15th of the month after the month of the final settlement. That opinion was read in a secondary copy only. 2027 is assumed.',
       },
     ],
   },

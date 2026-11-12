@@ -135,6 +135,13 @@ function tripOf(fields: StoredFields, id: RecordId | null, say: TripWording): Tr
     report: textOf(fields.report),
     settledOn: optionalDate(fields, 'settled_on'),
     note: textOf(fields.note),
+    advanceRow: textOf(fields.advance_row) || null,
+    payoutRow: textOf(fields.payout_row) || null,
+    dismissedRows: textOf(fields.dismissed_rows)
+      .split(',')
+      .map((rowId) => rowId.trim())
+      .filter((rowId) => rowId !== ''),
+    reportedOn: optionalDate(fields, 'reported_on'),
   }
 }
 
@@ -219,6 +226,10 @@ export function tripCodecs(say: TripWording): TripCodecs {
           report: trip.report,
           settled_on: trip.settledOn,
           note: trip.note,
+          advance_row: trip.advanceRow,
+          payout_row: trip.payoutRow,
+          dismissed_rows: trip.dismissedRows.join(', '),
+          reported_on: trip.reportedOn,
         }),
     ),
     leg: withIdField(

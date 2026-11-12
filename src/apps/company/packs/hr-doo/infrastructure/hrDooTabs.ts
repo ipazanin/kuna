@@ -178,6 +178,10 @@ const TRIP_COLUMNS: readonly TemplateColumn[] = [
   { name: 'report', note: 'The report on the trip, which a settled trip needs.' },
   { name: 'settled_on', note: 'The day the trip was settled, as a date cell. Blank while it is open.' },
   { name: 'note', note: 'Anything worth keeping with it. Optional.' },
+  { name: 'advance_row', note: 'The id of the ledger row that paid the advance, which the app writes when a person links it. Optional.' },
+  { name: 'payout_row', note: 'The id of the ledger row that paid out the settlement, which the app writes when a person links it. Optional.' },
+  { name: 'reported_on', note: 'The day the JOPPD code 17 line of the trip was marked as reported, as a date cell. Blank while it is not.' },
+  { name: 'dismissed_rows', note: "The ids of ledger rows a person said are not this trip's payments, comma separated, which the app writes. Optional." },
   ID_TEMPLATE_COLUMN,
 ]
 
@@ -290,6 +294,7 @@ export const TRIPS_TAB: PackSpreadsheetTab<Trip> = {
     odometer_start: 'number',
     odometer_end: 'number',
     settled_on: 'date',
+    reported_on: 'date',
   }),
   columns: TRIP_COLUMNS,
 }
