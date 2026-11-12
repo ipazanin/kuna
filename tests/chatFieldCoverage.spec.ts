@@ -101,6 +101,9 @@ const OFFER_RENAMES = {
   drawdown: 'payout',
 }
 
+/** An entry keeps the link it has when it is retyped, and link-entry sets it. */
+const LINK_ENTRY_RENAMES = { 'link.app': 'link-entry:loan', 'link.kind': 'link-entry:loan', 'link.key': 'link-entry:loan', 'link.due': 'link-entry:due' }
+
 const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/assets/asset/application/assetWrites.ts#ASSET_WRITES.add', operations: ['add-asset'] },
   { path: 'src/apps/assets/asset/application/assetWrites.ts#ASSET_WRITES.change', operations: ['change-asset'] },
@@ -312,11 +315,20 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     path: 'src/apps/spending/categories/application/categoryWrites.ts#CATEGORY_WRITES.change',
     operations: [{ name: 'change-category', renames: { parent: 'group', order: 'move-category:direction' } }],
   },
-  { path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntry', from: ['entry'], operations: ['add-entry', 'change-entry'] },
+  {
+    path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntry',
+    from: ['entry'],
+    operations: ['add-entry', 'change-entry'].map((name) => ({ name, renames: LINK_ENTRY_RENAMES })),
+  },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeTransfer',
     from: ['typed'],
-    operations: ['add-transfer', 'change-transfer'].map((name) => ({ name, renames: { account: ['from', 'to'], amount: ['amount', 'toAmount'] } })),
+    operations: ['add-transfer', 'change-transfer'].map((name) => ({ name, renames: { account: ['from', 'to'], amount: ['amount', 'toAmount'], ...LINK_ENTRY_RENAMES } })),
+  },
+  {
+    path: 'src/apps/spending/entries/application/entryWrites.ts#linkEntry',
+    from: ['link'],
+    operations: [{ name: 'link-entry', renames: { app: 'loan', kind: 'loan', key: 'loan' } }],
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntrySplit',

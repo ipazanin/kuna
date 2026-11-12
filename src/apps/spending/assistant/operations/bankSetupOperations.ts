@@ -21,7 +21,7 @@ function lineStep(name: string, about: string, example: string): AssistantOperat
 export const BANK_SETUP_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-bank-account',
-    about: `Adds the account the bank's details draft, as Add does, starting on startsOn, a day from its line's earliestStart to its openedOn, or null for openedOn, the day of the fetch. Its opening is the bank's balance less the rows from that day on, and only those rows come in. Ask the person from which day to track it. Several on one card add them in one write, as Add all does. ${SETUP_ABOUT}`,
+    about: `Adds the account the bank's details draft, as Add does, from the day startsOn. That is a day from its line's earliestStart to its openedOn, or null for openedOn, the day of the fetch. Its opening is the bank's balance less the rows from that day on, and only those rows come in. Ask the person from which day to track it. Several on one card add them in one write, as Add all does. ${SETUP_ABOUT}`,
     input: inputOf({ line: TEXT, startsOn: TEXT_OR_NULL }),
     refs: { line: BANK_ACCOUNT_LINES.name },
     creates: null,

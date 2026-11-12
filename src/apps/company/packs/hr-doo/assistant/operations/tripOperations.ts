@@ -134,7 +134,7 @@ export const TRIP_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'link-trip-row',
     about:
-      "Links the ledger row that paid a travel order's advance, or the one that paid out its settlement, as the trip's Bank rows card does. Only a payment out with a row id, which no other trip links. An advance row needs an order with an advance. The row's category stays as it is until file-trip-rows.",
+      "Links the ledger row that paid a travel order's advance or payout, as its Bank rows card does. Only a payment out with a row id, which no other trip links. An advance row needs an order with an advance. The row's category stays as it is until file-trip-rows.",
     input: inputOf({ trip: TEXT, link: { type: 'string', enum: [...TRIP_ROW_LINKS], description: 'advance or payout.' }, row: TEXT }),
     refs: { trip: TRIP_RECORDS.name, row: LEDGER_RECORDS.name },
     creates: null,
@@ -144,7 +144,7 @@ export const TRIP_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'dismiss-trip-row',
     about:
-      "Sets aside a payment Kuna offered as a travel order's advance or payout row, as the Bank rows card's Not this one does, when the person says it is not that trip's. Kuna offers it for that trip no more.",
+      "Sets aside a row Kuna offered as a travel order's advance or payout that is not that trip's. It does what Not this one on the Bank rows card does, and Kuna offers the row for that trip no more.",
     input: inputOf({ trip: TEXT, row: TEXT }),
     refs: { trip: TRIP_RECORDS.name, row: LEDGER_RECORDS.name },
     creates: null,
@@ -153,7 +153,8 @@ export const TRIP_OPERATIONS: readonly AssistantOperation[] = [
   },
   {
     name: 'mark-trip-reported',
-    about: "Marks a settled travel order's JOPPD code 17 line as reported on a day, as the Reported tick on Salaries does, so Waiting for you stops listing it, or clears the mark with an empty day.",
+    about:
+      "Marks a settled travel order's JOPPD code 17 line reported on a day, or clears the mark with an empty day. It does what the Reported tick on Salaries does, so Waiting for you stops listing the line.",
     input: inputOf({ trip: TEXT, reportedOn: { type: 'string', description: 'The day it was reported, such as 2026-04-10, or "" to clear the mark.' } }),
     refs: { trip: TRIP_RECORDS.name },
     creates: null,

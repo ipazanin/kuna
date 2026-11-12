@@ -16,7 +16,7 @@ export const WAITING_RECEIPT_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'place-waiting-receipt',
     about:
-      "Puts a receipt that waits for the bank's row on the payment it is, one To review offers for it on its account, when the bank brought more than one that could be it or its text does not name the merchant. The entry files under the receipt's lines, and a Difference line makes up any cents the bank booked beyond the total.",
+      "Puts a receipt that waits for the bank's row on the payment it is, one To review offers for it on its account. Use it when the bank brought more than one that could be it or its text does not name the merchant. The entry files under the receipt's lines, and a Difference line makes up any cents the bank booked beyond the total.",
     input: inputOf({ waitingReceipt: TEXT, entry: TEXT }),
     refs: { waitingReceipt: RECEIPT_RECORDS.name, entry: TRANSACTION_RECORDS.name },
     creates: null,

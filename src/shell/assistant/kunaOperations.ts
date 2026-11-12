@@ -155,7 +155,7 @@ export function kunaOperations(device: KunaDevice): readonly AssistantOperation[
     },
     {
       name: 'forget-files-home',
-      about: 'Forgets where new files go and which apps the person said they use, as Ask me again on Kuna settings does, so the home and the next app set up on this device ask again.',
+      about: 'Forgets where new files go and which apps the person said they use, as Ask me again on Kuna settings does. The home and the next app set up on this device then ask again.',
       input: inputOf({}),
       refs: {},
       creates: null,

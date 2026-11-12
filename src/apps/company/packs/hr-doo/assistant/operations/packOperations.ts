@@ -174,7 +174,7 @@ function editorOperations(
     { name: `delete-${name}`, about: about.delete, input: inputOf({ row: TEXT }), refs: { row: refKind }, creates: null, alone: false, example: { row: examples.deleted ?? name } },
     {
       name: `fix-unreadable-${name}`,
-      about: `Fixes a ${noun} row the editor says Kuna cannot read, with the columns the person gives. Null keeps what the row holds. It has no Undo, as the editor's save of such a row has none, so it goes alone on a card.`,
+      about: `Fixes an unreadable ${noun} row with the columns the person gives. Null keeps what the row holds. It has no Undo, as the editor's save of such a row has none, so it goes alone on a card.`,
       input: inputOf({ row: UNREADABLE_ROW, ...fields }),
       refs: {},
       creates: null,
@@ -183,7 +183,7 @@ function editorOperations(
     },
     {
       name: `remove-unreadable-${name}`,
-      about: `Removes a ${noun} row the editor says Kuna cannot read. It has no Undo, as the editor's save without such a row has none, so it goes alone on a card.`,
+      about: `Removes an unreadable ${noun} row. It has no Undo, as the editor's save without such a row has none, so it goes alone on a card.`,
       input: inputOf({ row: UNREADABLE_ROW }),
       refs: {},
       creates: null,
@@ -280,7 +280,7 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-starting-scenarios',
     about:
-      "Kuna's starting owner pay scenarios for a year, as the Pay tab adds them, with a monthly rent the company pays the owner above zero, or null for none. Refused when one of their short names is taken.",
+      "Kuna's starting owner pay scenarios for a year, as the Pay tab adds them. The monthly rent the company pays the owner is above zero, or null for none. Refused when one of their short names is taken.",
     input: inputOf({ year: YEAR, rent: NUMBER_OR_NULL }),
     refs: {},
     creates: null,
