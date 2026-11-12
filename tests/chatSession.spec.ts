@@ -201,6 +201,39 @@ describe('a chat in memory', () => {
     expect(chatLines.at(-1)!.chips).toEqual([{ kind: 'screen', to: '/spending', label: 'Spending: Overview' }])
   })
 
+  it('shows a link only once the answer is whole, so the text landing above it never moves it', async () => {
+    const chipsWhileWritten: number[] = []
+    port.current = scripted([
+      { kind: 'tool-calls', calls: [{ id: 'one', name: 'show_screen', args: { route: '/spending', params: [] } }], raw: [], tokens: TOKENS },
+      async (request) => {
+        chipsWhileWritten.push(chatLines.at(-1)!.chips.length)
+        request.onDelta?.('Here it is.')
+        chipsWhileWritten.push(chatLines.at(-1)!.chips.length)
+        return answer('Here it is.')
+      },
+    ])
+    await sendChatMessage('Where?', CONTEXT, knowledge)
+    expect(chipsWhileWritten).toEqual([0, 0])
+    expect(chatLines.at(-1)!.chips).toHaveLength(1)
+  })
+
+  it('keeps the link of an answer the person stopped', async () => {
+    const model = scripted([
+      { kind: 'tool-calls', calls: [{ id: 'one', name: 'show_screen', args: { route: '/spending', params: [] } }], raw: [], tokens: TOKENS },
+      (request) =>
+        new Promise((_, refuse) => {
+          request.signal?.addEventListener('abort', () => refuse(new Error('aborted')))
+        }),
+    ])
+    port.current = model
+    const sending = sendChatMessage('Where?', CONTEXT, knowledge)
+    await vi.waitFor(() => expect(model.requests).toHaveLength(2))
+    stopChatMessage()
+    await sending
+    expect(chatLines.at(-1)!.chips).toHaveLength(1)
+    expect(chatLines.at(-1)!.stopped).toBe(true)
+  })
+
   it('drops an empty answer once the person stops it, with nothing to retry', async () => {
     port.current = scripted([
       (request) =>
@@ -433,6 +466,22 @@ describe('the chat going on with a job of several cards', () => {
     await sendChatMessage('Set up Spending', where, async () => WITH_TIDY)
     return chatLines.at(-1)!.proposals[0]! as ChatProposal
   }
+
+  it('shows a card only once the answer is whole, so the text landing above it never moves Accept', async () => {
+    const cardsWhileWritten: number[] = []
+    port.current = scripted([
+      tidy(),
+      async (request) => {
+        cardsWhileWritten.push(chatLines.at(-1)!.proposals.length)
+        request.onDelta?.('Card shown.')
+        cardsWhileWritten.push(chatLines.at(-1)!.proposals.length)
+        return answer('Card shown.')
+      },
+    ])
+    await sendChatMessage('Set up Spending', SETTING_UP, async () => WITH_TIDY)
+    expect(cardsWhileWritten).toEqual([0, 0])
+    expect(chatLines.at(-1)!.proposals).toHaveLength(1)
+  })
 
   it('sends Go on once a card the model says another follows is accepted, and says so on the card', async () => {
     const card = await cardShown()

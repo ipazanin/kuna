@@ -498,6 +498,9 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
   question.byKuna = origin !== 'person'
   question.attachments = origin === 'goOn' ? [] : sentFiles().map((attachment) => attachment.name)
   const line = added('assistant', '')
+  // Links and cards land under the answer once the answer is whole, so text arriving above them never moves them from under a tap.
+  const heldChips: ChatChip[] = []
+  const heldProposals: ChatProposal[] = []
   current?.abort()
   const controller = new AbortController()
   current = controller
@@ -533,7 +536,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
         if (current === controller) line.text = ''
       },
       showChip: (chip) => {
-        if (current === controller) line.chips.push(chip)
+        if (current === controller) heldChips.push(chip)
       },
       onSent: (sent) => {
         if (current !== controller) return
@@ -543,7 +546,7 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       showProposal: (app, proposal, next) => {
         if (current !== controller) return
         nextId += 1
-        line.proposals.push({
+        heldProposals.push({
           id: `card-${nextId}`,
           app,
           title: proposal.title,
@@ -580,6 +583,8 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
     if (current === controller) {
       current = null
       status.value = 'ready'
+      line.chips.push(...heldChips)
+      line.proposals.push(...heldProposals)
       if (stoppedByPerson && line.text === '' && line.chips.length === 0 && line.sent.length === 0 && line.proposals.length === 0) lines.splice(lines.indexOf(line), 1)
       else line.stopped = stoppedByPerson
       keepChat()

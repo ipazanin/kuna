@@ -14,7 +14,7 @@ import { MOST_CHARACTERS_A_READ } from '../domain/chatAttachments'
 import type { ReadRange } from '../domain/chatAttachments'
 import type { FigureTrace } from '../domain/chatElement'
 import type { ChatRefs, FigureAmount } from '../domain/chatRefs'
-import { fieldClassOf, fieldTest, holdsWords, inOrder, opsRefusal, sortKeyOf, sorts } from '../domain/recordFilters'
+import { fieldClassOf, fieldTest, inOrder, opsRefusal, sortKeyOf, sorts, wordsSearch } from '../domain/recordFilters'
 import type { ComparedField, FieldClass, FieldTest, RecordFilter, RecordSort } from '../domain/recordFilters'
 import type { WholePart } from './modelPort'
 
@@ -198,11 +198,10 @@ function shownRow(app: string, kind: ReadableKind, row: ReadableRow, reads: Chat
  * Whether the query is in a field as it would leave. While Anonymise is on, a person's name matches only as their alias,
  * so a search cannot spell out a name letter by letter. An identifier never matches, so it cannot be guessed digit by digit.
  */
-function holdsQuery(row: ReadableRow, query: string, reads: ChatReads): boolean {
-  const alias = isAlias(query, reads)
+function holdsQuery(row: ReadableRow, holdsWords: (text: string) => boolean, reads: ChatReads): boolean {
   return row.fields.some((field) => {
     if (!hasValue(field) || field.exposure === 'identifier') return false
-    return textsOf(leaving(field, reads)).some((text) => holdsWords(text, query, alias))
+    return textsOf(leaving(field, reads)).some(holdsWords)
   })
 }
 
@@ -338,7 +337,7 @@ export function findRecords(input: FindRecordsInput, reads: ChatReads): ChatTool
   if (status !== 'open') return fileNotReadable(app.name, status)
 
   const employees = employeesKeptHome(knownPersons(reads), reads)
-  const query = input.query === null || input.query.trim() === '' ? null : input.query
+  const holdsWords = input.query === null || input.query.trim() === '' ? null : wordsSearch(input.query, isAlias(input.query, reads))
   const inSet = only === null ? null : only.ids()
   const records = new Set(pointedAt.map((record) => `${record!.kind}/${record!.id}`))
   const inRange = kind
@@ -352,7 +351,7 @@ export function findRecords(input: FindRecordsInput, reads: ChatReads): ChatTool
   const kept = inRange.filter((row) => !aboutAnEmployee(row, employees))
   const fieldOf = (row: ReadableRow, name: string) => row.fields.find((field) => field.name === name)
   const matching = kept
-    .filter((row) => query === null || holdsQuery(row, query, reads))
+    .filter((row) => holdsWords === null || holdsQuery(row, holdsWords, reads))
     .filter((row) => tests.every(({ field, fieldClass, test }) => test(comparedField(fieldClass, fieldOf(row, field), reads))))
   const order = input.sort.length > 0 ? input.sort : kind.dated === null ? [] : [{ field: kind.dated, direction: 'descending' as const }]
   const ordered =

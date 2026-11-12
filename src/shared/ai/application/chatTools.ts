@@ -70,7 +70,7 @@ export const CHAT_TOOLS: readonly ModelTool[] = [
       properties: {
         app: APP,
         kind: { type: 'string', description: 'The kind, such as "transaction".' },
-        query: TEXT_OR_NULL('Words to find in the record, or an alias such as "Person 3", or null for all.'),
+        query: TEXT_OR_NULL('Words to find in the record, where case, accents, punctuation and case endings do not matter, or an alias such as "Person 3", or null for all.'),
         from: TEXT_OR_NULL('The first day or month, such as 2026-10, or null.'),
         to: TEXT_OR_NULL('The last day or month, or null.'),
         refs: { type: 'array', items: { type: 'string' }, description: 'Only records that are, or point at, any of these refs, such as the entries of one category. Empty for all.' },

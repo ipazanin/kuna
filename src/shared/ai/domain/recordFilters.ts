@@ -2,6 +2,7 @@ import { decimalOfNumber, decimalOfText } from '../../money/decimal'
 import type { Decimal } from '../../money/decimal'
 import type { Exposure, StoredValue } from '../../privacy/domain/exposure'
 import { fold } from '../../text/fold'
+import { caseForms, foldedWord } from '../../text/wordForms'
 
 export const FILTER_OPS = ['is', 'one-of', 'not', 'contains', 'at-least', 'at-most', 'empty', 'not-empty'] as const
 export type FilterOp = (typeof FILTER_OPS)[number]
@@ -98,14 +99,67 @@ function sameHeld(held: Held, wanted: string): boolean {
   return fold(String(held)) === fold(wanted)
 }
 
+/** A word of a text as a search reads it, folded, and whether it is an abbreviation such as `Sv.` that stands for longer words. */
+interface SearchWord {
+  readonly folded: string
+  readonly abbreviation: boolean
+}
+
+/** An abbreviation is a word of letters before a full stop, as long as `prof.` at most, so the last word of a sentence is not one. */
+const LONGEST_ABBREVIATION = 4
+
+/** A shorter word shares too little with another to be its case form, as `Na` and `Ne` show. */
+const SHORTEST_DECLINED_WORD = 4
+
+const LETTERS = /^\p{L}+$/u
+
+/** The words of a text that `foldedWord` folded. */
+function searchWordsOf(folded: string): readonly SearchWord[] {
+  return [...folded.matchAll(/([\p{L}\p{N}]+)(\.)?/gu)].map(([, word, stop]) => ({
+    folded: word!,
+    abbreviation: stop !== undefined && word!.length <= LONGEST_ABBREVIATION && LETTERS.test(word!),
+  }))
+}
+
+function formsOfWord(word: string): ReadonlySet<string> {
+  return word.length >= SHORTEST_DECLINED_WORD && LETTERS.test(word) ? caseForms(word) : new Set([word])
+}
+
 /**
- * Whether the words are in a text. An alias Kuna handed out matches only whole, so `Person 1` does not find `Person 10`
- * and a search cannot spell out a name letter by letter.
+ * A test of whether a text holds the words or a near spelling of them: any case, with or without accents or punctuation,
+ * a word by its start or in another case, and an abbreviation such as `Sv.` for the words it begins. So `sv ivan`,
+ * `Sveti Ivan` and `Sv. Ivan` find each other, and `Čakovec` finds `u Čakovcu`. An alias Kuna handed out matches only
+ * whole, so `Person 1` does not find `Person 10` and a search cannot spell out a name letter by letter.
  */
-export function holdsWords(text: string, words: string, alias: boolean): boolean {
-  if (!alias) return fold(text).includes(fold(words))
-  const escaped = words.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}]| #\\d)`, 'u').test(text)
+export function wordsSearch(words: string, alias: boolean): (text: string) => boolean {
+  if (alias) {
+    const escaped = words.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const whole = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}]| #\\d)`, 'u')
+    return (text) => whole.test(text)
+  }
+  const folded = foldedWord(words)
+  const wanted = searchWordsOf(folded).map((word) => ({ folded: word.folded, forms: formsOfWord(word.folded) }))
+  const formsSeen = new Map<string, ReadonlySet<string>>()
+  const formsOf = (word: string): ReadonlySet<string> => {
+    const seen = formsSeen.get(word)
+    if (seen !== undefined) return seen
+    const forms = formsOfWord(word)
+    formsSeen.set(word, forms)
+    return forms
+  }
+  const near = (one: (typeof wanted)[number], word: SearchWord | undefined) =>
+    word !== undefined &&
+    (word.folded.startsWith(one.folded) ||
+      (word.abbreviation && one.folded.startsWith(word.folded)) ||
+      one.forms.has(word.folded) ||
+      (word.folded[0] === one.folded[0] && formsOf(word.folded).has(one.folded)))
+  return (text) => {
+    const foldedText = foldedWord(text)
+    if (foldedText.includes(folded)) return true
+    if (wanted.length === 0) return false
+    const textWords = searchWordsOf(foldedText)
+    return textWords.some((_, at) => wanted.every((one, offset) => near(one, textWords[at + offset])))
+  }
 }
 
 /** A bound of a range: an amount or a number, or a day or a month that compares by its prefix as from and to do. */
@@ -164,8 +218,8 @@ export function fieldTest(name: string, fieldClass: FieldClass, op: FilterOp, va
   if (op === 'not-empty') return (field) => !isEmpty(field)
   if (op === 'contains') {
     const [words] = values as [string]
-    const alias = isAlias(words)
-    return (field) => field.class !== 'amount' && 'value' in field && heldOf(field.value).some((held) => holdsWords(String(held), words, alias))
+    const holdsWords = wordsSearch(words, isAlias(words))
+    return (field) => field.class !== 'amount' && 'value' in field && heldOf(field.value).some((held) => holdsWords(String(held)))
   }
   if (op === 'at-least' || op === 'at-most') {
     const bound = boundOf(fieldClass, values[0]!)

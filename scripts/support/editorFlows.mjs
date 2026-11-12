@@ -9592,11 +9592,8 @@ export function chatPanelFlowIn(language) {
       await send(language === 'en' ? 'And the rules?' : 'A pravila?')
       await page.waitForSelector('[data-testid="chat-chip"]', { visible: true, timeout: 15_000 })
       if (await page.$(CHAT_CONSENT)) throw new Error('a new chat asked with Always allow on')
-      // The link shows with the tool call, before the answer's text lands above it and moves it down on a phone.
-      await page.waitForSelector('[data-status="ready"] [data-testid="chat-answer"]', { visible: true, timeout: 15_000 }).catch(() => {
-        throw new Error('the answer with the link did not finish')
-      })
-
+      if ((await page.$('[data-status="ready"] [data-testid="chat-answer"]')) === null)
+        throw new Error('the link showed before its answer was whole, so the text landing above it moves it from under a tap')
       await pressSelector(page, press, '[data-testid="chat-chip"]')
       await page
         .waitForFunction(() => window.location.hash.startsWith('#/spending/settings?tab=rules'), { timeout: 10_000 })
@@ -9856,7 +9853,8 @@ export function chatProposeFlowIn(language) {
       await page.waitForSelector('[data-testid="chat-proposal-accept"]', { visible: true, timeout: 15_000 }).catch(() => {
         throw new Error('the quick action showed no card')
       })
-      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      if ((await page.$('[data-status="ready"] [data-testid="chat-answer"]')) === null)
+        throw new Error('the card showed before its answer was whole, so the text landing above it moves Accept from under a tap')
       await elementSays(page, '[data-testid="chat-proposal"]', [words.proposal.accept, words.proposal.notNow], 'the card offers no Accept or Not now')
       await inspect?.('a proposal')
       await shoot('chat-proposal')

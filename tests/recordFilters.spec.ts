@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { OPS_OF, fieldClassOf, fieldTest, holdsWords, inOrder, sortKeyOf, sorts } from '../src/shared/ai/domain/recordFilters'
+import { OPS_OF, fieldClassOf, fieldTest, inOrder, sortKeyOf, sorts, wordsSearch } from '../src/shared/ai/domain/recordFilters'
 import type { ComparedField, FieldClass, FilterOp, FieldTest, SortDirection, SortKey } from '../src/shared/ai/domain/recordFilters'
 import { decimalOfText } from '../src/shared/money/decimal'
 
@@ -132,10 +132,47 @@ describe('each op on a field', () => {
 })
 
 describe('words in a text', () => {
+  const finds = (text: string, words: string, alias = false) => wordsSearch(words, alias)(text)
+
   it('finds folded words anywhere, and an alias only where it stands alone', () => {
-    expect(holdsWords('Đakovo market', 'dakovo', false)).toBe(true)
-    expect(holdsWords('Person 12', 'Person 1', true)).toBe(false)
-    expect(holdsWords('HR•• ••••0160 #2', 'HR•• ••••0160', true)).toBe(false)
+    expect(finds('Đakovo market', 'dakovo')).toBe(true)
+    expect(finds('Stanarina, Ivanić', 'vani')).toBe(true)
+    expect(finds('Person 12', 'Person 1', true)).toBe(false)
+    expect(finds('HR•• ••••0160 #2', 'HR•• ••••0160', true)).toBe(false)
+  })
+
+  it('finds a place written with or without its full stop, short or whole', () => {
+    expect(finds('Pekara Sv. Ivan Zelina', 'Sv Ivan')).toBe(true)
+    expect(finds('Pekara Sv. Ivan Zelina', 'Sveti Ivan')).toBe(true)
+    expect(finds('Pekara Sveti Ivan Zelina', 'Sv Ivan')).toBe(true)
+    expect(finds('Pekara Sveti Ivan Zelina', 'Sv. Ivan')).toBe(true)
+    expect(finds('Pekara Sv. Ivan Zelina', 'Sveti Petar')).toBe(false)
+  })
+
+  it('finds a word with or without its č, ć, š, ž and đ, and dj for đ', () => {
+    expect(finds('Benzinska Čakovec', 'Cakovec')).toBe(true)
+    expect(finds('Benzinska Cakovec', 'Čakovec')).toBe(true)
+    expect(finds('Ljekarna Šibenik', 'sibenik')).toBe(true)
+    expect(finds('Pošta Žminj', 'ZMINJ')).toBe(true)
+    expect(finds('Ćevabdžinica Đuro', 'cevabdzinica djuro')).toBe(true)
+  })
+
+  it('finds a word in another case, either way round', () => {
+    expect(finds('Plaćeno u Čakovcu', 'Čakovec')).toBe(true)
+    expect(finds('Plaćeno u Čakovcu', 'Cakovec')).toBe(true)
+    expect(finds('Najam, Rijeka', 'Rijeci')).toBe(true)
+    expect(finds('Najam u Rijeci', 'Rijeka')).toBe(true)
+    expect(finds('Ručak u Zagrebu', 'Zagreb')).toBe(true)
+    expect(finds('Za Petra Horvata', 'Petar Horvat')).toBe(true)
+  })
+
+  it('keeps the words in their order and leaves short words to their own spelling', () => {
+    expect(finds('Ivan Sveti', 'Sveti Ivan')).toBe(false)
+    expect(finds('Ivo Horvat', 'Iva')).toBe(false)
+    expect(finds('Nakit na rate', 'ne rate')).toBe(false)
+    expect(finds('Ilica 15', 'Ilica 15a')).toBe(false)
+    expect(finds('Kraj rečenice. Ivan', 'Krajnji')).toBe(false)
+    expect(finds('Pekara', '.')).toBe(false)
   })
 })
 

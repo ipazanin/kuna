@@ -15,6 +15,7 @@ describe('finding a known person in a Croatian bank text', () => {
     ['uplata ivan horvat stanarina', 'Ivan Horvat'],
     ['Povrat Pavlu Kovaču', 'Pavao Kovač'],
     ['Aninom računu, Horvat', 'Ana Horvat'],
+    ['Posudba Stjepanu Bedencu', 'Stjepan Bedenec'],
   ])('%s names %s', (text, name) => {
     expect(nameIn(text, name)).toBe(true)
   })
