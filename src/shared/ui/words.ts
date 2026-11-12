@@ -33,6 +33,28 @@ export const en = {
     rows: 'the rows',
     open: (part: string, value: string, opens: string) => `${part}, ${value}, open ${opens}`,
   },
+  split: {
+    parts: 'Parts',
+    part: (place: number) => `Part ${place}`,
+    amountOf: (place: number) => `Amount of part ${place}`,
+    amountPlaceholder: '0.00',
+    anAmount: 'An amount above zero, with at most two decimals',
+    rest: 'The rest',
+    takeRest: (place: number) => `Part ${place} takes the rest`,
+    category: 'Category',
+    note: 'Note',
+    notePlaceholder: 'What this part paid for',
+    removePart: (place: number) => `Remove part ${place}`,
+    twoParts: 'A split keeps at least two parts.',
+    addPart: 'Add a part',
+    /** Why parts cannot be placed in the whole, for the person on a screen and, in English, for the chat's model. */
+    refusals: {
+      'one-rest': 'Exactly one part takes the rest.',
+      'zero-part': 'Every part needs an amount above zero.',
+      'wrong-sign': 'Type each amount above zero. Every part takes the sign of the whole.',
+      over: 'The parts with amounts already make up the whole, so nothing is left for the rest.',
+    },
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -64,6 +86,27 @@ export const hr: Translation<typeof en> = {
   donut: {
     rows: 'stavke',
     open: (part, value, opens) => `${part}, ${value}, otvori ${opens}`,
+  },
+  split: {
+    parts: 'Dijelovi',
+    part: (place) => `${place}. dio`,
+    amountOf: (place) => `Iznos ${place}. dijela`,
+    amountPlaceholder: '0,00',
+    anAmount: 'Iznos veći od nule s najviše dvije decimale',
+    rest: 'Ostatak',
+    takeRest: (place) => `${place}. dio uzima ostatak`,
+    category: 'Kategorija',
+    note: 'Napomena',
+    notePlaceholder: 'Za što je plaćen ovaj dio',
+    removePart: (place) => `Ukloni ${place}. dio`,
+    twoParts: 'Podjela ima barem dva dijela.',
+    addPart: 'Dodaj dio',
+    refusals: {
+      'one-rest': 'Točno jedan dio uzima ostatak.',
+      'zero-part': 'Svaki dio treba iznos veći od nule.',
+      'wrong-sign': 'Upišite svaki iznos veći od nule. Svaki dio dobiva predznak cjeline.',
+      over: 'Dijelovi s iznosima već čine cjelinu, pa za ostatak ne ostaje ništa.',
+    },
   },
 }
 

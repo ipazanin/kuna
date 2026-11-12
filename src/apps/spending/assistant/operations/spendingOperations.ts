@@ -1,4 +1,4 @@
-import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
+import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, choiceOf, dayOf, found, inputOf } from '../../../../shared/app/operationInput'
 import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
 import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { BANK_SETUP_OPERATIONS, isBankSetupStep, planBankSetup } from './bankSetupOperations'
@@ -23,7 +23,8 @@ import { newTransfer } from '../../entries/domain/transfer'
 import { TRANSACTION_WRITES, newEntry, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
 import { fixedByBank } from '../../entries/domain/bankRows'
 import { entrySplit } from '../../entries/domain/entrySplit'
-import type { PartDraft, SplitRefusal } from '../../entries/domain/entrySplit'
+import type { PartDraft } from '../../entries/domain/entrySplit'
+import { en as entriesEnglish } from '../../entries/presentation/words'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { SETTING_WRITES, treatPayeeAsPerson } from '../../workbook/application/settingWrites'
@@ -255,13 +256,13 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     name: 'split-entry',
     about: [
       "Splits an entry into parts by hand, each under a category of its own, as the entry's Split does. A split has two parts or more, and splitting an entry again puts the new parts in place of its old ones.",
-      "Each amount is above zero in the entry's account currency, and Kuna signs it as the entry is. Exactly one part has amount null and takes the rest, which must leave something.",
+      "Each amount is above zero in the entry's account currency. Kuna signs it as the entry is, and exactly one part has amount null and takes the rest, which must leave something.",
       'A part goes under any category a row may take, For the company too, but never under a group with categories under it or under Between my accounts. text is optional words for the part, or "".',
       "The entry goes under the category most of its money is in. A transfer's leg and an entry a receipt split stay as they are.",
     ].join(' '),
     input: inputOf({
       entry: TEXT,
-      parts: { type: 'array', items: inputOf({ amount: { type: ['number', 'null'], description: 'Above zero, or null for the one part that takes the rest.' }, category: TEXT, text: TEXT }) },
+      parts: { type: 'array', items: inputOf({ amount: PART_AMOUNT, category: TEXT, text: TEXT }) },
     }),
     refs: { entry: TRANSACTION_RECORDS.name, 'parts.category': CATEGORY_RECORDS.name },
     creates: null,
@@ -342,26 +343,12 @@ function positiveOf(amount: number): AccountMoney {
   return money
 }
 
-/** The swatch a step names, blank for the group's colour, or the colour kept. */
 /** An amount above zero signed as the row is, so a part of money out is money out. */
 function signedAs(row: Transaction, amount: AccountMoney): AccountMoney {
   return row.amount < 0 ? negateAccountMoney(amount) : amount
 }
 
-/** Why the chat's split cannot go, for the model to put right. */
-const SPLIT_REFUSALS: Readonly<Record<SplitRefusal, string>> = {
-  'one-rest': 'Exactly one part takes the rest, with amount null.',
-  'zero-part': 'Every part needs an amount above zero.',
-  'wrong-sign': 'Amounts are above zero. Kuna signs them as the entry is.',
-  over: 'The parts with amounts reach the whole entry or go past it, so nothing is left for the rest.',
-  'transfer-leg': "That entry is a transfer's leg, which stays whole.",
-  receipt: 'A receipt split that entry, and its lines follow the receipt.',
-  'too-few': 'A split has at least two parts.',
-  'unknown-category': 'That category is not in the file.',
-  'group-with-children': 'That category is a group with categories under it. Pick one of those.',
-  'between-accounts': 'A part never goes under Between my accounts.',
-}
-
+/** The swatch a step names, blank for the group's colour, or the colour kept. */
 function colourOf(text: string | null, kept: string): string {
   if (text === null) return kept
   if (text.trim() === '') return ''
@@ -657,7 +644,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
           text: part.text,
         }))
         const split = entrySplit(book, row, drafts)
-        if ('refused' in split) throw new StepRefused(SPLIT_REFUSALS[split.refused])
+        if ('refused' in split) throw new StepRefused(entriesEnglish.split.refusals[split.refused])
         writeEntrySplit(unit, books.records, split)
         book = {
           ...book,

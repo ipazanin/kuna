@@ -393,7 +393,7 @@ describe('splits and owner shares', () => {
     expect(answer.text).toContain('parts.category is not a ref')
   })
 
-  it('refuses amounts that do not add up to the row', async () => {
+  it('refuses amounts with no part that takes the rest', async () => {
     const desk = await companyDesk(used)
     const answer = await desk.propose([
       {
@@ -408,10 +408,10 @@ describe('splits and owner shares', () => {
         },
       },
     ])
-    expect(answer.text).toContain('add up to the whole row')
+    expect(answer.text).toContain('Exactly one part takes the rest')
   })
 
-  it('refuses amounts that leave one cent of the row out of the parts', async () => {
+  it('refuses amounts that leave the rest nothing', async () => {
     const desk = await companyDesk(used)
     const answer = await desk.propose([
       {
@@ -420,16 +420,16 @@ describe('splits and owner shares', () => {
           row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-6').id),
           by: 'amount',
           parts: [
-            { amount: 40, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
-            { amount: 19.99, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { amount: 60, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
+            { amount: null, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
           ],
         },
       },
     ])
-    expect(answer.text).toContain('add up to the whole row')
+    expect(answer.text).toContain('nothing is left for the rest')
   })
 
-  it('splits a row by amounts that already add up to it, each with the row sign', async () => {
+  it('splits a row by an amount and the rest, each with the row sign', async () => {
     const desk = await companyDesk(used)
     const row = desk.row('REF-6')
     await desk.propose([
@@ -440,7 +440,7 @@ describe('splits and owner shares', () => {
           by: 'amount',
           parts: [
             { amount: 40, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
-            { amount: 20, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { amount: null, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
           ],
         },
       },

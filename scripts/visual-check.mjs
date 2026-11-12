@@ -6038,7 +6038,7 @@ const FLOWS = [
     viewports: ['phone', 'tablet', 'desktop'],
     queries: { drive: '&fake=no-plan&lang=hr', browser: '&fake=browser-no-plan&lang=hr' },
   },
-  { name: 'split', hash: '#/company/transactions?p=all&q=GADGET', title: 'Transactions', run: splitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
+  { name: 'split', hash: '#/company/transactions?p=all&q=GADGET', title: 'Transactions', run: splitFlow, viewports: DESIGN_REVIEW_VIEWPORTS },
   { name: 'split-review', hash: '#/company/transactions?tab=review', title: 'Transactions', run: reviewSplitFlow, viewports: ['phone', 'phone-large', 'desktop'] },
   { name: 'change-category', hash: '#/company/transactions?p=all&q=CODE%20HOST', title: 'Transactions', run: changeCategoryFlow },
   {
@@ -6046,7 +6046,7 @@ const FLOWS = [
     hash: '#/company/transactions?p=all&q=GADGET',
     title: 'Transakcije',
     run: splitFlowIn('hr'),
-    viewports: ['phone', 'tablet', 'desktop'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr', browser: '&fake=browser&lang=hr' },
   },
   {

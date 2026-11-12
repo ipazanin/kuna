@@ -134,8 +134,31 @@ const castedAs = (cast) => [`${cast} > TSTypeReference.typeAnnotation${castedBra
 const scaleLiteral = String.raw`/^(?:100|10_?000)n?$/`
 const scaleConstant = String.raw`/^10_?000n?$/`
 
+/** The text colours of tokens.css, which a figure with a tone takes from the tone instead. */
+const textColour = /(?:^|\s)text-(?:highlighted|toned|muted|dimmed|default|inverted|error|success|warning|info|primary)(?:\s|$)/
+
+/** A MoneyText or AccountMoneyText with a tone and a text colour in its class, where the class would override the tone. */
+const moneyToneColours = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const visitors = {
+      VElement(element) {
+        if (!/^(?:Account)?MoneyText$/.test(element.rawName)) return
+        const attributes = element.startTag.attributes
+        const toned = attributes.some((attribute) => (attribute.directive ? attribute.key.argument?.name : attribute.key.name) === 'tone')
+        const coloured = attributes.find((attribute) => !attribute.directive && attribute.key.name === 'class' && textColour.test(attribute.value?.value ?? ''))
+        if (toned && coloured !== undefined) {
+          context.report({ node: coloured, message: 'A figure with a tone takes its colour from the tone. Drop the text colour, or drop the tone and say why the figure has no tone.' })
+        }
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(visitors, {}) ?? {}
+  },
+}
+
 const kunaPlugin = {
   rules: {
+    'money-tone-colours': moneyToneColours,
     'money-casts': refusedSyntax(
       [...castedAs('TSAsExpression'), ...castedAs('TSTypeAssertion')],
       'Make Money, AccountMoney, Percent, Share and Decimal with the functions in src/shared/money. A cast skips the check that keeps the brand true.',
@@ -287,6 +310,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/window-queries', files: ['src/**/*.{ts,vue}'], rules: { 'kuna/window-queries': 'error' } },
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
+    { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },
     ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
     prettier,
   )

@@ -2,6 +2,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
+import { en as sharedEnglish, hr as sharedCroatian } from '../../../../shared/ui/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // An entry is unos and an account račun, both masculine.
@@ -67,26 +68,13 @@ export const en = {
     description: (payee: string, day: string) => `${payee === '' ? 'The entry' : payee} of ${day}. Each part goes under its own category, and one part takes what the others leave.`,
     sign: 'Type each amount above zero. Every part takes the sign of the entry.',
     whole: 'The entry',
-    parts: 'Parts',
-    part: (place: number) => `Part ${place}`,
-    amountOf: (place: number) => `Amount of part ${place}`,
-    rest: 'The rest',
-    takeRest: (place: number) => `Part ${place} takes the rest`,
-    category: 'Category',
-    text: 'Note',
-    textPlaceholder: 'Optional',
-    addPart: 'Add a part',
-    removePart: (place: number) => `Remove part ${place}`,
     split: 'Split',
     save: 'Save',
     saved: 'Entry split',
     changed: 'Split changed',
-    anAmount: 'An amount above zero',
+    /** Why a split cannot go, for the person on the screen and, in English, for the chat's model. */
     refusals: {
-      'one-rest': 'Exactly one part takes the rest.',
-      'zero-part': 'Every part needs an amount above zero.',
-      'wrong-sign': 'Type each amount above zero. Kuna signs it as the entry is.',
-      over: 'The parts already make up the whole entry, so nothing is left for the rest.',
+      ...sharedEnglish.split.refusals,
       'transfer-leg': 'A move between your accounts stays whole.',
       receipt: 'A receipt split this entry, so its lines follow the receipt.',
       'too-few': 'A split has at least two parts.',
@@ -158,26 +146,12 @@ export const hr: Translation<typeof en> = {
     description: (payee, day) => `${payee === '' ? 'Unos' : payee}, ${day} Svaki dio ide pod svoju kategoriju, a jedan dio uzima ono što ostali ostave.`,
     sign: 'Upišite svaki iznos veći od nule. Svaki dio dobiva predznak unosa.',
     whole: 'Unos',
-    parts: 'Dijelovi',
-    part: (place) => `${place}. dio`,
-    amountOf: (place) => `Iznos ${place}. dijela`,
-    rest: 'Ostatak',
-    takeRest: (place) => `${place}. dio uzima ostatak`,
-    category: 'Kategorija',
-    text: 'Bilješka',
-    textPlaceholder: 'Neobavezno',
-    addPart: 'Dodaj dio',
-    removePart: (place) => `Ukloni ${place}. dio`,
     split: 'Podijeli',
     save: 'Spremi',
     saved: 'Unos je podijeljen',
     changed: 'Podjela je promijenjena',
-    anAmount: 'Iznos veći od nule',
     refusals: {
-      'one-rest': 'Točno jedan dio uzima ostatak.',
-      'zero-part': 'Svaki dio treba iznos veći od nule.',
-      'wrong-sign': 'Upišite svaki iznos veći od nule. Kuna mu daje predznak unosa.',
-      over: 'Dijelovi već čine cijeli unos, pa za ostatak ne ostaje ništa.',
+      ...sharedCroatian.split.refusals,
       'transfer-leg': 'Prijenos između vaših računa ostaje cijeli.',
       receipt: 'Fiskalni račun podijelio je ovaj unos, pa njegove stavke slijede račun.',
       'too-few': 'Podjela ima barem dva dijela.',

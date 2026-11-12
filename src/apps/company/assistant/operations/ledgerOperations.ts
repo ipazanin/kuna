@@ -31,12 +31,14 @@ import { needsReview } from '../../workbook/domain/needsReview'
 import type { SplitTabRow } from '../../workbook/domain/splitsReading'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
-import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
+import { FLAG_OR_NULL, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { Rule, RuleConfidence } from '../../../../shared/categorising/domain/rule'
 import { moneyParts } from '../../../../shared/money/decimal'
-import { restOfWhole } from '../../../../shared/money/partsOfWhole'
+import { partsOfWhole } from '../../../../shared/money/partsOfWhole'
+import type { GivenPart } from '../../../../shared/money/partsOfWhole'
+import { en as splitWords } from '../../../../shared/ui/words'
 import { absMoney, moneyFromAmount, negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { NO_RECORDS, recordWithId, recordsOf } from '../../../../shared/storage/domain/recordsRead'
@@ -137,13 +139,13 @@ const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'split-row',
     about: [
-      "Splits a ledger row into parts in categories, or changes its split, as the row's Split does. by amount: each part's amount, above zero, and together the whole row.",
-      'by share: each part a whole number such as 70 and 30, and Kuna works out the amounts so no cent is lost. A row a pack keeps whole cannot be split.',
+      "Splits a ledger row into parts in categories, or changes its split, as the row's Split does. by amount: each part's amount above zero, and exactly one part has amount null and takes the rest, which must leave something.",
+      'by share: each amount a whole number such as 70 and 30, none null, and Kuna works out the amounts so no cent is lost. A row a pack keeps whole cannot be split.',
     ].join(' '),
     input: inputOf({
       row: TEXT,
       by: { type: 'string', enum: ['amount', 'share'] },
-      parts: { type: 'array', items: inputOf({ amount: NUMBER, category: TEXT, note: TEXT }) },
+      parts: { type: 'array', items: inputOf({ amount: PART_AMOUNT, category: TEXT, note: TEXT }) },
     }),
     refs: { row: ROW, 'parts.category': CATEGORY },
     creates: null,
@@ -373,29 +375,32 @@ function storedParts(card: CompanyCard, row: Transaction): readonly SplitTabRow[
   })
 }
 
-/** The parts' amounts with the row's sign: as given, adding up to the row, or the row by the given shares with no cent lost. */
-function partAmounts(row: Transaction, by: string, given: readonly number[]): readonly Money[] {
+/** The parts' amounts with the row's sign: the rest worked out from the amounts given, or the row by the given shares with no cent lost. */
+function partAmounts(row: Transaction, by: string, given: readonly (number | null)[]): readonly Money[] {
   const whole = absMoney(row.amount)
   let amounts: readonly Money[]
   if (by === 'share') {
-    if (given.some((share) => !Number.isInteger(share) || share <= 0)) throw new StepRefused('Each share is a whole number above zero.')
+    if (given.some((share) => share === null || !Number.isInteger(share) || share <= 0)) throw new StepRefused('Each share is a whole number above zero.')
     amounts = moneyParts(
       whole,
-      given.map((share) => BigInt(share)),
+      given.map((share) => BigInt(share!)),
     )
+    if (amounts.some((amount) => amount === 0)) throw new StepRefused('Each part has an amount above zero.')
   } else {
-    amounts = given.map((amount) => moneyFromAmount(amount))
-    if (amounts.some((amount) => amount <= 0)) throw new StepRefused('Each part has an amount above zero.')
-    if (restOfWhole(whole, amounts) !== 0) throw new StepRefused('The parts add up to the whole row, no more and no less.')
+    const placed = partsOfWhole(
+      whole,
+      given.map((amount): GivenPart<Money> => (amount === null ? 'rest' : moneyFromAmount(amount))),
+    )
+    if ('refused' in placed) throw new StepRefused(splitWords.split.refusals[placed.refused])
+    amounts = placed.parts
   }
-  if (amounts.some((amount) => amount === 0)) throw new StepRefused('Each part has an amount above zero.')
   return row.amount < 0 ? amounts.map(negateMoney) : amounts
 }
 
 function splitRow(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const row = rowOf(card, field['row'])
-  const parts = field['parts'] as readonly { readonly amount: number; readonly category: string; readonly note: string }[]
+  const parts = field['parts'] as readonly { readonly amount: number | null; readonly category: string; readonly note: string }[]
   if (parts.length < 2) throw new StepRefused('A split has at least two parts.')
   const current = storedParts(card, row)
   const amounts = partAmounts(

@@ -19,6 +19,8 @@ import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { words as companyTransactionWords } from '../src/apps/company/transactions/presentation/words'
 import type { CatalogueApp } from '../src/shared/ai/application/catalogue'
+import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
+import { PART_AMOUNT } from '../src/shared/app/operationInput'
 import { words as statementWords } from '../src/apps/spending/statements/presentation/words'
 
 import { assetsAcceptance, assetsProposer } from '../src/apps/assets/assistant/operations/assetsOperations'
@@ -124,6 +126,19 @@ describe('the catalogue', () => {
     }
     expect(listed).toContain('- make-file in company, loans, investments, assets, spending: ')
     expect(catalogue.pages.get('company')).not.toContain('Changes you can propose')
+  })
+
+  it('states the rest of a split the same way in every operation that splits into parts', () => {
+    const partsOf = (input: StrictSchema): StrictSchema | null => {
+      const parts = 'properties' in input ? input.properties['parts'] : undefined
+      return parts !== undefined && 'items' in parts && 'properties' in parts.items ? (parts.items.properties['amount'] ?? null) : null
+    }
+    const splits = APPS.flatMap((app) => app.assistant.proposer?.operations ?? []).filter((operation) => operation.name.startsWith('split') && partsOf(operation.input) !== null)
+    expect(splits.map((operation) => operation.name).sort()).toEqual(['split-entry', 'split-row'])
+    for (const operation of splits) {
+      expect(partsOf(operation.input), operation.name).toEqual(PART_AMOUNT)
+      expect(operation.about, operation.name).toContain('exactly one part has amount null and takes the rest, which must leave something')
+    }
   })
 
   it('tells the model to do the whole job a message asks for, and says when a card goes on', () => {

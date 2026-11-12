@@ -528,7 +528,7 @@ describe('an entry split by hand', () => {
         { amount: -10, category: 'category' },
         { amount: null, category: 'category-other' },
       ],
-      'Amounts are above zero',
+      'Type each amount above zero',
     ],
     [
       'amounts that leave no rest',
@@ -544,7 +544,7 @@ describe('an entry split by hand', () => {
         { amount: 10, category: 'category-group' },
         { amount: null, category: 'category-other' },
       ],
-      'a group with categories under it',
+      'Pick a category inside the group',
     ],
   ] as const)('refuses %s with why', async (_name, parts, why) => {
     const desk = await spendingDesk(used)
@@ -566,8 +566,8 @@ describe('an entry split by hand', () => {
       { amount: 1, category: EXAMPLE_RECORDS['category']! },
       { amount: null, category: EXAMPLE_RECORDS['category-other']! },
     ]
-    expect((await desk.propose([split(desk, EXAMPLE_RECORDS['transaction-paired']!, parts)])).text).toContain("transfer's leg")
-    expect((await desk.propose([split(desk, EXAMPLE_RECORDS['transaction-receipt']!, parts)])).text).toContain('receipt split that entry')
+    expect((await desk.propose([split(desk, EXAMPLE_RECORDS['transaction-paired']!, parts)])).text).toContain('A move between your accounts stays whole')
+    expect((await desk.propose([split(desk, EXAMPLE_RECORDS['transaction-receipt']!, parts)])).text).toContain('A receipt split this entry')
     expect((await desk.propose([{ op: 'remove-split', input: { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!) } }])).text).toContain('remove-receipt')
   })
 

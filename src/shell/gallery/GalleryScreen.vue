@@ -57,6 +57,7 @@ import FormattingGallery from './FormattingGallery.vue'
 import FoundationsGallery from './FoundationsGallery.vue'
 import GallerySection from './GallerySection.vue'
 import ScenarioSpecimens from './ScenarioSpecimens.vue'
+import SplitEditorSpecimens from './SplitEditorSpecimens.vue'
 import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, incomeByMonth, SAMPLE_HOLDINGS, valueMap } from './sampleCharts'
 import { SAMPLE_TRANSACTIONS } from './sampleTransactions'
 import type { SampleTransaction } from './sampleTransactions'
@@ -90,6 +91,7 @@ const CONTENTS = [
   ['screen-skeleton', 'ScreenSkeleton'],
   ['form-grid', 'FormGrid'],
   ['dialog', 'AppDialog'],
+  ['split-editor', 'SplitEditor'],
   ['step-card', 'StepCard'],
   ['figure-table', 'FigureTable'],
   ['scenario-comparison', 'ScenarioComparison'],
@@ -786,6 +788,8 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
     </GallerySection>
 
     <DialogSpecimens />
+
+    <SplitEditorSpecimens />
 
     <GallerySection id="step-card" title="StepCard" description="One step of a first run, with Back once there is a step before it. Its screen tells it where the run stands.">
       <div class="grid gap-4 @2xl:grid-cols-2">

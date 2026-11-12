@@ -67,7 +67,6 @@
     "src/apps/company/transactions/presentation/CategoryChip.vue",
     "src/apps/company/transactions/presentation/ReviewQueueItem.vue",
     "src/apps/company/transactions/presentation/SessionChanges.vue",
-    "src/apps/company/transactions/presentation/SplitDialog.vue",
     "src/apps/company/transactions/presentation/TransactionCards.vue",
     "src/apps/company/transactions/presentation/TransactionGroupHeading.vue",
     "src/shared/storage/presentation/BooksFileCard.vue",

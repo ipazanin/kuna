@@ -39,6 +39,8 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ['a words import from another feature', DOMAIN, "import { words } from '../../shared/text/words'", 'kuna/domain-words'],
     ['a class', DOMAIN, 'export class Loan {}', 'kuna/domain-classes'],
     ['a class expression', DOMAIN, 'export const Loan = class {}', 'kuna/domain-classes'],
+    ['a text colour on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" class="font-medium text-highlighted" /></template>', 'kuna/money-tone-colours'],
+    ['a text colour on an account figure with a bound tone', SCREEN, '<template><AccountMoneyText :cents="a" currency="EUR" :tone="t" class="text-error" /></template>', 'kuna/money-tone-colours'],
   ])('refuses %s', async (_name, file, code, rule) => {
     expect(await rulesBroken(file, code)).toContain(rule)
   })
@@ -56,6 +58,8 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ['an import of a file that only ends in words', DOMAIN, "import { swords } from './swords'"],
     ['an Error subclass', DOMAIN, 'export class Refused extends Error {}'],
     ['a class on a screen', 'src/apps/loans/planted/presentation/planted.ts', 'export class Loan {}'],
+    ['a text colour on a figure with no tone', SCREEN, '<template><MoneyText :cents="a" class="text-muted" /></template>'],
+    ['a size on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" class="text-sm font-medium" /></template>'],
   ])('allows %s', async (_name, file, code) => {
     expect(await rulesBroken(file, code)).toEqual([])
   })

@@ -174,7 +174,7 @@ describe('copied rows on a card that look like ledger rows', () => {
           by: 'amount',
           parts: [
             { amount: 30, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
-            { amount: 20, category: desk.ref(CATEGORY_RECORDS.name, 'travel'), note: '' },
+            { amount: null, category: desk.ref(CATEGORY_RECORDS.name, 'travel'), note: '' },
           ],
         },
       },

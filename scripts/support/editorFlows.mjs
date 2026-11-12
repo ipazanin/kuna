@@ -151,6 +151,7 @@ const SCREEN_WORDS = {
     categoryName: companyBooksEnglish.unlabelled,
     swatches: chartsEnglish.swatches,
     sortBy: uiEnglish.sortBy,
+    splitEditor: uiEnglish.split,
     imports: importEnglish,
     mail: mailEnglish,
     mailPlan: mailPlanEnglish.plan,
@@ -236,6 +237,7 @@ const SCREEN_WORDS = {
     categoryName: companyBooksCroatian.unlabelled,
     swatches: chartsCroatian.swatches,
     sortBy: uiCroatian.sortBy,
+    splitEditor: uiCroatian.split,
     imports: importCroatian,
     mail: mailCroatian,
     mailPlan: mailPlanCroatian.plan,
@@ -1389,6 +1391,18 @@ async function setPart(page, index, amount) {
   return part
 }
 
+/** The part at `index` once it takes the rest and shows `shown` of it. */
+async function restIs(page, index, shown) {
+  const part = (await page.$$('[data-testid="split-part"]'))[index]
+  if (part === undefined) throw new Error(`no part ${index + 1} in the split editor`)
+  await page
+    .waitForFunction((held, wanted) => held.querySelector('[data-testid="split-rest"]')?.textContent?.includes(wanted) ?? false, { timeout: 5_000 }, part, shown)
+    .catch(async () => {
+      throw new Error(`part ${index + 1} does not take the rest of ${shown}, it says "${await part.evaluate((held) => held.textContent?.trim() ?? '')}"`)
+    })
+  return part
+}
+
 async function waitForSplit(page, present) {
   await page
     .waitForFunction((wanted) => (document.querySelector('[data-testid="edit-split"]') !== null) === wanted, { timeout: 10_000 }, present)
@@ -1411,7 +1425,7 @@ export function splitFlowIn(language) {
     await waitForSplit(page, false)
     await openSplitOfRow(page, press)
     await setPart(page, 0, typedIn(words, '30.00'))
-    const second = await setPart(page, 1, typedIn(words, '8.90'))
+    const second = await restIs(page, 1, typedIn(words, '8.90'))
     await chooseCategory(page, press, await second.$('[data-testid="split-part-category"]'), words.categoryName('office-supplies'))
     await setField(await second.$('[data-testid="split-part-note"]'), 'Printer paper')
     await inspect?.('split a row')
@@ -1427,10 +1441,10 @@ export function splitFlowIn(language) {
     await page.waitForSelector('[data-testid="split-form"]')
     await delay(400)
     await setPart(page, 0, typedIn(words, '28.90'))
-    await setPart(page, 1, typedIn(words, '5.00'))
     await pressSelector(page, press, '[data-testid="split-add-part"]')
     await delay(200)
-    const third = (await page.$$('[data-testid="split-part"]'))[2]
+    const third = await setPart(page, 2, typedIn(words, '5.00'))
+    await restIs(page, 1, typedIn(words, '5.00'))
     await chooseCategory(page, press, await third.$('[data-testid="split-part-category"]'), words.categoryName('owner-loan-out'))
     await inspect?.('edit a split')
     await shoot('split-edit')
@@ -5973,14 +5987,14 @@ const SPENDING_SPLIT_DIALOG = '[data-testid="spending-split-dialog"]'
 
 /** The part at `place` of the split dialog, from 0. */
 async function splitPart(page, place) {
-  const parts = await page.$$(`${SPENDING_SPLIT_DIALOG} [data-testid="spending-split-part"]`)
+  const parts = await page.$$(`${SPENDING_SPLIT_DIALOG} [data-testid="split-part"]`)
   const part = parts[place]
   if (part === undefined) throw new Error(`the split has no part ${place + 1}`)
   return part
 }
 
 async function typePartAmount(page, press, place, amount) {
-  const field = await (await splitPart(page, place)).$('[data-testid="spending-split-amount"]')
+  const field = await (await splitPart(page, place)).$('[data-testid="split-part-amount"]')
   if (field === null) throw new Error(`part ${place + 1} of the split has no amount to type`)
   const pad = await field.evaluate((element) => element.getAttribute('inputmode'))
   if (pad !== 'decimal') throw new Error(`the amount of part ${place + 1} opens no number pad on a phone, its inputmode is ${pad}`)
@@ -5991,7 +6005,7 @@ async function typePartAmount(page, press, place, amount) {
 }
 
 async function choosePartCategory(page, press, place, name) {
-  const picker = await (await splitPart(page, place)).$('[data-testid="spending-split-category"]')
+  const picker = await (await splitPart(page, place)).$('[data-testid="split-part-category"]')
   if (picker === null) throw new Error(`part ${place + 1} of the split has no category to pick`)
   await choose(page, press, picker, name)
 }
@@ -6013,11 +6027,11 @@ export function spendingSplitFlowIn(language) {
     await page.waitForSelector(SPENDING_SPLIT_DIALOG, { visible: true, timeout: 10_000 })
     await typePartAmount(page, press, 0, '20')
     await choosePartCategory(page, press, 1, starter.Restaurants)
-    await pressSelector(page, press, '[data-testid="spending-split-add-part"]')
+    await pressSelector(page, press, '[data-testid="split-add-part"]')
     await typePartAmount(page, press, 2, '15.3')
     await choosePartCategory(page, press, 2, starter['For the company'])
     await page
-      .waitForFunction((selector) => document.querySelector(selector)?.textContent?.includes('10') ?? false, { timeout: 5_000 }, '[data-testid="spending-split-rest"]')
+      .waitForFunction((selector) => document.querySelector(selector)?.textContent?.includes('10') ?? false, { timeout: 5_000 }, '[data-testid="split-rest"]')
       .catch(() => {
         throw new Error('the rest does not show what the other parts leave')
       })
@@ -8443,7 +8457,7 @@ export function rowsDialogsFlowIn(language) {
   return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await openSplitOfRow(page, press)
-    await elementSays(page, '[role="dialog"]', [words.transactions.splitDialog.addTitle, words.transactions.splitDialog.addPart], 'the split dialog is not in its language')
+    await elementSays(page, '[role="dialog"]', [words.transactions.splitDialog.addTitle, words.splitEditor.addPart], 'the split dialog is not in its language')
     await shoot('dialog-split')
     await page.keyboard.press('Escape')
     await dialogGone(page, '[data-testid="split-form"]')

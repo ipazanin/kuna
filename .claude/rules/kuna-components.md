@@ -9,4 +9,4 @@ paths:
 - A component moves here when a second app needs it. It takes no import from `src/apps/` or `src/shell/`.
 - A new component lands with its gallery specimen and its catalogue row. `tests/designCatalogue.spec.ts` fails without them.
 - Type the props, give each prop a doc comment only when its meaning is not in its name, and let the caller's `class` fall through to one root element.
-- Nothing in a shared component names an app, a bucket or a business term. The caller passes the words and the colour token.
+- A shared component's own generic words live in `src/shared/ui/words.ts`, in English and Croatian. Nothing in it names an app, a bucket or a business term. The caller passes those words and the colour token as props or slots.

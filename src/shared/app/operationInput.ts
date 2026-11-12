@@ -8,6 +8,8 @@ export const TEXT: StrictSchema = { type: 'string' }
 export const TEXT_OR_NULL: StrictSchema = { type: ['string', 'null'] }
 export const NUMBER: StrictSchema = { type: 'number' }
 export const NUMBER_OR_NULL: StrictSchema = { type: ['number', 'null'] }
+/** A split part's amount as every split operation takes it, so the rest reads the same in each. */
+export const PART_AMOUNT: StrictSchema = { type: ['number', 'null'], description: 'Above zero, or null for the one part that takes the rest.' }
 export const FLAG_OR_NULL: StrictSchema = { type: ['string', 'null'], enum: ['yes', 'no', null], description: '"yes", "no", or null to leave it.' }
 
 /** An operation's input: an object with every field required, where null leaves a field as it is. */
