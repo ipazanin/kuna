@@ -6266,6 +6266,37 @@ export function spendingCreditToTransferFlowIn(language) {
 }
 
 /**
+ * A row linked to a Loans instalment, on Entries and in its dialog with the link to the loan's page, then a row whose instalment
+ * Loans no longer has, in `goneMonth`. A key is kept, so each row carries its receipt camera as it does for a person with one.
+ */
+export function spendingLinkFlowIn(language, goneMonth) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
+    await page.reload({ waitUntil: 'networkidle0' })
+    const shootLinked = async (state) => {
+      const line = await page.waitForSelector('[data-testid="spending-row-link"]', { visible: true, timeout: 10_000 })
+      await line.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await inspect?.(`a ${state} link on Entries`)
+      await shoot(state === 'there' ? 'spending-row-link' : 'spending-row-link-gone')
+      await openSpendingRow(page, press, 'Example Bank', -65000)
+      const block = await page.waitForSelector('[data-testid="spending-entry-link-remove"]', { visible: true, timeout: 10_000 })
+      await block.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await inspect?.(`a ${state} link in the entry dialog`)
+      await shoot(state === 'there' ? 'spending-entry-link' : 'spending-entry-link-gone')
+      await page.keyboard.press('Escape')
+      await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    }
+    await shootLinked('there')
+    await page.evaluate((month) => (location.hash = `#/spending/transactions?month=${month}`), goneMonth)
+    await page.waitForFunction(() => document.querySelector('[data-testid="spending-row-link"]')?.classList.contains('text-warning') === true, { timeout: 10_000 })
+    await shootLinked('gone')
+  }
+}
+
+/**
  * With the bank sync set up, a row the bank synced onto Revolut EUR opens with its amount, day and way its money went locked,
  * saying why, and a new entry lists only the accounts kept by hand, so Cash and none of the accounts the bank fills.
  */

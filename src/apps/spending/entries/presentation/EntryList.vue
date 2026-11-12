@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 
 import { categoryColours } from '../../categories/presentation/categoryColours'
+import { useLinkLines } from '../../links/presentation/linkLine'
+import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -13,7 +15,7 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 
-/** Entries by day in the order given, each a row that opens it, with a camera for its receipt: who was paid or paid you, its category with its colour, its account and its amount in the account's currency, with euros under a foreign one. */
+/** Entries by day in the order given, each a row that opens it, with a camera for its receipt: who was paid or paid you, its category with its colour, its account, the record in another app it is linked to, and its amount in the account's currency, with euros under a foreign one. */
 const props = withDefaults(
   defineProps<{
     /** Newest first. */
@@ -31,6 +33,7 @@ const props = withDefaults(
 const emit = defineEmits<{ open: [entry: Transaction]; receipt: [entry: AskedElement] }>()
 
 const colours = computed(() => categoryColours(props.categories))
+const linkLineOf = useLinkLines()
 const byId = computed(() => new Map(props.categories.map((category) => [category.id, category])))
 
 interface Line {
@@ -39,6 +42,7 @@ interface Line {
   readonly colour: string
   readonly details: string
   readonly euros: string
+  readonly link: LinkLine | null
 }
 
 const days = computed(() => {
@@ -53,6 +57,7 @@ const days = computed(() => {
       colour: `var(${category === null ? '--chart-deemphasis' : colours.value(category)})`,
       details: [transaction.payee === '' || row.lines.length > 0 ? '' : categoryName, props.showAccount ? account.name : '', transaction.note].filter((part) => part !== '').join(' · '),
       euros: account.currency === EURO || row.euros === null ? '' : formatMoney(row.euros, 'always'),
+      link: transaction.link === null ? null : linkLineOf.value(transaction.link),
     }
     const last = groups.at(-1)
     if (last?.day === transaction.date) last.lines.push(line)
@@ -76,6 +81,7 @@ const days = computed(() => {
           :colour="line.colour"
           :details="line.details"
           :euros="line.euros"
+          :link="line.link"
           :takes-receipt="takesReceipt(line.row.transaction)"
           @open="emit('open', $event)"
           @receipt="emit('receipt', $event)"

@@ -43,6 +43,7 @@ export function withCashLeg(debit: Transaction, cash: Pick<Account, 'id'>, trans
     note: '',
     source: 'typed',
     pair: null,
+    link: null,
     categorisedBy: null,
   }
   return legsOfPair(debit, leg, transfer)

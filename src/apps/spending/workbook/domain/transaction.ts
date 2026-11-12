@@ -1,6 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { RowLink } from './rowLink'
 
 /** Typed by you, brought by a bank statement, or made from a receipt that no payment matched yet. */
 export const TRANSACTION_SOURCES = ['typed', 'statement', 'receipt'] as const
@@ -43,6 +44,8 @@ export interface Transaction {
   readonly pocket: boolean
   /** Cash taken out, as the bank's own row type says, whose other leg is a cash account's. */
   readonly cashWithdrawal: boolean
+  /** The record in another app this row is, such as the loan instalment it pays, or null. A link changes no figure of the row. */
+  readonly link: RowLink | null
 }
 
 /** What tells a row from every other on the file: its account and its import key. */

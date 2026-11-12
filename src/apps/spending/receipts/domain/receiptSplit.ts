@@ -79,6 +79,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
             note: '',
             source: place.account.kind === 'cash' ? 'typed' : 'receipt',
             pair: null,
+            link: null,
             categorisedBy: 'person',
           }
   const transaction = row?.id ?? null

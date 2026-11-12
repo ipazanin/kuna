@@ -18,7 +18,7 @@ export interface TransferLeg {
 export function newTransfer(from: TransferLeg, to: TransferLeg, entry: Pick<Transaction, 'date' | 'note' | 'category'>): readonly [Transaction, Transaction] {
   const outId = recordIdOf(TRANSACTION_RECORDS, newRecordId())
   const inId = recordIdOf(TRANSACTION_RECORDS, newRecordId())
-  const shared = { ...NO_BANK_FACTS, date: entry.date, payee: '', note: entry.note.trim(), category: entry.category, source: 'typed' as const, categorisedBy: 'person' as const }
+  const shared = { ...NO_BANK_FACTS, date: entry.date, payee: '', note: entry.note.trim(), category: entry.category, source: 'typed' as const, categorisedBy: 'person' as const, link: null }
   return [
     { ...shared, id: outId, account: from.account, amount: negateAccountMoney(absAccountMoney(from.amount)), pair: inId },
     { ...shared, id: inId, account: to.account, amount: absAccountMoney(to.amount), pair: outId },

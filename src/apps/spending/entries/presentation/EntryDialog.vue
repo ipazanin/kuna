@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UInputMenu from '@nuxt/ui/components/InputMenu.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
@@ -13,8 +14,10 @@ import { rememberLastAccount, startingAccount } from '../infrastructure/lastAcco
 import { words } from './words'
 import { knownPayees, payeeChoices } from '../domain/knownPayees'
 import { newTransfer } from '../domain/transfer'
-import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
+import { linkEntry, newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
+import { LINK_INK, useLinkLines } from '../../links/presentation/linkLine'
+import { words as linkWords } from '../../links/presentation/words'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
@@ -70,6 +73,12 @@ const payee = ref('')
 const note = ref('')
 const tried = ref(false)
 
+/** The form's fields as one text, to tell whether the person changed any since the dialog opened. */
+const formNow = computed(() => JSON.stringify([kind.value, amount.value, toAmount.value, category.value, account.value, toAccount.value, date.value, payee.value, note.value]))
+const openedAs = ref('')
+/** Whether the form holds changes not saved yet, which leaving for Loans would lose. */
+const edited = computed(() => formNow.value !== openedAs.value)
+
 /** The entry and its other leg as the file holds them, the money-out leg first. */
 const legs = computed((): readonly [Transaction, Transaction] | null => {
   const records = store.state.records
@@ -90,6 +99,13 @@ const receiptPlace = computed(() => {
   return held === null || link === null ? null : { text: receiptWords.place(held.latitude, held.longitude), link }
 })
 const splitOpen = ref(false)
+
+const linkLineOf = useLinkLines()
+/** The record in another app the entry is linked to, which the chat sets and clears. */
+const entryLink = computed(() => {
+  const link = props.entry?.link ?? null
+  return link === null ? null : linkLineOf.value(link)
+})
 
 /** The open accounts kept by hand, and the ones the entry is already on, closed or filled by the bank. */
 const choosable = computed(() => {
@@ -140,6 +156,7 @@ watch(open, (opened) => {
   payee.value = entry?.payee ?? ''
   note.value = entry?.note ?? ''
   tried.value = false
+  openedAs.value = formNow.value
 })
 
 /** A row stays on its own side as its kind changes: money in stays the To side of a transfer, and any row goes back to its account as a plain entry. */
@@ -252,6 +269,13 @@ async function treatPayee(): Promise<void> {
   })
 }
 
+/** Takes the entry's link off, with Undo, and closes the dialog. The entry keeps its category. */
+async function removeLink(): Promise<void> {
+  const entry = props.entry
+  if (entry === null) return
+  if (await writes.write(linkWords.removed, (unit) => linkEntry(unit, entry, null), { key: 'remove-link', failedTitle: spendingWords.form.notSaved })) open.value = false
+}
+
 /** Takes the receipt and its lines off, or the parts you split the entry into, and closes the dialog. */
 async function removeSplit(): Promise<void> {
   const entry = props.entry
@@ -317,6 +341,27 @@ async function remove(): Promise<void> {
       </UFormField>
       <UFormField :label="spendingWords.form.note" :class="twoCurrencies ? '' : 'sm:col-span-2'">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
+      </UFormField>
+      <UFormField v-if="entryLink !== null" :label="linkWords.label" class="sm:col-span-2" data-testid="spending-entry-link">
+        <div class="flex flex-col items-start gap-1">
+          <span class="flex items-start gap-1.5 text-sm" :class="LINK_INK[entryLink.look]">
+            <UIcon :name="entryLink.icon" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <span>{{ entryLink.text }}</span>
+          </span>
+          <div class="flex flex-wrap gap-2">
+            <UButton v-if="entryLink.to !== null" :to="entryLink.to" :label="linkWords.open" color="neutral" variant="link" :disabled="edited" class="px-0" data-testid="spending-entry-link-open" />
+            <UButton
+              :label="linkWords.remove"
+              icon="i-lucide-unlink"
+              color="neutral"
+              variant="ghost"
+              :loading="writes.saving('remove-link')"
+              :disabled="writes.busy.value"
+              data-testid="spending-entry-link-remove"
+              @click="removeLink"
+            />
+          </div>
+        </div>
       </UFormField>
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ receipt === null ? words.split.note : receiptWords.splitNote }}</p>

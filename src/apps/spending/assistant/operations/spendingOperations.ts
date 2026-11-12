@@ -20,7 +20,8 @@ import { setLimit } from '../../budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/application/categoryWrites'
 import { lastOrder, siblingsUnder, swappedPlaces } from '../../categories/domain/categoryPlaces'
 import { newTransfer } from '../../entries/domain/transfer'
-import { TRANSACTION_WRITES, newEntry, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
+import { TRANSACTION_WRITES, linkEntry, newEntry, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
+import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
 import { fixedByBank } from '../../entries/domain/bankRows'
 import { entrySplit } from '../../entries/domain/entrySplit'
 import type { PartDraft } from '../../entries/domain/entrySplit'
@@ -295,6 +296,25 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   ADD_RECEIPT,
   {
+    name: 'link-entry',
+    about:
+      "Links an entry to the record in Loans it is: a bank loan's instalment by the loan's name as Loans lists it and the instalment's due date, or an informal loan by its name with due null. A link replaces the one the entry had, and changes no figure: the entry counts by its category.",
+    input: inputOf({ entry: TEXT, loan: TEXT, due: { type: ['string', 'null'], description: "The instalment's due date as yyyy-mm-dd, or null for an informal loan." } }),
+    refs: { entry: TRANSACTION_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { entry: 'transaction', loan: 'Housing loan', due: '2026-11-15' },
+  },
+  {
+    name: 'unlink-entry',
+    about: 'Takes the link to a record in another app off an entry. The entry keeps its category.',
+    input: inputOf({ entry: TEXT }),
+    refs: { entry: TRANSACTION_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { entry: 'transaction-linked' },
+  },
+  {
     name: 'flag-person',
     about: "Flags an entry's payee as a person, so the chat sends the name under an alias from then on. Only a person takes a flag off, on the entry's dialog.",
     input: inputOf({ entry: TEXT }),
@@ -318,6 +338,20 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     example: { key: COMPANY_OIB_KEY, value: '12345678903' },
   },
 ]
+
+/** The record in Loans a step names: an instalment by its loan's name and due date, or an informal loan by its name. */
+function linkedTarget(loans: AppTargets<LinkTarget>, name: string, due: CivilDate | null): LinkTarget {
+  if (loans === null) throw new StepRefused('Loans is not set up on this device, so nothing in it can be linked.')
+  if (loans === 'opening') throw new StepRefused('Loans is still opening. Propose the link again once it is open.')
+  if (loans === 'failed') throw new StepRefused('Loans did not open, so nothing in it can be linked.')
+  const named = loans.filter((target) => (due === null ? target.kind === 'informal-loan' && target.name === name : target.kind === 'instalment' && target.loanName === name && target.due === due))
+  if (named.length > 1) throw new StepRefused(`More than one loan in Loans is called ${name}. Rename one in Loans first.`)
+  const [target] = named
+  if (target !== undefined) return target
+  throw new StepRefused(
+    due === null ? `${name} is not an informal loan Loans lists. A bank loan's instalment needs its due date.` : `${name} is not a bank loan Loans lists with an instalment due ${due}.`,
+  )
+}
 
 function flagOf(text: string | null, kept: boolean): boolean {
   return text === null ? kept : text === 'yes'
@@ -679,6 +713,15 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         receiptWarnings.push(...notes)
         break
       }
+      case 'link-entry':
+        linkEntry(unit, rowOf(field['entry']), linkedTarget(ports.linkTargets(), field['loan'], field['due'] === null ? null : dayOf(field['due'])).link)
+        break
+      case 'unlink-entry': {
+        const row = rowOf(field['entry'])
+        if (row.link === null) throw new StepRefused('That entry has no link.')
+        linkEntry(unit, row, null)
+        break
+      }
       case 'flag-person': {
         const payee = rowOf(field['entry']).payee.trim()
         if (payee === '') throw new StepRefused('That entry has no payee to flag.')
@@ -728,7 +771,7 @@ function spendingWork(ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPho
     plan: (unit, books, steps, kept) => {
       warnings = planned(unit, books, steps, ports, kept)
     },
-    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, warnings),
+    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, ports.linkTargets(), warnings),
     outside: receiptsOutside,
     heldBack: () => {
       const rows = warnings.leftOut?.rows ?? 0
@@ -758,6 +801,8 @@ export interface SpendingDevice extends LastAccountPorts {
 export interface SpendingPorts {
   readonly receipts: ReceiptPorts
   readonly device: SpendingDevice
+  /** The records in Loans an entry can link to, as the screens read them. */
+  linkTargets(): AppTargets<LinkTarget>
 }
 
 /**

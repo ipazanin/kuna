@@ -10,6 +10,8 @@ import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setu
 import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
 import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { fiscalQrOn } from '../receipts/domain/fiscalQr'
+import { linkStateOf } from '../links/domain/linkTarget'
+import type { AppTargets, LinkTarget } from '../links/domain/linkTarget'
 import { receiptMatches } from '../receipts/domain/receiptMatch'
 import { waitsForBank } from '../receipts/domain/waitingReceipts'
 import { SPENDING_ACCOUNT_ROUTE } from '../overview/presentation/spendingLinks'
@@ -60,6 +62,8 @@ export interface SpendingReading {
   bankSetup(): BankSetup | null
   /** The text of the QR code on a photo, or null for none. Throws for a photo this browser cannot decode. */
   qrTextOn(photo: Blob): Promise<string | null>
+  /** The records in Loans a row can link to, as the screens read them. */
+  linkTargets(): AppTargets<LinkTarget>
 }
 
 /** The payments a receipt may be, as Entries, Add a receipt finds them, on the QR code's date and total when the photo holds one. */
@@ -129,7 +133,15 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
   hidden: { exposure: 'plain', meaning: 'Hidden from the pickers, while its rows keep counting.' },
 }
 
-const TRANSACTION_FIELDS: FieldDocs<Transaction> = {
+/** What a row's link names, as the chat reads it, or null for a row with none. */
+function linkRead(row: Transaction, loans: AppTargets<LinkTarget>): string | null {
+  if (row.link === null) return null
+  const read = linkStateOf(row.link, loans)
+  if (read.state === 'there') return read.target.kind === 'instalment' ? words.reads.linkInstalment(read.target.loanName, read.target.due) : words.reads.linkInformalLoan(read.target.name)
+  return { gone: words.reads.linkGone, opening: words.reads.linkUnknown, failed: words.reads.linkUnknown, 'not-set-up': words.reads.linkNotSetUp }[read.state]
+}
+
+const transactionFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<Transaction> => ({
   id: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry.' },
   account: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account it is on.' },
   date: { exposure: 'plain', meaning: 'The day.' },
@@ -147,7 +159,12 @@ const TRANSACTION_FIELDS: FieldDocs<Transaction> = {
   movedAt: { exposure: 'plain', meaning: 'When a move between own accounts started.' },
   pocket: { exposure: 'plain', meaning: 'A move to or from a savings pocket.' },
   cashWithdrawal: { exposure: 'plain', meaning: "Cash taken out, as the bank's row type says." },
-}
+  link: {
+    exposure: 'free-text',
+    meaning: 'The record in another app the row is, such as the loan instalment it pays, or empty. It changes no figure: the row counts by its category.',
+    read: (row) => linkRead(row, loans()),
+  },
+})
 
 const BUDGET_FIELDS: FieldDocs<Budget> = {
   id: { exposure: 'ref', to: BUDGET_RECORDS.name, meaning: 'The limit.' },
@@ -360,7 +377,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({
         kind: TRANSACTION_RECORDS,
         about: words.reads.transaction,
-        fields: TRANSACTION_FIELDS,
+        fields: transactionFields(reading.linkTargets),
         dated: 'date',
         rows: () => rows((book) => book.transactions),
         currencyOf: (row) => accountCurrency(row.account),

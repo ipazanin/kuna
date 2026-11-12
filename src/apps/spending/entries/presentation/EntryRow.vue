@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { entryAsked } from './entryAsked'
 import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
 import RowLines from '../../receipts/presentation/RowLines.vue'
+import { LINK_INK } from '../../links/presentation/linkLine'
+import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -19,6 +22,8 @@ const props = defineProps<{
   colour: string
   details: string
   euros: string
+  /** The record in another app the entry is linked to, or null. */
+  link: LinkLine | null
   takesReceipt: boolean
 }>()
 
@@ -41,6 +46,10 @@ const { marked } = useChatElement(asked, 'row')
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">
         <span class="break-words text-sm text-highlighted">{{ title }}</span>
         <span v-if="details !== ''" class="break-words type-caption">{{ details }}</span>
+        <span v-if="link !== null" class="flex items-start gap-1 type-caption" :class="LINK_INK[link.look]" data-testid="spending-row-link">
+          <UIcon :name="link.icon" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+          <span class="break-words">{{ link.text }}</span>
+        </span>
         <RowLines v-if="row.lines.length > 0" :lines="row.lines" :categories="categories" :currency="row.account.currency" />
       </span>
       <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">

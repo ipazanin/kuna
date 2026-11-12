@@ -14,7 +14,7 @@ import { BANK_ACCOUNT_LINES } from '../src/apps/spending/bankSync/domain/bankAcc
 import { spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
-import { DESK_ACCOUNTS, EXAMPLE_RECORDS, attachedPhoto, deskBankSetup, deskPorts, spendingDesk } from './fixtures/spendingDesk'
+import { DESK_ACCOUNTS, DESK_LOAN_TARGETS, EXAMPLE_RECORDS, attachedPhoto, deskBankSetup, deskPorts, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
@@ -24,6 +24,7 @@ import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accoun
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
 import { TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 
 const used = new Set<string>()
@@ -294,7 +295,14 @@ describe('where an account takes its rows from', () => {
   it('tells the chat whether a bank link is offered, and never the deployment', async () => {
     const desk = await spendingDesk(used)
     const offered = () => {
-      const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null })
+      const reader = spendingReader({
+        status: () => 'open',
+        book: () => bookOf(desk),
+        rates: () => NO_RATES,
+        bankSetup: deskBankSetup,
+        qrTextOn: async () => null,
+        linkTargets: () => DESK_LOAN_TARGETS,
+      })
       return reader.kinds
         .find((kind) => kind.name === 'bank-sync')!
         .rows()[0]!
@@ -624,6 +632,55 @@ describe('an entry’s receipt and payee', () => {
   })
 })
 
+describe('an entry’s link to Loans', () => {
+  it('links an entry to an instalment by its loan and due date and shows it on the card as Entries does, keeping its category, and one Undo takes it off', async () => {
+    const desk = await spendingDesk(used)
+    const entry = EXAMPLE_RECORDS['transaction']!
+    const before = rowOf(desk, entry)
+    await desk.propose([{ op: 'link-entry', input: { entry: desk.ref('transaction', entry), loan: 'Housing loan', due: '2026-11-15' } }])
+    const fields = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields)
+    expect(fields.find((field) => field.name === 'Linked to')).toMatchObject({ after: 'Housing loan, instalment due 15 Nov 2026' })
+    const result = await desk.accept()
+    expect(result.kind).toBe('done')
+    expect(rowOf(desk, entry)).toEqual({ ...before, link: { app: 'loans', kind: 'bank-loan', key: 'made-up-housing-loan', due: parseCivilDate('2026-11-15') } })
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(rowOf(desk, entry)).toEqual(before)
+  })
+
+  it('links an informal loan by its name, and refuses a loan Loans does not list, an instalment on a day the plan has none, and a link off an entry with none', async () => {
+    const desk = await spendingDesk(used)
+    const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    expect((await desk.propose([{ op: 'link-entry', input: { entry, loan: 'Car loan', due: '2026-11-15' } }])).text).toContain('not a bank loan Loans lists')
+    expect((await desk.propose([{ op: 'link-entry', input: { entry, loan: 'Housing loan', due: '2026-11-16' } }])).text).toContain('instalment due 2026-11-16')
+    expect((await desk.propose([{ op: 'link-entry', input: { entry, loan: 'Housing loan', due: null } }])).text).toContain('needs its due date')
+    expect((await desk.propose([{ op: 'unlink-entry', input: { entry } }])).text).toContain('no link')
+    await desk.propose([{ op: 'link-entry', input: { entry, loan: 'From Marko', due: null } }])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowOf(desk, EXAMPLE_RECORDS['transaction']!)?.link).toEqual({ app: 'loans', kind: 'informal-loan', key: 'made-up-informal-loan', due: null })
+  })
+
+  it('tells the chat what a link names, or that Loans no longer has it', async () => {
+    const desk = await spendingDesk(used)
+    const linkOf = (targets: typeof DESK_LOAN_TARGETS) =>
+      spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => targets })
+        .kinds.find((kind) => kind.name === TRANSACTION_RECORDS.name)!
+        .rows()
+        .find((row) => row.id === EXAMPLE_RECORDS['transaction-linked'])!
+        .fields.find((field) => field.name === 'link')
+    expect(linkOf(DESK_LOAN_TARGETS)).toMatchObject({ exposure: 'free-text', value: 'the instalment of the bank loan Housing loan due 2026-10-15, in Loans' })
+    expect(linkOf([])).toMatchObject({ value: 'a record Loans no longer has' })
+  })
+
+  it('takes a link off and keeps the entry under its category', async () => {
+    const desk = await spendingDesk(used)
+    const linked = EXAMPLE_RECORDS['transaction-linked']!
+    const category = rowOf(desk, linked)?.category
+    await desk.propose([{ op: 'unlink-entry', input: { entry: desk.ref('transaction', linked) } }])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(rowOf(desk, linked)).toMatchObject({ link: null, category })
+  })
+})
+
 /** The file as the chat's writes see it, to compare before Accept and after Undo. */
 const snapshotOf = (desk: SpendingDesk) => JSON.stringify({ accounts: bookOf(desk).accounts, rows: bookOf(desk).transactions.length, settings: bookOf(desk).settings })
 
@@ -644,7 +701,7 @@ describe('bank account set-up', () => {
 
   it('reads each line of the list with what it offers, the account that keeps it and the opening a fix sets', async () => {
     const desk = await spendingDesk(used)
-    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null })
+    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => DESK_LOAN_TARGETS })
     const lines = reader.kinds.find((kind) => kind.name === BANK_ACCOUNT_LINES.name)!.rows()
     const fieldOf = (at: number, name: string) => lines[at]!.fields.find((field) => field.name === name)
     expect(lines.map((line) => line.id)).toEqual([EXAMPLE_RECORDS['bank-account-missing'], EXAMPLE_RECORDS['bank-account-update'], EXAMPLE_RECORDS['bank-account-left-out']])

@@ -12,6 +12,8 @@ import {
   SPENDING_START_ROUTE,
   SPENDING_TRANSACTIONS_ROUTE,
 } from './overview/presentation/spendingLinks'
+import { rowLinksOf } from './facts'
+import { loanTargets } from './links/application/loanTargets'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
 import { ratesNeeded } from './rates/domain/ratesNeeded'
 import { useRates } from '../../shared/rates/application/pageRates'
@@ -119,7 +121,7 @@ export const spendingApp: AppContribution = {
         return preset === null ? '' : modelOf(preset.id).id
       },
     }
-    const ports: SpendingPorts = { receipts, device: { bankSetup: heldBankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount } }
+    const ports: SpendingPorts = { receipts, device: { bankSetup: heldBankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount }, linkTargets: loanTargets }
     return spendingAssistant(
       {
         status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
@@ -127,12 +129,14 @@ export const spendingApp: AppContribution = {
         rates: () => everydayRates(rates.value),
         bankSetup: heldBankSetup,
         qrTextOn,
+        linkTargets: loanTargets,
       },
       { proposer: spendingProposer(store, ports, file), acceptance: spendingAcceptance(store, ports, file) },
     )
   },
   homeCard: SPENDING_HOME_CARD,
   hub: { counts: true, figures: () => homeCardFigures(state, (book) => spendingHubFigures(book, rates.value, today())) },
+  rowLinks: () => homeCardFigures(state, rowLinksOf),
   setUpLines: () => (state.workbook === null ? [] : spendingSetUp(state.workbook)),
   data: spendingData,
   firstRun: () => isFirstRun(state),

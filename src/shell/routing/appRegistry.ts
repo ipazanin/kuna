@@ -1,4 +1,5 @@
 import type { AppContribution } from '../../shared/app/appContribution'
+import type { AppRowLinks } from '../../shared/app/rowLinks'
 
 const installed: AppContribution[] = []
 
@@ -10,6 +11,11 @@ export async function installApp(app: AppContribution): Promise<void> {
 
 export function installedApps(): readonly AppContribution[] {
   return installed
+}
+
+/** The rows each installed app has linked to records in other apps, by app, for the matching across apps to read. */
+export function linkedRows(): readonly { readonly app: string; readonly links: AppRowLinks }[] {
+  return installed.flatMap((app) => (app.rowLinks === undefined ? [] : [{ app: app.id, links: app.rowLinks() }]))
 }
 
 /** Whether the address is one of the app's: its id, or a path under it. */

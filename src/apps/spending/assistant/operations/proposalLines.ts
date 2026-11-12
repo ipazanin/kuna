@@ -5,6 +5,9 @@ import { words as accountWords } from '../../accounts/presentation/words'
 import { words as cardWords } from '../../../../shared/app/words'
 import { words as categoryWords } from '../../categories/presentation/words'
 import type { DryRunLine, StatementDryRun } from '../../statements/domain/statementDryRun'
+import { linkStateOf } from '../../links/domain/linkTarget'
+import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
+import { linkText } from '../../links/presentation/words'
 import { NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { NEW_CATEGORY_DEFAULTS } from '../../workbook/domain/category'
@@ -64,11 +67,12 @@ function currencyOf(record: ProposedRecord, book: SpendingBook): Account['curren
  * A value as a person reads it on screen: an account's amount in its own currency, a limit in euros, a day and a month in
  * words, a name for a record it points at, a category's swatch, an account's type, bank and where its rows come from, and a rule's words and where
  * its cash goes. A place among siblings reads as its number. Where a rule stands in the order rules are tried means nothing to
- * a person, so it stays off.
+ * a person, so it stays off. A link reads as the record in Loans it names, as Entries shows it.
  */
-function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, book: SpendingBook, namesOf: ReadonlyMap<unknown, string>): string | null {
+function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, book: SpendingBook, namesOf: ReadonlyMap<unknown, string>, loans: AppTargets<LinkTarget>): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
+  if (isKind(kind, TRANSACTION_RECORDS, record) && field === 'link') return record.link === null ? null : linkText(linkStateOf(record.link, loans))
   if (isKind(kind, RULE_RECORDS, record) && field === 'order') return null
   if (isKind(kind, RULE_RECORDS, record) && field === 'withdrawal') {
     const named = record.withdrawal?.cashAccount == null ? undefined : namesOf.get(record.withdrawal.cashAccount)
@@ -190,7 +194,7 @@ export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
 }
 
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words and never the model's. An import that leaves rows out warns on its group of entries, and a receipt on its group of receipts. */
-export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, { leftOut, receipts, moves }: CardWarnings = NO_WARNINGS): readonly ProposalGroup[] {
+export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, loans: AppTargets<LinkTarget>, { leftOut, receipts, moves }: CardWarnings = NO_WARNINGS): readonly ProposalGroup[] {
   // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
   const added = checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === ACCOUNT_RECORDS.name ? [change.after as Account] : []))
   const book = { ...before, accounts: [...before.accounts, ...added] }
@@ -201,7 +205,7 @@ export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, { 
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
-    shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf),
+    shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, loans),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf),
     defaultsOf: defaultsOnAdd,
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),

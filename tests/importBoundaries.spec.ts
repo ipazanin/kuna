@@ -197,7 +197,7 @@ const OPERATIONS_ON_PRESENTATION = [
 
 /** Each app's published file and the one file of another app that may import it. */
 const PUBLISHED: Readonly<Record<string, readonly string[]>> = {
-  'src/apps/loans/facts.ts': ['src/apps/assets/loans/application/assetLoans.ts'],
+  'src/apps/loans/facts.ts': ['src/apps/assets/loans/application/assetLoans.ts', 'src/apps/spending/links/application/loanTargets.ts'],
 }
 
 /** Whether an import reads another app's published file from a file allowed to. */

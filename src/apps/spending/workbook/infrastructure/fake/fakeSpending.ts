@@ -12,6 +12,7 @@ import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } 
 import { NO_BANK_FACTS } from '../../domain/transaction'
 import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
 import type { Transaction } from '../../domain/transaction'
+import type { RowLink } from '../../domain/rowLink'
 import { spendingDocumentOf } from '../spendingDocument'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { revolutStatement } from '../../../statements/domain/revolutStatement'
@@ -87,6 +88,15 @@ interface Row {
   readonly amount: number
   readonly payee: string
   readonly category: string
+  readonly link?: RowLink
+}
+
+/** The key of the home loan in the fake Loans file, which pays its instalments on the 20th. */
+const FAKE_HOME_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
+
+/** The home loan's instalment of the month, or one on a day its plan has none, which reads as gone. */
+function homeLoanInstalment(month: MonthKey, dayOfTheMonth: number): RowLink {
+  return { app: 'loans', kind: 'bank-loan', key: FAKE_HOME_LOAN, due: parseCivilDate(`${month}-${String(dayOfTheMonth).padStart(2, '0')}`)! }
 }
 
 const OTP = fixedId(ACCOUNT_RECORDS, 1001)
@@ -110,7 +120,7 @@ const BALANCES: Readonly<Record<string, number>> = {
   [REVOLUT_GBP]: 80,
 }
 
-/** The rows of a complete month `back` months before the day's: salary, rent, food, fuel, a loan instalment, money saved and a company cost paid back. */
+/** The rows of a complete month `back` months before the day's: salary, rent, food, fuel, a loan instalment linked to Loans, money saved and a company cost paid back. The month before last links an instalment Loans does not have. */
 function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
   const on = (dayOfTheMonth: number): CivilDate => dayIn(month, dayOfTheMonth, day)
   const food = back === 2 ? { groceries: -220, restaurants: -90, coffee: -40, delivery: 0 } : { groceries: -260, restaurants: -150, coffee: -40, delivery: -30 }
@@ -123,7 +133,7 @@ function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
     { account: CASH, date: on(16), amount: food.coffee, payee: 'Café on the square', category: 'Food/Coffee' },
     ...(food.delivery === 0 ? [] : [{ account: REVOLUT_EUR, date: on(18), amount: food.delivery, payee: 'Food delivery', category: 'Food/Delivery' }]),
     { account: REVOLUT_EUR, date: on(20), amount: -80, payee: 'Fuel station', category: 'Transport/Fuel' },
-    { account: OTP, date: on(15), amount: -650, payee: 'Example Bank', category: 'Money and fees/Loan instalments' },
+    { account: OTP, date: on(15), amount: -650, payee: 'Example Bank', category: 'Money and fees/Loan instalments', link: homeLoanInstalment(month, back === 2 ? 15 : 20) },
     { account: OTP, date: on(25), amount: -300, payee: 'Example Broker', category: 'Saved to investments' },
     { account: REVOLUT_EUR, date: on(22), amount: -45, payee: 'Office supplies shop', category: 'For the company' },
     { account: OTP, date: on(28), amount: 45, payee: 'Example Studio d.o.o.', category: 'For the company' },
@@ -174,6 +184,7 @@ function statementRow(place: number, account: RecordId, date: CivilDate, amount:
     note: '',
     source: 'statement',
     pair: null,
+    link: null,
     description: payee,
     importKey: `earlier-${place}`,
     statement: 'earlier-statement.csv',
@@ -203,6 +214,7 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
     note: '',
     source: 'typed',
     pair: null,
+    link: null,
     categorisedBy: 'person',
   })
   return [
@@ -291,6 +303,7 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
       note: '',
       source: 'typed',
       pair: null,
+      link: null,
       categorisedBy: 'person',
     },
     statementRow(SPLIT_ROW_PLACE, OTP, day, -61.2, 'Corner market', { category: idOf('Food/Groceries'), categorisedBy: 'person' }),
@@ -441,6 +454,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     note: '',
     source: 'typed',
     pair: null,
+    link: row.link ?? null,
     ...NO_BANK_FACTS,
     categorisedBy: null,
   }))
@@ -455,8 +469,34 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
     const date = dayIn(oneBack, 3, day)
     const between = idOf('Between my accounts')
     transactions.push(
-      { ...NO_BANK_FACTS, id: out, account: OTP, date, amount: accountMoneyFromAmount(-200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: into, categorisedBy: null },
-      { ...NO_BANK_FACTS, id: into, account: REVOLUT_EUR, date, amount: accountMoneyFromAmount(200), payee: 'Top-up', category: between, note: '', source: 'typed', pair: out, categorisedBy: null },
+      {
+        ...NO_BANK_FACTS,
+        id: out,
+        account: OTP,
+        date,
+        amount: accountMoneyFromAmount(-200),
+        payee: 'Top-up',
+        category: between,
+        note: '',
+        source: 'typed',
+        pair: into,
+        link: null,
+        categorisedBy: null,
+      },
+      {
+        ...NO_BANK_FACTS,
+        id: into,
+        account: REVOLUT_EUR,
+        date,
+        amount: accountMoneyFromAmount(200),
+        payee: 'Top-up',
+        category: between,
+        note: '',
+        source: 'typed',
+        pair: out,
+        link: null,
+        categorisedBy: null,
+      },
     )
   }
   // Each account opens with what makes its balance on the day the worked example's.

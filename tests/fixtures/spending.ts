@@ -96,6 +96,7 @@ export function row(on: Account, date: string, amount: number, path: string | nu
     note: '',
     source: 'typed',
     pair: null,
+    link: null,
     ...NO_BANK_FACTS,
     categorisedBy: null,
     ...fields,

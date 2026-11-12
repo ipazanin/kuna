@@ -6,6 +6,7 @@ import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { EntryPart } from '../../workbook/domain/entryPart'
 import { ACCOUNT_RECORDS, PART_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
+import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words } from '../../workbook/domain/words'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -58,16 +59,26 @@ export const PART_WRITES: WriteRules<EntryPart> = {
 
 /** A new typed entry, its text trimmed, with an id of its own. */
 export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'category' | 'note'>): Transaction {
-  return { ...entry, ...NO_BANK_FACTS, payee: entry.payee.trim(), note: entry.note.trim(), source: 'typed', pair: null, categorisedBy: 'person', id: recordIdOf(TRANSACTION_RECORDS, newRecordId()) }
+  return {
+    ...entry,
+    ...NO_BANK_FACTS,
+    payee: entry.payee.trim(),
+    note: entry.note.trim(),
+    source: 'typed',
+    pair: null,
+    link: null,
+    categorisedBy: 'person',
+    id: recordIdOf(TRANSACTION_RECORDS, newRecordId()),
+  }
 }
 
 /**
- * What you typed over a row on the file. It keeps its id, its source and what the bank said, so a later statement still
+ * What you typed over a row on the file. It keeps its id, its source, its link and what the bank said, so a later statement still
  * skips it, and a category you changed is yours from then on.
  */
 export function retypedEntry(before: Transaction, typed: Transaction): Transaction {
-  const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source } = before
-  return { ...typed, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: typed.category === before.category ? before.categorisedBy : 'person' }
+  const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, link } = before
+  return { ...typed, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, link, categorisedBy: typed.category === before.category ? before.categorisedBy : 'person' }
 }
 
 /**
@@ -106,6 +117,11 @@ export function writeTransfer(unit: UnitOfWork, before: Transaction | null, legs
     entries.change(oldOut, { ...retypedEntry(oldOut, outLeg), pair: oldIn.id })
     entries.change(oldIn, { ...retypedEntry(oldIn, inLeg), pair: oldOut.id })
   }
+}
+
+/** The entry linked to the record in another app it is, or its link taken off for null. It keeps its category. */
+export function linkEntry(unit: UnitOfWork, row: Transaction, link: RowLink | null): void {
+  unit.of(TRANSACTION_WRITES).change(row, { ...row, link })
 }
 
 /** Whether deleting these rows lets the next overlapping statement bring one back, since nothing remembers a deleted row's key. */

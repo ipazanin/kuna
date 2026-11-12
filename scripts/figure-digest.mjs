@@ -127,7 +127,7 @@ import { informalClosedOn, informalLoanFigures, informalLoanMonths } from '../sr
 import { informalLoanMoves, movementLines } from '../src/apps/loans/informalLoans/presentation/informalLoanView.ts'
 import { debtFreeOn, estimateFrom, interestAfter, interestInYear, outgoingByMonth, owedByMonth, plannedLoans, upcomingPayments } from '../src/apps/loans/overview/domain/loansTogether.ts'
 import { owedOnDay } from '../src/apps/loans/overview/domain/owedTotals.ts'
-import { bankLoansOf } from '../src/apps/loans/facts.ts'
+import { bankLoansOf, loanTargetsOf } from '../src/apps/loans/facts.ts'
 import { loansNetWorthParts } from '../src/apps/loans/home/domain/loansNetWorthParts.ts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
@@ -167,6 +167,7 @@ import { assetLoansOf } from '../src/apps/assets/loans/application/assetLoans.ts
 import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/presentation/assetsOnDay.ts'
 import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
+import { rowLinksOf } from '../src/apps/spending/facts.ts'
 import { accountOnDay } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatch.ts'
 import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
@@ -503,6 +504,7 @@ function loansGroups(add) {
   ])
   add('loans.closed', () => [workbook.bankLoans.map((book) => bankLoanPaidOffOn(book, today)), workbook.informalLoans.map((book) => informalClosedOn(book, today))])
   add('loans.published', () => bankLoansOf(workbook, today))
+  add('loans.published.targets', () => loanTargetsOf(workbook))
   return { hub: () => ({ parts: loansNetWorthParts(workbook, today), notes: [] }), book: workbook }
 }
 
@@ -657,7 +659,8 @@ async function spendingGroups(add) {
   const { records, workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   // The bank's fields and the kinds only statements use have a group of their own, so a file with none of them keeps this digest.
   const { accounts, categories, transactions, budgets, rules } = records
-  const typedFieldsOf = ({ description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, ...typedFields }) => typedFields
+  // A row's link has the published group below, so a file with no links keeps this digest.
+  const typedFieldsOf = ({ description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, link, ...typedFields }) => typedFields
   // Where each account's rows come from has a group of its own, so the records keep their digest.
   const accountFieldsOf = ({ rowsFrom, ...accountFields }) => accountFields
   const storedAccountFieldsOf = ({ rows_from, ...storedFields }) => storedFields
@@ -686,6 +689,7 @@ async function spendingGroups(add) {
     accounts.records.map(({ record }) => record.rowsFrom),
   )
   add('spending.read.problems', workbook.problems)
+  add('spending.published.links', () => rowLinksOf(workbook))
   const rates = await ratesOfInput(workbook)
   for (const [place, account] of workbook.accounts.entries()) {
     const { balance, euros } = accountOnDay(account, workbook.transactions, today, rates.everyday)

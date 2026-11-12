@@ -5,6 +5,7 @@ import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
 import type { AppData } from '../storage/application/appData'
 import type { RatesDemand } from '../rates/domain/ratesDemand'
+import type { AppRowLinks } from './rowLinks'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
@@ -211,6 +212,8 @@ export interface AppContribution {
   readonly gallery?: () => Promise<Component>
   /** What the app tells the chat about itself, which loads only once a chat starts. */
   readonly assistant: () => Promise<AppAssistant>
+  /** The rows the app has linked to records in other apps, for an app that links any, which the shell gathers for matching across apps. */
+  readonly rowLinks?: () => AppRowLinks
   /** The exchange rates the app's records need, for an app that holds other currencies, or null before its file is read. */
   readonly ratesDemand?: () => RatesDemand | null
   /** Whether the page should fetch its Google token on the way in, with no screen at Google. */

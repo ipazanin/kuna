@@ -3,6 +3,8 @@ import type { HeldBankRow } from './heldBankRow'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import { ibanKey } from './accountReading'
 import { flagOf, requiredAccountMoney } from './fieldReading'
+import { rowLinkOf, rowLinkText } from './rowLink'
+import type { RowLink } from './rowLink'
 import { CATEGORISED_BY, TRANSACTION_SOURCES } from './transaction'
 import type { Transaction } from './transaction'
 import { words } from './words'
@@ -19,6 +21,11 @@ function amountOf(fields: StoredFields): Transaction['amount'] {
   const amount = requiredAccountMoney(fields, 'amount')
   if (amount === 0) refuse(words.amountIsZero)
   return amount
+}
+
+/** The record in another app a row's `link` field names, refused when it is not of the shape a link takes. */
+function linkOf(text: string): RowLink {
+  return rowLinkOf(text) ?? refuse(words.notALink(text))
 }
 
 export function transactionOf(fields: StoredFields, id: RecordId | null): Transaction {
@@ -41,6 +48,7 @@ export function transactionOf(fields: StoredFields, id: RecordId | null): Transa
     movedAt: textOf(fields.moved_at),
     pocket: flagOf(fields, 'pocket'),
     cashWithdrawal: flagOf(fields, 'cash_withdrawal'),
+    link: fields.link === undefined ? null : linkOf(textOf(fields.link)),
   }
 }
 
@@ -62,6 +70,7 @@ export const TRANSACTION_CODEC: RecordCodec<Transaction> = withIdField(TRANSACTI
     moved_at: transaction.movedAt,
     pocket: transaction.pocket ? true : null,
     cash_withdrawal: transaction.cashWithdrawal ? true : null,
+    link: transaction.link === null ? null : rowLinkText(transaction.link),
   }),
 )
 

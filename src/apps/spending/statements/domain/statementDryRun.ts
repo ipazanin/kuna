@@ -302,6 +302,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
             note: '',
             source: 'statement' as const,
             pair: null,
+            link: null,
             statement: statement.label,
             categorisedBy: byRule === null ? null : ('rule' as const),
           },

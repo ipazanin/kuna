@@ -1,3 +1,4 @@
+import { en as linkEn, hr as linkHr } from '../links/presentation/words'
 import { language } from '../../../shared/text/language'
 import type { CroatianForms, EnglishForms, Translation } from '../../../shared/text/translation'
 import { en as statementsEnglish, hr as statementsCroatian } from '../statements/presentation/words'
@@ -52,6 +53,7 @@ export const en = {
       payee: 'Payee',
       category: 'Category',
       note: 'Note',
+      link: linkEn.label,
       from: 'From',
       condition: 'Looks for',
       closed: 'Closed',
@@ -105,6 +107,11 @@ export const en = {
     waitingReceipt: "Receipts with no entry yet, waiting for the bank's row of their payment, which To review lists. They count nowhere until then.",
     line: 'The parts an entry is split into, by a receipt or by hand, which the figures count instead of the entry.',
     waiting: 'The rows waiting on To review for a category, which count nowhere until filed.',
+    linkInstalment: (loan: string, due: string) => `the instalment of the bank loan ${loan} due ${due}, in Loans`,
+    linkInformalLoan: (name: string) => `the informal loan ${name}, in Loans`,
+    linkGone: 'a record Loans no longer has',
+    linkUnknown: 'a record of Loans, which cannot be read now',
+    linkNotSetUp: 'a record of Loans, but Loans is not set up',
     bankSync: 'Whether the bank sync can bring a new account its rows, which needs a bank sync deployment saved on Settings, Bank sync.',
     bankAccount:
       "Each currency of each account the linked banks gave at this page's last bank sync, against your Spending accounts, as Settings, Bank sync lists them. A new sync or a reload changes them, and after a reload no rows are held.",
@@ -219,6 +226,7 @@ export const hr: Translation<typeof en> = {
       payee: 'Primatelj',
       category: 'Kategorija',
       note: 'Bilješka',
+      link: linkHr.label,
       from: 'Od',
       condition: 'Traži',
       closed: 'Zatvoren',
@@ -272,6 +280,11 @@ export const hr: Translation<typeof en> = {
     waitingReceipt: 'Fiskalni računi još bez unosa, koji čekaju redak iz banke za svoje plaćanje i navedeni su pod Za pregled. Do tada se ne broje nigdje.',
     line: 'Dijelovi na koje je unos podijeljen, fiskalnim računom ili ručno, a iznosi broje njih umjesto unosa.',
     waiting: 'Retci koji na Za pregled čekaju kategoriju i ne broje se nigdje dok se ne razvrstaju.',
+    linkInstalment: (loan, due) => `rata kredita ${loan} s dospijećem ${due}, u Kreditima`,
+    linkInformalLoan: (name) => `pozajmica ${name}, u Kreditima`,
+    linkGone: 'zapis kojeg Krediti više nemaju',
+    linkUnknown: 'zapis iz Kredita koji se sada ne može pročitati',
+    linkNotSetUp: 'zapis iz Kredita, ali Krediti nisu postavljeni',
     bankSync: 'Može li sinkronizacija s bankom donositi retke novom računu, za što treba spremiti implementaciju sinkronizacije u Postavkama, na kartici Banke.',
     bankAccount:
       'Svaka valuta svakog računa koji su povezane banke dale pri zadnjoj sinkronizaciji na ovoj stranici, uz vaše račune u Potrošnji, kako ih navodi Postavke, Sinkronizacija s bankom. Nova sinkronizacija ili ponovno učitavanje ih mijenja, a nakon ponovnog učitavanja nijedan redak nije zadržan.',

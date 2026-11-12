@@ -258,7 +258,7 @@ import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
 import { en as netWorthEnglish } from '../src/shell/netWorth/words.ts'
-import { monthOf } from '../src/shared/calendar/monthKey.ts'
+import { addMonths, monthOf } from '../src/shared/calendar/monthKey.ts'
 import { EURO } from '../src/shared/money/currencyCode.ts'
 import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRatesState.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
@@ -296,6 +296,7 @@ import {
   spendingCategoryFlowIn,
   spendingEntryDialogFlowIn,
   spendingBankRowFlowIn,
+  spendingLinkFlowIn,
   spendingCreditToTransferFlowIn,
   spendingDeleteNoteFlowIn,
   spendingEntryFlowIn,
@@ -6652,6 +6653,24 @@ const FLOWS = [
     modes: ['drive'],
     viewports: EVERY_VIEWPORT,
     queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-link',
+    hash: `#/spending/transactions?month=${addMonths(monthOf(today()), -1)}`,
+    title: 'Entries',
+    run: spendingLinkFlowIn('en', addMonths(monthOf(today()), -2)),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&loans=sample' },
+  },
+  {
+    name: 'spending-link-croatian',
+    hash: `#/spending/transactions?month=${addMonths(monthOf(today()), -1)}`,
+    title: 'Unosi',
+    run: spendingLinkFlowIn('hr', addMonths(monthOf(today()), -2)),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&loans=sample&lang=hr' },
   },
   {
     name: 'spending-entry-bank-row',
