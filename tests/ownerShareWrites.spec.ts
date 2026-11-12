@@ -171,7 +171,7 @@ describe('the share of a record filed outside the ledger', () => {
       writeSplit(
         unit,
         bankRow,
-        held,
+        { parts: held, refused: false, unreadable: 0 },
         [
           { amount: euros(-15), category: 'ai-services', note: 'Seats', opened: held[0]! },
           { amount: euros(-10), category: 'equipment', note: '', opened: held[1]! },
@@ -201,7 +201,7 @@ describe('the share of a record filed outside the ledger', () => {
       writeSplit(
         unit,
         bankRow,
-        held,
+        { parts: held, refused: false, unreadable: 0 },
         [
           { amount: euros(-26), category: 'ai-services', note: 'Seats', opened: held[1]! },
           { amount: euros(-4), category: 'equipment', note: '', opened: held[2]! },

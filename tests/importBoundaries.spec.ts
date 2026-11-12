@@ -325,6 +325,17 @@ describe('import boundaries', () => {
     ).toEqual([])
   })
 
+  it("reads the books on a pack's screens as booked, split rows in their parts, through useBookedWorkbook or the filtered ledger", () => {
+    const packScreen = (file: string) => packOf(file) !== null && /\/presentation\//.test(file)
+    expect(SOURCE_FILES.some(packScreen)).toBe(true)
+    expect(linesHolding(/\bstate\.workbook\b/, (file) => !packScreen(file))).toEqual([])
+    expect(IMPORTS.filter((entry) => packScreen(entry.from) && entry.target === 'src/apps/company/transactions/domain/presentedWorkbook.ts').map((entry) => entry.at)).toEqual([])
+  })
+
+  it('reads the splits on a screen as the figures count them, never the splits of the workbook as read', () => {
+    expect(linesHolding(/\bstate\.workbook\??\.splits\b/, (file) => !/\/presentation\//.test(file))).toEqual([])
+  })
+
   it("keeps domain code to its own app's domain code, the record types, the rules core and the calendar, money and text helpers", () => {
     expect(
       broken(

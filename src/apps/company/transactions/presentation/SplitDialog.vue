@@ -13,32 +13,40 @@ import SplitEditor from '../../../../shared/ui/SplitEditor.vue'
 import { givenParts, splitField } from '../../../../shared/ui/splitFields'
 import { words as splitWords } from '../../../../shared/ui/words'
 import type { SplitField } from '../../../../shared/ui/splitFields'
-import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
+import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { SplitTabRow } from '../../workbook/domain/splitsReading'
-import type { LedgerSplit, SplitPart } from '../../workbook/domain/splits'
+import { storedSplitOf } from '../../workbook/domain/splitsReading'
+import type { SplitPart } from '../../workbook/domain/splits'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
+import { useBookedWorkbook } from '../application/useBookedWorkbook'
 import { writeSplit } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
+
+/** Settings, General, where the problem list names each record Kuna cannot read. */
+const PROBLEMS_LINK = { path: '/company/settings', query: { tab: 'general' } }
 
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
   /** The bank row as booked. */
   row: Transaction
-  /** The row's split on the splits tab, or null to split it. */
-  split: LedgerSplit | null
   categories: readonly Category[]
 }>()
 
 const store = useWorkbook()
+const booked = useBookedWorkbook()
 const writes = useRecordWrites(store)
 const names = useDisplayNames()
+
+/** The row's split as the figures count it, or null to split it. */
+const split = computed(() => booked.value?.splits.find((candidate) => candidate.row.id === props.row.id) ?? null)
+/** What the splits tab holds for the row as the app read it, a refused split's parts too. A change writes only the fields that differ, so a field left alone is never rewritten. */
+const stored = computed(() => storedSplitOf(store.state.records?.splits ?? NO_RECORDS, booked.value?.splits ?? [], props.row))
 
 /** Each part holds the stored part it opened, whose share it keeps while it keeps its category. */
 const parts = ref<SplitField<SplitPart>[]>([])
@@ -49,7 +57,7 @@ watch(
   (opened) => {
     if (!opened) return
     tried.value = false
-    const held = props.split?.parts ?? []
+    const held = split.value?.parts ?? []
     parts.value =
       held.length === 0
         ? [splitField<SplitPart>('', props.row.category, '', false), splitField<SplitPart>('', '', '', true)]
@@ -65,7 +73,7 @@ watch(
 const whole = computed(() => (props.row.amount < 0 ? negateMoney(props.row.amount) : props.row.amount))
 
 /** Why a pack keeps the row whole, or null when it may be split. */
-const keptWhole = computed(() => store.state.workbook?.rowsKeptWhole.get(props.row.id) ?? null)
+const keptWhole = computed(() => booked.value?.rowsKeptWhole.get(props.row.id) ?? null)
 
 function categoryError(part: SplitField<SplitPart>): string | null {
   return part.category === '' ? words.splitDialog.chooseCategory : null
@@ -79,27 +87,24 @@ const outcome = computed(() => {
 
 const refusal = computed(() => (outcome.value !== null && 'refused' in outcome.value ? splitWords.split.refusals[outcome.value.refused] : null))
 
-/** The parts of the split as the app read them, larger first. A change writes only the fields that differ, so a field left alone is never rewritten. */
-function currentParts(): SplitTabRow[] | null {
-  const split = props.split
-  if (split === null) return []
-  const parts = split.parts.map((part) => recordWithId(store.state.records?.splits ?? NO_RECORDS, part.id)?.record ?? null)
-  return parts.every((part) => part !== null) ? (parts as SplitTabRow[]) : null
-}
+/** Whether a stored part cannot be read, which keeps any split of the row from counting until it is fixed in the workbook, so the dialog offers no split. */
+const unreadable = computed(() => keptWhole.value === null && stored.value.unreadable > 0)
+
+/** How many stored parts a save replaces although they do not count, since the guards refused their split. */
+const refusedParts = computed(() => (stored.value.refused ? stored.value.parts.length : 0))
 
 async function save(): Promise<void> {
   tried.value = true
-  const current = currentParts()
   const placed = outcome.value
-  if (placed === null || 'refused' in placed || current === null) return
+  if (placed === null || 'refused' in placed) return
   const amounts = placed.parts
   const signed = (amount: Money): Money => (props.row.amount < 0 ? negateMoney(amount) : amount)
   const drafts = parts.value.map((part, index) => ({ amount: signed(amounts[index]!), category: part.category, note: part.note, opened: part.held }))
   const saved = await writes.write(
-    props.split === null ? plural(words.splitInParts(drafts.length), drafts.length) : words.splitDialog.saved,
-    (unit) => writeSplit(unit, props.row, current, drafts, props.categories),
+    split.value === null ? plural(words.splitInParts(drafts.length), drafts.length) : words.splitDialog.saved,
+    (unit) => writeSplit(unit, props.row, stored.value, drafts, props.categories),
     {
-      description: words.splitDialog.paymentOf(props.row.counterparty, props.row.amount),
+      description: [words.splitDialog.paymentOf(props.row.counterparty, props.row.amount), ...(stored.value.refused ? [words.splitDialog.noUndo] : [])].join(' '),
       failedTitle: words.splitDialog.notSaved,
     },
   )
@@ -107,9 +112,8 @@ async function save(): Promise<void> {
 }
 
 async function remove(): Promise<void> {
-  const current = currentParts()
-  if (current === null || current.length === 0) return
-  const deleted = await writes.write(words.splitDialog.deleted, (unit) => writeSplit(unit, props.row, current, [], props.categories), {
+  if (stored.value.parts.length === 0) return
+  const deleted = await writes.write(words.splitDialog.deleted, (unit) => writeSplit(unit, props.row, stored.value, [], props.categories), {
     description: words.splitDialog.countsWhole,
     key: 'delete',
     failedTitle: words.splitDialog.notDeleted,
@@ -127,7 +131,33 @@ async function remove(): Promise<void> {
   >
     <form id="split-row" class="flex flex-col gap-4" data-testid="split-form" @submit.prevent="save">
       <UAlert v-if="keptWhole !== null" icon="i-lucide-info" color="neutral" variant="subtle" :title="words.splitDialog.keptWhole(keptWhole)" data-testid="split-claimed" />
-      <SplitEditor v-model="parts" :whole-label="words.splitDialog.payment(row.amount >= 0)" :whole="whole" :typed="typedAmount" :tried="tried" :category-error="categoryError" :refusal="refusal">
+      <UAlert
+        v-else-if="unreadable"
+        icon="i-lucide-triangle-alert"
+        color="warning"
+        variant="subtle"
+        :title="plural(words.splitDialog.unreadableParts(stored.unreadable), stored.unreadable)"
+        :actions="[{ label: words.splitDialog.openProblems, to: PROBLEMS_LINK, color: 'neutral', variant: 'outline' }]"
+        data-testid="split-unreadable"
+      />
+      <UAlert
+        v-else-if="refusedParts > 0"
+        icon="i-lucide-triangle-alert"
+        color="warning"
+        variant="subtle"
+        :title="plural(words.splitDialog.replacesRefused(refusedParts), refusedParts)"
+        data-testid="split-replaces-refused"
+      />
+      <SplitEditor
+        v-if="!unreadable"
+        v-model="parts"
+        :whole-label="words.splitDialog.payment(row.amount >= 0)"
+        :whole="whole"
+        :typed="typedAmount"
+        :tried="tried"
+        :category-error="categoryError"
+        :refusal="refusal"
+      >
         <template #whole>
           <MoneyText :cents="row.amount" tone="flow" />
         </template>
@@ -138,7 +168,7 @@ async function remove(): Promise<void> {
           <MoneyText :cents="cents" />
         </template>
       </SplitEditor>
-      <p class="type-caption">{{ words.splitDialog.sign }}</p>
+      <p v-if="!unreadable" class="type-caption">{{ words.splitDialog.sign }}</p>
     </form>
     <template #start>
       <UButton
@@ -156,6 +186,7 @@ async function remove(): Promise<void> {
     <template #end>
       <UButton :label="words.splitDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
+        v-if="!unreadable"
         type="submit"
         form="split-row"
         :label="split === null ? words.splitDialog.split : words.splitDialog.save"

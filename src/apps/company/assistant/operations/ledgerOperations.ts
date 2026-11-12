@@ -28,7 +28,7 @@ import type { RowVerdict } from '../../transactions/domain/verdictChanges'
 import { CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../workbook/domain/displayName'
 import { needsReview } from '../../workbook/domain/needsReview'
-import type { SplitTabRow } from '../../workbook/domain/splitsReading'
+import { storedSplitOf } from '../../workbook/domain/splitsReading'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { FLAG_OR_NULL, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
@@ -363,18 +363,6 @@ function restoreSuggestion(card: CompanyCard, step: ProposalStep): void {
   card.unit.of(DISMISSAL_WRITES).remove(stored.record)
 }
 
-/** The row's split parts as stored, larger first as the split shows them, or none for a row not split. */
-function storedParts(card: CompanyCard, row: Transaction): readonly SplitTabRow[] {
-  const split = card.workbook.splits.find((candidate) => candidate.row.id === row.id)
-  if (split === undefined) return []
-  const splits = card.records().splits
-  return split.parts.map((part) => {
-    const stored = recordWithId(splits, part.id)
-    if (stored === null) throw new StepRefused("That row's split changed since it was read.")
-    return stored.record
-  })
-}
-
 /** The parts' amounts with the row's sign: the rest worked out from the amounts given, or the row by the given shares with no cent lost. */
 function partAmounts(row: Transaction, by: string, given: readonly (number | null)[]): readonly Money[] {
   const whole = absMoney(row.amount)
@@ -402,21 +390,21 @@ function splitRow(card: CompanyCard, step: ProposalStep): void {
   const row = rowOf(card, field['row'])
   const parts = field['parts'] as readonly { readonly amount: number | null; readonly category: string; readonly note: string }[]
   if (parts.length < 2) throw new StepRefused('A split has at least two parts.')
-  const current = storedParts(card, row)
+  const stored = storedSplitOf(card.records().splits, card.workbook.splits, row)
   const amounts = partAmounts(
     row,
     field['by'],
     parts.map((part) => part.amount),
   )
-  const drafts = parts.map((part, at): SplitPartDraft => ({ amount: amounts[at]!, category: categoryOf(card, part.category).slug, note: part.note, opened: current[at] ?? null }))
-  writeSplit(card.unit, row, current, drafts, card.workbook.categories)
+  const drafts = parts.map((part, at): SplitPartDraft => ({ amount: amounts[at]!, category: categoryOf(card, part.category).slug, note: part.note, opened: stored.parts[at] ?? null }))
+  writeSplit(card.unit, row, stored, drafts, card.workbook.categories)
 }
 
 function deleteSplit(card: CompanyCard, step: ProposalStep): void {
   const row = rowOf(card, fieldsOf(step)['row'])
-  const current = storedParts(card, row)
-  if (current.length === 0) throw new StepRefused('That row is not split.')
-  writeSplit(card.unit, row, current, [], card.workbook.categories)
+  const stored = storedSplitOf(card.records().splits, card.workbook.splits, row)
+  if (stored.parts.length === 0) throw new StepRefused('That row is not split.')
+  writeSplit(card.unit, row, stored, [], card.workbook.categories)
 }
 
 /** Where the share of a row or of its part sits, as Transactions sets it: only on operating cost, and on a row no longer waiting. */

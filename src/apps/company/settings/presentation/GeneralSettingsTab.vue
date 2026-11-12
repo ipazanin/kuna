@@ -6,7 +6,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import { NO_RECORDS, recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import ProblemList from '../../workbook-files/presentation/ProblemList.vue'
 import { installedPack, shownPack } from '../../packs/packContribution'
-import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
+import { useBookedWorkbook } from '../../transactions/application/useBookedWorkbook'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { newestBookingOf, tabProblems } from '../../workbook/domain/workbook'
 import { today } from '../../../../shared/calendar/civilDate'
@@ -24,7 +24,8 @@ const pack = computed(() => shownPack(settings.value))
 const writes = useRecordWrites(useWorkbook())
 
 /** The reader's problems and the splits the figures leave out, such as one of a row an asset claims. */
-const problems = computed(() => (state.workbook === null ? [] : presentedWorkbook(state.workbook).problems))
+const booked = useBookedWorkbook()
+const problems = computed(() => booked.value?.problems ?? [])
 
 /** The categories that do not count one way yet, which the figures still count by bucket and VAT, so they are no reading problem. */
 const toSort = computed(() =>

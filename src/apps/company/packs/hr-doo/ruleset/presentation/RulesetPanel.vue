@@ -15,7 +15,7 @@ import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import InfoPopover from '../../../../../../shared/ui/InfoPopover.vue'
 import { useSettings } from '../../../../settings/application/useSettings'
 import { amountLocaleOf } from '../../../../settings/domain/settings'
-import { useWorkbook } from '../../../../workbook/application/workbookStore'
+import { useBookedWorkbook } from '../../../../transactions/application/useBookedWorkbook'
 import { hrDooWorkbook } from '../../domain/hrDooPart'
 import { findLocalUnit } from '../localUnits'
 import { RULES, sourcesCheckedSince, watchItems } from '../ruleset'
@@ -35,7 +35,7 @@ type AreaChoice = RuleArea | 'all'
 const route = useRoute()
 const router = useRouter()
 const settings = useSettings()
-const { state } = useWorkbook()
+const booked = useBookedWorkbook()
 const phone = usePhoneLayout()
 
 const generalRules: readonly GeneralRule[] = RULES
@@ -50,7 +50,7 @@ const rules = computed(() => {
 
 /** The local rates open on the unit the director lives in, found by its name and its county. */
 const localRatesFocus = computed((): TableFocus => {
-  const { unit } = findLocalUnit((state.workbook === null ? null : hrDooWorkbook(state.workbook).director)?.residenceCity ?? '')
+  const { unit } = findLocalUnit((booked.value === null ? null : hrDooWorkbook(booked.value).director)?.residenceCity ?? '')
   return unit === null ? { cells: null, hint: words.localRatesHint } : { cells: [unit.unit, unit.county], hint: '' }
 })
 

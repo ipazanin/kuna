@@ -139,6 +139,30 @@ export function readSplits(read: RecordsRead<SplitTabRow>, transactions: readonl
   return { facts, problems, splits }
 }
 
+/** What the splits tab holds for a row, which a write to the row's split replaces. */
+export interface StoredSplit {
+  /** The parts that can be read, larger first. */
+  readonly parts: readonly SplitTabRow[]
+  /** True when the row has parts but no split of it counts, since the guards refused it. */
+  readonly refused: boolean
+  /** How many records with the row's key cannot be read, which keep any split of the row from counting until they are fixed. */
+  readonly unreadable: number
+}
+
+/** The parts the splits tab holds for the row, whether its split is among the counted ones or was refused. */
+export function storedSplitOf(read: RecordsRead<SplitTabRow>, splits: readonly LedgerSplit[], row: Pick<Transaction, 'id' | 'date' | 'account' | 'amount' | 'balance' | 'rowId'>): StoredSplit {
+  const findsRow = (key: SplitKey | null) => key !== null && rowsOfSplitKey([row], key).length === 1
+  const parts = read.records
+    .map(({ record }) => record)
+    .filter((part) => findsRow(part.key))
+    .sort(partOrder)
+  return {
+    parts,
+    refused: parts.length > 0 && !splits.some((split) => split.row.id === row.id),
+    unreadable: read.refused.filter((refused) => findsRow(storedSplitKey(refused.fields))).length,
+  }
+}
+
 /** A split counts only on a ledger row that no other row shares its key with, since the screens find the split by that key. */
 function rowReasons(group: SplitParts, transactions: readonly Transaction[]): string[] {
   const { key, found, unreadable } = group

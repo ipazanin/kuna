@@ -1490,6 +1490,36 @@ export function splitFlowIn(language) {
 export const splitFlow = splitFlowIn('en')
 
 /**
+ * Books with two splits the guards refuse (`?fake=refused-splits`). On the design invoice the dialog says Save replaces the parts
+ * that no longer add up, and the toast says the save has no Undo. On the business lunch it names the part that cannot be read, links
+ * to the problem list on Settings and offers no split.
+ */
+export function refusedSplitFlowIn(language, kind) {
+  const words = SCREEN_WORDS[language]
+  const said = words.transactions
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSplitOfRow(page, press)
+    if (kind === 'unreadable') {
+      await page.waitForSelector('[data-testid="split-unreadable"]')
+      if ((await page.$('[data-testid="split-part"], [data-testid="split-save"]')) !== null) throw new Error('the parts editor or Split shows while a stored part cannot be read')
+      await shootAt(page, shoot, '[data-testid="split-unreadable"]', 'split-unreadable', { inspected: () => inspect?.('a split with a part that cannot be read') })
+      return
+    }
+    await shootAt(page, shoot, '[data-testid="split-replaces-refused"]', 'split-refused', { inspected: () => inspect?.('a split the guards refused') })
+    await setPart(page, 0, typedIn(words, '100.00'))
+    const second = (await page.$$('[data-testid="split-part"]'))[1]
+    await chooseCategory(page, press, await second.$('[data-testid="split-part-category"]'), words.categoryName('consulting'))
+    await pressSelector(page, press, '[data-testid="split-save"]')
+    await toast(page, countedIn(words, said.splitInParts(2), 2))
+    await dialogGone(page, '[data-testid="split-form"]')
+    await waitForSplit(page, true)
+    await shoot('split-refused-saved')
+    await dismissToasts(page)
+  }
+}
+
+/**
  * Books from before every ledger row had an id (`?fake=no-row-ids`): Overview's Waiting for you counts the rows, its link opens Settings, Books
  * file, whose prompt gives them all an id in one write. Undo takes the ids back and the prompt returns. Given again, the ids link the
  * split parts to their rows, and a split row on Transactions still shows its parts.

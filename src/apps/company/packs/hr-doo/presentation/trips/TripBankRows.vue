@@ -14,6 +14,7 @@ import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 import ProposalRow from '../../../../../../shared/ui/ProposalRow.vue'
 import { useFilters } from '../../../../filters/application/filterStore'
 import { rowDrill } from '../../../../filters/domain/drillTarget'
+import { useBookedWorkbook } from '../../../../transactions/application/useBookedWorkbook'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { displayNamesOf } from '../../../../workbook/domain/displayName'
 import type { Transaction } from '../../../../workbook/domain/workbook'
@@ -39,7 +40,8 @@ const writes = useRecordWrites(store)
 const { drillLocation } = useFilters()
 
 const said = words.bankRows
-const books = computed(() => (store.state.workbook === null ? null : hrDooWorkbook(store.state.workbook)))
+const booked = useBookedWorkbook()
+const books = computed(() => (booked.value === null ? null : hrDooWorkbook(booked.value)))
 const trip = computed(() => props.file.trip)
 const worked = computed(() => (props.settlement.kind === 'worked' ? props.settlement : null))
 const name = computed(() => travellerName(trip.value.traveller, props.employees))
@@ -151,7 +153,7 @@ async function dismiss(line: LinkLine, row: Transaction): Promise<void> {
 async function fileRows(): Promise<void> {
   const planned = split.value
   const current = store.state.records
-  const workbook = store.state.workbook
+  const workbook = books.value
   if (planned === null || 'refused' in planned || current === null || workbook === null) return
   await writes.write(said.fileSaved, (unit) => fileTripRows(unit, { records: current, workbook }, planned.rows, workbook.settings.reviewLabel), { key: 'file-rows', failedTitle: said.notSaved })
 }

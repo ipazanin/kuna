@@ -70,7 +70,7 @@ describe.each([
       { amount: euros(-12), category: 'ai-services', note: '', opened: null },
       { amount: euros(-8), category: 'owner-loan-out', note: '', opened: null },
     ]
-    await store.write('Split', (unit) => writeSplit(unit, model, [], drafts, store.state.workbook!.categories))
+    await store.write('Split', (unit) => writeSplit(unit, model, { parts: [], refused: false, unreadable: 0 }, drafts, store.state.workbook!.categories))
     const assetRows = () => recordsOf(recordsOfKindIn(store.state.records!, ASSET_RECORDS)).map((asset) => [asset.name, asset.rowId])
 
     await store.write('Ids', (unit) => giveRowsIds(unit, store.state.records!))

@@ -48,7 +48,6 @@ import { bookedRowOf, inBookingOrder, listedOwnerPart, listedRows, partPlace, wi
 import type { ListedAdvanceRow, ListedBankRow, ListedEntry, ListedRow } from '../domain/listedRows'
 import { groupTransactions } from '../domain/transactionGroups'
 import type { Grouping, TransactionGroup } from '../domain/transactionGroups'
-import type { LedgerSplit } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
 import ChangeCategoryDialog from './ChangeCategoryDialog.vue'
 import ReviewQueue from './ReviewQueue.vue'
@@ -155,16 +154,12 @@ const tableEntries = computed<TableEntry[]>(() =>
     : groups.value.flatMap((group): TableEntry[] => [{ kind: 'group', group }, ...(collapsed.isCollapsed(group.key) ? [] : withPartHeadings(group.rows))]),
 )
 
-/** The payment the split editor is open on, with its split on the splits tab or null. */
-const splitting = ref<{ readonly row: Transaction; readonly split: LedgerSplit | null } | null>(null)
+/** The payment the split editor is open on. */
+const splitting = ref<Transaction | null>(null)
 const splitOpen = ref(false)
 
-function splitOf(row: Transaction): LedgerSplit | null {
-  return ledger.value?.workbook.splits.find((split) => split.row.id === row.id) ?? null
-}
-
 function openSplit(row: Transaction): void {
-  splitting.value = { row, split: splitOf(row) }
+  splitting.value = row
   splitOpen.value = true
 }
 
@@ -550,7 +545,7 @@ function exportCsv(): void {
                   class="max-h-[70dvh]"
                 />
               </AppCard>
-              <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
+              <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting" :categories="ledger.workbook.categories" />
               <ChangeCategoryDialog v-if="changing" v-model:open="changeOpen" :row="changing" />
               <OwnerShareDialog
                 v-if="sharing"

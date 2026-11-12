@@ -12,7 +12,7 @@ import PageHeader from '../../../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../../../shared/ui/PageTabs.vue'
 import type { PageTab } from '../../../../../../shared/ui/PageTabs.vue'
 import { useSettings } from '../../../../settings/application/useSettings'
-import { useWorkbook } from '../../../../workbook/application/workbookStore'
+import { useBookedWorkbook } from '../../../../transactions/application/useBookedWorkbook'
 import ProblemList from '../../../../workbook-files/presentation/ProblemList.vue'
 import { TRIP_RECORDS } from '../../domain/hrDooKinds'
 import { hrDooWorkbook } from '../../domain/hrDooPart'
@@ -29,16 +29,16 @@ import { words } from './words'
 
 /** The travel orders by issue year, and one order's page with its order and its settlement. */
 const settings = useSettings()
-const { state } = useWorkbook()
+const booked = useBookedWorkbook()
 const route = useRoute()
 const router = useRouter()
 
-const workbook = computed(() => (state.workbook === null ? null : hrDooWorkbook(state.workbook)))
+const workbook = computed(() => (booked.value === null ? null : hrDooWorkbook(booked.value)))
 const files = computed(() => workbook.value?.trips ?? [])
 const employees = computed(() => workbook.value?.employees ?? [])
 
 const TRIP_TABS = new Set(['trips', 'trip-legs', 'trip-costs'])
-const problems = computed(() => (state.workbook?.problems ?? []).filter((problem) => TRIP_TABS.has(problem.tab)))
+const problems = computed(() => (booked.value?.problems ?? []).filter((problem) => TRIP_TABS.has(problem.tab)))
 
 const asked = computed(() => (typeof route.query[TRIP_QUERY] === 'string' ? route.query[TRIP_QUERY] : null))
 const file = computed(() => (asked.value === null ? null : (files.value.find((candidate) => keyOfRecordId(TRIP_RECORDS, candidate.trip.id) === asked.value) ?? null)))

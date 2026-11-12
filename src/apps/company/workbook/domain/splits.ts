@@ -42,7 +42,7 @@ export interface LedgerSplit {
 }
 
 /** Parts larger first, then by category and note, so a part's number does not hang on where its row sits. */
-export function partOrder(earlier: SplitPart, later: SplitPart): number {
+export function partOrder(earlier: Pick<SplitPart, 'amount' | 'category' | 'note'>, later: Pick<SplitPart, 'amount' | 'category' | 'note'>): number {
   return Math.abs(later.amount) - Math.abs(earlier.amount) || naturalOrder(earlier.category, later.category) || naturalOrder(earlier.note, later.note)
 }
 
@@ -61,7 +61,7 @@ export function rowsOfSplitKey<Row extends Pick<Transaction, 'date' | 'account' 
 /**
  * The ledger with each split row replaced, where it stood, by its parts. A part keeps the bank
  * row's day, account, balance, booking order and text, and takes its own amount, category and share, so
- * every figure counts it as a row of its own.
+ * every figure counts it as a row of its own. A part already in the ledger stays as it is, so splitting a split ledger again changes nothing.
  */
 export function splitLedger(transactions: readonly Transaction[], splits: readonly LedgerSplit[]): readonly Transaction[] {
   if (splits.length === 0) {
@@ -69,7 +69,7 @@ export function splitLedger(transactions: readonly Transaction[], splits: readon
   }
   const splitOf = new Map(splits.map((split) => [split.row.id, split]))
   return transactions.flatMap((row) => {
-    const split = splitOf.get(row.id)
+    const split = row.split === undefined ? splitOf.get(row.id) : undefined
     if (split === undefined) {
       return [row]
     }

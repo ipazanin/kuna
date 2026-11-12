@@ -2,9 +2,9 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { writeSplit as writeSplitParts } from '../src/apps/company/transactions/application/splitWrites'
+import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
-import { recordWithId } from '../src/shared/storage/domain/recordsRead'
-import type { SplitTabRow } from '../src/apps/company/workbook/domain/splitsReading'
+import { storedSplitOf } from '../src/apps/company/workbook/domain/splitsReading'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
@@ -45,16 +45,10 @@ function rowOf(store: WorkbookStore<CompanyBooks>, counterparty: string): Transa
   return store.state.workbook!.transactions.find((row) => row.counterparty === counterparty)!
 }
 
-/** The parts the row's split holds, larger first, as the split editor reads them. */
-function currentParts(store: WorkbookStore<CompanyBooks>, row: Transaction): SplitTabRow[] {
-  const split = store.state.workbook!.splits.find((candidate) => candidate.row.id === row.id)
-  return (split?.parts ?? []).map((part) => recordWithId(store.state.records!.splits, part.id)!.record)
-}
-
 function writeSplit(store: WorkbookStore<CompanyBooks>, row: Transaction, parts: readonly (readonly [number, string, string?])[]) {
-  const current = currentParts(store, row)
-  const drafts = parts.map(([amount, category, note = ''], index) => ({ amount: euros(amount), category, note, opened: current[index] ?? null }))
-  return store.write('Split', (unit) => writeSplitParts(unit, row, current, drafts, store.state.workbook!.categories))
+  const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, row)
+  const drafts = parts.map(([amount, category, note = ''], index) => ({ amount: euros(amount), category, note, opened: stored.parts[index] ?? null }))
+  return store.write('Split', (unit) => writeSplitParts(unit, row, stored, drafts, store.state.workbook!.categories))
 }
 
 describe.each([
@@ -148,5 +142,40 @@ describe.each([
       ]),
     ).rejects.toThrow(WorkbookWriteRefused)
     expect(store.state.records?.splits).toEqual({ records: [], refused: [] })
+  })
+
+  it('replaces the parts of a split the guards refused, so the row splits again with only the new parts', async () => {
+    const { store } = await harnessOf(used, {
+      ...grids(),
+      splits: withIds('split', [SPLIT_HEADER, [46299, 'main', -20, 1038.9, -12, 'ai-services', 'Seats'], [46299, 'main', -20, 1038.9, -6, 'owner-loan-out', '']]),
+    })
+    const model = rowOf(store, 'MODEL API INC')
+    expect(store.state.workbook?.splits).toEqual([])
+
+    await writeSplit(store, model, [
+      [-14, 'ai-services', 'Seats'],
+      [-6, 'owner-loan-out'],
+    ])
+
+    expect(store.state.records?.splits.records.map(({ record }) => [record.amount, record.category, record.note])).toEqual([
+      [euros(-14), 'ai-services', 'Seats'],
+      [euros(-6), 'owner-loan-out', ''],
+    ])
+    expect(store.state.workbook?.splits.map((split) => [split.row.id, split.parts.map((part) => part.amount)])).toEqual([[model.id, [euros(-14), euros(-6)]]])
+
+    expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(false)
+  })
+
+  it('names the stored parts that cannot be read, which keep a split of the row from counting', async () => {
+    const { store } = await harnessOf(used, {
+      ...grids(),
+      splits: withIds('split', [SPLIT_HEADER, [46299, 'main', -20, 1038.9, -14, 'ai-services', ''], [46299, 'main', -20, 1038.9, 'six', 'owner-loan-out', '']]),
+    })
+    const model = rowOf(store, 'MODEL API INC')
+
+    const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, model)
+
+    expect([stored.parts.map((part) => part.amount), stored.refused, stored.unreadable]).toEqual([[euros(-14)], true, 1])
+    expect(storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, rowOf(store, 'Desk Co'))).toEqual({ parts: [], refused: false, unreadable: 0 })
   })
 })

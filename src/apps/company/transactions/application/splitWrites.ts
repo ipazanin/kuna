@@ -12,7 +12,7 @@ import { changesOnly } from '../../workbook/domain/fieldEdits'
 import { readLedger } from '../../workbook/domain/ledgerReading'
 import { splitKeyOf, rowsOfSplitKey } from '../../workbook/domain/splits'
 import { readSplits, storedSplitKey } from '../../workbook/domain/splitsReading'
-import type { SplitTabRow } from '../../workbook/domain/splitsReading'
+import type { SplitTabRow, StoredSplit } from '../../workbook/domain/splitsReading'
 import { packRecordsOf } from '../../workbook/domain/packPart'
 import type { FreshRecords, WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { words } from '../../workbook/domain/words'
@@ -31,29 +31,30 @@ export interface SplitPartDraft {
  * drafts beyond them are added with ids of their own, and parts beyond the drafts are removed. Each
  * part kept or added takes the row's key as the app read it, its row id with it. A part added in the editor, or one put in another
  * category, takes its category's default share, and a part that keeps its category keeps the share
- * it was opened with.
+ * it was opened with. Parts of a refused split are replaced with no Undo, since the guards would refuse to write them back.
  */
 export function writeSplit(
   unit: UnitOfWork,
   row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance' | 'rowId'>,
-  current: readonly SplitTabRow[],
+  stored: StoredSplit,
   drafts: readonly SplitPartDraft[],
   categories: readonly ShareDefault[],
 ): void {
   const parts = unit.of(SPLIT_WRITES)
+  const held = stored.refused ? unit.of(REFUSED_SPLIT_WRITES) : parts
   const key = splitKeyOf(row)
   drafts.forEach((draft, index) => {
     const filed = movedTo(draft.opened ?? { category: '', ownerShare: null }, draft.category, categories)
     const wanted = { amount: draft.amount, category: filed.category, note: draft.note.trim(), ownerShare: filed.ownerShare }
-    const held = current[index]
-    if (held === undefined) {
+    const part = stored.parts[index]
+    if (part === undefined) {
       parts.add({ key, ...wanted, id: recordIdOf(SPLIT_PART_RECORDS, newRecordId()) })
     } else {
-      parts.change(held, { ...held, key, ...wanted })
+      held.change(part, { ...part, key, ...wanted })
     }
   })
-  for (const held of current.slice(drafts.length)) {
-    parts.remove(held)
+  for (const part of stored.parts.slice(drafts.length)) {
+    held.remove(part)
   }
 }
 
@@ -95,4 +96,15 @@ export const SPLIT_WRITES: WriteRules<SplitTabRow> = {
       return why !== undefined && written.includes(row) ? [words.splits.refusedKeptWhole(row.account, row.date, row.amount, why)] : []
     })
   },
+}
+
+/** The split parts' rules for the parts of a split the guards refused, which keep no Undo. */
+const REFUSED_SPLIT_WRITES: WriteRules<SplitTabRow> = {
+  kind: SPLIT_PART_RECORDS,
+  get reads() {
+    return SPLIT_WRITES.reads
+  },
+  undoable: false,
+  read: SPLIT_WRITES.read,
+  refusals: SPLIT_WRITES.refusals,
 }

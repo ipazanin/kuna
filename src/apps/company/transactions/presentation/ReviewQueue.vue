@@ -105,12 +105,12 @@ function makeRule(transaction: Transaction): void {
   editorOpen.value = true
 }
 
-/** The payment the split editor is open on, with its split on the splits tab or null. */
-const splitting = ref<{ readonly row: Transaction; readonly split: LedgerSplit | null } | null>(null)
+/** The payment the split editor is open on. */
+const splitting = ref<Transaction | null>(null)
 const splitOpen = ref(false)
 
 function splitOf(row: Transaction): LedgerSplit | null {
-  return state.workbook?.splits.find((split) => split.row.id === row.id) ?? null
+  return ledger.value?.workbook.splits.find((split) => split.row.id === row.id) ?? null
 }
 
 async function treatCounterparty(transaction: Transaction): Promise<void> {
@@ -125,7 +125,7 @@ async function treatCounterparty(transaction: Transaction): Promise<void> {
 }
 
 function openSplit(row: Transaction): void {
-  splitting.value = { row, split: splitOf(row) }
+  splitting.value = row
   splitOpen.value = true
 }
 </script>
@@ -175,7 +175,7 @@ function openSplit(row: Transaction): void {
 
         <SessionChanges :writes="sessionWrites" :categories="ledger.workbook.categories" :saving="writes.saving" @undo="writes.undo" />
 
-        <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting.row" :split="splitting.split" :categories="ledger.workbook.categories" />
+        <SplitDialog v-if="splitting" v-model:open="splitOpen" :row="splitting" :categories="ledger.workbook.categories" />
       </template>
     </LedgerGate>
 

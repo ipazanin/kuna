@@ -14,8 +14,7 @@ import { useFilters } from '../../../../filters/application/filterStore'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import { useSettings } from '../../../../settings/application/useSettings'
 import FactTabCard from '../../../../settings/presentation/FactTabCard.vue'
-import { presentedWorkbook } from '../../../../transactions/domain/presentedWorkbook'
-import { useWorkbook } from '../../../../workbook/application/workbookStore'
+import { useBookedWorkbook } from '../../../../transactions/application/useBookedWorkbook'
 import { ledgerWindowOf } from '../../../../workbook/domain/workbook'
 import LedgerGate from '../../../../workbook/presentation/LedgerGate.vue'
 import { employeeOfFields, readEmployees } from '../../domain/employees/employeesReading'
@@ -35,13 +34,13 @@ import { words } from './words'
 
 /** Each payday's pay split into where the money goes, the app and the bank set against each other, and the people the company pays. */
 const settings = useSettings()
-const { state } = useWorkbook()
 const { drillLocation } = useFilters()
 const route = useRoute()
 const router = useRouter()
 
 /** With split rows in their parts, so a part in a pay or tax-free category counts on its own. */
-const workbook = computed(() => (state.workbook === null ? null : hrDooWorkbook(presentedWorkbook(state.workbook))))
+const booked = useBookedWorkbook()
+const workbook = computed(() => (booked.value === null ? null : hrDooWorkbook(booked.value)))
 const ledgerWindow = computed(() => (workbook.value === null ? null : ledgerWindowOf(workbook.value.transactions)))
 const reconciliation = computed(() => (workbook.value === null ? null : salaryReconciliation(workbook.value)))
 

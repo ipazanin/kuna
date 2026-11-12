@@ -6,6 +6,7 @@ import AppCard from '../../../../../shared/ui/AppCard.vue'
 import { CATEGORY_WRITES } from '../../../settings/application/namedRecordWrites'
 import { NO_RECORDS, recordWithId } from '../../../../../shared/storage/domain/recordsRead'
 import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
+import { useBookedWorkbook } from '../../../transactions/application/useBookedWorkbook'
 import { useWorkbook } from '../../../workbook/application/workbookStore'
 import { categoryIdOf } from '../../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../../shared/storage/presentation/useRecordWrites'
@@ -21,12 +22,11 @@ import { words } from './words'
 const LOAN_BUCKET_KEY = 'loan-bucket'
 
 const store = useWorkbook()
+const booked = useBookedWorkbook()
 const names = useDisplayNames()
 const writes = useRecordWrites(store)
 
-const loanCategories = computed(() =>
-  (store.state.workbook?.categories ?? []).filter((category) => category.roles.includes(PACK_ROLES.ownerLoanOut) || category.roles.includes(PACK_ROLES.ownerLoanRepaid)),
-)
+const loanCategories = computed(() => (booked.value?.categories ?? []).filter((category) => category.roles.includes(PACK_ROLES.ownerLoanOut) || category.roles.includes(PACK_ROLES.ownerLoanRepaid)))
 const countsAsPay = computed(() => loanCategories.value.length > 0 && loanCategories.value.every((category) => category.bucket === 'owner-pay'))
 const mixed = computed(() => !countsAsPay.value && !loanCategories.value.every((category) => category.bucket === 'financing'))
 const listed = computed(() => listInWords(loanCategories.value.map((category) => words.loanBucket.inBucket(names.value.category(category.slug), category.bucket))))

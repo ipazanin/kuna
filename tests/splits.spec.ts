@@ -85,6 +85,21 @@ describe('splitLedger', () => {
   it('returns the ledger itself when nothing is split', () => {
     expect(splitLedger(ROWS, [])).toBe(ROWS)
   })
+
+  it('leaves a ledger already split as it is, so books presented twice count each part once', () => {
+    const split = splitOf(
+      ORDER,
+      [
+        [-45, 'office-supplies'],
+        [-15, 'owner-loan-out'],
+      ],
+      PACK_CATEGORIES,
+    )
+    const presented = splitLedger(ROWS, [split])
+
+    expect(splitLedger(presented, [split])).toEqual(presented)
+    expect(bucketTotals(splitLedger(presented, [split]))).toEqual(bucketTotals(presented))
+  })
 })
 
 const CATEGORIES: readonly Category[] = PACK_CATEGORIES
