@@ -406,6 +406,54 @@ section + section > .group-row:not(tr) {
   padding-inline-start: env(safe-area-inset-left);
 }
 
+/* The words and amount of a ProposalRow, in reading order: its title beside its amount, its caption under the title running on under the amount, or beside the amount's second line where it has one, and its details under both. */
+.proposal-row-lines {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'title amount'
+    'caption caption'
+    'details details';
+  column-gap: 0.75rem;
+  row-gap: 0.125rem;
+}
+
+.proposal-row-lines:has(> .proposal-row-amount > :nth-child(2)) {
+  grid-template-areas:
+    'title amount'
+    'caption second'
+    'details details';
+}
+
+.proposal-row-title {
+  grid-area: title;
+}
+
+.proposal-row-caption {
+  grid-area: caption;
+}
+
+.proposal-row-details {
+  grid-area: details;
+}
+
+.proposal-row-amount {
+  display: contents;
+}
+
+.proposal-row-amount > * {
+  justify-self: end;
+  text-align: end;
+}
+
+.proposal-row-amount > :first-child {
+  grid-area: amount;
+}
+
+.proposal-row-amount > :nth-child(2) {
+  grid-area: second;
+}
+
 /* A row of the sidebar and the drawer. Its focus ring stays inside it, since the list that holds it crops what sticks out. */
 .nav-link {
   position: relative;
