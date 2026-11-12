@@ -26,7 +26,7 @@ function failingStore(writeFailures: unknown[], undoFailures: unknown[] = []) {
   const writes: SessionWrite[] = []
   const calls = { write: 0, undo: 0 }
   const store = {
-    state: { workbook: {}, records: {}, writes } as unknown as Parameters<typeof proposedWrites<BooksRead>>[0]['state'],
+    state: { workbook: {}, records: {}, writes } as unknown as Parameters<typeof proposedWrites<BooksRead, never, void>>[0]['state'],
     check: vi.fn(),
     async write() {
       calls.write += 1
@@ -54,7 +54,7 @@ const proposal = (): CheckedProposal => ({
   held: { title: 'Add a category', changes: [], books: {}, steps: [] },
 })
 
-const work = { notOpen: 'Not open.', plan: () => {}, groups: () => [] }
+const work = { appName: 'Spending', plan: () => {}, card: () => ({ groups: [], outside: [], heldBack: null }) }
 
 beforeEach(() => {
   google.asked = []

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import * as XLSX from 'xlsx'
 
 import { en as companyBooksEnglish, hr as companyBooksCroatian } from '../../src/apps/company/workbook/domain/words.ts'
-import { fakeWorkbookDocument } from '../../src/apps/company/workbook/infrastructure/fake/fakeWorkbook.ts'
+import { categoryMovePlanRecords, fakeWorkbookDocument } from '../../src/apps/company/workbook/infrastructure/fake/fakeWorkbook.ts'
 import { templateColumnNames } from '../../src/apps/company/workbook/infrastructure/workbookTemplate.ts'
 import { WORKBOOK_TABS } from '../../src/apps/company/workbook/infrastructure/workbookSnapshot.ts'
 import { NEW_BOOKS_TITLE } from '../../src/apps/company/workbook/presentation/workbookFiles.ts'
@@ -232,7 +232,7 @@ function stringsIn(value) {
 }
 
 /**
- * Text the fake build keeps as typed: the records of its files, the mail of its mailbox, its Drive
+ * Text the fake build keeps as typed: the records of its files and of the plan rows a category move adds, the mail of its mailbox, its Drive
  * folder and the rows of the sample statement, bank export and portfolio workbook. A single lower-case word is a stored
  * kind such as `computers`, which a screen names in Croatian, so it is not data that may stay English.
  */
@@ -242,6 +242,7 @@ async function typedInFakeFiles() {
   const tableCells = Object.values(table.Sheets).flatMap((sheet) => XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false }).flat())
   return [
     ...FAKE_DOCUMENTS.flatMap(stringsIn),
+    ...categoryMovePlanRecords().flatMap(stringsIn),
     ...fakeMails().flatMap(stringsIn),
     FAKE_BOOKS_FOLDER,
     ...camt,

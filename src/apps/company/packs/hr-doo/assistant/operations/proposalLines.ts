@@ -81,6 +81,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   const value = record[field]
   if (kind.name === PLAN_RECORDS.name && field === 'month' && value === null && record['kind'] === 'amount') return words.proposals.everyMonth
   if (value === null || value === undefined || value === '' || SHOWN_ELSEWHERE.get(kind.name) === field) return null
+  if (field === 'categories' && Array.isArray(value)) return value.length === 0 ? null : value.map((slug) => category(String(slug))).join(', ')
   if (Array.isArray(value)) return value.length === 0 ? null : value.join(', ')
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   const money = moneyIn(kind, field, record)
@@ -142,6 +143,14 @@ function paymentText(workbook: Workbook, rowId: string | null, format: MoneyForm
   return [dayLabel(row.date), row.counterparty || row.description, formatMoney(row.amount, 'negative', format)].filter((part) => part !== '').join(', ')
 }
 
+/** A plan row's label names its item and year, so an add or a removal leaves both off its line. */
+const PLAN_IN_LABEL: ReadonlySet<string> = new Set(['year', 'item'])
+
+/** The fields a record's label names on the card, which an add or a removal leaves off its line. */
+export function packFieldsInLabel(kind: RecordKind<unknown>): ReadonlySet<string> {
+  return tripFieldsInLabel(kind) ?? (kind.name === PLAN_RECORDS.name ? PLAN_IN_LABEL : new Set())
+}
+
 /** How a card reads the pack's records, in the words of its screens. An employee's accounts say where pay goes, so the card warns on them. */
 export function packDescriber(workbook: Workbook): PackDescriber {
   const format = moneyFormatOf(workbook.settings)
@@ -158,7 +167,7 @@ export function packDescriber(workbook: Workbook): PackDescriber {
     },
     label: (kind, record, fallback) => tripLabel(kind, record, fallback, workbook) ?? labelOf(kind, record, fallback, category),
     defaultsOf: defaultsOnAdd,
-    inLabel: (kind) => tripFieldsInLabel(kind) ?? new Set(),
+    inLabel: packFieldsInLabel,
     warns: (kind, field) => kind.name === EMPLOYEE_RECORDS.name && field === 'ibans',
     settingNames: {
       hr_company_registered: packWords.facts.registered,

@@ -7,7 +7,6 @@ import type { PackOperations } from '../companyAssistant'
 import { ownerShareText } from '../../owner-share/domain/ownerShare'
 import { classSharesDay, installedPack } from '../../packs/packContribution'
 import { vatTreatmentLabel } from '../../settings/presentation/vatTreatmentLabel'
-import { words as settingsWords } from '../../settings/presentation/words'
 import { placementWords } from '../../rules/presentation/placementWords'
 import { words as ruleFormWords } from '../../rules/presentation/words'
 import { readRules } from '../../rules/domain/readRules'
@@ -18,6 +17,7 @@ import { displayName, displayNamesOf } from '../../workbook/domain/displayName'
 import type { DisplayNames } from '../../workbook/domain/displayName'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import { moneyFormatOf } from '../../settings/domain/settings'
+import { isDefinedBucket } from '../../workbook/domain/bucket'
 import type { Workbook } from '../../workbook/domain/workbook'
 import type { CardNote, ProposalField, ProposalGroup, ProposalLine } from '../../../../shared/app/assistantOperations'
 import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
@@ -79,14 +79,20 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (field === 'category' && !isKind(kind, CATEGORY_RECORDS, record)) return names.category(String(value))
   if (field === 'account' && !isKind(kind, ACCOUNT_RECORDS, record)) return names.account(String(value))
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return record.colour.swatch?.name ?? words.bucketColour
+  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'family') return displayName(record.family) === bucketName(record.bucket, workbook) ? null : displayName(record.family)
   if (isKind(kind, DISMISSAL_RECORDS, record) && field === 'kind') return words.suggestion[record.kind]
-  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'bucket') return settingsWords.categories.bucketChoice(record.bucket)
+  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'bucket') return bucketName(record.bucket, workbook)
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'vat') return vatTreatmentLabel(record.vat)
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'roles')
     return record.roles.length === 0 ? null : record.roles.map((role) => installedPack().categoryClassHelp(role, classSharesDay(workbook))?.name ?? role).join(', ')
   if (Array.isArray(value)) return value.length === 0 ? null : value.join(', ')
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   return String(value)
+}
+
+/** A bucket by the name the books give it, as the filters show it, or as stored for one Kuna does not know. */
+function bucketName(bucket: string, workbook: Workbook): string {
+  return isDefinedBucket(bucket) ? workbook.settings.bucketLabels[bucket] : bucket
 }
 
 /** What the record is called on screen: a row by its counterparty or else its category, a part by its category, a setting by its form's name, a rule by its id, and others by their name. */
@@ -148,6 +154,14 @@ function movedRules(checked: CheckedWrite, rules: readonly Rule[], moved: Readon
   return placements
 }
 
+/** A category's label is its name on screen, or its short name in words, so an add or a removal leaves both off its line. */
+const NAMED_IN_LABEL: ReadonlySet<string> = new Set(['slug', 'label'])
+
+/** The fields a record's label names on the card, which an add or a removal leaves off its line. */
+export function fieldsInLabel(kind: RecordKind<unknown>): ReadonlySet<string> {
+  return kind.name === CATEGORY_RECORDS.name ? NAMED_IN_LABEL : new Set()
+}
+
 /** What a checked write does, grouped by verb and kind in the order it does it, in Kuna's words, with the card's notes on the group of their kind. Each kind reads through its own screens' describer. */
 export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, notes: readonly CardNote[], pack: PackOperations | null, moved: ReadonlySet<string>): readonly ProposalGroup[] {
   const names = displayNamesOf(workbook)
@@ -158,6 +172,7 @@ export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, note
     fieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, workbook, names),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, names, packs?.settingNames ?? {}),
+    inLabel: fieldsInLabel,
     warns,
     movesConfirmed,
     checked: (kind, record, line): ProposalLine => {

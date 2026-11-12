@@ -1,4 +1,4 @@
-import { NO_FILE_YET } from './assistantOperations'
+import { fileNotOpen } from './assistantOperations'
 import type { AcceptResult, CheckedProposal, ProposalGroup, ProposalStep, UndoResult } from './assistantOperations'
 import { words } from './words'
 import { withGoogleAccess } from '../google/withGoogleAccess'
@@ -38,29 +38,34 @@ export interface OpenBooks<Books extends BooksRead> {
   readonly records: NonNullable<Books['records']>
 }
 
+/** What a card shows of a checked write, and what it holds back from the model. */
+export interface PlannedCard {
+  readonly groups: readonly ProposalGroup[]
+  /** What Accept leaves outside the books, which Undo does not take back, each a line on the card. */
+  readonly outside: readonly string[]
+  /** What the card holds back from the write, such as statement rows it leaves out, as a sentence for the model, or null. */
+  readonly heldBack: string | null
+}
+
 /** How an app turns the chat's steps into one write of its books, and what that write leaves outside them. */
-export interface ProposalWork<Books extends BooksRead, Kept> {
-  /** The refusal the model hears while the app's file is not open on this device. */
-  readonly notOpen: string
+export interface ProposalWork<Books extends BooksRead, Kept, Plan> {
+  /** The app's name, which the check's refusal names while the app's file is not open. */
+  readonly appName: string
   /**
-   * Plans the steps into one write through the screens' own write functions, throwing `StepRefused` for a step that cannot go.
-   * `kept` is what `beforeWrite` gave, and undefined in the check, which runs before it.
+   * Plans the steps into one write through the screens' own write functions, throwing `StepRefused` for a step that cannot go,
+   * and gives what the card reads of the plan. `kept` is what `beforeWrite` gave, and undefined in the check, which runs before it.
    */
-  plan(unit: UnitOfWork, books: OpenBooks<Books>, steps: readonly ProposalStep[], kept: Kept | undefined): void
-  /** What the card shows of the checked write, from the same `books` object the check's `plan` got. */
-  groups(checked: CheckedWrite, books: OpenBooks<Books>): readonly ProposalGroup[]
+  plan(unit: UnitOfWork, books: OpenBooks<Books>, steps: readonly ProposalStep[], kept: Kept | undefined): Plan
+  /** What the card shows of the checked write, from the books and the plan the check made. */
+  card(checked: CheckedWrite, books: OpenBooks<Books>, plan: Plan, steps: readonly ProposalStep[]): PlannedCard
   /**
    * Keeps a file the write points to, such as a receipt photo in Kuna's receipts folder, with access the person already gave.
-   * It runs on Accept after the card is found current and before the records write, and only for steps whose `outside` lists what stays.
+   * It runs on Accept after the card is found current and before the records write, and only for a card that lists what stays outside the books.
    * It throws, in the person's words, when access is missing.
    */
   beforeWrite?(steps: readonly ProposalStep[]): Promise<Kept>
-  /** What Accept leaves outside the books, which Undo does not take back, each a line on the card. */
-  outside?(steps: readonly ProposalStep[]): readonly string[]
   /** What the model should do with steps that make more changes than a card holds, when proposing fewer is no way out, or null for that. */
   overLimit?(steps: readonly ProposalStep[]): string | null
-  /** What the checked card holds back from the write, as a sentence for the model, or null. It reads the plan the check just made. */
-  heldBack?(): string | null
 }
 
 /** What a proposal holds for Accept, which only this file reads: the checked changes, and the books and steps they were planned from. */
@@ -101,16 +106,16 @@ function touchesSameRecords(planned: readonly RuledChange[], shown: readonly Rul
  * When the steps keep a file outside the books, `beforeWrite` keeps it and the steps are planned again with what it kept, and that plan must touch the records the card showed.
  * Accept and Undo ask Google for the books file's access as the screens' writes do, and a failure comes back as its reason rather than thrown.
  */
-export function proposedWrites<Books extends BooksRead, Kept = never>(
+export function proposedWrites<Books extends BooksRead, Kept, Plan>(
   store: Pick<WorkbookStore<Books>, 'state' | 'check' | 'write' | 'undo'>,
-  work: ProposalWork<Books, Kept>,
+  work: ProposalWork<Books, Kept, Plan>,
 ): {
   check(title: string, steps: readonly ProposalStep[]): Promise<CheckedProposal | { readonly refused: readonly string[] }>
   accept(proposal: CheckedProposal): Promise<AcceptResult>
 } {
   /** The changes Accept writes: the checked ones, or for steps that keep a file outside the books the same records planned again with what `beforeWrite` kept. */
-  async function writtenChanges({ title, changes, books, steps }: HeldWrite<Books>): Promise<readonly RuledChange[] | Refused> {
-    if (work.beforeWrite === undefined || (work.outside?.(steps) ?? []).length === 0) return changes
+  async function writtenChanges({ title, changes, books, steps }: HeldWrite<Books>, outside: readonly string[]): Promise<readonly RuledChange[] | Refused> {
+    if (work.beforeWrite === undefined || outside.length === 0) return changes
     const current = await store.check(title, workOf(changes))
     if (current.status === 'refused') return { kind: 'refused', reason: current.reason }
     let kept: Kept
@@ -132,11 +137,14 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
   return {
     async check(title, steps) {
       const { workbook, records } = store.state
-      if (workbook === null || workbook === undefined || records === null || records === undefined) return { refused: [work.notOpen, NO_FILE_YET] }
+      if (workbook === null || workbook === undefined || records === null || records === undefined) return { refused: fileNotOpen(work.appName) }
       const books: OpenBooks<Books> = { workbook, records }
+      const plans: Plan[] = []
       let check: WriteCheck
       try {
-        check = await store.check(title, (unit) => work.plan(unit, books, steps, undefined))
+        check = await store.check(title, (unit) => {
+          plans.push(work.plan(unit, books, steps, undefined))
+        })
       } catch (failure) {
         if (failure instanceof StepRefused) return { refused: [failure.message] }
         throw failure
@@ -148,21 +156,13 @@ export function proposedWrites<Books extends BooksRead, Kept = never>(
         return { refused: [`That is ${checked.changes.length} changes. A card holds ${MOST_CHANGES}.`, work.overLimit?.(steps) ?? 'Propose fewer, and then the rest.'] }
       }
       const held: HeldWrite<Books> = { title, changes: checked.changes, books, steps }
-      const groups = work.groups(checked, books)
-      return {
-        title,
-        count: groups.reduce((sum, group) => sum + group.lines.length, 0),
-        groups,
-        outside: work.outside?.(steps) ?? [],
-        undoable: isUndoable(checked.changes),
-        heldBack: work.heldBack?.() ?? null,
-        held,
-      }
+      const { groups, outside, heldBack } = work.card(checked, books, plans[0]!, steps)
+      return { title, count: groups.reduce((sum, group) => sum + group.lines.length, 0), groups, outside, undoable: isUndoable(checked.changes), heldBack, held }
     },
 
     async accept(proposal) {
       const held = proposal.held as HeldWrite<Books>
-      const written = await writtenChanges(held)
+      const written = await writtenChanges(held, proposal.outside)
       if ('kind' in written) return written
       try {
         const receipt = await withGoogleAccess([], () => store.write(held.title, workOf(written)))

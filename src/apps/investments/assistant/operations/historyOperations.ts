@@ -1,4 +1,5 @@
 import { words } from '../words'
+import { fileNotOpen } from '../../../../shared/app/assistantOperations'
 import type { AcceptResult, AssistantOperation, CheckedProposal } from '../../../../shared/app/assistantOperations'
 import { inputOf } from '../../../../shared/app/operationInput'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
@@ -49,21 +50,19 @@ interface HeldAnswer {
   readonly file: string
 }
 
-const OTHER_FILE = 'Another Investments file is on screen now, and the answer belongs to the one the card was for.'
-
 function isHeldAnswer(held: object): held is HeldAnswer {
   return 'historyComplete' in held
 }
 
 /** The answer on the Tax screen and Settings, General, given or taken back on this device with an Undo that restores it while the same file is on screen. */
-export function historyCards(history: HistoryAnswer): SideCards {
+export function historyCards(appName: string, history: HistoryAnswer): SideCards {
   const set = (complete: boolean): void => (complete ? history.give() : history.takeBack())
   return {
     operations: HISTORY_OPERATIONS,
     check(title, step) {
       const given = history.given()
       const file = history.file()
-      if (file === null) return Promise.resolve({ refused: ['The Investments file is not open on this device.'] })
+      if (file === null) return Promise.resolve({ refused: fileNotOpen(appName) })
       const complete = step.operation === CONFIRM
       if (given === complete) return Promise.resolve({ refused: [complete ? 'That is answered on this device already.' : 'The history is not confirmed on this device.'] })
       const held: HeldAnswer = { historyComplete: complete, file }
@@ -73,13 +72,13 @@ export function historyCards(history: HistoryAnswer): SideCards {
     acceptOwn(proposal: CheckedProposal): Promise<AcceptResult> | null {
       const { held } = proposal
       if (!isHeldAnswer(held)) return null
-      if (history.file() !== held.file) return Promise.resolve({ kind: 'refused', reason: OTHER_FILE })
+      if (history.file() !== held.file) return Promise.resolve({ kind: 'refused', reason: words.cards.otherFile })
       const before = history.given()
       set(held.historyComplete)
       return Promise.resolve({
         kind: 'done',
         undo: () => {
-          if (history.file() !== held.file) return Promise.resolve({ kind: 'refused', reason: OTHER_FILE })
+          if (history.file() !== held.file) return Promise.resolve({ kind: 'refused', reason: words.cards.otherFile })
           set(before)
           return Promise.resolve({ kind: 'undone' })
         },

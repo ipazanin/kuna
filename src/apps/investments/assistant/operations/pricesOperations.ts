@@ -10,6 +10,8 @@ import { words as settingsWords } from '../../settings/presentation/words'
 import type { Instrument } from '../../workbook/domain/instrument'
 import { INSTRUMENT_RECORDS } from '../../workbook/domain/investmentKinds'
 import { words } from '../words'
+import { words as appWords } from '../../../../shared/app/words'
+import { fileNotOpen } from '../../../../shared/app/assistantOperations'
 import type { AcceptResult, AssistantOperation, CheckedProposal, ProposalLine } from '../../../../shared/app/assistantOperations'
 import { TEXT, inputOf } from '../../../../shared/app/operationInput'
 import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
@@ -67,9 +69,9 @@ function cardOf(title: string, line: ProposalLine, outside: string, held: HeldRu
 }
 
 /** What the card says of a run that wrote nothing, as the Prices tab's toast says it. */
-function notRun(run: PricesFetchRun | 'running' | 'no-books'): AcceptResult {
+function notRun(run: PricesFetchRun | 'running' | 'no-books', appName: string): AcceptResult {
   if (run === 'running') return { kind: 'refused', reason: `${pricesWords.run.running}. ${pricesWords.run.runningNote}` }
-  if (run === 'no-books') return { kind: 'refused', reason: 'The Investments file is not open on this device.' }
+  if (run === 'no-books') return { kind: 'refused', reason: appWords.fileNotOpen(appName) }
   return { kind: 'refused', reason: runProblem(run) ?? pricesWords.run.failed }
 }
 
@@ -84,11 +86,11 @@ function fetched(file: PricesFile): AcceptResult {
 }
 
 /** Fetch now and Ask again, each a card with no Undo, since each writes the prices file beside the books. */
-export function pricesCards(ports: PricesPorts): SideCards {
+export function pricesCards(appName: string, ports: PricesPorts): SideCards {
   return {
     operations: PRICES_OPERATIONS,
     check(title, step, book) {
-      if (book === null) return Promise.resolve({ refused: ['The Investments file is not open on this device.'] })
+      if (book === null) return Promise.resolve({ refused: fileNotOpen(appName) })
       if (step.operation === FETCH_PRICES) {
         return Promise.resolve(cardOf(title, { label: words.cards.everyHolding, fields: [], warning: null }, words.cards.vendorsOutside, { pricesRun: 'fetch' }))
       }
@@ -106,9 +108,9 @@ export function pricesCards(ports: PricesPorts): SideCards {
         switch (held.pricesRun) {
           case 'fetch': {
             const run = await ports.prices.fetchNow()
-            if (run === 'running' || run === 'no-books') return notRun(run)
+            if (run === 'running' || run === 'no-books') return notRun(run, appName)
             if (run.kind === 'written') return fetched(run.file)
-            return run.kind === 'current' || run.kind === 'busy' ? DONE : notRun(run)
+            return run.kind === 'current' || run.kind === 'busy' ? DONE : notRun(run, appName)
           }
           case 'facts': {
             const run = await ports.prices.askFactsAgain(held.instrument.id)

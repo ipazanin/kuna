@@ -172,3 +172,8 @@ export interface AssistantQuickAction {
 
 /** What the model may do for an app with no file yet, after it hears the file is not open. */
 export const NO_FILE_YET = "While the app has no file on this device, propose make-file alone on a card for a person who keeps their files in this browser, and otherwise link the app's start screen."
+
+/** What the model hears of a change it proposes while the named app's file is not open on this device. */
+export function fileNotOpen(appName: string): readonly string[] {
+  return [`The ${appName} file is not open on this device.`, NO_FILE_YET]
+}

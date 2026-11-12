@@ -1,4 +1,4 @@
-import { NO_FILE_YET } from '../../app/assistantOperations'
+import { fileNotOpen } from '../../app/assistantOperations'
 import type { AppReader, AssistantReport, ReadableField, ReadableKind, ReadableRow } from '../../app/assistantReader'
 import { accountMoneyFromCents } from '../../money/accountMoney'
 import { currencyCodeOf } from '../../money/currencyCode'
@@ -89,10 +89,9 @@ export function refusal(text: string): ChatToolAnswer {
   return { text, isError: true }
 }
 
-export function fileNotOpen(status: 'opening' | 'none'): ChatToolAnswer {
-  return refusal(
-    status === 'opening' ? 'This app is still opening its file. Ask the person to try again in a moment.' : `This app has no file open on this device, so there is nothing to read. ${NO_FILE_YET}`,
-  )
+/** Why nothing of the named app can be read while its file is opening or not open. */
+export function fileNotReadable(appName: string, status: 'opening' | 'none'): ChatToolAnswer {
+  return refusal(status === 'opening' ? `${appName} is still opening its file. Ask the person to try again in a moment.` : fileNotOpen(appName).join(' '))
 }
 
 type ValueOfRow = Extract<ReadableField, { readonly value: unknown }>
@@ -336,7 +335,7 @@ export function findRecords(input: FindRecordsInput, reads: ChatReads): ChatTool
 
   if (!reads.mayRead()) return refusal(NOT_ALLOWED)
   const status = app.reader.status()
-  if (status !== 'open') return fileNotOpen(status)
+  if (status !== 'open') return fileNotReadable(app.name, status)
 
   const employees = employeesKeptHome(knownPersons(reads), reads)
   const query = input.query === null || input.query.trim() === '' ? null : input.query
@@ -397,7 +396,7 @@ export function getRecord(appId: string, ref: string, reads: ChatReads): ChatToo
   if (kind === undefined) return refusal('That kind cannot be read.')
   if (!reads.mayRead()) return refusal(NOT_ALLOWED)
   const status = app.reader.status()
-  if (status !== 'open') return fileNotOpen(status)
+  if (status !== 'open') return fileNotReadable(app.name, status)
   const row = kind.rows().find((candidate) => candidate.id === record.id)
   if (row === undefined) return refusal('That record is no longer in the file.')
   if (aboutAnEmployee(row, employeesKeptHome(knownPersons(reads), reads))) return refusal(ABOUT_AN_EMPLOYEE)
@@ -440,7 +439,7 @@ export function readFigures(appId: string, reportId: string, period: string | nu
   if (report.employees === true && reads.anonymising() && reads.persons().some((person) => person.employee)) return refusal(aboutEmployeesPay('report'))
   if (!reads.mayRead()) return refusal(NOT_ALLOWED)
   const status = app.reader.status()
-  if (status !== 'open') return fileNotOpen(status)
+  if (status !== 'open') return fileNotReadable(app.name, status)
   try {
     const { figures, leftOut } = shownFigures(appId, report, period, reads)
     const text = JSON.stringify({ source: `${appId}/${report.id}`, computedBy: 'Kuna', period, ...(leftOut > 0 ? { leftOutAboutEmployees: leftOut } : {}), figures })

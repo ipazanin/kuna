@@ -35,6 +35,14 @@ describe('the lines of a proposal', () => {
     expect(groups.map((group) => group.lines[0]!.fields.map((field) => field.name))).toEqual([['payee', 'category'], ['confirmed']])
   })
 
+  it('show on a removal what the record held, as an add shows what it will hold, leaving off the defaults and what the label names', () => {
+    const described: ProposalDescriber = { ...DESCRIBER, defaultsOf: () => ({ confirmed: false }), inLabel: () => new Set(['payee']) }
+    const held = { ...filed, confirmed: false }
+    const [group] = proposalGroups(checkedOf({ kind: KIND, verb: 'remove', before: held }), () => described)
+
+    expect(group!.lines).toEqual([{ label: 'Corner market', fields: [{ name: 'category', before: 'groceries', after: null, warns: false }], warning: null }])
+  })
+
   it('warn when a change files a confirmed row under another category', () => {
     const [group] = proposalGroups(checkedOf({ kind: KIND, verb: 'change', before: filed, after: { ...filed, category: 'eating-out' } }), () => DESCRIBER)
 

@@ -304,6 +304,14 @@ const kunaPlugin = {
       'A choice kept on this device goes through src/shared/device/deviceChoice.ts, which gives the default where a private window denies the storage.',
     ),
     'note-lines': noteLines,
+    'card-reasons': refusedSyntax(
+      ["Property[key.name='reason'] > Literal.value[value=/[A-Za-z]/]", "Property[key.name='reason'] > TemplateLiteral.value > TemplateElement[value.raw=/[A-Za-z]/]"],
+      "A card's reason is read by the person, so it comes from the app's words in both languages, never a sentence typed beside the operation.",
+    ),
+    'proposal-work': refusedSyntax(
+      ['FunctionDeclaration[id.name=/Work$/] > BlockStatement > :not(ReturnStatement)'],
+      "An app's proposal work only returns its work. Its plan hands the card what the card reads, so two checks at once never share a value kept beside them.",
+    ),
     'domain-classes': refusedSyntax(
       ['ClassDeclaration:not([superClass.name=/Error$/])', 'ClassExpression:not([superClass.name=/Error$/])'],
       'A domain model is an immutable record with pure functions beside it. check:figures reads object shapes, so a class can hide a figure from it. Only an Error subclass stays.',
@@ -412,6 +420,7 @@ export function kunaConfig(exempt) {
     ...scopedClassConfigs,
     { name: 'kuna/plugin', plugins: { kuna: kunaPlugin } },
     { name: 'kuna/domain-classes', ...domainCode, rules: { 'kuna/domain-classes': 'error' } },
+    { name: 'kuna/assistant-operations', files: ['src/apps/**/assistant/operations/**/*.ts'], rules: { 'kuna/proposal-work': 'error', 'kuna/card-reasons': 'error' } },
     { name: 'kuna/window-queries', files: ['src/**/*.{ts,vue}'], rules: { 'kuna/window-queries': 'error' } },
     { name: 'kuna/device-storage', files: ['src/**/*.{ts,vue}'], ignores: ['src/shared/device/deviceChoice.ts'], rules: { 'kuna/device-storage': 'error' } },
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },

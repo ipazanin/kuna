@@ -22,6 +22,7 @@ export const en = {
   fileNotMade: 'Kuna could not make the file.',
   fileNotRemoved: 'Kuna could not remove the file, so it stays.',
   fileThereAlready: (app: string) => `${app} has a file on this device already, so nothing was made.`,
+  fileNotOpen: (app: string) => `The ${app} file is not open on this device.`,
 }
 
 export const hr: Translation<typeof en> = {
@@ -42,6 +43,7 @@ export const hr: Translation<typeof en> = {
   fileNotMade: 'Kuna nije mogla izraditi datoteku.',
   fileNotRemoved: 'Kuna nije mogla ukloniti datoteku, pa ostaje.',
   fileThereAlready: (app) => `${app} već ima datoteku na ovom uređaju, pa ništa nije izrađeno.`,
+  fileNotOpen: (app) => `Datoteka aplikacije ${app} nije otvorena na ovom uređaju.`,
 }
 
 /** The maker's name and contact read the same in both languages. */

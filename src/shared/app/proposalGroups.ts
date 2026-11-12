@@ -18,9 +18,9 @@ export interface ProposalDescriber {
   label(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string): string
   /** Whether the field says where money or mail goes, from the record as it will be held, null for a removal, and as it was, null for an add. */
   warns(kind: RecordKind<unknown>, field: string, after: ProposedRecord | null, before: ProposedRecord | null): boolean
-  /** The values a new record of the kind has unless a person sets them, which an add leaves off its line. A change still shows them. */
+  /** The values a new record of the kind has unless a person sets them, which an add or a removal leaves off its line. A change still shows them. */
   defaultsOf?(kind: RecordKind<unknown>): ProposedRecord
-  /** The fields the label of a new record already names, which an add leaves off its line. A change still shows them. */
+  /** The fields a record's label already names, which an add or a removal leaves off its line. A change still shows them. */
   inLabel?(kind: RecordKind<unknown>): ReadonlySet<string>
   /** Whether the change files a row a person confirmed under another category. Without it, no change does. */
   movesConfirmed?(kind: RecordKind<unknown>, before: ProposedRecord, after: ProposedRecord): boolean
@@ -28,17 +28,20 @@ export interface ProposalDescriber {
   checked?(kind: RecordKind<unknown>, record: ProposedRecord, line: ProposalLine): ProposalLine
 }
 
+/**
+ * A record's line. A change shows the fields it alters. An add shows what the new record holds, and a removal what the record held,
+ * each without the defaults a new record has and the fields its label names.
+ */
 function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallback: string, before: ProposedRecord | null, after: ProposedRecord | null): ProposalLine {
-  const labelled = before === null ? (describer.inLabel?.(kind) ?? new Set<string>()) : new Set<string>()
+  const shown = after ?? before
+  const whole = before === null || after === null
+  const labelled = whole ? (describer.inLabel?.(kind) ?? new Set<string>()) : new Set<string>()
   const names = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after ?? {})])].filter((field) => !describer.keptByKuna.has(field) && !labelled.has(field))
   const defaults = describer.defaultsOf?.(kind) ?? {}
   const altered =
     before !== null && after !== null
       ? names.filter((field) => JSON.stringify(before[field]) !== JSON.stringify(after[field]))
-      : after !== null
-        ? names.filter((field) => !(field in defaults) || JSON.stringify(defaults[field]) !== JSON.stringify(after[field]))
-        : []
-  const shown = after ?? before
+      : names.filter((field) => !(field in defaults) || JSON.stringify(defaults[field]) !== JSON.stringify(shown?.[field]))
   const fields = altered.flatMap((field): ProposalField[] => {
     const was = before === null ? null : describer.shown(kind, field, before)
     const will = after === null ? null : describer.shown(kind, field, after)

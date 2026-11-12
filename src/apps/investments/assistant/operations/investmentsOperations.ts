@@ -45,8 +45,8 @@ type InvestmentsStore = Pick<WorkbookStore<InvestmentsBooks>, 'state' | 'check' 
 const PARTS: readonly InvestmentSteps[] = [ACCOUNT_STEPS, INSTRUMENT_STEPS, TRANSACTION_STEPS, HOLDING_STEPS, IMPORT_STEPS, SETTING_STEPS]
 
 /** The cards that write nothing to the books, each over the ports that do their work. */
-function sideCards(ports: InvestmentsPorts): readonly SideCards[] {
-  return [historyCards(ports.history), pricesCards(ports), requestCountCards(ports.requestCounts)]
+function sideCards(appName: string, ports: InvestmentsPorts): readonly SideCards[] {
+  return [historyCards(appName, ports.history), pricesCards(appName, ports), requestCountCards(ports.requestCounts)]
 }
 
 /** Every change the chat can propose in Investments. Each calls the write functions and checks the screens use. */
@@ -87,24 +87,23 @@ function planned(unit: UnitOfWork, books: OpenBooks<InvestmentsBooks>, steps: re
   return { fetches, notes, heldBack }
 }
 
-/** How the chat's steps become one write of the Investments file. The card says which holdings' prices Accept fetches and what an import leaves, so each check keeps its own. */
-function investmentsWork(ports: InvestmentsPorts): ProposalWork<InvestmentsBooks, never> {
-  let last: Planned = { fetches: [], notes: [], heldBack: [] }
+/** How the chat's steps become one write of the Investments file. The card says which holdings' prices Accept fetches and what an import leaves, from its own plan. */
+function investmentsWork(appName: string, ports: InvestmentsPorts): ProposalWork<InvestmentsBooks, never, Planned> {
   return {
-    notOpen: 'The Investments file is not open on this device.',
-    plan: (unit, books, steps) => {
-      last = planned(unit, books, steps, ports)
-    },
-    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook.book, last.notes),
-    outside: () => (last.fetches.length === 0 ? [] : [words.proposals.pricesFetched([...new Set(last.fetches)])]),
+    appName,
+    plan: (unit, books, steps) => planned(unit, books, steps, ports),
+    card: (checked, { workbook }, { fetches, notes, heldBack }) => ({
+      groups: proposalGroupsOf(checked, workbook.book, notes),
+      outside: fetches.length === 0 ? [] : [words.proposals.pricesFetched([...new Set(fetches)])],
+      heldBack: heldBack.length === 0 ? null : heldBack.join(' '),
+    }),
     overLimit: importTooLarge,
-    heldBack: () => (last.heldBack.length === 0 ? null : last.heldBack.join(' ')),
   }
 }
 
 /** The changes the chat can propose and their dry run, over the app's own store, which `app.ts` hands in. */
 export function investmentsProposer(store: InvestmentsStore, ports: InvestmentsPorts, file: BrowserFile): AppProposer {
-  const sides = sideCards(ports)
+  const sides = sideCards(file.appName, ports)
   return withBrowserFileCards(
     {
       operations: INVESTMENTS_OPERATIONS,
@@ -118,7 +117,7 @@ export function investmentsProposer(store: InvestmentsStore, ports: InvestmentsP
         }
         const read = await withRowsRead(steps, ports.mailReport)
         if ('refused' in read) return read
-        const checked = await proposedWrites(store, investmentsWork(ports)).check(title, read)
+        const checked = await proposedWrites(store, investmentsWork(file.appName, ports)).check(title, read)
         if ('held' in checked && checked.outside.length > 0) FETCHING.add(checked)
         return checked
       },
@@ -129,8 +128,8 @@ export function investmentsProposer(store: InvestmentsStore, ports: InvestmentsP
 
 /** Writes a proposal as it was checked, in one write with one Undo, then starts the price fetch its card names. A card beside the books runs its own work. */
 export function investmentsAcceptance(store: InvestmentsStore, ports: InvestmentsPorts, file: BrowserFile): AppAcceptance {
-  const { accept } = proposedWrites(store, investmentsWork(ports))
-  const sides = sideCards(ports)
+  const { accept } = proposedWrites(store, investmentsWork(file.appName, ports))
+  const sides = sideCards(file.appName, ports)
   return acceptingBrowserFileCards(
     {
       async accept(proposal) {

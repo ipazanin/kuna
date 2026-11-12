@@ -3,7 +3,7 @@ import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../sha
 import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { BANK_SETUP_OPERATIONS, isBankSetupStep, planBankSetup } from './bankSetupOperations'
 import { NO_WARNINGS, proposalGroupsOf, statementLeftOut } from './proposalLines'
-import type { CardWarnings } from './proposalLines'
+import type { CardWarnings, StatementLeftOut } from './proposalLines'
 import { ADD_RECEIPT, keptPhotos, receiptsOutside, withPhotosRead, writeReceiptStep } from './receiptOperation'
 import type { KeptPhotos, ReceiptPorts } from './receiptOperation'
 import { REVIEW_OPERATIONS, writeReviewStep } from './reviewPairs'
@@ -39,6 +39,7 @@ import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../
 import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { fileNotOpen } from '../../../../shared/app/assistantOperations'
 import type { AppAcceptance, AppProposer, AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused, proposedWrites, refuseBesideImport } from '../../../../shared/app/proposedWrites'
 import { lookAlikesForTheModel } from '../../../../shared/ai/presentation/copiedRowsWords'
@@ -440,10 +441,10 @@ const FILING_IMPORTED_ROWS: ReadonlySet<string> = new Set(['add-rule', 'change-r
 
 /**
  * Plans the steps into one write, in order. A `$` name stands for what an earlier step made, and the rules are re-run once,
- * over all of them, and file a statement's new rows. `kept` holds the Drive id of each receipt photo Accept kept. Gives what
- * the card warns on: what the import leaves out of its statement, and each receipt's checks that failed.
+ * over all of them, and file a statement's new rows. `loans` are the records in Loans an entry links to, and `kept` holds the
+ * Drive id of each receipt photo Accept kept. Gives what the card warns on: what the import leaves out of its statement, and each receipt's checks that failed.
  */
-function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: readonly ProposalStep[], ports: SpendingPorts, kept: KeptPhotos | undefined): CardWarnings {
+function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: readonly ProposalStep[], ports: SpendingPorts, loans: AppTargets<LinkTarget>, kept: KeptPhotos | undefined): CardWarnings {
   refuseBesideImport(steps, IMPORTING, FILING_IMPORTED_ROWS)
   if (steps.some(isBankSetupStep)) {
     planBankSetup(unit, books.workbook, steps, ports.device.bankSetup())
@@ -714,7 +715,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         break
       }
       case 'link-entry':
-        linkEntry(unit, rowOf(field['entry']), linkedTarget(ports.linkTargets(), field['loan'], field['due'] === null ? null : dayOf(field['due'])).link)
+        linkEntry(unit, rowOf(field['entry']), linkedTarget(loans, field['loan'], field['due'] === null ? null : dayOf(field['due'])).link)
         break
       case 'unlink-entry': {
         const row = rowOf(field['entry'])
@@ -763,26 +764,25 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
   return { leftOut: null, receipts: receiptWarnings, moves }
 }
 
-/** How the chat's steps become one write of the Spending file. The card warns on what the plan leaves out or doubts, so each check gets its own. A receipt photo kept on Drive stays there after Undo. */
-function spendingWork(ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPhotos> {
-  let warnings: CardWarnings = NO_WARNINGS
+/** What a plan hands its card: the records in Loans it linked entries to, and what the card warns on. */
+interface SpendingPlan {
+  readonly loans: AppTargets<LinkTarget>
+  readonly warnings: CardWarnings
+}
+
+/** How the chat's steps become one write of the Spending file. The card warns on what its own plan leaves out or doubts. A receipt photo kept on Drive stays there after Undo. */
+function spendingWork(appName: string, ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPhotos, SpendingPlan> {
   return {
-    notOpen: NOT_OPEN,
+    appName,
     plan: (unit, books, steps, kept) => {
-      warnings = planned(unit, books, steps, ports, kept)
+      const loans = ports.linkTargets()
+      return { loans, warnings: planned(unit, books, steps, ports, loans, kept) }
     },
-    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, ports.linkTargets(), warnings),
-    outside: receiptsOutside,
-    heldBack: () => {
-      const rows = warnings.leftOut?.rows ?? 0
-      const lookAlikes = (warnings.leftOut?.lookAlikes ?? []).map(({ number }) => number)
-      const leftOut =
-        rows === 1
-          ? '1 row of the statement is left out, as it falls before the account opened, outside the days the card names or on a day the bank sync covers.'
-          : `${rows} rows of the statement are left out, as they fall before the account opened, outside the days the card names or on a day the bank sync covers.`
-      const told = [...(lookAlikes.length === 0 ? [] : [lookAlikesForTheModel(lookAlikes, false)]), ...(rows === 0 ? [] : [`${leftOut} Tell the person, and ask before proposing them another way.`])]
-      return told.length === 0 ? null : told.join(' ')
-    },
+    card: (checked, { workbook }, { loans, warnings }, steps) => ({
+      groups: proposalGroupsOf(checked, workbook, loans, warnings),
+      outside: receiptsOutside(steps),
+      heldBack: statementHeldBack(warnings.leftOut),
+    }),
     overLimit: (steps) =>
       steps.some((step) => step.operation === IMPORT_STATEMENT.name)
         ? 'A part of a statement cannot shrink, so put the rules on a card of their own before the import, then propose the import again.'
@@ -790,7 +790,17 @@ function spendingWork(ports: SpendingPorts): ProposalWork<SpendingBooks, KeptPho
   }
 }
 
-const NOT_OPEN = 'The Spending file is not open on this device.'
+/** What the model hears of the rows a statement's import leaves out, or null when it leaves none. */
+function statementHeldBack(leftOut: StatementLeftOut | null): string | null {
+  const rows = leftOut?.rows ?? 0
+  const lookAlikes = (leftOut?.lookAlikes ?? []).map(({ number }) => number)
+  const left =
+    rows === 1
+      ? '1 row of the statement is left out, as it falls before the account opened, outside the days the card names or on a day the bank sync covers.'
+      : `${rows} rows of the statement are left out, as they fall before the account opened, outside the days the card names or on a day the bank sync covers.`
+  const told = [...(lookAlikes.length === 0 ? [] : [lookAlikesForTheModel(lookAlikes, false)]), ...(rows === 0 ? [] : [`${left} Tell the person, and ask before proposing them another way.`])]
+  return told.length === 0 ? null : told.join(' ')
+}
 
 /** What this device holds for Spending's chat outside the books: the bank set-up list the page holds and the account a new entry starts on. */
 export interface SpendingDevice extends LastAccountPorts {
@@ -817,7 +827,7 @@ export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'stat
       async check(title, steps) {
         if (setsStartingAccount(steps)) {
           const accounts = store.state.workbook?.accounts
-          if (accounts === undefined) return { refused: [NOT_OPEN] }
+          if (accounts === undefined) return { refused: fileNotOpen(file.appName) }
           try {
             return startingAccountCheck(title, steps, accounts, ports.device)
           } catch (failure) {
@@ -826,7 +836,7 @@ export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'stat
           }
         }
         const read = await withPhotosRead(steps, ports.receipts)
-        return 'refused' in read ? read : proposedWrites(store, spendingWork(ports)).check(title, read)
+        return 'refused' in read ? read : proposedWrites(store, spendingWork(file.appName, ports)).check(title, read)
       },
     },
     file,
@@ -839,6 +849,6 @@ export function spendingProposer(store: Pick<WorkbookStore<SpendingBooks>, 'stat
  */
 export function spendingAcceptance(store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'check' | 'write' | 'undo'>, ports: SpendingPorts, file: BrowserFile): AppAcceptance {
   const keptBefore = new WeakMap<Blob, string>()
-  const { accept } = proposedWrites(store, { ...spendingWork(ports), beforeWrite: (steps) => keptPhotos(steps, ports.receipts, keptBefore) })
+  const { accept } = proposedWrites(store, { ...spendingWork(file.appName, ports), beforeWrite: (steps) => keptPhotos(steps, ports.receipts, keptBefore) })
   return acceptingBrowserFileCards({ accept: async (proposal) => acceptStartingAccount(proposal, ports.device) ?? accept(proposal) }, file)
 }

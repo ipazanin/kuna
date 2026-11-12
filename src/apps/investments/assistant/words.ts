@@ -178,6 +178,7 @@ export const en = {
     failuresListed: 'Each is listed there with what to do.',
     requestsToday: 'Requests today',
     countChanged: 'Nothing was changed. Kuna asked the vendor again since the card was made.',
+    otherFile: 'Another Investments file is on screen now, and the answer belongs to the one the card was for.',
   },
 }
 
@@ -354,6 +355,7 @@ export const hr: Translation<typeof en> = {
     failuresListed: 'Ondje je svaki niz naveden sa savjetom što učiniti.',
     requestsToday: 'Današnji zahtjevi',
     countChanged: 'Ništa nije promijenjeno. Kuna je ponovno pitala izvor nakon što je kartica napravljena.',
+    otherFile: 'Sada je otvorena druga datoteka ulaganja, a odgovor pripada onoj za koju je kartica napravljena.',
   },
 }
 

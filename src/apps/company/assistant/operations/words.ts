@@ -77,7 +77,7 @@ export const hr: Translation<typeof en> = {
     ownerShare: 'Udio vlasnika',
     slug: 'Kratki naziv',
     label: 'Naziv',
-    family: 'Obitelj',
+    family: 'Grupa',
     bucket: 'Skupina',
     colour: 'Boja',
     roles: 'Uloge',

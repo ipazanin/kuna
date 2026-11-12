@@ -11,7 +11,9 @@ import { words as packWords } from '../src/apps/company/packs/hr-doo/presentatio
 import { installedPack } from '../src/apps/company/packs/packContribution'
 import { categoryMove, keptByMove } from '../src/apps/company/settings/domain/categoryMove'
 import type { CategoryNaming } from '../src/apps/company/workbook/domain/packPart'
+import { BUCKETS } from '../src/apps/company/workbook/domain/bucket'
 import { CATEGORY_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { VAT_TREATMENTS } from '../src/apps/company/workbook/domain/vatTreatment'
 import type { LedgerEntry } from '../src/apps/company/workbook/domain/ledgerReading'
 import type { SplitTabRow } from '../src/apps/company/workbook/domain/splitsReading'
 import { moneyFromAmount, sumMoney } from '../src/shared/money/money'
@@ -179,6 +181,21 @@ describe('the chat deleting a category the pack’s records name into another', 
     expect([...undone.planLines].sort((left, right) => left.id.localeCompare(right.id))).toEqual(before.planLines)
     expect(undone.ownerAdvances).toEqual(before.ownerAdvances)
     expect(undone.yearEndLines).toEqual(before.yearEndLines)
+  })
+
+  it('names every stored code on its card in words, never a slug, bucket, family or VAT code a screen names, nor what a line’s label already says', async () => {
+    const desk = await companyDesk(used, {}, PACK_TABS)
+    const categories = desk.store.state.workbook!.categories
+    const codes = new Set<string>([...categories.flatMap((category) => [category.slug, category.family]), ...BUCKETS, ...VAT_TREATMENTS])
+
+    await desk.propose([stepOf(COMPANY_OPERATIONS, 'delete-category', { category: desk.ref(CATEGORY_RECORDS.name, 'travel'), into: desk.ref(CATEGORY_RECORDS.name, 'spare') })])
+
+    const lines = desk.cards.at(-1)!.groups.flatMap((group) => group.lines)
+    const shown = lines.flatMap((line) => [line.label, ...line.fields.flatMap((field) => [field.before, field.after])]).flatMap((text) => (text === null ? [] : text.split(', ')))
+    expect(shown.filter((part) => codes.has(part))).toEqual([])
+    const removedCategory = desk.cards.at(-1)!.groups.find((group) => group.verb === 'remove' && group.noun === CATEGORY_RECORDS.noun)!.lines[0]!
+    expect(removedCategory.label).toBe('Travel')
+    expect(removedCategory.fields.map((field) => field.before)).not.toContain('Travel')
   })
 
   it('refuses while a plan row the plan tab cannot read names the category, and says where to fix it', async () => {

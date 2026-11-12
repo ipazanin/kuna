@@ -4,7 +4,7 @@ import type { DeepReadonly } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import type { CheckedProposal, ProposalGroup } from '../../app/assistantOperations'
+import type { CheckedProposal, ProposalField, ProposalGroup } from '../../app/assistantOperations'
 import { formatCount } from '../../money/moneyFormat'
 import { language } from '../../text/language'
 import { listInWords } from '../../text/listInWords'
@@ -58,6 +58,13 @@ function countedNoun(group: ProposalGroup): string {
   const { en, hr } = group.noun
   const noun = language === 'hr' ? plural({ one: hr.one, few: hr.few, other: hr.other }, count) : plural({ one: en.one, other: en.many }, count)
   return `${words.proposal.verb[group.verb]}: ${formatCount(count)} ${noun}`
+}
+
+/** A field as its line reads: what a removal takes away, what an add sets, or what a change makes of what was there. */
+function fieldText(verb: ProposalGroup['verb'], field: ProposalField): string {
+  if (verb === 'remove') return field.before ?? words.proposal.empty
+  const after = field.after ?? words.proposal.empty
+  return field.before === null ? after : `${field.before} → ${after}`
 }
 
 /** The first few of a list, or all of it once a person asked or when hiding the rest would save a single row. */
@@ -157,9 +164,7 @@ async function undo(event: Event): Promise<void> {
             <p class="wrap-anywhere text-highlighted" :class="line.identifier === true ? 'identifier' : 'type-body'">{{ line.label }}</p>
             <NoteLine v-if="line.warning !== null" tone="warning" data-testid="chat-proposal-line-warning">{{ line.warning }}</NoteLine>
             <template v-for="field in line.fields" :key="field.name">
-              <p class="type-caption wrap-anywhere" :class="{ 'text-warning': field.warns }" data-testid="chat-proposal-field">
-                {{ field.name }}: <template v-if="field.before !== null">{{ field.before }} → </template>{{ field.after ?? words.proposal.empty }}
-              </p>
+              <p class="type-caption wrap-anywhere" :class="{ 'text-warning': field.warns }" data-testid="chat-proposal-field">{{ field.name }}: {{ fieldText(group.verb, field) }}</p>
               <NoteLine v-if="field.warns" tone="warning" data-testid="chat-proposal-warning">{{ words.proposal.warns }}</NoteLine>
             </template>
           </li>

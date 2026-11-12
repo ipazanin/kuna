@@ -9,7 +9,8 @@ import { catalogueOf } from '../src/shared/ai/application/catalogue'
 import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { INVOICING_OPERATIONS } from '../src/apps/company/assistant/operations/invoicingOperations'
-import { KEPT_BY_KUNA } from '../src/apps/company/assistant/operations/proposalLines'
+import type { RecordKind } from '../src/shared/storage/domain/recordKind'
+import { KEPT_BY_KUNA, fieldsInLabel } from '../src/apps/company/assistant/operations/proposalLines'
 import { installedPack } from '../src/apps/company/packs/packContribution'
 import { settingName } from '../src/apps/company/assistant/operations/settingNames'
 import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
@@ -73,9 +74,10 @@ function said(value: unknown): unknown {
   return value === undefined || value === '' ? null : value
 }
 
-/** The card's names of the fields a change sets, leaving out the ones Kuna keeps by itself. */
-function namesSet(before: Readonly<Record<string, unknown>> | null, after: Readonly<Record<string, unknown>>): string[] {
-  const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field))
+/** The names of the fields a change sets, but for those Kuna keeps and, on an add, those its label already names. */
+function namesSet(kind: RecordKind<unknown>, before: Readonly<Record<string, unknown>> | null, after: Readonly<Record<string, unknown>>): string[] {
+  const labelled = before === null ? fieldsInLabel(kind) : new Set<string>()
+  const fields = [...new Set([...Object.keys(before ?? {}), ...Object.keys(after)])].filter((field) => !KEPT_BY_KUNA.has(field) && !labelled.has(field))
   const altered = fields.filter((field) => JSON.stringify(said(before?.[field])) !== JSON.stringify(said(after[field])))
   return altered.map((field) => (words.fields as Readonly<Record<string, string>>)[field] ?? field)
 }
@@ -106,7 +108,7 @@ describe('every Company operation', () => {
         linesTaken.set(`${change.verb}/${change.kind.name}`, at + 1)
         if (change.verb === 'remove') continue
         const before = change.verb === 'change' ? (change.before as Readonly<Record<string, unknown>>) : null
-        expect(group.lines[at]!.fields.map((field) => field.name)).toEqual(expect.arrayContaining(namesSet(before, change.after as Readonly<Record<string, unknown>>)))
+        expect(group.lines[at]!.fields.map((field) => field.name)).toEqual(expect.arrayContaining(namesSet(change.kind, before, change.after as Readonly<Record<string, unknown>>)))
       }
       const accepted = await desk.accept()
       expect(accepted.kind).toBe('done')
@@ -321,12 +323,16 @@ describe('rules', () => {
     expect(desk.store.state.workbook!.rules.map((candidate) => candidate.id)).toEqual(['ai-services-model-api'])
   })
 
-  it('switches a rule off and moves it last, and deletes one', async () => {
+  it('switches a rule off and moves it last, and deletes one on a card that shows the rule it deletes', async () => {
     const desk = await companyDesk(used)
     await desk.propose([{ op: 'change-rule', input: changeRuleInput(desk, 'merchant-model', { on: 'no', last: 'yes' }) }])
     expect((await desk.accept()).kind).toBe('done')
     expect(desk.store.state.workbook!.rules.find((candidate) => candidate.id === 'merchant-model')!.enabled).toBe(false)
     await desk.propose([{ op: 'delete-rule', input: { rule: desk.ref(RULE_RECORDS.name, 'merchant-model') } }])
+    expect(desk.cards.at(-1)).toMatchObject({
+      count: 1,
+      groups: [{ verb: 'remove', lines: [{ label: 'merchant-model', fields: [{ before: expect.stringContaining('switched off'), after: null }] }] }],
+    })
     await desk.accept()
     expect(desk.store.state.workbook!.rules).toEqual([])
   })

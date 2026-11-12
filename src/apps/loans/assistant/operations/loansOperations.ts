@@ -665,39 +665,32 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<LoansBooks>,
   return printed
 }
 
-/**
- * How the chat's steps become one write of the Loans file. A check plans and shows its card over books of its own, so the printed instalments
- * are kept by those books. Two checks at once each keep their own, and a later card never shows an earlier one's. The model hears when an instalment differs, as the card's warning never reaches it.
- */
-function loansWork(): ProposalWork<LoansBooks, never> {
-  const printedOf = new WeakMap<OpenBooks<LoansBooks>, ReadonlyMap<string, Money>>()
-  let instalmentsDiffering = 0
+/** How the chat's steps become one write of the Loans file. The model hears when an instalment differs, as the card's warning never reaches it. */
+function loansWork(appName: string): ProposalWork<LoansBooks, never, ReadonlyMap<string, Money>> {
   return {
-    notOpen: 'The Loans file is not open on this device.',
-    plan: (unit, books, steps) => {
-      printedOf.set(books, planned(unit, books, steps))
-    },
-    groups: (checked, books) => {
-      const card = loansCardOf(checked, books.workbook, printedOf.get(books) ?? new Map())
-      instalmentsDiffering = card.instalmentsDiffering
-      return card.groups
-    },
-    heldBack: () => {
-      if (instalmentsDiffering === 0) return null
-      const lines = instalmentsDiffering === 1 ? 'one line of the card' : `${instalmentsDiffering} lines of the card`
-      return `Kuna's instalment is not the printed one on ${lines}. Tell the person to check the amount, rate, term and days against the document before accepting.`
+    appName,
+    plan: planned,
+    card: (checked, { workbook }, printed) => {
+      const { groups, instalmentsDiffering } = loansCardOf(checked, workbook, printed)
+      return { groups, outside: [], heldBack: instalmentsHeldBack(instalmentsDiffering) }
     },
   }
+}
+
+function instalmentsHeldBack(differing: number): string | null {
+  if (differing === 0) return null
+  const lines = differing === 1 ? 'one line of the card' : `${differing} lines of the card`
+  return `Kuna's instalment is not the printed one on ${lines}. Tell the person to check the amount, rate, term and days against the document before accepting.`
 }
 
 type LoansStore = Pick<WorkbookStore<LoansBooks>, 'state' | 'check' | 'write' | 'undo'>
 
 /** The changes the chat can propose and their dry run, over the app's own store, which `app.ts` hands in. */
 export function loansProposer(store: LoansStore, file: BrowserFile): AppProposer {
-  return withBrowserFileCards({ operations: LOANS_OPERATIONS, readsBooks: true, check: proposedWrites(store, loansWork()).check }, file)
+  return withBrowserFileCards({ operations: LOANS_OPERATIONS, readsBooks: true, check: proposedWrites(store, loansWork(file.appName)).check }, file)
 }
 
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone. */
 export function loansAcceptance(store: LoansStore, file: BrowserFile): AppAcceptance {
-  return acceptingBrowserFileCards({ accept: proposedWrites(store, loansWork()).accept }, file)
+  return acceptingBrowserFileCards({ accept: proposedWrites(store, loansWork(file.appName)).accept }, file)
 }

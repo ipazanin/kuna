@@ -232,21 +232,25 @@ function planned(unit: UnitOfWork, { workbook, records }: OpenBooks<AssetsBooks>
 
 type AssetsStore = Pick<WorkbookStore<AssetsBooks>, 'state' | 'check' | 'write' | 'undo'>
 
-/** How the chat's steps become one write of the Assets file, with the bank loans Loans lists on the day. */
-function assetsWork(loans: () => LoansOnScreen): ProposalWork<AssetsBooks, never> {
+/** How the chat's steps become one write of the Assets file, with the bank loans Loans lists on the day, which the card reads as the plan read them. */
+function assetsWork(appName: string, loans: () => LoansOnScreen): ProposalWork<AssetsBooks, never, LoansOnScreen> {
   return {
-    notOpen: 'The Assets file is not open on this device.',
-    plan: (unit, books, steps) => planned(unit, books, steps, loans()),
-    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, loans()),
+    appName,
+    plan: (unit, books, steps) => {
+      const onScreen = loans()
+      planned(unit, books, steps, onScreen)
+      return onScreen
+    },
+    card: (checked, { workbook }, onScreen) => ({ groups: proposalGroupsOf(checked, workbook, onScreen), outside: [], heldBack: null }),
   }
 }
 
 /** The changes the chat can propose and their dry run, over the app's own store and the Loans it reads, which `app.ts` hands in. */
 export function assetsProposer(store: AssetsStore, loans: () => LoansOnScreen, file: BrowserFile): AppProposer {
-  return withBrowserFileCards({ operations: ASSETS_OPERATIONS, readsBooks: true, check: proposedWrites(store, assetsWork(loans)).check }, file)
+  return withBrowserFileCards({ operations: ASSETS_OPERATIONS, readsBooks: true, check: proposedWrites(store, assetsWork(file.appName, loans)).check }, file)
 }
 
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone. */
 export function assetsAcceptance(store: AssetsStore, loans: () => LoansOnScreen, file: BrowserFile): AppAcceptance {
-  return acceptingBrowserFileCards({ accept: proposedWrites(store, assetsWork(loans)).accept }, file)
+  return acceptingBrowserFileCards({ accept: proposedWrites(store, assetsWork(file.appName, loans)).accept }, file)
 }

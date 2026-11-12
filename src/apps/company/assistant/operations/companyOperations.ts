@@ -95,15 +95,15 @@ interface CardTold {
 }
 
 /** How the chat's steps become one write of the company's books. The card's notes come from its own plan, so each check gets its own. */
-function companyWork(sets: readonly CompanyOperationSet[], pack: PackOperations | null): ProposalWork<CompanyBooks, never> {
-  let told: CardTold = { notes: [], heldBack: [], movedRules: new Set() }
+function companyWork(appName: string, sets: readonly CompanyOperationSet[], pack: PackOperations | null): ProposalWork<CompanyBooks, never, CardTold> {
   return {
-    notOpen: 'The company books are not open on this device.',
-    plan: (unit, books, steps) => {
-      told = planned(unit, books, sets, steps)
-    },
-    groups: (checked, { workbook }) => proposalGroupsOf(checked, workbook, told.notes, pack, told.movedRules),
-    heldBack: () => (told.heldBack.length === 0 ? null : told.heldBack.join(' ')),
+    appName,
+    plan: (unit, books, steps) => planned(unit, books, sets, steps),
+    card: (checked, { workbook }, told) => ({
+      groups: proposalGroupsOf(checked, workbook, told.notes, pack, told.movedRules),
+      outside: [],
+      heldBack: told.heldBack.length === 0 ? null : told.heldBack.join(' '),
+    }),
   }
 }
 
@@ -122,7 +122,7 @@ export function companyProposer(store: CompanyStore, ports: CompanyOperationPort
       async check(title, steps) {
         if (steps.some((step) => step.operation === SET_UP_ANSWER.name)) return setUpAnswerCheck(title, steps, ports.setUpAnswers)
         if (steps.some((step) => step.operation === SWITCH_MAIL_DRAFTS.name)) return mailDraftsCheck(title, steps, ports.mailDrafts)
-        const checked = await proposedWrites(store, companyWork(sets, ports.pack)).check(title, steps)
+        const checked = await proposedWrites(store, companyWork(file.appName, sets, ports.pack)).check(title, steps)
         return 'refused' in checked || checked.undoable || steps.length === 1
           ? checked
           : { refused: ['A change with no Undo goes alone on a card, so propose it first and the rest once it is answered.'] }
@@ -134,6 +134,6 @@ export function companyProposer(store: CompanyStore, ports: CompanyOperationPort
 
 /** Writes a proposal as it was checked, in one write with one Undo. A record changed since refuses this proposal alone, and the file's other writes go on. */
 export function companyAcceptance(store: CompanyStore, ports: CompanyOperationPorts, file: BrowserFile): AppAcceptance {
-  const accept = proposedWrites(store, companyWork(operationSets(ports), ports.pack)).accept
+  const accept = proposedWrites(store, companyWork(file.appName, operationSets(ports), ports.pack)).accept
   return acceptingBrowserFileCards({ accept: async (proposal) => setUpAnswerAccept(proposal, ports.setUpAnswers) ?? mailDraftsAccept(proposal, ports.mailDrafts) ?? accept(proposal) }, file)
 }

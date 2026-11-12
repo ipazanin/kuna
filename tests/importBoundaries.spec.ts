@@ -357,6 +357,14 @@ describe('import boundaries', () => {
     expect(linesHolding(/\bas RecordId\b/, (file) => file === 'src/shared/storage/domain/recordId.ts')).toEqual([])
   })
 
+  it("words the chat's refusals for a file that is not open, to a proposal or a read, in the shared app contracts and the read gate alone, from the app's name", () => {
+    expect(
+      linesHolding(/(?:not|no file) open on this device|still opening its file/, (file) =>
+        ['src/shared/app/assistantOperations.ts', 'src/shared/app/words.ts', 'src/shared/ai/application/chatReads.ts'].includes(file),
+      ),
+    ).toEqual([])
+  })
+
   it("keeps every app's settings rows in the shared settings module", () => {
     expect(linesHolding(/\b(interface|type) SettingRow\b/, (file) => file === 'src/shared/storage/domain/settingRows.ts')).toEqual([])
   })

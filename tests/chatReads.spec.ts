@@ -7,6 +7,7 @@ import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKin
 import { findRecords, getRecord, readFigures } from '../src/shared/ai/application/chatReads'
 import type { ChatReads, FindRecordsInput } from '../src/shared/ai/application/chatReads'
 import { MOST_CHARACTERS_A_READ } from '../src/shared/ai/domain/chatAttachments'
+import { fileNotOpen } from '../src/shared/app/assistantOperations'
 import { chatRefs } from '../src/shared/ai/domain/chatRefs'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
@@ -163,9 +164,10 @@ describe('what a read gives the chat', () => {
     expect((await getRecord('loans', records[1]!['ref']!, reads)).isError).toBe(true)
   })
 
-  it('says when the file is not open, instead of reading nothing as if it were empty', async () => {
-    const reads = readsOf({ readers: new Map([['spending', { name: 'Spending', reader: spendingReader({ ...CHAT_READING, status: () => 'opening' }) }]]) })
-    expect((await findRecords(ALL, reads)).text).toContain('still opening')
+  it('says when the file is not open, naming the app, instead of reading nothing as if it were empty', async () => {
+    const readsWhile = (status: 'opening' | 'none') => readsOf({ readers: new Map([['spending', { name: 'Spending', reader: spendingReader({ ...CHAT_READING, status: () => status }) }]]) })
+    expect((await findRecords(ALL, readsWhile('opening'))).text).toBe('Spending is still opening its file. Ask the person to try again in a moment.')
+    expect((await findRecords(ALL, readsWhile('none'))).text).toBe(fileNotOpen('Spending').join(' '))
   })
 })
 

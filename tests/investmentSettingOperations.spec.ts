@@ -40,7 +40,7 @@ describe('the 2023 city', () => {
     expect(cityOf(desk)).toBe('')
   })
 
-  it('changes one city for another, showing the place before and after, and clears it as a removal of the card', async () => {
+  it('changes one city for another, showing the place before and after, and clears it as a removal that names the city it clears', async () => {
     const desk = await investmentsDesk(used)
     await desk.propose([setCity('429')])
     await desk.accept()
@@ -53,7 +53,9 @@ describe('the 2023 city', () => {
     expect(cityOf(desk)).toBe('none')
 
     await desk.propose([setCity('')])
-    expect(desk.cards[2]!.groups).toMatchObject([{ verb: 'remove', lines: [{ label: taxWords.surtaxCity.title, fields: [] }] }])
+    expect(desk.cards[2]!.groups).toMatchObject([
+      { verb: 'remove', lines: [{ label: taxWords.surtaxCity.title, fields: [{ name: taxWords.surtaxCity.field, before: taxWords.surtaxCity.unlisted, after: null, warns: false }] }] },
+    ])
     await desk.accept()
     expect(cityOf(desk)).toBe('')
   })

@@ -8,7 +8,7 @@ import type { AccountMoney } from '../../money/accountMoney'
 import { moneyFromAmount, plainAmount } from '../../money/money'
 import type { Money } from '../../money/money'
 import type { ChatAttachment } from '../domain/chatAttachments'
-import { NOT_ALLOWED, NO_APP, fileNotOpen, recordsKeptHome, refusal } from './chatReads'
+import { NOT_ALLOWED, NO_APP, fileNotReadable, recordsKeptHome, refusal } from './chatReads'
 import type { ChatReads, ChatToolAnswer } from './chatReads'
 
 /** The most rows one call matches, as many as a page of records holds. */
@@ -62,7 +62,7 @@ export function matchRecords(input: MatchRecordsInput, reads: ChatReads): ChatTo
 
   if (!reads.mayRead()) return refusal(NOT_ALLOWED)
   const status = app.reader.status()
-  if (status !== 'open') return fileNotOpen(status)
+  if (status !== 'open') return fileNotReadable(app.name, status)
 
   const accountId = account?.id ?? bookings.onlyAccount()
   if (accountId === null) return refusal(`This app holds more than one account. Pass the account's ref, which find_records gives for kind ${bookings.accountKind}.`)
@@ -126,7 +126,7 @@ export async function matchReceipts(input: MatchRecordsInput, reads: ChatReads, 
 
   if (!reads.mayRead()) return refusal(NOT_ALLOWED)
   const status = app.reader.status()
-  if (status !== 'open') return fileNotOpen(status)
+  if (status !== 'open') return fileNotReadable(app.name, status)
 
   const keptHome = recordsKeptHome(kind, reads)
   const found = await Promise.all(

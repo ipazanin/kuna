@@ -23,32 +23,46 @@ async function spendingStore(): Promise<WorkbookStore<SpendingBooks>> {
   return store as unknown as WorkbookStore<SpendingBooks>
 }
 
+/** What a test changes of the renaming work: what it keeps outside the books, and the lines it says stay there, by default one when it keeps something. */
+interface Effects {
+  readonly beforeWrite?: ProposalWork<SpendingBooks, string, readonly string[]>['beforeWrite']
+  readonly outside?: readonly string[]
+}
+
 /**
  * Renames categories, each step one, with what `beforeWrite` kept added to the name once it has run. A kept `other:` names another category to rename instead.
- * A work that keeps something says so outside the books unless `effects` says otherwise.
+ * Its plan gives the new names, which the card holds back as its sentence for the model.
  */
-function renaming(events: string[] = [], effects: Pick<ProposalWork<SpendingBooks, string>, 'beforeWrite' | 'outside'> = {}): ProposalWork<SpendingBooks, string> {
+function renaming(
+  events: string[] = [],
+  { beforeWrite, outside = beforeWrite === undefined ? [] : ['A file stays on Drive after Undo.'] }: Effects = {},
+): ProposalWork<SpendingBooks, string, readonly string[]> {
   return {
-    ...(effects.beforeWrite === undefined ? {} : { outside: () => ['A file stays on Drive after Undo.'] }),
-    notOpen: 'Not open.',
+    appName: 'Spending',
     plan(unit, books, steps, kept) {
       events.push(`plan ${kept ?? 'unrun'}`)
-      for (const { input } of steps) {
+      return steps.map(({ input }) => {
         const id = kept?.startsWith('other:') === true ? kept.slice('other:'.length) : input['category']
         const category = books.workbook.categories.find((candidate) => candidate.id === id)
         if (category === undefined) throw new StepRefused('No such category.')
-        unit.of(CATEGORY_WRITES).change(category, { ...category, name: kept === undefined ? String(input['name']) : `${String(input['name'])} ${kept}` })
-      }
+        const name = kept === undefined ? String(input['name']) : `${String(input['name'])} ${kept}`
+        unit.of(CATEGORY_WRITES).change(category, { ...category, name })
+        return name
+      })
     },
-    groups: (checked) => [{ verb: 'change', noun: CATEGORY_WRITES.kind.noun, notes: [], lines: checked.changes.map(() => ({ label: 'A category', fields: [], warning: null })) }],
-    ...effects,
+    card: (checked, _books, names) => ({
+      groups: [{ verb: 'change', noun: CATEGORY_WRITES.kind.noun, notes: [], lines: checked.changes.map(() => ({ label: 'A category', fields: [], warning: null })) }],
+      outside,
+      heldBack: names.join(', '),
+    }),
+    ...(beforeWrite === undefined ? {} : { beforeWrite }),
   }
 }
 
 const rename = (category: string, name: string): ProposalStep => ({ operation: 'rename', input: { category, name }, as: null })
 const named = (store: WorkbookStore<SpendingBooks>, name: string) => store.state.workbook!.categories.find((category) => category.name === name)
 
-async function checked(store: WorkbookStore<SpendingBooks>, work: ProposalWork<SpendingBooks, string>, steps: readonly ProposalStep[]): Promise<CheckedProposal> {
+async function checked(store: WorkbookStore<SpendingBooks>, work: ProposalWork<SpendingBooks, string, readonly string[]>, steps: readonly ProposalStep[]): Promise<CheckedProposal> {
   const proposal = await proposedWrites(store, work).check('A title', steps)
   if ('refused' in proposal) throw new Error(proposal.refused.join(' '))
   return proposal
@@ -65,6 +79,17 @@ describe('a proposed write', () => {
     expect(proposal).toMatchObject({ title: 'A title', count: 1, outside: [] })
     expect(named(store, 'Groceries')).toBeDefined()
     expect(store.state.writes).toHaveLength(writes)
+  })
+
+  it('builds each card from the plan of its own check, when two checks run at once', async () => {
+    const store = await spendingStore()
+    const groceries = named(store, 'Groceries')!
+    const work = proposedWrites(store, renaming())
+
+    const [first, second] = await Promise.all([work.check('A title', [rename(groceries.id, 'Food shop')]), work.check('A title', [rename(groceries.id, 'Market')])])
+
+    expect(first).toMatchObject({ heldBack: 'Food shop' })
+    expect(second).toMatchObject({ heldBack: 'Market' })
   })
 
   it('refuses a step the plan refuses, with its sentence', async () => {
@@ -100,11 +125,12 @@ describe('a proposed write', () => {
   it('says a card has no Undo when it writes a kind that keeps none, and Accept gives none', async () => {
     const store = await spendingStore()
     const groceries = named(store, 'Groceries')!
-    const work: ProposalWork<SpendingBooks, string> = {
+    const work: ProposalWork<SpendingBooks, string, readonly string[]> = {
       ...renaming(),
       plan(unit, books, steps) {
         const category = books.workbook.categories.find((candidate) => candidate.id === steps[0]!.input['category'])!
         unit.of({ ...CATEGORY_WRITES, undoable: false }).change(category, { ...category, name: 'Food shop' })
+        return ['Food shop']
       },
     }
     const proposal = await checked(store, work, [rename(groceries.id, 'Food shop')])
@@ -156,7 +182,7 @@ describe('a proposed write', () => {
         events.push('before write')
         return 'kept'
       },
-      outside: () => [],
+      outside: [],
     })
     const proposal = await checked(store, work, [rename(groceries.id, 'Food shop')])
 
@@ -219,7 +245,7 @@ describe('a proposed write', () => {
         drive.push('photo.jpg')
         return 'kept'
       },
-      outside: () => ['The photo stays on Drive after Undo.'],
+      outside: ['The photo stays on Drive after Undo.'],
     })
     const proposal = await checked(store, work, [rename(groceries.id, 'Food shop')])
     expect(proposal.outside).toEqual(['The photo stays on Drive after Undo.'])
@@ -235,6 +261,6 @@ describe('a proposed write', () => {
   it('refuses while the file is not open, and says how an app with no file gets one', async () => {
     const store = await spendingStore()
     const closed = { ...store, state: { ...store.state, workbook: null } }
-    expect(await proposedWrites(closed, renaming()).check('A title', [])).toEqual({ refused: ['Not open.', NO_FILE_YET] })
+    expect(await proposedWrites(closed, renaming()).check('A title', [])).toEqual({ refused: ['The Spending file is not open on this device.', NO_FILE_YET] })
   })
 })
