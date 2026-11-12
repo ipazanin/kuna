@@ -11,6 +11,8 @@ import { amountText } from '../src/shared/storage/domain/recordFields'
 import { DESK_ACCOUNTS, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { stepOf } from './fixtures/operationSteps'
+import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -145,20 +147,14 @@ describe('a statement read off a page', () => {
   it('files its new rows by a rule on the same card', async () => {
     const desk = await spendingDesk(used)
     const restaurants = desk.store.state.workbook!.categories.find((category) => category.name === 'Restaurants')!
-    await desk.propose([
-      transcribed(desk, 'statement-ties.pdf'),
-      { op: 'add-rule', input: { row: null, fragment: 'Harbour', iban: null, category: desk.ref('category', restaurants.id), withdrawal: null, cash_account: null } },
-    ])
+    await desk.propose([transcribed(desk, 'statement-ties.pdf'), stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Harbour', category: desk.ref('category', restaurants.id) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowsOn(desk, DESK_ACCOUNTS.CURRENT.id).find((row) => row.payee === 'Harbour bistro')).toMatchObject({ category: restaurants.id, categorisedBy: 'rule' })
   })
 
   it('refuses a new category on the import’s card, which goes on a card before it', async () => {
     const desk = await spendingDesk(used)
-    const answer = await desk.propose([
-      { op: 'add-category', input: { name: 'Pets', kind: 'spending', parent: null, colour: null, hidden: null }, as: '$pets' },
-      transcribed(desk, 'statement-ties.pdf'),
-    ])
+    const answer = await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-category', { name: 'Pets', kind: 'spending' }, '$pets'), transcribed(desk, 'statement-ties.pdf')])
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain('Propose add-category on a card of its own first, and the import on the next card')
     expect(desk.cards).toEqual([])
@@ -179,18 +175,13 @@ describe('a statement read off a page', () => {
     const desk = await spendingDesk(used)
     const savings = desk.ref('account', DESK_ACCOUNTS.SAVINGS.id)
     const topUp = { date: '2026-10-30', amount: 80, payee: 'Top-up', iban: DESK_ACCOUNTS.CURRENT.iban }
-    await desk.propose([
-      {
-        op: 'import-statement',
-        input: { file: null, account: savings, statementName: 'Statement 3', opening: 300, closing: 380, rows: [topUp], lookAlikes: 'ask', part: 1, fromDay: null, toDay: null },
-      },
-    ])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'import-statement', { account: savings, statementName: 'Statement 3', opening: 300, closing: 380, rows: [topUp], lookAlikes: 'ask', part: 1 })])
     await desk.accept()
     const waiting = rowsOn(desk, DESK_ACCOUNTS.SAVINGS.id).find((row) => row.payee === 'Top-up')!
     expect(waiting).toMatchObject({ category: null, pair: null })
 
     const rent = desk.store.state.workbook!.categories.find((category) => category.name === 'Rent')!
-    const rule = { op: 'add-rule', input: { row: null, fragment: 'Top-up', iban: null, category: desk.ref('category', rent.id), withdrawal: null, cash_account: null } }
+    const rule = stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Top-up', category: desk.ref('category', rent.id) })
     const changesOn = (row: Transaction) => {
       const { changes } = desk.cards.at(-1)!.held as { readonly changes: readonly RuledChange[] }
       return changes.filter(({ change }) => change.verb === 'change' && (change.before as Transaction).id === row.id).map(({ change }) => change)
@@ -200,21 +191,15 @@ describe('a statement read off a page', () => {
 
     const answer = await desk.propose([
       rule,
-      {
-        op: 'import-statement',
-        input: {
-          file: null,
-          account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id),
-          statementName: 'Statement 10',
-          opening: 500,
-          closing: 420,
-          rows: [{ ...topUp, amount: -80, iban: null }],
-          lookAlikes: 'ask',
-          part: 1,
-          fromDay: null,
-          toDay: null,
-        },
-      },
+      stepOf(SPENDING_OPERATIONS, 'import-statement', {
+        account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id),
+        statementName: 'Statement 10',
+        opening: 500,
+        closing: 420,
+        rows: [{ ...topUp, amount: -80, iban: null }],
+        lookAlikes: 'ask',
+        part: 1,
+      }),
     ])
     expect(answer.isError).toBe(false)
     expect(changesOn(waiting)).toHaveLength(1)
@@ -234,21 +219,14 @@ describe('a statement read off a page', () => {
 })
 
 describe('copied rows that look like rows from another source', () => {
-  const copiedRows = (desk: SpendingDesk, rows: readonly { readonly date: string; readonly amount: number; readonly payee: string }[], lookAlikes = 'ask') => ({
-    op: 'import-statement',
-    input: {
-      file: null,
+  const copiedRows = (desk: SpendingDesk, rows: readonly { readonly date: string; readonly amount: number; readonly payee: string }[], lookAlikes = 'ask') =>
+    stepOf(SPENDING_OPERATIONS, 'import-statement', {
       account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id),
       statementName: 'Statement 11',
-      opening: null,
-      closing: null,
-      rows: rows.map((row) => ({ ...row, iban: null })),
+      rows,
       part: 1,
       lookAlikes,
-      fromDay: null,
-      toDay: null,
-    },
-  })
+    })
   const BAKERY_LATER = { date: '2026-10-16', amount: -20, payee: 'Bakery d.o.o.' }
   const KIOSK = { date: '2026-11-02', amount: -9, payee: 'Kiosk' }
 
@@ -391,7 +369,7 @@ describe('a statement in parts', () => {
 })
 
 describe('an attached statement file', () => {
-  const ATTACHED = { op: 'import-statement', input: { file: 'a1', account: null, statementName: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', part: 1, fromDay: null, toDay: null } }
+  const ATTACHED = stepOf(SPENDING_OPERATIONS, 'import-statement', { file: 'a1', rows: [], lookAlikes: 'ask', part: 1 })
 
   it('sends the AI to read and copy any attached file it gave no rows of, a Revolut export included, and refuses a file not attached', async () => {
     const desk = await spendingDesk(used)

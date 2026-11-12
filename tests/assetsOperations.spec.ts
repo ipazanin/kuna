@@ -8,6 +8,7 @@ import { CAR_LOAN_KEY, EXAMPLE_RECORDS, HOME_LOAN_KEY, assetsDesk } from './fixt
 import type { AssetsDesk } from './fixtures/assetsDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
+import { stepOf } from './fixtures/operationSteps'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -118,7 +119,7 @@ describe('an asset the screens would refuse', () => {
 
   it('trims the note of a changed valuation', async () => {
     const desk = await assetsDesk(used)
-    await desk.propose([{ op: 'change-valuation', input: { valuation: desk.ref('valuation', EXAMPLE_RECORDS['valuation']!), date: null, value: null, note: '  checked  ' } }])
+    await desk.propose([stepOf(ASSETS_OPERATIONS, 'change-valuation', { valuation: desk.ref('valuation', EXAMPLE_RECORDS['valuation']!), note: '  checked  ' })])
     await desk.accept()
     expect(bookOf(desk).assets.find(({ asset }) => asset.id === EXAMPLE_RECORDS['asset-boat'])!.valuations[0]!.note).toBe('checked')
   })
@@ -177,15 +178,15 @@ describe('a valuation the screens would refuse', () => {
   it('refuses a day before the asset was bought, a day another valuation has, and a value below zero', async () => {
     const desk = await assetsDesk(used)
     const asset = desk.ref('asset', EXAMPLE_RECORDS['asset-boat']!)
-    expect((await desk.propose([{ op: 'add-valuation', input: { asset, date: '2022-05-31', value: 100, note: '' } }])).text).toContain('Not before the day it was bought')
-    expect((await desk.propose([{ op: 'add-valuation', input: { asset, date: '2026-05-01', value: 100, note: '' } }])).text).toContain('Another valuation is on this day')
-    expect((await desk.propose([{ op: 'add-valuation', input: { asset, date: '2026-06-01', value: -1, note: '' } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'add-valuation', input: { asset, date: '2026-06-01', value: 0, note: '' } }])).isError).toBe(false)
+    expect((await desk.propose([stepOf(ASSETS_OPERATIONS, 'add-valuation', { asset, date: '2022-05-31', value: 100, note: '' })])).text).toContain('Not before the day it was bought')
+    expect((await desk.propose([stepOf(ASSETS_OPERATIONS, 'add-valuation', { asset, date: '2026-05-01', value: 100, note: '' })])).text).toContain('Another valuation is on this day')
+    expect((await desk.propose([stepOf(ASSETS_OPERATIONS, 'add-valuation', { asset, date: '2026-06-01', value: -1, note: '' })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(ASSETS_OPERATIONS, 'add-valuation', { asset, date: '2026-06-01', value: 0, note: '' })])).isError).toBe(false)
   })
 
   it('lets a valuation keep its own day when it changes only the value', async () => {
     const desk = await assetsDesk(used)
-    await desk.propose([{ op: 'change-valuation', input: { valuation: desk.ref('valuation', EXAMPLE_RECORDS['valuation']!), date: null, value: 16_000, note: null } }])
+    await desk.propose([stepOf(ASSETS_OPERATIONS, 'change-valuation', { valuation: desk.ref('valuation', EXAMPLE_RECORDS['valuation']!), value: 16_000 })])
     await desk.accept()
     expect(bookOf(desk).assets.find(({ asset }) => asset.id === EXAMPLE_RECORDS['asset-boat'])!.valuations).toMatchObject([{ date: '2026-05-01', value: 1_600_000 }])
   })
@@ -195,7 +196,7 @@ describe('one write, one Undo', () => {
   it('deletes an asset with its valuations and puts all back', async () => {
     const desk = await assetsDesk(used)
     const before = recordsOf(desk)
-    await desk.propose([{ op: 'delete-asset', input: { asset: desk.ref('asset', EXAMPLE_RECORDS['asset-boat']!) } }])
+    await desk.propose([stepOf(ASSETS_OPERATIONS, 'delete-asset', { asset: desk.ref('asset', EXAMPLE_RECORDS['asset-boat']!) })])
     const result = await desk.accept()
     expect(bookOf(desk).assets.map(({ asset }) => asset.name)).toEqual(['Flat in Zagreb'])
     expect(bookOf(desk).readings.valuations.facts).toEqual([])
@@ -207,15 +208,15 @@ describe('one write, one Undo', () => {
     const desk = await assetsDesk(used)
     const answer = await desk.propose([
       { op: 'add-asset', input: { ...operation('add-asset').example, loan: null }, as: '$car' },
-      { op: 'add-valuation', input: { asset: '$car', date: '2024-06-01', value: 19_000, note: '' } },
-      { op: 'add-valuation', input: { asset: '$car', date: '2024-06-01', value: 18_000, note: '' } },
+      stepOf(ASSETS_OPERATIONS, 'add-valuation', { asset: '$car', date: '2024-06-01', value: 19_000, note: '' }),
+      stepOf(ASSETS_OPERATIONS, 'add-valuation', { asset: '$car', date: '2024-06-01', value: 18_000, note: '' }),
     ])
     expect(answer.text).toContain('Another valuation is on this day')
     expect(
       (
         await desk.propose([
           { op: 'add-asset', input: { ...operation('add-asset').example, loan: null }, as: '$car' },
-          { op: 'add-valuation', input: { asset: '$car', date: '2024-06-01', value: 19_000, note: '' } },
+          stepOf(ASSETS_OPERATIONS, 'add-valuation', { asset: '$car', date: '2024-06-01', value: 19_000, note: '' }),
         ])
       ).isError,
     ).toBe(false)

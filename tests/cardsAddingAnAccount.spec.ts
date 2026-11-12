@@ -12,6 +12,11 @@ import { investmentsDesk } from './fixtures/investmentsDesk'
 import { loansDesk } from './fixtures/loansDesk'
 import { spendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { stepOf } from './fixtures/operationSteps'
+import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
+import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
+import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
+import { ASSETS_OPERATIONS } from '../src/apps/assets/assistant/operations/assetsOperations'
 
 /** An IBAN no account of the Company desk holds. */
 const NEW_IBAN = 'HR1210010051863000160'
@@ -32,9 +37,9 @@ describe('a card that adds an account and what goes on it', () => {
   it('shows each Spending entry in the new account’s currency', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
-      { op: 'add-account', input: { name: 'Dollars', kind: 'bank', bank: null, currency: 'USD', opening: 0, openedOn: '2026-11-01', iban: null, rowsFrom: 'by-hand' }, as: '$dollars' },
-      { op: 'add-entry', input: { account: '$dollars', date: '2026-11-02', amount: -12.5, payee: 'A shop', category: null, note: '' } },
-      { op: 'add-entry', input: { account: '$dollars', date: '2026-11-03', amount: 40, payee: 'A refund', category: null, note: '' } },
+      stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'Dollars', kind: 'bank', currency: 'USD', opening: 0, openedOn: '2026-11-01', rowsFrom: 'by-hand' }, '$dollars'),
+      stepOf(SPENDING_OPERATIONS, 'add-entry', { account: '$dollars', date: '2026-11-02', amount: -12.5, payee: 'A shop', note: '' }),
+      stepOf(SPENDING_OPERATIONS, 'add-entry', { account: '$dollars', date: '2026-11-03', amount: 40, payee: 'A refund', note: '' }),
     ])
     expect(answer.isError, answer.text).toBe(false)
     expect(shownOn(desk.cards, 'entry', 'Amount')).toEqual(['−$12.50', '$40.00'])
@@ -44,10 +49,10 @@ describe('a card that adds an account and what goes on it', () => {
     const desk = await investmentsDesk(used)
     const instrument = INSTRUMENT_STEPS.operations.find((operation) => operation.name === 'add-instrument')!.example
     const answer = await desk.propose([
-      { op: 'add-account', input: { name: 'New broker', note: '' }, as: '$broker' },
+      stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'New broker', note: '' }, '$broker'),
       { op: 'add-instrument', input: { ...instrument, name: 'Dollar ETF', symbol: 'DLR', currency: 'USD' }, as: '$etf' },
-      { op: 'add-holding', input: { account: '$broker', instrument: '$etf', date: '2026-10-01', quantity: '10', price: '9.5', fees: '1', rate: '1.08', note: '' } },
-      { op: 'add-price', input: { instrument: '$etf', date: '2026-10-20', price: '10.25', note: '' } },
+      stepOf(INVESTMENTS_OPERATIONS, 'add-holding', { account: '$broker', instrument: '$etf', date: '2026-10-01', quantity: '10', price: '9.5', fees: '1', rate: '1.08', note: '' }),
+      stepOf(INVESTMENTS_OPERATIONS, 'add-price', { instrument: '$etf', date: '2026-10-20', price: '10.25', note: '' }),
     ])
     expect(answer.isError, answer.text).toBe(false)
     expect(shownOn(desk.cards, 'trade', 'Price')).toEqual(['$9.50'])
@@ -59,12 +64,8 @@ describe('a card that adds an account and what goes on it', () => {
   it('shows each Loans movement of a new informal loan', async () => {
     const desk = await loansDesk(used)
     const answer = await desk.propose([
-      {
-        op: 'add-informal-loan',
-        input: { name: 'From Marko', counterparty: 'Marko', direction: 'you-owe', openingBalance: 500, start: '2026-10-01', note: '', expectedMonthly: null, expectedFrom: null, expectedDay: null },
-        as: '$marko',
-      },
-      { op: 'add-movement', input: { loan: '$marko', date: '2026-10-15', kind: 'repaid', amount: 200, note: '' } },
+      stepOf(LOANS_OPERATIONS, 'add-informal-loan', { name: 'From Marko', counterparty: 'Marko', direction: 'you-owe', openingBalance: 500, start: '2026-10-01', note: '' }, '$marko'),
+      stepOf(LOANS_OPERATIONS, 'add-movement', { loan: '$marko', date: '2026-10-15', kind: 'repaid', amount: 200, note: '' }),
     ])
     expect(answer.isError, answer.text).toBe(false)
     expect(shownOn(desk.cards, 'movement', 'Amount')).toEqual(['€200.00'])
@@ -73,8 +74,8 @@ describe('a card that adds an account and what goes on it', () => {
   it('shows each Assets valuation of a new asset', async () => {
     const desk = await assetsDesk(used)
     const answer = await desk.propose([
-      { op: 'add-asset', input: { name: 'Boat', kind: 'other', bought: '2025-05-10', price: 9000, region: null, firstRegistration: null, loan: null, note: '' }, as: '$boat' },
-      { op: 'add-valuation', input: { asset: '$boat', date: '2026-06-01', value: 8000, note: '' } },
+      stepOf(ASSETS_OPERATIONS, 'add-asset', { name: 'Boat', kind: 'other', bought: '2025-05-10', price: 9000, note: '' }, '$boat'),
+      stepOf(ASSETS_OPERATIONS, 'add-valuation', { asset: '$boat', date: '2026-06-01', value: 8000, note: '' }),
     ])
     expect(answer.isError, answer.text).toBe(false)
     expect(shownOn(desk.cards, 'valuation', 'Value')).toEqual(['€8,000.00'])

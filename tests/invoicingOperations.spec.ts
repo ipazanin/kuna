@@ -19,6 +19,7 @@ import { companyChat, deskPorts } from './fixtures/companyDesk'
 import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
+import { stepOf } from './fixtures/operationSteps'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -118,7 +119,7 @@ describe('the invoices register', () => {
     const taken = bookOf(company).invoices[0]!
 
     const answer = await company.propose([
-      { op: 'add-invoice', input: { number: taken.number, client: company.ref('client', 'quiet'), item: 'Again', amount: 10, issued: '2026-10-31', due: null, periodFrom: null, periodTo: null } },
+      stepOf(INVOICING_OPERATIONS.operations, 'add-invoice', { number: taken.number, client: company.ref('client', 'quiet'), item: 'Again', amount: 10, issued: '2026-10-31' }),
     ])
 
     expect(answer.isError).toBe(true)
@@ -128,12 +129,13 @@ describe('the invoices register', () => {
     const company = await desk()
 
     const answer = await company.propose([
-      {
-        op: 'add-client',
-        input: { client: 'acme', name: 'Acme Ltd', ibans: 'HR1210010051863000160', address: '', country: '', taxId: '', invoiceMail: 'billing@acme.example', mailLanguage: '', reverseCharge: 'no' },
-        as: '$acme',
-      },
-      { op: 'add-invoice', input: { number: 'A-1', client: '$acme', item: 'Setup', amount: 500, issued: '2026-11-02', due: null, periodFrom: null, periodTo: null } },
+      stepOf(
+        INVOICING_OPERATIONS.operations,
+        'add-client',
+        { client: 'acme', name: 'Acme Ltd', ibans: 'HR1210010051863000160', address: '', country: '', taxId: '', invoiceMail: 'billing@acme.example', mailLanguage: '', reverseCharge: 'no' },
+        '$acme',
+      ),
+      stepOf(INVOICING_OPERATIONS.operations, 'add-invoice', { number: 'A-1', client: '$acme', item: 'Setup', amount: 500, issued: '2026-11-02' }),
     ])
 
     expect(answer.isError, answer.text).toBe(false)
@@ -146,7 +148,7 @@ describe('the invoices register', () => {
   it('refuses to delete a client invoices name', async () => {
     const company = await desk()
 
-    const answer = await company.propose([{ op: 'delete-client', input: { client: company.ref('client', 'lumen') } }])
+    const answer = await company.propose([stepOf(INVOICING_OPERATIONS.operations, 'delete-client', { client: company.ref('client', 'lumen') })])
 
     expect(answer.isError).toBe(true)
   })
@@ -157,7 +159,7 @@ describe('the billing plan', () => {
     const company = await desk()
     const rows = bookOf(company).billingPlan.length
 
-    await company.propose([{ op: 'fill-billing-year', input: { year: 2027 } }])
+    await company.propose([stepOf(INVOICING_OPERATIONS.operations, 'fill-billing-year', { year: 2027 })])
     const done = await company.accept()
 
     expect(done.kind).toBe('done')
@@ -226,10 +228,7 @@ describe('the invoicing terms and the money format, through set-setting', () => 
     const company = await desk()
     const rows = bookOf(company).billingPlan.length
 
-    await company.propose([
-      { op: 'set-setting', input: { key: 'billing_client', value: 'quiet' } },
-      { op: 'fill-billing-year', input: { year: 2027 } },
-    ])
+    await company.propose([{ op: 'set-setting', input: { key: 'billing_client', value: 'quiet' } }, stepOf(INVOICING_OPERATIONS.operations, 'fill-billing-year', { year: 2027 })])
     expect((await company.accept()).kind).toBe('done')
 
     const added = bookOf(company).billingPlan.slice(rows)

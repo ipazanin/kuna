@@ -1,29 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { ASSETS_OPERATIONS } from '../src/apps/assets/assistant/operations/assetsOperations'
-import { companyOperations } from '../src/apps/company/assistant/operations/companyOperations'
-import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
-import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
-import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
-import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { schemaProblems } from '../src/shared/ai/domain/strictSchema'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
-import type { AssistantOperation } from '../src/shared/app/assistantOperations'
-import { kunaOperations } from '../src/shell/assistant/kunaOperations'
-import type { KunaDevice } from '../src/shell/assistant/kunaOperations'
-import { deskPorts } from './fixtures/companyDesk'
-
-const DEVICE = { apps: () => [{ id: 'company', name: 'Company' }], chatWidths: { least: 384, most: 704, reset: 384 } } as unknown as KunaDevice
-
-/** Every app's operations, Company's with the pack's, by the app's id. */
-const APPS: readonly (readonly [string, readonly AssistantOperation[]])[] = [
-  ['spending', SPENDING_OPERATIONS],
-  ['company', companyOperations(deskPorts({ pack: hrDooOperations(() => false) }))],
-  ['loans', LOANS_OPERATIONS],
-  ['investments', INVESTMENTS_OPERATIONS],
-  ['assets', ASSETS_OPERATIONS],
-  ['kuna', kunaOperations(DEVICE)],
-]
+import { APP_OPERATIONS } from './fixtures/appOperations'
 
 const NOT_A_CHOICE = 'not-a-choice'
 
@@ -59,13 +38,13 @@ function withValue(example: unknown, path: readonly (string | number)[], value: 
   return { ...(example as Readonly<Record<string, unknown>>), [step]: withValue((example as Readonly<Record<string, unknown>>)[step], rest, value) }
 }
 
-const CASES = APPS.flatMap(([app, operations]) =>
+const CASES = [...APP_OPERATIONS].flatMap(([app, operations]) =>
   operations.flatMap((operation) => closedFields(operation.input, operation.example).map((field) => [`${app}/${operation.name}.${field.path.join('.')}`, operation, field] as const)),
 )
 
 describe('every closed set an operation takes', () => {
   it('is found in every app', () => {
-    expect(new Set(CASES.map(([name]) => name.split('/')[0]))).toEqual(new Set(APPS.map(([app]) => app)))
+    expect(new Set(CASES.map(([name]) => name.split('/')[0]))).toEqual(new Set([...APP_OPERATIONS].map(([app]) => app)))
   })
 
   it.each(CASES)('refuses a value outside it and names every value it allows: %s', (_name, operation, field) => {

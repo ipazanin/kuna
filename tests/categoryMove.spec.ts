@@ -20,9 +20,13 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import type { ReadRecord, RecordsRead, RefusedRecord } from '../src/shared/storage/domain/recordsRead'
-import { companyDesk } from './fixtures/companyDesk'
+import { companyDesk, deskPorts } from './fixtures/companyDesk'
 import { ledger } from './fixtures/ledger'
 import { forgetCaches } from './fixtures/writeBack'
+import { stepOf } from './fixtures/operationSteps'
+import { companyOperations } from '../src/apps/company/assistant/operations/companyOperations'
+
+const COMPANY_OPERATIONS = companyOperations(deskPorts())
 
 const OFFICE_SHARE = ownerShareOf(40)
 
@@ -153,7 +157,7 @@ describe('the chat deleting a category the pack’s records name into another', 
     const desk = await companyDesk(used, {}, PACK_TABS)
     const before = hrDooWorkbook(desk.store.state.workbook!)
 
-    const proposed = await desk.propose([{ op: 'delete-category', input: { category: desk.ref(CATEGORY_RECORDS.name, 'travel'), into: desk.ref(CATEGORY_RECORDS.name, 'spare') } }])
+    const proposed = await desk.propose([stepOf(COMPANY_OPERATIONS, 'delete-category', { category: desk.ref(CATEGORY_RECORDS.name, 'travel'), into: desk.ref(CATEGORY_RECORDS.name, 'spare') })])
     expect(proposed.isError).toBe(false)
     expect(JSON.stringify(desk.cards.at(-1))).toContain(packWords.categoryNaming.planRowsJoined(1).one)
 
@@ -180,7 +184,7 @@ describe('the chat deleting a category the pack’s records name into another', 
   it('refuses while a plan row the plan tab cannot read names the category, and says where to fix it', async () => {
     const desk = await companyDesk(used, {}, { ...PACK_TABS, plan: [...PACK_TABS.plan, [2027, 4, 'travel', '', 'amount to come', '', '', 'plan-4']] })
 
-    const refused = await desk.propose([{ op: 'delete-category', input: { category: desk.ref(CATEGORY_RECORDS.name, 'travel'), into: desk.ref(CATEGORY_RECORDS.name, 'spare') } }])
+    const refused = await desk.propose([stepOf(COMPANY_OPERATIONS, 'delete-category', { category: desk.ref(CATEGORY_RECORDS.name, 'travel'), into: desk.ref(CATEGORY_RECORDS.name, 'spare') })])
 
     expect(refused.isError).toBe(true)
     expect(refused.text).toContain(packWords.links.yearPlan)

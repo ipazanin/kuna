@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeSpendingChat'
+import { MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeReceiptsChat'
 import { entryCategoryChoices } from '../src/apps/spending/entries/presentation/categoryChoices'
 import { receiptCategories, receiptDraft, withR1Answer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { AnsweredLine, DraftContext, ReceiptAnswer } from '../src/apps/spending/receipts/domain/receiptDraft'

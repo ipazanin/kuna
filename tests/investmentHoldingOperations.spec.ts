@@ -9,6 +9,8 @@ import { decimalText } from '../src/shared/money/decimal'
 import { DESK, investmentsDesk } from './fixtures/investmentsDesk'
 import type { InvestmentsDesk } from './fixtures/investmentsDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { stepOf } from './fixtures/operationSteps'
+import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -16,7 +18,7 @@ afterEach(async () => forgetCaches(used))
 const bookOf = ({ store }: InvestmentsDesk) => store.state.workbook!.book
 
 function setTargets(mix: string, targets: readonly { readonly group?: string | null; readonly account?: string | null; readonly percent: string }[]) {
-  return { op: 'set-targets', input: { mix, targets: targets.map((target) => ({ group: target.group ?? null, account: target.account ?? null, percent: target.percent })) } }
+  return stepOf(INVESTMENTS_OPERATIONS, 'set-targets', { mix, targets: targets.map((target) => ({ group: target.group ?? null, account: target.account ?? null, percent: target.percent })) })
 }
 
 describe('targets', () => {
@@ -95,27 +97,27 @@ describe('targets', () => {
 describe('checks', () => {
   it('leaves a new setting switched on off its card, and shows a switch the step sets', async () => {
     const desk = await investmentsDesk(used)
-    await desk.propose([{ op: 'set-check', input: { check: 'cash', threshold: '15', on: null } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-check', { check: 'cash', threshold: '15' })])
     expect(desk.cards[0]!.groups[0]!.lines[0]!.fields.map((field) => field.name)).not.toContain(assistantWords.proposals.fields.off)
-    await desk.propose([{ op: 'set-check', input: { check: 'cash', threshold: null, on: 'no' } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-check', { check: 'cash', on: 'no' })])
     const switched = desk.cards[1]!.groups[0]!.lines[0]!.fields.find((field) => field.name === assistantWords.proposals.fields.off)
     expect(switched?.after).toBe(cardWords.yes)
   })
 
   it('keeps a record only while a check differs from its default, as the Checks tab does', async () => {
     const desk = await investmentsDesk(used)
-    await desk.propose([{ op: 'set-check', input: { check: 'cash', threshold: '15', on: 'no' } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-check', { check: 'cash', threshold: '15', on: 'no' })])
     await desk.accept()
     expect(bookOf(desk).checks.map((setting) => [setting.check, setting.threshold === null ? null : decimalText(setting.threshold), setting.off])).toEqual([['cash', '15', true]])
 
-    await desk.propose([{ op: 'set-check', input: { check: 'cash', threshold: '10', on: 'yes' } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-check', { check: 'cash', threshold: '10', on: 'yes' })])
     await desk.accept()
     expect(bookOf(desk).checks).toEqual([])
   })
 
   it("refuses a threshold the tab would mark, in the tab's words", async () => {
     const desk = await investmentsDesk(used)
-    const answer = await desk.propose([{ op: 'set-check', input: { check: 'holding', threshold: '101', on: null } }])
+    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-check', { check: 'holding', threshold: '101' })])
     expect(answer.text).toContain(`threshold: ${settingsWords.checks.error}`)
   })
 })
@@ -123,9 +125,9 @@ describe('checks', () => {
 describe('the benchmark', () => {
   it('marks one instrument and clears the old mark in one write, and null leaves none', async () => {
     const desk = await investmentsDesk(used)
-    await desk.propose([{ op: 'set-benchmark', input: { instrument: desk.ref('instrument', DESK.UNHELD.id) } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-benchmark', { instrument: desk.ref('instrument', DESK.UNHELD.id) })])
     await desk.accept()
-    await desk.propose([{ op: 'set-benchmark', input: { instrument: desk.ref('instrument', DESK.FUND.id) } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-benchmark', { instrument: desk.ref('instrument', DESK.FUND.id) })])
     expect(desk.cards[1]!.count).toBe(2)
     const marks = desk.cards[1]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.filter((field) => field.name === assistantWords.proposals.fields.benchmark)))
     expect(marks.map((field) => [field.before, field.after])).toEqual(
@@ -141,10 +143,10 @@ describe('the benchmark', () => {
         .map((instrument) => instrument.id),
     ).toEqual([DESK.FUND.id])
 
-    await desk.propose([{ op: 'set-benchmark', input: { instrument: null } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-benchmark')])
     await desk.accept()
     expect(bookOf(desk).instruments.some((instrument) => instrument.benchmark)).toBe(false)
-    expect((await desk.propose([{ op: 'set-benchmark', input: { instrument: null } }])).text).toContain('no benchmark to clear')
+    expect((await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-benchmark')])).text).toContain('no benchmark to clear')
   })
 
   it('sets an instrument the same card adds on a card of its own, since a card cannot change what it adds', async () => {
@@ -170,10 +172,7 @@ describe('the benchmark', () => {
       sectors: [],
       countries: [],
     }
-    const answer = await desk.propose([
-      { op: 'add-instrument', input: index, as: '$index' },
-      { op: 'set-benchmark', input: { instrument: '$index' } },
-    ])
+    const answer = await desk.propose([{ op: 'add-instrument', input: index, as: '$index' }, stepOf(INVESTMENTS_OPERATIONS, 'set-benchmark', { instrument: '$index' })])
     expect(answer.text).toContain('on a card after the one that adds the instrument')
   })
 })

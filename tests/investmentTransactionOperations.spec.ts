@@ -11,6 +11,7 @@ import type { InvestmentsDesk } from './fixtures/investmentsDesk'
 import { USD, rateBookOf } from './fixtures/investments'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
+import { stepOf } from './fixtures/operationSteps'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -123,20 +124,10 @@ describe('trades', () => {
 
   it('changes only what a step names, keeps the key of the rows an import brought, and turns a buy into a sale', async () => {
     const desk = await investmentsDesk(used)
-    const answer = await desk.propose([
-      {
-        op: 'change-trade',
-        input: { record: desk.ref('trade', DESK.FUND_BUY.id), side: 'sell', account: null, instrument: null, date: null, quantity: '1', price: null, fees: null, rate: null, note: null },
-      },
-    ])
+    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'change-trade', { record: desk.ref('trade', DESK.FUND_BUY.id), side: 'sell', quantity: '1' })])
     // Selling the only buy of the fund leaves nothing to sell from, so the dialog's check refuses it.
     expect(answer.isError).toBe(true)
-    await desk.propose([
-      {
-        op: 'change-trade',
-        input: { record: desk.ref('trade', DESK.FUND_BUY.id), side: null, account: null, instrument: null, date: null, quantity: '4', price: null, fees: null, rate: null, note: 'Checked' },
-      },
-    ])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'change-trade', { record: desk.ref('trade', DESK.FUND_BUY.id), quantity: '4', note: 'Checked' })])
     await desk.accept()
     const changed = bookOf(desk).trades.find((trade) => trade.id === DESK.FUND_BUY.id)!
     expect([decimalText(changed.quantity), decimalText(changed.price), changed.note]).toEqual(['4', '10', 'Checked'])
@@ -146,7 +137,7 @@ describe('trades', () => {
     const desk = await investmentsDesk(used)
     await desk.propose([addTrade(desk, { side: 'sell', quantity: '10', date: '2026-10-12' })])
     await desk.accept()
-    const answer = await desk.propose([{ op: 'delete-trade', input: { record: desk.ref('trade', DESK.SHARE_BUY.id) } }])
+    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'delete-trade', { record: desk.ref('trade', DESK.SHARE_BUY.id) })])
     expect(answer.isError).toBe(true)
   })
 })
@@ -219,19 +210,14 @@ describe('add-holding', () => {
     const desk = await investmentsDesk(used)
     const [trades, movements] = [bookOf(desk).trades.length, bookOf(desk).cashMovements.length]
     await desk.propose([
-      {
-        op: 'add-holding',
-        input: {
-          account: desk.ref('investment-account', DESK.TWO.id),
-          instrument: desk.ref('instrument', DESK.FUND.id),
-          date: '2025-03-03',
-          quantity: '10',
-          price: '9.5',
-          fees: null,
-          rate: null,
-          note: '',
-        },
-      },
+      stepOf(INVESTMENTS_OPERATIONS, 'add-holding', {
+        account: desk.ref('investment-account', DESK.TWO.id),
+        instrument: desk.ref('instrument', DESK.FUND.id),
+        date: '2025-03-03',
+        quantity: '10',
+        price: '9.5',
+        note: '',
+      }),
     ])
     const result = await desk.accept()
     const deposit = bookOf(desk).cashMovements.at(-1)!
@@ -245,7 +231,7 @@ describe('add-holding', () => {
 describe('accounts and instruments', () => {
   it('trades in an account the same card adds, by its $ name', async () => {
     const desk = await investmentsDesk(used)
-    const answer = await desk.propose([{ op: 'add-account', input: { name: 'New broker', note: '' }, as: '$new' }, addTrade(desk, { account: '$new', side: 'buy' })])
+    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'New broker', note: '' }, '$new'), addTrade(desk, { account: '$new', side: 'buy' })])
     expect(answer.isError).toBe(false)
     await desk.accept()
     const added = bookOf(desk).accounts.find((account) => account.name === 'New broker')!
@@ -254,36 +240,14 @@ describe('accounts and instruments', () => {
 
   it('refuses deleting an account that records name, and a blank name', async () => {
     const desk = await investmentsDesk(used)
-    expect((await desk.propose([{ op: 'delete-account', input: { account: desk.ref('investment-account', DESK.ONE.id) } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'add-account', input: { name: ' ', note: '' } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'delete-account', { account: desk.ref('investment-account', DESK.ONE.id) })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: ' ', note: '' })])).isError).toBe(true)
   })
 
   it("says on the card that Accept fetches a priced holding's closes, and starts that fetch once the write is done", async () => {
     const desk = await investmentsDesk(used)
-    const instrument = (prices: string) => ({
-      op: 'add-instrument',
-      input: {
-        name: `Listed ${prices}`,
-        symbol: 'LST',
-        quoted: null,
-        coupon: null,
-        maturity: null,
-        type: 'share',
-        class: null,
-        isin: null,
-        exchange: null,
-        currency: 'USD',
-        prices,
-        sourceSymbol: null,
-        sector: null,
-        country: null,
-        ter: null,
-        distribution: null,
-        note: '',
-        sectors: [],
-        countries: [],
-      },
-    })
+    const instrument = (prices: string) =>
+      stepOf(INVESTMENTS_OPERATIONS, 'add-instrument', { name: `Listed ${prices}`, symbol: 'LST', type: 'share', currency: 'USD', prices, note: '', sectors: [], countries: [] })
     await desk.propose([instrument('manual')])
     expect(desk.cards[0]!.outside).toEqual([])
     await desk.propose([instrument('twelvedata')])

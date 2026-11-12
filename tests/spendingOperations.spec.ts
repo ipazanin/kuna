@@ -26,6 +26,7 @@ import { TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendi
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
+import { stepOf } from './fixtures/operationSteps'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -72,9 +73,9 @@ describe('a new category or account on its card', () => {
 
   it('leaves off what a new one holds unless a person sets it, and shows it when a step sets it', async () => {
     const desk = await spendingDesk(used)
-    await desk.propose([{ op: 'add-category', input: { name: 'Pets', kind: 'spending', parent: null, colour: null, hidden: null } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-category', { name: 'Pets', kind: 'spending' })])
     expect(fieldNames(desk)).not.toContain(words.proposals.fields.hidden)
-    await desk.propose([{ op: 'add-category', input: { name: 'Pets', kind: 'spending', parent: null, colour: null, hidden: 'yes' } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-category', { name: 'Pets', kind: 'spending', hidden: 'yes' })])
     expect(fieldNames(desk)).toContain(words.proposals.fields.hidden)
   })
 })
@@ -127,10 +128,7 @@ describe('transfers', () => {
     const desk = await spendingDesk(used)
     const before = bookOf(desk).transactions.length
     await desk.propose([
-      {
-        op: 'add-transfer',
-        input: { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, toAmount: null, note: '' },
-      },
+      stepOf(SPENDING_OPERATIONS, 'add-transfer', { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, note: '' }),
     ])
     const result = await desk.accept()
     expect(result.kind).toBe('done')
@@ -144,7 +142,7 @@ describe('transfers', () => {
   it('asks what reached an account in another currency, and refuses one account on both sides', async () => {
     const desk = await spendingDesk(used)
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
-    const transfer = (to: string, toAmount: number | null) => ({ op: 'add-transfer', input: { from: current, to, date: '2026-11-02', amount: 50, toAmount, note: '' } })
+    const transfer = (to: string, toAmount: number | null) => stepOf(SPENDING_OPERATIONS, 'add-transfer', { from: current, to, date: '2026-11-02', amount: 50, toAmount, note: '' })
     const dollars = desk.ref('account', DESK_ACCOUNTS.DOLLARS.id)
     expect((await desk.propose([transfer(dollars, null)])).text).toContain('toAmount')
     expect((await desk.propose([transfer(current, null)])).isError).toBe(true)
@@ -156,12 +154,7 @@ describe('transfers', () => {
   it('turns a plain entry into the leg its money is with no payee, and a kind turns a leg back into a plain entry with its other leg gone', async () => {
     const desk = await spendingDesk(used)
     const entry = EXAMPLE_RECORDS['transaction']!
-    await desk.propose([
-      {
-        op: 'change-transfer',
-        input: { entry: desk.ref('transaction', entry), from: null, to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: null, amount: null, toAmount: null, note: null },
-      },
-    ])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-transfer', { entry: desk.ref('transaction', entry), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id) })])
     expect((await desk.accept()).kind).toBe('done')
     const leg = rowOf(desk, entry)!
     expect(leg.amount).toBe(-4530)
@@ -170,21 +163,7 @@ describe('transfers', () => {
     expect(rowOf(desk, other)!.amount).toBe(4530)
     expect([leg.payee, rowOf(desk, other)!.payee]).toEqual(['', ''])
 
-    await desk.propose([
-      {
-        op: 'change-entry',
-        input: {
-          entry: desk.ref('transaction', entry),
-          account: null,
-          kind: 'out',
-          category: desk.ref('category', categoryNamed(desk, 'Groceries').id),
-          date: null,
-          amount: null,
-          payee: null,
-          note: null,
-        },
-      },
-    ])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-entry', { entry: desk.ref('transaction', entry), kind: 'out', category: desk.ref('category', categoryNamed(desk, 'Groceries').id) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowOf(desk, entry)).toMatchObject({ pair: null, amount: -4530 })
     expect(rowOf(desk, other)).toBeUndefined()
@@ -193,10 +172,7 @@ describe('transfers', () => {
   it('refuses a new date, amount or account on one leg of a transfer, which change-transfer moves on both', async () => {
     const desk = await spendingDesk(used)
     await desk.propose([
-      {
-        op: 'add-transfer',
-        input: { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, toAmount: null, note: '' },
-      },
+      stepOf(SPENDING_OPERATIONS, 'add-transfer', { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, note: '' }),
     ])
     await desk.accept()
     const [out, into] = bookOf(desk).transactions.slice(-2)
@@ -215,10 +191,7 @@ describe('transfers', () => {
   it('refuses a payee on one leg of a transfer, and takes one once a kind makes the leg a plain entry', async () => {
     const desk = await spendingDesk(used)
     await desk.propose([
-      {
-        op: 'add-transfer',
-        input: { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, toAmount: null, note: '' },
-      },
+      stepOf(SPENDING_OPERATIONS, 'add-transfer', { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, note: '' }),
     ])
     await desk.accept()
     const [out, into] = bookOf(desk).transactions.slice(-2)
@@ -236,19 +209,7 @@ describe('transfers', () => {
   it('refuses moving a row a statement brought to another account', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
-      {
-        op: 'change-entry',
-        input: {
-          entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!),
-          account: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id),
-          kind: null,
-          category: null,
-          date: null,
-          amount: null,
-          payee: null,
-          note: null,
-        },
-      },
+      stepOf(SPENDING_OPERATIONS, 'change-entry', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!), account: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id) }),
     ])
     expect(answer.isError).toBe(true)
   })
@@ -265,7 +226,7 @@ describe('an entry’s day and account', () => {
   it('refuses another account that opened after the day the entry keeps', async () => {
     const desk = await spendingDesk(used)
     const answer = await desk.propose([
-      { op: 'add-account', input: { name: 'New card', kind: 'bank', bank: null, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban: null, rowsFrom: 'by-hand' }, as: '$card' },
+      stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'New card', kind: 'bank', currency: 'EUR', opening: 0, openedOn: '2026-11-01', rowsFrom: 'by-hand' }, '$card'),
       changeEntry(desk, EXAMPLE_RECORDS['transaction']!, { account: '$card' }),
     ])
     expect(answer.isError).toBe(true)
@@ -274,10 +235,8 @@ describe('an entry’s day and account', () => {
 })
 
 describe('where an account takes its rows from', () => {
-  const added = (name: string, kind: string, iban: string | null, rowsFrom: string) => ({
-    op: 'add-account',
-    input: { name, kind, bank: null, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban, rowsFrom },
-  })
+  const added = (name: string, kind: string, iban: string | null, rowsFrom: string) =>
+    stepOf(SPENDING_OPERATIONS, 'add-account', { name, kind, currency: 'EUR', opening: 0, openedOn: '2026-11-01', iban, rowsFrom })
   const saveDeployment = (desk: SpendingDesk) => desk.store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], BANK_SYNC_DEPLOYMENT_KEY, 'AKfy-deployment'))
   const rowsFromOf = (desk: SpendingDesk, name: string) => bookOf(desk).accounts.find((account) => account.name === name)?.rowsFrom
 
@@ -344,10 +303,7 @@ describe('where an account takes its rows from', () => {
   it('switches an account typed by hand to a bank link only while a deployment is saved, and back to by hand', async () => {
     const desk = await spendingDesk(used)
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
-    const change = (rowsFrom: string) => ({
-      op: 'change-account',
-      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, rowsFrom, closed: null },
-    })
+    const change = (rowsFrom: string) => stepOf(SPENDING_OPERATIONS, 'change-account', { account: current, rowsFrom })
     expect((await desk.propose([change('bank-link')])).isError).toBe(true)
     await saveDeployment(desk)
     await desk.propose([change('bank-link')])
@@ -363,23 +319,23 @@ describe('To review', () => {
   it('joins, pairs and unpairs only what To review offers', async () => {
     const desk = await spendingDesk(used)
     const typedRow = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
-    expect((await desk.propose([{ op: 'join-rows', input: { row: typedRow } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'pair-rows', input: { row: typedRow } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'unpair-rows', input: { row: typedRow } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'join-rows', { row: typedRow })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'pair-rows', { row: typedRow })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'unpair-rows', { row: typedRow })])).isError).toBe(true)
 
-    await desk.propose([{ op: 'pair-rows', input: { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction-pairable']!) } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'pair-rows', { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction-pairable']!) })])
     expect((await desk.accept()).kind).toBe('done')
     const paired = rowOf(desk, EXAMPLE_RECORDS['transaction-pairable']!)!
     expect(paired.pair).not.toBeNull()
 
-    await desk.propose([{ op: 'unpair-rows', input: { row: desk.ref('transaction', paired.id) } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'unpair-rows', { row: desk.ref('transaction', paired.id) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowOf(desk, paired.id)).toMatchObject({ pair: null, category: null, categorisedBy: 'person' })
   })
 
   it('joins a bank row with the typed row, which takes the bank’s amount', async () => {
     const desk = await spendingDesk(used)
-    await desk.propose([{ op: 'join-rows', input: { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction-joinable']!) } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'join-rows', { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction-joinable']!) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction-joinable']!)).toBeUndefined()
     expect(bookOf(desk).transactions.find((row) => row.payee === 'Pharmacy')!.amount).toBe(-3100)
@@ -388,10 +344,10 @@ describe('To review', () => {
   it('moves a withdrawal To review lists to cash, and refuses a row it does not list or an account it does not offer', async () => {
     const desk = await spendingDesk(used)
     const withdrawal = desk.ref('transaction', EXAMPLE_RECORDS['transaction-withdrawal']!)
-    expect((await desk.propose([{ op: 'move-to-cash', input: { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!), cash_account: null } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'move-to-cash', input: { row: withdrawal, cash_account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'move-to-cash', { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'move-to-cash', { row: withdrawal, cash_account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) })])).isError).toBe(true)
 
-    await desk.propose([{ op: 'move-to-cash', input: { row: withdrawal, cash_account: null } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'move-to-cash', { row: withdrawal })])
     expect((await desk.accept()).kind).toBe('done')
     const leg = bookOf(desk).transactions.find((row) => row.account === DESK_ACCOUNTS.WALLET.id)
     expect(leg).toMatchObject({ amount: accountMoneyFromAmount(50), pair: EXAMPLE_RECORDS['transaction-withdrawal'] })
@@ -401,9 +357,9 @@ describe('To review', () => {
 describe('a withdrawal that is not cash', () => {
   it('leaves the row where it is filed and off the list, and refuses a row To review does not list', async () => {
     const desk = await spendingDesk(used)
-    expect((await desk.propose([{ op: 'not-cash', input: { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'not-cash', { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })])).isError).toBe(true)
 
-    await desk.propose([{ op: 'not-cash', input: { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction-withdrawal']!) } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'not-cash', { row: desk.ref('transaction', EXAMPLE_RECORDS['transaction-withdrawal']!) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction-withdrawal']!)).toMatchObject({ categorisedBy: 'person', pair: null })
   })
@@ -414,25 +370,20 @@ describe('a rule that spots cash taken out', () => {
     const desk = await spendingDesk(used)
     const between = categoryNamed(desk, 'Between my accounts')
     await desk.propose([
-      {
-        op: 'add-rule',
-        input: { row: null, fragment: 'Bankomat', iban: null, category: desk.ref('category', between.id), withdrawal: 'yes', cash_account: desk.ref('account', DESK_ACCOUNTS.WALLET.id) },
-      },
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Bankomat', category: desk.ref('category', between.id), withdrawal: 'yes', cash_account: desk.ref('account', DESK_ACCOUNTS.WALLET.id) }),
     ])
     expect((await desk.accept()).kind).toBe('done')
     const rule = bookOf(desk).rules.find((each) => each.category === between.id)!
     expect(rule.withdrawal).toEqual({ cashAccount: DESK_ACCOUNTS.WALLET.id })
 
-    await desk.propose([{ op: 'change-rule', input: { rule: desk.ref('rule', rule.id), fragment: null, iban: null, category: null, withdrawal: 'yes', cash_account: null } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-rule', { rule: desk.ref('rule', rule.id), withdrawal: 'yes' })])
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).rules.find((each) => each.id === rule.id)!.withdrawal).toEqual({ cashAccount: null })
   })
 
   it('refuses one that spots cash taken out into a spending category', async () => {
     const desk = await spendingDesk(used)
-    const answer = await desk.propose([
-      { op: 'add-rule', input: { row: null, fragment: 'Bankomat', iban: null, category: desk.ref('category', categoryNamed(desk, 'Rent').id), withdrawal: 'yes', cash_account: null } },
-    ])
+    const answer = await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Bankomat', category: desk.ref('category', categoryNamed(desk, 'Rent').id), withdrawal: 'yes' })])
     expect(answer.isError).toBe(true)
     expect(answer.text).toContain('Between my accounts')
   })
@@ -444,8 +395,8 @@ describe('categories and accounts', () => {
     const restaurants = categoryNamed(desk, 'Restaurants')
     const rent = categoryNamed(desk, 'Rent')
     await desk.propose([
-      { op: 'change-category', input: { category: desk.ref('category', restaurants.id), name: null, group: desk.ref('category', rent.id), colour: '#2A78D6', hidden: null } },
-      { op: 'move-category', input: { category: desk.ref('category', rent.id), direction: 'up' } },
+      stepOf(SPENDING_OPERATIONS, 'change-category', { category: desk.ref('category', restaurants.id), group: desk.ref('category', rent.id), colour: '#2A78D6' }),
+      stepOf(SPENDING_OPERATIONS, 'move-category', { category: desk.ref('category', rent.id), direction: 'up' }),
     ])
     const fields = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.map((field) => field.name))
     expect(fields).toEqual(expect.arrayContaining(['Group', 'Colour', 'Place']))
@@ -461,7 +412,7 @@ describe('categories and accounts', () => {
     expect((await desk.propose([change(ref('Rent'), { group: ref('Food') })])).isError).toBe(true)
     expect((await desk.propose([change(ref('Between my accounts'), { hidden: 'yes' })])).isError).toBe(true)
     expect((await desk.propose([change(ref('Groceries'), { colour: '#000000' })])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'move-category', input: { category: ref('Food'), direction: 'up' } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'move-category', { category: ref('Food'), direction: 'up' })])).isError).toBe(true)
   })
 
   it('keeps the currency of an account with entries, deletes only an empty one, and takes a bank and IBAN off cash', async () => {
@@ -472,16 +423,13 @@ describe('categories and accounts', () => {
       input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, rowsFrom: null, closed: null, ...fields },
     })
     expect((await desk.propose([change({ currency: 'USD' })])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'delete-account', input: { account: current } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'delete-account', { account: current })])).isError).toBe(true)
     await desk.propose([change({ kind: 'cash' })])
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)).toMatchObject({ kind: 'cash', bank: null, iban: '' })
   })
 
-  const moveStart = (desk: SpendingDesk, openedOn: string) => ({
-    op: 'change-account',
-    input: { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn, iban: null, rowsFrom: null, closed: null },
-  })
+  const moveStart = (desk: SpendingDesk, openedOn: string) => stepOf(SPENDING_OPERATIONS, 'change-account', { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), openedOn })
 
   it('moves the start day later as the dialog does: the card says what goes, the opening keeps the balance, and the other leg stays alone', async () => {
     const desk = await spendingDesk(used)
@@ -514,10 +462,11 @@ describe('categories and accounts', () => {
 })
 
 describe('an entry split by hand', () => {
-  const split = (desk: SpendingDesk, entry: string, parts: readonly { readonly amount: number | null; readonly category: string; readonly text?: string }[]) => ({
-    op: 'split-entry',
-    input: { entry: desk.ref('transaction', entry), parts: parts.map((part) => ({ amount: part.amount, category: desk.ref('category', part.category), text: part.text ?? '' })) },
-  })
+  const split = (desk: SpendingDesk, entry: string, parts: readonly { readonly amount: number | null; readonly category: string; readonly text?: string }[]) =>
+    stepOf(SPENDING_OPERATIONS, 'split-entry', {
+      entry: desk.ref('transaction', entry),
+      parts: parts.map((part) => ({ amount: part.amount, category: desk.ref('category', part.category), text: part.text ?? '' })),
+    })
   const typed = EXAMPLE_RECORDS['transaction']!
 
   it('splits an entry into three parts signed as the entry, under the category with most of the money, and one Undo puts it back', async () => {
@@ -597,15 +546,15 @@ describe('an entry split by hand', () => {
     ]
     expect((await desk.propose([split(desk, EXAMPLE_RECORDS['transaction-paired']!, parts)])).text).toContain('A move between your accounts stays whole')
     expect((await desk.propose([split(desk, EXAMPLE_RECORDS['transaction-receipt']!, parts)])).text).toContain('A receipt split this entry')
-    expect((await desk.propose([{ op: 'remove-split', input: { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!) } }])).text).toContain('remove-receipt')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-split', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!) })])).text).toContain('remove-receipt')
   })
 
   it('takes a hand split off and keeps the row under its main category, refuses an entry that is not split, and leaves it to remove-split', async () => {
     const desk = await spendingDesk(used)
     const handSplit = EXAMPLE_RECORDS['transaction-split']!
-    expect((await desk.propose([{ op: 'remove-split', input: { entry: desk.ref('transaction', typed) } }])).text).toContain('not split')
-    expect((await desk.propose([{ op: 'remove-receipt', input: { entry: desk.ref('transaction', handSplit) } }])).text).toContain('no receipt')
-    await desk.propose([{ op: 'remove-split', input: { entry: desk.ref('transaction', handSplit) } }])
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-split', { entry: desk.ref('transaction', typed) })])).text).toContain('not split')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-receipt', { entry: desk.ref('transaction', handSplit) })])).text).toContain('no receipt')
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-split', { entry: desk.ref('transaction', handSplit) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).lines.filter((part) => part.transaction === handSplit)).toEqual([])
     expect(rowOf(desk, handSplit)).toMatchObject({ category: EXAMPLE_RECORDS['category'] })
@@ -615,8 +564,8 @@ describe('an entry split by hand', () => {
 describe('an entry’s receipt and payee', () => {
   it('takes a receipt off and keeps the entry, and refuses an entry with none', async () => {
     const desk = await spendingDesk(used)
-    expect((await desk.propose([{ op: 'remove-receipt', input: { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) } }])).isError).toBe(true)
-    await desk.propose([{ op: 'remove-receipt', input: { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!) } }])
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-receipt', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })])).isError).toBe(true)
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-receipt', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-receipt']!) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).receipts.map((receipt) => receipt.id)).toEqual([EXAMPLE_RECORDS['receipt-waiting']])
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction-receipt']!)).toBeDefined()
@@ -624,7 +573,7 @@ describe('an entry’s receipt and payee', () => {
 
   it('flags a payee as a person, and a second flag changes nothing', async () => {
     const desk = await spendingDesk(used)
-    const flag = { op: 'flag-person', input: { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) } }
+    const flag = stepOf(SPENDING_OPERATIONS, 'flag-person', { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!) })
     await desk.propose([flag])
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).settings.personPayees).toContain('Corner market')
@@ -637,7 +586,7 @@ describe('an entry’s link to Loans', () => {
     const desk = await spendingDesk(used)
     const entry = EXAMPLE_RECORDS['transaction']!
     const before = rowOf(desk, entry)
-    await desk.propose([{ op: 'link-entry', input: { entry: desk.ref('transaction', entry), loan: 'Housing loan', due: '2026-11-15' } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry: desk.ref('transaction', entry), loan: 'Housing loan', due: '2026-11-15' })])
     const fields = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields)
     expect(fields.find((field) => field.name === 'Linked to')).toMatchObject({ after: 'Housing loan, instalment due 15 Nov 2026' })
     const result = await desk.accept()
@@ -650,11 +599,11 @@ describe('an entry’s link to Loans', () => {
   it('links an informal loan by its name, and refuses a loan Loans does not list, an instalment on a day the plan has none, and a link off an entry with none', async () => {
     const desk = await spendingDesk(used)
     const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
-    expect((await desk.propose([{ op: 'link-entry', input: { entry, loan: 'Car loan', due: '2026-11-15' } }])).text).toContain('not a bank loan Loans lists')
-    expect((await desk.propose([{ op: 'link-entry', input: { entry, loan: 'Housing loan', due: '2026-11-16' } }])).text).toContain('instalment due 2026-11-16')
-    expect((await desk.propose([{ op: 'link-entry', input: { entry, loan: 'Housing loan', due: null } }])).text).toContain('needs its due date')
-    expect((await desk.propose([{ op: 'unlink-entry', input: { entry } }])).text).toContain('no link')
-    await desk.propose([{ op: 'link-entry', input: { entry, loan: 'From Marko', due: null } }])
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Car loan', due: '2026-11-15' })])).text).toContain('not a bank loan Loans lists')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Housing loan', due: '2026-11-16' })])).text).toContain('instalment due 2026-11-16')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Housing loan' })])).text).toContain('needs its due date')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'unlink-entry', { entry })])).text).toContain('no link')
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'From Marko' })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction']!)?.link).toEqual({ app: 'loans', kind: 'informal-loan', key: 'made-up-informal-loan', due: null })
   })
@@ -675,7 +624,7 @@ describe('an entry’s link to Loans', () => {
     const desk = await spendingDesk(used)
     const linked = EXAMPLE_RECORDS['transaction-linked']!
     const category = rowOf(desk, linked)?.category
-    await desk.propose([{ op: 'unlink-entry', input: { entry: desk.ref('transaction', linked) } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'unlink-entry', { entry: desk.ref('transaction', linked) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(rowOf(desk, linked)).toMatchObject({ link: null, category })
   })
@@ -715,14 +664,14 @@ describe('bank account set-up', () => {
     const desk = await spendingDesk(used)
     const line = (name: string) => desk.ref(BANK_ACCOUNT_LINES.name, EXAMPLE_RECORDS[name]!)
     await desk.propose([
-      { op: 'add-bank-account', input: { line: line('bank-account-missing'), startsOn: null } },
-      { op: 'update-bank-account', input: { line: line('bank-account-update') } },
+      stepOf(SPENDING_OPERATIONS, 'add-bank-account', { line: line('bank-account-missing') }),
+      stepOf(SPENDING_OPERATIONS, 'update-bank-account', { line: line('bank-account-update') }),
     ])
     expect((await desk.accept()).kind).toBe('done')
     const current = () => bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
     expect(bookOf(desk).accounts.map((account) => account.currency)).toContain('GBP')
     expect(current()).toMatchObject({ kind: 'savings', rowsFrom: 'bank-link', name: 'Current', opening: DESK_ACCOUNTS.CURRENT.opening })
-    await desk.propose([{ op: 'fix-opening', input: { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) } }])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'fix-opening', { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id) })])
     expect((await desk.accept()).kind).toBe('done')
     expect(current().opening).toBe(90000)
   })
@@ -730,16 +679,16 @@ describe('bank account set-up', () => {
   it('refuses what a line does not offer, a step of another kind beside it, two marks of a sort, and a list nobody fetched', async () => {
     const desk = await spendingDesk(used)
     const line = (name: string) => desk.ref(BANK_ACCOUNT_LINES.name, EXAMPLE_RECORDS[name]!)
-    expect((await desk.propose([{ op: 'add-bank-account', input: { line: line('bank-account-update'), startsOn: null } }])).text).toContain('offers update, keep-mine')
-    const other = { op: 'delete-rule', input: { rule: desk.ref('rule', EXAMPLE_RECORDS['rule']!) } }
-    expect((await desk.propose([{ op: 'leave-out-bank-account', input: { line: line('bank-account-missing') } }, other])).text).toContain('card of their own')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-bank-account', { line: line('bank-account-update') })])).text).toContain('offers update, keep-mine')
+    const other = stepOf(SPENDING_OPERATIONS, 'delete-rule', { rule: desk.ref('rule', EXAMPLE_RECORDS['rule']!) })
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'leave-out-bank-account', { line: line('bank-account-missing') }), other])).text).toContain('card of their own')
     const marks = [
-      { op: 'leave-out-bank-account', input: { line: line('bank-account-missing') } },
-      { op: 'bring-back-bank-account', input: { line: line('bank-account-left-out') } },
+      stepOf(SPENDING_OPERATIONS, 'leave-out-bank-account', { line: line('bank-account-missing') }),
+      stepOf(SPENDING_OPERATIONS, 'bring-back-bank-account', { line: line('bank-account-left-out') }),
     ]
     expect((await desk.propose(marks)).text).toContain('of each sort')
     const unfetched = await spendingDesk(used, deskPorts(undefined, null))
-    expect((await unfetched.propose([{ op: 'fix-opening', input: { account: unfetched.ref('account', DESK_ACCOUNTS.CURRENT.id) } }])).text).toContain('No bank sync ran')
+    expect((await unfetched.propose([stepOf(SPENDING_OPERATIONS, 'fix-opening', { account: unfetched.ref('account', DESK_ACCOUNTS.CURRENT.id) })])).text).toContain('No bank sync ran')
   })
 })
 
@@ -774,6 +723,6 @@ describe('the account a new entry starts on', () => {
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
     expect((await desk.propose([{ op: SET_STARTING_ACCOUNT.name, input: { account: current } }])).text).toContain('already start')
     const step = { op: SET_STARTING_ACCOUNT.name, input: { account: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id) } }
-    expect((await desk.propose([step, { op: 'delete-rule', input: { rule: desk.ref('rule', EXAMPLE_RECORDS['rule']!) } }])).text).toContain('card of its own')
+    expect((await desk.propose([step, stepOf(SPENDING_OPERATIONS, 'delete-rule', { rule: desk.ref('rule', EXAMPLE_RECORDS['rule']!) })])).text).toContain('card of its own')
   })
 })

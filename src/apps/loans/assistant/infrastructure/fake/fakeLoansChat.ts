@@ -1,8 +1,9 @@
-import { answered, answersSince, findRecordsArgs, lookup, registerFakeChat, settingUp } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, findRecordsArgs, lookup, proposedStep, registerFakeChat, settingUp } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
 import { language } from '../../../../../shared/text/language'
+import { LOANS_OPERATIONS } from '../../operations/loansOperations'
 
 const ANSWERS = {
   en: {
@@ -28,8 +29,8 @@ const ANSWERS = {
 type Says = (typeof ANSWERS)['en']
 
 /** The made-up offer of the document fixtures, as a model would transcribe it, fixed for five years and variable after, whose printed EKS Kuna's estimate does not match. */
-function offerInput(): Readonly<Record<string, unknown>> {
-  return {
+function offerStep(): ReturnType<typeof proposedStep> {
+  return proposedStep(LOANS_OPERATIONS, 'add-offer', {
     name: '',
     lender: 'Example Bank d.d.',
     principal: 150000,
@@ -37,54 +38,42 @@ function offerInput(): Readonly<Record<string, unknown>> {
     instalments: 360,
     repayment: 'annuity',
     payout: today(),
-    firstInstalment: null,
-    interimAmount: null,
-    interimDate: null,
     fixedYears: 5,
     thenVariable: '3.9',
-    subsidyMonthly: null,
     subsidyPayer: '',
-    subsidyFirstInstalment: null,
-    subsidyInstalments: null,
     upfrontCost: 1000,
     monthlyCost: 0,
     yearlyCost: 0,
     bankEks: '2.28',
     bankInstalment: 647.06,
     changes: [],
-  }
+  })
 }
 
 /** A made-up car loan as a model would transcribe its contract, whose printed first instalment is not the 279.65 Kuna works out. */
-function loanInput(): Readonly<Record<string, unknown>> {
-  return {
+function loanStep(): ReturnType<typeof proposedStep> {
+  return proposedStep(LOANS_OPERATIONS, 'add-bank-loan', {
     name: 'Car loan',
     lender: 'Example Bank d.d.',
     principal: 15000,
     drawdown: today(),
     firstInstalment: addDays(today(), 30),
     instalments: 60,
-    interimAmount: null,
-    interimDate: null,
     repayment: 'annuity',
     rate: '4.5',
     rateType: 'fixed',
     rateNote: '',
-    subsidyMonthly: null,
     subsidyPayer: '',
-    subsidyFirstInstalment: null,
-    subsidyInstalments: null,
     note: '',
     bankInstalment: 281.2,
-  }
+  })
 }
 
 /** Proposes the offer at once, as a model would from an attached offer, so the card shows Kuna's EKS against the printed one. */
 function offerReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
-    const step = { op: 'add-offer', input: JSON.stringify(offerInput()), as: null }
-    return lookup(0, 'propose_changes', { app: 'loans', title: says.offerTitle, steps: [step], next: settingUp(request) }, tokens)
+    return lookup(0, 'propose_changes', { app: 'loans', title: says.offerTitle, steps: [offerStep()], next: settingUp(request) }, tokens)
   }
   return answered(request, says.offerProposed, tokens)
 }
@@ -93,8 +82,7 @@ function offerReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
 function loanReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
-    const step = { op: 'add-bank-loan', input: JSON.stringify(loanInput()), as: null }
-    return lookup(0, 'propose_changes', { app: 'loans', title: says.loanTitle, steps: [step], next: settingUp(request) }, tokens)
+    return lookup(0, 'propose_changes', { app: 'loans', title: says.loanTitle, steps: [loanStep()], next: settingUp(request) }, tokens)
   }
   return answered(request, says.loanProposed, tokens)
 }
@@ -107,7 +95,7 @@ function extraReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
     const [loan] = records
     if (loan === undefined) return answered(request, says.noLoan, tokens)
-    const step = { op: 'add-extra-payment', input: JSON.stringify({ loan: loan.ref, date: addDays(today(), 7), amount: 1000, effect: 'shorter-term' }), as: null }
+    const step = proposedStep(LOANS_OPERATIONS, 'add-extra-payment', { loan: loan.ref, date: addDays(today(), 7), amount: 1000, effect: 'shorter-term' })
     return lookup(1, 'propose_changes', { app: 'loans', title: says.extraTitle, steps: [step], next: settingUp(request) }, tokens)
   }
   return answered(request, says.extraProposed, tokens)

@@ -1,36 +1,17 @@
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
-import { ASSETS_OPERATIONS } from '../src/apps/assets/assistant/operations/assetsOperations'
-import { companyOperations } from '../src/apps/company/assistant/operations/companyOperations'
 import { RULE_CONDITION_FIELDS } from '../src/apps/company/assistant/ruleConditionFields'
 import { installedPack } from '../src/apps/company/packs/packContribution'
 import { SETTING_DEFINITIONS } from '../src/apps/company/settings/domain/settings'
-import { hrDooOperations } from '../src/apps/company/packs/hr-doo/assistant/operations/packOperations'
-import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
 import { INVESTMENT_SETTING_CHECKS } from '../src/apps/investments/workbook/application/settingWrites'
-import { LOANS_OPERATIONS } from '../src/apps/loans/assistant/operations/loansOperations'
-import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { StrictSchema } from '../src/shared/ai/domain/strictSchema'
 import type { AssistantOperation } from '../src/shared/app/assistantOperations'
-import { kunaOperations } from '../src/shell/assistant/kunaOperations'
-import type { KunaDevice } from '../src/shell/assistant/kunaOperations'
 import { CHAT_EXCEPTIONS } from './chatCoverageExceptions'
 import { FIELD_EXCEPTIONS, NO_FIELD_PATHS } from './chatFieldCoverageExceptions'
-import { deskPorts } from './fixtures/companyDesk'
 import { appOf, screenWrites, writeGraph } from './support/writePaths'
-
-const DEVICE = { apps: () => [{ id: 'company', name: 'Company' }], chatWidths: { least: 384, most: 704, reset: 384 } } as unknown as KunaDevice
-
-const OPERATIONS: ReadonlyMap<string, readonly AssistantOperation[]> = new Map([
-  ['spending', SPENDING_OPERATIONS],
-  ['company', companyOperations(deskPorts({ pack: hrDooOperations(() => false) }))],
-  ['loans', LOANS_OPERATIONS],
-  ['investments', INVESTMENTS_OPERATIONS],
-  ['assets', ASSETS_OPERATIONS],
-  ['kuna', kunaOperations(DEVICE)],
-])
+import { APP_OPERATIONS } from './fixtures/appOperations'
 
 /** An operation that sets an editor's fields, with the operation's name for each field it spells differently. */
 interface OperationFields {
@@ -499,7 +480,7 @@ function inputFields(schema: StrictSchema, prefix = ''): string[] {
 }
 
 function operationOf(app: string, name: string): AssistantOperation | undefined {
-  return OPERATIONS.get(app)?.find((operation) => operation.name === name)
+  return APP_OPERATIONS.get(app)?.find((operation) => operation.name === name)
 }
 
 function takes(app: string, operation: OperationFields, field: string): boolean {

@@ -1,6 +1,9 @@
 import type { FindRecordsInput } from '../../application/chatReads'
+import type { ProposeInput } from '../../application/chatProposals'
 import type { ModelReply, ModelRequest, ToolCall } from '../../application/modelPort'
 import type { ModelTokens } from '../../domain/modelUsage'
+import type { AssistantOperation } from '../../../app/assistantOperations'
+import { operationInput } from '../../../app/assistantOperations'
 import { language } from '../../../text/language'
 import { en as chatEnglish, hr as chatCroatian } from '../../presentation/words'
 
@@ -87,6 +90,11 @@ export function settingUp(request: ModelRequest): boolean {
 /** A find_records call's arguments, each at the tool's default unless `changes` sets it, as the tool's schema wants every key. */
 export function findRecordsArgs(app: string, kind: string, changes: Partial<Omit<FindRecordsInput, 'app' | 'kind'>> = {}): FindRecordsInput {
   return { app, kind, query: null, from: null, to: null, refs: [], filters: [], sort: [], fields: [], only: null, limit: null, cursor: null, ...changes }
+}
+
+/** One step of a propose_changes call, its input built from the operation's example with `changes` set, as a model writes the input as a JSON string. */
+export function proposedStep(operations: readonly AssistantOperation[], op: string, changes: Readonly<Record<string, unknown>>, as: string | null = null): ProposeInput['steps'][number] {
+  return { op, input: JSON.stringify(operationInput(operations, op, changes)), as }
 }
 
 export function lookup(lookups: number, name: string, args: unknown, tokens: ModelTokens): ModelReply {

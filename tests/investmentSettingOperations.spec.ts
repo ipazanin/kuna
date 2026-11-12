@@ -10,6 +10,8 @@ import { settingValue } from '../src/shared/storage/domain/settingRows'
 import { investmentsDesk } from './fixtures/investmentsDesk'
 import type { InvestmentsDesk } from './fixtures/investmentsDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { stepOf } from './fixtures/operationSteps'
+import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -17,7 +19,7 @@ afterEach(async () => forgetCaches(used))
 const cityOf = ({ store }: InvestmentsDesk) => settingValue(store.state.workbook!.book.settings, SURTAX_CITY_2023_KEY)
 
 function setCity(value: string) {
-  return { op: 'set-setting', input: { key: SURTAX_CITY_2023_KEY, value } }
+  return stepOf(INVESTMENTS_OPERATIONS, 'set-setting', { key: SURTAX_CITY_2023_KEY, value })
 }
 
 describe('the 2023 city', () => {
@@ -71,7 +73,7 @@ describe("a price vendor's requests today", () => {
   it("resets the count, with the Prices settings' words before and after, and Undo puts it back", async () => {
     const desk = await investmentsDesk(used)
 
-    expect((await desk.propose([{ op: 'reset-requests-today', input: { vendor: 'twelvedata' } }])).isError).toBe(false)
+    expect((await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'reset-requests-today', { vendor: 'twelvedata' })])).isError).toBe(false)
 
     expect(desk.cards[0]!.groups[0]!.lines[0]!.fields).toEqual([{ name: words.cards.requestsToday, before: pricesWords.usedToday(7, 800), after: pricesWords.usedToday(0, 800), warns: false }])
     const result = await desk.accept()
@@ -82,19 +84,19 @@ describe("a price vendor's requests today", () => {
 
   it('refuses a vendor this browser asked nothing today', async () => {
     const desk = await investmentsDesk(used)
-    const answer = await desk.propose([{ op: 'reset-requests-today', input: { vendor: 'finnhub' } }])
+    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'reset-requests-today', { vendor: 'finnhub' })])
     expect(answer.isError).toBe(true)
     expect(desk.cards).toHaveLength(0)
   })
 
   it('refuses Accept once the vendor was asked again, and Undo once it was asked after Accept', async () => {
     const desk = await investmentsDesk(used)
-    await desk.propose([{ op: 'reset-requests-today', input: { vendor: 'twelvedata' } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'reset-requests-today', { vendor: 'twelvedata' })])
     desk.requests.set('twelvedata', 8)
     expect(await desk.accept()).toEqual({ kind: 'refused', reason: words.cards.countChanged })
     expect(desk.requests.get('twelvedata')).toBe(8)
 
-    await desk.propose([{ op: 'reset-requests-today', input: { vendor: 'twelvedata' } }])
+    await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'reset-requests-today', { vendor: 'twelvedata' })])
     const result = await desk.accept()
     desk.requests.set('twelvedata', 1)
     if (result.kind === 'done') expect(await result.undo!()).toEqual({ kind: 'refused', reason: sharedWords.proposalUndoEnded })

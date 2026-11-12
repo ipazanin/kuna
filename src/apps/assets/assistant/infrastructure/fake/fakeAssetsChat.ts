@@ -1,8 +1,9 @@
-import { answered, answersSince, findRecordsArgs, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, findRecordsArgs, lookup, proposedStep, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { today } from '../../../../../shared/calendar/civilDate'
 import { language } from '../../../../../shared/text/language'
+import { ASSETS_OPERATIONS } from '../../operations/assetsOperations'
 
 const ANSWERS = {
   en: {
@@ -26,7 +27,7 @@ function valuationReply({ request, tokens }: FakeChatTurn): ModelReply {
     const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
     const [asset] = records
     if (asset === undefined) return answered(request, says.noAsset, tokens)
-    const step = { op: 'add-valuation', input: JSON.stringify({ asset: asset.ref, date: today(), value: 210000, note: '' }), as: null }
+    const step = proposedStep(ASSETS_OPERATIONS, 'add-valuation', { asset: asset.ref, date: today(), value: 210000, note: '' })
     return lookup(1, 'propose_changes', { app: 'assets', title: says.title, steps: [step], next: false }, tokens)
   }
   return answered(request, says.proposed, tokens)

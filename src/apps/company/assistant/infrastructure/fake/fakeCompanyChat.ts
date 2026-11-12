@@ -1,9 +1,13 @@
-import { answered, answersSince, findRecordsArgs, goOnsInto, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, findRecordsArgs, goOnsInto, lookup, proposedStep, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply, ModelRequest } from '../../../../../shared/ai/application/modelPort'
 import { aboutEmployeesPay } from '../../../../../shared/ai/application/chatReads'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
 import { language } from '../../../../../shared/text/language'
+import type { AssistantOperation } from '../../../../../shared/app/assistantOperations'
+import { importOperations } from '../../operations/importOperations'
+import { LEDGER_OPERATIONS } from '../../operations/ledgerOperations'
+import { settingsOperations } from '../../operations/settingsOperations'
 
 const ANSWERS = {
   en: {
@@ -42,10 +46,6 @@ const ANSWERS = {
     explained: (label: string, amount: string, steps: string) => `${label} is ${amount}. Kuna builds it from ${steps}. The link opens the tax rule it rests on.`,
     keptByAnonymise:
       'That figure is about employees and their pay, so it stays on this device while Anonymise is on. Turn Anonymise off for this AI company in Kuna settings if you want it explained.',
-    tripCostTitle: 'Add the parking to travel order 3/2026',
-    parking: 'Parking garage in Rijeka',
-    tripCost: 'The card adds 18.00 of parking the traveller paid to travel order 3/2026. It is paid back in the settlement once the trip is settled.',
-    noTrip: 'I found no travel order 3/2026 in the books.',
   },
   hr: {
     sortTitle: 'Razvrstaj ono u što sam siguran',
@@ -65,7 +65,7 @@ const ANSWERS = {
     moveTitle: 'Neka se drugo pravilo isprobava prvo',
     moved: 'Kartica premješta drugo pravilo na vrh, pa se isprobava prije svih ostalih.',
     fewRules: 'U knjigama su manje od dva pravila, pa nema što premjestiti.',
-    noCategory: 'Nisam našao kategoriju za uredski materijal. Najprije je dodajte na Postavkama, Kategorije.',
+    noCategory: 'Nisam našao kategoriju za uredski materijal. Najprije je dodajte u Postavkama, Kategorije.',
     categoryTitle: 'Dodaj kategoriju za edukaciju',
     trainingLabel: 'Edukacija',
     trainingFamily: 'poslovanje',
@@ -77,17 +77,13 @@ const ANSWERS = {
     statementTitle: 'Uvezi zalijepljeni izvod',
     statementProposed: 'Kartica uvozi retke kako sam ih prepisao. Izvod ne ispisuje stanja, pa račun počinje od nule.',
     statementRefused: 'Kuna je odbila izvod. Usporedite retke koje sam prepisao s njim.',
-    noAccount: 'Tvrtka nema bankovni račun u koji bi uvezla izvod. Najprije ga dodajte na Postavkama, Računi u banci.',
+    noAccount: 'Tvrtka nema bankovni račun u koji bi uvezla izvod. Najprije ga dodajte u Postavkama, Računi u banci.',
     copyTitle: 'Uvezi prepisani izvod',
     copyProposed: 'Jedan je redak već u evidenciji i preskočen je. Drugi nalikuje stavci iz drugog izvora, pa čeka na kartici. Je li to drugo plaćanje?',
     noBuildUp: 'Najprije označite iznos njegovim gumbom za pitanje, pa ću pročitati kako ga je Kuna izračunala.',
     explained: (label: string, amount: string, steps: string) => `${label} iznosi ${amount}. Kuna ga računa iz ${steps}. Poveznica otvara porezno pravilo na kojem počiva.`,
     keptByAnonymise:
       'Taj se iznos odnosi na zaposlenike i njihove plaće, pa ostaje na ovom uređaju dok je anonimizacija uključena. Isključite anonimizaciju za ovu AI tvrtku u postavkama Kune ako želite da ga objasnim.',
-    tripCostTitle: 'Dodaj parkiranje putnom nalogu 3/2026',
-    parking: 'Garaža u Rijeci',
-    tripCost: 'Kartica putnom nalogu 3/2026 dodaje 18,00 eura parkiranja koje je platio putnik. Putniku se vraća u obračunu kad se put obračuna.',
-    noTrip: 'U knjigama nisam našao putni nalog 3/2026.',
   },
 }
 
@@ -112,7 +108,7 @@ function contextLines(request: ModelRequest): readonly string[] {
 }
 
 /** Whether the person last was on a Company screen, by the address the context line gives. */
-function inCompany(request: ModelRequest): boolean {
+export function inCompany(request: ModelRequest): boolean {
   const where = contextLines(request).filter((line) => line.includes('The person is in'))
   return where.at(-1)?.includes('(/company') ?? false
 }
@@ -120,45 +116,24 @@ function inCompany(request: ModelRequest): boolean {
 /** What asks to sort the rows waiting, as Suggest categories and the quick action do. */
 const SORT_JOB = /suggest categories|^sort|predloži kategorije|^razvrstaj/i
 
-/** The fields add-rule and change-rule share, each left as it is, as a model writes them before it names what the rule looks for. */
-const RULE_LEFT = {
-  name: null,
-  on: null,
-  before: null,
-  payeeWords: null,
-  descriptionWords: null,
-  descriptionStart: null,
-  iban: null,
-  ibanPresent: null,
-  direction: null,
-  ownAccount: null,
-  client: null,
-  card: null,
-  foreignCurrency: null,
-  domain: null,
-  family: null,
-  subFamily: null,
-  purpose: null,
-  revenueCode: null,
-  confidence: null,
-  note: null,
+/** Company's own operations as the chat lists them, read when a step is built, since the settings and categories follow the installed pack. Held statements play no part in an input. */
+function companyOperations(): readonly AssistantOperation[] {
+  return [...LEDGER_OPERATIONS.operations, ...importOperations(() => []).operations, ...settingsOperations().operations]
 }
+
 /** The counterparties the fake model is sure of: a shop for devices files under Equipment. Any other row waiting gets a new category. */
 const SURE: readonly { readonly word: string; readonly category: RegExp }[] = [{ word: 'GADGET', category: /^equipment$|^oprema$/i }]
 
 /** The new category the fake model proposes for a row no category fits, a client meal the profit tax counts as representation. */
-function mealsCategory(says: Says): Readonly<Record<string, unknown>> {
-  return {
+function mealsCategory(says: Says): ReturnType<typeof proposedStep> {
+  return proposedStep(companyOperations(), 'add-category', {
     category: 'client-meals',
     label: says.mealsLabel,
     family: says.trainingFamily,
     bucket: 'operating',
     taxClass: 'representation',
-    roles: [],
     vat: 'representation',
-    colour: null,
-    ownerShare: '',
-  }
+  })
 }
 
 /**
@@ -178,9 +153,8 @@ function sortReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   })
   const unsure = waiting.filter((row) => !sure.some((filed) => filed.row.ref === row.ref)).map((row) => row.counterparty ?? row.ref)
   if (answers.length === 2) {
-    if (sure.length === 0)
-      return lookup(2, 'propose_changes', { app: 'company', title: says.mealsTitle, steps: [{ op: 'add-category', input: JSON.stringify(mealsCategory(says)), as: null }], next: true }, tokens)
-    const steps = sure.map(({ row, category }) => ({ op: 'file-row', input: JSON.stringify({ row: row.ref, category: category.ref }), as: null }))
+    if (sure.length === 0) return lookup(2, 'propose_changes', { app: 'company', title: says.mealsTitle, steps: [mealsCategory(says)], next: true }, tokens)
+    const steps = sure.map(({ row, category }) => proposedStep(companyOperations(), 'file-row', { row: row.ref, category: category.ref }))
     return lookup(2, 'propose_changes', { app: 'company', title: says.sortTitle, steps, next: unsure.length > 0 }, tokens)
   }
   if (sure.length === 0) return answered(request, says.mealsProposed, tokens)
@@ -191,8 +165,7 @@ function sortReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
 function sortGoOnReply({ request, tokens }: FakeChatTurn, says: Says, goOns: number): ModelReply {
   const answers = answersSince(request)
   if (goOns === 1) {
-    if (answers.length === 0)
-      return lookup(0, 'propose_changes', { app: 'company', title: says.mealsTitle, steps: [{ op: 'add-category', input: JSON.stringify(mealsCategory(says)), as: null }], next: true }, tokens)
+    if (answers.length === 0) return lookup(0, 'propose_changes', { app: 'company', title: says.mealsTitle, steps: [mealsCategory(says)], next: true }, tokens)
     return answered(request, says.mealsProposed, tokens)
   }
   if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'ledger-row', { only: 'waiting' }), tokens)
@@ -201,8 +174,8 @@ function sortGoOnReply({ request, tokens }: FakeChatTurn, says: Says, goOns: num
     const row = recordsOf(answers[0]!.text).find((waiting) => !SURE.some((candidate) => waiting.counterparty?.includes(candidate.word)))
     const meals = recordsOf(answers[1]!.text).find((category) => category.label === says.mealsLabel)
     if (row === undefined || meals === undefined) return answered(request, says.filedAll, tokens)
-    const input = { ...RULE_LEFT, row: row.ref, category: meals.ref }
-    return lookup(2, 'propose_changes', { app: 'company', title: says.mealsRuleTitle, steps: [{ op: 'add-rule', input: JSON.stringify(input), as: null }], next: false }, tokens)
+    const step = proposedStep(companyOperations(), 'add-rule', { row: row.ref, category: meals.ref })
+    return lookup(2, 'propose_changes', { app: 'company', title: says.mealsRuleTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.mealsRuled, tokens)
 }
@@ -218,24 +191,11 @@ function invoiceReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
   return answered(request, says.invoice, tokens)
 }
 
-/** Reads the travel orders and proposes a parking cost the traveller paid on order 3/2026. */
-function tripCostReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findRecordsArgs('company', 'hr-doo.trip', { limit: 10 }), tokens)
-  if (answers.length === 1) {
-    const trip = recordsOf(answers[0]!.text).find((record) => record.number === '3/2026')
-    if (trip === undefined) return answered(request, says.noTrip, tokens)
-    const input = { trip: trip.ref, date: '2026-10-01', kind: 'parking', description: says.parking, amount: '18', foreignAmount: null, currency: null, paidBy: 'traveller' }
-    return lookup(1, 'propose_changes', { app: 'company', title: says.tripCostTitle, steps: [{ op: 'add-trip-cost', input: JSON.stringify(input), as: null }], next: false }, tokens)
-  }
-  return answered(request, says.tripCost, tokens)
-}
-
 /** Proposes the books in US dollars, a setting whose line the card warns on. */
 function currencyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
-    const step = { op: 'set-setting', input: JSON.stringify({ key: 'currency', value: 'USD' }), as: null }
+    const step = proposedStep(companyOperations(), 'set-setting', { key: 'currency', value: 'USD' })
     return lookup(0, 'propose_changes', { app: 'company', title: says.currencyTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.currency, tokens)
@@ -253,8 +213,8 @@ function ruleReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const office = recordsOf(answers[0]!.text).find((category) => /office supplies|uredski materijal/i.test(category.label ?? ''))
     if (office === undefined) return answered(request, says.noCategory, tokens)
     const [first] = recordsOf(answers[1]!.text)
-    const input = { ...RULE_LEFT, row: null, category: office.ref, before: first?.ref ?? null, payeeWords: 'Laptop Store', direction: 'out', confidence: 'rule' }
-    return lookup(2, 'propose_changes', { app: 'company', title: says.ruleTitle, steps: [{ op: 'add-rule', input: JSON.stringify(input), as: null }], next: false }, tokens)
+    const step = proposedStep(companyOperations(), 'add-rule', { category: office.ref, before: first?.ref ?? null, payeeWords: 'Laptop Store', direction: 'out', confidence: 'rule' })
+    return lookup(2, 'propose_changes', { app: 'company', title: says.ruleTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.rule, tokens)
 }
@@ -267,8 +227,8 @@ function moveReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const rules = recordsOf(answers[0]!.text)
     const [first, second] = rules
     if (first === undefined || second === undefined) return answered(request, says.fewRules, tokens)
-    const input = { ...RULE_LEFT, rule: second.ref, category: null, before: first.ref, last: null }
-    return lookup(1, 'propose_changes', { app: 'company', title: says.moveTitle, steps: [{ op: 'change-rule', input: JSON.stringify(input), as: null }], next: false }, tokens)
+    const step = proposedStep(companyOperations(), 'change-rule', { rule: second.ref, before: first.ref })
+    return lookup(1, 'propose_changes', { app: 'company', title: says.moveTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.moved, tokens)
 }
@@ -277,18 +237,15 @@ function moveReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
 function categoryReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
-    const input = {
+    const step = proposedStep(companyOperations(), 'add-category', {
       category: 'training',
       label: says.trainingLabel,
       family: says.trainingFamily,
       bucket: 'operating',
       taxClass: 'deductible-cost',
-      colour: null,
-      roles: [],
       vat: 'deductible-25',
-      ownerShare: '',
-    }
-    return lookup(0, 'propose_changes', { app: 'company', title: says.categoryTitle, steps: [{ op: 'add-category', input: JSON.stringify(input), as: null }], next: false }, tokens)
+    })
+    return lookup(0, 'propose_changes', { app: 'company', title: says.categoryTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.category, tokens)
 }
@@ -302,7 +259,7 @@ function mergeReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const ai = categories.find((category) => /^ai\b/i.test(category.label ?? ''))
     const software = categories.find((category) => /software|softver/i.test(category.label ?? ''))
     if (ai === undefined || software === undefined) return answered(request, says.noMerge, tokens)
-    const step = { op: 'delete-category', input: JSON.stringify({ category: ai.ref, into: software.ref }), as: null }
+    const step = proposedStep(companyOperations(), 'delete-category', { category: ai.ref, into: software.ref })
     return lookup(1, 'propose_changes', { app: 'company', title: says.mergeTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.merge, tokens)
@@ -317,12 +274,12 @@ function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelRep
     if (account === undefined) return answered(request, says.noAccount, tokens)
     const day = today()
     const rows = [
-      { date: addDays(day, -6), amount: -12.5, counterparty: 'Corner market', iban: null, description: 'REF 1001' },
-      { date: addDays(day, -5), amount: -40, counterparty: 'Harbour bistro', iban: null, description: 'REF 1002' },
-      { date: addDays(day, -4), amount: 100, counterparty: 'Northwind', iban: null, description: 'REF 1003' },
+      { date: addDays(day, -6), amount: -12.5, counterparty: 'Corner market', description: 'REF 1001' },
+      { date: addDays(day, -5), amount: -40, counterparty: 'Harbour bistro', description: 'REF 1002' },
+      { date: addDays(day, -4), amount: 100, counterparty: 'Northwind', description: 'REF 1003' },
     ]
-    const input = { file: null, account: account.ref, statementName: '7/2026', opening: null, closing: null, rows, lookAlikes: 'ask', newAccount: null, part: 1 }
-    return lookup(1, 'propose_changes', { app: 'company', title: says.statementTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
+    const step = proposedStep(companyOperations(), 'import-statement', { account: account.ref, statementName: '7/2026', rows, lookAlikes: 'ask', part: 1 })
+    return lookup(1, 'propose_changes', { app: 'company', title: says.statementTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.statementRefused : says.statementProposed, tokens)
 }
@@ -341,12 +298,12 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
     const main = accounts.find((account) => /main|glavn/i.test(account.label ?? '')) ?? accounts.find((account) => !/legacy|star/i.test(account.label ?? ''))
     if (main === undefined) return answered(request, says.noAccount, tokens)
     const rows = [
-      { date: '2026-10-08', amount: -6.4, counterparty: 'SNACK KIOSK', iban: null, description: 'Card purchase' },
-      { date: '2026-10-09', amount: -14.08, counterparty: 'Phone network d.d.', iban: null, description: 'Mobile plan' },
-      { date: '2026-10-20', amount: -12.5, counterparty: 'Papirnica d.o.o.', iban: null, description: 'Papir' },
+      { date: '2026-10-08', amount: -6.4, counterparty: 'SNACK KIOSK', description: 'Card purchase' },
+      { date: '2026-10-09', amount: -14.08, counterparty: 'Phone network d.d.', description: 'Mobile plan' },
+      { date: '2026-10-20', amount: -12.5, counterparty: 'Papirnica d.o.o.', description: 'Papir' },
     ]
-    const input = { file: null, account: main.ref, statementName: '10/2026', opening: null, closing: null, rows, lookAlikes: 'ask', newAccount: null, part: 1 }
-    return lookup(1, 'propose_changes', { app: 'company', title: says.copyTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
+    const step = proposedStep(companyOperations(), 'import-statement', { account: main.ref, statementName: '10/2026', rows, lookAlikes: 'ask', part: 1 })
+    return lookup(1, 'propose_changes', { app: 'company', title: says.copyTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.statementRefused : says.copyProposed, tokens)
 }
@@ -377,7 +334,7 @@ function buildUpReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
  * Company's part of the fake chat, only while the person is on a Company screen: one that asks to suggest categories or sort
  * reads the rows waiting, files the sure ones and goes on at each Go on with a new category and a rule for the rest, one about an invoice links the Invoices tab, one about dollars proposes the
  * currency, one that always files Laptop Store proposes a rule that re-files a confirmed row, one that tries the second rule first moves it to the top, one about training proposes a category with its tax
- * class, one that starts with merge deletes AI services into software subscriptions, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account a row of which waits as a look-alike, one that asks to explain reads the tagged build-up, and one about parking adds a cost to travel order 3/2026.
+ * class, one that starts with merge deletes AI services into software subscriptions, one that starts with import copies a pasted statement onto the first account, one that starts with transcribe copies a statement of the main account a row of which waits as a look-alike, and one that asks to explain reads the tagged build-up.
  */
 function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (!inCompany(turn.request)) return null
@@ -395,7 +352,6 @@ function companyChat(turn: FakeChatTurn): ModelReply | null {
   if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
   if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)
   if (/explain|objasni/i.test(typed)) return buildUpReply(turn, says)
-  if (/parking|parkiranj/i.test(typed)) return tripCostReply(turn, says)
   return null
 }
 

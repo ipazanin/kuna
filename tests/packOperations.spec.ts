@@ -41,6 +41,7 @@ import { recordOf } from './fixtures/records'
 import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
+import { stepOf } from './fixtures/operationSteps'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -279,8 +280,8 @@ describe('employees and pay', () => {
     desk.anonymising = true
     const switched = recordsOfKind(desk, PLAN_RECORDS).find((line) => line.kind === 'owner-pay-scenario' && line.from !== null)!
 
-    const planned = await desk.propose([{ op: 'plan-owner-pay', input: { year: 2027, scenario: 'early-exit', switchTo: null, switchOn: null } }])
-    const cleared = await desk.propose([{ op: 'clear-plan', input: { line: desk.ref(PLAN_RECORDS.name, switched.id) } }])
+    const planned = await desk.propose([stepOf(PACK_OPERATIONS, 'plan-owner-pay', { year: 2027, scenario: 'early-exit' })])
+    const cleared = await desk.propose([stepOf(PACK_OPERATIONS, 'clear-plan', { line: desk.ref(PLAN_RECORDS.name, switched.id) })])
 
     for (const answer of [planned, cleared]) expect(answer.isError, answer.text).toBe(false)
     expect(desk.cards).toHaveLength(2)
@@ -313,7 +314,7 @@ describe('the plan', () => {
   it('refuses a purchase on a day outside its year', async () => {
     const desk = await packDesk()
 
-    const answer = await desk.propose([{ op: 'plan-purchase', input: { purchase: null, year: 2026, date: '2027-01-02', amount: 100, group: 'computers', name: 'Chair' } }])
+    const answer = await desk.propose([stepOf(PACK_OPERATIONS, 'plan-purchase', { year: 2026, date: '2027-01-02', amount: 100, group: 'computers', name: 'Chair' })])
 
     expect(answer).toMatchObject({ isError: true, text: 'date is a day of 2026.' })
   })
@@ -321,7 +322,7 @@ describe('the plan', () => {
   it("replaces the year's owner pay with one scenario, taking the switch row away", async () => {
     const desk = await packDesk()
 
-    await desk.propose([{ op: 'plan-owner-pay', input: { year: 2027, scenario: 'early-exit', switchTo: null, switchOn: null } }])
+    await desk.propose([stepOf(PACK_OPERATIONS, 'plan-owner-pay', { year: 2027, scenario: 'early-exit' })])
     await desk.accept()
 
     const ownerPay = recordsOfKind(desk, PLAN_RECORDS).filter((line) => line.kind === 'owner-pay-scenario')
@@ -332,7 +333,7 @@ describe('the plan', () => {
     const desk = await packDesk()
     const switched = recordsOfKind(desk, PLAN_RECORDS).find((line) => line.kind === 'owner-pay-scenario' && line.from !== null)!
 
-    await desk.propose([{ op: 'clear-plan', input: { line: desk.ref(PLAN_RECORDS.name, switched.id) } }])
+    await desk.propose([stepOf(PACK_OPERATIONS, 'clear-plan', { line: desk.ref(PLAN_RECORDS.name, switched.id) })])
 
     expect(desk.cards[0]!.count).toBe(2)
   })
@@ -340,7 +341,7 @@ describe('the plan', () => {
   it('refuses a copy of a scenario under a short name another scenario holds', async () => {
     const desk = await packDesk()
 
-    const answer = await desk.propose([{ op: 'copy-scenario', input: { scenario: 'floor-extras', slug: 'early-exit', label: null } }])
+    const answer = await desk.propose([stepOf(PACK_OPERATIONS, 'copy-scenario', { scenario: 'floor-extras', slug: 'early-exit' })])
 
     expect(answer).toMatchObject({ isError: true, text: 'early-exit is already the short name of a scenario.' })
   })
@@ -448,10 +449,8 @@ describe('what the write check refuses for the chat as for the screens', () => {
     const [advance] = recordsOfKind(desk, OWNER_ADVANCE_RECORDS)
     const revenue = desk.ref('category', 'revenue')
 
-    const added = await desk.propose([{ op: 'add-owner-advance', input: { date: '2026-10-10', amount: 10, description: 'Lamp', category: revenue } }])
-    const moved = await desk.propose([
-      { op: 'change-owner-advance', input: { advance: desk.ref(OWNER_ADVANCE_RECORDS.name, advance!.id), date: null, amount: null, description: null, category: revenue, ownerShare: null } },
-    ])
+    const added = await desk.propose([stepOf(PACK_OPERATIONS, 'add-owner-advance', { date: '2026-10-10', amount: 10, description: 'Lamp', category: revenue })])
+    const moved = await desk.propose([stepOf(PACK_OPERATIONS, 'change-owner-advance', { advance: desk.ref(OWNER_ADVANCE_RECORDS.name, advance!.id), category: revenue })])
 
     for (const answer of [added, moved]) expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('"revenue" is in the income bucket') })
     expect(desk.cards).toEqual([])
@@ -479,7 +478,7 @@ describe('what the write check refuses for the chat as for the screens', () => {
   it('refuses to delete a grant an asset is funded by', async () => {
     const desk = await packDesk()
 
-    const answer = await desk.propose([{ op: 'delete-grant', input: { row: desk.ref(GRANT_RECORDS.name, 'startup-grant') } }])
+    const answer = await desk.propose([stepOf(PACK_OPERATIONS, 'delete-grant', { row: desk.ref(GRANT_RECORDS.name, 'startup-grant') })])
 
     expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('"startup-grant" cannot be deleted') })
   })
@@ -487,7 +486,7 @@ describe('what the write check refuses for the chat as for the screens', () => {
   it('refuses to rename a scenario the plan picks', async () => {
     const desk = await packDesk()
 
-    const answer = await desk.propose([{ op: 'rename-scenario', input: { scenario: 'floor-salary', slug: 'renamed', label: null } }])
+    const answer = await desk.propose([stepOf(PACK_OPERATIONS, 'rename-scenario', { scenario: 'floor-salary', slug: 'renamed' })])
 
     expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('"floor-salary" cannot be renamed') })
   })
@@ -511,10 +510,14 @@ describe('the plan rows', () => {
     const purchase = recordsOfKind(desk, PLAN_RECORDS).find((line) => line.kind === 'purchase')!
 
     const answer = await desk.propose([
-      {
-        op: 'plan-purchase',
-        input: { purchase: desk.ref(PLAN_RECORDS.name, purchase.id), year: purchase.year + 1, date: `${purchase.year + 1}-02-01`, amount: 100, group: 'computers', name: 'Moved' },
-      },
+      stepOf(PACK_OPERATIONS, 'plan-purchase', {
+        purchase: desk.ref(PLAN_RECORDS.name, purchase.id),
+        year: purchase.year + 1,
+        date: `${purchase.year + 1}-02-01`,
+        amount: 100,
+        group: 'computers',
+        name: 'Moved',
+      }),
     ])
 
     expect(answer).toMatchObject({ isError: true, text: `That purchase is planned for ${purchase.year}, so year is ${purchase.year}.` })
@@ -523,7 +526,7 @@ describe('the plan rows', () => {
   it('refuses an amount below zero, as the plan dialog takes zero or more', async () => {
     const desk = await packDesk()
 
-    const answer = await desk.propose([{ op: 'plan-category', input: { category: desk.ref('category', 'ai-services'), year: 2027, month: null, amount: -40 } }])
+    const answer = await desk.propose([stepOf(PACK_OPERATIONS, 'plan-category', { category: desk.ref('category', 'ai-services'), year: 2027, amount: -40 })])
 
     expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('zero or more') })
   })
@@ -531,7 +534,7 @@ describe('the plan rows', () => {
   it("shows a category's amount for every month as every month", async () => {
     const desk = await packDesk()
 
-    await desk.propose([{ op: 'plan-category', input: { category: desk.ref('category', 'ai-services'), year: 2027, month: null, amount: 40 } }])
+    await desk.propose([stepOf(PACK_OPERATIONS, 'plan-category', { category: desk.ref('category', 'ai-services'), year: 2027, amount: 40 })])
 
     const [line] = desk.cards[0]!.groups[0]!.lines
     expect(line!.fields).toContainEqual(expect.objectContaining({ name: 'Month', after: 'every month' }))
@@ -567,7 +570,7 @@ describe('a row the editor cannot read', () => {
   it('is removed on a card with no Undo that names it', async () => {
     const desk = await unreadableAssetDesk()
 
-    await desk.propose([{ op: 'remove-unreadable-asset', input: { row: 1 } }])
+    await desk.propose([stepOf(PACK_OPERATIONS, 'remove-unreadable-asset', { row: 1 })])
 
     expect(desk.cards[0]!.undoable).toBe(false)
     expect(desk.cards[0]!.groups).toEqual([expect.objectContaining({ verb: 'remove', lines: [expect.objectContaining({ label: 'Laptop 14 inch' })] })])
@@ -592,8 +595,8 @@ describe('a row the editor cannot read', () => {
     const unreadable = await unreadableAssetDesk()
     const readable = await packDesk()
 
-    const past = await unreadable.propose([{ op: 'remove-unreadable-asset', input: { row: 2 } }])
-    const none = await readable.propose([{ op: 'remove-unreadable-grant', input: { row: 1 } }])
+    const past = await unreadable.propose([stepOf(PACK_OPERATIONS, 'remove-unreadable-asset', { row: 2 })])
+    const none = await readable.propose([stepOf(PACK_OPERATIONS, 'remove-unreadable-grant', { row: 1 })])
 
     expect(past).toMatchObject({ isError: true, text: 'row is a whole number from 1 to 1.' })
     expect(none).toMatchObject({ isError: true, text: 'Kuna reads every grant row.' })
@@ -603,7 +606,7 @@ describe('a row the editor cannot read', () => {
     const desk = await packDesk()
     desk.anonymising = true
 
-    const answer = await desk.propose([{ op: 'remove-unreadable-employee', input: { row: 1 } }])
+    const answer = await desk.propose([stepOf(PACK_OPERATIONS, 'remove-unreadable-employee', { row: 1 })])
 
     expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('turn Anonymise off') })
   })

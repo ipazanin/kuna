@@ -19,6 +19,7 @@ import { EXAMPLE_RECORDS, loansDesk } from './fixtures/loansDesk'
 import type { LoansDesk } from './fixtures/loansDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
+import { stepOf } from './fixtures/operationSteps'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -355,7 +356,7 @@ describe('the instalment printed on a change', () => {
       'change',
       BANK_LOAN_RECORDS.noun,
     )
-    const answer = await desk.propose([{ op: 'set-subsidy', input: { loan, monthly: 20, payer: 'APN', firstInstalment: 1, instalments: 6 } }])
+    const answer = await desk.propose([stepOf(LOANS_OPERATIONS, 'set-subsidy', { loan, monthly: 20, payer: 'APN', firstInstalment: 1, instalments: 6 })])
 
     expect(changedLine(desk, 'change', BANK_LOAN_RECORDS.noun).fields.map((field) => field.name)).not.toContain(words.proposals.fields.bankInstalment)
     expect(answer.text).not.toContain('not the printed one')
@@ -400,9 +401,9 @@ describe('a change that names only some fields', () => {
   it("keeps a subsidy's payer when a step names only the monthly amount", async () => {
     const desk = await loansDesk(used)
     const loan = desk.ref('bank-loan', EXAMPLE_RECORDS['bank-loan']!)
-    await desk.propose([{ op: 'set-subsidy', input: { loan, monthly: 20, payer: 'APN', firstInstalment: 1, instalments: 6 } }])
+    await desk.propose([stepOf(LOANS_OPERATIONS, 'set-subsidy', { loan, monthly: 20, payer: 'APN', firstInstalment: 1, instalments: 6 })])
     await desk.accept()
-    await desk.propose([{ op: 'set-subsidy', input: { loan, monthly: 25, payer: null, firstInstalment: null, instalments: null } }])
+    await desk.propose([stepOf(LOANS_OPERATIONS, 'set-subsidy', { loan, monthly: 25 })])
     await desk.accept()
 
     expect(bookOf(desk).bankLoans[0]!.loan.subsidy).toMatchObject({ payer: 'APN', firstInstalment: 1, instalments: 6 })
@@ -413,7 +414,7 @@ describe('a change that names only some fields', () => {
     const add = LOANS_OPERATIONS.find((operation) => operation.name === 'add-bank-loan')!
     const answer = await desk.propose([
       { op: 'add-bank-loan', input: add.example, as: '$car' },
-      { op: 'set-subsidy', input: { loan: '$car', monthly: 20, payer: 'APN', firstInstalment: 1, instalments: 6 } },
+      stepOf(LOANS_OPERATIONS, 'set-subsidy', { loan: '$car', monthly: 20, payer: 'APN', firstInstalment: 1, instalments: 6 }),
     ])
     expect(answer.text).toContain('is changed, and takes its tries and late instalments, on a card after it')
   })
@@ -423,23 +424,23 @@ describe('what the screens refuse', () => {
   it('refuses a rate from a day that is no due date, and taking the first rate away', async () => {
     const desk = await loansDesk(used)
     const loan = desk.ref('bank-loan', EXAMPLE_RECORDS['bank-loan']!)
-    expect((await desk.propose([{ op: 'add-rate-period', input: { loan, from: '2026-10-06', rate: '3.9', rateType: 'variable', note: '', bankInstalment: null } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'delete-rate-period', input: { period: desk.ref('rate-period', EXAMPLE_RECORDS['rate-period-first']!) } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'add-rate-period', input: { loan, from: '2026-10-05', rate: '3.18%', rateType: 'variable', note: '', bankInstalment: null } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(LOANS_OPERATIONS, 'add-rate-period', { loan, from: '2026-10-06', rate: '3.9', rateType: 'variable', note: '' })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(LOANS_OPERATIONS, 'delete-rate-period', { period: desk.ref('rate-period', EXAMPLE_RECORDS['rate-period-first']!) })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(LOANS_OPERATIONS, 'add-rate-period', { loan, from: '2026-10-05', rate: '3.18%', rateType: 'variable', note: '' })])).isError).toBe(true)
   })
 
   it('refuses an extra payment before the payout or with a part of a cent, and a late instalment paid before it fell due', async () => {
     const desk = await loansDesk(used)
     const loan = desk.ref('bank-loan', EXAMPLE_RECORDS['bank-loan']!)
-    expect((await desk.propose([{ op: 'add-extra-payment', input: { loan, date: '2025-12-01', amount: 100, effect: 'shorter-term' } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'add-extra-payment', input: { loan, date: '2026-09-01', amount: 100.123, effect: 'shorter-term' } }])).isError).toBe(true)
-    expect((await desk.propose([{ op: 'add-late-instalment', input: { loan, due: '2026-04-05', paid: '2026-04-05' } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(LOANS_OPERATIONS, 'add-extra-payment', { loan, date: '2025-12-01', amount: 100, effect: 'shorter-term' })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(LOANS_OPERATIONS, 'add-extra-payment', { loan, date: '2026-09-01', amount: 100.123, effect: 'shorter-term' })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(LOANS_OPERATIONS, 'add-late-instalment', { loan, due: '2026-04-05', paid: '2026-04-05' })])).isError).toBe(true)
   })
 
   it('refuses a subsidy past the last instalment, and a loan whose first instalment is not after its payout', async () => {
     const desk = await loansDesk(used)
     const loan = desk.ref('bank-loan', EXAMPLE_RECORDS['bank-loan']!)
-    expect((await desk.propose([{ op: 'set-subsidy', input: { loan, monthly: 20, payer: 'APN', firstInstalment: 10, instalments: 6 } }])).isError).toBe(true)
+    expect((await desk.propose([stepOf(LOANS_OPERATIONS, 'set-subsidy', { loan, monthly: 20, payer: 'APN', firstInstalment: 10, instalments: 6 })])).isError).toBe(true)
     const add = LOANS_OPERATIONS.find((operation) => operation.name === 'add-bank-loan')!
     expect((await desk.propose([{ op: 'add-bank-loan', input: { ...add.example, firstInstalment: '2026-11-02' } }])).isError).toBe(true)
   })
@@ -449,7 +450,7 @@ describe('one write, one Undo', () => {
   it('deletes a bank loan with everything under it, its saved try too, and puts it all back', async () => {
     const desk = await loansDesk(used)
     const before = recordsOf(desk)
-    await desk.propose([{ op: 'delete-bank-loan', input: { loan: desk.ref('bank-loan', EXAMPLE_RECORDS['bank-loan']!) } }])
+    await desk.propose([stepOf(LOANS_OPERATIONS, 'delete-bank-loan', { loan: desk.ref('bank-loan', EXAMPLE_RECORDS['bank-loan']!) })])
     const result = await desk.accept()
     expect(bookOf(desk).bankLoans).toEqual([])
     expect(bookOf(desk).scenarios.map((scenario) => scenario.scenario.name)).toEqual(['Offer A'])
@@ -462,7 +463,7 @@ describe('one write, one Undo', () => {
     const add = LOANS_OPERATIONS.find((operation) => operation.name === 'add-bank-loan')!
     const answer = await desk.propose([
       { op: 'add-bank-loan', input: add.example, as: '$car' },
-      { op: 'add-extra-payment', input: { loan: '$car', date: '2027-01-02', amount: 1000, effect: 'shorter-term' } },
+      stepOf(LOANS_OPERATIONS, 'add-extra-payment', { loan: '$car', date: '2027-01-02', amount: 1000, effect: 'shorter-term' }),
     ])
     expect(answer.isError).toBe(false)
     await desk.accept()

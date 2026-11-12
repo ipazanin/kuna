@@ -13,6 +13,8 @@ import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accoun
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
+import { stepOf } from './fixtures/operationSteps'
+import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -24,35 +26,26 @@ const categoryNamed = (desk: SpendingDesk, name: string) => bookOf(desk).categor
 const PHARMACY = EXAMPLE_RECORDS['transaction-joinable']!
 
 function line(desk: SpendingDesk, printed: string, lineTotal: number, category = 'Rent', fields: Readonly<Record<string, unknown>> = {}) {
-  return { printed, text: printed.toLowerCase(), kind: 'product', quantity: null, unitPrice: null, lineTotal, category: desk.ref('category', categoryNamed(desk, category).id), ...fields }
+  return { printed, text: printed.toLowerCase(), kind: 'product', lineTotal, category: desk.ref('category', categoryNamed(desk, category).id), ...fields }
 }
 
 /** An add-receipt step of the pharmacy's €31, splitting its row unless told otherwise. */
 function receipt(desk: SpendingDesk, fields: Readonly<Record<string, unknown>> = {}) {
-  return {
-    op: 'add-receipt',
-    input: {
-      photo: 'a1',
-      paid: 'card',
-      entry: desk.ref('transaction', PHARMACY),
-      account: null,
-      merchant: 'Pharmacy',
-      merchantOib: null,
-      buyerOib: null,
-      markedR1: false,
-      whose: null,
-      issuedOn: '2026-10-21',
-      issuedAt: '09:15',
-      jir: null,
-      zki: null,
-      lines: [line(desk, 'VITAMIN C', 20), line(desk, 'FLASTER', 11)],
-      vat: [],
-      total: 31,
-      unreadable: [],
-      keepPhoto: false,
-      ...fields,
-    },
-  }
+  return stepOf(SPENDING_OPERATIONS, 'add-receipt', {
+    photo: 'a1',
+    paid: 'card',
+    entry: desk.ref('transaction', PHARMACY),
+    merchant: 'Pharmacy',
+    markedR1: false,
+    issuedOn: '2026-10-21',
+    issuedAt: '09:15',
+    lines: [line(desk, 'VITAMIN C', 20), line(desk, 'FLASTER', 11)],
+    vat: [],
+    total: 31,
+    unreadable: [],
+    keepPhoto: false,
+    ...fields,
+  })
 }
 
 /** A receipt of €7.77, which no payment on the desk may be. */
@@ -217,28 +210,9 @@ describe('a receipt from the chat', () => {
   it('asks which cash account takes a cash receipt among several, and with none asks how much cash there was and adds one with that opening first on the same card', async () => {
     const desk = await spendingDesk(used)
     const cash = (fields: Readonly<Record<string, unknown>> = {}) => receipt(desk, { paid: 'cash', entry: null, ...fields })
-    const addCash = { op: 'add-account', input: { name: 'Purse', kind: 'cash', bank: null, currency: 'EUR', opening: 50, openedOn: '2026-10-21', iban: null, rowsFrom: 'by-hand' }, as: '$cash' }
+    const addCash = stepOf(SPENDING_OPERATIONS, 'add-account', { name: 'Purse', kind: 'cash', currency: 'EUR', opening: 50, openedOn: '2026-10-21', rowsFrom: 'by-hand' }, '$cash')
 
-    await desk.propose(
-      [
-        {
-          op: 'change-account',
-          input: {
-            account: desk.ref('account', DESK_ACCOUNTS.WALLET.id),
-            name: null,
-            kind: null,
-            bank: null,
-            currency: null,
-            opening: null,
-            openedOn: null,
-            iban: null,
-            rowsFrom: null,
-            closed: 'yes',
-          },
-        },
-      ],
-      [],
-    )
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-account', { account: desk.ref('account', DESK_ACCOUNTS.WALLET.id), closed: 'yes' })], [])
     await desk.accept()
     expect((await desk.propose([cash()], [attachedPhoto()])).text).toContain('Ask the person how much cash they had before paying')
     expect((await desk.propose([addCash, cash({ account: '$cash' })], [attachedPhoto()])).isError).toBe(false)
@@ -283,10 +257,7 @@ describe('a receipt from the chat', () => {
 
     expect((await desk.propose([receipt(desk, lines('Food'))], [attachedPhoto()])).text).toContain('FLASTER')
     expect((await desk.propose([receipt(desk, lines('For the company'))], [attachedPhoto()])).text).toContain('FLASTER')
-    const answer = await desk.propose(
-      [{ op: 'add-category', input: { name: 'Pharmacy', kind: 'spending', parent: null, colour: null, hidden: null }, as: '$pharmacy' }, receipt(desk)],
-      [attachedPhoto()],
-    )
+    const answer = await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-category', { name: 'Pharmacy', kind: 'spending' }, '$pharmacy'), receipt(desk)], [attachedPhoto()])
     expect(answer.text).toContain('A new category goes on a card before the receipt')
   })
 

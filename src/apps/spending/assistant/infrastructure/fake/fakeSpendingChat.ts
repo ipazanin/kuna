@@ -1,12 +1,13 @@
 import { answered, answersSince, findRecordsArgs, goOnsInto, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
-import { addDays } from '../../../../../shared/calendar/civilDate'
-import type { CivilDate } from '../../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../../shared/calendar/dayLabel'
-import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
 import { addMonths, monthOf } from '../../../../../shared/calendar/monthKey'
 import { language } from '../../../../../shared/text/language'
+import { fakeSpendingDayHere } from '../../../workbook/infrastructure/fake/fakeSpending'
+import { copyReply, matchReply, revolutCopyReply, statementReply } from './fakeImportsChat'
+import { cardReceiptReply, cashReceiptReply, pickedReceiptReply, receiptReply } from './fakeReceiptsChat'
+import { SORT_JOB, closeAccountReply, purseReply, sortGoOnReply, sortJobReply, sortReply } from './fakeSetUpChat'
+import { splitReply } from './fakeSplitsChat'
 
 const ANSWERS = {
   en: {
@@ -14,135 +15,20 @@ const ANSWERS = {
     spent: (figure: string) => `You spent ${figure} this month.`,
     paid: (who: string, amount: string) => `The latest payment to a person went to ${who}: ${amount}.`,
     invented: 'Last year it was €4,300.00.',
-    proposed: 'The card below sorts them. Nothing changes until you accept it.',
-    proposalTitle: 'Rules for what keeps coming',
-    closeTitle: 'Close the old account',
-    closeProposed: 'The card below closes the account and gives it the new IBAN. Check the IBAN before you accept.',
-    nothingToSort: 'None of the latest rows names a shop I could make a rule for.',
-    statementTitle: 'Import the pasted statement',
-    statementProposed: 'I misread one amount at first, so Kuna refused it as not adding up. The card below now ties from the opening balance to the closing one.',
-    copyTitle: 'Import the copied statement',
-    copyProposed: 'One row is in Spending already and is skipped. Another looks like a row Kuna has from another source, so it waits on the card. Is it another payment?',
-    noFile: 'Attach the Revolut export with the paperclip, and I will copy its rows.',
-    revolutName: 'Revolut export',
-    revolutTitle: 'Import the Revolut export',
-    revolutProposed: 'The card imports the rows I copied from the Revolut file. The export prints no opening or closing balance, so check the rows against it.',
-    revolutRefused: 'Kuna refused the rows I copied. Check them against the file.',
-    noPhoto: 'Attach a photo of the receipt first, and I will read its lines.',
-    pharmacy: 'Pharmacy',
-    pharmacyTitle: 'A category for the pharmacy',
-    pharmacyProposed: 'The card adds Pharmacy for the pharmacy rows waiting. Once you accept, the next card files them there with a rule.',
-    pharmacyRuleTitle: 'File the pharmacy with a rule',
-    pharmacyRuled: 'The card adds a rule for the pharmacy and files its waiting rows under Pharmacy.',
-    petFood: 'Pet food',
-    categoryTitle: 'A category for pet food',
-    categoryFirst: 'One line is pet food, which has no category yet. Accept the card below, then ask me to read the receipt again.',
-    receiptTitle: 'The receipt from Corner market',
-    receiptProposed: 'The card below splits the payment into the lines I read. Nothing changes until you accept it.',
-    pickWhich: (payments: string) => `The receipt may be any of these payments: ${payments}. Which one was it?`,
-    paymentOn: (amount: string, day: string) => `${amount} on ${day}`,
-    wasItCash: 'No payment in Spending matches this receipt. Did you pay in cash?',
-    pickedTitle: 'The receipt on Harbour bistro',
-    pickedProposed: 'The card below puts the receipt on the Harbour bistro payment you picked. Check what the card says differs before you accept.',
-    taggedTitle: 'The receipt on the entry you took it for',
-    taggedProposed: 'The card below puts the receipt on the entry you took the photo for. Check what the card says differs before you accept.',
-    cashTitle: 'A cash receipt',
-    cardTitle: 'A card receipt',
-    cardProposed: 'The card below keeps the receipt with the lines I read until the bank brings the payment. Nothing changes until you accept it.',
-    noCardAccount: 'You keep no euro account the bank fills, so tell me which account the card is on.',
-    cashProposed: 'The card below makes the cash payment with the lines I read. Nothing changes until you accept it.',
-    howMuchCash: 'You keep no cash account in euros yet. How much cash did you have before you paid?',
-    cashAccountFirst: 'The card below adds a cash account with what you had and puts the receipt on it.',
-    cashName: 'Cash',
-    whichCash: (accounts: string) => `Which cash account did you pay from: ${accounts}?`,
-    purseTitle: 'A second cash account',
-    purse: 'Purse',
-    purseProposed: 'The card below adds a cash account in euros called Purse.',
-    matched: {
-      same: (row: number) => `Row ${row} is in Spending already.`,
-      like: (row: number) => `Row ${row} looks like a payment Spending has, dated a few days off. Is it another payment?`,
-      none: (row: number) => `Row ${row} is not in Spending yet.`,
-    },
-    splitTitle: 'Split the latest spend',
-    splitProposed: 'The card below puts €5.00 of it under Household goods and leaves the rest where it was. Nothing changes until you accept it.',
-    nothingToSplit: 'None of the latest rows is a spend I could split.',
-    householdPart: 'Cleaning things',
     biggest: 'Your biggest spends last month:',
     noSpends: 'There were no spends last month.',
   },
   hr: {
-    rules: 'Odaberite kategoriju na **Za pregled** i zatim **Uvijek za ovog primatelja**.\n- Svako pravilo zatim razvrstava nove retke\n- Redak koji ste sami razvrstali ostaje kakav jest',
+    rules: 'Odaberite kategoriju na kartici **Za pregled** i zatim **Uvijek za ovog primatelja**.\n- Svako pravilo zatim razvrstava nove retke\n- Redak koji ste sami razvrstali ostaje kakav jest',
     spent: (figure: string) => `Ovaj mjesec potrošili ste ${figure}.`,
     paid: (who: string, amount: string) => `Zadnja uplata osobi otišla je na ${who}: ${amount}.`,
     invented: 'Prošle godine bilo je 4.300,00 €.',
-    proposed: 'Kartica ispod ih razvrstava. Ništa se ne mijenja dok je ne prihvatite.',
-    proposalTitle: 'Pravila za ono što se ponavlja',
-    closeTitle: 'Zatvori stari račun',
-    closeProposed: 'Kartica ispod zatvara račun i daje mu novi IBAN. Provjerite IBAN prije nego što prihvatite.',
-    nothingToSort: 'Nijedan od zadnjih redaka ne navodi trgovinu za koju bih mogao napraviti pravilo.',
-    statementTitle: 'Uvezi zalijepljeni izvod',
-    statementProposed: 'Isprva sam krivo pročitao jedan iznos, pa ga je Kuna odbila jer se ne zbraja. Kartica ispod sada se slaže od početnog do završnog stanja.',
-    copyTitle: 'Uvezi prepisani izvod',
-    copyProposed: 'Jedan je redak već u Potrošnji i preskočen je. Drugi nalikuje retku koji Kuna ima iz drugog izvora, pa čeka na kartici. Je li to drugo plaćanje?',
-    noFile: 'Priložite izvoz iz Revoluta spajalicom i prepisat ću njegove retke.',
-    revolutName: 'Izvoz iz Revoluta',
-    revolutTitle: 'Uvezi izvoz iz Revoluta',
-    revolutProposed: 'Kartica uvozi retke koje sam prepisao iz datoteke iz Revoluta. Izvoz ne ispisuje početno ni završno stanje, pa retke usporedite s njim.',
-    revolutRefused: 'Kuna je odbila retke koje sam prepisao. Provjerite ih s datotekom.',
-    noPhoto: 'Najprije priložite fotografiju fiskalnog računa, pa ću pročitati stavke.',
-    pharmacy: 'Ljekarna',
-    pharmacyTitle: 'Kategorija za ljekarnu',
-    pharmacyProposed: 'Kartica dodaje Ljekarnu za retke ljekarne koji čekaju. Kad prihvatite, sljedeća kartica razvrstava ih u nju s pravilom.',
-    pharmacyRuleTitle: 'Razvrstaj ljekarnu s pravilom',
-    pharmacyRuled: 'Kartica dodaje pravilo za ljekarnu i razvrstava njezine retke koji čekaju u Ljekarnu.',
-    petFood: 'Hrana za ljubimce',
-    categoryTitle: 'Kategorija za hranu za ljubimce',
-    categoryFirst: 'Jedna je stavka hrana za ljubimce, za koju još nema kategorije. Prihvatite karticu ispod, pa me ponovno zamolite da pročitam račun.',
-    receiptTitle: 'Fiskalni račun iz trgovine Corner market',
-    receiptProposed: 'Kartica ispod dijeli plaćanje na stavke koje sam pročitao. Ništa se ne mijenja dok je ne prihvatite.',
-    pickWhich: (payments: string) => `Fiskalni račun može biti bilo koje od ovih plaćanja: ${payments}. Koje je to bilo?`,
-    paymentOn: (amount: string, day: string) => `${amount} od ${day}`,
-    wasItCash: 'Nijedno plaćanje u Potrošnji ne odgovara ovom računu. Jeste li platili gotovinom?',
-    pickedTitle: 'Fiskalni račun na plaćanju Harbour bistro',
-    pickedProposed: 'Kartica ispod stavlja fiskalni račun na plaćanje Harbour bistro koje ste odabrali. Prije nego što prihvatite, provjerite što kartica kaže da se razlikuje.',
-    taggedTitle: 'Fiskalni račun na unosu za koji ste ga snimili',
-    taggedProposed: 'Kartica ispod stavlja fiskalni račun na unos za koji ste ga snimili. Prije nego što prihvatite, provjerite što kartica kaže da se razlikuje.',
-    cashTitle: 'Fiskalni račun plaćen gotovinom',
-    cardTitle: 'Fiskalni račun plaćen karticom',
-    cardProposed: 'Kartica ispod čuva fiskalni račun sa stavkama koje sam pročitao dok banka ne donese plaćanje. Ništa se ne mijenja dok je ne prihvatite.',
-    noCardAccount: 'Nemate račun u eurima koji puni banka, pa mi recite na kojem je računu kartica.',
-    cashProposed: 'Kartica ispod upisuje plaćanje gotovinom sa stavkama koje sam pročitao. Ništa se ne mijenja dok je ne prihvatite.',
-    howMuchCash: 'Još nemate račun gotovine u eurima. Koliko ste gotovine imali prije plaćanja?',
-    cashAccountFirst: 'Kartica ispod dodaje račun gotovine s iznosom koji ste imali i stavlja fiskalni račun na njega.',
-    cashName: 'Gotovina',
-    whichCash: (accounts: string) => `S kojeg ste računa gotovine platili: ${accounts}?`,
-    purseTitle: 'Drugi račun gotovine',
-    purse: 'Novčanik',
-    purseProposed: 'Kartica ispod dodaje račun gotovine u eurima pod nazivom Novčanik.',
-    matched: {
-      same: (row: number) => `${row}. redak već je u Potrošnji.`,
-      like: (row: number) => `${row}. redak nalikuje plaćanju koje Potrošnja ima nekoliko dana ranije ili kasnije. Je li to drugo plaćanje?`,
-      none: (row: number) => `${row}. retka još nema u Potrošnji.`,
-    },
-    splitTitle: 'Podijeli zadnji trošak',
-    splitProposed: 'Kartica ispod stavlja 5,00 € od njega pod Kućanske potrepštine, a ostatak ostavlja gdje je bio. Ništa se ne mijenja dok je ne prihvatite.',
-    nothingToSplit: 'Nijedan od zadnjih redaka nije trošak koji bih mogao podijeliti.',
-    householdPart: 'Sredstva za čišćenje',
     biggest: 'Vaši najveći troškovi prošlog mjeseca:',
     noSpends: 'Prošlog mjeseca nije bilo troškova.',
   },
 }
 
-/** A made-up OIB whose check digit is right. */
-export const MADE_UP_MERCHANT_OIB = '12345678903'
-/** Another, the made-up buyer of an R1 receipt. */
-export const MADE_UP_BUYER_OIB = '11111111119'
-
-const GROCERIES: readonly string[] = ['Groceries', 'Namirnice']
-const HOUSEHOLD: readonly string[] = ['Household goods', 'Kućanske potrepštine']
-const PET_FOOD: readonly string[] = [ANSWERS.en.petFood, ANSWERS.hr.petFood]
-
-type Says = (typeof ANSWERS)['en']
+const says = ANSWERS[language]
 
 /** A person's name came as an alias, or as it is with aliases off: the first payee of the rows that reads as a name. */
 function latestPersonPaid(found: string): { readonly payee: string; readonly amount: string } | null {
@@ -152,7 +38,7 @@ function latestPersonPaid(found: string): { readonly payee: string; readonly amo
 }
 
 /** Reads the month's figures and the latest rows as a real model would, and answers from what the tools gave, with an amount of its own if told to invent one. */
-function spendingReply({ request, tokens, invents }: FakeChatTurn, says: Says): ModelReply {
+function spendingReply({ request, tokens, invents }: FakeChatTurn): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) return lookup(0, 'read_figures', { app: 'spending', report: 'month', period: null }, tokens)
   if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'transaction', { limit: 5 }), tokens)
@@ -162,445 +48,8 @@ function spendingReply({ request, tokens, invents }: FakeChatTurn, says: Says): 
   return answered(request, parts.join(' '), tokens)
 }
 
-/**
- * Reads the latest rows and proposes a rule from the first filed row with a shop's name and no IBAN, into the category that row
- * is under, so the rule never files a person's payments. `before` counts the lookups the turn made before it.
- */
-function sortReply({ request, tokens }: FakeChatTurn, says: Says, before = 0): ModelReply {
-  const answers = answersSince(request).slice(before)
-  if (answers.length === 0) return lookup(before, 'find_records', findRecordsArgs('spending', 'transaction', { limit: 5 }), tokens)
-  if (answers.length === 1) {
-    const { records } = JSON.parse(answers[0]!.text) as {
-      readonly records: readonly { readonly ref: string; readonly payee?: string; readonly category?: string; readonly counterpartyIban?: string }[]
-    }
-    const row = records.find((record) => record.category !== undefined && record.counterpartyIban === undefined && !/^(?:Person|Osoba) \d+$/.test(record.payee ?? ''))
-    if (row === undefined) return answered(request, says.nothingToSort, tokens)
-    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, iban: null, category: row.category, withdrawal: null, cash_account: null }), as: null }
-    return lookup(before + 1, 'propose_changes', { app: 'spending', title: says.proposalTitle, steps: [step], next: false }, tokens)
-  }
-  return answered(request, says.proposed, tokens)
-}
-
-/** What asks to sort the rows waiting, as Suggest categories on To review and the quick action do. */
-const SORT_JOB = /^sort the rows waiting on to review\. |^razvrstaj retke koji čekaju na kartici za pregled\. /i
-
-const findWaiting = findRecordsArgs('spending', 'transaction', { only: 'waiting' })
-
-interface WaitingRow {
-  readonly ref: string
-  readonly payee?: string
-}
-
-function waitingRows(text: string): readonly WaitingRow[] {
-  return (JSON.parse(text) as { readonly records: readonly WaitingRow[] }).records
-}
-
-/**
- * Reads the rows waiting and proposes a new category for the first one with a payee, as no category fits it, with a card
- * after it. With nothing waiting it proposes a rule from the latest rows instead.
- */
-function sortJobReply(turn: FakeChatTurn, says: Says): ModelReply {
-  const { request, tokens } = turn
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findWaiting, tokens)
-  if (waitingRows(answers[0]!.text).every((row) => row.payee === undefined)) return sortReply(turn, says, 1)
-  if (answers.length === 1) {
-    const step = { op: 'add-category', input: JSON.stringify({ name: says.pharmacy, kind: 'spending', parent: null, colour: null, hidden: null }), as: null }
-    return lookup(1, 'propose_changes', { app: 'spending', title: says.pharmacyTitle, steps: [step], next: true }, tokens)
-  }
-  return answered(request, says.pharmacyProposed, tokens)
-}
-
-/** The card Go on asks for in the sorting job: a rule from the first waiting row with a payee into the new category. */
-function sortGoOnReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findWaiting, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { query: says.pharmacy, limit: 5 }), tokens)
-  if (answers.length === 2) {
-    const row = waitingRows(answers[0]!.text).find((waiting) => waiting.payee !== undefined)
-    const category = recordsIn(answers[1]!.text).find((found) => found.name === says.pharmacy)?.ref
-    if (row === undefined || category === undefined) return answered(request, says.nothingToSort, tokens)
-    const step = { op: 'add-rule', input: JSON.stringify({ row: row.ref, fragment: null, iban: null, category, withdrawal: null, cash_account: null }), as: null }
-    return lookup(2, 'propose_changes', { app: 'spending', title: says.pharmacyRuleTitle, steps: [step], next: false }, tokens)
-  }
-  return answered(request, says.pharmacyRuled, tokens)
-}
-
-const findAccounts = findRecordsArgs('spending', 'account', { limit: 5 })
-
-/** A made-up IBAN that passes the check, as a person might give it for the account's new number. */
-const NEW_IBAN = 'HR1210010051863000160'
-
-/** Reads the accounts and proposes closing the first, with a new IBAN on it, so the card shows a closed account and a line it warns on. */
-function closeAccountReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
-  if (answers.length === 1) {
-    const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
-    const step = {
-      op: 'change-account',
-      input: JSON.stringify({ account: records[0]!.ref, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: NEW_IBAN, closed: 'yes', rowsFrom: null }),
-      as: null,
-    }
-    return lookup(1, 'propose_changes', { app: 'spending', title: says.closeTitle, steps: [step], next: false }, tokens)
-  }
-  return answered(request, says.closeProposed, tokens)
-}
-
-/** Rows as a model would read them off a pasted statement, all made up, dated in the last week so every account is open by then. */
-function statementRows(misread: boolean): readonly { readonly date: string; readonly amount: number; readonly payee: string; readonly iban: null }[] {
-  const day = fakeSpendingDayHere()
-  return [
-    { date: addDays(day, -6), amount: -12.5, payee: 'Corner market', iban: null },
-    { date: addDays(day, -5), amount: misread ? -40.01 : -40, payee: 'Harbour bistro', iban: null },
-    { date: addDays(day, -4), amount: 100, payee: 'Mali dućan', iban: null },
-  ]
-}
-
-/** Reads the accounts and transcribes a pasted statement onto the first: once with one amount a cent off, which Kuna refuses, then as printed. */
-function statementReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
-  if (answers.length < 3) {
-    const { records } = JSON.parse(answers[0]!.text) as { readonly records: readonly { readonly ref: string }[] }
-    const input = {
-      file: null,
-      account: records[0]!.ref,
-      statementName: '41/2026',
-      opening: 500,
-      closing: 547.5,
-      rows: statementRows(answers.length === 1),
-      part: 1,
-      lookAlikes: 'ask',
-      fromDay: null,
-      toDay: null,
-    }
-    const step = { op: 'import-statement', input: JSON.stringify(input), as: null }
-    return lookup(answers.length, 'propose_changes', { app: 'spending', title: says.statementTitle, steps: [step], next: false }, tokens)
-  }
-  return answered(request, says.statementProposed, tokens)
-}
-
-/** The id of the last photo the context lines name, or null for none. */
-function lastPhotoId(request: FakeChatTurn['request']): string | null {
-  const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : [])).join('\n')
-  return [...said.matchAll(/\b(a\d+) \(photo\)/g)].at(-1)?.[1] ?? null
-}
-
-/** The ref of the entry the chat is tagged with, as a row's camera tags it, or null for none. */
-function taggedEntry(request: FakeChatTurn['request']): string | null {
-  const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : [])).join('\n')
-  return [...said.matchAll(/Tagged element: the transaction (\S+) of spending\b/g)].at(-1)?.[1] ?? null
-}
-
-interface FoundRecord {
-  readonly ref: string
-  readonly name?: string
-  readonly payee?: string
-  readonly category?: string
-  readonly currency?: string
-  readonly closed?: boolean
-  readonly kind?: string
-  readonly rowsFrom?: string
-}
-
-function recordsIn(text: string): readonly FoundRecord[] {
-  return (JSON.parse(text) as { readonly records: readonly FoundRecord[] }).records
-}
-
-/** A line of the sample receipt, whose lines add up to its QR code's €23.49. */
-function receiptLine(printed: string, text: string, lineTotal: number, category: string, fields: Readonly<Record<string, unknown>> = {}) {
-  return { printed, text, kind: 'product', quantity: null, unitPrice: null, lineTotal, category, ...fields }
-}
-
-/** One receipt's answer from match_records, as far as the fake chat reads it. */
-interface ReceiptMatched {
-  readonly match: 'ready' | 'pick' | 'none'
-  readonly payments: readonly { readonly ref: string; readonly date: CivilDate; readonly amount: { readonly ref: string } }[]
-}
-
-function receiptMatchedIn(text: string): ReceiptMatched {
-  return (JSON.parse(text) as { readonly receipts: readonly ReceiptMatched[] }).receipts[0]!
-}
-
-/**
- * With an entry tagged, the receipt goes on it. Otherwise reads the attached photo as the sample €23.49 receipt of the day and asks Kuna which payments it may be, which Kuna answers
- * from the photo's own QR code. With several it asks which one, and with none whether it was paid in cash. With one ready it
- * looks Pet food up by name. That has no category yet, so the first time it proposes that category alone, and once it is
- * there it proposes the receipt that splits the payment.
- */
-function receiptReply(turn: FakeChatTurn, says: Says): ModelReply {
-  const { request, tokens } = turn
-  const photo = lastPhotoId(request)
-  if (photo === null) return answered(request, says.noPhoto, tokens)
-  const tagged = taggedEntry(request)
-  if (tagged !== null) return taggedReceiptReply(turn, says, photo, tagged)
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
-  if (answers.length === 1) {
-    const receipts = [{ date: fakeSpendingDayHere(), total: 23.49, merchant: 'Corner market', photo }]
-    return lookup(1, 'match_records', { app: 'spending', kind: 'receipt', account: null, rows: [], receipts }, tokens)
-  }
-  const matched = receiptMatchedIn(answers[1]!.text)
-  if (matched.match === 'pick') return answered(request, says.pickWhich(matched.payments.map((payment) => says.paymentOn(`[${payment.amount.ref}]`, dayLabel(payment.date))).join(', ')), tokens)
-  if (matched.match === 'none') return answered(request, says.wasItCash, tokens)
-  if (answers.length === 2) return lookup(2, 'find_records', findRecordsArgs('spending', 'category', { query: says.petFood, limit: 5 }), tokens)
-  const petFood = recordsIn(answers[2]!.text).find((category) => PET_FOOD.includes(category.name ?? ''))?.ref
-  if (petFood === undefined) {
-    if (answers.length > 3) return answered(request, says.categoryFirst, tokens)
-    const step = { op: 'add-category', input: JSON.stringify({ name: says.petFood, kind: 'spending', parent: null, colour: null, hidden: null }), as: null }
-    return lookup(3, 'propose_changes', { app: 'spending', title: says.categoryTitle, steps: [step], next: false }, tokens)
-  }
-  if (answers.length === 3) return lookup(3, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
-  if (answers.length === 4) {
-    const categories = recordsIn(answers[3]!.text)
-    const refOf = (names: readonly string[]): string | undefined => categories.find((category) => names.includes(category.name ?? ''))?.ref
-    const groceries = refOf(GROCERIES) ?? petFood
-    const input = {
-      photo,
-      paid: 'card',
-      entry: matched.payments[0]!.ref,
-      account: null,
-      merchant: 'Corner market',
-      merchantOib: MADE_UP_MERCHANT_OIB,
-      buyerOib: null,
-      markedR1: false,
-      whose: null,
-      issuedOn: fakeSpendingDayHere(),
-      issuedAt: '18:42',
-      jir: null,
-      zki: null,
-      lines: [
-        receiptLine('MLIJ.TR.2,8%1L', 'mlijeko trajno 2,8% 1 l', 12.3, groceries),
-        receiptLine('KRUH POLUBIJ.', 'kruh polubijeli', 3.2, groceries, { quantity: 2, unitPrice: 1.6 }),
-        receiptLine('POPUST', 'popust', -1.01, groceries, { kind: 'discount' }),
-        receiptLine('DET.TEK.', 'deterdžent tekući', 5.5, refOf(HOUSEHOLD) ?? groceries),
-        receiptLine('PSEC.HR.', 'pseća hrana', 3.5, petFood),
-      ],
-      vat: [{ base: 18.79, tax: 4.7 }],
-      total: 23.49,
-      unreadable: [],
-      keepPhoto: true,
-    }
-    return lookup(4, 'propose_changes', { app: 'spending', title: says.receiptTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }], next: false }, tokens)
-  }
-  return answered(request, says.receiptProposed, tokens)
-}
-
-/** The sample €17.00 receipt as read off its photo, dated the day of the run, its lines under the category given, paid as said and placed as said. */
-function receiptOf17(photo: string, paid: 'cash' | 'card', category: string, place: { readonly entry: string | null; readonly account: string | null }) {
-  return {
-    photo,
-    paid,
-    ...place,
-    merchant: 'Harbour bistro',
-    merchantOib: MADE_UP_MERCHANT_OIB,
-    buyerOib: null,
-    markedR1: false,
-    whose: null,
-    issuedOn: fakeSpendingDayHere(),
-    issuedAt: '18:42',
-    jir: null,
-    zki: null,
-    lines: [receiptLine('PIZZA MARG.', 'pizza margherita', 12, category), receiptLine('SOK NARANČA', 'sok od naranče', 5, category)],
-    vat: [],
-    total: 17,
-    unreadable: [],
-    keepPhoto: false,
-  }
-}
-
-/**
- * Reads the attached photo as the sample €17.00 receipt and puts it on the Harbour bistro payment the person named, filed under
- * Restaurants, a payment of another day and amount that may be split by hand already, so the card warns on each.
- */
-function pickedReceiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const photo = lastPhotoId(request)
-  if (photo === null) return answered(request, says.noPhoto, tokens)
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'transaction', { query: 'Harbour bistro', limit: 5 }), tokens)
-  if (answers.length === 2) {
-    const payment = recordsIn(answers[1]!.text).find((row) => row.category !== undefined)
-    if (payment === undefined) return answered(request, says.nothingToSplit, tokens)
-    const input = receiptOf17(photo, 'card', payment.category!, { entry: payment.ref, account: null })
-    return lookup(2, 'propose_changes', { app: 'spending', title: says.pickedTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }], next: false }, tokens)
-  }
-  return answered(request, says.pickedProposed, tokens)
-}
-
-/** Reads the attached photo as the sample €17.00 receipt and puts it on the entry the chat is tagged with, under Groceries, so the card warns on what differs. */
-function taggedReceiptReply({ request, tokens }: FakeChatTurn, says: Says, photo: string, entry: string): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
-  if (answers.length === 2) {
-    const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
-    const input = receiptOf17(photo, 'card', groceries, { entry, account: null })
-    return lookup(2, 'propose_changes', { app: 'spending', title: says.taggedTitle, steps: [{ op: 'add-receipt', input: JSON.stringify(input), as: null }], next: false }, tokens)
-  }
-  return answered(request, says.taggedProposed, tokens)
-}
-
-/** The amount of cash the person says they had, such as "I had €50" or "Imao sam 50,00 €", or null when the message names none. */
-function cashSaid(typed: string): number | null {
-  const [, whole, cents] = /(\d+)(?:[.,](\d{1,2}))?/.exec(typed) ?? []
-  return whole === undefined ? null : Number(`${whole}.${(cents ?? '0').padEnd(2, '0')}`)
-}
-
-/**
- * Reads the attached photo as the sample €17.00 receipt paid in cash, under Groceries, and looks up the cash accounts in euros.
- * With one, Kuna puts the new entry on it, and with several the chat asks which. With none, it asks how much cash the person had
- * before paying, and once told, the card adds a cash account with that opening from the receipt's day and puts the receipt on it.
- */
-function cashReceiptReply({ request, tokens, typed }: FakeChatTurn, says: Says): ModelReply {
-  const photo = lastPhotoId(request)
-  if (photo === null) return answered(request, says.noPhoto, tokens)
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
-  if (answers.length === 2) return lookup(2, 'find_records', findRecordsArgs('spending', 'account'), tokens)
-  const cash = recordsIn(answers[2]!.text).filter((account) => account.kind === 'cash' && account.currency === 'EUR' && account.closed !== true)
-  if (cash.length > 1) return answered(request, says.whichCash(cash.map((account) => account.name ?? '').join(', ')), tokens)
-  const opening = cashSaid(typed)
-  if (cash.length === 0 && opening === null) return answered(request, says.howMuchCash, tokens)
-  if (answers.length > 3) return answered(request, cash.length === 0 ? says.cashAccountFirst : says.cashProposed, tokens)
-  const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
-  const receipt = (account: string | null) => ({ op: 'add-receipt', input: JSON.stringify(receiptOf17(photo, 'cash', groceries, { entry: null, account })), as: null })
-  const account = { name: says.cashName, kind: 'cash', bank: null, currency: 'EUR', opening, openedOn: fakeSpendingDayHere(), iban: null, rowsFrom: 'by-hand' }
-  const steps = cash.length === 0 ? [{ op: 'add-account', input: JSON.stringify(account), as: '$cash' }, receipt('$cash')] : [receipt(null)]
-  return lookup(3, 'propose_changes', { app: 'spending', title: says.cashTitle, steps, next: false }, tokens)
-}
-
-/**
- * Reads the attached photo as the sample €17.00 receipt paid by card, under Groceries, and puts it on the first euro account the
- * bank fills. The bank has not brought that payment yet, so the card says the receipt waits for the bank's row.
- */
-function cardReceiptReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const photo = lastPhotoId(request)
-  if (photo === null) return answered(request, says.noPhoto, tokens)
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
-  if (answers.length === 2) return lookup(2, 'find_records', findRecordsArgs('spending', 'account'), tokens)
-  if (answers.length > 3) return answered(request, says.cardProposed, tokens)
-  const account = recordsIn(answers[2]!.text).find((found) => found.kind === 'bank' && found.currency === 'EUR' && found.rowsFrom === 'bank-link' && found.closed !== true)
-  if (account === undefined) return answered(request, says.noCardAccount, tokens)
-  const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
-  const step = { op: 'add-receipt', input: JSON.stringify(receiptOf17(photo, 'card', groceries, { entry: null, account: account.ref })), as: null }
-  return lookup(3, 'propose_changes', { app: 'spending', title: says.cardTitle, steps: [step], next: false }, tokens)
-}
-
-/** Proposes a second cash account in euros, so a cash receipt has two to go on. */
-function purseReply({ request, tokens, lookups }: FakeChatTurn, says: Says): ModelReply {
-  if (lookups > 0) return answered(request, says.purseProposed, tokens)
-  const account = { name: says.purse, kind: 'cash', bank: null, currency: 'EUR', opening: 0, openedOn: addDays(fakeSpendingDayHere(), -30), iban: null, rowsFrom: 'by-hand' }
-  return lookup(0, 'propose_changes', { app: 'spending', title: says.purseTitle, steps: [{ op: 'add-account', input: JSON.stringify(account), as: null }], next: false }, tokens)
-}
-
-/**
- * Rows of the OTP account in the statements sample as a statement prints them: the City pharmacy row of nine days back as the
- * file has it, the one of four days back a day later and spelled longer, and a new kiosk row.
- */
-function otpStatementRows(): readonly { readonly date: string; readonly amount: string; readonly payee: string }[] {
-  const day = fakeSpendingDayHere()
-  return [
-    { date: addDays(day, -9), amount: '-12.00', payee: 'City pharmacy' },
-    { date: addDays(day, -3), amount: '-18.90', payee: 'CITY PHARMACY 22 ZAGREB' },
-    { date: addDays(day, -1), amount: '-9.00', payee: 'Kiosk' },
-  ]
-}
-
-function otpRef(found: string): string {
-  const { records } = JSON.parse(found) as { readonly records: readonly { readonly ref: string; readonly bank?: string }[] }
-  return (records.find((record) => record.bank === 'otp') ?? records[0]!).ref
-}
-
-/** Copies the OTP statement with no balances, so Kuna skips the first row, the second waits as a look-alike and the kiosk row is new. */
-function copyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
-  if (answers.length === 1) {
-    const rows = otpStatementRows().map((row) => ({ ...row, amount: Number(row.amount), iban: null }))
-    const input = { file: null, account: otpRef(answers[0]!.text), opening: null, closing: null, rows, statementName: '12/2026', part: 1, lookAlikes: 'ask', fromDay: null, toDay: null }
-    return lookup(1, 'propose_changes', { app: 'spending', title: says.copyTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
-  }
-  return answered(request, says.copyProposed, tokens)
-}
-
-/** The last CSV attached to the chat, by the id its context line gives, or null for none. */
-function attachedCsv(request: FakeChatTurn['request']): string | null {
-  const said = request.turns.flatMap((turn) => (turn.role === 'user' ? turn.parts.flatMap((part) => (part.kind === 'text' ? [part.text] : [])) : []))
-  return said.flatMap((text) => [...text.matchAll(/\b(a\d+) \(csv\b/g)].map((match) => match[1]!)).at(-1) ?? null
-}
-
-/** The completed rows of a Revolut export as read_attachment hands its cells, under the export's own header row. */
-function revolutRows(read: string): readonly { readonly date: string; readonly amount: number; readonly payee: string; readonly iban: null }[] {
-  const [header = [], ...cells] = (JSON.parse(read) as { readonly rows: readonly (readonly string[])[] }).rows
-  const at = (column: string): number => header.indexOf(column)
-  return cells
-    .filter((row) => row[at('State')] === 'COMPLETED')
-    .map((row) => ({ date: row[at('Completed Date')]!.slice(0, 10), amount: Number(row[at('Amount')]), payee: row[at('Description')]!, iban: null }))
-}
-
-/** Reads the Revolut export attached to the chat as cells, finds the Revolut account and copies the export's completed rows onto it, with no balances since the export prints none. */
-function revolutCopyReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const file = attachedCsv(request)
-  if (file === null) return answered(request, says.noFile, tokens)
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: file, pages: null, sheet: null, rows: null }, tokens)
-  if (answers.length === 1) return lookup(1, 'find_records', findAccounts, tokens)
-  if (answers.length === 2) {
-    const { records } = JSON.parse(answers[1]!.text) as { readonly records: readonly { readonly ref: string; readonly bank?: string }[] }
-    const account = (records.find((record) => record.bank === 'revolut') ?? records[0]!).ref
-    const input = { file, account, statementName: says.revolutName, opening: null, closing: null, rows: revolutRows(answers[0]!.text), part: 1, lookAlikes: 'ask', fromDay: null, toDay: null }
-    return lookup(2, 'propose_changes', { app: 'spending', title: says.revolutTitle, steps: [{ op: 'import-statement', input: JSON.stringify(input), as: null }], next: false }, tokens)
-  }
-  return answered(request, answers[2]!.isError ? says.revolutRefused : says.revolutProposed, tokens)
-}
-
-/** Asks Kuna which rows of the OTP statement Spending has, and says for each whether it is in, looks like a payment there, or is new. */
-function matchReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) return lookup(0, 'find_records', findAccounts, tokens)
-  if (answers.length === 1) {
-    const rows = otpStatementRows().map(({ date, amount, payee }) => ({ date, amount, counterparty: payee, description: '' }))
-    return lookup(1, 'match_records', { app: 'spending', kind: 'transaction', account: otpRef(answers[0]!.text), rows, receipts: [] }, tokens)
-  }
-  const { matches } = JSON.parse(answers[1]!.text) as { readonly matches: readonly { readonly row: number; readonly match: 'same' | 'like' | 'none' }[] }
-  return answered(request, matches.map(({ row, match }) => `- ${says.matched[match](row)}`).join('\n'), tokens)
-}
-
-/**
- * Reads the latest spends of 10 or more, or of Harbour bistro when the message names it, and the categories, and proposes 5 of
- * the first one filed under spending to go under Household goods, the rest where it was.
- */
-function splitReply({ request, tokens, typed }: FakeChatTurn, says: Says): ModelReply {
-  const answers = answersSince(request)
-  if (answers.length === 0) {
-    const query = /harbour bistro/i.test(typed) ? 'Harbour bistro' : null
-    const spends = findRecordsArgs('spending', 'transaction', { query, filters: [{ field: 'amount', op: 'at-most', values: ['-10'] }], fields: ['payee', 'amount', 'category'], limit: 5 })
-    return lookup(0, 'find_records', spends, tokens)
-  }
-  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
-  if (answers.length === 2) {
-    const categories = recordsIn(answers[1]!.text)
-    const household = categories.find((category) => HOUSEHOLD.includes(category.name ?? ''))?.ref
-    const spending = new Set(categories.filter((category) => category.kind === 'spending').map((category) => category.ref))
-    const row = recordsIn(answers[0]!.text).find((found) => found.category !== undefined && found.category !== household && spending.has(found.category))
-    if (row === undefined || household === undefined) return answered(request, says.nothingToSplit, tokens)
-    const parts = [
-      { amount: 5, category: household, text: says.householdPart },
-      { amount: null, category: row.category, text: '' },
-    ]
-    const step = { op: 'split-entry', input: JSON.stringify({ entry: row.ref, parts }), as: null }
-    return lookup(2, 'propose_changes', { app: 'spending', title: says.splitTitle, steps: [step], next: false }, tokens)
-  }
-  return answered(request, says.splitProposed, tokens)
-}
-
 /** Reads last month's spends, the biggest first, and lists the payees with their amounts. */
-function biggestReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply {
+function biggestReply({ request, tokens }: FakeChatTurn): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
     const month = addMonths(monthOf(fakeSpendingDayHere()), -1)
@@ -619,34 +68,36 @@ function biggestReply({ request, tokens }: FakeChatTurn, says: Says): ModelReply
   return answered(request, [says.biggest, ...records.map((record) => `- ${record.payee ?? ''} [${record.amount.ref}]`)].join('\n'), tokens)
 }
 
+/** Reads the guide to the first rules and links the tab where rules are kept. */
+function rulesReply({ request, tokens, lookups }: FakeChatTurn): ModelReply {
+  if (lookups === 0) return lookup(lookups, 'kuna_docs', { path: 'spending/guide/first-rules' }, tokens)
+  if (lookups === 1) return lookup(lookups, 'show_screen', { route: '/spending/settings?tab=rules', params: [] }, tokens)
+  return answered(request, says.rules, tokens)
+}
+
 /**
  * Spending's part of the fake chat: Suggest categories proposes a new category and, at Go on, a rule into it, any other that starts with sort proposes a rule, one that starts with close proposes closing
  * an account with a new IBAN, one that starts with import transcribes a pasted statement, one that starts with transcribe copies a statement a row of which waits as a look-alike, one that asks to bring in the Revolut file reads the attached export as cells and copies its rows, one that asks to check these rows says which rows of that statement Spending has, one about the biggest spends lists last month's, one that asks to read the receipt reads the photo attached and proposes it, on the entry tagged when one is, one that asks to read the cash receipt, says yes to cash or says how much cash there was, proposes it as cash, one that says no, by card proposes it on the first euro account the bank fills, where it waits for the bank's row, one that asks to put the receipt on Harbour bistro proposes it on that payment, one that asks to add a cash purse proposes a second cash account, one that starts with split proposes splitting the latest spend or the Harbour bistro one, a question about spending reads figures and rows, and one about rules reads the guide and links its tab.
  */
 function spendingChat(turn: FakeChatTurn): ModelReply | null {
-  const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
-  const { request, tokens, typed, lookups } = turn
-  if (goOnsInto(request, SORT_JOB) !== null) return sortGoOnReply(turn, says)
-  if (SORT_JOB.test(typed)) return sortJobReply(turn, says)
-  if (/^sort|^razvrstaj/i.test(typed)) return sortReply(turn, says)
-  if (/^close|^zatvori/i.test(typed)) return closeAccountReply(turn, says)
-  if (/^import|^uvezi/i.test(typed)) return statementReply(turn, says)
-  if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn, says)
-  if (/^bring the revolut|^unesi revolut/i.test(typed)) return revolutCopyReply(turn, says)
-  if (/^check these rows|^provjeri ove retke/i.test(typed)) return matchReply(turn, says)
-  if (/biggest spends|najveći troškovi/i.test(typed)) return biggestReply(turn, says)
-  if (/^read the cash receipt|^pročitaj gotovinski račun|^yes, (in )?cash|^da, gotovinom|^i had|^imao sam|^imala sam/i.test(typed)) return cashReceiptReply(turn, says)
-  if (/^put the receipt on|^stavi (fiskalni )?račun na/i.test(typed)) return pickedReceiptReply(turn, says)
-  if (/^no, by card|^ne, karticom/i.test(typed)) return cardReceiptReply(turn, says)
-  if (/^add a cash purse|^dodaj novčanik/i.test(typed)) return purseReply(turn, says)
-  if (/^read (the|this|a)( attached)? receipt|^pročitaj (priloženi )?(fiskalni )?račun/i.test(typed)) return receiptReply(turn, says)
-  if (/^split|^podijeli/i.test(typed)) return splitReply(turn, says)
-  if (/spent|spend|potroš/i.test(typed)) return spendingReply(turn, says)
-  if (/rule|pravil/i.test(typed)) {
-    if (lookups === 0) return lookup(lookups, 'kuna_docs', { path: 'spending/guide/first-rules' }, tokens)
-    if (lookups === 1) return lookup(lookups, 'show_screen', { route: '/spending/settings?tab=rules', params: [] }, tokens)
-    return answered(request, says.rules, tokens)
-  }
+  const { request, typed } = turn
+  if (goOnsInto(request, SORT_JOB) !== null) return sortGoOnReply(turn)
+  if (SORT_JOB.test(typed)) return sortJobReply(turn)
+  if (/^sort|^razvrstaj/i.test(typed)) return sortReply(turn)
+  if (/^close|^zatvori/i.test(typed)) return closeAccountReply(turn)
+  if (/^import|^uvezi/i.test(typed)) return statementReply(turn)
+  if (/^transcribe|^prenesi/i.test(typed)) return copyReply(turn)
+  if (/^bring the revolut|^unesi revolut/i.test(typed)) return revolutCopyReply(turn)
+  if (/^check these rows|^provjeri ove retke/i.test(typed)) return matchReply(turn)
+  if (/biggest spends|najveći troškovi/i.test(typed)) return biggestReply(turn)
+  if (/^read the cash receipt|^pročitaj gotovinski račun|^yes, (in )?cash|^da, gotovinom|^i had|^imao sam|^imala sam/i.test(typed)) return cashReceiptReply(turn)
+  if (/^put the receipt on|^stavi (fiskalni )?račun na/i.test(typed)) return pickedReceiptReply(turn)
+  if (/^no, by card|^ne, karticom/i.test(typed)) return cardReceiptReply(turn)
+  if (/^add a cash purse|^dodaj novčanik/i.test(typed)) return purseReply(turn)
+  if (/^read (the|this|a)( attached)? receipt|^pročitaj (priloženi )?(fiskalni )?račun/i.test(typed)) return receiptReply(turn)
+  if (/^split|^podijeli/i.test(typed)) return splitReply(turn)
+  if (/spent|spend|potroš/i.test(typed)) return spendingReply(turn)
+  if (/rule|pravil/i.test(typed)) return rulesReply(turn)
   return null
 }
 

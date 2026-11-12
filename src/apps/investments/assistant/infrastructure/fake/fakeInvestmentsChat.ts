@@ -1,8 +1,9 @@
-import { answered, answersSince, findRecordsArgs, lookup, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { answered, answersSince, findRecordsArgs, lookup, proposedStep, registerFakeChat } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../../shared/ai/application/modelPort'
 import { addDays, today } from '../../../../../shared/calendar/civilDate'
 import { language } from '../../../../../shared/text/language'
+import { INVESTMENTS_OPERATIONS } from '../../operations/investmentsOperations'
 
 const ANSWERS = {
   en: {
@@ -24,7 +25,7 @@ const ANSWERS = {
   },
   hr: {
     worth: (value: string, gain: string) => `Vaš portfelj vrijedi ${value}, uz ukupnu dobit od ${gain} na uloženo.`,
-    noAccount: 'Ulaganja još nemaju račun na koji bih to zapisao. Najprije ga dodajte na Postavkama, Općenito.',
+    noAccount: 'Ulaganja još nemaju račun na koji bih to zapisao. Najprije ga dodajte u Postavkama, Općenito.',
     buyTitle: 'Zapiši kupnju',
     buyProposed: 'Kartica ispod zapisuje kupnju po tečaju njezina dana. Ništa se ne mijenja dok je ne prihvatite.',
     sellTitle: 'Zapiši prodaju',
@@ -70,8 +71,16 @@ function tradeReply({ request, tokens }: FakeChatTurn, says: Says, side: 'buy' |
   if (answers.length === 2) {
     const [account, instrument] = [firstRef(answers[0]!.text), firstRef(answers[1]!.text)]
     if (account === null || instrument === null) return answered(request, says.noAccount, tokens)
-    const input = { side, account, instrument, date: addDays(today(), -7), quantity: side === 'buy' ? '1' : '1000000', price: '100', fees: '1', rate: null, note: '' }
-    const step = { op: 'add-trade', input: JSON.stringify(input), as: null }
+    const step = proposedStep(INVESTMENTS_OPERATIONS, 'add-trade', {
+      side,
+      account,
+      instrument,
+      date: addDays(today(), -7),
+      quantity: side === 'buy' ? '1' : '1000000',
+      price: '100',
+      fees: '1',
+      note: '',
+    })
     return lookup(2, 'propose_changes', { app: 'investments', title: side === 'buy' ? says.buyTitle : says.sellTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, answers[2]!.isError ? says.sellRefused : says.buyProposed, tokens)
@@ -85,15 +94,8 @@ function deposit(date: string, cash: string) {
     symbol: '',
     isin: '',
     name: '',
-    quantity: null,
-    price: null,
     currency: 'EUR',
-    gross: null,
-    commission: null,
-    commissionCurrency: null,
     netCash: cash,
-    counterCurrency: null,
-    counterAmount: null,
     note: '',
   }
 }
@@ -111,8 +113,8 @@ function copyReply({ request, tokens }: FakeChatTurn, says: Says, again: boolean
     const first = deposit(addDays(today(), -9), '500')
     const rows = again ? [first, deposit(addDays(today(), -8), '200')] : [first]
     const balances = [{ currency: 'EUR', opening: '0', closing: again ? '700' : '500' }]
-    const input = { file: null, account, broker: 'Example Broker', lookAlikes: 'ask', lookAlikeAnswers: [], rows, balances }
-    return lookup(1, 'propose_changes', { app: 'investments', title: says.copyTitle, steps: [{ op: 'import-transcribed', input: JSON.stringify(input), as: null }], next: false }, tokens)
+    const step = proposedStep(INVESTMENTS_OPERATIONS, 'import-transcribed', { account, broker: 'Example Broker', lookAlikes: 'ask', lookAlikeAnswers: [], rows, balances })
+    return lookup(1, 'propose_changes', { app: 'investments', title: says.copyTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, answers[1]!.isError ? says.copyRefused : says.copyProposed, tokens)
 }
@@ -134,9 +136,10 @@ function fileCopyReply(turn: FakeChatTurn, says: Says, personAnswered: boolean):
     const account = firstRef(answers[reads]!.text)
     if (account === null) return answered(request, says.noAccount, tokens)
     const lookAlikeAnswers = personAnswered ? [{ row: 1, answer: 'another-record' }] : []
-    const input = { file, account, broker: 'Example Broker', lookAlikes: 'ask', lookAlikeAnswers, rows: [deposit(addDays(today(), -9), '500'), deposit(addDays(today(), -6), '300')], balances: [] }
+    const rows = [deposit(addDays(today(), -9), '500'), deposit(addDays(today(), -6), '300')]
+    const step = proposedStep(INVESTMENTS_OPERATIONS, 'import-transcribed', { file, account, broker: 'Example Broker', lookAlikes: 'ask', lookAlikeAnswers, rows, balances: [] })
     const title = personAnswered ? says.lookAlikeTitle : says.fileTitle
-    return lookup(reads + 1, 'propose_changes', { app: 'investments', title, steps: [{ op: 'import-transcribed', input: JSON.stringify(input), as: null }], next: false }, tokens)
+    return lookup(reads + 1, 'propose_changes', { app: 'investments', title, steps: [step], next: false }, tokens)
   }
   if (answers.at(-1)!.isError) return answered(request, says.copyRefused, tokens)
   return answered(request, personAnswered ? says.lookAlikeProposed : says.fileProposed, tokens)

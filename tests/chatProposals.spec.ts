@@ -18,6 +18,8 @@ import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { deskPorts } from './fixtures/spendingDesk'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
+import { stepOf } from './fixtures/operationSteps'
+import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 
 const DAY = parseCivilDate('2026-11-07')!
 const used = new Set<string>()
@@ -65,8 +67,8 @@ describe('a proposal', () => {
     const before = bookOf(d).rules.length
     const writesBefore = d.store.state.writes.length
     await d.propose([
-      { op: 'add-rule', input: { row: null, fragment: 'Corner market', iban: null, category: d.ref('category', groceries.id), withdrawal: null, cash_account: null } },
-      { op: 'add-rule', input: { row: null, fragment: 'Harbour bistro', iban: null, category: d.ref('category', named(d, 'Restaurants').id), withdrawal: null, cash_account: null } },
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Corner market', category: d.ref('category', groceries.id) }),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Harbour bistro', category: d.ref('category', named(d, 'Restaurants').id) }),
     ])
     expect(bookOf(d).rules).toHaveLength(before)
     expect(d.store.state.writes).toHaveLength(writesBefore)
@@ -85,9 +87,7 @@ describe('a proposal', () => {
   it('shows the rows a rule files, in one group, in Kuna’s words', async () => {
     const d = await desk()
     const waiting = rowOf(d, 'Corner market')
-    await d.propose([
-      { op: 'add-rule', input: { row: d.ref('transaction', waiting.id), fragment: null, iban: null, category: d.ref('category', named(d, 'Coffee').id), withdrawal: null, cash_account: null } },
-    ])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { row: d.ref('transaction', waiting.id), category: d.ref('category', named(d, 'Coffee').id) })])
     const [card] = d.cards
     expect(card!.groups.map((group) => [group.verb, group.noun.en.one])).toContainEqual(['add', 'rule'])
     const rule = card!.groups.find((group) => group.noun.en.one === 'rule')!.lines[0]!
@@ -99,22 +99,8 @@ describe('a proposal', () => {
     const d = await desk()
     const account = bookOf(d).accounts[0]!
     await d.propose([
-      {
-        op: 'change-account',
-        input: {
-          account: d.ref('account', account.id),
-          name: null,
-          kind: null,
-          bank: null,
-          currency: null,
-          opening: null,
-          openedOn: null,
-          iban: 'HR1210010051863000160',
-          rowsFrom: null,
-          closed: 'yes',
-        },
-      },
-      { op: 'add-entry', input: { account: d.ref('account', account.id), date: '2026-11-03', amount: -12.5, payee: 'Corner market', category: null, note: '' } },
+      stepOf(SPENDING_OPERATIONS, 'change-account', { account: d.ref('account', account.id), iban: 'HR1210010051863000160', closed: 'yes' }),
+      stepOf(SPENDING_OPERATIONS, 'add-entry', { account: d.ref('account', account.id), date: '2026-11-03', amount: -12.5, payee: 'Corner market', note: '' }),
     ])
     const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
     const changed = lines.find((line) => line.label === account.name)!
@@ -128,31 +114,22 @@ describe('a proposal', () => {
 
   it('fixes and deletes a rule, with the rows following', async () => {
     const d = await desk()
-    await d.propose([{ op: 'add-rule', input: { row: null, fragment: 'Corner market', iban: null, category: d.ref('category', named(d, 'Coffee').id), withdrawal: null, cash_account: null } }])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Corner market', category: d.ref('category', named(d, 'Coffee').id) })])
     await accept(d)
     const rule = bookOf(d).rules.at(-1)!
-    await d.propose([
-      { op: 'change-rule', input: { rule: d.ref('rule', rule.id), fragment: null, iban: null, category: d.ref('category', named(d, 'Groceries').id), withdrawal: null, cash_account: null } },
-    ])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'change-rule', { rule: d.ref('rule', rule.id), category: d.ref('category', named(d, 'Groceries').id) })])
     expect((await accept(d, 1)).kind).toBe('done')
     expect(bookOf(d).rules.at(-1)!.category).toBe(named(d, 'Groceries').id)
-    await d.propose([{ op: 'delete-rule', input: { rule: d.ref('rule', rule.id) } }])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'delete-rule', { rule: d.ref('rule', rule.id) })])
     expect((await accept(d, 2)).kind).toBe('done')
     expect(bookOf(d).rules.some((other) => other.id === rule.id)).toBe(false)
   })
 
   it('takes one new category to a card, with a rule into it by its $ name', async () => {
     const d = await desk()
-    const add = { op: 'add-category', input: { name: 'Aquarium', kind: 'spending', parent: null, colour: null, hidden: null } }
+    const add = stepOf(SPENDING_OPERATIONS, 'add-category', { name: 'Aquarium', kind: 'spending' })
     expect((await d.propose([add, add])).text).toContain('one to a card')
-    expect(
-      (
-        await d.propose([
-          { ...add, as: '$pets' },
-          { op: 'add-rule', input: { row: null, fragment: 'Vet', iban: null, category: '$pets', withdrawal: null, cash_account: null } },
-        ])
-      ).isError,
-    ).toBe(false)
+    expect((await d.propose([{ ...add, as: '$pets' }, stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Vet', category: '$pets' })])).isError).toBe(false)
     expect((await accept(d)).kind).toBe('done')
     expect(bookOf(d).rules.at(-1)!.category).toBe(named(d, 'Aquarium').id)
   })
@@ -160,10 +137,7 @@ describe('a proposal', () => {
   it("adds a rule by the other side's IBAN, as the rule form can", async () => {
     const d = await desk()
     const rent = named(d, 'Rent').id
-    expect(
-      (await d.propose([{ op: 'add-rule', input: { row: null, fragment: null, iban: 'hr12 1001 0051 8630 0016 0', category: d.ref('category', rent), withdrawal: null, cash_account: null } }]))
-        .isError,
-    ).toBe(false)
+    expect((await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { iban: 'hr12 1001 0051 8630 0016 0', category: d.ref('category', rent) })])).isError).toBe(false)
     expect((await accept(d)).kind).toBe('done')
     expect(bookOf(d).rules.at(-1)).toMatchObject({ condition: { column: 'counterparty_iban', iban: 'HR1210010051863000160' }, category: rent })
   })
@@ -172,7 +146,7 @@ describe('a proposal', () => {
     const d = await desk()
     const account = d.ref('account', bookOf(d).accounts[0]!.id)
     for (const category of ['$later', account, 'category-999', '../secrets']) {
-      const answer = await d.propose([{ op: 'add-rule', input: { row: null, fragment: 'Vet', iban: null, category, withdrawal: null, cash_account: null } }])
+      const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Vet', category })])
       expect(answer.isError).toBe(true)
       expect(answer.text).not.toContain(category)
     }
@@ -185,11 +159,8 @@ describe('a proposal', () => {
     const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const iban = d.reads.pseudonyms.identifierToken('HR1210010051863000160')
     await d.propose([
-      { op: 'add-rule', input: { row: null, fragment: alias, iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
-      {
-        op: 'change-account',
-        input: { account: d.ref('account', bookOf(d).accounts[0]!.id), name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban, rowsFrom: null, closed: null },
-      },
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: alias, category: d.ref('category', named(d, 'Rent').id) }),
+      stepOf(SPENDING_OPERATIONS, 'change-account', { account: d.ref('account', bookOf(d).accounts[0]!.id), iban }),
     ])
     const lines = d.cards[0]!.groups.flatMap((group) => group.lines)
     expect(lines.some((line) => line.fields.some((field) => field.warns))).toBe(true)
@@ -204,7 +175,7 @@ describe('a proposal', () => {
     d.reads.pseudonyms.pseudonymised('HORVAT ANA', 'books')
     const alias = d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     const rulesBefore = bookOf(d).rules.length
-    await d.propose([{ op: 'add-rule', input: { row: null, fragment: alias, iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } }])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: alias, category: d.ref('category', named(d, 'Rent').id) })])
     await accept(d)
     expect(
       bookOf(d)
@@ -221,8 +192,8 @@ describe('a proposal', () => {
     d.reads.pseudonyms.know(['Ana Horvat'])
     d.reads.pseudonyms.pseudonymised('Ana Horvat', 'books')
     await d.propose([
-      { op: 'add-rule', input: { row: null, fragment: 'Osobnu 1', iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
-      { op: 'add-rule', input: { row: null, fragment: 'Adresama 1', iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Osobnu 1', category: d.ref('category', named(d, 'Rent').id) }),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Adresama 1', category: d.ref('category', named(d, 'Rent').id) }),
     ])
     await accept(d)
     expect(
@@ -237,18 +208,16 @@ describe('a proposal', () => {
 
   it('tells the model nothing the card holds, and no name when Kuna refuses it', async () => {
     const d = await desk()
-    const answer = await d.propose([
-      { op: 'add-rule', input: { row: null, fragment: 'Ana Horvat', iban: null, category: d.ref('category', named(d, 'Rent').id), withdrawal: null, cash_account: null } },
-    ])
+    const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Ana Horvat', category: d.ref('category', named(d, 'Rent').id) })])
     expect(answer.text).not.toContain('Ana Horvat')
-    const refused = await d.propose([{ op: 'delete-category', input: { category: d.ref('category', named(d, 'Between my accounts').id), into: d.ref('category', named(d, 'Rent').id) } }])
+    const refused = await d.propose([stepOf(SPENDING_OPERATIONS, 'delete-category', { category: d.ref('category', named(d, 'Between my accounts').id), into: d.ref('category', named(d, 'Rent').id) })])
     expect(refused.isError).toBe(true)
   })
 
   it('shows the person every refusal the model reads, with known people under their alias', async () => {
     const d = await desk()
     d.reads.pseudonyms.know(['Ana Horvat'])
-    const refused = await d.propose([{ op: 'delete-category', input: { category: d.ref('category', named(d, 'Between my accounts').id), into: d.ref('category', named(d, 'Rent').id) } }])
+    const refused = await d.propose([stepOf(SPENDING_OPERATIONS, 'delete-category', { category: d.ref('category', named(d, 'Between my accounts').id), into: d.ref('category', named(d, 'Rent').id) })])
     expect(refused.isError).toBe(true)
     expect(refused.read).toEqual({ kind: 'refusal', app: 'spending' })
     expect(refused.text).not.toContain('Ana Horvat')
@@ -270,14 +239,14 @@ describe('a proposal', () => {
 
   it('checks nothing against the books without the yes to read them, and says so as a plain fact', async () => {
     const d = await desk()
-    const answer = await d.propose([{ op: 'set-setting', input: { key: COMPANY_OIB_KEY, value: '1' } }], false)
+    const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'set-setting', { key: COMPANY_OIB_KEY, value: '1' })], false)
     expect(answer).toMatchObject({ isError: true, text: 'The person has not allowed the chat to read their books.' })
     expect(d.cards).toEqual([])
   })
 
   it.each([BANK_SYNC_DEPLOYMENT_KEY, 'bank_link_otp', 'kuna-secrets', ''])('can never set %j', async (key) => {
     const d = await desk()
-    const answer = await d.propose([{ op: 'set-setting', input: { key, value: 'AKfycbxAttacker' } }])
+    const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'set-setting', { key, value: 'AKfycbxAttacker' })])
     expect(answer.isError).toBe(true)
     expect(d.cards).toEqual([])
     expect(bookOf(d).settings.bankSyncDeployment).toBe('')
@@ -286,9 +255,9 @@ describe('a proposal', () => {
   it('refuses alone when a record changed before Accept, and the next proposal still goes', async () => {
     const d = await desk()
     const groceries = named(d, 'Groceries')
-    await d.propose([{ op: 'change-category', input: { category: d.ref('category', groceries.id), name: 'Food shop', group: null, colour: null, hidden: null } }])
-    await d.propose([{ op: 'change-category', input: { category: d.ref('category', groceries.id), name: 'Shop', group: null, colour: null, hidden: null } }])
-    await d.propose([{ op: 'change-category', input: { category: d.ref('category', named(d, 'Coffee').id), name: 'Kava', group: null, colour: null, hidden: null } }])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'change-category', { category: d.ref('category', groceries.id), name: 'Food shop' })])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'change-category', { category: d.ref('category', groceries.id), name: 'Shop' })])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'change-category', { category: d.ref('category', named(d, 'Coffee').id), name: 'Kava' })])
     expect((await accept(d, 0)).kind).toBe('done')
     const stale = await accept(d, 1)
     expect(stale.kind).toBe('refused')
@@ -300,7 +269,7 @@ describe('a proposal', () => {
   it('gives settings an Undo', async () => {
     const d = await desk()
     expect(SETTING_WRITES.undoable).toBe(true)
-    await d.propose([{ op: 'set-setting', input: { key: COMPANY_OIB_KEY, value: '12345678903' } }])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'set-setting', { key: COMPANY_OIB_KEY, value: '12345678903' })])
     const result = await accept(d)
     expect(bookOf(d).settings.companyOib).toBe('12345678903')
     if (result.kind === 'done') await result.undo!()

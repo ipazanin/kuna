@@ -1,5 +1,6 @@
 import { KUNA_CHAT } from '../../kunaChat'
-import { answered, lookup, registerFakeChat } from '../../../../shared/ai/infrastructure/fake/fakeChatReply'
+import { kunaAssistant } from '../../kunaAssistant'
+import { answered, lookup, proposedStep, registerFakeChat } from '../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { FakeChatTurn } from '../../../../shared/ai/infrastructure/fake/fakeChatReply'
 import type { ModelReply } from '../../../../shared/ai/application/modelPort'
 import { language } from '../../../../shared/text/language'
@@ -19,8 +20,10 @@ const ANSWERS = {
 function themeReply({ request, tokens, typed, lookups }: FakeChatTurn): ModelReply | null {
   if (!/dark|tamn/i.test(typed)) return null
   const says = ANSWERS[language === 'hr' ? 'hr' : 'en']
-  if (lookups === 0)
-    return lookup(lookups, 'propose_changes', { app: KUNA_CHAT.id, title: says.themeTitle, steps: [{ op: 'set-theme', input: JSON.stringify({ theme: 'dark' }), as: null }], next: false }, tokens)
+  if (lookups === 0) {
+    const step = proposedStep(kunaAssistant().proposer?.operations ?? [], 'set-theme', { theme: 'dark' })
+    return lookup(lookups, 'propose_changes', { app: KUNA_CHAT.id, title: says.themeTitle, steps: [step], next: false }, tokens)
+  }
   return answered(request, says.theme, tokens)
 }
 

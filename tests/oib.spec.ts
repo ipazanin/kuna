@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { isValidOib } from '../src/shared/text/oib'
 import { oibIn } from '../src/apps/spending/receipts/domain/oib'
-import { MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeSpendingChat'
+import { MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeReceiptsChat'
 
 describe('an OIB', () => {
   it('passes with the right check digit', () => {

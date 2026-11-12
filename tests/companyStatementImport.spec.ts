@@ -10,9 +10,13 @@ import { ACCOUNT_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
-import { companyDesk } from './fixtures/companyDesk'
+import { companyDesk, deskPorts } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { stepOf } from './fixtures/operationSteps'
+import { companyOperations } from '../src/apps/company/assistant/operations/companyOperations'
+
+const COMPANY_OPERATIONS = companyOperations(deskPorts())
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -42,20 +46,15 @@ function transcribed(
   ],
   opening = 760,
 ) {
-  return {
-    op: 'import-statement',
-    input: {
-      file: null,
-      account: desk.ref(ACCOUNT_RECORDS.name, 'main'),
-      statementName: 'Statement 5',
-      opening,
-      closing,
-      rows: rows.map((row) => ({ ...row, counterparty: 'Supplier d.o.o.', iban: null, description: 'Goods' })),
-      lookAlikes: 'ask',
-      newAccount: null,
-      part: 1,
-    },
-  }
+  return stepOf(COMPANY_OPERATIONS, 'import-statement', {
+    account: desk.ref(ACCOUNT_RECORDS.name, 'main'),
+    statementName: 'Statement 5',
+    opening,
+    closing,
+    rows: rows.map((row) => ({ ...row, counterparty: 'Supplier d.o.o.', description: 'Goods' })),
+    lookAlikes: 'ask',
+    part: 1,
+  })
 }
 
 /** A file the chat sends as cells. */
@@ -154,8 +153,8 @@ describe('a statement in parts', () => {
   const PARTS = [partRows(2), partRows(5), partRows(8)]
   // The account's 760.00 less the nine rows of 2.00 to 10.00, which add up to 54.00, leaves 706.00.
   const CLOSING = 706
-  const part = (desk: CompanyDesk, number: number, opening: number | null, closing: number | null) => {
-    const step = transcribed(desk, 0, PARTS[number - 1])
+  const part = (desk: CompanyDesk, number: number, opening: number | null, closing: number | null, rows = PARTS[number - 1]) => {
+    const step = transcribed(desk, 0, rows)
     return { ...step, input: { ...step.input, opening, closing, part: number } }
   }
 
@@ -186,7 +185,7 @@ describe('a statement in parts', () => {
       await desk.propose([step])
       await desk.accept()
     }
-    await desk.propose([{ op: 'change-account', input: { account: desk.ref(ACCOUNT_RECORDS.name, 'main'), name: null, label: 'Business current', iban: null, currency: null } }])
+    await desk.propose([stepOf(COMPANY_OPERATIONS, 'change-account', { account: desk.ref(ACCOUNT_RECORDS.name, 'main'), label: 'Business current' })])
     await desk.accept()
 
     const last = await desk.propose([part(desk, 3, 760, CLOSING)])
@@ -215,8 +214,7 @@ describe('a statement in parts', () => {
     expect(early.text).toContain('from part 1')
     await desk.propose([part(desk, 1, 760, null)])
     await desk.accept()
-    const step = part(desk, 2, null, null)
-    const overlapping = await desk.propose([{ ...step, input: { ...step.input, rows: [{ ...step.input.rows[0]!, date: '2026-11-04', amount: -0.5 }, ...step.input.rows] } }])
+    const overlapping = await desk.propose([part(desk, 2, null, null, [{ date: '2026-11-04', amount: -0.5 }, ...PARTS[1]!])])
     expect(overlapping.isError).toBe(true)
     expect(overlapping.text).toContain('A part starts on the day after the one before it ends.')
   })
@@ -234,7 +232,7 @@ describe('an import card', () => {
   it('holds only the rows it imports, so a new account goes on a card before it', async () => {
     const desk = await companyDesk(used)
     const statement = transcribed(desk, 70, [{ date: '2026-11-02', amount: -30 }], 100)
-    const addAccount = { op: 'add-account', input: { account: 'savings', label: 'Savings', iban: 'HR1210010051863000160', currency: '' } }
+    const addAccount = stepOf(COMPANY_OPERATIONS, 'add-account', { account: 'savings', label: 'Savings', iban: 'HR1210010051863000160', currency: '' })
 
     const together = await desk.propose([
       { ...addAccount, as: '$savings' },
@@ -254,10 +252,7 @@ describe('an import card', () => {
 })
 
 describe('an attached file', () => {
-  const ATTACHED = {
-    op: 'import-statement',
-    input: { file: 'a1', account: null, statementName: null, opening: null, closing: null, rows: [], lookAlikes: 'ask', newAccount: null, part: 1 },
-  }
+  const ATTACHED = stepOf(COMPANY_OPERATIONS, 'import-statement', { file: 'a1', rows: [], lookAlikes: 'ask', part: 1 })
 
   it('sends the AI to read and copy any attached file it gave no rows of, a camt file and a bank sheet included', async () => {
     const desk = await companyDesk(used)
@@ -303,7 +298,7 @@ describe('statements the folder sync held back', () => {
       'ask',
     )
     const desk = await companyDesk(used, { heldStatements: () => [{ statement }] })
-    await desk.propose([{ op: 'file-held-statements', input: { newAccount: null, part: 1 } }])
+    await desk.propose([stepOf(COMPANY_OPERATIONS, 'file-held-statements', { part: 1 })])
     await desk.accept()
     expect(rowsOf(desk, 'fresh').map((row) => row.balance)).toEqual([15000])
   })

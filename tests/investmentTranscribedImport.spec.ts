@@ -8,6 +8,8 @@ import { USD, rateBookOf } from './fixtures/investments'
 import { forgetCaches } from './fixtures/writeBack'
 import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
 import { decimalText } from '../src/shared/money/decimal'
+import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
+import { stepOf } from './fixtures/operationSteps'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -21,15 +23,6 @@ const BLANK = {
   symbol: '',
   isin: '',
   name: '',
-  quantity: null,
-  price: null,
-  currency: null,
-  gross: null,
-  commission: null,
-  commissionCurrency: null,
-  netCash: null,
-  counterCurrency: null,
-  counterAmount: null,
   note: '',
 }
 
@@ -61,10 +54,16 @@ async function statementDesk(rates: Parameters<typeof investmentsDesk>[1] = null
 }
 
 function transcribed(desk: InvestmentsDesk, rows: readonly unknown[], fields: Readonly<Record<string, unknown>> = {}) {
-  return {
-    op: 'import-transcribed',
-    input: { file: 'a4', account: desk.ref('investment-account', DESK.ONE.id), broker: 'Example Broker', lookAlikes: 'ask', lookAlikeAnswers: [], rows, balances: [], ...fields },
-  }
+  return stepOf(INVESTMENTS_OPERATIONS, 'import-transcribed', {
+    file: 'a4',
+    account: desk.ref('investment-account', DESK.ONE.id),
+    broker: 'Example Broker',
+    lookAlikes: 'ask',
+    lookAlikeAnswers: [],
+    rows,
+    balances: [],
+    ...fields,
+  })
 }
 
 const warningsOf = (desk: InvestmentsDesk): string =>

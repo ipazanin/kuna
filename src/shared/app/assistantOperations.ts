@@ -28,6 +28,41 @@ export interface AssistantOperation {
   readonly example: Readonly<Record<string, unknown>>
 }
 
+/**
+ * The named operation's input with `changes` set, every other field that takes null at null, and the rest as the example has
+ * them. An item of a list the changes give is filled the same way from the example's first item. A field the operation gains
+ * reaches every fake step and spec through its example, so none of them lists it.
+ */
+export function operationInput(operations: readonly AssistantOperation[], name: string, changes: Readonly<Record<string, unknown>> = {}): Readonly<Record<string, unknown>> {
+  const operation = operations.find((candidate) => candidate.name === name)
+  if (operation === undefined || operation.input.type !== 'object') throw new TypeError(`There is no operation ${name} that takes fields.`)
+  return filled(operation.input.properties, operation.example, changes, name)
+}
+
+function filled(
+  properties: Readonly<Record<string, StrictSchema>>,
+  example: Readonly<Record<string, unknown>>,
+  changes: Readonly<Record<string, unknown>>,
+  where: string,
+): Readonly<Record<string, unknown>> {
+  const strangers = Object.keys(changes).filter((field) => !Object.hasOwn(properties, field))
+  if (strangers.length > 0) throw new TypeError(`${where} has no field ${strangers.join(', ')}.`)
+  return Object.fromEntries(
+    Object.entries(properties).map(([field, schema]) => {
+      if (!Object.hasOwn(changes, field)) return [field, takesNull(schema) ? null : example[field]]
+      const items = 'items' in schema && schema.items.type === 'object' ? schema.items.properties : null
+      const given = changes[field]
+      if (items === null || !Array.isArray(given)) return [field, given]
+      const first = (Array.isArray(example[field]) ? example[field][0] : undefined) ?? {}
+      return [field, given.map((item: Readonly<Record<string, unknown>>) => filled(items, first, item, `${where}.${field}`))]
+    }),
+  )
+}
+
+function takesNull(schema: StrictSchema): boolean {
+  return schema.type === 'null' || (Array.isArray(schema.type) && schema.type.includes('null'))
+}
+
 /** What an operation's `refs` names a field that takes a file attached to the chat, such as a statement to import. */
 export const ATTACHMENT_REF = 'attachment'
 
