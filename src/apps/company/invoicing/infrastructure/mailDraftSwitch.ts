@@ -1,25 +1,16 @@
 import { readonly, ref } from 'vue'
 
-const DRAFT_PREFERENCE_KEY = 'kuna.invoice-mail-draft'
+import { deviceChoice } from '../../../../shared/device/deviceChoice'
 
-function storedSwitch(): boolean {
-  try {
-    return localStorage.getItem(DRAFT_PREFERENCE_KEY) === 'true'
-  } catch {
-    return false
-  }
-}
+const kept = deviceChoice('kuna.invoice-mail-draft', false, { read: (stored) => (stored === 'true' ? true : null), write: () => 'true' })
 
-const switchedOn = ref(storedSwitch())
+const switchedOn = ref(kept.read())
 
 /** Whether an invoice made on this device saves a Gmail draft, which puts Gmail in the page's token. Off unless switched on here. */
 export const mailDraftsOn = readonly(switchedOn)
 
+/** Switches drafts on this device. On is remembered, and off forgets the choice. */
 export function switchMailDrafts(on: boolean): void {
-  try {
-    localStorage.setItem(DRAFT_PREFERENCE_KEY, String(on))
-  } catch {
-    // Not remembered on this device, so the switch starts off next time.
-  }
+  kept.remember(on)
   switchedOn.value = on
 }

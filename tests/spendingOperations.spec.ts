@@ -6,7 +6,6 @@ import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 import { words } from '../src/apps/spending/assistant/words'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
-import { ATTACHMENT_REF } from '../src/shared/app/assistantOperations'
 import { BANK_SETUP_OPERATIONS } from '../src/apps/spending/assistant/operations/bankSetupOperations'
 import { SET_STARTING_ACCOUNT } from '../src/apps/spending/assistant/operations/startingAccountOperation'
 import { lastAccountId, startingAccount } from '../src/apps/spending/entries/infrastructure/lastAccount'
@@ -27,6 +26,7 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -34,23 +34,6 @@ afterEach(async () => forgetCaches(used))
 const bookOf = ({ store }: SpendingDesk) => store.state.workbook!
 const rowOf = (desk: SpendingDesk, id: string) => bookOf(desk).transactions.find((row) => row.id === id)
 const categoryNamed = (desk: SpendingDesk, name: string) => bookOf(desk).categories.find((category) => category.name === name)!
-
-/** The example's input with each record it names as a ref the chat handed out, in a list's items too, and a file as the id of the photo attached. */
-function exampleInput(desk: SpendingDesk, operation: (typeof SPENDING_OPERATIONS)[number]): Record<string, unknown> {
-  const refOf = (kind: string | undefined, value: unknown): unknown => {
-    if (kind === ATTACHMENT_REF) return value === null ? null : attachedPhoto().id
-    return kind !== undefined && typeof value === 'string' ? desk.ref(kind, EXAMPLE_RECORDS[value]!) : value
-  }
-  return Object.fromEntries(
-    Object.entries(operation.example).map(([field, value]) => {
-      if (!Array.isArray(value)) return [field, refOf(operation.refs[field], value)]
-      const items = (value as readonly Readonly<Record<string, unknown>>[]).map((item) =>
-        typeof item === 'object' && item !== null ? Object.fromEntries(Object.entries(item).map(([name, held]) => [name, refOf(operation.refs[`${field}.${name}`], held)])) : item,
-      )
-      return [field, items]
-    }),
-  )
-}
 
 /** A field's value as the card reads it, where an empty text and a missing value both say nothing. */
 function said(value: unknown): unknown {
@@ -95,7 +78,7 @@ describe('every Spending operation', () => {
       expect(Object.keys(operation.input.type === 'object' ? operation.input.properties : {}).filter((field) => KEPT_BY_KUNA.has(field))).toEqual([])
       const desk = await spendingDesk(used)
 
-      const answer = await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }], [attachedPhoto()])
+      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, EXAMPLE_RECORDS, attachedPhoto().id) }], [attachedPhoto()])
 
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)
@@ -639,7 +622,7 @@ describe('bank account set-up', () => {
     async (_name, operation) => {
       const desk = await spendingDesk(used)
       const before = snapshotOf(desk)
-      expect((await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }])).isError).toBe(false)
+      expect((await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, EXAMPLE_RECORDS) }])).isError).toBe(false)
       const result = await desk.accept()
       expect(result.kind).toBe('done')
       expect(snapshotOf(desk)).not.toBe(before)

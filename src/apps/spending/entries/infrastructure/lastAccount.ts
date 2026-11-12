@@ -3,18 +3,16 @@ import type { Account } from '../../workbook/domain/account'
 import { ACCOUNT_RECORDS } from '../../workbook/domain/spendingKinds'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { deviceChoice } from '../../../../shared/device/deviceChoice'
 
-const LAST_ACCOUNT_KEY = 'kuna.spending-last-account'
+const kept = deviceChoice<RecordId | null>('kuna.spending-last-account', null, {
+  read: (stored) => recordIdOf(ACCOUNT_RECORDS, stored),
+  write: (id) => (id === null ? null : keyOfRecordId(ACCOUNT_RECORDS, id)),
+})
 
 /** The account this browser last saved an entry on, by its id, or null when it keeps none. */
 export function lastAccountId(): RecordId | null {
-  try {
-    const stored = localStorage.getItem(LAST_ACCOUNT_KEY)
-    return stored === null ? null : recordIdOf(ACCOUNT_RECORDS, stored)
-  } catch {
-    // Storage denied, as in some private windows, so none is kept.
-    return null
-  }
+  return kept.read()
 }
 
 /** Of these accounts, the one this browser last saved an entry on while it is open, else the first open one. */
@@ -29,18 +27,11 @@ export function startingAccount(accounts: readonly Account[]): Account | null {
   return lastUsedAccount(accounts.filter(takesRowsByHand))
 }
 
+/** Where storage is denied the next entry starts on the first open account. */
 export function rememberLastAccount(account: Account): void {
-  try {
-    localStorage.setItem(LAST_ACCOUNT_KEY, keyOfRecordId(ACCOUNT_RECORDS, account.id))
-  } catch {
-    // Storage denied. The next entry starts on the first open account.
-  }
+  kept.remember(account.id)
 }
 
 export function forgetLastAccount(): void {
-  try {
-    localStorage.removeItem(LAST_ACCOUNT_KEY)
-  } catch {
-    // Storage denied, so nothing was kept.
-  }
+  kept.remember(null)
 }

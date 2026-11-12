@@ -80,7 +80,7 @@ import { assetRegister } from '../src/apps/company/packs/hr-doo/domain/assets/as
 import { accumulatedDepreciationOn, bookValueOn } from '../src/apps/company/packs/hr-doo/domain/assets/depreciationSchedule.ts'
 import { dividendCapacity } from '../src/apps/company/packs/hr-doo/domain/dividend/dividendCapacity.ts'
 import { effectiveTaxRate } from '../src/apps/company/packs/hr-doo/domain/effectiveTaxRate.ts'
-import { forecastYear, planDefaults } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear.ts'
+import { forecastNeed, forecastYear, planDefaults } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear.ts'
 import { planAgainstActual } from '../src/apps/company/packs/hr-doo/domain/forecast/planAgainstActual.ts'
 import { clawbackExposure, deferredOn, grantResiduals } from '../src/apps/company/packs/hr-doo/domain/grants/grantRelease.ts'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart.ts'
@@ -93,7 +93,7 @@ import { netPayPerMonth, ownerTake, ownerTakeByMonth } from '../src/apps/company
 import { unaccountedInView } from '../src/apps/company/packs/hr-doo/domain/ownerAdvances.ts'
 import { payrollCadence } from '../src/apps/company/packs/hr-doo/domain/payrollCadence.ts'
 import { salaryReconciliation } from '../src/apps/company/packs/hr-doo/domain/salaries/salaryReconciliation.ts'
-import { payScenarios } from '../src/apps/company/packs/hr-doo/domain/scenarios/payScenarios.ts'
+import { payScenarios, payScenariosNeed } from '../src/apps/company/packs/hr-doo/domain/scenarios/payScenarios.ts'
 import { missingAccrualRoles } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualRoles.ts'
 import { packWaiting } from '../src/apps/company/packs/hr-doo/domain/packWaiting.ts'
 import { paydayYears, salaryYearRows } from '../src/apps/company/packs/hr-doo/domain/salaries/salaryFigures.ts'
@@ -263,8 +263,6 @@ async function documentOfInput() {
 }
 
 const groups = []
-/** What a group holds when the books lack hr_company_registered, as the screen says what it needs instead of figures. */
-const UNREGISTERED = { needs: 'hr_company_registered' }
 const group = (name, figures) => groups.push([name, figures])
 
 if (companyAsked) {
@@ -279,8 +277,8 @@ if (companyAsked) {
   const rows = [...scoped, ...scopeOwnerAdvances(cash.ownerAdvances, DEFAULT_FILTERS).map(bookingOfAdvance)]
   const context = categorisationContextOf(cash)
   const forecastOf = (year) => forecastYear(books, year, asOf)
-  // Without the registration day Year shows what it needs in place of the forecast and the pay scenarios.
-  const unregistered = books.companyFacts.companyRegistered === null
+  // Where the forecast waits for a fact, Year shows what it needs in its place, and a group holds that need instead of figures.
+  const forecastWaits = forecastNeed(books)
 
   group('read.records', companyFiguresOf(records))
   // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
@@ -352,7 +350,7 @@ if (companyAsked) {
     ])
     group(`owner.${at}.benefits`, () => {
       const benefits = ownerBenefits(rows, cash.categories, period, window)
-      return [benefits, benefits && books.companyFacts.companyRegistered !== null && dividendComparison(benefits.byYear, 'Benefits', (year) => forecastOf(year).liability.rate)]
+      return [benefits, benefits && forecastWaits === null && dividendComparison(benefits.byYear, 'Benefits', (year) => forecastOf(year).liability.rate)]
     })
     group(`owner.${at}.net`, () =>
       ownerNetWithProfit(averagedTake, books, period, window, asOf, { profitBeforeTax: (year) => forecastOf(year).profitBeforeTax, corporateRate: (year) => forecastOf(year).liability.rate }),
@@ -368,11 +366,14 @@ if (companyAsked) {
     const yearPeriod = { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }
     group(`year.${year}.taxes`, () => [taxByType(bookings, books.categories, yearPeriod, window), effectiveTaxRate(bookings, books.categories, yearPeriod, window)])
     group(`year.${year}.forecast`, () => {
-      if (unregistered) return UNREGISTERED
+      if (forecastWaits !== null) return { needs: forecastWaits }
       const forecast = forecastOf(year)
       return [forecast, dividendCapacity(year, forecast, books), planAgainstActual(forecast), planDefaults(books, year, asOf)]
     })
-    group(`year.${year}.pay-scenarios`, () => (unregistered ? UNREGISTERED : payScenarios(books, year, asOf)))
+    group(`year.${year}.pay-scenarios`, () => {
+      const need = payScenariosNeed(books)
+      return need === null ? payScenarios(books, year, asOf) : { needs: need }
+    })
     group(`year.${year}.accrual`, () => {
       const accrual = accrualYear(books, year, { depreciation: books.companyFacts, citAdvancesPaid: null })
       return view === 'closed' ? [accrual, compareYearEnd(books, accrual), yearEndOpenItems(books, accrual)] : accrual

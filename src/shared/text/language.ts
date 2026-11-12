@@ -1,3 +1,5 @@
+import { deviceText } from '../device/deviceChoice'
+
 /**
  * Settings offers Browser language, English and Hrvatski. Browser language is the default and shows
  * Croatian when the browser lists Croatian first. English or Hrvatski is remembered on this device,
@@ -10,7 +12,7 @@ export type Language = 'en' | 'hr'
 
 export type LanguageChoice = 'browser' | Language
 
-const STORED_LANGUAGE_KEY = 'kuna.language'
+const keptLanguage = deviceText('kuna.language')
 
 /** The tag each language writes dates, numbers and sorted lists with. */
 export const INTL_LOCALES: Readonly<Record<Language, string>> = { en: 'en-GB', hr: 'hr-HR' }
@@ -40,16 +42,8 @@ export function resolveLanguage(pin: Language | null, choice: LanguageChoice, br
   return pin ?? (choice === 'browser' ? browser : choice)
 }
 
-function storedLanguage(): string | null {
-  try {
-    return localStorage.getItem(STORED_LANGUAGE_KEY)
-  } catch {
-    return null
-  }
-}
-
 /** What Settings shows as picked on this device. */
-export const languageChoice: LanguageChoice = languageChoiceFrom(storedLanguage())
+export const languageChoice: LanguageChoice = languageChoiceFrom(keptLanguage.read())
 
 /**
  * The language on screen. Outside a browser it is English, since Node gives scripts and specs a
@@ -72,16 +66,9 @@ export function applyLanguage(): void {
 export function chooseLanguage(choice: LanguageChoice): void {
   const address = new URL(window.location.href)
   address.searchParams.delete('lang')
-  try {
-    if (choice === 'browser') {
-      localStorage.removeItem(STORED_LANGUAGE_KEY)
-    } else {
-      localStorage.setItem(STORED_LANGUAGE_KEY, choice)
-    }
-  } catch {
-    // Storage denied: the address pins the choice for this visit instead.
-    if (choice !== 'browser') address.searchParams.set('lang', choice)
-  }
+  const kept = keptLanguage.remember(choice === 'browser' ? null : choice)
+  // Where storage is denied the address pins the choice for this visit instead.
+  if (!kept && choice !== 'browser') address.searchParams.set('lang', choice)
   // The router keeps the screen after the #, so only a reload, not a new address, loads the page again.
   history.replaceState(history.state, '', address)
   window.location.reload()

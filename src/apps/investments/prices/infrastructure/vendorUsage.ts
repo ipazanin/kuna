@@ -1,3 +1,5 @@
+import { jsonChoice } from '../../../../shared/device/deviceChoice'
+
 /** This browser's requests to each vendor on one day, kept beside the keys so Settings can set them against the daily limit. */
 const USAGE_PREFIX = 'kuna.price-vendor-usage.'
 
@@ -6,31 +8,24 @@ function utcDay(at: Date): string {
   return at.toISOString().slice(0, 10)
 }
 
-function usageOf(vendorId: string): { readonly day: string; readonly count: number } | null {
-  try {
-    const stored: unknown = JSON.parse(localStorage.getItem(`${USAGE_PREFIX}${vendorId}`) ?? 'null')
-    if (typeof stored === 'object' && stored !== null && 'day' in stored && 'count' in stored && typeof stored.day === 'string' && typeof stored.count === 'number') {
-      return { day: stored.day, count: stored.count }
-    }
-    return null
-  } catch {
-    return null
-  }
+/** Where storage is denied, as in a private window, nothing is counted. */
+function usageOf(vendorId: string) {
+  return jsonChoice(`${USAGE_PREFIX}${vendorId}`, (stored): { readonly day: string; readonly count: number } | null =>
+    typeof stored === 'object' && stored !== null && 'day' in stored && 'count' in stored && typeof stored.day === 'string' && typeof stored.count === 'number'
+      ? { day: stored.day, count: stored.count }
+      : null,
+  )
 }
 
 /** The requests this browser sent the vendor on the UTC day of `at`. */
 export function requestsToday(vendorId: string, at: Date): number {
-  const usage = usageOf(vendorId)
+  const usage = usageOf(vendorId).read()
   return usage !== null && usage.day === utcDay(at) ? usage.count : 0
 }
 
 /** Sets the requests this browser sent the vendor on the UTC day of `at`. */
 export function setRequestsToday(vendorId: string, at: Date, count: number): void {
-  try {
-    localStorage.setItem(`${USAGE_PREFIX}${vendorId}`, JSON.stringify({ day: utcDay(at), count }))
-  } catch {
-    // Storage can be denied in a private window, and then nothing is counted.
-  }
+  usageOf(vendorId).remember({ day: utcDay(at), count })
 }
 
 /** Counts one request to the vendor, starting the count afresh on a new UTC day. */

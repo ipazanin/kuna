@@ -21,7 +21,6 @@ import { words as ruleFormWords } from '../src/apps/company/rules/presentation/w
 import { proposalGroupsOf } from '../src/apps/company/assistant/operations/proposalLines'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
-import type { AssistantOperation } from '../src/shared/app/assistantOperations'
 import { words as sharedWords } from '../src/shared/app/words'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
@@ -33,6 +32,7 @@ import type { CompanyDesk } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
+import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -68,20 +68,6 @@ function exampleRecords(desk: CompanyDesk): Readonly<Record<string, string>> {
   }
 }
 
-/** The example's input with each record it names as a ref the chat handed out, inside a list of parts too. */
-function exampleInput(desk: CompanyDesk, operation: AssistantOperation): Record<string, unknown> {
-  const records = exampleRecords(desk)
-  const refOf = (kind: string | undefined, value: unknown) => (kind !== undefined && typeof value === 'string' && records[value] !== undefined ? desk.ref(kind, records[value]) : value)
-  return Object.fromEntries(
-    Object.entries(operation.example).map(([field, value]) => {
-      if (Array.isArray(value)) {
-        return [field, value.map((item: Readonly<Record<string, unknown>>) => Object.fromEntries(Object.entries(item).map(([name, held]) => [name, refOf(operation.refs[`${field}.${name}`], held)])))]
-      }
-      return [field, refOf(operation.refs[field], value)]
-    }),
-  )
-}
-
 /** A field's value as the card reads it, where an empty text and a missing value both say nothing. */
 function said(value: unknown): unknown {
   return value === undefined || value === '' ? null : value
@@ -105,7 +91,7 @@ describe('every Company operation', () => {
     async (_name, operation) => {
       const desk = await companyDesk(used, { heldStatements: () => HELD })
 
-      const answer = await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }])
+      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, exampleRecords(desk)) }])
 
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)

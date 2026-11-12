@@ -17,6 +17,7 @@ import type { AppReader, ReadableField, ReportFigure } from '../src/shared/app/a
 import { civil } from './fixtures/ledger'
 import { informalLoan } from './fixtures/loans'
 import { EXAMPLE_RECORDS, loansDesk } from './fixtures/loansDesk'
+import { exampleInput } from './fixtures/exampleInput'
 import { forgetCaches } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -141,7 +142,7 @@ describe("Loans' reports", () => {
   it('keeps two offers alike apart, with a number after the second', async () => {
     const { reader, desk } = await readerOfDesk()
     const copy = LOANS_OPERATIONS.find((operation) => operation.name === 'copy-scenario')!
-    await desk.propose([{ op: 'copy-scenario', input: { ...copy.example, scenario: desk.ref('loan-scenario', EXAMPLE_RECORDS['loan-scenario']!) } }])
+    await desk.propose([{ op: 'copy-scenario', input: exampleInput(copy, desk, EXAMPLE_RECORDS) }])
     expect((await desk.accept()).kind).toBe('done')
 
     const labels = reader.reports

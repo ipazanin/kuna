@@ -168,6 +168,14 @@ export interface YearForecast {
   readonly notModelled: readonly UnmodelledPlanLine[]
 }
 
+/** A fact the forecast waits for: the company's registration day, which its tax periods count from. */
+export type ForecastNeed = 'registration-day'
+
+/** The fact the forecast waits for, or null when it can be worked out. */
+export function forecastNeed(workbook: Pick<HrDooWorkbook, 'companyFacts'>): ForecastNeed | null {
+  return workbook.companyFacts.companyRegistered === null ? 'registration-day' : null
+}
+
 /**
  * The year as it is likely to end, seen on `asOf`. Complete months come from the ledger and the
  * owner's advances as the accrual view counts them, the running month is shown and never counted,

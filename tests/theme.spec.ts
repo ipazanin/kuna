@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { activeTheme, applyInitialTheme, chooseTheme, resolveTheme, themeChoice, themeChoiceFrom, themeFromQuery } from '../src/shared/theme/theme'
+import { STORED_THEME_KEY, activeTheme, applyInitialTheme, chooseTheme, resolveTheme, themeChoice, themeChoiceFrom, themeFromQuery } from '../src/shared/theme/theme'
 
 /** The device's colour scheme setting, which a test can change while the app runs. */
 function fakeDevice(prefersLight: boolean): { change(prefersLight: boolean): void } {
@@ -96,5 +98,13 @@ describe('theme on this device', () => {
 
     device.change(false)
     expect(activeTheme.value).toBe('dark')
+  })
+})
+
+describe('the theme before the first paint', () => {
+  it('reads the choice under the key the app keeps it in, so a light visitor sees no dark flash', () => {
+    const page = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
+
+    expect(page).toContain(`localStorage.getItem('${STORED_THEME_KEY}')`)
   })
 })

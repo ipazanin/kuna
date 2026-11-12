@@ -42,18 +42,17 @@ import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
 
 /** The record an example names by the name it gives it, as the chat reads its id, from the fake company's books. */
-function exampleRecords(books: CompanyBooks): Readonly<Record<string, { readonly kind: string; readonly id: string }>> {
-  const first = <R>(kind: RecordKind<R>, pick: (record: R) => boolean, idOf: (record: R) => string) => {
-    const record = recordsOf(recordsOfKindIn(books.records, kind)).find(pick)!
-    return { kind: kind.name, id: idOf(record) }
-  }
+function exampleRecords(desk: PackDesk): Readonly<Record<string, string>> {
+  const books = desk.store.state as CompanyBooks
+  const first = <R>(kind: RecordKind<R>, pick: (record: R) => boolean, idOf: (record: R) => string) => idOf(recordsOf(recordsOfKindIn(books.records, kind)).find(pick)!)
   return {
-    category: { kind: 'category', id: 'ai-services' },
+    category: 'ai-services',
     advance: first(
       OWNER_ADVANCE_RECORDS,
       () => true,
@@ -109,7 +108,7 @@ function exampleRecords(books: CompanyBooks): Readonly<Record<string, { readonly
       () => true,
       (cost) => cost.id,
     ),
-    'ledger-row': { kind: LEDGER_RECORDS.name, id: tripRows(books).payout.id },
+    'ledger-row': tripRows(books).payout.id,
   }
 }
 
@@ -128,9 +127,6 @@ const TRIP_CATEGORIES: readonly (readonly [string, string])[] = [
   ['car-kilometres', 'tax-free:private-car-business-travel'],
   ['trip-costs', 'tax-free:business-travel-cost'],
 ]
-
-/** The short names an example writes as text, a scenario being no record of its own. */
-const EXAMPLE_TEXT: Readonly<Record<string, string>> = { scenario: 'floor-salary', 'scenario-unplanned': 'early-exit' }
 
 /** A grant no asset is funded by, so the example of a delete has one to take. */
 const UNUSED_GRANT = grantOfFields(storedFieldsOfValues({ grant: 'unused-grant', received: '2026-03-01', amount: '500', fixed_part: '500', variable_part: '0' }))
@@ -199,18 +195,6 @@ async function packDesk(): Promise<PackDesk> {
   return Object.assign(desk, { ...companyChat(store, deskPorts({ pack: hrDooOperations(() => desk.anonymising) }), false), store })
 }
 
-/** The example's input with each record it names as a ref the chat handed out, and each scenario by a short name the fake company holds. */
-function exampleInput(desk: PackDesk, operation: (typeof PACK_OPERATIONS)[number]): Record<string, unknown> {
-  const records = exampleRecords(desk.store.state as CompanyBooks)
-  return Object.fromEntries(
-    Object.entries(operation.example).map(([field, value]) => {
-      if (typeof value !== 'string') return [field, value]
-      if (operation.refs[field] !== undefined) return [field, desk.ref(records[value]!.kind, records[value]!.id)]
-      return [field, EXAMPLE_TEXT[value] ?? value]
-    }),
-  )
-}
-
 /** Fields Kuna keeps by itself or shows through another field, which a card leaves off. */
 const NOT_ON_CARD: ReadonlySet<string> = new Set(['id', 'ownerPart', 'kind', 'key'])
 
@@ -244,7 +228,7 @@ describe('every operation of the d.o.o. pack', () => {
       const desk = await packDesk()
       const before = JSON.stringify(desk.store.state.records)
 
-      const answer = await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }])
+      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, exampleRecords(desk)) }])
 
       expect(answer.text).toContain('The card shows')
       const [card] = desk.cards
@@ -267,7 +251,7 @@ describe('employees and pay', () => {
     for (const name of ['change-employee', 'add-employee', 'add-component']) {
       const operation = PACK_OPERATIONS.find((candidate) => candidate.name === name)!
 
-      const answer = await desk.propose([{ op: name, input: exampleInput(desk, operation) }])
+      const answer = await desk.propose([{ op: name, input: exampleInput(operation, desk, exampleRecords(desk)) }])
 
       expect(answer.isError).toBe(true)
       expect(answer.text).toContain('turn Anonymise off')
@@ -291,7 +275,7 @@ describe('employees and pay', () => {
     const desk = await packDesk()
     const operation = PACK_OPERATIONS.find((candidate) => candidate.name === 'change-employee')!
 
-    await desk.propose([{ op: 'change-employee', input: exampleInput(desk, operation) }])
+    await desk.propose([{ op: 'change-employee', input: exampleInput(operation, desk, exampleRecords(desk)) }])
 
     const [line] = desk.cards[0]!.groups[0]!.lines
     expect(line!.fields[0]).toMatchObject({ before: expect.any(String), after: 'HR1210010051863000160', warns: true })
@@ -302,7 +286,7 @@ describe('employees and pay', () => {
     const [employee] = recordsOfKind(desk, EMPLOYEE_RECORDS)
     const operation = PACK_OPERATIONS.find((candidate) => candidate.name === 'change-employee')!
 
-    await desk.propose([{ op: 'change-employee', input: { ...exampleInput(desk, operation), iban: null, dependants: '2' } }])
+    await desk.propose([{ op: 'change-employee', input: { ...exampleInput(operation, desk, exampleRecords(desk)), iban: null, dependants: '2' } }])
     await desk.accept()
 
     const [after] = recordsOfKind(desk, EMPLOYEE_RECORDS)
@@ -352,7 +336,7 @@ describe('the editors', () => {
     const desk = await packDesk()
     const operation = PACK_OPERATIONS.find((candidate) => candidate.name === 'add-asset')!
 
-    const answer = await desk.propose([{ op: 'add-asset', input: { ...exampleInput(desk, operation), bought: 'soon' } }])
+    const answer = await desk.propose([{ op: 'add-asset', input: { ...exampleInput(operation, desk, exampleRecords(desk)), bought: 'soon' } }])
 
     expect(answer.isError).toBe(true)
     expect(desk.cards).toEqual([])
@@ -362,7 +346,7 @@ describe('the editors', () => {
     const desk = await packDesk()
     const operation = PACK_OPERATIONS.find((candidate) => candidate.name === 'add-asset')!
 
-    await desk.propose([{ op: 'add-asset', input: exampleInput(desk, operation) }])
+    await desk.propose([{ op: 'add-asset', input: exampleInput(operation, desk, exampleRecords(desk)) }])
 
     const [line] = desk.cards[0]!.groups[0]!.lines
     expect(line!.label).toBe('Laptop')

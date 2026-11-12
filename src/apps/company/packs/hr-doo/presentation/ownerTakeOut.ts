@@ -7,7 +7,7 @@ import { moneyFormatOf } from '../../../settings/domain/settings'
 import { dividendCapacity } from '../domain/dividend/dividendCapacity'
 import type { DividendCapacity, PayoutOption } from '../domain/dividend/dividendCapacity'
 import type { HrDooWorkbook } from '../domain/hrDooPart'
-import { forecastYear } from '../domain/forecast/forecastYear'
+import { forecastNeed, forecastYear } from '../domain/forecast/forecastYear'
 import type { TracedFigure } from '../ruleset/tracedFigure'
 import { figureLabel } from './tracedFigureView'
 import { words } from './words'
@@ -17,7 +17,7 @@ import { words } from './words'
  * tax and the owner's loan, or why there is none.
  */
 export function ownerTakeOut(workbook: HrDooWorkbook, asOf: CivilDate): OwnerTakeOut {
-  if (workbook.companyFacts.companyRegistered === null) return { kind: 'missing', reason: words.takeOut.noRegistration }
+  if (forecastNeed(workbook) !== null) return { kind: 'missing', reason: words.takeOut.noRegistration }
   const year = yearOf(asOf)
   let capacity: DividendCapacity
   try {

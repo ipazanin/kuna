@@ -2,6 +2,7 @@ import { reactive } from 'vue'
 
 import { PROVIDER_PRESETS, modelChoice, presetOf } from '../domain/providerPresets'
 import type { ModelChoice, ProviderId } from '../domain/providerPresets'
+import { deviceText, keptKeys, onChoiceKeptElsewhere } from '../../device/deviceChoice'
 
 /**
  * This device's choices for the assistant, each under its own key: the yes for each AI company to read and send in every app
@@ -22,30 +23,24 @@ const ASSIST_KEYS = /^kuna\.assist[.-]/
 /** What this visit read or chose, by storage key, so a switch shows its new state at once. */
 const choices = reactive<Record<string, string | null>>({})
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (event) => {
-    if (event.key === null) {
-      for (const key of Object.keys(choices)) delete choices[key]
-    } else if (ASSIST_KEYS.test(event.key)) {
-      choices[event.key] = event.newValue
-    }
-  })
-}
+onChoiceKeptElsewhere((key, kept) => {
+  if (key === null) {
+    for (const known of Object.keys(choices)) delete choices[known]
+  } else if (ASSIST_KEYS.test(key)) {
+    choices[key] = kept
+  }
+})
 
 function choice(key: string): string | null {
   if (!Object.hasOwn(choices, key)) {
-    choices[key] = read(key)
+    choices[key] = deviceText(key).read()
   }
   return choices[key] ?? null
 }
 
+/** Where storage is denied the choice still holds for this visit. */
 function choose(key: string, value: string | null): void {
-  try {
-    if (value === null) localStorage.removeItem(key)
-    else localStorage.setItem(key, value)
-  } catch {
-    // Storage denied: the choice still holds for this visit.
-  }
+  deviceText(key).remember(value)
   choices[key] = value
 }
 
@@ -56,8 +51,8 @@ export function assistAllowed(provider: ProviderId): boolean {
 
 /** Carries any app's own yes from before over to the AI company in use as the yes for that company, and forgets every app's own switch, so nobody is asked again. */
 export function carryOverAppYes(provider: ProviderId): void {
-  const retired = storedNames().filter((key) => key.startsWith(RETIRED_APP_PREFIX))
-  if (retired.some((key) => read(key) === 'on')) choose(`${ALLOWED_PREFIX}${provider}`, 'on')
+  const retired = keptKeys(RETIRED_APP_PREFIX)
+  if (retired.some((key) => deviceText(key).read() === 'on')) choose(`${ALLOWED_PREFIX}${provider}`, 'on')
   retired.forEach((key) => choose(key, null))
 }
 
@@ -87,7 +82,7 @@ export function pickedProvider(): ProviderId | null {
 
 /** Stores the provider already in use as the pick, which moves nothing and takes no yes back. A pick already stored stays, also one another tab has only just made. */
 export function pinProvider(id: ProviderId): void {
-  if (pickedProvider() === null && read(PROVIDER_KEY) === null) choose(PROVIDER_KEY, id)
+  if (pickedProvider() === null && deviceText(PROVIDER_KEY).read() === null) choose(PROVIDER_KEY, id)
 }
 
 /**
@@ -121,30 +116,12 @@ export function forgetAssistChoices(): void {
 }
 
 function knownNames(): readonly string[] {
-  return [...new Set([...storedNames(), ...Object.keys(choices)])]
-}
-
-function storedNames(): readonly string[] {
-  try {
-    return Object.keys(localStorage)
-  } catch {
-    return []
-  }
+  return [...new Set([...keptKeys('kuna.assist'), ...Object.keys(choices)])]
 }
 
 /** Clears the employee switch each task once kept, which nothing reads any more. */
 function forgetRetiredTaskSwitches(): void {
-  storedNames()
-    .filter((key) => key.startsWith(RETIRED_TASK_PREFIX))
-    .forEach((key) => choose(key, null))
+  keptKeys(RETIRED_TASK_PREFIX).forEach((key) => choose(key, null))
 }
 
 forgetRetiredTaskSwitches()
-
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}

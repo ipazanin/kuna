@@ -14,12 +14,12 @@ import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkb
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { filledFields } from '../src/shared/storage/domain/recordFields'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
-import type { AssistantOperation } from '../src/shared/app/assistantOperations'
 import { companyChat, deskPorts } from './fixtures/companyDesk'
 import type { CompanyChat } from './fixtures/companyDesk'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -54,24 +54,14 @@ function heldRecords({ store }: Desk): string {
 }
 
 /** The record each example names, by the name it gives it, as the chat's ref of it resolves. */
-function exampleRecord(desk: Desk, name: string): string {
+function exampleRecords(desk: Desk): Readonly<Record<string, string>> {
   const book = bookOf(desk)
-  const ids: Readonly<Record<string, string>> = {
+  return {
     client: 'northwind',
     'client-unused': 'quiet',
     invoice: book.invoices[0]!.id,
     'billing-item': book.billingPlan[0]!.id,
   }
-  return ids[name]!
-}
-
-function exampleInput(desk: Desk, operation: AssistantOperation): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(operation.example).map(([field, value]) => {
-      const kind = operation.refs[field]
-      return [field, kind !== undefined && typeof value === 'string' ? desk.ref(kind, exampleRecord(desk, value)) : value]
-    }),
-  )
 }
 
 describe('every invoicing operation', () => {
@@ -81,7 +71,7 @@ describe('every invoicing operation', () => {
       const company = await desk()
       const before = heldRecords(company)
 
-      const answer = await company.propose([{ op: operation.name, input: exampleInput(company, operation) }])
+      const answer = await company.propose([{ op: operation.name, input: exampleInput(operation, company, exampleRecords(company)) }])
 
       expect(answer.isError, answer.text).toBe(false)
       const card = company.cards[0]!

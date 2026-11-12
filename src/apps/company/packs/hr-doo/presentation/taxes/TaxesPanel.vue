@@ -31,7 +31,7 @@ import { bookingOfAdvance } from '../../../../workbook/domain/workbook'
 import type { HrDooWorkbook } from '../../domain/hrDooPart'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { effectiveTaxRate } from '../../domain/effectiveTaxRate'
-import { forecastYear } from '../../domain/forecast/forecastYear'
+import { forecastNeed, forecastYear } from '../../domain/forecast/forecastYear'
 import { payrollCadence } from '../../domain/payrollCadence'
 import { taxByType } from '../../domain/taxByType'
 import CitObligationList from '../CitObligationList.vue'
@@ -163,7 +163,7 @@ const taxes = computed(() => {
  */
 const corporateTax = computed(() => {
   const { workbook, asOf } = props
-  if (workbook.companyFacts.companyRegistered === null) {
+  if (forecastNeed(workbook) !== null) {
     return { state: 'unregistered' as const }
   }
   try {

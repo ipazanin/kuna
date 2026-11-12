@@ -1,6 +1,7 @@
 import { GOOGLE_SCOPES, scopeRequest, scopesIn } from './googleScopes'
 import type { GoogleScope } from './googleScopes'
 import { words } from './words'
+import { deviceText } from '../device/deviceChoice'
 
 /**
  * Google's OAuth 2.0 implicit flow for client-side web apps, as a full-page redirect: for phones and
@@ -139,14 +140,10 @@ export function settleRedirect(fragment: RedirectFragment, pending: PendingRedir
   return { kind: 'granted', token, asked: scopes, ...resume, route, ask }
 }
 
-const PENDING_KEY = 'kuna.google-redirect'
+const keptPending = deviceText('kuna.google-redirect')
 
 export function savePendingRedirect(pending: PendingRedirect): void {
-  try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify(pending))
-  } catch {
-    throw new Error(words.noSiteStorage)
-  }
+  if (!keptPending.remember(JSON.stringify(pending))) throw new Error(words.noSiteStorage)
 }
 
 /**
@@ -154,13 +151,8 @@ export function savePendingRedirect(pending: PendingRedirect): void {
  * because an installed app may hand Google's page to a browser tab, which has its own session storage.
  */
 export function takePendingRedirect(): PendingRedirect | null {
-  let text: string | null = null
-  try {
-    text = localStorage.getItem(PENDING_KEY)
-    localStorage.removeItem(PENDING_KEY)
-  } catch {
-    return null
-  }
+  const text = keptPending.read()
+  keptPending.remember(null)
   return pendingOf(text)
 }
 

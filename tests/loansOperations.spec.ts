@@ -20,6 +20,7 @@ import type { LoansDesk } from './fixtures/loansDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -29,16 +30,6 @@ const bookOf = ({ store }: LoansDesk) => store.state.workbook!
 /** The file's records of each kind, in the order of their ids, since an Undo may put them back in another order. */
 function recordsOf({ store }: LoansDesk): string {
   return JSON.stringify(Object.entries(store.state.records!).map(([part, read]) => [part, read.records.map((stored: { readonly record: unknown }) => JSON.stringify(stored.record)).sort()]))
-}
-
-/** The example's input with each record it names as a ref the chat handed out. */
-function exampleInput(desk: LoansDesk, operation: (typeof LOANS_OPERATIONS)[number]): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(operation.example).map(([field, value]) => {
-      const kind = operation.refs[field]
-      return [field, kind !== undefined && typeof value === 'string' ? desk.ref(kind, EXAMPLE_RECORDS[value]!) : value]
-    }),
-  )
 }
 
 /** A field's value as the card reads it, where an empty text and a missing value both say nothing. */
@@ -89,7 +80,7 @@ describe('every Loans operation', () => {
       const desk = await loansDesk(used)
       const before = recordsOf(desk)
 
-      const answer = await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }])
+      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, EXAMPLE_RECORDS) }])
 
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)
@@ -139,7 +130,7 @@ describe('an offer from the bank', () => {
     expect((await desk.propose([{ op: 'add-offer', input: { ...printedOffer(null), rate: '3,1,8' } }])).isError).toBe(true)
     expect((await desk.propose([{ op: 'add-offer', input: { ...printedOffer(null), fixedYears: 40, thenVariable: '4' } }])).isError).toBe(true)
     const change = LOANS_OPERATIONS.find((operation) => operation.name === 'change-offer')!
-    const onTry = { ...exampleInput(desk, change), scenario: desk.ref('loan-scenario', EXAMPLE_RECORDS['loan-scenario-try']!) }
+    const onTry = { ...exampleInput(change, desk, EXAMPLE_RECORDS), scenario: desk.ref('loan-scenario', EXAMPLE_RECORDS['loan-scenario-try']!) }
     expect((await desk.propose([{ op: 'change-offer', input: onTry }])).text).toContain('not an offer')
   })
 })
@@ -228,7 +219,7 @@ describe('the printed instalment heard by the model', () => {
   it('shows no instalment on a card that changes an offer whose document prints none', async () => {
     const desk = await loansDesk(used)
     const change = LOANS_OPERATIONS.find((operation) => operation.name === 'change-offer')!
-    await desk.propose([{ op: 'change-offer', input: exampleInput(desk, change) }])
+    await desk.propose([{ op: 'change-offer', input: exampleInput(change, desk, EXAMPLE_RECORDS) }])
 
     const names = desk.cards[0]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.map((field) => field.name)))
     expect(names).not.toContain(words.proposals.fields.kunaInstalment)
@@ -257,8 +248,9 @@ describe('the instalment printed on a change', () => {
     const desk = await loansDesk(used)
     const input = {
       ...exampleInput(
-        desk,
         LOANS_OPERATIONS.find((operation) => operation.name === 'change-bank-loan')!,
+        desk,
+        EXAMPLE_RECORDS,
       ),
       principal: 2400,
       note: null,
@@ -280,8 +272,9 @@ describe('the instalment printed on a change', () => {
   it("sets Kuna's instalment at a notice's new rate from its due date beside the printed one, and warns only when they differ", async () => {
     const desk = await loansDesk(used)
     const input = exampleInput(
-      desk,
       LOANS_OPERATIONS.find((operation) => operation.name === 'add-rate-period')!,
+      desk,
+      EXAMPLE_RECORDS,
     )
     const dueBefore = bookOf(desk).bankLoans[0]!.plan!.find((row) => row.date === input['from'])!.payment
 
@@ -302,8 +295,9 @@ describe('the instalment printed on a change', () => {
   it("sets Kuna's instalment at a corrected notice's rate from the period's due date beside the printed one, and warns only when they differ", async () => {
     const desk = await loansDesk(used)
     const input = exampleInput(
-      desk,
       LOANS_OPERATIONS.find((operation) => operation.name === 'change-rate-period')!,
+      desk,
+      EXAMPLE_RECORDS,
     )
     const from = bookOf(desk).bankLoans[0]!.ratePeriods.find((period) => period.id === EXAMPLE_RECORDS['rate-period-later'])!.from
     const dueBefore = bookOf(desk).bankLoans[0]!.plan!.find((row) => row.date === from)!.payment
@@ -326,8 +320,9 @@ describe('the instalment printed on a change', () => {
   it("sets Kuna's first instalment at a revised offer's new terms beside the printed one, and warns only when they differ", async () => {
     const desk = await loansDesk(used)
     const input = exampleInput(
-      desk,
       LOANS_OPERATIONS.find((operation) => operation.name === 'change-offer')!,
+      desk,
+      EXAMPLE_RECORDS,
     )
 
     const off = await differing(desk, 'change-offer', input, 'change', LOAN_SCENARIO_RECORDS.noun)
@@ -348,8 +343,9 @@ describe('the instalment printed on a change', () => {
       'change-bank-loan',
       {
         ...exampleInput(
-          desk,
           LOANS_OPERATIONS.find((operation) => operation.name === 'change-bank-loan')!,
+          desk,
+          EXAMPLE_RECORDS,
         ),
         principal: 2400,
       },
@@ -369,8 +365,9 @@ describe('the instalment printed on a change', () => {
         {
           op,
           input: exampleInput(
-            desk,
             LOANS_OPERATIONS.find((operation) => operation.name === op)!,
+            desk,
+            EXAMPLE_RECORDS,
           ),
         },
       ])
@@ -389,7 +386,7 @@ describe('a change that names only some fields', () => {
         .scenarios.find((scenario) => scenario.scenario.id === EXAMPLE_RECORDS['loan-scenario'])!
         .changes.map((held) => held.kind)
     const before = changesOf()
-    const input = { ...exampleInput(desk, change), laterTerms: 'keep', changes: [] }
+    const input = { ...exampleInput(change, desk, EXAMPLE_RECORDS), laterTerms: 'keep', changes: [] }
 
     expect((await desk.propose([{ op: 'change-offer', input: { ...input, changes: change.example['changes'] as unknown[] } }])).isError).toBe(true)
     expect((await desk.propose([{ op: 'change-offer', input }])).isError).toBe(false)
@@ -513,7 +510,7 @@ describe("an offer's move to another bank", () => {
   })
 
   const changeInput = (desk: LoansDesk, scenario: string, changes: readonly unknown[]) => ({
-    ...exampleInput(desk, change()),
+    ...exampleInput(change(), desk, EXAMPLE_RECORDS),
     scenario: desk.ref(LOAN_SCENARIO_RECORDS.name, scenario),
     principal: null,
     laterTerms: 'replace',

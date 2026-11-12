@@ -272,8 +272,8 @@ const LOSS_MONTH = '2025-11'
 
 /**
  * The made-up company's records, by kind. As a Drive file its settings hold a blank
- * `card_settlement_ibans` and the invoice details, so every other default applies, and with a staff
- * also the registration day, so Year works out their forecast. As a workbook
+ * `card_settlement_ibans`, the invoice details and the registration day, so every other default applies
+ * and Year works out its forecast. As a workbook
  * kept in this browser they also name the company, the way a new user would, and its director is on
  * the employees tab. Rows the rules do not
  * reproduce are flagged as a person's, so the Category rules tab has coverage gaps to show. The records of the
@@ -370,8 +370,14 @@ const FAKE_INVOICING: readonly (readonly [key: string, value: string])[] = [
 /** The owner, whom a fake payroll pays under the name and account the rest of the fake knows. */
 export const FAKE_OWNER = PAYEES.owner
 
-/** The day the made-up company's first tax period starts. The plain file on Drive leaves it out, so its screens show what they need without it. */
+/** The day the made-up company's first tax period starts. */
 const REGISTERED = ['hr_company_registered', '2025-05-12'] as const
+
+/** The books without the registration day, so the screens that need it show what they need instead. */
+export function withoutRegistrationDay(document: WorkbookDocument): WorkbookDocument {
+  const [key] = REGISTERED
+  return { ...document, records: { ...document.records, setting: (document.records['setting'] ?? []).filter((fields) => fields['key'] !== key) } }
+}
 
 const setting = ([key, value]: readonly [string, FieldValue | number]): FakeFields => ({ key, value })
 
@@ -381,7 +387,7 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
   return {
     setting:
       source === 'drive'
-        ? [{ key: 'card_settlement_ibans' }, ...(staff === null ? [] : [setting(REGISTERED)]), ...FAKE_CHOICES.map(setting), ...FAKE_INVOICING.map(setting)]
+        ? [{ key: 'card_settlement_ibans' }, setting(REGISTERED), ...FAKE_CHOICES.map(setting), ...FAKE_INVOICING.map(setting)]
         : [
             ...(
               [

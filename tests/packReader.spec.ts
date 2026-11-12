@@ -18,10 +18,8 @@ import { findRecords, readFigures } from '../src/shared/ai/application/chatReads
 import type { FindRecordsInput } from '../src/shared/ai/application/chatReads'
 import type { ReportFigure } from '../src/shared/app/assistantReader'
 import { civilDate, yearOf } from '../src/shared/calendar/civilDate'
-import type { CivilDate } from '../src/shared/calendar/civilDate'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { companyReadsOf, fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
-import { civil } from './fixtures/ledger'
 
 /** The books with the pack's part changed, as a file edited by hand could hold it. */
 function withPart(books: CompanyBooks, change: (part: HrDooWorkbook) => Partial<HrDooWorkbook>): CompanyBooks {
@@ -29,12 +27,12 @@ function withPart(books: CompanyBooks, change: (part: HrDooWorkbook) => Partial<
   return { ...books, workbook: { ...books.workbook, packParts: { ...books.workbook.packParts, [HR_DOO.name]: { ...part, ...change(part) } } } }
 }
 
-/** The fake books with the company's registration day set, which the forecast starts its first tax period from. */
-function registered(books: CompanyBooks, day: CivilDate | null): CompanyBooks {
-  return withPart(books, ({ companyFacts }) => ({ companyFacts: { ...companyFacts, companyRegistered: day } }))
+/** The fake books without the company's registration day, which the forecast starts its first tax period from. */
+function unregistered(books: CompanyBooks): CompanyBooks {
+  return withPart(books, ({ companyFacts }) => ({ companyFacts: { ...companyFacts, companyRegistered: null } }))
 }
 
-const BOOKS = registered(fakeCompanyBooks(), civil('2025-05-12'))
+const BOOKS = fakeCompanyBooks()
 const PACK = HR_DOO_ASSISTANT.reader(readingOf(BOOKS))
 const LEDGER = countedLedger(BOOKS.workbook, DEFAULT_FILTERS)!
 const BOOKED = hrDooWorkbook(LEDGER.booked)
@@ -127,7 +125,7 @@ describe("the pack's reports", () => {
 
   it('gives no forecast for a year the Year screen does not offer, or before the company’s registration day is set', () => {
     expect(report('forecast').figures('1999-01')).toEqual([])
-    expect(HR_DOO_ASSISTANT.reader(readingOf(registered(BOOKS, null))).reports[0]!.figures(null)).toEqual([])
+    expect(HR_DOO_ASSISTANT.reader(readingOf(unregistered(BOOKS))).reports[0]!.figures(null)).toEqual([])
   })
 
   it('gives no forecast for a year the accountant has closed, as the Year screen shows none, but still its taxes', () => {

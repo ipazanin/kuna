@@ -14,6 +14,7 @@ import type { DrillTarget } from '../../../filters/domain/drillTarget'
 import type { FilteredLedger } from '../../../transactions/application/useFilteredLedger'
 import { useDisplayNames } from '../../../workbook/application/useDisplayNames'
 import type { TracedRate } from '../domain/cit/citLiability'
+import { forecastNeed } from '../domain/forecast/forecastYear'
 import { hrDooWorkbook } from '../domain/hrDooPart'
 import { dividendComparison } from '../domain/ownerBenefits'
 import type { OwnerBenefits } from '../domain/ownerBenefits'
@@ -68,7 +69,7 @@ type Comparison =
   { readonly state: 'unregistered' } | { readonly state: 'failed'; readonly failure: string } | { readonly state: 'ready'; readonly taxAvoided: AskableDetail; readonly asDividend: Money }
 
 const comparison = computed((): Comparison => {
-  if (workbook.value.companyFacts.companyRegistered === null) {
+  if (forecastNeed(workbook.value) !== null) {
     return { state: 'unregistered' }
   }
   try {

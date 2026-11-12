@@ -1,6 +1,7 @@
 import { readonly, ref } from 'vue'
 
 import { CHAT_MAX_WIDTH, chatWidthIn } from '../../shared/ai/presentation/chatDock'
+import { deviceChoice } from '../../shared/device/deviceChoice'
 import { PAGE_LEAST_WIDTH } from '../../shared/layout/viewport'
 
 /** How a person wants the sidebar: with names, as icons, or out of the way behind the top bar's menu button. */
@@ -28,33 +29,16 @@ export const SIDEBAR_WIDTH: Readonly<Record<SidebarForm, number>> = { expanded: 
  */
 export const FOOTER_FOLDS_BELOW_HEIGHT = 860
 
-const SIDEBAR_KEY = 'kuna.sidebar'
+const kept = deviceChoice<SidebarChoice>('kuna.sidebar', 'expanded', { read: (stored) => (stored === 'icons' || stored === 'hidden' ? stored : null), write: (chosen) => chosen })
 
-function storedChoice(): SidebarChoice {
-  try {
-    const stored = localStorage.getItem(SIDEBAR_KEY)
-    return stored === 'icons' || stored === 'hidden' ? stored : 'expanded'
-  } catch {
-    return 'expanded'
-  }
-}
-
-const choice = ref<SidebarChoice>(storedChoice())
+const choice = ref<SidebarChoice>(kept.read())
 
 /** The sidebar this device asked for. What is drawn also depends on the window, as `layoutOf` decides. */
 export const sidebarChoice = readonly(choice)
 
 /** Keeps the sidebar choice on this device. Expanded is the default and forgets the choice. */
 export function chooseSidebar(chosen: SidebarChoice): void {
-  try {
-    if (chosen === 'expanded') {
-      localStorage.removeItem(SIDEBAR_KEY)
-    } else {
-      localStorage.setItem(SIDEBAR_KEY, chosen)
-    }
-  } catch {
-    // Storage denied: the choice still holds for this visit.
-  }
+  kept.remember(chosen)
   choice.value = chosen
 }
 

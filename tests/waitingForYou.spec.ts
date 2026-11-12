@@ -25,6 +25,7 @@ describe('waiting for you', () => {
       ['invoice', "This month's invoice for Northwind Analytics is not made yet", 'warning', 'Invoicing'],
       ['overdue', '2 invoices are past the due date, €4,200.00 still owed', 'negative', 'Invoices'],
       ['unaccounted', 'A reimbursement to the owner has no cost on file', 'warning', 'To review'],
+      ['corporate-tax', 'A corporate tax payment is overdue, €447.50 still owed', 'negative', 'Year, Taxes'],
     ])
   })
 

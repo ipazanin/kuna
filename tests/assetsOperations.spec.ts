@@ -9,6 +9,7 @@ import type { AssetsDesk } from './fixtures/assetsDesk'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -18,16 +19,6 @@ const bookOf = ({ store }: AssetsDesk) => store.state.workbook!
 /** The file's records of each kind, in the order of their ids, since an Undo may put them back in another order. */
 function recordsOf({ store }: AssetsDesk): string {
   return JSON.stringify(Object.entries(store.state.records!).map(([part, read]) => [part, read.records.map((stored: { readonly record: unknown }) => JSON.stringify(stored.record)).sort()]))
-}
-
-/** The example's input with each record it names as a ref the chat handed out. */
-function exampleInput(desk: AssetsDesk, operation: (typeof ASSETS_OPERATIONS)[number]): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(operation.example).map(([field, value]) => {
-      const kind = operation.refs[field]
-      return [field, kind !== undefined && typeof value === 'string' ? desk.ref(kind, EXAMPLE_RECORDS[value]!) : value]
-    }),
-  )
 }
 
 /** A field's value as the card reads it, where an empty text and a missing value both say nothing. */
@@ -54,7 +45,7 @@ describe('every Assets operation', () => {
       const desk = await assetsDesk(used)
       const before = recordsOf(desk)
 
-      const answer = await desk.propose([{ op: candidate.name, input: exampleInput(desk, candidate) }])
+      const answer = await desk.propose([{ op: candidate.name, input: exampleInput(candidate, desk, EXAMPLE_RECORDS) }])
 
       expect(answer.text).toContain('The card shows')
       expect(answer.isError).toBe(false)
@@ -140,7 +131,7 @@ describe('an asset the screens would refuse', () => {
     await desk.accept()
     const car = bookOf(desk).assets.find(({ asset }) => asset.name === 'Car')!.asset
     expect(car.loan).toBe(CAR_LOAN_KEY)
-    const change = { ...exampleInput(desk, operation('change-asset')), asset: desk.ref('asset', car.id), loan: 'none', region: null, name: null, note: null }
+    const change = { ...exampleInput(operation('change-asset'), desk, EXAMPLE_RECORDS), asset: desk.ref('asset', car.id), loan: 'none', region: null, name: null, note: null }
     await desk.propose([{ op: 'change-asset', input: change }])
     await desk.accept()
     expect(bookOf(desk).assets.find(({ asset }) => asset.id === car.id)!.asset.loan).toBeNull()

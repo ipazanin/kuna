@@ -2,30 +2,10 @@ import type { LinkedOfBank } from '../domain/bankAccountSetup'
 import { bankReturnOf, searchWithoutReturn } from '../domain/bankReturn'
 import type { BankReturnNote, PendingLink } from '../domain/bankReturn'
 import { LINKABLE_BANKS } from '../../workbook/domain/spendingSettings'
+import { deviceChoice, jsonChoice } from '../../../../shared/device/deviceChoice'
 
-const PENDING_KEY = 'kuna.bank-link'
-const RETURN_KEY = 'kuna.bank-return'
-const FETCHED_KEY = 'kuna.bank-sync-fetched'
-
-function read(key: string): unknown {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? 'null')
-  } catch {
-    return null
-  }
-}
-
-function write(key: string, value: unknown): void {
-  try {
-    if (value === null) localStorage.removeItem(key)
-    else localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // A browser that keeps no site storage finds nothing on the way back, and says the link came back elsewhere.
-  }
-}
-
-export function loadPendingLink(): PendingLink | null {
-  const candidate = read(PENDING_KEY) as Partial<PendingLink> | null
+function pendingLinkOf(parsed: unknown): PendingLink | null {
+  const candidate = parsed as Partial<PendingLink> | null
   if (candidate === null || typeof candidate.state !== 'string' || !LINKABLE_BANKS.some((bank) => bank === candidate.bank)) return null
   return {
     bank: candidate.bank!,
@@ -35,8 +15,16 @@ export function loadPendingLink(): PendingLink | null {
   }
 }
 
+// A browser that keeps no site storage finds nothing on the way back, and says the link came back elsewhere.
+const PENDING = jsonChoice('kuna.bank-link', pendingLinkOf)
+const RETURN = jsonChoice('kuna.bank-return', (parsed) => parsed as BankReturnNote | null)
+
+export function loadPendingLink(): PendingLink | null {
+  return PENDING.read()
+}
+
 export function savePendingLink(pending: PendingLink | null): void {
-  write(PENDING_KEY, pending)
+  PENDING.remember(pending)
 }
 
 /**
@@ -58,8 +46,8 @@ function linkedOf(candidate: unknown): LinkedOfBank | null {
   return { bank: bank!, account: { uid: account.uid, iban: account.iban, currency: account.currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: hash } }
 }
 
-export function loadLastFetch(): LastFetch | null {
-  const candidate = read(FETCHED_KEY) as Partial<LastFetch> | null
+function lastFetchOf(parsed: unknown): LastFetch | null {
+  const candidate = parsed as Partial<LastFetch> | null
   if (candidate === null || typeof candidate !== 'object') return null
   return {
     problems: Array.isArray(candidate.problems) ? candidate.problems.map(String) : [],
@@ -67,9 +55,21 @@ export function loadLastFetch(): LastFetch | null {
   }
 }
 
+const FETCHED = deviceChoice<LastFetch | null>('kuna.bank-sync-fetched', null, {
+  read: (kept) => lastFetchOf(JSON.parse(kept)),
+  write: (fetch) => {
+    if (fetch === null) return null
+    const named = fetch.linked.map(({ bank, account: { uid, iban, currency, identificationHash } }) => ({ bank, account: { uid, iban, currency, identificationHash } }))
+    return JSON.stringify({ ...fetch, linked: named })
+  },
+})
+
+export function loadLastFetch(): LastFetch | null {
+  return FETCHED.read()
+}
+
 export function saveLastFetch(fetch: LastFetch | null): void {
-  const named = (linked: readonly LinkedOfBank[]) => linked.map(({ bank, account: { uid, iban, currency, identificationHash } }) => ({ bank, account: { uid, iban, currency, identificationHash } }))
-  write(FETCHED_KEY, fetch === null ? null : { ...fetch, linked: named(fetch.linked) })
+  FETCHED.remember(fetch)
 }
 
 /**
@@ -83,19 +83,19 @@ export function takeBankReturn(): void {
   window.history.replaceState(null, '', `${pathname}${searchWithoutReturn(search)}${hash}`)
   const pending = loadPendingLink()
   if (pending === null || pending.state !== answer.state) {
-    write(RETURN_KEY, { kind: 'elsewhere' } satisfies BankReturnNote)
+    RETURN.remember({ kind: 'elsewhere' } satisfies BankReturnNote)
   } else if ('error' in answer) {
     savePendingLink(null)
-    write(RETURN_KEY, { kind: 'refused', reason: answer.description === '' ? answer.error : answer.description } satisfies BankReturnNote)
+    RETURN.remember({ kind: 'refused', reason: answer.description === '' ? answer.error : answer.description } satisfies BankReturnNote)
   } else {
     savePendingLink({ ...pending, code: answer.code, validUntil: null })
-    write(RETURN_KEY, { kind: 'code' } satisfies BankReturnNote)
+    RETURN.remember({ kind: 'code' } satisfies BankReturnNote)
   }
 }
 
 /** What the last return from a bank came to, once. */
 export function takeReturnNote(): BankReturnNote | null {
-  const note = read(RETURN_KEY) as BankReturnNote | null
-  write(RETURN_KEY, null)
+  const note = RETURN.read()
+  RETURN.remember(null)
   return note
 }

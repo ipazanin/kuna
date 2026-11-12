@@ -329,7 +329,7 @@ const SCREENS = [
   { name: 'year-statements', hash: '#/company/year?year=2025&tab=statements&p=all', title: 'Year', ready: '[data-testid="comparison-pl"]' },
   { name: 'year-taxes', hash: '#/company/year?tab=taxes&p=all', title: 'Year', ready: '[data-testid="corporate-tax"]' },
   { name: 'year-assets', hash: '#/company/year?tab=assets&p=all', title: 'Year', ready: '[data-testid="asset-register"]' },
-  { name: 'year-forecast', hash: '#/company/year?p=all', title: 'Year', ready: '[data-testid="forecast-unregistered"]', cards: false },
+  { name: 'year-forecast', hash: '#/company/year?p=all', title: 'Year', ready: '[data-testid="forecast-tiles"]', cards: false },
   { name: 'year-plan', hash: '#/company/year?tab=plan&p=all', title: 'Year', ready: '[data-testid="plan-editor"]', cards: false },
   { name: 'year-pay', hash: '#/company/year?year=2027&tab=pay&p=all', title: 'Year', ready: '[data-testid="scenario-editor"]' },
   { hash: '#/company/owner?tab=owed&p=all', title: 'Owner', ready: '[data-testid="loan-list"]' },
@@ -1559,7 +1559,7 @@ async function checkWidth(width) {
     ['trips', '&fake=one-employee', tripsFlow, '#/company/trips', 'Trips'],
     ['trips-croatian', '&fake=one-employee&lang=hr', tripsFlowIn('hr'), '#/company/trips', 'Putni nalozi'],
     ['owner-net', '&fake=browser', ownerNetFlow, '#/company/owner?p=2026', 'Owner'],
-    ['owner-net-unregistered', '', ownerNetUnregisteredFlow, '#/company/owner?p=2026', 'Owner'],
+    ['owner-net-unregistered', '&fake=unregistered', ownerNetUnregisteredFlow, '#/company/owner?p=2026', 'Owner'],
   ]) {
     await step(
       name,

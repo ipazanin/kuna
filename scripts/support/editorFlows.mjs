@@ -1733,7 +1733,7 @@ export async function ownerNetFlow(page, { press, shoot, inspect }) {
   if (!(await page.evaluate(() => window.location.hash)).includes('year=2026')) throw new Error('the profit of 2026 did not open Year on 2026')
 }
 
-/** Owner, Taken in the fake file on Drive, which has no registration day: the tile reads – and its link opens the setting. */
+/** Owner, Taken in the fake file on Drive without its registration day: the tile reads – and its link opens the setting. */
 export function ownerNetUnregisteredFlowIn(language) {
   const words = SCREEN_WORDS[language]
   return async (page, { press, shoot: shootAs, inspect }) => {
@@ -10056,7 +10056,7 @@ export function chatAttachPdfOpenRouterFlow(samples) {
     const pickProvider = (id) =>
       page.evaluate((picked) => {
         localStorage.setItem('kuna.assist-provider', picked)
-        window.dispatchEvent(new StorageEvent('storage', { key: 'kuna.assist-provider', newValue: picked }))
+        window.dispatchEvent(new StorageEvent('storage', { key: 'kuna.assist-provider', newValue: picked, storageArea: localStorage }))
       }, id)
     try {
       await keepAiKey(page, { 'kuna.secret.openrouter': MADE_UP_ANTHROPIC_KEY })

@@ -266,7 +266,7 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
     refs: {},
     creates: null,
     alone: false,
-    example: { year: 2027, scenario: 'scenario', switchTo: null, switchOn: null },
+    example: { year: 2027, scenario: 'floor-salary', switchTo: null, switchOn: null },
   },
   {
     name: 'clear-plan',
@@ -294,7 +294,7 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
     refs: {},
     creates: null,
     alone: false,
-    example: { scenario: 'scenario', kind: 'rent_monthly', amount: 400, item: null, basis: null, from: null, to: null },
+    example: { scenario: 'floor-salary', kind: 'rent_monthly', amount: 400, item: null, basis: null, from: null, to: null },
   },
   {
     name: 'change-component',
@@ -321,7 +321,7 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
     refs: {},
     creates: null,
     alone: false,
-    example: { scenario: 'scenario-unplanned', slug: 'renamed', label: 'Renamed' },
+    example: { scenario: 'early-exit', slug: 'renamed', label: 'Renamed' },
   },
   {
     name: 'copy-scenario',
@@ -330,7 +330,7 @@ export const PACK_OPERATIONS: readonly AssistantOperation[] = [
     refs: {},
     creates: null,
     alone: false,
-    example: { scenario: 'scenario', slug: 'copied', label: null },
+    example: { scenario: 'floor-salary', slug: 'copied', label: null },
   },
   ...editorOperations(
     'year-end-line',

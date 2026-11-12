@@ -4,7 +4,7 @@ import type { MonthKey } from '../../../../../shared/calendar/monthKey'
 import { sumMoney } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
 import { bookingOfAdvance, ledgerWindowOf } from '../../../workbook/domain/workbook'
-import { forecastYear } from './forecast/forecastYear'
+import { forecastNeed, forecastYear } from './forecast/forecastYear'
 import type { HrDooWorkbook } from './hrDooPart'
 import { ownerAdvances } from './ownerAdvances'
 import { payrollCadence } from './payrollCadence'
@@ -52,7 +52,7 @@ function missedPayroll(workbook: HrDooWorkbook): MissedPayroll | null {
 
 /** Without the registration day there is no tax schedule to hold the payments against, so nothing waits. */
 function corporateTaxWaiting(workbook: HrDooWorkbook, asOf: CivilDate): CorporateTaxWaiting | null {
-  if (workbook.companyFacts.companyRegistered === null) return null
+  if (forecastNeed(workbook) !== null) return null
   let history
   try {
     history = forecastYear(workbook, yearOf(asOf), asOf).cit.history

@@ -1,5 +1,7 @@
 import { readonly, shallowRef } from 'vue'
 
+import { deviceText } from '../device/deviceChoice'
+
 /**
  * Settings offers System, Light and Dark. System is the default and follows the device's setting,
  * also when it changes while the app is open. Light or Dark is remembered on this device, and
@@ -11,7 +13,9 @@ export type Theme = 'dark' | 'light'
 
 export type ThemeChoice = 'system' | Theme
 
-const STORED_THEME_KEY = 'kuna.theme'
+/** Where this device keeps Light or Dark. index.html reads it too, to paint the theme before the app runs. */
+export const STORED_THEME_KEY = 'kuna.theme'
+const keptTheme = deviceText(STORED_THEME_KEY)
 const LIGHT_QUERY = '(prefers-color-scheme: light)'
 
 /** The `--surface-page` of each theme, for the browser bar of the installed app. */
@@ -53,7 +57,7 @@ export function resolveTheme(pin: Theme | null, choice: ThemeChoice, prefersLigh
  */
 export function applyInitialTheme(): Theme {
   pinned = themeFromQuery(window.location.search)
-  chosen.value = themeChoiceFrom(storedTheme())
+  chosen.value = themeChoiceFrom(keptTheme.read())
   const device = window.matchMedia(LIGHT_QUERY)
   device.addEventListener('change', (change) => paint(resolveTheme(pinned, chosen.value, change.matches)))
   const theme = resolveTheme(pinned, chosen.value, device.matches)
@@ -63,26 +67,10 @@ export function applyInitialTheme(): Theme {
 
 /** Switches the theme now. Light or Dark is remembered on this device, and System forgets the choice. */
 export function chooseTheme(choice: ThemeChoice): void {
-  try {
-    if (choice === 'system') {
-      localStorage.removeItem(STORED_THEME_KEY)
-    } else {
-      localStorage.setItem(STORED_THEME_KEY, choice)
-    }
-  } catch {
-    // Storage denied: the switch still holds for this visit.
-  }
+  keptTheme.remember(choice === 'system' ? null : choice)
   chosen.value = choice
   pinned = null
   paint(resolveTheme(null, choice, window.matchMedia(LIGHT_QUERY).matches))
-}
-
-function storedTheme(): string | null {
-  try {
-    return localStorage.getItem(STORED_THEME_KEY)
-  } catch {
-    return null
-  }
 }
 
 function paint(theme: Theme): void {

@@ -9,7 +9,7 @@ import { addMoney, negateMoney, subtractMoney } from '../../../../../../shared/m
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
-import { payScenarios } from '../../domain/scenarios/payScenarios'
+import { payScenarios, payScenariosNeed } from '../../domain/scenarios/payScenarios'
 import type { PayScenarios } from '../../domain/scenarios/payScenarios'
 import { HUNDRED } from '../../domain/scenarios/marginalEuro'
 import type { ScenarioNote, ScenarioOutcome, ScenarioWarning } from '../../domain/scenarios/scenarioOutcome'
@@ -27,7 +27,9 @@ export type PayState =
   | { readonly state: 'ready'; readonly figures: PayScenarios; readonly staffPay: boolean }
 
 export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate): PayState {
-  if (workbook.companyFacts.companyRegistered === null) {
+  const need = payScenariosNeed(workbook)
+  const employees = { path: '/company/salaries', hash: '#employee-rows' }
+  if (need === 'registration-day') {
     return {
       state: 'needs',
       need: words.needs.registeredSetting,
@@ -35,16 +37,10 @@ export function payState(workbook: HrDooWorkbook, year: number, asOf: CivilDate)
       action: { label: words.needs.setOnSettings, to: { path: '/company/settings', hash: '#company-registered' } },
     }
   }
-  const employees = { path: '/company/salaries', hash: '#employee-rows' }
-  if (workbook.director === null) {
-    return {
-      state: 'needs',
-      need: words.needs.director,
-      why: words.needs.directorWhy,
-      action: { label: words.needs.addOnSalaries, to: employees },
-    }
+  if (need === 'director') {
+    return { state: 'needs', need: words.needs.director, why: words.needs.directorWhy, action: { label: words.needs.addOnSalaries, to: employees } }
   }
-  if (workbook.director.residenceCity === '') {
+  if (need === 'director-city') {
     return { state: 'needs', need: words.needs.city, why: words.needs.cityWhy, action: { label: words.needs.setOnSalaries, to: employees } }
   }
   try {

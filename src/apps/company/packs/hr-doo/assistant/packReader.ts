@@ -14,7 +14,7 @@ import { COMPANY_FACT_SETTINGS } from '../domain/companyFacts'
 import { dividendCapacity } from '../domain/dividend/dividendCapacity'
 import { effectiveTaxRate } from '../domain/effectiveTaxRate'
 import type { Employee } from '../domain/employees/employees'
-import { forecastYear } from '../domain/forecast/forecastYear'
+import { forecastNeed, forecastYear } from '../domain/forecast/forecastYear'
 import type { PlanLine } from '../domain/forecast/plan'
 import type { Grant, GrantClawback } from '../domain/grants/grants'
 import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../domain/hrDooKinds'
@@ -349,7 +349,7 @@ function amountOf(label: string, figure: TracedFigure | null, currency: Currency
 function forecastReport(yearBooks: YearBooks, period: string | null): readonly ReportFigure[] {
   const option = yearOptionOf(yearBooks, period)
   const { books, asOf, currency } = yearBooks
-  if (option === null || option.view === 'closed' || books.companyFacts.companyRegistered === null) return []
+  if (option === null || option.view === 'closed' || forecastNeed(books) !== null) return []
   const { year } = option
   const forecast = forecastYear(books, year, asOf)
   const { liability } = forecast

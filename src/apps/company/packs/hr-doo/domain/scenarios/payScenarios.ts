@@ -3,6 +3,8 @@ import type { HrDooWorkbook } from '../hrDooPart'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { ruleValue } from '../../ruleset/ruleset'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
+import { forecastNeed } from '../forecast/forecastYear'
+import type { ForecastNeed } from '../forecast/forecastYear'
 import { taxBase } from '../cit/taxBase'
 import { payrollDirector } from '../employees/employees'
 import type { RuleSource } from '../payroll/payrollArithmetic'
@@ -26,6 +28,17 @@ export interface PayScenarios {
   /** In the order the tab first lists them. */
   readonly entries: readonly ScenarioEntry[]
   readonly marginal: readonly MarginalRoute[]
+}
+
+/** A fact the pay scenarios' figures wait for: what their forecast waits for, the director's row on the employees tab, or that row's city. */
+export type PayScenariosNeed = ForecastNeed | 'director' | 'director-city'
+
+/** The first fact the pay scenarios wait for, or null when their figures can be worked out. */
+export function payScenariosNeed(workbook: HrDooWorkbook): PayScenariosNeed | null {
+  const forecast = forecastNeed(workbook)
+  if (forecast !== null) return forecast
+  if (workbook.director === null) return 'director'
+  return payrollDirector(workbook) === null ? 'director-city' : null
 }
 
 /**

@@ -83,7 +83,7 @@ describe('a change in another tab', () => {
   function otherTabWrites(key: string, value: string | null): void {
     if (value === null) localStorage.removeItem(key)
     else localStorage.setItem(key, value)
-    window.dispatchEvent(new StorageEvent('storage', { key, newValue: value }))
+    window.dispatchEvent(new StorageEvent('storage', { key, newValue: value, storageArea: localStorage }))
   }
 
   it('reaches the switches and the pick here, so a stale tab neither sends without asking nor uses the old company', async () => {

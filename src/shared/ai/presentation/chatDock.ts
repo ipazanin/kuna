@@ -2,6 +2,7 @@ import { computed, readonly, ref, shallowRef, toValue } from 'vue'
 import type { ComputedRef, MaybeRefOrGetter } from 'vue'
 
 import type { ChatElementAbout } from '../domain/chatElement'
+import { deviceChoice } from '../../device/deviceChoice'
 
 /** What a screen says about an element a person can ask the chat about, such as a figure, a row or a receipt. */
 export interface AskedElement {
@@ -22,26 +23,20 @@ export const CHAT_DEFAULT_WIDTH = CHAT_MIN_WIDTH
 /** Where the chat's own column stops growing, so a wider chat would only add margins. */
 export const CHAT_MAX_WIDTH = 704
 
-const CHAT_WIDTH_KEY = 'kuna.chat-width'
-
 function withinLimits(px: number): number {
   return Math.min(CHAT_MAX_WIDTH, Math.max(CHAT_MIN_WIDTH, Math.round(px)))
 }
 
-function storedWidth(): number {
-  try {
-    const stored = localStorage.getItem(CHAT_WIDTH_KEY)
-    return stored === null || !Number.isFinite(Number(stored)) ? CHAT_DEFAULT_WIDTH : withinLimits(Number(stored))
-  } catch {
-    return CHAT_DEFAULT_WIDTH
-  }
-}
+const keptWidth = deviceChoice('kuna.chat-width', CHAT_DEFAULT_WIDTH, {
+  read: (stored) => (Number.isFinite(Number(stored)) ? withinLimits(Number(stored)) : null),
+  write: (px) => String(px),
+})
 
 /** The query that opens the chat on the page it names, as the shell reads it. */
 export const CHAT_QUERY = 'chat'
 
 const open = ref(false)
-const width = ref(storedWidth())
+const width = ref(keptWidth.read())
 const element = shallowRef<AskedElement | null>(null)
 const request = shallowRef<string | null>(null)
 
@@ -66,15 +61,7 @@ export const chatWidth = readonly(width)
 /** Sets the chat's width within its limits and keeps it on this device. The default forgets the choice. */
 export function resizeChat(px: number): void {
   const asked = withinLimits(px)
-  try {
-    if (asked === CHAT_DEFAULT_WIDTH) {
-      localStorage.removeItem(CHAT_WIDTH_KEY)
-    } else {
-      localStorage.setItem(CHAT_WIDTH_KEY, String(asked))
-    }
-  } catch {
-    // Storage denied: the width still holds for this visit.
-  }
+  keptWidth.remember(asked)
   width.value = asked
 }
 

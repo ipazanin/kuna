@@ -3,7 +3,6 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
-import { ATTACHMENT_REF } from '../src/shared/app/assistantOperations'
 import { words as transactionWords } from '../src/apps/investments/transactions/presentation/words'
 import { decimalText } from '../src/shared/money/decimal'
 import { DESK, EXAMPLE_RECORDS, investmentsDesk } from './fixtures/investmentsDesk'
@@ -12,6 +11,7 @@ import { USD, rateBookOf } from './fixtures/investments'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
+import { exampleInput } from './fixtures/exampleInput'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -20,16 +20,6 @@ const bookOf = ({ store }: InvestmentsDesk) => store.state.workbook!.book
 
 /** The ECB's dollar rate in the week the examples fall in, which a rate given as null takes. */
 const OCTOBER_RATES = rateBookOf(new Map([[USD, [['2026-10-09', '1.0912']] as const]]))
-
-/** The example's input with each record it names as a ref the chat handed out. */
-function exampleInput(desk: InvestmentsDesk, operation: (typeof INVESTMENTS_OPERATIONS)[number]): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(operation.example).map(([field, value]) => {
-      const kind = operation.refs[field]
-      return [field, kind !== undefined && kind !== ATTACHMENT_REF && typeof value === 'string' ? desk.ref(kind, EXAMPLE_RECORDS[value]!) : value]
-    }),
-  )
-}
 
 /** A trade step with every field given, and the ones named replaced. */
 function addTrade(desk: InvestmentsDesk, fields: Readonly<Record<string, unknown>> = {}) {
@@ -58,7 +48,7 @@ describe('every Investments operation', () => {
       desk.history.complete = operation.name === 'forget-history'
       const before = JSON.stringify(bookOf(desk), (_key, value: unknown) => (typeof value === 'bigint' ? String(value) : value))
 
-      const answer = await desk.propose([{ op: operation.name, input: exampleInput(desk, operation) }])
+      const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, EXAMPLE_RECORDS) }])
 
       expect(answer.text).toContain('The card shows')
       const [card] = desk.cards

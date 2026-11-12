@@ -20,7 +20,7 @@ import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { dividendCapacity } from '../../domain/dividend/dividendCapacity'
 import type { CashNow, PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
 import type { ForecastLine, ForecastMonth, LinePart, MonthBasis } from '../../domain/forecast/forecastLines'
-import { forecastYear } from '../../domain/forecast/forecastYear'
+import { forecastNeed, forecastYear } from '../../domain/forecast/forecastYear'
 import { planAgainstActual } from '../../domain/forecast/planAgainstActual'
 import { figureLabel, ruleChips, stepsOf, watchedCitations } from '../tracedFigureView'
 import type { BuildUpStep, RuleChip } from '../yearEnd/LineBuildUp.vue'
@@ -89,7 +89,7 @@ export type ForecastView = ReturnType<typeof forecastView>
 
 /** The forecast needs the day the company was registered, since the tax periods count from it. */
 export function forecastState(workbook: HrDooWorkbook, year: number, asOf: CivilDate, context: ForecastViewContext): ForecastState {
-  if (workbook.companyFacts.companyRegistered === null) {
+  if (forecastNeed(workbook) !== null) {
     return { state: 'unregistered' }
   }
   try {

@@ -171,7 +171,7 @@ function isWriteRules(node: ts.Node): boolean {
 interface Named {
   readonly symbols: { readonly key: SymbolKey; readonly at: string; readonly verb: string | null }[]
   readonly fileActions: { readonly name: string; readonly at: string }[]
-  /** Lines that set or clear something this browser keeps. */
+  /** Lines that set or clear a choice this browser keeps, each a call of `remember` on what a device choice factory built. */
   readonly deviceWrites: string[]
 }
 
@@ -212,6 +212,22 @@ export function writeGraph(): WriteGraph {
   const writeRulesKeys = new Set(
     [...modules.values()].flatMap((module) => [...module.declarations].filter(([, found]) => found.some(({ node }) => isWriteRules(node))).map(([name]) => `${module.file}#${name}`)),
   )
+  // A device choice is what deviceChoice, deviceText or jsonChoice returns, called directly, through a function that returns one, or kept in a constant.
+  const buildsDeviceChoice = (module: Module, expression: ts.Expression, seen: ReadonlySet<SymbolKey> = new Set()): boolean => {
+    const named = ts.isCallExpression(expression) ? expression.expression : expression
+    if (!ts.isIdentifier(named)) return false
+    const key = declaredAt(module.file, named.text)
+    if (key === null || seen.has(key)) return false
+    if (ts.isCallExpression(expression) && DEVICE_CHOICE_FACTORIES.has(key)) return true
+    const [file, name] = key.split('#') as [string, string]
+    const owner = modules.get(file)!
+    const next = new Set([...seen, key])
+    return (owner.declarations.get(name) ?? []).some(({ node }) => {
+      if (ts.isVariableDeclaration(node)) return !ts.isCallExpression(expression) && node.initializer !== undefined && buildsDeviceChoice(owner, node.initializer, next)
+      if (!ts.isFunctionDeclaration(node) || !ts.isCallExpression(expression) || node.body === undefined) return false
+      return node.body.statements.some((statement) => ts.isReturnStatement(statement) && statement.expression !== undefined && buildsDeviceChoice(owner, statement.expression, next))
+    })
+  }
   const namedIn = (module: Module, script: Script, node: ts.Node, into: Named = { symbols: [], fileActions: [], deviceWrites: [] }): Named => {
     const at = (inner: ts.Node) => `${module.file}:${script.firstLine + script.source.getLineAndCharacterOfPosition(inner.getStart(script.source)).line}`
     const visit = (inner: ts.Node): void => {
@@ -222,7 +238,7 @@ export function writeGraph(): WriteGraph {
       if (ts.isPropertyAccessExpression(inner) && ts.isCallExpression(inner.parent) && inner.parent.expression === inner) {
         const name = inner.name.text
         if (FILE_ACTION_NAMES.has(name)) into.fileActions.push({ name, at: at(inner) })
-        if ((name === 'setItem' || name === 'removeItem') && inner.expression.getText(script.source) === 'localStorage') into.deviceWrites.push(at(inner))
+        if (name === 'remember' && buildsDeviceChoice(module, inner.expression)) into.deviceWrites.push(at(inner))
       }
       ts.forEachChild(inner, visit)
     }
@@ -286,7 +302,12 @@ const OPAQUE: ReadonlySet<SymbolKey> = new Set([
   'src/shared/storage/infrastructure/pageWorkbookStore.ts#pageWorkbookStore',
   // A token for a Google call keeps what Google granted. Asking for access is a path of its own, `requestAccess`.
   'src/shared/google/googleAuth.ts#tokenFor',
+  // Making a device choice writes nothing. Its `remember` is the write, which the scan reads where it is called.
+  'src/shared/device/deviceChoice.ts#deviceChoice',
 ])
+
+/** The functions that make a choice kept on this device, whose `remember` is a device write. */
+const DEVICE_CHOICE_FACTORIES: ReadonlySet<SymbolKey> = new Set(['deviceChoice', 'deviceText', 'jsonChoice'].map((name) => `src/shared/device/deviceChoice.ts#${name}`))
 
 /** The shared function that hands the browser a file to save. */
 export const DOWNLOAD: SymbolKey = 'src/shared/files/downloadFile.ts#downloadFile'
