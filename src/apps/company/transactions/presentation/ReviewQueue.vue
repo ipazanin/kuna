@@ -150,7 +150,7 @@ function openSplit(row: Transaction): void {
           <template #actions>
             <AskChatButton :text="words.review.suggestCategories" data-testid="review-queue-ask" @ask="askAboutQueue" />
           </template>
-          <ul class="mt-3 border-t border-default">
+          <ul class="mt-3 divide-y divide-default border-t border-default">
             <ReviewQueueItem
               v-for="entry in queue"
               :key="entry.transaction.id"

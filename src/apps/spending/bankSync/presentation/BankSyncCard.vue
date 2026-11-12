@@ -169,7 +169,7 @@ onMounted(() => {
           @answer="held.answer"
         >
           <template #amount="{ item }">
-            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" class="shrink-0 text-sm" />
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
           </template>
         </QuestionList>
         <DryRunLines v-if="sync.lastOutcome.value.dryRun.lines.length > 0" :lines="sync.lastOutcome.value.dryRun.lines" />

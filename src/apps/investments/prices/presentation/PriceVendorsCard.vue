@@ -2,7 +2,6 @@
 import { computed, reactive, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { pricesDay } from '../application/pricesUpdate'
@@ -19,6 +18,7 @@ import { useSecretRows } from '../../../../shared/secrets/presentation/useSecret
 import { words as secretWords } from '../../../../shared/secrets/presentation/words'
 import { pageVendorFetch, useRequestsToday } from './usePrices'
 import { words } from './words'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /**
  * The Prices tab's vendors, one row each from the registry: what it covers and gives, its free limits and this
@@ -157,10 +157,7 @@ const vendorRows = computed(() =>
             data-testid="price-vendor-claim"
           />
         </div>
-        <p v-if="row.testLine !== null" role="status" class="flex items-center gap-1.5 type-body" :class="row.testWorks ? 'text-success' : 'text-error'" data-testid="price-vendor-test-result">
-          <UIcon :name="row.testWorks ? 'i-lucide-circle-check' : 'i-lucide-circle-alert'" class="size-4 shrink-0" aria-hidden="true" />
-          {{ row.testLine }}
-        </p>
+        <NoteLine v-if="row.testLine !== null" size="body" :tone="row.testWorks ? 'success' : 'error'" role="status" data-testid="price-vendor-test-result">{{ row.testLine }}</NoteLine>
       </div>
     </div>
   </AppCard>

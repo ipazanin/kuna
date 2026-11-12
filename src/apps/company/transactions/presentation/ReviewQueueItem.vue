@@ -9,7 +9,10 @@ import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { capitalised } from '../../../../shared/text/capitalised'
+import FactGrid from '../../../../shared/ui/FactGrid.vue'
+import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import { reviewReasonLabel } from '../../imports/domain/camtStatement'
 import type { Verdict } from '../../../../shared/categorising/domain/categorise'
 import CategoryChip from './CategoryChip.vue'
@@ -52,11 +55,15 @@ const rowSaving = computed(() => props.saving(`confirm-${props.transaction.id}`)
 
 const SIGNAL_LABELS: Readonly<Record<keyof TransactionSignals, string>> = words.review.item.signals
 
-const signals = computed(() =>
-  (Object.keys(SIGNAL_LABELS) as (keyof TransactionSignals)[])
+/** What the row's details show: what the rules say, then its IBAN and signals as the bank wrote them, then what the statement asks. */
+const facts = computed((): (Fact & { readonly look: 'verdict' | 'identifier' | 'words' })[] => [
+  { label: words.review.item.rulesSay, value: '', look: 'verdict' },
+  ...(props.transaction.counterpartyIban ? [{ label: words.review.item.counterpartyIban, value: props.transaction.counterpartyIban, look: 'identifier' as const }] : []),
+  ...(Object.keys(SIGNAL_LABELS) as (keyof TransactionSignals)[])
     .filter((field) => props.transaction.signals[field] !== '')
-    .map((field) => ({ label: SIGNAL_LABELS[field], value: props.transaction.signals[field] })),
-)
+    .map((field) => ({ label: SIGNAL_LABELS[field], value: props.transaction.signals[field], look: 'identifier' as const })),
+  ...(props.transaction.reviewReasons.length > 0 ? [{ label: words.review.item.statementAsks, value: props.transaction.reviewReasons.map(reviewReasonLabel).join(', '), look: 'words' as const }] : []),
+])
 
 const reasons = computed(() => [
   ...(props.transaction.bucket === UNCLASSIFIED ? [{ label: words.unclassified, color: 'warning' as const }] : []),
@@ -94,52 +101,44 @@ function recategorise(category: string | undefined): void {
 </script>
 
 <template>
-  <li class="queue-item" data-testid="review-row" v-bind="marked">
-    <button type="button" class="queue-summary" :aria-expanded="expanded" @click="emit('toggle')">
-      <span class="flex items-baseline justify-between gap-3">
-        <span class="flex min-w-0 items-center gap-1.5">
-          <span class="min-w-0 truncate font-medium text-highlighted">{{ transaction.counterparty || words.noCounterparty }}</span>
+  <li v-bind="marked" data-testid="review-row">
+    <ProposalRow
+      as="button"
+      :title="transaction.counterparty || words.noCounterparty"
+      :class="{ 'bg-elevated': expanded }"
+      class="focus-visible:-outline-offset-2"
+      :aria-expanded="expanded"
+      @click="emit('toggle')"
+    >
+      <template #details>
+        <span class="mt-1 flex flex-wrap items-center gap-1.5">
           <UIcon v-if="rowSaving" name="i-lucide-loader-circle" class="size-3.5 shrink-0 animate-spin text-muted" data-testid="review-row-saving" />
-        </span>
-        <MoneyText :cents="transaction.amount" tone="flow" class="shrink-0 font-medium" />
-      </span>
-      <span class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs text-muted">
-        <span class="flex min-w-0 flex-wrap items-center gap-1.5">
           <CategoryChip :category="transaction.category" :bucket="transaction.bucket" />
           <UBadge v-for="reason in reasons" :key="reason.label" :label="reason.label" :color="reason.color" variant="subtle" size="sm" />
         </span>
-        <span class="figure shrink-0">{{ rowName }}</span>
-      </span>
-    </button>
+      </template>
+      <template #amount>
+        <MoneyText :cents="transaction.amount" tone="flow" />
+        <span class="figure type-caption">{{ rowName }}</span>
+      </template>
+    </ProposalRow>
 
-    <div v-if="expanded" class="queue-details" data-testid="review-details">
+    <div v-if="expanded" class="flex flex-col gap-3 bg-elevated px-4 pb-4 sm:px-5" data-testid="review-details">
       <p v-if="transaction.description" class="text-sm text-toned">{{ transaction.description }}</p>
 
-      <dl class="facts">
-        <div>
-          <dt>{{ words.review.item.rulesSay }}</dt>
-          <dd class="flex flex-wrap items-center gap-1.5">
+      <FactGrid :facts="facts">
+        <template #value="{ fact }">
+          <span v-if="fact.look === 'verdict'" class="flex flex-wrap items-center gap-1.5">
             <CategoryChip :category="verdict.category" :bucket="bucketOf(verdict.category)" />
             <span v-if="verdict.ruleId" class="text-xs text-muted">
               {{ words.review.item.by }} <span class="identifier">{{ verdict.ruleId }}</span
               >{{ verdict.flaggedBy === 'ai' ? words.review.item.sendsToReview : '' }}
             </span>
             <span v-else class="text-xs text-muted">{{ words.review.item.noRuleDecides }}</span>
-          </dd>
-        </div>
-        <div v-if="transaction.counterpartyIban">
-          <dt>{{ words.review.item.counterpartyIban }}</dt>
-          <dd class="identifier break-all">{{ transaction.counterpartyIban }}</dd>
-        </div>
-        <div v-for="signal in signals" :key="signal.label">
-          <dt>{{ signal.label }}</dt>
-          <dd class="identifier break-all">{{ signal.value }}</dd>
-        </div>
-        <div v-if="transaction.reviewReasons.length">
-          <dt>{{ words.review.item.statementAsks }}</dt>
-          <dd>{{ transaction.reviewReasons.map(reviewReasonLabel).join(', ') }}</dd>
-        </div>
-      </dl>
+          </span>
+          <span v-else class="text-sm text-default" :class="{ 'identifier break-all': fact.look === 'identifier' }">{{ fact.value }}</span>
+        </template>
+      </FactGrid>
 
       <p v-if="!confirmable" class="text-xs text-muted">{{ words.review.item.notConfirmable }}</p>
       <div class="flex flex-wrap items-center gap-2 pt-1">
@@ -193,64 +192,3 @@ function recategorise(category: string | undefined): void {
     </div>
   </li>
 </template>
-
-<style scoped>
-.queue-item + .queue-item {
-  border-top: 1px solid var(--border-default);
-}
-
-.queue-summary {
-  display: flex;
-  width: 100%;
-  min-height: 4rem;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.375rem;
-  padding: 0.625rem 1rem;
-  text-align: start;
-}
-
-.queue-summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-.queue-summary[aria-expanded='true'],
-.queue-details {
-  background: var(--surface-elevated);
-}
-
-.queue-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 0 1rem 1rem;
-}
-
-.facts {
-  display: grid;
-  gap: 0.5rem 1.5rem;
-}
-
-.facts dt {
-  font-size: 0.75rem;
-  color: var(--ink-muted);
-}
-
-.facts dd {
-  margin-top: 0.125rem;
-  font-size: 0.875rem;
-  color: var(--ink);
-}
-
-@media (min-width: 640px) {
-  .queue-summary,
-  .queue-details {
-    padding-inline: 1.25rem;
-  }
-
-  .facts {
-    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  }
-}
-</style>

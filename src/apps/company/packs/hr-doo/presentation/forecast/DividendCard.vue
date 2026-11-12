@@ -14,6 +14,7 @@ import type { BuildUpLine } from './BuildUpList.vue'
 import type { PayoutView } from './forecastView'
 import { words as packWords } from '../words'
 import { words } from './words'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 
 /** What the year leaves to pay out, the ways to do it as a switch, and the lines that weigh on how much. */
 const props = defineProps<{
@@ -67,10 +68,7 @@ const payoutChoices = computed(() => props.payouts.map((entry) => ({ value: entr
           <p class="text-xs text-muted">{{ option.when }}</p>
         </div>
         <p v-if="option.reading" class="text-xs text-muted" data-testid="payout-reading">{{ option.reading }}</p>
-        <p v-if="option.warning" class="flex items-start gap-2 text-xs text-error" data-testid="payout-warning">
-          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          <span>{{ option.warning }}</span>
-        </p>
+        <NoteLine v-if="option.warning" tone="error" data-testid="payout-warning">{{ option.warning }}</NoteLine>
         <dl class="payout-cells" data-testid="payout-figures">
           <div v-for="figure in option.figures" :key="figure.key">
             <dt>{{ figure.label }}</dt>

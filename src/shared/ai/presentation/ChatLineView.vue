@@ -7,6 +7,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { KUNA_ISSUES_ADDRESS } from '../application/catalogue'
 import ChatMessageText from './ChatMessageText.vue'
 import ProposalCard from './ProposalCard.vue'
+import NoteLine from '../../ui/NoteLine.vue'
 import SentRow from './SentRow.vue'
 import { chatFigure, shownOnScreen } from './chatSession'
 import type { ChatLine } from './chatSession'
@@ -29,10 +30,7 @@ const emit = defineEmits<{ retry: [message: string] }>()
   <p v-if="line.note" class="type-caption" data-testid="chat-note">{{ line.text }}</p>
   <UChatShimmer v-else-if="line.text === '' && line.failure === null && streaming" :text="words.chat.thinking" class="type-body" data-testid="chat-thinking" />
   <template v-else-if="line.role === 'user'">
-    <p v-if="line.byKuna" class="mb-0.5 flex items-center gap-1 type-caption" data-testid="chat-question-by-kuna">
-      <UIcon name="i-lucide-sparkles" class="size-3.5 shrink-0" aria-hidden="true" />
-      {{ words.chat.sentByKuna }}
-    </p>
+    <NoteLine v-if="line.byKuna" icon="i-lucide-sparkles" class="mb-0.5" data-testid="chat-question-by-kuna">{{ words.chat.sentByKuna }}</NoteLine>
     <ChatMessageText v-if="line.text !== ''" :text="line.text" data-testid="chat-question" />
     <ul v-if="line.attachments.length > 0" class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5" :aria-label="words.files.sentWith" data-testid="chat-question-files">
       <li v-for="(name, at) in line.attachments" :key="at" class="flex min-w-0 items-center gap-1 type-caption">
@@ -42,10 +40,7 @@ const emit = defineEmits<{ retry: [message: string] }>()
     </ul>
   </template>
   <ChatMessageText v-else-if="line.text !== ''" :text="shownOnScreen(line.text)" :figure="chatFigure" data-testid="chat-answer" />
-  <p v-if="line.strayFigure" class="mt-1.5 flex items-start gap-1.5 type-caption text-warning" data-testid="chat-stray">
-    <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-    {{ words.answer.strayFigure }}
-  </p>
+  <NoteLine v-if="line.strayFigure" tone="warning" class="mt-1.5" data-testid="chat-stray">{{ words.answer.strayFigure }}</NoteLine>
   <ProposalCard v-for="proposal in line.proposals" :key="proposal.id" :proposal="proposal" />
   <div v-if="line.chips.length > 0" class="mt-2 flex flex-wrap gap-1.5">
     <template v-for="(chip, at) in line.chips" :key="at">
@@ -65,10 +60,7 @@ const emit = defineEmits<{ retry: [message: string] }>()
     </template>
   </div>
   <div v-if="line.failure" class="flex flex-col items-start gap-1.5">
-    <p class="flex items-start gap-1.5 type-body text-error" data-testid="chat-failure">
-      <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <span class="min-w-0 wrap-anywhere">{{ line.failure }}</span>
-    </p>
+    <NoteLine size="body" tone="error" data-testid="chat-failure">{{ line.failure }}</NoteLine>
     <UButton v-if="line.retry" :label="words.answer.tryAgain" color="neutral" variant="outline" size="sm" :disabled="streaming" data-testid="chat-retry" @click="emit('retry', line.retry)" />
   </div>
 </template>

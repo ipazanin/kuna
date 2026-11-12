@@ -4,7 +4,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { WaitingRow } from '../domain/reviewQueue'
-import ReviewItem from './ReviewItem.vue'
 import { words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { entryAsked } from '../../entries/presentation/entryAsked'
@@ -18,6 +17,8 @@ import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 
 /** One row waiting for a category: picking one files it, the chat can be asked about it or given its receipt beside the picker, and what the file offers for it sits underneath. */
 const props = defineProps<{
@@ -65,14 +66,15 @@ function picked(id: string | undefined): void {
 </script>
 
 <template>
-  <ReviewItem
+  <ProposalRow
     :title="waiting.row.payee || waiting.row.description"
     :caption="[dayLabel(waiting.row.date), account?.name ?? ''].filter((part) => part !== '').join(' · ')"
-    :cents="waiting.row.amount"
-    :currency="currency"
     v-bind="marked"
     data-testid="spending-review-row"
   >
+    <template #amount>
+      <AccountMoneyText :cents="waiting.row.amount" :currency="currency" sign="always" tone="flow" />
+    </template>
     <div class="flex items-center gap-2">
       <USelectMenu
         :items="items"
@@ -98,5 +100,5 @@ function picked(id: string | undefined): void {
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-transfer">{{ transferLine }}</span>
       <UButton color="neutral" variant="outline" :label="words.review.pair" data-testid="spending-review-pair" @click="emit('pair')" />
     </div>
-  </ReviewItem>
+  </ProposalRow>
 </template>

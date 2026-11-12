@@ -9,7 +9,9 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import type { Money } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { reviewReasonLabel } from '../domain/camtStatement'
 import type { CopiedTwinQuestion, DryRunStatement } from '../domain/importDryRun'
@@ -49,12 +51,14 @@ function rowParts(row: Pick<Transaction, 'counterparty' | 'description' | 'amoun
   return [row.counterparty || row.description, formatMoney(row.amount), dayLabel(row.date)].filter((part) => part !== '')
 }
 
+/** A copied row's question, its own amount in the column beside its words and the row it looks like in a sentence under them. */
 const twinItems = computed(() =>
-  props.statement.questions.map((question): QuestionItem<TwinChoice> => ({
+  props.statement.questions.map((question): QuestionItem<TwinChoice> & { readonly amount: Money } => ({
     key: question.key,
-    row: rowParts(question.row).join(' · '),
+    row: [question.row.counterparty || question.row.description, dayLabel(question.row.date)].filter((part) => part !== '').join(' · '),
     caption: likeCaption('copied', rowParts(question.copied)),
     choice: question.keep ?? 'later',
+    amount: question.row.amount,
   })),
 )
 
@@ -133,22 +137,24 @@ function grouped(iban: string): string {
         <li v-for="note in [...statement.notes, ...statement.facts]" :key="note">{{ note }}</li>
       </ul>
 
-      <QuestionList
-        v-if="twinItems.length > 0"
-        :items="twinItems"
-        :options="TWIN_CHOICES.file"
-        :label="twinWords.choice"
-        :heading="twinWords.title"
-        :intro="twinWords.intro.file"
-        @answer="answerTwin"
-      />
+      <QuestionList v-if="twinItems.length > 0" :items="twinItems" :options="TWIN_CHOICES.file" :label="twinWords.choice" :heading="twinWords.title" :intro="twinWords.intro.file" @answer="answerTwin">
+        <template #amount="{ item }">
+          <MoneyText :cents="item.amount" sign="always" tone="flow" />
+        </template>
+      </QuestionList>
 
-      <ul v-if="statement.rows.length" class="@container divide-y divide-default rounded-control border border-default" data-testid="dry-run-rows">
-        <li v-for="(row, index) in statement.rows" :key="`${row.reference}-${index}`" class="row" data-testid="dry-run-row">
-          <span class="figure text-xs text-muted">{{ dayLabel(row.date) }}</span>
-          <span class="min-w-0">
-            <span class="block break-words text-sm" :class="row.inLedger ? 'text-muted' : 'text-highlighted'">{{ row.counterparty || row.description || words.statement.noCounterparty }}</span>
-            <span v-if="row.counterparty && row.description" class="block break-words text-xs text-muted">{{ row.description }}</span>
+      <ul v-if="statement.rows.length" class="flex flex-col divide-y divide-default" :class="{ 'border-t border-default': twinItems.length > 0 }" data-testid="dry-run-rows">
+        <ProposalRow
+          v-for="(row, index) in statement.rows"
+          :key="`${row.reference}-${index}`"
+          :title="row.counterparty || row.description || words.statement.noCounterparty"
+          :caption="dayLabel(row.date)"
+          :quiet="row.inLedger"
+          flush
+          data-testid="dry-run-row"
+        >
+          <template #details>
+            <span v-if="row.counterparty && row.description" class="break-words type-caption">{{ row.description }}</span>
             <span class="mt-1 flex flex-wrap gap-1">
               <UBadge v-if="row.inLedger && waitingRefs.has(row.reference)" :label="words.statement.waitsForAnswer" color="info" variant="subtle" size="sm" />
               <UBadge v-else-if="row.inLedger" :label="words.statement.onLedger" color="neutral" variant="subtle" size="sm" />
@@ -157,33 +163,13 @@ function grouped(iban: string): string {
               <UBadge v-if="row.verdict?.flaggedBy === 'ai'" :label="words.statement.waitsForReview" color="warning" variant="outline" size="sm" />
               <UBadge v-for="reason in row.reviewReasons" :key="reason" :label="reviewReasonLabel(reason)" color="warning" variant="outline" size="sm" />
             </span>
-          </span>
-          <span class="text-end">
-            <MoneyText :cents="row.amount" :tone="row.inLedger ? undefined : 'flow'" class="block text-sm" :class="{ 'text-muted': row.inLedger }" />
-            <MoneyText v-if="row.balance !== null" :cents="row.balance" class="block text-xs text-muted" />
-          </span>
-        </li>
+          </template>
+          <template #amount>
+            <MoneyText :cents="row.amount" :tone="row.inLedger ? undefined : 'flow'" :class="{ 'text-muted': row.inLedger }" />
+            <MoneyText v-if="row.balance !== null" :cents="row.balance" class="type-caption" />
+          </template>
+        </ProposalRow>
       </ul>
     </div>
   </AppCard>
 </template>
-
-<style scoped>
-.row {
-  display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 0.25rem 0.75rem;
-  padding: 0.625rem 0.75rem;
-}
-
-@container (max-width: 26rem) {
-  .row {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .row > :first-child {
-    grid-column: 1 / -1;
-  }
-}
-</style>

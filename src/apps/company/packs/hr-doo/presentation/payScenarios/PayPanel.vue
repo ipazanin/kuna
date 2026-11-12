@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import UPopover from '@nuxt/ui/components/Popover.vue'
 
 import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
@@ -38,6 +37,7 @@ import { scenarioBars } from './scenarioBars'
 import ScenarioEditor from './ScenarioEditor.vue'
 import { plural } from '../../../../../../shared/text/translation'
 import { words } from './words'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 
 /** Which owner pay mix leaves the owner the most, at what cost to the company and with what risk, and what the year can pay out. */
 const props = defineProps<{
@@ -222,10 +222,7 @@ function openDetail(opened: AskableDetail): void {
                   <template #content>
                     <div class="flex max-w-80 flex-col gap-3 p-3" data-testid="scenario-warning-list">
                       <ul v-if="column.warnings.length > 0" class="flex flex-col gap-1.5">
-                        <li v-for="warning in column.warnings" :key="warning" class="flex items-start gap-2 text-sm text-toned">
-                          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-                          <span>{{ warning }}</span>
-                        </li>
+                        <NoteLine v-for="warning in column.warnings" :key="warning" as="li" size="body" tone="warning">{{ warning }}</NoteLine>
                       </ul>
                       <ul v-if="column.notes.length > 0" class="flex flex-col gap-1">
                         <li v-for="note in column.notes" :key="note" class="text-xs text-muted">{{ note }}</li>
@@ -233,10 +230,7 @@ function openDetail(opened: AskableDetail): void {
                     </div>
                   </template>
                 </UPopover>
-                <span v-else class="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted">
-                  <UIcon name="i-lucide-circle-check" class="size-3.5 text-success" aria-hidden="true" />
-                  {{ words.panel.nothingToWarn }}
-                </span>
+                <NoteLine v-else as="span" tone="success" inline class="shrink-0">{{ words.panel.nothingToWarn }}</NoteLine>
               </li>
             </ul>
           </template>

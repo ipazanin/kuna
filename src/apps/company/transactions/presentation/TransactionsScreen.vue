@@ -2,8 +2,8 @@
 import { computed, h, onBeforeUnmount, ref, watch } from 'vue'
 import type { SortingState } from '@tanstack/vue-table'
 import UBadge from '@nuxt/ui/components/Badge.vue'
-import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import UTable from '@nuxt/ui/components/Table.vue'
@@ -59,6 +59,7 @@ import { REVIEW_TAB } from './transactionsLinks'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
 import { words as uiWords } from '../../../../shared/ui/words'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 const ledger = useFilteredLedger()
 const { filters, setFilters, drillLocation } = useFilters()
@@ -514,10 +515,7 @@ function exportCsv(): void {
                 <UButton icon="i-lucide-download" :label="words.exportCsv" color="neutral" variant="outline" size="sm" class="sm:ms-auto" :disabled="rows.length === 0" @click="exportCsv" />
               </div>
 
-              <p v-if="advancesLeftOut" class="flex items-start gap-2 text-xs text-muted" data-testid="advances-left-out">
-                <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                <span>{{ advancesLeftOut }}</span>
-              </p>
+              <NoteLine v-if="advancesLeftOut" data-testid="advances-left-out">{{ advancesLeftOut }}</NoteLine>
 
               <EmptyState
                 v-if="rows.length === 0"

@@ -56,6 +56,7 @@ import DialogSpecimens from './DialogSpecimens.vue'
 import FormattingGallery from './FormattingGallery.vue'
 import FoundationsGallery from './FoundationsGallery.vue'
 import GallerySection from './GallerySection.vue'
+import RowSpecimens from './RowSpecimens.vue'
 import ScenarioSpecimens from './ScenarioSpecimens.vue'
 import SplitEditorSpecimens from './SplitEditorSpecimens.vue'
 import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, incomeByMonth, SAMPLE_HOLDINGS, valueMap } from './sampleCharts'
@@ -113,6 +114,12 @@ const FOUR_FACTS: readonly Fact[] = [
 ]
 
 /** Labels that are a Croatian form's own field names, read in Croatian whatever the screen's language. */
+/** Facts whose values are keys rather than figures, drawn through the value slot. */
+const KEY_FACTS: Fact[] = [
+  { label: 'Counterparty IBAN', value: 'HR1210010051863000160' },
+  { label: 'Reference', value: 'HR00 2026-0314' },
+]
+
 const FORM_FACTS: readonly Fact[] = [
   { label: '11 Primitak', value: formatMoney(moneyFromCents(21_584)), caption: 'A reading', lang: 'hr' },
   { label: '14.1 Porez', value: formatMoney(moneyFromCents(1_630)), caption: 'Settled', lang: 'hr' },
@@ -500,6 +507,11 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
         <FactGrid :facts="FOUR_FACTS" />
         <FactGrid :facts="FOUR_FACTS.slice(0, 3)" class="border-t border-default pt-4" />
         <FactGrid :facts="FORM_FACTS" class="border-t border-default pt-4" />
+        <FactGrid :facts="KEY_FACTS" class="border-t border-default pt-4">
+          <template #value="{ fact }">
+            <span class="identifier break-all text-sm text-default">{{ fact.value }}</span>
+          </template>
+        </FactGrid>
       </AppCard>
     </GallerySection>
 
@@ -972,7 +984,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
     <GallerySection
       id="question-list"
       title="QuestionList"
-      description="Rows that each ask for one of a few choices, with an intro and a heading the card may already give. The answer being written shows busy. The amount slot puts a figure at the end of each row's words, right-aligned."
+      description="Rows that each ask for one of a few choices, with an intro and a heading the card may already give. The answer being written shows busy. The amount slot puts a figure in a column beside each row's words."
     >
       <DashboardGrid>
         <AppCard title="With its heading and amounts">
@@ -987,7 +999,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
               @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
             >
               <template #amount="{ item }">
-                <MoneyText :cents="item.amount" sign="always" tone="flow" class="shrink-0 text-sm" />
+                <MoneyText :cents="item.amount" sign="always" tone="flow" />
               </template>
             </QuestionList>
           </div>
@@ -1005,6 +1017,8 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
         </AppCard>
       </DashboardGrid>
     </GallerySection>
+
+    <RowSpecimens />
 
     <GallerySection id="file-drop" title="FileDrop" description="A dashed place to drop a file on, or to tap to choose one. The caller reads the file and says what it found.">
       <AppCard as="div" class="flex flex-col gap-3 p-4 sm:p-5">

@@ -3,7 +3,6 @@ import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { balanceChart } from '../../balances/presentation/balanceChart'
 import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
@@ -36,8 +35,8 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
-import { TONE_TEXT } from '../../../../shared/ui/toneText'
 import { absMoney } from '../../../../shared/money/money'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** One informal loan: who owes how much and what made it so, how repayments stand against its expected plan, the balance over time, and its movements newest first. */
 const { state } = useLoansBooks()
@@ -136,10 +135,9 @@ function openMovement(movement: Movement | null): void {
       </AppCard>
       <AppCard v-if="standingLine !== null" :title="words.plan.title" :subtitle="words.plan.subtitle" data-testid="loan-plan-standing">
         <div class="flex flex-col gap-4 px-4 pt-3 pb-4 sm:px-5">
-          <p class="flex items-center gap-2 type-body font-medium" :class="standingLine.tone === null ? 'text-highlighted' : TONE_TEXT[standingLine.tone]">
-            <UIcon :name="standingLine.tone === 'warning' ? 'i-lucide-clock-alert' : 'i-lucide-circle-check'" class="size-4 shrink-0" aria-hidden="true" />
-            {{ standingLine.text }}
-          </p>
+          <NoteLine size="body" :tone="standingLine.tone ?? undefined" :icon="standingLine.tone === 'warning' ? 'i-lucide-clock-alert' : 'i-lucide-circle-check'" class="font-medium">{{
+            standingLine.text
+          }}</NoteLine>
           <FactGrid :facts="planFacts" />
         </div>
       </AppCard>

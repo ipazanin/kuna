@@ -12,8 +12,9 @@ export interface QuestionItem<Value extends string> {
 
 <script setup lang="ts" generic="Value extends string, Item extends QuestionItem<Value>">
 import ChoiceButtons from './ChoiceButtons.vue'
+import ProposalRow from './ProposalRow.vue'
 
-/** A list of rows that each ask for one of a few choices, under an optional heading and an intro, with an optional figure at the end of each row's words. */
+/** A list of rows that each ask for one of a few choices, under an optional heading and an intro, with an optional figure in a column beside each row's words. */
 defineProps<{
   items: readonly Item[]
   options: readonly { readonly value: Value; readonly label: string }[]
@@ -33,15 +34,11 @@ defineSlots<{ amount?: (props: { item: Item }) => unknown }>()
   <section class="flex flex-col gap-1" data-testid="questions">
     <h3 v-if="heading" class="type-card-title">{{ heading }}</h3>
     <p class="type-caption">{{ intro }}</p>
-    <ul class="flex flex-col">
-      <li v-for="item in items" :key="item.key" class="flex flex-col gap-1.5 border-t border-default py-3 first:border-t-0" data-testid="question">
-        <div class="flex items-start gap-3">
-          <p class="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span class="break-words type-body text-highlighted">{{ item.row }}</span>
-            <span class="break-words type-caption">{{ item.caption }}</span>
-          </p>
+    <ul class="flex flex-col divide-y divide-default">
+      <ProposalRow v-for="item in items" :key="item.key" :title="item.row" :caption="item.caption" flush data-testid="question">
+        <template v-if="$slots.amount" #amount>
           <slot name="amount" :item="item" />
-        </div>
+        </template>
         <ChoiceButtons
           :model-value="saving?.key === item.key ? saving.choice : item.choice"
           :options="item.options ?? options"
@@ -50,7 +47,7 @@ defineSlots<{ amount?: (props: { item: Item }) => unknown }>()
           data-testid="question-choice"
           @update:model-value="emit('answer', item.key, $event)"
         />
-      </li>
+      </ProposalRow>
     </ul>
   </section>
 </template>

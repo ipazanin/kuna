@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
 import type { CapitalGainsYear, TaxSale } from '../domain/taxYear'
@@ -20,6 +19,7 @@ import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { XLSX_MIME_TYPE } from '../../../../shared/xlsx/sheetGrids'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** Each sale of the year with the lots it closed, in its currency and in euros at HNB's rate of its settlement day, and the register to download. */
 const props = defineProps<{
@@ -99,10 +99,7 @@ async function download(): Promise<void> {
               </span>
               <MoneyText v-if="sale.gain !== null" :cents="sale.gain" sign="always" tone="outcome" class="shrink-0" />
             </span>
-            <span v-if="sale.settlesNextYear" class="flex items-start gap-1 type-caption font-normal text-warning" data-testid="tax-sale-next-year">
-              <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              {{ text.nextYear }}
-            </span>
+            <NoteLine v-if="sale.settlesNextYear" as="span" tone="warning" class="font-normal" data-testid="tax-sale-next-year">{{ text.nextYear }}</NoteLine>
           </th>
         </tr>
         <tr v-for="(line, place) in sale.lines" :key="place" data-testid="tax-sale-line">
@@ -118,10 +115,7 @@ async function download(): Promise<void> {
                 )
               }}
             </span>
-            <span v-if="line.nearTaxFreeDay" class="flex items-start gap-1 type-caption text-warning" data-testid="tax-near-tax-free">
-              <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              {{ text.nearTaxFreeDay(dayLabel(line.taxFreeFrom)) }}
-            </span>
+            <NoteLine v-if="line.nearTaxFreeDay" as="span" tone="warning" data-testid="tax-near-tax-free">{{ text.nearTaxFreeDay(dayLabel(line.taxFreeFrom)) }}</NoteLine>
           </th>
           <td class="figure hidden text-end @3xl:table-cell">{{ formatQuantity(line.realised.quantity, QUANTITY_PLACES) }}</td>
           <td class="figure hidden text-end @3xl:table-cell">{{ formatCount(line.realised.daysHeld) }}</td>

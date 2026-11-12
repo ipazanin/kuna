@@ -3,7 +3,6 @@ import { computed, inject, ref } from 'vue'
 import type { DeepReadonly } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { CheckedProposal, ProposalGroup } from '../../app/assistantOperations'
 import { formatCount } from '../../money/moneyFormat'
@@ -11,6 +10,8 @@ import { language } from '../../text/language'
 import { listInWords } from '../../text/listInWords'
 import { plural } from '../../text/translation'
 import AppCard from '../../ui/AppCard.vue'
+import NoteLine from '../../ui/NoteLine.vue'
+import { TONE_ICONS } from '../../ui/toneText'
 import { CHAT_APPS } from './chatApps'
 import { settleProposal, shownOnScreen, undoProposal } from './chatSession'
 import type { ChatProposal } from './chatSession'
@@ -68,7 +69,10 @@ function showAll(place: string): void {
   allShown.value = new Set([...allShown.value, place])
 }
 
-const NOTE_ICONS = { info: 'i-lucide-message-circle-question', warning: 'i-lucide-triangle-alert', neutral: 'i-lucide-info' } as const
+/** An info note waits on the person's answer, so it shows a question. A neutral one only tells. */
+function noteIcon(tone: ProposalGroup['notes'][number]['tone']): string {
+  return tone === 'info' ? 'i-lucide-message-circle-question' : TONE_ICONS[tone === 'neutral' ? 'info' : tone]
+}
 
 /** A real tap only, so nothing a page script fires can accept. */
 async function accept(event: Event): Promise<void> {
@@ -109,16 +113,13 @@ async function undo(event: Event): Promise<void> {
         <p class="type-label" data-testid="chat-proposal-count">{{ summary }}</p>
         <p class="type-caption wrap-anywhere">{{ title }}</p>
       </div>
-      <p v-if="readFiles !== null" class="flex items-start gap-1.5 type-caption wrap-anywhere" data-testid="chat-proposal-read-files">
-        <UIcon name="i-lucide-file-search" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-        {{ readFiles }}
-      </p>
+      <NoteLine v-if="readFiles !== null" icon="i-lucide-file-search" data-testid="chat-proposal-read-files">{{ readFiles }}</NoteLine>
       <div v-for="(group, at) in shownGroups" :key="at" class="flex flex-col gap-1.5" data-testid="chat-proposal-group">
         <p v-if="group.lines.length > 0" class="type-caption" data-testid="chat-proposal-group-count">{{ countedNoun(group) }}</p>
         <UAlert
           v-for="(note, noteAt) in group.notes"
           :key="noteAt"
-          :icon="NOTE_ICONS[note.tone]"
+          :icon="noteIcon(note.tone)"
           :color="note.tone"
           variant="subtle"
           :title="note.label"
@@ -154,18 +155,12 @@ async function undo(event: Event): Promise<void> {
         <ul class="flex flex-col gap-1.5">
           <li v-for="(line, lineAt) in shownOf(group.lines, `lines-${at}`)" :key="lineAt" class="flex min-w-0 flex-col" data-testid="chat-proposal-line">
             <p class="wrap-anywhere text-highlighted" :class="line.identifier === true ? 'identifier' : 'type-body'">{{ line.label }}</p>
-            <p v-if="line.warning !== null" class="flex items-start gap-1 type-caption text-warning" data-testid="chat-proposal-line-warning">
-              <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              {{ line.warning }}
-            </p>
+            <NoteLine v-if="line.warning !== null" tone="warning" data-testid="chat-proposal-line-warning">{{ line.warning }}</NoteLine>
             <template v-for="field in line.fields" :key="field.name">
               <p class="type-caption wrap-anywhere" :class="{ 'text-warning': field.warns }" data-testid="chat-proposal-field">
                 {{ field.name }}: <template v-if="field.before !== null">{{ field.before }} → </template>{{ field.after ?? words.proposal.empty }}
               </p>
-              <p v-if="field.warns" class="flex items-start gap-1 type-caption text-warning" data-testid="chat-proposal-warning">
-                <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                {{ words.proposal.warns }}
-              </p>
+              <NoteLine v-if="field.warns" tone="warning" data-testid="chat-proposal-warning">{{ words.proposal.warns }}</NoteLine>
             </template>
           </li>
         </ul>
@@ -181,28 +176,16 @@ async function undo(event: Event): Promise<void> {
         />
       </div>
       <ul v-if="outside.length > 0 || (noUndo && proposal.state === 'open')" class="flex flex-col gap-1" data-testid="chat-proposal-outside">
-        <li v-for="line in outside" :key="line" class="flex items-start gap-1.5 type-caption wrap-anywhere">
-          <UIcon name="i-lucide-info" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {{ line }}
-        </li>
-        <li v-if="noUndo && proposal.state === 'open'" class="flex items-start gap-1.5 type-caption text-warning" data-testid="chat-proposal-no-undo-note">
-          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {{ words.proposal.noUndoNote }}
-        </li>
+        <NoteLine v-for="line in outside" :key="line" as="li">{{ line }}</NoteLine>
+        <NoteLine v-if="noUndo && proposal.state === 'open'" as="li" tone="warning" data-testid="chat-proposal-no-undo-note">{{ words.proposal.noUndoNote }}</NoteLine>
       </ul>
-      <p v-if="proposal.state === 'open' && proposal.goesOn" class="flex items-start gap-1.5 type-caption wrap-anywhere" data-testid="chat-proposal-goes-on">
-        <UIcon name="i-lucide-arrow-right" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-        {{ words.proposal.goesOn }}
-      </p>
+      <NoteLine v-if="proposal.state === 'open' && proposal.goesOn" icon="i-lucide-arrow-right" data-testid="chat-proposal-goes-on">{{ words.proposal.goesOn }}</NoteLine>
       <div v-if="proposal.state === 'open'" class="flex flex-wrap justify-end gap-2">
         <UButton :label="words.proposal.notNow" color="neutral" variant="ghost" size="sm" :disabled="working" data-testid="chat-proposal-decline" @click="settleProposal(held, 'declined')" />
         <UButton :label="words.proposal.accept" size="sm" :loading="working" :disabled="working" data-testid="chat-proposal-accept" @click="accept" />
       </div>
       <div v-else-if="proposal.state === 'done'" class="flex flex-wrap items-center justify-between gap-2">
-        <p class="flex items-center gap-1.5 type-body text-success" role="status" data-testid="chat-proposal-done">
-          <UIcon name="i-lucide-circle-check" class="size-4 shrink-0" aria-hidden="true" />
-          {{ words.proposal.done }}
-        </p>
+        <NoteLine size="body" tone="success" role="status" data-testid="chat-proposal-done">{{ words.proposal.done }}</NoteLine>
         <UButton
           v-if="held.undo !== null"
           :label="words.proposal.undo"
@@ -216,10 +199,7 @@ async function undo(event: Event): Promise<void> {
         />
         <p v-else-if="noUndo" class="type-caption" data-testid="chat-proposal-no-undo">{{ words.proposal.noUndo }}</p>
         <div v-if="proposal.warning !== null" class="flex basis-full flex-col items-start gap-1.5">
-          <p class="flex items-start gap-1.5 type-caption wrap-anywhere text-warning" role="status" data-testid="chat-proposal-done-warning">
-            <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-            {{ proposal.warning.text }}
-          </p>
+          <NoteLine tone="warning" role="status" data-testid="chat-proposal-done-warning">{{ proposal.warning.text }}</NoteLine>
           <UButton
             v-if="proposal.warning.link !== null"
             :to="proposal.warning.link.to"
@@ -231,15 +211,11 @@ async function undo(event: Event): Promise<void> {
             data-testid="chat-proposal-done-link"
           />
         </div>
-        <p v-if="proposal.reason !== null" class="flex basis-full items-start gap-1.5 type-caption wrap-anywhere text-error" role="status" data-testid="chat-proposal-undo-refused">
-          <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {{ proposal.reason }}
-        </p>
+        <NoteLine v-if="proposal.reason !== null" tone="error" class="basis-full" role="status" data-testid="chat-proposal-undo-refused">{{ proposal.reason }}</NoteLine>
       </div>
-      <p v-else-if="proposal.state === 'refused'" class="flex items-start gap-1.5 type-body wrap-anywhere text-error" role="status" data-testid="chat-proposal-refused">
-        <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        {{ proposal.reason === null ? words.proposal.refusedBeforeReload : words.proposal.notWritten(proposal.reason) }}
-      </p>
+      <NoteLine v-else-if="proposal.state === 'refused'" size="body" tone="error" role="status" data-testid="chat-proposal-refused">{{
+        proposal.reason === null ? words.proposal.refusedBeforeReload : words.proposal.notWritten(proposal.reason)
+      }}</NoteLine>
       <p v-else class="type-caption" role="status" data-testid="chat-proposal-over">{{ endedWords }}</p>
     </div>
   </AppCard>

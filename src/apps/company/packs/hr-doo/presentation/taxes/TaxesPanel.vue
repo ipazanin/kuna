@@ -42,6 +42,7 @@ import CadenceCalendar from './CadenceCalendar.vue'
 import { plural } from '../../../../../../shared/text/translation'
 import { words as packWords } from '../words'
 import { words } from './words'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 
 /** What the state took in a year, by type, and whether every payroll month and corporate tax payment landed. */
 const props = defineProps<{
@@ -236,14 +237,9 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
       <p v-else-if="corporateTax.state === 'failed'" class="px-4 py-4 text-sm text-toned sm:px-5">{{ corporateTax.failure }}</p>
       <template v-else>
         <div v-if="corporateTax.overdue.count > 0 || corporateTax.unmatched.length > 0" class="flex flex-col gap-3 px-4 pt-3 sm:px-5" data-testid="corporate-tax-callouts">
-          <p v-if="corporateTax.overdue.count > 0" class="flex items-start gap-2 text-sm text-error" data-testid="corporate-tax-overdue">
-            <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <span>
-              {{ plural(words.corporate.overdueBefore(corporateTax.overdue.count), corporateTax.overdue.count) }}<MoneyText :cents="corporateTax.overdue.outstanding" />{{
-                words.corporate.overdueAfter
-              }}
-            </span>
-          </p>
+          <NoteLine v-if="corporateTax.overdue.count > 0" size="body" tone="error" data-testid="corporate-tax-overdue">
+            {{ plural(words.corporate.overdueBefore(corporateTax.overdue.count), corporateTax.overdue.count) }}<MoneyText :cents="corporateTax.overdue.outstanding" />{{ words.corporate.overdueAfter }}
+          </NoteLine>
           <div v-if="corporateTax.unmatched.length > 0" class="flex items-start gap-2 text-sm text-toned" data-testid="unmatched-payments">
             <UIcon name="i-lucide-circle-question-mark" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
             <div class="flex min-w-0 flex-1 flex-col gap-1">

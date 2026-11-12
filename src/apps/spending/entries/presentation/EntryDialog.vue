@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import UInputMenu from '@nuxt/ui/components/InputMenu.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
@@ -16,7 +15,7 @@ import { knownPayees, payeeChoices } from '../domain/knownPayees'
 import { newTransfer } from '../domain/transfer'
 import { linkEntry, newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
 import { fixedCategories } from '../../categories/domain/categoryTree'
-import { LINK_INK, useLinkLines } from '../../links/presentation/linkLine'
+import { LINK_TONE, useLinkLines } from '../../links/presentation/linkLine'
 import { words as linkWords } from '../../links/presentation/words'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
 import RowLines from '../../receipts/presentation/RowLines.vue'
@@ -43,6 +42,7 @@ import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 
 /** Money out of an account, money into one, or a move between two of your accounts, typed as a positive amount. */
@@ -344,10 +344,7 @@ async function remove(): Promise<void> {
       </UFormField>
       <UFormField v-if="entryLink !== null" :label="linkWords.label" class="sm:col-span-2" data-testid="spending-entry-link">
         <div class="flex flex-col items-start gap-1">
-          <span class="flex items-start gap-1.5 text-sm" :class="LINK_INK[entryLink.look]">
-            <UIcon :name="entryLink.icon" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-            <span>{{ entryLink.text }}</span>
-          </span>
+          <NoteLine as="span" size="body" :tone="LINK_TONE[entryLink.look]" :icon="entryLink.icon">{{ entryLink.text }}</NoteLine>
           <div class="flex flex-wrap gap-2">
             <UButton v-if="entryLink.to !== null" :to="entryLink.to" :label="linkWords.open" color="neutral" variant="link" :disabled="edited" class="px-0" data-testid="spending-entry-link-open" />
             <UButton

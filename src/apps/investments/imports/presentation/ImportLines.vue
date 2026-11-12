@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 
 import type { ImportLine } from './dryRunLines'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 
 /** A group of the dry run, a line per record or row, the first ten until Show all. */
@@ -20,19 +22,18 @@ const shown = computed(() => (expanded.value ? props.lines : props.lines.slice(0
 
 <template>
   <div class="flex flex-col gap-2">
-    <ul class="flex flex-col">
-      <li v-for="line in shown" :key="line.key" class="flex flex-col gap-0.5 border-t border-default py-2.5 first:border-t-0" data-testid="import-line">
-        <span class="flex items-baseline justify-between gap-3 type-body">
-          <span class="min-w-0 break-words text-highlighted">{{ line.title }}</span>
-          <MoneyText v-if="line.euros !== null" :cents="line.euros" :sign="line.flows ? 'always' : 'magnitude'" :tone="line.flows ? 'flow' : undefined" class="shrink-0" />
-          <span v-else-if="line.figure !== ''" class="figure shrink-0 text-muted">{{ line.figure }}</span>
-        </span>
-        <span v-if="line.caption !== '' || (line.euros !== null && line.figure !== '')" class="flex items-baseline justify-between gap-3 type-caption">
-          <span class="min-w-0 break-words" :class="{ identifier: verbatim }">{{ line.caption }}</span>
-          <span v-if="line.euros !== null && line.figure !== ''" class="shrink-0">{{ line.figure }}</span>
-        </span>
-        <span v-if="line.note !== ''" class="type-caption break-words" :class="{ 'text-warning': warns }">{{ line.note }}</span>
-      </li>
+    <ul class="flex flex-col divide-y divide-default">
+      <ProposalRow v-for="line in shown" :key="line.key" :title="line.title" flush data-testid="import-line">
+        <template #details>
+          <span v-if="line.caption !== ''" class="break-words type-caption" :class="{ identifier: verbatim }">{{ line.caption }}</span>
+          <NoteLine v-if="line.note !== '' && warns" as="span" tone="warning">{{ line.note }}</NoteLine>
+          <span v-else-if="line.note !== ''" class="break-words type-caption">{{ line.note }}</span>
+        </template>
+        <template v-if="line.euros !== null || line.figure !== ''" #amount>
+          <MoneyText v-if="line.euros !== null" :cents="line.euros" :sign="line.flows ? 'always' : 'magnitude'" :tone="line.flows ? 'flow' : undefined" />
+          <span v-if="line.figure !== ''" class="figure" :class="line.euros === null ? 'text-muted' : 'type-caption'">{{ line.figure }}</span>
+        </template>
+      </ProposalRow>
     </ul>
     <ShowAllButton v-if="lines.length > FIRST_SHOWN" v-model:expanded="expanded" :total="lines.length" />
   </div>

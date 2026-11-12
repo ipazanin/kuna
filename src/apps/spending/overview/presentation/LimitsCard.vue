@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { BudgetMonth } from '../../budgets/domain/budgetCarry'
 import { words as budgetWords } from '../../budgets/presentation/words'
@@ -14,6 +13,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import ProgressMeter from '../../../../shared/ui/ProgressMeter.vue'
 import type { MeterPart } from '../../../../shared/ui/ProgressMeter.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** Each limited category of the month, what it spent against what it has available, with a way to Limits. */
 const props = defineProps<{
@@ -71,10 +71,7 @@ const rows = computed(() =>
           <span class="figure type-caption">{{ row.caption }}</span>
         </div>
         <ProgressMeter :parts="row.parts" :label="row.label" :height="8" />
-        <p v-if="row.limit.left < 0" class="inline-flex items-center gap-1.5 type-caption text-error" data-testid="spending-limit-over">
-          <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" aria-hidden="true" />
-          {{ budgetWords.overBy(formatMoney(negateMoney(row.limit.left))) }}
-        </p>
+        <NoteLine v-if="row.limit.left < 0" tone="error" data-testid="spending-limit-over">{{ budgetWords.overBy(formatMoney(negateMoney(row.limit.left))) }}</NoteLine>
         <p v-else class="type-caption">{{ words.limits.left(formatMoney(row.limit.left)) }}</p>
       </li>
     </ul>

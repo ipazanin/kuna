@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { shortDayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { Money } from '../../../../../../shared/money/money'
@@ -11,6 +10,8 @@ import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
+import ProposalRow from '../../../../../../shared/ui/ProposalRow.vue'
 import { useFilters } from '../../../../filters/application/filterStore'
 import { rowDrill } from '../../../../filters/domain/drillTarget'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
@@ -159,57 +160,57 @@ async function fileRows(): Promise<void> {
 <template>
   <AppCard v-if="lines.length > 0" :title="said.title" :subtitle="said.subtitle" data-testid="trip-bank-rows">
     <ul class="divide-y divide-default">
-      <li v-for="line in lines" :key="line.link" class="flex items-start gap-3 px-4 py-3 sm:px-5" :data-link="line.link" data-testid="trip-bank-row">
-        <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span class="text-sm font-medium text-highlighted">{{ line.label }}</span>
+      <ProposalRow v-for="line in lines" :key="line.link" :title="line.label" :caption="line.linked || line.found ? '' : line.empty" :data-link="line.link" data-testid="trip-bank-row">
+        <template #details>
           <span v-if="line.linked" class="type-caption">
             <DrillLink :to="rowLink(line.linked)">{{ said.paidOn(shortDayLabel(line.linked.date), line.linked.counterparty || name) }}</DrillLink>
           </span>
           <span v-else-if="line.found" class="break-words type-caption text-toned" data-testid="trip-bank-row-found">{{
             said.found(shortDayLabel(line.found.date), line.found.counterparty || name)
           }}</span>
-          <span v-else class="type-caption">{{ line.empty }}</span>
+        </template>
+        <template v-if="line.linked || line.found || line.amount !== null" #amount>
+          <MoneyText v-if="line.linked" :cents="line.linked.amount" sign="magnitude" />
+          <MoneyText v-else-if="line.found" :cents="line.found.amount" sign="magnitude" class="text-muted" />
+          <MoneyText v-else-if="line.amount !== null" :cents="line.amount" sign="magnitude" class="text-muted" />
+        </template>
+        <UButton
+          v-if="line.linked"
+          class="self-start"
+          :label="said.unlink"
+          icon="i-lucide-unlink"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :aria-label="said.unlinkLabel(line.label)"
+          :loading="writes.saving(`${line.link}-link`)"
+          data-testid="trip-bank-row-unlink"
+          @click="link(line, null)"
+        />
+        <div v-else-if="line.found" class="flex flex-wrap gap-2">
           <UButton
-            v-if="line.linked"
-            class="self-start"
-            :label="said.unlink"
-            icon="i-lucide-unlink"
+            :label="said.link"
+            icon="i-lucide-link"
             color="neutral"
             variant="outline"
             size="sm"
-            :aria-label="said.unlinkLabel(line.label)"
+            :aria-label="said.linkLabel(line.label, shortDayLabel(line.found.date))"
             :loading="writes.saving(`${line.link}-link`)"
-            data-testid="trip-bank-row-unlink"
-            @click="link(line, null)"
+            data-testid="trip-bank-row-link"
+            @click="link(line, line.found)"
           />
-          <span v-else-if="line.found" class="flex flex-wrap gap-2">
-            <UButton
-              :label="said.link"
-              icon="i-lucide-link"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :aria-label="said.linkLabel(line.label, shortDayLabel(line.found.date))"
-              :loading="writes.saving(`${line.link}-link`)"
-              data-testid="trip-bank-row-link"
-              @click="link(line, line.found)"
-            />
-            <UButton
-              :label="said.dismiss"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              :aria-label="said.dismissLabel(line.label, shortDayLabel(line.found.date))"
-              :loading="writes.saving(`${line.link}-dismiss`)"
-              data-testid="trip-bank-row-dismiss"
-              @click="dismiss(line, line.found)"
-            />
-          </span>
-        </span>
-        <MoneyText v-if="line.linked" :cents="line.linked.amount" sign="magnitude" class="shrink-0 text-sm" />
-        <MoneyText v-else-if="line.found" :cents="line.found.amount" sign="magnitude" class="shrink-0 text-sm text-muted" />
-        <MoneyText v-else-if="line.amount !== null" :cents="line.amount" sign="magnitude" class="shrink-0 text-sm text-muted" />
-      </li>
+          <UButton
+            :label="said.dismiss"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :aria-label="said.dismissLabel(line.label, shortDayLabel(line.found.date))"
+            :loading="writes.saving(`${line.link}-dismiss`)"
+            data-testid="trip-bank-row-dismiss"
+            @click="dismiss(line, line.found)"
+          />
+        </div>
+      </ProposalRow>
     </ul>
 
     <div v-if="refusal || splitRows.length > 0" class="border-t border-default py-3" data-testid="trip-bank-split">
@@ -231,9 +232,7 @@ async function fileRows(): Promise<void> {
             <tr class="group-row">
               <th scope="rowgroup" class="text-start">
                 {{ row.label }}
-                <span v-if="row.filed" class="ms-2 inline-flex items-center gap-1 type-caption font-normal text-success">
-                  <UIcon name="i-lucide-circle-check" class="size-3.5" aria-hidden="true" />{{ said.filedRow }}
-                </span>
+                <NoteLine v-if="row.filed" as="span" tone="success" inline class="ms-2 font-normal">{{ said.filedRow }}</NoteLine>
               </th>
               <td class="text-end"><MoneyText :cents="row.row.amount" sign="magnitude" class="text-muted" /></td>
             </tr>

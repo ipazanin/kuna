@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { leftToSpend, limitsUnrated } from '../domain/budgetCarry'
@@ -29,6 +28,7 @@ import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** Each limited category of a month with its limit, what carried in, what is available, what it spent and what is left. */
 const { state } = useSpendingBooks()
@@ -134,10 +134,7 @@ function openDialog(category: Category | null): void {
               <td class="figure text-end">{{ formatMoney(row.limit.available) }}</td>
               <td class="figure hidden text-end @sm:table-cell">{{ formatMoney(row.limit.spent) }}</td>
               <td class="figure cell-wraps text-end">
-                <span v-if="row.limit.left < 0" class="inline-flex items-center justify-end gap-1 text-error" data-testid="spending-limit-over">
-                  <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" aria-hidden="true" />
-                  {{ words.overBy(formatMoney(negateMoney(row.limit.left))) }}
-                </span>
+                <NoteLine v-if="row.limit.left < 0" as="span" size="body" tone="error" inline data-testid="spending-limit-over">{{ words.overBy(formatMoney(negateMoney(row.limit.left))) }}</NoteLine>
                 <template v-else>{{ formatMoney(row.limit.left) }}</template>
               </td>
             </tr>

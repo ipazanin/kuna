@@ -18,7 +18,7 @@ const SCREEN = 'src/apps/loans/planted/presentation/Planted.vue'
 const WORDS = 'src/apps/loans/planted/presentation/words.ts'
 const FLOWS = 'scripts/support/plantedFlows.mjs'
 
-describe('money and domain lint rules', { timeout: 120_000 }, () => {
+describe('money, domain and note lint rules', { timeout: 120_000 }, () => {
   it.each([
     ['a cast', DOMAIN, 'export const a = 1 as Money', 'kuna/money-casts'],
     ['a cast to an account amount', DOMAIN, 'export const a = 1 as AccountMoney', 'kuna/money-casts'],
@@ -52,6 +52,10 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ],
     ['a worded date under another name', WORDS, 'export const en = { paidIn: (when: string) => `Paid in ${when}` }', 'kuna/date-parameters'],
     ['an untyped date of a Croatian builder', WORDS, 'export const hr = { since: (startDate, payMonth) => `${startDate} ${payMonth}`, run: (dates) => dates }', 'kuna/date-parameters'],
+    ['a warning icon drawn by hand', SCREEN, '<template><p><UIcon name="i-lucide-triangle-alert" />Late</p></template>', 'kuna/note-lines'],
+    ['a success icon before words', SCREEN, '<template><p><UIcon name="i-lucide-circle-check" /><span>Done</span></p></template>', 'kuna/note-lines'],
+    ['a tone icon taken from TONE_ICONS before words', SCREEN, '<template><p><UIcon :name="TONE_ICONS.error" />{{ a }}</p></template>', 'kuna/note-lines'],
+    ['a warning icon picked by a condition', SCREEN, "<template><p><UIcon :name=\"a ? 'i-lucide-triangle-alert' : 'i-lucide-check'\" />Late</p></template>", 'kuna/note-lines'],
   ])('refuses %s', async (_name, file, code, rule) => {
     expect(await rulesBroken(file, code)).toContain(rule)
   })
@@ -74,6 +78,13 @@ describe('money and domain lint rules', { timeout: 120_000 }, () => {
     ['a scroll before a tap and then a shot', FLOWS, "export async function a(page, shoot) {\n  await row.scrollIntoView()\n  await row.tap()\n  await shoot('a')\n}"],
     ['a worded date named for one', WORDS, 'export const en = { paidIn: (period: string, dueDay: string | null, since = "") => `${period} ${dueDay} ${since}` }'],
     ['a day number, a count and a typed date', WORDS, 'export const en = { mealsOn: (dayNumber: number, daysCount: string, bought: CivilDate) => `${dayNumber} ${daysCount} ${bought}` }'],
+    ['a warning icon on an alert', SCREEN, '<template><UAlert icon="i-lucide-triangle-alert" title="Late" /></template>'],
+    ['another icon drawn by hand', SCREEN, '<template><p><UIcon name="i-lucide-link" />Late</p></template>'],
+    [
+      'a mark beside a figure with words only for a screen reader',
+      SCREEN,
+      '<template><span><UIcon :name="TONE_ICONS.warning" /><span class="sr-only">Warning</span><span class="figure">1</span></span></template>',
+    ],
   ])('allows %s', async (_name, file, code) => {
     expect(await rulesBroken(file, code)).toEqual([])
   })

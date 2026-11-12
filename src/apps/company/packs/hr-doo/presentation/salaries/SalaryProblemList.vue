@@ -8,6 +8,7 @@ import FigureAsk from '../FigureAsk.vue'
 import type { AskableDetail } from '../tracedFigureView'
 import type { ProblemView } from './salariesView'
 import { words } from './words'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 
 /** What the app and the bank do not agree on, or what is missing, each with what to open to resolve it. */
 defineProps<{
@@ -25,10 +26,7 @@ const FACT = { hash: '#employee-rows' }
 
 <template>
   <AppCard id="salary-problems" :title="words.problemList.title" :subtitle="words.problemList.subtitle(label)" data-testid="salaries-problems">
-    <p v-if="problems.length === 0" class="flex items-center gap-2 px-4 pt-1 pb-4 text-sm text-toned sm:px-5">
-      <UIcon name="i-lucide-circle-check" class="size-4 shrink-0 text-success" aria-hidden="true" />
-      {{ words.problemList.allAgree }}
-    </p>
+    <NoteLine v-if="problems.length === 0" size="body" tone="success" class="px-4 pt-1 pb-4 sm:px-5">{{ words.problemList.allAgree }}</NoteLine>
     <ul v-else class="flex flex-col px-4 pb-3 sm:px-5">
       <FigureAsk v-for="problem in problems" :key="problem.key" v-slot="{ ask, askLabel, marked }" :detail="problem.detail">
         <li class="problem-row" data-testid="salaries-problem" v-bind="marked">

@@ -16,7 +16,6 @@ export interface ScenarioDraft {
 import { computed, ref, watch } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { newLoanScenario, saveScenario } from '../application/scenarioWrites'
 import { eksAgreement } from '../domain/eksAgreement'
@@ -43,6 +42,7 @@ import { words as loansWords } from '../../words'
 import { today } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { formatMoney, formatRate } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -271,9 +271,7 @@ async function save(): Promise<void> {
     <template #start>
       <p v-if="headline" class="basis-full text-xs text-toned @2xl:hidden" data-testid="scenario-headline">
         <span v-if="mark" class="font-semibold text-highlighted">{{ mark.letter }}</span> {{ headline }}
-        <span v-if="eksWarning" class="ms-1 inline-flex items-center gap-1 font-medium text-warning" data-testid="scenario-eks-flag">
-          <UIcon name="i-lucide-triangle-alert" class="size-3.5 shrink-0" aria-hidden="true" />{{ words.editor.eksFlag }}
-        </span>
+        <NoteLine v-if="eksWarning" as="span" tone="warning" inline class="ms-1 font-medium" data-testid="scenario-eks-flag">{{ words.editor.eksFlag }}</NoteLine>
       </p>
     </template>
     <template #end>

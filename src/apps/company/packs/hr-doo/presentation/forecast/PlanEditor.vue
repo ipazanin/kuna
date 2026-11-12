@@ -29,6 +29,7 @@ import { plural } from '../../../../../../shared/text/translation'
 import { words } from './words'
 import { uncapitalised } from '../../../../../../shared/text/capitalised'
 import { withFullStop } from '../../../../../../shared/text/withFullStop'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 
 type AmountLine = Extract<PlanLine, { readonly kind: 'amount' }>
 type PurchaseLine = Extract<PlanLine, { readonly kind: 'purchase' }>
@@ -163,10 +164,7 @@ function editPurchase(purchase: PurchaseLine | null): void {
           </template>
           <template v-else>{{ words.plan.notPlanned }}</template>
         </p>
-        <p v-for="reason in ownerPayReasons" :key="reason" class="flex items-start gap-2 text-xs text-warning">
-          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          <span>{{ words.plan.notCounted(reason) }}</span>
-        </p>
+        <NoteLine v-for="reason in ownerPayReasons" :key="reason" tone="warning">{{ words.plan.notCounted(reason) }}</NoteLine>
       </section>
 
       <section class="flex flex-col gap-1" data-testid="plan-categories">

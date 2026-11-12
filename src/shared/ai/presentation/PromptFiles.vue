@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { formatCount } from '../../money/moneyFormat'
+import NoteLine from '../../ui/NoteLine.vue'
 import RemovableChip from '../../ui/RemovableChip.vue'
 import { chatPromptFiles, promptFileNotes, promptFilesCost, removePromptFile } from './chatSession'
 import type { FileRefusal, PromptFile } from './chatSession'
@@ -66,14 +66,8 @@ const going = computed(() => (props.saysHowFilesGo ? promptFileNotes.value : [])
         @remove="removePromptFile(file.key)"
       />
     </div>
-    <p v-for="refusal in refusals" :key="refusal.key" class="flex items-start gap-1 type-caption wrap-anywhere text-error" data-testid="chat-file-note">
-      <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-      {{ refusal.text }}
-    </p>
-    <p v-for="note in going" :key="note" class="flex items-start gap-1 type-caption wrap-anywhere text-warning" data-testid="chat-file-note">
-      <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-      {{ note }}
-    </p>
+    <NoteLine v-for="refusal in refusals" :key="refusal.key" tone="error" data-testid="chat-file-note">{{ refusal.text }}</NoteLine>
+    <NoteLine v-for="note in going" :key="note" tone="warning" data-testid="chat-file-note">{{ note }}</NoteLine>
     <p v-if="promptFilesCost !== null" class="type-caption" data-testid="chat-files-cost">{{ promptFilesCost }}</p>
   </div>
 </template>

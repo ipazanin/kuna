@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import UTextarea from '@nuxt/ui/components/Textarea.vue'
 
 import { readFactsheetCountries } from '../domain/factsheetCountries'
@@ -12,6 +11,7 @@ import type { MixLineTexts } from '../domain/fundMixDraft'
 import { words } from './words'
 import { decimalShown } from '../../../../shared/money/decimal'
 import { plural } from '../../../../shared/text/translation'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** A country table pasted from a fund's factsheet, what Kuna read of each line with every line it could not read flagged, and the lines it fills the mix with once confirmed. */
 const emit = defineEmits<{
@@ -40,17 +40,16 @@ function lineText(line: (typeof read.value)[number]): string {
       <UTextarea v-model="pasted" :rows="5" autoresize class="w-full" data-testid="instrument-mix-paste-text" />
     </UFormField>
     <ul v-if="read.length > 0" class="flex flex-col gap-1" :aria-label="text.paste.lines" data-testid="instrument-mix-paste-lines">
-      <li
+      <NoteLine
         v-for="(line, index) in read"
         :key="index"
-        class="flex items-start gap-2 type-caption"
-        :class="line.group === null || line.percent === null ? 'text-warning' : 'text-toned'"
+        as="li"
+        :tone="line.group === null || line.percent === null ? 'warning' : undefined"
+        :icon="line.group === null || line.percent === null ? undefined : 'i-lucide-check'"
         :data-read="String(line.group !== null && line.percent !== null)"
         data-testid="instrument-mix-paste-line"
+        >{{ lineText(line) }}</NoteLine
       >
-        <UIcon :name="line.group === null || line.percent === null ? 'i-lucide-triangle-alert' : 'i-lucide-check'" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <span class="min-w-0 break-words">{{ lineText(line) }}</span>
-      </li>
     </ul>
     <div class="flex flex-wrap justify-end gap-2">
       <UButton :label="text.cancel" color="neutral" variant="outline" size="sm" data-testid="instrument-mix-paste-cancel" @click="emit('cancel')" />

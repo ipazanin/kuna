@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AppCard from '../../ui/AppCard.vue'
+import NoteLine from '../../ui/NoteLine.vue'
 import type { ProviderPreset } from '../domain/providerPresets'
 import { words } from './words'
 
@@ -31,10 +31,7 @@ onMounted(() => allow.value?.$el.focus())
     <div class="flex flex-col gap-3 px-4 pt-2 pb-4 sm:px-5">
       <div class="flex flex-col gap-1 type-caption wrap-anywhere">
         <p v-for="line in lines" :key="line">{{ line }}</p>
-        <p v-for="caution in cautions" :key="caution" class="flex items-start gap-1 text-warning" data-testid="chat-consent-caution">
-          <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {{ caution }}
-        </p>
+        <NoteLine v-for="caution in cautions" :key="caution" tone="warning" data-testid="chat-consent-caution">{{ caution }}</NoteLine>
         <p>{{ words.retention[provider.id] }}</p>
         <p data-testid="chat-consent-always">{{ words.chat.allowAlwaysNote }}</p>
       </div>

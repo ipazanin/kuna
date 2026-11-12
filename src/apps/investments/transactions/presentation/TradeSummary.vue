@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { TradePreview } from '../domain/tradePreview'
 import { QUANTITY_PLACES } from '../../holdings/presentation/holdingText'
@@ -12,6 +11,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatCurrencyAmount, formatMoney, formatQuantity } from '../../../../shared/money/moneyFormat'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** What a buy or a sale comes to in both currencies, and what the account holds afterwards, with a sale's units past two years. */
 const taxShown = useTaxShown()
@@ -64,16 +64,12 @@ const facts = computed((): Fact[] => {
 
 <template>
   <section class="mt-6 border-t border-default pt-4" :aria-label="words.dialog.summary" data-testid="transaction-summary">
-    <p v-if="preview.beyondHeld" class="mb-3 flex items-start gap-2 type-body text-warning" data-testid="transaction-beyond-held">
-      <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" />
-      <span>{{ words.summary.beyondHeld(dayLabel(trade.date)) }}</span>
-    </p>
+    <NoteLine v-if="preview.beyondHeld" size="body" tone="warning" class="mb-3" data-testid="transaction-beyond-held">{{ words.summary.beyondHeld(dayLabel(trade.date)) }}</NoteLine>
     <template v-else>
       <FactGrid :facts="facts" />
-      <p v-if="taxShown && preview.tax !== null && preview.tax.nearTaxFreeDay !== null" class="mt-3 flex items-start gap-2 type-body text-warning" data-testid="transaction-near-tax-free">
-        <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" />
-        <span>{{ words.summary.nearTaxFreeDay(dayLabel(preview.tax.nearTaxFreeDay)) }}</span>
-      </p>
+      <NoteLine v-if="taxShown && preview.tax !== null && preview.tax.nearTaxFreeDay !== null" size="body" tone="warning" class="mt-3" data-testid="transaction-near-tax-free">{{
+        words.summary.nearTaxFreeDay(dayLabel(preview.tax.nearTaxFreeDay))
+      }}</NoteLine>
     </template>
   </section>
 </template>

@@ -6,7 +6,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { notCash, writeCashLegs } from '../application/statementWrites'
 import type { WithdrawalWithoutCash } from '../domain/reviewQueue'
 import type { RowQuestion } from './rowParts'
-import ReviewItem from './ReviewItem.vue'
 import { words } from './words'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
@@ -23,6 +22,7 @@ import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 
@@ -125,15 +125,10 @@ async function answer(key: string, choice: string): Promise<void> {
     <div class="flex flex-col gap-4 pt-1 pb-4">
       <template v-if="proposed.length > 0">
         <ul class="divide-y divide-default">
-          <ReviewItem
-            v-for="{ row, cash } in shownProposed"
-            :key="row.id"
-            :title="row.payee || row.description"
-            :caption="captionOf(row)"
-            :cents="row.amount"
-            :currency="accountOf(row)?.currency ?? EURO"
-            data-testid="spending-review-cash-row"
-          >
+          <ProposalRow v-for="{ row, cash } in shownProposed" :key="row.id" :title="row.payee || row.description" :caption="captionOf(row)" data-testid="spending-review-cash-row">
+            <template #amount>
+              <AccountMoneyText :cents="row.amount" :currency="accountOf(row)?.currency ?? EURO" sign="always" tone="flow" />
+            </template>
             <template #details>
               <span class="break-words type-caption" data-testid="spending-review-cash-to">{{
                 words.review.cash.toCash(formatAccountMoney(negateAccountMoney(row.amount), cash.currency, 'always'), cash.name)
@@ -149,7 +144,7 @@ async function answer(key: string, choice: string): Promise<void> {
               data-testid="spending-review-cash-not-cash"
               @click="leaveFiled(row)"
             />
-          </ReviewItem>
+          </ProposalRow>
         </ul>
         <div v-if="proposed.length > FIRST_SHOWN" class="px-4 sm:px-5">
           <ShowAllButton v-model:expanded="allShown" :total="proposed.length" />
@@ -166,7 +161,7 @@ async function answer(key: string, choice: string): Promise<void> {
       <div v-if="questions.length > 0" class="px-4 sm:px-5">
         <QuestionList :items="questions" :options="[]" :label="words.review.cash.which" :heading="words.review.cash.which" :intro="words.review.cash.whichIntro" :saving="saving" @answer="answer">
           <template #amount="{ item }">
-            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" class="shrink-0 text-sm" />
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
           </template>
         </QuestionList>
       </div>
@@ -181,15 +176,10 @@ async function answer(key: string, choice: string): Promise<void> {
           data-testid="spending-review-cash-add-account"
         />
         <ul class="divide-y divide-default">
-          <ReviewItem
-            v-for="row in rows"
-            :key="row.id"
-            :title="row.payee || row.description"
-            :caption="captionOf(row)"
-            :cents="row.amount"
-            :currency="currency"
-            data-testid="spending-review-cash-wanting-row"
-          >
+          <ProposalRow v-for="row in rows" :key="row.id" :title="row.payee || row.description" :caption="captionOf(row)" data-testid="spending-review-cash-wanting-row">
+            <template #amount>
+              <AccountMoneyText :cents="row.amount" :currency="currency" sign="always" tone="flow" />
+            </template>
             <UButton
               class="self-start"
               :label="words.review.cash.notCash"
@@ -200,7 +190,7 @@ async function answer(key: string, choice: string): Promise<void> {
               data-testid="spending-review-cash-not-cash"
               @click="leaveFiled(row)"
             />
-          </ReviewItem>
+          </ProposalRow>
         </ul>
       </section>
     </div>

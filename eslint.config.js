@@ -213,6 +213,47 @@ const shootAt = {
   },
 }
 
+/** The icons of the four tones, as `TONE_ICONS` in src/shared/ui/toneText.ts names them. */
+const toneIcons = new Set(['i-lucide-triangle-alert', 'i-lucide-circle-alert', 'i-lucide-circle-check', 'i-lucide-info'])
+const wordTags = new Set(['span', 'strong', 'em', 'b', 'a', 'DrillLink'])
+
+/** Whether an expression names a tone's icon, as a string or through TONE_ICONS. */
+function namesToneIcon(node) {
+  if (node === null || typeof node !== 'object') return false
+  if (node.type === 'Literal' && toneIcons.has(node.value)) return true
+  if (node.type === 'Identifier' && node.name === 'TONE_ICONS') return true
+  return Object.entries(node).some(([key, child]) => key !== 'parent' && (Array.isArray(child) ? child.some(namesToneIcon) : namesToneIcon(child)))
+}
+
+/** A UIcon of a tone with words after it, which is a NoteLine. A mark beside a figure with only a screen reader's words after it stays. */
+const noteLines = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const visitors = {
+      VElement(element) {
+        if (element.rawName !== 'UIcon') return
+        const name = element.startTag.attributes.find((attribute) => (attribute.directive ? attribute.key.argument?.name : attribute.key.name) === 'name')
+        if (name === undefined || !(name.directive ? namesToneIcon(name.value?.expression ?? null) : toneIcons.has(name.value?.value))) return
+        const siblings = element.parent.children
+        const next = siblings.slice(siblings.indexOf(element) + 1).find((node) => !(node.type === 'VText' && node.value.trim() === ''))
+        if (next === undefined) return
+        const spoken =
+          next.type === 'VElement' &&
+          next.startTag.attributes.some((attribute) => !attribute.directive && attribute.key.name === 'class' && /(?:^|\s)sr-only(?:\s|$)/.test(attribute.value?.value ?? ''))
+        const words = next.type === 'VText' || next.type === 'VExpressionContainer' || (next.type === 'VElement' && wordTags.has(next.rawName) && !spoken)
+        if (words) {
+          context.report({
+            node: element,
+            message:
+              "An icon of a tone before words is a NoteLine, which keeps the icon, its size and its gap alike everywhere. Only a mark with no words beside it, such as ComparedFigure's, draws the icon itself.",
+          })
+        }
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(visitors, {}) ?? {}
+  },
+}
+
 const kunaPlugin = {
   rules: {
     'shoot-at': shootAt,
@@ -262,6 +303,7 @@ const kunaPlugin = {
       ["Identifier[name='localStorage']"],
       'A choice kept on this device goes through src/shared/device/deviceChoice.ts, which gives the default where a private window denies the storage.',
     ),
+    'note-lines': noteLines,
     'domain-classes': refusedSyntax(
       ['ClassDeclaration:not([superClass.name=/Error$/])', 'ClassExpression:not([superClass.name=/Error$/])'],
       'A domain model is an immutable record with pure functions beside it. check:figures reads object shapes, so a class can hide a figure from it. Only an Error subclass stays.',
@@ -374,6 +416,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/device-storage', files: ['src/**/*.{ts,vue}'], ignores: ['src/shared/device/deviceChoice.ts'], rules: { 'kuna/device-storage': 'error' } },
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
+    { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },
     { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },
     { name: 'kuna/date-parameters', files: ['src/**/words.ts'], rules: { 'kuna/date-parameters': 'error' } },

@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { yearOf } from '../../../../shared/calendar/civilDate'
 import { parseMonthKey } from '../../../../shared/calendar/monthKey'
@@ -15,6 +14,7 @@ import ChartCard from '../../../../shared/ui/ChartCard.vue'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
@@ -176,15 +176,10 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
               <UButton :label="words.panel.addRow" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="billing-add" @click="addRow" />
               <UButton :label="fillLabel" icon="i-lucide-calendar-plus" color="neutral" variant="outline" size="sm" data-testid="billing-fill" @click="fillDialogOpen = true" />
             </template>
-            <div v-if="problems.length > 0" class="flex items-start gap-2 px-4 pt-3 text-sm text-toned sm:px-5" data-testid="billing-problems">
-              <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-error" aria-hidden="true" />
-              <div class="min-w-0">
-                <p>{{ plural(words.panel.leftOut(problems.length), problems.length) }}</p>
-                <ul class="text-xs text-muted">
-                  <li v-for="(problem, index) in problems" :key="index">{{ problem.label }}: {{ problem.reason }}</li>
-                </ul>
-              </div>
-            </div>
+            <NoteLine v-if="problems.length > 0" as="div" size="body" tone="error" class="px-4 pt-3 sm:px-5" data-testid="billing-problems">
+              <span class="block">{{ plural(words.panel.leftOut(problems.length), problems.length) }}</span>
+              <span v-for="(problem, index) in problems" :key="index" class="block text-xs text-muted">{{ problem.label }}: {{ problem.reason }}</span>
+            </NoteLine>
             <p v-if="view.rows.length === 0" class="px-5 py-8 text-sm text-muted">
               {{ words.panel.noRowsInYear(year) }} <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted">{{ words.panel.setTerms }}</DrillLink> {{ words.panel.fillOrAdd }}
             </p>

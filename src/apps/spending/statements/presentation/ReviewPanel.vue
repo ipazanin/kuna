@@ -8,7 +8,6 @@ import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
 import CashWithdrawalsCard from './CashWithdrawalsCard.vue'
-import ReviewItem from './ReviewItem.vue'
 import WaitingReceiptsCard from '../../receipts/presentation/WaitingReceiptsCard.vue'
 import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingReceipts'
 import ReviewRow from './ReviewRow.vue'
@@ -35,6 +34,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -128,7 +128,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
       <div class="px-4 pt-3 pb-4 sm:px-5">
         <QuestionList :items="held.items.value" :options="held.options" :label="twinWords.choice" :intro="twinWords.intro.sync" :saving="held.saving.value" @answer="held.answer">
           <template #amount="{ item }">
-            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" class="shrink-0 text-sm" />
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
           </template>
         </QuestionList>
       </div>
@@ -167,15 +167,16 @@ async function undoPair(legs: TransferPair): Promise<void> {
     </AppCard>
     <AppCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :title="words.review.pairs" :subtitle="words.review.pairsSubtitle" data-testid="spending-pairs">
       <ul class="divide-y divide-default pt-1 pb-1">
-        <ReviewItem
+        <ProposalRow
           v-for="legs in queue.pairs"
           :key="legs.debit.id"
           :title="`${accountOf(legs.debit)?.name ?? ''} → ${accountOf(legs.credit)?.name ?? ''}`"
           :caption="dayLabel(legs.debit.date)"
-          :cents="legs.debit.amount"
-          :currency="currencyOf(legs.debit)"
           data-testid="spending-pair"
         >
+          <template #amount>
+            <AccountMoneyText :cents="legs.debit.amount" :currency="currencyOf(legs.debit)" sign="always" tone="flow" />
+          </template>
           <UButton
             class="self-start"
             color="neutral"
@@ -185,16 +186,11 @@ async function undoPair(legs: TransferPair): Promise<void> {
             data-testid="spending-not-a-pair"
             @click="undoPair(legs)"
           />
-        </ReviewItem>
-        <ReviewItem
-          v-for="leg in queue.loneLegs"
-          :key="leg.id"
-          :title="leg.payee"
-          :caption="`${dayLabel(leg.date)} · ${accountOf(leg)?.name ?? ''}`"
-          :cents="leg.amount"
-          :currency="currencyOf(leg)"
-          data-testid="spending-lone-leg"
-        >
+        </ProposalRow>
+        <ProposalRow v-for="leg in queue.loneLegs" :key="leg.id" :title="leg.payee" :caption="`${dayLabel(leg.date)} · ${accountOf(leg)?.name ?? ''}`" data-testid="spending-lone-leg">
+          <template #amount>
+            <AccountMoneyText :cents="leg.amount" :currency="currencyOf(leg)" sign="always" tone="flow" />
+          </template>
           <template #details>
             <UBadge
               :label="wantsSavingsAccount(leg, accounts) ? words.review.wantsSavings : words.review.waitingForOther"
@@ -205,7 +201,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
               data-testid="spending-lone-leg-state"
             />
           </template>
-        </ReviewItem>
+        </ProposalRow>
       </ul>
     </AppCard>
     <WaitingReceiptsCard v-if="receipts.length > 0 && !receiptsAsk" ref="receiptsBelow" :waiting="receipts" />

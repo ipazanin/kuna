@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
@@ -17,6 +16,7 @@ import { INSTRUMENT_CLASSES, PRICE_SOURCES, QUOTING_KINDS } from '../../workbook
 import type { Instrument } from '../../workbook/domain/instrument'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import DayField from '../../../../shared/ui/DayField.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** A holding's facts and the source of its daily closes, as fields inside a FormGrid. */
 const texts = defineModel<InstrumentTexts>({ required: true })
@@ -70,10 +70,7 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
   <UFormField :label="text.quoted" :help="rereadsTrades ? '' : text.quotedHelp[texts.quoted]">
     <USelect :model-value="texts.quoted" :items="QUOTING_ITEMS" class="w-full" :data-testid="`${testId}-quoted`" @update:model-value="texts = withQuoting(texts, $event, instrument?.type ?? '')" />
     <template v-if="rereadsTrades" #help>
-      <span class="flex items-start gap-1 text-warning" :data-testid="`${testId}-quoted-rereads`">
-        <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-        {{ text.quotedRereads }}
-      </span>
+      <NoteLine as="span" tone="warning" :data-testid="`${testId}-quoted-rereads`">{{ text.quotedRereads }}</NoteLine>
     </template>
   </UFormField>
   <template v-if="texts.quoted === 'percent'">

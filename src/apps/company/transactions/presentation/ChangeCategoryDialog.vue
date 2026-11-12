@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -21,6 +20,7 @@ import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import CategoryChip from './CategoryChip.vue'
 import CategoryPicker from './CategoryPicker.vue'
 import { words } from './words'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /**
  * Files a settled ledger row in another category. It writes the row's category and `flagged_by`
@@ -86,13 +86,10 @@ async function change(): Promise<void> {
       </div>
       <p v-if="row.description" class="text-sm text-toned">{{ row.description }}</p>
       <CategoryPicker v-model="picked" :categories="categories" :placeholder="words.changeDialog.newCategory" class="w-full" data-testid="change-category-picker" />
-      <p v-if="against" class="flex items-start gap-2 text-sm text-toned" data-testid="rule-against">
-        <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-        <span>
-          {{ words.changeDialog.ruleAgainst.before }} <span class="identifier">{{ against.ruleId }}</span>
-          {{ words.changeDialog.ruleAgainst.after(names.category(against.category), names.category(picked ?? '')) }}
-        </span>
-      </p>
+      <NoteLine v-if="against" size="body" tone="warning" data-testid="rule-against">
+        {{ words.changeDialog.ruleAgainst.before }} <span class="identifier">{{ against.ruleId }}</span>
+        {{ words.changeDialog.ruleAgainst.after(names.category(against.category), names.category(picked ?? '')) }}
+      </NoteLine>
       <p class="text-xs text-muted">{{ words.changeDialog.writes.before }} <span class="identifier">flagged_by</span> {{ words.changeDialog.writes.after(reviewLabel) }}</p>
     </div>
     <template #end>

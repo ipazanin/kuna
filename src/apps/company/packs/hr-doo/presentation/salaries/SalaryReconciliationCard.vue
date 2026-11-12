@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AskChatButton from '../../../../../../shared/ai/presentation/AskChatButton.vue'
 import { assistKeyKept } from '../../../../../../shared/ai/presentation/aiProvider'
@@ -16,6 +15,7 @@ import FigureAsk from '../FigureAsk.vue'
 import type { AskableDetail } from '../tracedFigureView'
 import type { SalaryMonthView } from './salariesView'
 import { words } from './words'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 
 /**
  * Every line of the payday as the app and the bank state it: a table on a wide screen,
@@ -56,12 +56,8 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
             <li class="line-card" :data-verdict="line.verdict" v-bind="marked">
               <p class="flex items-center justify-between gap-2 text-sm">
                 <span class="text-toned">{{ line.label }}</span>
-                <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"
-                  ><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.agrees }}</span
-                >
-                <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
-                  ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.differs }}</span
-                >
+                <NoteLine v-if="line.verdict === 'agrees'" as="span" icon="i-lucide-check" inline>{{ words.reconciliation.agrees }}</NoteLine>
+                <NoteLine v-else-if="line.verdict === 'differs'" as="span" tone="error" inline>{{ words.reconciliation.differs }}</NoteLine>
               </p>
               <dl class="line-cells">
                 <div>
@@ -113,12 +109,8 @@ const allAgree = computed(() => props.view.agreeing === props.view.compared)
                   <span v-else class="text-muted">–</span>
                 </td>
                 <td>
-                  <span v-if="line.verdict === 'agrees'" class="inline-flex items-center gap-1 text-xs text-muted"
-                    ><UIcon name="i-lucide-check" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.agrees }}</span
-                  >
-                  <span v-else-if="line.verdict === 'differs'" class="inline-flex items-center gap-1 text-xs text-error"
-                    ><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />{{ words.reconciliation.differs }}</span
-                  >
+                  <NoteLine v-if="line.verdict === 'agrees'" as="span" icon="i-lucide-check" inline>{{ words.reconciliation.agrees }}</NoteLine>
+                  <NoteLine v-else-if="line.verdict === 'differs'" as="span" tone="error" inline>{{ words.reconciliation.differs }}</NoteLine>
                 </td>
               </tr>
             </FigureAsk>

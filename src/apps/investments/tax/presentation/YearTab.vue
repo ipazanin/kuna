@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { surtaxChargedBy, taxWithSurtax } from '../domain/citySurtax'
 import type { ForeignIncomeYear } from '../domain/foreignIncome'
@@ -24,6 +23,7 @@ import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** The year's capital gains tax in four tiles, what to type into the JOPPD, the year's deadlines and the rules the figures rest on. */
 const props = defineProps<{
@@ -136,14 +136,8 @@ const readings = computed(() => rules.value.filter((rule) => rule.mark !== 'sett
 
 <template>
   <div class="flex flex-col gap-6">
-    <p v-if="gains.estimated || foreign.estimated" class="flex items-start gap-2 type-body text-warning" data-testid="tax-estimated">
-      <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <span>{{ text.estimated }}</span>
-    </p>
-    <p v-if="leftOut > 0" class="flex items-start gap-2 type-body text-warning" data-testid="tax-left-out">
-      <UIcon name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-      <span>{{ plural(text.leftOut(leftOut), leftOut) }}</span>
-    </p>
+    <NoteLine v-if="gains.estimated || foreign.estimated" size="body" tone="warning" data-testid="tax-estimated">{{ text.estimated }}</NoteLine>
+    <NoteLine v-if="leftOut > 0" size="body" tone="warning" data-testid="tax-left-out">{{ plural(text.leftOut(leftOut), leftOut) }}</NoteLine>
     <p v-if="rulesYear !== null" class="type-caption" data-testid="tax-other-rules">{{ text.otherRules(gains.year, rulesYear) }}</p>
     <template v-if="hasSales">
       <DashboardGrid layout="tiles" data-testid="tax-tiles">

@@ -10,7 +10,6 @@ import { receiptOnRow } from '../domain/waitingReceipts'
 import type { WaitingReceipt } from '../domain/waitingReceipts'
 import { words as receiptDomainWords } from '../domain/words'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
-import ReviewItem from '../../statements/presentation/ReviewItem.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -18,6 +17,7 @@ import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
 
@@ -109,12 +109,15 @@ async function answer(key: string, choice: string): Promise<void> {
       <div v-for="({ questions, intro }, at) in asking" :key="intro" :class="['px-4 py-3 sm:px-5', at > 0 && 'border-t border-default']">
         <QuestionList :items="questions" :options="[]" :label="words.waiting.putOn" :intro="intro" :saving="saving" data-testid="spending-review-receipt-place" @answer="answer">
           <template #amount="{ item }">
-            <AccountMoneyText :cents="item.amount" :currency="EURO" sign="always" tone="flow" class="shrink-0 text-sm" />
+            <AccountMoneyText :cents="item.amount" :currency="EURO" sign="always" tone="flow" />
           </template>
         </QuestionList>
       </div>
       <ul v-if="quiet.length > 0" :class="['divide-y divide-default', asking.length > 0 ? 'border-t border-default' : 'pt-1']">
-        <ReviewItem v-for="item in quiet" :key="item.receipt.id" :title="titleOf(item)" :caption="captionOf(item)" :cents="item.amount" :currency="EURO" data-testid="spending-review-receipt">
+        <ProposalRow v-for="item in quiet" :key="item.receipt.id" :title="titleOf(item)" :caption="captionOf(item)" data-testid="spending-review-receipt">
+          <template #amount>
+            <AccountMoneyText :cents="item.amount" :currency="EURO" sign="always" tone="flow" />
+          </template>
           <UButton
             class="self-start"
             :label="words.waiting.remove"
@@ -125,7 +128,7 @@ async function answer(key: string, choice: string): Promise<void> {
             data-testid="spending-review-receipt-remove"
             @click="remove(item)"
           />
-        </ReviewItem>
+        </ProposalRow>
       </ul>
     </div>
   </AppCard>

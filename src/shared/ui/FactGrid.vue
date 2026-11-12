@@ -12,13 +12,14 @@ export interface Fact {
 }
 </script>
 
-<script setup lang="ts">
+<script setup lang="ts" generic="Shown extends Fact">
 import { computed } from 'vue'
 
-/** Labelled figures two to a row, and all in one row once the space around them fits them. */
+/** Labelled figures two to a row, and all in one row once the space around them fits them. The value slot draws a value that is not a figure, such as a chip or a key. */
 const props = defineProps<{
-  facts: readonly Fact[]
+  facts: readonly Shown[]
 }>()
+const slots = defineSlots<{ value?: (props: { fact: Shown }) => unknown }>()
 
 const columns = computed(() => (props.facts.length >= 4 ? '@lg:grid-cols-4' : props.facts.length === 3 ? '@sm:grid-cols-3' : ''))
 </script>
@@ -31,7 +32,8 @@ const columns = computed(() => (props.facts.length >= 4 ? '@lg:grid-cols-4' : pr
           <span v-if="fact.swatch" class="swatch" :class="`swatch-${fact.swatch.mark ?? 'bar'}`" :style="{ '--swatch': fact.swatch.colour }" aria-hidden="true" />
           {{ fact.label }}
         </dt>
-        <dd class="mt-0.5 type-figure-secondary">{{ fact.value }}</dd>
+        <dd v-if="slots.value" class="mt-0.5"><slot name="value" :fact="fact" /></dd>
+        <dd v-else class="mt-0.5 type-figure-secondary">{{ fact.value }}</dd>
         <dd v-if="fact.caption" class="mt-0.5 type-caption">{{ fact.caption }}</dd>
       </div>
     </dl>

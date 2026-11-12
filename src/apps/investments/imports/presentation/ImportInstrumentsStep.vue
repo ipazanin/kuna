@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import type { InstrumentStep, SettledImport } from '../domain/importChoices'
@@ -15,6 +14,7 @@ import { instrumentErrors, words as holdingWords } from '../../holdings/presenta
 import { PRICE_VENDORS } from '../../prices/infrastructure/vendors/priceVendors'
 import { plural } from '../../../../shared/text/translation'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** Each holding of the workbook, matched to one Kuna has, or added from a guess the person can change. */
 const props = defineProps<{
@@ -105,10 +105,8 @@ function opened(step: InstrumentStep): boolean {
         </FormGrid>
         <template v-if="step.choice.kind === 'new'">
           <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <p class="flex min-w-0 items-start gap-2 type-caption" data-testid="import-instrument-guess">
-              <UIcon v-if="needsLook(step)" name="i-lucide-triangle-alert" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-              <span class="min-w-0 break-words">{{ needsLook(step) ? words.instruments.needsLook : guessOf(step.choice.texts) }}</span>
-            </p>
+            <NoteLine v-if="needsLook(step)" tone="warning" data-testid="import-instrument-guess">{{ words.instruments.needsLook }}</NoteLine>
+            <p v-else class="min-w-0 break-words type-caption" data-testid="import-instrument-guess">{{ guessOf(step.choice.texts) }}</p>
             <UButton
               v-if="!needsLook(step)"
               :label="opened(step) ? words.instruments.done : words.instruments.edit"

@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { entryAsked } from './entryAsked'
 import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
 import RowLines from '../../receipts/presentation/RowLines.vue'
-import { LINK_INK } from '../../links/presentation/linkLine'
+import { LINK_TONE } from '../../links/presentation/linkLine'
 import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
@@ -13,6 +12,7 @@ import type { Transaction } from '../../workbook/domain/transaction'
 import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 
 /** One entry: a button that opens it, and the camera for its receipt beside it. The row tints as one unit while either button is hovered, unless it holds the highlight of the chat being about it. */
 const props = defineProps<{
@@ -46,10 +46,7 @@ const { marked } = useChatElement(asked, 'row')
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">
         <span class="break-words text-sm text-highlighted">{{ title }}</span>
         <span v-if="details !== ''" class="break-words type-caption">{{ details }}</span>
-        <span v-if="link !== null" class="flex items-start gap-1 type-caption" :class="LINK_INK[link.look]" data-testid="spending-row-link">
-          <UIcon :name="link.icon" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          <span class="break-words">{{ link.text }}</span>
-        </span>
+        <NoteLine v-if="link !== null" as="span" :tone="LINK_TONE[link.look]" :icon="link.icon" data-testid="spending-row-link">{{ link.text }}</NoteLine>
         <RowLines v-if="row.lines.length > 0" :lines="row.lines" :categories="categories" :currency="row.account.currency" />
       </span>
       <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
