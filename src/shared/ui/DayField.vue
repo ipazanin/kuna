@@ -87,6 +87,16 @@ const picking = ref(false)
  */
 const LOOK = { base: 'ps-2 pe-12', segment: 'px-0.5 tabular-nums data-[segment=day]:w-auto data-[segment=month]:w-auto data-[segment=year]:w-auto', trailing: 'pe-0.5' }
 
+/**
+ * A part of the day cancels every key but Tab, Escape too, and a dialog does not close on a cancelled Escape. So Escape
+ * on a part goes on from the field itself, as it would from any other field.
+ */
+function passEscape(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || !(event.currentTarget instanceof HTMLElement) || event.target === event.currentTarget) return
+  event.stopPropagation()
+  event.currentTarget.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+}
+
 function pick(picked: unknown): void {
   type(picked)
   picking.value = false
@@ -96,7 +106,18 @@ function pick(picked: unknown): void {
 </script>
 
 <template>
-  <UInputDate :model-value="day" :locale="intlLocale" v-bind="limits" :size="size" :disabled="disabled" :ui="LOOK" @update:model-value="type" @focus="enter" @blur="leave">
+  <UInputDate
+    :model-value="day"
+    :locale="intlLocale"
+    v-bind="limits"
+    :size="size"
+    :disabled="disabled"
+    :ui="LOOK"
+    @update:model-value="type"
+    @focus="enter"
+    @blur="leave"
+    @keydown.capture="passEscape"
+  >
     <template #trailing>
       <UPopover v-model:open="picking">
         <UButton icon="i-lucide-calendar" color="neutral" variant="link" :size="size === 'sm' ? 'xs' : 'sm'" :aria-label="words.pickDay" :loading="loading" :disabled="disabled" />

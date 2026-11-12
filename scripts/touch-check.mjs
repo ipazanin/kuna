@@ -391,6 +391,10 @@ async function checkWidth(width) {
     if (message.type() === 'error') errors.push(message.text())
   })
   page.on('pageerror', (error) => errors.push(String(error)))
+  // Every step reuses this page. One that fails while a save waits leaves the leave warning up, which would hold every later visit.
+  page.on('dialog', async (dialog) => {
+    if (dialog.type() === 'beforeunload') await dialog.accept()
+  })
   const own = new URL(BASE).origin
   const foreign = []
   page.on('request', (request) => {
@@ -847,8 +851,6 @@ async function checkWidth(width) {
     await page.waitForSelector('[role="listbox"] [role="option"]')
     await page.keyboard.type('travel')
     const travel = await waitForText(page, '[role="option"]', 'Travel')
-    // The list scales in as it opens, so its rows are measured once they stand at their size.
-    await delay(300)
     await inspect(page, `${width}px suggestions open`, '[role="listbox"]')
     await travel.tap()
     await page.waitForFunction(() => window.location.hash.includes('travel'))
@@ -871,8 +873,6 @@ async function checkWidth(width) {
     await open(page, '#/company/transactions?p=all', 'Transactions')
     await page.tap('[aria-label="Group rows"]')
     const byCategory = await waitForText(page, '[role="option"]', 'By category')
-    // The list scales in as it opens, so its rows are measured once they stand at their size.
-    await delay(300)
     await inspect(page, `${width}px grouping open`, '[role="listbox"]')
     await byCategory.tap()
     await page.waitForSelector('[data-testid="transaction-group"]')
@@ -3548,7 +3548,10 @@ async function expect(valuePromise, holds, message) {
  */
 async function inspect(page, scope, within = null) {
   const report = await page.evaluate(
-    (smallest, within) => {
+    async (smallest, within) => {
+      // A list or a dialog scales in as it opens, so controls are measured once every running motion that ends has ended.
+      const ending = document.getAnimations().filter((animation) => animation.playState === 'running' && animation.effect?.getComputedTiming().endTime !== Infinity)
+      await Promise.all(ending.map((animation) => animation.finished.catch(() => null)))
       const controls = 'a[href], button, input:not([type="hidden"]), select, textarea, [role="button"], [role="switch"], [role="checkbox"], [role="combobox"], [role="tab"], [role="option"]'
       const tooSmall = []
       for (const element of document.querySelectorAll(controls)) {
