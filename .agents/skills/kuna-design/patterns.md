@@ -10,6 +10,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A long list or table sits in a collapsible `AppCard` with a `collapse-id` named as screen and card, such as `invoicing.months`. Its `summary` is the one line shown when collapsed. A deep link into a card passes `reveal`.
 - A screen made of one table, one list or one form keeps the narrower measure (`max-w-measure`). A dashboard screen widens with `DashboardGrid`.
 - A screen whose books are still opening shows `ScreenSkeleton` below its header.
+- While the app's file was saved by a newer Kuna, the shell puts one warning notice with Reload above every screen of that app, above its `PageHeader`, and a screen draws none of its own. A dialog marked `changes` opens with the same wording as an alert at the top of its body, and every Save in it is disabled by `writes.refused`.
 - A card with nothing to show uses `EmptyState`, dashed. A card that failed uses `EmptyState` with `tone="error"`. Nothing hand-draws either.
 - Cards that fold, such as a chart or a table, remember their state per device through `cardCollapse.ts`.
 - A notice in a card is a subtle `UAlert` with an icon: `neutral` with `i-lucide-info` for something with nothing to do, `info` for something waiting on the person, and `warning` for something that may be wrong.

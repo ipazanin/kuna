@@ -16,7 +16,7 @@ import { words as syncWords } from '../application/words'
 /** What an app gives the page's one sync. */
 export interface AppSyncGroup {
   /** The app's books, which its group reads first. */
-  readonly store: Pick<WorkbookStore<BooksRead>, 'state' | 'open' | 'sync' | 'canSyncSilently'>
+  readonly store: Pick<WorkbookStore<BooksRead>, 'state' | 'open' | 'sync' | 'canSyncSilently' | 'savedByNewerApp'>
   /** The app's own steps after its books, in order. */
   steps(): readonly SyncStep[]
   /** The Google permissions the app's books on screen and this device's settings need while its file is on Drive, the books file's among them, by what needs each. */

@@ -145,6 +145,7 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     :title="book === null ? loanWords.loanDialog.addTitle : loanWords.loanDialog.changeTitle"
     :description="book === null ? loanWords.loanDialog.addDescription : loanWords.loanDialog.changeDescription"
   >
@@ -189,7 +190,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="bank-loan-delete"
         @click="remove"
       />
@@ -202,7 +203,7 @@ async function remove(): Promise<void> {
         :label="book === null ? loanWords.loanDialog.add : loanWords.loanDialog.save"
         :icon="book === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="bank-loan-save"
       />
     </template>

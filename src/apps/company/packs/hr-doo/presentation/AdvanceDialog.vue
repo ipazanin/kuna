@@ -142,6 +142,7 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     :title="editing ? words.advanceDialog.changeTitle : words.advanceDialog.addTitle"
     :description="editing ? words.advanceDialog.changeDescription : words.advanceDialog.addDescription"
   >
@@ -176,7 +177,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="advance-delete"
         @click="remove"
       />
@@ -189,7 +190,7 @@ async function remove(): Promise<void> {
         :label="editing ? words.advanceDialog.save : words.advanceDialog.add"
         :icon="editing ? 'i-lucide-save' : 'i-lucide-plus'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
       />
     </template>
   </AppDialog>

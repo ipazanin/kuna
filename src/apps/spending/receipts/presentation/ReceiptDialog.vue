@@ -206,7 +206,7 @@ function closeAsked(wanted: boolean): void {
 </script>
 
 <template>
-  <AppDialog :open="open" :title="words.add" :description="words.description" @update:open="closeAsked">
+  <AppDialog changes :open="open" :title="words.add" :description="words.description" @update:open="closeAsked">
     <div v-if="photo === null" class="grid gap-3 sm:grid-cols-2" data-testid="spending-receipt-take">
       <div data-testid="spending-receipt-camera">
         <FileDrop v-model="picked" accept="image/*" capture="environment" icon="i-lucide-camera" :label="words.take" :description="words.takeHelp" />
@@ -278,7 +278,7 @@ function closeAsked(wanted: boolean): void {
         :label="words.save"
         icon="i-lucide-save"
         :loading="saves.saving.value"
-        :disabled="reading === 'reading' || saves.saving.value"
+        :disabled="reading === 'reading' || saves.saving.value || writes.refused.value"
         data-testid="spending-receipt-save"
       />
     </template>

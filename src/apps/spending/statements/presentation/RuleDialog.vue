@@ -123,7 +123,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="rule === null ? words.rules.dialog.addTitle : words.rules.dialog.editTitle" :description="rule === null ? words.rules.dialog.description : undefined">
+  <AppDialog v-model:open="open" changes :title="rule === null ? words.rules.dialog.addTitle : words.rules.dialog.editTitle" :description="rule === null ? words.rules.dialog.description : undefined">
     <form id="spending-rule-dialog" class="flex flex-col gap-4" data-testid="spending-rule-dialog" @submit.prevent="save">
       <UFormField :label="words.rules.dialog.category" :error="(tried && errors.category) || false">
         <USelectMenu v-model="picked" :items="categoryItems" value-key="value" :placeholder="words.rules.dialog.pickCategory" class="w-full" data-testid="spending-rule-dialog-category">
@@ -161,6 +161,7 @@ async function save(): Promise<void> {
         :label="rule === null && fresh.length > 0 ? plural(words.rules.dialog.save(fresh.length), fresh.length) : words.rules.dialog.saveChange"
         icon="i-lucide-save"
         :loading="writes.saving('save')"
+        :disabled="writes.refused.value"
         data-testid="spending-rule-dialog-save"
       />
     </template>

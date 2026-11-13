@@ -8409,6 +8409,23 @@ async function lookAtDialog(page, press, shoot, opener, shown, name, says = null
   await dialogGone(page, shown)
 }
 
+/**
+ * The Spending entry dialog opened on a file a newer Kuna saved: it opens with the reason at the top of its body, keeps Save off with no spinner,
+ * and what was typed stays after the reason shows.
+ */
+export function newerFileDialogFlowIn(language) {
+  return async (page, { press, shoot: shootAs }) => {
+    await pressSelector(page, press, '[data-testid="spending-add-entry"]')
+    await page.waitForSelector('[data-testid="dialog-changes-refused"]', { visible: true, timeout: 10_000 })
+    const save = await page.$eval('[data-testid="spending-entry-save"]', (button) => ({ disabled: button.disabled, loading: button.querySelector('.animate-spin') !== null }))
+    if (!save.disabled || save.loading) throw new Error(`Save is disabled=${save.disabled} and spinning=${save.loading} on a file a newer Kuna saved`)
+    await delay(400)
+    await shootAs(language === 'en' ? 'dialog-newer-file-entry' : `dialog-newer-file-entry-${language}`)
+    await page.keyboard.press('Escape')
+    await dialogGone(page, '[data-testid="dialog-changes-refused"]')
+  }
+}
+
 /** Moves to another screen of the app without a reload. */
 async function goTo(page, hash, title) {
   await page.evaluate((target) => {

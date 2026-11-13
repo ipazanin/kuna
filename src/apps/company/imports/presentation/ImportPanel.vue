@@ -245,7 +245,7 @@ const summary = computed(() => {
                 color="error"
                 variant="ghost"
                 :loading="writes.saving('delete-profile')"
-                :disabled="writes.busy.value"
+                :disabled="writes.busy.value || writes.refused.value"
                 :aria-label="words.panel.deleteProfile(profileChoice)"
                 data-testid="profile-delete"
                 @click="deleteProfile"
@@ -296,7 +296,7 @@ const summary = computed(() => {
                 :label="words.panel.confirm"
                 icon="i-lucide-file-input"
                 :loading="writes.saving('import')"
-                :disabled="dryRun.newRows === 0 || writes.busy.value"
+                :disabled="dryRun.newRows === 0 || writes.busy.value || writes.refused.value"
                 data-testid="import-confirm"
                 @click="confirm"
               />

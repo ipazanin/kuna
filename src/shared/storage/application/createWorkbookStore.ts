@@ -149,6 +149,8 @@ export interface WorkbookStorePorts<Books extends BooksRead, Copy extends Workbo
   withChanges(copy: Copy, changes: readonly RecordChange[]): Copy
   /** What a write's checks read of a copy, with nothing stored and no request to Drive. */
   viewOf(copy: Copy): StorageView
+  /** Whether a newer version of the app saved the copy, which this version reads and never writes. */
+  savedByNewerApp(copy: Copy): boolean
   /** Keeps what an import or a fresh start gives as the workbook of this browser, in place of any it held, and gives its copy. */
   keepInBrowser(meta: CopyMeta, contents: Contents): Promise<Copy>
   /** Deletes the workbook kept in this browser under this id. */
@@ -159,6 +161,8 @@ export interface WorkbookStorePorts<Books extends BooksRead, Copy extends Workbo
 
 export interface WorkbookStore<Books extends BooksRead, Copy extends WorkbookCopy = WorkbookCopy, Contents = unknown> {
   readonly state: Readonly<WorkbookState<Books, Copy>>
+  /** Whether the file on screen was saved by a newer version of the app, so no write to it goes through. */
+  savedByNewerApp(): boolean
   /** Shows the workbook this browser holds, if any. Later calls wait on the first. */
   open(): Promise<void>
   /**
@@ -455,11 +459,14 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     state.waiting = state.waiting.filter((waiting) => waiting !== queued)
   }
 
-  /** The books on screen, or a refusal when there are none to write to. */
+  /** The books on screen, or a refusal when there are none to write to or a newer Kuna saved them. */
   function booksToWrite(): Copy {
     const current = state.snapshot
     if (current === null || state.choice === null || state.choice.id !== current.meta.id) {
       throw new WorkbookWriteRefused(words.noBooks)
+    }
+    if (ports.savedByNewerApp(current)) {
+      throw new WorkbookWriteRefused(words.newerFile)
     }
     return current
   }
@@ -562,6 +569,10 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
 
   return {
     state: shallowReadonly(state) as Readonly<WorkbookState<Books, Copy>>,
+
+    savedByNewerApp() {
+      return state.snapshot !== null && ports.savedByNewerApp(state.snapshot)
+    },
 
     open() {
       opened ??= showStoredCopy()
@@ -713,6 +724,9 @@ export function createWorkbookStore<Books extends BooksRead, Copy extends Workbo
     replaceLocalWorkbook(contents, title) {
       return inLane(() =>
         underLocalWork(async () => {
+          if (state.choice?.source === 'browser' && state.snapshot !== null && ports.savedByNewerApp(state.snapshot)) {
+            throw new WorkbookWriteRefused(words.newerFile)
+          }
           const id = state.choice?.source === 'browser' ? state.choice.id : ports.newLocalId()
           await keep(await ports.keepInBrowser({ id, source: 'browser', title, syncedAt: ports.now(), lastExportedAt: null, unexportedSince: null }, contents))
           choose({ source: 'browser', id, name: title })

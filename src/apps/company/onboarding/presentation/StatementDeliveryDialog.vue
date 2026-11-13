@@ -27,6 +27,7 @@ import { words } from './words'
  */
 const open = defineModel<boolean>('open', { required: true })
 const store = useWorkbook()
+const fileRefused = computed(() => store.savedByNewerApp())
 const text = words.delivery
 
 type Delivery = 'mail' | 'folder'
@@ -79,7 +80,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="text.title" :description="text.description" :dismissible="!saving">
+  <AppDialog v-model:open="open" changes :title="text.title" :description="text.description" :dismissible="!saving">
     <div class="flex flex-col gap-4" data-testid="statement-delivery">
       <URadioGroup v-model="delivery" :items="CHOICES" :legend="text.title" :ui="{ legend: 'sr-only', fieldset: 'gap-3' }" data-testid="statement-delivery-choice" />
       <FormGrid v-if="delivery === 'mail'" data-testid="statement-delivery-mail">
@@ -117,7 +118,7 @@ async function save(): Promise<void> {
     </div>
     <template #end>
       <UButton :label="text.cancel" color="neutral" variant="ghost" :disabled="saving" @click="open = false" />
-      <UButton :label="delivery === 'mail' ? text.saveMail : text.chooseFolder" :loading="saving" :disabled="!ready" data-testid="statement-delivery-save" @click="save" />
+      <UButton :label="delivery === 'mail' ? text.saveMail : text.chooseFolder" :loading="saving" :disabled="!ready || fileRefused" data-testid="statement-delivery-save" @click="save" />
     </template>
   </AppDialog>
 </template>

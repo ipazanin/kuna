@@ -80,7 +80,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="editing === null ? loanWords.lateDialog.addTitle : loanWords.lateDialog.changeTitle" :description="loanWords.lateDialog.description">
+  <AppDialog v-model:open="open" changes :title="editing === null ? loanWords.lateDialog.addTitle : loanWords.lateDialog.changeTitle" :description="loanWords.lateDialog.description">
     <FormGrid id="late-instalment" as="form" data-testid="late-instalment-form" @submit.prevent="save">
       <UFormField :label="loanWords.lateDialog.due" :error="(tried && errors.due) || false">
         <USelectMenu
@@ -105,7 +105,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="late-instalment-delete"
         @click="remove"
       />
@@ -118,7 +118,7 @@ async function remove(): Promise<void> {
         :label="editing === null ? loanWords.lateDialog.add : loanWords.lateDialog.save"
         :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="late-instalment-save"
       />
     </template>

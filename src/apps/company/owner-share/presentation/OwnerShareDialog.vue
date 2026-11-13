@@ -66,7 +66,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" width="md" :title="words.shareDialog.title" :description="words.shareDialog.description(row.counterparty, dayLabel(row.date))">
+  <AppDialog v-model:open="open" changes width="md" :title="words.shareDialog.title" :description="words.shareDialog.description(row.counterparty, dayLabel(row.date))">
     <form id="owner-share" class="flex flex-col gap-4" data-testid="owner-share" @submit.prevent="save">
       <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <CategoryChip :category="row.category" :bucket="row.bucket" />
@@ -104,7 +104,7 @@ async function save(): Promise<void> {
         :label="words.shareDialog.save"
         icon="i-lucide-check"
         :loading="writes.saving('save')"
-        :disabled="!changed || writes.busy.value"
+        :disabled="!changed || writes.busy.value || writes.refused.value"
         data-testid="owner-share-save"
       />
     </template>

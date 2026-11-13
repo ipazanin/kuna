@@ -9,7 +9,7 @@ import type { CopyMeta, PickedFolder } from '../application/workbookPorts'
 import type { CodecOfKind } from '../domain/recordCodec'
 import { sameRecord } from '../domain/recordsRead'
 import { browserDocumentHome, deleteBrowserDocument, replaceBrowserDocument } from './browserDocument'
-import { decodeDocument, encodeDocument } from './documentFormat'
+import { decodeDocument, encodeDocument, savedByNewerApp } from './documentFormat'
 import type { WorkbookDocument } from './documentFormat'
 import { documentRecordStorage, documentRecords } from './documentRecordStorage'
 import type { DocumentCopy } from './documentRecordStorage'
@@ -66,6 +66,7 @@ export type DocumentStorePorts<Books extends BooksRead> = Pick<
   | 'read'
   | 'withChanges'
   | 'viewOf'
+  | 'savedByNewerApp'
   | 'keepInBrowser'
   | 'forgetBrowserWorkbook'
   | 'openStorage'
@@ -263,6 +264,10 @@ export function documentStorePorts<Books extends BooksRead>(
 
     viewOf(copy) {
       return documentRecords(copy.document, schema(), codecOf, now)
+    },
+
+    savedByNewerApp(copy) {
+      return savedByNewerApp(copy.document, schema())
     },
 
     async keepInBrowser(meta, document) {

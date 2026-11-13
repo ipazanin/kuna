@@ -101,7 +101,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" width="xl" :title="changing ? words.split.changeTitle : words.split.title" :description="words.split.description(entry.payee, dayLabel(entry.date))">
+  <AppDialog v-model:open="open" changes width="xl" :title="changing ? words.split.changeTitle : words.split.title" :description="words.split.description(entry.payee, dayLabel(entry.date))">
     <form id="spending-split" class="flex flex-col gap-4" data-testid="spending-split-dialog" @submit.prevent="save">
       <SplitEditor v-model="parts" :whole-label="words.split.whole" :whole="whole" :typed="typedAccountAmount" :tried="tried" :category-error="categoryError" :refusal="refusal">
         <template #whole>
@@ -124,7 +124,7 @@ async function save(): Promise<void> {
         :label="changing ? words.split.save : words.split.split"
         :icon="changing ? 'i-lucide-save' : 'i-lucide-split'"
         :loading="writes.saving('split')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="spending-split-save"
       />
     </template>

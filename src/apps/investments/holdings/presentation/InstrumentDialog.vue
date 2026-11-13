@@ -118,7 +118,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="instrument !== null ? text.changeTitle : asBenchmark ? text.addBenchmarkTitle : text.addTitle" :description="text.description" width="2xl">
+  <AppDialog v-model:open="open" changes :title="instrument !== null ? text.changeTitle : asBenchmark ? text.addBenchmarkTitle : text.addTitle" :description="text.description" width="2xl">
     <FormGrid id="instrument" as="form" data-testid="instrument-form" @submit.prevent="save">
       <InstrumentSearch @pick="texts = withListing(texts, $event)" />
       <InstrumentFields v-model="texts" :errors="errors" :tried="tried" :book="book" :instrument="instrument" />
@@ -132,7 +132,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="instrument-delete"
         @click="remove"
       />
@@ -145,7 +145,7 @@ async function remove(): Promise<void> {
         :label="instrument !== null ? text.save : asBenchmark ? text.addBenchmark : text.add"
         :icon="instrument === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="instrument-save"
       />
     </template>

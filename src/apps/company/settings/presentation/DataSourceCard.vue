@@ -10,7 +10,6 @@ import { onboardingStart } from '../../onboarding/presentation/useOnboarding'
 import ImportDialog from '../../workbook-files/presentation/ImportDialog.vue'
 import { useExport } from '../../workbook-files/presentation/useExport'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import NewerFileNotice from '../../workbook/presentation/NewerFileNotice.vue'
 import RowIdsNotice from '../../workbook/presentation/RowIdsNotice.vue'
 import { NEW_BOOKS_TITLE, WORKBOOK_FILE_TYPES } from '../../workbook/presentation/workbookFiles'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
@@ -65,7 +64,6 @@ function takeFile(event: Event): void {
     :seeded-title="{ stored: NEW_BOOKS_TITLE, shown: words.books.newBooks }"
     data-testid="data-source-card"
   >
-    <NewerFileNotice />
     <RowIdsNotice />
     <input ref="fileInput" type="file" :accept="WORKBOOK_FILE_TYPES" class="sr-only" tabindex="-1" aria-hidden="true" @change="takeFile" />
     <template #actions>

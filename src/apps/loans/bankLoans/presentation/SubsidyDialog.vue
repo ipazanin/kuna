@@ -49,7 +49,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="book.loan.subsidy === null ? loanWords.subsidyDialog.add : loanWords.subsidyDialog.change" :description="loanWords.subsidyDialog.description">
+  <AppDialog v-model:open="open" changes :title="book.loan.subsidy === null ? loanWords.subsidyDialog.add : loanWords.subsidyDialog.change" :description="loanWords.subsidyDialog.description">
     <FormGrid id="loan-subsidy" as="form" data-testid="subsidy-form" @submit.prevent="save">
       <SubsidyFields v-model="texts" :tried="tried" :loan-instalments="book.loan.instalments" />
     </FormGrid>
@@ -61,7 +61,7 @@ async function save(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="subsidy-delete"
         @click="write(loanWords.subsidyDialog.deleted, null, loansWords.form.notDeleted)"
       />
@@ -74,7 +74,7 @@ async function save(): Promise<void> {
         :label="book.loan.subsidy === null ? loanWords.subsidyDialog.addButton : loanWords.subsidyDialog.saveButton"
         :icon="book.loan.subsidy === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="subsidy-save"
       />
     </template>

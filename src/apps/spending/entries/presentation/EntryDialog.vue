@@ -294,7 +294,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="entry === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
+  <AppDialog v-model:open="open" changes :title="entry === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
     <FormGrid id="spending-entry" as="form" data-testid="spending-entry-dialog" @submit.prevent="save">
       <UFormField v-if="!split" :label="words.dialog.kind" class="sm:col-span-2">
         <ChoiceButtons v-model="kind" :options="kindOptions" :label="words.dialog.kind" data-testid="spending-entry-kind" />
@@ -353,7 +353,7 @@ async function remove(): Promise<void> {
               color="neutral"
               variant="ghost"
               :loading="writes.saving('remove-link')"
-              :disabled="writes.busy.value"
+              :disabled="writes.busy.value || writes.refused.value"
               data-testid="spending-entry-link-remove"
               @click="removeLink"
             />
@@ -374,7 +374,7 @@ async function remove(): Promise<void> {
           color="neutral"
           variant="outline"
           :loading="writes.saving('remove-receipt')"
-          :disabled="writes.busy.value"
+          :disabled="writes.busy.value || writes.refused.value"
           data-testid="spending-entry-remove-receipt"
           @click="removeSplit"
         />
@@ -386,7 +386,7 @@ async function remove(): Promise<void> {
             color="neutral"
             variant="outline"
             :loading="writes.saving('remove-split')"
-            :disabled="writes.busy.value"
+            :disabled="writes.busy.value || writes.refused.value"
             data-testid="spending-entry-remove-split"
             @click="removeSplit"
           />
@@ -402,7 +402,7 @@ async function remove(): Promise<void> {
           color="neutral"
           variant="outline"
           :loading="writes.saving('person-payee')"
-          :disabled="writes.busy.value"
+          :disabled="writes.busy.value || writes.refused.value"
           data-testid="spending-entry-treat-payee"
           @click="treatPayee"
         />
@@ -418,7 +418,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="spending-entry-delete"
         @click="remove"
       />
@@ -431,7 +431,7 @@ async function remove(): Promise<void> {
         :label="entry === null ? words.dialog.add : words.dialog.save"
         :icon="entry === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="spending-entry-save"
       />
     </template>

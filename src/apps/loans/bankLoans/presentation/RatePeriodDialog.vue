@@ -83,7 +83,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="editing === null ? loanWords.ratePeriodDialog.addTitle : loanWords.ratePeriodDialog.changeTitle" :description="loanWords.ratePeriodDialog.description">
+  <AppDialog v-model:open="open" changes :title="editing === null ? loanWords.ratePeriodDialog.addTitle : loanWords.ratePeriodDialog.changeTitle" :description="loanWords.ratePeriodDialog.description">
     <FormGrid id="rate-period" as="form" data-testid="rate-period-form" @submit.prevent="save">
       <UFormField
         :label="loanWords.ratePeriodDialog.from"
@@ -115,7 +115,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="rate-period-delete"
         @click="remove"
       />
@@ -128,7 +128,7 @@ async function remove(): Promise<void> {
         :label="editing === null ? loanWords.ratePeriodDialog.add : loanWords.ratePeriodDialog.save"
         :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="rate-period-save"
       />
     </template>

@@ -18,7 +18,8 @@ import { words } from './words'
 const props = defineProps<{
   dismissed: readonly DismissedSuggestion<Transaction>[]
   categories: readonly Category[]
-  busy: boolean
+  /** Writes are running or refused, so the row's buttons stay off. */
+  off: boolean
   saving: WriteSaving
 }>()
 
@@ -74,7 +75,7 @@ function rowsOf(entry: DismissedSuggestion<Transaction>): string {
           class="self-start"
           :aria-label="words.dismissedCard.restoreName(nameOf(entry))"
           :loading="saving(`restore-${entry.dismissal.id}`)"
-          :disabled="busy"
+          :disabled="off"
           data-testid="restore-suggestion"
           @click="emit('restore', entry.dismissal)"
         />

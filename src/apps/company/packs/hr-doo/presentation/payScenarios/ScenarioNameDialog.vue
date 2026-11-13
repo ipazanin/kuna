@@ -77,6 +77,7 @@ async function save(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     :title="mode === 'copy' ? words.nameDialog.copyTitle : words.nameDialog.renameTitle"
     :description="mode === 'copy' ? words.nameDialog.copyDescription(scenarioName(scenario)) : words.nameDialog.renameDescription"
   >
@@ -96,7 +97,7 @@ async function save(): Promise<void> {
         :label="mode === 'copy' ? words.nameDialog.copyButton : words.nameDialog.renameButton"
         :icon="mode === 'copy' ? 'i-lucide-copy' : 'i-lucide-pencil'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="scenario-name-save"
       />
     </template>

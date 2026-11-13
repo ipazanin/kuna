@@ -13,7 +13,6 @@ export const en = {
   trashRefused:
     "Google Drive would not move the file to the bin. Only its owner can, from the account Kuna is signed in to, so a file someone shared with you stays theirs. Untick the Drive file to delete only this browser's copy.",
   browserLost: 'This browser no longer holds the workbook. Open an Excel file or a backup to start again.',
-  newerFile: 'This file was saved by a newer version of Kuna. Reload to update before you change anything.',
   notJson: 'The file is not a Kuna file: it does not read as JSON.',
   notKuna: 'The file is not a Kuna file.',
   notInShape: 'The file is not a Kuna file: its schema or its records are not in the shape the app writes.',
@@ -37,7 +36,6 @@ export const hr: Translation<typeof en> = {
   trashRefused:
     'Google Drive nije premjestio datoteku u otpad. To može samo njezin vlasnik, s računa na koji je Kuna prijavljena, pa datoteka koju vam je netko podijelio ostaje njegova. Odznačite datoteku na Driveu kako biste obrisali samo kopiju u ovom pregledniku.',
   browserLost: 'Ovaj preglednik više nema datoteku. Otvorite Excel datoteku ili sigurnosnu kopiju da biste počeli ponovno.',
-  newerFile: 'Ovu je datoteku spremila novija inačica Kune. Ponovno učitajte stranicu da se aplikacija ažurira prije bilo kakve promjene.',
   notJson: 'Datoteka nije Kunina datoteka: ne čita se kao JSON.',
   notKuna: 'Datoteka nije Kunina datoteka.',
   notInShape: 'Datoteka nije Kunina datoteka: njezina shema ili zapisi nisu u obliku koji aplikacija zapisuje.',

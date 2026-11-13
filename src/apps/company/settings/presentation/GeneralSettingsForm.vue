@@ -30,7 +30,10 @@ const props = defineProps<{
   settings: Settings
   /** The pack's facts as the workbook holds them, which its card edits. */
   facts: unknown
+  /** This form's save is running, which spins its Save. */
   saving: boolean
+  /** The file takes no changes, which switches its Save off. */
+  refused: boolean
 }>()
 
 const emit = defineEmits<{
@@ -147,8 +150,8 @@ function updateLabel(bucket: DefinedBucket, label: string): void {
     </AppCard>
 
     <div class="flex flex-wrap items-center gap-2">
-      <UButton type="submit" :label="words.general.save" icon="i-lucide-save" :loading="saving" :disabled="!savable || saving" />
-      <UButton :label="words.general.discard" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />
+      <UButton type="submit" :label="words.general.save" icon="i-lucide-save" :loading="saving" :disabled="!savable || saving || refused" />
+      <UButton :label="words.general.discard" color="neutral" variant="ghost" :disabled="!dirty || saving || refused" @click="draft = settings" />
     </div>
   </form>
 </template>

@@ -5,10 +5,6 @@ import type { EnglishForms, Translation } from '../../../../shared/text/translat
 // The books file is datoteka, so that knjige keeps its legal sense of the accountant's books. A file name stays as Drive or the file system writes it.
 
 export const en = {
-  newerFile: {
-    title: 'A newer version of Kuna saved this file',
-    description: 'Reload to update before you change anything. Until then the app shows the file and saves nothing to it.',
-  },
   /** The prompt that gives every ledger row without an id one. */
   rowIds: {
     title: (count: number): EnglishForms => ({ one: `${count} ledger row has no id yet`, other: `${count} ledger rows have no id yet` }),
@@ -54,10 +50,6 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  newerFile: {
-    title: 'Ovu je datoteku spremila novija verzija Kune',
-    description: 'Ponovno učitajte stranicu da se aplikacija ažurira prije nego što išta promijenite. Do tada aplikacija prikazuje datoteku i ništa u nju ne sprema.',
-  },
   rowIds: {
     title: (count) => ({ one: `${count} stavka evidencije još nema ID`, few: `${count} stavke evidencije još nemaju ID`, other: `${count} stavki evidencije još nema ID` }),
     description:

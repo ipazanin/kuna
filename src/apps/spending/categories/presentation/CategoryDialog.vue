@@ -169,7 +169,7 @@ function startDeleting(): void {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="title" :description="description">
+  <AppDialog v-model:open="open" changes :title="title" :description="description">
     <div data-testid="spending-category-dialog">
       <form v-if="deleting" id="spending-category-delete" class="flex flex-col gap-3" @submit.prevent="remove">
         <UFormField :label="words.dialog.deleteInto" :help="moving" :error="(tried && errors.target) || false">
@@ -213,7 +213,7 @@ function startDeleting(): void {
           icon="i-lucide-trash-2"
           color="error"
           :loading="writes.saving('delete')"
-          :disabled="writes.busy.value"
+          :disabled="writes.busy.value || writes.refused.value"
           data-testid="spending-category-delete"
         />
       </template>
@@ -225,7 +225,7 @@ function startDeleting(): void {
           :label="before === null ? words.dialog.add : words.dialog.save"
           :icon="before === null ? 'i-lucide-plus' : 'i-lucide-save'"
           :loading="writes.saving('save')"
-          :disabled="writes.busy.value"
+          :disabled="writes.busy.value || writes.refused.value"
           data-testid="spending-category-save"
         />
       </template>

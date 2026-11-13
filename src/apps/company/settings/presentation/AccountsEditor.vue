@@ -20,7 +20,10 @@ const props = defineProps<{
   uses: SlugUses
   /** The workbook's currency, which a blank account currency means. */
   currency: string
+  /** This form's save is running, which spins its Save. */
   saving: boolean
+  /** The file takes no changes, which switches its Save off. */
+  refused: boolean
 }>()
 
 const emit = defineEmits<{
@@ -143,8 +146,8 @@ function save(): void {
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton :label="words.accounts.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" @click="addAccount" />
     <span class="flex-1" />
-    <UButton :label="words.accounts.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = accountDraftsOf(stored)" />
-    <UButton :label="words.accounts.save" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" @click="save" />
+    <UButton :label="words.accounts.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving || refused" @click="drafts = accountDraftsOf(stored)" />
+    <UButton :label="words.accounts.save" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving || refused" @click="save" />
   </div>
 </template>
 

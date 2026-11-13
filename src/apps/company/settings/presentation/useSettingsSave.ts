@@ -16,7 +16,10 @@ export interface SettingsSave {
   readonly settings: ComputedRef<Settings>
   /** The installed pack's facts as the workbook holds them, or null without a pack that keeps any. */
   readonly facts: ComputedRef<unknown>
+  /** The settings write is running. */
   readonly saving: Readonly<Ref<boolean>>
+  /** The file takes no changes. */
+  readonly refused: Readonly<Ref<boolean>>
   /** Writes the settings a form changed. */
   save(next: Settings): Promise<void>
   /**
@@ -45,7 +48,8 @@ export function useSettingsSave(): SettingsSave {
   return {
     settings,
     facts,
-    saving: writes.busy,
+    saving: computed(() => writes.saving('save')),
+    refused: writes.refused,
     async save(next) {
       await write(changedSettings(settings.value, next))
     },

@@ -97,7 +97,14 @@ async function confirm(): Promise<void> {
     />
 
     <div v-if="held.length && (dryRun?.newRows ?? 0) > 0" class="flex justify-end">
-      <UButton :label="words.folder.confirm" icon="i-lucide-file-input" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="statement-folder-confirm" @click="confirm" />
+      <UButton
+        :label="words.folder.confirm"
+        icon="i-lucide-file-input"
+        :loading="writes.saving('save')"
+        :disabled="writes.busy.value || writes.refused.value"
+        data-testid="statement-folder-confirm"
+        @click="confirm"
+      />
     </div>
   </section>
 </template>

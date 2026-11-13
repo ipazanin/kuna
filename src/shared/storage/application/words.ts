@@ -12,6 +12,7 @@ const { named: hrNamed, namedFirst: hrFirst } = domainCroatian
 
 export const en = {
   noBooks: 'There is no workbook on screen to change.',
+  newerFile: 'This file was saved by a newer version of Kuna. Reload to update before you change anything.',
   busy: 'Changes are still saving or a sync is running. Try again when they finish.',
   moveRefused: (reason: string) =>
     `Google would not move the file out of its folder, so nothing moved and it keeps working where it is. Google's docs do not say whether an app may take a file out of a folder the app was never given, which may be why. Google said: ${reason}`,
@@ -52,6 +53,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   noBooks: 'Na zaslonu nema datoteke koja bi se mogla promijeniti.',
+  newerFile: 'Ovu je datoteku spremila novija verzija Kune. Ponovno učitajte stranicu da se aplikacija ažurira prije bilo kakve promjene.',
   busy: 'Promjene se još spremaju ili traje sinkronizacija. Pokušajte ponovno kad završe.',
   moveRefused: (reason) =>
     `Google nije htio premjestiti datoteku iz njezine mape, pa se ništa nije pomaknulo i datoteka i dalje radi tamo gdje jest. Googleova dokumentacija ne kaže smije li aplikacija izvaditi datoteku iz mape koju nikad nije dobila, a to bi mogao biti razlog. Google je rekao: ${reason}`,

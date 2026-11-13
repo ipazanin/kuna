@@ -48,7 +48,8 @@ function queueingStore() {
         })
       }),
     undo: async () => {},
-  } as unknown as Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>
+    savedByNewerApp: () => false,
+  } as unknown as Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo' | 'savedByNewerApp'>
   return { store, landings }
 }
 
@@ -160,7 +161,8 @@ describe('what a toast says of a write', () => {
         return receipt
       },
       undo: async () => {},
-    } as unknown as Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>
+      savedByNewerApp: () => false,
+    } as unknown as Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo' | 'savedByNewerApp'>
   }
 
   it('keeps a write shown at once to one row, with no line under the title', async () => {
@@ -199,7 +201,8 @@ describe('what a toast says of a write', () => {
         throw new GoogleTimedOut()
       },
       undo: async () => {},
-    } as unknown as Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>
+      savedByNewerApp: () => false,
+    } as unknown as Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo' | 'savedByNewerApp'>
     const writes = useRecordWrites(store)
     await writes.write('First', () => {})
     await writes.write('Second', () => {})

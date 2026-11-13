@@ -193,6 +193,7 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     :title="component === null ? words.componentDialog.addTitle : words.componentDialog.editTitle"
     :description="component === null ? words.componentDialog.addDescription(scenarioName(scenario), scenario.year) : words.componentDialog.editDescription(componentInWords(component))"
   >
@@ -240,7 +241,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="component-delete"
         @click="remove"
       />
@@ -253,7 +254,7 @@ async function remove(): Promise<void> {
         :label="component === null ? words.componentDialog.add : words.componentDialog.save"
         :icon="component === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="component-save"
       />
     </template>

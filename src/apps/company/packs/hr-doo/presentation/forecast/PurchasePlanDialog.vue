@@ -88,7 +88,12 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="purchase === null ? words.planDialogs.purchase.addTitle(year) : words.planDialogs.purchase.editTitle" :description="words.planDialogs.purchase.description">
+  <AppDialog
+    v-model:open="open"
+    changes
+    :title="purchase === null ? words.planDialogs.purchase.addTitle(year) : words.planDialogs.purchase.editTitle"
+    :description="words.planDialogs.purchase.description"
+  >
     <FormGrid id="purchase-plan" as="form" data-testid="purchase-plan-form" @submit.prevent="save">
       <UFormField :label="words.planDialogs.purchase.name" :error="(tried && errors.name) || false" class="sm:col-span-2">
         <UInput v-model="name" :placeholder="words.planDialogs.purchase.namePlaceholder" class="w-full" data-testid="purchase-name" />
@@ -111,7 +116,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="purchase-delete"
         @click="remove"
       />
@@ -124,7 +129,7 @@ async function remove(): Promise<void> {
         :label="purchase === null ? words.planDialogs.purchase.add : words.planDialogs.purchase.save"
         :icon="purchase === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="purchase-save"
       />
     </template>

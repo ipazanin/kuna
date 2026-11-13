@@ -26,7 +26,8 @@ import { words } from './words'
 const props = defineProps<{
   coverage: RuleCoverage<Transaction>
   categories: readonly Category[]
-  busy: boolean
+  /** Writes are running or refused, so the row's buttons stay off. */
+  off: boolean
   saving: WriteSaving
   /** How many of the groups the dismissed tab hides, for the summary. */
   dismissedCount: number
@@ -98,7 +99,7 @@ function rowsInWords(count: number): string {
               size="sm"
               :aria-label="words.coverage.dismissName(group.name)"
               :loading="saving(`dismiss-${group.name}`)"
-              :disabled="busy"
+              :disabled="off"
               data-testid="coverage-dismiss"
               @click="emit('dismiss', 'not-covered', group)"
             />
@@ -149,7 +150,7 @@ function rowsInWords(count: number): string {
               size="sm"
               :aria-label="words.coverage.dismissName(group.name)"
               :loading="saving(`dismiss-${group.name}`)"
-              :disabled="busy"
+              :disabled="off"
               data-testid="coverage-dismiss"
               @click="emit('dismiss', 'exception', group)"
             />

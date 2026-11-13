@@ -22,5 +22,5 @@ export function usePlanWrites() {
     return writes.write(title, (unit) => work(unit.of(PLAN_WRITES)), options)
   }
 
-  return { busy: writes.busy, saving: writes.saving, stored, write }
+  return { busy: writes.busy, refused: writes.refused, saving: writes.saving, stored, write }
 }

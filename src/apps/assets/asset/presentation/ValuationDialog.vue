@@ -72,7 +72,12 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="editing === null ? words.valuationDialog.addTitle : words.valuationDialog.changeTitle" :description="words.valuationDialog.description(entry.asset.name)">
+  <AppDialog
+    v-model:open="open"
+    changes
+    :title="editing === null ? words.valuationDialog.addTitle : words.valuationDialog.changeTitle"
+    :description="words.valuationDialog.description(entry.asset.name)"
+  >
     <FormGrid id="valuation" as="form" data-testid="valuation-form" @submit.prevent="save">
       <UFormField :label="words.valuationDialog.date" :error="(tried && errors.date) || false">
         <DayField v-model="date" class="w-full" data-testid="valuation-date" />
@@ -92,7 +97,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="valuation-delete"
         @click="remove"
       />
@@ -105,7 +110,7 @@ async function remove(): Promise<void> {
         :label="editing === null ? words.valuationDialog.add : words.valuationDialog.save"
         :icon="editing === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="valuation-save"
       />
     </template>

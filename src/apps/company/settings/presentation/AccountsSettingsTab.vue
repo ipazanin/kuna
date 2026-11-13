@@ -26,7 +26,6 @@ const writes = useRecordWrites(useWorkbook())
 const recordsOnScreen: RecordsOfKind = (kind) => (state.records === null ? NO_RECORDS : recordsOfKindIn(state.records, kind))
 const accountsInUse = computed(() => accountUses(recordsOnScreen))
 const accounts = computed(() => state.records?.accounts ?? NO_RECORDS)
-const saving = computed(() => writes.busy.value)
 
 function saveAccounts(made: readonly { readonly saved: number | null; readonly record: AccountRecord }[]): void {
   void writes.write(words.accounts.saved, (unit) => writeDrafts(unit.of(ACCOUNT_WRITES), storedOf(accounts.value), made), {
@@ -38,6 +37,6 @@ function saveAccounts(made: readonly { readonly saved: number | null; readonly r
 <template>
   <AppCard :title="words.accounts.title" collapse-id="settings.accounts" :summary="plural(words.accounts.count(storedCount(accounts)), storedCount(accounts))" :reveal="linked">
     <template #subtitle>{{ words.accounts.subtitle(settings.currency) }}</template>
-    <AccountsEditor :records="accounts" :uses="accountsInUse" :currency="settings.currency" :saving="saving" @save="saveAccounts" />
+    <AccountsEditor :records="accounts" :uses="accountsInUse" :currency="settings.currency" :saving="writes.saving('save')" :refused="writes.refused.value" @save="saveAccounts" />
   </AppCard>
 </template>

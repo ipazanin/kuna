@@ -127,6 +127,7 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     width="2xl"
     :title="split === null ? words.splitDialog.addTitle : words.splitDialog.changeTitle"
     :description="words.splitDialog.description(row.counterparty, dayLabel(row.date), names.account(row.account))"
@@ -180,7 +181,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="split-delete"
         @click="remove"
       />
@@ -194,7 +195,7 @@ async function remove(): Promise<void> {
         :label="split === null ? words.splitDialog.split : words.splitDialog.save"
         icon="i-lucide-save"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value || keptWhole !== null"
+        :disabled="writes.busy.value || keptWhole !== null || writes.refused.value"
         data-testid="split-save"
       />
     </template>

@@ -101,7 +101,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="entry === null ? words.assetDialog.addTitle : words.assetDialog.changeTitle" :description="words.assetDialog.description">
+  <AppDialog v-model:open="open" changes :title="entry === null ? words.assetDialog.addTitle : words.assetDialog.changeTitle" :description="words.assetDialog.description">
     <FormGrid id="asset" as="form" data-testid="asset-form" @submit.prevent="save">
       <UFormField :label="words.assetDialog.name" :error="(tried && errors.name) || false">
         <UInput v-model="name" :placeholder="words.assetDialog.namePlaceholder" class="w-full" data-testid="asset-name" />
@@ -142,7 +142,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="asset-delete"
         @click="remove"
       />
@@ -155,7 +155,7 @@ async function remove(): Promise<void> {
         :label="entry === null ? words.assetDialog.add : words.assetDialog.save"
         :icon="entry === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="asset-save"
       />
     </template>

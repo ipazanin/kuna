@@ -61,7 +61,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="words.startingDialog.title(year)" :description="words.startingDialog.description">
+  <AppDialog v-model:open="open" changes :title="words.startingDialog.title(year)" :description="words.startingDialog.description">
     <form id="starting-scenarios" class="flex flex-col gap-4" data-testid="starting-scenarios-form" @submit.prevent="save">
       <ol class="flex list-decimal flex-col gap-1 ps-5 text-sm text-toned">
         <li v-for="draft in seeded.drafts" :key="draft.slug">
@@ -85,7 +85,7 @@ async function save(): Promise<void> {
         :label="words.startingDialog.add"
         icon="i-lucide-plus"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="starting-scenarios-save"
       />
     </template>

@@ -207,6 +207,7 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     :title="editing ? words.orderDialog.changeTitle : words.orderDialog.addTitle"
     :description="editing ? words.orderDialog.changeDescription : words.orderDialog.addDescription"
     width="2xl"
@@ -283,6 +284,7 @@ async function remove(): Promise<void> {
         :label="editing ? words.dialog.save : words.dialog.add"
         :icon="editing ? 'i-lucide-save' : 'i-lucide-plus'"
         :loading="writes.saving('save')"
+        :disabled="writes.refused.value"
         data-testid="trip-order-save"
       />
     </template>

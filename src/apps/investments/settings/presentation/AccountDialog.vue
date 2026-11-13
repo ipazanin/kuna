@@ -64,7 +64,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="account === null ? text.addTitle : text.changeTitle" :description="text.description">
+  <AppDialog v-model:open="open" changes :title="account === null ? text.addTitle : text.changeTitle" :description="text.description">
     <FormGrid id="investment-account" as="form" data-testid="account-form" @submit.prevent="save">
       <UFormField :label="text.name" :help="text.nameHelp" :error="(tried && nameError) || false" class="sm:col-span-2">
         <UInput v-model="name" class="w-full" data-testid="account-name" />
@@ -81,7 +81,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="account-delete"
         @click="remove"
       />
@@ -94,7 +94,7 @@ async function remove(): Promise<void> {
         :label="account === null ? text.add : text.save"
         :icon="account === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="account-save"
       />
     </template>

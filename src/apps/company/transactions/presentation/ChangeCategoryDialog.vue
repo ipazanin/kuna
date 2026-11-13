@@ -72,7 +72,7 @@ async function change(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="words.changeDialog.title" :description="words.changeDialog.description(row.counterparty, dayLabel(row.date))">
+  <AppDialog v-model:open="open" changes :title="words.changeDialog.title" :description="words.changeDialog.description(row.counterparty, dayLabel(row.date))">
     <div class="flex flex-col gap-4" data-testid="change-category">
       <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <span class="flex min-w-0 flex-wrap items-center gap-2">
@@ -94,7 +94,14 @@ async function change(): Promise<void> {
     </div>
     <template #end>
       <UButton :label="words.changeDialog.cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton :label="words.changeDialog.change" icon="i-lucide-check" :loading="writes.saving('save')" :disabled="!changed || writes.busy.value" data-testid="change-category-save" @click="change" />
+      <UButton
+        :label="words.changeDialog.change"
+        icon="i-lucide-check"
+        :loading="writes.saving('save')"
+        :disabled="!changed || writes.busy.value || writes.refused.value"
+        data-testid="change-category-save"
+        @click="change"
+      />
     </template>
   </AppDialog>
 </template>

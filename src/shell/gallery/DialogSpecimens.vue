@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, provide, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
@@ -10,6 +10,7 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import AppCard from '../../shared/ui/AppCard.vue'
 import AppDialog from '../../shared/ui/AppDialog.vue'
+import { CHANGES_REFUSED } from '../../shared/ui/changesRefused'
 import CurrencySelect from '../../shared/ui/CurrencySelect.vue'
 import DayField from '../../shared/ui/DayField.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
@@ -21,6 +22,12 @@ import { typedAmount } from '../../shared/money/typedAmount'
 import GallerySection from './GallerySection.vue'
 
 const formOpen = ref(false)
+const refusedOpen = ref(false)
+// Only a dialog marked `changes` shows it, so the other specimens stay as they are.
+provide(
+  CHANGES_REFUSED,
+  ref({ title: 'A newer version of Kuna saved this file', description: 'Until you reload, Kuna shows this file and saves nothing to it.', reloadLabel: 'Reload', reload: () => {} }),
+)
 const tableOpen = ref(false)
 const confirmOpen = ref(false)
 const tried = ref(false)
@@ -190,6 +197,7 @@ const ROWS = [
       <UButton label="A form" color="neutral" variant="outline" data-testid="gallery-dialog-form" @click="formOpen = true" />
       <UButton label="A wide table" color="neutral" variant="outline" @click="tableOpen = true" />
       <UButton label="A confirmation" color="neutral" variant="outline" @click="confirmOpen = true" />
+      <UButton label="A form that cannot save" color="neutral" variant="outline" data-testid="gallery-dialog-refused" @click="refusedOpen = true" />
     </div>
 
     <AppDialog v-model:open="formOpen" title="Change the bank loan" description="Its terms. Rate periods and extra payments change on the loan's page.">
@@ -234,6 +242,23 @@ const ROWS = [
       </FigureTable>
       <template #end>
         <UButton label="Close" color="neutral" @click="tableOpen = false" />
+      </template>
+    </AppDialog>
+
+    <AppDialog
+      v-model:open="refusedOpen"
+      changes
+      title="Change the bank loan"
+      description="With `changes`, a dialog opens with the reason the app takes none at the top of its body, and its Save stays off."
+    >
+      <FormGrid>
+        <UFormField label="Name">
+          <UInput placeholder="Home loan" class="w-full" />
+        </UFormField>
+      </FormGrid>
+      <template #end>
+        <UButton label="Cancel" color="neutral" variant="ghost" @click="refusedOpen = false" />
+        <UButton label="Save loan" icon="i-lucide-save" disabled />
       </template>
     </AppDialog>
 

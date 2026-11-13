@@ -182,7 +182,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="account === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
+  <AppDialog v-model:open="open" changes :title="account === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
     <FormGrid id="spending-account" as="form" data-testid="spending-account-dialog" @submit.prevent="save">
       <UFormField :label="words.dialog.name" :error="(tried && errors.name) || false" class="sm:col-span-2">
         <UInput v-model="name" :placeholder="words.dialog.namePlaceholder" class="w-full" data-testid="spending-account-name" />
@@ -236,7 +236,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="spending-account-delete"
         @click="remove"
       />
@@ -247,7 +247,7 @@ async function remove(): Promise<void> {
         color="neutral"
         variant="ghost"
         :loading="writes.saving('close')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="spending-account-close"
         @click="closeOrReopen"
       />
@@ -261,7 +261,7 @@ async function remove(): Promise<void> {
         :icon="account === null ? 'i-lucide-plus' : cutover !== null ? 'i-lucide-trash-2' : 'i-lucide-save'"
         :color="cutover !== null ? 'error' : 'primary'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="spending-account-save"
       />
     </template>

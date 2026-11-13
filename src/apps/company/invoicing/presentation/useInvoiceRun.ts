@@ -269,6 +269,12 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     return picked.id
   }
 
+  /** Why the store would refuse the register row now, as a newer file would, or null. Asked before the PDF or the draft is filed, so a refused run files nothing. */
+  async function refusalOfChanges(): Promise<string | null> {
+    const asked = await store.check(words.run.added, () => {})
+    return asked.status === 'refused' ? asked.reason : null
+  }
+
   /**
    * The checks before anything is written: a fresh read of the file, the number free on the
    * register, the path's folders found, and no file of the name in view. Run it from a click,
@@ -277,6 +283,11 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   async function check(): Promise<void> {
     stage.value = { kind: 'checking' }
     try {
+      const refusedAtFirst = await refusalOfChanges()
+      if (refusedAtFirst !== null) {
+        stage.value = { kind: 'edit', message: refusedAtFirst }
+        return
+      }
       const drive = google.value ? await invoiceDrive() : null
       if (drive !== null) {
         await store.sync()
@@ -353,6 +364,13 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
   async function make(): Promise<void> {
     const ready = stage.value
     if (ready.kind !== 'ready' && plan === null) return
+    if (plan === null) {
+      const refused = await refusalOfChanges()
+      if (refused !== null) {
+        stage.value = { kind: 'edit', message: refused }
+        return
+      }
+    }
     const wantsDraft = google.value && mailDraft.value
     stage.value = { kind: 'running' }
     let drafts = null

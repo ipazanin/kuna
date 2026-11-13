@@ -111,7 +111,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="words.targets.set" :description="text.description" width="xl">
+  <AppDialog v-model:open="open" changes :title="words.targets.set" :description="text.description" width="xl">
     <FormGrid id="targets" as="form" data-testid="targets-form" @submit.prevent="save">
       <ChoiceButtons v-model="mix" :options="MIX_OPTIONS" :label="text.mix" class="sm:col-span-2" data-testid="targets-mix" />
       <UFormField v-for="group in groups" :key="`${mix}|${group}`" :label="groupName(mix, group, book)" :error="tried && percentOf(group) === undefined ? text.percentError : false">
@@ -132,14 +132,14 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="targets-remove"
         @click="remove"
       />
     </template>
     <template #end>
       <UButton :label="text.cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton type="submit" form="targets" :label="text.save" icon="i-lucide-save" :loading="writes.saving('save')" :disabled="writes.busy.value" data-testid="targets-save" />
+      <UButton type="submit" form="targets" :label="text.save" icon="i-lucide-save" :loading="writes.saving('save')" :disabled="writes.busy.value || writes.refused.value" data-testid="targets-save" />
     </template>
   </AppDialog>
 </template>

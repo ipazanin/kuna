@@ -126,6 +126,11 @@ export const en = {
       besideCopy: 'What this browser kept with it is deleted.',
     },
   },
+  newerFile: {
+    title: 'A newer version of Kuna saved this file',
+    description: 'Until you reload, Kuna shows this file and saves nothing to it.',
+    reload: 'Reload',
+  },
   booksFile: {
     inBrowser: 'Kept in this browser. Your exported files are its only other copies.',
     lastChanged: (stamp: string) => `Last changed ${stamp}. `,
@@ -285,6 +290,11 @@ export const hr: Translation<typeof en> = {
       browserCopy: 'Kopija u ovom pregledniku je obrisana.',
       besideCopy: 'Ono što je ovaj preglednik uz nju čuvao je obrisano.',
     },
+  },
+  newerFile: {
+    title: 'Ovu je datoteku spremila novija verzija Kune',
+    description: 'Dok ne učitate ponovno, Kuna prikazuje datoteku i ništa u nju ne sprema.',
+    reload: 'Učitaj ponovno',
   },
   booksFile: {
     inBrowser: 'Čuva se u ovom pregledniku. Datoteke koje izvezete njezine su jedine druge kopije.',

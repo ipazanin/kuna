@@ -46,7 +46,10 @@ const props = defineProps<{
   classHelp: (role: string) => CategoryClassHelp | null
   /** Whether the owner share shows, which it does while the owner-pay module is on. */
   shares: boolean
+  /** This form's save is running, which spins its Save. */
   saving: boolean
+  /** The file takes no changes, which switches its Save off. */
+  refused: boolean
 }>()
 
 const emit = defineEmits<{
@@ -418,8 +421,8 @@ function save(): void {
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton :label="words.categories.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-category" @click="addCategory" />
     <span class="flex-1" />
-    <UButton :label="words.categories.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="discard" />
-    <UButton :label="words.categories.save" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving" data-testid="save-categories" @click="save" />
+    <UButton :label="words.categories.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving || refused" @click="discard" />
+    <UButton :label="words.categories.save" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || errors.size > 0 || saving || refused" data-testid="save-categories" @click="save" />
   </div>
 </template>
 

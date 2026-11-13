@@ -25,7 +25,7 @@ import { words } from './words'
 const store = useWorkbook()
 const { state } = store
 const writes = useRecordWrites(store)
-const busy = computed(() => writes.busy.value)
+const off = computed(() => writes.busy.value || writes.refused.value)
 
 /** The tab has no filters, so the rows no rule repeats come from the whole ledger. */
 const coverage = computed(() => {
@@ -72,13 +72,13 @@ function restore(dismissal: Dismissal): void {
     <RuleCoverage
       :coverage="coverage.coverage"
       :categories="state.workbook.categories"
-      :busy="busy"
+      :off="off"
       :saving="writes.saving"
       :dismissed-count="hiddenGroups"
       @make-rule="makeRuleForGroup"
       @dismiss="dismiss"
     />
-    <DismissedSuggestions v-if="coverage.dismissed.length" :dismissed="coverage.dismissed" :categories="state.workbook.categories" :busy="busy" :saving="writes.saving" @restore="restore" />
+    <DismissedSuggestions v-if="coverage.dismissed.length" :dismissed="coverage.dismissed" :categories="state.workbook.categories" :off="off" :saving="writes.saving" @restore="restore" />
     <RuleEditor v-model:open="editorOpen" :source="editorSource" />
   </div>
 </template>

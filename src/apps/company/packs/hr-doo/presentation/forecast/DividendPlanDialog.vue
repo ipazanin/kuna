@@ -80,7 +80,12 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="dividend === null ? words.planDialogs.dividend.addTitle(year) : words.planDialogs.dividend.editTitle" :description="words.planDialogs.dividend.description">
+  <AppDialog
+    v-model:open="open"
+    changes
+    :title="dividend === null ? words.planDialogs.dividend.addTitle(year) : words.planDialogs.dividend.editTitle"
+    :description="words.planDialogs.dividend.description"
+  >
     <FormGrid id="dividend-plan" as="form" data-testid="dividend-plan-form" @submit.prevent="save">
       <UFormField :label="words.planDialogs.dividend.amount" :error="(tried && invalid && words.planDialogs.dividend.amountError) || false">
         <UInput v-model="amount" inputmode="decimal" :placeholder="words.planDialogs.amountPlaceholder" class="w-full" data-testid="dividend-amount" />
@@ -100,7 +105,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="dividend-delete"
         @click="remove"
       />
@@ -113,7 +118,7 @@ async function remove(): Promise<void> {
         :label="dividend === null ? words.planDialogs.dividend.add : words.planDialogs.dividend.save"
         :icon="dividend === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="dividend-save"
       />
     </template>

@@ -217,7 +217,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="draft?.editing ? words.editor.editTitle : words.editor.addTitle" :description="words.editor.description" width="3xl">
+  <AppDialog v-model:open="open" changes :title="draft?.editing ? words.editor.editTitle : words.editor.addTitle" :description="words.editor.description" width="3xl">
     <div class="grid gap-4 @2xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] @2xl:items-start" data-testid="scenario-editor">
       <form id="scenario-editor" class="flex min-w-0 flex-col gap-4" @submit.prevent="save">
         <OfferTermsFields v-model="offer" v-model:more-open="moreOpen" :tried="tried" :errors="offerErrors(typed.faults)" :auto-name="autoName" :more-wrong="moreWrong">
@@ -276,7 +276,15 @@ async function save(): Promise<void> {
     </template>
     <template #end>
       <UButton :label="loansWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton type="submit" form="scenario-editor" :label="words.editor.save" icon="i-lucide-save" :loading="writes.busy.value" :disabled="writes.busy.value" data-testid="scenario-save" />
+      <UButton
+        type="submit"
+        form="scenario-editor"
+        :label="words.editor.save"
+        icon="i-lucide-save"
+        :loading="writes.saving('save')"
+        :disabled="writes.busy.value || writes.refused.value"
+        data-testid="scenario-save"
+      />
     </template>
   </AppDialog>
 </template>

@@ -45,6 +45,8 @@ let failedOnDriveSoFar: readonly { readonly title: string; readonly again: () =>
 export interface RecordWrites {
   /** True while a write of this composable waits or runs. */
   readonly busy: Readonly<Ref<boolean>>
+  /** True while the file on screen was saved by a newer Kuna, so no write goes through. A Save is disabled by `busy` or `refused`, and spins only for `saving`. */
+  readonly refused: Readonly<Ref<boolean>>
   /** True while the write that `key` names waits or runs, for the control that started it to spin, even on a screen left and reopened. An undo is under `undo-` and the write's id. */
   readonly saving: WriteSaving
   /**
@@ -63,10 +65,11 @@ export interface RecordWrites {
  * Record writes to the store's file with their toasts: what was written with Undo beside it, or why nothing was. A write or an undo
  * that finds the page's Google access lapsed, as on a phone, asks Google and goes again.
  */
-export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo'>): RecordWrites {
+export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 'write' | 'undo' | 'savedByNewerApp'>): RecordWrites {
   const toast = useToast()
   const running = ref(0)
   const busy = computed(() => running.value > 0)
+  const fileRefused = computed(() => store.savedByNewerApp())
   composablesMade += 1
   const ownSaveKey = `save-${composablesMade}`
   const queueKey = (key: string): string => (key === SAVE_KEY ? ownSaveKey : key)
@@ -153,5 +156,5 @@ export function useRecordWrites(store: Pick<WorkbookStore<BooksRead>, 'state' | 
     }
   }
 
-  return { busy, saving, write, announce, undo }
+  return { busy, refused: fileRefused, saving, write, announce, undo }
 }

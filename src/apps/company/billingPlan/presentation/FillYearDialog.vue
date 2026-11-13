@@ -56,7 +56,7 @@ async function write(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="title" :description="words.fill.description">
+  <AppDialog v-model:open="open" changes :title="title" :description="words.fill.description">
     <div class="flex flex-col gap-3" data-testid="fill-preview">
       <p v-if="fill.kind === 'refused'" class="text-sm text-toned">
         {{ fill.reason }} {{ words.fill.termsAreOn }} <DrillLink :to="TERMS_LINK" in-prose class="text-highlighted" @click="open = false">{{ words.fill.clientsTab }}</DrillLink
@@ -92,7 +92,7 @@ async function write(): Promise<void> {
         :label="rows.length === 0 ? words.fill.addRows : plural(words.fill.addCount(rows.length), rows.length)"
         icon="i-lucide-calendar-plus"
         :loading="writes.saving('save')"
-        :disabled="rows.length === 0 || writes.busy.value"
+        :disabled="rows.length === 0 || writes.busy.value || writes.refused.value"
         data-testid="fill-write"
         @click="write"
       />

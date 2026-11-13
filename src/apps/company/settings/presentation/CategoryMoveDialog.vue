@@ -82,6 +82,7 @@ async function confirm(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     :title="words.categories.moveAndDelete.title(category === null ? '' : names.category(category.slug))"
     :description="keptBy ? undefined : words.categories.moveAndDelete.savesAtOnce"
   >
@@ -120,7 +121,7 @@ async function confirm(): Promise<void> {
           icon="i-lucide-trash-2"
           color="error"
           :loading="writes.saving(DELETE_KEY)"
-          :disabled="target === null"
+          :disabled="target === null || writes.refused.value"
           data-testid="confirm-category-move"
         />
       </template>

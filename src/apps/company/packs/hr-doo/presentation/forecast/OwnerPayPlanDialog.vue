@@ -102,7 +102,7 @@ async function clear(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="words.planDialogs.ownerPay.title(year)" :description="words.planDialogs.ownerPay.description">
+  <AppDialog v-model:open="open" changes :title="words.planDialogs.ownerPay.title(year)" :description="words.planDialogs.ownerPay.description">
     <form id="owner-pay-plan" class="flex flex-col gap-4" data-testid="owner-pay-plan-form" @submit.prevent="save">
       <UFormField :label="words.planDialogs.ownerPay.fromJanuary" :error="(tried && errors.first) || false">
         <USelect v-model="first" :items="choices" class="w-full" data-testid="owner-pay-first" />
@@ -131,7 +131,7 @@ async function clear(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="owner-pay-clear"
         @click="clear"
       />
@@ -144,7 +144,7 @@ async function clear(): Promise<void> {
         :label="words.planDialogs.ownerPay.save"
         icon="i-lucide-save"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="owner-pay-save"
       />
     </template>

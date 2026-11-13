@@ -18,7 +18,10 @@ import { useDraftOf } from '../../../../shared/ui/useDraftOf'
 /** The billing plan's terms and what an invoice prints, as rows of the settings tab. */
 const props = defineProps<{
   settings: Settings
+  /** This form's save is running, which spins its Save. */
   saving: boolean
+  /** The file takes no changes, which switches its Save off. */
+  refused: boolean
   /** The clients the billing plan can fill rows for. */
   clients: readonly { readonly slug: string; readonly name: string }[]
   /** The item kinds the outgoing-plan tab already uses, so a term names one exactly as the tab writes it. */
@@ -202,8 +205,8 @@ function updateInvoicing(field: InvoicingField, value: string): void {
     </fieldset>
 
     <div class="flex flex-wrap items-center gap-2">
-      <UButton type="submit" :label="words.terms.save" icon="i-lucide-save" :loading="saving" :disabled="!dirty || !valid || saving" data-testid="terms-save" />
-      <UButton :label="words.terms.discard" color="neutral" variant="ghost" :disabled="!dirty || saving" @click="draft = settings" />
+      <UButton type="submit" :label="words.terms.save" icon="i-lucide-save" :loading="saving" :disabled="!dirty || !valid || saving || refused" data-testid="terms-save" />
+      <UButton :label="words.terms.discard" color="neutral" variant="ghost" :disabled="!dirty || saving || refused" @click="draft = settings" />
     </div>
   </form>
 </template>

@@ -134,7 +134,8 @@ async function importNow(): Promise<void> {
         v-if="dryRun && dryRun.newRows > 0"
         :label="dryRun.accounts.length ? words.statement.addAndImport : words.statement.import"
         icon="i-lucide-file-input"
-        :loading="writes.busy.value"
+        :loading="writes.saving('save')"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="onboarding-import"
         @click="importNow"
       />

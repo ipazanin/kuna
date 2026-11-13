@@ -105,7 +105,7 @@ async function save(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="words.settlementDialog.title" :description="words.settlementDialog.description" width="2xl">
+  <AppDialog v-model:open="open" changes :title="words.settlementDialog.title" :description="words.settlementDialog.description" width="2xl">
     <FormGrid id="trip-settlement" as="form" data-testid="trip-settlement-form" @submit.prevent="save">
       <UFormField :label="words.settlementDialog.left" :error="(tried && errors.left) || false">
         <UInput v-model="fields.left" type="datetime-local" class="w-full" data-testid="trip-left" />
@@ -151,7 +151,15 @@ async function save(): Promise<void> {
     </FormGrid>
     <template #end>
       <UButton :label="words.dialog.cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton type="submit" form="trip-settlement" :label="words.dialog.save" icon="i-lucide-save" :loading="writes.saving('save')" data-testid="trip-settlement-save" />
+      <UButton
+        type="submit"
+        form="trip-settlement"
+        :label="words.dialog.save"
+        icon="i-lucide-save"
+        :loading="writes.saving('save')"
+        :disabled="writes.refused.value"
+        data-testid="trip-settlement-save"
+      />
     </template>
   </AppDialog>
 </template>

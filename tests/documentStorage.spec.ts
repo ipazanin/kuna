@@ -147,11 +147,25 @@ describe.each([
     const harness = await harnessOf(used, books({ category: CATEGORIES }, { core: 2, 'hr-doo': 1 }))
     const before = await harness.held()
 
+    expect(harness.store.savedByNewerApp()).toBe(true)
+    const software = category(harness.store, 'software')
+    const checked = await harness.store.check('Categories saved', (unit) => unit.of(CATEGORY_WRITES).change(software, { ...software, label: 'Software' }))
+    expect(checked).toEqual({ status: 'refused', reason: NEWER_FILE })
     expect(harness.store.state.workbook?.categories.map((held) => held.slug)).toEqual(['revenue', 'software'])
     await expect(label(harness.store, 'software', 'Software')).rejects.toThrow(new WorkbookWriteRefused(NEWER_FILE))
 
     expect(await harness.held()).toEqual(before)
     expect(harness.drive?.requests.filter((request) => request === 'upload') ?? []).toEqual([])
+  })
+
+  it('keeps a file a newer app saved in this browser when an import would replace it', async () => {
+    const { store, held } = await browserHarness(used, books({ category: CATEGORIES }, { core: 2, 'hr-doo': 1 }))
+    const before = await held()
+
+    await store.replaceLocalWorkbook(books({ category: [CATEGORIES[0]!] }), 'Imported')
+
+    expect(store.state.error).toBe(NEWER_FILE)
+    expect(await held()).toEqual(before)
   })
 
   it('treats a file with a contributor this app lacks as saved by a newer app', async () => {

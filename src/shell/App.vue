@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch, watchEffect } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, provide, ref, watch, watchEffect } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import UApp from '@nuxt/ui/components/App.vue'
 import { en_gb, hr } from '@nuxt/ui/locale'
@@ -9,16 +9,20 @@ import { resumedBy } from '../shared/google/googleRedirect'
 import type { RedirectReturn } from '../shared/google/googleRedirect'
 import { DEFAULT_MONEY_FORMAT, setMoneyFormat } from '../shared/money/moneyFormat'
 import { startRates } from '../shared/rates/application/pageRates'
+import { words as storageWords } from '../shared/storage/presentation/words'
+import NewerFileNotice from '../shared/storage/presentation/NewerFileNotice.vue'
 import { language } from '../shared/text/language'
 import { startPageSync } from '../shared/sync/presentation/pageSync'
 import { appAt, firstRunAt, installedApps } from './routing/appRegistry'
 import { screenLoading } from './routing/router'
+import { useAppUpdate } from './pwa/appUpdate'
 import { keepPageSynced } from './sync/keepPageSynced'
 import TopBarSync from './sync/TopBarSync.vue'
 import AppShell from './ui/AppShell.vue'
 import { navigationOf } from './ui/navigation'
 import QuickJump from './ui/QuickJump.vue'
 import ScreenNavigation from './ui/ScreenNavigation.vue'
+import { CHANGES_REFUSED } from '../shared/ui/changesRefused'
 import ScreenSkeleton from '../shared/ui/ScreenSkeleton.vue'
 import UpdatePrompt from './ui/UpdatePrompt.vue'
 import { warnWhileSaving } from './ui/warnWhileSaving'
@@ -52,9 +56,18 @@ function togglePages(appId: string): void {
 const navigation = computed(() => navigationOf(installedApps(), openApp.value, route.meta.under ?? null))
 const quickJumpOpen = ref(false)
 
+const { applyUpdate } = useAppUpdate()
 const pageSync = startPageSync(installedApps())
 /** The sync or export control has nothing to show until some app has a file, so its place stays out of the shell too. */
 const someFileChosen = computed(() => pageSync.groups.some((group) => group.store.state.choice !== null))
+/** The app on screen has a file a newer Kuna saved, which this version reads and never writes. */
+const newerFileOnScreen = computed(() => pageSync.groups.find((group) => group.app === appOnScreen.value?.id)?.store.savedByNewerApp() ?? false)
+provide(
+  CHANGES_REFUSED,
+  computed(() =>
+    newerFileOnScreen.value ? { title: storageWords.newerFile.title, description: storageWords.newerFile.description, reloadLabel: storageWords.newerFile.reload, reload: applyUpdate } : null,
+  ),
+)
 // Each app resumes only the find or pick it asked Google for, and the page's sync resumes after them.
 const stops = [
   ...installedApps().map((app) => app.start(router, resumedBy(props.googleReturn, app.id))),
@@ -102,6 +115,7 @@ const uiLocale = language === 'hr' ? hr : en_gb
       @drawer-closed="followAddress"
       @quick-jump="quickJumpOpen = true"
     >
+      <NewerFileNotice v-if="newerFileOnScreen" class="mb-4" @reload="applyUpdate" />
       <RouterView v-slot="{ Component }">
         <ScreenSkeleton v-if="screenLoading || !Component" />
         <component :is="Component" v-else />

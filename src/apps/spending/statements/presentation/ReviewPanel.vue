@@ -205,11 +205,11 @@ async function undoPair(legs: TransferPair): Promise<void> {
       </ul>
     </AppCard>
     <WaitingReceiptsCard v-if="receipts.length > 0 && !receiptsAsk" ref="receiptsBelow" :waiting="receipts" />
-    <AppDialog v-model:open="ruleDialogOpen" :title="words.review.always" :description="askedRule === null ? undefined : `${ruleTestOf(askedRule.condition)} → ${askedRule.category.name}`">
+    <AppDialog v-model:open="ruleDialogOpen" changes :title="words.review.always" :description="askedRule === null ? undefined : `${ruleTestOf(askedRule.condition)} → ${askedRule.category.name}`">
       <p class="text-sm text-highlighted" data-testid="spending-rule-files">{{ plural(words.rules.files(rowsFiled), rowsFiled) }}</p>
       <template #end>
         <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" data-testid="spending-rule-cancel" @click="ruleDialogOpen = false" />
-        <UButton :label="words.rules.confirm" icon="i-lucide-list-plus" :loading="writes.saving('make-rule')" data-testid="spending-rule-confirm" @click="makeRule" />
+        <UButton :label="words.rules.confirm" icon="i-lucide-list-plus" :loading="writes.saving('make-rule')" :disabled="writes.refused.value" data-testid="spending-rule-confirm" @click="makeRule" />
       </template>
     </AppDialog>
   </div>

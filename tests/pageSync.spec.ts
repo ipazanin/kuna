@@ -26,7 +26,7 @@ function appOf(id: string, source: 'drive' | 'browser' | null, scopes: readonly 
     writes: [],
   })
   const group: AppSyncGroup = {
-    store: { state: state as AppSyncGroup['store']['state'], open: async () => {}, sync: async () => {}, canSyncSilently: () => false },
+    store: { state: state as AppSyncGroup['store']['state'], open: async () => {}, sync: async () => {}, canSyncSilently: () => false, savedByNewerApp: () => false },
     steps: () => steps,
     needs: () => [{ scope: 'drive.file', label: 'Books' }, ...(state.workbook === null ? [] : scopes.map((scope) => ({ scope, label: id })))],
     undo: async () => {},

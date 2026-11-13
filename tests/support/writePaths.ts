@@ -33,6 +33,7 @@ export const NOT_FILE_ACTIONS = [
   'check',
   'undo',
   'settled',
+  'savedByNewerApp',
 ] as const
 
 const FILE_ACTION_NAMES = new Set<string>(FILE_ACTIONS)

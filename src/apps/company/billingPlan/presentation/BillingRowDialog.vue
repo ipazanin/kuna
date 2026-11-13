@@ -121,6 +121,7 @@ async function remove(): Promise<void> {
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     :title="row === null ? words.dialog.addTitle : words.dialog.editTitle"
     :description="row === null ? words.dialog.addDescription : words.dialog.editDescription(named(row))"
   >
@@ -158,7 +159,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="billing-row-delete"
         @click="remove"
       />
@@ -171,7 +172,7 @@ async function remove(): Promise<void> {
         :label="row === null ? words.dialog.add : words.dialog.save"
         :icon="row === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
       />
     </template>
   </AppDialog>

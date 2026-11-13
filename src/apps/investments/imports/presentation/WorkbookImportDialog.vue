@@ -127,7 +127,7 @@ async function importWorkbook(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="report?.words.title ?? words.title" :description="report?.words.description ?? words.description" width="3xl" :dismissible="!writes.busy.value">
+  <AppDialog v-model:open="open" changes :title="report?.words.title ?? words.title" :description="report?.words.description ?? words.description" width="3xl" :dismissible="!writes.busy.value">
     <div ref="top" class="flex flex-col gap-5" data-testid="workbook-import" :data-step="shown">
       <p class="type-label" aria-live="polite" data-testid="workbook-import-step">{{ words.stepOf(place + 1, steps.length, words.steps[shown]) }}</p>
       <div v-if="splitsLookup" class="flex flex-col gap-2" data-testid="import-splits-lookup">
@@ -154,7 +154,7 @@ async function importWorkbook(): Promise<void> {
         :label="report?.words.accept ?? words.import"
         icon="i-lucide-file-input"
         :loading="writes.saving('save')"
-        :disabled="!writesSomething || writes.busy.value"
+        :disabled="!writesSomething || writes.busy.value || writes.refused.value"
         data-testid="workbook-import-confirm"
         @click="importWorkbook"
       />

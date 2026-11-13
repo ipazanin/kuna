@@ -19,7 +19,7 @@ import { words } from './words'
 import { useSettingsSave } from './useSettingsSave'
 
 const { state } = useWorkbook()
-const { settings, facts: packFacts, saving: savingSettings, saveGeneral } = useSettingsSave()
+const { settings, facts: packFacts, saving: savingSettings, refused, saveGeneral } = useSettingsSave()
 const pack = computed(() => shownPack(settings.value))
 const writes = useRecordWrites(useWorkbook())
 
@@ -43,13 +43,11 @@ function removeKey(key: string): void {
     key: `delete-${key}`,
   })
 }
-
-const saving = computed(() => writes.busy.value)
 </script>
 
 <template>
   <div v-if="state.workbook" class="flex flex-col gap-6">
-    <GeneralSettingsForm :settings="settings" :facts="packFacts" :saving="savingSettings" @save="saveGeneral" />
+    <GeneralSettingsForm :settings="settings" :facts="packFacts" :saving="savingSettings" :refused="refused" @save="saveGeneral" />
     <component :is="card" v-for="(card, index) in pack.settingsCards" :key="index" />
     <AppCard
       :title="words.problems.title"
@@ -71,7 +69,7 @@ const saving = computed(() => writes.busy.value)
               size="sm"
               class="self-start sm:self-auto"
               :loading="writes.saving(`delete-${problem.label}`)"
-              :disabled="saving"
+              :disabled="writes.busy.value || writes.refused.value"
               :aria-label="words.problems.removeKeyNamed(problem.label)"
               data-testid="remove-setting"
               @click="removeKey(problem.label)"

@@ -38,7 +38,6 @@ const classes = installedPack().workbook?.categoryClasses ?? []
 const sharesOn = computed(() => classSharesDay(state.workbook))
 const classHelp = (role: string) => installedPack().categoryClassHelp(role, sharesOn.value)
 const categories = computed(() => state.records?.categories ?? NO_RECORDS)
-const saving = computed(() => writes.busy.value)
 
 const moved = ref<CategoryRecord | null>(null)
 const moveOpen = ref(false)
@@ -106,7 +105,8 @@ function writeCategories(made: MadeCategories, fills: readonly ShareFill[]): voi
       :classes="classes"
       :class-help="classHelp"
       :shares="settings.ownerPayModule"
-      :saving="saving"
+      :saving="writes.saving('save')"
+      :refused="writes.refused.value"
       @save="saveCategories"
       @move-and-delete="moveAndDelete"
     />

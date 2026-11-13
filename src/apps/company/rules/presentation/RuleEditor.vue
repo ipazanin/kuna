@@ -119,6 +119,7 @@ const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).m
 <template>
   <AppDialog
     v-model:open="open"
+    changes
     width="3xl"
     :title="deleting && source?.edited ? words.editor.deleteTitle(source.edited.id) : (source?.title ?? words.editor.rule)"
     :description="deleting ? words.editor.deleteDescription : words.editor.formDescription"
@@ -172,7 +173,7 @@ const bucketBySlug = computed(() => new Map((state.workbook?.categories ?? []).m
           :label="source?.edited ? words.editor.save : words.editor.add"
           icon="i-lucide-save"
           :loading="recordWrites.saving(SAVE_RULE_KEY)"
-          :disabled="!canSave"
+          :disabled="!canSave || recordWrites.refused.value"
           data-testid="save-rule"
           @click="save"
         />

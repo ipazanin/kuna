@@ -133,7 +133,7 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="book === null ? words.loanDialog.addTitle : words.loanDialog.changeTitle" :description="words.loanDialog.description">
+  <AppDialog v-model:open="open" changes :title="book === null ? words.loanDialog.addTitle : words.loanDialog.changeTitle" :description="words.loanDialog.description">
     <FormGrid id="informal-loan" as="form" data-testid="informal-loan-form" @submit.prevent="save">
       <UFormField :label="words.loanDialog.name" :error="(tried && errors.name) || false">
         <UInput v-model="name" :placeholder="words.loanDialog.namePlaceholder" class="w-full" data-testid="informal-loan-name" />
@@ -172,7 +172,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="informal-loan-delete"
         @click="remove"
       />
@@ -185,7 +185,7 @@ async function remove(): Promise<void> {
         :label="book === null ? words.loanDialog.add : words.loanDialog.save"
         :icon="book === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="informal-loan-save"
       />
     </template>

@@ -41,6 +41,8 @@ const open = computed({
 })
 
 const replacesLocal = computed(() => store.state.choice?.source === 'browser')
+/** The file kept here is a newer Kuna's, which a replacement would overwrite with records it cannot read. */
+const fileRefused = computed(() => replacesLocal.value && store.savedByNewerApp())
 const keepable = computed(() => preview.value !== null && preview.value.summary.refusal === null && !importing.value)
 
 async function keepInBrowser(): Promise<void> {
@@ -70,7 +72,7 @@ async function keepOnGoogleDrive(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" width="xl" :title="file ? words.dialog.title(file.name) : words.dialog.titleWithoutFile" :description="words.dialog.description" :dismissible="!importing">
+  <AppDialog v-model:open="open" changes width="xl" :title="file ? words.dialog.title(file.name) : words.dialog.titleWithoutFile" :description="words.dialog.description" :dismissible="!importing">
     <ImportSummary :preview="preview" :failure="failure ?? keepFailure" :failure-detail="failure === null ? '' : failureDetail">
       <UAlert v-if="replacesLocal" icon="i-lucide-replace" color="warning" variant="subtle" :title="words.dialog.replaces" :description="words.dialog.replacesDescription" />
       <p v-if="signInByRedirect" class="text-xs text-muted" data-testid="redirect-sign-in-note">
@@ -79,7 +81,15 @@ async function keepOnGoogleDrive(): Promise<void> {
     </ImportSummary>
     <template #end>
       <UButton :label="words.dialog.cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton icon="i-lucide-monitor-smartphone" :label="words.dialog.keepInBrowser" color="neutral" variant="outline" :loading="importing" :disabled="!keepable" @click="keepInBrowser" />
+      <UButton
+        icon="i-lucide-monitor-smartphone"
+        :label="words.dialog.keepInBrowser"
+        color="neutral"
+        variant="outline"
+        :loading="importing"
+        :disabled="!keepable || fileRefused"
+        @click="keepInBrowser"
+      />
       <UButton icon="i-lucide-hard-drive-upload" :label="words.dialog.keepOnDrive" :disabled="!keepable" @click="keepOnGoogleDrive" />
     </template>
   </AppDialog>

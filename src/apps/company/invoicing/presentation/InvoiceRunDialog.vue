@@ -30,6 +30,7 @@ const props = defineProps<{
 }>()
 
 const store = useWorkbook()
+const fileRefused = computed(() => store.savedByNewerApp())
 const run = useInvoiceRun(toRef(props, 'mode'))
 const { stage, steps } = run
 
@@ -87,7 +88,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
 </script>
 
 <template>
-  <AppDialog v-model:open="open" width="2xl" :title="title" :description="description" :dismissible="!running">
+  <AppDialog v-model:open="open" changes width="2xl" :title="title" :description="description" :dismissible="!running">
     <div class="flex flex-col gap-5" data-testid="invoice-run">
       <UAlert
         v-if="stage.kind === 'edit' && stage.message"
@@ -221,7 +222,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
           :label="words.run.check"
           icon="i-lucide-list-checks"
           :loading="stage.kind === 'checking'"
-          :disabled="running || run.problems.value.length > 0"
+          :disabled="running || run.problems.value.length > 0 || fileRefused"
           data-testid="invoice-run-check"
           @click="run.check()"
         />
@@ -240,7 +241,7 @@ const offerCompose = computed(() => stage.value.kind === 'finished' && !run.fail
       </template>
       <template v-else-if="stage.kind === 'ready'">
         <UButton :label="words.run.back" color="neutral" variant="ghost" @click="run.back()" />
-        <UButton :label="reexport ? words.run.reexport : words.run.makeInvoice" icon="i-lucide-send-horizontal" data-testid="invoice-run-make" @click="run.make()" />
+        <UButton :label="reexport ? words.run.reexport : words.run.makeInvoice" icon="i-lucide-send-horizontal" data-testid="invoice-run-make" :disabled="fileRefused" @click="run.make()" />
       </template>
       <template v-else>
         <UButton

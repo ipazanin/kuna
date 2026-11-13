@@ -117,7 +117,7 @@ async function end(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="heldLimit > 0 ? words.dialog.changeTitle : words.dialog.title" :description="words.dialog.description">
+  <AppDialog v-model:open="open" changes :title="heldLimit > 0 ? words.dialog.changeTitle : words.dialog.title" :description="words.dialog.description">
     <FormGrid id="spending-limit" as="form" data-testid="spending-limit-dialog" @submit.prevent="save">
       <UFormField :label="words.dialog.category" :error="(tried && errors.category) || false" class="sm:col-span-2">
         <USelect v-model="picked" :items="categoryItems" :placeholder="words.dialog.aCategory" class="w-full" data-testid="spending-limit-category" />
@@ -137,14 +137,22 @@ async function end(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('end')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="spending-limit-end"
         @click="end"
       />
     </template>
     <template #end>
       <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
-      <UButton type="submit" form="spending-limit" :label="words.dialog.save" icon="i-lucide-save" :loading="writes.saving('save')" :disabled="writes.busy.value" data-testid="spending-limit-save" />
+      <UButton
+        type="submit"
+        form="spending-limit"
+        :label="words.dialog.save"
+        icon="i-lucide-save"
+        :loading="writes.saving('save')"
+        :disabled="writes.busy.value || writes.refused.value"
+        data-testid="spending-limit-save"
+      />
     </template>
   </AppDialog>
 </template>

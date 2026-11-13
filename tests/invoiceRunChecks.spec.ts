@@ -15,6 +15,10 @@ import { exampleStudio } from './fixtures/exampleStudio'
 const store = vi.hoisted(() => ({
   state: null as unknown as { workbook: Workbook | null; snapshot: null; status: string; error: string | null },
   sync: async (): Promise<void> => undefined,
+  refusal: null as string | null,
+  async check(): Promise<{ status: 'refused'; reason: string } | { status: 'nothingToChange' }> {
+    return store.refusal === null ? { status: 'nothingToChange' } : { status: 'refused', reason: store.refusal }
+  },
   written: [] as Invoice[],
   async write(_title: string, work: (unit: UnitOfWork) => void): Promise<null> {
     const kept = (record: unknown) => store.written.push(record as Invoice)
@@ -69,6 +73,7 @@ describe('the checks before an invoice is made', () => {
     store.state = reactive({ workbook: googleWorkbook(), snapshot: null, status: 'ready', error: null })
     store.sync = async () => undefined
     store.written = []
+    store.refusal = null
     google.session = createFakeInvoiceGoogle((_title, offered) => offered, 2026)
     void google.session.drive.pickFolders(null, 'Pick the invoice folder')
   })
@@ -89,6 +94,31 @@ describe('the checks before an invoice is made', () => {
     await run.make()
 
     expect(store.written.map((invoice) => invoice.number)).toEqual(['10-1-26'])
+    run.dispose()
+  })
+
+  it('files nothing when the store refuses a write, as it does for a file a newer Kuna saved', async () => {
+    const run = openedRun()
+    await run.check()
+    expect(run.stage.value.kind).toBe('ready')
+    store.refusal = 'Saved by a newer version.'
+
+    await run.make()
+
+    expect(run.stage.value).toEqual({ kind: 'edit', message: 'Saved by a newer version.' })
+    expect(google.session.nodes.filter((node) => node.pdf !== undefined)).toEqual([])
+    expect(google.session.savedDrafts).toEqual([])
+    expect(store.written).toEqual([])
+    run.dispose()
+  })
+
+  it('stops the checks at once when the store refuses a write', async () => {
+    store.refusal = 'Saved by a newer version.'
+    const run = openedRun()
+
+    await run.check()
+
+    expect(run.stage.value).toEqual({ kind: 'edit', message: 'Saved by a newer version.' })
     run.dispose()
   })
 })

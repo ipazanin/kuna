@@ -103,7 +103,7 @@ async function clear(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" :title="words.planDialogs.category.title(name, year)" :description="words.planDialogs.category.description">
+  <AppDialog v-model:open="open" changes :title="words.planDialogs.category.title(name, year)" :description="words.planDialogs.category.description">
     <form id="category-plan" class="flex flex-col gap-4" data-testid="category-plan-form" @submit.prevent="save">
       <UFormField
         :label="words.planDialogs.category.everyMonth"
@@ -134,7 +134,7 @@ async function clear(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="plan-clear"
         @click="clear"
       />
@@ -147,7 +147,7 @@ async function clear(): Promise<void> {
         :label="words.planDialogs.category.save"
         icon="i-lucide-save"
         :loading="writes.saving('save')"
-        :disabled="writes.busy.value"
+        :disabled="writes.busy.value || writes.refused.value"
         data-testid="plan-save"
       />
     </template>

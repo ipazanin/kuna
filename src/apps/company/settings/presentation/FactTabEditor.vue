@@ -28,7 +28,10 @@ const props = defineProps<{
   read: (records: RecordsRead<R>) => Reading<{ readonly id: RecordId }>
   /** The kind's factory, which makes a record of a draft's fields or refuses them. */
   make: DraftFactory<R>
+  /** This form's save is running, which spins its Save. */
   saving: boolean
+  /** The file takes no changes, which switches its Save off. */
+  refused: boolean
   /** What a row is called, for "Add asset" and "Save assets". */
   noun: RecordNoun
   /** The fields a new record starts with. */
@@ -194,8 +197,8 @@ function save(): void {
   <div class="flex flex-wrap items-center gap-2 px-4 pb-4 sm:px-5">
     <UButton :label="words.factTab.add(noun)" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="add-row" @click="addRow" />
     <span class="flex-1" />
-    <UButton :label="words.factTab.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving" @click="drafts = draftsOfRecords(stored, columns)" />
-    <UButton :label="words.factTab.save(noun)" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || leftOut || saving" data-testid="save-rows" @click="save" />
+    <UButton :label="words.factTab.discard" color="neutral" variant="ghost" size="sm" :disabled="!dirty || saving || refused" @click="drafts = draftsOfRecords(stored, columns)" />
+    <UButton :label="words.factTab.save(noun)" icon="i-lucide-save" size="sm" :loading="saving" :disabled="!dirty || leftOut || saving || refused" data-testid="save-rows" @click="save" />
   </div>
 </template>
 

@@ -22,7 +22,7 @@ defineProps<{
 
 const { state } = useWorkbook()
 const route = useRoute()
-const { settings, saving, save } = useSettingsSave()
+const { settings, saving, refused, save } = useSettingsSave()
 
 const billingItems = computed(() => [...new Set(state.workbook?.billingPlan.map((row) => row.item) ?? [])])
 
@@ -60,7 +60,7 @@ const termsSummary = computed(() => {
       data-testid="invoicing-terms-card"
     >
       <div class="px-4 pt-4 pb-4 sm:px-5 sm:pb-5">
-        <InvoicingTermsForm :settings="settings" :saving="saving" :clients="state.workbook?.clients ?? []" :billing-items="billingItems" @save="save" />
+        <InvoicingTermsForm :settings="settings" :saving="saving" :refused="refused" :clients="state.workbook?.clients ?? []" :billing-items="billingItems" @save="save" />
       </div>
     </AppCard>
   </div>

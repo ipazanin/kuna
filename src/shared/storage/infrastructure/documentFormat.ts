@@ -1,6 +1,7 @@
 import type { FieldValue } from '../domain/recordFields'
 import { storedFieldOfValue } from '../domain/storedFields'
 import type { StoredFields } from '../domain/storedFields'
+import { words as applicationWords } from '../application/words'
 import { words } from './words'
 
 /** One record as the file holds it, by field name: text, or a flag. A field the app does not know is kept as the file gave it. */
@@ -17,7 +18,7 @@ export interface WorkbookDocument {
 
 const FORMAT = 'kuna'
 
-export const NEWER_FILE = words.newerFile
+export const NEWER_FILE = applicationWords.newerFile
 
 /** Whether a newer app saved the document: a contributor at a higher version than the app's `installed` schema, or one the app lacks. */
 export function savedByNewerApp(document: WorkbookDocument, installed: WorkbookDocument['schema']): boolean {
