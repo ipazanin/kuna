@@ -135,6 +135,7 @@ import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fak
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
 import { closedPositions } from '../src/apps/investments/holdings/domain/closedPositions.ts'
+import { accountIntakes } from '../src/apps/investments/imports/domain/accountIntake.ts'
 import { holdingMix, holdingMixes } from '../src/apps/investments/holdings/domain/holdingMix.ts'
 import { depositSplit, targetGaps, targetedMix } from '../src/apps/investments/holdings/domain/targetMix.ts'
 import { incomeForecast } from '../src/apps/investments/income/domain/incomeForecast.ts'
@@ -196,7 +197,7 @@ import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRate
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
 import { installHrDooPack } from './support/installPack.mjs'
-import { companyFiguresOf, spendingFiguresOf } from './support/figureFields.mjs'
+import { companyFiguresOf, investmentsFiguresOf, spendingFiguresOf } from './support/figureFields.mjs'
 
 const { values: options } = parseArgs({
   options: {
@@ -546,7 +547,7 @@ function pricesOfInput() {
 }
 
 /**
- * The Investments groups: the records and problems, then per instrument and per account, named by its place in the
+ * The Investments groups: the records, how each account's rows come in and the problems, then per instrument and per account, named by its place in the
  * file and never by its name, what the Overview, Holdings and a holding's page show on the day, then the portfolio's
  * figures, its last day, the Overview's cards, the five mixes, the target mix with what €2,000.00 would buy and the
  * closed positions of Holdings and its value over time, then the benchmark's closes, Performance over each period it
@@ -554,10 +555,13 @@ function pricesOfInput() {
  * saving and the Overview's portfolio checks, then each tax year's capital gains and foreign income. Returns how Net
  * worth reads the portfolio.
  */
-function investmentsGroups(add) {
+function investmentsGroups(addGroup) {
+  const add = (name, figures) => addGroup(name, typeof figures === 'function' ? () => investmentsFiguresOf(figures()) : investmentsFiguresOf(figures))
   const document = options.investments === undefined ? fakeInvestmentsDocument(AT, 'sample', today) : decodeDocument(readFileSync(options.investments, 'utf8'))
   const { records, workbook } = INVESTMENTS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
   add('investments.read.records', records)
+  // How each account's rows come in, as the file says or Kuna reads it, has a group of its own, so the records keep their digest.
+  addGroup('investments.read.sources', [...accountIntakes(workbook.book).values()])
   add('investments.read.problems', workbook.problems)
   const prices = pricesOfInput()
   const sources = { book: workbook.book, prices: pricesFileBook(prices, workbook.book.prices), rates: pricesFileRateBook(prices), today }

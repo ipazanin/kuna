@@ -2,7 +2,7 @@ import { writeTransaction } from '../../transactions/application/transactionWrit
 import { withImportFacts } from '../../transactions/domain/listedTransactions'
 import type { TransactionKind, TransactionRecord } from '../../transactions/domain/listedTransactions'
 import { matchingDeposit } from '../../transactions/domain/matchingDeposit'
-import { ecbRateText, keyOf, rateCurrency, textsOf, transactionDraft } from '../../transactions/domain/transactionDraft'
+import { ecbRateText, importKeyOf, keyOf, rateCurrency, textsOf, transactionDraft } from '../../transactions/domain/transactionDraft'
 import type { Happening, TransactionTexts } from '../../transactions/domain/transactionDraft'
 import { transactionErrors, words as transactionWords } from '../../transactions/presentation/words'
 import { CASH_MOVEMENT_KINDS } from '../../workbook/domain/cashMovement'
@@ -348,7 +348,7 @@ function drafted(card: CardBooks, form: TransactionForm, before: TransactionReco
   }
   if (form.kind === 'transfer') texts.moves = movesOf(input, start.moves)
   if (before === null && input['rate'] === null && form.fields.includes(RATE)) texts.rate = ecbRateText(card.rates, rateCurrency(texts, card.book), texts.date)
-  const draft = transactionDraft(texts, card.book, before === null ? newRecordId() : keyOf(before))
+  const draft = transactionDraft(texts, card.book, before === null ? newRecordId() : keyOf(before), importKeyOf(before))
   if (draft.record === null) {
     const names = new Map(form.fields.map((field) => [field.text, field.name]))
     throw new StepRefused(

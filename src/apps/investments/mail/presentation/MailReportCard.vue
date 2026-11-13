@@ -6,7 +6,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USwitch from '@nuxt/ui/components/Switch.vue'
 
-import { MAIL_READER_WRITES, heldOrNewReader } from '../application/mailReaderWrites'
+import { heldOrNewReader, writeReader } from '../application/mailReaderWrites'
 import type { ReportMail } from '../application/mailReports'
 import { mailReaderFaults, mailReaderTexts, withMailField } from '../domain/mailReaderTexts'
 import type { MailReaderField } from '../domain/mailReaderTexts'
@@ -14,6 +14,7 @@ import MailReportReview from './MailReportReview.vue'
 import MailReportUpload from './MailReportUpload.vue'
 import { MAIL_SCOPE, misfitLine, useMailReports } from './useMailReports'
 import { mailReaderErrors, words } from './words'
+import { accountIntakes, earliestMailStart } from '../../imports/domain/accountIntake'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { dateFormat } from '../../../../shared/calendar/dateFormat'
@@ -24,7 +25,6 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { usePageSync } from '../../../../shared/sync/presentation/pageSync'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 
 /**
@@ -49,22 +49,22 @@ watch(shown, (now, before) => {
 })
 
 const on = computed(() => reader.value?.on === true)
+const takesAnAccount = computed(() => store.state.workbook !== null && earliestMailStart(accountIntakes(store.state.workbook.book)) !== null)
 const errors = computed(() => mailReaderErrors(mailReaderFaults(texts.value, on.value)))
 
 const summary = computed(() => (on.value ? words.card.readFrom(reader.value?.senders ?? []) : words.card.off))
 const revealed = computed(() => route.hash === '#mail')
 const switchHelp = `${words.card.onHelp} ${words.card.format}`
 
-async function writeReader(after: MailReader, key: string): Promise<void> {
+async function saveReader(after: MailReader, key: string): Promise<void> {
   const before = reader.value
   const turningOn = after.on && before?.on !== true
   await page.saveAllowing(turningOn ? [MAIL_SCOPE] : [], () =>
     writes.write(
       words.card.saved,
       (unit) => {
-        const readers = unit.of(MAIL_READER_WRITES)
-        if (before === null) readers.add(after)
-        else readers.change(before, after)
+        const book = store.state.workbook?.book
+        if (book !== undefined) writeReader(unit, book, before, after)
       },
       { key, failedTitle: words.card.notSaved, shownAtOnce: true },
     ),
@@ -72,19 +72,19 @@ async function writeReader(after: MailReader, key: string): Promise<void> {
 }
 
 function changed(field: MailReaderField): MailReader | null {
-  if (errors.value[field] !== null || errors.value.since !== null || texts.value[field] === shown.value[field]) return null
+  if (errors.value[field] !== null || texts.value[field] === shown.value[field]) return null
   return withMailField(heldOrNewReader(reader.value), field, texts.value)
 }
 
 async function commit(field: MailReaderField): Promise<void> {
   const after = changed(field)
-  if (after !== null) await writeReader(after, field)
+  if (after !== null) await saveReader(after, field)
 }
 
 async function switchTo(turnedOn: boolean): Promise<void> {
   const current = heldOrNewReader(reader.value)
   if (turnedOn && current.senders.length === 0) return
-  await writeReader({ ...current, on: turnedOn }, 'on')
+  await saveReader({ ...current, on: turnedOn }, 'on')
 }
 
 const search = computed((): MailSearchShown | null => (state.plan === null ? null : { window: state.plan.window, query: state.plan.query, why: words.card.searchedFrom }))
@@ -149,10 +149,9 @@ function rowOf(entry: ReportMail, index: number): MailResultRow {
         <UFormField :label="words.card.contents" :help="words.card.contentsHelp" :error="errors.contents ?? false" data-testid="investments-mail-contents">
           <UInput v-model="texts.contents" :loading="writes.saving('contents')" class="w-full" @change="commit('contents')" />
         </UFormField>
-        <UFormField :label="words.card.since" :help="words.card.sinceHelp" :error="errors.since ?? false" data-testid="investments-mail-since">
-          <DayField v-model="texts.since" :loading="writes.saving('since')" class="w-full" @change="commit('since')" />
-        </UFormField>
       </FormGrid>
+      <UAlert icon="i-lucide-info" color="neutral" variant="subtle" :description="words.card.startDays" data-testid="investments-mail-start-days" />
+      <UAlert v-if="on && !takesAnAccount" icon="i-lucide-info" color="info" variant="subtle" :description="words.step.noAccount" data-testid="investments-mail-no-account" />
       <div class="flex flex-col gap-3">
         <h3 class="type-card-title">{{ words.card.lastSync }}</h3>
         <p v-if="state.stopped !== null" class="type-body text-muted" data-testid="investments-mail-stopped">{{ state.stopped }}</p>

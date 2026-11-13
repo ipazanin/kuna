@@ -6,6 +6,7 @@ import { TARGET_WRITES, replaceRows } from '../../src/apps/investments/holdings/
 import type { WorkbookRows } from '../../src/apps/investments/imports/domain/importDryRun'
 import { OPTIONAL_COLUMNS, WORKBOOK_COLUMNS, readPortfolioWorkbook } from '../../src/apps/investments/imports/domain/portfolioWorkbook'
 import { MAIL_READER_WRITES } from '../../src/apps/investments/mail/application/mailReaderWrites'
+import { reportRowKey } from '../../src/apps/investments/imports/domain/reportKey'
 import { IBKR_FLEX_RECIPE } from '../../src/apps/investments/mail/domain/ibkrFlexRecipe'
 import type { PricesFetchRun } from '../../src/apps/investments/prices/application/pricesUpdate'
 import { NO_FETCHED_FACTS, emptyPricesFile } from '../../src/apps/investments/prices/domain/pricesFile'
@@ -79,7 +80,8 @@ export function mailedReport(): WorkbookRows {
   ])
   if (read.kind !== 'read') throw new Error('The mailed report was refused.')
   const asked: AskedRow = { key: 'asked-1', section: 'Trades', shown: [['Symbol', 'XYZ']], dates: {}, why: { kind: 'no-kind' } }
-  return { ...read, report: { asked: [asked], beforeStart: 0 } }
+  const rows = read.rows.map((row) => ({ ...row, key: reportRowKey(IBKR_FLEX_RECIPE.id, row.account, `tx-${row.fileRow}`) }))
+  return { ...read, rows, report: { mailed: true, asked: [asked], beforeStart: 0, byHand: 0 } }
 }
 
 /** The prices file with a profile vendor's refusal for the share, so its page asks again. */

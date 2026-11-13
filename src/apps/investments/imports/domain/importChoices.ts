@@ -1,3 +1,5 @@
+import { accountIntakes, intakeRefusal } from './accountIntake'
+import type { IntakeRefusal } from './accountIntake'
 import { NO_ANSWERS, costShareFromCloses, proposedCostShare, workbookDryRun } from './importDryRun'
 import type { AccountQuestion, InstrumentQuestion, LookAlikeAnswer, SpinOffAnswer, SpinOffQuestion, SplitQuestion, SplitRatio, WorkbookAnswers, WorkbookDryRun, WorkbookRows } from './importDryRun'
 import type { WorkbookRow } from './portfolioWorkbook'
@@ -6,10 +8,12 @@ import type { InstrumentFaults, InstrumentTexts } from '../../holdings/domain/in
 import type { CloseRow } from '../../prices/domain/pricesFile'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { Instrument } from '../../workbook/domain/instrument'
-import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
+import { firstUnfiledDay } from '../../tax/domain/taxDeadlines'
+import { BY_HAND } from '../../workbook/domain/investmentAccount'
+import type { AccountIntake, InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS } from '../../workbook/domain/investmentKinds'
-import { daysBetween, parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { daysBetween, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO, decimalOfText, decimalShown, roundedDecimal, scaledDecimal, timesDecimal, typedDecimal } from '../../../../shared/money/decimal'
 import type { Decimal } from '../../../../shared/money/decimal'
@@ -17,7 +21,8 @@ import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { fold } from '../../../../shared/text/fold'
 
-export type AccountChoice = { readonly kind: 'new'; readonly name: string } | { readonly kind: 'existing'; readonly account: RecordId }
+/** A new account by its name and, for a mailed report, the start day as typed, or one Kuna has. */
+export type AccountChoice = { readonly kind: 'new'; readonly name: string; readonly startsOn?: string } | { readonly kind: 'existing'; readonly account: RecordId }
 
 export type InstrumentChoice = { readonly kind: 'new'; readonly texts: InstrumentTexts } | { readonly kind: 'existing'; readonly instrument: RecordId }
 
@@ -59,7 +64,16 @@ export interface AccountStep {
   readonly choice: AccountChoice
   /** A new account's name is blank. */
   readonly nameMissing: boolean
+  /** The accounts it may go to: for a mailed report those the mail fills, else every account. */
+  readonly offered: readonly InvestmentAccount[]
+  /** The start day a new account of a mailed report takes, as typed or proposed. Null for a file or an upload, whose new accounts come in by hand. */
+  readonly startsOn: string | null
+  /** Why that start day cannot be kept: it is no day, or it reaches into a filed tax year. */
+  readonly startFault: { readonly kind: 'missing' } | { readonly kind: 'refused'; readonly refusal: IntakeRefusal } | null
 }
+
+/** The accounts a mailed report's rows may go to: those the mail fills, by how each one's rows come in. Null for a file or an upload, which may go to any. */
+type MailAccounts = ReadonlyMap<RecordId, AccountIntake> | null
 
 export interface InstrumentStep {
   readonly question: InstrumentQuestion
@@ -166,11 +180,12 @@ export function settledImport(
   splitsOf: SplitsOf = NO_SPLIT_LOOKUP,
   closesOf: ClosesOf = NO_CLOSES,
 ): SettledImport {
+  const mail: MailAccounts = reading.report?.mailed === true ? accountIntakes(book) : null
   let dryRun = workbookDryRun(reading, { book, rates, answers: NO_ANSWERS })
-  let answered = answersOf(dryRun, book, choices, newIds, splitsOf, closesOf)
+  let answered = answersOf(dryRun, book, choices, newIds, splitsOf, closesOf, mail)
   for (let pass = 0; pass < MOST_PASSES; pass += 1) {
     dryRun = workbookDryRun(reading, { book, rates, answers: answered.answers })
-    const next = answersOf(dryRun, book, choices, newIds, splitsOf, closesOf)
+    const next = answersOf(dryRun, book, choices, newIds, splitsOf, closesOf, mail)
     const settled = answersKey(next.answers) === answersKey(answered.answers)
     answered = next
     if (settled) break
@@ -189,9 +204,9 @@ interface Answering<Step, Answer> {
   readonly answer: Answer | null
 }
 
-function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: ImportChoices, newIds: NewIds, splitsOf: SplitsOf, closesOf: ClosesOf): Answered {
+function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: ImportChoices, newIds: NewIds, splitsOf: SplitsOf, closesOf: ClosesOf, mail: MailAccounts): Answered {
   const { questions } = dryRun
-  const accounts = questions.accounts.map((question) => accountStep(question, book, choices, newIds))
+  const accounts = questions.accounts.map((question) => accountStep(question, book, choices, newIds, mail))
   const instruments = instrumentSteps(questions.instruments, book, choices, newIds)
   const answeredInstruments = instruments.flatMap(({ step, answer }) => (answer === null ? [] : [[step.question.identity, answer] as const]))
   const parents = [...book.instruments, ...answeredInstruments.map(([, instrument]) => instrument).filter((instrument) => !book.instruments.some((held) => held.id === instrument.id))]
@@ -215,9 +230,16 @@ function answersOf(dryRun: WorkbookDryRun, book: InvestmentBook, choices: Import
   }
 }
 
-function accountStep(question: AccountQuestion, book: InvestmentBook, choices: ImportChoices, newIds: NewIds): Answering<AccountStep, InvestmentAccount> {
+/** The start day proposed for a new account of a mailed report: its first row's day, but never in a tax year already filed. */
+export function proposedStartDay(question: AccountQuestion, on: CivilDate): CivilDate {
+  const firstOpen = firstUnfiledDay(on)
+  return question.firstDay < firstOpen ? firstOpen : question.firstDay
+}
+
+function accountStep(question: AccountQuestion, book: InvestmentBook, choices: ImportChoices, newIds: NewIds, mail: MailAccounts): Answering<AccountStep, InvestmentAccount> {
   const chosen = choices.accounts[question.account]
-  const existing = (id: RecordId | null | undefined): InvestmentAccount | undefined => book.accounts.find((account) => account.id === id)
+  const offered = mail === null ? book.accounts : book.accounts.filter((account) => mail.get(account.id)?.rowsFrom === 'mail')
+  const existing = (id: RecordId | null | undefined): InvestmentAccount | undefined => offered.find((account) => account.id === id)
   const choice: AccountChoice =
     chosen?.kind === 'new' || (chosen?.kind === 'existing' && existing(chosen.account) !== undefined)
       ? chosen
@@ -227,12 +249,19 @@ function accountStep(question: AccountQuestion, book: InvestmentBook, choices: I
           ? { kind: 'existing', account: question.likely!.account }
           : { kind: 'new', name: question.proposedName }
   if (choice.kind === 'existing') {
-    return { step: { question, choice, nameMissing: false }, answer: existing(choice.account)! }
+    return { step: { question, choice, nameMissing: false, offered, startsOn: null, startFault: null }, answer: existing(choice.account)! }
   }
   const name = choice.name.trim()
+  const id = recordIdOf(INVESTMENT_ACCOUNT_RECORDS, newIds(`account:${question.account}`))
+  const on = today()
+  const startsOn = mail === null ? null : (choice.startsOn ?? proposedStartDay(question, on))
+  const day = startsOn === null ? null : parseCivilDate(startsOn)
+  const intake: AccountIntake | null = mail === null ? BY_HAND : day === null ? null : { rowsFrom: 'mail', startsOn: day }
+  const refusal = intake === null ? null : intakeRefusal(id, null, intake, [], on)
+  const startFault = startsOn === null ? null : intake === null ? { kind: 'missing' as const } : refusal === null ? null : { kind: 'refused' as const, refusal }
   return {
-    step: { question, choice, nameMissing: name === '' },
-    answer: name === '' ? null : { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, newIds(`account:${question.account}`)), name, note: '' },
+    step: { question, choice, nameMissing: name === '', offered, startsOn, startFault },
+    answer: name === '' || intake === null || startFault !== null ? null : { id, name, note: '', intake },
   }
 }
 

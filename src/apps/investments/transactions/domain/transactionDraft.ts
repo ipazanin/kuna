@@ -1,4 +1,5 @@
 import type { TransactionKind, TransactionRecord } from './listedTransactions'
+import { accountIntakes, mailOwned } from '../../imports/domain/accountIntake'
 import type { RateBook } from '../../../../shared/money/rateBook'
 import type { CashMovementKind } from '../../workbook/domain/cashMovement'
 import type { IncomeKind } from '../../workbook/domain/income'
@@ -74,6 +75,11 @@ export function keyOf(entry: TransactionRecord): string {
   return keyOfRecordId(RECORDS_OF[entry.kind], entry.record.id)
 }
 
+/** The import key of the record changed, null for a new one or a hand price, which has none. */
+export function importKeyOf(entry: TransactionRecord | null): string | null {
+  return entry === null || entry.kind === 'price' ? null : entry.record.importKey
+}
+
 export function happeningOf(entry: TransactionRecord): Happening {
   switch (entry.kind) {
     case 'trade':
@@ -134,8 +140,9 @@ type PlainFault =
   | 'share'
   | 'otherHolding'
 
-/** What is wrong with one field. A spin-off's received holding quoted in another currency names the parent's currency. */
-export type TransactionFault = { readonly kind: PlainFault } | { readonly kind: 'receivedCurrency'; readonly currency: CurrencyCode }
+/** What is wrong with one field. A spin-off's received holding quoted in another currency names the parent's currency, and a day the mail fills names the account and its start day. */
+export type TransactionFault =
+  { readonly kind: PlainFault } | { readonly kind: 'receivedCurrency'; readonly currency: CurrencyCode } | { readonly kind: 'mailOwns'; readonly account: string; readonly startsOn: CivilDate }
 
 export type TransactionFaults = Partial<Record<keyof TransactionTexts, TransactionFault>>
 
@@ -303,8 +310,20 @@ function wholeNumber(text: string): number | null {
   return /^\d{1,6}$/.test(trimmed) && Number(trimmed) > 0 ? Number(trimmed) : null
 }
 
-/** Reads the texts of the happening into its record, keyed by `key`, or says what is wrong with each field. */
-export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, key: string): TransactionDraft {
+/** The account the mail fills on the record's day, which a record by hand may not land on. A record of a report keeps its key, so it stays the mail's own. */
+function mailOwnedFault(record: TransactionRecord, book: InvestmentBook, importKey: string | null): TransactionFault | null {
+  if (record.kind === 'split' || record.kind === 'spin-off' || record.kind === 'price') return null
+  const accounts = record.kind === 'transfer' ? [record.record.from, record.record.to] : [record.record.account]
+  const owned = mailOwned(accountIntakes(book), { accounts, date: record.record.date, importKey })
+  if (owned === null) return null
+  return { kind: 'mailOwns', account: book.accounts.find((account) => account.id === owned.account)?.name ?? '', startsOn: owned.startsOn }
+}
+
+/**
+ * Reads the texts of the happening into its record, keyed by `key`, or says what is wrong with each field. `importKey`
+ * is the key of the record changed, which the dialog keeps on it.
+ */
+export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, key: string, importKey: string | null = null): TransactionDraft {
   const faults: TransactionFaults = {}
   const fail = <T>(field: keyof TransactionTexts, fault: PlainFault | TransactionFault): T | null => {
     faults[field] = typeof fault === 'string' ? { kind: fault } : fault
@@ -316,7 +335,11 @@ export function transactionDraft(texts: TransactionTexts, book: InvestmentBook, 
   const currencyOf = (field: 'currency' | 'boughtCurrency' | 'feeCurrency'): CurrencyCode | null => currencyCodeOf(texts[field]) ?? fail<CurrencyCode>(field, 'currency')
   const rateFor = (currency: CurrencyCode | null): Decimal | null => (currency === null || currency === EURO ? null : (positiveDecimal(texts.rate) ?? fail<Decimal>('rate', 'rate')))
   const note = texts.note.trim()
-  const done = (record: TransactionRecord): TransactionDraft => ({ faults, record: Object.keys(faults).length === 0 ? record : null })
+  const done = (record: TransactionRecord): TransactionDraft => {
+    const owned = mailOwnedFault(record, book, importKey)
+    if (owned !== null) faults.date = owned
+    return { faults, record: Object.keys(faults).length === 0 ? record : null }
+  }
 
   switch (texts.happened) {
     case 'buy':

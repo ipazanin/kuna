@@ -28,7 +28,7 @@ export function wholeReceipt(total: Money, category: RecordId): readonly Receipt
  * The row a receipt splits with the parts it was split into by hand, or the account of the new row it makes. On an account the
  * bank fills it makes no row and waits for the bank's.
  */
-export type ReceiptPlace = { readonly row: Transaction; readonly handParts: readonly TransactionItem[] } | { readonly account: Pick<Account, 'id' | 'kind' | 'rowsFrom'> }
+export type ReceiptPlace = { readonly row: Transaction; readonly handParts: readonly TransactionItem[] } | { readonly account: Pick<Account, 'id' | 'kind' | 'rowsFrom' | 'openedOn'> }
 
 /** The row as a receipt's place, with the parts it was split into by hand, which the receipt's lines replace. */
 export function rowPlace(row: Transaction, lines: readonly TransactionItem[]): Extract<ReceiptPlace, { readonly row: Transaction }> {

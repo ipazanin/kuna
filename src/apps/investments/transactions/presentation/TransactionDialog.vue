@@ -23,7 +23,7 @@ import TradeFields from './TradeFields.vue'
 import TradeSummary from './TradeSummary.vue'
 import TransferFields from './TransferFields.vue'
 import { withImportFacts } from '../domain/listedTransactions'
-import { HAPPENINGS, ecbRateText, happeningsOfKind, kindOfHappening, keyOf, rateCurrency, textsOf, transactionDraft } from '../domain/transactionDraft'
+import { HAPPENINGS, ecbRateText, happeningsOfKind, importKeyOf, kindOfHappening, keyOf, rateCurrency, textsOf, transactionDraft } from '../domain/transactionDraft'
 import type { Happening, TransactionStart, TransactionTexts } from '../domain/transactionDraft'
 import { transactionErrors, words } from './words'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -91,7 +91,7 @@ watch(
   },
 )
 
-const draft = computed(() => transactionDraft(texts, book.value, key.value))
+const draft = computed(() => transactionDraft(texts, book.value, key.value, importKeyOf(props.editing)))
 const errors = computed(() => transactionErrors(draft.value.faults))
 const kind = computed(() => kindOfHappening(texts.happened))
 

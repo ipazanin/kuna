@@ -49,7 +49,7 @@ describe('a card that adds an account and what goes on it', () => {
     const desk = await investmentsDesk(used)
     const instrument = INSTRUMENT_STEPS.operations.find((operation) => operation.name === 'add-instrument')!.example
     const answer = await desk.propose([
-      stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'New broker', note: '' }, '$broker'),
+      stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'New broker', note: '', rowsFrom: 'by-hand', startsOn: null }, '$broker'),
       { op: 'add-instrument', input: { ...instrument, name: 'Dollar ETF', symbol: 'DLR', currency: 'USD' }, as: '$etf' },
       stepOf(INVESTMENTS_OPERATIONS, 'add-holding', { account: '$broker', instrument: '$etf', date: '2026-10-01', quantity: '10', price: '9.5', fees: '1', rate: '1.08', note: '' }),
       stepOf(INVESTMENTS_OPERATIONS, 'add-price', { instrument: '$etf', date: '2026-10-20', price: '10.25', note: '' }),

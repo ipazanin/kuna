@@ -1,4 +1,5 @@
 import { writeWorkbookImport } from '../../imports/application/workbookImport'
+import { accountIntakes, sourcesSaid } from '../../imports/domain/accountIntake'
 import { importableRecords } from '../../imports/domain/importDryRun'
 import { LOOK_ALIKES } from '../../../../shared/money/lookAlikeBookings'
 import type { WorkbookDryRun, WorkbookRows } from '../../imports/domain/importDryRun'
@@ -10,7 +11,7 @@ import { ratesWanted } from '../../imports/domain/workbookRates'
 import { NO_CHOICES, NO_SPLIT_LOOKUP, settledImport } from '../../imports/domain/importChoices'
 import type { AskedChoice, ClosesOf, ImportChoices, SettledImport } from '../../imports/domain/importChoices'
 import { lookAlikesOf, waitText } from '../../imports/presentation/dryRunLines'
-import { MAIL_READER_WRITES, heldOrNewReader, writeLeftOut } from '../../mail/application/mailReaderWrites'
+import { heldOrNewReader, writeLeftOut, writeReader } from '../../mail/application/mailReaderWrites'
 import { ibkrMailReader } from '../../mail/domain/ibkrFlexRecipe'
 import { mailReaderFaults, mailReaderTexts, withMailField } from '../../mail/domain/mailReaderTexts'
 import type { MailReaderField, MailReaderTexts } from '../../mail/domain/mailReaderTexts'
@@ -44,7 +45,7 @@ export const IMPORTING: ReadonlySet<string> = new Set([ACCEPT_MAIL_REPORT, IMPOR
 const ASKED: readonly AskedChoice[] = ['hold', 'leave-out']
 /** What the person says of a copied row that looks like a record Kuna has, as the Import dialog's Same record and Another record. */
 const LOOK_ALIKE_ANSWERS = ['same-record', 'another-record'] as const
-const MAIL_FIELDS: readonly MailReaderField[] = ['senders', 'subject', 'contents', 'since']
+const MAIL_FIELDS: readonly MailReaderField[] = ['senders', 'subject', 'contents']
 
 /** The mailed report the last sync read, which stands in the step for the mail once read. */
 interface RowsRead {
@@ -282,6 +283,8 @@ function copiedProblemText(problem: CopiedRowRefusal['problem']): string {
       return 'type is not one Kuna reads'
     case 'refused':
       return problem.reason
+    case 'mail-owns':
+      return `IBKR report by mail brings the rows of ${problem.account} from ${problem.startsOn}, so a copied row may go only on an earlier day`
   }
 }
 
@@ -350,18 +353,17 @@ export const IMPORT_STEPS: InvestmentSteps = {
     {
       name: 'set-mail-reader',
       about:
-        "Where the IBKR report reader looks in Gmail: senders as addresses split by commas, a phrase of the subject and of the contents, blank for any, and since, the first day of rows it takes. on no switches the reader off. Null leaves a field as it is. Turning the reader on asks Google's consent, so for that link Settings, General and leave it to the person.",
+        "Where the IBKR report reader looks in Gmail: senders as addresses split by commas, and a phrase of the subject and of the contents, blank for any. on no switches the reader off. Null leaves a field as it is. Each account keeps its own start day, which add-account and change-account set. Turning the reader on asks Google's consent, so for that link Settings, General and leave it to the person.",
       input: inputOf({
         on: FLAG_OR_NULL,
         senders: TEXT_OR_NULL,
         subject: TEXT_OR_NULL,
         contents: TEXT_OR_NULL,
-        since: { type: ['string', 'null'], description: 'A day such as 2026-01-01, or null to leave it.' },
       }),
       refs: {},
       creates: null,
       alone: false,
-      example: { on: null, senders: null, subject: 'Daily activity', contents: null, since: '2026-01-01' },
+      example: { on: null, senders: null, subject: 'Daily activity', contents: null },
     },
     {
       name: ACCEPT_MAIL_REPORT,
@@ -453,22 +455,21 @@ export const IMPORT_STEPS: InvestmentSteps = {
       const read = field['report']
       if (!isRowsRead(read) || held === null) throw new StepRefused('No mailed report waits.')
       const { written, leftOut } = importedRows(unit, card, read.rows, { ...ANSWERED_BY_DEFAULTS, asked: askedOf(field), where: { ...words.proposals.mailReport, lead: null } })
-      if (leftOut.length > 0) writeLeftOut(unit, held, leftOut)
-      return written
+      writeLeftOut(unit, card.book, held, leftOut)
+      return { ...written, book: sourcesSaid(written.book, accountIntakes(card.book)) }
     }
     const switchedOff = field['on'] !== null && choiceOf(['yes', 'no'], field['on'] as string, 'on') === 'no'
     if (field['on'] !== null && !switchedOff) throw new StepRefused("Turning the reader on asks Google's consent. Link Settings, General and leave it to the person.")
     const on = held?.on === true && !switchedOff
     const shown = mailReaderTexts(held)
     const given = (name: MailReaderField): string => (field[name] as string | null) ?? shown[name]
-    const texts: MailReaderTexts = { senders: given('senders'), subject: given('subject'), contents: given('contents'), since: given('since') }
+    const texts: MailReaderTexts = { senders: given('senders'), subject: given('subject'), contents: given('contents') }
     const errors = mailReaderErrors(mailReaderFaults(texts, on))
     const refused = MAIL_FIELDS.flatMap((name) => (field[name] === null || errors[name] === null ? [] : [`${name}: ${errors[name]}`]))
     if (refused.length > 0) throw new StepRefused(refused.join(' '))
     const typed = MAIL_FIELDS.reduce((reader, name) => (field[name] === null ? reader : withMailField(reader, name, texts)), heldOrNewReader(held))
-    const after = { ...typed, on }
-    if (held === null) unit.of(MAIL_READER_WRITES).add(after)
-    else unit.of(MAIL_READER_WRITES).change(held, after)
-    return { book: { ...card.book, mailReaders: [...card.book.mailReaders.filter((reader) => reader.id !== after.id), after] }, made: null, fetchesPricesOf: [], notes: [], heldBack: [] }
+    const after = { ...typed, on, since: null }
+    writeReader(unit, card.book, held, after)
+    return { book: sourcesSaid({ ...card.book, mailReaders: [...card.book.mailReaders.filter((reader) => reader.id !== after.id), after] }), made: null, fetchesPricesOf: [], notes: [], heldBack: [] }
   },
 }

@@ -3,6 +3,7 @@ import { words as cardWords } from '../../../../shared/app/words'
 import { words as holdingsWords } from '../../holdings/presentation/words'
 import { words as mailWords } from '../../mail/presentation/words'
 import { thresholdText } from '../../overview/presentation/checkLines'
+import { words as settingsWords } from '../../settings/presentation/words'
 import { words as overviewWords } from '../../overview/presentation/words'
 import { words as vendorWords } from '../../prices/infrastructure/vendors/words'
 import { storedCityText } from '../../tax/presentation/surtaxCityChoices'
@@ -16,6 +17,7 @@ import type { HandPrice } from '../../workbook/domain/handPrice'
 import type { Income } from '../../workbook/domain/income'
 import { NEW_INSTRUMENT_DEFAULTS } from '../../workbook/domain/instrument'
 import type { Instrument, PriceSource } from '../../workbook/domain/instrument'
+import type { AccountIntake } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import {
   CASH_MOVEMENT_RECORDS,
@@ -62,13 +64,13 @@ import { plural } from '../../../../shared/text/translation'
 /** The fields Kuna keeps by itself or an import brought, which no operation sets, so a card leaves them off. */
 const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'importKey', 'dividend', 'recipe'])
 
-/** The mail reader's fields by the names its card gives them. */
+/** The mail reader's fields by the names its card gives them, and how an account's rows come in by the account dialog's. */
 const MAIL_FIELD_NAMES: Readonly<Record<string, string>> = {
   on: mailWords.card.on,
   senders: mailWords.card.senders,
   subject: mailWords.card.subject,
   contents: mailWords.card.contents,
-  since: mailWords.card.since,
+  intake: settingsWords.accountDialog.rowsFrom,
 }
 
 /** The mail reader's senders say whose mail Kuna reads, so the card marks them. */
@@ -211,7 +213,15 @@ function quotingText(quoted: Instrument['quoted']): string {
 }
 
 /** A field of an instrument or a line of its mix in the holding dialog's words, or undefined for a field shown as it is. */
+function intakeText(intake: AccountIntake | null): string | null {
+  if (intake === null) return null
+  return intake.rowsFrom === 'mail' ? settingsWords.accounts.fromMail(dayLabel(intake.startsOn)) : settingsWords.accounts.byHand
+}
+
 function holdingValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, namesOf: ReadonlyMap<unknown, string>): string | null | undefined {
+  if (isKind(kind, INVESTMENT_ACCOUNT_RECORDS, record)) {
+    return field === 'intake' ? intakeText(record.intake) : undefined
+  }
   if (isKind(kind, INSTRUMENT_RECORDS, record)) {
     const shown: Partial<Record<keyof Instrument, string | null>> = {
       type: record.type === null ? null : holdingsWords.types[record.type],
@@ -279,7 +289,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   const ofSetting = settingValue(kind, field, record)
   if (ofSetting !== undefined) return ofSetting
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
-  const day = (field === 'date' || field === 'since') && typeof value === 'string' ? parseCivilDate(value) : null
+  const day = field === 'date' && typeof value === 'string' ? parseCivilDate(value) : null
   if (day !== null) return dayLabel(day)
   return namesOf.get(value) ?? String(value)
 }

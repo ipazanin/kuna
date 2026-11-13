@@ -6,12 +6,14 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { writeLeftOut } from '../application/mailReaderWrites'
 import { useMailReports } from './useMailReports'
 import { words } from './words'
+import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { plural } from '../../../../shared/text/translation'
 import WorkbookImportDialog from '../../imports/presentation/WorkbookImportDialog.vue'
 import type { ReportReview } from '../../imports/presentation/WorkbookImportDialog.vue'
 
 /** What the last sync's report holds for the person, with the way into its review. Nothing shows while it holds nothing. */
 const { reading, news, reader } = useMailReports()
+const store = useInvestmentsBooks()
 const reviewing = ref(false)
 
 const line = computed(() => {
@@ -28,12 +30,13 @@ const line = computed(() => {
 const report = computed((): ReportReview | null => {
   const rows = reading.value
   const current = reader.value
-  if (rows === null || current === null) return null
+  const book = store.state.workbook?.book ?? null
+  if (rows === null || current === null || book === null) return null
   return {
     words: { title: words.review.title, description: words.review.description, accept: words.review.accept, accepted: words.review.accepted, notAccepted: words.review.notAccepted },
     fileName: words.card.title,
     reading: rows,
-    writeLeftOut: (unit, keys) => writeLeftOut(unit, current, keys),
+    writeLeftOut: (unit, keys) => writeLeftOut(unit, book, current, keys),
   }
 })
 </script>

@@ -7,7 +7,7 @@ import { labelWords, withIdField } from '../../../../shared/storage/domain/recor
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { booleanOf, ownId, refuse, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
+import { booleanOf, optionalDate, ownId, refuse, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 
 /** A reader that is on names its senders, and its phrases are ones Gmail can search for. */
@@ -29,7 +29,7 @@ export function mailReaderOf(fields: StoredFields, id: RecordId | null): MailRea
     senders,
     subject,
     contents,
-    since: requiredDate(fields, 'since'),
+    since: optionalDate(fields, 'since'),
     leftOut: leftOut === '' ? [] : leftOut.split(','),
   }
 }

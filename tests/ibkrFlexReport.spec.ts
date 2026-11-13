@@ -22,11 +22,12 @@ import { testMailbox } from './fixtures/mailbox'
 
 const DAY = parseCivilDate('2026-10-05')!
 const NEXT_DAY = parseCivilDate('2026-10-06')!
-const ACCOUNT = account('kuna-ibkr', 'Kuna IBKR')
+const SINCE = parseCivilDate('2026-01-01')!
+const MAILED = { kind: 'mailed', since: SINCE } as const
+const ACCOUNT = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: SINCE })
 const ABC = instrument('abc', { name: 'Example Tech', isin: 'XX000000ABC1', currency: USD })
 const DEF = instrument('def', { name: 'Example Dividend Co', isin: 'US000000DEF2', currency: USD })
 const RATES = rateBookOf(new Map([[USD, [['2026-10-01', '1.10']]]]))
-const SINCE = parseCivilDate('2026-01-01')!
 const EUR = EURO
 
 function decimal(text: string): Decimal {
@@ -43,7 +44,7 @@ function fileOf(days: readonly CivilDate[], shape: SampleFlexShape = 'plain') {
 }
 
 function rowsOf(days: readonly CivilDate[] = [DAY], shape: SampleFlexShape = 'plain'): WorkbookRows {
-  return reportRows(IBKR_FLEX_RECIPE, [fileOf(days, shape)], { since: SINCE, leftOut: [] })
+  return reportRows(IBKR_FLEX_RECIPE, [fileOf(days, shape)], { leftOut: [] }, MAILED)
 }
 
 const ANSWERS: WorkbookAnswers = {
@@ -160,7 +161,7 @@ describe("IBKR's built-in recipe", () => {
 
 describe('a rolling report', () => {
   it('counts a row two files share once', () => {
-    const rows = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY]), fileOf([DAY, NEXT_DAY])], { since: SINCE, leftOut: [] })
+    const rows = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY]), fileOf([DAY, NEXT_DAY])], { leftOut: [] }, MAILED)
     const once = rowsOf([DAY])
     const twice = rowsOf([DAY, NEXT_DAY])
     expect(rows.rows.map((row) => row.key).sort()).toEqual(twice.rows.map((row) => row.key).sort())
@@ -191,37 +192,56 @@ describe('a rolling report', () => {
   it('asks about a row a later file writes differently, and books neither copy', () => {
     const original = fileOf([DAY])
     const edited = { ...original, run: { ...original.run, rows: original.run.rows.map((row) => (row.kind === 'BUY' ? { ...row, facts: `${row.facts}|changed` } : row)) } }
-    const rows = reportRows(IBKR_FLEX_RECIPE, [original, edited], { since: SINCE, leftOut: [] })
+    const rows = reportRows(IBKR_FLEX_RECIPE, [original, edited], { leftOut: [] }, MAILED)
     expect(rows.rows.filter((row) => row.type === 'BUY')).toEqual([])
     expect(rows.report?.asked).toMatchObject([{ section: 'Trades', why: { kind: 'changed' } }])
   })
 
   it('stops asking about a row the person left out', () => {
     const asked = rowsOf([DAY], 'unseen').report!.asked
-    const rows = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY], 'unseen')], { since: SINCE, leftOut: [asked[0]!.key] })
+    const rows = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY], 'unseen')], { leftOut: [asked[0]!.key] }, MAILED)
     expect(rows.report?.asked).toHaveLength(asked.length - 1)
   })
 
   it('says a dividend accepted one day waits again once its withholding arrives in the next file', () => {
     const whole = fileOf([DAY])
     const noTax = { ...whole, run: { ...whole.run, rows: whole.run.rows.filter((row) => !(row.kind === 'WITHHOLDING TAX' && row.texts.isin !== null)) } }
-    const accepted = workbookDryRun(reportRows(IBKR_FLEX_RECIPE, [noTax], { since: SINCE, leftOut: [] }), { book: kept(), rates: RATES, answers: ANSWERS }).planned
-    const nextDay = reportRows(IBKR_FLEX_RECIPE, [noTax, whole], { since: SINCE, leftOut: [] })
+    const accepted = workbookDryRun(reportRows(IBKR_FLEX_RECIPE, [noTax], { leftOut: [] }, MAILED), { book: kept(), rates: RATES, answers: ANSWERS }).planned
+    const nextDay = reportRows(IBKR_FLEX_RECIPE, [noTax, whole], { leftOut: [] }, MAILED)
     expect(reportNews(nextDay, accepted, RATES)).toEqual({ fresh: 0, changed: 1, asked: 0 })
   })
 
-  it('leaves out questions about rows before the first day to read, and counts them as left out', () => {
-    const all = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY, NEXT_DAY], 'unseen')], { since: SINCE, leftOut: [] })
-    const later = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY, NEXT_DAY], 'unseen')], { since: NEXT_DAY, leftOut: [] })
+  it('leaves out questions dated before the earliest start day of the accounts the mail fills, and counts them as left out', () => {
+    const all = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY, NEXT_DAY], 'unseen')], { leftOut: [] }, MAILED)
+    const later = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY, NEXT_DAY], 'unseen')], { leftOut: [] }, { kind: 'mailed', since: NEXT_DAY })
     expect(all.report?.asked).toHaveLength(6)
     expect(later.report?.asked).toEqual([])
-    expect(later.report?.beforeStart).toBe(later.rows.length + 6)
+    expect(later.report?.beforeStart).toBe(6)
   })
 
-  it('leaves out rows before the first day to read, and says how many', () => {
-    const rows = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY, NEXT_DAY])], { since: NEXT_DAY, leftOut: [] })
-    expect(rows.rows.every((row) => row.date === NEXT_DAY)).toBe(true)
-    expect(rows.report?.beforeStart).toBe(rows.rows.length)
+  it("leaves out a mailed report's rows before their account's start day, and says how many", () => {
+    const later = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: NEXT_DAY })
+    const rows = rowsOf([DAY, NEXT_DAY])
+    const dryRun = workbookDryRun(rows, { book: book({ accounts: [later], instruments: [ABC, DEF] }), rates: RATES, answers: { ...ANSWERS, accounts: new Map([['U0000001', later]]) } })
+    expect(dryRun.entries.length).toBeGreaterThan(0)
+    expect(dryRun.entries.every((entry) => entry.rows.every((row) => row.date === NEXT_DAY))).toBe(true)
+    expect(dryRun.report?.beforeStart).toBe(rows.rows.filter((row) => row.date === DAY).length)
+  })
+
+  it('leaves out every mailed row of an account kept by hand, and says how many', () => {
+    const byHand = account('kuna-ibkr', 'Kuna IBKR')
+    const rows = rowsOf([DAY])
+    const dryRun = workbookDryRun(rows, { book: book({ accounts: [byHand], instruments: [ABC, DEF] }), rates: RATES, answers: { ...ANSWERS, accounts: new Map([['U0000001', byHand]]) } })
+    expect(dryRun.entries).toEqual([])
+    expect(dryRun.report).toMatchObject({ byHand: rows.rows.length, beforeStart: 0 })
+  })
+
+  it('takes every row of an uploaded report, since an upload counts as by hand', () => {
+    const later = account('kuna-ibkr', 'Kuna IBKR', { rowsFrom: 'mail', startsOn: NEXT_DAY })
+    const rows = reportRows(IBKR_FLEX_RECIPE, [fileOf([DAY, NEXT_DAY])], { leftOut: [] }, { kind: 'uploaded' })
+    const dryRun = workbookDryRun(rows, { book: book({ accounts: [later], instruments: [ABC, DEF] }), rates: RATES, answers: { ...ANSWERS, accounts: new Map([['U0000001', later]]) } })
+    expect(dryRun.entries.some((entry) => entry.rows[0].date === DAY)).toBe(true)
+    expect(dryRun.report).toMatchObject({ mailed: false, beforeStart: 0, byHand: 0 })
   })
 
   it('holds a record back when tax withheld arrives after its dividend was booked, rather than book it twice or lose the tax', () => {

@@ -1,3 +1,4 @@
+import { accountIntakeRefusals } from './intakeRefusals'
 import { words } from './words'
 import { INVESTMENT_KINDS, bookOf, bookWith, dependentRefusals } from '../../workbook/application/investmentWriteGuards'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
@@ -8,13 +9,16 @@ import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS, PRICE_RECORDS } from '.
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { FreshRecords, WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** An account keeps the records that name it: trades, income, cash movements, exchanges, transfers and targets of the account mix. */
+/**
+ * An account keeps the records that name it: trades, income, cash movements, exchanges, transfers and targets of the
+ * account mix. A start day that gives the mail more days may not reach into a filed tax year or over records by hand.
+ */
 export const INVESTMENT_ACCOUNT_WRITES: WriteRules<InvestmentAccount> = {
   kind: INVESTMENT_ACCOUNT_RECORDS,
   reads: INVESTMENT_KINDS,
   undoable: true,
   read: (read, records) => bookWith(INVESTMENT_ACCOUNT_RECORDS, read, records).readings.accounts,
-  refusals: (_change, fresh, after) => dependentRefusals(['trades', 'income', 'cashMovements', 'exchanges', 'transfers', 'targets'], fresh, after),
+  refusals: (change, fresh, after) => [...accountIntakeRefusals(change, fresh, after), ...dependentRefusals(['trades', 'income', 'cashMovements', 'exchanges', 'transfers', 'targets'], fresh, after)],
 }
 
 /** The instruments that records name. Every one of those records is read in its instrument's quote currency. */

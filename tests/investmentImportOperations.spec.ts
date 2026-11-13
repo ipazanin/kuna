@@ -53,9 +53,9 @@ describe('the mail reader', () => {
 
   it("refuses what the mail card would mark, in the card's words", async () => {
     const desk = await investmentsDesk(used)
-    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-mail-reader', { senders: '', since: 'soon' })])
+    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'set-mail-reader', { senders: '', subject: 'a "b' })])
     expect(answer.text).toContain(`senders: ${mailWords.card.sendersHelp}`)
-    expect(answer.text).toContain(`since: ${mailWords.card.sinceMissing}`)
+    expect(answer.text).toContain('subject: ')
   })
 
   it('switches the reader off, which needs no consent, and leaves switching it on to the person on Settings, General', async () => {

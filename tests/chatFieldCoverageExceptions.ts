@@ -86,6 +86,11 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
+    reason:
+      "The one start day IBKR's mail reader kept before each account had its own. A file from then holds it until its first write of an account or of the reader, which drops it, and no screen sets it. Each account's start day goes through add-account and change-account.",
+    fields: ['investments: MailReader.since'],
+  },
+  {
     reason: "Facts a file brings rather than a person: import keys, what the bank's statement says of a row, what a mailed report left out, and who read a receipt and where its photo was taken.",
     fields: [
       'investments: CashMovement.importKey',
@@ -222,12 +227,17 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
     ],
   },
   {
+    reason: "Saving how each account of an older file reads now, beside a write of an account or of the reader, with the reader's shared start day gone. The person types nothing for it.",
+    paths: ['src/apps/investments/mail/application/mailReaderWrites.ts#writeAccountSources'],
+  },
+  {
     reason: "Writing what a file or a bank brings. An import, a sync or a bank's account list writes rows the person checks, with no field of their own to type.",
     paths: [
       'src/apps/company/imports/application/importStatements.ts#writeImport',
       'src/apps/company/imports/application/statementSync.ts#fileNewStatements',
       'src/apps/investments/imports/application/workbookImport.ts#writeWorkbookImport',
       'src/apps/investments/mail/application/mailReaderWrites.ts#writeLeftOut',
+      'src/apps/investments/mail/application/mailReaderWrites.ts#writeUploadLeftOut',
       'src/apps/spending/statements/application/statementWrites.ts#writeDryRun',
       'src/apps/spending/bankSync/application/bankSetupWrites.ts#bringBackBankDetails',
       'src/apps/spending/bankSync/application/bankSetupWrites.ts#keepMine',

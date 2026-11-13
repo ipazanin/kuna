@@ -36,3 +36,11 @@ export function yearDueNext(today: CivilDate): number {
   const year = yearOf(today)
   return today <= joppdDue(year - 1) ? year - 1 : year
 }
+
+/**
+ * The first day of the oldest tax year not filed yet. Kuna does not know what was filed, so a year counts as filed once
+ * its last deadline, the JOPPD at the end of the next February, has passed.
+ */
+export function firstUnfiledDay(today: CivilDate): CivilDate {
+  return civilDate(yearDueNext(today), 1, 1)
+}

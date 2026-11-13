@@ -28,7 +28,7 @@ export interface MailReportPorts {
   readonly mailbox: Mailbox
   readonly recipe: Recipe
   readonly reader: MailReader
-  /** The start of the reader's start day, in epoch milliseconds. */
+  /** The start of the earliest start day of the accounts the mail fills, in epoch milliseconds. */
   readonly sinceStart: number
   /** The start of the newest day a record of this report is dated, or null while none is. */
   readonly newest: number | null
@@ -42,7 +42,7 @@ export interface MailReportPorts {
 /**
  * Reads what a reader's search finds into rows, filing nothing and marking nothing. Each file of the recipe's format is
  * run through the recipe, and one that does not fit says so without stopping the others. The search reaches back a week
- * before the newest record of this report, so a missed file heals, and no further than the reader's start day.
+ * before the newest record of this report, so a missed file heals, and no further than the earliest account's start day.
  */
 export async function readMailReports(ports: MailReportPorts): Promise<MailReportPlan> {
   const { mailbox, recipe, reader, known } = ports

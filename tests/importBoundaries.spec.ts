@@ -116,6 +116,7 @@ const DOMAIN_SHARED = [
   'src/shared/money/',
   'src/shared/text/',
   'src/shared/charts/swatches.ts',
+  'src/shared/app/accountSource.ts',
   'src/shared/categorising/domain/',
   'src/shared/mail-filing/domain/',
   'src/shared/recipes/domain/',

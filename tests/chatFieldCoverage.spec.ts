@@ -66,6 +66,8 @@ const COMPONENT_RENAMES = {
 }
 const SCENARIO_OPERATIONS: readonly OperationFields[] = [{ name: 'add-component', renames: COMPONENT_RENAMES }, { name: 'change-component', renames: COMPONENT_RENAMES }, { name: 'rename-scenario' }]
 const INTERIM_RENAMES = { 'interimInterest.amount': 'interimAmount', 'interimInterest.date': 'interimDate' }
+/** How an Investments account's rows come in, which its operations take flat. */
+const INTAKE_RENAMES = { 'intake.rowsFrom': 'rowsFrom', 'intake.startsOn': 'startsOn' }
 const SUBSIDY_RENAMES = {
   'subsidy.monthly': 'subsidyMonthly',
   'subsidy.payer': 'subsidyPayer',
@@ -195,9 +197,9 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     path: 'src/apps/investments/holdings/application/holdingWrites.ts#INSTRUMENT_WRITES.change',
     operations: [{ name: 'change-instrument', renames: { benchmark: 'set-benchmark:instrument', 'quoted.kind': 'quoted', 'quoted.coupon': 'coupon', 'quoted.maturity': 'maturity' } }],
   },
-  { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.add', operations: ['add-account'] },
-  { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.change', operations: ['change-account'] },
-  { path: 'src/apps/investments/mail/application/mailReaderWrites.ts#MAIL_READER_WRITES', operations: ['set-mail-reader'] },
+  { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.add', operations: [{ name: 'add-account', renames: INTAKE_RENAMES }] },
+  { path: 'src/apps/investments/holdings/application/holdingWrites.ts#INVESTMENT_ACCOUNT_WRITES.change', operations: [{ name: 'change-account', renames: INTAKE_RENAMES }] },
+  { path: 'src/apps/investments/mail/application/mailReaderWrites.ts#writeReader', from: ['after'], operations: ['set-mail-reader'] },
   { path: 'src/apps/investments/overview/application/checkWrites.ts#writeCheck', from: ['check', 'threshold', 'on'], operations: ['set-check'] },
   { path: 'src/apps/investments/workbook/application/settingWrites.ts#SETTING_WRITES', operations: ['set-setting'] },
   {

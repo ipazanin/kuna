@@ -3,7 +3,10 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { INVESTMENTS_OPERATIONS } from '../src/apps/investments/assistant/operations/investmentsOperations'
+import { words as settingsWords } from '../src/apps/investments/settings/presentation/words'
 import { words as transactionWords } from '../src/apps/investments/transactions/presentation/words'
+import { parseCivilDate, today } from '../src/shared/calendar/civilDate'
+import { dayLabel } from '../src/shared/calendar/dayLabel'
 import { decimalText } from '../src/shared/money/decimal'
 import { DESK, EXAMPLE_RECORDS, investmentsDesk } from './fixtures/investmentsDesk'
 import type { InvestmentsDesk } from './fixtures/investmentsDesk'
@@ -221,11 +224,34 @@ describe('add-holding', () => {
 describe('accounts and instruments', () => {
   it('trades in an account the same card adds, by its $ name', async () => {
     const desk = await investmentsDesk(used)
-    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'New broker', note: '' }, '$new'), addTrade(desk, { account: '$new', side: 'buy' })])
+    const answer = await desk.propose([
+      stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'New broker', note: '', rowsFrom: 'by-hand', startsOn: null }, '$new'),
+      addTrade(desk, { account: '$new', side: 'buy' }),
+    ])
     expect(answer.isError).toBe(false)
     await desk.accept()
     const added = bookOf(desk).accounts.find((account) => account.name === 'New broker')!
     expect(bookOf(desk).trades.at(-1)!.account).toBe(added.id)
+  })
+
+  it('adds an account the mailed report fills from its start day, refuses moving that day into a filed tax year, and gives a mail account with no day today', async () => {
+    const desk = await investmentsDesk(used)
+    const answer = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'IBKR', note: '', rowsFrom: 'mail', startsOn: '2099-01-04' })])
+    expect(answer.isError, answer.text).toBe(false)
+    expect(desk.cards[0]!.groups[0]!.lines[0]!.fields.find((field) => field.name === settingsWords.accountDialog.rowsFrom)?.after).toBe(
+      settingsWords.accounts.fromMail(dayLabel(parseCivilDate('2099-01-04')!)),
+    )
+    await desk.accept()
+    const added = bookOf(desk).accounts.find((account) => account.name === 'IBKR')!
+    expect(added.intake).toEqual({ rowsFrom: 'mail', startsOn: '2099-01-04' })
+
+    const filed = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'change-account', { account: desk.ref('investment-account', added.id), startsOn: '2001-01-02' })])
+    expect(filed.isError).toBe(true)
+    expect(filed.text).toContain('2001')
+    const noDay = await desk.propose([stepOf(INVESTMENTS_OPERATIONS, 'add-account', { name: 'IBKR 2', note: '', rowsFrom: 'mail', startsOn: null })])
+    expect(noDay.isError, noDay.text).toBe(false)
+    await desk.accept()
+    expect(bookOf(desk).accounts.find((account) => account.name === 'IBKR 2')!.intake).toEqual({ rowsFrom: 'mail', startsOn: today() })
   })
 
   it('refuses deleting an account that records name, and a blank name', async () => {

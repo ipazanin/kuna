@@ -4,7 +4,6 @@ import type { WorkbookRow, WorkbookType } from '../../imports/domain/portfolioWo
 import { reportRowKey } from '../../imports/domain/reportKey'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { words } from './words'
-import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { DECIMAL_ZERO, addDecimal, magnitude, negateDecimal, roundedDecimal, subtractDecimal } from '../../../../shared/money/decimal'
@@ -118,20 +117,24 @@ function rowsOf(recipe: Recipe, row: RecipeRow, fileName: string): UnnumberedRow
   return type === 'FX' ? exchangeRows(row, base) : [base]
 }
 
-/** Whether a row asked about is dated before the reader's start day. One whose date cannot be read is asked about all the same. */
+/** Whether a row asked about is dated before the day. One whose date cannot be read is asked about all the same. */
 function askedBefore(row: AskedRow, since: CivilDate): boolean {
   const date = row.dates.date
   return date !== null && date !== undefined && date < since
 }
 
+/** Where the rows of a report came from: the mail, from the earliest start day of the accounts it fills, or a file the person uploaded. */
+export type ReportSource = { readonly kind: 'mailed'; readonly since: CivilDate | null } | { readonly kind: 'uploaded' }
+
 /**
- * The rows every file of a rolling report gives, for the dry run. Files overlap, so a row is kept once by its key, as the
- * newest file writes it. A row a later file writes differently is asked about, since one of the two is wrong and the
- * report does not say which. A row or a question dated before the reader's start day is left out, and so is a question
- * the person said to stop asking. Each file's asked rows come with it, and the amounts are rounded to the cent, without listing
- * each as rounded, since a broker's fractions of a cent are the usual thing.
+ * The rows every file of a rolling report gives, for the dry run, which leaves out a mailed report's rows of each account
+ * before its start day. Files overlap, so a row is kept once by its key, as the newest file writes it. A row a later file
+ * writes differently is asked about, since one of the two is wrong and the report does not say which. A question names no
+ * account, so a mailed one dated before the earliest start day is left out, and so is a question the person said to stop
+ * asking. Each file's asked rows come with it, and the amounts are rounded to the cent, without listing each as rounded,
+ * since a broker's fractions of a cent are the usual thing.
  */
-export function reportRows(recipe: Recipe, files: readonly ReportFile[], reader: Pick<MailReader, 'since' | 'leftOut'>): WorkbookRows {
+export function reportRows(recipe: Recipe, files: readonly ReportFile[], reader: Pick<MailReader, 'leftOut'>, source: ReportSource): WorkbookRows {
   const rows = new Map<string, UnnumberedRow>()
   const factsOf = new Map<string, string>()
   const changed = new Map<string, string>()
@@ -147,9 +150,9 @@ export function reportRows(recipe: Recipe, files: readonly ReportFile[], reader:
     }
     run.asked.forEach((row) => asked.set(row.key, row))
   }
-  const inPeriod = [...rows.values()].filter((row) => row.date >= reader.since)
-  const askedInPeriod = [...asked.values()].filter((row) => !askedBefore(row, reader.since))
-  const changedRows = inPeriod.flatMap((row): AskedRow[] => {
+  const since = source.kind === 'mailed' ? source.since : null
+  const askedInPeriod = [...asked.values()].filter((row) => since === null || !askedBefore(row, since))
+  const changedRows = [...rows.values()].flatMap((row): AskedRow[] => {
     const section = changed.get(row.key)
     return section === undefined
       ? []
@@ -167,29 +170,22 @@ export function reportRows(recipe: Recipe, files: readonly ReportFile[], reader:
         ]
   })
   return {
-    rows: inPeriod.filter((row) => !changed.has(row.key)).map((row, index) => ({ ...row, fileRow: index + 1 })),
+    rows: [...rows.values()].filter((row) => !changed.has(row.key)).map((row, index) => ({ ...row, fileRow: index + 1 })),
     skipped: [],
     rounded: [],
     report: {
+      mailed: source.kind === 'mailed',
       asked: [...askedInPeriod, ...changedRows].filter((row) => !reader.leftOut.includes(row.key)),
-      beforeStart: rows.size - inPeriod.length + asked.size - askedInPeriod.length,
+      beforeStart: asked.size - askedInPeriod.length,
+      byHand: 0,
     },
   }
 }
 
-/** The earliest day a report's rows or questions are dated, or null for a report with none. */
-export function firstReportDay(file: ReportFile): CivilDate | null {
-  const days = [...file.run.rows, ...file.run.asked].flatMap((row) => (row.dates.date === null || row.dates.date === undefined ? [] : [row.dates.date]))
-  return days.length === 0 ? null : days.reduce((first, day) => (day < first ? day : first))
-}
-
-/** A start day before any broker's report, so an uploaded report is read from its first row. */
-const BEFORE_ANY_REPORT = parseCivilDate('1900-01-01')!
-
 /**
- * The rows of one report the person uploaded. The reader's first day does not apply, so every row not already in Kuna
- * counts, and only the questions the person said to stop asking are left out.
+ * The rows of one report the person uploaded, which counts as by hand. No start day applies, so every row not already in
+ * Kuna counts, and only the questions the person said to stop asking are left out.
  */
 export function uploadedReportRows(recipe: Recipe, file: ReportFile, reader: Pick<MailReader, 'leftOut'> | null): WorkbookRows {
-  return reportRows(recipe, [file], { since: BEFORE_ANY_REPORT, leftOut: reader?.leftOut ?? [] })
+  return reportRows(recipe, [file], { leftOut: reader?.leftOut ?? [] }, { kind: 'uploaded' })
 }

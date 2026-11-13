@@ -1,6 +1,5 @@
 import { IBKR_FLEX_RECIPE } from './ibkrFlexRecipe'
 import type { MailReader } from '../../workbook/domain/mailReader'
-import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { mailAddressesFault, mailAddressesOf, mailPhraseFault } from '../../../../shared/mail-filing/domain/mailSource'
 import type { MailSearchFault } from '../../../../shared/mail-filing/domain/mailSource'
 
@@ -9,15 +8,14 @@ export interface MailReaderTexts {
   readonly senders: string
   readonly subject: string
   readonly contents: string
-  readonly since: string
 }
 
 export type MailReaderField = keyof MailReaderTexts
 
-/** The reader's fields as the card shows them, or IBKR's own terms and today before the file holds a reader. */
+/** The reader's fields as the card shows them, or IBKR's own terms before the file holds a reader. */
 export function mailReaderTexts(saved: MailReader | null): MailReaderTexts {
   const { senders, subject, contents } = saved ?? IBKR_FLEX_RECIPE.mail
-  return { senders: senders.join(', '), subject, contents, since: saved?.since ?? today() }
+  return { senders: senders.join(', '), subject, contents }
 }
 
 /** A field that names nothing it needs, or one Gmail cannot search for, with the mail search's own fault. */
@@ -31,7 +29,6 @@ export function mailReaderFaults(texts: MailReaderTexts, on: boolean): Readonly<
     senders: senders.length === 0 ? (on ? { kind: 'missing' } : null) : unsearchable(mailAddressesFault(senders)),
     subject: unsearchable(mailPhraseFault('subject', texts.subject)),
     contents: unsearchable(mailPhraseFault('contents', texts.contents)),
-    since: parseCivilDate(texts.since) === null ? { kind: 'missing' } : null,
   }
 }
 
@@ -44,7 +41,5 @@ export function withMailField(reader: MailReader, field: MailReaderField, texts:
       return { ...reader, subject: texts.subject.trim() }
     case 'contents':
       return { ...reader, contents: texts.contents.trim() }
-    case 'since':
-      return { ...reader, since: parseCivilDate(texts.since)! }
   }
 }

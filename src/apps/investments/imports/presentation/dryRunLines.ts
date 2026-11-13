@@ -266,5 +266,7 @@ function skipText(reason: SkipReason): string {
       return words.skips.refused(reason.reason)
     case 'below-a-cent':
       return words.skips.belowACent
+    case 'mail-owns':
+      return words.skips.mailOwns(reason.account, dayLabel(reason.startsOn))
   }
 }

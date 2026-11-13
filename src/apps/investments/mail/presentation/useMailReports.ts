@@ -9,10 +9,12 @@ import type { ReportNews } from '../domain/mailReview'
 import { reportRows } from '../domain/reportRows'
 import { words as mailWords } from '../domain/words'
 import { words } from './words'
+import { accountIntakes, earliestMailStart } from '../../imports/domain/accountIntake'
 import type { WorkbookRows } from '../../imports/domain/importDryRun'
 import { usePortfolio } from '../../holdings/presentation/usePortfolio'
 import { INVESTMENTS_GENERAL_ROUTE } from '../../overview/presentation/investmentLinks'
 import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
+import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { MailReader } from '../../workbook/domain/mailReader'
 import { deviceTimeZone, parseCivilDate, startOfDayIn } from '../../../../shared/calendar/civilDate'
 import { isUnauthorized } from '../../../../shared/google/googleApi'
@@ -33,6 +35,9 @@ export const MAIL_SCOPE: GoogleScope = 'gmail.readonly'
 /** Where the step's line links, the card on Settings, General, which lists what the last run read. */
 const MAIL_LIST_LINK = { label: words.step.seeList, to: `${INVESTMENTS_GENERAL_ROUTE}#mail` } as const
 
+/** Where a step that found no account to read for links: the accounts on Settings, General, each with how its rows come in. */
+const ACCOUNTS_LINK = { label: words.step.seeAccounts, to: `${INVESTMENTS_GENERAL_ROUTE}#accounts` } as const
+
 const state = shallowReactive<{ plan: MailReportPlan | null; stopped: string | null }>({ plan: null, stopped: null })
 
 /** What this page already made of each file. A sync on a timer would otherwise fetch every file of the window again. */
@@ -49,12 +54,13 @@ async function openMailbox(): Promise<Mailbox> {
   return gmailMailbox(token)
 }
 
-/** A report's mail read into rows, oldest file first, for the dry run. */
-function rowsOfPlan(plan: MailReportPlan, reader: MailReader): WorkbookRows {
+/** A report's mail read into rows, oldest file first, for the dry run, which takes each account's rows from its start day. */
+function rowsOfPlan(plan: MailReportPlan, reader: MailReader, book: InvestmentBook): WorkbookRows {
   return reportRows(
     IBKR_FLEX_RECIPE,
     plan.mails.flatMap((mail) => (mail.kind === 'read' ? [mail.file] : [])),
     reader,
+    { kind: 'mailed', since: earliestMailStart(accountIntakes(book)) },
   )
 }
 
@@ -114,7 +120,7 @@ export function useMailReports(): MailReports {
   const { sources } = usePortfolio()
   const book = computed(() => store.state.workbook?.book ?? null)
   const reader = computed(() => ibkrMailReader(book.value))
-  const reading = computed(() => (state.plan === null || reader.value === null ? null : rowsOfPlan(state.plan, reader.value)))
+  const reading = computed(() => (state.plan === null || reader.value === null || book.value === null ? null : rowsOfPlan(state.plan, reader.value, book.value)))
   return {
     state: shallowReadonly(state),
     reader,
@@ -138,12 +144,17 @@ export const MAIL_STEP: SyncStep = {
     if (workbook === null || reader === null || choice?.source !== 'drive') {
       return { kind: 'done', line: words.step.beforeBooks, writeId: null, link: null }
     }
+    const since = earliestMailStart(accountIntakes(workbook.book))
+    if (since === null) {
+      state.plan = null
+      return { kind: 'done', line: words.step.noAccount, writeId: null, link: ACCOUNTS_LINK }
+    }
     const newest = newestReportDay(workbook.book)
     const newestDay = newest === null ? null : parseCivilDate(newest)
     const ports: Omit<MailReportPorts, 'mailbox'> = {
       recipe: IBKR_FLEX_RECIPE,
       reader,
-      sinceStart: startOfDayIn(reader.since, deviceTimeZone()),
+      sinceStart: startOfDayIn(since, deviceTimeZone()),
       newest: newestDay === null ? null : startOfDayIn(newestDay, deviceTimeZone()),
       fits: (name) => fileNameFits(IBKR_FLEX_RECIPE, name),
       readFile: (bytes) => readRecipeFile(IBKR_FLEX_RECIPE, bytes),
@@ -157,7 +168,7 @@ export const MAIL_STEP: SyncStep = {
       state.stopped = isUnauthorized(failure) ? words.step.stopped : failure instanceof Error ? failure.message : String(failure)
       throw failure
     }
-    const line = planLine(state.plan, reportNews(rowsOfPlan(state.plan, reader), workbook.book, usePortfolio().sources.value?.rates ?? NO_RATES))
+    const line = planLine(state.plan, reportNews(rowsOfPlan(state.plan, reader, workbook.book), workbook.book, usePortfolio().sources.value?.rates ?? NO_RATES))
     return state.plan.mails.some((mail) => mail.kind === 'misfit') ? { kind: 'failed', line, link: MAIL_LIST_LINK } : { kind: 'done', line, writeId: null, link: MAIL_LIST_LINK }
   },
 }

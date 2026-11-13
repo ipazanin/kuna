@@ -177,6 +177,7 @@ export const en = {
     share: 'A share from 0 to 100',
     otherHolding: 'Another holding than the one it came from',
     receivedCurrency: (currency: string) => `A holding quoted in ${currency}, as the one it came from`,
+    mailOwns: (account: string, startsOn: string) => `IBKR report by mail brings the rows of "${account}" from ${startsOn}. Pick an earlier day.`,
   },
   summary: {
     youPay: 'You pay',
@@ -363,6 +364,7 @@ export const hr: Translation<typeof en> = {
     share: 'Udio od 0 do 100',
     otherHolding: 'Druga pozicija od one iz koje dolazi',
     receivedCurrency: (currency) => `Pozicija koja kotira u ${currency}, kao i ona iz koje dolazi`,
+    mailOwns: (account, startsOn) => `${withFullStop(`Izvješće IBKR-a poštom donosi retke računa „${account}” od ${startsOn}`)} Odaberite raniji dan.`,
   },
   summary: {
     youPay: 'Plaćate',
@@ -397,6 +399,8 @@ function faultText(fault: TransactionFault): string {
       return words.errors.date(EXAMPLE_DAY)
     case 'receivedCurrency':
       return words.errors.receivedCurrency(fault.currency)
+    case 'mailOwns':
+      return words.errors.mailOwns(fault.account, dayLabel(fault.startsOn))
     default:
       return words.errors[fault.kind]
   }

@@ -6,7 +6,9 @@ import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/
 import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { civil } from './fixtures/ledger'
-import { COMPANY_LEDGER_ROW, SPENDING_ACCOUNT, SPENDING_ROW, companyFiguresOf, spendingFiguresOf } from '../scripts/support/figureFields.mjs'
+import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments'
+import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
+import { COMPANY_LEDGER_ROW, INVESTMENT_ACCOUNT, SPENDING_ACCOUNT, SPENDING_ROW, companyFiguresOf, investmentsFiguresOf, spendingFiguresOf } from '../scripts/support/figureFields.mjs'
 
 const DAY = civil('2026-11-10')
 const SAVED_AT = '2026-01-01T00:00:00.000Z'
@@ -26,6 +28,11 @@ const KINDS = {
     figures: ['bank', 'closed', 'currency', 'iban', 'id', 'kind', 'name', 'openedOn', 'opening'],
     cells: ['bank', 'closed', 'currency', 'iban', 'id', 'kind', 'name', 'opened_on', 'opening'],
   },
+  'an Investments account': {
+    kind: INVESTMENT_ACCOUNT,
+    figures: ['id', 'name', 'note'],
+    cells: ['id', 'name', 'note'],
+  },
   'a Company ledger row': {
     kind: COMPANY_LEDGER_ROW,
     figures: ['account', 'amount', 'balance', 'category', 'counterparty', 'date', 'id', 'ownerShare', 'reviewReasons', 'rowId'],
@@ -38,6 +45,11 @@ const spending = SPENDING_DOCUMENT.read({
   revision: '1',
   document: fakeSpendingDocument(SAVED_AT, 'cash', DAY),
 })
+const investments = INVESTMENTS_DOCUMENT.read({
+  meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: SAVED_AT, lastExportedAt: null, unexportedSince: null },
+  revision: '1',
+  document: fakeInvestmentsDocument(SAVED_AT, 'mail', DAY),
+})
 const company = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: SAVED_AT }, fakeWorkbookDocument(SAVED_AT, 'drive'))
 
 interface Stored {
@@ -48,6 +60,7 @@ interface Stored {
 const STORED: Record<keyof typeof KINDS, readonly Stored[]> = {
   'a Spending row': spending.records.transactions.records,
   'a Spending account': spending.records.accounts.records,
+  'an Investments account': investments.records.accounts.records,
   'a Company ledger row': company.records.ledger.records,
 }
 
@@ -80,7 +93,7 @@ describe("the figure digest's fields", () => {
     expect([...storedCells].filter((cell) => !kind.cells.has(cell) && !(cells as readonly string[]).includes(cell))).toEqual([])
   })
 
-  it('leaves no field or stored cell that is not a figure in a Spending group or in Company ledger records, however deep', () => {
+  it('leaves no field or stored cell that is not a figure in a Spending group, in Investments accounts or in Company ledger records, however deep', () => {
     const queue = reviewQueue(spending.workbook, DAY)
     const group = {
       queue,
@@ -94,6 +107,8 @@ describe("the figure digest's fields", () => {
 
     expect(fieldsIn(group).filter(spendingLeftOut)).toContain('import_key')
     expect(fieldsIn(spendingFiguresOf(group)).filter(spendingLeftOut)).toEqual([])
+    expect(fieldsIn(investments.records.accounts).filter(leftOutOf(INVESTMENT_ACCOUNT))).toContain('starts_on')
+    expect(fieldsIn(investmentsFiguresOf(investments.records).accounts).filter(leftOutOf(INVESTMENT_ACCOUNT))).toEqual([])
     expect(fieldsIn(company.records.ledger).filter(ledgerLeftOut)).toContain('signals')
     expect(fieldsIn(companyFiguresOf(company.records).ledger).filter(ledgerLeftOut)).toEqual([])
   })

@@ -54,6 +54,7 @@ const sections = computed((): { readonly id: string; readonly title: string; rea
 })
 
 const beforeStart = computed(() => props.settled.dryRun.report?.beforeStart ?? 0)
+const byHand = computed(() => props.settled.dryRun.report?.byHand ?? 0)
 
 const ticked = (id: RecordId): boolean => props.workbookImport.deleting.value.has(id)
 </script>
@@ -63,6 +64,7 @@ const ticked = (id: RecordId): boolean => props.workbookImport.deleting.value.ha
     <div class="flex flex-col gap-1">
       <p class="type-body text-highlighted" data-testid="import-dry-run-summary">{{ summary }}</p>
       <p v-if="beforeStart > 0" class="type-caption" data-testid="import-before-start">{{ plural(words.dryRun.beforeStart(beforeStart), beforeStart) }}</p>
+      <p v-if="byHand > 0" class="type-caption" data-testid="import-by-hand">{{ plural(words.dryRun.byHand(byHand), byHand) }}</p>
     </div>
 
     <section v-for="section in sections" :key="section.id" class="flex flex-col gap-1" :data-testid="`import-group-${section.id}`">

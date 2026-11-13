@@ -3,6 +3,8 @@ import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { SpendingSettings } from './spendingSettings'
+import { takesRowByHand } from '../../../../shared/app/accountSource'
+import type { AccountSource } from '../../../../shared/app/accountSource'
 
 /** A current account at a bank, cash in hand, or savings kept apart. */
 export const ACCOUNT_KINDS = ['bank', 'cash', 'savings'] as const
@@ -14,8 +16,8 @@ export const ACCOUNT_BANKS = ['otp', 'revolut', 'other'] as const
 
 export type AccountBank = (typeof ACCOUNT_BANKS)[number]
 
-/** How an account's rows come in: a bank link fetches them, and by hand covers typing, the chat and files. */
-export const ROWS_FROM = ['bank-link', 'by-hand'] as const
+/** The ways a Spending account's rows come in. Spending reads no mail. */
+export const ROWS_FROM = ['bank-link', 'by-hand'] as const satisfies readonly AccountSource[]
 
 export type RowsFrom = (typeof ROWS_FROM)[number]
 
@@ -45,9 +47,9 @@ export function rowsFromOfDetails(account: Pick<Account, 'kind' | 'iban'>): Rows
   return account.kind !== 'cash' && account.iban !== '' ? 'bank-link' : 'by-hand'
 }
 
-/** Whether a person's own rows may go on the account. One the bank fills takes its rows from the bank alone. */
-export function takesRowsByHand(account: Pick<Account, 'rowsFrom'>): boolean {
-  return account.rowsFrom === 'by-hand'
+/** Whether a person's own rows may go on the account. Kuna keeps no row of it before its start day, so one the bank fills takes its rows from the bank alone. */
+export function takesRowsByHand(account: Pick<Account, 'rowsFrom' | 'openedOn'>): boolean {
+  return takesRowByHand(account.rowsFrom, account.openedOn, account.openedOn)
 }
 
 /** Whether the account says the bank brings its rows but holds no IBAN to find it by, which a write refuses and a reading doubts. */

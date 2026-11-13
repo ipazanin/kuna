@@ -6,6 +6,7 @@ import type { FundMixLine } from '../../domain/fundMix'
 import type { HandPrice } from '../../domain/handPrice'
 import type { Income } from '../../domain/income'
 import type { Instrument } from '../../domain/instrument'
+import { BY_HAND } from '../../domain/investmentAccount'
 import type { InvestmentAccount } from '../../domain/investmentAccount'
 import type { MailReader } from '../../domain/mailReader'
 import {
@@ -69,8 +70,13 @@ function fixedId(kind: RecordKind, place: number): RecordId {
 /** Carries the marker the production build looks for, so the made-up portfolio cannot ship unseen. */
 const FAKE_INVESTMENTS_NOTE = 'Made up for the fake build. FAKE-WORKBOOK-ONLY-DO-NOT-SHIP-INVESTMENTS'
 
-const BROKER_ONE: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 1), name: 'Broker One', note: FAKE_INVESTMENTS_NOTE }
-const BROKER_TWO: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 2), name: 'Broker Two', note: '' }
+const BROKER_ONE: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 1), name: 'Broker One', note: FAKE_INVESTMENTS_NOTE, intake: BY_HAND }
+const BROKER_TWO: InvestmentAccount = { id: fixedId(INVESTMENT_ACCOUNT_RECORDS, 2), name: 'Broker Two', note: '', intake: BY_HAND }
+
+/** The first account as the mailed report fills it, from a month before the day. */
+function mailedBrokerOne(today: CivilDate): InvestmentAccount {
+  return { ...BROKER_ONE, intake: { rowsFrom: 'mail', startsOn: addDays(today, -30) } }
+}
 
 /** Made-up instruments, the three priced ones on the made-up series of the fake prices file. */
 const SHARE_A: Instrument = {
@@ -458,8 +464,8 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
-/** IBKR's report switched on, at made-up filters, reading the last month. */
-function fakeMailReader(today: CivilDate): MailReader {
+/** IBKR's report switched on, at made-up filters. */
+function fakeMailReader(): MailReader {
   return {
     id: fixedId(MAIL_READER_RECORDS, 990),
     recipe: 'ibkr-activity-flex',
@@ -467,7 +473,7 @@ function fakeMailReader(today: CivilDate): MailReader {
     senders: ['reports@broker.example.com'],
     subject: 'Flex',
     contents: '',
-    since: addDays(today, -30),
+    since: null,
     leftOut: [],
   }
 }
@@ -475,8 +481,9 @@ function fakeMailReader(today: CivilDate): MailReader {
 /**
  * `sample` is the whole made-up file, `cash-below-zero` leaves out the second account's deposit, so its euros fall below
  * zero, `young` is a file whose first deposit is seven months old, with no benchmark chosen, and `sale-2023` adds a sale
- * of 2023 whose tax carries a city surtax, with no city chosen yet. `mail` is the sample with IBKR's report by mail switched on,
- * and `mail-typed` is that with the first mailed day's deposit and withdrawal typed by hand, so the report's rows look like them.
+ * of 2023 whose tax carries a city surtax, with no city chosen yet. `mail` is the sample with IBKR's report by mail switched on
+ * and filling the first account from a month back, and `mail-typed` is that with the first mailed day's deposit and
+ * withdrawal typed by hand, kept from before the account took the report, so the report's rows look like them.
  */
 export type FakeInvestmentsVariant = 'sample' | 'cash-below-zero' | 'young' | 'mail' | 'mail-typed' | 'sale-2023'
 
@@ -531,10 +538,11 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
   const allMovements = [...CASH_MOVEMENTS, ...LATER_CASH_MOVEMENTS]
   const kept = variant !== 'cash-below-zero' ? allMovements : allMovements.filter((movement) => !(movement.account === BROKER_TWO.id && movement.kind === 'deposit'))
   const movements = variant === 'mail-typed' ? [...kept, ...typedReportMovements(today)] : kept
+  const mailed = variant === 'mail' || variant === 'mail-typed'
   return {
     ...emptyInvestmentsDocument(savedAt),
     records: {
-      ...stored(INVESTMENT_ACCOUNT_RECORDS, [BROKER_ONE, BROKER_TWO]),
+      ...stored(INVESTMENT_ACCOUNT_RECORDS, [mailed ? mailedBrokerOne(today) : BROKER_ONE, BROKER_TWO]),
       ...stored(INSTRUMENT_RECORDS, [SHARE_A, SHARE_B, WORLD_ETF, MONEY_FUND, SPIN_CO, INDEX_FUND, RETIRED_CO]),
       ...stored(TRADE_RECORDS, [...TRADES, ...LATER_TRADES, ...TAX_TRADES, ...(variant === 'sale-2023' ? [sale2023()] : [])]),
       ...stored(INCOME_RECORDS, [...INCOME, ...LATER_INCOME, ...TAX_INCOME]),
@@ -547,7 +555,7 @@ export function fakeInvestmentsDocument(savedAt: string, variant: FakeInvestment
       ...stored(FUND_MIX_RECORDS, FUND_MIXES),
       ...stored(TARGET_RECORDS, TARGETS),
       ...stored(CHECK_RECORDS, CHECKS),
-      ...(variant === 'mail' || variant === 'mail-typed' ? stored(MAIL_READER_RECORDS, [fakeMailReader(today)]) : {}),
+      ...(mailed ? stored(MAIL_READER_RECORDS, [fakeMailReader()]) : {}),
     },
   }
 }

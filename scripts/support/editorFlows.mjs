@@ -8866,6 +8866,32 @@ export function investmentsDialogsFlowIn(language) {
     await lookAtDialog(page, press, shoot, '[data-testid="holding-add-transaction"]', '[data-testid="transaction-form"]', 'dialog-investments-holding-buy')
     await goTo(page, '#/investments/settings', croatian ? 'Postavke' : 'Settings')
     await lookAtDialog(page, press, shoot, '[data-testid="account-edit"]', '[data-testid="account-form"]', 'dialog-investments-account')
+    // The same account taking IBKR's mailed report asks its start day.
+    await pressSelector(page, press, '[data-testid="account-edit"]')
+    await page.waitForSelector('[data-testid="account-form"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="account-rows-from"] [data-value="mail"]')
+    await page.waitForSelector('[data-testid="account-starts-on"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('an account taking the mailed report asks no start day')
+    })
+    await delay(300)
+    await shoot('dialog-investments-account-mail')
+    // A start day in a filed tax year is refused under the field once Save is pressed.
+    await typeDay(await page.$('[data-testid="account-starts-on"]'), '2024-03-01')
+    await pressSelector(page, press, '[data-testid="account-save"]')
+    await elementSays(page, '[data-testid="account-form"]', ['2024'], 'the start day in a filed tax year is not refused under its field')
+    await delay(300)
+    await shoot('dialog-investments-account-filed')
+    // A day after the account's last row by hand goes in, and the list says where its rows come from.
+    await typeDay(await page.$('[data-testid="account-starts-on"]'), '2099-01-04')
+    await pressSelector(page, press, '[data-testid="account-save"]')
+    await dialogGone(page, '[data-testid="account-form"]')
+    await elementSays(
+      page,
+      '[data-testid="investments-accounts"]',
+      [croatian ? 'Izvješće IBKR-a poštom od' : 'IBKR report by mail from'],
+      'the accounts list does not say the account takes the mailed report',
+    )
+    await shootAt(page, shoot, await page.$('[data-testid="investments-accounts"]'), 'investments-accounts-mail')
   }
 }
 
@@ -9059,6 +9085,8 @@ export function investmentsMailFlowIn(language, variant = 'plain') {
         throw new Error('the accounts step does not say which account the rows look like')
       })
     } else {
+      // A new account of the report asks from which day the report brings its rows.
+      if ((await page.$('[data-testid="import-account-starts-on"]')) !== null) await shoot(`investments-mail-account-new-${variant}`)
       await chooseStartingWith(page, press, '[data-testid="import-account-choice"]', 'Broker One')
     }
     await inspect?.('the account of the report')

@@ -35,7 +35,7 @@ function reportOf(): WorkbookRows {
   if (read.kind !== 'read') throw new Error(`It did not read: ${read.misfit.kind}`)
   const run = runRecipe(IBKR_FLEX_RECIPE, read.rows)
   if (run.kind !== 'read') throw new Error(`It does not fit: ${run.misfit.kind}`)
-  return reportRows(IBKR_FLEX_RECIPE, [{ fileName: 'kuna-daily.xml', run }], { since: parseCivilDate('2026-01-01')!, leftOut: [] })
+  return reportRows(IBKR_FLEX_RECIPE, [{ fileName: 'kuna-daily.xml', run }], { leftOut: [] }, { kind: 'uploaded' })
 }
 
 function bookOf(desk: InvestmentsDesk): InvestmentBook {
@@ -81,7 +81,7 @@ async function linkedDesk(): Promise<InvestmentsDesk> {
   return desk
 }
 
-describe('a Flex report against records Kuna has without its keys', () => {
+describe('an uploaded Flex report against records Kuna has without its keys', () => {
   for (const [label, keyOf] of [
     ['typed by hand', () => null],
     ['imported from the workbook', (key: string) => key.replaceAll(':', '')],

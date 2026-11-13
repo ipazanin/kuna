@@ -1,4 +1,5 @@
 import { HOLDING_ROUTE } from '../holdings/presentation/holdingLinks'
+import { accountIntakes } from '../imports/domain/accountIntake'
 import type { PortfolioSources } from '../holdings/domain/holding'
 import { portfolioFigures } from '../holdings/domain/portfolioFigures'
 import { incomeByYear } from '../income/domain/incomeHistory'
@@ -15,6 +16,7 @@ import type { FundMixLine } from '../workbook/domain/fundMix'
 import type { HandPrice } from '../workbook/domain/handPrice'
 import type { Income } from '../workbook/domain/income'
 import type { Instrument, Quoting } from '../workbook/domain/instrument'
+import { BY_HAND } from '../workbook/domain/investmentAccount'
 import type { InvestmentAccount } from '../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../workbook/domain/investmentBook'
 import {
@@ -138,6 +140,15 @@ function fieldsOf(book: () => InvestmentBook | null) {
     id: { exposure: 'ref', to: INVESTMENT_ACCOUNT_RECORDS.name, meaning: 'The account at a broker.' },
     name: { exposure: 'plain', meaning: 'The name the owner gave it.' },
     note: { exposure: 'free-text', meaning: "The owner's note." },
+    intake: {
+      exposure: 'plain',
+      meaning: 'How its rows come in: "mail from" a day, when IBKR\'s mailed report brings them from that day and rows by hand go only on earlier days, or "by hand".',
+      read: (record) => {
+        const current = book()
+        const intake = (current === null ? undefined : accountIntakes(current).get(record.id)) ?? record.intake ?? BY_HAND
+        return intake.rowsFrom === 'mail' ? `mail from ${intake.startsOn}` : 'by hand'
+      },
+    },
   }
   const instrument: FieldDocs<Instrument> = {
     id: { exposure: 'ref', to: INSTRUMENT_RECORDS.name, meaning: 'The instrument, a holding once any of it is held.' },

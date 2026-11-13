@@ -11,11 +11,13 @@ import { misfitLine, useMailReports } from './useMailReports'
 import { words } from './words'
 import WorkbookImportDialog from '../../imports/presentation/WorkbookImportDialog.vue'
 import type { ReportReview } from '../../imports/presentation/WorkbookImportDialog.vue'
+import { useInvestmentsBooks } from '../../workbook/application/investmentsStore'
 import { readRecipeFile } from '../../../../shared/recipes/infrastructure/recipeFile'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
 
 /** A Flex report the person saved, read by the mail's recipe and accepted through the same review as a mailed one. */
 const { reader } = useMailReports()
+const store = useInvestmentsBooks()
 const picked = ref<File | null>(null)
 const uploaded = shallowRef<ReportFile | null>(null)
 const failure = ref<string | null>(null)
@@ -35,11 +37,13 @@ const report = computed((): ReportReview | null => {
   const file = uploaded.value
   if (file === null) return null
   const held = reader.value
+  const book = store.state.workbook?.book ?? null
+  if (book === null) return null
   return {
     words: { title: words.review.title, description: words.review.description, accept: words.review.accept, accepted: words.review.accepted, notAccepted: words.review.notAccepted },
     fileName: file.fileName,
     reading: uploadedReportRows(IBKR_FLEX_RECIPE, file, held),
-    writeLeftOut: (unit, keys) => writeUploadLeftOut(unit, held, keys, file),
+    writeLeftOut: (unit, keys) => writeUploadLeftOut(unit, book, held, keys),
   }
 })
 </script>

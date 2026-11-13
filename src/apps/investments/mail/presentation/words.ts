@@ -21,6 +21,8 @@ export const en = {
     fixes: { 'no-section': 'Tick that section in the Flex Query.', 'no-column': 'Tick that field in the Flex Query.' },
     accessRanOut: 'The access to your mail ran out. Sync again to allow it.',
     stopped: 'Google turned the mail step away. Sync again to allow it.',
+    noAccount: 'No account takes its rows from IBKR report by mail yet. Pick it for an account under Accounts.',
+    seeAccounts: 'See the accounts',
   },
   card: {
     title: 'IBKR report by mail',
@@ -35,16 +37,14 @@ export const en = {
     subjectHelp: 'Blank takes any subject.',
     contents: 'Words in the mail',
     contentsHelp: 'Gmail looks for these words. Blank takes any mail.',
-    since: 'First day to read',
-    sinceHelp: 'Rows dated earlier are left out, so what you already booked does not count twice.',
-    sinceMissing: 'Pick a day',
+    startDays: 'Each account under Accounts says from which day IBKR report by mail brings its rows. Earlier days stay as you typed or imported them.',
     unconfirmed: 'These filters are not confirmed yet',
     unconfirmedWhy: 'Kuna has not seen a real IBKR mail, so the sender is its best guess. The first sync that finds one confirms it.',
     format: `In IBKR's Flex Query, set the format to XML for the last 7 to 14 days, with the sections ${SECTIONS}.`,
     saved: 'IBKR report settings saved',
     notSaved: 'IBKR report settings not saved',
     lastSync: 'What the last sync read',
-    searchedFrom: { newest: 'a week before the newest record from this report', since: 'the first day to read' },
+    searchedFrom: { newest: 'a week before the newest record from this report', since: 'the earliest start day of the accounts it fills' },
     noMailFound: 'No mail fits these filters. Check the sender and the subject against a real mail.',
     rowsRead: (name: string, rows: number): EnglishForms => ({ one: `${name}: ${rows} row read`, other: `${name}: ${rows} rows read` }),
     noFile: (format: string) => `This mail holds no ${format} file, so it was passed over.`,
@@ -84,6 +84,8 @@ export const hr: Translation<typeof en> = {
     fixes: { 'no-section': 'Označite taj odjeljak u upitu Flex Query.', 'no-column': 'Označite to polje u upitu Flex Query.' },
     accessRanOut: 'Pristup pošti je istekao. Sinkronizirajte ponovno da ga dopustite.',
     stopped: 'Google je odbio korak pošte. Sinkronizirajte ponovno da ga dopustite.',
+    noAccount: 'Nijedan račun još ne dobiva retke iz izvješća IBKR-a poštom. Odaberite ga za račun pod Računi.',
+    seeAccounts: 'Pogledaj račune',
   },
   card: {
     title: 'Izvješće IBKR-a poštom',
@@ -98,16 +100,14 @@ export const hr: Translation<typeof en> = {
     subjectHelp: 'Prazno prihvaća svaki predmet.',
     contents: 'Riječi u poruci',
     contentsHelp: 'Gmail traži te riječi. Prazno prihvaća svaku poruku.',
-    since: 'Prvi dan za čitanje',
-    sinceHelp: 'Raniji retci se izostavljaju, pa se ono što ste već upisali ne broji dvaput.',
-    sinceMissing: 'Odaberi dan',
+    startDays: 'Svaki račun pod Računi kaže od kojeg dana izvješće IBKR-a poštom donosi njegove retke. Raniji dani ostaju kako ste ih upisali ili uvezli.',
     unconfirmed: 'Ovi filtri još nisu potvrđeni',
     unconfirmedWhy: 'Kuna još nije vidjela pravu poruku IBKR-a, pa je pošiljatelj njezina najbolja procjena. Prva sinkronizacija koja je pronađe to potvrđuje.',
     format: `U IBKR-ovu upitu Flex Query postavite format XML za zadnjih 7 do 14 dana, s odjeljcima: ${SECTIONS}.`,
     saved: 'Postavke izvješća IBKR-a su spremljene',
     notSaved: 'Postavke izvješća IBKR-a nisu spremljene',
     lastSync: 'Što je pročitala zadnja sinkronizacija',
-    searchedFrom: { newest: 'tjedan dana prije najnovijeg zapisa iz ovog izvješća', since: 'prvog dana za čitanje' },
+    searchedFrom: { newest: 'tjedan dana prije najnovijeg zapisa iz ovog izvješća', since: 'najranijeg početnog dana računa koje puni' },
     noMailFound: 'Nijedna poruka ne odgovara ovim filtrima. Provjerite pošiljatelja i predmet prema pravoj poruci.',
     rowsRead: (name, rows) => ({ one: `${name}: pročitan je ${rows} redak`, few: `${name}: pročitana su ${rows} retka`, other: `${name}: pročitano je ${rows} redaka` }),
     noFile: (format) => `Ova poruka nema datoteke ${format}, pa je preskočena.`,
@@ -146,13 +146,12 @@ export const hr: Translation<typeof en> = {
 
 export const words = language === 'hr' ? hr : en
 
-/** What each field of the mail card says it lacks: senders their help, the first day a pick, and a phrase Gmail cannot search for the mail search's wording of its fault. */
+/** What each field of the mail card says it lacks: senders their help, and a phrase Gmail cannot search for the mail search's wording of its fault. */
 export function mailReaderErrors(faults: Readonly<Record<MailReaderField, MailReaderFault | null>>): Readonly<Record<MailReaderField, string | null>> {
   const text = (field: MailReaderField): string | null => {
     const fault = faults[field]
     if (fault === null) return null
-    if (fault.kind === 'unsearchable') return mailWords.searchFault(fault.search)
-    return field === 'since' ? words.card.sinceMissing : words.card.sendersHelp
+    return fault.kind === 'unsearchable' ? mailWords.searchFault(fault.search) : words.card.sendersHelp
   }
-  return { senders: text('senders'), subject: text('subject'), contents: text('contents'), since: text('since') }
+  return { senders: text('senders'), subject: text('subject'), contents: text('contents') }
 }

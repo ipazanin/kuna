@@ -9,7 +9,7 @@ import type { AppDocument } from '../../../../shared/storage/infrastructure/docu
 /** The app of the hub whose file this store keeps. */
 export const INVESTMENTS_APP = 'investments'
 
-const INVESTMENTS_SCHEMA: WorkbookDocument['schema'] = { investments: 1 }
+const INVESTMENTS_SCHEMA: WorkbookDocument['schema'] = { investments: 2 }
 
 /** An Investments file with no records, which a first run keeps on Drive or in this browser. */
 export function emptyInvestmentsDocument(savedAt: string): WorkbookDocument {

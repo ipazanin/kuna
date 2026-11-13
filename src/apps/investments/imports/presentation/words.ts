@@ -98,6 +98,9 @@ export const en = {
     name: 'Name',
     nameHelp: 'As you call it, such as the broker and what the account is for',
     nameMissing: 'Name the account',
+    startsOn: 'Start day',
+    startsOnHelp: "From this day IBKR report by mail brings the account's rows. Earlier rows of the report are left out.",
+    startsOnMissing: 'Pick a day',
     likely: (count: number, account: string): EnglishForms => ({
       one: `Kuna suggests ${account}: ${count} row looks like one of its records that no report gave yet.`,
       other: `Kuna suggests ${account}: ${count} rows look like its records that no report gave yet.`,
@@ -183,8 +186,12 @@ export const en = {
     askedUnreadable: (field: string, text: string) => `Its ${field} cannot be read${text === '' ? ', as it is blank' : `: "${text}"`}`,
     askedChanged: 'A later file writes this row differently, and the report does not say which is right',
     beforeStart: (count: number): EnglishForms => ({
-      one: `${count} row dated before your first day to read was left out.`,
-      other: `${count} rows dated before your first day to read were left out.`,
+      one: `${count} row dated before its account's start day was left out.`,
+      other: `${count} rows dated before their account's start day were left out.`,
+    }),
+    byHand: (count: number): EnglishForms => ({
+      one: `${count} row of an account kept by hand was left out.`,
+      other: `${count} rows of accounts kept by hand were left out.`,
     }),
     adds: (records: number): EnglishForms => ({ one: `Adds ${records} record`, other: `Adds ${records} records` }),
     addsAccounts: (count: number): EnglishForms => ({ one: `${count} account`, other: `${count} accounts` }),
@@ -265,6 +272,7 @@ export const en = {
     againstSign: 'Its amount is signed against its type, such as a buy that pays in, so its units and its cash disagree',
     refused: (reason: string) => `Kuna cannot keep it as booked: ${reason}`,
     belowACent: 'It exchanges less than a cent, which Kuna passes over',
+    mailOwns: (account: string, startsOn: string) => `IBKR report by mail brings the rows of "${account}" from ${startsOn}, so only the report brings this one`,
   },
   imported: 'Workbook imported',
   notImported: 'Nothing imported',
@@ -362,6 +370,9 @@ export const hr: Translation<typeof en> = {
     name: 'Naziv',
     nameHelp: 'Kako ga zovete, na primjer broker i čemu račun služi',
     nameMissing: 'Imenuj račun',
+    startsOn: 'Početni dan',
+    startsOnHelp: 'Od ovog dana retke računa donosi izvješće IBKR-a poštom. Raniji retci izvješća se izostavljaju.',
+    startsOnMissing: 'Odaberi dan',
     likely: (count, account) => ({
       one: `Kuna predlaže ${account}: ${count} redak nalikuje jednom od njegovih zapisa koji još nije došao iz izvješća.`,
       few: `Kuna predlaže ${account}: ${count} retka nalikuju njegovim zapisima koji još nisu došli iz izvješća.`,
@@ -455,9 +466,14 @@ export const hr: Translation<typeof en> = {
     askedUnreadable: (field, text) => `Polje ${field} ne može se pročitati${text === '' ? ' jer je prazno' : `: „${text}”`}`,
     askedChanged: 'Kasnija datoteka drukčije piše ovaj redak, a izvješće ne kaže što je točno',
     beforeStart: (count) => ({
-      one: `Izostavljen je ${count} redak prije prvog dana za čitanje.`,
-      few: `Izostavljena su ${count} retka prije prvog dana za čitanje.`,
-      other: `Izostavljeno je ${count} redaka prije prvog dana za čitanje.`,
+      one: `Izostavljen je ${count} redak prije početnog dana njegova računa.`,
+      few: `Izostavljena su ${count} retka prije početnog dana njihova računa.`,
+      other: `Izostavljeno je ${count} redaka prije početnog dana njihova računa.`,
+    }),
+    byHand: (count) => ({
+      one: `Izostavljen je ${count} redak računa koji se vodi ručno.`,
+      few: `Izostavljena su ${count} retka računa koji se vode ručno.`,
+      other: `Izostavljeno je ${count} redaka računa koji se vode ručno.`,
     }),
     adds: (records) => ({
       one: `Dodaje ${records} zapis`,
@@ -559,6 +575,7 @@ export const hr: Translation<typeof en> = {
     againstSign: 'Predznak iznosa ne odgovara vrsti retka, na primjer kupnja koja uplaćuje, pa se jedinice i novac ne slažu',
     refused: (reason) => `Kuna ga ne može zadržati kako je knjižen: ${reason}`,
     belowACent: 'Mijenja manje od jednog centa, pa ga Kuna preskače',
+    mailOwns: (account, startsOn) => `Izvješće IBKR-a poštom donosi retke računa „${account}” od ${startsOn}, pa ovaj redak donosi samo ono`,
   },
   imported: 'Radna knjiga je uvezena',
   notImported: 'Ništa nije uvezeno',

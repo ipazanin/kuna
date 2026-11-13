@@ -12,8 +12,11 @@ export interface MailReader {
   readonly subject: string
   /** A phrase of the contents, blank for any. */
   readonly contents: string
-  /** Rows dated before it are left out, so a file's overlap with what is already booked does not double it. */
-  readonly since: CivilDate
+  /**
+   * The one start day the reader kept for every account before each account had its own, which an account that does not
+   * say how its rows come in still reads. Null on a reader added since.
+   */
+  readonly since: CivilDate | null
   /** The keys of rows the person said to stop asking about. */
   readonly leftOut: readonly string[]
 }

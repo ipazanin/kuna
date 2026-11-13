@@ -76,7 +76,7 @@ describe('the Investments first run on the fake Drive', () => {
     expect(fakeDriveSession().file(fakeDriveSession().file(store.state.choice!.id).parents[0]!).name).toBe('investments')
     expect(await booksFolder()).toEqual({ 'kuna-company.json': 'company' })
     const stored = decodeDocument(await fakeDriveSession().download(store.state.choice!.id))
-    expect(stored).toMatchObject({ app: 'investments', schema: { investments: 1 }, records: {} })
+    expect(stored).toMatchObject({ app: 'investments', schema: { investments: 2 }, records: {} })
     expect(investmentsApp.firstRun()).toBe(false)
   })
 

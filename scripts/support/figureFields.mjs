@@ -1,14 +1,15 @@
 /**
  * The fields of a record that hold no figure, as its parsed record names them and as its stored cells do. A Spending row's are
  * the bank's words and marks, which spending.read.statements hashes, who filed the row, and its link, which spending.published.links
- * hashes. A Spending account's is where its rows come from, which spending.read.sources hashes. A Company ledger row's are the bank's
- * words and marks and who flagged it, which read.workbook hashes.
+ * hashes. A Spending account's is where its rows come from, which spending.read.sources hashes, and so is an Investments account's,
+ * with its start day, which investments.read.sources hashes. A Company ledger row's are the bank's words and marks and who flagged it, which read.workbook hashes.
  */
 export const SPENDING_ROW = {
   record: new Set(['description', 'counterpartyIban', 'importKey', 'statement', 'categorisedBy', 'movedAt', 'pocket', 'cashWithdrawal', 'link']),
   cells: new Set(['description', 'counterparty_iban', 'import_key', 'statement', 'categorised_by', 'moved_at', 'pocket', 'cash_withdrawal', 'link']),
 }
 export const SPENDING_ACCOUNT = { record: new Set(['rowsFrom']), cells: new Set(['rows_from']) }
+export const INVESTMENT_ACCOUNT = { record: new Set(['intake']), cells: new Set(['rows_from', 'starts_on']) }
 export const COMPANY_LEDGER_ROW = {
   record: new Set(['statement', 'counterpartyIban', 'description', 'flaggedBy', 'reference', 'signals']),
   cells: new Set(['statement', 'counterparty_iban', 'description', 'flagged_by', 'reference', 'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency']),
@@ -19,6 +20,11 @@ function spendingKindOf(record) {
   if (Object.hasOwn(record, 'importKey')) return SPENDING_ROW
   if (Object.hasOwn(record, 'rowsFrom')) return SPENDING_ACCOUNT
   return null
+}
+
+/** An Investments account says how its rows come in. */
+function investmentsKindOf(record) {
+  return Object.hasOwn(record, 'intake') ? INVESTMENT_ACCOUNT : null
 }
 
 /** A Company ledger row carries the bank's signals. */
@@ -47,6 +53,11 @@ function figuresOf(value, kindOf) {
 /** A Spending group as the digest hashes it. */
 export function spendingFiguresOf(value) {
   return figuresOf(value, spendingKindOf)
+}
+
+/** An Investments group as the digest hashes it. */
+export function investmentsFiguresOf(value) {
+  return figuresOf(value, investmentsKindOf)
 }
 
 /** Company's records as the digest hashes them. */

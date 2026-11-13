@@ -7,7 +7,7 @@ export interface ReportReview {
   readonly words: { readonly title: string; readonly description: string; readonly accept: string; readonly accepted: string; readonly notAccepted: string }
   readonly fileName: string
   readonly reading: WorkbookRows
-  /** Keeps the keys of the rows the person left out for good, in the same write. */
+  /** Keeps the keys of the rows the person left out for good, none or some, in the same write as Accept. */
   writeLeftOut(unit: UnitOfWork, keys: readonly string[]): void
 }
 </script>
@@ -51,6 +51,7 @@ const workbookImport = useWorkbookImport()
 const { settled, ready, splitsLookup, closesLookup, splitVendor } = workbookImport
 const step = ref<ImportStep>('file')
 const triedQuestions = ref(false)
+const triedAccounts = ref(false)
 
 watch(open, (opened) => {
   if (opened) {
@@ -58,6 +59,7 @@ watch(open, (opened) => {
     else workbookImport.forget()
     step.value = 'file'
     triedQuestions.value = false
+    triedAccounts.value = false
   }
 })
 
@@ -83,12 +85,17 @@ const steps = computed((): ImportStep[] => {
 const shown = computed((): ImportStep => (steps.value.includes(step.value) ? step.value : props.report ? (steps.value[0] ?? 'dry-run') : 'dry-run'))
 const place = computed(() => steps.value.indexOf(shown.value))
 
+const startFaulted = computed(() => settled.value?.accounts.some((account) => account.choice.kind === 'new' && account.startFault !== null) ?? false)
 const parentUnpicked = computed(() => settled.value?.spinOffs.some((spinOff) => !spinOff.answeredByRow && spinOff.parent === null) ?? false)
 
 const top = ref<HTMLElement | null>(null)
 
-/** Each step starts at its top, however far down the step before it was read. The first Next past a spin-off with no parent stays and shows what is missing, and the second goes on and leaves it waiting. */
+/** Each step starts at its top, however far down the step before it was read. The first Next past a new account's start day Kuna cannot keep, or past a spin-off with no parent, stays and shows what is missing, and the second goes on and leaves it waiting. */
 async function move(by: number): Promise<void> {
+  if (by > 0 && shown.value === 'accounts' && startFaulted.value && !triedAccounts.value) {
+    triedAccounts.value = true
+    return
+  }
   if (by > 0 && shown.value === 'questions' && parentUnpicked.value && !triedQuestions.value) {
     triedQuestions.value = true
     return
@@ -116,7 +123,7 @@ async function importWorkbook(): Promise<void> {
     report?.words.accepted ?? words.imported,
     (unit) => {
       writeWorkbookImport(unit, run.dryRun.added, run.dryRun.matched, deleting)
-      if (report && leaving.length > 0) report.writeLeftOut(unit, leaving)
+      if (report) report.writeLeftOut(unit, leaving)
     },
     { failedTitle: report?.words.notAccepted ?? words.notImported },
   )
@@ -140,7 +147,7 @@ async function importWorkbook(): Promise<void> {
       </div>
       <ImportRatesStatus v-if="report" :workbook-import="workbookImport" />
       <ImportFileStep v-if="shown === 'file'" :workbook-import="workbookImport" />
-      <ImportAccountsStep v-else-if="shown === 'accounts' && settled" :workbook-import="workbookImport" :settled="settled" />
+      <ImportAccountsStep v-else-if="shown === 'accounts' && settled" :workbook-import="workbookImport" :settled="settled" :tried="triedAccounts" />
       <ImportInstrumentsStep v-else-if="shown === 'instruments' && settled" :workbook-import="workbookImport" :settled="settled" />
       <ImportQuestionsStep v-else-if="shown === 'questions' && settled" :workbook-import="workbookImport" :settled="settled" :tried="triedQuestions" />
       <ImportDryRunStep v-else-if="settled" :workbook-import="workbookImport" :settled="settled" :deleting="toDelete.length" />

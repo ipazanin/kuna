@@ -147,6 +147,8 @@ export type SkipReason =
   | { readonly kind: 'refused'; readonly reason: string }
   /** An exchange of less than a cent, such as a broker's conversion of a currency's dust. */
   | { readonly kind: 'below-a-cent' }
+  /** A row on a day IBKR's mailed report fills its account, from its start day on, which only the report brings. */
+  | { readonly kind: 'mail-owns'; readonly account: string; readonly startsOn: CivilDate }
 
 export interface SkippedRow {
   readonly fileRow: number

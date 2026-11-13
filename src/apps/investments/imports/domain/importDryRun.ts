@@ -1,3 +1,4 @@
+import { accountIntakes, mailOwned } from './accountIntake'
 import type { RoundedCell, SkipReason, SkippedRow, WorkbookColumn, WorkbookRow, WorkbookType } from './portfolioWorkbook'
 import { accountScopeOf, isReportKey, isWorkbookKey } from './reportKey'
 import { isIncomeReversal, isWithheldRefund, workbookEntries } from './workbookEntries'
@@ -14,8 +15,10 @@ import { EXCHANGE_CODEC } from '../../workbook/domain/exchangeReading'
 import type { Income } from '../../workbook/domain/income'
 import { INCOME_CODEC } from '../../workbook/domain/incomeReading'
 import type { Instrument, InstrumentType, PriceSource } from '../../workbook/domain/instrument'
-import type { InvestmentAccount } from '../../workbook/domain/investmentAccount'
+import { BY_HAND } from '../../workbook/domain/investmentAccount'
+import type { AccountIntake, InvestmentAccount } from '../../workbook/domain/investmentAccount'
 import type { InvestmentBook } from '../../workbook/domain/investmentBook'
+import { takesRowByHand } from '../../../../shared/app/accountSource'
 import {
   CASH_MOVEMENT_RECORDS,
   EXCHANGE_RECORDS,
@@ -152,6 +155,8 @@ export interface AccountQuestion {
   readonly likely: LikelyAccount | null
   /** The rows still to import that name it. */
   readonly rows: number
+  /** The earliest day of those rows. */
+  readonly firstDay: CivilDate
 }
 
 export interface LikelyAccount {
@@ -262,10 +267,17 @@ export interface WorkbookDryRun {
 
 /** What a rolling report held back from its rows. */
 export interface ReportFacts {
+  /**
+   * Whether the report came by mail, which brings only the rows of the accounts it fills, from each one's start day. A
+   * report the person uploads counts as by hand, so every row of it counts.
+   */
+  readonly mailed: boolean
   /** The rows its recipe would not guess at. */
   readonly asked: readonly AskedRow[]
-  /** How many rows were left out for being dated before the reader's start day. */
+  /** How many rows and questions were left out for being dated before their account's start day. */
   readonly beforeStart: number
+  /** How many rows were left out for being of an account whose rows come in by hand. */
+  readonly byHand: number
 }
 
 export interface WorkbookRows {
@@ -356,18 +368,38 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
   const knownAccounts = rolling ? new Map([...knownAccountsOf(inKuna, keyed), ...accountsOfReportScope(reading.rows, keyed)]) : knownAccountsOf(inKuna, keyed)
   const knownInstruments = knownInstrumentsOf(inKuna, keyed, identityOf)
   const accountOf = (row: WorkbookRow): InvestmentAccount | null => answers.accounts.get(row.account) ?? book.accounts.find((account) => account.id === knownAccounts.get(row.account)) ?? null
+  const intakes = accountIntakes(book)
+  const intakeOf = (account: InvestmentAccount): AccountIntake => account.intake ?? intakes.get(account.id) ?? BY_HAND
   const accountsSoFar = [...book.accounts, ...answers.accounts.values()]
   const instrumentsSoFar = [...book.instruments, ...answers.instruments.values()]
   const instrumentOf = (row: WorkbookRow): Instrument | null =>
     answers.instruments.get(identityOf(row)) ?? book.instruments.find((instrument) => instrument.id === knownInstruments.get(identityOf(row))) ?? null
 
   const skipped: SkippedRow[] = [...reading.skipped]
+  const leftOut = { beforeStart: 0, byHand: 0 }
+  // A mailed report brings only the days the mail fills its account, and a row by hand stays off those days.
+  const taken = entries.filter((entry) => {
+    const account = accountOf(entry.rows[0])
+    if (account === null) return true
+    const intake = intakeOf(account)
+    if (reading.report?.mailed === true) {
+      if (!takesRowByHand(intake.rowsFrom, intake.startsOn, entry.rows[0].date)) return true
+      if (intake.rowsFrom === 'by-hand') leftOut.byHand += entry.rows.length
+      else leftOut.beforeStart += entry.rows.length
+      return false
+    }
+    if (keyed.has(entry.key)) return true
+    const owned = mailOwned(new Map([[account.id, intake]]), { accounts: [account.id], date: entry.rows[0].date, importKey: entry.key })
+    if (owned === null) return true
+    entry.rows.forEach((row) => skipped.push({ fileRow: row.fileRow, reason: { kind: 'mail-owns', account: account.name, startsOn: owned.startsOn } }))
+    return false
+  })
   const questions: Mapping['questions'] = { spinOffs: [] }
   const mapping: Mapping = { inputs, accountOf, instrumentOf, identityOf, questions, instruments: instrumentsSoFar }
   const claimed = new Set<RecordId>()
   const lookAlikes: LookAlikeQuestion[] = []
 
-  const firstPass = entries.flatMap((entry): { entry: RowEntry; outcome: EntryOutcome }[] => {
+  const firstPass = taken.flatMap((entry): { entry: RowEntry; outcome: EntryOutcome }[] => {
     if (keyed.has(entry.key)) {
       return [{ entry, outcome: rolling && differsFromKuna(entry, keyed.get(entry.key)!, mapping) ? { kind: 'waiting', reason: { kind: 'differs-from-kuna' } } : { kind: 'in-kuna' } }]
     }
@@ -427,7 +459,7 @@ export function workbookDryRun(reading: WorkbookRows, inputs: DryRunInputs): Wor
     },
     commissionDifferences: commissionDifferences(outcomes),
     reversals: reversedRows(outcomes),
-    report: reading.report ?? null,
+    report: reading.report === undefined ? null : { ...reading.report, beforeStart: reading.report.beforeStart + leftOut.beforeStart, byHand: leftOut.byHand },
     added: addedRecords(book, planned),
     matched,
     planned,
@@ -645,7 +677,7 @@ function withImportKeys(book: InvestmentBook, matched: readonly MatchedRecord[])
 }
 
 /** An account no record is in, so a row of it may look like a record of any account. */
-const ANY_ACCOUNT: InvestmentAccount = { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, 'any-account'), name: '', note: '' }
+const ANY_ACCOUNT: InvestmentAccount = { id: recordIdOf(INVESTMENT_ACCOUNT_RECORDS, 'any-account'), name: '', note: '', intake: BY_HAND }
 
 /**
  * For each account of a report that no earlier import names, the account in Kuna with the most records its rows look
@@ -1081,6 +1113,7 @@ function accountQuestions(
       proposedName: knownAccount?.name ?? freeName(row.broker),
       likely: knownAccount === undefined ? (likely.get(row.account) ?? null) : null,
       rows: rows.length,
+      firstDay: rows.map((each) => each.date).reduce((first, day) => (day < first ? day : first)),
     }
   })
 }
