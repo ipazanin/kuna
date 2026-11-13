@@ -4,10 +4,10 @@ import { ibanKey } from './accountReading'
 import type { Budget } from './budget'
 import type { Category } from './category'
 import { isFixedKind } from './category'
-import type { EntryPart } from './entryPart'
+import type { TransactionItem } from './transactionItem'
 import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
 import {
   BANK_ACCOUNTS_KEEP_MINE_KEY,
@@ -67,8 +67,8 @@ export interface SpendingRecords {
   readonly budgets: RecordsRead<Budget>
   readonly rules: RecordsRead<SpendingRule>
   readonly receipts: RecordsRead<Receipt>
-  /** The parts entries are split into, kept as `line` records. */
-  readonly lines: RecordsRead<EntryPart>
+  /** The items of transactions, kept as `line` records. */
+  readonly items: RecordsRead<TransactionItem>
   readonly held: RecordsRead<HeldBankRow>
   readonly settings: RecordsRead<SettingRow>
 }
@@ -81,7 +81,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   budgets: BUDGET_RECORDS,
   rules: RULE_RECORDS,
   receipts: RECEIPT_RECORDS,
-  lines: PART_RECORDS,
+  items: ITEM_RECORDS,
   held: HELD_ROW_RECORDS,
   settings: SETTING_RECORDS,
 }
@@ -95,7 +95,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     budgets: of(SPENDING_PARTS.budgets),
     rules: of(SPENDING_PARTS.rules),
     receipts: of(SPENDING_PARTS.receipts),
-    lines: of(SPENDING_PARTS.lines),
+    items: of(SPENDING_PARTS.items),
     held: of(SPENDING_PARTS.held),
     settings: of(SPENDING_PARTS.settings),
   }
@@ -121,7 +121,7 @@ export interface SpendingBook {
   readonly rules: readonly SpendingRule[]
   readonly receipts: readonly Receipt[]
   /** In the order of the file. */
-  readonly lines: readonly EntryPart[]
+  readonly items: readonly TransactionItem[]
   /** The bank rows the sync left out, waiting on To review, in the order of the file. */
   readonly held: readonly HeldBankRow[]
   readonly settings: SpendingSettings
@@ -254,12 +254,12 @@ function wholeOfParts(transactions: readonly Transaction[], receipts: readonly R
   ])
 }
 
-function readParts(read: RecordsRead<EntryPart>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>): Reading<EntryPart> {
+function readItems(read: RecordsRead<TransactionItem>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>): Reading<TransactionItem> {
   const wholes = wholeOfParts(transactions, receipts)
   const receiptOf = new Map(receipts.map((receipt) => [receipt.id, receipt]))
   /** The entry the part is of, or the waiting receipt whose line it is, which its siblings share. */
-  const wholeOf = (part: EntryPart): RecordId | null => part.transaction ?? part.receipt
-  const ownReason = (part: EntryPart): string | null => {
+  const wholeOf = (part: TransactionItem): RecordId | null => part.transaction ?? part.receipt
+  const ownReason = (part: TransactionItem): string | null => {
     const whole = wholeOf(part)
     if (whole === null || !wholes.has(whole)) return part.transaction === null ? words.noReceipt : words.noEntry
     if (part.receipt !== null && receiptOf.get(part.receipt)?.transaction !== part.transaction) return words.noReceipt
@@ -317,10 +317,10 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const budgets = readBudgets(records.budgets, categories.facts)
   const rules = readRules(records.rules, categories.facts, accounts.facts)
   const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)), accountsById)
-  const lines = readParts(records.lines, transactions.facts, receipts.facts, categoryIds)
+  const items = readItems(records.items, transactions.facts, receipts.facts, categoryIds)
   const held = readHeld(records.held, accountsById, transactions.facts)
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, lines, held, settings }
+  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, items, held, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
@@ -328,7 +328,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     budgets: budgets.facts,
     rules: rules.facts,
     receipts: receipts.facts,
-    lines: lines.facts,
+    items: items.facts,
     held: held.facts,
     settings: spendingSettingsOf(settings.facts),
     readings,

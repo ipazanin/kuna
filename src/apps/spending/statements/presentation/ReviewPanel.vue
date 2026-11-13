@@ -107,7 +107,7 @@ async function file(row: Transaction, category: Category): Promise<void> {
 }
 
 async function join({ maybeTyped }: WaitingRow): Promise<void> {
-  const lines = book.value?.lines ?? []
+  const lines = book.value?.items ?? []
   if (maybeTyped !== null) await writes.write(words.review.joined, (unit) => joinWithTyped(unit, maybeTyped.typed, maybeTyped.bank, lines), { failedTitle: words.review.notWritten })
 }
 

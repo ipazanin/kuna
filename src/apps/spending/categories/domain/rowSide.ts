@@ -30,12 +30,12 @@ export function sideOf(category: Category | null): Side {
   }
 }
 
-/** Each line's share of the row's euros, a discount line's of the other sign, so the shares add up to the row. */
-function eurosOfLines({ euros, lines }: EuroRow): readonly (Money | null)[] {
-  if (euros === null) return lines.map(() => null)
+/** Each item's share of the row's euros, a discount item's of the other sign, so the shares add up to the row. */
+function eurosOfItems({ euros, items }: EuroRow): readonly (Money | null)[] {
+  if (euros === null) return items.map(() => null)
   return moneyParts(
     euros,
-    lines.map((line) => BigInt(line.amount)),
+    items.map((item) => BigInt(item.amount)),
   )
 }
 
@@ -51,13 +51,13 @@ export function rowSide(row: EuroRow, categories: ReadonlyMap<RecordId, Category
     const side = sideOf(category)
     return { category, side, counted: euros === null ? null : side === 'income' ? euros : negateMoney(euros) }
   }
-  if (row.lines.length === 0) return [partOf(row.transaction.category, row.euros)]
-  const euros = eurosOfLines(row)
-  return row.lines.map((line, place) => partOf(line.category, euros[place] ?? null))
+  if (row.items.length === 0) return [partOf(row.transaction.category, row.euros)]
+  const euros = eurosOfItems(row)
+  return row.items.map((line, place) => partOf(line.category, euros[place] ?? null))
 }
 
 /** The categories a row counts under: its parts' when it is split, else its own. */
-export function categoriesOfRow({ transaction, lines }: Pick<EuroRow, 'transaction' | 'lines'>): readonly RecordId[] {
-  if (lines.length > 0) return lines.map((line) => line.category)
+export function categoriesOfRow({ transaction, items }: Pick<EuroRow, 'transaction' | 'items'>): readonly RecordId[] {
+  if (items.length > 0) return items.map((item) => item.category)
   return transaction.category === null ? [] : [transaction.category]
 }

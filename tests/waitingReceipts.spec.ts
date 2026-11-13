@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
-import { wholeRowPartId } from '../src/apps/spending/entries/domain/entrySplit'
+import { wholeRowItemId } from '../src/apps/spending/entries/domain/entrySplit'
 import { placeWaitingReceipt, removeWaitingReceipt, writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -15,7 +15,7 @@ import { statementDryRun } from '../src/apps/spending/statements/domain/statemen
 import type { StatementRow } from '../src/apps/spending/statements/domain/statementRows'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { receiptOf } from '../src/apps/spending/workbook/domain/receiptReading'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
@@ -109,7 +109,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     expect(book.problems).toEqual([])
     expect(book.transactions).toEqual([])
     expect(book.receipts).toMatchObject([{ transaction: null, account: OTP.id, total: moneyFromAmount(23.49), merchant: 'Corner market' }])
-    expect(book.lines).toMatchObject([
+    expect(book.items).toMatchObject([
       { transaction: null, amount: accountMoneyFromAmount(-13.49) },
       { transaction: null, amount: accountMoneyFromAmount(-9.98) },
       { transaction: null, amount: accountMoneyFromAmount(-0.02), text: 'Difference', category: GROCERIES.id },
@@ -131,7 +131,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     expect(book.problems).toEqual([])
     expect(arrived).toMatchObject({ importKey: 'bank-1', category: GROCERIES.id, categorisedBy: 'person', payee: 'CORNER MARKET ZAGREB' })
     expect(book.receipts).toMatchObject([{ transaction: arrived!.id, account: null }])
-    expect(book.lines.map((line) => line.transaction)).toEqual([arrived!.id, arrived!.id, arrived!.id])
+    expect(book.items.map((line) => line.transaction)).toEqual([arrived!.id, arrived!.id, arrived!.id])
     expect(figures(store).spent).toEqual([moneyFromAmount(13.51), moneyFromAmount(9.98)])
     expect(waitingReceipts(book)).toEqual([])
   })
@@ -176,7 +176,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
-    expect(book.lines.at(-1)).toMatchObject({ amount: accountMoneyFromAmount(-1.51), text: 'Difference', category: GROCERIES.id })
+    expect(book.items.at(-1)).toMatchObject({ amount: accountMoneyFromAmount(-1.51), text: 'Difference', category: GROCERIES.id })
   })
 
   it('keeps the ids of its lines on the row the person picks, and lets them and the Difference line replace the one part the row stood for', async () => {
@@ -189,10 +189,10 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     let replaced: ReturnType<typeof placeWaitingReceipt> = []
     await store.write('Placed', (unit) => (replaced = placeWaitingReceipt(unit, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(tipped!.row, []), 'Difference'))))
 
-    const lines = store.state.workbook!.lines.map((line) => line.id)
+    const lines = store.state.workbook!.items.map((line) => line.id)
     expect(lines.slice(0, asking!.lines.length)).toEqual(asking!.lines.map((line) => line.id))
     expect(lines).toHaveLength(asking!.lines.length + 1)
-    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: [wholeRowPartId(tipped!.row)] })))
+    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: [wholeRowItemId(tipped!.row)] })))
   })
 
   it('keeps waiting while no row it may be arrives', async () => {
@@ -213,11 +213,11 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     await waiting(store)
     const book = store.state.workbook!
     const written = await store.write('Removed', (unit) => removeWaitingReceipt(unit, store.state.records!, book.receipts[0]!))
-    expect([store.state.workbook!.receipts, store.state.workbook!.lines]).toEqual([[], []])
+    expect([store.state.workbook!.receipts, store.state.workbook!.items]).toEqual([[], []])
 
     await store.undo(store.state.writes.find((write) => write.receipt === written)!)
     expect(store.state.workbook!.receipts).toHaveLength(1)
-    expect(store.state.workbook!.lines).toHaveLength(3)
+    expect(store.state.workbook!.items).toHaveLength(3)
   })
 
   it('takes each arriving row once, oldest receipt first', () => {
@@ -225,7 +225,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     const one = receiptSplit(DRAFT, { account: OTP }, wholeReceipt(DRAFT.total, GROCERIES.id))
     const two = receiptSplit({ ...DRAFT, issuedOn: civil('2026-11-04') }, { account: OTP }, wholeReceipt(DRAFT.total, GROCERIES.id))
     const arriving = [row(OTP, '2026-11-04', -23.49, null, { source: 'statement', importKey: 'bank-1', payee: 'CORNER MARKET' })]
-    const placed = receiptsArriving({ ...book, receipts: [two.receipt, one.receipt], lines: [...one.lines, ...two.lines] }, arriving, 'Difference')
+    const placed = receiptsArriving({ ...book, receipts: [two.receipt, one.receipt], items: [...one.lines, ...two.lines] }, arriving, 'Difference')
     expect(placed.map((receipt) => receipt.receipt.before.id)).toEqual([one.receipt.id])
   })
 })
@@ -265,11 +265,11 @@ describe('a stored receipt', () => {
       ...stored(ACCOUNT_RECORDS, ACCOUNTS),
       ...stored(CATEGORY_RECORDS, CATEGORIES),
       ...stored(RECEIPT_RECORDS, [split.receipt]),
-      ...stored(PART_RECORDS, split.lines.slice(0, 2)),
+      ...stored(ITEM_RECORDS, split.lines.slice(0, 2)),
     })
     const { store } = await browserHarness(used, document, SPENDING)
     const book = store.state.workbook!
-    expect(book.lines).toEqual([])
+    expect(book.items).toEqual([])
     expect(book.problems.map((problem) => problem.reason)).toEqual([
       'the parts of its entry add up to -23.47, and the entry says -23.49',
       'the parts of its entry add up to -23.47, and the entry says -23.49',
@@ -283,11 +283,11 @@ describe('a stored receipt', () => {
       ...stored(ACCOUNT_RECORDS, ACCOUNTS),
       ...stored(CATEGORY_RECORDS, CATEGORIES),
       ...stored(RECEIPT_RECORDS, [split.receipt]),
-      ...stored(PART_RECORDS, split.lines),
+      ...stored(ITEM_RECORDS, split.lines),
     })
     const { store } = await browserHarness(used, document, SPENDING)
     const book = store.state.workbook!
-    expect([book.receipts, book.lines]).toEqual([[], []])
+    expect([book.receipts, book.items]).toEqual([[], []])
     expect(book.problems.map((problem) => problem.kind)).toEqual(['receipt', 'line', 'line', 'line'])
   })
 })

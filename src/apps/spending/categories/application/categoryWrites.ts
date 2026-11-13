@@ -1,5 +1,5 @@
 import { BUDGET_WRITES } from '../../budgets/application/budgetWrites'
-import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { ITEM_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
 import { RULE_WRITES } from '../../statements/application/statementWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isFixedKind } from '../../workbook/domain/category'
@@ -20,7 +20,7 @@ export const CATEGORY_WRITES: WriteRules<Category> = {
   read: (read, records) => bookWith(CATEGORY_RECORDS, read, records).readings.categories,
   refusals: (change, fresh, after) => [
     ...change.edits.flatMap((edit) => (edit.after === null && edit.before !== null && 'record' in edit.before && isFixedKind(edit.before.record.kind) ? [words.fixedKept(edit.before.label)] : [])),
-    ...dependentRefusals(['categories', 'transactions', 'budgets', 'rules', 'lines'], fresh, after),
+    ...dependentRefusals(['categories', 'transactions', 'budgets', 'rules', 'items'], fresh, after),
   ],
 }
 
@@ -37,9 +37,9 @@ export function deleteInto(unit: UnitOfWork, records: SpendingRecords, category:
   recordsOf(records.transactions)
     .filter((entry) => entry.category === category.id)
     .forEach((entry) => unit.of(TRANSACTION_WRITES).change(entry, { ...entry, category: target.id }))
-  recordsOf(records.lines)
+  recordsOf(records.items)
     .filter((part) => part.category === category.id)
-    .forEach((part) => unit.of(PART_WRITES).change(part, { ...part, category: target.id }))
+    .forEach((part) => unit.of(ITEM_WRITES).change(part, { ...part, category: target.id }))
   recordsOf(records.rules)
     .filter((rule) => rule.category === category.id)
     .forEach((rule) => unit.of(RULE_WRITES).change(rule, { ...rule, category: target.id }))

@@ -55,7 +55,7 @@ const days = computed(() => {
       row,
       title: transaction.payee === '' ? categoryName : transaction.payee,
       colour: `var(${category === null ? '--chart-deemphasis' : colours.value(category)})`,
-      details: [transaction.payee === '' || row.lines.length > 0 ? '' : categoryName, props.showAccount ? account.name : '', transaction.note].filter((part) => part !== '').join(' · '),
+      details: [transaction.payee === '' || row.items.length > 0 ? '' : categoryName, props.showAccount ? account.name : '', transaction.note].filter((part) => part !== '').join(' · '),
       euros: account.currency === EURO || row.euros === null ? '' : formatMoney(row.euros, 'always'),
       link: transaction.link === null ? null : linkLineOf.value(transaction.link),
     }

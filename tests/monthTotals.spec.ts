@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow'
 import { categoryTotal, monthTotals } from '../src/apps/spending/analytics/domain/monthTotals'
 import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
-import type { EntryPart } from '../src/apps/spending/workbook/domain/entryPart'
-import { PART_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
+import { ITEM_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
@@ -14,13 +14,13 @@ import { euros, month } from './fixtures/ledger'
 import { ACCOUNTS, CATEGORIES, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, category, row, transactionId } from './fixtures/spending'
 
 function totalsOf(rows: readonly Transaction[], asked: string, rates: RateBook = RATES) {
-  return monthTotals(euroRows({ accounts: ACCOUNTS, transactions: rows, lines: [] }, rates), CATEGORIES, month(asked))
+  return monthTotals(euroRows({ accounts: ACCOUNTS, transactions: rows, items: [] }, rates), CATEGORIES, month(asked))
 }
 
 /** A row's lines, as a receipt split it, in the row's currency. */
-function linesOf(transaction: Transaction, parts: readonly (readonly [number, string])[]): readonly EntryPart[] {
+function linesOf(transaction: Transaction, parts: readonly (readonly [number, string])[]): readonly TransactionItem[] {
   return parts.map(([amount, path], place) => ({
-    id: recordIdOf(PART_RECORDS, `5e000000-0000-4000-8000-00000000${String(7000 + place)}`),
+    id: recordIdOf(ITEM_RECORDS, `5e000000-0000-4000-8000-00000000${String(7000 + place)}`),
     transaction: transaction.id,
     receipt: recordIdOf(RECEIPT_RECORDS, '5e000000-0000-4000-8000-000000006000'),
     printed: '',
@@ -37,7 +37,7 @@ describe("a split row's totals", () => {
       {
         accounts: ACCOUNTS,
         transactions: [split],
-        lines: linesOf(split, [
+        items: linesOf(split, [
           [-48.7, 'Food/Groceries'],
           [-12.5, 'Home/Household goods'],
         ]),
@@ -61,7 +61,7 @@ describe("a split row's totals", () => {
       {
         accounts: ACCOUNTS,
         transactions: [split],
-        lines: linesOf(split, [
+        items: linesOf(split, [
           [-48.7, 'Food/Groceries'],
           [-12.5, 'For the company'],
         ]),
@@ -78,7 +78,7 @@ describe("a split row's totals", () => {
       {
         accounts: ACCOUNTS,
         transactions: [paid],
-        lines: linesOf(paid, [
+        items: linesOf(paid, [
           [-23.49, 'Food/Groceries'],
           [1.49, 'Food/Groceries'],
         ]),
@@ -95,7 +95,7 @@ describe("a split row's totals", () => {
       {
         accounts: ACCOUNTS,
         transactions: [dollars],
-        lines: linesOf(dollars, [
+        items: linesOf(dollars, [
           [-10, 'Travel/On the trip'],
           [-10, 'Food/Coffee'],
           [-10, 'Food/Groceries'],
@@ -116,7 +116,7 @@ describe("a split row's totals", () => {
       {
         accounts: ACCOUNTS,
         transactions: [dollars],
-        lines: linesOf(dollars, [
+        items: linesOf(dollars, [
           [-32, 'Food/Groceries'],
           [2, 'Food/Coffee'],
         ]),
@@ -137,7 +137,7 @@ describe("a split row's totals", () => {
       {
         accounts: ACCOUNTS,
         transactions: [dollars],
-        lines: linesOf(dollars, [
+        items: linesOf(dollars, [
           [-10, 'Food/Coffee'],
           [-20, 'Food/Groceries'],
         ]),

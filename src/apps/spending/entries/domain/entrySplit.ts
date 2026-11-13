@@ -1,7 +1,7 @@
 import type { Category } from '../../workbook/domain/category'
-import type { EntryPart } from '../../workbook/domain/entryPart'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { PART_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ITEM_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
@@ -11,7 +11,7 @@ import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/stora
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** A part of an entry as you give it: an amount signed as the entry is, or the rest, with its category and optional words. */
-export interface PartDraft {
+export interface ItemDraft {
   /** The entry's part it was opened from, which keeps its id, or null for a new part. */
   readonly id: RecordId | null
   readonly amount: AccountMoney | 'rest'
@@ -29,17 +29,17 @@ export type SplitRefusal = PartsRefusal | 'transfer-leg' | 'receipt' | 'too-few'
 export interface EntrySplit {
   readonly before: Transaction
   readonly row: Transaction
-  readonly parts: readonly EntryPart[]
+  readonly parts: readonly TransactionItem[]
 }
 
 /** The id of the one part an entry that is not split stands for, which its first part keeps when it is split. */
-export function wholeRowPartId(row: Pick<Transaction, 'id'>): RecordId {
-  return recordIdOf(PART_RECORDS, keyOfRecordId(TRANSACTION_RECORDS, row.id))
+export function wholeRowItemId(row: Pick<Transaction, 'id'>): RecordId {
+  return recordIdOf(ITEM_RECORDS, keyOfRecordId(TRANSACTION_RECORDS, row.id))
 }
 
 /** The money of an entry as parts: the parts it was split into, or the one part it stands for while it is not split. */
-export function heldPartsOf(row: Pick<Transaction, 'id' | 'amount'>, parts: readonly Pick<EntryPart, 'id' | 'amount'>[]): readonly Pick<EntryPart, 'id' | 'amount'>[] {
-  return parts.length > 0 ? parts : [{ id: wholeRowPartId(row), amount: row.amount }]
+export function heldItemsOf(row: Pick<Transaction, 'id' | 'amount'>, parts: readonly Pick<TransactionItem, 'id' | 'amount'>[]): readonly Pick<TransactionItem, 'id' | 'amount'>[] {
+  return parts.length > 0 ? parts : [{ id: wholeRowItemId(row), amount: row.amount }]
 }
 
 function categoryRefusal(category: Category | undefined, categories: readonly Category[]): SplitRefusal | null {
@@ -55,9 +55,9 @@ function categoryRefusal(category: Category | undefined, categories: readonly Ca
  * the entry's parts keeps its id, and the first part of an entry not yet split keeps the id of the part the entry stood for.
  */
 export function entrySplit(
-  book: Pick<SpendingBook, 'categories' | 'receipts' | 'lines'>,
+  book: Pick<SpendingBook, 'categories' | 'receipts' | 'items'>,
   row: Transaction,
-  drafts: readonly PartDraft[],
+  drafts: readonly ItemDraft[],
   newKey: () => string = newRecordId,
 ): EntrySplit | { readonly refused: SplitRefusal } {
   const categories = new Map(book.categories.map((category) => [category.id, category]))
@@ -71,9 +71,9 @@ export function entrySplit(
     drafts.map((draft) => draft.amount),
   )
   if ('refused' in placed) return placed
-  const whole = !book.lines.some((part) => part.transaction === row.id)
-  const parts = drafts.map((draft, place): EntryPart => ({
-    id: draft.id ?? (whole && place === 0 ? wholeRowPartId(row) : recordIdOf(PART_RECORDS, newKey())),
+  const whole = !book.items.some((part) => part.transaction === row.id)
+  const parts = drafts.map((draft, place): TransactionItem => ({
+    id: draft.id ?? (whole && place === 0 ? wholeRowItemId(row) : recordIdOf(ITEM_RECORDS, newKey())),
     transaction: row.id,
     receipt: null,
     printed: '',
@@ -88,16 +88,16 @@ export function entrySplit(
  * The part that keeps an entry's parts adding up once its amount moved past them, as a tip or what the bank booked does, or
  * null when they still add up. It takes the entry, the receipt and the category of `like`, and the words you give it.
  */
-export function differencePart(
+export function differenceItem(
   whole: AccountMoney,
-  parts: readonly Pick<EntryPart, 'amount'>[],
-  like: Pick<EntryPart, 'transaction' | 'receipt' | 'category'>,
+  parts: readonly Pick<TransactionItem, 'amount'>[],
+  like: Pick<TransactionItem, 'transaction' | 'receipt' | 'category'>,
   text: string,
   newKey: () => string = newRecordId,
-): EntryPart | null {
+): TransactionItem | null {
   const rest = restOfWhole(
     whole,
     parts.map((part) => part.amount),
   )
-  return rest === 0 ? null : { id: recordIdOf(PART_RECORDS, newKey()), transaction: like.transaction, receipt: like.receipt, printed: '', text, amount: rest, category: like.category }
+  return rest === 0 ? null : { id: recordIdOf(ITEM_RECORDS, newKey()), transaction: like.transaction, receipt: like.receipt, printed: '', text, amount: rest, category: like.category }
 }

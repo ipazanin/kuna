@@ -9,5 +9,5 @@ export const RECEIPT_WRITES: WriteRules<Receipt> = {
   reads: SPENDING_KINDS,
   undoable: true,
   read: (read, records) => bookWith(RECEIPT_RECORDS, read, records).readings.receipts,
-  refusals: (_change, fresh, after) => dependentRefusals(['receipts', 'lines'], fresh, after),
+  refusals: (_change, fresh, after) => dependentRefusals(['receipts', 'items'], fresh, after),
 }

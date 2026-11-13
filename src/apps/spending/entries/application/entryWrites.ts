@@ -1,11 +1,11 @@
 import { refusedOnAccount } from '../domain/bankRows'
-import { heldPartsOf, wholeRowPartId } from '../domain/entrySplit'
+import { heldItemsOf, wholeRowItemId } from '../domain/entrySplit'
 import type { EntrySplit } from '../domain/entrySplit'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
-import type { EntryPart } from '../../workbook/domain/entryPart'
-import { ACCOUNT_RECORDS, PART_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import { ACCOUNT_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -35,7 +35,7 @@ export const TRANSACTION_WRITES: WriteRules<Transaction> = {
       before !== null && changed !== null && before.importKey !== '' && before.account !== changed.account ? [words.accountOfStatementRow] : [],
     ),
     ...byHandOnBankAccounts(change, after),
-    ...dependentRefusals(['transactions', 'receipts', 'lines', 'held'], fresh, after),
+    ...dependentRefusals(['transactions', 'receipts', 'items', 'held'], fresh, after),
   ],
 }
 
@@ -53,12 +53,12 @@ function byHandOnBankAccounts(change: KindChange<Transaction>, after: FreshRecor
 }
 
 /** The parts of an entry add up to its amount, so a write changes them together or not at all. */
-export const PART_WRITES: WriteRules<EntryPart> = {
-  kind: PART_RECORDS,
+export const ITEM_WRITES: WriteRules<TransactionItem> = {
+  kind: ITEM_RECORDS,
   reads: SPENDING_KINDS,
   undoable: true,
-  read: (read, records) => bookWith(PART_RECORDS, read, records).readings.lines,
-  refusals: (_change, fresh, after) => dependentRefusals(['lines'], fresh, after),
+  read: (read, records) => bookWith(ITEM_RECORDS, read, records).readings.items,
+  refusals: (_change, fresh, after) => dependentRefusals(['items'], fresh, after),
 }
 
 /** A new typed entry, its text trimmed, with an id of its own. */
@@ -151,32 +151,32 @@ export function removeEntry(unit: UnitOfWork, records: SpendingRecords, entry: T
  * The entry under its main category with the parts you split it into, in one write. A part with the id of one the entry holds
  * changes in place, the others are added, and a held part no new part names goes. Gives what each part replaces.
  */
-export function writeEntrySplit(unit: UnitOfWork, records: Pick<SpendingRecords, 'lines'>, { before, row, parts }: EntrySplit): readonly PartReplacement<RecordId>[] {
+export function writeEntrySplit(unit: UnitOfWork, records: Pick<SpendingRecords, 'items'>, { before, row, parts }: EntrySplit): readonly PartReplacement<RecordId>[] {
   const held = partsOf(records, before)
   const kept = new Set(parts.map((part) => part.id))
   unit.of(TRANSACTION_WRITES).change(before, row)
-  held.filter((part) => !kept.has(part.id)).forEach((part) => unit.of(PART_WRITES).remove(part))
+  held.filter((part) => !kept.has(part.id)).forEach((part) => unit.of(ITEM_WRITES).remove(part))
   for (const part of parts) {
     const opened = held.find((candidate) => candidate.id === part.id)
-    if (opened === undefined) unit.of(PART_WRITES).add(part)
-    else unit.of(PART_WRITES).change(opened, part)
+    if (opened === undefined) unit.of(ITEM_WRITES).add(part)
+    else unit.of(ITEM_WRITES).change(opened, part)
   }
-  return partReplacements(heldPartsOf(before, held), parts)
+  return partReplacements(heldItemsOf(before, held), parts)
 }
 
 /**
  * Takes the row's parts out, with the receipt that split it when one did, which leaves the row under its main category. A photo
  * kept on Drive stays there. Gives what the one part the row stands for again replaces.
  */
-export function removeSplitOf(unit: UnitOfWork, records: Pick<SpendingRecords, 'receipts' | 'lines'>, row: Pick<Transaction, 'id' | 'amount'>): readonly PartReplacement<RecordId>[] {
+export function removeSplitOf(unit: UnitOfWork, records: Pick<SpendingRecords, 'receipts' | 'items'>, row: Pick<Transaction, 'id' | 'amount'>): readonly PartReplacement<RecordId>[] {
   const held = partsOf(records, row)
-  held.forEach((part) => unit.of(PART_WRITES).remove(part))
+  held.forEach((part) => unit.of(ITEM_WRITES).remove(part))
   recordsOf(records.receipts)
     .filter((receipt) => receipt.transaction === row.id)
     .forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
-  return partReplacements(held, [{ id: wholeRowPartId(row), amount: row.amount }])
+  return partReplacements(held, [{ id: wholeRowItemId(row), amount: row.amount }])
 }
 
-function partsOf(records: Pick<SpendingRecords, 'lines'>, row: Pick<Transaction, 'id'>): readonly EntryPart[] {
-  return recordsOf(records.lines).filter((part) => part.transaction === row.id)
+function partsOf(records: Pick<SpendingRecords, 'items'>, row: Pick<Transaction, 'id'>): readonly TransactionItem[] {
+  return recordsOf(records.items).filter((part) => part.transaction === row.id)
 }

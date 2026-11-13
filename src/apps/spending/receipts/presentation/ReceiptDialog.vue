@@ -120,7 +120,7 @@ const placeItems = computed(() => [
       dayLabel(row.date),
       accountOfRow(row.account)?.name ?? '',
       difference === 0 ? '' : words.differs(formatAccountMoney(difference, EURO, 'always')),
-      rowPlace(row, book.value?.lines ?? []).handParts.length > 0 ? words.replacesSplit : '',
+      rowPlace(row, book.value?.items ?? []).handParts.length > 0 ? words.replacesSplit : '',
     ]
       .filter((part) => part !== '')
       .join(' · '),
@@ -175,7 +175,7 @@ async function save(): Promise<void> {
   const row = chosenRow.value
   const chosenAccount = newAccount.value
   const filed = categories.value.find((candidate) => candidate.id === category.value)
-  const where: ReceiptPlace | null = row !== null ? rowPlace(row, book.value?.lines ?? []) : chosenAccount === null ? null : { account: chosenAccount }
+  const where: ReceiptPlace | null = row !== null ? rowPlace(row, book.value?.items ?? []) : chosenAccount === null ? null : { account: chosenAccount }
   if (Object.values(errors.value).some((error) => error !== null) || file === null || day === null || sum === null || where === null || filed === undefined) return
   const draft = {
     merchant: merchant.value,

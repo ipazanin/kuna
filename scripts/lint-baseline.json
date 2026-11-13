@@ -255,7 +255,7 @@
     "src/apps/spending/workbook/domain/accountReading.ts",
     "src/apps/spending/workbook/domain/budgetReading.ts",
     "src/apps/spending/workbook/domain/categoryReading.ts",
-    "src/apps/spending/workbook/domain/entryPartReading.ts",
+    "src/apps/spending/workbook/domain/transactionItemReading.ts",
     "src/apps/spending/workbook/domain/fieldReading.ts",
     "src/apps/spending/workbook/domain/readSpendingBook.ts",
     "src/apps/spending/workbook/domain/receiptReading.ts",

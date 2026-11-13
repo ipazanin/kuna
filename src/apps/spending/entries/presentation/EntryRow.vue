@@ -47,7 +47,7 @@ const { marked } = useChatElement(asked, 'row')
         <span class="break-words text-sm text-highlighted">{{ title }}</span>
         <span v-if="details !== ''" class="break-words type-caption">{{ details }}</span>
         <NoteLine v-if="link !== null" as="span" :tone="LINK_TONE[link.look]" :icon="link.icon" data-testid="spending-row-link">{{ link.text }}</NoteLine>
-        <RowLines v-if="row.lines.length > 0" :lines="row.lines" :categories="categories" :currency="row.account.currency" />
+        <RowLines v-if="row.items.length > 0" :lines="row.items" :categories="categories" :currency="row.account.currency" />
       </span>
       <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
         <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" sign="always" tone="flow" />

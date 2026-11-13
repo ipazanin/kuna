@@ -241,7 +241,7 @@ function placeOf(field: Readonly<Record<string, never>>, book: SpendingBook, rec
           ? 'The receipt says cash, and that entry is not on a cash account. Ask the person which entry it is, or propose entry null for a new cash entry.'
           : 'The receipt says card, and that entry is on a cash account. Ask the person how it was paid.',
       )
-    return rowPlace(row, book.lines)
+    return rowPlace(row, book.items)
   }
   const matches = receiptMatches(receipt, book, paid)
   if (matches.kind !== 'none') {

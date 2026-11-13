@@ -2,10 +2,10 @@ import { matchesAmong, splittableRows } from './receiptMatch'
 import type { ReceiptMatches } from './receiptMatch'
 import { rowFiledBy } from './receiptSplit'
 import type { ReceiptPlace } from './receiptSplit'
-import { differencePart } from '../../entries/domain/entrySplit'
+import { differenceItem } from '../../entries/domain/entrySplit'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import type { Account } from '../../workbook/domain/account'
-import type { EntryPart } from '../../workbook/domain/entryPart'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -14,7 +14,7 @@ import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
 
 /** What the waiting reads of the book. */
-type WaitingBook = Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts' | 'lines'>
+type WaitingBook = Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts' | 'items'>
 
 /** Whether the receipt has no entry yet, as it waits on an account the bank fills for the bank's row of its payment. */
 export function waitsForBank(receipt: Pick<Receipt, 'transaction'>): boolean {
@@ -25,7 +25,7 @@ export function waitsForBank(receipt: Pick<Receipt, 'transaction'>): boolean {
 export interface WaitingReceipt {
   readonly receipt: Receipt
   readonly account: Account
-  readonly lines: readonly EntryPart[]
+  readonly lines: readonly TransactionItem[]
   /** The payment it stands for, minus its total, on its euro account. */
   readonly amount: AccountMoney
   readonly matches: ReceiptMatches
@@ -41,11 +41,11 @@ export interface PlacedReceipt {
   readonly before: Transaction
   readonly row: Transaction
   readonly receipt: { readonly before: Receipt; readonly after: Receipt }
-  readonly lines: readonly { readonly before: EntryPart; readonly after: EntryPart }[]
+  readonly lines: readonly { readonly before: TransactionItem; readonly after: TransactionItem }[]
   /** The parts of a split by hand that the lines replace. */
-  readonly replaced: readonly EntryPart[]
+  readonly replaced: readonly TransactionItem[]
   /** What keeps the lines adding up to the row when the bank booked another amount, as with a tip. */
-  readonly difference: EntryPart | null
+  readonly difference: TransactionItem | null
 }
 
 /** The receipts waiting for the bank's row, oldest first, each with the rows on its account it may be. */
@@ -62,7 +62,7 @@ export function waitingReceipts(book: WaitingBook): readonly WaitingReceipt[] {
         {
           receipt,
           account,
-          lines: book.lines.filter((line) => line.receipt === receipt.id),
+          lines: book.items.filter((line) => line.receipt === receipt.id),
           amount: negateAccountMoney(accountMoneyOfEuros(receipt.total)),
           matches: matchesAmong(
             receipt,
@@ -79,7 +79,7 @@ export function waitingReceipts(book: WaitingBook): readonly WaitingReceipt[] {
  */
 export function receiptOnRow(
   receipt: Receipt,
-  lines: readonly EntryPart[],
+  lines: readonly TransactionItem[],
   { row, handParts }: Extract<ReceiptPlace, { readonly row: Transaction }>,
   differenceText: string,
   newKey: () => string = newRecordId,
@@ -92,7 +92,7 @@ export function receiptOnRow(
     receipt: { before: receipt, after: { ...receipt, transaction: row.id, account: null, merchant: receipt.merchant === '' ? row.payee : receipt.merchant } },
     lines: placed,
     replaced: handParts,
-    difference: differencePart(
+    difference: differenceItem(
       row.amount,
       placed.map(({ after }) => after),
       { transaction: row.id, receipt: receipt.id, category },

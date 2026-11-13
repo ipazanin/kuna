@@ -13,10 +13,10 @@ import { settingRow } from '../../src/shared/storage/domain/settingRows'
 import { codecOfSpendingKind } from '../../src/apps/spending/workbook/application/spendingCodecs'
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
-import type { EntryPart } from '../../src/apps/spending/workbook/domain/entryPart'
+import type { TransactionItem } from '../../src/apps/spending/workbook/domain/transactionItem'
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingRule } from '../../src/apps/spending/workbook/domain/spendingRule'
 import type { RowLink } from '../../src/apps/spending/workbook/domain/rowLink'
 import type { Transaction } from '../../src/apps/spending/workbook/domain/transaction'
@@ -126,9 +126,9 @@ const ROWS: readonly Transaction[] = [
   row('transaction-waiting-match', '2026-10-27', -18, 'KIOSK TISAK', { account: REVOLUT.id, importKey: 'made-up-10', category: GROCERIES.id, categorisedBy: 'rule' }),
 ]
 
-function handPart(key: string, amount: number, category: Category): EntryPart {
+function handPart(key: string, amount: number, category: Category): TransactionItem {
   return {
-    id: recordIdOf(PART_RECORDS, key),
+    id: recordIdOf(ITEM_RECORDS, key),
     transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-split'),
     receipt: null,
     printed: '',
@@ -138,7 +138,7 @@ function handPart(key: string, amount: number, category: Category): EntryPart {
   }
 }
 
-const HAND_PARTS: readonly EntryPart[] = [handPart('line-hardware-rent', -40, RENT), handPart('line-hardware-groceries', -20, GROCERIES)]
+const HAND_PARTS: readonly TransactionItem[] = [handPart('line-hardware-rent', -40, RENT), handPart('line-hardware-groceries', -20, GROCERIES)]
 
 const RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-bakery'),
@@ -172,8 +172,8 @@ const WAITING_RECEIPT: Receipt = {
   zki: '',
 }
 
-const WAITING_LINE: EntryPart = {
-  id: recordIdOf(PART_RECORDS, 'line-kiosk'),
+const WAITING_LINE: TransactionItem = {
+  id: recordIdOf(ITEM_RECORDS, 'line-kiosk'),
   transaction: null,
   receipt: WAITING_RECEIPT.id,
   printed: 'NOVINE',
@@ -302,7 +302,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...stored(TRANSACTION_RECORDS, ROWS),
     ...stored(RULE_RECORDS, [RULE]),
     ...stored(RECEIPT_RECORDS, [RECEIPT, WAITING_RECEIPT]),
-    ...stored(PART_RECORDS, [...HAND_PARTS, WAITING_LINE]),
+    ...stored(ITEM_RECORDS, [...HAND_PARTS, WAITING_LINE]),
     ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),
   })
   const { store } = await browserHarness(used, document, SPENDING)

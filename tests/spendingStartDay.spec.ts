@@ -9,11 +9,11 @@ import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { beforeStartDay } from '../src/apps/spending/workbook/domain/account'
-import type { EntryPart } from '../src/apps/spending/workbook/domain/entryPart'
+import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import type { HeldBankRow } from '../src/apps/spending/workbook/domain/heldBankRow'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, PART_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
@@ -63,9 +63,9 @@ const RENT_RECEIPT: Receipt = {
   longitude: '',
 }
 
-function part(place: number, of: Transaction, amount: number, path: string, receipt: Receipt | null): EntryPart {
+function part(place: number, of: Transaction, amount: number, path: string, receipt: Receipt | null): TransactionItem {
   return {
-    id: recordIdOf(PART_RECORDS, key(7000 + place)),
+    id: recordIdOf(ITEM_RECORDS, key(7000 + place)),
     transaction: of.id,
     receipt: receipt?.id ?? null,
     printed: '',
@@ -75,7 +75,7 @@ function part(place: number, of: Transaction, amount: number, path: string, rece
   }
 }
 
-const PARTS: readonly EntryPart[] = [
+const PARTS: readonly TransactionItem[] = [
   part(1, RENT, -400, 'Home/Rent', RENT_RECEIPT),
   part(2, RENT, -200, 'Money and fees/Loan instalments', RENT_RECEIPT),
   part(3, SALARY, 2_000, 'Income/Salary', null),
@@ -106,7 +106,7 @@ async function spendingStore(rows: readonly Transaction[] = ROWS, extra: ReturnT
     ...stored(CATEGORY_RECORDS, CATEGORIES),
     ...stored(TRANSACTION_RECORDS, rows),
     ...stored(RECEIPT_RECORDS, [RENT_RECEIPT]),
-    ...stored(PART_RECORDS, PARTS),
+    ...stored(ITEM_RECORDS, PARTS),
     ...stored(HELD_ROW_RECORDS, [OLD_HOLD, NEW_HOLD]),
     ...extra,
   })
@@ -184,7 +184,7 @@ describe("moving an account's start day later", () => {
     expect(after.problems).toEqual([])
     expect(after.transactions.map((kept) => kept.id)).not.toContain(RENT.id)
     expect(after.receipts).toEqual([])
-    expect(after.lines).toEqual([])
+    expect(after.items).toEqual([])
     expect(after.held).toEqual([NEW_HOLD])
     expect(after.transactions.find((kept) => kept.id === TOP_UP_IN.id)).toMatchObject({ pair: null, category: category('Between my accounts').id, account: REVOLUT_EUR.id })
     expect(
@@ -201,7 +201,7 @@ describe("moving an account's start day later", () => {
     expect(back.problems).toEqual([])
     expect(back.transactions).toHaveLength(ROWS.length)
     expect(back.receipts).toEqual([RENT_RECEIPT])
-    expect(back.lines).toHaveLength(PARTS.length)
+    expect(back.items).toHaveLength(PARTS.length)
     expect(back.held).toHaveLength(2)
     expect(back.accounts.find((account) => account.id === OTP.id)).toEqual(OTP)
   })

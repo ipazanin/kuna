@@ -463,7 +463,7 @@ describe('an entry split by hand', () => {
       ]),
     ])
     expect((await desk.accept()).kind).toBe('done')
-    const parts = bookOf(desk).lines.filter((part) => part.transaction === typed)
+    const parts = bookOf(desk).items.filter((part) => part.transaction === typed)
     expect(parts.map((part) => [part.amount, part.text, part.receipt])).toEqual([
       [accountMoneyFromAmount(-10), 'Light bulbs', null],
       [accountMoneyFromAmount(-15.3), '', null],
@@ -491,7 +491,7 @@ describe('an entry split by hand', () => {
     expect(bookOf(desk).problems).toEqual([])
     expect(
       bookOf(desk)
-        .lines.filter((part) => part.transaction === typed)
+        .items.filter((part) => part.transaction === typed)
         .map((part) => part.amount),
     ).toEqual([accountMoneyFromAmount(-20), accountMoneyFromAmount(-25.3)])
   })
@@ -562,7 +562,7 @@ describe('an entry split by hand', () => {
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-receipt', { entry: desk.ref('transaction', handSplit) })])).text).toContain('no receipt')
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-split', { entry: desk.ref('transaction', handSplit) })])
     expect((await desk.accept()).kind).toBe('done')
-    expect(bookOf(desk).lines.filter((part) => part.transaction === handSplit)).toEqual([])
+    expect(bookOf(desk).items.filter((part) => part.transaction === handSplit)).toEqual([])
     expect(rowOf(desk, handSplit)).toMatchObject({ category: EXAMPLE_RECORDS['category'] })
   })
 })

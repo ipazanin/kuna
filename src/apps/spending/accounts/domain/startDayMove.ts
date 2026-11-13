@@ -1,6 +1,6 @@
 import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
-import type { EntryPart } from '../../workbook/domain/entryPart'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
@@ -21,7 +21,7 @@ export interface StartDayMove {
   readonly rows: readonly Transaction[]
   readonly receipts: readonly Receipt[]
   /** The parts of the rows that go, a receipt's lines and parts split by hand alike. */
-  readonly parts: readonly EntryPart[]
+  readonly parts: readonly TransactionItem[]
   readonly held: readonly HeldBankRow[]
   /** The other legs of the transfers among the rows, as they are now, which stay with no pair. */
   readonly loneLegs: readonly Transaction[]
@@ -30,7 +30,7 @@ export interface StartDayMove {
 }
 
 /** What moving the account's start day to the day does, or null when the day is its start day already. */
-export function startDayMove(book: Pick<SpendingBook, 'transactions' | 'receipts' | 'lines' | 'held'>, account: Account, startsOn: CivilDate): StartDayMove | null {
+export function startDayMove(book: Pick<SpendingBook, 'transactions' | 'receipts' | 'items' | 'held'>, account: Account, startsOn: CivilDate): StartDayMove | null {
   if (startsOn === account.openedOn) return null
   const moved = { ...account, openedOn: startsOn }
   const goes = (row: Pick<Transaction, 'account' | 'date'>): boolean => row.account === account.id && beforeStartDay(moved, row.date)
@@ -43,7 +43,7 @@ export function startDayMove(book: Pick<SpendingBook, 'transactions' | 'receipts
     direction: beforeStartDay(account, startsOn) ? 'earlier' : 'later',
     rows,
     receipts: book.receipts.filter((receipt) => receipt.transaction !== null && ids.has(receipt.transaction)),
-    parts: book.lines.filter((part) => part.transaction !== null && ids.has(part.transaction)),
+    parts: book.items.filter((part) => part.transaction !== null && ids.has(part.transaction)),
     held: book.held.filter(goes),
     loneLegs: book.transactions.filter((row) => pairs.has(row.id) && !ids.has(row.id)),
     opening: addAccountMoney(account.opening, sumAccountMoney(rows.map((row) => row.amount))),

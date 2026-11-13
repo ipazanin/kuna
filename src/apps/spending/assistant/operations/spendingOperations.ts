@@ -24,7 +24,7 @@ import { TRANSACTION_WRITES, linkEntry, newEntry, removeEntry, removeSplitOf, wr
 import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
 import { fixedByBank } from '../../entries/domain/bankRows'
 import { entrySplit } from '../../entries/domain/entrySplit'
-import type { PartDraft } from '../../entries/domain/entrySplit'
+import type { ItemDraft } from '../../entries/domain/entrySplit'
 import { en as entriesEnglish } from '../../entries/presentation/words'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
@@ -36,7 +36,7 @@ import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/catego
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
 import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { fileNotOpen } from '../../../../shared/app/assistantOperations'
 import type { AppAcceptance, AppProposer, AssistantOperation, CardNote, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -268,7 +268,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
       entry: TEXT,
       parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, text: TEXT }) },
     }),
-    refs: { entry: TRANSACTION_RECORDS.name, 'parts.part': PART_RECORDS.name, 'parts.category': CATEGORY_RECORDS.name },
+    refs: { entry: TRANSACTION_RECORDS.name, 'parts.part': ITEM_RECORDS.name, 'parts.category': CATEGORY_RECORDS.name },
     creates: null,
     alone: false,
     example: {
@@ -683,14 +683,14 @@ function plannedSteps(
       case 'split-entry': {
         const row = rowOf(field['entry'])
         const given = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly text: string }[]
-        const held = book.lines.filter((part) => part.transaction === row.id)
+        const held = book.items.filter((part) => part.transaction === row.id)
         const keptPart = (ref: string | null): RecordId | null => {
           if (ref === null) return null
           const part = held.find((candidate) => candidate.id === idOf(ref))
           if (part === undefined) throw new StepRefused("A part keeps only one of the entry's own parts.")
           return part.id
         }
-        const drafts = given.map((part): PartDraft => ({
+        const drafts = given.map((part): ItemDraft => ({
           id: keptPart(part.part),
           amount: part.amount === null ? 'rest' : signedAs(row, accountMoneyFromAmount(part.amount)),
           category: categoryOf(part.category).id,
@@ -704,14 +704,14 @@ function plannedSteps(
         book = {
           ...book,
           transactions: book.transactions.map((held) => (held.id === row.id ? split.row : held)),
-          lines: [...book.lines.filter((part) => part.transaction !== row.id), ...split.parts],
+          items: [...book.items.filter((part) => part.transaction !== row.id), ...split.parts],
         }
         break
       }
       case 'remove-split': {
         const row = rowOf(field['entry'])
         if (book.receipts.some((receipt) => receipt.transaction === row.id)) throw new StepRefused('A receipt split that entry, so remove-receipt takes its lines off.')
-        if (!book.lines.some((part) => part.transaction === row.id)) throw new StepRefused('That entry is not split.')
+        if (!book.items.some((part) => part.transaction === row.id)) throw new StepRefused('That entry is not split.')
         removeSplitOf(unit, records(), row)
         break
       }
@@ -728,7 +728,7 @@ function plannedSteps(
           ...book,
           transactions: filed === null ? book.transactions : before === null ? [...book.transactions, filed] : book.transactions.map((row) => (row.id === filed.id ? filed : row)),
           receipts: [...book.receipts, split.receipt],
-          lines: [...book.lines.filter((part) => !split.replaced.includes(part)), ...split.lines],
+          items: [...book.items.filter((part) => !split.replaced.includes(part)), ...split.lines],
         }
         receiptWarnings.push(...notes)
         break

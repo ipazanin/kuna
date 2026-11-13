@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
-import { PART_WRITES, TRANSACTION_WRITES, removeEntry, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
-import { entrySplit, wholeRowPartId } from '../src/apps/spending/entries/domain/entrySplit'
+import { ITEM_WRITES, TRANSACTION_WRITES, removeEntry, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
+import { entrySplit, wholeRowItemId } from '../src/apps/spending/entries/domain/entrySplit'
 import { RECEIPT_WRITES } from '../src/apps/spending/receipts/application/receiptRecords'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -94,14 +94,14 @@ describe('a confirmed receipt', () => {
     expect(book.problems).toEqual([])
     expect(book.transactions).toMatchObject([{ id: card.id, category: GROCERIES.id, categorisedBy: 'person', payee: 'Corner market', source: 'statement', importKey: 'key-1' }])
     expect(book.receipts).toMatchObject([{ transaction: card.id, merchant: 'Corner market', issuedOn: civil('2026-11-03'), issuedTime: '18:42', total: moneyFromAmount(23.49), readBy: '', photo: '' }])
-    expect(book.lines).toMatchObject([{ transaction: card.id, amount: accountMoneyFromAmount(-23.49), category: GROCERIES.id, text: '' }])
+    expect(book.items).toMatchObject([{ transaction: card.id, amount: accountMoneyFromAmount(-23.49), category: GROCERIES.id, text: '' }])
     expect(reviewCount(book)).toBe(0)
 
     await store.undo(store.state.writes.find((write) => write.receipt === written)!)
 
     expect(store.state.workbook!.transactions).toEqual(before)
     expect(store.state.workbook!.receipts).toEqual([])
-    expect(store.state.workbook!.lines).toEqual([])
+    expect(store.state.workbook!.items).toEqual([])
   })
 
   it("takes the merchant from the row when you typed none, and keeps the row's own payee when you did", async () => {
@@ -118,7 +118,7 @@ describe('a confirmed receipt', () => {
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
-    expect(book.lines).toMatchObject([
+    expect(book.items).toMatchObject([
       { amount: accountMoneyFromAmount(-23.49), category: GROCERIES.id },
       { amount: accountMoneyFromAmount(-1.51), category: GROCERIES.id, text: 'Difference' },
     ])
@@ -165,7 +165,7 @@ describe('a confirmed receipt', () => {
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
     expect(book.transactions).toMatchObject([{ id: made!.id, date: civil('2026-11-05'), payee: 'Corner market', source: 'receipt', importKey: 'key-1' }])
-    expect(book.lines).toHaveLength(1)
+    expect(book.items).toHaveLength(1)
   })
 
   it('makes a typed row on a cash account, since no statement ever fills it, and a receipt row on a bank account kept by hand for the statement to fill', async () => {
@@ -201,7 +201,7 @@ describe('a receipt read into lines', () => {
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
     expect(book.transactions[0]!.category).toBe(GROCERIES.id)
-    expect(book.lines.map((line) => [line.printed, line.amount, line.category])).toEqual([
+    expect(book.items.map((line) => [line.printed, line.amount, line.category])).toEqual([
       ['MLIJEKO', accountMoneyFromAmount(-15), GROCERIES.id],
       ['DET.TEK.', accountMoneyFromAmount(-8.49), HOUSEHOLD.id],
     ])
@@ -268,9 +268,9 @@ describe('a row a receipt split', () => {
 
   it('refuses a line that breaks the sum', async () => {
     const { store } = await splitStore()
-    const [line] = store.state.workbook!.lines
+    const [line] = store.state.workbook!.items
 
-    await expect(store.write('Changed', (unit) => unit.of(PART_WRITES).change(line!, { ...line!, amount: accountMoneyFromAmount(-20) }))).rejects.toThrow(/add up/)
+    await expect(store.write('Changed', (unit) => unit.of(ITEM_WRITES).change(line!, { ...line!, amount: accountMoneyFromAmount(-20) }))).rejects.toThrow(/add up/)
   })
 
   it('refuses to delete the row and leave its receipt and lines behind', async () => {
@@ -291,10 +291,10 @@ describe('a row a receipt split', () => {
 
     const written = await store.write('Deleted', (unit) => removeEntry(unit, records, split))
 
-    expect([store.state.workbook!.transactions, store.state.workbook!.receipts, store.state.workbook!.lines]).toEqual([[], [], []])
+    expect([store.state.workbook!.transactions, store.state.workbook!.receipts, store.state.workbook!.items]).toEqual([[], [], []])
     await store.undo(store.state.writes.find((write) => write.receipt === written)!)
     expect(store.state.workbook!.problems).toEqual([])
-    expect([store.state.workbook!.transactions.length, store.state.workbook!.receipts.length, store.state.workbook!.lines.length]).toEqual([1, 1, 1])
+    expect([store.state.workbook!.transactions.length, store.state.workbook!.receipts.length, store.state.workbook!.items.length]).toEqual([1, 1, 1])
   })
 
   it('stays under its category when its receipt is removed', async () => {
@@ -304,7 +304,7 @@ describe('a row a receipt split', () => {
     await store.write('Removed', (unit) => removeSplitOf(unit, records, split))
 
     expect(store.state.workbook!.transactions).toMatchObject([{ id: split.id, amount: accountMoneyFromAmount(-23.49), category: GROCERIES.id }])
-    expect([store.state.workbook!.receipts, store.state.workbook!.lines]).toEqual([[], []])
+    expect([store.state.workbook!.receipts, store.state.workbook!.items]).toEqual([[], []])
     expect(spendingFigures(store.state.workbook!, NO_RATES).totalsOf(month('2026-11')).byCategory.get(GROCERIES.id)).toEqual(moneyFromAmount(23.49))
   })
 
@@ -317,7 +317,7 @@ describe('a row a receipt split', () => {
     await store.write('Deleted', (unit) => deleteInto(unit, records, groceries, target))
 
     expect(store.state.workbook!.problems).toEqual([])
-    expect(store.state.workbook!.lines).toMatchObject([{ category: target.id }])
+    expect(store.state.workbook!.items).toMatchObject([{ category: target.id }])
     expect(store.state.workbook!.transactions).toMatchObject([{ category: target.id }])
   })
 
@@ -345,14 +345,14 @@ describe('a row a receipt split', () => {
     }
     await store.write('Imported', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, statement, civil('2026-11-06'))))
     const near = reviewQueue(store.state.workbook!, civil('2026-11-06')).waiting[0]!.maybeTyped!
-    const { lines } = store.state.workbook!
+    const { items } = store.state.workbook!
 
-    await store.write('Joined', (unit) => joinWithTyped(unit, near.typed, near.bank, lines))
+    await store.write('Joined', (unit) => joinWithTyped(unit, near.typed, near.bank, items))
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
     expect(book.transactions).toMatchObject([{ amount: accountMoneyFromAmount(-25), source: 'receipt', importKey: 'key-1' }])
-    expect(book.lines).toMatchObject([{ amount: accountMoneyFromAmount(-23.49) }, { amount: accountMoneyFromAmount(-1.51), text: 'Difference', category: GROCERIES.id }])
+    expect(book.items).toMatchObject([{ amount: accountMoneyFromAmount(-23.49) }, { amount: accountMoneyFromAmount(-1.51), text: 'Difference', category: GROCERIES.id }])
   })
 })
 
@@ -368,11 +368,11 @@ describe('the lines of a receipt in place of what a row held', () => {
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Groceries'))
 
     let replaced: ReturnType<typeof writeReceiptSplit> = []
-    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, receiptSplit(DRAFT, rowPlace(card, store.state.workbook!.lines), LINES))))
+    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, receiptSplit(DRAFT, rowPlace(card, store.state.workbook!.items), LINES))))
 
-    const lines = store.state.workbook!.lines.map((line) => line.id)
+    const lines = store.state.workbook!.items.map((line) => line.id)
     expect(lines).toHaveLength(2)
-    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: [wholeRowPartId(card)] })))
+    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: [wholeRowItemId(card)] })))
   })
 
   it('lets every line replace every part of a split by hand, since no line says which part it was', async () => {
@@ -385,12 +385,12 @@ describe('the lines of a receipt in place of what a row held', () => {
     if ('refused' in hand) throw new Error(hand.refused)
     await store.write('Split', (unit) => writeEntrySplit(unit, store.state.records!, hand))
     const split = store.state.workbook!.transactions[0]!
-    const handParts = store.state.workbook!.lines.map((part) => part.id)
+    const handParts = store.state.workbook!.items.map((part) => part.id)
 
     let replaced: ReturnType<typeof writeReceiptSplit> = []
-    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, receiptSplit(DRAFT, rowPlace(split, store.state.workbook!.lines), LINES))))
+    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, receiptSplit(DRAFT, rowPlace(split, store.state.workbook!.items), LINES))))
 
-    const lines = store.state.workbook!.lines.map((line) => line.id)
+    const lines = store.state.workbook!.items.map((line) => line.id)
     expect(lines.some((line) => handParts.includes(line))).toBe(false)
     expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: handParts })))
   })
@@ -447,12 +447,12 @@ describe('reading receipts and lines', () => {
       budgets: read([]),
       rules: read([]),
       receipts: read([one.receipt]),
-      lines: read(lines),
+      items: read(lines),
       held: read([]),
       settings: read([]),
     })
 
-    expect(book.lines).toEqual([])
+    expect(book.items).toEqual([])
     expect(spendingFigures(book, NO_RATES).totalsOf(month('2026-11')).spent).toEqual(accountMoneyFromAmount(30))
   })
 
@@ -463,7 +463,7 @@ describe('reading receipts and lines', () => {
     const broken = { ...split.lines[0]!, amount: accountMoneyFromAmount(-20) }
 
     await expect(store.write('Saved', (unit) => writeReceiptSplit(unit, { ...split, lines: [broken] }))).rejects.toThrow(/add up/)
-    expect(store.state.workbook!.lines).toEqual([])
+    expect(store.state.workbook!.items).toEqual([])
     expect(store.state.workbook!.transactions).toMatchObject([{ category: category('Food/Coffee').id }])
   })
 

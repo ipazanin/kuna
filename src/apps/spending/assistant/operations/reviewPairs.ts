@@ -104,7 +104,7 @@ export function writeReviewStep(unit: UnitOfWork, book: SpendingBook, operation:
   if (waiting === undefined) throw new StepRefused('That row does not wait on To review.')
   if (operation === 'join-rows') {
     if (waiting.maybeTyped === null) throw new StepRefused('To review offers no typed row as the same money for that row.')
-    joinWithTyped(unit, waiting.maybeTyped.typed, waiting.maybeTyped.bank, book.lines)
+    joinWithTyped(unit, waiting.maybeTyped.typed, waiting.maybeTyped.bank, book.items)
     return
   }
   if (waiting.maybeTransfer === null || transfer === undefined) throw new StepRefused('To review offers no row on another account as the other side of that one.')

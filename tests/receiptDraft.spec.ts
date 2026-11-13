@@ -6,7 +6,7 @@ import { entryCategoryChoices } from '../src/apps/spending/entries/presentation/
 import { receiptCategories, receiptDraft, withR1Answer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { AnsweredLine, DraftContext, ReceiptAnswer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { FiscalQr } from '../src/apps/spending/receipts/domain/fiscalQr'
-import { PART_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ITEM_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { civil, euros } from './fixtures/ledger'
@@ -14,7 +14,7 @@ import { CATEGORIES, category } from './fixtures/spending'
 
 const refOf = (path: string): string => category(path).id
 
-const CONTEXT: DraftContext = { qr: null, book: { receipts: [], lines: [], categories: CATEGORIES }, companyOib: '' }
+const CONTEXT: DraftContext = { qr: null, book: { receipts: [], items: [], categories: CATEGORIES }, companyOib: '' }
 const QR: FiscalQr = { jir: '1a2b3c4d-0000-4000-8000-1234567890ab', zki: '', issuedOn: civil('2026-11-03'), issuedTime: '18:42', total: euros(23.49) }
 
 function line(printed: string, lineTotal: number, fields: Partial<AnsweredLine> = {}): AnsweredLine {
@@ -249,7 +249,7 @@ describe('a line remembered from a confirmed receipt', () => {
     longitude: '',
   })
   const held = (key: string, receiptKey: string, printed: string, path: string) => ({
-    id: recordIdOf(PART_RECORDS, key),
+    id: recordIdOf(ITEM_RECORDS, key),
     transaction: recordIdOf(RECEIPT_RECORDS, receiptKey),
     receipt: recordIdOf(RECEIPT_RECORDS, receiptKey),
     printed,
@@ -262,7 +262,7 @@ describe('a line remembered from a confirmed receipt', () => {
   const book = {
     categories: CATEGORIES,
     receipts: [receipt(OLD, 'Corner market', MADE_UP_MERCHANT_OIB, '2026-09-01'), receipt(NEW, 'Corner mkt', MADE_UP_MERCHANT_OIB, '2026-10-01')],
-    lines: [held('5e000000-0000-4000-8000-000000008101', OLD, 'det.tek.', 'Food/Groceries'), held('5e000000-0000-4000-8000-000000008102', NEW, 'DET.TEK.', 'Home/Household goods')],
+    items: [held('5e000000-0000-4000-8000-000000008101', OLD, 'det.tek.', 'Food/Groceries'), held('5e000000-0000-4000-8000-000000008102', NEW, 'DET.TEK.', 'Home/Household goods')],
   }
 
   it('goes before the model, the newest at the same OIB, folded', () => {
@@ -272,7 +272,7 @@ describe('a line remembered from a confirmed receipt', () => {
   })
 
   it('never starts a personal line under For the company because an R1 receipt filed it there', () => {
-    const company = { ...book, lines: [held('5e000000-0000-4000-8000-000000008103', NEW, 'KRUH', 'For the company')] }
+    const company = { ...book, items: [held('5e000000-0000-4000-8000-000000008103', NEW, 'KRUH', 'For the company')] }
     const { read } = receiptDraft({ ...ANSWER, lines: [line('KRUH', 23.49)] }, { ...CONTEXT, book: company })
 
     expect([read.r1, read.lines[0]!.category]).toEqual([false, category('Food/Groceries').id])

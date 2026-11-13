@@ -1,7 +1,7 @@
 import type { Account } from './account'
 import type { Budget } from './budget'
 import type { Category } from './category'
-import type { EntryPart } from './entryPart'
+import type { TransactionItem } from './transactionItem'
 import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
 import type { SpendingRule } from './spendingRule'
@@ -34,7 +34,7 @@ export const RECEIPT_RECORDS = recordKind<Receipt>('receipt', {
   hr: { one: 'fiskalni račun', of: 'fiskalnog računa', few: 'fiskalna računa', other: 'fiskalnih računa', gender: 'masculine' },
 })
 /** Named `line` in the file, from when only a receipt split an entry. */
-export const PART_RECORDS = recordKind<EntryPart>('line', {
+export const ITEM_RECORDS = recordKind<TransactionItem>('line', {
   en: { one: 'part of an entry', many: 'parts of entries', article: 'a' },
   hr: { one: 'dio unosa', of: 'dijela unosa', few: 'dijela unosa', other: 'dijelova unosa', gender: 'masculine' },
 })

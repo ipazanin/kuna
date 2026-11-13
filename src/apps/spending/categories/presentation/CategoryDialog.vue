@@ -127,7 +127,7 @@ const moving = computed(() => {
   if (category === null || records === null) return words.dialog.nothingMoves
   const entries = recordsOf(records.transactions).filter((entry) => entry.category === category.id).length
   const limits = recordsOf(records.budgets).filter((budget) => budget.category === category.id).length
-  const parts = recordsOf(records.lines).filter((part) => part.category === category.id).length
+  const parts = recordsOf(records.items).filter((part) => part.category === category.id).length
   const rules = recordsOf(records.rules).filter((rule) => rule.category === category.id).length
   const lines = [
     ...(entries > 0 ? [words.dialog.moving(plural(words.dialog.entries(entries), entries))] : []),

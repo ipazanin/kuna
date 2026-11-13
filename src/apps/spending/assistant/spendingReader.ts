@@ -21,13 +21,13 @@ import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
 import type { SpendingBook } from '../workbook/domain/readSpendingBook'
 import type { Receipt } from '../workbook/domain/receipt'
-import type { EntryPart } from '../workbook/domain/entryPart'
+import type { TransactionItem } from '../workbook/domain/transactionItem'
 import {
   ACCOUNT_RECORDS,
   BUDGET_RECORDS,
   CATEGORY_RECORDS,
   HELD_ROW_RECORDS,
-  PART_RECORDS,
+  ITEM_RECORDS,
   RECEIPT_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
@@ -207,8 +207,8 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   longitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
 }
 
-const PART_FIELDS: FieldDocs<EntryPart> = {
-  id: { exposure: 'ref', to: PART_RECORDS.name, meaning: 'The part.' },
+const ITEM_FIELDS: FieldDocs<TransactionItem> = {
+  id: { exposure: 'ref', to: ITEM_RECORDS.name, meaning: 'The part.' },
   transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it is part of, or null for a line of a receipt that waits for the bank's row." },
   receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand.' },
   printed: { exposure: 'free-text', meaning: 'As the till printed it, or empty.' },
@@ -405,11 +405,11 @@ export function spendingReader(reading: SpendingReading): AppReader {
         sets: [{ name: 'waiting', about: words.reads.waitingReceipt, holds: waitsForBank }],
       }),
       readableKind({
-        kind: PART_RECORDS,
+        kind: ITEM_RECORDS,
         about: words.reads.line,
-        fields: PART_FIELDS,
+        fields: ITEM_FIELDS,
         dated: null,
-        rows: () => rows((book) => book.lines),
+        rows: () => rows((book) => book.items),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),
       }),
       readableKind<BankAccountLine>({

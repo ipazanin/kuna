@@ -70,12 +70,12 @@ describe('a receipt from the chat', () => {
     expect([held.merchant, held.readBy, held.photo, held.issuedTime]).toEqual(['Pharmacy', 'made-up-model', '', '09:15'])
     expect(
       bookOf(desk)
-        .lines.filter((candidate) => candidate.receipt === held.id)
+        .items.filter((candidate) => candidate.receipt === held.id)
         .map((candidate) => candidate.amount),
     ).toEqual([-2000, -1100])
     if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
     expect(bookOf(desk).receipts.some((candidate) => candidate.transaction === PHARMACY)).toBe(false)
-    expect(bookOf(desk).lines.some((candidate) => candidate.transaction === PHARMACY)).toBe(false)
+    expect(bookOf(desk).items.some((candidate) => candidate.transaction === PHARMACY)).toBe(false)
   })
 
   it("takes the QR code's date and total over the read's, and warns on the card", async () => {
@@ -132,7 +132,7 @@ describe('a receipt from the chat', () => {
     expect(waiting).toMatchObject({ transaction: null, total: 777 })
     expect(
       bookOf(desk)
-        .lines.filter((held) => held.receipt === waiting!.id)
+        .items.filter((held) => held.receipt === waiting!.id)
         .map((held) => held.transaction),
     ).toEqual([null, null])
     expect(bookOf(desk).problems).toEqual([])
@@ -159,7 +159,7 @@ describe('a receipt from the chat', () => {
 
     expect(
       bookOf(desk)
-        .lines.filter((candidate) => candidate.transaction === picked)
+        .items.filter((candidate) => candidate.transaction === picked)
         .map((candidate) => [candidate.text, candidate.amount]),
     ).toEqual([
       ['vitamin c', -2000],
@@ -171,7 +171,7 @@ describe('a receipt from the chat', () => {
   it('replaces the parts of an entry split by hand in the same write, says on the card which go, and Undo brings them back', async () => {
     const desk = await spendingDesk(used)
     const split = EXAMPLE_RECORDS['transaction-split']!
-    const handParts = bookOf(desk).lines.filter((candidate) => candidate.transaction === split)
+    const handParts = bookOf(desk).items.filter((candidate) => candidate.transaction === split)
 
     await desk.propose(
       [receipt(desk, { entry: desk.ref('transaction', split), issuedOn: '2026-10-30', lines: [line(desk, 'VITAMIN C', 40), line(desk, 'FLASTER', 20)], total: 60 })],
@@ -184,11 +184,11 @@ describe('a receipt from the chat', () => {
 
     expect(
       bookOf(desk)
-        .lines.filter((candidate) => candidate.transaction === split)
+        .items.filter((candidate) => candidate.transaction === split)
         .map((candidate) => candidate.text),
     ).toEqual(['vitamin c', 'flaster'])
     if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
-    expect(bookOf(desk).lines.filter((candidate) => candidate.transaction === split)).toEqual(handParts)
+    expect(bookOf(desk).items.filter((candidate) => candidate.transaction === split)).toEqual(handParts)
   })
 
   it('makes a cash receipt with no cash payment on the file into a typed entry on the one cash account in euros, whatever a card payment says', async () => {
@@ -247,7 +247,7 @@ describe('a receipt from the chat', () => {
     const company = categoryNamed(desk, 'For the company').id
     expect(
       bookOf(desk)
-        .lines.filter((candidate) => candidate.transaction === PHARMACY)
+        .items.filter((candidate) => candidate.transaction === PHARMACY)
         .map((candidate) => candidate.category),
     ).toEqual([company, company])
   })
@@ -261,7 +261,7 @@ describe('a receipt from the chat', () => {
     expect(
       new Set(
         bookOf(withOib)
-          .lines.filter((candidate) => candidate.transaction === PHARMACY)
+          .items.filter((candidate) => candidate.transaction === PHARMACY)
           .map((candidate) => candidate.category),
       ),
     ).toEqual(new Set([company]))

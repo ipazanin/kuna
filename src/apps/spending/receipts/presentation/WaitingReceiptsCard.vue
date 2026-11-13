@@ -29,7 +29,7 @@ const props = defineProps<{ waiting: readonly WaitingReceipt[] }>()
 
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
-const lines = computed(() => store.state.workbook?.lines ?? [])
+const lines = computed(() => store.state.workbook?.items ?? [])
 
 const KEEP = 'keep'
 const REMOVE = 'remove'

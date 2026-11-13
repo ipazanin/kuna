@@ -21,7 +21,7 @@ function bookOf(transactions: readonly Transaction[]): SpendingBook {
     budgets: [],
     rules: [],
     receipts: [],
-    lines: [],
+    items: [],
     held: [],
     settings: spendingSettingsOf([]),
     readings: {} as SpendingBook['readings'],

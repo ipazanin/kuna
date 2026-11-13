@@ -1,7 +1,7 @@
 import { accountBalance } from '../../accounts/domain/accountBalance'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import type { EntryPart } from '../../workbook/domain/entryPart'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -17,19 +17,19 @@ export interface EuroRow {
   readonly account: Account
   readonly euros: Money | null
   /** The parts a receipt or you split the entry into, none for an entry that is whole. */
-  readonly lines: readonly EntryPart[]
+  readonly items: readonly TransactionItem[]
 }
 
 /** Every entry of the book in euros, each at the rate of its day. An entry on a euro account passes through. */
-export function euroRows(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'lines'>, rates: RateBook): EuroRow[] {
+export function euroRows(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'items'>, rates: RateBook): EuroRow[] {
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
-  const linesOf = new Map<RecordId, EntryPart[]>()
-  for (const line of book.lines) {
-    if (line.transaction !== null) linesOf.set(line.transaction, [...(linesOf.get(line.transaction) ?? []), line])
+  const itemsOf = new Map<RecordId, TransactionItem[]>()
+  for (const item of book.items) {
+    if (item.transaction !== null) itemsOf.set(item.transaction, [...(itemsOf.get(item.transaction) ?? []), item])
   }
   return book.transactions.flatMap((transaction) => {
     const account = accounts.get(transaction.account)
-    return account === undefined ? [] : [{ transaction, account, euros: eurosOfAccountMoney(transaction.amount, account.currency, transaction.date, rates), lines: linesOf.get(transaction.id) ?? [] }]
+    return account === undefined ? [] : [{ transaction, account, euros: eurosOfAccountMoney(transaction.amount, account.currency, transaction.date, rates), items: itemsOf.get(transaction.id) ?? [] }]
   })
 }
 

@@ -1,8 +1,8 @@
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** A part of an entry, which a receipt or a person split it into. The parts of an entry add up to its amount, and the figures count them instead of the entry's category. */
-export interface EntryPart {
+/** An item of a transaction, which a receipt or a person split it into. The items of a transaction add up to its amount, and the figures count them instead of the transaction's category. */
+export interface TransactionItem {
   readonly id: RecordId
   /** Null on a line of a receipt that waits for the bank's row. */
   readonly transaction: RecordId | null

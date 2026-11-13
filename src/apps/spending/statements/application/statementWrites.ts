@@ -1,5 +1,5 @@
-import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
-import { differencePart } from '../../entries/domain/entrySplit'
+import { ITEM_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { differenceItem } from '../../entries/domain/entrySplit'
 import { filledByBank, statementDryRun } from '../domain/statementDryRun'
 import type { StatementDryRun } from '../domain/statementDryRun'
 import { rulesRerun } from '../domain/spendingCategorisation'
@@ -13,7 +13,7 @@ import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/appl
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import type { EntryPart } from '../../workbook/domain/entryPart'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import { HELD_ROW_RECORDS, RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { sameCondition } from '../../workbook/domain/spendingRule'
@@ -94,14 +94,14 @@ export function pairRows(unit: UnitOfWork, { debit, credit }: TransferPair, tran
 }
 
 /** A near match joined by your word: the typed row takes the bank's facts and the bank's own row goes. A row split into parts gains a Difference part in its first part's category for what the bank's amount adds, so its parts keep adding up. */
-export function joinWithTyped(unit: UnitOfWork, typed: Transaction, bank: Transaction, lines: readonly EntryPart[]): void {
+export function joinWithTyped(unit: UnitOfWork, typed: Transaction, bank: Transaction, lines: readonly TransactionItem[]): void {
   const entries = unit.of(TRANSACTION_WRITES)
   entries.remove(bank)
   entries.change(typed, filledByBank(typed, bank))
   const parts = lines.filter((part) => part.transaction === typed.id)
   const first = parts[0]
-  const difference = first === undefined ? null : differencePart(bank.amount, parts, first, receiptWords.difference)
-  if (difference !== null) unit.of(PART_WRITES).add(difference)
+  const difference = first === undefined ? null : differenceItem(bank.amount, parts, first, receiptWords.difference)
+  if (difference !== null) unit.of(ITEM_WRITES).add(difference)
 }
 
 /** What "Always for this payee" tests on a row: its IBAN, else its payee's name. Null for a row with neither. */

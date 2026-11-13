@@ -158,7 +158,7 @@ describe('the rows that can take a receipt', () => {
       budgets: [],
       rules: [],
       receipts: [],
-      lines: [],
+      items: [],
       held: [],
       settings: spendingSettingsOf([]),
       readings: {} as SpendingBook['readings'],

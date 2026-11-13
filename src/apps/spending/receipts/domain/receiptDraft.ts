@@ -94,20 +94,20 @@ function sameMerchant(heldOib: string, heldName: string, oib: string, name: stri
 
 /** Confirmed lines that remember a category, newest receipt first. */
 function rememberedLines(
-  book: Pick<SpendingBook, 'receipts' | 'lines'>,
+  book: Pick<SpendingBook, 'receipts' | 'items'>,
   merchantOib: string,
   merchant: string,
 ): readonly { readonly printed: string; readonly text: string; readonly category: RecordId }[] {
   return [...book.receipts]
     .filter((receipt) => sameMerchant(receipt.merchantOib, receipt.merchant, merchantOib, merchant))
     .sort((one, other) => other.issuedOn.localeCompare(one.issuedOn))
-    .flatMap((receipt) => book.lines.filter((line) => line.receipt === receipt.id && line.printed !== ''))
+    .flatMap((receipt) => book.items.filter((line) => line.receipt === receipt.id && line.printed !== ''))
 }
 
 /** What a read is checked against beside the answer itself. */
 export interface DraftContext {
   readonly qr: FiscalQr | null
-  readonly book: Pick<SpendingBook, 'receipts' | 'lines' | 'categories'>
+  readonly book: Pick<SpendingBook, 'receipts' | 'items' | 'categories'>
   /** Company's OIB, blank unless Company's books are open here with one. */
   readonly companyOib: string
 }

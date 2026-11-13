@@ -7,7 +7,7 @@ import { entryCategoryChoices } from './categoryChoices'
 import { words } from './words'
 import { writeEntrySplit } from '../application/entryWrites'
 import { entrySplit } from '../domain/entrySplit'
-import type { PartDraft } from '../domain/entrySplit'
+import type { ItemDraft } from '../domain/entrySplit'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -41,7 +41,7 @@ const writes = useRecordWrites(store)
 const parts = ref<SplitField<RecordId>[]>([])
 const tried = ref(false)
 
-const heldParts = computed(() => (store.state.workbook?.lines ?? []).filter((part) => part.transaction === props.entry.id))
+const heldParts = computed(() => (store.state.workbook?.items ?? []).filter((part) => part.transaction === props.entry.id))
 
 watch(open, (opened) => {
   if (!opened) return
@@ -78,7 +78,7 @@ const outcome = computed(() => {
   const book = store.state.workbook
   const given = givenParts(parts.value, typedAccountAmount)
   if (book === null || given === null || parts.value.some((part) => categoryError(part) !== null)) return null
-  const drafts = parts.value.map((part, place): PartDraft => {
+  const drafts = parts.value.map((part, place): ItemDraft => {
     const amount = given[place]!
     return { id: part.held, amount: amount === 'rest' ? 'rest' : signed(amount), category: categoryOf(part)!, text: part.note }
   })

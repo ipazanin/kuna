@@ -89,7 +89,7 @@ const legs = computed((): readonly [Transaction, Transaction] | null => {
 })
 
 /** What a receipt or you split the entry into, whose sum holds its amount and whose categories count in place of its own. */
-const entryLines = computed(() => (store.state.workbook?.lines ?? []).filter((line) => line.transaction === props.entry?.id))
+const entryLines = computed(() => (store.state.workbook?.items ?? []).filter((line) => line.transaction === props.entry?.id))
 const split = computed(() => entryLines.value.length > 0)
 const receipt = computed(() => (store.state.workbook?.receipts ?? []).find((held) => held.transaction === props.entry?.id) ?? null)
 /** Where the entry's receipt was photographed, when its photo held a position. */

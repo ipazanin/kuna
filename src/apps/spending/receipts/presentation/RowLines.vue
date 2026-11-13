@@ -3,13 +3,13 @@ import { computed } from 'vue'
 
 import { categoryColours } from '../../categories/presentation/categoryColours'
 import type { Category } from '../../workbook/domain/category'
-import type { EntryPart } from '../../workbook/domain/entryPart'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 
 /** The parts a receipt or you split an entry into, each with its category's colour and its amount. Built of spans, so it fits inside a row's button. */
 const props = defineProps<{
-  lines: readonly EntryPart[]
+  lines: readonly TransactionItem[]
   categories: readonly Category[]
   currency: CurrencyCode
 }>()

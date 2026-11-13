@@ -47,7 +47,7 @@ function refuseNotWaiting(): never {
 export function writeWaitingReceiptStep(
   unit: UnitOfWork,
   book: SpendingBook,
-  records: Pick<SpendingRecords, 'lines'>,
+  records: Pick<SpendingRecords, 'items'>,
   operation: string,
   field: Readonly<Record<string, string>>,
   idOf: (value: unknown) => string,
@@ -61,5 +61,5 @@ export function writeWaitingReceiptStep(
   const candidate = waiting.matches.kind === 'none' ? undefined : waiting.matches.candidates.find(({ row }) => row.id === entry)
   if (candidate === undefined)
     throw new StepRefused("To review offers no such payment for that receipt. It offers the rows on the receipt's account the receipt may be, as match_records with kind receipt finds them.")
-  placeWaitingReceipt(unit, receiptOnRow(waiting.receipt, waiting.lines, rowPlace(candidate.row, book.lines), receiptWords.difference))
+  placeWaitingReceipt(unit, receiptOnRow(waiting.receipt, waiting.lines, rowPlace(candidate.row, book.items), receiptWords.difference))
 }

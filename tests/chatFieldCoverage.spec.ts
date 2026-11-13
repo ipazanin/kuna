@@ -313,7 +313,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntrySplit',
-    type: 'src/apps/spending/entries/domain/entrySplit.ts#PartDraft',
+    type: 'src/apps/spending/entries/domain/entrySplit.ts#ItemDraft',
     operations: [{ name: 'split-entry', prefix: 'parts.', renames: { id: 'parts.part' } }],
   },
   { path: 'src/apps/spending/workbook/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
@@ -324,7 +324,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   },
   {
     path: 'src/apps/spending/receipts/application/receiptWrites.ts#writeReceiptSplit',
-    type: 'src/apps/spending/workbook/domain/entryPart.ts#EntryPart',
+    type: 'src/apps/spending/workbook/domain/transactionItem.ts#TransactionItem',
     operations: [{ name: 'add-receipt', prefix: 'lines.', renames: { amount: 'lines.lineTotal' } }],
   },
   {

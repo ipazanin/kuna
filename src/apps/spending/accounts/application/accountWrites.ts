@@ -1,7 +1,7 @@
 import { words } from './words'
 import { loneLeg } from '../domain/startDayMove'
 import type { StartDayMove } from '../domain/startDayMove'
-import { PART_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { ITEM_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { HELD_ROW_WRITES } from '../../statements/application/statementWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
@@ -52,7 +52,7 @@ export function newAccount(account: Omit<Account, 'id'>): Account {
 export function changeAccount(unit: UnitOfWork, before: Account, after: Account, move: StartDayMove | null): void {
   unit.of(ACCOUNT_WRITES).change(before, after)
   if (move === null) return
-  move.parts.forEach((part) => unit.of(PART_WRITES).remove(part))
+  move.parts.forEach((part) => unit.of(ITEM_WRITES).remove(part))
   move.receipts.forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
   move.held.forEach((held) => unit.of(HELD_ROW_WRITES).remove(held))
   move.rows.forEach((row) => unit.of(TRANSACTION_WRITES).remove(row))
