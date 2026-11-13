@@ -139,7 +139,6 @@
     "src/apps/company/packs/hr-doo/domain/accrual/accrualBookings.ts",
     "src/apps/company/packs/hr-doo/domain/accrual/accrualYear.ts",
     "src/apps/company/packs/hr-doo/domain/accrual/closedYear.ts",
-    "src/apps/company/packs/hr-doo/domain/accrual/costLines.ts",
     "src/apps/company/packs/hr-doo/domain/accrual/prepaymentSpread.ts",
     "src/apps/company/packs/hr-doo/domain/accrual/revenueByDelivery.ts",
     "src/apps/company/packs/hr-doo/domain/assets/assetBooks.ts",

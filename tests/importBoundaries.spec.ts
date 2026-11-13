@@ -586,12 +586,17 @@ describe('import boundaries', () => {
     expect(SOURCE_FILES.filter((file) => /\/packs\/[^/]+\/preset\//.test(file) && !/\/preset\/(domain|presentation)\//.test(file))).toEqual([])
   })
 
-  it('spells the new tax class roles in the pack roles alone, where other-income is also a category of the starting set', () => {
+  it('spells the new tax class roles in the pack roles alone, where other-income and interest-income are also categories of the starting set', () => {
     const roleHome = (file: string): boolean => file === 'src/apps/company/packs/hr-doo/domain/packRoles.ts' || isFakeSeed(file)
     for (const role of ['deductible-cost', 'outside-profit', 'vehicle-insurance-interest-tax-and-fees']) {
       expect(linesQuoting(role, roleHome), role).toEqual([])
     }
-    expect(linesQuoting('other-income', (file, line) => roleHome(file) || (file === STARTING_CATEGORIES_FILE && /^\s*\['other-income', \[/.test(line)) || seededName(file, line))).toEqual([])
+    for (const role of ['other-income', 'interest-income']) {
+      expect(
+        linesQuoting(role, (file, line) => roleHome(file) || (file === STARTING_CATEGORIES_FILE && line.trimStart().startsWith(`['${role}', [`)) || seededName(file, line)),
+        role,
+      ).toEqual([])
+    }
   })
 
   it('names no pack role in the company app outside its packs, revenue aside, which receivables also spell', () => {

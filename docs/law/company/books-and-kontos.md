@@ -18,7 +18,7 @@ Mark: `confirmed-consolidated`.
 
 No act prescribes a chart of accounts. The HSFI set the statements, not the kontos. The RRiF chart most accountants use is a privately published book. So konto numbers are the accountant's practice, and Kuna ships none.
 
-Kuna reads the accountant's kontos from the year-end tab. Where the year-end lines name a konto, Kuna places a cost by its first two digits, and falls back to the category's bucket where they do not (`packs/hr-doo/domain/accrual/costLines.ts`).
+Kuna reads the accountant's kontos from the year-end tab. Where the year-end lines name a konto, Kuna places a category by its first two digits, and where they do not, on the line its [tax class](tax-classes.md#profit-and-loss-lines) names (`packs/hr-doo/domain/accrual/categoryLines.ts`).
 
 Mark: `confirmed-consolidated`.
 

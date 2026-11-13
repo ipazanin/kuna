@@ -5,7 +5,7 @@ import type { MonthSpan } from '../../../../../../shared/calendar/ledgerWindow'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { ZERO, divideMoney } from '../../../../../../shared/money/money'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
-import type { CostLine } from '../accrual/costLines'
+import type { CostLine, IncomeLine } from '../accrual/categoryLines'
 import { deducted, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import { words } from './words'
 
@@ -39,7 +39,7 @@ export interface ForecastLine {
 }
 
 /** The profit and loss lines the forecast fills, by the year-end tab's line ids. */
-export type ForecastPlLineId = 'sales' | 'other-operating-income' | CostLine
+export type ForecastPlLineId = 'sales' | IncomeLine | CostLine
 
 export interface ForecastPlLine {
   readonly line: ForecastPlLineId

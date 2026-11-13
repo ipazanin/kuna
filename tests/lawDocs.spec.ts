@@ -213,27 +213,32 @@ describe('company law docs', () => {
     expect(classRows.map((row) => row.Class)).toEqual(TAX_CLASSES.map((taxClass) => taxClass.id))
   })
 
-  it.each(TAX_CLASSES.map((taxClass) => [taxClass.id, taxClass] as const))('states the add-back, input VAT, treatments and buckets of %s as the ruleset and the class have them', (id, taxClass) => {
-    const row = classRows.find((candidate) => candidate.Class === id)!
-    const from = parseCivilDate(row.From ?? '')
-    expect(from, `"${row.From}" is not a day`).not.toBeNull()
-    // A capped class adds back what is above its cap, which the table states instead of a share.
-    const addBack = taxClass.rules.includes('hr.cit.donation-cap')
-      ? `above ${percentText(ruleValue('hr.cit.donation-cap', from!).value.capShareOfRevenue.basisPoints)} of revenue`
-      : percentText(taxClass.addBack === null ? 0 : ruleValue(taxClass.addBack, from!).value.addBackShare.basisPoints)
-    const vatBack = [...new Set(taxClass.vat.flatMap((treatment) => inputVatBack(treatment, from!) ?? []))]
-    expect({
-      addBack: row['CIT add-back'],
-      vatBack: row['Input VAT back'],
-      vat: listed(row['VAT treatments']),
-      buckets: listed(row.Buckets),
-    }).toEqual({
-      addBack,
-      vatBack: vatBack.length === 0 ? 'none' : vatBack.map(percentText).join(' or '),
-      vat: taxClass.vat,
-      buckets: taxClass.buckets,
-    })
-  })
+  it.each(TAX_CLASSES.map((taxClass) => [taxClass.id, taxClass] as const))(
+    'states the add-back, input VAT, treatments, buckets and lines of %s as the ruleset and the class have them',
+    (id, taxClass) => {
+      const row = classRows.find((candidate) => candidate.Class === id)!
+      const from = parseCivilDate(row.From ?? '')
+      expect(from, `"${row.From}" is not a day`).not.toBeNull()
+      // A capped class adds back what is above its cap, which the table states instead of a share.
+      const addBack = taxClass.rules.includes('hr.cit.donation-cap')
+        ? `above ${percentText(ruleValue('hr.cit.donation-cap', from!).value.capShareOfRevenue.basisPoints)} of revenue`
+        : percentText(taxClass.addBack === null ? 0 : ruleValue(taxClass.addBack, from!).value.addBackShare.basisPoints)
+      const vatBack = [...new Set(taxClass.vat.flatMap((treatment) => inputVatBack(treatment, from!) ?? []))]
+      expect({
+        addBack: row['CIT add-back'],
+        vatBack: row['Input VAT back'],
+        vat: listed(row['VAT treatments']),
+        buckets: listed(row.Buckets),
+        lines: row['Profit and loss line'] === 'none' ? [] : listed(row['Profit and loss line']),
+      }).toEqual({
+        addBack,
+        vatBack: vatBack.length === 0 ? 'none' : vatBack.map(percentText).join(' or '),
+        vat: taxClass.vat,
+        buckets: taxClass.buckets,
+        lines: Object.entries(taxClass.profitAndLossLines).map(([bucket, line]) => `${bucket}: ${line}`),
+      })
+    },
+  )
 
   it('states the revenue code and model of each seeded payment as the ruleset has them on 1 January, with the category its rule files to', () => {
     const rows = tableUnder('company/state-payments.md', 'Revenue codes')

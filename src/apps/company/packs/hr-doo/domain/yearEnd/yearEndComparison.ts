@@ -15,7 +15,8 @@ import type { AccrualLine } from '../accrual/accrualLines'
 import { accrualLine } from '../accrual/accrualYear'
 import type { AccrualYear } from '../accrual/accrualYear'
 import { kontoGroups } from '../accrual/closedYear'
-import { COST_LINES, costLineOf } from '../accrual/costLines'
+import { COST_LINES, costLineOf, incomeLineOf } from '../accrual/categoryLines'
+import type { IncomeLine } from '../accrual/categoryLines'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
 import { summed, tracedFigure } from '../payroll/payrollArithmetic'
 import { words } from './words'
@@ -209,6 +210,8 @@ function cashFigures(workbook: HrDooWorkbook, accrual: AccrualYear): ReadonlyMap
   }
   const nothing = tracedFigure(words.comparison.nothingInCash, ZERO, 'ledger', [])
   const grantSlugs = categoriesWithRole(workbook.categories, PACK_ROLES.grant)
+  const otherThanSales = income.filter((entry) => entry.treatment !== 'revenue')
+  const onIncomeLine = (line: IncomeLine) => otherThanSales.filter((entry) => incomeLineOf(entry.category, year, workbook.yearEndLines) === line)
   const figures: [string, TracedFigure][] = [
     [
       'pl:sales',
@@ -219,15 +222,8 @@ function cashFigures(workbook: HrDooWorkbook, accrual: AccrualYear): ReadonlyMap
       ),
     ],
     ['pl:own-use', nothing],
-    [
-      'pl:other-operating-income',
-      byCategory(
-        words.comparison.otherIncome,
-        income.filter((entry) => entry.treatment !== 'revenue'),
-        1,
-      ),
-    ],
-    ['pl:financial-income', nothing],
+    ['pl:other-operating-income', byCategory(words.comparison.otherIncome, onIncomeLine('other-operating-income'), 1)],
+    ['pl:financial-income', byCategory(words.comparison.financialIncome, onIncomeLine('financial-income'), 1)],
     ...COST_LINES.map((line): [string, TracedFigure] => [
       `pl:${line}`,
       byCategory(

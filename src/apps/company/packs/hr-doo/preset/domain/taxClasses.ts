@@ -2,6 +2,7 @@ import { OWNER_SHARE_ROLES } from '../../../../owner-share/domain/ownerShare'
 import { RECEIVABLE_ROLES } from '../../../../receivables/domain/invoiceMatching'
 import type { DefinedBucket } from '../../../../workbook/domain/bucket'
 import type { VatTreatment } from '../../../../workbook/domain/vatTreatment'
+import type { CategoryLine } from '../../domain/accrual/categoryLines'
 import { PACK_ROLES, TAX_FREE_ROLES } from '../../domain/packRoles'
 import type { PackRole } from '../../domain/packRoles'
 import type { RuleId, RuleValues } from '../../ruleset/ruleset'
@@ -10,8 +11,9 @@ import type { RateTerm } from '../../ruleset/schema'
 /** A rule whose value carries the share of a cost the profit tax adds back. */
 export type AddBackRuleId = { readonly [Id in RuleId]: RuleValues[Id] extends { readonly addBackShare: RateTerm } ? Id : never }[RuleId]
 
-/** The roles a category carries beside its class: when it is paid, what Kuna waits for, and whose cost or balance it counts in. */
-type ModifierRole = typeof PACK_ROLES.arrears | typeof PACK_ROLES.prepaidAnnual | typeof PACK_ROLES.watched | typeof PACK_ROLES.ownerPayTax | typeof PACK_ROLES.reimbursement
+/** The roles a category carries beside its class: when it is paid, what Kuna waits for, whose cost or balance it counts in, and a cost line the class does not name. */
+type ModifierRole =
+  typeof PACK_ROLES.arrears | typeof PACK_ROLES.prepaidAnnual | typeof PACK_ROLES.watched | typeof PACK_ROLES.ownerPayTax | typeof PACK_ROLES.reimbursement | typeof PACK_ROLES.otherCostsLine
 
 /** The tax-free payments' class, one role per payment of the caps table. */
 export const TAX_FREE_CLASS = 'tax-free:*'
@@ -34,6 +36,11 @@ export interface TaxClass {
   /** The VAT treatments a category of the class may have. */
   readonly vat: readonly VatTreatment[]
   readonly buckets: readonly DefinedBucket[]
+  /**
+   * The profit and loss line a category of the class counts on in each of its buckets, when no
+   * konto line of the accountant names it. A class the accrual view takes out of profit names none.
+   */
+  readonly profitAndLossLines: Readonly<Partial<Record<DefinedBucket, CategoryLine>>>
   /** The file and heading under docs/law that states the class. */
   readonly law: `company/${string}.md#${string}`
 }
@@ -51,6 +58,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['income'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#revenue',
   }),
   carriedBy(RECEIVABLE_ROLES.clientRefund, {
@@ -58,6 +66,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['income'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#client-refund',
   }),
   carriedBy(PACK_ROLES.grant, {
@@ -65,6 +74,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['income'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#grant',
   }),
   carriedBy(PACK_ROLES.otherIncome, {
@@ -72,13 +82,23 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['income'],
+    profitAndLossLines: { income: 'other-operating-income' },
     law: 'company/tax-classes.md#other-income',
+  }),
+  carriedBy(PACK_ROLES.interestIncome, {
+    rules: ['hr.cit.base'],
+    addBack: null,
+    vat: ['none'],
+    buckets: ['income'],
+    profitAndLossLines: { income: 'financial-income' },
+    law: 'company/tax-classes.md#interest-income',
   }),
   carriedBy(PACK_ROLES.deductibleCost, {
     rules: ['hr.cit.base', 'hr.vat.input-deduction', 'hr.vat.reverse-charge'],
     addBack: null,
     vat: DEDUCTIBLE_VAT,
     buckets: ['operating', 'taxes'],
+    profitAndLossLines: { operating: 'material-costs', taxes: 'other-costs' },
     law: 'company/tax-classes.md#deductible-cost',
   }),
   carriedBy(PACK_ROLES.representation, {
@@ -86,6 +106,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: 'hr.cit.representation-add-back',
     vat: ['representation'],
     buckets: ['operating'],
+    profitAndLossLines: { operating: 'material-costs' },
     law: 'company/tax-classes.md#representation',
   }),
   carriedBy(PACK_ROLES.personalTransport, {
@@ -94,6 +115,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     // A supplier outside the VAT system charges none. It stays last, after the treatments a car's running costs carry.
     vat: ['car-50', 'foreign-vat', 'none'],
     buckets: ['operating'],
+    profitAndLossLines: { operating: 'material-costs' },
     law: 'company/tax-classes.md#personal-transport',
   }),
   carriedBy(PACK_ROLES.vehicleInsuranceInterestTaxAndFees, {
@@ -101,6 +123,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['operating'],
+    profitAndLossLines: { operating: 'other-costs' },
     law: 'company/tax-classes.md#vehicle-insurance-interest-tax-and-fees',
   }),
   carriedBy(PACK_ROLES.nonDeductible, {
@@ -108,6 +131,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: 'hr.cit.private-cost-add-back',
     vat: ['none'],
     buckets: ['operating', 'taxes'],
+    profitAndLossLines: { operating: 'impairment-provisions-other', taxes: 'impairment-provisions-other' },
     law: 'company/tax-classes.md#non-deductible',
   }),
   carriedBy(PACK_ROLES.donation, {
@@ -115,6 +139,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['operating'],
+    profitAndLossLines: { operating: 'impairment-provisions-other' },
     law: 'company/tax-classes.md#donation',
   }),
   carriedBy(PACK_ROLES.listedSponsorship, {
@@ -122,6 +147,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['deductible-25', 'deductible-13', 'deductible-5', 'none'],
     buckets: ['operating'],
+    profitAndLossLines: { operating: 'material-costs' },
     law: 'company/tax-classes.md#listed-sponsorship',
   }),
   carriedBy(PACK_ROLES.capitalPurchase, {
@@ -129,6 +155,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['deductible-25', 'deductible-13', 'deductible-5', 'car-50', 'reverse-charge', 'foreign-vat', 'none'],
     buckets: ['operating'],
+    profitAndLossLines: { operating: 'material-costs' },
     law: 'company/tax-classes.md#capital-purchase',
   }),
   carriedBy(PACK_ROLES.corporateIncomeTax, {
@@ -136,6 +163,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['taxes'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#corporate-income-tax',
   }),
   carriedBy(PACK_ROLES.vatSettlement, {
@@ -143,6 +171,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['operating', 'taxes'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#vat-settlement',
   }),
   carriedBy(PACK_ROLES.profitDistribution, {
@@ -150,6 +179,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['owner-pay', 'taxes'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#profit-distribution',
   }),
   carriedBy(PACK_ROLES.salary, {
@@ -157,6 +187,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['owner-pay'],
+    profitAndLossLines: { 'owner-pay': 'personnel-costs' },
     law: 'company/tax-classes.md#salary',
   }),
   {
@@ -166,6 +197,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['owner-pay'],
+    profitAndLossLines: { 'owner-pay': 'other-costs' },
     law: 'company/tax-classes.md#tax-free-payments',
   },
   carriedBy(PACK_ROLES.ownerRent, {
@@ -173,6 +205,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['owner-pay'],
+    profitAndLossLines: { 'owner-pay': 'material-costs' },
     law: 'company/tax-classes.md#owner-rent',
   }),
   carriedBy(OWNER_SHARE_ROLES.ownerBenefit, {
@@ -180,6 +213,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['owner-pay'],
+    profitAndLossLines: { 'owner-pay': 'impairment-provisions-other' },
     law: 'company/tax-classes.md#owner-benefit',
   }),
   carriedBy(PACK_ROLES.ownerLoanOut, {
@@ -187,6 +221,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['owner-pay', 'financing'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#owner-loan-out',
   }),
   carriedBy(PACK_ROLES.ownerLoanRepaid, {
@@ -194,6 +229,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['owner-pay', 'financing'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#owner-loan-repaid',
   }),
   carriedBy(PACK_ROLES.outsideProfit, {
@@ -201,6 +237,7 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     addBack: null,
     vat: ['none'],
     buckets: ['financing', 'neutral'],
+    profitAndLossLines: {},
     law: 'company/tax-classes.md#outside-profit',
   }),
 ]

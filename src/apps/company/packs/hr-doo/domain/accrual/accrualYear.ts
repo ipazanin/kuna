@@ -33,8 +33,8 @@ import type { AccrualBooking, CapitalisedBooking, CountedBooking, TakenOutTreatm
 import { moneyLine } from './accrualLines'
 import type { AccrualLine, MoneyLine } from './accrualLines'
 import { arrearsCutOff, bookingsAfterCutOff, grantScheduleJudgement, placementJudgement, representationAsBooked } from './closedYear'
-import { COST_LINES, COST_LINE_LABELS, costLineOf } from './costLines'
-import type { CostLine } from './costLines'
+import { COST_LINES, costLineOf, incomeLineOf } from './categoryLines'
+import type { CostLine, IncomeLine } from './categoryLines'
 import { revenueByDelivery } from './revenueByDelivery'
 import type { UninvoicedMonth } from './revenueByDelivery'
 import { words } from './words'
@@ -256,8 +256,10 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   const cutOffCategories = new Set([...(cutOff?.kept ?? [])].map((entry) => entry.category.slug))
 
   const grantIncome = grantJudgement === null ? released : summed(words.year.grantRelease, [released, grantJudgement.figure], 'assets')
-  const otherIncome = categoryTotals.filter((entry) => entry.category.bucket === 'income').map((entry) => entry.figure)
-  const otherOperatingIncome = summed(words.year.otherIncome, [grantIncome, ...otherIncome], 'ledger')
+  const incomeOn = (line: IncomeLine) =>
+    categoryTotals.filter((entry) => entry.category.bucket === 'income' && incomeLineOf(entry.category, year, workbook.yearEndLines) === line).map((entry) => entry.figure)
+  const otherOperatingIncome = summed(words.year.otherIncome, [grantIncome, ...incomeOn('other-operating-income')], 'ledger')
+  const financialIncome = summed(words.year.financialIncome, incomeOn('financial-income'), 'ledger')
 
   const costSteps = new Map<CostLine, TracedFigure[]>(COST_LINES.map((line) => [line, []]))
   const costJudgements = new Map<CostLine, AdjustmentId[]>(COST_LINES.map((line) => [line, []]))
@@ -271,7 +273,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   costSteps.get('depreciation')?.push(depreciation)
   costSteps.get('material-costs')?.push(smallInventory)
   costSteps.get('impairment-provisions-other')?.push(disposals)
-  const ourCosts = new Map(COST_LINES.map((line) => [line, summed(COST_LINE_LABELS[line], (costSteps.get(line) ?? []).filter(isShown), 'ledger')]))
+  const ourCosts = new Map(COST_LINES.map((line) => [line, summed(words.costLines[line], (costSteps.get(line) ?? []).filter(isShown), 'ledger')]))
   const placement = placementJudgement(
     'cost-placement',
     words.year.costPlacement,
@@ -281,7 +283,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
     workbook.yearEndLines,
   )
   const costLines = COST_LINES.map((line): MoneyLine => {
-    const ours = ourCosts.get(line) ?? summed(COST_LINE_LABELS[line], [], 'ledger')
+    const ours = ourCosts.get(line) ?? summed(words.costLines[line], [], 'ledger')
     const move = placement?.moves.get(line)
     const judgements = costJudgements.get(line) ?? []
     return move === undefined
@@ -291,7 +293,6 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
 
   const sales = tracedFigure(words.year.sales, delivered.total.amount, 'invoices', delivered.total.rules, [delivered.total])
   const ownUse = tracedFigure(words.year.ownUse, ZERO, 'ledger', [])
-  const financialIncome = tracedFigure(words.year.financialIncome, ZERO, 'ledger', [])
   const revenue = summed(words.year.revenue, [sales, ownUse, otherOperatingIncome, financialIncome], 'ledger')
   const expenses = summed(
     words.year.expenses,

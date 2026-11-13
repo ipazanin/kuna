@@ -2,12 +2,15 @@ import { readFileSync } from 'node:fs'
 
 import { describe, expect, it } from 'vitest'
 
+import { countsInProfit } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualBookings'
+import { COST_LINES, INCOME_LINES } from '../src/apps/company/packs/hr-doo/domain/accrual/categoryLines'
 import { HR_DOO_PART } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { TAX_CLASSES } from '../src/apps/company/packs/hr-doo/preset/domain/taxClasses'
 import { en as classWords } from '../src/apps/company/packs/hr-doo/preset/presentation/classWords'
 import { RULES } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import { knownRoles } from '../src/apps/company/settings/domain/categoryGuards'
 import { BUCKETS } from '../src/apps/company/workbook/domain/bucket'
+import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
 import { VAT_TREATMENTS } from '../src/apps/company/workbook/domain/vatTreatment'
 import { anchorOf } from './support/headingAnchor'
 
@@ -41,6 +44,18 @@ describe('tax classes', () => {
         taxClass.buckets.filter((bucket) => !BUCKETS.includes(bucket)),
         taxClass.id,
       ).toEqual([])
+    }
+  })
+
+  it.each(TAX_CLASSES.map((taxClass) => [taxClass.id, taxClass] as const))('names the profit and loss line of %s in each bucket the accrual view counts it in, and in no other', (_id, taxClass) => {
+    for (const bucket of BUCKETS) {
+      const category = { slug: 'example', family: bucket, bucket, colour: BUCKET_COLOUR, roles: [taxClass.roles[0]!], vat: taxClass.vat[0]!, ownerShare: null }
+      const line = taxClass.profitAndLossLines[bucket]
+      if (!taxClass.buckets.includes(bucket) || !countsInProfit(category)) {
+        expect(line, bucket).toBeUndefined()
+      } else {
+        expect<readonly string[]>(bucket === 'income' ? INCOME_LINES : COST_LINES, bucket).toContain(line)
+      }
     }
   })
 

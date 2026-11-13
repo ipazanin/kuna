@@ -65,9 +65,11 @@ const CATEGORY_ROLES: Readonly<Record<string, string>> = {
   revenue: 'revenue',
   'grant-income': 'grant',
   'client-refund': 'client-refund',
+  'bank-interest': 'interest-income',
   'payroll-contributions': 'watched, owner-pay-tax, arrears',
   'payroll-tax': 'owner-pay-tax, arrears',
   'corporate-income-tax': 'corporate-income-tax',
+  'tax-refund': 'corporate-income-tax',
   'dividend-tax': 'owner-pay-tax, profit-distribution',
   'salary-net': 'salary, arrears',
   dividend: 'profit-distribution',
@@ -479,7 +481,7 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null, giving: bool
  * board-only insurance the day after the grant's employment date, with a purchase and a dividend,
  * and four owner pay scenarios for 2027, two of them with warnings to show. The accountant's 2025 figures are made up to agree with the accrual view of
  * the ledger, except where the Accountant tab of Year needs something to show: the grant released, rent
- * placed on other costs, bank interest as financial income and 10.00 moved between two konto lines.
+ * placed on other costs and 10.00 moved between two konto lines.
  */
 function planningRecords(): Readonly<Record<string, readonly FakeFields[]>> {
   /** A money line's amount as an amount, and a date, a rate or a count as given. */
@@ -566,7 +568,7 @@ function planningRecords(): Readonly<Record<string, readonly FakeFields[]>> {
       yearEnd('konto', '41200', 'Usluge telefona', 82.04, 'telecom'),
       yearEnd('konto', '41810', 'Računovodstvene usluge', 1196, 'accounting'),
       yearEnd('konto', '41850', 'Softver i pretplate', 435.87, 'ai-services, software-subscriptions'),
-      yearEnd('konto', '46500', 'Reprezentacija', 70, 'representation'),
+      yearEnd('konto', '41800', 'Reprezentacija', 70, 'representation'),
     ],
     'hr-doo.plan-line': [
       { year: 2026, item: 'ai-services', amount: money(55), note: 'Model API seats' },

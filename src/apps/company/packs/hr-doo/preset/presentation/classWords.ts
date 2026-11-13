@@ -22,6 +22,7 @@ export const en = {
     clientRefund: 'A refund of sales',
     grant: 'A grant, income as it is used',
     otherIncome: 'Other income',
+    interestIncome: 'Interest, financial income',
     deductibleCost: 'A cost the profit tax allows',
     representation: (share: string) => `Representation: ${share} added back to the profit tax base, no VAT back`,
     personalTransport: (share: string, vatShare: string) => `Personal car costs: ${share} added back, ${vatShare} of the VAT back`,
@@ -65,6 +66,7 @@ export const hr: Translation<typeof en> = {
     clientRefund: 'Povrat prodaje',
     grant: 'Potpora, u prihod kako se koristi',
     otherIncome: 'Ostali prihodi',
+    interestIncome: 'Kamate, financijski prihod',
     deductibleCost: 'Trošak koji porez na dobit priznaje',
     representation: (share) => `Reprezentacija: ${share} se dodaje poreznoj osnovici, bez odbitka PDV-a`,
     personalTransport: (share, vatShare) => `Troškovi osobnog automobila: ${share} se dodaje osnovici, odbija se ${vatShare} PDV-a`,
@@ -117,6 +119,8 @@ export function classNameOf(taxClass: TaxClass, role: string, day: CivilDate): s
       return names.grant
     case PACK_ROLES.otherIncome:
       return names.otherIncome
+    case PACK_ROLES.interestIncome:
+      return names.interestIncome
     case PACK_ROLES.deductibleCost:
       return names.deductibleCost
     case PACK_ROLES.representation:

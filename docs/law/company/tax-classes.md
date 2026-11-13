@@ -14,34 +14,35 @@ The percentages are not copied here from the law alone. Each one is the value of
 
 ## Classes
 
-`From` is the day the percentages are read from the ruleset. `CIT add-back` is the share of the cost Kuna adds back to the profit tax base, or for donations the part above the cap. `Input VAT back` is the share of the VAT inside a purchase that Kuna counts as a claim on the state, for each kind of VAT the class allows, and `none` where the class carries no VAT Kuna splits out.
+`From` is the day the percentages are read from the ruleset. `CIT add-back` is the share of the cost Kuna adds back to the profit tax base, or for donations the part above the cap. `Input VAT back` is the share of the VAT inside a purchase that Kuna counts as a claim on the state, for each kind of VAT the class allows, and `none` where the class carries no VAT Kuna splits out. `Profit and loss line` is the line of the year's profit and loss a category of the class counts on in each bucket, where no konto line of the accountant names it, as under [Profit and loss lines](#profit-and-loss-lines). It is `none` for a class Kuna takes out of profit or replaces, such as revenue, which the invoices replace.
 
-| Class                                     | CIT add-back        | Input VAT back | VAT treatments                                                                                      | Buckets              | From       |
-| ----------------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------- | -------------------- | ---------- |
-| `revenue`                                 | 0%                  | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `client-refund`                           | 0%                  | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `grant`                                   | 0%                  | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `other-income`                            | 0%                  | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `deductible-cost`                         | 0%                  | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `none`           | operating, taxes     | 2026-01-01 |
-| `representation`                          | 50%                 | 0%             | `representation`                                                                                    | operating            | 2026-01-01 |
-| `personal-transport`                      | 50%                 | 50%            | `car-50`, `foreign-vat`, `none`                                                                     | operating            | 2026-01-01 |
-| `vehicle-insurance-interest-tax-and-fees` | 0%                  | none           | `none`                                                                                              | operating            | 2026-01-01 |
-| `non-deductible`                          | 100%                | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
-| `donation`                                | above 2% of revenue | none           | `none`                                                                                              | operating            | 2026-01-01 |
-| `listed-sponsorship`                      | 0%                  | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `none`                                            | operating            | 2026-01-01 |
-| `capital-purchase`                        | 0%                  | 100% or 50%    | `deductible-25`, `deductible-13`, `deductible-5`, `car-50`, `reverse-charge`, `foreign-vat`, `none` | operating            | 2026-01-01 |
-| `corporate-income-tax`                    | 0%                  | none           | `none`                                                                                              | taxes                | 2026-01-01 |
-| `vat-settlement`                          | 0%                  | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
-| `profit-distribution`                     | 0%                  | none           | `none`                                                                                              | owner-pay, taxes     | 2026-01-01 |
-| `salary`                                  | 0%                  | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `tax-free:*`                              | 0%                  | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-rent`                              | 0%                  | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-benefit`                           | 0%                  | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-loan-out`                          | 0%                  | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
-| `owner-loan-repaid`                       | 0%                  | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
-| `outside-profit`                          | 0%                  | none           | `none`                                                                                              | financing, neutral   | 2026-01-01 |
+| Class                                     | CIT add-back        | Input VAT back | VAT treatments                                                                                      | Buckets              | Profit and loss line                                                       | From       |
+| ----------------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------- | ---------- |
+| `revenue`                                 | 0%                  | none           | `none`                                                                                              | income               | none                                                                       | 2026-01-01 |
+| `client-refund`                           | 0%                  | none           | `none`                                                                                              | income               | none                                                                       | 2026-01-01 |
+| `grant`                                   | 0%                  | none           | `none`                                                                                              | income               | none                                                                       | 2026-01-01 |
+| `other-income`                            | 0%                  | none           | `none`                                                                                              | income               | income: other-operating-income                                             | 2026-01-01 |
+| `interest-income`                         | 0%                  | none           | `none`                                                                                              | income               | income: financial-income                                                   | 2026-01-01 |
+| `deductible-cost`                         | 0%                  | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `none`           | operating, taxes     | operating: material-costs, taxes: other-costs                              | 2026-01-01 |
+| `representation`                          | 50%                 | 0%             | `representation`                                                                                    | operating            | operating: material-costs                                                  | 2026-01-01 |
+| `personal-transport`                      | 50%                 | 50%            | `car-50`, `foreign-vat`, `none`                                                                     | operating            | operating: material-costs                                                  | 2026-01-01 |
+| `vehicle-insurance-interest-tax-and-fees` | 0%                  | none           | `none`                                                                                              | operating            | operating: other-costs                                                     | 2026-01-01 |
+| `non-deductible`                          | 100%                | none           | `none`                                                                                              | operating, taxes     | operating: impairment-provisions-other, taxes: impairment-provisions-other | 2026-01-01 |
+| `donation`                                | above 2% of revenue | none           | `none`                                                                                              | operating            | operating: impairment-provisions-other                                     | 2026-01-01 |
+| `listed-sponsorship`                      | 0%                  | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `none`                                            | operating            | operating: material-costs                                                  | 2026-01-01 |
+| `capital-purchase`                        | 0%                  | 100% or 50%    | `deductible-25`, `deductible-13`, `deductible-5`, `car-50`, `reverse-charge`, `foreign-vat`, `none` | operating            | operating: material-costs                                                  | 2026-01-01 |
+| `corporate-income-tax`                    | 0%                  | none           | `none`                                                                                              | taxes                | none                                                                       | 2026-01-01 |
+| `vat-settlement`                          | 0%                  | none           | `none`                                                                                              | operating, taxes     | none                                                                       | 2026-01-01 |
+| `profit-distribution`                     | 0%                  | none           | `none`                                                                                              | owner-pay, taxes     | none                                                                       | 2026-01-01 |
+| `salary`                                  | 0%                  | none           | `none`                                                                                              | owner-pay            | owner-pay: personnel-costs                                                 | 2026-01-01 |
+| `tax-free:*`                              | 0%                  | none           | `none`                                                                                              | owner-pay            | owner-pay: other-costs                                                     | 2026-01-01 |
+| `owner-rent`                              | 0%                  | none           | `none`                                                                                              | owner-pay            | owner-pay: material-costs                                                  | 2026-01-01 |
+| `owner-benefit`                           | 0%                  | none           | `none`                                                                                              | owner-pay            | owner-pay: impairment-provisions-other                                     | 2026-01-01 |
+| `owner-loan-out`                          | 0%                  | none           | `none`                                                                                              | owner-pay, financing | none                                                                       | 2026-01-01 |
+| `owner-loan-repaid`                       | 0%                  | none           | `none`                                                                                              | owner-pay, financing | none                                                                       | 2026-01-01 |
+| `outside-profit`                          | 0%                  | none           | `none`                                                                                              | financing, neutral   | none                                                                       | 2026-01-01 |
 
-The modifiers `arrears`, `prepaid-annual`, `watched`, `owner-pay-tax` and `reimbursement` are no class. They say when a cost is paid, which tax Kuna waits for, which cost counts in the owner's cost and which balance an advance settles. A category takes any of them beside its class.
+The modifiers `arrears`, `prepaid-annual`, `watched`, `owner-pay-tax`, `reimbursement` and `other-costs-line` are no class. They say when a cost is paid, which tax Kuna waits for, which cost counts in the owner's cost, which balance an advance settles and which cost counts on other costs whatever its class names. A category takes any of them beside its class.
 
 ## Revenue
 
@@ -63,9 +64,15 @@ Mark: `reading`.
 
 ## Other income
 
-Kuna counts this as other operating income, such as interest on the company's account. It enters the profit the base starts from (ZPD Art. 5(1)) but is not sales revenue.
+Kuna counts this as other operating income, such as an insurance payout or a debt written off. It enters the profit the base starts from (ZPD Art. 5(1)) but is not sales revenue.
 
 Mark: `confirmed-consolidated`.
+
+## Interest income
+
+Kuna counts this as interest the company earns, such as on its bank account, on financial income. It enters the profit the base starts from (ZPD Art. 5(1)) like other income. The statements keep it apart from operating income, on the line "Ostali prihodi s osnove kamata" under financial income, as under [Profit and loss lines](#profit-and-loss-lines).
+
+Mark: `confirmed-nn`.
 
 ## Deductible cost
 
@@ -211,6 +218,33 @@ Kuna counts this as outside profit: transfers between the company's accounts, ba
 
 Mark: `reading`.
 
+## Profit and loss lines
+
+A category counts on the line where the accountant's konto lines on the year-end tab put it, by the konto's first two digits. Where none names it, a tax owed because someone was paid counts on personnel costs, a category with the `other-costs-line` modifier on other costs, and any other category on the line its class names. A category with no class counts by its bucket: owner pay on personnel costs, taxes on other costs and the rest on material costs. The lines follow the profit and loss of the annual statements, as the Pravilnik o strukturi i sadržaju godišnjih financijskih izvještaja (NN 107/25, from the statements for 2025) sets it: II.2 Materijalni troškovi with II.2.c Ostali vanjski troškovi, II.3 Troškovi osoblja, II.5 Ostali troškovi, II.6 to II.8 the impairment, provisions and Ostali poslovni rashodi, which Kuna keeps on one line, and III Financijski prihodi with III.7 Ostali prihodi s osnove kamata.
+
+No act sets a chart of accounts, as [Books and kontos](books-and-kontos.md) says. Each class's line follows the account most accountants book it on in the RRiF chart (27th edition, 2024), whose class 4 groups map to those lines: 40 and 41 on material costs, 42 on personnel costs, 46 on other costs, 47 on financial expenses and 48 on other operating expenses, and in class 7, 77 on financial income and 78 on other operating income.
+
+| Class                                     | RRiF account                                                                                         | Line                                            |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `other-income`                            | 78, Ostali poslovni prihodi                                                                          | other operating income                          |
+| `interest-income`                         | 771, Prihodi od kamata                                                                               | financial income                                |
+| `deductible-cost`                         | 40 materials and 41 outside services, and in the taxes bucket 466 memberships and 467 taxes and fees | material costs, other costs in the taxes bucket |
+| `representation`                          | 418, Usluge reprezentacije – ugošćivanja, hospitality and gifts bought from others                   | material costs                                  |
+| `personal-transport`                      | 4075 fuel, 4055 and 4125 upkeep, 4130 registration, 4143 leasing                                     | material costs                                  |
+| `vehicle-insurance-interest-tax-and-fees` | 4642 insurance and 4670 vehicle tax, beside 4138 fees and 4730 interest                              | other costs                                     |
+| `non-deductible`                          | 4840 fines and 4891 costs not tied to earning profit                                                 | other operating expenses                        |
+| `donation`                                | 486, Darovanje do 2 % od ukupnog prihoda                                                             | other operating expenses                        |
+| `listed-sponsorship`                      | 4153, Trošak sponzoriranja športa i kulture u cilju promidžbe                                        | material costs                                  |
+| `capital-purchase`                        | 4040, Troškovi uredskog sitnog inventara, for a purchase no asset row claims                         | material costs                                  |
+| `salary`                                  | 42, Troškovi osoblja – plaće                                                                         | personnel costs                                 |
+| `tax-free:*`                              | 460 travel and per diems, 462 rewards, gifts and support                                             | other costs                                     |
+| `owner-rent`                              | 4140, Zakupnine – najamnine nekretnina                                                               | material costs                                  |
+| `owner-benefit`                           | 4893, a member's private use on which income tax is charged                                          | other operating expenses                        |
+
+Payroll taxes and contributions carry the `owner-pay-tax` modifier and count on personnel costs, as 42 does. Representation is 463 only for the company's own goods and services, which a class cannot tell apart, so Kuna takes 418. A class whose costs spread over several accounts, such as `deductible-cost` and `vehicle-insurance-interest-tax-and-fees`, takes the account that covers most of it, and the accountant's konto lines move a category to its own account. A deductible cost the chart keeps in group 46 carries the `other-costs-line` modifier instead: new books start with it on travel (460), insurance (464), bank fees (465, Bankovne usluge i troškovi platnog prometa) and training (4690).
+
+Mark: `confirmed-nn` for the statement lines. The account of each class is a `reading` of the RRiF chart, a private book.
+
 ## Worked example
 
 Made-up figures, on the rules of 2026:
@@ -238,6 +272,8 @@ Made-up figures, on the rules of 2026:
 - Zakon o porezu na dobit (ZPD), consolidated, "na snazi od 01.01.2026.", NN 177/04 to 151/25: Art. 5(1), 6(6), 6(7), 7(1)(3), 7(1)(4), 7(1)(7), 7(1)(13), 7(2), 7(3), 7(6), 12(3), 14(3), 34(1) and 35. https://www.zakon.hr/z/99/zakon-o-porezu-na-dobit, loaded on 4 November 2026.
 - Zakon o porezu na dobit (ZPD), consolidated, same text: Art. 7(1)(4), 7(3) and 12(13), and NN 151/25, which changes Art. 7 only in paragraph 9. Reloaded on 9 November 2026, the database "ažurirana 08.11.2026. zaključno sa NN 128/26".
 - Zakon o porezu na dobit (ZPD), consolidated, same text: Art. 6(1)(6), 6(3), 6(8), 7(1)(10), 7(7) to 7(9). Reloaded on 13 November 2026, the database "ažurirana 08.11.2026. zaključno sa NN 128/26". NN 114/23 Art. 4, 13 and 15 (https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1613.html) and NN 151/25 Art. 2 and 13 (https://narodne-novine.nn.hr/clanci/sluzbeni/2025_12_151_2261.html) were read in NN. An NN title search of 13 November 2026 found no amendment of the act or the Pravilnik in 2026 through NN 130/26 after NN 39/26.
+- Pravilnik o strukturi i sadržaju godišnjih financijskih izvještaja, NN 107/25, Annex I, the profit and loss for entrepreneurs, lines II.2, II.3, II.5 to II.8 and III.7, and Art. 10 and 11, which apply it to periods from 1 January 2025 and repeal NN 95/16. https://narodne-novine.nn.hr/clanci/sluzbeni/2025_07_107_1530.html, loaded on 13 November 2026.
+- RRiF-ov računski plan za poduzetnike, 27th edition, 2024, classes 4 and 7: groups 40 to 48, 77 and 78 and the accounts named under [Profit and loss lines](#profit-and-loss-lines). https://www.rrif.hr/dok/preuzimanje/RRIF-RP2024.pdf, loaded on 13 November 2026. The 28th edition of March 2025 is a book whose preview shows no accounts.
 - Pravilnik o porezu na dobit (PravPD), consolidated, NN 95/05 to 39/26: Art. 30 and 47(3) items 14 and 33.a, and 47(5), loaded on 13 November 2026. NN 39/26 Art. 5, 10 and 12 were read in NN.
 - Porezna uprava, instructions for the profit tax return for 2024, KLASA 410-01/25-01/404, 8 April 2025, on PD line 14 and part X. https://porezna-uprava.gov.hr/Misljenja/Detaljno/2602, loaded on 13 November 2026. Guidance, not law.
 - Ministry of Tourism and Sport, "Porezne olakšice za sponzorstva". https://mint.gov.hr/sport-21680/porezni-poticaji-u-sportu/porezne-olaksice-za-sponzorstva/24228, loaded on 13 November 2026. Its two decisions are scans that were not read.

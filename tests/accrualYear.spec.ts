@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { YearEndLine } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEnd'
 import type { AccrualAdjustment, AdjustmentId } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualAdjustment'
 import { accrualLine, accrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualYear'
+import { costLineOf } from '../src/apps/company/packs/hr-doo/domain/accrual/categoryLines'
+import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import type { AccrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualYear'
 import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { sumMoney } from '../src/shared/money/money'
@@ -65,8 +67,11 @@ describe('accrualYear, a first tax period', () => {
     expect(lineAmount(year, 'pl', 'depreciation')).toBe(euros(800))
     // Pay, payroll tax and rent count by bucket, with no konto lines to say otherwise.
     expect(lineAmount(year, 'pl', 'personnel-costs')).toBe(euros(2800.05))
-    // Software 140.00, representation 80.00, insurance 92.00, fines 50.00, car 56.25 and the desk 200.00.
-    expect(lineAmount(year, 'pl', 'material-costs')).toBe(euros(618.25))
+    // Software 140.00, representation 80.00, insurance 92.00, car 56.25 and the desk 200.00.
+    expect(lineAmount(year, 'pl', 'material-costs')).toBe(euros(568.25))
+    // The fines, by their class.
+    expect(lineAmount(year, 'pl', 'impairment-provisions-other')).toBe(euros(50))
+    expect(lineAmount(year, 'pl', 'financial-income')).toBe(euros(0))
     expect(lineAmount(year, 'pl', 'profit-before-tax')).toBe(euros(8881.7))
   })
 
@@ -172,11 +177,73 @@ describe('accrualYear with donations and listed sponsorships', () => {
     expect(increaseOf(accrual(2026, giving([yearEndLine(2025, 'tax', 'revenue', 20000)])), 'PD line 14')).toBe(euros(0))
   })
 
-  it('counts the donations on other costs, and shows the lines at zero in a year with none', () => {
-    expect(lineAmount(accrual(2026, giving()), 'pl', 'other-costs')).toBe(euros(300))
+  it('counts the donations on other operating expenses, and shows the lines at zero in a year with none', () => {
+    expect(lineAmount(accrual(2026, giving()), 'pl', 'impairment-provisions-other')).toBe(euros(300))
     const before = accrual(2025, giving())
     expect(increaseOf(before, 'PD line 14')).toBe(euros(0))
     expect(before.taxBase.decreases.steps.map((entry) => entry.label)).toEqual(['PD line 33.a, sponsorships to recipients on a ministry list: no decrease in 2025'])
+  })
+})
+
+describe('accrualYear, the line each category counts on', () => {
+  const income = (slug: string, roles: readonly string[]): Category => ({ ...STUDIO_CATEGORIES.find((category) => category.slug === 'grant-income')!, slug, roles })
+  const categories: readonly Category[] = [
+    ...STUDIO_CATEGORIES.map((category) => (category.slug === 'rent-owner' ? { ...category, roles: ['owner-rent', 'arrears'] } : category)),
+    income('interest', ['interest-income']),
+    income('insurance-payout', ['other-income']),
+  ]
+  const rows = [...STUDIO_ROWS, { date: '2025-12-31', amount: 12.34, category: 'interest' }, { date: '2025-11-20', amount: 400, category: 'insurance-payout' }]
+  const placed = (lines: readonly YearEndLine[] = []) => accrual(2025, exampleStudio({ categories, transactions: withPackBuckets(ledger(rows), categories), yearEndLines: lines }))
+
+  it('counts interest the company earns on financial income, and other income on other operating income', () => {
+    const result = placed()
+
+    expect(lineAmount(result, 'pl', 'financial-income')).toBe(euros(12.34))
+    // The grant's 5,000.00 released, and the insurance payout.
+    expect(lineAmount(result, 'pl', 'other-operating-income')).toBe(euros(5400))
+    // 8,881.70 with the interest and the payout.
+    expect(lineAmount(result, 'pl', 'profit-before-tax')).toBe(euros(9294.04))
+  })
+
+  it('puts an income category where the accountant’s konto line names it', () => {
+    const result = placed([yearEndLine(2025, 'konto', '77130', 400, ['insurance-payout'])])
+
+    expect(lineAmount(result, 'pl', 'financial-income')).toBe(euros(412.34))
+    expect(lineAmount(result, 'pl', 'other-operating-income')).toBe(euros(5000))
+  })
+
+  it('counts a cost the chart keeps in group 46 on other costs, whatever its class names, unless a konto line names it', () => {
+    const travel: Category = { ...STUDIO_CATEGORIES.find((category) => category.slug === 'software')!, slug: 'travel', roles: ['deductible-cost', 'other-costs-line'] }
+
+    expect(costLineOf(travel, 2025, [])).toBe('other-costs')
+    expect(costLineOf({ ...travel, roles: ['deductible-cost'] }, 2025, [])).toBe('material-costs')
+    expect(costLineOf(travel, 2025, [yearEndLine(2025, 'konto', '41020', 100, ['travel'])])).toBe('material-costs')
+  })
+
+  it.each([
+    // RRiF 460 travel, 464 insurance, 465 bank services and 4690 training sit in group 46.
+    ['travel', 'other-costs'],
+    ['insurance', 'other-costs'],
+    ['bank-fees', 'other-costs'],
+    ['training', 'other-costs'],
+    // 4100 telephone, 4140 rent and 4164 bookkeeping sit in group 41.
+    ['telecom', 'material-costs'],
+    ['office-rent', 'material-costs'],
+    ['accounting-and-legal', 'material-costs'],
+    ['representation', 'material-costs'],
+  ])('starts new books with %s on %s', (slug, line) => {
+    const starting = STARTING_CATEGORIES.find((category) => category.slug === slug)!
+    const category: Category = { slug, family: starting.family, bucket: starting.bucket, colour: STUDIO_CATEGORIES[0]!.colour, roles: starting.roles, vat: starting.vat, ownerShare: null }
+
+    expect(costLineOf(category, 2026, [])).toBe(line)
+  })
+
+  it('counts rent paid to the owner on material costs by its class, not on personnel costs by its bucket', () => {
+    const result = placed()
+
+    // Pay and payroll tax, without the December rent of 300.00.
+    expect(lineAmount(result, 'pl', 'personnel-costs')).toBe(euros(2500.05))
+    expect(lineAmount(result, 'pl', 'material-costs')).toBe(euros(868.25))
   })
 })
 

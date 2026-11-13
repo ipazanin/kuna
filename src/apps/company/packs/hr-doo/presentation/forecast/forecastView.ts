@@ -19,6 +19,7 @@ import { ruleLink } from '../../ruleset/presentation/taxRuleLinks'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { dividendCapacity } from '../../domain/dividend/dividendCapacity'
 import type { CashNow, PayoutOption, PayoutOptionId } from '../../domain/dividend/dividendCapacity'
+import { INCOME_LINES } from '../../domain/accrual/categoryLines'
 import type { ForecastLine, ForecastMonth, LinePart, MonthBasis } from '../../domain/forecast/forecastLines'
 import { forecastNeed, forecastYear } from '../../domain/forecast/forecastYear'
 import { planAgainstActual } from '../../domain/forecast/planAgainstActual'
@@ -112,7 +113,7 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
   const forecastMonths = forecast.profitBeforeTax.months.filter(isGuessed).length
   const yearEnd = dayLabel(civilDate(year, 12, 31))
 
-  const incomeLines = forecast.lines.filter((entry) => entry.line === 'sales' || entry.line === 'other-operating-income')
+  const incomeLines = forecast.lines.filter((entry) => entry.line === 'sales' || INCOME_LINES.some((line) => line === entry.line))
   const costLines = forecast.lines.filter((entry) => !incomeLines.includes(entry))
   const chartMonths = calendar.months.map((month, index): ForecastChartMonth => {
     const inMonth = (lines: typeof forecast.lines) => lines.map((entry) => entry.forecast.months[index] as ForecastMonth)

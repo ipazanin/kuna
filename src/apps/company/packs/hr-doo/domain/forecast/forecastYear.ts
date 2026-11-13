@@ -25,9 +25,10 @@ import { vatPosition } from '../accrual/accrualBalanceSheet'
 import { accrualBookings, bookingFigure, countsInProfit, isCounted } from '../accrual/accrualBookings'
 import type { CountedBooking } from '../accrual/accrualBookings'
 import { arrearsCutOff, bookingsAfterCutOff } from '../accrual/closedYear'
-import { COST_LINES, COST_LINE_LABELS, costLineOf } from '../accrual/costLines'
-import type { CostLine } from '../accrual/costLines'
+import { COST_LINES, INCOME_LINES, costLineOf, incomeLineOf } from '../accrual/categoryLines'
+import type { CostLine } from '../accrual/categoryLines'
 import { revenueByDelivery } from '../accrual/revenueByDelivery'
+import { words as accrualWords } from '../accrual/words'
 import type { DeliveredRevenue, UninvoicedMonth } from '../accrual/revenueByDelivery'
 import { assetBooks, carDepreciationAllowed, depreciationAboveAllowed } from '../assets/assetBooks'
 import type { AssetBooks } from '../assets/assetBooks'
@@ -315,9 +316,11 @@ function forecastOne(context: ForecastContext): YearForecast {
   const scheduled = scheduledLines(calendar, books, year)
 
   const partsOn = (line: ForecastPlLine['line']): LinePart[] =>
-    categories.filter((entry) => entry.line === line).map((entry) => ({ line: entry.forecast, sign: line === 'other-operating-income' ? 1 : -1 }))
+    categories.filter((entry) => entry.line === line).map((entry) => ({ line: entry.forecast, sign: INCOME_LINES.some((income) => income === line) ? 1 : -1 }))
   const otherIncomeParts: LinePart[] = [{ line: scheduled.grantRelease, sign: 1 }, ...partsOn('other-operating-income')]
   const otherIncome = addedUpLine(calendar, words.figures.otherIncome, otherIncomeParts)
+  const financialIncomeParts = partsOn('financial-income')
+  const financialIncome = addedUpLine(calendar, accrualWords.year.financialIncome, financialIncomeParts)
   const fromEngines: Partial<Record<CostLine, readonly ForecastLine[]>> = {
     depreciation: [scheduled.depreciation],
     'material-costs': [scheduled.smallInventory],
@@ -325,20 +328,22 @@ function forecastOne(context: ForecastContext): YearForecast {
   }
   const costLines = COST_LINES.map((line): ForecastPlLine => {
     const parts = [...partsOn(line), ...(fromEngines[line] ?? []).map((part): LinePart => ({ line: part, sign: 1 }))]
-    return { line, forecast: addedUpLine(calendar, COST_LINE_LABELS[line], parts), parts }
+    return { line, forecast: addedUpLine(calendar, accrualWords.costLines[line], parts), parts }
   })
   const lines: ForecastPlLine[] = [
     { line: 'sales', forecast: revenue, parts: [{ line: revenue, sign: 1 }] },
     { line: 'other-operating-income', forecast: otherIncome, parts: otherIncomeParts },
+    { line: 'financial-income', forecast: financialIncome, parts: financialIncomeParts },
     ...costLines,
   ]
   const profitBeforeTaxLine = addedUpLine(calendar, words.figures.profitBeforeTax, [
     { line: revenue, sign: 1 },
     { line: otherIncome, sign: 1 },
+    { line: financialIncome, sign: 1 },
     ...costLines.map((entry): LinePart => ({ line: entry.forecast, sign: -1 })),
   ])
 
-  const revenueTotal = summed(words.figures.revenue, [revenue.total, otherIncome.total], 'ledger')
+  const revenueTotal = summed(words.figures.revenue, [revenue.total, otherIncome.total, financialIncome.total], 'ledger')
   const expenses = summed(
     words.figures.expenses,
     costLines.map((entry) => entry.forecast.total),
@@ -486,7 +491,7 @@ function categoryForecasts(
       averagedMonths: arrears ? ARREARS_AVERAGED_MONTHS : AVERAGED_MONTHS,
       oneOff: isOneOffCost(category),
     })
-    return { category, line: category.bucket === 'income' ? 'other-operating-income' : costLineOf(category, year, known.yearEndLines), forecast }
+    return { category, line: category.bucket === 'income' ? incomeLineOf(category, year, known.yearEndLines) : costLineOf(category, year, known.yearEndLines), forecast }
   })
 }
 

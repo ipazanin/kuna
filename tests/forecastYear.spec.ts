@@ -382,6 +382,20 @@ describe('forecastYear, a first tax period', () => {
   })
 })
 
+describe('forecastYear with interest the company earns', () => {
+  const categories = [...STEADY_CATEGORIES, { ...STEADY_CATEGORIES.find((category) => category.slug === 'grant-income')!, slug: 'interest', roles: ['interest-income'] }]
+  const workbook = steadyStudio({ categories, transactions: withPackBuckets(ledger([...STEADY_ROWS, { date: '2025-06-30', amount: 8.5, category: 'interest' }]), categories), yearEndLines: [] })
+
+  it('counts it on financial income, as the accrual view does', () => {
+    const line = (forecast: YearForecast, id: string) => forecast.lines.find((entry) => entry.line === id)?.forecast.total.amount
+    const forecast = forecastYear(workbook, 2025, civil('2026-10-19'))
+    const accrual = accrualYear(workbook, 2025, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null })
+
+    expect(line(forecast, 'financial-income')).toBe(euros(8.5))
+    expect(forecast.profitBeforeTax.total.amount).toBe(accrual.bridge.profitBeforeTax.amount)
+  })
+})
+
 describe('forecastYear, a year the ledger has closed', () => {
   const workbook = steadyStudio({ yearEndLines: [] })
   const forecast = forecastYear(workbook, 2025, civil('2026-10-19'))

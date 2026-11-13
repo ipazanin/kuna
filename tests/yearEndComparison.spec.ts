@@ -53,15 +53,18 @@ describe('compareYearEnd', () => {
   })
 
   it('lays the cash view on the profit and loss lines so they add up to the cash net', () => {
-    const comparison = compared(['sales', 'other-operating-income', 'material-costs', 'personnel-costs', 'other-costs', 'profit-before-tax'].map((id) => yearEndLine(2025, 'pl', id, 0)))
+    const costs = ['material-costs', 'personnel-costs', 'other-costs', 'impairment-provisions-other']
+    const comparison = compared(['sales', 'other-operating-income', ...costs, 'profit-before-tax'].map((id) => yearEndLine(2025, 'pl', id, 0)))
     const cash = (id: string) => line(comparison, 'pl', id)?.cash?.amount ?? euros(0)
 
-    // Equipment 3,250.00, software 175.00 with the advance, fines, car, representation and insurance, less the 500.00 VAT refund.
-    expect(cash('material-costs')).toBe(euros(3482.5))
+    // Equipment 3,250.00, software 175.00 with the advance, car, representation and insurance, less the 500.00 VAT refund.
+    expect(cash('material-costs')).toBe(euros(3432.5))
     // Two months of pay and the loan to the owner, which the cash view counts as owner pay.
     expect(cash('personnel-costs')).toBe(euros(2600))
+    // The fines, on other operating expenses by their class.
+    expect(cash('impairment-provisions-other')).toBe(euros(50))
     expect(cash('other-operating-income')).toBe(euros(10000))
-    expect(sumMoney([cash('sales'), cash('other-operating-income')]) - sumMoney([cash('material-costs'), cash('personnel-costs'), cash('other-costs')])).toBe(cash('profit-before-tax'))
+    expect(sumMoney([cash('sales'), cash('other-operating-income')]) - sumMoney(costs.map(cash))).toBe(cash('profit-before-tax'))
     expect(cash('profit-before-tax')).toBe(euros(8917.5))
   })
 

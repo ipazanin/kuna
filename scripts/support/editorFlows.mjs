@@ -820,25 +820,26 @@ export function categoryFiltersFlowIn(language) {
     await pressSelector(page, press, `button[aria-label="${byFamily}"]`)
     const order = ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax']
     await categoriesShow(page, order, 'a press on Family')
-    const row = await rowNamed(page, '[data-testid="category-row"]', 'tax-refund')
+    // The dividend tax's class sits in owner pay or taxes, so the row can leave the taxes filter without another class.
+    const moved = 'dividend-tax'
+    const row = await rowNamed(page, '[data-testid="category-row"]', moved)
     await setField(await fieldIn(row, said.columns.family), '')
     await page
       .waitForFunction(
-        (required) => [...document.querySelectorAll('[data-testid="category-row"]')][0]?.querySelector('.field-error')?.textContent?.trim() === required,
+        (required, at) => [...document.querySelectorAll('[data-testid="category-row"]')][at]?.querySelector('.field-error')?.textContent?.trim() === required,
         { timeout: 5_000 },
         words.settingsReasons.fields.required,
+        order.indexOf(moved),
       )
       .catch(() => {
         throw new Error('a blank family shows no error while the table is filtered and sorted')
       })
     if (!(await page.$eval('[data-testid="save-categories"]', (button) => button.disabled))) throw new Error('Save is on while a row is in error')
-    await setField(await fieldIn(row, said.columns.family), 'zz-refunds')
+    await setField(await fieldIn(row, said.columns.family), 'zz-payouts')
     await delay(200)
     await categoriesShow(page, order, 'typing a family that sorts last')
-    await choose(page, press, await row.$(`[aria-label="${said.columns.bucket}"]`), said.bucketChoice('income'))
+    await choose(page, press, await row.$(`[aria-label="${said.columns.bucket}"]`), said.bucketChoice('owner-pay'))
     await categoriesShow(page, order, 'a new bucket outside the filter')
-    // A category whose bucket changes needs a class, which the fake books' refund does not carry yet.
-    await chooseStartingWith(page, press, await classSelectIn(row), words.classes.otherIncome)
     await page
       .waitForFunction((kept) => document.querySelector('[data-testid="category-kept"]')?.textContent?.trim() === kept, { timeout: 5_000 }, countedIn(words, said.kept(1), 1))
       .catch(() => {
@@ -848,7 +849,7 @@ export function categoryFiltersFlowIn(language) {
 
     await pressSelector(page, press, '[data-testid="save-categories"]')
     await toast(page, said.saved)
-    await categoriesShow(page, ['payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'tax-refund saved in the income bucket')
+    await categoriesShow(page, ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax'], 'dividend-tax saved in the owner-pay bucket')
     await undoIn(page, press, words)
     await categoriesShow(page, order, 'Undo of the save')
     if ((await sortDirection(page, byFamily)) !== 'ascending') throw new Error('the sort by family did not outlast the save')

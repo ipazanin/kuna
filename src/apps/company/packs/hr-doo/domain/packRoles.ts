@@ -27,6 +27,8 @@ export const PACK_ROLES = {
   vatSettlement: 'vat-settlement',
   /** Paid once for a year ahead, such as an annual insurance policy. */
   prepaidAnnual: 'prepaid-annual',
+  /** A cost the chart of accounts keeps with the other costs of the business, such as travel, insurance, bank services and training, whatever its class names. */
+  otherCostsLine: 'other-costs-line',
   /** A cost the corporate tax never allows, such as a fine or a private cost. */
   nonDeductible: 'non-deductible',
   /** A donation in Croatia for a public-benefit purpose, which the profit tax allows up to a share of revenue. */
@@ -35,8 +37,10 @@ export const PACK_ROLES = {
   listedSponsorship: 'listed-sponsorship',
   /** An ordinary cost the corporate tax allows. */
   deductibleCost: 'deductible-cost',
-  /** Operating income other than sales, such as interest on the company's account. */
+  /** Operating income other than sales, such as an insurance payout or a debt written off. */
   otherIncome: 'other-income',
+  /** Interest the company earns, such as on its bank account, which is financial income. */
+  interestIncome: 'interest-income',
   /** Money that never enters profit: transfers, bank loans, capital and reimbursements. */
   outsideProfit: 'outside-profit',
   /** Car insurance, car loan interest, vehicle tax and registration fees, which the personal transport add-back leaves out. */
