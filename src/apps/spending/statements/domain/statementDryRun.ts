@@ -17,7 +17,8 @@ import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import { HELD_ROW_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { rowKey } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { allUnder, rowItemsOf } from '../../workbook/domain/rowItems'
+import { allUnder, refiledItems, rowItemsOf, wholeItemOf } from '../../workbook/domain/rowItems'
+import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
@@ -90,6 +91,8 @@ export interface StatementDryRun {
   readonly questions: readonly TwinQuestion[]
   /** The rows to add. */
   readonly added: readonly Transaction[]
+  /** Every item of the rows to add, a waiting receipt's lines for a row it files. */
+  readonly items: readonly TransactionItem[]
   /** The receipts that waited for the bank's row and go on one of the rows added, which they file. */
   readonly receipts: readonly PlacedReceipt[]
   /** The sync's rows that look like rows Kuna has, put on hold on To review until the person answers. */
@@ -102,7 +105,7 @@ export interface StatementDryRun {
   readonly notes: readonly string[]
 }
 
-/** The row that typed money becomes once the bank booked it. It keeps its id, category, note and your name for the payee. */
+/** The row that typed money becomes once the bank booked it. It keeps its id, its items and your name for the payee. */
 export function filledByBank(
   typed: Transaction,
   bank: Pick<Transaction, 'date' | 'amount' | 'payee' | 'description' | 'counterpartyIban' | 'importKey' | 'statement' | 'movedAt' | 'pocket' | 'cashWithdrawal'>,
@@ -290,29 +293,27 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const filledRows: RowChange[] = matches.map(({ typed, bank }) => ({ before: typed, after: filledByBank(typed, { ...bank, statement: statement.label }) }))
 
   const ruleOf = decidingRule(book.rules, book)
-  const newRowOf = new Map<StatementRow, Transaction>(
+  const newRowOf = new Map<StatementRow, ItemizedRow>(
     coming
       .filter((row) => !typedOf.has(row))
       .map((row) => {
         const unfiled = row.category === null && !nearTyped.has(row)
         const byBank = unfiled && row.cashWithdrawal ? transfer : null
         const byRule = unfiled && byBank === null ? (ruleOf(row)?.category ?? null) : null
-        return [
-          row,
-          {
-            ...row,
-            id: recordIdOf(TRANSACTION_RECORDS, newKey()),
-            category: row.category ?? byBank ?? byRule,
-            note: '',
-            source: 'statement' as const,
-            pair: null,
-            link: null,
-            statement: statement.label,
-            categorisedBy: byRule === null ? null : ('rule' as const),
-          },
-        ]
+        const { category, ...facts } = row
+        const added: Transaction = {
+          ...facts,
+          id: recordIdOf(TRANSACTION_RECORDS, newKey()),
+          source: 'statement',
+          pair: null,
+          statement: statement.label,
+          categorisedBy: byRule === null ? null : 'rule',
+        }
+        return [row, { row: added, items: [wholeItemOf(added, { category: category ?? byBank ?? byRule, note: '', link: null })] }]
       }),
   )
+  const newItemsOf = new Map([...newRowOf.values()].map(({ row, items }) => [row.id, items]))
+  const itemsAt = (row: Transaction): readonly TransactionItem[] => newItemsOf.get(row.id) ?? itemsOf(row)
 
   const byId = new Map(book.transactions.map((row) => [row.id, row]))
   /** The row on the file a waiting row looks like: the one its hold names, or its twin. */
@@ -334,26 +335,30 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   )
   const since = addDays([day, ...coming.map((row) => row.date)].sort()[0]!, -PAIRING_DAYS)
   const onFileToPair = book.transactions.filter((row) => row.date >= since && isPairable(row)).map((row) => replacedOf.get(row) ?? row)
-  const asTransfers = transfer === null ? new Map<Transaction, Transaction>() : transferred([...newRowOf.values(), ...onFileToPair], book, transfer, itemsOf)
+  const asTransfers = transfer === null ? new Map<Transaction, ItemizedRow>() : transferred([...newRowOf.values()].map(({ row }) => row).concat(onFileToPair), book, transfer, itemsAt)
 
-  const comingIn = [...newRowOf.values()].map((row) => asTransfers.get(row) ?? row)
-  const withdrawals = comingIn.filter((row) => transfer !== null && row.category === transfer && isWithdrawal(row, ruleOf(row), book.accounts))
+  const comingIn = [...newRowOf.values()].map((itemized) => asTransfers.get(itemized.row) ?? itemized)
+  const withdrawals = comingIn.filter(({ row, items }) => transfer !== null && allUnder(items, transfer) && isWithdrawal(row, ruleOf(row), book.accounts))
   const cashLegs = new Map(
-    withdrawals.flatMap((row) => {
-      const [cash, ...others] = cashAccountsFor(row, ruleOf(row)?.withdrawal?.cashAccount ?? null, book.accounts)
-      return cash === undefined || others.length > 0 ? [] : [[row, withCashLeg(row, cash, transfer!, newKey)] as const]
+    withdrawals.flatMap((itemized) => {
+      const [cash, ...others] = cashAccountsFor(itemized.row, ruleOf(itemized.row)?.withdrawal?.cashAccount ?? null, book.accounts)
+      return cash === undefined || others.length > 0 ? [] : [[itemized, withCashLeg(itemized, cash, transfer!, newKey)] as const]
     }),
   )
-  const arriving = comingIn.flatMap((row) => cashLegs.get(row) ?? [row])
+  const arriving = comingIn.flatMap((itemized) => cashLegs.get(itemized) ?? [itemized])
   const receipts = receiptsArriving(book, arriving, receiptWords.difference, newKey)
-  const filedByReceipt = new Map(receipts.map((placed) => [placed.before, placed.row]))
-  const added = arriving.map((row) => filedByReceipt.get(row) ?? row)
-  const replacedRows: RowChange[] = [...replacedOf].map(([before, replaced]) => ({ before, after: asTransfers.get(replaced) ?? replaced }))
-  const replacements = new Set(replacedOf.values())
-  const pairedOnFile = onFileToPair.flatMap((before) => {
-    const after = asTransfers.get(before)
-    return after === undefined || replacements.has(before) ? [] : [{ before, after }]
+  const filedByReceipt = new Map(receipts.map((placed): [Transaction, ItemizedRow] => [placed.before, { row: placed.row, items: placed.items }]))
+  const added = arriving.map((itemized) => filedByReceipt.get(itemized.row) ?? itemized)
+  const replacedRows: RowChange[] = [...replacedOf].map(([before, replaced]) => {
+    const paired = asTransfers.get(replaced)
+    return paired === undefined ? { before, after: replaced } : { before, after: paired.row, items: paired.items }
   })
+  const replacements = new Set(replacedOf.values())
+  const pairedOnFile = onFileToPair.flatMap((before): RowChange[] => {
+    const after = asTransfers.get(before)
+    return after === undefined || replacements.has(before) ? [] : [{ before, after: after.row, items: after.items }]
+  })
+  const categoryOf = (items: readonly TransactionItem[]): RecordId | null => (items.length === 0 ? null : mainCategoryOf(items))
 
   const fileLines = statement.rows.map((row): DryRunLine => {
     if (beforeOpening(row)) return { row, outcome: 'before-opening', category: null }
@@ -364,13 +369,15 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     if (byItsTwin === 'look-alike') return { row, outcome: 'look-alike', category: null, like: likeOf(row) }
     if (byItsTwin === 'replaced') {
       const like = twins.get(row)!.booked
-      return { row, outcome: 'replaced', category: replacedRows.find(({ before }) => before === like)!.after.category, like }
+      const replaced = replacedRows.find(({ before }) => before === like)!
+      return { row, outcome: 'replaced', category: categoryOf(replaced.items ?? itemsOf(like)), like }
     }
     const typed = typedOf.get(row)
-    if (typed !== undefined) return { row, outcome: 'filled', category: mainCategoryOf(itemsOf(typed)) }
+    if (typed !== undefined) return { row, outcome: 'filled', category: categoryOf(itemsOf(typed)) }
     const fresh = newRowOf.get(row)!
-    const after = asTransfers.get(fresh) ?? fresh
-    return { row, outcome: 'new', category: (filedByReceipt.get(after) ?? after).category, withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1] ?? null } : null }
+    const after = asTransfers.get(fresh.row) ?? fresh
+    const filed = filedByReceipt.get(after.row) ?? after
+    return { row, outcome: 'new', category: categoryOf(filed.items), withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1].row ?? null } : null }
   })
   const held = fileLines.flatMap((line): HeldBankRow[] =>
     line.outcome === 'look-alike' && isBankSyncKey(line.row.importKey) && !heldKeys.has(rowKey(line.row))
@@ -389,15 +396,19 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
         ]
       : [],
   )
-  const lines = [...fileLines, ...pairedOnFile.map(({ before, after }): DryRunLine => ({ row: before, outcome: 'refiled', category: after.category }))]
+  const lines = [
+    ...fileLines,
+    ...pairedOnFile.map(({ before, items }): DryRunLine => ({ row: { ...before, category: categoryOf(itemsOf(before)) }, outcome: 'refiled', category: categoryOf(items ?? itemsOf(before)) })),
+  ]
   const leftOut = lines.filter((line) => line.outcome === 'before-opening').length
   const outside = lines.filter((line) => line.outcome === 'outside-days').length
-  const wanting = added.filter((row) => wantsSavingsAccount(row, book.accounts)).length
+  const wanting = added.filter(({ row }) => wantsSavingsAccount(row, book.accounts)).length
   const wantingCash = withdrawals.length - cashLegs.size
   return {
     lines,
     questions,
-    added,
+    added: added.map(({ row }) => row),
+    items: added.flatMap(({ items }) => items),
     receipts,
     held,
     changed: [...filledRows, ...replacedRows, ...pairedOnFile],
@@ -427,16 +438,17 @@ function transferred(
   book: Pick<SpendingBook, 'accounts'>,
   transfer: RecordId,
   itemsOf: (row: Transaction) => readonly TransactionItem[],
-): ReadonlyMap<Transaction, Transaction> {
+): ReadonlyMap<Transaction, ItemizedRow> {
   const { pairs, waiting } = transferPairs(rows, book.accounts, itemsOf)
-  const changes = new Map<Transaction, Transaction>()
+  const changes = new Map<Transaction, ItemizedRow>()
   for (const { debit, credit } of pairs) {
-    const [debitLeg, creditLeg] = legsOfPair(debit, credit, transfer)
+    const [debitLeg, creditLeg] = legsOfPair({ row: debit, items: itemsOf(debit) }, { row: credit, items: itemsOf(credit) }, transfer)
     changes.set(debit, debitLeg)
     changes.set(credit, creditLeg)
   }
   for (const row of waiting) {
-    if (row.category !== transfer) changes.set(row, { ...row, category: transfer, categorisedBy: null })
+    const items = itemsOf(row)
+    if (!allUnder(items, transfer)) changes.set(row, { row: { ...row, categorisedBy: null }, items: refiledItems(items, transfer) })
   }
   return changes
 }

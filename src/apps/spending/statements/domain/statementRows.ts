@@ -1,6 +1,7 @@
 import type { OpeningEvidence } from '../../accounts/domain/bankOpening'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
 import type { TwinAnswer, LookAlikes } from '../../../../shared/money/lookAlikeBookings'
 import { amountText } from '../../../../shared/storage/domain/recordFields'
@@ -11,7 +12,9 @@ import { occurrenceKeys } from '../../../../shared/text/factKey'
  * unique on that account across exports. A reader may file the row itself, as Revolut's does a fee, and leaves `category`
  * null otherwise. It marks a withdrawal where the bank's row type says one.
  */
-export type StatementRow = Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'category' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket' | 'cashWithdrawal'>
+export type StatementRow = Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'description' | 'counterpartyIban' | 'importKey' | 'movedAt' | 'pocket' | 'cashWithdrawal'> & {
+  readonly category: RecordId | null
+}
 
 /** What starts the import key of a row the bank sync brought, so the dry run can tell it from a row a file brought. A file's key never starts so. */
 export const BANK_SYNC_KEY_PREFIX = 'bank-'

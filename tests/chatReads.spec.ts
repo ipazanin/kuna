@@ -4,6 +4,7 @@ import { spendingFigures } from '../src/apps/spending/analytics/presentation/spe
 import { BANK_ACCOUNT_LINES } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
 import { BANK_SYNC_LINES, UNREAD_KINDS, spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
+import { wholeItemOf } from '../src/apps/spending/workbook/domain/rowItems'
 import { findRecords, getRecord, readFigures } from '../src/shared/ai/application/chatReads'
 import type { ChatReads, FindRecordsInput } from '../src/shared/ai/application/chatReads'
 import { MOST_CHARACTERS_A_READ } from '../src/shared/ai/domain/chatAttachments'
@@ -54,7 +55,10 @@ describe('what a read gives the chat', () => {
     expect(records.map((record) => record['payee'])).toEqual(['Corner market', 'Person 1', 'Person 1'])
     expect(answer.text).not.toMatch(/Horvat|HORVAT|12345678903/)
     expect(answer.text).not.toContain(IBAN_OF_ANA)
-    expect(records[1]).toMatchObject({ counterpartyIban: 'HR•• ••••0160', description: 'Stanarina Person 1, Ilica 15', note: 'OIB [OIB]', amount: { amount: '-600.00 EUR' } })
+    expect(records[1]).toMatchObject({ counterpartyIban: 'HR•• ••••0160', description: 'Stanarina Person 1, Ilica 15', amount: { amount: '-600.00 EUR' } })
+    const items = await found({ kind: 'item' }, readsOf())
+    expect(items.records.map((record) => record['note'])).toContain('OIB [OIB]')
+    expect(items.answer.text).not.toMatch(/12345678903/)
   })
 
   it('gives each record amount a figure ref, so the screen shows it as an account amount', async () => {
@@ -109,7 +113,8 @@ describe('what a read gives the chat', () => {
 
   it('sends real names with the setting off, and identifiers under tokens still', async () => {
     const { answer, records } = await found({}, readsOf({ anonymising: () => false }))
-    expect(records[1]).toMatchObject({ payee: 'Ana Horvat', counterpartyIban: 'HR•• ••••0160', note: 'OIB [OIB]' })
+    expect(records[1]).toMatchObject({ payee: 'Ana Horvat', counterpartyIban: 'HR•• ••••0160' })
+    expect((await found({ kind: 'item' }, readsOf({ anonymising: () => false }))).records.map((record) => record['note'])).toContain('OIB [OIB]')
     expect(answer.text).not.toMatch(/12345678903|1001005/)
   })
 
@@ -150,8 +155,8 @@ describe('what a read gives the chat', () => {
   it('filters by days and by a ref', async () => {
     const reads = readsOf()
     expect((await found({ from: '2026-10', to: '2026-10' }, reads)).total).toBe(2)
-    const { records } = await found({}, reads)
-    expect((await found({ refs: [records[1]!['category']!] }, reads)).total).toBe(2)
+    const { records } = await found({ kind: 'item' }, reads)
+    expect((await found({ kind: 'item', refs: [records[0]!['category']!] }, reads)).total).toBe(2)
   })
 
   it('reads one record only by a ref it handed out in this app', async () => {
@@ -299,17 +304,17 @@ describe('a search with filters, a sort and fields', () => {
 
   it('filters a ref field by refs Kuna handed out, and by whether it is empty', async () => {
     const reads = readsOf()
-    const { records } = await found({}, reads)
-    expect((await found({ filters: [{ field: 'category', op: 'is', values: [records[1]!['category']!] }] }, reads)).total).toBe(2)
-    expect((await found({ filters: [{ field: 'category', op: 'not', values: [records[1]!['category']!] }] }, reads)).total).toBe(1)
-    expect((await found({ filters: [{ field: 'category', op: 'empty', values: [] }] }, reads)).total).toBe(0)
-    expect((await findRecords({ ...ALL, filters: [{ field: 'category', op: 'is', values: ['category-1'] }] }, readsOf())).isError).toBe(true)
+    const { records } = await found({ kind: 'item' }, reads)
+    expect((await found({ kind: 'item', filters: [{ field: 'category', op: 'is', values: [records[0]!['category']!] }] }, reads)).total).toBe(2)
+    expect((await found({ kind: 'item', filters: [{ field: 'category', op: 'not', values: [records[0]!['category']!] }] }, reads)).total).toBe(1)
+    expect((await found({ kind: 'item', filters: [{ field: 'category', op: 'empty', values: [] }] }, reads)).total).toBe(0)
+    expect((await findRecords({ ...ALL, kind: 'item', filters: [{ field: 'category', op: 'is', values: ['category-1'] }] }, readsOf())).isError).toBe(true)
   })
 
   it('refuses a ref of another kind on a ref field by both kinds, rather than finding nothing', async () => {
     const reads = readsOf()
     const { records } = await found({}, reads)
-    const answer = await findRecords({ ...ALL, filters: [{ field: 'category', op: 'is', values: [records[1]!['account']!] }] }, reads)
+    const answer = await findRecords({ ...ALL, kind: 'item', filters: [{ field: 'category', op: 'is', values: [records[1]!['account']!] }] }, reads)
     expect(answer).toEqual({ text: 'category takes refs of the kind category, and that ref is of the kind account.', isError: true })
   })
 
@@ -370,8 +375,9 @@ describe('a page of long records', () => {
 })
 
 describe('a search kept to a set', () => {
-  const waiting = { ...CHAT_BOOK.transactions[1]!, id: recordIdOf(spendingKinds.TRANSACTION_RECORDS, 'transaction-9'), category: null }
-  const reading = { ...CHAT_READING, book: () => ({ ...CHAT_BOOK, transactions: [...CHAT_BOOK.transactions, waiting] }) }
+  const waiting = { ...CHAT_BOOK.transactions[1]!, id: recordIdOf(spendingKinds.TRANSACTION_RECORDS, 'transaction-9') }
+  const book = { ...CHAT_BOOK, transactions: [...CHAT_BOOK.transactions, waiting], items: [...CHAT_BOOK.items, wholeItemOf(waiting, { category: null, note: '', link: null })] }
+  const reading = { ...CHAT_READING, book: () => book }
   const reads = () => readsOf({ readers: new Map([['spending', { name: 'Spending', reader: spendingReader(reading) }]]) })
 
   it('keeps to the rows waiting on To review', async () => {

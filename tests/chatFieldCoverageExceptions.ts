@@ -81,7 +81,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'loans: LoanScenario.start.terms',
       'spending: Category.kind',
       'spending: Account.closed',
-      'spending: Transaction.category',
+      'spending: TransactionItem.category',
       'spending: fixOpening.opening',
     ],
   },
@@ -115,6 +115,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'spending: Receipt.longitude',
       'spending: TransactionItem.receipt',
       'spending: TransactionItem.transaction',
+      'spending: TransactionItem.printed',
       'investments: MailReader.leftOut',
     ],
   },
@@ -177,6 +178,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
 ]
 
 export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
+  {
+    reason: "Moving a file from before items to items, which the person confirms on the file's offer and types nothing for. The chat's move-to-items reaches it.",
+    paths: ['src/apps/spending/entries/application/rowRecords.ts#moveToItems'],
+  },
   {
     reason: 'Removing a record. It sets no field, and tests/chatCoverage.spec.ts checks the chat can do it.',
     paths: [

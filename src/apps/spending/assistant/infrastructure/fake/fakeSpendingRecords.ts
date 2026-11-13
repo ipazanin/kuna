@@ -13,6 +13,8 @@ export interface FoundRecord {
   readonly bank?: string
   readonly rowsFrom?: string
   readonly counterpartyIban?: string
+  /** The entry a part is of. */
+  readonly transaction?: string
 }
 
 export function recordsIn(text: string): readonly FoundRecord[] {

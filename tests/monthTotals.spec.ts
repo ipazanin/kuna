@@ -11,10 +11,10 @@ import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import type { RateBook } from '../src/shared/money/rateBook'
 import { euros, month } from './fixtures/ledger'
-import { ACCOUNTS, CATEGORIES, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, category, row, transactionId } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, RATES, REVOLUT_EUR, REVOLUT_USD, ROWS, category, row, transactionId, bookItems } from './fixtures/spending'
 
 function totalsOf(rows: readonly Transaction[], asked: string, rates: RateBook = RATES) {
-  return monthTotals(euroRows({ accounts: ACCOUNTS, transactions: rows, items: [] }, rates), CATEGORIES, month(asked))
+  return monthTotals(euroRows({ accounts: ACCOUNTS, transactions: rows, items: bookItems(rows) }, rates), CATEGORIES, month(asked))
 }
 
 /** A row's lines, as a receipt split it, in the row's currency. */
@@ -24,9 +24,10 @@ function linesOf(transaction: Transaction, parts: readonly (readonly [number, st
     transaction: transaction.id,
     receipt: recordIdOf(RECEIPT_RECORDS, '5e000000-0000-4000-8000-000000006000'),
     printed: '',
-    text: '',
+    note: '',
     amount: accountMoneyFromAmount(amount),
     category: category(path).id,
+    link: null,
   }))
 }
 

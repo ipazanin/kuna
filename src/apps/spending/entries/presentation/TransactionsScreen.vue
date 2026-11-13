@@ -38,6 +38,7 @@ import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
+import ItemsMoveNotice from '../../workbook/presentation/ItemsMoveNotice.vue'
 import MenuButton from '../../../../shared/ui/MenuButton.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
@@ -164,6 +165,7 @@ function openEntry(entry: Transaction | null): void {
         <UButton :label="words.add" icon="i-lucide-plus" data-testid="spending-add-entry" @click="openEntry(null)" />
       </template>
     </PageHeader>
+    <ItemsMoveNotice />
     <ScreenSkeleton v-if="state.workbook === null && state.status !== 'error'" :heading="false" :cards="1" />
     <PageTabs v-else-if="state.workbook !== null" :tabs="tabs" :label="statementWords.tabs.label">
       <template #entries>

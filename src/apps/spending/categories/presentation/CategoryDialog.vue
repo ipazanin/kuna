@@ -18,6 +18,7 @@ import { categoryTree } from '../domain/categoryTree'
 import { categoryColours } from './categoryColours'
 import { lastOrder, siblingsUnder } from '../domain/categoryPlaces'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
 import { words as spendingWords } from '../../words'
 import { words } from './words'
@@ -120,14 +121,18 @@ const kept = computed(() => {
   return targetItems.value.length === 0 ? words.dialog.noTarget : null
 })
 
-/** What the deletion moves and what ends with it, as the file holds it. */
+/** What the deletion moves and what ends with it, as the file holds it: entries not split, the parts of split ones and of waiting receipts, rules and limits. */
 const moving = computed(() => {
   const category = before.value
   const records = store.state.records
-  if (category === null || records === null) return words.dialog.nothingMoves
-  const entries = recordsOf(records.transactions).filter((entry) => entry.category === category.id).length
+  const book = store.state.workbook
+  if (category === null || records === null || book === null) return words.dialog.nothingMoves
+  const itemsOf = rowItemsOf(book)
+  const wholes = new Set(book.transactions.filter((entry) => !isSplit(itemsOf(entry))).map((entry) => entry.id))
+  const filed = book.items.filter((item) => item.category === category.id)
+  const entries = filed.filter((item) => item.transaction !== null && wholes.has(item.transaction)).length
+  const parts = filed.length - entries
   const limits = recordsOf(records.budgets).filter((budget) => budget.category === category.id).length
-  const parts = recordsOf(records.items).filter((part) => part.category === category.id).length
   const rules = recordsOf(records.rules).filter((rule) => rule.category === category.id).length
   const lines = [
     ...(entries > 0 ? [words.dialog.moving(plural(words.dialog.entries(entries), entries))] : []),

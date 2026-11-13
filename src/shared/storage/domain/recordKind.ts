@@ -26,9 +26,18 @@ export interface RecordNoun {
 export interface RecordKind<R = unknown> {
   readonly name: string
   readonly noun: RecordNoun
+  /** The kind whose records these are parts of, such as an entry's items, and the field of a part that names its whole. */
+  readonly partOf?: WholeOfPart
   readonly __record?: R
 }
 
-export function recordKind<R>(name: string, noun: RecordNoun): RecordKind<R> {
-  return { name, noun }
+/** The kind of the whole a part belongs to, by name and noun, and the field of the part that holds the whole's id, empty on a part of no whole. */
+export interface WholeOfPart {
+  readonly kind: string
+  readonly noun: RecordNoun
+  readonly field: string
+}
+
+export function recordKind<R>(name: string, noun: RecordNoun, partOf?: { readonly kind: RecordKind; readonly field: keyof R & string }): RecordKind<R> {
+  return partOf === undefined ? { name, noun } : { name, noun, partOf: { kind: partOf.kind.name, noun: partOf.kind.noun, field: partOf.field } }
 }

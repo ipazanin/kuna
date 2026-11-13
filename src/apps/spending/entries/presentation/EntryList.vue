@@ -6,7 +6,7 @@ import { useLinkLines } from '../../links/presentation/linkLine'
 import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
-import { isSplit } from '../../workbook/domain/rowItems'
+import { isSplit, linkOfItems } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import EntryRow from './EntryRow.vue'
 import { words } from './words'
@@ -52,15 +52,18 @@ const days = computed(() => {
   for (const row of props.rows) {
     const { transaction, account } = row
     const shown = mainCategoryOf(row.items)
+    const entryLink = linkOfItems(row.items)
     const category = shown === null ? null : (byId.value.get(shown) ?? null)
     const categoryName = category?.name ?? words.waitsOnReview
     const line: Line = {
       row,
       title: transaction.payee === '' ? categoryName : transaction.payee,
       colour: `var(${category === null ? '--chart-deemphasis' : colours.value(category)})`,
-      details: [transaction.payee === '' || isSplit(row.items) ? '' : categoryName, props.showAccount ? account.name : '', transaction.note].filter((part) => part !== '').join(' · '),
+      details: [transaction.payee === '' || isSplit(row.items) ? '' : categoryName, props.showAccount ? account.name : '', isSplit(row.items) ? '' : (row.items[0]?.note ?? '')]
+        .filter((part) => part !== '')
+        .join(' · '),
       euros: account.currency === EURO || row.euros === null ? '' : formatMoney(row.euros, 'always'),
-      link: transaction.link === null ? null : linkLineOf.value(transaction.link),
+      link: entryLink === null ? null : linkLineOf.value(entryLink),
     }
     const last = groups.at(-1)
     if (last?.day === transaction.date) last.lines.push(line)

@@ -11,6 +11,7 @@ import type { ItemDraft } from '../domain/entrySplit'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
 import { absAccountMoney, negateAccountMoney, typedAccountAmount } from '../../../../shared/money/accountMoney'
@@ -41,18 +42,21 @@ const writes = useRecordWrites(store)
 const parts = ref<SplitField<RecordId>[]>([])
 const tried = ref(false)
 
-const heldParts = computed(() => (store.state.workbook?.items ?? []).filter((part) => part.transaction === props.entry.id))
+const heldItems = computed(() => rowItemsOf({ items: store.state.workbook?.items ?? [] })(props.entry))
+/** Whether the entry is split already, so the dialog changes the split rather than making one. */
+const changing = computed(() => isSplit(heldItems.value))
 
 watch(open, (opened) => {
   if (!opened) return
   tried.value = false
-  const held = heldParts.value
+  const held = heldItems.value
+  const [whole] = held
   parts.value =
-    held.length === 0
-      ? [splitField<RecordId>('', props.entry.category ?? '', '', false), splitField<RecordId>('', '', '', true)]
+    !changing.value && whole !== undefined
+      ? [splitField<RecordId>('', whole.category ?? '', whole.note, false, whole.id), splitField<RecordId>('', '', '', true)]
       : held.map((part, place) => {
           const rest = place === held.length - 1
-          return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.category ?? '', part.text, rest, part.id)
+          return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.category ?? '', part.note, rest, part.id)
         })
 })
 
@@ -80,13 +84,12 @@ const outcome = computed(() => {
   if (book === null || given === null || parts.value.some((part) => categoryError(part) !== null)) return null
   const drafts = parts.value.map((part, place): ItemDraft => {
     const amount = given[place]!
-    return { id: part.held, amount: amount === 'rest' ? 'rest' : signed(amount), category: categoryOf(part)!, text: part.note }
+    return { id: part.held, amount: amount === 'rest' ? 'rest' : signed(amount), category: categoryOf(part)!, note: part.note }
   })
   return entrySplit(book, props.entry, drafts)
 })
 
 const refusal = computed(() => (outcome.value !== null && 'refused' in outcome.value ? words.split.refusals[outcome.value.refused] : null))
-const changing = computed(() => heldParts.value.length > 0)
 
 async function save(): Promise<void> {
   tried.value = true

@@ -87,7 +87,7 @@
  * Beyond the screens of the fake workbook on Drive, it renders the home with every app in Set up and
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
- * a file a newer app saved (`?fake=newer-file`), Spending Entries and Settings for one (`?spending=newer-file`), the Loans Settings, the Loans Overview with one loan
+ * a file a newer app saved (`?fake=newer-file`), Spending Entries and Settings for one (`?spending=newer-file`), Spending Entries and Settings for a file from before parts of entries with its offer to update it, and Entries once updated (`?spending=before-items`), Entries for one with a split transfer, which is not offered the update (`?spending=before-items-split-transfer`), the Loans Settings, the Loans Overview with one loan
  * (`?loans=one-loan`), with a house loan, a car loan and an informal loan you owe on a plan (`?loans=house-and-car`), with one equal principal loan (`?loans=equal-principal`) and while its file opens (`?loans=opening`), Scenarios with its offers, its charts opened and with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`),
  * the Investments first run, its empty Overview and its Settings on an empty file (`?investments=drive`) and its Overview while its file opens (`?investments=opening`), each in Croatian too,
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
@@ -2925,6 +2925,90 @@ const SOURCE_SCREENS = [
     ready: '[data-testid="newer-file-notice"]',
     shows: ['Ovu je datoteku spremila novija verzija', 'Učitaj ponovno', ...SPENDING.payees],
     cards: false,
+  },
+  {
+    name: 'spending-entries-before-items',
+    query: 'spending=before-items',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    charts: 0,
+    ready: '[data-testid="spending-items-move"]',
+    shows: ['This file stores entries the way older versions of Kuna did', 'Update the file', 'Weekly shop'],
+    cards: false,
+  },
+  {
+    name: 'spending-entries-before-items-croatian',
+    query: 'spending=before-items&lang=hr',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    charts: 0,
+    ready: '[data-testid="spending-items-move"]',
+    shows: ['Ova datoteka vodi unose kao starije verzije Kune', 'Ažuriraj datoteku', 'Weekly shop'],
+    cards: false,
+  },
+  {
+    name: 'spending-entries-moved',
+    query: 'spending=before-items',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    charts: 0,
+    ready: '[data-testid="spending-items-move"]',
+    clickThen: { click: '[data-testid="spending-items-move"] button', gone: '[data-testid="spending-items-move"]' },
+    shows: ['Weekly shop', 'Corner market'],
+    lacks: ['Update the file'],
+    cards: false,
+  },
+  {
+    name: 'spending-entries-moved-croatian',
+    query: 'spending=before-items&lang=hr',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    charts: 0,
+    ready: '[data-testid="spending-items-move"]',
+    clickThen: { click: '[data-testid="spending-items-move"] button', gone: '[data-testid="spending-items-move"]' },
+    shows: ['Weekly shop', 'Corner market'],
+    lacks: ['Ažuriraj datoteku'],
+    cards: false,
+  },
+  {
+    name: 'spending-entries-before-items-blocked',
+    query: 'spending=before-items-split-transfer',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    charts: 0,
+    ready: '[data-testid="spending-items-move-blocked"]',
+    shows: ['1 entry or part needs fixing before this file can be updated', '1 transfer between your accounts is split.', 'Open Overview'],
+    lacks: ['Update the file'],
+    cards: false,
+  },
+  {
+    name: 'spending-entries-before-items-blocked-croatian',
+    query: 'spending=before-items-split-transfer&lang=hr',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    charts: 0,
+    ready: '[data-testid="spending-items-move-blocked"]',
+    shows: ['1 unos ili dio treba ispraviti prije ažuriranja ove datoteke', '1 prijenos između vaših računa podijeljen je.', 'Otvori pregled'],
+    lacks: ['Ažuriraj datoteku'],
+    cards: false,
+  },
+  {
+    name: 'spending-settings-before-items',
+    query: 'spending=before-items',
+    hash: '#/spending/settings',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="spending-items-move"]',
+    shows: ['This file stores entries the way older versions of Kuna did', 'Update the file'],
+  },
+  {
+    name: 'spending-settings-before-items-croatian',
+    query: 'spending=before-items&lang=hr',
+    hash: '#/spending/settings',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="spending-items-move"]',
+    shows: ['Ova datoteka vodi unose kao starije verzije Kune', 'Ažuriraj datoteku'],
   },
   {
     name: 'company-overview-newer',
@@ -8513,6 +8597,15 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
       await input?.uploadFile(IMPORT_FILE)
       rendered = await page
         .waitForSelector('[data-testid="import-summary"] dl', { timeout: 10_000 })
+        .then(() => true)
+        .catch(() => false)
+      await new Promise((resolve) => setTimeout(resolve, 600))
+    }
+
+    if (visit.clickThen && rendered) {
+      await page.click(visit.clickThen.click)
+      rendered = await page
+        .waitForFunction((gone) => document.querySelector(gone) === null, { timeout: 10_000 }, visit.clickThen.gone)
         .then(() => true)
         .catch(() => false)
       await new Promise((resolve) => setTimeout(resolve, 600))

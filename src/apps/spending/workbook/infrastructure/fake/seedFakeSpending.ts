@@ -1,5 +1,5 @@
 import { SPENDING_APP } from '../../domain/spendingBooks'
-import { fakeSpendingDocument, fakeStarterDocument } from './fakeSpending'
+import { fakeBeforeItemsDocument, fakeSpendingDocument, fakeStarterDocument } from './fakeSpending'
 import type { FakeSpendingSet } from './fakeSpending'
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
@@ -32,7 +32,7 @@ function isSet(variant: string | null): variant is FakeSpendingSet {
  * another device made, which this device has not chosen, `opening` the sample chosen on the fake Drive with nothing in
  * this browser and every read of it held, so the Spending screens stay opening, and `failed` the sample chosen on the
  * fake Drive with nothing in this browser and the file in the bin, so the first read fails. Without it nothing is
- * chosen, which is the Spending first run. `newer-file` is the sample as a newer Spending saved it, chosen on the fake Drive. `bankSync` is `?banksync=`, which adds the bank sync's settings to a set, and `day` the day the rows are made for. Only the Spending app's install imports this, behind an inline
+ * chosen, which is the Spending first run. `newer-file` is the sample as a newer Spending saved it, chosen on the fake Drive, `before-items` the receipts set as a file from before parts of entries, chosen on the fake Drive, and `before-items-split-transfer` the same with a transfer's leg split, which keeps it from being updated. `bankSync` is `?banksync=`, which adds the bank sync's settings to a set, and `day` the day the rows are made for. Only the Spending app's install imports this, behind an inline
  * VITE_FAKE_WORKBOOK comparison.
  */
 export async function seedFakeSpending(variant: string | null, bankSync: string | null, day: CivilDate): Promise<void> {
@@ -41,13 +41,26 @@ export async function seedFakeSpending(variant: string | null, bankSync: string 
   const document =
     variant === 'newer-file'
       ? savedByNewerSpending(fakeSpendingDocument(savedAt))
-      : isSet(variant)
-        ? fakeSpendingDocument(savedAt, variant, day, bankSync)
-        : variant === 'opening' || variant === 'failed'
-          ? fakeSpendingDocument(savedAt)
-          : fakeStarterDocument(savedAt, bankSync, day)
+      : variant === 'before-items'
+        ? fakeBeforeItemsDocument(savedAt, day)
+        : variant === 'before-items-split-transfer'
+          ? fakeBeforeItemsDocument(savedAt, day, true)
+          : isSet(variant)
+            ? fakeSpendingDocument(savedAt, variant, day, bankSync)
+            : variant === 'opening' || variant === 'failed'
+              ? fakeSpendingDocument(savedAt)
+              : fakeStarterDocument(savedAt, bankSync, day)
   const text = encodeDocument(document)
-  if (variant === 'drive' || variant === 'newer-file' || isSet(variant) || variant === 'other-device' || variant === 'opening' || variant === 'failed') {
+  if (
+    variant === 'drive' ||
+    variant === 'newer-file' ||
+    variant === 'before-items' ||
+    variant === 'before-items-split-transfer' ||
+    isSet(variant) ||
+    variant === 'other-device' ||
+    variant === 'opening' ||
+    variant === 'failed'
+  ) {
     const created = await createDriveDocument(fakeDriveSession(), await fakeBooksFolder(), SPENDING_APP, text)
     if (variant === 'opening' || variant === 'failed') {
       saveWorkbookChoice(SPENDING_APP, { source: 'drive', id: created.fileId, name: documentName(SPENDING_APP) })

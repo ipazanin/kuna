@@ -23,6 +23,8 @@ import { entryCategoryChoices } from '../../entries/presentation/categoryChoices
 import { lastUsedAccount, rememberLastAccount } from '../../entries/infrastructure/lastAccount'
 import { words as entryWords } from '../../entries/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { beforeStartDay, takesRowsByHand } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -120,7 +122,7 @@ const placeItems = computed(() => [
       dayLabel(row.date),
       accountOfRow(row.account)?.name ?? '',
       difference === 0 ? '' : words.differs(formatAccountMoney(difference, EURO, 'always')),
-      rowPlace(row, book.value?.items ?? []).handParts.length > 0 ? words.replacesSplit : '',
+      isSplit(rowPlace(row, book.value?.items ?? []).held) ? words.replacesSplit : '',
     ]
       .filter((part) => part !== '')
       .join(' · '),
@@ -129,10 +131,14 @@ const placeItems = computed(() => [
 ])
 
 /** The category of the row picked is the first offer. */
-const categoryItems = computed(() => entryCategoryChoices(categories.value, 'out', chosenRow.value?.category ?? null))
+const chosenCategory = computed(() => {
+  const items = chosenRow.value === null ? [] : rowItemsOf({ items: book.value?.items ?? [] })(chosenRow.value)
+  return items.length === 0 ? null : mainCategoryOf(items)
+})
+const categoryItems = computed(() => entryCategoryChoices(categories.value, 'out', chosenCategory.value))
 const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
 const category = computed<string>({
-  get: () => (pickedCategory.value !== '' ? pickedCategory.value : (chosenRow.value?.category ?? '')),
+  get: () => (pickedCategory.value !== '' ? pickedCategory.value : (chosenCategory.value ?? '')),
   set: (id) => {
     pickedCategory.value = id
   },
@@ -176,7 +182,8 @@ async function save(): Promise<void> {
   const chosenAccount = newAccount.value
   const filed = categories.value.find((candidate) => candidate.id === category.value)
   const where: ReceiptPlace | null = row !== null ? rowPlace(row, book.value?.items ?? []) : chosenAccount === null ? null : { account: chosenAccount }
-  if (Object.values(errors.value).some((error) => error !== null) || file === null || day === null || sum === null || where === null || filed === undefined) return
+  const records = store.state.records
+  if (Object.values(errors.value).some((error) => error !== null) || file === null || day === null || sum === null || where === null || filed === undefined || records === null) return
   const draft = {
     merchant: merchant.value,
     merchantOib: '',
@@ -191,7 +198,7 @@ async function save(): Promise<void> {
     longitude: photoPlace.value?.longitude ?? '',
   }
   const outcome = await saves.save(keepPhoto.value && keepReason.value === null ? { file, issuedOn: day } : null, (photoId) =>
-    writes.write(words.saved, (unit) => writeReceiptSplit(unit, receiptSplit({ ...draft, photo: photoId }, where, wholeReceipt(sum, filed.id))), { failedTitle: words.notSaved }),
+    writes.write(words.saved, (unit) => writeReceiptSplit(unit, records, receiptSplit({ ...draft, photo: photoId }, where, wholeReceipt(sum, filed.id))), { failedTitle: words.notSaved }),
   )
   if (outcome.kind === 'photo-failed') failure.value = `${words.notKept}: ${outcome.reason}`
   if (outcome.kind !== 'saved') return

@@ -20,7 +20,9 @@ import { setLimit } from '../../budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/application/categoryWrites'
 import { lastOrder, siblingsUnder, swappedPlaces } from '../../categories/domain/categoryPlaces'
 import { newTransfer } from '../../entries/domain/transfer'
-import { TRANSACTION_WRITES, linkEntry, newEntry, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
+import { moveToItems } from '../../entries/application/rowRecords'
+import { isBeforeItems, moveBlockers } from '../../workbook/domain/beforeItems'
+import { linkEntry, newEntry, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
 import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
 import { fixedByBank } from '../../entries/domain/bankRows'
 import { entrySplit } from '../../entries/domain/entrySplit'
@@ -32,7 +34,8 @@ import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, rowsFromRefusal } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
-import { wholeRowItemId } from '../../workbook/domain/rowItems'
+import { isSplit, itemizedRow, largestItem, linkOfItems, wholeItemOf } from '../../workbook/domain/rowItems'
+import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
@@ -261,13 +264,13 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     about: [
       "Splits an entry into parts by hand, each under a category of its own, as the entry's Split does. A split has two parts or more, and splitting an entry again puts the new parts in place of its old ones.",
       "Each amount is above zero in the entry's account currency. Kuna signs it as the entry is, and exactly one part has amount null and takes the rest, which must leave something.",
-      'A part goes under any category a row may take, For the company too, but never under a group with categories under it or under Between my accounts. text is optional words for the part, or "".',
-      "part is the ref of the entry's part it keeps, which stays the same part with its new amount, category and text, or null for a new part. The one part of an entry not split yet goes to the first part.",
-      "The entry goes under the category most of its money is in. A transfer's leg and an entry a receipt split stay as they are.",
+      'A part goes under any category a row may take, For the company too, but never under a group with categories under it or under Between my accounts. note is the owner\'s optional words on the part, or "".',
+      "part is the ref of the entry's part it keeps, which stays the same part with its new amount, category and note, or null for a new part. The one part of an entry not split yet goes to the first part that names none.",
+      "Every part keeps the entry's link. A transfer's leg and an entry a receipt split stay as they are.",
     ].join(' '),
     input: inputOf({
       entry: TEXT,
-      parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, text: TEXT }) },
+      parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, note: TEXT }) },
     }),
     refs: { entry: TRANSACTION_RECORDS.name, 'parts.part': ITEM_RECORDS.name, 'parts.category': CATEGORY_RECORDS.name },
     creates: null,
@@ -275,8 +278,8 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     example: {
       entry: 'transaction',
       parts: [
-        { part: null, amount: 30, category: 'category', text: 'Lunch' },
-        { part: null, amount: null, category: 'category-other', text: '' },
+        { part: null, amount: 30, category: 'category', note: 'Lunch' },
+        { part: null, amount: null, category: 'category-other', note: '' },
       ],
     },
   },
@@ -326,6 +329,15 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     creates: null,
     alone: false,
     example: { entry: 'transaction' },
+  },
+  {
+    name: 'move-to-items',
+    about: 'Gives every entry of a file from before parts its own parts, which then hold its category, note and link. Undo takes it back until a reload.',
+    input: inputOf({}),
+    refs: {},
+    creates: null,
+    alone: true,
+    example: {},
   },
   ...REVIEW_OPERATIONS,
   ...WAITING_RECEIPT_OPERATIONS,
@@ -413,7 +425,7 @@ function openedBy(day: CivilDate, accounts: readonly Account[]): CivilDate {
 }
 
 /** The two legs of a transfer the step asks for, with the amount that reached the other account when its currency differs. */
-function transferLegs(book: SpendingBook, from: Account, to: Account, day: CivilDate, amount: AccountMoney, arrived: AccountMoney | null, note: string): readonly [Transaction, Transaction] {
+function transferLegs(book: SpendingBook, from: Account, to: Account, day: CivilDate, amount: AccountMoney, arrived: AccountMoney | null, note: string): readonly [ItemizedRow, ItemizedRow] {
   const transfer = book.categories.find((category) => category.kind === 'transfer')
   if (transfer === undefined) throw new StepRefused('The file has no Between my accounts category to file a transfer under.')
   if (from.id === to.id) throw new StepRefused('A transfer moves money between two different accounts.')
@@ -421,11 +433,12 @@ function transferLegs(book: SpendingBook, from: Account, to: Account, day: Civil
   return newTransfer({ account: from.id, amount }, { account: to.id, amount: from.currency === to.currency ? amount : arrived! }, { date: openedBy(day, [from, to]), note, category: transfer.id })
 }
 
-/** A transfer's legs from either one, the money-out leg first, or null for a plain entry. */
-function legsOf(book: SpendingBook, row: Transaction): readonly [Transaction, Transaction] | null {
+/** A transfer's legs from either one with their items, the money-out leg first, or null for a plain entry. */
+function legsOf(book: SpendingBook, row: Transaction): readonly [ItemizedRow, ItemizedRow] | null {
   const other = row.pair === null ? undefined : book.transactions.find((candidate) => candidate.id === row.pair)
   if (other === undefined) return null
-  return row.amount < 0 ? [row, other] : [other, row]
+  const [out, into] = row.amount < 0 ? [row, other] : [other, row]
+  return [itemizedRow(book, out), itemizedRow(book, into)]
 }
 
 const IMPORTING: ReadonlySet<string> = new Set([IMPORT_STATEMENT.name])
@@ -592,7 +605,7 @@ function plannedSteps(
           closed: flagOf(field['closed'], before.closed),
         }
         refuseRowsFrom(rowsFromRefusal(after, before, book.settings))
-        changeAccount(unit, before, keptAccount(after), move)
+        changeAccount(unit, records(), before, keptAccount(after), move)
         break
       }
       case 'delete-account':
@@ -608,74 +621,81 @@ function plannedSteps(
           category: field['category'] === null ? null : categoryOf(field['category']).id,
           note: field['note'],
         })
-        unit.of(TRANSACTION_WRITES).add(entry)
-        book = { ...book, transactions: [...book.transactions, entry] }
-        if (as !== null) made.set(as, entry.id)
+        writeEntry(unit, records(), null, entry, null)
+        book = { ...book, transactions: [...book.transactions, entry.row], items: [...book.items, ...entry.items] }
+        if (as !== null) made.set(as, entry.row.id)
         break
       }
       case 'change-entry': {
-        const before = rowOf(field['entry'])
+        const before = itemizedRow(book, rowOf(field['entry']))
         const kind = choiceOf(['out', 'in'], field['kind'], 'kind')
         const filedUnder = field['category'] === null ? null : categoryOf(field['category'])
         const onlyFiled = [field['account'], field['kind'], field['date'], field['amount'], field['payee'], field['note']].every((value) => value === null)
-        const legs = legsOf(book, before)
+        const legs = legsOf(book, before.row)
         const plain = legs !== null && (kind !== null || (filedUnder !== null && filedUnder.kind !== 'transfer'))
+        const [whole] = before.items
+        if (isSplit(before.items) && (filedUnder !== null || field['note'] !== null))
+          throw new StepRefused('That entry is split, so each part keeps its own category and note. split-entry changes them.')
         if (onlyFiled && filedUnder !== null && legs === null) {
-          fileRow(unit, before, filedUnder)
+          fileRow(unit, records(), before.row, filedUnder)
           break
         }
-        const amount = field['amount'] === null ? before.amount : accountMoneyFromAmount(field['amount'])
-        const account = accountOf(field['account'] ?? before.account)
-        const date = field['date'] === null ? before.date : dayOf(field['date'])
+        const amount = field['amount'] === null ? before.row.amount : accountMoneyFromAmount(field['amount'])
+        const account = accountOf(field['account'] ?? before.row.account)
+        const date = field['date'] === null ? before.row.date : dayOf(field['date'])
         const typed: Transaction = {
-          ...before,
+          ...before.row,
           account: account.id,
           date,
           amount: kind === null ? amount : kind === 'out' ? negateAccountMoney(absAccountMoney(amount)) : absAccountMoney(amount),
-          payee: (field['payee'] as string | null) ?? before.payee,
-          note: (field['note'] as string | null) ?? before.note,
-          category: filedUnder?.id ?? before.category,
-          pair: plain ? null : before.pair,
+          payee: (field['payee'] as string | null) ?? before.row.payee,
+          pair: plain ? null : before.row.pair,
         }
-        const onAccount = accountOf(before.account)
-        if (fixedByBank(before, onAccount) && (typed.date !== before.date || typed.amount !== before.amount))
+        const filing = { category: filedUnder?.id ?? whole?.category ?? null, note: (field['note'] as string | null) ?? whole?.note ?? '', link: whole?.link ?? null }
+        const onAccount = accountOf(before.row.account)
+        if (fixedByBank(before.row, onAccount) && (typed.date !== before.row.date || typed.amount !== before.row.amount))
           throw new StepRefused(`The bank booked that row on ${onAccount.name}, so its date and amount stay. Its category, payee, note and split can change.`)
-        if (legs !== null && !plain && (typed.account !== before.account || typed.date !== before.date || typed.amount !== before.amount))
+        if (legs !== null && !plain && (typed.account !== before.row.account || typed.date !== before.row.date || typed.amount !== before.row.amount))
           throw new StepRefused("That entry is a transfer's leg, so its account, date or amount change through change-transfer, which keeps both legs in step.")
-        if (legs !== null && !plain && typed.payee !== before.payee) throw new StepRefused("That entry is a transfer's leg, a move between the person's own accounts, so it takes no payee.")
+        if (legs !== null && !plain && typed.payee !== before.row.payee) throw new StepRefused("That entry is a transfer's leg, a move between the person's own accounts, so it takes no payee.")
+        if (isSplit(before.items) && typed.amount !== before.row.amount) throw new StepRefused('That entry is split, so its amount stays. remove-split takes the split off first.')
         if (field['account'] !== null || field['date'] !== null) openedBy(date, [account])
-        writeEntry(unit, before, typed, plain ? (legs.find((leg) => leg !== before) ?? null) : null)
+        const otherLeg = plain ? (legs.map(({ row }) => row).find((leg) => leg.id !== before.row.id) ?? null) : null
+        writeEntry(unit, records(), before, { row: typed, items: [wholeItemOf(typed, filing)] }, otherLeg)
         break
       }
       case 'add-transfer': {
         const from = accountOf(field['from'])
         const to = accountOf(field['to'])
         const arrived = field['toAmount'] === null ? null : positiveOf(field['toAmount'])
-        writeTransfer(unit, null, null, transferLegs(book, from, to, dayOf(field['date']), positiveOf(field['amount']), arrived, field['note'] as string))
+        writeTransfer(unit, records(), null, null, transferLegs(book, from, to, dayOf(field['date']), positiveOf(field['amount']), arrived, field['note'] as string))
         break
       }
       case 'change-transfer': {
         const before = rowOf(field['entry'])
         const legs = legsOf(book, before)
+        const legRows = legs?.map(({ row }) => row) ?? null
         const isOut = legs !== null || before.amount < 0
-        const keptFrom = legs?.[0].account ?? (isOut ? before.account : null)
-        const keptTo = legs?.[1].account ?? (isOut ? null : before.account)
+        const keptFrom = legRows?.[0]?.account ?? (isOut ? before.account : null)
+        const keptTo = legRows?.[1]?.account ?? (isOut ? null : before.account)
         const fromId = field['from'] === null ? keptFrom : accountOf(field['from']).id
         const toId = field['to'] === null ? keptTo : accountOf(field['to']).id
         if (fromId === null || toId === null) throw new StepRefused('An entry that is no transfer yet needs the account on its other side.')
         const from = accountOf(fromId)
         const to = accountOf(toId)
         const sameCurrency = from.currency === to.currency
-        const keptAmount = legs !== null ? absAccountMoney(legs[0].amount) : isOut || sameCurrency ? absAccountMoney(before.amount) : null
-        const keptArrived = legs !== null ? absAccountMoney(legs[1].amount) : !isOut || sameCurrency ? absAccountMoney(before.amount) : null
+        const keptAmount = legs !== null ? absAccountMoney(legs[0].row.amount) : isOut || sameCurrency ? absAccountMoney(before.amount) : null
+        const keptArrived = legs !== null ? absAccountMoney(legs[1].row.amount) : !isOut || sameCurrency ? absAccountMoney(before.amount) : null
         const amount = field['amount'] === null ? keptAmount : positiveOf(field['amount'])
         if (amount === null) throw new StepRefused('amount says what left the other account in its own currency.')
         const arrived = field['toAmount'] === null ? keptArrived : positiveOf(field['toAmount'])
-        const day = field['date'] === null ? (legs?.[0].date ?? before.date) : dayOf(field['date'])
+        const day = field['date'] === null ? (legs?.[0].row.date ?? before.date) : dayOf(field['date'])
         const moved = (row: Transaction): boolean => row.date !== day || absAccountMoney(row.amount) !== (row.amount < 0 ? amount : (arrived ?? amount))
-        const booked = (legs ?? [before]).find((row) => fixedByBank(row, accountOf(row.account)) && moved(row))
+        const booked = (legRows ?? [before]).find((row) => fixedByBank(row, accountOf(row.account)) && moved(row))
         if (booked !== undefined) throw new StepRefused(`The bank booked that leg on ${accountOf(booked.account).name}, so its date and amount stay.`)
-        writeTransfer(unit, before, legs, transferLegs(book, from, to, day, amount, arrived, (field['note'] as string | null) ?? before.note))
+        const itemized = itemizedRow(book, before)
+        const note = (field['note'] as string | null) ?? largestItem(itemized.items)?.note ?? ''
+        writeTransfer(unit, records(), itemized, legs, transferLegs(book, from, to, day, amount, arrived, note))
         break
       }
       case 'delete-entry':
@@ -683,10 +703,10 @@ function plannedSteps(
         break
       case 'split-entry': {
         const row = rowOf(field['entry'])
-        const given = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly text: string }[]
-        const held = book.items.filter((part) => part.transaction === row.id)
+        const given = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly note: string }[]
+        const held = itemizedRow(book, row).items
         const keptPart = (ref: string | null): RecordId | null => {
-          if (ref === null || (held.length === 0 && idOf(ref) === wholeRowItemId(row))) return null
+          if (ref === null) return null
           const part = held.find((candidate) => candidate.id === idOf(ref))
           if (part === undefined) throw new StepRefused("A part keeps only one of the entry's own parts.")
           return part.id
@@ -695,7 +715,7 @@ function plannedSteps(
           id: keptPart(part.part),
           amount: part.amount === null ? 'rest' : signedAs(row, accountMoneyFromAmount(part.amount)),
           category: categoryOf(part.category).id,
-          text: part.text,
+          note: part.note,
         }))
         const kept = drafts.flatMap((draft) => (draft.id === null ? [] : [draft.id]))
         if (new Set(kept).size < kept.length) throw new StepRefused("Each of the entry's parts is kept by one part at most.")
@@ -712,7 +732,7 @@ function plannedSteps(
       case 'remove-split': {
         const row = rowOf(field['entry'])
         if (book.receipts.some((receipt) => receipt.transaction === row.id)) throw new StepRefused('A receipt split that entry, so remove-receipt takes its lines off.')
-        if (!book.items.some((part) => part.transaction === row.id)) throw new StepRefused('That entry is not split.')
+        if (!isSplit(itemizedRow(book, row).items)) throw new StepRefused('That entry is not split.')
         removeSplitOf(unit, records(), row)
         break
       }
@@ -735,12 +755,20 @@ function plannedSteps(
         break
       }
       case 'link-entry':
-        linkEntry(unit, rowOf(field['entry']), linkedTarget(loans, field['loan'], field['due'] === null ? null : dayOf(field['due'])).link)
+        linkEntry(unit, records(), rowOf(field['entry']), linkedTarget(loans, field['loan'], field['due'] === null ? null : dayOf(field['due'])).link)
         break
       case 'unlink-entry': {
         const row = rowOf(field['entry'])
-        if (row.link === null) throw new StepRefused('That entry has no link.')
-        linkEntry(unit, row, null)
+        if (linkOfItems(itemizedRow(book, row).items) === null) throw new StepRefused('That entry has no link.')
+        linkEntry(unit, records(), row, null)
+        break
+      }
+      case 'move-to-items': {
+        if (!isBeforeItems(book.stored)) throw new StepRefused('This file stores entries the current way already.')
+        const { leftOut, splitLegs } = moveBlockers(book)
+        if (leftOut > 0) throw new StepRefused(`${leftOut} entries or parts need fixing first: the person fixes or deletes what Overview lists as left out of the figures.`)
+        if (splitLegs > 0) throw new StepRefused(`${splitLegs} transfers between the person's accounts are split. The person takes the split off them first.`)
+        moveToItems(unit, book)
         break
       }
       case 'flag-person': {

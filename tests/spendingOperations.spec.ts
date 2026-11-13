@@ -16,11 +16,12 @@ import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { DESK_ACCOUNTS, DESK_LOAN_TARGETS, EXAMPLE_RECORDS, attachedPhoto, deskBankSetup, deskPorts, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { addEntries, filedRows } from './fixtures/spending'
+import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
-import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
 import { ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -33,7 +34,7 @@ const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
 
 const bookOf = ({ store }: SpendingDesk) => store.state.workbook!
-const rowOf = (desk: SpendingDesk, id: string) => bookOf(desk).transactions.find((row) => row.id === id)
+const rowOf = (desk: SpendingDesk, id: string) => filedRows(bookOf(desk)).find((row) => row.id === id)
 const categoryNamed = (desk: SpendingDesk, name: string) => bookOf(desk).categories.find((category) => category.name === name)!
 
 /** A field's value as the card reads it, where an empty text and a missing value both say nothing. */
@@ -77,7 +78,7 @@ describe('every Spending operation', () => {
     'has an example that passes the checks of the file, and a card that names every field it sets: %s',
     async (_name, operation) => {
       expect(Object.keys(operation.input.type === 'object' ? operation.input.properties : {}).filter((field) => KEPT_BY_KUNA.has(field))).toEqual([])
-      const desk = await spendingDesk(used)
+      const desk = await spendingDesk(used, deskPorts(), operation.name === 'move-to-items' ? 'before-items' : 'items')
 
       const answer = await desk.propose([{ op: operation.name, input: exampleInput(operation, desk, EXAMPLE_RECORDS, attachedPhoto().id) }], [attachedPhoto()])
 
@@ -159,7 +160,7 @@ describe('transfers', () => {
       stepOf(SPENDING_OPERATIONS, 'add-transfer', { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, note: '' }),
     ])
     await desk.accept()
-    const [out, into] = bookOf(desk).transactions.slice(-2)
+    const [out, into] = filedRows(bookOf(desk)).slice(-2)
     for (const fields of [{ date: '2026-11-03' }, { amount: -60 }, { account: desk.ref('account', DESK_ACCOUNTS.WALLET.id) }]) {
       const answer = await desk.propose([changeEntry(desk, out!.id, fields)])
       expect(answer.isError).toBe(true)
@@ -178,7 +179,7 @@ describe('transfers', () => {
       stepOf(SPENDING_OPERATIONS, 'add-transfer', { from: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), to: desk.ref('account', DESK_ACCOUNTS.SAVINGS.id), date: '2026-11-02', amount: 50, note: '' }),
     ])
     await desk.accept()
-    const [out, into] = bookOf(desk).transactions.slice(-2)
+    const [out, into] = filedRows(bookOf(desk)).slice(-2)
 
     const answer = await desk.propose([changeEntry(desk, out!.id, { payee: 'Landlord' })])
     expect(answer.isError).toBe(true)
@@ -262,7 +263,7 @@ describe('where an account takes its rows from', () => {
     await saveDeployment(desk)
     const current = bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)!
     const synced = {
-      ...bookOf(desk).transactions.find((row) => row.id === EXAMPLE_RECORDS['transaction'])!,
+      ...rowOf(desk, EXAMPLE_RECORDS['transaction']!)!,
       id: recordIdOf(TRANSACTION_RECORDS, 'synced-row'),
       account: current.id,
       source: 'statement' as const,
@@ -271,7 +272,7 @@ describe('where an account takes its rows from', () => {
     }
     await desk.store.write('Linked', (unit) => {
       unit.of(ACCOUNT_WRITES).change(current, { ...current, rowsFrom: 'bank-link' })
-      unit.of(TRANSACTION_WRITES).add(synced)
+      addEntries(unit, desk.store.state.records!, [synced])
     })
     const change = (fields: Record<string, unknown>) => ({
       op: 'change-entry',
@@ -281,7 +282,7 @@ describe('where an account takes its rows from', () => {
     expect((await desk.propose([change({ date: '2026-11-02' })])).isError).toBe(true)
     await desk.propose([change({ note: 'Checked', payee: 'Corner market' })])
     expect((await desk.accept()).kind).toBe('done')
-    expect(bookOf(desk).transactions.find((row) => row.id === synced.id)).toMatchObject({ note: 'Checked', amount: synced.amount, date: synced.date })
+    expect(rowOf(desk, synced.id)).toMatchObject({ note: 'Checked', amount: synced.amount, date: synced.date })
   })
 
   it('switches an account typed by hand to a bank link only while a deployment is saved, and back to by hand', async () => {
@@ -446,10 +447,10 @@ describe('categories and accounts', () => {
 })
 
 describe('an entry split by hand', () => {
-  const split = (desk: SpendingDesk, entry: string, parts: readonly { readonly amount: number | null; readonly category: string; readonly text?: string }[]) =>
+  const split = (desk: SpendingDesk, entry: string, parts: readonly { readonly amount: number | null; readonly category: string; readonly note?: string }[]) =>
     stepOf(SPENDING_OPERATIONS, 'split-entry', {
       entry: desk.ref('transaction', entry),
-      parts: parts.map((part) => ({ part: null, amount: part.amount, category: desk.ref('category', part.category), text: part.text ?? '' })),
+      parts: parts.map((part) => ({ part: null, amount: part.amount, category: desk.ref('category', part.category), note: part.note ?? '' })),
     })
   const typed = EXAMPLE_RECORDS['transaction']!
 
@@ -458,14 +459,14 @@ describe('an entry split by hand', () => {
     const before = rowOf(desk, typed)
     await desk.propose([
       split(desk, typed, [
-        { amount: 10, category: EXAMPLE_RECORDS['category']!, text: 'Light bulbs' },
+        { amount: 10, category: EXAMPLE_RECORDS['category']!, note: 'Light bulbs' },
         { amount: 15.3, category: categoryNamed(desk, 'For the company').id },
         { amount: null, category: EXAMPLE_RECORDS['category-other']! },
       ]),
     ])
     expect((await desk.accept()).kind).toBe('done')
     const parts = bookOf(desk).items.filter((part) => part.transaction === typed)
-    expect(parts.map((part) => [part.amount, part.text, part.receipt])).toEqual([
+    expect(parts.map((part) => [part.amount, part.note, part.receipt])).toEqual([
       [accountMoneyFromAmount(-10), 'Light bulbs', null],
       [accountMoneyFromAmount(-15.3), '', null],
       [accountMoneyFromAmount(-20), '', null],
@@ -481,8 +482,8 @@ describe('an entry split by hand', () => {
       stepOf(SPENDING_OPERATIONS, 'split-entry', {
         entry: desk.ref('transaction', typed),
         parts: [
-          { part: null, amount: 10, category: desk.ref('category', EXAMPLE_RECORDS['category']!), text: '' },
-          { part: desk.ref(ITEM_RECORDS.name, whole), amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), text: '' },
+          { part: null, amount: 10, category: desk.ref('category', EXAMPLE_RECORDS['category']!), note: '' },
+          { part: desk.ref(ITEM_RECORDS.name, whole), amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), note: '' },
         ],
       }),
     ])
@@ -584,7 +585,7 @@ describe('an entry split by hand', () => {
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-receipt', { entry: desk.ref('transaction', handSplit) })])).text).toContain('no receipt')
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'remove-split', { entry: desk.ref('transaction', handSplit) })])
     expect((await desk.accept()).kind).toBe('done')
-    expect(bookOf(desk).items.filter((part) => part.transaction === handSplit)).toEqual([])
+    expect(bookOf(desk).items.filter((part) => part.transaction === handSplit)).toMatchObject([{ id: wholeRowItemId({ id: handSplit as RecordId }), receipt: null }])
     expect(rowOf(desk, handSplit)).toMatchObject({ category: EXAMPLE_RECORDS['category'] })
   })
 })
@@ -640,9 +641,9 @@ describe('an entry’s link to Loans', () => {
     const desk = await spendingDesk(used)
     const linkOf = (targets: typeof DESK_LOAN_TARGETS) =>
       spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => targets })
-        .kinds.find((kind) => kind.name === TRANSACTION_RECORDS.name)!
+        .kinds.find((kind) => kind.name === ITEM_RECORDS.name)!
         .rows()
-        .find((row) => row.id === EXAMPLE_RECORDS['transaction-linked'])!
+        .find((row) => row.id === wholeRowItemId({ id: EXAMPLE_RECORDS['transaction-linked'] as RecordId }))!
         .fields.find((field) => field.name === 'link')
     expect(linkOf(DESK_LOAN_TARGETS)).toMatchObject({ exposure: 'free-text', value: 'the instalment of the bank loan Housing loan due 2026-10-15, in Loans' })
     expect(linkOf([])).toMatchObject({ value: 'a record Loans no longer has' })

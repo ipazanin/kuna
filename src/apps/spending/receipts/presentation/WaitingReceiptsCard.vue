@@ -94,7 +94,8 @@ async function answer(key: string, choice: string): Promise<void> {
     const row = item.matches.kind === 'none' ? undefined : item.matches.candidates.find((candidate) => candidate.row.id === choice)?.row
     if (row === undefined) return
     const placed = receiptOnRow(item.receipt, item.lines, rowPlace(row, lines.value), receiptDomainWords.difference)
-    await writes.write(words.waiting.placed, (unit) => placeWaitingReceipt(unit, placed), { key: `place-${key}`, failedTitle: words.notSaved })
+    const records = store.state.records
+    if (records !== null) await writes.write(words.waiting.placed, (unit) => placeWaitingReceipt(unit, records, placed), { key: `place-${key}`, failedTitle: words.notSaved })
   } finally {
     saving.value = null
     await nextTick()

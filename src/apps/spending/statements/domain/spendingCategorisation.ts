@@ -1,8 +1,9 @@
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
-import { rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
+import { refiledItems, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { categorise } from '../../../../shared/categorising/domain/categorise'
 import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
 import type { Rule, RuleCondition } from '../../../../shared/categorising/domain/rule'
@@ -78,10 +79,11 @@ export function ruleVerdicts(rules: readonly SpendingRule[], book: Pick<Spending
   return (row) => ruleOf(row)?.category ?? null
 }
 
-/** One row a rule change refiles. */
+/** One row on the file a write changes, with every item it then has, or without them when they stay as they are. */
 export interface RowChange {
   readonly before: Transaction
   readonly after: Transaction
+  readonly items?: readonly TransactionItem[]
 }
 
 /**
@@ -102,6 +104,6 @@ export function rulesRerun(book: Pick<SpendingBook, 'accounts' | 'categories' | 
     const waiting = waitsOnReview(items) && before.categorisedBy === null
     if ((before.categorisedBy !== 'rule' && !waiting) || offered.has(before) || items.length > 1) return []
     const category = categoryOf(before)
-    return category === items[0]!.category ? [] : [{ before, after: { ...before, category, categorisedBy: category === null ? null : ('rule' as const) } }]
+    return category === items[0]!.category ? [] : [{ before, after: { ...before, categorisedBy: category === null ? null : ('rule' as const) }, items: refiledItems(items, category) }]
   })
 }

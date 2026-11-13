@@ -1,14 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import { isPairable, transferPairs } from '../src/apps/spending/pairing/domain/transferPairs'
-import { rowItemsOf } from '../src/apps/spending/workbook/domain/rowItems'
-import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
-import { ACCOUNTS, category, OTP, REVOLUT_EUR, REVOLUT_USD, row } from './fixtures/spending'
+import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { ACCOUNTS, category, OTP, REVOLUT_EUR, REVOLUT_USD, row, wholeItems } from './fixtures/spending'
 
-/** Rows with no items on the file, each its one item. */
-const ITEMS_OF = rowItemsOf({ items: [] })
+/** Each row of these checks, made by the fixture with its category, as its one item. */
+const ITEMS_OF = (entry: Transaction) => wholeItems([entry as StoredRow])
 
-const bank = (on: typeof OTP, date: string, amount: number, fields: Partial<Transaction> = {}) => row(on, date, amount, null, { source: 'statement', ...fields })
+const bank = (on: typeof OTP, date: string, amount: number, fields: Partial<StoredRow> = {}) => row(on, date, amount, null, { source: 'statement', ...fields })
 
 describe('transfer pairs', () => {
   it('pairs an OTP debit to the Revolut IBAN with a top-up a day later', () => {

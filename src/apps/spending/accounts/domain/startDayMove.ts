@@ -5,6 +5,7 @@ import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { addAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -20,7 +21,7 @@ export interface StartDayMove {
   readonly direction: 'later' | 'earlier'
   readonly rows: readonly Transaction[]
   readonly receipts: readonly Receipt[]
-  /** The parts of the rows that go, a receipt's lines and parts split by hand alike. */
+  /** The parts of the split rows that go, a receipt's lines and parts split by hand alike. */
   readonly parts: readonly TransactionItem[]
   readonly held: readonly HeldBankRow[]
   /** The other legs of the transfers among the rows, as they are now, which stay with no pair. */
@@ -36,6 +37,7 @@ export function startDayMove(book: Pick<SpendingBook, 'transactions' | 'receipts
   const goes = (row: Pick<Transaction, 'account' | 'date'>): boolean => row.account === account.id && beforeStartDay(moved, row.date)
   const rows = book.transactions.filter(goes)
   const ids = new Set(rows.map((row) => row.id))
+  const itemsOf = rowItemsOf(book)
   const pairs = new Set(rows.flatMap((row) => (row.pair === null ? [] : [row.pair])))
   return {
     account,
@@ -43,7 +45,7 @@ export function startDayMove(book: Pick<SpendingBook, 'transactions' | 'receipts
     direction: beforeStartDay(account, startsOn) ? 'earlier' : 'later',
     rows,
     receipts: book.receipts.filter((receipt) => receipt.transaction !== null && ids.has(receipt.transaction)),
-    parts: book.items.filter((part) => part.transaction !== null && ids.has(part.transaction)),
+    parts: rows.flatMap((row) => (isSplit(itemsOf(row)) ? itemsOf(row) : [])),
     held: book.held.filter(goes),
     loneLegs: book.transactions.filter((row) => pairs.has(row.id) && !ids.has(row.id)),
     opening: addAccountMoney(account.opening, sumAccountMoney(rows.map((row) => row.amount))),

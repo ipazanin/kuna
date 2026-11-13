@@ -75,7 +75,11 @@ describe('a receipt from the chat', () => {
     ).toEqual([-2000, -1100])
     if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
     expect(bookOf(desk).receipts.some((candidate) => candidate.transaction === PHARMACY)).toBe(false)
-    expect(bookOf(desk).items.some((candidate) => candidate.transaction === PHARMACY)).toBe(false)
+    expect(
+      bookOf(desk)
+        .items.filter((candidate) => candidate.transaction === PHARMACY)
+        .map((candidate) => candidate.receipt),
+    ).toEqual([null])
   })
 
   it("takes the QR code's date and total over the read's, and warns on the card", async () => {
@@ -160,7 +164,7 @@ describe('a receipt from the chat', () => {
     expect(
       bookOf(desk)
         .items.filter((candidate) => candidate.transaction === picked)
-        .map((candidate) => [candidate.text, candidate.amount]),
+        .map((candidate) => [candidate.note, candidate.amount]),
     ).toEqual([
       ['vitamin c', -2000],
       ['flaster', -1100],
@@ -185,7 +189,7 @@ describe('a receipt from the chat', () => {
     expect(
       bookOf(desk)
         .items.filter((candidate) => candidate.transaction === split)
-        .map((candidate) => candidate.text),
+        .map((candidate) => candidate.note),
     ).toEqual(['vitamin c', 'flaster'])
     if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
     expect(bookOf(desk).items.filter((candidate) => candidate.transaction === split)).toEqual(handParts)

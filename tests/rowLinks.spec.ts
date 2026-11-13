@@ -11,7 +11,7 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { rowLinksOf } from '../src/apps/spending/facts'
 import { DESK_LOAN_TARGETS } from './fixtures/spendingDesk'
-import { ACCOUNTS, row } from './fixtures/spending'
+import { ACCOUNTS, row, wholeItems } from './fixtures/spending'
 
 const on = (date: string) => parseCivilDate(date)!
 const LOAN = '3f6c1e2a-0000-4000-8000-000000000001'
@@ -62,7 +62,10 @@ describe("a Spending row's link", () => {
   it('publishes each linked row with its account, day, amount in its own currency and the record it names, and no row without a link', () => {
     const link = rowLinkOf(`loans/bank-loan/${LOAN}/2026-11-20`)!
     const linked = row(ACCOUNTS[0]!, '2026-11-20', -650, 'Money and fees/Loan instalments', { link })
-    const book = { accounts: ACCOUNTS, transactions: [row(ACCOUNTS[0]!, '2026-11-19', -12, 'Food/Groceries'), linked] }
-    expect(rowLinksOf(book)).toEqual([{ row: expect.any(String), account: expect.any(String), day: on('2026-11-20'), amount: linked.amount, currency: ACCOUNTS[0]!.currency, target: link }])
+    const rows = [row(ACCOUNTS[0]!, '2026-11-19', -12, 'Food/Groceries'), linked]
+    const book = { accounts: ACCOUNTS, transactions: rows, items: wholeItems(rows) }
+    expect(rowLinksOf(book)).toEqual([
+      { row: expect.any(String), item: expect.any(String), account: expect.any(String), day: on('2026-11-20'), amount: linked.amount, currency: ACCOUNTS[0]!.currency, target: link },
+    ])
   })
 })

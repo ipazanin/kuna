@@ -33,6 +33,7 @@ import {
   RULE_RECORDS,
   SETTING_RECORDS,
   TRANSACTION_RECORDS,
+  LINE_RECORDS,
 } from '../workbook/domain/spendingKinds'
 import type { LinkableBank } from '../workbook/domain/spendingSettings'
 import type { SpendingRule } from '../workbook/domain/spendingRule'
@@ -108,8 +109,9 @@ interface BankAccountLine {
 /**
  * The kinds that stay out of the chat's reach with why: a setting's value can route bank data or is an identifier, and the
  * catalogue already says what each setting means. A bank row on hold is answered on To review, which the chat has no action for.
+ * A line of a file from before items is read as the item it makes.
  */
-export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name]
+export const UNREAD_KINDS: readonly string[] = [SETTING_RECORDS.name, HELD_ROW_RECORDS.name, LINE_RECORDS.name]
 
 const ACCOUNT_FIELDS: FieldDocs<Account> = {
   id: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account.' },
@@ -134,38 +136,31 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
   hidden: { exposure: 'plain', meaning: 'Hidden from the pickers, while its rows keep counting.' },
 }
 
-/** What a row's link names, as the chat reads it, or null for a row with none. */
-function linkRead(row: Transaction, loans: AppTargets<LinkTarget>): string | null {
-  if (row.link === null) return null
-  const read = linkStateOf(row.link, loans)
+/** What a part's link names, as the chat reads it, or null for a part with none. */
+function linkRead(item: TransactionItem, loans: AppTargets<LinkTarget>): string | null {
+  if (item.link === null) return null
+  const read = linkStateOf(item.link, loans)
   if (read.state === 'there') return read.target.kind === 'instalment' ? words.reads.linkInstalment(read.target.loanName, read.target.due) : words.reads.linkInformalLoan(read.target.name)
   return { gone: words.reads.linkGone, opening: words.reads.linkUnknown, failed: words.reads.linkUnknown, 'not-set-up': words.reads.linkNotSetUp }[read.state]
 }
 
-const transactionFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<Transaction> => ({
+const TRANSACTION_FIELDS: FieldDocs<Transaction> = {
   id: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The entry.' },
   account: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account it is on.' },
   date: { exposure: 'plain', meaning: 'The day.' },
   amount: { exposure: 'plain', amount: 'account', sign: 'either', meaning: "Credits above zero, debits below, in the account's currency." },
-  payee: { exposure: 'party', meaning: 'Who was paid or who paid. An alias for a person Kuna knows, a shop or a company as it is.' },
-  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'Its category, or none while it waits on To review, when it counts nowhere.' },
-  note: { exposure: 'free-text', meaning: "The owner's note." },
+  payee: { exposure: 'party', meaning: 'Who was paid or who paid. An alias for a person Kuna knows, a shop or a company as it is. Its parts say what the money is.' },
   source: { exposure: 'plain', meaning: 'typed, statement or receipt.' },
   pair: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: 'The other leg of a transfer between own accounts.' },
   description: { exposure: 'free-text', meaning: "The bank's text for the row." },
   counterpartyIban: { exposure: 'identifier', meaning: "The other side's IBAN." },
   importKey: { exposure: 'never', meaning: 'What names the row in its statement.' },
   statement: { exposure: 'free-text', meaning: 'The label of the statement file that brought it.' },
-  categorisedBy: { exposure: 'plain', meaning: 'person or rule, or empty.' },
+  categorisedBy: { exposure: 'plain', meaning: 'Who filed its parts: person or rule, or empty.' },
   movedAt: { exposure: 'plain', meaning: 'When a move between own accounts started.' },
   pocket: { exposure: 'plain', meaning: 'A move to or from a savings pocket.' },
   cashWithdrawal: { exposure: 'plain', meaning: "Cash taken out, as the bank's row type says." },
-  link: {
-    exposure: 'free-text',
-    meaning: 'The record in another app the row is, such as the loan instalment it pays, or empty. It changes no figure: the row counts by its category.',
-    read: (row) => linkRead(row, loans()),
-  },
-})
+}
 
 const BUDGET_FIELDS: FieldDocs<Budget> = {
   id: { exposure: 'ref', to: BUDGET_RECORDS.name, meaning: 'The limit.' },
@@ -208,15 +203,20 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   longitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
 }
 
-const ITEM_FIELDS: FieldDocs<TransactionItem> = {
+const itemFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<TransactionItem> => ({
   id: { exposure: 'ref', to: ITEM_RECORDS.name, meaning: 'The part.' },
   transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it is part of, or null for a line of a receipt that waits for the bank's row." },
   receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand and for the one part of a whole entry.' },
   printed: { exposure: 'free-text', meaning: 'As the till printed it, or empty.' },
-  text: { exposure: 'free-text', meaning: 'In plain words, or empty.' },
+  note: { exposure: 'free-text', meaning: "The owner's note on this money, or a receipt line's plain words, or empty." },
   amount: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'Signed as the entry is.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'What this part of the money is filed under, or none while the entry waits on To review. The figures count it.' },
-}
+  link: {
+    exposure: 'free-text',
+    meaning: 'The record in another app this money is, such as the loan instalment it pays, or empty. It changes no figure: the part counts by its category.',
+    read: (item) => linkRead(item, loans()),
+  },
+})
 
 function monthOfPeriod(period: string | null): MonthKey {
   if (period === null) return monthOf(today())
@@ -384,7 +384,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({
         kind: TRANSACTION_RECORDS,
         about: words.reads.transaction,
-        fields: transactionFields(reading.linkTargets),
+        fields: TRANSACTION_FIELDS,
         dated: 'date',
         rows: () => rows((book) => book.transactions),
         currencyOf: (row) => accountCurrency(row.account),
@@ -423,7 +423,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({
         kind: ITEM_RECORDS,
         about: words.reads.line,
-        fields: ITEM_FIELDS,
+        fields: itemFields(reading.linkTargets),
         dated: null,
         rows: () => rows((book) => [...book.transactions.flatMap((row) => itemsOf(book, row)), ...book.items.filter((line) => line.transaction === null)]),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),

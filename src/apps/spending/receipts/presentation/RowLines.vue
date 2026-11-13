@@ -20,7 +20,7 @@ const shown = computed(() =>
     const category = props.categories.find((candidate) => candidate.id === line.category)
     return {
       line,
-      name: [category?.name ?? '', line.text].filter((part) => part !== '').join(' · '),
+      name: [category?.name ?? '', line.note].filter((part) => part !== '').join(' · '),
       colour: category === undefined ? 'var(--chart-deemphasis)' : `var(${colours.value(category)})`,
     }
   }),

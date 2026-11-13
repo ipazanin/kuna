@@ -9,12 +9,12 @@ import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendin
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil, euros } from './fixtures/ledger'
-import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_EUR, REVOLUT_USD, row } from './fixtures/spending'
+import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_EUR, REVOLUT_USD, row, storedBeforeItems, wholeItems } from './fixtures/spending'
 
 const ISSUED = civil('2026-11-03')
 
 function matchesOf(rows: readonly Transaction[], merchant = '', total = 23.49, receipts: readonly Receipt[] = []) {
-  return receiptMatches({ merchant, issuedOn: ISSUED, total: euros(total) }, { accounts: ACCOUNTS, categories: CATEGORIES, transactions: rows, receipts, items: [] }, null)
+  return receiptMatches({ merchant, issuedOn: ISSUED, total: euros(total) }, { accounts: ACCOUNTS, categories: CATEGORIES, transactions: rows, receipts, items: wholeItems(rows) }, null)
 }
 
 function rowsOf(matches: ReturnType<typeof matchesOf>) {
@@ -144,7 +144,7 @@ describe('the rows that can take a receipt', () => {
     const spend = row(OTP, '2026-11-04', -23.49, null)
     const salary = row(OTP, '2026-11-04', 1200, 'Income/Salary')
 
-    expect(splittableRows({ accounts: ACCOUNTS, categories: CATEGORIES, transactions: [spend, salary], receipts: [], items: [] })).toEqual([spend])
+    expect(splittableRows({ accounts: ACCOUNTS, categories: CATEGORIES, transactions: [spend, salary], receipts: [], items: wholeItems([spend, salary]) })).toEqual([spend])
   })
 
   it('leave out a payment To review asks about as maybe a transfer, until that is answered', () => {
@@ -158,7 +158,8 @@ describe('the rows that can take a receipt', () => {
       budgets: [],
       rules: [],
       receipts: [],
-      items: [],
+      items: wholeItems(transactions),
+      stored: storedBeforeItems(transactions),
       held: [],
       settings: spendingSettingsOf([]),
       readings: {} as SpendingBook['readings'],

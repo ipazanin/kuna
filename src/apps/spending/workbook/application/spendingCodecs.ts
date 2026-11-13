@@ -1,7 +1,7 @@
 import { ACCOUNT_CODEC } from '../domain/accountReading'
 import { BUDGET_CODEC } from '../domain/budgetReading'
 import { CATEGORY_CODEC } from '../domain/categoryReading'
-import { ITEM_CODEC } from '../domain/transactionItemReading'
+import { ITEM_CODEC, LINE_CODEC } from '../domain/transactionItemReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
 import { RULE_CODEC } from '../domain/ruleReading'
 import { SETTING_RECORDS } from '../domain/spendingKinds'
@@ -33,7 +33,18 @@ function settingLabel(key: string): string {
 
 const SETTING_CODEC = settingCodec(SETTING_RECORDS, settingLabel)
 
-const SPENDING_CODECS = [ACCOUNT_CODEC, CATEGORY_CODEC, TRANSACTION_CODEC, BUDGET_CODEC, RULE_CODEC, RECEIPT_CODEC, ITEM_CODEC, HELD_ROW_CODEC, SETTING_CODEC] as readonly RecordCodec<unknown>[]
+const SPENDING_CODECS = [
+  ACCOUNT_CODEC,
+  CATEGORY_CODEC,
+  TRANSACTION_CODEC,
+  BUDGET_CODEC,
+  RULE_CODEC,
+  RECEIPT_CODEC,
+  LINE_CODEC,
+  ITEM_CODEC,
+  HELD_ROW_CODEC,
+  SETTING_CODEC,
+] as readonly RecordCodec<unknown>[]
 
 /** The codec of a Spending kind. Throws for a kind the Spending file does not keep. */
 export function codecOfSpendingKind<R>(kind: RecordKind<R>): RecordCodec<R> {

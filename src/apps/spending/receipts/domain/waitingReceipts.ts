@@ -9,6 +9,8 @@ import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { linkOfItems } from '../../workbook/domain/rowItems'
+import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { accountMoneyOfEuros, negateAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
@@ -36,16 +38,15 @@ export function asksForPayment(waiting: Pick<WaitingReceipt, 'matches'>): boolea
   return waiting.matches.kind !== 'none'
 }
 
-/** A waiting receipt once it goes on its row: the row filed by it, and the receipt and its lines naming the row. */
+/** A waiting receipt once it goes on its row: the row filed by it, the receipt naming the row, and the row's items. */
 export interface PlacedReceipt {
   readonly before: Transaction
   readonly row: Transaction
   readonly receipt: { readonly before: Receipt; readonly after: Receipt }
-  readonly lines: readonly { readonly before: TransactionItem; readonly after: TransactionItem }[]
-  /** The parts of a split by hand that the lines replace. */
+  /** The receipt's lines naming the row, and a Difference line when the bank booked another amount, as with a tip. */
+  readonly items: readonly TransactionItem[]
+  /** The row's items the lines replace. */
   readonly replaced: readonly TransactionItem[]
-  /** What keeps the lines adding up to the row when the bank booked another amount, as with a tip. */
-  readonly difference: TransactionItem | null
 }
 
 /** The receipts waiting for the bank's row, oldest first, each with the rows on its account it may be. */
@@ -74,31 +75,26 @@ export function waitingReceipts(book: WaitingBook): readonly WaitingReceipt[] {
 }
 
 /**
- * The waiting receipt on the row: the row files under the category most of the receipt's money is in, as `receiptSplit` files
- * one, its lines go in place of any parts it was split into by hand, and a line of `differenceText` makes up what the bank booked beyond the total.
+ * The waiting receipt on the row, which it files as `receiptSplit` files one: its lines go in place of the row's items and take
+ * their link, and a line of `differenceText` under the category most of the receipt's money is in makes up what the bank booked
+ * beyond the total.
  */
 export function receiptOnRow(
   receipt: Receipt,
   lines: readonly TransactionItem[],
-  { row, handParts }: Extract<ReceiptPlace, { readonly row: Transaction }>,
+  { row, held }: Extract<ReceiptPlace, { readonly row: Transaction }>,
   differenceText: string,
   newKey: () => string = newRecordId,
 ): PlacedReceipt {
-  const category = mainCategoryOf(lines)
-  const placed = lines.map((line) => ({ before: line, after: { ...line, transaction: row.id } }))
+  const link = linkOfItems(held)
+  const placed = lines.map((line) => ({ ...line, transaction: row.id, link }))
+  const difference = differenceItem(row.amount, placed, { transaction: row.id, receipt: receipt.id, category: mainCategoryOf(lines), link }, differenceText, newKey)
   return {
     before: row,
-    row: rowFiledBy(row, receipt.merchant, category),
+    row: rowFiledBy(row, receipt.merchant),
     receipt: { before: receipt, after: { ...receipt, transaction: row.id, account: null, merchant: receipt.merchant === '' ? row.payee : receipt.merchant } },
-    lines: placed,
-    replaced: handParts,
-    difference: differenceItem(
-      row.amount,
-      placed.map(({ after }) => after),
-      { transaction: row.id, receipt: receipt.id, category },
-      differenceText,
-      newKey,
-    ),
+    items: difference === null ? placed : [...placed, difference],
+    replaced: held,
   }
 }
 
@@ -108,11 +104,11 @@ export function receiptOnRow(
  * when one arriving row is clear. When more than one row could be it, or none clearly is, it keeps waiting and To review asks
  * the person. Each row takes one receipt.
  */
-export function receiptsArriving(book: WaitingBook, arriving: readonly Transaction[], differenceText: string, newKey: () => string = newRecordId): readonly PlacedReceipt[] {
+export function receiptsArriving(book: WaitingBook, arriving: readonly ItemizedRow[], differenceText: string, newKey: () => string = newRecordId): readonly PlacedReceipt[] {
   const waiting = waitingReceipts(book)
   if (waiting.length === 0 || arriving.length === 0) return []
-  const fresh = new Set(arriving)
-  const rows = splittableRows({ ...book, transactions: [...book.transactions, ...arriving] })
+  const fresh = new Map(arriving.map((itemized) => [itemized.row, itemized.items]))
+  const rows = splittableRows({ ...book, transactions: [...book.transactions, ...fresh.keys()], items: [...book.items, ...arriving.flatMap((itemized) => itemized.items)] })
   const taken = new Set<Transaction>()
   return waiting.flatMap(({ receipt, account, lines }) => {
     const matches = matchesAmong(
@@ -120,8 +116,9 @@ export function receiptsArriving(book: WaitingBook, arriving: readonly Transacti
       rows.filter((row) => row.account === account.id && !taken.has(row)),
     )
     const row = matches.kind === 'ready' ? matches.candidates[0]?.row : undefined
-    if (row === undefined || !fresh.has(row)) return []
+    const held = row === undefined ? undefined : fresh.get(row)
+    if (row === undefined || held === undefined) return []
     taken.add(row)
-    return [receiptOnRow(receipt, lines, { row, handParts: [] }, differenceText, newKey)]
+    return [receiptOnRow(receipt, lines, { row, held }, differenceText, newKey)]
   })
 }

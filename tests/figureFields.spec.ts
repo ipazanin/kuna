@@ -8,7 +8,7 @@ import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructur
 import { civil } from './fixtures/ledger'
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
-import { COMPANY_LEDGER_ROW, INVESTMENT_ACCOUNT, SPENDING_ACCOUNT, SPENDING_ROW, companyFiguresOf, investmentsFiguresOf, spendingFiguresOf } from '../scripts/support/figureFields.mjs'
+import { COMPANY_LEDGER_ROW, INVESTMENT_ACCOUNT, SPENDING_ACCOUNT, SPENDING_ITEM, SPENDING_ROW, companyFiguresOf, investmentsFiguresOf, spendingFiguresOf } from '../scripts/support/figureFields.mjs'
 
 const DAY = civil('2026-11-10')
 const SAVED_AT = '2026-01-01T00:00:00.000Z'
@@ -22,6 +22,11 @@ const KINDS = {
     kind: SPENDING_ROW,
     figures: ['account', 'amount', 'category', 'date', 'id', 'note', 'pair', 'payee', 'source'],
     cells: ['account', 'amount', 'category', 'date', 'id', 'note', 'pair', 'payee', 'source'],
+  },
+  'a Spending item': {
+    kind: SPENDING_ITEM,
+    figures: ['amount', 'category', 'id', 'note', 'printed', 'receipt', 'transaction'],
+    cells: ['amount', 'category', 'id', 'note', 'printed', 'receipt', 'transaction'],
   },
   'a Spending account': {
     kind: SPENDING_ACCOUNT,
@@ -59,6 +64,7 @@ interface Stored {
 
 const STORED: Record<keyof typeof KINDS, readonly Stored[]> = {
   'a Spending row': spending.records.transactions.records,
+  'a Spending item': spending.records.items.records,
   'a Spending account': spending.records.accounts.records,
   'an Investments account': investments.records.accounts.records,
   'a Company ledger row': company.records.ledger.records,
@@ -102,7 +108,7 @@ describe("the figure digest's fields", () => {
       rows: new Set(spending.workbook.transactions),
     }
 
-    const spendingLeftOut = leftOutOf(SPENDING_ROW, SPENDING_ACCOUNT)
+    const spendingLeftOut = leftOutOf(SPENDING_ROW, SPENDING_ITEM, SPENDING_ACCOUNT)
     const ledgerLeftOut = leftOutOf(COMPANY_LEDGER_ROW)
 
     expect(fieldsIn(group).filter(spendingLeftOut)).toContain('import_key')

@@ -14,7 +14,7 @@ import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendin
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
-import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, row } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, row, storedBeforeItems, wholeItems } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
@@ -53,9 +53,10 @@ function bookOf(transactions: readonly Transaction[], otpLink: string | null = '
     budgets: [],
     rules: [],
     receipts: [],
-    items: [],
+    items: wholeItems(transactions),
     held: [],
     settings: spendingSettingsOf(links as never),
+    stored: storedBeforeItems(transactions),
     readings: { settings: { facts: links, problems: [] } },
     problems: [],
   } as unknown as SpendingBooks
@@ -155,7 +156,7 @@ describe('a fetch', () => {
       const outcome = await importerOver(portOf({ balances: stated('1.00') }), fake.store).run(false)
       // The bank says 1.00 where Kuna works out the opening less 6.50, so the opening moves by 1.00 − (opening − 6.50).
       expect(outcome.differences).toEqual([{ account: OTP, stated: 100, worked: OTP.opening - 650, pending: null, explained: false, fixedOpening: 750 }])
-      expect(fake.added).toHaveLength(1)
+      expect(fake.added.filter((record) => 'importKey' in record)).toHaveLength(1)
       const line = bankStepResult(outcome, null, null, 0)
       expect('line' in line && line.line).toMatch(/OTP current: the bank says .*1\.00 and Kuna works out .*, so a row may be missing or the opening balance may be wrong\./)
     })
@@ -240,7 +241,7 @@ describe('a fetch', () => {
       }
       const { dryRun } = await importerOver(portOf({ balances }), fake.store).run(false)
       expect(dryRun.notes).toEqual(['The balance of OTP current was not checked, since the bank did not give it: Enable Banking answered 429: ASPSP_RATE_LIMIT_EXCEEDED'])
-      expect(fake.added).toHaveLength(1)
+      expect(fake.added.filter((record) => 'importKey' in record)).toHaveLength(1)
     })
   })
 
@@ -253,7 +254,7 @@ describe('a fetch', () => {
 
     expect(one).toBe(other)
     expect(sessions).toHaveBeenCalledTimes(1)
-    expect(fake.added).toHaveLength(1)
+    expect(fake.added.filter((record) => 'importKey' in record)).toHaveLength(1)
     await importer.run(false)
     expect(sessions).toHaveBeenCalledTimes(2)
   })

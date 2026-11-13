@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
-import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
 import { rowItemsOf, waitsOnReview, wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { placeWaitingReceipt, removeWaitingReceipt, writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -27,7 +26,7 @@ import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, CATEGORIES, OTP, category, row } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, category, row, addEntries, filedRows, itemized } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -66,8 +65,8 @@ const GROCERIES = category('Food/Groceries')
 const HOUSEHOLD = category('Home/Household goods')
 /** Two lines that add up to two cents less than the total, as a misread receipt can, so the receipt keeps a Difference line. */
 const LINES = [
-  { printed: 'KRUH', text: 'kruh', amount: accountMoneyFromAmount(-13.49), category: GROCERIES.id },
-  { printed: 'DET.', text: 'deterdžent', amount: accountMoneyFromAmount(-9.98), category: HOUSEHOLD.id },
+  { printed: 'KRUH', note: 'kruh', amount: accountMoneyFromAmount(-13.49), category: GROCERIES.id },
+  { printed: 'DET.', note: 'deterdžent', amount: accountMoneyFromAmount(-9.98), category: HOUSEHOLD.id },
 ]
 const DAY = civil('2026-11-06')
 
@@ -91,7 +90,7 @@ const synced = (...rows: StatementRow[]) => ({ label: 'Enable Banking', rows, no
 const fromFile = (...rows: StatementRow[]) => ({ label: 'export.csv', rows, notes: [] })
 
 async function waiting(store: WorkbookStore<SpendingBooks>, draft: ReceiptDraft = DRAFT): Promise<void> {
-  await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(draft, { account: OTP }, LINES)))
+  await store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, receiptSplit(draft, { account: OTP }, LINES)))
 }
 
 /** How many rows of the book wait on To review for a category. */
@@ -119,7 +118,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     expect(book.items).toMatchObject([
       { transaction: null, amount: accountMoneyFromAmount(-13.49) },
       { transaction: null, amount: accountMoneyFromAmount(-9.98) },
-      { transaction: null, amount: accountMoneyFromAmount(-0.02), text: 'Difference', category: GROCERIES.id },
+      { transaction: null, amount: accountMoneyFromAmount(-0.02), note: 'Difference', category: GROCERIES.id },
     ])
     expect(figures(store)).toEqual(before)
     expect(waitingReceipts(book)).toMatchObject([{ account: { id: OTP.id }, amount: accountMoneyFromAmount(-23.49), matches: { kind: 'none' } }])
@@ -131,12 +130,12 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     const run = statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-04', -23.49, 'CORNER MARKET ZAGREB')), DAY)
     expect(run.receipts).toHaveLength(1)
     expect(run.lines).toMatchObject([{ outcome: 'new', category: GROCERIES.id }])
-    await store.write('Synced', (unit) => writeDryRun(unit, run))
+    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, run))
 
     const book = store.state.workbook!
     const [arrived] = book.transactions
     expect(book.problems).toEqual([])
-    expect(arrived).toMatchObject({ importKey: 'bank-1', category: GROCERIES.id, categorisedBy: 'person', payee: 'CORNER MARKET ZAGREB' })
+    expect(filedRows(book)[0]).toMatchObject({ importKey: 'bank-1', category: GROCERIES.id, categorisedBy: 'person', payee: 'CORNER MARKET ZAGREB' })
     expect(book.receipts).toMatchObject([{ transaction: arrived!.id, account: null }])
     expect(book.items.map((line) => line.transaction)).toEqual([arrived!.id, arrived!.id, arrived!.id])
     expect(figures(store).spent).toEqual([moneyFromAmount(13.51), moneyFromAmount(9.98)])
@@ -146,7 +145,9 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
   it('goes on the row a file brings the same way', async () => {
     const store = await spendingStore()
     await waiting(store)
-    await store.write('Imported', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, fromFile(bankRow('file-1', '2026-11-05', -23.49, 'Corner market d.o.o.')), DAY)))
+    await store.write('Imported', (unit) =>
+      writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, fromFile(bankRow('file-1', '2026-11-05', -23.49, 'Corner market d.o.o.')), DAY)),
+    )
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
@@ -158,43 +159,48 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     await waiting(store)
     const run = statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -23.49, 'CORNER MARKET'), bankRow('bank-2', '2026-11-04', -23.49, 'CORNER MARKET')), DAY)
     expect(run.receipts).toEqual([])
-    await store.write('Synced', (unit) => writeDryRun(unit, run))
+    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, run))
 
     const [asking] = waitingReceipts(store.state.workbook!)
     expect(asking?.matches).toMatchObject({ kind: 'pick', candidates: [{ row: { importKey: 'bank-1' } }, { row: { importKey: 'bank-2' } }] })
     expect(reviewCount(store.state.workbook!)).toBe(waitingCount(store.state.workbook!) + 1)
     const picked = asking!.matches.kind === 'pick' ? asking!.matches.candidates[1]!.row : null
-    await store.write('Placed', (unit) => placeWaitingReceipt(unit, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(picked!, []), 'Difference')))
+    await store.write('Placed', (unit) => placeWaitingReceipt(unit, store.state.records!, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(picked!, []), 'Difference')))
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
     expect(book.receipts).toMatchObject([{ transaction: picked!.id }])
-    expect(book.transactions.find((held) => held.id === picked!.id)).toMatchObject({ category: GROCERIES.id, categorisedBy: 'person' })
+    expect(filedRows(book).find((held) => held.id === picked!.id)).toMatchObject({ category: GROCERIES.id, categorisedBy: 'person' })
     expect(reviewCount(book)).toBe(waitingCount(book))
   })
 
   it('takes a Difference line when the person picks a row the bank booked for more, as with a tip', async () => {
     const store = await spendingStore()
     await waiting(store)
-    await store.write('Synced', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -25, 'CORNER MARKET')), DAY)))
+    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -25, 'CORNER MARKET')), DAY)))
     const [asking] = waitingReceipts(store.state.workbook!)
     const [tipped] = asking!.matches.kind === 'pick' ? asking!.matches.candidates : []
-    await store.write('Placed', (unit) => placeWaitingReceipt(unit, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(tipped!.row, []), 'Difference')))
+    await store.write('Placed', (unit) =>
+      placeWaitingReceipt(unit, store.state.records!, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(tipped!.row, store.state.workbook!.items), 'Difference')),
+    )
 
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
-    expect(book.items.at(-1)).toMatchObject({ amount: accountMoneyFromAmount(-1.51), text: 'Difference', category: GROCERIES.id })
+    expect(book.items.at(-1)).toMatchObject({ amount: accountMoneyFromAmount(-1.51), note: 'Difference', category: GROCERIES.id })
   })
 
   it('keeps the ids of its lines on the row the person picks, and lets them and the Difference line replace the one part the row stood for', async () => {
     const store = await spendingStore()
     await waiting(store)
-    await store.write('Synced', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -25, 'CORNER MARKET')), DAY)))
+    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -25, 'CORNER MARKET')), DAY)))
     const [asking] = waitingReceipts(store.state.workbook!)
     const [tipped] = asking!.matches.kind === 'pick' ? asking!.matches.candidates : []
 
     let replaced: ReturnType<typeof placeWaitingReceipt> = []
-    await store.write('Placed', (unit) => (replaced = placeWaitingReceipt(unit, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(tipped!.row, []), 'Difference'))))
+    await store.write(
+      'Placed',
+      (unit) => (replaced = placeWaitingReceipt(unit, store.state.records!, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(tipped!.row, store.state.workbook!.items), 'Difference'))),
+    )
 
     const lines = store.state.workbook!.items.map((line) => line.id)
     expect(lines.slice(0, asking!.lines.length)).toEqual(asking!.lines.map((line) => line.id))
@@ -208,7 +214,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     const before = figures(store)
     const run = statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-04', -7.2, 'PHARMACY')), DAY)
     expect(run.receipts).toEqual([])
-    await store.write('Synced', (unit) => writeDryRun(unit, run))
+    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, run))
 
     const book = store.state.workbook!
     expect(book.receipts).toMatchObject([{ transaction: null, account: OTP.id }])
@@ -231,7 +237,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     const book = { accounts: ACCOUNTS, categories: CATEGORIES, transactions: [], lines: [] }
     const one = receiptSplit(DRAFT, { account: OTP }, wholeReceipt(DRAFT.total, GROCERIES.id))
     const two = receiptSplit({ ...DRAFT, issuedOn: civil('2026-11-04') }, { account: OTP }, wholeReceipt(DRAFT.total, GROCERIES.id))
-    const arriving = [row(OTP, '2026-11-04', -23.49, null, { source: 'statement', importKey: 'bank-1', payee: 'CORNER MARKET' })]
+    const arriving = [itemized(row(OTP, '2026-11-04', -23.49, null, { source: 'statement', importKey: 'bank-1', payee: 'CORNER MARKET' }))]
     const placed = receiptsArriving({ ...book, receipts: [two.receipt, one.receipt], items: [...one.lines, ...two.lines] }, arriving, 'Difference')
     expect(placed.map((receipt) => receipt.receipt.before.id)).toEqual([one.receipt.id])
   })
@@ -240,7 +246,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
 describe('the write rule on an account the bank fills', () => {
   it('refuses a row a receipt made there, as it refuses a typed one', async () => {
     const store = await spendingStore()
-    await expect(store.write('Added', (unit) => unit.of(TRANSACTION_WRITES).add(row(OTP, '2026-11-04', -5, 'Food/Groceries', { source: 'receipt' })))).rejects.toThrow()
+    await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [row(OTP, '2026-11-04', -5, 'Food/Groceries', { source: 'receipt' })]))).rejects.toThrow()
   })
 
   it('lets the bank fill a row a receipt made there before, as it fills a typed one', async () => {
@@ -249,7 +255,7 @@ describe('the write rule on an account the bank fills', () => {
     const { store } = await browserHarness(used, document, SPENDING)
     const run = statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-04', -23.49, 'CORNER MARKET')), DAY)
     expect(run.filled).toBe(1)
-    await store.write('Synced', (unit) => writeDryRun(unit, run))
+    await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, run))
     expect(store.state.workbook!.transactions).toMatchObject([{ id: standIn.id, importKey: 'bank-1', source: 'receipt' }])
   })
 })
@@ -295,6 +301,6 @@ describe('a stored receipt', () => {
     const { store } = await browserHarness(used, document, SPENDING)
     const book = store.state.workbook!
     expect([book.receipts, book.items]).toEqual([[], []])
-    expect(book.problems.map((problem) => problem.kind)).toEqual(['receipt', 'line', 'line', 'line'])
+    expect(book.problems.map((problem) => problem.kind)).toEqual(['receipt', 'item', 'item', 'item'])
   })
 })

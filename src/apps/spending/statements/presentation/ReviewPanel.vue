@@ -100,24 +100,30 @@ async function makeRule(): Promise<void> {
 
 async function file(row: Transaction, category: Category): Promise<void> {
   const condition = payeeCondition(row)
-  await writes.write(words.review.filed, (unit) => fileRow(unit, row, category), {
+  const records = store.state.records
+  if (records === null) return
+  await writes.write(words.review.filed, (unit) => fileRow(unit, records, row, category), {
     failedTitle: words.review.notWritten,
     ...(condition === null ? {} : { follow: { label: words.review.always, icon: 'i-lucide-list-plus', run: () => askRule(condition, category) } }),
   })
 }
 
 async function join({ maybeTyped }: WaitingRow): Promise<void> {
-  const lines = book.value?.items ?? []
-  if (maybeTyped !== null) await writes.write(words.review.joined, (unit) => joinWithTyped(unit, maybeTyped.typed, maybeTyped.bank, lines), { failedTitle: words.review.notWritten })
+  const records = store.state.records
+  if (maybeTyped !== null && records !== null)
+    await writes.write(words.review.joined, (unit) => joinWithTyped(unit, records, maybeTyped.typed, maybeTyped.bank), { failedTitle: words.review.notWritten })
 }
 
 async function pair({ maybeTransfer }: WaitingRow): Promise<void> {
   const category = transfer.value
-  if (maybeTransfer !== null && category !== null) await writes.write(words.review.paired, (unit) => pairRows(unit, maybeTransfer, category.id), { failedTitle: words.review.notWritten })
+  const records = store.state.records
+  if (maybeTransfer !== null && category !== null && records !== null)
+    await writes.write(words.review.paired, (unit) => pairRows(unit, records, maybeTransfer, category.id), { failedTitle: words.review.notWritten })
 }
 
 async function undoPair(legs: TransferPair): Promise<void> {
-  await writes.write(words.review.pairUndone, (unit) => notAPair(unit, legs), { key: `not-a-pair-${legs.debit.id}`, failedTitle: words.review.notWritten })
+  const records = store.state.records
+  if (records !== null) await writes.write(words.review.pairUndone, (unit) => notAPair(unit, records, legs), { key: `not-a-pair-${legs.debit.id}`, failedTitle: words.review.notWritten })
 }
 </script>
 

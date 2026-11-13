@@ -11,6 +11,8 @@ import { amountText } from '../src/shared/storage/domain/recordFields'
 import { DESK_ACCOUNTS, spendingDesk } from './fixtures/spendingDesk'
 import type { SpendingDesk } from './fixtures/spendingDesk'
 import { forgetCaches } from './fixtures/writeBack'
+import { filedRows } from './fixtures/spending'
+import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { stepOf } from './fixtures/operationSteps'
 import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/spendingOperations'
 
@@ -86,7 +88,7 @@ function warnings(desk: SpendingDesk): readonly string[] {
     .map((note) => note.text)
 }
 
-const rowsOn = (desk: SpendingDesk, account: string) => desk.store.state.workbook!.transactions.filter((row) => row.account === account)
+const rowsOn = (desk: SpendingDesk, account: string) => filedRows(desk.store.state.workbook!).filter((row) => row.account === account)
 
 describe('a statement read off a page', () => {
   it('imports rows that lead from the opening to the closing balance, in one write with one Undo', async () => {
@@ -182,12 +184,15 @@ describe('a statement read off a page', () => {
 
     const rent = desk.store.state.workbook!.categories.find((category) => category.name === 'Rent')!
     const rule = stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Top-up', category: desk.ref('category', rent.id) })
+    /** The card's changes to the row and to its items. */
     const changesOn = (row: Transaction) => {
       const { changes } = desk.cards.at(-1)!.held as { readonly changes: readonly RuledChange[] }
-      return changes.filter(({ change }) => change.verb === 'change' && (change.before as Transaction).id === row.id).map(({ change }) => change)
+      return changes
+        .filter(({ change }) => change.verb === 'change' && ((change.before as Transaction).id === row.id || (change.before as TransactionItem).transaction === row.id))
+        .map(({ change }) => change)
     }
     await desk.propose([rule])
-    expect(changesOn(waiting)).toMatchObject([{ after: { category: rent.id, categorisedBy: 'rule' } }])
+    expect(changesOn(waiting)).toMatchObject([{ after: { categorisedBy: 'rule' } }, { after: { category: rent.id } }])
 
     const answer = await desk.propose([
       rule,
@@ -202,7 +207,7 @@ describe('a statement read off a page', () => {
       }),
     ])
     expect(answer.isError).toBe(false)
-    expect(changesOn(waiting)).toHaveLength(1)
+    expect(changesOn(waiting)).toHaveLength(2)
     const result = await desk.accept()
     expect(result.kind).toBe('done')
     const transfer = desk.store.state.workbook!.categories.find((category) => category.kind === 'transfer')!
@@ -396,7 +401,8 @@ describe('an attached statement file', () => {
     const rows = [{ date: '2026-10-02', amount: -5, payee: 'Shop', iban: null }]
     const step = { op: 'import-statement', input: { ...ATTACHED.input, account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), statementName: 'October 2026', rows } }
     expect((await desk.propose([step], [file])).isError).toBe(false)
-    expect(desk.cards[0]!.count).toBe(1)
+    // The new entry and its one part.
+    expect(desk.cards[0]!.count).toBe(2)
     expect(warnings(desk)).toEqual(['The AI read 1 row from account-statement.csv. Kuna could not check that the statement adds up, so check it against it.'])
   })
 

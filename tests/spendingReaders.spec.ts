@@ -265,7 +265,8 @@ describe('problems in the Spending file, listed by kind', () => {
       ['2026-10-12, -45.3, Lost category', 'names no category in the file'],
       ['2026-10-12, -45.3, Too deep', 'names no category in the file'],
     ])
-    expect(book.transactions.map((transaction) => [transaction.payee, transaction.category])).toEqual([['Waits on review', null]])
+    expect(book.transactions.map((transaction) => transaction.payee)).toEqual(['Waits on review'])
+    expect(book.items.map((item) => [item.transaction, item.category])).toEqual([[book.transactions[0]!.id, null]])
   })
 
   it('reads a transfer whose legs name each other from two accounts, and leaves out a leg not named back or on the same account', () => {

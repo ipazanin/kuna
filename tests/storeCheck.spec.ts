@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { CATEGORY_WRITES, newCategory } from '../src/apps/spending/categories/application/categoryWrites'
-import { TRANSACTION_WRITES, newEntry } from '../src/apps/spending/entries/application/entryWrites'
+import { newEntry, writeEntry } from '../src/apps/spending/entries/application/entryWrites'
 import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { settingRow } from '../src/shared/storage/domain/settingRows'
@@ -77,8 +77,11 @@ const CASES: readonly { readonly name: string; readonly outcome: 'ready' | 'noth
   {
     name: 'an entry on an account the file does not hold',
     outcome: 'refused',
-    work: () => (unit) =>
-      unit.of(TRANSACTION_WRITES).add(
+    work: (store) => (unit) =>
+      writeEntry(
+        unit,
+        store.state.records!,
+        null,
         newEntry({
           account: recordIdOf(ACCOUNT_RECORDS, 'made-up-account'),
           date: civil('2026-10-16'),
@@ -87,6 +90,7 @@ const CASES: readonly { readonly name: string; readonly outcome: 'ready' | 'noth
           category: category('Food/Coffee').id,
           note: '',
         }),
+        null,
       ),
   },
 ]

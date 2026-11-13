@@ -126,7 +126,7 @@ export function bankImporter(ports: BankImportPorts): BankImporter {
       changes === 0
         ? null
         : await store.write(words.imported, (unit) => {
-            writeDryRun(unit, dryRun)
+            writeDryRun(unit, book.stored, dryRun)
             stamp(unit)
           })
     if (changes === 0 && read.fetched.length > 0) await store.write(words.fetched, stamp)

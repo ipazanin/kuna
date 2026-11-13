@@ -10,14 +10,16 @@ export interface PublishedLinkTarget {
   readonly due: CivilDate | null
 }
 
-/** A row linked to a record in another app, as the shell takes it: which row and account, its day and amount, and what it names. */
+/** A row's item linked to a record in another app, as the shell takes it: which row, item and account, its day, the item's amount, and what it names. */
 export interface PublishedRowLink {
   /** The row's bare UUID. */
   readonly row: string
+  /** The item's bare UUID. A row not split has one item, under the row's UUID. */
+  readonly item: string
   /** The account's bare UUID. */
   readonly account: string
   readonly day: CivilDate
-  /** In the account's own currency, credits above zero and debits below. */
+  /** The item's money in the account's own currency, credits above zero and debits below. */
   readonly amount: AccountMoney
   readonly currency: CurrencyCode
   readonly target: PublishedLinkTarget

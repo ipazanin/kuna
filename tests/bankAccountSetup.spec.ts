@@ -34,7 +34,7 @@ import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, spendingSettingsOf } from '../src/apps/s
 import { SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import { settingRow } from '../src/shared/storage/domain/settingRows'
 import { civil } from './fixtures/ledger'
-import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_EUR, REVOLUT_USD, USD, category } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_EUR, REVOLUT_USD, USD, category, filedRows } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const DAY = civil('2026-10-30')
@@ -314,12 +314,12 @@ describe('the setup writes', () => {
     const port = fakeBankSync('linked', DAY)
     const sessions = async () => [{ bank: 'Revolut', status: 'AUTHORIZED', accounts: [linked('eur', REVOLUT_EUR.iban, 'EUR'), linked('usd', REVOLUT_EUR.iban, 'USD')] }]
     const read = await readBanks({ ...port, sessions, transactions: async (uid) => (uid === 'eur' ? [outLeg] : [inLeg]), balances: async () => [] }, store.state.workbook!, DAY)
-    await store.write('Imported', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, read.statement, DAY)))
+    await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, read.statement, DAY)))
 
     await store.write('Account added', (unit) => addBankAccounts(unit, store.state.workbook!, fromEarliest(read.proposals), DAY))
 
     const between = category('Between my accounts').id
-    expect(store.state.workbook!.transactions.map((each) => [each.payee, each.category === between, each.pair !== null])).toEqual([
+    expect(filedRows(store.state.workbook!).map((each) => [each.payee, each.category === between, each.pair !== null])).toEqual([
       ['Exchanged to USD', true, true],
       ['Exchanged from EUR', true, true],
     ])

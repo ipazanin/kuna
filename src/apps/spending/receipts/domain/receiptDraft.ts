@@ -94,7 +94,7 @@ function sameMerchant(heldOib: string, heldName: string, oib: string, name: stri
 }
 
 /** Confirmed lines that remember a category, newest receipt first. */
-function rememberedLines(book: Pick<SpendingBook, 'receipts' | 'items'>, merchantOib: string, merchant: string): readonly Pick<TransactionItem, 'printed' | 'text' | 'category'>[] {
+function rememberedLines(book: Pick<SpendingBook, 'receipts' | 'items'>, merchantOib: string, merchant: string): readonly Pick<TransactionItem, 'printed' | 'category'>[] {
   return [...book.receipts]
     .filter((receipt) => sameMerchant(receipt.merchantOib, receipt.merchant, merchantOib, merchant))
     .sort((one, other) => other.issuedOn.localeCompare(one.issuedOn))

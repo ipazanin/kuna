@@ -5,9 +5,11 @@ import type { Budget } from './budget'
 import type { Category } from './category'
 import { isFixedKind } from './category'
 import type { TransactionItem } from './transactionItem'
+import { isBeforeItems, itemOfWaitingLine, itemsOfStoredRow } from './beforeItems'
+import type { StoredLine } from './beforeItems'
 import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
 import {
   BANK_ACCOUNTS_KEEP_MINE_KEY,
@@ -24,7 +26,7 @@ import {
 } from './spendingSettings'
 import type { SpendingSettings } from './spendingSettings'
 import { rowKey } from './transaction'
-import type { Transaction } from './transaction'
+import type { StoredRow, Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
 import { accountMoneyOfEuros, negateAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
@@ -63,11 +65,13 @@ export const SPENDING_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['comp
 export interface SpendingRecords {
   readonly accounts: RecordsRead<Account>
   readonly categories: RecordsRead<Category>
-  readonly transactions: RecordsRead<Transaction>
+  readonly transactions: RecordsRead<StoredRow>
   readonly budgets: RecordsRead<Budget>
   readonly rules: RecordsRead<SpendingRule>
   readonly receipts: RecordsRead<Receipt>
-  /** The items of transactions, kept as `line` records. */
+  /** The parts of entries as a file from before items keeps them. */
+  readonly lines: RecordsRead<StoredLine>
+  /** The items of transactions, every row's in a file moved to items. */
   readonly items: RecordsRead<TransactionItem>
   readonly held: RecordsRead<HeldBankRow>
   readonly settings: RecordsRead<SettingRow>
@@ -81,6 +85,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   budgets: BUDGET_RECORDS,
   rules: RULE_RECORDS,
   receipts: RECEIPT_RECORDS,
+  lines: LINE_RECORDS,
   items: ITEM_RECORDS,
   held: HELD_ROW_RECORDS,
   settings: SETTING_RECORDS,
@@ -95,6 +100,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     budgets: of(SPENDING_PARTS.budgets),
     rules: of(SPENDING_PARTS.rules),
     receipts: of(SPENDING_PARTS.receipts),
+    lines: of(SPENDING_PARTS.lines),
     items: of(SPENDING_PARTS.items),
     held: of(SPENDING_PARTS.held),
     settings: of(SPENDING_PARTS.settings),
@@ -120,11 +126,13 @@ export interface SpendingBook {
   /** In the order they are tried. */
   readonly rules: readonly SpendingRule[]
   readonly receipts: readonly Receipt[]
-  /** In the order of the file. */
+  /** Every row's items and the lines of receipts that wait for the bank's row, in the order of the file. A file from before items has them made from its rows and lines. */
   readonly items: readonly TransactionItem[]
   /** The bank rows the sync left out, waiting on To review, in the order of the file. */
   readonly held: readonly HeldBankRow[]
   readonly settings: SpendingSettings
+  /** The rows, lines and items as the file stores them, which a write of rows starts from. */
+  readonly stored: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
   readonly readings: SpendingReadings
   /** Every kind's problems, in the order of the kinds. */
   readonly problems: readonly SpendingProblem[]
@@ -177,7 +185,8 @@ function accountReason(accounts: ReadonlyMap<string, Account>, row: Pick<Transac
   return beforeStartDay(account, row.date) ? words.beforeStartDay(account.openedOn) : null
 }
 
-function readTransactions(read: RecordsRead<Transaction>, accounts: ReadonlyMap<string, Account>, categories: ReadonlySet<string>): Reading<Transaction> {
+/** The rows, of which a file from before items checks the category each keeps on itself. */
+function readTransactions(read: RecordsRead<StoredRow>, accounts: ReadonlyMap<string, Account>, categories: ReadonlySet<string>, beforeItems: boolean): Reading<StoredRow> {
   const byId = new Map(read.records.map((stored) => [stored.id, stored.record]))
   const sharingKey = sharedKeys(
     read.records.filter((stored) => stored.record.importKey !== ''),
@@ -187,7 +196,7 @@ function readTransactions(read: RecordsRead<Transaction>, accounts: ReadonlyMap<
     const onAccount = accountReason(accounts, transaction)
     if (onAccount !== null) return [onAccount]
     if (transaction.importKey !== '' && sharingKey.has(rowKey(transaction))) return [words.importKeyShared(transaction.importKey)]
-    if (transaction.category !== null && !categories.has(transaction.category)) return [words.noCategory]
+    if (beforeItems && transaction.category !== null && !categories.has(transaction.category)) return [words.noCategory]
     if (transaction.pair === null) return []
     const other = byId.get(transaction.pair)
     if (other?.pair !== transaction.id) return [words.pairNotBack]
@@ -254,32 +263,76 @@ function wholeOfParts(transactions: readonly Transaction[], receipts: readonly R
   ])
 }
 
-function readItems(read: RecordsRead<TransactionItem>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>): Reading<TransactionItem> {
+/** A part as both shapes of the file hold it, which the add-up rule reads. */
+type Part = Pick<TransactionItem, 'transaction' | 'receipt' | 'amount' | 'category'>
+
+/**
+ * The parts of entries and the lines of waiting receipts. A part names a whole that counts, and when a receipt split it, that
+ * entry's receipt, and a category that counts. The parts of a whole add up to it and count all or none. A file moved to items
+ * also lets only the one item of a row waiting on review go without a category, and never splits a transfer's leg.
+ */
+function readParts<P extends Part>(read: RecordsRead<P>, transactions: readonly Transaction[], receipts: readonly Receipt[], categories: ReadonlySet<string>, beforeItems: boolean): Reading<P> {
   const wholes = wholeOfParts(transactions, receipts)
   const receiptOf = new Map(receipts.map((receipt) => [receipt.id, receipt]))
+  const legs = new Set(transactions.filter((row) => row.pair !== null).map((row) => row.id))
   /** The entry the part is of, or the waiting receipt whose line it is, which its siblings share. */
-  const wholeOf = (part: TransactionItem): RecordId | null => part.transaction ?? part.receipt
-  const ownReason = (part: TransactionItem): string | null => {
+  const wholeOf = (part: Part): RecordId | null => part.transaction ?? part.receipt
+  const siblings = new Map<RecordId | null, Part[]>()
+  for (const { record: part } of read.records) siblings.set(wholeOf(part), [...(siblings.get(wholeOf(part)) ?? []), part])
+  const ownReason = (part: Part): string | null => {
     const whole = wholeOf(part)
     if (whole === null || !wholes.has(whole)) return part.transaction === null ? words.noReceipt : words.noEntry
     if (part.receipt !== null && receiptOf.get(part.receipt)?.transaction !== part.transaction) return words.noReceipt
-    return part.category !== null && categories.has(part.category) ? null : words.noCategory
+    const many = (siblings.get(whole)?.length ?? 0) > 1
+    if (!beforeItems && many && part.transaction !== null && legs.has(part.transaction)) return words.transferLegSplit
+    if (part.category === null) return beforeItems || many || part.transaction === null ? words.uncategorisedNotAlone : null
+    return categories.has(part.category) ? null : words.noCategory
   }
-  const amountsOf = new Map<RecordId | null, AccountMoney[]>()
   const brokenWholes = new Set<RecordId | null>()
   for (const { record: part } of read.records) {
-    amountsOf.set(wholeOf(part), [...(amountsOf.get(wholeOf(part)) ?? []), part.amount])
     if (ownReason(part) !== null) brokenWholes.add(wholeOf(part))
   }
   return readEach(read, ({ record: part }) => {
     const own = ownReason(part)
     if (own !== null) return [own]
     // All or none, since parts left counting without their sibling would drop its money from every figure.
-    if (brokenWholes.has(wholeOf(part))) return [words.siblingPartLeftOut]
-    const amounts = amountsOf.get(wholeOf(part)) ?? []
+    if (brokenWholes.has(wholeOf(part))) return [beforeItems ? words.siblingPartLeftOut : words.itemLeftOut]
+    const amounts = (siblings.get(wholeOf(part)) ?? []).map((sibling) => sibling.amount)
     const whole = wholes.get(wholeOf(part)!)!
     return restOfWhole(whole, amounts) === 0 ? [] : [words.partsDoNotAddUp(plainAmount(sumAccountMoney(amounts)), plainAmount(whole))]
   })
+}
+
+/** Every row and waiting receipt's items as a file from before items holds them, in the order of the file's rows and then of its lines. */
+function itemsBeforeItems(read: RecordsRead<StoredRow>, rows: readonly StoredRow[], lines: readonly StoredLine[]): readonly TransactionItem[] {
+  const counted = new Set(rows)
+  const linesOf = new Map<RecordId, StoredLine[]>()
+  for (const line of lines) {
+    if (line.transaction !== null) linesOf.set(line.transaction, [...(linesOf.get(line.transaction) ?? []), line])
+  }
+  return [
+    ...read.records.flatMap(({ record: row }) => (counted.has(row) ? itemsOfStoredRow(row, linesOf.get(row.id) ?? []) : [])),
+    ...lines.filter((line) => line.transaction === null).map(itemOfWaitingLine),
+  ]
+}
+
+/**
+ * The rows of a file moved to items that have an item that counts, and those without as left out: for the reason their items
+ * are, or for having none.
+ */
+function withItems(reading: Reading<StoredRow>, read: RecordsRead<StoredRow>, items: Reading<TransactionItem>, stored: RecordsRead<TransactionItem>): Reading<StoredRow> {
+  const itemized = new Set(items.facts.map((item) => item.transaction))
+  const reasonOf = new Map<RecordId | null, string>()
+  for (const { id, record } of stored.records) {
+    const reason = items.problems.find((problem) => problem.id === id)?.reason
+    if (reason !== undefined && !reasonOf.has(record.transaction)) reasonOf.set(record.transaction, reason)
+  }
+  const kept = new Set(reading.facts.filter((row) => itemized.has(row.id)))
+  const left = read.records.filter((stored) => reading.facts.includes(stored.record) && !kept.has(stored.record))
+  return {
+    facts: reading.facts.filter((row) => kept.has(row)),
+    problems: [...reading.problems, ...left.map((stored) => problemOf(stored, reasonOf.get(stored.record.id) ?? words.entryWithoutPart))],
+  }
 }
 
 /**
@@ -301,26 +354,31 @@ function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, 
 
 /**
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
- * three fixed kinds is one category. An entry names an account that counts, on or after its start day, and a category that counts, and its other leg names it
- * back from another account. A limit is on a spending category, one a month, and never on a group and its child in the
+ * three fixed kinds is one category. An entry names an account that counts, on or after its start day, and its other leg names it
+ * back from another account. It has at least one item, which says what its money is. A limit is on a spending category, one a month, and never on a group and its child in the
  * same months. A rule names a category that counts, and one that spots a withdrawal files into Between my accounts and names a cash account or none. A receipt names an entry that counts, which no other receipt names, or while it waits for the bank's row an account that counts, and no other receipt holds its JIR or ZKI. A part
- * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. A line of a waiting receipt names that receipt and no entry. The parts of an entry add up to its amount, and the lines of a waiting receipt to minus its total, and count all or none. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, and a second category of a fixed
+ * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. A line of a waiting receipt names that receipt and no entry. The parts of an entry add up to its amount, and the lines of a waiting receipt to minus its total, and count all or none. Only the one item of an entry waiting on To review has no category, and a transfer's leg has one item.
+ * A file from before items keeps an entry's category, note and link on the entry while it is not split, which then names a category that counts, and its
+ * parts as lines, and is read as the items they make. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, and a second category of a fixed
  * kind, count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
  * `readHeld` refuses.
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {
+  const beforeItems = isBeforeItems(records)
   const accounts = readAccounts(records.accounts)
   const categories = readCategories(records.categories)
   const categoryIds = new Set(categories.facts.map((category) => category.id))
   const accountsById = new Map(accounts.facts.map((account) => [account.id, account]))
-  const transactions = readTransactions(records.transactions, accountsById, categoryIds)
+  const rows = readTransactions(records.transactions, accountsById, categoryIds, beforeItems)
   const budgets = readBudgets(records.budgets, categories.facts)
   const rules = readRules(records.rules, categories.facts, accounts.facts)
-  const receipts = readReceipts(records.receipts, new Set(transactions.facts.map((row) => row.id)), accountsById)
-  const items = readItems(records.items, transactions.facts, receipts.facts, categoryIds)
+  const receipts = readReceipts(records.receipts, new Set(rows.facts.map((row) => row.id)), accountsById)
+  const lines = beforeItems ? readParts(records.lines, rows.facts, receipts.facts, categoryIds, true) : readEach(records.lines, () => [words.lineAfterMove])
+  const items = readParts(records.items, rows.facts, receipts.facts, categoryIds, beforeItems)
+  const transactions = beforeItems ? rows : withItems(rows, records.transactions, items, records.items)
   const held = readHeld(records.held, accountsById, transactions.facts)
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, items, held, settings }
+  const readings: SpendingReadings = { accounts, categories, transactions, budgets, rules, receipts, lines, items, held, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
@@ -328,9 +386,10 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     budgets: budgets.facts,
     rules: rules.facts,
     receipts: receipts.facts,
-    items: items.facts,
+    items: beforeItems ? itemsBeforeItems(records.transactions, transactions.facts, lines.facts) : items.facts,
     held: held.facts,
     settings: spendingSettingsOf(settings.facts),
+    stored: { transactions: records.transactions, lines: records.lines, items: records.items },
     readings,
     problems: (Object.keys(SPENDING_PARTS) as (keyof SpendingRecords)[]).flatMap((part) =>
       readings[part].problems.map((problem) => ({ kind: SPENDING_PARTS[part].name, noun: SPENDING_PARTS[part].noun, ...problem })),

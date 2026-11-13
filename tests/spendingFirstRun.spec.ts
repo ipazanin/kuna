@@ -90,7 +90,7 @@ describe('the Spending first run on the fake Drive', () => {
     expect(fakeDriveSession().file(fakeDriveSession().file(store.state.choice!.id).parents[0]!).name).toBe('spending')
     expect(await booksFolder()).toEqual({ 'kuna-company.json': 'company' })
     const stored = decodeDocument(await fakeDriveSession().download(store.state.choice!.id))
-    expect(stored).toMatchObject({ app: 'spending', schema: { spending: 1 } })
+    expect(stored).toMatchObject({ app: 'spending', schema: { spending: 2 } })
     expect(Object.keys(stored.records)).toEqual(['category'])
     expect(store.state.workbook!.categories.filter((category) => category.parent === null).map((category) => category.name)).toEqual([...ENGLISH_GROUPS, ...FIXED.map(([en]) => en)])
     expect(spendingApp.firstRun()).toBe(false)

@@ -16,12 +16,23 @@ import type { Category } from '../../src/apps/spending/workbook/domain/category'
 import type { TransactionItem } from '../../src/apps/spending/workbook/domain/transactionItem'
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import {
+  ACCOUNT_RECORDS,
+  CATEGORY_RECORDS,
+  ITEM_RECORDS,
+  LINE_RECORDS,
+  RECEIPT_RECORDS,
+  RULE_RECORDS,
+  SETTING_RECORDS,
+  TRANSACTION_RECORDS,
+} from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { plainLineOf } from '../../src/apps/spending/workbook/domain/beforeItems'
+import { rowItemsOf, wholeItemOf } from '../../src/apps/spending/workbook/domain/rowItems'
 import type { SpendingRule } from '../../src/apps/spending/workbook/domain/spendingRule'
 import type { RowLink } from '../../src/apps/spending/workbook/domain/rowLink'
-import type { Transaction } from '../../src/apps/spending/workbook/domain/transaction'
+import type { StoredRow } from '../../src/apps/spending/workbook/domain/transaction'
 import type { LinkTarget } from '../../src/apps/spending/links/domain/linkTarget'
-import { NO_BANK_FACTS } from '../../src/apps/spending/workbook/domain/transaction'
+import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../src/apps/spending/workbook/domain/transaction'
 import { spendingDocumentOf } from '../../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { ChatReads } from '../../src/shared/ai/application/chatReads'
 import type { ChatAttachment } from '../../src/shared/ai/domain/chatAttachments'
@@ -93,7 +104,7 @@ export const DESK_LOAN_TARGETS: readonly LinkTarget[] = [
   { kind: 'informal-loan', link: { app: 'loans', kind: 'informal-loan', key: 'made-up-informal-loan', due: null }, name: 'From Marko', counterparty: 'Marko', direction: 'you-owe' },
 ]
 
-function row(key: string, date: string, amount: number, payee: string, fields: Partial<Transaction> = {}): Transaction {
+function row(key: string, date: string, amount: number, payee: string, fields: Partial<StoredRow> = {}): StoredRow {
   return {
     ...NO_BANK_FACTS,
     id: recordIdOf(TRANSACTION_RECORDS, key),
@@ -112,7 +123,7 @@ function row(key: string, date: string, amount: number, payee: string, fields: P
 }
 
 /** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, a typed row split by hand, cash taken out with no cash leg yet, and a Revolut payment a waiting receipt may be. */
-const ROWS: readonly Transaction[] = [
+const ROWS: readonly StoredRow[] = [
   row('transaction-typed', '2026-10-12', -45.3, 'Corner market', { source: 'typed', category: GROCERIES.id, categorisedBy: 'person' }),
   row('transaction-receipt', '2026-10-14', -20, 'Bakery', { category: GROCERIES.id, categorisedBy: 'rule', importKey: 'made-up-2' }),
   row('transaction-pharmacy-typed', '2026-10-20', -30, 'Pharmacy', { source: 'typed', category: RENT.id, categorisedBy: 'person', link: HOUSING_LOAN_OCTOBER }),
@@ -132,9 +143,10 @@ function handPart(key: string, amount: number, category: Category): TransactionI
     transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-split'),
     receipt: null,
     printed: '',
-    text: '',
+    note: '',
     amount: accountMoneyFromAmount(amount),
     category: category.id,
+    link: null,
   }
 }
 
@@ -177,9 +189,10 @@ const WAITING_LINE: TransactionItem = {
   transaction: null,
   receipt: WAITING_RECEIPT.id,
   printed: 'NOVINE',
-  text: 'novine',
+  note: 'novine',
   amount: accountMoneyFromAmount(-18),
   category: GROCERIES.id,
+  link: null,
 }
 
 const RULE: SpendingRule = { id: recordIdOf(RULE_RECORDS, 'rule-corner'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner' }, category: GROCERIES.id, withdrawal: null }
@@ -295,14 +308,30 @@ export interface SpendingDesk {
   accept(at?: number): ReturnType<ReturnType<typeof spendingAcceptance>['accept']>
 }
 
-export async function spendingDesk(used: Set<string>, ports: SpendingPorts = deskPorts()): Promise<SpendingDesk> {
+/** The shape the desk's file is stored in: with an item record for every row, or as a file from before items keeps its rows. */
+export type DeskShape = 'items' | 'before-items'
+
+/** The desk's rows and their parts as a file of the shape stores them. */
+function storedEntries(shape: DeskShape): WorkbookDocument['records'] {
+  if (shape === 'before-items') return { ...stored(TRANSACTION_RECORDS, ROWS), ...stored(LINE_RECORDS, [...HAND_PARTS, WAITING_LINE].map(plainLineOf)) }
+  const partsOf = rowItemsOf({ items: HAND_PARTS })
+  const items = [...ROWS.flatMap((stored) => (partsOf(stored).length > 0 ? partsOf(stored) : [wholeItemOf(stored, stored)])), WAITING_LINE]
+  return {
+    ...stored(
+      TRANSACTION_RECORDS,
+      ROWS.map((stored) => storedRowOf(stored, BLANK_CELLS)),
+    ),
+    ...stored(ITEM_RECORDS, items),
+  }
+}
+
+export async function spendingDesk(used: Set<string>, ports: SpendingPorts = deskPorts(), shape: DeskShape = 'items'): Promise<SpendingDesk> {
   const document = spendingDocumentOf('2026-11-07T09:00:00.000Z', {
     ...stored(ACCOUNT_RECORDS, [CURRENT, SAVINGS, DOLLARS, WALLET, REVOLUT]),
     ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY]),
-    ...stored(TRANSACTION_RECORDS, ROWS),
+    ...storedEntries(shape),
     ...stored(RULE_RECORDS, [RULE]),
     ...stored(RECEIPT_RECORDS, [RECEIPT, WAITING_RECEIPT]),
-    ...stored(ITEM_RECORDS, [...HAND_PARTS, WAITING_LINE]),
     ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),
   })
   const { store } = await browserHarness(used, document, SPENDING)

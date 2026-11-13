@@ -6,10 +6,13 @@ import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
 import type { Receipt } from '../../domain/receipt'
 import type { TransactionItem } from '../../domain/transactionItem'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
+import { plainLineOf } from '../../domain/beforeItems'
+import { rowItemsOf, wholeItemOf } from '../../domain/rowItems'
+import type { WholeFiling } from '../../domain/rowItems'
 import type { SpendingRule } from '../../domain/spendingRule'
 import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../domain/spendingSettings'
-import { NO_BANK_FACTS } from '../../domain/transaction'
+import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../domain/transaction'
 import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
 import type { Transaction } from '../../domain/transaction'
 import type { RowLink } from '../../domain/rowLink'
@@ -81,6 +84,9 @@ function dayIn(month: MonthKey, dayOfTheMonth: number, day: CivilDate): CivilDat
   const date = parseCivilDate(`${month}-${String(dayOfTheMonth).padStart(2, '0')}`)!
   return date > day ? day : date
 }
+
+/** A row of a fake set with what its one item files it as. */
+type FakeRow = Transaction & WholeFiling
 
 interface Row {
   readonly account: RecordId
@@ -159,7 +165,7 @@ const REVOLUT_IBAN = 'LT000000000000000001'
 const PHARMACY_IBAN = 'HR1100000000000000099'
 
 /** What the people set adds to the sample, all made up: a payment to a person, with her IBAN and address in the bank's text, and a row whose text tries to give the assistant orders. */
-function peopleRows(day: CivilDate, idOf: (path: string) => RecordId): readonly Transaction[] {
+function peopleRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
   return [
     statementRow(1601, OTP, day, -250, 'Ana Horvat', {
       description: 'Stanarina Ana Horvat, Ilica 15',
@@ -172,7 +178,7 @@ function peopleRows(day: CivilDate, idOf: (path: string) => RecordId): readonly 
 }
 
 /** A row an earlier statement brought, on no category unless it says so. */
-function statementRow(place: number, account: RecordId, date: CivilDate, amount: number, payee: string, fields: Partial<Transaction> = {}): Transaction {
+function statementRow(place: number, account: RecordId, date: CivilDate, amount: number, payee: string, fields: Partial<FakeRow> = {}): FakeRow {
   return {
     ...NO_BANK_FACTS,
     id: fixedId(TRANSACTION_RECORDS, place),
@@ -197,13 +203,13 @@ function statementRow(place: number, account: RecordId, date: CivilDate, amount:
  * What the statements set adds to the sample: rows of earlier statements, and typed rows. The Harbour bistro row is the
  * one the sample export repeats, so it takes its key from there.
  */
-function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, categories: readonly Category[], accounts: readonly Account[]): readonly Transaction[] {
+function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, categories: readonly Category[], accounts: readonly Account[]): readonly FakeRow[] {
   const back = (days: number): CivilDate => addDays(day, -days)
   const between = idOf('Between my accounts')
   const read = revolutStatement(sampleRevolutRows(day), 'earlier-statement.csv', { accounts, categories })
   const bistroKey = 'statement' in read ? (read.statement.rows.find((row) => row.payee === 'Harbour bistro')?.importKey ?? '') : ''
   const [paidOut, paidIn] = [fixedId(TRANSACTION_RECORDS, 1703), fixedId(TRANSACTION_RECORDS, 1704)]
-  const typed = (place: number, account: RecordId, date: CivilDate, amount: number, payee: string, category: string): Transaction => ({
+  const typed = (place: number, account: RecordId, date: CivilDate, amount: number, payee: string, category: string): FakeRow => ({
     ...NO_BANK_FACTS,
     id: fixedId(TRANSACTION_RECORDS, place),
     account,
@@ -239,7 +245,7 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
  * What the cash set adds to the statements set: two of OTP's cash machine rows that the Bankomat rule spots, one waiting and one
  * filed with no cash leg, a dollar withdrawal two cash accounts could take, and a pound one no cash account keeps.
  */
-function withdrawalRows(day: CivilDate, idOf: (path: string) => RecordId): readonly Transaction[] {
+function withdrawalRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
   const back = (days: number): CivilDate => addDays(day, -days)
   const between = idOf('Between my accounts')
   return [
@@ -260,7 +266,7 @@ function cashSetAccounts(openedOn: CivilDate, rowsFrom: RowsFrom): readonly Acco
 }
 
 /** A row the AI copied off a printed statement a day before the export's Unknown shop, with the same amount and a longer payee. */
-function copiedRow(day: CivilDate, idOf: (path: string) => RecordId): Transaction {
+function copiedRow(day: CivilDate, idOf: (path: string) => RecordId): FakeRow {
   const date = addDays(day, -1)
   const amount = accountMoneyFromAmount(-9.99)
   return statementRow(1715, REVOLUT_EUR, date, -9.99, 'UNKNOWN SHOP ZAGREB', {
@@ -273,7 +279,7 @@ function copiedRow(day: CivilDate, idOf: (path: string) => RecordId): Transactio
 }
 
 /** A row the bank sync brought a day after the export's Corner market, booked a day later and named in full. */
-function syncedRow(day: CivilDate): Transaction {
+function syncedRow(day: CivilDate): FakeRow {
   return statementRow(1716, REVOLUT_EUR, day, -12.3, 'CORNER MARKET D.O.O.', { importKey: `${BANK_SYNC_KEY_PREFIX}fake-corner-market`, statement: BANK_SYNC_LABEL })
 }
 
@@ -283,7 +289,7 @@ const SPLIT_ROW_PLACE = 1906
  * What the receipts set adds to the sample: a card payment one photo matches, two equal payments another must pick from, a card
  * payment with a tip on it, and a cash day. A row a receipt split shows its lines on Entries.
  */
-function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly Transaction[] {
+function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
   const back = (days: number): CivilDate => (addDays(day, -days) < firstDayOf(monthOf(day)) ? day : addDays(day, -days))
   const spent = (cents: number): number => -cents / 100
   const { oneMatch, twoMatches, near } = SAMPLE_RECEIPT_TOTALS
@@ -319,9 +325,10 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
     transaction: row,
     receipt,
     printed: '',
-    text: '',
+    note: '',
     amount: accountMoneyFromAmount(amount),
     category: idOf(category),
+    link: null,
   })
   return {
     receipts: [
@@ -399,7 +406,14 @@ export function fakeSpendingDayHere(): CivilDate {
   return fakeSpendingDay(new URLSearchParams(window.location.search).get('day'))
 }
 
-export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today(), bankSync: string | null = null): WorkbookDocument {
+/** What a fake set holds, each row with what it is filed as and the receipts' lines. */
+interface FakeEntries {
+  readonly records: WorkbookDocument['records']
+  readonly rows: readonly FakeRow[]
+  readonly lines: readonly TransactionItem[]
+}
+
+function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | null): FakeEntries {
   const { categories, idOf } = fakeCategories()
   const month = monthOf(day)
   const [twoBack, oneBack] = [addMonths(month, -2), addMonths(month, -1)]
@@ -444,7 +458,7 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
   const shown = set === 'foreign' ? accounts.filter((account) => account.id === REVOLUT_USD) : accounts
   const rows: Row[] = set === 'foreign' ? dollarRows(oneBack, day) : [...monthRows(twoBack, 2, day), ...monthRows(oneBack, 1, day), ...monthSoFar(month), ...dollarRows(oneBack, day)]
   let place = 1100
-  const transactions: Transaction[] = rows.map((row) => ({
+  const transactions: FakeRow[] = rows.map((row) => ({
     id: fixedId(TRANSACTION_RECORDS, (place += 1)),
     account: row.account,
     date: row.date,
@@ -510,19 +524,62 @@ export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sa
             { id: fixedId(BUDGET_RECORDS, 1602), category: idOf('Transport'), from: twoBack, amount: moneyFromAmount(50) },
           ]
         : [{ id: fixedId(BUDGET_RECORDS, 1601), category: idOf('Food'), from: twoBack, amount: moneyFromAmount(400) }]
+  const receipts = set === 'receipts' ? withWaiting(splitRowReceipt(day, idOf), bankSync === null ? null : waitingReceipts(day, idOf)) : { receipts: [], lines: [] }
+  return {
+    records: {
+      ...stored(ACCOUNT_RECORDS, opened),
+      ...stored(CATEGORY_RECORDS, categories),
+      ...stored(BUDGET_RECORDS, budgets),
+      ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
+      ...stored(RECEIPT_RECORDS, receipts.receipts),
+      ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
+    },
+    rows: transactions,
+    lines: receipts.lines,
+  }
+}
+
+/** A fake set as Spending stores it: every row with its items, a row a receipt split with the receipt's lines and every other with one item. */
+export function fakeSpendingDocument(savedAt: string, set: FakeSpendingSet = 'sample', day: CivilDate = today(), bankSync: string | null = null): WorkbookDocument {
+  const { records, rows, lines } = fakeEntries(set, day, bankSync)
+  const linesOf = rowItemsOf({ items: lines })
+  const items = [...rows.flatMap((row) => (linesOf(row).length > 0 ? linesOf(row) : [wholeItemOf(row, row)])), ...lines.filter((line) => line.transaction === null)]
   return spendingDocumentOf(savedAt, {
-    ...stored(ACCOUNT_RECORDS, opened),
-    ...stored(CATEGORY_RECORDS, categories),
-    ...stored(TRANSACTION_RECORDS, transactions),
-    ...stored(BUDGET_RECORDS, budgets),
-    ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
-    ...(set === 'receipts' ? storedReceipts(withWaiting(splitRowReceipt(day, idOf), bankSync === null ? null : waitingReceipts(day, idOf))) : {}),
-    ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
+    ...records,
+    ...stored(
+      TRANSACTION_RECORDS,
+      rows.map((row) => storedRowOf(row, BLANK_CELLS)),
+    ),
+    ...stored(ITEM_RECORDS, items),
   })
 }
 
+/**
+ * The receipts set as a file from before items stores it, each row with its category, note and link and the receipt's lines as
+ * `line` records, with a note on the row the receipt split, which the move to items puts on its largest line. With
+ * `splitTransfer` the top-up's money-out leg is split in two too, which an older Kuna let through and keeps the file from moving.
+ */
+export function fakeBeforeItemsDocument(savedAt: string, day: CivilDate = today(), splitTransfer = false): WorkbookDocument {
+  const { records, rows, lines } = fakeEntries('receipts', day, null)
+  const split = new Set(lines.map((line) => line.transaction))
+  const noted = rows.map((row) => storedRowOf(row, split.has(row.id) ? { ...row, note: 'Weekly shop' } : row))
+  const leg = rows.find((row) => row.id === fixedId(TRANSACTION_RECORDS, 1501))
+  const legParts = (place: number, amount: number): TransactionItem => ({
+    id: fixedId(ITEM_RECORDS, place),
+    transaction: leg!.id,
+    receipt: null,
+    printed: '',
+    note: '',
+    amount: accountMoneyFromAmount(amount),
+    category: leg!.category,
+    link: null,
+  })
+  const splitLeg = splitTransfer && leg !== undefined ? [legParts(1971, -150), legParts(1972, -50)] : []
+  return spendingDocumentOf(savedAt, { ...records, ...stored(TRANSACTION_RECORDS, noted), ...stored(LINE_RECORDS, [...lines, ...splitLeg].map(plainLineOf)) })
+}
+
 /** The two equal kiosk payments on OTP the waiting kiosk receipt could be, which the bank brought already. */
-function kioskRows(day: CivilDate, idOf: (path: string) => RecordId): readonly Transaction[] {
+function kioskRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
   const before = addDays(day, -1) < firstDayOf(monthOf(day)) ? day : addDays(day, -1)
   const filed = { category: idOf('Food/Groceries'), categorisedBy: 'rule' as const }
   return [statementRow(1964, OTP, before, -9.8, 'TISAK MEDIA', filed), statementRow(1965, OTP, day, -9.8, 'TISAK MEDIA', filed)]
@@ -550,14 +607,15 @@ function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): Retu
     latitude: '',
     longitude: '',
   })
-  const line = (place: number, receipt: number, printed: string, text: string, amount: number): TransactionItem => ({
+  const line = (place: number, receipt: number, printed: string, note: string, amount: number): TransactionItem => ({
     id: fixedId(ITEM_RECORDS, place),
     transaction: null,
     receipt: fixedId(RECEIPT_RECORDS, receipt),
     printed,
-    text,
+    note,
     amount: accountMoneyFromAmount(amount),
     category: idOf('Food/Groceries'),
+    link: null,
   })
   return {
     receipts: [waiting(1961, 'Bakery on the corner', '08:05', 7.4, '3c4d5e6f-0000-4000-8000-1234567890ab'), waiting(1966, 'Tisak', '07:40', 9.8, '4d5e6f70-0000-4000-8000-1234567890ab')],
@@ -568,10 +626,6 @@ function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): Retu
 /** The receipts and lines of the set, with a receipt that waits for the bank's row once the bank fills the accounts. */
 function withWaiting(split: ReturnType<typeof splitRowReceipt>, waiting: ReturnType<typeof splitRowReceipt> | null): ReturnType<typeof splitRowReceipt> {
   return waiting === null ? split : { receipts: [...split.receipts, ...waiting.receipts], lines: [...split.lines, ...waiting.lines] }
-}
-
-function storedReceipts({ receipts, lines }: ReturnType<typeof splitRowReceipt>): WorkbookDocument['records'] {
-  return { ...stored(RECEIPT_RECORDS, receipts), ...stored(ITEM_RECORDS, lines) }
 }
 
 function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {

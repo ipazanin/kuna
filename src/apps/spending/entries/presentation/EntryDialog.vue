@@ -26,6 +26,7 @@ import { fixedByBank } from '../domain/bankRows'
 import { beforeStartDay, takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { isSplit, itemizedRow, linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -88,9 +89,11 @@ const legs = computed((): readonly [Transaction, Transaction] | null => {
   return props.entry.amount < 0 ? [props.entry, other] : [other, props.entry]
 })
 
-/** What a receipt or you split the entry into, whose sum holds its amount and whose categories count in place of its own. */
-const entryLines = computed(() => (store.state.workbook?.items ?? []).filter((line) => line.transaction === props.entry?.id))
-const split = computed(() => entryLines.value.length > 0)
+/** The entry's items: the one that holds all of its money, or what a receipt or you split it into. */
+const entryLines = computed(() => (props.entry === null ? [] : rowItemsOf({ items: store.state.workbook?.items ?? [] })(props.entry)))
+const split = computed(() => isSplit(entryLines.value))
+/** The one item of an entry not split, whose category and note the form edits. */
+const wholeItem = computed(() => (split.value ? null : (entryLines.value[0] ?? null)))
 const receipt = computed(() => (store.state.workbook?.receipts ?? []).find((held) => held.transaction === props.entry?.id) ?? null)
 /** Where the entry's receipt was photographed, when its photo held a position. */
 const receiptPlace = computed(() => {
@@ -103,7 +106,7 @@ const splitOpen = ref(false)
 const linkLineOf = useLinkLines()
 /** The record in another app the entry is linked to, which the chat sets and clears. */
 const entryLink = computed(() => {
-  const link = props.entry?.link ?? null
+  const link = linkOfItems(entryLines.value)
   return link === null ? null : linkLineOf.value(link)
 })
 
@@ -130,7 +133,7 @@ const payeeItems = computed(() => payeeChoices(payees.value, payee.value))
 /** Whether the person has the payee list open, which shows only while a known payee matches, so a new payee brings no empty list. */
 const payeeListOpen = ref(false)
 
-const categoryItems = computed(() => (kind.value === 'transfer' ? [] : entryCategoryChoices(categories.value, kind.value, props.entry?.category ?? null)))
+const categoryItems = computed(() => (kind.value === 'transfer' ? [] : entryCategoryChoices(categories.value, kind.value, wholeItem.value?.category ?? null)))
 const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
 
 function accountOf(id: string): Account | null {
@@ -151,10 +154,10 @@ watch(open, (opened) => {
   toAccount.value = pair?.[1].account ?? choosable.value.find((candidate) => candidate.id !== account.value)?.id ?? ''
   amount.value = entry === null ? '' : amountForTyping(absAccountMoney((pair?.[0] ?? entry).amount))
   toAmount.value = pair === null ? '' : amountForTyping(absAccountMoney(pair[1].amount))
-  category.value = entry?.category ?? ''
+  category.value = wholeItem.value?.category ?? ''
   date.value = entry?.date ?? today()
   payee.value = entry?.payee ?? ''
-  note.value = entry?.note ?? ''
+  note.value = wholeItem.value?.note ?? ''
   tried.value = false
   openedAs.value = formNow.value
 })
@@ -234,11 +237,12 @@ async function save(): Promise<void> {
 /** One entry added, or changed in place, which drops the other leg of what was a transfer. */
 function entryWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate): ((unit: UnitOfWork) => void) | null {
   const filed = categories.value.find((candidate) => candidate.id === category.value)
-  if (filed === undefined) return null
-  const entry = newEntry({ account: fromAccount.id, date: on, amount: kind.value === 'out' ? negateAccountMoney(typed) : typed, payee: payee.value, category: filed.id, note: note.value })
-  const before = props.entry
-  const other = legs.value?.find((leg) => leg.id !== before?.id) ?? null
-  return (unit) => writeEntry(unit, before, entry, other)
+  const records = store.state.records
+  if ((filed === undefined && !split.value) || records === null) return null
+  const entry = newEntry({ account: fromAccount.id, date: on, amount: kind.value === 'out' ? negateAccountMoney(typed) : typed, payee: payee.value, category: filed?.id ?? null, note: note.value })
+  const before = props.entry === null ? null : { row: props.entry, items: entryLines.value }
+  const other = legs.value?.find((leg) => leg.id !== before?.row.id) ?? null
+  return (unit) => writeEntry(unit, records, before, entry, other)
 }
 
 /** Both legs in one write: added, changed in place, or a plain entry turned into the money-out leg with the other leg beside it. */
@@ -247,10 +251,14 @@ function transferWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate)
   const fixed = transferCategory.value
   if (toAccountPicked === null || fixed === null) return null
   const arrived = twoCurrencies.value ? (positive(toAmount.value) ?? typed) : typed
-  const [outLeg, inLeg] = newTransfer({ account: fromAccount.id, amount: typed }, { account: toAccountPicked.id, amount: arrived }, { date: on, note: note.value, category: fixed.id })
-  const before = props.entry
+  const typedLegs = newTransfer({ account: fromAccount.id, amount: typed }, { account: toAccountPicked.id, amount: arrived }, { date: on, note: note.value, category: fixed.id })
+  const records = store.state.records
+  const book = store.state.workbook
+  if (records === null || book === null) return null
+  const before = props.entry === null ? null : itemizedRow(book, props.entry)
   const pair = legs.value
-  return (unit) => writeTransfer(unit, before, pair, [outLeg, inLeg])
+  const itemizedPair = pair === null ? null : ([itemizedRow(book, pair[0]), itemizedRow(book, pair[1])] as const)
+  return (unit) => writeTransfer(unit, records, before, itemizedPair, typedLegs)
 }
 
 /** The payee as the file holds it, which the person flag names, or blank for an entry with none. */
@@ -272,8 +280,9 @@ async function treatPayee(): Promise<void> {
 /** Takes the entry's link off, with Undo, and closes the dialog. The entry keeps its category. */
 async function removeLink(): Promise<void> {
   const entry = props.entry
-  if (entry === null) return
-  if (await writes.write(linkWords.removed, (unit) => linkEntry(unit, entry, null), { key: 'remove-link', failedTitle: spendingWords.form.notSaved })) open.value = false
+  const records = store.state.records
+  if (entry === null || records === null) return
+  if (await writes.write(linkWords.removed, (unit) => linkEntry(unit, records, entry, null), { key: 'remove-link', failedTitle: spendingWords.form.notSaved })) open.value = false
 }
 
 /** Takes the receipt and its lines off, or the parts you split the entry into, and closes the dialog. */
@@ -339,7 +348,7 @@ async function remove(): Promise<void> {
           @focusout="payeeListOpen = false"
         />
       </UFormField>
-      <UFormField :label="spendingWords.form.note" :class="twoCurrencies ? '' : 'sm:col-span-2'">
+      <UFormField v-if="!split" :label="spendingWords.form.note" :class="twoCurrencies ? '' : 'sm:col-span-2'">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
       <UFormField v-if="entryLink !== null" :label="linkWords.label" class="sm:col-span-2" data-testid="spending-entry-link">

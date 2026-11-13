@@ -1,19 +1,22 @@
-import { ITEM_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { heldItemsOf, writeRows } from '../../entries/application/rowRecords'
+import type { RowWrite } from '../../entries/application/rowRecords'
 import { differenceItem } from '../../entries/domain/entrySplit'
 import { filledByBank, statementDryRun } from '../domain/statementDryRun'
 import type { StatementDryRun } from '../domain/statementDryRun'
 import { rulesRerun } from '../domain/spendingCategorisation'
+import type { RowChange } from '../domain/spendingCategorisation'
 import type { StatementRows } from '../domain/statementRows'
 import { isMadeCashLeg, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { legsOfPair } from '../../pairing/domain/transferPairs'
-import { writeReceiptPlaced } from '../../receipts/application/receiptWrites'
+import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { words as receiptWords } from '../../receipts/domain/words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
-import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
+import { isSplit, refiledItems, rowItemsOf } from '../../workbook/domain/rowItems'
+import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import { HELD_ROW_RECORDS, RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { sameCondition } from '../../workbook/domain/spendingRule'
@@ -43,18 +46,20 @@ export const HELD_ROW_WRITES: WriteRules<HeldBankRow> = {
   refusals: (_change, fresh, after) => dependentRefusals(['held'], fresh, after),
 }
 
+/** The rows and items a statement write reads of the file. */
+type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
+
 /** Everything the import does in one write, with the waiting receipts that go on its rows, so one Undo takes it all back. */
-export function writeDryRun(unit: UnitOfWork, run: Pick<StatementDryRun, 'added' | 'changed' | 'held' | 'receipts'>): void {
-  const entries = unit.of(TRANSACTION_WRITES)
-  run.added.forEach((row) => entries.add(row))
-  run.changed.forEach(({ before, after }) => entries.change(before, after))
+export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<StatementDryRun, 'added' | 'items' | 'changed' | 'held' | 'receipts'>): void {
+  const itemsOf = rowItemsOf(run)
+  writeRows(unit, records, [...run.added.map((row): RowWrite => ({ before: null, after: row, items: itemsOf(row) })), ...run.changed])
   run.held.forEach((held) => unit.of(HELD_ROW_WRITES).add(held))
-  run.receipts.forEach((placed) => writeReceiptPlaced(unit, placed))
+  run.receipts.forEach(({ receipt }) => unit.of(RECEIPT_WRITES).change(receipt.before, receipt.after))
 }
 
-/** The row under the category you picked, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it. */
-export function fileRow(unit: UnitOfWork, row: Transaction, category: Category): void {
-  unit.of(TRANSACTION_WRITES).change(row, { ...row, category: category.id, categorisedBy: category.kind === 'transfer' ? null : 'person' })
+/** The row's one item under the category you picked, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it. */
+export function fileRow(unit: UnitOfWork, records: EntryRecords, row: Transaction, category: Category): void {
+  writeRows(unit, records, [{ before: row, after: { ...row, categorisedBy: category.kind === 'transfer' ? null : 'person' }, items: refiledItems(heldItemsOf(records)(row), category.id) }])
 }
 
 /**
@@ -62,46 +67,60 @@ export function fileRow(unit: UnitOfWork, row: Transaction, category: Category):
  * about the pair, so a later import does not pair them again and To review does not offer it. A cash leg Kuna made goes,
  * since no money but the withdrawal's was ever there.
  */
-export function notAPair(unit: UnitOfWork, { debit, credit }: TransferPair): void {
-  const entries = unit.of(TRANSACTION_WRITES)
-  for (const leg of [debit, credit]) {
-    if (isMadeCashLeg(leg)) entries.remove(leg)
-    else entries.change(leg, { ...leg, pair: null, category: null, categorisedBy: 'person' })
-  }
+export function notAPair(unit: UnitOfWork, records: EntryRecords, { debit, credit }: TransferPair): void {
+  const itemsOf = heldItemsOf(records)
+  writeRows(
+    unit,
+    records,
+    [debit, credit].map((leg): RowWrite =>
+      isMadeCashLeg(leg) ? { before: leg, after: null } : { before: leg, after: { ...leg, pair: null, categorisedBy: 'person' }, items: refiledItems(itemsOf(leg), null) },
+    ),
+  )
 }
 
 /** A row To review took for cash taken out, which the person says is not: it stays where it is filed, as their own decision, so no rule or later list takes it for one again. */
-export function notCash(unit: UnitOfWork, row: Transaction): void {
-  unit.of(TRANSACTION_WRITES).change(row, { ...row, categorisedBy: 'person' })
+export function notCash(unit: UnitOfWork, records: EntryRecords, row: Transaction): void {
+  writeRows(unit, records, [{ before: row, after: { ...row, categorisedBy: 'person' } }])
 }
 
 /** Each withdrawal with its leg on the cash account picked for it, in one write with one Undo. */
-export function writeCashLegs(unit: UnitOfWork, withdrawals: readonly { readonly row: Transaction; readonly cash: Account }[], transferCategory: RecordId): void {
-  const entries = unit.of(TRANSACTION_WRITES)
-  for (const { row, cash } of withdrawals) {
-    const [debit, leg] = withCashLeg(row, cash, transferCategory)
-    entries.change(row, debit)
-    entries.add(leg)
-  }
+export function writeCashLegs(unit: UnitOfWork, records: EntryRecords, withdrawals: readonly { readonly row: Transaction; readonly cash: Account }[], transferCategory: RecordId): void {
+  const itemsOf = heldItemsOf(records)
+  writeRows(
+    unit,
+    records,
+    withdrawals.flatMap(({ row, cash }): RowWrite[] => {
+      const [debit, leg] = withCashLeg({ row, items: itemsOf(row) }, cash, transferCategory)
+      return [changedTo(row, debit), { before: null, after: leg.row, items: leg.items }]
+    }),
+  )
+}
+
+function changedTo(before: Transaction, after: ItemizedRow): RowWrite {
+  return { before, after: after.row, items: after.items }
 }
 
 /** Two rows To review offered as one transfer, paired by your word. */
-export function pairRows(unit: UnitOfWork, { debit, credit }: TransferPair, transferCategory: RecordId): void {
-  const [debitLeg, creditLeg] = legsOfPair(debit, credit, transferCategory)
-  const entries = unit.of(TRANSACTION_WRITES)
-  entries.change(debit, debitLeg)
-  entries.change(credit, creditLeg)
+export function pairRows(unit: UnitOfWork, records: EntryRecords, { debit, credit }: TransferPair, transferCategory: RecordId): void {
+  const itemsOf = heldItemsOf(records)
+  const [debitLeg, creditLeg] = legsOfPair({ row: debit, items: itemsOf(debit) }, { row: credit, items: itemsOf(credit) }, transferCategory)
+  writeRows(unit, records, [changedTo(debit, debitLeg), changedTo(credit, creditLeg)])
 }
 
-/** A near match joined by your word: the typed row takes the bank's facts and the bank's own row goes. A row split into parts gains a Difference part in its first part's category for what the bank's amount adds, so its parts keep adding up. */
-export function joinWithTyped(unit: UnitOfWork, typed: Transaction, bank: Transaction, lines: readonly TransactionItem[]): void {
-  const entries = unit.of(TRANSACTION_WRITES)
-  entries.remove(bank)
-  entries.change(typed, filledByBank(typed, bank))
-  const parts = lines.filter((part) => part.transaction === typed.id)
-  const first = parts[0]
-  const difference = first === undefined ? null : differenceItem(bank.amount, parts, first, receiptWords.difference)
-  if (difference !== null) unit.of(ITEM_WRITES).add(difference)
+/**
+ * A near match joined by your word: the typed row takes the bank's facts and the bank's own row goes. A row of one item has it
+ * follow the bank's amount, and a split row gains a Difference part in its first part's category for what the bank's amount
+ * adds, so its parts keep adding up.
+ */
+export function joinWithTyped(unit: UnitOfWork, records: EntryRecords, typed: Transaction, bank: Transaction): void {
+  const parts = heldItemsOf(records)(typed)
+  const [first] = parts
+  const difference = first === undefined || !isSplit(parts) ? null : differenceItem(bank.amount, parts, first, receiptWords.difference)
+  const items = !isSplit(parts) ? parts.map((item) => ({ ...item, amount: bank.amount })) : difference === null ? parts : [...parts, difference]
+  writeRows(unit, records, [
+    { before: bank, after: null },
+    { before: typed, after: filledByBank(typed, bank), items },
+  ])
 }
 
 /** What "Always for this payee" tests on a row: its IBAN, else its payee's name. Null for a row with neither. */
@@ -111,7 +130,7 @@ export function payeeCondition(row: Pick<Transaction, 'payee' | 'counterpartyIba
 }
 
 function rerun(unit: UnitOfWork, book: SpendingBook, rules: readonly SpendingRule[]): void {
-  rulesRerun(book, rules).forEach(({ before, after }) => unit.of(TRANSACTION_WRITES).change(before, after))
+  writeRows(unit, book.stored, rulesRerun(book, rules))
 }
 
 /** What a rule files a row as: its category, and whether it spots cash taken out. */
@@ -179,11 +198,17 @@ export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: Rul
   const rules = editing ? editRules(unit, book.rules, edits) : book.rules
   const refiled = editing ? rulesRerun(book, rules) : []
   const refiledTo = new Map(refiled.map(({ before, after }) => [before, after]))
-  const refiledFrom = new Map(refiled.map(({ before, after }) => [after, before]))
-  const run = statementDryRun({ ...book, rules, transactions: book.transactions.map((row) => refiledTo.get(row) ?? row) }, statement, day)
-  const changedByRun = run.changed.map(({ before, after }) => ({ before: refiledFrom.get(before) ?? before, after }))
+  const refiledFrom = new Map(refiled.map((change) => [change.after, change]))
+  const refiledItems = new Map(refiled.flatMap(({ before, items }) => (items === undefined ? [] : [[before.id, items] as const])))
+  const items = [...book.items.filter((item) => item.transaction === null || !refiledItems.has(item.transaction)), ...[...refiledItems.values()].flat()]
+  const run = statementDryRun({ ...book, rules, transactions: book.transactions.map((row) => refiledTo.get(row) ?? row), items }, statement, day)
+  const changedByRun = run.changed.map(({ before, after, items: runItems }): RowChange => {
+    const refiledBy = refiledFrom.get(before)
+    const items = runItems ?? refiledBy?.items
+    return { before: refiledBy?.before ?? before, after, ...(items === undefined ? {} : { items }) }
+  })
   const startsOfRun = new Set(changedByRun.map(({ before }) => before))
-  writeDryRun(unit, { added: run.added, changed: [...refiled.filter(({ before }) => !startsOfRun.has(before)), ...changedByRun], held: run.held, receipts: run.receipts })
+  writeDryRun(unit, book.stored, { ...run, changed: [...refiled.filter(({ before }) => !startsOfRun.has(before)), ...changedByRun] })
   return run
 }
 

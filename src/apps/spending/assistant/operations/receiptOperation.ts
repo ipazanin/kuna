@@ -1,6 +1,7 @@
 import { NUMBER, NUMBER_OR_NULL, TEXT, TEXT_OR_NULL, dayOf, found, inputOf, isAttachment } from '../../../../shared/app/operationInput'
 import type { ReceiptPhotos } from '../../receipts/application/receiptPhotos'
 import { writeReceiptSplit } from '../../receipts/application/receiptWrites'
+import { isSplit } from '../../workbook/domain/rowItems'
 import { fiscalQrOn } from '../../receipts/domain/fiscalQr'
 import type { FiscalQr } from '../../receipts/domain/fiscalQr'
 import { placeInPhoto } from '../../receipts/domain/photoPlace'
@@ -268,9 +269,9 @@ function placeNotes(split: ReceiptSplit, book: SpendingBook): readonly string[] 
   return [
     ...(before.date === receipt.issuedOn ? [] : [words.receipts.otherDay(dayLabel(before.date), dayLabel(receipt.issuedOn))]),
     ...(before.amount === total ? [] : [words.receipts.otherAmount(formatAccountMoney(before.amount, EURO, 'magnitude'), formatAccountMoney(total, EURO, 'magnitude'))]),
-    ...(split.replaced.length === 0
+    ...(!isSplit(split.replaced)
       ? []
-      : [words.receipts.replacesSplit(listInWords(split.replaced.map((part) => `${part.text === '' ? nameOf(part.category) : part.text} ${formatAccountMoney(part.amount, EURO)}`)))]),
+      : [words.receipts.replacesSplit(listInWords(split.replaced.map((part) => `${part.note === '' ? nameOf(part.category) : part.note} ${formatAccountMoney(part.amount, EURO)}`)))]),
   ]
 }
 
@@ -354,8 +355,8 @@ export function writeReceiptStep(
       longitude: photo.place?.longitude ?? '',
     },
     placeOf(field, book, { merchant: read.merchant, issuedOn: read.issuedOn, total: read.total }, paid, idOf),
-    read.lines.map((line) => ({ printed: line.printed, text: line.text, amount: line.amount, category: line.category! })),
+    read.lines.map((line) => ({ printed: line.printed, note: line.text, amount: line.amount, category: line.category! })),
   )
-  writeReceiptSplit(unit, split)
+  writeReceiptSplit(unit, book.stored, split)
   return { split, notes: notesOf([...drafted.notes, ...placeNotes(split, book)], read, split, book) }
 }

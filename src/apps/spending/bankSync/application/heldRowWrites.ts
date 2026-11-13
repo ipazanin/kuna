@@ -1,5 +1,5 @@
 import { BANK_SYNC_LABEL } from '../domain/bankSyncRows'
-import { TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { writeRows } from '../../entries/application/rowRecords'
 import { HELD_ROW_WRITES, writeDryRun } from '../../statements/application/statementWrites'
 import { statementDryRun } from '../../statements/domain/statementDryRun'
 import { rowOfHeld } from '../../workbook/domain/heldBankRow'
@@ -18,10 +18,10 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 export function answerHeldRow(unit: UnitOfWork, book: SpendingBook, held: HeldBankRow, keep: TwinAnswer['keep'], day: CivilDate): void {
   if (keep === 'both') {
     const statement = { label: BANK_SYNC_LABEL, rows: [rowOfHeld(held)], notes: [], twinAnswers: new Map([[rowKey(held), { booked: held.like, keep }]]) }
-    writeDryRun(unit, statementDryRun({ ...book, held: book.held.filter((other) => other !== held) }, statement, day))
+    writeDryRun(unit, book.stored, statementDryRun({ ...book, held: book.held.filter((other) => other !== held) }, statement, day))
   } else {
     const kept = book.transactions.find((row) => row.id === held.like)
-    if (kept !== undefined) unit.of(TRANSACTION_WRITES).change(kept, { ...kept, importKey: held.importKey })
+    if (kept !== undefined) writeRows(unit, book.stored, [{ before: kept, after: { ...kept, importKey: held.importKey } }])
   }
   unit.of(HELD_ROW_WRITES).remove(held)
 }

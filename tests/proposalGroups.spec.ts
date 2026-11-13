@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
+import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/rowRecords'
 import { proposalGroups } from '../src/shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../src/shared/app/proposalGroups'
 import { words } from '../src/shared/app/words'

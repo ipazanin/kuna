@@ -6,7 +6,7 @@ import type { WorkbookDocument } from '../../../../shared/storage/infrastructure
 import { newDocument, recordsOfDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
 
-const SPENDING_SCHEMA: WorkbookDocument['schema'] = { spending: 1 }
+const SPENDING_SCHEMA: WorkbookDocument['schema'] = { spending: 2 }
 
 /** A Spending file with the records given, by kind name, which a first run keeps on Drive or in this browser. */
 export function spendingDocumentOf(savedAt: string, records: WorkbookDocument['records'] = {}): WorkbookDocument {

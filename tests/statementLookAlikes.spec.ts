@@ -8,7 +8,7 @@ import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendin
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import type { LookAlikes } from '../src/shared/money/lookAlikeBookings'
-import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_EUR, row } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_EUR, row, storedBeforeItems, wholeItems } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-11-04')
@@ -21,8 +21,9 @@ function bookOf(transactions: readonly Transaction[]): SpendingBook {
     budgets: [],
     rules: [],
     receipts: [],
-    items: [],
+    items: wholeItems(transactions),
     held: [],
+    stored: storedBeforeItems(transactions),
     settings: spendingSettingsOf([]),
     readings: {} as SpendingBook['readings'],
     problems: [],

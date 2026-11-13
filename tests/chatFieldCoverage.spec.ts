@@ -300,13 +300,23 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntry',
-    from: ['entry'],
+    type: 'src/apps/spending/workbook/domain/transaction.ts#Transaction',
+    operations: ['add-entry', 'change-entry'],
+  },
+  {
+    path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntry',
+    type: 'src/apps/spending/workbook/domain/transactionItem.ts#TransactionItem',
     operations: ['add-entry', 'change-entry'].map((name) => ({ name, renames: LINK_ENTRY_RENAMES })),
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeTransfer',
-    from: ['typed'],
-    operations: ['add-transfer', 'change-transfer'].map((name) => ({ name, renames: { account: ['from', 'to'], amount: ['amount', 'toAmount'], ...LINK_ENTRY_RENAMES } })),
+    type: 'src/apps/spending/workbook/domain/transaction.ts#Transaction',
+    operations: ['add-transfer', 'change-transfer'].map((name) => ({ name, renames: { account: ['from', 'to'], amount: ['amount', 'toAmount'] } })),
+  },
+  {
+    path: 'src/apps/spending/entries/application/entryWrites.ts#writeTransfer',
+    type: 'src/apps/spending/workbook/domain/transactionItem.ts#TransactionItem',
+    operations: ['add-transfer', 'change-transfer'].map((name) => ({ name, renames: { amount: ['amount', 'toAmount'], ...LINK_ENTRY_RENAMES } })),
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#linkEntry',
@@ -327,7 +337,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   {
     path: 'src/apps/spending/receipts/application/receiptWrites.ts#writeReceiptSplit',
     type: 'src/apps/spending/workbook/domain/transactionItem.ts#TransactionItem',
-    operations: [{ name: 'add-receipt', prefix: 'lines.', renames: { amount: 'lines.lineTotal' } }],
+    operations: [{ name: 'add-receipt', prefix: 'lines.', renames: { amount: 'lines.lineTotal', note: 'lines.text', ...LINK_ENTRY_RENAMES } }],
   },
   {
     path: 'src/apps/spending/statements/application/statementWrites.ts#writeRulesInto',

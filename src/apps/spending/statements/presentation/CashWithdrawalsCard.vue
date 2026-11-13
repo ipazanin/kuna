@@ -83,14 +83,19 @@ function addAccount(currency: CurrencyCode, day: CivilDate): void {
 }
 
 async function leaveFiled(row: Transaction): Promise<void> {
-  await writes.write(words.review.cash.leftFiled, (unit) => notCash(unit, row), { key: `not-cash-${row.id}`, failedTitle: words.review.notWritten })
+  const records = store.state.records
+  if (records !== null) await writes.write(words.review.cash.leftFiled, (unit) => notCash(unit, records, row), { key: `not-cash-${row.id}`, failedTitle: words.review.notWritten })
 }
 
 async function moveAll(): Promise<void> {
   const category = transfer.value
   const moving = proposed.value
-  if (category === null || moving.length === 0) return
-  await writes.write(plural(words.review.cash.moved(moving.length), moving.length), (unit) => writeCashLegs(unit, moving, category.id), { key: 'cash-legs', failedTitle: words.review.notWritten })
+  const records = store.state.records
+  if (category === null || records === null || moving.length === 0) return
+  await writes.write(plural(words.review.cash.moved(moving.length), moving.length), (unit) => writeCashLegs(unit, records, moving, category.id), {
+    key: 'cash-legs',
+    failedTitle: words.review.notWritten,
+  })
 }
 
 async function answer(key: string, choice: string): Promise<void> {
@@ -107,10 +112,11 @@ async function answer(key: string, choice: string): Promise<void> {
     return
   }
   const cash = withdrawal.cashAccounts.find((account) => account.id === choice)
-  if (category === null || cash === undefined) return
+  const records = store.state.records
+  if (category === null || cash === undefined || records === null) return
   saving.value = { key, choice }
   try {
-    await writes.write(plural(words.review.cash.moved(1), 1), (unit) => writeCashLegs(unit, [{ row: withdrawal.row, cash }], category.id), {
+    await writes.write(plural(words.review.cash.moved(1), 1), (unit) => writeCashLegs(unit, records, [{ row: withdrawal.row, cash }], category.id), {
       key: `cash-leg-${key}`,
       failedTitle: words.review.notWritten,
     })

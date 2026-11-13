@@ -46,17 +46,23 @@ const says = ANSWERS[language]
 export const SORT_JOB = /^sort the rows waiting on to review\. |^razvrstaj retke koji čekaju na kartici za pregled\. /i
 
 /**
- * Reads the latest rows and proposes a rule from the first filed row with a shop's name and no IBAN, into the category that row
- * is under, so the rule never files a person's payments. `before` counts the lookups the turn made before it.
+ * Reads the latest rows and their parts, and proposes a rule from the first filed row with a shop's name and no IBAN, into the
+ * category its part is under, so the rule never files a person's payments. `before` counts the lookups the turn made before it.
  */
 export function sortReply({ request, tokens }: FakeChatTurn, before = 0): ModelReply {
   const answers = answersSince(request).slice(before)
   if (answers.length === 0) return lookup(before, 'find_records', findRecordsArgs('spending', 'transaction', { limit: 5 }), tokens)
   if (answers.length === 1) {
-    const row = recordsIn(answers[0]!.text).find((record) => record.category !== undefined && record.counterpartyIban === undefined && !/^(?:Person|Osoba) \d+$/.test(record.payee ?? ''))
+    const rows = recordsIn(answers[0]!.text).map((record) => record.ref)
+    return lookup(before + 1, 'find_records', findRecordsArgs('spending', 'item', { refs: rows, fields: ['transaction', 'category'], limit: 20 }), tokens)
+  }
+  if (answers.length === 2) {
+    const items = recordsIn(answers[1]!.text)
+    const categoryOf = (row: string): string | undefined => items.find((item) => item.transaction === row && item.category !== undefined)?.category
+    const row = recordsIn(answers[0]!.text).find((record) => categoryOf(record.ref) !== undefined && record.counterpartyIban === undefined && !/^(?:Person|Osoba) \d+$/.test(record.payee ?? ''))
     if (row === undefined) return answered(request, says.nothingToSort, tokens)
-    const step = proposedStep(SPENDING_OPERATIONS, 'add-rule', { row: row.ref, category: row.category })
-    return lookup(before + 1, 'propose_changes', { app: 'spending', title: says.proposalTitle, steps: [step], next: false }, tokens)
+    const step = proposedStep(SPENDING_OPERATIONS, 'add-rule', { row: row.ref, category: categoryOf(row.ref) })
+    return lookup(before + 2, 'propose_changes', { app: 'spending', title: says.proposalTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.proposed, tokens)
 }

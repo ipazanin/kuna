@@ -1,12 +1,13 @@
 import { words } from './words'
 import { loneLeg } from '../domain/startDayMove'
 import type { StartDayMove } from '../domain/startDayMove'
-import { ITEM_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { writeRows } from '../../entries/application/rowRecords'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { HELD_ROW_WRITES } from '../../statements/application/statementWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { bankLinkWithoutIban } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
+import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -49,12 +50,10 @@ export function newAccount(account: Omit<Account, 'id'>): Account {
  * The account as typed over the one on the file, in one write with one Undo. When its start day moved later, what came before
  * the new day goes in the same write, and each transfer's other leg stays with no pair.
  */
-export function changeAccount(unit: UnitOfWork, before: Account, after: Account, move: StartDayMove | null): void {
+export function changeAccount(unit: UnitOfWork, records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>, before: Account, after: Account, move: StartDayMove | null): void {
   unit.of(ACCOUNT_WRITES).change(before, after)
   if (move === null) return
-  move.parts.forEach((part) => unit.of(ITEM_WRITES).remove(part))
   move.receipts.forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
   move.held.forEach((held) => unit.of(HELD_ROW_WRITES).remove(held))
-  move.rows.forEach((row) => unit.of(TRANSACTION_WRITES).remove(row))
-  move.loneLegs.forEach((leg) => unit.of(TRANSACTION_WRITES).change(leg, loneLeg(leg)))
+  writeRows(unit, records, [...move.rows.map((row) => ({ before: row, after: null })), ...move.loneLegs.map((leg) => ({ before: leg, after: loneLeg(leg) }))])
 }

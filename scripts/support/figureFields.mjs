@@ -1,13 +1,14 @@
 /**
  * The fields of a record that hold no figure, as its parsed record names them and as its stored cells do. A Spending row's are
  * the bank's words and marks, which spending.read.statements hashes, who filed the row, and its link, which spending.published.links
- * hashes. A Spending account's is where its rows come from, which spending.read.sources hashes, and so is an Investments account's,
+ * hashes, and so is the link of a Spending row's item. A Spending account's is where its rows come from, which spending.read.sources hashes, and so is an Investments account's,
  * with its start day, which investments.read.sources hashes. A Company ledger row's are the bank's words and marks and who flagged it, which read.workbook hashes.
  */
 export const SPENDING_ROW = {
   record: new Set(['description', 'counterpartyIban', 'importKey', 'statement', 'categorisedBy', 'movedAt', 'pocket', 'cashWithdrawal', 'link']),
   cells: new Set(['description', 'counterparty_iban', 'import_key', 'statement', 'categorised_by', 'moved_at', 'pocket', 'cash_withdrawal', 'link']),
 }
+export const SPENDING_ITEM = { record: new Set(['link']), cells: new Set(['link']) }
 export const SPENDING_ACCOUNT = { record: new Set(['rowsFrom']), cells: new Set(['rows_from']) }
 export const INVESTMENT_ACCOUNT = { record: new Set(['intake']), cells: new Set(['rows_from', 'starts_on']) }
 export const COMPANY_LEDGER_ROW = {
@@ -15,9 +16,10 @@ export const COMPANY_LEDGER_ROW = {
   cells: new Set(['statement', 'counterparty_iban', 'description', 'flagged_by', 'reference', 'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency']),
 }
 
-/** A Spending row of the file, a statement's or a held one carries an import key, and an account where its rows come from. */
+/** A Spending row of the file, a statement's or a held one carries an import key, a row's item what the till printed, and an account where its rows come from. */
 function spendingKindOf(record) {
   if (Object.hasOwn(record, 'importKey')) return SPENDING_ROW
+  if (Object.hasOwn(record, 'printed')) return SPENDING_ITEM
   if (Object.hasOwn(record, 'rowsFrom')) return SPENDING_ACCOUNT
   return null
 }

@@ -1,132 +1,100 @@
-import { refusedOnAccount } from '../domain/bankRows'
 import type { EntrySplit } from '../domain/entrySplit'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
-import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
+import { heldItemsOf, writeRows } from './rowRecords'
+import type { RowWrite } from './rowRecords'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
-import type { TransactionItem } from '../../workbook/domain/transactionItem'
-import { itemsOfRow } from '../../workbook/domain/rowItems'
-import type { WholeRow } from '../../workbook/domain/rowItems'
-import { ACCOUNT_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import type { ItemizedRow } from '../../workbook/domain/rowItems'
+import { isSplit, largestItem, linkOfItems, linkedItems, wholeItemOf } from '../../workbook/domain/rowItems'
+import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { words } from '../../workbook/domain/words'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { partReplacements } from '../../../../shared/categorising/domain/partReplacements'
 import type { PartReplacement } from '../../../../shared/categorising/domain/partReplacements'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
-import { textOf } from '../../../../shared/storage/domain/storedFields'
-import { pickedEdits } from '../../../../shared/storage/domain/writeRules'
-import type { FreshRecords, KindChange, WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/**
- * An entry may be a transfer's leg, which its other leg names back, so a write keeps both or neither. A row a statement brought
- * stays on its account, and a row a person made goes on no account the bank fills. A row split into parts keeps the amount its
- * parts add up to, and one a bank row on hold looks like stays.
- */
-export const TRANSACTION_WRITES: WriteRules<Transaction> = {
-  kind: TRANSACTION_RECORDS,
-  reads: SPENDING_KINDS,
-  undoable: true,
-  read: (read, records) => bookWith(TRANSACTION_RECORDS, read, records).readings.transactions,
-  refusals: (change, fresh, after) => [
-    ...pickedEdits(change, (fields) => ({ account: textOf(fields.account), importKey: textOf(fields.import_key) })).flatMap(({ before, after: changed }) =>
-      before !== null && changed !== null && before.importKey !== '' && before.account !== changed.account ? [words.accountOfStatementRow] : [],
-    ),
-    ...byHandOnBankAccounts(change, after),
-    ...dependentRefusals(['transactions', 'receipts', 'items', 'held'], fresh, after),
-  ],
+/** The rows and items an entry write reads of the file. */
+type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts'>
+
+/** What you type for an entry not split: its category, or none while it waits on review, and its note. */
+export interface TypedFiling {
+  readonly category: RecordId | null
+  readonly note: string
 }
 
-/** Each row the write puts on an account the bank fills, newly or by moving it there, that a person made. */
-function byHandOnBankAccounts(change: KindChange<Transaction>, after: FreshRecords): readonly string[] {
-  const accounts = new Map(recordsOf(after.of(ACCOUNT_RECORDS)).map((account) => [account.id, account]))
-  return change.edits.flatMap((edit) => {
-    if (edit.after === null || !('record' in edit.after)) return []
-    const row = edit.after.record
-    const before = edit.before !== null && 'record' in edit.before ? edit.before.record : null
-    const account = accounts.get(row.account)
-    if (account === undefined || before?.account === row.account || !refusedOnAccount(row, account)) return []
-    return [words.byHandOnBankAccount(account.name)]
-  })
-}
-
-/** The parts of an entry add up to its amount, so a write changes them together or not at all. */
-export const ITEM_WRITES: WriteRules<TransactionItem> = {
-  kind: ITEM_RECORDS,
-  reads: SPENDING_KINDS,
-  undoable: true,
-  read: (read, records) => bookWith(ITEM_RECORDS, read, records).readings.items,
-  refusals: (_change, fresh, after) => dependentRefusals(['items'], fresh, after),
-}
-
-/** A new typed entry, its text trimmed, with an id of its own. */
-export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee' | 'category' | 'note'>): Transaction {
-  return {
-    ...entry,
-    ...NO_BANK_FACTS,
-    payee: entry.payee.trim(),
-    note: entry.note.trim(),
-    source: 'typed',
-    pair: null,
-    link: null,
-    categorisedBy: 'person',
-    id: recordIdOf(TRANSACTION_RECORDS, newRecordId()),
-  }
+/** A new typed entry, its text trimmed, with an id of its own and one item with all of its money. */
+export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee'> & TypedFiling): ItemizedRow {
+  const { category, note, ...typed } = entry
+  const row: Transaction = { ...typed, ...NO_BANK_FACTS, payee: entry.payee.trim(), source: 'typed', pair: null, categorisedBy: 'person', id: recordIdOf(TRANSACTION_RECORDS, newRecordId()) }
+  return { row, items: [wholeItemOf(row, { category, note: note.trim(), link: null })] }
 }
 
 /**
- * What you typed over a row on the file. It keeps its id, its source, its link and what the bank said, so a later statement still
- * skips it, and a category you changed is yours from then on.
+ * What you typed over a row on the file. It keeps its id, its source and what the bank said, so a later statement still skips
+ * it. A row not split keeps its one item's id and link and takes the typed amount, category and note, and a category you changed
+ * is yours from then on. A split row keeps its items.
  */
-export function retypedEntry(before: Transaction, typed: Transaction): Transaction {
-  const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, link } = before
-  return { ...typed, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, link, categorisedBy: typed.category === before.category ? before.categorisedBy : 'person' }
+export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
+  const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source } = before.row
+  const [held] = before.items
+  const [filing] = typed.items
+  const whole = held !== undefined && filing !== undefined && !isSplit(before.items)
+  const filedAnew = whole && held.category !== filing.category
+  const row: Transaction = { ...typed.row, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: filedAnew ? 'person' : before.row.categorisedBy }
+  return { row, items: whole ? [{ ...held, amount: row.amount, category: filing.category, note: filing.note }] : before.items }
 }
 
 /**
  * A plain row turned into a transfer: it stays the leg its money already is, so money in stays money in, and the other
  * leg joins it.
  */
-export function transferOver(before: Transaction, [outLeg, inLeg]: readonly [Transaction, Transaction]): { readonly kept: Transaction; readonly added: Transaction } {
-  const [stays, joins] = before.amount < 0 ? [outLeg, inLeg] : [inLeg, outLeg]
-  return { kept: { ...retypedEntry(before, stays), pair: joins.id }, added: { ...joins, pair: before.id } }
+export function transferOver(before: ItemizedRow, [outLeg, inLeg]: readonly [ItemizedRow, ItemizedRow]): { readonly kept: ItemizedRow; readonly added: ItemizedRow } {
+  const [stays, joins] = before.row.amount < 0 ? [outLeg, inLeg] : [inLeg, outLeg]
+  const kept = retypedEntry(before, stays)
+  return { kept: { ...kept, row: { ...kept.row, pair: joins.row.id } }, added: { ...joins, row: { ...joins.row, pair: before.row.id } } }
+}
+
+function changed(before: ItemizedRow, after: ItemizedRow): RowWrite {
+  return { before: before.row, after: after.row, items: after.items }
+}
+
+function added(after: ItemizedRow): RowWrite {
+  return { before: null, after: after.row, items: after.items }
 }
 
 /** The entry typed over a row on the file, or added when there is none. A transfer's other leg goes, since the row is a plain entry now. */
-export function writeEntry(unit: UnitOfWork, before: Transaction | null, entry: Transaction, otherLeg: Transaction | null): void {
-  const entries = unit.of(TRANSACTION_WRITES)
+export function writeEntry(unit: UnitOfWork, records: EntryRecords, before: ItemizedRow | null, entry: ItemizedRow, otherLeg: Transaction | null): void {
   if (before === null) {
-    entries.add(entry)
+    writeRows(unit, records, [added(entry)])
     return
   }
-  entries.change(before, retypedEntry(before, entry))
-  if (otherLeg !== null) entries.remove(otherLeg)
+  writeRows(unit, records, [changed(before, retypedEntry(before, entry)), ...(otherLeg === null ? [] : [{ before: otherLeg, after: null }])])
 }
 
 /** Both legs of a transfer in one write: added, a plain row turned into the leg its money already is, or written over the transfer it was. */
-export function writeTransfer(unit: UnitOfWork, before: Transaction | null, legs: readonly [Transaction, Transaction] | null, typed: readonly [Transaction, Transaction]): void {
-  const entries = unit.of(TRANSACTION_WRITES)
+export function writeTransfer(unit: UnitOfWork, records: EntryRecords, before: ItemizedRow | null, legs: readonly [ItemizedRow, ItemizedRow] | null, typed: readonly [ItemizedRow, ItemizedRow]): void {
   const [outLeg, inLeg] = typed
   if (before === null) {
-    entries.add(outLeg)
-    entries.add(inLeg)
+    writeRows(unit, records, [added(outLeg), added(inLeg)])
   } else if (legs === null) {
-    const { kept, added } = transferOver(before, typed)
-    entries.change(before, kept)
-    entries.add(added)
+    const { kept, added: joined } = transferOver(before, typed)
+    writeRows(unit, records, [changed(before, kept), added(joined)])
   } else {
     const [oldOut, oldIn] = legs
-    entries.change(oldOut, { ...retypedEntry(oldOut, outLeg), pair: oldIn.id })
-    entries.change(oldIn, { ...retypedEntry(oldIn, inLeg), pair: oldOut.id })
+    const out = retypedEntry(oldOut, outLeg)
+    const into = retypedEntry(oldIn, inLeg)
+    writeRows(unit, records, [changed(oldOut, { ...out, row: { ...out.row, pair: oldIn.row.id } }), changed(oldIn, { ...into, row: { ...into.row, pair: oldOut.row.id } })])
   }
 }
 
-/** The entry linked to the record in another app it is, or its link taken off for null. It keeps its category. */
-export function linkEntry(unit: UnitOfWork, row: Transaction, link: RowLink | null): void {
-  unit.of(TRANSACTION_WRITES).change(row, { ...row, link })
+/** Every item of the entry linked to the record in another app it is, or its link taken off for null. It keeps its category. */
+export function linkEntry(unit: UnitOfWork, records: EntryRecords, row: Transaction, link: RowLink | null): void {
+  writeRows(unit, records, [{ before: row, after: row, items: linkedItems(heldItemsOf(records)(row), link) }])
 }
 
 /** Whether deleting these rows lets the next overlapping statement bring one back, since nothing remembers a deleted row's key. */
@@ -135,49 +103,51 @@ export function deleteComesBack(rows: readonly Transaction[]): boolean {
 }
 
 /** The entry's other leg in the file, or null for an entry that is no transfer's leg. */
-export function otherLegOf(records: SpendingRecords, entry: Transaction): Transaction | null {
+export function otherLegOf(records: Pick<SpendingRecords, 'transactions'>, entry: Transaction): Transaction | null {
   return entry.pair === null ? null : (recordsOf(records.transactions).find((other) => other.id === entry.pair) ?? null)
 }
 
-/** Deletes the entry with its other leg and its receipt in one write, so one Undo puts them all back. */
-export function removeEntry(unit: UnitOfWork, records: SpendingRecords, entry: Transaction): void {
+/** Deletes the entry with its other leg, their items and their receipts in one write, so one Undo puts them all back. A photo kept on Drive stays there. */
+export function removeEntry(unit: UnitOfWork, records: EntryRecords, entry: Transaction): void {
   const other = otherLegOf(records, entry)
-  for (const row of other === null ? [entry] : [entry, other]) {
-    unit.of(TRANSACTION_WRITES).remove(row)
-    removeSplitOf(unit, records, row)
-  }
+  const rows = other === null ? [entry] : [entry, other]
+  writeRows(
+    unit,
+    records,
+    rows.map((row) => ({ before: row, after: null })),
+  )
+  removeReceiptsOf(unit, records, rows)
 }
 
 /**
- * The entry under its main category with the parts you split it into, in one write. A part with the id of one the entry holds
- * changes in place, the others are added, and a held part no new part names goes. Gives what each part replaces.
+ * The entry with the parts you split it into, in one write. A part with the id of one the entry holds changes in place, the
+ * others are added, and a held part no new part names goes. Gives what each part replaces.
  */
-export function writeEntrySplit(unit: UnitOfWork, records: Pick<SpendingRecords, 'items'>, { before, row, parts }: EntrySplit): readonly PartReplacement<RecordId>[] {
-  const held = partsOf(records, before)
-  const kept = new Set(parts.map((part) => part.id))
-  unit.of(TRANSACTION_WRITES).change(before, row)
-  held.filter((part) => !kept.has(part.id)).forEach((part) => unit.of(ITEM_WRITES).remove(part))
-  for (const part of parts) {
-    const opened = held.find((candidate) => candidate.id === part.id)
-    if (opened === undefined) unit.of(ITEM_WRITES).add(part)
-    else unit.of(ITEM_WRITES).change(opened, part)
-  }
-  return partReplacements(itemsOfRow(before, held), parts)
+export function writeEntrySplit(unit: UnitOfWork, records: EntryRecords, { before, row, parts }: EntrySplit): readonly PartReplacement<RecordId>[] {
+  writeRows(unit, records, [{ before: before.row, after: row, items: parts }])
+  return partReplacements(before.items, parts)
+}
+
+/** The one item a split row stands for again: all of its money under the category most of it was in, with the note of its largest part and its link. */
+export function unsplitItem(row: Pick<Transaction, 'id' | 'amount'>, held: readonly TransactionItem[]): TransactionItem {
+  return wholeItemOf(row, { category: mainCategoryOf(held), note: largestItem(held)?.note ?? '', link: linkOfItems(held) })
 }
 
 /**
- * Takes the row's parts out, with the receipt that split it when one did, which leaves the row under its main category. A photo
- * kept on Drive stays there. Gives what the one part the row stands for again replaces.
+ * Takes the row's parts out, with the receipt that split it when one did, which leaves one item under its main category. A photo
+ * kept on Drive stays there. Gives what that one item replaces.
  */
-export function removeSplitOf(unit: UnitOfWork, records: Pick<SpendingRecords, 'receipts' | 'items'>, row: WholeRow): readonly PartReplacement<RecordId>[] {
-  const held = partsOf(records, row)
-  held.forEach((part) => unit.of(ITEM_WRITES).remove(part))
+export function removeSplitOf(unit: UnitOfWork, records: EntryRecords, row: Transaction): readonly PartReplacement<RecordId>[] {
+  const held = heldItemsOf(records)(row)
+  const whole = unsplitItem(row, held)
+  writeRows(unit, records, [{ before: row, after: row, items: [whole] }])
+  removeReceiptsOf(unit, records, [row])
+  return partReplacements(held, [whole])
+}
+
+function removeReceiptsOf(unit: UnitOfWork, records: Pick<SpendingRecords, 'receipts'>, rows: readonly Pick<Transaction, 'id'>[]): void {
+  const ids = new Set(rows.map((row) => row.id))
   recordsOf(records.receipts)
-    .filter((receipt) => receipt.transaction === row.id)
+    .filter((receipt) => receipt.transaction !== null && ids.has(receipt.transaction))
     .forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
-  return partReplacements(held, itemsOfRow(row, []))
-}
-
-function partsOf(records: Pick<SpendingRecords, 'items'>, row: Pick<Transaction, 'id'>): readonly TransactionItem[] {
-  return recordsOf(records.items).filter((part) => part.transaction === row.id)
 }

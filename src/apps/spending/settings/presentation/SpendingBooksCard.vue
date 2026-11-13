@@ -8,6 +8,7 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { LOCAL_SPENDING_TITLE } from '../../workbook/presentation/spendingFile'
 import { useSpendingExport } from '../../workbook/presentation/useSpendingExport'
 import { spendingData } from '../../workbook/presentation/spendingData'
+import ItemsMoveNotice from '../../workbook/presentation/ItemsMoveNotice.vue'
 import { words } from './words'
 
 /** Spending Settings: where the Spending file is, with its export and the switch to another home. */
@@ -26,6 +27,7 @@ const { exporting, exportNow } = useSpendingExport()
     :seeded-title="{ stored: LOCAL_SPENDING_TITLE, shown: words.localTitle }"
     data-testid="spending-books-card"
   >
+    <ItemsMoveNotice />
     <template #actions>
       <UButton icon="i-lucide-download" :label="words.export" color="neutral" variant="outline" size="sm" :loading="exporting" :disabled="exporting || state.snapshot === null" @click="exportNow" />
       <UButton :to="SPENDING_START_ROUTE" icon="i-lucide-arrow-left-right" :label="words.switchStorage" color="neutral" variant="outline" size="sm" data-testid="spending-switch-storage" />

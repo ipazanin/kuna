@@ -88,25 +88,25 @@ export function writeReviewStep(unit: UnitOfWork, book: SpendingBook, operation:
   const transfer = book.categories.find((category) => category.kind === 'transfer')
   if (operation === 'move-to-cash') {
     if (transfer === undefined) throw new StepRefused('The file has no Between my accounts category.')
-    writeCashLegs(unit, [{ row, cash: cashFor(book, row, cashAccount) }], transfer.id)
+    writeCashLegs(unit, book.stored, [{ row, cash: cashFor(book, row, cashAccount) }], transfer.id)
     return
   }
   if (operation === 'not-cash') {
     if (!reviewQueue(book, today()).withdrawals.some((candidate) => candidate.row.id === row.id)) throw new StepRefused('To review lists no cash withdrawal for that row.')
-    notCash(unit, row)
+    notCash(unit, book.stored, row)
     return
   }
   if (operation === 'unpair-rows') {
-    notAPair(unit, statementPair(book, row))
+    notAPair(unit, book.stored, statementPair(book, row))
     return
   }
   const waiting = reviewQueue(book, today()).waiting.find((candidate) => candidate.row.id === row.id)
   if (waiting === undefined) throw new StepRefused('That row does not wait on To review.')
   if (operation === 'join-rows') {
     if (waiting.maybeTyped === null) throw new StepRefused('To review offers no typed row as the same money for that row.')
-    joinWithTyped(unit, waiting.maybeTyped.typed, waiting.maybeTyped.bank, book.items)
+    joinWithTyped(unit, book.stored, waiting.maybeTyped.typed, waiting.maybeTyped.bank)
     return
   }
   if (waiting.maybeTransfer === null || transfer === undefined) throw new StepRefused('To review offers no row on another account as the other side of that one.')
-  pairRows(unit, waiting.maybeTransfer, transfer.id)
+  pairRows(unit, book.stored, waiting.maybeTransfer, transfer.id)
 }

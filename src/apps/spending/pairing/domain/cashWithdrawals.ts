@@ -5,6 +5,8 @@ import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { wholeItemOf } from '../../workbook/domain/rowItems'
+import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { negateAccountMoney } from '../../../../shared/money/accountMoney'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -31,22 +33,19 @@ export function cashAccountsFor(row: Pick<Transaction, 'account' | 'date'>, name
 }
 
 /** The withdrawal and its cash leg as a pair: the same money into the cash account on the same day, both under Between my accounts. */
-export function withCashLeg(debit: Transaction, cash: Pick<Account, 'id'>, transfer: RecordId, newKey: () => string = newRecordId): readonly [Transaction, Transaction] {
+export function withCashLeg(debit: ItemizedRow, cash: Pick<Account, 'id'>, transfer: RecordId, newKey: () => string = newRecordId): readonly [ItemizedRow, ItemizedRow] {
   const leg: Transaction = {
     ...NO_BANK_FACTS,
     id: recordIdOf(TRANSACTION_RECORDS, newKey()),
     account: cash.id,
-    date: debit.date,
-    amount: negateAccountMoney(debit.amount),
-    payee: debit.payee,
-    category: transfer,
-    note: '',
+    date: debit.row.date,
+    amount: negateAccountMoney(debit.row.amount),
+    payee: debit.row.payee,
     source: 'typed',
     pair: null,
-    link: null,
     categorisedBy: null,
   }
-  return legsOfPair(debit, leg, transfer)
+  return legsOfPair(debit, { row: leg, items: [wholeItemOf(leg, { category: transfer, note: '', link: null })] }, transfer)
 }
 
 /** Whether a row is a cash leg Kuna made for a withdrawal, which no bank brought and no person typed. */

@@ -177,6 +177,7 @@ import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastruct
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
 import { reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue.ts'
 import { withCashLeg } from '../src/apps/spending/pairing/domain/cashWithdrawals.ts'
+import { itemizedRow } from '../src/apps/spending/workbook/domain/rowItems.ts'
 import { readBanks } from '../src/apps/spending/bankSync/application/bankRead.ts'
 import { startDays, startedAccount } from '../src/apps/spending/bankSync/domain/bankAccountSetup.ts'
 import { balanceDifferences } from '../src/apps/spending/bankSync/domain/bankBalance.ts'
@@ -763,10 +764,10 @@ async function spendingGroups(addGroup) {
       const transfer = workbook.categories.find((category) => category.kind === 'transfer').id
       let place = 0
       const legs = reviewQueue(workbook, today).withdrawals.flatMap(({ row, cashAccounts }) =>
-        cashAccounts.length === 1 ? [withCashLeg(row, cashAccounts[0], transfer, () => `fa4e3300-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)] : [],
+        cashAccounts.length === 1 ? [withCashLeg(itemizedRow(workbook, row), cashAccounts[0], transfer, () => `fa4e3300-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)] : [],
       )
-      const pairedTo = new Map(legs.map(([debit]) => [debit.id, debit]))
-      const rows = [...workbook.transactions.map((row) => pairedTo.get(row.id) ?? row), ...legs.map(([, leg]) => leg)]
+      const pairedTo = new Map(legs.map(([debit]) => [debit.row.id, debit.row]))
+      const rows = [...workbook.transactions.map((row) => pairedTo.get(row.id) ?? row), ...legs.map(([, leg]) => leg.row)]
       return workbook.accounts.flatMap((account, at) => {
         if (account.kind !== 'cash') return []
         const { balance, euros } = accountOnDay(account, rows, today, rates.everyday)

@@ -12,6 +12,8 @@ import { NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { NEW_CATEGORY_DEFAULTS } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
@@ -25,6 +27,7 @@ import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { DEFAULT_MONEY_FORMAT, formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import type { CheckedWrite } from '../../../../shared/storage/application/recordWrites'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 import { BOOKING_LOOK_ALIKE, copiedInKunaText, copiedStatementRowsWarning, lookAlikesNote } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { listInWords } from '../../../../shared/text/listInWords'
@@ -72,7 +75,7 @@ function currencyOf(record: ProposedRecord, book: SpendingBook): Account['curren
 function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, book: SpendingBook, namesOf: ReadonlyMap<unknown, string>, loans: AppTargets<LinkTarget>): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
-  if (isKind(kind, TRANSACTION_RECORDS, record) && field === 'link') return record.link === null ? null : linkText(linkStateOf(record.link, loans))
+  if ((isKind(kind, TRANSACTION_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'link') return record.link === null ? null : linkText(linkStateOf(record.link, loans))
   if (isKind(kind, RULE_RECORDS, record) && field === 'order') return null
   if (isKind(kind, RULE_RECORDS, record) && field === 'withdrawal') {
     const named = record.withdrawal?.cashAccount == null ? undefined : namesOf.get(record.withdrawal.cashAccount)
@@ -105,13 +108,13 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   return namesOf.get(value) ?? String(value)
 }
 
-/** What the record is called on screen: an entry by its payee or else its category, a rule by the payee or IBAN it files, a limit by its category, a part of an entry by its words or else its category, and others by their name. */
-function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>): string {
-  if (isKind(kind, TRANSACTION_RECORDS, record)) return record.payee !== '' ? record.payee : (namesOf.get(record.category) ?? fallback)
+/** What the record is called on screen: an entry by its payee or else its first item's category, a rule by the payee or IBAN it files, a limit by its category, a part of an entry by its words or else its category, and others by their name. */
+function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>, categoryOf: (row: RecordId) => RecordId | null): string {
+  if (isKind(kind, TRANSACTION_RECORDS, record)) return record.payee !== '' ? record.payee : (namesOf.get(record.category ?? categoryOf(record.id)) ?? fallback)
   if (isKind(kind, RULE_RECORDS, record)) return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment
   if (isKind(kind, BUDGET_RECORDS, record)) return namesOf.get(record.category) ?? fallback
   if (isKind(kind, RECEIPT_RECORDS, record)) return record.merchant !== '' ? record.merchant : fallback
-  if (isKind(kind, ITEM_RECORDS, record)) return record.text !== '' ? record.text : record.printed !== '' ? record.printed : (namesOf.get(record.category) ?? fallback)
+  if (isKind(kind, ITEM_RECORDS, record)) return record.note !== '' ? record.note : record.printed !== '' ? record.printed : (namesOf.get(record.category) ?? fallback)
   if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record)) return record.name
   return fallback
 }
@@ -203,11 +206,15 @@ export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, lo
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && 'name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
   })
+  // A row of a file moved to items keeps its category on its items, which the write gives with it or the file holds.
+  const written = checked.changes.flatMap(({ change }) => ((change.verb === 'add' || change.verb === 'change') && change.kind.name === ITEM_RECORDS.name ? [change.after as TransactionItem] : []))
+  const itemsOf = rowItemsOf({ items: [...written, ...book.items] })
+  const categoryOf = (row: RecordId): RecordId | null => itemsOf({ id: row })[0]?.category ?? null
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, loans),
-    label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf),
+    label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf, categoryOf),
     defaultsOf: defaultsOnAdd,
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),
   }

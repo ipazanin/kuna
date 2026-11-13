@@ -5,7 +5,8 @@ import type { TransactionItem } from './transactionItem'
 import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
 import type { SpendingRule } from './spendingRule'
-import type { Transaction } from './transaction'
+import type { StoredLine } from './beforeItems'
+import type { StoredRow } from './transaction'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
 import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 
@@ -17,7 +18,7 @@ export const CATEGORY_RECORDS = recordKind<Category>('category', {
   en: { one: 'category', many: 'categories', article: 'a' },
   hr: { one: 'kategorija', of: 'kategorije', few: 'kategorije', other: 'kategorija', gender: 'feminine' },
 })
-export const TRANSACTION_RECORDS = recordKind<Transaction>('transaction', {
+export const TRANSACTION_RECORDS = recordKind<StoredRow>('transaction', {
   en: { one: 'entry', many: 'entries', article: 'an' },
   hr: { one: 'unos', of: 'unosa', few: 'unosa', other: 'unosa', gender: 'masculine' },
 })
@@ -33,11 +34,16 @@ export const RECEIPT_RECORDS = recordKind<Receipt>('receipt', {
   en: { one: 'receipt', many: 'receipts', article: 'a' },
   hr: { one: 'fiskalni račun', of: 'fiskalnog računa', few: 'fiskalna računa', other: 'fiskalnih računa', gender: 'masculine' },
 })
-/** Named `line` in the file, from when only a receipt split an entry. */
-export const ITEM_RECORDS = recordKind<TransactionItem>('line', {
-  en: { one: 'part of an entry', many: 'parts of entries', article: 'a' },
-  hr: { one: 'dio unosa', of: 'dijela unosa', few: 'dijela unosa', other: 'dijelova unosa', gender: 'masculine' },
-})
+export const ITEM_RECORDS = recordKind<TransactionItem>(
+  'item',
+  {
+    en: { one: 'part of an entry', many: 'parts of entries', article: 'a' },
+    hr: { one: 'dio unosa', of: 'dijela unosa', few: 'dijela unosa', other: 'dijelova unosa', gender: 'masculine' },
+  },
+  { kind: TRANSACTION_RECORDS, field: 'transaction' },
+)
+/** A part of an entry as a file from before items keeps it. */
+export const LINE_RECORDS = recordKind<StoredLine>('line', ITEM_RECORDS.noun, { kind: TRANSACTION_RECORDS, field: 'transaction' })
 export const HELD_ROW_RECORDS = recordKind<HeldBankRow>('held-row', {
   en: { one: 'bank row on hold', many: 'bank rows on hold', article: 'a' },
   hr: { one: 'redak iz banke na čekanju', of: 'retka iz banke na čekanju', few: 'retka iz banke na čekanju', other: 'redaka iz banke na čekanju', gender: 'masculine' },

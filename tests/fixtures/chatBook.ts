@@ -5,6 +5,8 @@ import type { SpendingBook } from '../../src/apps/spending/workbook/domain/readS
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
 import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../../src/apps/spending/workbook/domain/transaction'
+import { wholeItemOf } from '../../src/apps/spending/workbook/domain/rowItems'
+import type { ItemizedRow } from '../../src/apps/spending/workbook/domain/rowItems'
 import { NO_BANK_FACTS } from '../../src/apps/spending/workbook/domain/transaction'
 import { parseCivilDate } from '../../src/shared/calendar/civilDate'
 import { currencyCodeOf } from '../../src/shared/money/currencyCode'
@@ -36,23 +38,27 @@ const FOOD: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-food'), name
 const GROCERIES: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-groceries'), name: 'Groceries', kind: 'spending', parent: FOOD.id, order: 1, colour: '', hidden: false }
 const RENT: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-rent'), name: 'Rent', kind: 'spending', parent: null, order: 2, colour: '', hidden: false }
 
-function row(place: number, date: string, amount: number, payee: string, category: Category, fields: Partial<Transaction> = {}): Transaction {
-  return {
+function row(place: number, date: string, amount: number, payee: string, category: Category, fields: Partial<Transaction> = {}, note = ''): ItemizedRow {
+  const entry: Transaction = {
     ...NO_BANK_FACTS,
     id: recordIdOf(TRANSACTION_RECORDS, `transaction-${place}`),
     account: ACCOUNT.id,
     date: on(date),
     amount: accountMoneyFromAmount(amount),
     payee,
-    category: category.id,
-    note: '',
     source: 'statement',
     pair: null,
-    link: null,
     categorisedBy: 'rule',
     ...fields,
   }
+  return { row: entry, items: [wholeItemOf(entry, { category: category.id, note, link: null })] }
 }
+
+const ROWS: readonly ItemizedRow[] = [
+  row(1, '2026-09-05', -500, 'HORVAT ANA', RENT, { counterpartyIban: IBAN_OF_ANA, importKey: 'made-up-import-key' }),
+  row(2, '2026-10-12', -45.3, 'Corner market', GROCERIES, { description: HOSTILE_TEXT }),
+  row(3, '2026-10-05', -600, 'Ana Horvat', RENT, { description: 'Stanarina Ana Horvat, Ilica 15', counterpartyIban: IBAN_OF_ANA }, 'OIB 12345678903'),
+]
 
 const RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-a'),
@@ -76,15 +82,11 @@ const RECEIPT: Receipt = {
 export const CHAT_BOOK = {
   accounts: [ACCOUNT],
   categories: [FOOD, GROCERIES, RENT],
-  transactions: [
-    row(1, '2026-09-05', -500, 'HORVAT ANA', RENT, { counterpartyIban: IBAN_OF_ANA, importKey: 'made-up-import-key' }),
-    row(2, '2026-10-12', -45.3, 'Corner market', GROCERIES, { description: HOSTILE_TEXT }),
-    row(3, '2026-10-05', -600, 'Ana Horvat', RENT, { description: 'Stanarina Ana Horvat, Ilica 15', counterpartyIban: IBAN_OF_ANA, note: 'OIB 12345678903' }),
-  ],
+  transactions: ROWS.map(({ row: entry }) => entry),
   budgets: [{ id: recordIdOf(BUDGET_RECORDS, 'budget-a'), category: FOOD.id, from: '2026-01', amount: moneyFromAmount(200) }],
   rules: [{ id: recordIdOf(RULE_RECORDS, 'rule-a'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Ana Horvat' }, category: RENT.id }],
   receipts: [RECEIPT],
-  items: [],
+  items: ROWS.flatMap(({ items }) => items),
   held: [],
   settings: { personPayees: ['Ana Horvat'] },
 } as unknown as SpendingBook

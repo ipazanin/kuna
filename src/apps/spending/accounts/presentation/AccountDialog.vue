@@ -157,10 +157,12 @@ async function save(): Promise<void> {
     closed: props.account?.closed ?? NEW_ACCOUNT_DEFAULTS.closed,
   })
   const before = props.account
+  const records = store.state.records
+  if (before !== null && records === null) return
   const written =
-    before === null
+    before === null || records === null
       ? await writes.write(words.dialog.added, (unit) => unit.of(ACCOUNT_WRITES).add(typed), { failedTitle: spendingWords.form.notAdded })
-      : await writes.write(words.dialog.saved, (unit) => changeAccount(unit, before, { ...typed, id: before.id }, move.value), { failedTitle: spendingWords.form.notSaved })
+      : await writes.write(words.dialog.saved, (unit) => changeAccount(unit, records, before, { ...typed, id: before.id }, move.value), { failedTitle: spendingWords.form.notSaved })
   if (written) open.value = false
 }
 

@@ -134,7 +134,8 @@ const changes = computed(() => (dryRun.value === null ? 0 : dryRun.value.added.l
 
 async function confirm(): Promise<void> {
   const run = dryRun.value
-  if (run !== null) await writes.write(words.import.imported, (unit) => writeDryRun(unit, run), { key: 'import', failedTitle: words.import.notImported })
+  const records = store.state.records
+  if (run !== null && records !== null) await writes.write(words.import.imported, (unit) => writeDryRun(unit, records, run), { key: 'import', failedTitle: words.import.notImported })
 }
 </script>
 

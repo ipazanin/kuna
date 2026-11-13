@@ -30,7 +30,7 @@ import { fakeLoansDocument } from '../../src/apps/loans/workbook/infrastructure/
 import { fakeAssetsDocument } from '../../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
 import { sampleMissingAccountsRows, sampleRevolutRows } from '../../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
-import { fakeSpendingDocument } from '../../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
+import { fakeBeforeItemsDocument, fakeSpendingDocument } from '../../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { fakeInvestmentsDocument } from '../../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { fakePricesFile } from '../../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
 import { sampleWorkbookGrid } from '../../src/apps/investments/imports/infrastructure/fake/sampleWorkbook.ts'
@@ -168,6 +168,7 @@ const FAKE_DOCUMENTS = [
   ...['sample', 'cash-below-zero'].map((variant) => fakeInvestmentsDocument(FAKE_SAVED_AT, variant)),
   ...['sample', 'house-and-car', 'loan-gone'].map((set) => fakeAssetsDocument(FAKE_SAVED_AT, set)),
   ...['sample', 'foreign', 'over', 'statements', 'cash', 'receipts'].map((set) => fakeSpendingDocument(FAKE_SAVED_AT, set)),
+  fakeBeforeItemsDocument(FAKE_SAVED_AT),
 ]
 
 /** The words of the field names of the Company, Loans, Investments, Assets and Spending files, which a Croatian reason writes in lower case as the file stores them. */

@@ -8,12 +8,12 @@ export const TRANSACTION_SOURCES = ['typed', 'statement', 'receipt'] as const
 
 export type TransactionSource = (typeof TRANSACTION_SOURCES)[number]
 
-/** Who gave a row its category: you, or one of your rules. Blank on a row waiting on review and on one the file reader or the transfer pairing filed, which a rule change leaves alone. */
+/** Who filed a row's items: you, or one of your rules. Blank on a row waiting on review and on one the file reader or the transfer pairing filed, which a rule change leaves alone. */
 export const CATEGORISED_BY = ['person', 'rule'] as const
 
 export type CategorisedBy = (typeof CATEGORISED_BY)[number]
 
-/** Money in or out of one of your accounts, in the account's currency. */
+/** Money in or out of one of your accounts, in the account's currency. Its items say what the money is: its category, note and link. */
 export interface Transaction {
   readonly id: RecordId
   readonly account: RecordId
@@ -22,9 +22,6 @@ export interface Transaction {
   readonly amount: AccountMoney
   /** Who was paid, or who paid you. */
   readonly payee: string
-  /** Null while the row waits on review, when it counts nowhere. */
-  readonly category: RecordId | null
-  readonly note: string
   readonly source: TransactionSource
   /** The other leg of a transfer between your accounts, on another account, which names this row back. */
   readonly pair: RecordId | null
@@ -44,8 +41,29 @@ export interface Transaction {
   readonly pocket: boolean
   /** Cash taken out, as the bank's own row type says, whose other leg is a cash account's. */
   readonly cashWithdrawal: boolean
-  /** The record in another app this row is, such as the loan instalment it pays, or null. A link changes no figure of the row. */
+}
+
+/**
+ * A row as the file stores it. A file from before items keeps on the row the category, note and link of its one item, and for a
+ * row of several the main category, the row's note and its link. A file moved to items leaves them blank.
+ */
+export interface StoredRow extends Transaction {
+  readonly category: RecordId | null
+  readonly note: string
   readonly link: RowLink | null
+}
+
+/** The row's own category, note and link, which only a file from before items fills. */
+export type RowCells = Pick<StoredRow, 'category' | 'note' | 'link'>
+
+/** The cells of a row in a file moved to items. */
+export const BLANK_CELLS: RowCells = { category: null, note: '', link: null }
+
+/** The row with these cells, as the file stores it. */
+export function storedRowOf(row: Transaction, cells: RowCells): StoredRow {
+  const { id, account, date, amount, payee, source, pair, description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal } = row
+  const { category, note, link } = cells
+  return { id, account, date, amount, payee, category, note, source, pair, description, counterpartyIban, importKey, statement, categorisedBy, movedAt, pocket, cashWithdrawal, link }
 }
 
 /** What tells a row from every other on the file: its account and its import key. */

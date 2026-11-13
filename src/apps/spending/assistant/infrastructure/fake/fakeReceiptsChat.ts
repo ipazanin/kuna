@@ -192,8 +192,8 @@ function receiptOf17(
 }
 
 /**
- * Reads the attached photo as the sample €17.00 receipt and puts it on the Harbour bistro payment the person named, filed under
- * Restaurants, a payment of another day and amount that may be split by hand already, so the card warns on each.
+ * Reads the attached photo as the sample €17.00 receipt and puts it on the Harbour bistro payment the person named, under the
+ * category its part is filed in, a payment of another day and amount that may be split by hand already, so the card warns on each.
  */
 export function pickedReceiptReply({ request, tokens }: FakeChatTurn): ModelReply {
   const photo = lastPhotoId(request)
@@ -202,10 +202,14 @@ export function pickedReceiptReply({ request, tokens }: FakeChatTurn): ModelRepl
   if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
   if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'transaction', { query: 'Harbour bistro', limit: 5 }), tokens)
   if (answers.length === 2) {
-    const payment = recordsIn(answers[1]!.text).find((row) => row.category !== undefined)
-    if (payment === undefined) return answered(request, says.noPayment, tokens)
-    const step = receiptOf17(photo, 'card', payment.category!, { entry: payment.ref, account: null })
-    return lookup(2, 'propose_changes', { app: 'spending', title: says.pickedTitle, steps: [step], next: false }, tokens)
+    const rows = recordsIn(answers[1]!.text).map((row) => row.ref)
+    return lookup(2, 'find_records', findRecordsArgs('spending', 'item', { refs: rows, fields: ['transaction', 'category'], limit: 20 }), tokens)
+  }
+  if (answers.length === 3) {
+    const filed = recordsIn(answers[2]!.text).find((item) => item.category !== undefined && item.transaction !== undefined)
+    if (filed?.category === undefined || filed.transaction === undefined) return answered(request, says.noPayment, tokens)
+    const step = receiptOf17(photo, 'card', filed.category, { entry: filed.transaction, account: null })
+    return lookup(3, 'propose_changes', { app: 'spending', title: says.pickedTitle, steps: [step], next: false }, tokens)
   }
   return answered(request, says.pickedProposed, tokens)
 }

@@ -1,10 +1,11 @@
 import { BUDGET_WRITES } from '../../budgets/application/budgetWrites'
-import { ITEM_WRITES, TRANSACTION_WRITES } from '../../entries/application/entryWrites'
+import { heldItemsOf, waitingItemsOf, writeRows } from '../../entries/application/rowRecords'
 import { RULE_WRITES } from '../../statements/application/statementWrites'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isFixedKind } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { CATEGORY_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from './words'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -20,7 +21,7 @@ export const CATEGORY_WRITES: WriteRules<Category> = {
   read: (read, records) => bookWith(CATEGORY_RECORDS, read, records).readings.categories,
   refusals: (change, fresh, after) => [
     ...change.edits.flatMap((edit) => (edit.after === null && edit.before !== null && 'record' in edit.before && isFixedKind(edit.before.record.kind) ? [words.fixedKept(edit.before.label)] : [])),
-    ...dependentRefusals(['categories', 'transactions', 'budgets', 'rules', 'items'], fresh, after),
+    ...dependentRefusals(['categories', 'transactions', 'budgets', 'rules', 'lines', 'items'], fresh, after),
   ],
 }
 
@@ -34,12 +35,19 @@ export function newCategory(category: Omit<Category, 'id'>): Category {
  * back. The other category keeps its own limits, whose carry would change if they took on the deleted one's history.
  */
 export function deleteInto(unit: UnitOfWork, records: SpendingRecords, category: Category, target: Category): void {
-  recordsOf(records.transactions)
-    .filter((entry) => entry.category === category.id)
-    .forEach((entry) => unit.of(TRANSACTION_WRITES).change(entry, { ...entry, category: target.id }))
-  recordsOf(records.items)
-    .filter((part) => part.category === category.id)
-    .forEach((part) => unit.of(ITEM_WRITES).change(part, { ...part, category: target.id }))
+  const itemsOf = heldItemsOf(records)
+  const waitingOf = waitingItemsOf(records)
+  const moved = (item: TransactionItem): TransactionItem => (item.category === category.id ? { ...item, category: target.id } : item)
+  writeRows(
+    unit,
+    records,
+    recordsOf(records.transactions)
+      .filter((entry) => itemsOf(entry).some((item) => item.category === category.id))
+      .map((entry) => ({ before: entry, after: entry, items: itemsOf(entry).map(moved) })),
+    recordsOf(records.receipts)
+      .filter((receipt) => receipt.transaction === null && waitingOf(receipt.id).some((line) => line.category === category.id))
+      .map((receipt) => ({ receipt: receipt.id, lines: waitingOf(receipt.id).map(moved) })),
+  )
   recordsOf(records.rules)
     .filter((rule) => rule.category === category.id)
     .forEach((rule) => unit.of(RULE_WRITES).change(rule, { ...rule, category: target.id }))

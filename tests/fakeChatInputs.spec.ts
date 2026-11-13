@@ -29,8 +29,12 @@ registerFakeKunaChat()
 /** What find_records answers in this spec, by app, kind and set, holding what each fake chat looks for. */
 const RECORDS: Readonly<Record<string, readonly object[]>> = {
   'spending/transaction': [
-    { ref: 'transaction-1', payee: 'Corner market', category: 'category-1', amount: { ref: 'amount-1' } },
+    { ref: 'transaction-1', payee: 'Corner market', amount: { ref: 'amount-1' } },
     { ref: 'transaction-2', payee: 'Person 1', amount: { ref: 'amount-2' } },
+  ],
+  'spending/item': [
+    { ref: 'item-1', transaction: 'transaction-1', category: 'category-1', amount: { ref: 'amount-1' } },
+    { ref: 'item-2', transaction: 'transaction-2', amount: { ref: 'amount-2' } },
   ],
   'spending/transaction/waiting': [{ ref: 'transaction-3', payee: 'City pharmacy' }],
   'spending/category': [

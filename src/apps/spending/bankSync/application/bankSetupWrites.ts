@@ -21,7 +21,7 @@ function writeHeldRows(unit: UnitOfWork, book: SpendingBook, held: readonly { re
   const accounts = [...book.accounts.filter((account) => !ids.has(account.id)), ...held.map(({ account }) => account)]
   const rows = held.flatMap(({ account, rows: onDraft }) => onDraft.map((row) => ({ ...row, account: account.id })))
   if (rows.length === 0) return
-  writeDryRun(unit, statementDryRun({ ...book, accounts }, { label: BANK_SYNC_LABEL, rows, notes: [] }, day))
+  writeDryRun(unit, book.stored, statementDryRun({ ...book, accounts }, { label: BANK_SYNC_LABEL, rows, notes: [] }, day))
 }
 
 /** The drafted accounts, each starting on its day, and their held rows from that day on in one write, so one Undo takes it all back. */
