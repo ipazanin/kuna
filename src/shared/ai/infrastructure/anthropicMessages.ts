@@ -95,7 +95,7 @@ function messagesBody(modelId: string, request: ModelRequest): object {
     ...(request.tools.length === 0
       ? {}
       : {
-          tools: request.tools.map((tool) => ({ name: tool.name, description: tool.description, input_schema: tool.input, strict: true })),
+          tools: request.tools.map((tool) => ({ name: tool.name, description: tool.description, input_schema: tool.input, strict: tool.strict })),
           tool_choice: { type: 'auto' },
         }),
   }

@@ -66,7 +66,7 @@ function request(fields: Partial<ModelRequest> = {}): ModelRequest {
   }
 }
 
-const WITH_TOOLS: Partial<ModelRequest> = { tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule by its id.', input: RULE_INPUT }] }
+const WITH_TOOLS: Partial<ModelRequest> = { tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, strict: true, description: 'Reads one rule by its id.', input: RULE_INPUT }] }
 
 describe('the Chat Completions request', () => {
   it('posts to the base address with the bearer key, and joins the system parts into one message', async () => {
@@ -93,14 +93,19 @@ describe('the Chat Completions request', () => {
     expect(Object.keys(requests[0]!.body!).sort()).toEqual(['max_completion_tokens', 'messages', 'model', 'provider'])
   })
 
-  it('sends each tool as a strict function with an automatic choice', async () => {
+  it('sends each tool as a function, strict or not as it says, with an automatic choice', async () => {
     const requests = stubFetch(completion('stop', { content: 'Office.' }))
 
-    await openRouterChat(BASE_URL, KEY, SOL).send(request(WITH_TOOLS))
+    await openRouterChat(BASE_URL, KEY, SOL).send(
+      request({ tools: [...WITH_TOOLS.tools!, { name: 'rules', title: 'Read the rules', readOnly: true, strict: false, description: 'Reads every rule.', input: RULE_INPUT }] }),
+    )
 
     const body = requests[0]!.body!
     expect(body.tool_choice).toBe('auto')
-    expect(body.tools).toEqual([{ type: 'function', function: { name: 'rule', description: 'Reads one rule by its id.', parameters: RULE_INPUT, strict: true } }])
+    expect(body.tools).toEqual([
+      { type: 'function', function: { name: 'rule', description: 'Reads one rule by its id.', parameters: RULE_INPUT, strict: true } },
+      { type: 'function', function: { name: 'rules', description: 'Reads every rule.', parameters: RULE_INPUT, strict: false } },
+    ])
     expect(Object.keys(body)).not.toContain('temperature')
   })
 
@@ -307,7 +312,7 @@ describe('the Chat Completions reply', () => {
       model: openRouterChat(BASE_URL, KEY, typed),
       system: [],
       turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Row' }] }],
-      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule.', input: RULE_INPUT }],
+      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, strict: true, description: 'Reads one rule.', input: RULE_INPUT }],
       runTool: async () => ({ text: 'A rule.', parts: [], isError: false }),
       effort: 'low',
       rounds: 6,
@@ -420,7 +425,7 @@ describe('a model loop over the OpenRouter adapter', () => {
       model: openRouterChat(BASE_URL, KEY, SOL),
       system: [{ kind: 'text', text: 'You answer which VAT rate applies, citing the rule.' }],
       turns: [{ role: 'user', parts: [{ kind: 'text', text: question }] }],
-      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule by its id.', input: RULE_INPUT }],
+      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, strict: true, description: 'Reads one rule by its id.', input: RULE_INPUT }],
       runTool: async () => ({ text: 'Rule pdv-25: the standard rate is 25 percent.', parts: [], isError: false }),
       effort: 'medium',
       rounds: 6,

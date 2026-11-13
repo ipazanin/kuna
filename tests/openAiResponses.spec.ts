@@ -74,11 +74,21 @@ describe('the Responses request', () => {
     })
   })
 
-  it('sends tools at the top level of each definition, strict, with an automatic choice', async () => {
+  it('sends tools at the top level of each definition, saying strict or not, with an automatic choice', async () => {
     const requests = stubFetch(streamResponse(streamFixture('openai/answer')))
-    await openAiResponses(BASE_URL, KEY, SOL).send(request({ tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule by its id.', input: RULE_INPUT }] }))
+    await openAiResponses(BASE_URL, KEY, SOL).send(
+      request({
+        tools: [
+          { name: 'rule', title: 'Read a rule', readOnly: true, strict: true, description: 'Reads one rule by its id.', input: RULE_INPUT },
+          { name: 'rules', title: 'Read the rules', readOnly: true, strict: false, description: 'Reads every rule.', input: RULE_INPUT },
+        ],
+      }),
+    )
 
-    expect(requests[0]!.body.tools).toEqual([{ type: 'function', name: 'rule', description: 'Reads one rule by its id.', parameters: RULE_INPUT, strict: true }])
+    expect(requests[0]!.body.tools).toEqual([
+      { type: 'function', name: 'rule', description: 'Reads one rule by its id.', parameters: RULE_INPUT, strict: true },
+      { type: 'function', name: 'rules', description: 'Reads every rule.', parameters: RULE_INPUT, strict: false },
+    ])
     expect(requests[0]!.body.tool_choice).toBe('auto')
   })
 
@@ -259,7 +269,7 @@ describe('a model loop over the Responses adapter', () => {
       model: openAiResponses(BASE_URL, KEY, SOL),
       system: [{ kind: 'text', text: 'You pick a category.' }],
       turns: [{ role: 'user', parts: [{ kind: 'text', text: 'Which category?' }] }],
-      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, description: 'Reads one rule by its id.', input: RULE_INPUT }],
+      tools: [{ name: 'rule', title: 'Read a rule', readOnly: true, strict: true, description: 'Reads one rule by its id.', input: RULE_INPUT }],
       runTool: async () => ({ text: 'Rule pdv-25.', parts: [], isError: false }),
       effort: 'medium',
       rounds: 6,

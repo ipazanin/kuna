@@ -17,7 +17,7 @@ export type StrictSchema =
   | { readonly type: 'integer' | 'number' | 'boolean' | 'null'; readonly description?: string }
   | { readonly type: readonly ('string' | 'number' | 'null')[]; readonly enum?: readonly (string | null)[]; readonly description?: string }
 
-/** What in the value does not match the schema, each as a path and what is wrong, such as `suggestions.0.row is "x", not one of a, b`. Empty when it matches. */
+/** What in the value does not match the schema, each as a path and what is wrong, such as `suggestions.0.row is not one of a, b`. Empty when it matches. */
 export function schemaProblems(value: unknown, schema: StrictSchema, path = ''): string[] {
   const at = path === '' ? 'The answer' : path
   if ('items' in schema && Array.isArray(schema.type)) {
@@ -26,7 +26,7 @@ export function schemaProblems(value: unknown, schema: StrictSchema, path = ''):
   if (Array.isArray(schema.type)) {
     if (!schema.type.some((type) => (type === 'null' ? value === null : typeof value === type && (type !== 'number' || Number.isFinite(value))))) return [`${at} is not ${schema.type.join(' or ')}`]
     const allowed = 'enum' in schema ? schema.enum : undefined
-    return allowed === undefined || allowed.includes(value as string | null) ? [] : [notAllowed(at, value, allowed)]
+    return allowed === undefined || allowed.includes(value as string | null) ? [] : [notAllowed(at, allowed)]
   }
   switch (schema.type) {
     case 'object': {
@@ -43,7 +43,7 @@ export function schemaProblems(value: unknown, schema: StrictSchema, path = ''):
       return Array.isArray(value) ? value.flatMap((entry, index) => schemaProblems(entry, schema.items, join(path, String(index)))) : [`${at} is not a list`]
     case 'string':
       if (typeof value !== 'string') return [`${at} is not text`]
-      return schema.enum === undefined || schema.enum.includes(value) ? [] : [notAllowed(at, value, schema.enum)]
+      return schema.enum === undefined || schema.enum.includes(value) ? [] : [notAllowed(at, schema.enum)]
     case 'integer':
       return Number.isInteger(value) ? [] : [`${at} is not a whole number`]
     case 'number':
@@ -57,9 +57,9 @@ export function schemaProblems(value: unknown, schema: StrictSchema, path = ''):
   }
 }
 
-/** A value outside an enum, with every value the enum allows, so a model can pick one on its next try. */
-function notAllowed(at: string, value: unknown, allowed: readonly (string | null)[]): string {
-  return `${at} is ${JSON.stringify(value)}, not one of ${allowed.map((choice) => (choice === null ? 'null' : choice)).join(', ')}`
+/** A value outside an enum, with every value the enum allows so a model can pick one on its next try, and none of what it wrote. */
+function notAllowed(at: string, allowed: readonly (string | null)[]): string {
+  return `${at} is not one of ${allowed.map((choice) => (choice === null ? 'null' : choice)).join(', ')}`
 }
 
 function join(path: string, key: string): string {

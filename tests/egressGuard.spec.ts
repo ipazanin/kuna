@@ -45,7 +45,7 @@ describe('the egress guard', () => {
     ['a user turn', requestWith(`Key ${CANARY}`)],
     ['a tool result', requestWith('x', { turns: [{ role: 'tool-results', results: [{ callId: 'a', text: `Key ${CANARY}`, parts: [], isError: false }] }] })],
     ['what an assistant turn replays', requestWith('x', { turns: [{ role: 'assistant', calls: [], raw: [{ type: 'text', text: CANARY }] }] })],
-    ['a tool schema', requestWith('x', { tools: [{ name: 'look', title: 'Look', readOnly: true, description: 'Looks.', input: { type: 'string', enum: [CANARY] } }] })],
+    ['a tool schema', requestWith('x', { tools: [{ name: 'look', title: 'Look', readOnly: true, strict: false, description: 'Looks.', input: { type: 'string', enum: [CANARY] } }] })],
   ])('refuses a stored secret in %s and sends nothing', async (_where, request) => {
     const model = modelNoting()
     expect(await refuses(model, request)).toBe(true)

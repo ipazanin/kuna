@@ -92,7 +92,7 @@ function responsesBody(modelId: string, request: ModelRequest): object {
     ...(request.tools.length === 0
       ? {}
       : {
-          tools: request.tools.map((tool) => ({ type: 'function', name: tool.name, description: tool.description, parameters: tool.input, strict: true })),
+          tools: request.tools.map((tool) => ({ type: 'function', name: tool.name, description: tool.description, parameters: tool.input, strict: tool.strict })),
           tool_choice: 'auto',
         }),
   }

@@ -43,6 +43,13 @@ export interface ModelTool {
   readonly title: string
   /** True when the tool writes nothing to the books or Drive. Every chat tool is, so a change waits on the person's Accept on a card. */
   readonly readOnly: boolean
+  /**
+   * True when the provider holds the model to the schema as it writes the input. Anthropic compiles every strict tool of a
+   * request into one grammar and refuses the request when it grows too large, so only a tool whose input becomes a change
+   * is strict. Kuna checks every tool's input against its schema anyway and refuses one that is off it in words the model
+   * can retry by.
+   */
+  readonly strict: boolean
   readonly description: string
   readonly input: StrictSchema
 }

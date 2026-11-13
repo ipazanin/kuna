@@ -42,7 +42,7 @@ export function openRouterChat(baseUrl: string, key: string, model: ModelChoice)
         (await jsonAnswer({
           address: `${baseUrl}/chat/completions`,
           method: 'POST',
-          headers: bearerHeaders(key),
+          headers: requestHeaders(key, model.id, request),
           body: completionsBody(model.id, request),
           key,
           signal: request.signal,
@@ -52,18 +52,24 @@ export function openRouterChat(baseUrl: string, key: string, model: ModelChoice)
   }
 }
 
+/** OpenRouter strips strict from the tools of a request to a Claude model unless the request asks for Anthropic's structured outputs beta. */
+function requestHeaders(key: string, modelId: string, request: ModelRequest): Readonly<Record<string, string>> {
+  const strictToClaude = modelId.startsWith('anthropic/') && request.tools.some((tool) => tool.strict)
+  return strictToClaude ? { ...bearerHeaders(key), 'x-anthropic-beta': 'structured-outputs-2025-11-13' } : bearerHeaders(key)
+}
+
 function completionsBody(modelId: string, request: ModelRequest): object {
   const system = request.system.map((part) => part.text).join('\n\n')
   return {
     model: modelId,
     max_completion_tokens: MAX_OUTPUT_TOKENS,
     messages: [...(system === '' ? [] : [{ role: 'system', content: system }]), ...request.turns.flatMap(messages)],
-    // Strict tool schemas need every endpoint OpenRouter routes to to honour every parameter. Endpoints that keep or train on prompts are never chosen.
+    // Only endpoints that take every parameter, tools among them, and none that keeps or trains on prompts.
     provider: { require_parameters: true, data_collection: 'deny' },
     ...(request.tools.length === 0
       ? {}
       : {
-          tools: request.tools.map((tool) => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.input, strict: true } })),
+          tools: request.tools.map((tool) => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.input, strict: tool.strict } })),
           tool_choice: 'auto',
         }),
   }
