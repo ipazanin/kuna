@@ -84,7 +84,7 @@ export const CHAT_BOOK = {
   budgets: [{ id: recordIdOf(BUDGET_RECORDS, 'budget-a'), category: FOOD.id, from: '2026-01', amount: moneyFromAmount(200) }],
   rules: [{ id: recordIdOf(RULE_RECORDS, 'rule-a'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Ana Horvat' }, category: RENT.id }],
   receipts: [RECEIPT],
-  lines: [],
+  items: [],
   held: [],
   settings: { personPayees: ['Ana Horvat'] },
 } as unknown as SpendingBook
