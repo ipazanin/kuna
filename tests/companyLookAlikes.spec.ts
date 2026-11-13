@@ -5,13 +5,18 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { dryRunFor, writeImport } from '../src/apps/company/imports/application/importStatements'
 import { importDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import type { DryRunInputs } from '../src/apps/company/imports/domain/importDryRun'
+import type { ImportedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { en } from '../src/apps/company/imports/domain/words'
+import { paymentRowsOf } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister'
+import { linkedRow } from '../src/apps/company/packs/hr-doo/domain/trips/tripBankRows'
+import { writeSplit } from '../src/apps/company/transactions/application/splitWrites'
+import { storedSplitOf } from '../src/apps/company/workbook/domain/splitsReading'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { LookAlikes } from '../src/shared/money/lookAlikeBookings'
 import { moneyFromAmount } from '../src/shared/money/money'
-import { NO_SIGNALS, civil, ledger } from './fixtures/ledger'
+import { NO_SIGNALS, civil, euros, ledger } from './fixtures/ledger'
 import { companyDesk } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { forgetCaches } from './fixtures/writeBack'
@@ -198,7 +203,8 @@ describe('copied rows on a card that look like ledger rows', () => {
 })
 
 describe('a file over a row the AI copied, on the Import screen', () => {
-  it("writes the file's entry in the copied row's place in one write, and one Undo puts the copied row back", async () => {
+  /** The desk with a kiosk payment of 2 November the chat copied, and the file's entry of 3 November that is that payment. */
+  async function copiedKioskAndFile(): Promise<{ readonly desk: CompanyDesk; readonly copiedKiosk: Transaction; readonly statement: ImportedStatement }> {
     const desk = await companyDesk(used)
     const kiosk = { date: '2026-11-02', amount: -12.5, counterparty: 'Kiosk', iban: null, description: '' }
     const input = {
@@ -236,16 +242,50 @@ describe('a file over a row the AI copied, on the Import screen', () => {
       rows: [entry],
       notes: [],
     }
-    const workbook = desk.store.state.workbook!
-    const asked = dryRunFor([{ statement }], workbook, new Map())
+    return { desk, copiedKiosk, statement }
+  }
+
+  /** The import with the person's answer that the file's entry takes the copied kiosk payment's place. */
+  function replacingRun(desk: CompanyDesk, copiedKiosk: Transaction, statement: ImportedStatement) {
+    return dryRunFor([{ statement }], desk.store.state.workbook!, new Map(), new Map(), new Map([['main CAMT-K', { booked: copiedKiosk.id, keep: 'file' as const }]]))
+  }
+
+  it("writes the file's entry in the copied row's place in one write, and one Undo puts the copied row back", async () => {
+    const { desk, copiedKiosk, statement } = await copiedKioskAndFile()
+    const asked = dryRunFor([{ statement }], desk.store.state.workbook!, new Map())
     expect(asked.statements[0]!.questions.map((question) => question.copied.id)).toEqual([copiedKiosk.id])
-    const run = dryRunFor([{ statement }], workbook, new Map(), new Map(), new Map([['main CAMT-K', { booked: copiedKiosk.id, keep: 'file' as const }]]))
+    const run = replacingRun(desk, copiedKiosk, statement)
     expect(run.removed).toHaveLength(1)
     const receipt = await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!.ledger))
     const kioskRows = () => desk.store.state.workbook!.transactions.filter((row) => row.account === 'main' && row.amount === moneyFromAmount(-12.5)).map((row) => row.reference)
     expect(kioskRows()).toEqual(['CAMT-K'])
     await desk.store.undo(desk.store.state.writes.find((write) => write.receipt === receipt)!)
     expect(kioskRows()).toEqual([copiedKiosk.reference])
+  })
+
+  it("keeps the copied row's split, and the trip and asset linked to it, on the file's entry that takes its place", async () => {
+    const { desk, copiedKiosk, statement } = await copiedKioskAndFile()
+    const { rowId } = copiedKiosk
+    expect(rowId).not.toBeNull()
+    const stored = storedSplitOf(desk.store.state.records!.splits, desk.store.state.workbook!.splits, copiedKiosk)
+    const drafts = [
+      { amount: euros(-10), category: 'office', note: '', opened: null },
+      { amount: euros(-2.5), category: 'travel', note: 'Snack', opened: null },
+    ]
+    await desk.store.write('Split', (unit) => writeSplit(unit, copiedKiosk, stored, drafts, desk.store.state.workbook!.categories))
+
+    const run = replacingRun(desk, copiedKiosk, statement)
+    await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!.ledger))
+
+    const { transactions, splits } = desk.store.state.workbook!
+    const split = splits.find((candidate) => candidate.row.reference === 'CAMT-K')
+    expect(split?.row.rowId).toBe(rowId)
+    expect(split?.parts.map((part) => [part.amount, part.category, part.note])).toEqual([
+      [euros(-10), 'office', ''],
+      [euros(-2.5), 'travel', 'Snack'],
+    ])
+    expect(linkedRow(rowId, transactions)?.reference).toBe('CAMT-K')
+    expect(paymentRowsOf(rowId!, transactions).map((row) => row.reference)).toEqual(['CAMT-K'])
   })
 })
 
@@ -324,8 +364,8 @@ describe('a camt statement over rows the AI copied', () => {
     expect(run.removed).toEqual([])
   })
 
-  it("lets the file's entry take the copied row's place, keeping its category and share, and adds what follows", () => {
-    const office = { ...copiedOf('REF-3'), category: 'office', flaggedBy: 'rule' }
+  it("lets the file's entry take the copied row's place, keeping its category, share and row id, and adds what follows", () => {
+    const office = { ...copiedOf('REF-3'), category: 'office', flaggedBy: 'rule', rowId: 'row-office' }
     const filed = COPIED.map((row) => (row.reference === office.reference ? office : row))
     const run = importDryRun(camtOf(OCTOBER), inputsOf(filed, new Map([[OFFICE, { booked: office.id, keep: 'file' as const }]])))
     const [statement] = run.statements
@@ -340,7 +380,16 @@ describe('a camt statement over rows the AI copied', () => {
       ['CAMT-2', 'Harbour bistro', moneyFromAmount(920.5), 'unknown'],
       ['CAMT-1', 'OFFICE SUPPLIES ZAGREB', moneyFromAmount(960.5), 'office'],
     ])
+    expect(run.added[1]!.rowId).toBe('row-office')
+    expect(run.added[0]!.rowId).not.toBeNull()
+    expect(run.added[0]!.rowId).not.toBe('row-office')
     expect(statement!.facts).toContain("1 row the AI copied gives way to the file's entry, which keeps its category.")
+  })
+
+  it('gives the entry a new row id when the copied row it takes the place of has none, as rows of older books have none', () => {
+    const run = importDryRun(camtOf(OCTOBER), inputsOf(COPIED, new Map([[OFFICE, { booked: copiedOf('REF-3').id, keep: 'file' as const }]])))
+    expect(copiedOf('REF-3').rowId).toBeNull()
+    expect(run.added.map((entry) => entry.rowId)).toEqual([expect.any(String), expect.any(String)])
   })
 
   it('replaces the copied rows after the answered one too, each by the entry it is or looks like', () => {

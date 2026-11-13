@@ -30,7 +30,7 @@ export interface DryRunRow extends ImportedRow {
   readonly like?: Transaction
   /** The row the AI copied that an entry of a file Kuna read looks like, which holds the entry as on the ledger until the person says to keep both. */
   readonly copiedTwin?: Transaction
-  /** The row the AI copied that this entry takes the place of, whose category it keeps. */
+  /** The row the AI copied that this entry takes the place of, whose category, share and row id it keeps. */
   readonly replaces?: Transaction
 }
 
@@ -150,8 +150,8 @@ export interface DryRunInputs {
  * A statement Kuna read itself is matched the same way against the rows the AI copied. One that only looks like a copied row
  * counts as on the ledger until the person says to keep both, and then it is new. Or the person says the file's entry takes the
  * copied row's place. The ledger runs on from its newest row, so the copied rows go from the oldest such row on, each with the
- * entry it is or looks like taking its place and keeping its category and share, and a row after it the statement does not
- * hold refuses the statement.
+ * entry it is or looks like taking its place and keeping its category, share and row id, so its split parts and links still find
+ * it. A row after it the statement does not hold refuses the statement.
  */
 export function importDryRun(readings: readonly StatementReading[], inputs: DryRunInputs): ImportDryRun {
   const states = accountStates(inputs.transactions)
@@ -394,9 +394,9 @@ function planStatement(statement: ImportedStatement, state: AccountState, inputs
   state.labels.add(statement.label)
   if (statement.source.kind === 'camt') state.lastSequence = Math.max(state.lastSequence ?? 0, statement.source.sequence)
   const entries = balanced.map((row, index) => {
-    const shownRow = rows[firstNew + index]!
-    const entry = ledgerEntryOfImport(statement, { ...row, verdict: shownRow.verdict }, inputs.categories)
-    return shownRow.replaces === undefined ? entry : { ...entry, flaggedBy: shownRow.replaces.flaggedBy, ownerShare: shownRow.replaces.ownerShare }
+    const { verdict, replaces } = rows[firstNew + index]!
+    const entry = ledgerEntryOfImport(statement, { ...row, verdict }, inputs.categories)
+    return replaces === undefined ? entry : { ...entry, flaggedBy: replaces.flaggedBy, ownerShare: replaces.ownerShare, rowId: replaces.rowId ?? entry.rowId }
   })
   return {
     statement: { ...shell, opening: statement.opening ?? opening, closing: statement.closing ?? last.balance, rows, refusal: null, start, questions, notes, facts },
