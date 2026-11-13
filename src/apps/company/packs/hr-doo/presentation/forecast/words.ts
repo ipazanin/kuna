@@ -10,6 +10,11 @@ import { en as domainEn, hr as domainHr } from '../../domain/words'
 // A line of the accountant's statements is pozicija, a row of the plan tab redak plana. Croatian names a month in full, since its short names read as words.
 
 export const en = {
+  /** Under PD lines 26 and 35 when the year gives donations or listed sponsorships, which the forecast never averages. */
+  oneOffCaptions: {
+    donations: 'Donations on line 14 are those paid and planned, not an average of past months.',
+    sponsorships: 'Sponsorships on line 33.a are those paid and planned, not an average of past months.',
+  },
   basis: {
     actual: 'from the ledger',
     'paid-ahead': 'paid ahead',
@@ -257,6 +262,10 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  oneOffCaptions: {
+    donations: 'Donacije u retku 14 su plaćene i planirane, a ne prosjek prošlih mjeseci.',
+    sponsorships: 'Sponzorstva u retku 33.a su plaćena i planirana, a ne prosjek prošlih mjeseci.',
+  },
   basis: {
     actual: 'iz evidencije',
     'paid-ahead': 'plaćeno unaprijed',

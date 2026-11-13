@@ -579,11 +579,27 @@ describe('settings, categories and accounts', () => {
     expect(desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.map((field) => field.name))).toContain(words.fields.colour)
   })
 
-  it('refuses a tax class the pack lacks by naming every class, and points at the operation page', async () => {
+  it('offers the donation and listed sponsorship classes with their names, and adds a donations category the card names that way', async () => {
+    const addCategory = OPERATIONS.find((operation) => operation.name === 'add-category')!
+    const taxClass = (addCategory.input.type === 'object' ? addCategory.input.properties : {})['taxClass']!
+    const on = parseCivilDate('2026-11-13')!
+    for (const role of ['donation', 'listed-sponsorship']) expect(taxClass.description).toContain(`${role}: ${installedPack().categoryClassHelp(role, on)!.name}`)
     const desk = await companyDesk(used)
 
     const answer = await desk.propose([
       { op: 'add-category', input: { category: 'donations', label: 'Donations', family: 'operating', bucket: 'operating', taxClass: 'donation', roles: [], vat: '', colour: null, ownerShare: '' } },
+    ])
+
+    expect(answer.isError, answer.text).toBe(false)
+    const roles = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.filter((field) => field.name === words.fields.roles))
+    expect(roles[0]!.after).toMatch(/^Donations for the public good in Croatia: allowed up to 2% of revenue, the rest added back$/)
+  })
+
+  it('refuses a tax class the pack lacks by naming every class, and points at the operation page', async () => {
+    const desk = await companyDesk(used)
+
+    const answer = await desk.propose([
+      { op: 'add-category', input: { category: 'lottery', label: 'Lottery', family: 'operating', bucket: 'operating', taxClass: 'lottery-win', roles: [], vat: '', colour: null, ownerShare: '' } },
     ])
 
     expect(answer.isError).toBe(true)

@@ -155,10 +155,14 @@ const PLACEHOLDER = /\{[a-z]+\}/g
 
 const FAKE_SAVED_AT = '2026-10-16T08:00:00.000Z'
 
+/** The fake books that give a donation and a listed sponsorship, in categories of their own. */
+const GIVING_DOCUMENT = fakeWorkbookDocument(FAKE_SAVED_AT, 'browser', null, true)
+
 /** The files of the fake build, whose records hold what it stores as typed. */
 const FAKE_DOCUMENTS = [
   fakeWorkbookDocument(FAKE_SAVED_AT, 'drive'),
   fakeWorkbookDocument(FAKE_SAVED_AT, 'browser'),
+  GIVING_DOCUMENT,
   ...['one-employee', 'five-employees'].map((variant) => fakeWorkbookDocument(FAKE_SAVED_AT, 'drive', fakeStaffOf(variant))),
   ...['sample', 'one-loan', 'house-and-car', 'equal-principal'].map((set) => fakeLoansDocument(FAKE_SAVED_AT, set)),
   ...['sample', 'cash-below-zero'].map((variant) => fakeInvestmentsDocument(FAKE_SAVED_AT, variant)),
@@ -266,7 +270,8 @@ const TYPED_LABELS = new Set(TYPED_IN_FAKE_FILES.filter((text) => wordsOf(text).
 /** The labels a category shows without one of its own, where Kuna has no Croatian name for its slug. */
 function unseededCategoryLabels() {
   const slugs = new Set(
-    Object.values(FAKE_DOCUMENTS[0].records)
+    [FAKE_DOCUMENTS[0], GIVING_DOCUMENT]
+      .flatMap((document) => Object.values(document.records))
       .flat()
       .map((record) => record.category)
       .filter((slug) => typeof slug === 'string' && slug !== ''),

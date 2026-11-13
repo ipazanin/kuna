@@ -172,6 +172,9 @@ const AMENDING_ACT_URLS = {
   '39/26': 'https://narodne-novine.nn.hr/clanci/sluzbeni/2026_04_39_469.html',
 } as const
 
+/** The day the donation texts were loaded again. */
+const DONATIONS_LOADED_ON = day('2026-11-13')
+
 const ASSUMED_FOR_2027 = '2027 is assumed: no enacted change was found through NN 109/26.'
 const ACCOUNTANT_FIGURES_MATCH = "The accountant's figures apply it and match."
 
@@ -485,11 +488,16 @@ export const profitTaxRules: readonly RuleIn<ProfitTaxValues>[] = [
         validTo: null,
         value: {
           capShareOfRevenue: basisPoints(200),
-          revenueBasis: text('prior-or-current-period'),
+          revenueBasis: text('higher-of-prior-and-current-period'),
         },
-        sources: [zpdSource('7(7) to 7(9), 7(1)(10)', ['114/23', '151/25']), amendingActSource('ZPD', '114/23', '4'), amendingActSource('ZPD', '151/25', '3')],
-        confidence: 'confirmed-nn',
-        note: `Donations up to 2% of the revenue of the previous or the current period are deductible. The excess, and any donation with a direct or indirect benefit to the company or a related person, is added back. ${ASSUMED_FOR_2027}`,
+        sources: [
+          { ...zpdSource('7(7) to 7(9), 7(1)(10)', ['114/23', '151/25']), loadedOn: DONATIONS_LOADED_ON },
+          { ...amendingActSource('ZPD', '114/23', '4, 13, 15'), loadedOn: DONATIONS_LOADED_ON },
+          { ...amendingActSource('ZPD', '151/25', '3'), loadedOn: DONATIONS_LOADED_ON },
+          { ...pravPdSource('30, 47(3) item 14, 47(5)'), loadedOn: DONATIONS_LOADED_ON },
+        ],
+        confidence: 'reading',
+        note: `Donations in Croatia for a public-benefit purpose are deductible up to 2% of the total revenue of the previous or the current period, and the excess goes on PD line 14. Kuna takes whichever year allows more, as Porezna uprava's instructions for the 2024 return count donations of 3% of the previous year's revenue and 2% of the current year's as allowed. A first year uses its own revenue. A donation abroad, or one with a direct or indirect benefit to the company or a related person, is not allowed at any amount. ${ASSUMED_FOR_2027}`,
       },
     ],
   },
@@ -845,6 +853,22 @@ export const profitTaxRules: readonly RuleIn<ProfitTaxValues>[] = [
 ]
 
 export const profitTaxOpenItems: readonly OpenItem[] = [
+  {
+    id: 'hr.cit.sponsorship-lists',
+    area: 'profit-tax',
+    title: 'Which recipients the ministries list for the sponsorship decrease',
+    status: 'unconfirmed',
+    note: 'A sponsorship lowers the base a second time only when its recipient is on a list the minister for its activity sets by decision. The Ministry of Tourism and Sport set its list on 23 February 2026 and amended it on 10 June 2026, but both are published as scans, so what they hold was not read. No list for culture, science, education, health, religion or the environment was found in NN or by search on 13 November 2026. Kuna leaves it to the owner to file a sponsorship as listed.',
+    url: 'https://mint.gov.hr/sport-21680/porezni-poticaji-u-sportu/porezne-olaksice-za-sponzorstva/24228',
+  },
+  {
+    id: 'hr.cit.sponsorship-state-aid',
+    area: 'profit-tax',
+    title: 'Whether the sponsorship decrease is limited as state aid',
+    status: 'unconfirmed',
+    note: 'ZPD Art. 6(3) lets the decreases of Art. 6(1) create or raise a loss with regard to the rules on state aid and de minimis aid. Neither the act nor the Pravilnik caps the sponsorship decrease, and no Porezna uprava guidance on it was found. Kuna takes off the whole cost. Settled by Porezna uprava instructions for the 2026 return.',
+    url: 'https://www.zakon.hr/z/99/zakon-o-porezu-na-dobit',
+  },
   {
     id: 'hr.cit.excess-margin-2026',
     area: 'profit-tax',

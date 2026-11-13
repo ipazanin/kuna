@@ -3,7 +3,7 @@
  * and prints one line per group of figures: its name, how many entries it holds and a short SHA-256
  * of them. It never prints a figure, so it is safe on a real export, and two trees compare with diff.
  *
- *   npm run check:figures -- --fake <drive, browser, one-employee or five-employees> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake <drive, browser, browser-donations, one-employee or five-employees> [--today yyyy-mm-dd]
  *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--today yyyy-mm-dd]
  *   npm run check:figures -- --loans <path to a Kuna Loans file> [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-loans <sample, house-and-car or equal-principal> [--today yyyy-mm-dd]
@@ -218,7 +218,7 @@ const { values: options } = parseArgs({
   },
 })
 const today = parseCivilDate(options.today)
-const knownFake = options.fake === 'drive' || options.fake === 'browser' || (options.fake !== undefined && fakeStaffOf(options.fake) !== null)
+const knownFake = ['drive', 'browser', 'browser-donations'].includes(options.fake) || (options.fake !== undefined && fakeStaffOf(options.fake) !== null)
 const companyAsked = options.fake !== undefined || options.workbook !== undefined
 const loansAsked = options.loans !== undefined || options['fake-loans'] !== undefined
 const investmentsAsked = options.investments !== undefined || options['fake-investments'] !== undefined
@@ -242,7 +242,7 @@ if (
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash or receipts>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash or receipts>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }
@@ -255,7 +255,7 @@ crypto.randomUUID = () => `00000000-0000-4000-8000-${String(++madeIds).padStart(
 const AT = '2026-01-01T00:00:00.000Z'
 async function documentOfInput() {
   if (options.fake !== undefined) {
-    return fakeWorkbookDocument(AT, options.fake === 'browser' ? 'browser' : 'drive', fakeStaffOf(options.fake))
+    return fakeWorkbookDocument(AT, options.fake.startsWith('browser') ? 'browser' : 'drive', fakeStaffOf(options.fake), options.fake.endsWith('donations'))
   }
   if (options.workbook.toLowerCase().endsWith('.json')) {
     return decodeDocument(readFileSync(options.workbook, 'utf8'))

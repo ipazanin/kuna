@@ -82,6 +82,8 @@ export interface LineSources {
   readonly comparison?: (month: MonthKey) => TracedFigure | null
   /** How many actual months the average reaches back, `AVERAGED_MONTHS` when left out. */
   readonly averagedMonths?: number
+  /** A cost given once forecasts no average: the running month counts what it has paid, and a later month with no plan row nothing. */
+  readonly oneOff?: boolean
 }
 
 /** How many complete months a trailing average reaches back. */
@@ -93,7 +95,7 @@ export const ARREARS_AVERAGED_MONTHS = 1
 /**
  * A line of the year: the ledger's figure up to its last actual month, then for each later month a
  * plan row, else what a cost paid ahead already covers, else the average of its last twelve
- * actual months, or of fewer where the sources say so. The ledger's first part month never counts
+ * actual months, or of fewer where the sources say so. A cost given once takes no average. The ledger's first part month never counts
  * in the average. A month the ledger settles keeps what the plan had for it, to compare with.
  */
 export function forecastLine(calendar: ForecastCalendar, sources: LineSources): ForecastLine {
@@ -112,6 +114,11 @@ export function forecastLine(calendar: ForecastCalendar, sources: LineSources): 
     const paidAhead = sources.paidAhead(month)
     if (paidAhead !== null) {
       return { month, bases: ['paid-ahead'], figure: paidAhead, soFar, plan: null }
+    }
+    if (sources.oneOff === true) {
+      return month === calendar.running
+        ? { month, bases: ['actual'], figure: sources.actual(month), soFar: null, plan: null }
+        : { month, bases: [], figure: tracedFigure(words.lines.notForecast(sources.label, monthLabel(month)), ZERO, sources.basis, []), soFar: null, plan: null }
     }
     return { month, bases: ['averaged'], figure: tracedFigure(words.lines.averaged(sources.label, monthLabel(month)), average.amount, sources.basis, average.rules, [average]), soFar, plan: null }
   })

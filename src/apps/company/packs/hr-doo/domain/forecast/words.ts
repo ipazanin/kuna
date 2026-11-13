@@ -70,6 +70,8 @@ export const en = {
     representation: 'Representation, with its VAT',
     personalTransport: 'Personal transport',
     neverAllowed: 'Costs the tax never allows',
+    donations: 'Donations',
+    listedSponsorships: 'Sponsorships to recipients on a ministry list',
     profitAfterTax: 'Profit after tax',
     vatToDate: 'VAT refunded less VAT paid to date',
     decemberArrears: 'December costs paid in arrears in January',
@@ -110,6 +112,7 @@ export const en = {
   lines: {
     soFar: (label: string, month: string) => `${label}, ${month} so far`,
     averaged: (label: string, month: string) => `${label}, ${month}: averaged`,
+    notForecast: (label: string, month: string) => `${label}, ${month}: nothing forecast, as it is given once`,
     noMonthToAverage: 'No complete month to average, so nothing',
     span: (label: string, from: string, to: string) => `${label}, ${from} to ${to}`,
     asIn: (month: string) => `As in ${month}, the last month the ledger settles`,
@@ -204,6 +207,8 @@ export const hr: Translation<typeof en> = {
     representation: 'Reprezentacija, s PDV-om',
     personalTransport: 'Osobni prijevoz',
     neverAllowed: 'Troškovi koje porez nikad ne priznaje',
+    donations: 'Donacije',
+    listedSponsorships: 'Sponzorstva primateljima s popisa ministarstva',
     profitAfterTax: 'Dobit nakon oporezivanja',
     vatToDate: 'Vraćeni PDV umanjen za plaćeni PDV do danas',
     decemberArrears: 'Troškovi prosinca plaćeni unatrag u siječnju',
@@ -243,6 +248,7 @@ export const hr: Translation<typeof en> = {
   lines: {
     soFar: (label, month) => `${label}, ${month} do danas`,
     averaged: (label, month) => `${label}, ${month}: prosjek`,
+    notForecast: (label, month) => `${label}, ${month}: ništa se ne predviđa jer se daje jednokratno`,
     noMonthToAverage: 'Nema cijelog mjeseca za prosjek, pa ništa',
     span: (label, from, to) => `${label}, ${from} – ${to}`,
     asIn: (month) => `Kao u ${monthCase(month, 'locative')}, zadnjem mjesecu koji je evidencija zatvorila`,

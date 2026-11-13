@@ -110,6 +110,20 @@ export const TAX_CLASSES: readonly TaxClass[] = [
     buckets: ['operating', 'taxes'],
     law: 'company/tax-classes.md#non-deductible',
   }),
+  carriedBy(PACK_ROLES.donation, {
+    rules: ['hr.cit.donation-cap', 'hr.cit.pd-lines'],
+    addBack: null,
+    vat: ['none'],
+    buckets: ['operating'],
+    law: 'company/tax-classes.md#donation',
+  }),
+  carriedBy(PACK_ROLES.listedSponsorship, {
+    rules: ['hr.cit.sponsorship-decrease', 'hr.cit.pd-lines', 'hr.vat.input-deduction'],
+    addBack: null,
+    vat: ['deductible-25', 'deductible-13', 'deductible-5', 'none'],
+    buckets: ['operating'],
+    law: 'company/tax-classes.md#listed-sponsorship',
+  }),
   carriedBy(PACK_ROLES.capitalPurchase, {
     rules: ['hr.acc.capitalisation', 'hr.cit.asset-threshold'],
     addBack: null,

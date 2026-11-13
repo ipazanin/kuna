@@ -217,7 +217,10 @@ describe('company law docs', () => {
     const row = classRows.find((candidate) => candidate.Class === id)!
     const from = parseCivilDate(row.From ?? '')
     expect(from, `"${row.From}" is not a day`).not.toBeNull()
-    const addBack = taxClass.addBack === null ? 0 : ruleValue(taxClass.addBack, from!).value.addBackShare.basisPoints
+    // A capped class adds back what is above its cap, which the table states instead of a share.
+    const addBack = taxClass.rules.includes('hr.cit.donation-cap')
+      ? `above ${percentText(ruleValue('hr.cit.donation-cap', from!).value.capShareOfRevenue.basisPoints)} of revenue`
+      : percentText(taxClass.addBack === null ? 0 : ruleValue(taxClass.addBack, from!).value.addBackShare.basisPoints)
     const vatBack = [...new Set(taxClass.vat.flatMap((treatment) => inputVatBack(treatment, from!) ?? []))]
     expect({
       addBack: row['CIT add-back'],
@@ -225,7 +228,7 @@ describe('company law docs', () => {
       vat: listed(row['VAT treatments']),
       buckets: listed(row.Buckets),
     }).toEqual({
-      addBack: percentText(addBack),
+      addBack,
       vatBack: vatBack.length === 0 ? 'none' : vatBack.map(percentText).join(' or '),
       vat: taxClass.vat,
       buckets: taxClass.buckets,

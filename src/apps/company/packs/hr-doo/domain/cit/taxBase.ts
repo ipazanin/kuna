@@ -1,6 +1,7 @@
 import type { YearEndLine } from '../yearEnd/yearEnd'
-import { civilDate } from '../../../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, minMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
+import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
+import { ZERO, addMoney, maxMoney, minMoney, moneyFromCents, subtractMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { moneyAt, percentText, restOf } from '../../../../../../shared/money/percent'
 import type { Percent } from '../../../../../../shared/money/percent'
@@ -15,6 +16,13 @@ import { words } from './words'
 export interface CarriedLoss {
   readonly year: number
   readonly remaining: Money
+}
+
+/** The donations of a year with what their cap reads besides the year's own revenue. */
+export interface DonationsGiven {
+  readonly given: TracedFigure
+  /** PD line 1 of the year before, or null for a first year and for a year with no donations. */
+  readonly revenueYearBefore: TracedFigure | null
 }
 
 /** The accrual figures of a year the PD return starts from, each with its own build-up. */
@@ -32,6 +40,10 @@ export interface TaxBaseInput {
   readonly carDepreciationAllowed: TracedFigure
   /** Fines, forced collection and private or non-business costs, which the tax never allows. */
   readonly nonDeductible: TracedFigure
+  /** Donations in Croatia for a public-benefit purpose, left out when no category carries the class. */
+  readonly donations?: DonationsGiven
+  /** Sponsorships to recipients a ministry has listed, left out when no category carries the class. */
+  readonly listedSponsorships?: TracedFigure
   /** Depreciation charged above what the tax allows, such as a car above the cost cap. */
   readonly depreciationAboveAllowed: TracedFigure
   /** Interest the owner loans would carry at the related-party rate, less what was charged. */
@@ -75,10 +87,14 @@ export function taxBase(input: TaxBaseInput, rules: RuleSource = ruleValue): Tax
   const transport = rules('hr.cit.personal-transport-add-back', period)
   const fines = rules('hr.cit.fines-add-back', period)
   const privateCosts = rules('hr.cit.private-cost-add-back', period)
+  if (fines.value.addBackShare.basisPoints !== privateCosts.value.addBackShare.basisPoints) {
+    throw new RangeError(`The fines and private cost rules in force in ${input.year} add back different shares, which the one non-deductible step cannot split.`)
+  }
   const ordinaryIncreases = [
     addBack(words.base.representation, input.representation, representation.value.addBackShare.basisPoints, [representation.citation]),
     addBack(words.base.personalTransport, personalTransportCosts(input), transport.value.addBackShare.basisPoints, [transport.citation]),
     addBack(words.base.nonDeductible, input.nonDeductible, privateCosts.value.addBackShare.basisPoints, [fines.citation, privateCosts.citation]),
+    ...(input.donations === undefined ? [] : [donationsAboveCap(input.donations, input.revenue, input.year, rules)]),
     tracedFigure(words.base.depreciationAbove, input.depreciationAboveAllowed.amount, 'assets', input.depreciationAboveAllowed.rules, [input.depreciationAboveAllowed]),
   ]
 
@@ -93,7 +109,20 @@ export function taxBase(input: TaxBaseInput, rules: RuleSource = ruleValue): Tax
 
   const sponsorship = rules('hr.cit.sponsorship-decrease', period)
   const grantRevenue = rules('hr.cit.grant-revenue', period)
-  const decreases = tracedFigure(words.base.decreases, ZERO, 'ledger', [sponsorship.citation, grantRevenue.citation])
+  const decreaseCitations = [sponsorship.citation, grantRevenue.citation]
+  const listed = input.listedSponsorships
+  const decreases =
+    listed === undefined
+      ? tracedFigure(words.base.decreases, ZERO, 'ledger', decreaseCitations)
+      : summed(
+          words.base.decreasesMade,
+          [
+            sponsorship.value.available.holds
+              ? tracedFigure(words.base.listedSponsorships, listed.amount, 'ledger', [sponsorship.citation, ...listed.rules], [listed])
+              : tracedFigure(words.base.noSponsorshipDecrease(input.year), ZERO, 'ledger', [sponsorship.citation], [listed]),
+          ],
+          'ledger',
+        )
 
   const beforeLosses = tracedFigure(
     words.base.beforeLosses,
@@ -139,6 +168,42 @@ export function lossesCarriedInto(year: number, yearEnd: readonly YearEndLine[],
   }
   const carryForward = rules('hr.cit.loss-carry-forward', civilDate(year, 1, 1)).value.carryForwardYears.count
   return open.filter((loss) => year - loss.year <= carryForward)
+}
+
+/**
+ * The donations of a year for the cap. The year before is read only when there are donations, from the accountant's PD line 1 on
+ * the year-end tab, or else from `revenueOf`, Kuna's own figure for that year. A company registered later has no year before.
+ */
+export function donationsOfYear(given: TracedFigure, year: number, registered: CivilDate | null, yearEnd: readonly YearEndLine[], revenueOf: (year: number) => TracedFigure): DonationsGiven {
+  const before = year - 1
+  if (given.amount <= 0 || (registered !== null && yearOf(registered) > before)) {
+    return { given, revenueYearBefore: null }
+  }
+  const filed = yearEnd.find((line) => line.year === before && line.statement === 'tax' && line.line === 'revenue')
+  if (filed?.figure.kind === 'money') {
+    return { given, revenueYearBefore: tracedFigure(words.base.revenueFiled(before), filed.figure.amount, 'accountant', []) }
+  }
+  const own = revenueOf(before)
+  return { given, revenueYearBefore: tracedFigure(words.base.revenueOwn(before), own.amount, own.basis, own.rules, [own]) }
+}
+
+/**
+ * PD line 14: the donations above the cap, which is the rule's share of whichever of the year's and the year before's revenue
+ * allows more. The allowed part is the smaller of the donations and the cap, and the rest is added back.
+ */
+function donationsAboveCap(donations: DonationsGiven, revenue: TracedFigure, year: number, rules: RuleSource): TracedFigure {
+  const rule = rules('hr.cit.donation-cap', civilDate(year, 1, 1))
+  if (rule.value.revenueBasis.text !== 'higher-of-prior-and-current-period') {
+    throw new RangeError(`The donation rule in force in ${year} reads its revenue as ${rule.value.revenueBasis.text}, which this build-up does not model.`)
+  }
+  const before = donations.revenueYearBefore
+  const fromYearBefore = before !== null && before.amount > revenue.amount
+  const capRevenue = fromYearBefore ? before : revenue
+  const share = rule.value.capShareOfRevenue.basisPoints
+  const label = words.base.donationCap(percentText(share), fromYearBefore ? year - 1 : year, before !== null)
+  const cap = tracedFigure(label, maxMoney(ZERO, moneyAt(capRevenue.amount, share)), capRevenue.basis, [rule.citation], [capRevenue])
+  const above = subtractMoney(donations.given.amount, minMoney(donations.given.amount, cap.amount))
+  return tracedFigure(words.base.donationsAbove(percentText(share)), above, 'ledger', [rule.citation, ...donations.given.rules], [donations.given, cap])
 }
 
 /** A year with no car depreciated keeps the running costs as the line's only source. */

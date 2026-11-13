@@ -171,8 +171,8 @@ function forecastView(workbook: HrDooWorkbook, year: number, asOf: CivilDate, co
     pdLine('revenue', base.revenue),
     pdLine('expenses', base.expenses),
     pdLine('profit', base.profitBeforeTax, true),
-    pdLine('increases', base.increases),
-    pdLine('decreases', base.decreases),
+    { ...pdLine('increases', base.increases), caption: (forecast.taxBaseInput.donations?.given.amount ?? 0) === 0 ? null : words.oneOffCaptions.donations },
+    { ...pdLine('decreases', base.decreases), caption: (forecast.taxBaseInput.listedSponsorships?.amount ?? 0) === 0 ? null : words.oneOffCaptions.sponsorships },
     pdLine('losses', base.lossesUsed),
     pdLine('base', base.base, true),
     {

@@ -17,7 +17,7 @@ import { assetBooks, carDepreciationAllowed, depreciationAboveAllowed, depreciat
 import type { DepreciationSettings } from '../assets/depreciationSchedule'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import type { CitLiability, TaxPeriod } from '../cit/citLiability'
-import { lossesCarriedInto, taxBase } from '../cit/taxBase'
+import { donationsOfYear, lossesCarriedInto, taxBase } from '../cit/taxBase'
 import type { TaxBase } from '../cit/taxBase'
 import { grantResiduals } from '../grants/grantRelease'
 import { relatedPartyInterest } from '../ownerLoanInterest'
@@ -317,6 +317,9 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
     const figures = categoryTotals.filter((entry) => slugs.includes(entry.category.slug)).map((entry) => entry.figure)
     return withDrill(tracedFigure(label, negateMoney(sumMoney(figures.map((figure) => figure.amount))), 'ledger', rulesOf(figures), figures), yearDrill(slugs))
   }
+  const costOfUsedRole = (role: PackRole, label: string): TracedFigure | null => (categoriesWithRole(workbook.categories, role).length === 0 ? null : costOfRole(role, label))
+  const donations = costOfUsedRole(PACK_ROLES.donation, words.year.donations)
+  const listedSponsorships = costOfUsedRole(PACK_ROLES.listedSponsorship, words.year.listedSponsorships)
   const lossesBroughtForward = lossesCarriedInto(year, workbook.yearEndLines, rules)
   const base = taxBase(
     {
@@ -327,6 +330,18 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
       personalTransport: costOfRole(PACK_ROLES.personalTransport, words.year.personalTransport),
       carDepreciationAllowed: carDepreciationAllowed(books.schedules, year),
       nonDeductible: costOfRole(PACK_ROLES.nonDeductible, words.year.neverAllowed),
+      ...(donations === null
+        ? {}
+        : {
+            donations: donationsOfYear(
+              donations,
+              year,
+              workbook.companyFacts.companyRegistered,
+              workbook.yearEndLines,
+              (before) => accrualYear(workbook, before, { ...inputs, citAdvancesPaid: null }, rules).taxBase.revenue,
+            ),
+          }),
+      ...(listedSponsorships === null ? {} : { listedSponsorships }),
       depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
       relatedPartyInterestShortfall: relatedPartyInterest(workbook, year, profitBeforeTax.amount, lossesBroughtForward, rules),
       lossesBroughtForward,

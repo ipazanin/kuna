@@ -20,6 +20,7 @@ const PROMPTS = {
   currency: { en: 'Show my figures in US dollars', hr: 'Prikaži moje iznose u američkim dolarima' },
   refile: { en: 'Always file Laptop Store under office supplies', hr: 'Uvijek stavi Laptop Store pod uredski materijal' },
   category: { en: 'Add a category for training courses', hr: 'Dodaj kategoriju za edukacije' },
+  donation: { en: 'Add a category for donations', hr: 'Dodaj kategoriju za donacije' },
   move: { en: 'Try the second rule first', hr: 'Neka se drugo pravilo isprobava prvo' },
   merge: { en: 'Merge AI services into software subscriptions', hr: 'Spoji AI usluge s pretplatama na softver' },
   theme: { en: 'Switch Kuna to the dark look', hr: 'Prebaci Kunu na tamni izgled' },
@@ -126,6 +127,10 @@ const CARDS = {
   category: async (page, language) => {
     await elementSays(page, '[data-testid="chat-proposal"]', [CLASS_WORDS[language].classes.deductibleCost], 'the category card does not name its tax class as the categories editor does')
   },
+  donation: async (page, language) => {
+    const name = CLASS_WORDS[language].classes.donation('').split(':')[0]
+    await elementSays(page, '[data-testid="chat-proposal"]', [name], 'the donations card does not name its tax class as the categories editor does')
+  },
   move: async (page, language) => {
     await elementSays(page, '[data-testid="chat-proposal"]', [RULE_WORDS[language].form.tried], 'the card that moves a rule does not say where it is tried')
   },
@@ -140,7 +145,7 @@ const CARDS = {
 /**
  * A chat on Company's Overview with a made-up key kept: an invoice is a link to the Invoices tab with the client picked, not a
  * card, dollars are a set-setting card with its line warned, a rule for Laptop Store re-files the rows the owner confirmed, each on a warned
- * line, a category for training is an add-category card that names its tax class as the categories editor does, and trying the second
+ * line, a category for training and one for donations are add-category cards that name their tax class as the categories editor does, and trying the second
  * rule first is a change-rule card that says where the rule is tried, and merging AI services
  * into software subscriptions is a delete-category card that says its plan row joins the one already there, which Accept writes and Undo puts back.
  * Parking paid on travel order 3/2026 is an add-trip-cost card that names the order, read with Anonymise off since a trip names its traveller.

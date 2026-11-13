@@ -29,6 +29,10 @@ export const PACK_ROLES = {
   prepaidAnnual: 'prepaid-annual',
   /** A cost the corporate tax never allows, such as a fine or a private cost. */
   nonDeductible: 'non-deductible',
+  /** A donation in Croatia for a public-benefit purpose, which the profit tax allows up to a share of revenue. */
+  donation: 'donation',
+  /** A sponsorship to a recipient a ministry has listed, which lowers the profit tax base a second time. */
+  listedSponsorship: 'listed-sponsorship',
   /** An ordinary cost the corporate tax allows. */
   deductibleCost: 'deductible-cost',
   /** Operating income other than sales, such as interest on the company's account. */
@@ -80,6 +84,11 @@ export function categoriesWithRole(categories: readonly Category[], role: PackRo
 /** The slugs of the categories in a bucket, in the order the tab lists them. */
 export function categoriesInBucket(categories: readonly Category[], bucket: DefinedBucket): string[] {
   return categories.filter((category) => category.bucket === bucket).map((category) => category.slug)
+}
+
+/** A cost given once, a donation or a listed sponsorship, which the forecast counts only as paid and planned, never as an average of past months. */
+export function isOneOffCost(category: Category): boolean {
+  return category.roles.includes(PACK_ROLES.donation) || category.roles.includes(PACK_ROLES.listedSponsorship)
 }
 
 /** A cost of paying the owner: the owner-pay bucket, and the taxes owed because the owner was paid. */

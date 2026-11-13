@@ -97,6 +97,8 @@ const CROATIAN_OPEN_ITEM_TITLES: Readonly<Record<string, string>> = {
   'hr.pit.bill-pz-339': 'Prijedlog zakona o porezu na dohodak za 2027. (PZ 339)',
   'hr.contrib.draft-10198': 'Nacrt o doprinosima za 2027. (e-Savjetovanja 10198)',
   'hr.cit.excess-margin-2026': 'Jednokratni porez na prekomjernu maržu dobiti za 2026.',
+  'hr.cit.sponsorship-lists': 'Primatelji sponzorstva na popisima ministarstava',
+  'hr.cit.sponsorship-state-aid': 'Ograničava li se umanjenje za sponzorstva kao državna potpora',
 }
 
 const CROATIAN_TITLES: Readonly<Record<string, string>> = { ...CROATIAN_RULE_TITLES, ...CROATIAN_OPEN_ITEM_TITLES }

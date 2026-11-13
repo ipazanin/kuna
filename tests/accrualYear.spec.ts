@@ -9,8 +9,9 @@ import { sumMoney } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
 import type { Category } from '../src/apps/company/workbook/domain/workbook'
-import { STUDIO_CATEGORIES, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
-import { euros } from './fixtures/ledger'
+import { STUDIO_CATEGORIES, STUDIO_ROWS, exampleStudio, yearEndLine } from './fixtures/exampleStudio'
+import { withPackBuckets } from './fixtures/hrDooCategories'
+import { euros, ledger } from './fixtures/ledger'
 
 function accrual(year: number, workbook: HrDooWorkbook = exampleStudio()): AccrualYear {
   return accrualYear(workbook, year, { depreciation: { depreciationDoubled: false }, citAdvancesPaid: null })
@@ -143,6 +144,39 @@ describe('accrualYear, a first tax period', () => {
 
     expect(amountOfStep(next, 'profit-distributions')).toBe(euros(1000))
     expect(amountOfStep(next, 'corporate-tax-paid')).toBe(euros(899.98))
+  })
+})
+
+describe('accrualYear with donations and listed sponsorships', () => {
+  const software = STUDIO_CATEGORIES.find((category) => category.slug === 'software')!
+  const categories: readonly Category[] = [
+    ...STUDIO_CATEGORIES,
+    { ...software, slug: 'donations', roles: ['donation'], vat: 'none' },
+    { ...software, slug: 'sponsorships', roles: ['listed-sponsorship'], vat: 'none' },
+  ]
+  const rows = [...STUDIO_ROWS, { date: '2026-03-01', amount: -300, category: 'donations' }, { date: '2026-03-02', amount: -200, category: 'sponsorships' }]
+  const giving = (lines: readonly YearEndLine[] = []) => exampleStudio({ categories, transactions: withPackBuckets(ledger(rows), categories), yearEndLines: lines })
+  const increaseOf = (result: AccrualYear, label: string) => result.taxBase.increases.steps.find((entry) => entry.label.startsWith(label))?.amount
+
+  it('caps the donations at 2% of the year before when it had more revenue, and takes the listed sponsorship off the base', () => {
+    const result = accrual(2026, giving())
+
+    // 2026 has 4,300.00 of revenue and 2025 had 13,100.00, so the cap is 262.00 and 38.00 of the 300.00 is added back.
+    expect(increaseOf(result, 'PD line 14')).toBe(euros(38))
+    expect(result.taxBase.decreases.amount).toBe(euros(200))
+    expect(lineAmount(result, 'tax', 'decreases')).toBe(euros(200))
+  })
+
+  it('reads the year before from the accountant’s PD line 1 when the year-end tab has it', () => {
+    // 2% of the accountant’s 20,000.00 is 400.00, above the 300.00 given.
+    expect(increaseOf(accrual(2026, giving([yearEndLine(2025, 'tax', 'revenue', 20000)])), 'PD line 14')).toBe(euros(0))
+  })
+
+  it('counts the donations on other costs, and shows the lines at zero in a year with none', () => {
+    expect(lineAmount(accrual(2026, giving()), 'pl', 'other-costs')).toBe(euros(300))
+    const before = accrual(2025, giving())
+    expect(increaseOf(before, 'PD line 14')).toBe(euros(0))
+    expect(before.taxBase.decreases.steps.map((entry) => entry.label)).toEqual(['PD line 33.a, sponsorships to recipients on a ministry list: no decrease in 2025'])
   })
 })
 

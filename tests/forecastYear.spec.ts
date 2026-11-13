@@ -3,15 +3,21 @@ import { describe, expect, it } from 'vitest'
 import { INVOICE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { MonthBasis } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastLines'
 import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
+import { forecastState } from '../src/apps/company/packs/hr-doo/presentation/forecast/forecastView'
 import type { YearForecast } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
 import { accrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualYear'
+import { maxMoney, minMoney, subtractMoney } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import type { TaxBase } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
 import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
 import { STUDIO_CATEGORIES, exampleStudio } from './fixtures/exampleStudio'
 import { planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
-import { STEADY_INVOICES, planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
+import { STEADY_CATEGORIES, STEADY_INVOICES, STEADY_ROWS, planLine, planOwnerPay, planPurchase, steadyStudio } from './fixtures/steadyStudio'
+import { withPackBuckets } from './fixtures/hrDooCategories'
+import { ledger } from './fixtures/ledger'
+import { moneyAt } from '../src/shared/money/percent'
+import { basisPoints } from '../src/apps/company/packs/hr-doo/ruleset/schema'
 import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
@@ -172,6 +178,52 @@ describe('forecastYear, the year still running', () => {
     const steps = forecast.runway.monthlyCost.steps[0]?.steps ?? []
     expect(steps.filter((step) => step.label.startsWith('Depreciation')).reduce((total, step) => total + step.amount, 0)).toBe(0)
     expect(steps.filter((step) => step.label.startsWith('Advance for')).map((step) => step.amount)).toEqual([euros(100), euros(100), euros(100)])
+  })
+})
+
+describe('forecastYear with donations', () => {
+  const categories = [...STEADY_CATEGORIES, { ...STEADY_CATEGORIES.find((category) => category.slug === 'consulting')!, slug: 'donations', roles: ['donation'] }]
+  const giving = steadyStudio({ categories, transactions: withPackBuckets(ledger([...STEADY_ROWS, { date: '2026-02-15', amount: -3000, category: 'donations' }]), categories) })
+  const forecast = forecastYear(giving, 2026, civil('2026-10-19'))
+
+  it('caps the donations at 2% of the revenue of whichever of the year and its own forecast of the year before has more', () => {
+    const before = forecastYear(giving, 2025, civil('2026-10-19')).taxBase.revenue.amount
+    const cap = moneyAt(maxMoney(before, forecast.taxBase.revenue.amount), basisPoints(200).basisPoints)
+    const step = forecast.taxBase.increases.steps.find((entry) => entry.label.startsWith('PD line 14'))!
+    const given = forecast.taxBaseInput.donations!.given.amount
+
+    expect(forecast.taxBaseInput.donations!.revenueYearBefore).toMatchObject({ label: 'PD line 1 for 2025, as Kuna counts it', amount: before })
+    expect(step.steps[1]!.amount).toBe(cap)
+    expect(step.amount).toBe(subtractMoney(given, minMoney(given, cap)))
+    expect(step.amount).toBeGreaterThan(0)
+  })
+
+  it('forecasts a donation only as paid and planned, never as an average of past months', () => {
+    const donations = categoryLine(forecast, 'donations')
+
+    expect(forecast.taxBaseInput.donations!.given.amount).toBe(euros(3000))
+    expect(bases(donations).slice(10)).toEqual([[], []])
+    expect(amounts(donations).slice(9)).toEqual([euros(0), euros(0), euros(0)])
+    expect(donations.averagedOver).toBeNull()
+    const planned = forecastYear({ ...giving, planLines: [planLine(12, 'donations', 500)] }, 2026, civil('2026-10-19'))
+    expect(planned.taxBaseInput.donations!.given.amount).toBe(euros(3500))
+    expect(bases(categoryLine(planned, 'donations'))[11]).toEqual(['planned'])
+  })
+
+  it("says under the PD return's increases that line 14 is not averaged, and leaves the decreases without a caption while no sponsorship is listed", () => {
+    const state = forecastState(giving, 2026, civil('2026-10-19'), { link: () => null })
+    if (state.state !== 'ready') throw new Error(`The forecast is ${state.state}`)
+    const caption = (key: string) => state.view.pdReturn.find((line) => line.key === key)?.caption
+
+    expect(caption('increases')).toBe('Donations on line 14 are those paid and planned, not an average of past months.')
+    expect(caption('decreases')).toBeNull()
+  })
+
+  it('shows no caption in a year whose donations line holds no money', () => {
+    const state = forecastState(giving, 2027, civil('2026-10-19'), { link: () => null })
+    if (state.state !== 'ready') throw new Error(`The forecast is ${state.state}`)
+
+    expect(state.view.pdReturn.find((line) => line.key === 'increases')?.caption).toBeNull()
   })
 })
 

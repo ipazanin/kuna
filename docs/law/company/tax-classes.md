@@ -14,30 +14,32 @@ The percentages are not copied here from the law alone. Each one is the value of
 
 ## Classes
 
-`From` is the day the percentages are read from the ruleset. `CIT add-back` is the share of the cost Kuna adds back to the profit tax base. `Input VAT back` is the share of the VAT inside a purchase that Kuna counts as a claim on the state, for each kind of VAT the class allows, and `none` where the class carries no VAT Kuna splits out.
+`From` is the day the percentages are read from the ruleset. `CIT add-back` is the share of the cost Kuna adds back to the profit tax base, or for donations the part above the cap. `Input VAT back` is the share of the VAT inside a purchase that Kuna counts as a claim on the state, for each kind of VAT the class allows, and `none` where the class carries no VAT Kuna splits out.
 
-| Class                                     | CIT add-back | Input VAT back | VAT treatments                                                                                      | Buckets              | From       |
-| ----------------------------------------- | ------------ | -------------- | --------------------------------------------------------------------------------------------------- | -------------------- | ---------- |
-| `revenue`                                 | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `client-refund`                           | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `grant`                                   | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `other-income`                            | 0%           | none           | `none`                                                                                              | income               | 2026-01-01 |
-| `deductible-cost`                         | 0%           | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `none`           | operating, taxes     | 2026-01-01 |
-| `representation`                          | 50%          | 0%             | `representation`                                                                                    | operating            | 2026-01-01 |
-| `personal-transport`                      | 50%          | 50%            | `car-50`, `foreign-vat`, `none`                                                                     | operating            | 2026-01-01 |
-| `vehicle-insurance-interest-tax-and-fees` | 0%           | none           | `none`                                                                                              | operating            | 2026-01-01 |
-| `non-deductible`                          | 100%         | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
-| `capital-purchase`                        | 0%           | 100% or 50%    | `deductible-25`, `deductible-13`, `deductible-5`, `car-50`, `reverse-charge`, `foreign-vat`, `none` | operating            | 2026-01-01 |
-| `corporate-income-tax`                    | 0%           | none           | `none`                                                                                              | taxes                | 2026-01-01 |
-| `vat-settlement`                          | 0%           | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
-| `profit-distribution`                     | 0%           | none           | `none`                                                                                              | owner-pay, taxes     | 2026-01-01 |
-| `salary`                                  | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `tax-free:*`                              | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-rent`                              | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-benefit`                           | 0%           | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
-| `owner-loan-out`                          | 0%           | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
-| `owner-loan-repaid`                       | 0%           | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
-| `outside-profit`                          | 0%           | none           | `none`                                                                                              | financing, neutral   | 2026-01-01 |
+| Class                                     | CIT add-back        | Input VAT back | VAT treatments                                                                                      | Buckets              | From       |
+| ----------------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------- | -------------------- | ---------- |
+| `revenue`                                 | 0%                  | none           | `none`                                                                                              | income               | 2026-01-01 |
+| `client-refund`                           | 0%                  | none           | `none`                                                                                              | income               | 2026-01-01 |
+| `grant`                                   | 0%                  | none           | `none`                                                                                              | income               | 2026-01-01 |
+| `other-income`                            | 0%                  | none           | `none`                                                                                              | income               | 2026-01-01 |
+| `deductible-cost`                         | 0%                  | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `reverse-charge`, `foreign-vat`, `none`           | operating, taxes     | 2026-01-01 |
+| `representation`                          | 50%                 | 0%             | `representation`                                                                                    | operating            | 2026-01-01 |
+| `personal-transport`                      | 50%                 | 50%            | `car-50`, `foreign-vat`, `none`                                                                     | operating            | 2026-01-01 |
+| `vehicle-insurance-interest-tax-and-fees` | 0%                  | none           | `none`                                                                                              | operating            | 2026-01-01 |
+| `non-deductible`                          | 100%                | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
+| `donation`                                | above 2% of revenue | none           | `none`                                                                                              | operating            | 2026-01-01 |
+| `listed-sponsorship`                      | 0%                  | 100%           | `deductible-25`, `deductible-13`, `deductible-5`, `none`                                            | operating            | 2026-01-01 |
+| `capital-purchase`                        | 0%                  | 100% or 50%    | `deductible-25`, `deductible-13`, `deductible-5`, `car-50`, `reverse-charge`, `foreign-vat`, `none` | operating            | 2026-01-01 |
+| `corporate-income-tax`                    | 0%                  | none           | `none`                                                                                              | taxes                | 2026-01-01 |
+| `vat-settlement`                          | 0%                  | none           | `none`                                                                                              | operating, taxes     | 2026-01-01 |
+| `profit-distribution`                     | 0%                  | none           | `none`                                                                                              | owner-pay, taxes     | 2026-01-01 |
+| `salary`                                  | 0%                  | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
+| `tax-free:*`                              | 0%                  | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
+| `owner-rent`                              | 0%                  | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
+| `owner-benefit`                           | 0%                  | none           | `none`                                                                                              | owner-pay            | 2026-01-01 |
+| `owner-loan-out`                          | 0%                  | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
+| `owner-loan-repaid`                       | 0%                  | none           | `none`                                                                                              | owner-pay, financing | 2026-01-01 |
+| `outside-profit`                          | 0%                  | none           | `none`                                                                                              | financing, neutral   | 2026-01-01 |
 
 The modifiers `arrears`, `prepaid-annual`, `watched`, `owner-pay-tax` and `reimbursement` are no class. They say when a cost is paid, which tax Kuna waits for, which cost counts in the owner's cost and which balance an advance settles. A category takes any of them beside its class.
 
@@ -68,6 +70,8 @@ Mark: `confirmed-consolidated`.
 ## Deductible cost
 
 Kuna counts this as a cost the profit tax allows (ZPD Art. 5(1)). The VAT on a purchase for the business is deducted as input VAT (ZPDV Art. 57(1) and 58(1)). A service from abroad is self-charged and deducted on the same return (ZPDV Art. 75(1)(6)), and VAT paid abroad is never reclaimed in Croatia, so it stays in the cost. Which rate a purchase carries is the supplier's fact, so the owner picks it per category.
+
+A sponsorship with promotion of the company in return is advertising and belongs here too. PravPD Art. 30(8): "U darovanja iz članka 7. stavaka 7., 8. i 9. Zakona ne spadaju sponzorstva ako je zauzvrat učinjena promidžba tvrtke, proizvoda ili znaka sponzora ili darovatelja." Porezna uprava's instructions for the 2024 return add that such a payment is, as a rule, a cost of promotion. That it is allowed in full follows from ZPD Art. 5(1) and is a `reading`. A sponsorship to a recipient a ministry has listed counts more, as under [Listed sponsorship](#listed-sponsorship).
 
 Payroll taxes and contributions are deductible costs too. They carry the `owner-pay-tax` modifier, so Kuna also counts them in the owner's cost.
 
@@ -105,9 +109,37 @@ Mark: `confirmed-consolidated`. Which registration costs are fees the law requir
 
 ## Non-deductible
 
-Kuna counts this as fines and private costs, all of it added back. ZPD Art. 7(1)(7) adds back fines a competent body imposes, and Art. 7(1)(13) "sve druge rashode koji nisu izravno u svezi s ostvarivanjem dobiti". Art. 7(2) adds nothing back where income tax was paid on the item.
+Kuna counts this as fines and private costs, all of it added back. ZPD Art. 7(1)(7) adds back fines a competent body imposes, and Art. 7(1)(13) "sve druge rashode koji nisu izravno u svezi s ostvarivanjem dobiti". Art. 7(2) adds nothing back where income tax was paid on the item. The fines rule and the private cost rule both add back the whole cost, and Kuna counts them on one step, so it stops with an error if a later version of either changes its share.
+
+A donation that does not qualify under [Donation](#donation) belongs here too: one to a recipient abroad, one that funds a political campaign, and one with a direct or indirect benefit to the company or a related person (ZPD Art. 7(1)(10)).
 
 Mark: `confirmed-consolidated`.
+
+## Donation
+
+Kuna counts this as a donation in Croatia for a public-benefit purpose, allowed up to 2% of revenue, with the rest added back on PD line 14.
+
+ZPD Art. 7(7): "Porezno priznatim rashodima darovanja smatraju se darovanja u naravi ili novcu, u iznosu do 2 % prihoda ostvarenog prethodnog ili tekućeg poreznog razdoblja, koja su učinjena u tuzemstvu za kulturne, znanstvene, odgojno-obrazovne, zdravstvene, humanitarne, sportske, vjerske, ekološke i druge općekorisne svrhe udrugama, tijelima državne uprave, lokalne i područne (regionalne) samouprave i drugim osobama koje navedene djelatnosti obavljaju u skladu s posebnim propisima." That wording comes from NN 114/23 Art. 4, which applies from the return for 2024 (Art. 13(1) and 15). Paying a person's medical costs straight to the recipient or the clinic on credible papers counts as well (Art. 7(9)). Art. 7(1)(10) adds back "darovanja iznad svote iz stavaka 7. i. 9. ovoga članka i ... darovanja koja poreznom obvezniku ili povezanoj osobi donose izravnu ili neizravnu korist", and PravPD Art. 47(3) item 14 puts that amount on PD line 14.
+
+The revenue is total revenue, PD line 1. Part X of the PD form asks for the donations as a share of "ukupnim prihodima prethodnog poreznog razdoblja" and of "ukupnim prihodima poreznog razdoblja" (PravPD Art. 47(5)). Porezna uprava's instructions for the 2024 return work an example where donations are 3% of the previous year's revenue and 2% of the current year's, and allow all of them. They also say donations are allowed "i u prvoj godini poslovanja ako porezni obveznik ostvari prihode". So Kuna takes the cap from whichever of the two years has more revenue, and a first year from its own. For the previous year it reads the accountant's PD line 1 from the year-end tab, and Kuna's own accrual of that year where the accountant's line is missing. An open year's cap grows as its revenue comes in. Taking the more favourable year is a `reading`.
+
+A donation abroad, or one that does not meet Art. 7(7), is allowed at no amount, and goes in a category of the class under [Non-deductible](#non-deductible). Donations above 2% for a strategic project a ministry names (Art. 7(8), PravPD Art. 30(1) to 30(3)) and food donations (PravPD Art. 30(4)) are not modelled. A donation in money carries no VAT, so the class allows `none` only. A donation in kind of goods whose VAT was deducted is a supply (ZPDV Art. 7(3)), which Kuna does not count.
+
+Text read on 13 November 2026 in the consolidated ZPD and PravPD on zakon.hr, through NN 128/26 for the database, and in NN 114/23.
+
+Mark: `confirmed-nn` for the cap of 2% and the add-back. Which year's revenue sets it is a `reading`.
+
+## Listed sponsorship
+
+Kuna counts this as a sponsorship to a recipient a ministry has listed: a cost the profit tax allows, and from 2026 the base drops by it again on PD line 33.a.
+
+ZPD Art. 6(1)(6), added by NN 151/25 Art. 2 and in force on 1 January 2026, decreases the base "za sponzorstava učinjena u tuzemstvu za kulturne, znanstvene, odgojno-obrazovne, zdravstvene, humanitarne, sportske, vjerske, ekološke i druge općekorisne svrhe subjektima kao što su udruge, zaklade, ustanove, samostalni umjetnici, pravne i fizičke osobe u sustavu sporta, ... a koji provode programe i aktivnosti od interesa za Republiku Hrvatsku". By Art. 6(8) the minister for the activity names the qualifying recipients by a decision, with the finance minister's prior consent. PD line 33.a takes "iznos rashoda nastalih u poreznom razdoblju za sponzorstva koji ispunjavaju uvjete iz članka 6. stavka 1. točke 6. Zakona odnosno ako se odnose na subjekte utvrđene odlukom nadležnog ministarstva" (PravPD Art. 47(3) item 33.a, added by NN 39/26 Art. 5 for the return for 2026 onward). So the whole cost, already an expense, comes off the base a second time. The cost is what is left after the VAT Kuna deducts, which is a `reading`. A sponsorship booked in 2025 is a cost and nothing more.
+
+The Ministry of Tourism and Sport set its list for sport on 23 February 2026 and amended it on 10 June 2026. It says "Sponzorstvo podrazumijeva novčano ili materijalno davanje uz protučinidbu reklame", so the sponsorship is one with promotion in return. Its decisions are published as scans, and no other ministry's list was found, so whether a recipient is listed is the owner's to say. Neither the act nor the Pravilnik caps the decrease. Art. 6(3) lets these decreases create a loss with regard to the rules on state aid, and whether that limits them is open. Both points are on the [watch list](../sources/watch-list.md#company-classes).
+
+A sponsorship to a recipient on no list is advertising, under [Deductible cost](#deductible-cost).
+
+Mark: `confirmed-nn`. The decrease net of the deductible VAT is a `reading`.
 
 ## Capital purchase
 
@@ -185,6 +217,8 @@ Made-up figures, on the rules of 2026:
 
 - A client dinner of 100.00 in a representation category. Kuna counts the whole 100.00 as a cost with no VAT back, and adds 50.00 back to the tax base.
 - A fuel bill of 125.00 in a personal transport category, with 25.00 of VAT inside. Kuna counts 12.50 as input VAT, 112.50 as the cost, and adds 56.25 back.
+- A donation of 2,000.00 to a youth choir in a donation category, in a year with revenue of 80,000.00 and 60,000.00 the year before. The cap is 2% of 80,000.00, which is 1,600.00. Kuna counts the whole 2,000.00 as a cost and adds 400.00 back on PD line 14.
+- A sponsorship of 1,000.00 to a sports club on the ministry's list, with no VAT, in a listed sponsorship category in 2026. Kuna counts 1,000.00 as a cost and takes another 1,000.00 off the base on PD line 33.a.
 - An insurance policy of 400.00 and a registration fee of 60.00 for the same car, in a vehicle insurance, interest, tax and fees category. Kuna counts the whole 460.00 as an allowed cost and adds nothing back.
 - The same car on the assets tab at a cost of 40,000.00, put in use in December 2025. At 20% it depreciates 8,000.00 in 2026, all of it under the 54,000.00 cap. Kuna adds 4,000.00 back on PD line 7, which is 400.00 of profit tax at 10%.
 
@@ -196,11 +230,17 @@ Made-up figures, on the rules of 2026:
 - The car add-back where private use is taxed as salary, as under [Personal transport](#personal-transport). The class cannot express it.
 - The base of the car add-back, as under [Personal transport](#personal-transport).
 - Gifts in kind inside the 700.00 a year, as under [Tax-free payments](#tax-free-payments).
+- Which year's revenue sets the donation cap, as under [Donation](#donation).
+- Which recipients the ministries list, and whether the sponsorship decrease is limited as state aid, as under [Listed sponsorship](#listed-sponsorship).
 
 ## Sources
 
 - Zakon o porezu na dobit (ZPD), consolidated, "na snazi od 01.01.2026.", NN 177/04 to 151/25: Art. 5(1), 6(6), 6(7), 7(1)(3), 7(1)(4), 7(1)(7), 7(1)(13), 7(2), 7(3), 7(6), 12(3), 14(3), 34(1) and 35. https://www.zakon.hr/z/99/zakon-o-porezu-na-dobit, loaded on 4 November 2026.
 - Zakon o porezu na dobit (ZPD), consolidated, same text: Art. 7(1)(4), 7(3) and 12(13), and NN 151/25, which changes Art. 7 only in paragraph 9. Reloaded on 9 November 2026, the database "ažurirana 08.11.2026. zaključno sa NN 128/26".
+- Zakon o porezu na dobit (ZPD), consolidated, same text: Art. 6(1)(6), 6(3), 6(8), 7(1)(10), 7(7) to 7(9). Reloaded on 13 November 2026, the database "ažurirana 08.11.2026. zaključno sa NN 128/26". NN 114/23 Art. 4, 13 and 15 (https://narodne-novine.nn.hr/clanci/sluzbeni/2023_10_114_1613.html) and NN 151/25 Art. 2 and 13 (https://narodne-novine.nn.hr/clanci/sluzbeni/2025_12_151_2261.html) were read in NN. An NN title search of 13 November 2026 found no amendment of the act or the Pravilnik in 2026 through NN 130/26 after NN 39/26.
+- Pravilnik o porezu na dobit (PravPD), consolidated, NN 95/05 to 39/26: Art. 30 and 47(3) items 14 and 33.a, and 47(5), loaded on 13 November 2026. NN 39/26 Art. 5, 10 and 12 were read in NN.
+- Porezna uprava, instructions for the profit tax return for 2024, KLASA 410-01/25-01/404, 8 April 2025, on PD line 14 and part X. https://porezna-uprava.gov.hr/Misljenja/Detaljno/2602, loaded on 13 November 2026. Guidance, not law.
+- Ministry of Tourism and Sport, "Porezne olakšice za sponzorstva". https://mint.gov.hr/sport-21680/porezni-poticaji-u-sportu/porezne-olaksice-za-sponzorstva/24228, loaded on 13 November 2026. Its two decisions are scans that were not read.
 - Pravilnik o porezu na dobit (PravPD), consolidated, NN 95/05 to 39/26: Art. 22(3), 25(1), 25(2) and 25(3). https://www.zakon.hr/cms.htm?id=60061, loaded on 9 November 2026. NN 16/25 (https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_151.html) and NN 39/26 (https://narodne-novine.nn.hr/clanci/sluzbeni/2026_04_39_469.html) were read for the articles they amend, and touch neither Art. 22 nor 25. No 2026 issue through NN 129/26 carries a further amendment of the act or the Pravilnik, by an NN title search of 9 November 2026.
 - Zakon o porezu na dodanu vrijednost (ZPDV), consolidated, "na snazi od 30.03.2026.": Art. 40(1)(a) and (b), 57(1), 58(1), 61(1), 61(2), 66(1), 66(2) and 75(1)(6). https://www.zakon.hr/z/1455/zakon-o-porezu-na-dodanu-vrijednost, loaded on 4 November 2026.
 - Zakon o porezu na dohodak (ZPDoh): Art. 9(1)(9), 19, 21(3), 24(3), 57(1), 62(1), 66(1), 69 and 70. https://www.zakon.hr/z/85/zakon-o-porezu-na-dohodak

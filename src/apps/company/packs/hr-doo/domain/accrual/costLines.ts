@@ -2,7 +2,7 @@ import type { Category } from '../../../../workbook/domain/workbook'
 import type { YearEndLine } from '../yearEnd/yearEnd'
 import { ZERO, addMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
-import { isOwnerPayCost } from '../packRoles'
+import { PACK_ROLES, isOwnerPayCost } from '../packRoles'
 import { words } from './words'
 
 export const COST_LINES = ['material-costs', 'personnel-costs', 'depreciation', 'other-costs', 'impairment-provisions-other', 'financial-expenses'] as const
@@ -27,7 +27,7 @@ const KONTO_CLASS_LINES: Readonly<Record<string, CostLine>> = {
 /**
  * The cost line a category counts on: where the accountant's konto lines put it, by the konto line
  * of the latest year-end at or before the year that names it, the largest when several do. A
- * category no konto line names counts by its bucket.
+ * category no konto line names counts by its bucket, and a donation on other costs.
  */
 export function costLineOf(category: Category, year: number, yearEnd: readonly YearEndLine[]): CostLine {
   const kontoYears = yearEnd.filter((line) => line.statement === 'konto' && line.year <= year).map((line) => line.year)
@@ -46,6 +46,10 @@ export function costLineOf(category: Category, year: number, yearEnd: readonly Y
 function bucketDefault(category: Category): CostLine {
   if (isOwnerPayCost(category)) {
     return 'personnel-costs'
+  }
+  // The chart of accounts keeps donations in class 46, the other costs of the business.
+  if (category.roles.includes(PACK_ROLES.donation)) {
+    return 'other-costs'
   }
   return category.bucket === 'taxes' ? 'other-costs' : 'material-costs'
 }

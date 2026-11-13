@@ -39,11 +39,11 @@ import { matchCitPayments, outstandingFigure } from '../cit/matchCitPayments'
 import type { MatchedCitObligation } from '../cit/matchCitPayments'
 import { closedYearReturn } from '../cit/priorReturn'
 import type { PriorReturn } from '../cit/priorReturn'
-import { lossesCarriedInto, taxBase } from '../cit/taxBase'
+import { donationsOfYear, lossesCarriedInto, taxBase } from '../cit/taxBase'
 import type { TaxBase, TaxBaseInput } from '../cit/taxBase'
 import { owedByOwnerOn } from '../dividend/owedByOwner'
 import { relatedPartyInterest } from '../ownerLoanInterest'
-import { PACK_ROLES, categoriesWithRole, isOwnerPayCost } from '../packRoles'
+import { PACK_ROLES, categoriesWithRole, isOneOffCost, isOwnerPayCost } from '../packRoles'
 import type { PackRole } from '../packRoles'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
@@ -349,6 +349,9 @@ function forecastOne(context: ForecastContext): YearForecast {
     const figures = categories.filter((entry) => slugs.includes(entry.category.slug)).map((entry) => entry.forecast.total)
     return tracedFigure(label, negateMoney(sumMoney(figures.map((figure) => figure.amount))), 'ledger', rulesOf(figures), figures)
   }
+  const costOfUsedRole = (role: PackRole, label: string): TracedFigure | null => (categoriesWithRole(known.categories, role).length === 0 ? null : costOfRole(role, label))
+  const donations = costOfUsedRole(PACK_ROLES.donation, words.figures.donations)
+  const listedSponsorships = costOfUsedRole(PACK_ROLES.listedSponsorship, words.figures.listedSponsorships)
   const lossesBroughtForward = lossesCarriedInto(year, known.yearEndLines, rules)
   const taxBaseInput: TaxBaseInput = {
     year,
@@ -358,6 +361,8 @@ function forecastOne(context: ForecastContext): YearForecast {
     personalTransport: costOfRole(PACK_ROLES.personalTransport, words.figures.personalTransport),
     carDepreciationAllowed: carDepreciationAllowed(books.schedules, year),
     nonDeductible: costOfRole(PACK_ROLES.nonDeductible, words.figures.neverAllowed),
+    ...(donations === null ? {} : { donations: donationsOfYear(donations, year, registered, known.yearEndLines, (before) => context.forecastOf(before).taxBase.revenue) }),
+    ...(listedSponsorships === null ? {} : { listedSponsorships }),
     depreciationAboveAllowed: depreciationAboveAllowed(books.schedules, year),
     relatedPartyInterestShortfall: relatedPartyInterest(known, year, subtractMoney(revenueTotal.amount, expenses.amount), lossesBroughtForward, rules),
     lossesBroughtForward,
@@ -479,6 +484,7 @@ function categoryForecasts(
       paidAhead: (month) => (category.roles.includes(PACK_ROLES.prepaidAnnual) && shares.has(shareKey(category.slug, month)) ? actual(month) : null),
       comparison: fromPlan,
       averagedMonths: arrears ? ARREARS_AVERAGED_MONTHS : AVERAGED_MONTHS,
+      oneOff: isOneOffCost(category),
     })
     return { category, line: category.bucket === 'income' ? 'other-operating-income' : costLineOf(category, year, known.yearEndLines), forecast }
   })

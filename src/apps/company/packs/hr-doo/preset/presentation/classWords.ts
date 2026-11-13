@@ -27,6 +27,9 @@ export const en = {
     personalTransport: (share: string, vatShare: string) => `Personal car costs: ${share} added back, ${vatShare} of the VAT back`,
     vehicleInsuranceInterestTaxAndFees: 'Car insurance, loan interest, vehicle tax and registration fees: allowed, no VAT',
     nonDeductible: 'Fines and private costs: all added back',
+    donation: (share: string) => `Donations for the public good in Croatia: allowed up to ${share} of revenue, the rest added back`,
+    listedSponsorship: (decreasesBase: boolean) =>
+      decreasesBase ? 'Sponsorships to recipients on a ministry list: allowed, and taken off the base a second time' : 'Sponsorships to recipients on a ministry list: allowed as a cost',
     capitalPurchase: (threshold: string) => `An asset above ${threshold}, depreciated`,
     corporateIncomeTax: 'Profit tax paid or refunded, not a cost',
     vatSettlement: 'VAT paid or refunded, not a cost',
@@ -67,6 +70,9 @@ export const hr: Translation<typeof en> = {
     personalTransport: (share, vatShare) => `Troškovi osobnog automobila: ${share} se dodaje osnovici, odbija se ${vatShare} PDV-a`,
     vehicleInsuranceInterestTaxAndFees: 'Osiguranje, kamate, porez na vozila i registracijske naknade za automobil: priznati, bez PDV-a',
     nonDeductible: 'Kazne i privatni troškovi: sve se dodaje osnovici',
+    donation: (share) => `Donacije za opće dobro u Hrvatskoj: priznaju se do ${share} prihoda, višak se dodaje osnovici`,
+    listedSponsorship: (decreasesBase) =>
+      decreasesBase ? 'Sponzorstva primateljima s popisa ministarstva: priznaju se i dodatno umanjuju osnovicu' : 'Sponzorstva primateljima s popisa ministarstva: priznaju se kao trošak',
     capitalPurchase: (threshold) => `Imovina iznad ${threshold}, amortizira se`,
     corporateIncomeTax: 'Plaćeni ili vraćeni porez na dobit, nije trošak',
     vatSettlement: 'Plaćeni ili vraćeni PDV, nije trošak',
@@ -121,6 +127,10 @@ export function classNameOf(taxClass: TaxClass, role: string, day: CivilDate): s
       return names.vehicleInsuranceInterestTaxAndFees
     case PACK_ROLES.nonDeductible:
       return names.nonDeductible
+    case PACK_ROLES.donation:
+      return names.donation(percentText(ruleValue('hr.cit.donation-cap', on).value.capShareOfRevenue.basisPoints))
+    case PACK_ROLES.listedSponsorship:
+      return names.listedSponsorship(ruleValue('hr.cit.sponsorship-decrease', on).value.available.holds)
     case PACK_ROLES.capitalPurchase:
       return names.capitalPurchase(formatMoney(ruleValue('hr.cit.asset-threshold', on).value.unitCostAbove.cents))
     case PACK_ROLES.corporateIncomeTax:

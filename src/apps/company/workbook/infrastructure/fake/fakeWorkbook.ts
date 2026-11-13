@@ -1,4 +1,5 @@
 import { moneyFromAmount } from '../../../../../shared/money/money'
+import { language } from '../../../../../shared/text/language'
 import { RULE_COLUMNS } from '../../../rules/domain/readRules'
 import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../shared/storage/domain/recordFields'
@@ -279,14 +280,14 @@ const LOSS_MONTH = '2025-11'
  * reproduce are flagged as a person's, so the Category rules tab has coverage gaps to show. The records of the
  * kinds without a business key, and every ledger row, carry a fixed id.
  */
-export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: FakeStaff | null = null): Readonly<Record<string, readonly RecordFields[]>> {
-  const records = fakeKinds(source, staff)
+export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): Readonly<Record<string, readonly RecordFields[]>> {
+  const records = fakeKinds(source, staff, giving)
   return Object.fromEntries(Object.entries(records).map(([kind, held]) => [kind, held.map((fields, index) => recordFields(withFixedId(kind, fields, index)))]))
 }
 
 /** The made-up company's books as the document a Drive file or this browser holds. */
-export function fakeWorkbookDocument(savedAt: string, source: WorkbookSource = 'drive', staff: FakeStaff | null = null): WorkbookDocument {
-  return newDocument(COMPANY_APP, installedSchema(), fakeWorkbookRecords(source, staff), savedAt)
+export function fakeWorkbookDocument(savedAt: string, source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): WorkbookDocument {
+  return newDocument(COMPANY_APP, installedSchema(), fakeWorkbookRecords(source, staff, giving), savedAt)
 }
 
 /** The kinds whose records carry an id, each with its place in the fixed ids, so every run gives the same ids. */
@@ -381,8 +382,8 @@ export function withoutRegistrationDay(document: WorkbookDocument): WorkbookDocu
 
 const setting = ([key, value]: readonly [string, FieldValue | number]): FakeFields => ({ key, value })
 
-function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Record<string, readonly FakeFields[]>> {
-  const { bookings, invoices } = fakeBooks(staff)
+function fakeKinds(source: WorkbookSource, staff: FakeStaff | null, giving: boolean): Readonly<Record<string, readonly FakeFields[]>> {
+  const { bookings, invoices } = fakeBooks(staff, giving)
   const ledger = withTripPaymentsLast(ledgerRecords(bookings), staff)
   return {
     setting:
@@ -422,6 +423,7 @@ function fakeKinds(source: WorkbookSource, staff: FakeStaff | null): Readonly<Re
         })),
       ),
       ...(staff?.categories ?? []).map(([category, roles, label]) => ({ category, label, family: 'owner', bucket: 'owner-pay', colour: '#e4e1f6', roles })),
+      ...(giving ? GIVING_CATEGORIES.map(([category, roles, label]) => ({ category, label, family: 'operating', bucket: 'operating', colour: '#dce9f9', roles })) : []),
     ],
     account: Object.entries(ACCOUNTS).map(([account, iban]) => ({ account, iban })),
     rule: ruleRecords(),
@@ -782,13 +784,30 @@ function ruleRecords(): FakeFields[] {
   return RULE_SEED.map((seed, index) => ({ order: (index + 1) * 100, enabled: true, confidence: 'rule', ...seed }))
 }
 
+/** The categories a variant ending in `donations` files its gifts in, with the class each carries, named as the owner would in each language. */
+const GIVING_CATEGORIES: readonly (readonly [category: string, roles: string, label: string])[] = (
+  [
+    ['donations', 'donation', 'Donations', 'Donacije'],
+    ['sponsorships', 'listed-sponsorship', 'Sponsorships', 'Sponzorstva'],
+  ] as const
+).map(([category, roles, english, croatian]) => [category, roles, language === 'hr' ? croatian : english])
+
+/**
+ * The gifts of a variant ending in `donations`: a donation of 3,000.00 in 2026, well above 2% of either year's revenue, and a
+ * sponsorship to a club the sport ministry is taken to have listed, which takes the same amount off the tax base again.
+ */
+const GIFTS: readonly Booking[] = [
+  booking('2026-06-15', 'Riverside Youth Choir', 'XX00FAKE0000000000000100', 'Donation, summer concert tour', -3000, 'donations', undefined, 'human'),
+  booking('2026-09-10', 'Example Basketball Club', 'XX00FAKE0000000000000101', 'Sponsorship, logo on the youth team shirts', -1000, 'sponsorships', undefined, 'human'),
+]
+
 /**
  * The bank rows and the invoices they pay. The client is billed at each month's end and pays early
  * the next month, except in the loss month, whose invoice it pays late. One payment runs 120 over
  * its invoice and is refunded, and one runs 500 short, so the newest invoice is part paid. A second
  * client leaves two invoices open, and one credit comes from an IBAN no client names.
  */
-function fakeBooks(staff: FakeStaff | null): { readonly bookings: Booking[]; readonly invoices: FakeInvoice[] } {
+function fakeBooks(staff: FakeStaff | null, giving: boolean): { readonly bookings: Booking[]; readonly invoices: FakeInvoice[] } {
   const random = seededRandom(20251)
   let staffDifference = 0
   const vary = (base: number, spread: number): number => roundToCent(base + (random() - 0.5) * 2 * spread)
@@ -886,6 +905,9 @@ function fakeBooks(staff: FakeStaff | null): { readonly bookings: Booking[]; rea
     booking('2026-10-06', PAYEES.owner.name, PAYEES.owner.iban, 'Refund of a parking fee', -38.5, 'reimbursement-to-owner', undefined, 'human'),
     booking('2026-10-08', 'SNACK KIOSK', '', 'Card purchase', -6.4, 'card-purchase-unknown', undefined, 'ai'),
   )
+  if (giving) {
+    all.push(...GIFTS)
+  }
   const tripPayments = staff?.tripPayments ?? []
   all.push(...tripPayments.map((payment) => booking(payment.date, payment.counterparty, payment.iban, payment.description, payment.amount, payment.category, undefined, 'human')))
   staffDifference = roundToCent(staffDifference - tripPayments.reduce((sum, payment) => sum + payment.amount, 0))

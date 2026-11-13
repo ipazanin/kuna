@@ -37,8 +37,10 @@
  * photo is read. The chat proposes its new category on one card and the receipt on the next, and Accept splits the payment with one Undo. The receipt dialog shows no part of the assistant.
  * Company's To review keeps Suggest categories, which opens the chat about the queue and files the sure rows on a card, and an
  * opened row asks about itself. An invoice asked of the chat is a link to the Invoices tab, dollars are a currency card with a
- * warned line, a rule for Laptop Store re-files a confirmed row with a warning, trying the second rule first is a card that says where it is tried, a category for training is a card that names its
- * tax class, and Kuna's dark look is a card with Undo.
+ * warned line, a rule for Laptop Store re-files a confirmed row with a warning, trying the second rule first is a card that says where it is tried, a category for training or for
+ * donations is a card that names its tax class, and Kuna's dark look is a card with Undo. In the fake books with a donation of 3,000.00, well above its cap,
+ * and a sponsorship to a listed club, Year's PD return shows PD lines 14 and 33.a with a caption that neither is averaged, and the categories tab,
+ * scrolled to the two rows, names their classes.
  * In Loans a loan offer is a card that sets Kuna's EKS and first instalment beside the printed ones and warns where they differ, a bank loan
  * from its contract warns where its first instalment differs from the printed one, and an extra
  * payment is a card. Setting an app up with the chat: each first run's home and folder steps offer it, it makes one file and opens the
@@ -525,6 +527,7 @@ import {
 } from './support/setUpChatFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
+import { categoriesDonationsFlowIn, yearDonationsFlowIn } from './support/donationFlows.mjs'
 import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { MADE_UP_ANTHROPIC_KEY } from './support/chatFlows.mjs'
@@ -5750,6 +5753,59 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'company-chat-donation',
+    hash: '#/company',
+    title: 'Overview',
+    run: companyChatCardFlowIn('en', 'donation'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+  },
+  {
+    name: 'company-chat-donation-croatian',
+    hash: '#/company',
+    title: 'Pregled',
+    run: companyChatCardFlowIn('hr', 'donation'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&lang=hr' },
+  },
+  {
+    name: 'year-pd-donations',
+    hash: '#/company/year',
+    title: 'Year',
+    run: yearDonationsFlowIn('en'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=browser-donations' },
+  },
+  {
+    name: 'year-pd-donations-croatian',
+    hash: '#/company/year',
+    title: 'Godina',
+    run: yearDonationsFlowIn('hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=browser-donations&lang=hr' },
+  },
+  {
+    name: 'company-settings-categories-donations',
+    hash: '#/company/settings?tab=categories',
+    title: 'Settings',
+    run: categoriesDonationsFlowIn('en'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=browser-donations' },
+  },
+  {
+    name: 'company-settings-categories-donations-croatian',
+    hash: '#/company/settings?tab=categories',
+    title: 'Postavke',
+    run: categoriesDonationsFlowIn('hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=browser-donations&lang=hr' },
   },
   {
     name: 'company-chat-merge',
