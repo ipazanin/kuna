@@ -4,8 +4,9 @@ import { language } from '../../shared/text/language'
 import type { Translation } from '../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
-// The app is Krediti: a bank loan is kredit and a loan between people pozajmica. A bank loan's instalment is rata where loans sit together,
-// and on one loan's own page anuitet for an annuity loan and rata for an equal principal one.
+// The app is Krediti: a bank loan is kredit and a loan between people pozajmica. A bank loan's instalment is anuitet on an annuity loan's page
+// and rata on an equal principal loan's page and wherever the kind is not told apart. An informal loan's planned payment is obrok, and so is
+// a payment in a list of both kinds. An extra payment is prijevremena otplata. Uplata names none of them.
 
 export const en = {
   name: 'Loans',

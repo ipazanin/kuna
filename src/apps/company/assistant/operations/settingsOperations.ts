@@ -11,6 +11,7 @@ import type { RecordsOfKind } from '../../settings/application/namedRecordWrites
 import { removeSettings, setSettings } from '../../settings/application/settingWrites'
 import { accountDraftErrors, accountDraftsOf, accountsOfDrafts } from '../../settings/domain/accountDrafts'
 import type { AccountDraft } from '../../settings/domain/accountDrafts'
+import { rolesBesideClass } from '../../settings/domain/categoryClasses'
 import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, rolesOfText } from '../../settings/domain/categoryDrafts'
 import type { CategoryDraft } from '../../settings/domain/categoryDrafts'
 import { knownRoles } from '../../settings/domain/categoryGuards'
@@ -83,8 +84,7 @@ function packClasses(): readonly CategoryClass[] {
 
 /** The roles a category may carry beside its class: core's and the installed pack's that carry no class. */
 function otherRoles(classes: readonly CategoryClass[]): readonly string[] {
-  const classRoles = new Set(classes.map((taxClass) => taxClass.role))
-  return knownRoles(installedPack().workbook?.categoryRoles ?? []).filter((role) => !classRoles.has(role))
+  return rolesBesideClass(knownRoles(installedPack().workbook?.categoryRoles ?? []), classes)
 }
 
 /** Each class by its role, with the name the categories editor gives it and the VAT treatments and buckets it allows. */

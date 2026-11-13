@@ -118,7 +118,7 @@ export const hr: Translation<typeof en> = {
       openingBalance: 'Dug na početku',
       start: 'Početak',
       offer: 'Ponuda',
-      expected: 'Očekivane otplate',
+      expected: 'Očekivani obroci',
       kind: 'Vrsta',
       scenario: 'Scenarij',
       every: 'Svakih',
@@ -158,7 +158,7 @@ export const hr: Translation<typeof en> = {
     },
   },
   quickActions: {
-    next: { label: 'Što plaćam sljedeće?', prompt: 'Koje su moje sljedeće rate i koliko još dugujem na svakom kreditu?' },
+    next: { label: 'Što plaćam sljedeće?', prompt: 'Koji su moji sljedeći obroci i koliko još dugujem na svakom kreditu?' },
     offers: { label: 'Usporedi ponude', prompt: 'Usporedi moje spremljene ponude za kredit: mjesečnu ratu, kamate, ukupan iznos i EKS svake.' },
     extra: { label: 'Isprobaj prijevremenu otplatu', prompt: 'Što bi prijevremena otplata od 5.000 učinila mom kreditu, kraći rok ili nižu ratu?' },
   },

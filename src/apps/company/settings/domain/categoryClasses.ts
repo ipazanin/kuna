@@ -21,6 +21,12 @@ export function classOf(roles: readonly string[], classes: readonly CategoryClas
   return carriedClasses(roles, classes)[0] ?? null
 }
 
+/** The roles that carry no class, which a category holds beside the class it counts by. */
+export function rolesBesideClass(roles: readonly string[], classes: readonly CategoryClass[]): string[] {
+  const classRoles = new Set(classes.map((taxClass) => taxClass.role))
+  return roles.filter((role) => !classRoles.has(role))
+}
+
 /**
  * What keeps the category from counting one way. A VAT treatment or bucket the app does not know is
  * reported on its own, so it is not checked against the class. Nothing is found while the pack has no classes.

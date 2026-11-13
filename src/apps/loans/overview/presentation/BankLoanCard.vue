@@ -10,6 +10,7 @@ import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
 import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
 import { bankLoanLink } from './loanLinks'
 import { words } from './words'
+import { wordsFor } from '../../bankLoans/presentation/words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
@@ -33,6 +34,7 @@ const props = defineProps<{
 }>()
 
 const look = DIRECTION_LOOKS['you-owe']
+const loanWords = computed(() => wordsFor(props.book.loan.repayment))
 const months = computed(() => bankLoanMonths(props.book))
 const today = computed(() => months.value.findIndex((entry) => entry.month === monthOf(props.day)))
 
@@ -45,7 +47,7 @@ const facts = computed((): Fact[] => {
       ? []
       : [
           {
-            label: words.card.nextPayment,
+            label: loanWords.value.tiles.nextPayment,
             value: formatMoney(next.yourShare),
             caption: next.yourShare === next.payment ? shortDayLabel(next.date) : words.card.nextOf(shortDayLabel(next.date), formatMoney(next.payment)),
           },
@@ -59,7 +61,7 @@ const facts = computed((): Fact[] => {
             ...(subsidy.after === null ? {} : { caption: (props.book.loan.repayment === 'equal-principal' ? words.card.subsidyThenFalling : words.card.subsidyThen)(formatMoney(subsidy.after)) }),
           },
         ]),
-    ...(payoff === null ? [] : [{ label: words.card.paidOff, value: dayLabel(payoff), caption: plural(words.card.instalmentsLeft(figures.instalmentsLeft), figures.instalmentsLeft) }]),
+    ...(payoff === null ? [] : [{ label: words.card.paidOff, value: dayLabel(payoff), caption: plural(loanWords.value.tiles.instalmentsLeft(figures.instalmentsLeft), figures.instalmentsLeft) }]),
   ]
 })
 </script>
@@ -78,7 +80,7 @@ const facts = computed((): Fact[] => {
           <UBadge v-if="figures?.subsidy && !figures.subsidy.ended" :label="words.card.subsidised" color="neutral" variant="subtle" />
         </div>
       </div>
-      <p v-if="figures === null" class="type-body">{{ words.card.noPlan }}</p>
+      <p v-if="figures === null" class="type-body">{{ words.card.noPlan[book.loan.repayment] }}</p>
       <template v-else>
         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div>

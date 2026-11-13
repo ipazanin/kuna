@@ -104,9 +104,9 @@ describe('the next payment tile', () => {
     const amounts = { payment: euros(500), yourShare: euros(500) }
 
     expect(nextPaymentCaption({ kind: 'bank', loan: bankLoan({ name: 'Home loan' }), date: civil('2026-11-20'), ...amounts })).toBe('On 20 Nov, Home loan')
-    expect(nextPaymentCaption({ kind: 'informal', loan: fromDora, date: civil('2026-12-01'), overdue: false, ...amounts })).toBe('On 1 Dec, to Dora')
-    expect(nextPaymentCaption({ kind: 'informal', loan: fromDora, date: civil('2026-11-03'), overdue: true, ...amounts })).toBe('Overdue, to Dora')
-    expect(nextPaymentCaption({ kind: 'informal', loan: { ...fromDora, counterparty: '' }, date: civil('2026-12-01'), overdue: false, ...amounts })).toBe('On 1 Dec, to From Dora')
+    expect(nextPaymentCaption({ kind: 'informal', loan: fromDora, date: civil('2026-12-01'), overdue: false, ...amounts })).toBe('On 1 Dec, repaying Dora')
+    expect(nextPaymentCaption({ kind: 'informal', loan: fromDora, date: civil('2026-11-03'), overdue: true, ...amounts })).toBe('Overdue, repaying Dora')
+    expect(nextPaymentCaption({ kind: 'informal', loan: { ...fromDora, counterparty: '' }, date: civil('2026-12-01'), overdue: false, ...amounts })).toBe('On 1 Dec, repaying From Dora')
   })
 })
 

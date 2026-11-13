@@ -1,4 +1,5 @@
 import { settingName } from './settingNames'
+import { classOf, rolesBesideClass } from '../../settings/domain/categoryClasses'
 import { words as cardWords } from '../../../../shared/app/words'
 import { WARNED_SETTING_KEYS } from './settingsOperations'
 import { INVOICING_KINDS, invoicingDescriber } from './invoicingLines'
@@ -83,8 +84,8 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (isKind(kind, DISMISSAL_RECORDS, record) && field === 'kind') return words.suggestion[record.kind]
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'bucket') return bucketName(record.bucket, workbook)
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'vat') return vatTreatmentLabel(record.vat)
-  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'roles')
-    return record.roles.length === 0 ? null : record.roles.map((role) => installedPack().categoryClassHelp(role, classSharesDay(workbook))?.name ?? role).join(', ')
+  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'taxClass') return installedPack().categoryClassHelp(String(value), classSharesDay(workbook))?.name ?? String(value)
+  if (isKind(kind, CATEGORY_RECORDS, record) && field === 'roles') return record.roles.length === 0 ? null : record.roles.join(', ')
   if (Array.isArray(value)) return value.length === 0 ? null : value.join(', ')
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   return String(value)
@@ -105,6 +106,24 @@ function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: st
   if (isKind(kind, DISMISSAL_RECORDS, record)) return words.suggestion[record.kind]
   if (isKind(kind, RULE_RECORDS, record)) return String(record.fields['rule'] ?? fallback)
   return fallback
+}
+
+/** A category as the card reads it: its tax class on a line of its own, then the roles that carry no class. */
+function categoryReading(kind: RecordKind<unknown>, record: ProposedRecord): ProposedRecord {
+  if (!isKind(kind, CATEGORY_RECORDS, record)) return record
+  const classes = installedPack().workbook?.categoryClasses ?? []
+  const taxClass = classOf(record.roles, classes)?.role ?? ''
+  const others = rolesBesideClass(record.roles, classes)
+  return Object.fromEntries(
+    Object.entries(record).flatMap(([field, value]) =>
+      field === 'roles'
+        ? [
+            ['taxClass', taxClass],
+            ['roles', others],
+          ]
+        : [[field, value]],
+    ),
+  )
 }
 
 /** Whether a field says where money or mail goes, or changes how every amount reads, as the record will hold it. */
@@ -172,6 +191,7 @@ export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, note
     fieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, workbook, names),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, names, packs?.settingNames ?? {}),
+    reading: categoryReading,
     inLabel: fieldsInLabel,
     warns,
     movesConfirmed,

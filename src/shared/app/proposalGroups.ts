@@ -10,21 +10,23 @@ export type ProposedRecord = Readonly<Record<string, unknown>>
 export interface ProposalDescriber {
   /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
   readonly keptByKuna: ReadonlySet<string>
-  /** A field's name on the card, which may depend on the record, as it will be held or as it was for a removal. */
+  /** A field's name on the card, which may depend on the record as the card reads it, as it will be held or as it was for a removal. */
   fieldName(field: string, record: ProposedRecord): string
-  /** A value as a person reads it on screen, or null for none. */
+  /** A value as a person reads it on screen, from the record as the card reads it, or null for none. */
   shown(kind: RecordKind<unknown>, field: string, record: ProposedRecord): string | null
-  /** What the record is called on screen, or the write's own label when the app has no better one. */
+  /** What the record, as the card reads it, is called on screen, or the write's own label when the app has no better one. */
   label(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string): string
-  /** Whether the field says where money or mail goes, from the record as it will be held, null for a removal, and as it was, null for an add. */
+  /** Whether the field says where money or mail goes, from the record as the card reads it as it will be held, null for a removal, and as it was, null for an add. */
   warns(kind: RecordKind<unknown>, field: string, after: ProposedRecord | null, before: ProposedRecord | null): boolean
   /** The values a new record of the kind has unless a person sets them, which an add or a removal leaves off its line. A change still shows them. */
   defaultsOf?(kind: RecordKind<unknown>): ProposedRecord
+  /** The record as the card reads it, such as one field split into the two lines a person reads it as. Without it, a record is read as it is held. */
+  reading?(kind: RecordKind<unknown>, record: ProposedRecord): ProposedRecord
   /** The fields a record's label already names, which an add or a removal leaves off its line. A change still shows them. */
   inLabel?(kind: RecordKind<unknown>): ReadonlySet<string>
-  /** Whether the change files a row a person confirmed under another category. Without it, no change does. */
+  /** Whether the change files a row a person confirmed under another category, from the records as the card reads them. Without it, no change does. */
   movesConfirmed?(kind: RecordKind<unknown>, before: ProposedRecord, after: ProposedRecord): boolean
-  /** The line with what the app checks of the record as it will be held, such as a figure set beside a document's. Without it, a line shows only the fields. */
+  /** The line with what the app checks of the record as the card reads it as it will be held, such as a figure set beside a document's. Without it, a line shows only the fields. */
   checked?(kind: RecordKind<unknown>, record: ProposedRecord, line: ProposalLine): ProposalLine
 }
 
@@ -32,7 +34,10 @@ export interface ProposalDescriber {
  * A record's line. A change shows the fields it alters. An add shows what the new record holds, and a removal what the record held,
  * each without the defaults a new record has and the fields its label names.
  */
-function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallback: string, before: ProposedRecord | null, after: ProposedRecord | null): ProposalLine {
+function lineOf(describer: ProposalDescriber, kind: RecordKind<unknown>, fallback: string, held: ProposedRecord | null, willHold: ProposedRecord | null): ProposalLine {
+  const read = (record: ProposedRecord | null) => (record === null ? null : (describer.reading?.(kind, record) ?? record))
+  const before = read(held)
+  const after = read(willHold)
   const shown = after ?? before
   const whole = before === null || after === null
   const labelled = whole ? (describer.inLabel?.(kind) ?? new Set<string>()) : new Set<string>()

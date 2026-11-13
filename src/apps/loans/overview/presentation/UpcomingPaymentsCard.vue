@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import type { InformalLoan } from '../../workbook/domain/informalLoan'
 import type { PlannedLoan, UpcomingPayment } from '../domain/loansTogether'
+import { commonPaymentKind } from './paymentWords'
+import type { PaymentKind } from './paymentWords'
 import { bankLoanLink, informalLoanLink } from './loanLinks'
 import { loanBandToken } from './togetherCharts'
 import { words } from './words'
@@ -31,22 +34,31 @@ const informalLoans = computed(() => {
   return [...seen.values()]
 })
 
-const links = computed(() => [
-  ...props.loans.map((planned) => ({ key: planned.loan.id, name: planned.loan.name, to: bankLoanLink(planned.loan) })),
-  ...informalLoans.value.map((loan) => ({ key: loan.id, name: loan.name, to: informalLoanLink(loan) })),
+const kind = computed(() => commonPaymentKind(props.payments))
+
+interface LoanLink {
+  readonly key: string
+  readonly name: string
+  readonly to: RouteLocationRaw
+  readonly kind: PaymentKind
+}
+
+const links = computed((): LoanLink[] => [
+  ...props.loans.map((planned): LoanLink => ({ key: planned.loan.id, name: planned.loan.name, to: bankLoanLink(planned.loan), kind: planned.loan.repayment })),
+  ...informalLoans.value.map((loan): LoanLink => ({ key: loan.id, name: loan.name, to: informalLoanLink(loan), kind: 'informal' })),
 ])
 </script>
 
 <template>
-  <AppCard :title="words.upcoming.title" :subtitle="words.upcoming.subtitle" data-testid="loans-upcoming">
+  <AppCard :title="words.upcoming.title[kind]" :subtitle="words.upcoming.subtitle" data-testid="loans-upcoming">
     <p v-if="payments.length === 0" class="px-4 pt-3 type-body sm:px-5">{{ words.upcoming.none }}</p>
-    <FigureTable v-else class="mt-2 px-1 sm:px-2" :label="words.upcoming.tableLabel">
+    <FigureTable v-else class="mt-2 px-1 sm:px-2" :label="words.upcoming.tableLabel[kind]">
       <thead>
         <tr>
           <th scope="col" class="text-start">{{ words.upcoming.due }}</th>
           <th scope="col" class="text-start">{{ words.upcoming.loan }}</th>
           <th scope="col" class="text-end">{{ words.upcoming.youPay }}</th>
-          <th scope="col" class="hidden text-end @md:table-cell">{{ words.upcoming.instalment }}</th>
+          <th scope="col" class="hidden text-end @md:table-cell">{{ words.upcoming.instalment[kind] }}</th>
         </tr>
       </thead>
       <tbody>
@@ -77,7 +89,7 @@ const links = computed(() => [
         v-for="link in links"
         :key="link.key"
         :to="link.to"
-        :label="words.upcoming.everyPayment(link.name)"
+        :label="words.upcoming.everyPayment[link.kind](link.name)"
         trailing-icon="i-lucide-arrow-right"
         color="neutral"
         variant="link"

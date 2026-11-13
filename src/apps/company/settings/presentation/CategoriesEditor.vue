@@ -21,7 +21,7 @@ import type { VatTreatment } from '../../workbook/domain/vatTreatment'
 import { displayName } from '../../workbook/domain/displayName'
 import type { CategoryRecord } from '../../workbook/domain/categoriesReading'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
-import { classOf } from '../domain/categoryClasses'
+import { classOf, rolesBesideClass } from '../domain/categoryClasses'
 import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, draftWithClass, keepsItsName, pickedColour, rolesOfText } from '../domain/categoryDrafts'
 import { categoryClassMessages } from './categoryClassMessages'
 import { vatTreatmentLabel } from './vatTreatmentLabel'
@@ -136,8 +136,7 @@ function sortBy(column: CategorySortColumn, direction: SortDirection | null): vo
   sort.value = direction === null ? null : { column, descending: direction === 'descending' }
 }
 
-const classRoles = computed(() => new Set(props.classes.map((taxClass) => taxClass.role)))
-const modifiers = computed(() => props.roles.filter((role) => !classRoles.value.has(role)))
+const modifiers = computed(() => rolesBesideClass(props.roles, props.classes))
 
 /** The draft's value as one of the choices, a value the choices lack, such as a contradiction the file holds, offered too so the field shows it. */
 function withValue(choices: readonly string[], value: string): string[] {
@@ -170,16 +169,15 @@ function pickClass(index: number, role: string): void {
 
 /** The row's roles that carry no class, which the roles menu edits. */
 function modifiersOf(draft: CategoryDraft): string {
-  return rolesOfText(draft.roles)
-    .filter((role) => !classRoles.value.has(role))
-    .join(', ')
+  return rolesBesideClass(rolesOfText(draft.roles), props.classes).join(', ')
 }
 
 /** Puts the picked roles beside the row's classes. */
 function updateModifiers(index: number, text: string): void {
   const draft = drafts.value[index]!
-  const classes = rolesOfText(draft.roles).filter((role) => classRoles.value.has(role))
-  update(index, 'roles', [...classes, ...rolesOfText(text)].join(', '))
+  const carried = rolesOfText(draft.roles)
+  const beside = rolesBesideClass(carried, props.classes)
+  update(index, 'roles', [...carried.filter((role) => !beside.includes(role)), ...rolesOfText(text)].join(', '))
 }
 
 function update(index: number, field: keyof Omit<CategoryDraft, 'saved' | 'savedName'>, text: string): void {

@@ -109,7 +109,10 @@ describe('every Company operation', () => {
         linesTaken.set(`${change.verb}/${change.kind.name}`, at + 1)
         if (change.verb === 'remove') continue
         const before = change.verb === 'change' ? (change.before as Readonly<Record<string, unknown>>) : null
-        expect(group.lines[at]!.fields.map((field) => field.name)).toEqual(expect.arrayContaining(namesSet(change.kind, before, change.after as Readonly<Record<string, unknown>>)))
+        const shown = group.lines[at]!.fields.map((field) => field.name)
+        const rolesShownAsTaxClass = shown.includes(words.fields.taxClass)
+        const expected = namesSet(change.kind, before, change.after as Readonly<Record<string, unknown>>).filter((name) => !(rolesShownAsTaxClass && name === words.fields.roles))
+        expect(shown).toEqual(expect.arrayContaining(expected))
       }
       const accepted = await desk.accept()
       expect(accepted.kind).toBe('done')
@@ -575,7 +578,7 @@ describe('settings, categories and accounts', () => {
     expect(otherRoles.filter((role) => role !== null && classes.includes(role))).toEqual([])
   })
 
-  it('adds a category with its tax class first among its roles, and the card names the class as the categories editor does', async () => {
+  it('adds a category with its tax class first among its roles, and the card shows the class under Tax class and the other roles under Roles', async () => {
     const desk = await companyDesk(used)
 
     const answer = await desk.propose([
@@ -596,8 +599,9 @@ describe('settings, categories and accounts', () => {
     ])
 
     expect(answer.isError, answer.text).toBe(false)
-    const roles = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.filter((field) => field.name === words.fields.roles))
-    expect(roles[0]!.after).toMatch(/^Representation: .+, watched$/)
+    const fields = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields)
+    expect(fields.filter((field) => field.name === words.fields.taxClass).map((field) => field.after)).toEqual([expect.stringMatching(/^Representation: .+$/)])
+    expect(fields.filter((field) => field.name === words.fields.roles).map((field) => field.after)).toEqual(['watched'])
     expect(desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.map((field) => field.name))).toContain(words.fields.colour)
   })
 
@@ -613,8 +617,11 @@ describe('settings, categories and accounts', () => {
     ])
 
     expect(answer.isError, answer.text).toBe(false)
-    const roles = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields.filter((field) => field.name === words.fields.roles))
-    expect(roles[0]!.after).toMatch(/^Donations for the public good in Croatia: allowed up to 2% of revenue, the rest added back$/)
+    const fields = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields)
+    expect(fields.filter((field) => field.name === words.fields.taxClass).map((field) => field.after)).toEqual([
+      'Donations for the public good in Croatia: allowed up to 2% of revenue, the rest added back',
+    ])
+    expect(fields.filter((field) => field.name === words.fields.roles)).toEqual([])
   })
 
   it('refuses a tax class the pack lacks by naming every class, and points at the operation page', async () => {

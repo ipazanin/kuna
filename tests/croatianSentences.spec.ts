@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PortfolioCheck } from '../src/apps/investments/overview/domain/portfolioChecks'
 import type { Instrument } from '../src/apps/investments/workbook/domain/instrument'
+import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import type { YearlyRate } from '../src/apps/loans/bankLoans/domain/yearlyRate'
+import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
+import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
+import type { Movement } from '../src/apps/loans/workbook/domain/movement'
 import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, LATE_INSTALMENT_RECORDS, RATE_PERIOD_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import { civilDate } from '../src/shared/calendar/civilDate'
 import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
@@ -14,6 +18,7 @@ import { percentFromBasisPoints, shareFromPercent } from '../src/shared/money/pe
 import type { RecordNoun } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { civil, euros } from './fixtures/ledger'
+import { bankLoan, informalLoan, movement, ratePeriod } from './fixtures/loans'
 import { DATE_PARAMETER } from '../scripts/support/dateParameters.mjs'
 
 /** The sentences Croatian builds from a record's noun, with the language on screen pinned to Croatian. */
@@ -37,15 +42,14 @@ afterEach(() => {
 })
 
 describe('the change sentence in Croatian', () => {
-  it('names a late instalment a rata in the title and the description of its toast, on either kind of bank loan', async () => {
+  it('names a late instalment by its loan in the toast, and a rata where the loan is not told apart', async () => {
     const { words } = await croatian()
     const { wordsFor } = await inCroatian(() => import('../src/apps/loans/bankLoans/presentation/words'))
     const description = words.changes([{ verb: 'add', noun: LATE_INSTALMENT_RECORDS.noun, labels: ['dospijeće 1. 3. 2027.'] }], false)
 
-    for (const repayment of ['annuity', 'equal-principal'] as const) {
-      const { added, saved, deleted } = wordsFor(repayment).lateDialog
-      expect([added, saved, deleted]).toEqual(['Zakašnjela rata je dodana', 'Zakašnjela rata je spremljena', 'Zakašnjela rata je obrisana'])
-    }
+    const toast = (repayment: 'annuity' | 'equal-principal') => Object.values((({ added, saved, deleted }) => ({ added, saved, deleted }))(wordsFor(repayment).lateDialog))
+    expect(toast('annuity')).toEqual(['Zakašnjeli anuitet je dodan', 'Zakašnjeli anuitet je spremljen', 'Zakašnjeli anuitet je obrisan'])
+    expect(toast('equal-principal')).toEqual(['Zakašnjela rata je dodana', 'Zakašnjela rata je spremljena', 'Zakašnjela rata je obrisana'])
     expect(description).toBe('Dodana je zakašnjela rata „dospijeće 1. 3. 2027.”')
   })
 
@@ -179,17 +183,21 @@ describe('full stops in Croatian', () => {
 })
 
 describe('every words file in Croatian', () => {
+  async function dateSamples(): Promise<DateSamples> {
+    const { dayLabel } = await import('../src/shared/calendar/dayLabel')
+    const { monthLabel } = await import('../src/shared/calendar/monthLabel')
+    return {
+      typed: [civil('2026-10-01'), monthKey(2026, 10), 2026, { from: civil('2026-10-01'), to: civil('2027-03-31') }],
+      worded: [dayLabel(civil('2026-10-01')), monthLabel(monthKey(2026, 10))],
+    }
+  }
+
   /** Every Croatian sentence of every object typed as a translation, by its file. */
   async function croatianSentences(): Promise<readonly (readonly [string, string])[]> {
     const loaders = import.meta.glob<Readonly<Record<string, unknown>>>(['../src/**/*.ts', '!../src/**/*.d.ts'])
     const translations = Object.keys(loaders).flatMap((path) => translationsIn(path).map(({ name }) => [path, name] as const))
     const dictionaries = await inCroatian(() => Promise.all(translations.map(async ([path, name]) => [path, (await loaders[path]!())[name]] as const)))
-    const { dayLabel } = await import('../src/shared/calendar/dayLabel')
-    const { monthLabel } = await import('../src/shared/calendar/monthLabel')
-    const samples: DateSamples = {
-      typed: [civil('2026-10-01'), monthKey(2026, 10), 2026, { from: civil('2026-10-01'), to: civil('2027-03-31') }],
-      worded: [dayLabel(civil('2026-10-01')), monthLabel(monthKey(2026, 10))],
-    }
+    const samples = await dateSamples()
     return dictionaries.flatMap(([path, croatian]) => sentencesOf(croatian, samples).map((sentence) => [path, sentence] as const))
   }
 
@@ -225,6 +233,82 @@ describe('every words file in Croatian', () => {
     const searches = (await croatianSentences()).filter(([, sentence]) => /^((Po)?Traži|Pronađi(?! (svoju )?datoteku))(?!\p{L})/u.test(sentence)).map(([path, sentence]) => `${path}: ${sentence}`)
 
     expect([...new Set(searches)]).toEqual([])
+  })
+
+  it('names each kind of loan payment with its own word: anuitet or rata on a bank loan, obrok on an informal loan, otplata for an extra one and never uplata', async () => {
+    const loans = (await croatianSentences()).filter(([path]) => path.startsWith('../src/apps/loans/'))
+    const rataForm = /(?<!\p{L})rat(a|e|i|u|om|ama)(?!\p{L})/iu
+    const uplataForm = /(?<!\p{L})uplat(?!ite)/iu
+    const sentencesIn = (file: string) => loans.filter(([path]) => path.endsWith(file)).map(([, sentence]) => sentence)
+
+    expect(sentencesIn('/informalLoans/presentation/words.ts').filter((sentence) => rataForm.test(sentence))).toEqual([])
+    const { wordsFor } = await inCroatian(() => import('../src/apps/loans/bankLoans/presentation/words'))
+    const { words: overview } = await inCroatian(() => import('../src/apps/loans/overview/presentation/words'))
+    const samples = await dateSamples()
+    const rataOrObrok = /(?<!\p{L})(rat(a|e|i|u|om|ama)|obro(k|ka|ku|kom|ci|cima))(?!\p{L})/iu
+    const anuitetOrObrok = /(?<!\p{L})(anuitet\p{L}*|obro(k|ka|ku|kom|ci|cima))(?!\p{L})/iu
+    const jednakeRate = /^Jednake rate glavnice/
+    const repaymentChoice = /^(Anuitet, isti svaki mjesec|Piše u ugovoru ili otplatnom planu)/
+    const annuityLoan = sentencesOf(wordsFor('annuity'), samples)
+    const equalPrincipalLoan = sentencesOf(wordsFor('equal-principal'), samples)
+    const overviewCard = (repayment: 'annuity' | 'equal-principal') => [overview.card.noPlan[repayment]]
+
+    expect(annuityLoan.filter((sentence) => rataOrObrok.test(sentence) && !jednakeRate.test(sentence))).toEqual([])
+    expect(equalPrincipalLoan.filter((sentence) => anuitetOrObrok.test(sentence) && !repaymentChoice.test(sentence))).toEqual([])
+    expect(overviewCard('annuity').filter((sentence) => rataOrObrok.test(sentence))).toEqual([])
+    expect(overviewCard('equal-principal').filter((sentence) => anuitetOrObrok.test(sentence))).toEqual([])
+    expect([wordsFor('annuity').tiles.nextPayment, wordsFor('equal-principal').tiles.nextPayment, overview.tiles.nextPayment.informal]).toEqual([
+      'Sljedeći anuitet',
+      'Sljedeća rata',
+      'Vaš sljedeći obrok',
+    ])
+    expect(loans.filter(([, sentence]) => uplataForm.test(sentence)).map(([path, sentence]) => `${path}: ${sentence}`)).toEqual([])
+  })
+})
+
+describe('the next payment of Loans in Croatian', () => {
+  const day = civil('2026-11-02')
+  const fromDora = informalLoan({
+    name: 'From Dora',
+    counterparty: 'Dora',
+    direction: 'you-owe',
+    openingBalance: euros(3000),
+    start: civil('2026-06-01'),
+    expected: { monthly: euros(500), from: civil('2026-06-01'), day: 1 },
+  })
+  const doraBehind = { loan: fromDora, movements: [] }
+  const doraOnTime = { loan: fromDora, movements: [movement(fromDora, '2026-10-01', 'repaid', 2500)] }
+
+  async function nextPaymentOf(bankLoans: readonly BankLoan[], informalLoans: readonly { loan: InformalLoan; movements: readonly Movement[] }[]) {
+    const { loansHubFigures } = await inCroatian(() => import('../src/apps/loans/home/presentation/loansHubFigures'))
+    const { nextPaymentCaption } = await import('../src/apps/loans/overview/presentation/loansOverview')
+    const { plannedLoans, upcomingPayments } = await import('../src/apps/loans/overview/domain/loansTogether')
+    const books = bankLoans.map((loan) => {
+      const periods = [ratePeriod(loan, loan.firstInstalment, '12')]
+      return { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
+    })
+    const [next] = upcomingPayments(plannedLoans(books), informalLoans, day, 1)
+    const owes = loansHubFigures({ bankLoans: books, informalLoans }, day).parts.find((part) => part.side === 'owes')
+    return { line: owes?.caption ?? null, caption: nextPaymentCaption(next!) }
+  }
+
+  it('names the loan after the amount and the day, and the payment by the loan kind', async () => {
+    const annuity = await nextPaymentOf([bankLoan({ name: 'Home loan' })], [])
+    const equalPrincipal = await nextPaymentOf([bankLoan({ name: 'Home loan', repayment: 'equal-principal' })], [])
+
+    expect(annuity.line).toMatch(/^Sljedeći\sanuitet\s[\d.,]+\s€,\s\d+\.\s\d+\.,\sHome\sloan$/)
+    expect(equalPrincipal.line).toMatch(/^Sljedeća\srata\s[\d.,]+\s€,\s\d+\.\s\d+\.,\sHome\sloan$/)
+    expect(annuity.caption).toMatch(/^Dana\s\d+\.\s\d+\.,\sHome\sloan$/)
+  })
+
+  it('says whom an informal loan you owe repays, and that you are behind when you are', async () => {
+    const onTime = await nextPaymentOf([], [doraOnTime])
+    const behind = await nextPaymentOf([], [doraBehind])
+
+    expect(onTime.line).toMatch(/^Sljedeći\sobrok\s[\d.,]+\s€,\s\d+\.\s\d+\.,\svraćate:\sDora$/)
+    expect(onTime.caption).toMatch(/^Dana\s\d+\.\s\d+\.,\svraćate:\sDora$/)
+    expect(behind.line).toMatch(/^Kasnite\ss\sobrokom\s[\d.,]+\s€:\sDora$/)
+    expect(behind.caption).toBe('Kasnite s otplatom: Dora')
   })
 })
 

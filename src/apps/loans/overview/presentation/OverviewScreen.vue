@@ -12,6 +12,7 @@ import InformalLoanDialog from '../../informalLoans/presentation/InformalLoanDia
 import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import { debtFreeOn, interestAfter, interestInYear, plannedLoans, upcomingPayments } from '../domain/loansTogether'
+import { paymentKindOf } from './paymentWords'
 import BankLoanCard from './BankLoanCard.vue'
 import CompletedLoansCard from './CompletedLoansCard.vue'
 import InformalLoanCard from './InformalLoanCard.vue'
@@ -130,7 +131,14 @@ const addingInformal = ref(false)
           />
         </DashboardGrid>
         <DashboardGrid v-if="openCount >= 2 && planned.length > 0" layout="tiles" data-testid="loans-tiles">
-          <KpiTile v-if="next" :label="words.tiles.nextPayment" :value="formatMoney(next.yourShare)" :caption="nextPaymentCaption(next)" :to="null" data-testid="loans-next-payment" />
+          <KpiTile
+            v-if="next"
+            :label="words.tiles.nextPayment[paymentKindOf(next)]"
+            :value="formatMoney(next.yourShare)"
+            :caption="nextPaymentCaption(next)"
+            :to="null"
+            data-testid="loans-next-payment"
+          />
           <KpiTile
             :label="words.tiles.interestIn(year)"
             :value="formatMoney(interestThisYear.interest)"
