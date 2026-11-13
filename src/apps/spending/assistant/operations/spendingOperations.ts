@@ -33,10 +33,10 @@ import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeSt
 import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
-import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
 import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, PART_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { fileNotOpen } from '../../../../shared/app/assistantOperations'
 import type { AppAcceptance, AppProposer, AssistantOperation, CardNote, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -53,6 +53,9 @@ import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { moneyFromAmount } from '../../../../shared/money/money'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { cardRecords } from '../../../../shared/app/cardRecords'
+import { SPENDING_CARD_RECORDS } from './cardRecords'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 
 const COLOUR_OR_NULL: StrictSchema = {
@@ -258,20 +261,21 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
       "Splits an entry into parts by hand, each under a category of its own, as the entry's Split does. A split has two parts or more, and splitting an entry again puts the new parts in place of its old ones.",
       "Each amount is above zero in the entry's account currency. Kuna signs it as the entry is, and exactly one part has amount null and takes the rest, which must leave something.",
       'A part goes under any category a row may take, For the company too, but never under a group with categories under it or under Between my accounts. text is optional words for the part, or "".',
+      "part is the ref of the entry's part it keeps, which stays the same part with its new amount, category and text, or null for a new part.",
       "The entry goes under the category most of its money is in. A transfer's leg and an entry a receipt split stay as they are.",
     ].join(' '),
     input: inputOf({
       entry: TEXT,
-      parts: { type: 'array', items: inputOf({ amount: PART_AMOUNT, category: TEXT, text: TEXT }) },
+      parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, text: TEXT }) },
     }),
-    refs: { entry: TRANSACTION_RECORDS.name, 'parts.category': CATEGORY_RECORDS.name },
+    refs: { entry: TRANSACTION_RECORDS.name, 'parts.part': PART_RECORDS.name, 'parts.category': CATEGORY_RECORDS.name },
     creates: null,
     alone: false,
     example: {
       entry: 'transaction',
       parts: [
-        { amount: 30, category: 'category', text: 'Lunch' },
-        { amount: null, category: 'category-other', text: '' },
+        { part: null, amount: 30, category: 'category', text: 'Lunch' },
+        { part: null, amount: null, category: 'category-other', text: '' },
       ],
     },
   },
@@ -430,8 +434,9 @@ const FILING_IMPORTED_ROWS: ReadonlySet<string> = new Set(['add-rule', 'change-r
 
 /**
  * Plans the steps into one write, in order. A `$` name stands for what an earlier step made, and the rules are re-run once,
- * over all of them, and file a statement's new rows. `loans` are the records in Loans an entry links to, and `kept` holds the
- * Drive id of each receipt photo Accept kept. Gives what the card warns on: what the import leaves out of its statement, and each receipt's checks that failed.
+ * over all of them, and file a statement's new rows. Each step writes on the records as the earlier steps left them, and a
+ * record two steps change is changed once. `loans` are the records in Loans an entry links to, and `kept` holds the Drive id
+ * of each receipt photo Accept kept. Gives what the card warns on: what the import leaves out of its statement, and each receipt's checks that failed.
  */
 function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: readonly ProposalStep[], ports: SpendingPorts, loans: AppTargets<LinkTarget>, kept: KeptPhotos | undefined): CardWarnings {
   refuseBesideImport(steps, IMPORTING, FILING_IMPORTED_ROWS)
@@ -439,9 +444,24 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
     planBankSetup(unit, books.workbook, steps, ports.device.bankSetup())
     return NO_WARNINGS
   }
+  const staged = cardRecords(books.records, SPENDING_CARD_RECORDS)
+  const warnings = plannedSteps(staged.unit, books.workbook, staged.records, steps, ports, loans, kept)
+  staged.writeInto(unit)
+  return warnings
+}
+
+function plannedSteps(
+  unit: UnitOfWork,
+  workbook: SpendingBook,
+  records: () => SpendingRecords,
+  steps: readonly ProposalStep[],
+  ports: SpendingPorts,
+  loans: AppTargets<LinkTarget>,
+  kept: KeptPhotos | undefined,
+): CardWarnings {
   if (steps.some((step) => step.operation === ADD_RECEIPT.name) && steps.some((step) => step.operation === 'add-category'))
     throw new StepRefused('A new category goes on a card before the receipt, and the receipt card files into it once that card is accepted.')
-  let book = books.workbook
+  let book = workbook
   const made = new Map<string, string>()
   const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
   let imported: CardStatement | null = null
@@ -489,7 +509,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         break
       }
       case 'delete-category':
-        deleteInto(unit, books.records, categoryOf(field['category']), categoryOf(field['into']))
+        deleteInto(unit, records(), categoryOf(field['category']), categoryOf(field['into']))
         break
       case 'add-rule': {
         const row = field['row'] === null ? null : rowOf(field['row'])
@@ -526,7 +546,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       case 'set-limit': {
         const from = parseMonthKey(field['from'])
         if (from === null) throw new StepRefused('A month reads as 2026-10.')
-        setLimit(unit, books.records, categoryOf(field['category']).id, from, moneyFromAmount(field['amount']))
+        setLimit(unit, records(), categoryOf(field['category']).id, from, moneyFromAmount(field['amount']))
         break
       }
       case 'add-account': {
@@ -658,19 +678,29 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         break
       }
       case 'delete-entry':
-        removeEntry(unit, books.records, rowOf(field['entry']))
+        removeEntry(unit, records(), rowOf(field['entry']))
         break
       case 'split-entry': {
         const row = rowOf(field['entry'])
-        const given = field['parts'] as readonly { readonly amount: number | null; readonly category: string; readonly text: string }[]
+        const given = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly text: string }[]
+        const held = book.lines.filter((part) => part.transaction === row.id)
+        const keptPart = (ref: string | null): RecordId | null => {
+          if (ref === null) return null
+          const part = held.find((candidate) => candidate.id === idOf(ref))
+          if (part === undefined) throw new StepRefused("A part keeps only one of the entry's own parts.")
+          return part.id
+        }
         const drafts = given.map((part): PartDraft => ({
+          id: keptPart(part.part),
           amount: part.amount === null ? 'rest' : signedAs(row, accountMoneyFromAmount(part.amount)),
           category: categoryOf(part.category).id,
           text: part.text,
         }))
+        const kept = drafts.flatMap((draft) => (draft.id === null ? [] : [draft.id]))
+        if (new Set(kept).size < kept.length) throw new StepRefused("Each of the entry's parts is kept by one part at most.")
         const split = entrySplit(book, row, drafts)
         if ('refused' in split) throw new StepRefused(entriesEnglish.split.refusals[split.refused])
-        writeEntrySplit(unit, books.records, split)
+        writeEntrySplit(unit, records(), split)
         book = {
           ...book,
           transactions: book.transactions.map((held) => (held.id === row.id ? split.row : held)),
@@ -682,13 +712,13 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         const row = rowOf(field['entry'])
         if (book.receipts.some((receipt) => receipt.transaction === row.id)) throw new StepRefused('A receipt split that entry, so remove-receipt takes its lines off.')
         if (!book.lines.some((part) => part.transaction === row.id)) throw new StepRefused('That entry is not split.')
-        removeSplitOf(unit, books.records, row)
+        removeSplitOf(unit, records(), row)
         break
       }
       case 'remove-receipt': {
         const row = rowOf(field['entry'])
         if (!book.receipts.some((receipt) => receipt.transaction === row.id)) throw new StepRefused('That entry has no receipt.')
-        removeSplitOf(unit, books.records, row)
+        removeSplitOf(unit, records(), row)
         break
       }
       case 'add-receipt': {
@@ -729,7 +759,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
         break
       case 'place-waiting-receipt':
       case 'remove-waiting-receipt':
-        writeWaitingReceiptStep(unit, book, books.records, operation, field, idOf)
+        writeWaitingReceiptStep(unit, book, records(), operation, field, idOf)
         break
       case 'import-statement':
         if (imported !== null) throw new StepRefused('A card imports one statement.')

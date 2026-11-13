@@ -125,6 +125,8 @@ export const en = {
     const quoted = listInWords(names.map((name) => `"${name}"`))
     return names.length === 1 ? `the asset ${quoted} claims it as payment` : `the assets ${quoted} claim it as payment`
   },
+  /** Why a row keeps the split a travel order filed it in, as `the travel order 1/2026 files it`. */
+  tripFiling: (number: string) => `the travel order ${number} files it`,
   /** The labels of what the owner's benefits and loans would cost or save. */
   owner: {
     inYear: (name: string, year: number) => `${name} in ${year}`,
@@ -283,6 +285,7 @@ export const hr: Translation<typeof en> = {
     const quoted = listInWords(names.map((name) => `„${name}”`))
     return names.length === 1 ? `sredstvo ${quoted} vodi je kao plaćanje` : `sredstva ${quoted} vode je kao plaćanje`
   },
+  tripFiling: (number) => `ju je tako razvrstao putni nalog ${number}`,
   owner: {
     inYear: (name, year) => `${name}, ${year}.`,
     taxAvoidedIn: (year) => `Ušteda na porezu u ${year}.`,

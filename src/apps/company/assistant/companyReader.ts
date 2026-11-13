@@ -11,10 +11,11 @@ import { countedLedger } from '../transactions/domain/countedLedger'
 import type { CountedLedger } from '../transactions/domain/countedLedger'
 import { bucketTotals } from '../workbook/domain/bucketTotals'
 import type { ProfitAndLossLine } from '../workbook/domain/bucketTotals'
-import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS } from '../workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../workbook/domain/coreKinds'
 import { displayName, displayNamesOf } from '../workbook/domain/displayName'
 import { isHumanConfirmed, needsReview, reviewCount } from '../workbook/domain/needsReview'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
+import type { LedgerSplit, SplitPart } from '../workbook/domain/splits'
 import type { Category, Workbook } from '../workbook/domain/workbook'
 import type { BillingItem } from '../workbook/domain/billingPlan'
 import { readableKind } from '../../../shared/app/assistantReader'
@@ -119,6 +120,18 @@ interface LedgerRowView {
   readonly ownerShare: string
 }
 
+/** A part of a split ledger row as the chat reads it, with the row it is part of. */
+interface SplitPartView {
+  readonly id: string
+  readonly row: string
+  readonly amount: Money
+  readonly category: string
+  readonly family: string
+  readonly bucket: string
+  readonly note: string
+  readonly ownerShare: string
+}
+
 interface CategoryView {
   readonly id: string
   readonly label: string
@@ -200,6 +213,17 @@ const LEDGER_FIELDS: FieldDocs<LedgerRowView> = {
   waits: { exposure: 'plain', meaning: 'It waits on To review.' },
   reviewReasons: { exposure: 'plain', meaning: 'Why the statement wants a person to look at it, such as reversal.' },
   signals: { exposure: 'plain', meaning: "The bank's codes for the row." },
+  ownerShare: { exposure: 'plain', meaning: "The owner's private share of it in percent, or empty for none." },
+}
+
+const SPLIT_PART_FIELDS: FieldDocs<SplitPartView> = {
+  id: { exposure: 'ref', to: SPLIT_PART_RECORDS.name, meaning: 'The part.' },
+  row: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row it is part of, which counts as its parts instead.' },
+  amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'What of the row counts in its category, signed as the row is.' },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'Its category.' },
+  family: { exposure: 'plain', meaning: "Its category's family." },
+  bucket: { exposure: 'plain', meaning: 'Where profit and loss counts it.' },
+  note: { exposure: 'free-text', meaning: "The person's note on the part." },
   ownerShare: { exposure: 'plain', meaning: "The owner's private share of it in percent, or empty for none." },
 }
 
@@ -320,6 +344,19 @@ function ledgerRowOf(row: Workbook['transactions'][number]): LedgerRowView {
       .filter((code) => code !== '')
       .join(', '),
     ownerShare: ownerShareText(row.ownerShare) ?? '',
+  }
+}
+
+function splitPartOf(split: LedgerSplit, part: SplitPart): SplitPartView {
+  return {
+    id: part.id,
+    row: split.row.id,
+    amount: part.amount,
+    category: part.category,
+    family: part.family,
+    bucket: part.bucket,
+    note: part.note,
+    ownerShare: ownerShareText(part.ownerShare) ?? '',
   }
 }
 
@@ -490,6 +527,14 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
         rows: () => rows((workbook) => workbook.transactions.map(ledgerRowOf)),
         currencyOf: currency,
         sets: [{ name: 'waiting', about: 'The rows waiting on To review.', holds: (row) => row.waits }],
+      }),
+      readableKind({
+        kind: SPLIT_PART_RECORDS,
+        about: words.reads.splitPart,
+        fields: SPLIT_PART_FIELDS,
+        dated: null,
+        rows: () => rows((workbook) => workbook.splits.flatMap((split) => split.parts.map((part) => splitPartOf(split, part)))),
+        currencyOf: currency,
       }),
       readableKind({
         kind: CATEGORY_RECORDS,

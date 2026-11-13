@@ -58,12 +58,20 @@ const ALL: FindRecordsInput = {
 }
 
 describe("what the chat reads of the company's books", () => {
-  it('reads every core kind the books keep but splits and dismissals, then the pack’s kinds', () => {
+  it('reads every core kind the books keep but dismissals, then the pack’s kinds', () => {
     const core = Object.values(coreKinds)
       .map((recordKind) => recordKind.name)
-      .filter((name) => name !== coreKinds.SPLIT_PART_RECORDS.name && name !== coreKinds.DISMISSAL_RECORDS.name)
+      .filter((name) => name !== coreKinds.DISMISSAL_RECORDS.name)
     expect([...READER.kinds.map((readable) => readable.name).slice(0, core.length)].sort()).toEqual([...core].sort())
     expect(READER.kinds.slice(core.length).every((readable) => readable.name.startsWith('hr-doo.'))).toBe(true)
+  })
+
+  it('reads each part of a counted split by its id, with the row it is part of, so an operation can name the part it keeps', () => {
+    const parts = kind(coreKinds.SPLIT_PART_RECORDS.name).rows()
+    const counted = BOOKS.workbook.splits.flatMap((split) => split.parts.map((part) => [part.id, split.row.id]))
+    expect(counted.length).toBeGreaterThan(0)
+    const rowOf = (fields: (typeof parts)[number]['fields']) => fields.flatMap((field) => (field.name === 'row' && field.exposure === 'ref' ? [field.id] : []))[0]
+    expect(parts.map((row) => [row.id, rowOf(row.fields)])).toEqual(counted)
   })
 
   it('classes every field it hands over, and hands over no field it classes as never', () => {

@@ -1,5 +1,7 @@
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import type { PartReplacement } from '../../../../../shared/categorising/domain/partReplacements'
 import type { UnitOfWork } from '../../../../../shared/storage/application/repository'
+import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import { recordWithId } from '../../../../../shared/storage/domain/recordsRead'
 import { LEDGER_WRITES } from '../../../imports/application/ledgerWrites'
 import { writeSplit } from '../../../transactions/application/splitWrites'
@@ -28,22 +30,28 @@ export function markTripReported(unit: UnitOfWork, trip: Trip, on: CivilDate | n
 
 /**
  * Files each linked row by the settlement in one write: a row of two parts or more is split into them, and a row the settlement
- * files in one category whole takes that category, any split it held removed, with the person's review label.
+ * files in one category whole takes that category, any split it held removed, with the person's review label. A part the row
+ * already holds in a category the settlement files keeps its id and its note. Gives what each part replaces.
  */
-export function fileTripRows(unit: UnitOfWork, books: CompanyBooks, splits: readonly TripRowSplit[], reviewLabel: string): void {
+export function fileTripRows(unit: UnitOfWork, books: CompanyBooks, splits: readonly TripRowSplit[], reviewLabel: string): readonly PartReplacement<RecordId>[] {
   const { records, workbook } = books
   const { categories } = workbook
-  for (const split of splits) {
+  return splits.flatMap((split) => {
     const stored = storedSplitOf(records.splits, workbook.splits, split.row)
     const [only, ...more] = split.parts
     if (only !== undefined && more.length === 0) {
-      writeSplit(unit, split.row, stored, [], categories)
+      const replaced = writeSplit(unit, split.row, stored, [], categories)
       const entry = recordWithId(records.ledger, split.row.id)?.record
       if (entry === undefined) throw new Error('A linked row is no longer in the books.')
       unit.of(LEDGER_WRITES).change(entry, withVerdict(entry, { category: only.category, flaggedBy: reviewLabel }, categories))
-    } else {
-      const drafts = split.parts.map((part, index) => ({ amount: part.amount, category: part.category, note: '', opened: stored.parts[index] ?? null }))
-      writeSplit(unit, split.row, stored, drafts, categories)
+      return replaced
     }
-  }
+    const taken = new Set<RecordId>()
+    const drafts = split.parts.map((part) => {
+      const opened = stored.parts.find((held) => held.category === part.category && !taken.has(held.id)) ?? null
+      if (opened !== null) taken.add(opened.id)
+      return { amount: part.amount, category: part.category, note: opened?.note ?? '', opened }
+    })
+    return writeSplit(unit, split.row, stored, drafts, categories)
+  })
 }

@@ -22,7 +22,7 @@ import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { useBookedWorkbook } from '../application/useBookedWorkbook'
-import { writeSplit } from '../application/splitWrites'
+import { removeSplit, writeSplit } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
@@ -113,7 +113,9 @@ async function save(): Promise<void> {
 
 async function remove(): Promise<void> {
   if (stored.value.parts.length === 0) return
-  const deleted = await writes.write(words.splitDialog.deleted, (unit) => writeSplit(unit, props.row, stored.value, [], props.categories), {
+  const { records, workbook } = store.state
+  if (records === null || records === undefined || workbook === null || workbook === undefined) return
+  const deleted = await writes.write(words.splitDialog.deleted, (unit) => removeSplit(unit, { records, workbook }, props.row, stored.value), {
     description: words.splitDialog.countsWhole,
     key: 'delete',
     failedTitle: words.splitDialog.notDeleted,

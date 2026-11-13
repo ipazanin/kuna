@@ -146,6 +146,7 @@ export const en = {
     countsWhole: (reasons: string) => `${reasons}, so the ledger row counts whole`,
     keptWhole: (account: string, date: CivilDate, why: string) => `the ${account} row of ${date} stays whole, since ${why}`,
     refusedKeptWhole: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${date} for ${plainAmount(amount)} stays whole, since ${why}.`,
+    refusedSplitKept: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${date} for ${plainAmount(amount)} keeps its split, since ${why}.`,
   },
   accounts: {
     noName: 'no account name',
@@ -234,6 +235,7 @@ export const hr: Translation<typeof en> = {
     countsWhole: (reasons) => `${reasons}, pa se stavka evidencije broji cijela`,
     keptWhole: (account, date, why) => `stavka računa „${account}” od ${dayLabel(date)} ostaje cijela jer ${why}`,
     refusedKeptWhole: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje cijela jer ${why}.`,
+    refusedSplitKept: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje podijeljena jer ${why}.`,
   },
   accounts: {
     noName: 'polje account je prazno',

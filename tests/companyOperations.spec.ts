@@ -21,7 +21,7 @@ import { words as ruleWords } from '../src/apps/company/rules/domain/words'
 import { words as ruleFormWords } from '../src/apps/company/rules/presentation/words'
 import { proposalGroupsOf } from '../src/apps/company/assistant/operations/proposalLines'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { words as sharedWords } from '../src/shared/app/words'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
@@ -349,9 +349,9 @@ describe('splits and owner shares', () => {
           row: desk.ref(LEDGER_RECORDS.name, row.id),
           by: 'share',
           parts: [
-            { amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
-            { amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
-            { amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'travel'), note: '' },
+            { part: null, amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
+            { part: null, amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { part: null, amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'travel'), note: '' },
           ],
         },
       },
@@ -376,8 +376,8 @@ describe('splits and owner shares', () => {
           row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-6').id),
           by: 'share',
           parts: [
-            { amount: 1, category: 'equipment', note: '' },
-            { amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { part: null, amount: 1, category: 'equipment', note: '' },
+            { part: null, amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
           ],
         },
       },
@@ -394,8 +394,8 @@ describe('splits and owner shares', () => {
           row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-6').id),
           by: 'amount',
           parts: [
-            { amount: 40, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
-            { amount: 10, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { part: null, amount: 40, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
+            { part: null, amount: 10, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
           ],
         },
       },
@@ -412,8 +412,8 @@ describe('splits and owner shares', () => {
           row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-6').id),
           by: 'amount',
           parts: [
-            { amount: 60, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
-            { amount: null, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { part: null, amount: 60, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
+            { part: null, amount: null, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
           ],
         },
       },
@@ -431,8 +431,8 @@ describe('splits and owner shares', () => {
           row: desk.ref(LEDGER_RECORDS.name, row.id),
           by: 'amount',
           parts: [
-            { amount: 40, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
-            { amount: null, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { part: null, amount: 40, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
+            { part: null, amount: null, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
           ],
         },
       },
@@ -442,11 +442,54 @@ describe('splits and owner shares', () => {
     expect(split.parts.map((part) => part.amount)).toEqual([-4000, -2000])
   })
 
+  it('keeps a split part the chat names by its ref, with its id and share, and refuses a part of another row', async () => {
+    const desk = await companyDesk(used)
+    const split = () => desk.store.state.workbook!.splits.find((candidate) => candidate.row.reference === 'REF-7')!
+    const [larger, smaller] = split().parts
+    const partRef = (id: string) => desk.ref(SPLIT_PART_RECORDS.name, id)
+    const row = desk.ref(LEDGER_RECORDS.name, desk.row('REF-7').id)
+    await desk.propose([
+      {
+        op: 'split-row',
+        input: {
+          row,
+          by: 'share',
+          parts: [
+            { part: partRef(smaller!.id), amount: 3, category: desk.ref(CATEGORY_RECORDS.name, smaller!.category), note: 'Now the larger' },
+            { part: partRef(larger!.id), amount: 1, category: desk.ref(CATEGORY_RECORDS.name, larger!.category), note: '' },
+          ],
+        },
+      },
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+
+    expect(split().parts.map((part) => [part.id, part.note, part.ownerShare])).toEqual([
+      [smaller!.id, 'Now the larger', smaller!.ownerShare],
+      [larger!.id, larger!.note, larger!.ownerShare],
+    ])
+    const other = desk.row('REF-6')
+    const refused = await desk.propose([
+      {
+        op: 'split-row',
+        input: {
+          row: desk.ref(LEDGER_RECORDS.name, other.id),
+          by: 'share',
+          parts: [
+            { part: partRef(larger!.id), amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { part: null, amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'travel'), note: '' },
+          ],
+        },
+      },
+    ])
+    expect(refused.text).toContain("A part keeps only one of the row's own split parts.")
+  })
+
   it("sets a split part's share, and refuses a share on a row still waiting", async () => {
     const desk = await companyDesk(used)
-    await desk.propose([{ op: 'set-owner-share', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-7').id), part: 2, share: 50 } }])
+    const second = desk.store.state.workbook!.splits.find((split) => split.row.reference === 'REF-7')!.parts[1]!
+    await desk.propose([{ op: 'set-owner-share', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-7').id), part: desk.ref(SPLIT_PART_RECORDS.name, second.id), share: 50 } }])
     await desk.accept()
-    expect(desk.store.state.workbook!.splits.find((split) => split.row.reference === 'REF-7')!.parts[1]!.ownerShare).toBe(50)
+    expect(desk.store.state.workbook!.splits.find((split) => split.row.reference === 'REF-7')!.parts.find((part) => part.id === second.id)!.ownerShare).toBe(50)
     const waiting = await desk.propose([{ op: 'set-owner-share', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-8').id), part: null, share: 50 } }])
     expect(waiting.text).toContain('still waits on To review')
   })

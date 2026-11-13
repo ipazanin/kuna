@@ -4,6 +4,8 @@ import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import { ownerPartKey } from '../../owner-share/domain/ownerParts'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import type { Bucket } from './bucket'
+import { SPLIT_PART_RECORDS } from './coreKinds'
+import { recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Transaction } from './workbook'
 
@@ -44,6 +46,14 @@ export interface LedgerSplit {
 /** Parts larger first, then by category and note, so a part's number does not hang on where its row sits. */
 export function partOrder(earlier: Pick<SplitPart, 'amount' | 'category' | 'note'>, later: Pick<SplitPart, 'amount' | 'category' | 'note'>): number {
   return Math.abs(later.amount) - Math.abs(earlier.amount) || naturalOrder(earlier.category, later.category) || naturalOrder(earlier.note, later.note)
+}
+
+/**
+ * The id of the one part a bank row that is not split stands for, which its first part keeps when it is split, or null for a row
+ * with no row id yet.
+ */
+export function wholeRowPartId(row: Pick<Transaction, 'rowId'>): RecordId | null {
+  return row.rowId === null ? null : recordIdOf(SPLIT_PART_RECORDS, row.rowId)
 }
 
 /** The key a part of this row is written with. */

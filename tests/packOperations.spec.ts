@@ -21,6 +21,9 @@ import { GRANT_WRITES, TRIP_WRITES } from '../src/apps/company/packs/hr-doo/doma
 import { fakeStaffOf } from '../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { wholeRowPartId } from '../src/apps/company/workbook/domain/splits'
+import { SPLIT_WRITES, removeSplit } from '../src/apps/company/transactions/application/splitWrites'
+import { storedSplitOf } from '../src/apps/company/workbook/domain/splitsReading'
 import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkbook'
 import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import type { CheckedProposal } from '../src/shared/app/assistantOperations'
@@ -378,6 +381,51 @@ describe('linking an asset to its payment', () => {
 
     expect(answer).toMatchObject({ isError: true, text: expect.stringContaining('brings money in') })
     expect(desk.cards).toEqual([])
+  })
+})
+
+describe("filing a trip's rows by its settlement", () => {
+  it('refuses to take off by hand the split a travel order filed, in the chat and on the screen, naming the order', async () => {
+    const desk = await packDesk()
+    const trip = recordsOf(recordsOfKindIn(desk.store.state.records!, TRIP_RECORDS))[0]!
+    await desk.propose([{ op: 'file-trip-rows', input: { trip: desk.ref(TRIP_RECORDS.name, trip.id) } }])
+    expect((await desk.accept()).kind).toBe('done')
+    const { advance } = tripRows(desk.store.state as CompanyBooks)
+    const said = 'keeps its split, since the travel order 1/2026 files it.'
+
+    const answer = await desk.propose([{ op: 'delete-split', input: { row: desk.ref(LEDGER_RECORDS.name, advance.id) } }])
+
+    expect(answer).toMatchObject({ isError: true, text: expect.stringContaining(said) })
+    const books = desk.store.state as CompanyBooks
+    const stored = storedSplitOf(books.records.splits, books.workbook.splits, advance)
+    await expect(desk.store.write('Removed', (unit) => removeSplit(unit, books, advance, stored))).rejects.toThrow(said)
+    expect(desk.store.state.workbook!.splits.some((split) => split.row.id === advance.id)).toBe(true)
+  })
+
+  it('files a row again with each part it holds in a category the settlement files kept, by its id and with its note', async () => {
+    const desk = await packDesk()
+    const trip = recordsOf(recordsOfKindIn(desk.store.state.records!, TRIP_RECORDS))[0]!
+    const fileRows = async () => {
+      await desk.propose([{ op: 'file-trip-rows', input: { trip: desk.ref(TRIP_RECORDS.name, trip.id) } }])
+      expect((await desk.accept()).kind).toBe('done')
+    }
+    const { advance } = tripRows(desk.store.state as CompanyBooks)
+    const partsOfAdvance = () => desk.store.state.workbook!.splits.find((split) => split.row.id === advance.id)!.parts
+    await fileRows()
+    const filed = partsOfAdvance()
+    expect(filed.map((part) => part.id)).toContain(wholeRowPartId(advance))
+    // A person moves a euro between the two smaller parts and notes one, so the settlement has something to put back.
+    const [, larger, smaller] = recordsOf(desk.store.state.records!.splits)
+      .filter((part) => filed.some((held) => held.id === part.id))
+      .sort((one, other) => Math.abs(other.amount) - Math.abs(one.amount))
+    await desk.store.write('Changed', (unit) => {
+      unit.of(SPLIT_WRITES).change(larger!, { ...larger!, amount: addMoney(larger!.amount, euros(1)) })
+      unit.of(SPLIT_WRITES).change(smaller!, { ...smaller!, amount: subtractMoney(smaller!.amount, euros(1)), note: 'Two days in Split' })
+    })
+
+    await fileRows()
+
+    expect(partsOfAdvance().map((part) => [part.id, part.amount, part.note])).toEqual(filed.map((part) => [part.id, part.amount, part.id === smaller!.id ? 'Two days in Split' : part.note]))
   })
 })
 

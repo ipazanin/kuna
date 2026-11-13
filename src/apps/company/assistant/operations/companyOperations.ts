@@ -1,4 +1,5 @@
-import { cardRecords } from './cardRecords'
+import { COMPANY_CARD_RECORDS } from './cardRecords'
+import { cardRecords } from '../../../../shared/app/cardRecords'
 import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
 import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
@@ -56,7 +57,7 @@ function operationSets(ports: CompanyOperationPorts): readonly CompanyOperationS
  */
 function planned(unit: UnitOfWork, books: OpenBooks<CompanyBooks>, sets: readonly CompanyOperationSet[], steps: readonly ProposalStep[]): CardTold {
   refuseBesideImport(steps, IMPORTING)
-  const records = cardRecords(books.records)
+  const records = cardRecords(books.records, COMPANY_CARD_RECORDS)
   const names = new Map<string, string>()
   const notes: CardNote[] = []
   const heldBack: string[] = []

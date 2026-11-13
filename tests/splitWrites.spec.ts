@@ -1,11 +1,16 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { writeSplit as writeSplitParts } from '../src/apps/company/transactions/application/splitWrites'
+import { SPLIT_WRITES, removeSplit, writeSplit as writeSplitParts } from '../src/apps/company/transactions/application/splitWrites'
 import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
 import { storedSplitOf } from '../src/apps/company/workbook/domain/splitsReading'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
+import { wholeRowPartId } from '../src/apps/company/workbook/domain/splits'
+import { ownerShareOf } from '../src/apps/company/owner-share/domain/ownerShare'
+import type { SplitTabRow } from '../src/apps/company/workbook/domain/splitsReading'
+import type { PartReplacement } from '../src/shared/categorising/domain/partReplacements'
+import type { RecordId } from '../src/shared/storage/domain/recordId'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
@@ -177,5 +182,163 @@ describe.each([
 
     expect([stored.parts.map((part) => part.amount), stored.refused, stored.unreadable]).toEqual([[euros(-14)], true, 1])
     expect(storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, rowOf(store, 'Desk Co'))).toEqual({ parts: [], refused: false, unreadable: 0 })
+  })
+})
+
+describe('which split part keeps its id', () => {
+  /** Writes the parts, each opened from the stored part it names, and gives what each part replaces. */
+  async function writeOpened(store: WorkbookStore<CompanyBooks>, row: Transaction, parts: readonly (readonly [number, string, RecordId | null])[]): Promise<readonly PartReplacement<RecordId>[]> {
+    const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, row)
+    const opened = (id: RecordId | null): SplitTabRow | null => stored.parts.find((part) => part.id === id) ?? null
+    const drafts = parts.map(([amount, category, id]) => ({ amount: euros(amount), category, note: '', opened: opened(id) }))
+    let replaced: readonly PartReplacement<RecordId>[] = []
+    await store.write('Split', (unit) => (replaced = writeSplitParts(unit, row, stored, drafts, store.state.workbook!.categories)))
+    return replaced
+  }
+  const partsOf = (store: WorkbookStore<CompanyBooks>, row: Transaction) => store.state.workbook!.splits.find((split) => split.row.id === row.id)?.parts ?? []
+
+  it('gives the first part of a row not yet split the id of the part the row stood for, and the others replace it', async () => {
+    const { store } = await browserHarness(used, grids())
+    const model = rowOf(store, 'MODEL API INC')
+    const whole = wholeRowPartId(model)!
+
+    const replaced = await writeOpened(store, model, [
+      [-8, 'owner-loan-out', null],
+      [-12, 'ai-services', null],
+    ])
+
+    const [larger, smaller] = partsOf(store, model)
+    expect(smaller!.id).toBe(whole)
+    expect(whole).toBe(`split-part:${model.rowId}`)
+    expect(replaced).toEqual([{ part: larger!.id, replaces: [whole] }])
+  })
+
+  it('keeps the id of a part it was opened from when it changes amount and category, though the parts then sort the other way', async () => {
+    const { store } = await browserHarness(used, grids())
+    const model = rowOf(store, 'MODEL API INC')
+    await writeOpened(store, model, [
+      [-12, 'ai-services', null],
+      [-8, 'owner-loan-out', null],
+    ])
+    const [seats, owners] = partsOf(store, model)
+
+    const replaced = await writeOpened(store, model, [
+      [-5, 'equipment', seats!.id],
+      [-15, 'owner-loan-out', owners!.id],
+    ])
+
+    expect(partsOf(store, model).map((part) => [part.id, part.amount, part.category])).toEqual([
+      [owners!.id, euros(-15), 'owner-loan-out'],
+      [seats!.id, euros(-5), 'equipment'],
+    ])
+    expect(replaced).toEqual([{ part: owners!.id, replaces: [seats!.id] }])
+  })
+
+  it('lets a new part replace the parts the write removed or made smaller', async () => {
+    const { store } = await browserHarness(used, grids())
+    const model = rowOf(store, 'MODEL API INC')
+    await writeOpened(store, model, [
+      [-10, 'ai-services', null],
+      [-6, 'owner-loan-out', null],
+      [-4, 'equipment', null],
+    ])
+    const [seats, owners, cable] = partsOf(store, model)
+
+    const replaced = await writeOpened(store, model, [
+      [-10, 'ai-services', seats!.id],
+      [-3, 'owner-loan-out', owners!.id],
+      [-7, 'equipment', null],
+    ])
+
+    const added = partsOf(store, model).find((part) => ![seats!.id, owners!.id].includes(part.id))!
+    expect(replaced).toEqual([{ part: added.id, replaces: [owners!.id, cable!.id] }])
+  })
+
+  it('leaves the row as the one part it stands for when the split comes off, which replaces every part it had', async () => {
+    const { store } = await browserHarness(used, grids())
+    const model = rowOf(store, 'MODEL API INC')
+    await writeOpened(store, model, [
+      [-12, 'ai-services', null],
+      [-8, 'owner-loan-out', null],
+    ])
+    const [seats, owners] = partsOf(store, model)
+
+    const replaced = await writeOpened(store, model, [])
+
+    expect(partsOf(store, model)).toEqual([])
+    expect(seats!.id).toBe(wholeRowPartId(model))
+    expect(replaced).toEqual([{ part: wholeRowPartId(model), replaces: [owners!.id] }])
+  })
+})
+
+describe('a split taken off', () => {
+  async function splitModel(parts: readonly (readonly [number, string])[]) {
+    const { store } = await browserHarness(used, grids())
+    await writeSplit(store, rowOf(store, 'MODEL API INC'), parts)
+    const remove = () => {
+      const row = rowOf(store, 'MODEL API INC')
+      const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, row)
+      return store.write('Removed', (unit) => removeSplit(unit, { records: store.state.records!, workbook: store.state.workbook! }, row, stored))
+    }
+    return { store, remove }
+  }
+
+  it('files the row whole under the category most of its money was in, by the person, and Undo puts the split and the category back', async () => {
+    const { store, remove } = await splitModel([
+      [-8, 'ai-services'],
+      [-12, 'owner-loan-out'],
+    ])
+
+    const written = await remove()
+
+    expect(store.state.workbook!.splits).toEqual([])
+    expect(rowOf(store, 'MODEL API INC')).toMatchObject({ category: 'owner-loan-out', flaggedBy: store.state.workbook!.settings.reviewLabel })
+    await store.undo(store.state.writes.find((write) => write.receipt === written)!)
+    expect(rowOf(store, 'MODEL API INC')).toMatchObject({ category: 'ai-services', flaggedBy: 'ai' })
+    expect(store.state.workbook!.splits[0]?.parts.map((part) => part.category)).toEqual(['owner-loan-out', 'ai-services'])
+  })
+
+  it("takes the owner share of the part whose category it takes, not the category's default", async () => {
+    const { store, remove } = await splitModel([
+      [-8, 'ai-services'],
+      [-12, 'owner-loan-out'],
+    ])
+    const row = rowOf(store, 'MODEL API INC')
+    const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, row)
+    const larger = stored.parts.find((part) => part.category === 'owner-loan-out')!
+    await store.write('Shared', (unit) => unit.of(SPLIT_WRITES).change(larger, { ...larger, ownerShare: ownerShareOf(30) }))
+
+    await remove()
+
+    expect(rowOf(store, 'MODEL API INC')).toMatchObject({ category: 'owner-loan-out', ownerShare: 30 })
+  })
+
+  it('takes the category of the first part in part order on a tie, and adds up the parts of one category first', async () => {
+    const tie = await splitModel([
+      [-10, 'owner-loan-out'],
+      [-10, 'equipment'],
+    ])
+    await tie.remove()
+    expect(rowOf(tie.store, 'MODEL API INC').category).toBe('equipment')
+
+    const summed = await splitModel([
+      [-9, 'owner-loan-out'],
+      [-6, 'equipment'],
+      [-5, 'equipment'],
+    ])
+    await summed.remove()
+    expect(rowOf(summed.store, 'MODEL API INC').category).toBe('equipment')
+  })
+
+  it('leaves the row as it was when most of the money was already in its category', async () => {
+    const { store, remove } = await splitModel([
+      [-15, 'ai-services'],
+      [-5, 'owner-loan-out'],
+    ])
+
+    const written = await remove()
+
+    expect(rowOf(store, 'MODEL API INC')).toMatchObject({ category: 'ai-services', flaggedBy: 'ai' })
+    expect(cellsOf(written, 'change')).toEqual([])
   })
 })

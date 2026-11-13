@@ -148,7 +148,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/company/settings/application/namedRecordWrites.ts#deleteCategoryInto', from: ['into'], operations: ['delete-category'] },
   { path: 'src/apps/company/transactions/application/fileRows.ts#fileRows', from: ['verdicts'], operations: [{ name: 'file-row', renames: { 'verdict.category': 'category' } }] },
   { path: 'src/apps/company/settings/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
-  { path: 'src/apps/company/transactions/application/splitWrites.ts#writeSplit', from: ['drafts'], operations: [{ name: 'split-row', prefix: 'parts.' }] },
+  { path: 'src/apps/company/transactions/application/splitWrites.ts#writeSplit', from: ['drafts'], operations: [{ name: 'split-row', prefix: 'parts.', renames: { 'opened.id': 'parts.part' } }] },
   {
     path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#OWNER_ADVANCE_WRITES.add',
     type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
@@ -314,7 +314,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntrySplit',
     type: 'src/apps/spending/entries/domain/entrySplit.ts#PartDraft',
-    operations: [{ name: 'split-entry', prefix: 'parts.' }],
+    operations: [{ name: 'split-entry', prefix: 'parts.', renames: { id: 'parts.part' } }],
   },
   { path: 'src/apps/spending/workbook/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
   {

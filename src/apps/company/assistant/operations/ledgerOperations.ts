@@ -20,12 +20,12 @@ import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import { treatPayeeAsPerson } from '../../settings/application/settingWrites'
 import { fileRows } from '../../transactions/application/fileRows'
 import { words as transactionWords } from '../../transactions/presentation/words'
-import { writeSplit } from '../../transactions/application/splitWrites'
+import { removeSplit, splitKeptRefusal, writeSplit } from '../../transactions/application/splitWrites'
 import type { SplitPartDraft } from '../../transactions/application/splitWrites'
 import { fitsPairSide, pairSidesWith } from '../../transactions/domain/pairSides'
 import { confirmation, confirmedRowsRefiledBy, recategorisation } from '../../transactions/domain/verdictChanges'
 import type { RowVerdict } from '../../transactions/domain/verdictChanges'
-import { CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
+import { CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../workbook/domain/displayName'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { storedSplitOf } from '../../workbook/domain/splitsReading'
@@ -46,6 +46,7 @@ import { NO_RECORDS, recordWithId, recordsOf } from '../../../../shared/storage/
 const ROW = LEDGER_RECORDS.name
 const CATEGORY = CATEGORY_RECORDS.name
 const RULE = RULE_RECORDS.name
+const SPLIT_PART = SPLIT_PART_RECORDS.name
 
 const CONFIDENCE_OR_NULL = { type: ['string', 'null'], description: 'rule files the row, review files it and leaves it waiting on To review, or null to leave it.' } as const
 
@@ -141,27 +142,29 @@ const OPERATIONS: readonly AssistantOperation[] = [
     about: [
       "Splits a ledger row into parts in categories, or changes its split, as the row's Split does. by amount: each part's amount above zero, and exactly one part has amount null and takes the rest, which must leave something.",
       'by share: each amount a whole number such as 70 and 30, none null, and Kuna works out the amounts so no cent is lost. A row a pack keeps whole cannot be split.',
+      "part is the ref of the row's split part it keeps, which stays the same part with its new amount, category and note, or null for a new part.",
     ].join(' '),
     input: inputOf({
       row: TEXT,
       by: { type: 'string', enum: ['amount', 'share'] },
-      parts: { type: 'array', items: inputOf({ amount: PART_AMOUNT, category: TEXT, note: TEXT }) },
+      parts: { type: 'array', items: inputOf({ part: TEXT_OR_NULL, amount: PART_AMOUNT, category: TEXT, note: TEXT }) },
     }),
-    refs: { row: ROW, 'parts.category': CATEGORY },
+    refs: { row: ROW, 'parts.part': SPLIT_PART, 'parts.category': CATEGORY },
     creates: null,
     alone: false,
     example: {
       row: 'ledger-row',
       by: 'share',
       parts: [
-        { amount: 70, category: 'category', note: '' },
-        { amount: 30, category: 'category-other', note: 'Private part' },
+        { part: null, amount: 70, category: 'category', note: '' },
+        { part: null, amount: 30, category: 'category-other', note: 'Private part' },
       ],
     },
   },
   {
     name: 'delete-split',
-    about: 'Takes the split off a row, which then counts whole in its own category again.',
+    about:
+      "Takes the split off a row, which then counts whole under the category most of its money was in, with that part's owner share, filed by the person. A split a travel order filed stays until the row is unlinked from the order.",
     input: inputOf({ row: TEXT }),
     refs: { row: ROW },
     creates: null,
@@ -171,9 +174,9 @@ const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'set-owner-share',
     about:
-      "Sets the owner's private share of a payment in percent, from 0 to 100, or clears it with null. part is a split row's part by its place, larger first from 1, or null for a row that is not split. Only while owner pay is on, on operating cost, and on a row no longer waiting. An owner advance's share goes through change-owner-advance.",
-    input: inputOf({ row: TEXT, part: { type: ['number', 'null'], description: 'The part by its place, larger first from 1, or null.' }, share: NUMBER_OR_NULL }),
-    refs: { row: ROW },
+      "Sets the owner's private share of a payment in percent, from 0 to 100, or clears it with null. part is the ref of a split row's part, or null for a row that is not split. Only while owner pay is on, on operating cost, and on a row no longer waiting. An owner advance's share goes through change-owner-advance.",
+    input: inputOf({ row: TEXT, part: TEXT_OR_NULL, share: NUMBER_OR_NULL }),
+    refs: { row: ROW, part: SPLIT_PART },
     creates: null,
     alone: false,
     example: { row: 'ledger-row', part: null, share: 40 },
@@ -388,7 +391,7 @@ function partAmounts(row: Transaction, by: string, given: readonly (number | nul
 function splitRow(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const row = rowOf(card, field['row'])
-  const parts = field['parts'] as readonly { readonly amount: number | null; readonly category: string; readonly note: string }[]
+  const parts = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly note: string }[]
   if (parts.length < 2) throw new StepRefused('A split has at least two parts.')
   const stored = storedSplitOf(card.records().splits, card.workbook.splits, row)
   const amounts = partAmounts(
@@ -396,7 +399,15 @@ function splitRow(card: CompanyCard, step: ProposalStep): void {
     field['by'],
     parts.map((part) => part.amount),
   )
-  const drafts = parts.map((part, at): SplitPartDraft => ({ amount: amounts[at]!, category: categoryOf(card, part.category).slug, note: part.note, opened: stored.parts[at] ?? null }))
+  const openedOf = (ref: string | null) => {
+    if (ref === null) return null
+    const opened = stored.parts.find((held) => held.id === card.idOf(ref))
+    if (opened === undefined) throw new StepRefused("A part keeps only one of the row's own split parts.")
+    return opened
+  }
+  const drafts = parts.map((part, at): SplitPartDraft => ({ amount: amounts[at]!, category: categoryOf(card, part.category).slug, note: part.note, opened: openedOf(part.part) }))
+  const kept = drafts.flatMap((draft) => (draft.opened === null ? [] : [draft.opened.id]))
+  if (new Set(kept).size < kept.length) throw new StepRefused("Each of the row's split parts is kept by one part at most.")
   writeSplit(card.unit, row, stored, drafts, card.workbook.categories)
 }
 
@@ -404,11 +415,14 @@ function deleteSplit(card: CompanyCard, step: ProposalStep): void {
   const row = rowOf(card, fieldsOf(step)['row'])
   const stored = storedSplitOf(card.records().splits, card.workbook.splits, row)
   if (stored.parts.length === 0) throw new StepRefused('That row is not split.')
-  writeSplit(card.unit, row, stored, [], card.workbook.categories)
+  const books = { records: card.records(), workbook: card.workbook }
+  const refusal = splitKeptRefusal(books, row)
+  if (refusal !== null) throw new StepRefused(refusal)
+  removeSplit(card.unit, books, row, stored)
 }
 
 /** Where the share of a row or of its part sits, as Transactions sets it: only on operating cost, and on a row no longer waiting. */
-function shareTargetOf(card: CompanyCard, row: Transaction, part: number | null): ShareTarget {
+function shareTargetOf(card: CompanyCard, row: Transaction, part: string | null): ShareTarget {
   if (!card.workbook.settings.ownerPayModule) throw new StepRefused('Owner shares show only while owner pay is on, on Settings, General.')
   const split = card.workbook.splits.find((candidate) => candidate.row.id === row.id)
   if (split === undefined) {
@@ -417,8 +431,9 @@ function shareTargetOf(card: CompanyCard, row: Transaction, part: number | null)
     if (needsReview(row)) throw new StepRefused('That row still waits on To review, which files it with its category’s share.')
     return { holder: 'ledger', id: row.id }
   }
-  const held = part === null ? undefined : split.parts[part - 1]
-  if (held === undefined) throw new StepRefused(`That row is split in ${split.parts.length} parts, so part is 1 to ${split.parts.length}.`)
+  if (part === null) throw new StepRefused(`That row is split in ${split.parts.length} parts, so part names one of them by its ref.`)
+  const held = split.parts.find((candidate) => candidate.id === card.idOf(part))
+  if (held === undefined) throw new StepRefused("That part is not one of the row's split parts.")
   if (held.bucket !== 'operating') throw new StepRefused('An owner share sits only on operating cost.')
   return { holder: 'split-part', id: held.id }
 }

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
+import { wholeRowPartId } from '../src/apps/spending/entries/domain/entrySplit'
 import { placeWaitingReceipt, removeWaitingReceipt, writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -176,6 +177,22 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     const book = store.state.workbook!
     expect(book.problems).toEqual([])
     expect(book.lines.at(-1)).toMatchObject({ amount: accountMoneyFromAmount(-1.51), text: 'Difference', category: GROCERIES.id })
+  })
+
+  it('keeps the ids of its lines on the row the person picks, and lets them and the Difference line replace the one part the row stood for', async () => {
+    const store = await spendingStore()
+    await waiting(store)
+    await store.write('Synced', (unit) => writeDryRun(unit, statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -25, 'CORNER MARKET')), DAY)))
+    const [asking] = waitingReceipts(store.state.workbook!)
+    const [tipped] = asking!.matches.kind === 'pick' ? asking!.matches.candidates : []
+
+    let replaced: ReturnType<typeof placeWaitingReceipt> = []
+    await store.write('Placed', (unit) => (replaced = placeWaitingReceipt(unit, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(tipped!.row, []), 'Difference'))))
+
+    const lines = store.state.workbook!.lines.map((line) => line.id)
+    expect(lines.slice(0, asking!.lines.length)).toEqual(asking!.lines.map((line) => line.id))
+    expect(lines).toHaveLength(asking!.lines.length + 1)
+    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: [wholeRowPartId(tipped!.row)] })))
   })
 
   it('keeps waiting while no row it may be arrives', async () => {

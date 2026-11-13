@@ -1,16 +1,19 @@
 import type { Category } from '../../workbook/domain/category'
 import type { EntryPart } from '../../workbook/domain/entryPart'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { PART_RECORDS } from '../../workbook/domain/spendingKinds'
+import { PART_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { partsOfWhole, restOfWhole } from '../../../../shared/money/partsOfWhole'
 import type { PartsRefusal } from '../../../../shared/money/partsOfWhole'
-import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** A part of an entry as you give it: an amount signed as the entry is, or the rest, with its category and optional words. */
 export interface PartDraft {
+  /** The entry's part it was opened from, which keeps its id, or null for a new part. */
+  readonly id: RecordId | null
   readonly amount: AccountMoney | 'rest'
   readonly category: RecordId
   readonly text: string
@@ -29,11 +32,14 @@ export interface EntrySplit {
   readonly parts: readonly EntryPart[]
 }
 
-/** The category most of the money is under, the first on a tie, which the row is filed under. */
-export function mainCategoryOf(parts: readonly Pick<EntryPart, 'amount' | 'category'>[]): RecordId {
-  const sums = new Map<RecordId, number>()
-  for (const part of parts) sums.set(part.category, (sums.get(part.category) ?? 0) + Math.abs(part.amount))
-  return [...sums].reduce((main, entry) => (entry[1] > main[1] ? entry : main))[0]
+/** The id of the one part an entry that is not split stands for, which its first part keeps when it is split. */
+export function wholeRowPartId(row: Pick<Transaction, 'id'>): RecordId {
+  return recordIdOf(PART_RECORDS, keyOfRecordId(TRANSACTION_RECORDS, row.id))
+}
+
+/** The money of an entry as parts: the parts it was split into, or the one part it stands for while it is not split. */
+export function heldPartsOf(row: Pick<Transaction, 'id' | 'amount'>, parts: readonly Pick<EntryPart, 'id' | 'amount'>[]): readonly Pick<EntryPart, 'id' | 'amount'>[] {
+  return parts.length > 0 ? parts : [{ id: wholeRowPartId(row), amount: row.amount }]
 }
 
 function categoryRefusal(category: Category | undefined, categories: readonly Category[]): SplitRefusal | null {
@@ -45,10 +51,11 @@ function categoryRefusal(category: Category | undefined, categories: readonly Ca
 /**
  * The entry in the parts you gave, one of them the rest, each signed as the entry is so they add up to it. The row goes under
  * the category most of its money is in, by your word, and keeps it once the split is removed. Any part may go under a category
- * a row can take, For the company too, but never under a group with children or Between my accounts.
+ * a row can take, For the company too, but never under a group with children or Between my accounts. A part opened from one of
+ * the entry's parts keeps its id, and the first part of an entry not yet split keeps the id of the part the entry stood for.
  */
 export function entrySplit(
-  book: Pick<SpendingBook, 'categories' | 'receipts'>,
+  book: Pick<SpendingBook, 'categories' | 'receipts' | 'lines'>,
   row: Transaction,
   drafts: readonly PartDraft[],
   newKey: () => string = newRecordId,
@@ -64,8 +71,9 @@ export function entrySplit(
     drafts.map((draft) => draft.amount),
   )
   if ('refused' in placed) return placed
+  const whole = !book.lines.some((part) => part.transaction === row.id)
   const parts = drafts.map((draft, place): EntryPart => ({
-    id: recordIdOf(PART_RECORDS, newKey()),
+    id: draft.id ?? (whole && place === 0 ? wholeRowPartId(row) : recordIdOf(PART_RECORDS, newKey())),
     transaction: row.id,
     receipt: null,
     printed: '',

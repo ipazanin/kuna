@@ -115,6 +115,11 @@ export interface PackPart<Part, Values> {
   rowsKeptWhole(records: PackRecords, ledger: Pick<Workbook, 'transactions' | 'categories'>): ReadonlyMap<RecordId, string>
   /** The pack's kinds `rowsKeptWhole` reads, which a write that splits a ledger row reads too. */
   readonly keptWholeReads: readonly RecordKind<unknown>[]
+  /**
+   * The ledger rows whose split a record of the pack files, by their record id, each with why as a clause that follows "since",
+   * such as `the travel order 1/2026 files it`. A person cannot take such a split off by hand.
+   */
+  splitsKept(records: PackRecords, ledger: Pick<Workbook, 'transactions'>): ReadonlyMap<RecordId, string>
 }
 
 /** The records of these kinds as a pack part takes them, by the kind's name. */

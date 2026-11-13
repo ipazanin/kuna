@@ -1,5 +1,6 @@
 import { words } from './words'
-import { differencePart, mainCategoryOf } from '../../entries/domain/entrySplit'
+import { differencePart } from '../../entries/domain/entrySplit'
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { Receipt } from '../../workbook/domain/receipt'

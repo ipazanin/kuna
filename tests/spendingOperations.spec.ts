@@ -448,7 +448,7 @@ describe('an entry split by hand', () => {
   const split = (desk: SpendingDesk, entry: string, parts: readonly { readonly amount: number | null; readonly category: string; readonly text?: string }[]) =>
     stepOf(SPENDING_OPERATIONS, 'split-entry', {
       entry: desk.ref('transaction', entry),
-      parts: parts.map((part) => ({ amount: part.amount, category: desk.ref('category', part.category), text: part.text ?? '' })),
+      parts: parts.map((part) => ({ part: null, amount: part.amount, category: desk.ref('category', part.category), text: part.text ?? '' })),
     })
   const typed = EXAMPLE_RECORDS['transaction']!
 
@@ -471,6 +471,29 @@ describe('an entry split by hand', () => {
     ])
     expect(rowOf(desk, typed)).toMatchObject({ category: EXAMPLE_RECORDS['category-other'], categorisedBy: 'person', amount: before!.amount })
     expect(bookOf(desk).problems).toEqual([])
+  })
+
+  it('splits an entry twice on one card, the second split in place of the first', async () => {
+    const desk = await spendingDesk(used)
+    const answer = await desk.propose([
+      split(desk, typed, [
+        { amount: 10, category: EXAMPLE_RECORDS['category']! },
+        { amount: null, category: EXAMPLE_RECORDS['category-other']! },
+      ]),
+      split(desk, typed, [
+        { amount: 20, category: EXAMPLE_RECORDS['category']! },
+        { amount: null, category: EXAMPLE_RECORDS['category-other']! },
+      ]),
+    ])
+    expect(answer.isError).toBe(false)
+    expect((await desk.accept()).kind).toBe('done')
+
+    expect(bookOf(desk).problems).toEqual([])
+    expect(
+      bookOf(desk)
+        .lines.filter((part) => part.transaction === typed)
+        .map((part) => part.amount),
+    ).toEqual([accountMoneyFromAmount(-20), accountMoneyFromAmount(-25.3)])
   })
 
   it.each([

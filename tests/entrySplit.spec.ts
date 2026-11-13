@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { PART_WRITES, TRANSACTION_WRITES, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
-import { differencePart, entrySplit, mainCategoryOf } from '../src/apps/spending/entries/domain/entrySplit'
+import { differencePart, entrySplit, wholeRowPartId } from '../src/apps/spending/entries/domain/entrySplit'
+import { mainCategoryOf } from '../src/shared/categorising/domain/mainCategory'
 import type { EntrySplit, PartDraft } from '../src/apps/spending/entries/domain/entrySplit'
 import { splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
 import { rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -34,14 +35,15 @@ const COMPANY = CATEGORIES.find((held) => held.kind === 'company')!
 const TRANSFER = CATEGORIES.find((held) => held.kind === 'transfer')!
 const SALARY = category('Income/Salary')
 
-const BOOK = { categories: CATEGORIES, receipts: [] as readonly Receipt[] }
+const BOOK = { categories: CATEGORIES, receipts: [] as readonly Receipt[], lines: [] as readonly EntryPart[] }
 
 let keyPlace = 0
 function keys(): () => string {
   return () => `5e5e0000-0000-4000-8000-${String((keyPlace += 1)).padStart(12, '0')}`
 }
 
-const part = (amount: number | 'rest', on: { readonly id: PartDraft['category'] }, text = ''): PartDraft => ({
+const part = (amount: number | 'rest', on: { readonly id: PartDraft['category'] }, text = '', id: PartDraft['id'] = null): PartDraft => ({
+  id,
   amount: amount === 'rest' ? 'rest' : accountMoneyFromAmount(amount),
   category: on.id,
   text,
@@ -82,7 +84,7 @@ describe('an entry split by hand', () => {
     ['over', [part(-100, GROCERIES), part('rest', RESTAURANTS)]],
     ['group-with-children', [part(-20, FOOD), part('rest', RESTAURANTS)]],
     ['between-accounts', [part(-20, TRANSFER), part('rest', RESTAURANTS)]],
-    ['unknown-category', [{ amount: accountMoneyFromAmount(-20), category: recordIdOf(CATEGORY_RECORDS, 'gone'), text: '' }, part('rest', RESTAURANTS)]],
+    ['unknown-category', [{ id: null, amount: accountMoneyFromAmount(-20), category: recordIdOf(CATEGORY_RECORDS, 'gone'), text: '' }, part('rest', RESTAURANTS)]],
   ] as const)('refuses as %s', (reason, drafts) => {
     expect(entrySplit(BOOK, spend, drafts)).toEqual({ refused: reason })
   })
@@ -199,7 +201,7 @@ describe('writing a hand split', () => {
     const split = book().transactions[0]!
     expect(split).toMatchObject({ category: RESTAURANTS.id, categorisedBy: 'person', amount: spend.amount })
 
-    await store.write('Split again', (unit) => writeEntrySplit(unit, records(), splitOf(split, [part(-10, GROCERIES), part('rest', COMPANY)])))
+    await store.write('Split again', (unit) => writeEntrySplit(unit, records(), splitOf(split, [part(-10, GROCERIES), part('rest', COMPANY)], book())))
     expect(book().lines.map((held) => [held.amount, held.category])).toEqual([
       [accountMoneyFromAmount(-10), GROCERIES.id],
       [accountMoneyFromAmount(-90), COMPANY.id],
@@ -218,5 +220,72 @@ describe('writing a hand split', () => {
     await expect(store.write('Changed', (unit) => unit.of(TRANSACTION_WRITES).change(held, { ...held, amount: accountMoneyFromAmount(-90) }))).rejects.toThrow(/add up/)
     const first = store.state.workbook!.lines[0]!
     await expect(store.write('Changed', (unit) => unit.of(PART_WRITES).change(first, { ...first, amount: accountMoneyFromAmount(-20) }))).rejects.toThrow(/add up/)
+  })
+})
+
+describe('which part keeps its id', () => {
+  const spend = row(OTP, '2026-11-04', -100, 'Food/Groceries')
+  const whole = wholeRowPartId(spend)
+
+  async function splitOnFile() {
+    const store = await storeWith([spend])
+    const records = () => store.state.records!
+    const book = () => store.state.workbook!
+    const write = (drafts: readonly PartDraft[]) => {
+      let replaced: ReturnType<typeof writeEntrySplit> = []
+      return store.write('Split', (unit) => (replaced = writeEntrySplit(unit, records(), splitOf(book().transactions[0]!, drafts, book())))).then(() => replaced)
+    }
+    return { store, records, book, write }
+  }
+
+  it('gives the first part of an entry not yet split the id of the part the entry stood for, and the others replace it', async () => {
+    const { book, write } = await splitOnFile()
+
+    const replaced = await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
+
+    const [first, second] = book().lines
+    expect(first!.id).toBe(whole)
+    expect(whole).toBe(recordIdOf(PART_RECORDS, spend.id.slice(`${TRANSACTION_RECORDS.name}:`.length)))
+    expect(replaced).toEqual([{ part: second!.id, replaces: [whole] }])
+  })
+
+  it('keeps the id of a part opened from the entry, even when its amount, category and words change, and the order of the parts with it', async () => {
+    const { book, write } = await splitOnFile()
+    await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
+    const [big, small] = book().lines
+
+    const replaced = await write([part('rest', COMPANY, 'Paper', small!.id), part(-30, RESTAURANTS, '', big!.id)])
+
+    expect(book().lines.map((held) => [held.id, held.amount, held.category, held.text])).toEqual([
+      [big!.id, accountMoneyFromAmount(-30), RESTAURANTS.id, ''],
+      [small!.id, accountMoneyFromAmount(-70), COMPANY.id, 'Paper'],
+    ])
+    expect(replaced).toEqual([{ part: small!.id, replaces: [big!.id] }])
+    expect(book().problems).toEqual([])
+  })
+
+  it('lets a new part replace the parts the write removed or made smaller, and a kept part that did not grow replaces nothing', async () => {
+    const { book, write } = await splitOnFile()
+    await write([part(-50, RESTAURANTS), part(-30, COMPANY), part('rest', GROCERIES)])
+    const [restaurant, company, groceries] = book().lines
+
+    const replaced = await write([part(-40, RESTAURANTS, '', restaurant!.id), part(-20, GROCERIES, '', groceries!.id), part('rest', SALARY)])
+
+    const added = book().lines.find((held) => held.category === SALARY.id)!
+    expect(book().lines.map((held) => held.id)).toEqual([restaurant!.id, groceries!.id, added.id])
+    expect(replaced).toEqual([{ part: added.id, replaces: [restaurant!.id, company!.id] }])
+  })
+
+  it('leaves the entry as the one part it stands for when the split comes off, which replaces every part it had', async () => {
+    const { store, records, book, write } = await splitOnFile()
+    await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
+    const [first, second] = book().lines
+
+    let replaced: ReturnType<typeof removeSplitOf> = []
+    await store.write('Removed', (unit) => (replaced = removeSplitOf(unit, records(), book().transactions[0]!)))
+
+    expect(book().lines).toEqual([])
+    expect(first!.id).toBe(whole)
+    expect(replaced).toEqual([{ part: whole, replaces: [second!.id] }])
   })
 })

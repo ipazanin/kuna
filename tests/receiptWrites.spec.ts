@@ -4,10 +4,11 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
-import { PART_WRITES, TRANSACTION_WRITES, removeEntry, removeSplitOf } from '../src/apps/spending/entries/application/entryWrites'
+import { PART_WRITES, TRANSACTION_WRITES, removeEntry, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
+import { entrySplit, wholeRowPartId } from '../src/apps/spending/entries/domain/entrySplit'
 import { RECEIPT_WRITES } from '../src/apps/spending/receipts/application/receiptRecords'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
-import { receiptSplit, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
+import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { joinWithTyped, writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
@@ -352,6 +353,53 @@ describe('a row a receipt split', () => {
     expect(book.problems).toEqual([])
     expect(book.transactions).toMatchObject([{ amount: accountMoneyFromAmount(-25), source: 'receipt', importKey: 'key-1' }])
     expect(book.lines).toMatchObject([{ amount: accountMoneyFromAmount(-23.49) }, { amount: accountMoneyFromAmount(-1.51), text: 'Difference', category: GROCERIES.id }])
+  })
+})
+
+describe('the lines of a receipt in place of what a row held', () => {
+  const RESTAURANTS = category('Food/Restaurants')
+  const LINES = [
+    { printed: 'PIZZA', text: 'Pizza', amount: accountMoneyFromAmount(-15), category: RESTAURANTS.id },
+    { printed: 'VINO', text: 'Wine', amount: accountMoneyFromAmount(-8.49), category: GROCERIES.id },
+  ]
+
+  it('lets every line replace the one part a row not split stands for', async () => {
+    const store = await spendingStore()
+    const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Groceries'))
+
+    let replaced: ReturnType<typeof writeReceiptSplit> = []
+    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, receiptSplit(DRAFT, rowPlace(card, store.state.workbook!.lines), LINES))))
+
+    const lines = store.state.workbook!.lines.map((line) => line.id)
+    expect(lines).toHaveLength(2)
+    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: [wholeRowPartId(card)] })))
+  })
+
+  it('lets every line replace every part of a split by hand, since no line says which part it was', async () => {
+    const store = await spendingStore()
+    const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Groceries'))
+    const hand = entrySplit(store.state.workbook!, card, [
+      { id: null, amount: accountMoneyFromAmount(-10), category: RESTAURANTS.id, text: '' },
+      { id: null, amount: 'rest', category: GROCERIES.id, text: '' },
+    ])
+    if ('refused' in hand) throw new Error(hand.refused)
+    await store.write('Split', (unit) => writeEntrySplit(unit, store.state.records!, hand))
+    const split = store.state.workbook!.transactions[0]!
+    const handParts = store.state.workbook!.lines.map((part) => part.id)
+
+    let replaced: ReturnType<typeof writeReceiptSplit> = []
+    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, receiptSplit(DRAFT, rowPlace(split, store.state.workbook!.lines), LINES))))
+
+    const lines = store.state.workbook!.lines.map((line) => line.id)
+    expect(lines.some((line) => handParts.includes(line))).toBe(false)
+    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: handParts })))
+  })
+
+  it('makes a new row with nothing to replace', async () => {
+    const store = await spendingStore()
+    let replaced: ReturnType<typeof writeReceiptSplit> | null = null
+    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, receiptSplit(DRAFT, { account: OTP }, LINES))))
+    expect(replaced).toEqual([])
   })
 })
 

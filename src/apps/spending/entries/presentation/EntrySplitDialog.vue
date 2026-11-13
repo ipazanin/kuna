@@ -37,7 +37,8 @@ const emit = defineEmits<{ saved: [] }>()
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
-const parts = ref<SplitField[]>([])
+/** Each part holds the id of the entry's part it opened, which it keeps. */
+const parts = ref<SplitField<RecordId>[]>([])
 const tried = ref(false)
 
 const heldParts = computed(() => (store.state.workbook?.lines ?? []).filter((part) => part.transaction === props.entry.id))
@@ -48,10 +49,10 @@ watch(open, (opened) => {
   const held = heldParts.value
   parts.value =
     held.length === 0
-      ? [splitField('', props.entry.category ?? '', '', false), splitField('', '', '', true)]
+      ? [splitField<RecordId>('', props.entry.category ?? '', '', false), splitField<RecordId>('', '', '', true)]
       : held.map((part, place) => {
           const rest = place === held.length - 1
-          return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.category, part.text, rest)
+          return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.category, part.text, rest, part.id)
         })
 })
 
@@ -61,13 +62,13 @@ const side = computed(() => (props.entry.amount < 0 ? 'out' : 'in'))
 const whole = computed(() => absAccountMoney(props.entry.amount))
 
 /** The category a part names, or null while it names none. */
-function categoryOf(part: SplitField): RecordId | null {
+function categoryOf(part: SplitField<RecordId>): RecordId | null {
   return categories.value.find((category) => category.id === part.category)?.id ?? null
 }
 
-const choicesOf = (part: SplitField) => entryCategoryChoices(categories.value, side.value, categoryOf(part))
+const choicesOf = (part: SplitField<RecordId>) => entryCategoryChoices(categories.value, side.value, categoryOf(part))
 
-function categoryError(part: SplitField): string | null {
+function categoryError(part: SplitField<RecordId>): string | null {
   return categoryOf(part) === null ? words.split.refusals['unknown-category'] : null
 }
 
@@ -79,7 +80,7 @@ const outcome = computed(() => {
   if (book === null || given === null || parts.value.some((part) => categoryError(part) !== null)) return null
   const drafts = parts.value.map((part, place): PartDraft => {
     const amount = given[place]!
-    return { amount: amount === 'rest' ? 'rest' : signed(amount), category: categoryOf(part)!, text: part.note }
+    return { id: part.held, amount: amount === 'rest' ? 'rest' : signed(amount), category: categoryOf(part)!, text: part.note }
   })
   return entrySplit(book, props.entry, drafts)
 })

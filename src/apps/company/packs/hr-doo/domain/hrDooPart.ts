@@ -1,4 +1,6 @@
 import { packPart, recordsOfKind } from '../../../workbook/domain/packPart'
+import { recordsOf } from '../../../../../shared/storage/domain/recordsRead'
+import { TRIP_ROW_LINKS, linkedRow, linkedRowId } from './trips/tripBankRows'
 import type { RecordCodec } from '../../../../../shared/storage/domain/recordCodec'
 import type { PackKey, PackPart } from '../../../workbook/domain/packPart'
 import { CATEGORY_NAMING, OWNER_ADVANCE_NAMING } from './categoryNaming'
@@ -173,4 +175,13 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
       [...assetsClaimingRows(readAssets(recordsOfKind(records, ASSET_RECORDS), new Set()).facts, ledger.transactions, ledger.categories)].map(([row, names]) => [row, words.assetsClaiming(names)]),
     ),
   keptWholeReads: [ASSET_RECORDS],
+  splitsKept: (records, ledger) =>
+    new Map(
+      recordsOf(recordsOfKind(records, TRIP_RECORDS)).flatMap((trip) =>
+        TRIP_ROW_LINKS.flatMap((link) => {
+          const row = linkedRow(linkedRowId(trip, link), ledger.transactions)
+          return row === null ? [] : [[row.id, words.tripFiling(trip.number)] as const]
+        }),
+      ),
+    ),
 }

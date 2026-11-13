@@ -1,4 +1,7 @@
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import type { Money } from '../../../../shared/money/money'
+import { partReplacements } from '../../../../shared/categorising/domain/partReplacements'
+import type { PartReplacement } from '../../../../shared/categorising/domain/partReplacements'
 import { movedTo } from '../../owner-share/domain/ownerShare'
 import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
@@ -10,10 +13,14 @@ import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { definedCategories } from '../../workbook/domain/categoriesReading'
 import { changesOnly } from '../../workbook/domain/fieldEdits'
 import { readLedger } from '../../workbook/domain/ledgerReading'
-import { splitKeyOf, rowsOfSplitKey } from '../../workbook/domain/splits'
+import { rowsOfSplitKey, splitKeyOf, wholeRowPartId } from '../../workbook/domain/splits'
 import { readSplits, storedSplitKey } from '../../workbook/domain/splitsReading'
 import type { SplitTabRow, StoredSplit } from '../../workbook/domain/splitsReading'
 import { packRecordsOf } from '../../workbook/domain/packPart'
+import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
+import { refuseOn } from '../../../../shared/storage/application/workbookWriteRefused'
+import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
+import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
 import type { FreshRecords, WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { words } from '../../workbook/domain/words'
 
@@ -22,16 +29,17 @@ export interface SplitPartDraft {
   readonly amount: Money
   readonly category: string
   readonly note: string
-  /** The part as the editor opened it, whose share it keeps while it keeps its category, or null for a part added in the editor. */
-  readonly opened: Pick<SplitTabRow, 'category' | 'ownerShare'> | null
+  /** The stored part the editor opened, whose id it keeps and whose share it keeps while it keeps its category, or null for a part added in the editor. */
+  readonly opened: Pick<SplitTabRow, 'id' | 'category' | 'ownerShare'> | null
 }
 
 /**
- * Leaves the row's split holding these parts: the parts it holds now take the drafts in order,
- * drafts beyond them are added with ids of their own, and parts beyond the drafts are removed. Each
- * part kept or added takes the row's key as the app read it, its row id with it. A part added in the editor, or one put in another
- * category, takes its category's default share, and a part that keeps its category keeps the share
- * it was opened with. Parts of a refused split are replaced with no Undo, since the guards would refuse to write them back.
+ * Leaves the row's split holding these parts: a draft opened from a stored part changes that part, other drafts are added with
+ * ids of their own, and stored parts no draft opened are removed. The first part of a row with nothing stored keeps the id of
+ * the part the row stood for. Each part kept or added takes the row's key as the app read it, its row id with it. A part added
+ * in the editor, or one put in another category, takes its category's default share, and a part that keeps its category keeps
+ * the share it was opened with. Parts of a refused split are replaced with no Undo, since the guards would refuse to write them
+ * back. Gives what each part replaces.
  */
 export function writeSplit(
   unit: UnitOfWork,
@@ -39,23 +47,55 @@ export function writeSplit(
   stored: StoredSplit,
   drafts: readonly SplitPartDraft[],
   categories: readonly ShareDefault[],
-): void {
+): readonly PartReplacement<RecordId>[] {
   const parts = unit.of(SPLIT_WRITES)
   const held = stored.refused ? unit.of(REFUSED_SPLIT_WRITES) : parts
   const key = splitKeyOf(row)
-  drafts.forEach((draft, index) => {
+  const wholeId = wholeRowPartId(row)
+  const nothingStored = stored.parts.length === 0 && stored.unreadable === 0
+  const written = drafts.map((draft, index): SplitTabRow => {
     const filed = movedTo(draft.opened ?? { category: '', ownerShare: null }, draft.category, categories)
     const wanted = { amount: draft.amount, category: filed.category, note: draft.note.trim(), ownerShare: filed.ownerShare }
-    const part = stored.parts[index]
+    const part = stored.parts.find((candidate) => candidate.id === draft.opened?.id)
     if (part === undefined) {
-      parts.add({ key, ...wanted, id: recordIdOf(SPLIT_PART_RECORDS, newRecordId()) })
-    } else {
-      held.change(part, { ...part, key, ...wanted })
+      const added = { key, ...wanted, id: index === 0 && nothingStored && wholeId !== null ? wholeId : recordIdOf(SPLIT_PART_RECORDS, newRecordId()) }
+      parts.add(added)
+      return added
     }
+    const changed = { ...part, key, ...wanted }
+    held.change(part, changed)
+    return changed
   })
-  for (const part of stored.parts.slice(drafts.length)) {
+  for (const part of stored.parts.filter((candidate) => !written.some((kept) => kept.id === candidate.id))) {
     held.remove(part)
   }
+  const whole = wholeId === null ? [] : [{ id: wholeId, amount: row.amount }]
+  return partReplacements(stored.parts.length > 0 ? stored.parts : whole, written.length > 0 ? written : whole)
+}
+
+/** Why a person cannot take the row's split off, since a record of the pack files it, in a sentence, or null when they can. */
+export function splitKeptRefusal(books: CompanyBooks, row: Pick<Transaction, 'id' | 'account' | 'date' | 'amount'>): string | null {
+  const why = installedPack().workbook?.splitsKept(books.records.pack, books.workbook).get(row.id)
+  return why === undefined ? null : words.splits.refusedSplitKept(row.account, row.date, row.amount, why)
+}
+
+/**
+ * Takes the split off the row, which then counts whole under the category most of its money was in, with that part's owner
+ * share, filed by the person. A row that keeps its category is left as it is. A split the guards refused never counted, so the
+ * row keeps the category it counted in. A split a record of the pack files stays, as `splitKeptRefusal` says. Gives what the
+ * one part the row stands for again replaces.
+ */
+export function removeSplit(unit: UnitOfWork, books: CompanyBooks, row: Transaction, stored: StoredSplit): readonly PartReplacement<RecordId>[] {
+  const refusal = splitKeptRefusal(books, row)
+  refuseOn(refusal === null ? [] : [refusal])
+  const replaced = writeSplit(unit, row, stored, [], books.workbook.categories)
+  const mainCategory = stored.refused || stored.parts.length === 0 ? null : mainCategoryOf(stored.parts)
+  const main = stored.parts.find((part) => part.category === mainCategory) ?? null
+  if (main !== null && (main.category !== row.category || main.ownerShare !== row.ownerShare)) {
+    const entry = recordWithId(books.records.ledger, row.id)?.record
+    if (entry !== undefined) unit.of(LEDGER_WRITES).change(entry, { ...entry, category: main.category, ownerShare: main.ownerShare, flaggedBy: books.workbook.settings.reviewLabel })
+  }
+  return replaced
 }
 
 function ledgerOfRecords(fresh: FreshRecords): { readonly transactions: readonly Transaction[]; readonly categories: readonly Category[] } {
