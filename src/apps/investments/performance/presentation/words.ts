@@ -332,7 +332,7 @@ export const hr: Translation<typeof en> = {
     benchmarkCaption: (name) => name,
     benchmarkYearly: (name, rate) => `${name}, ${rate} godišnje`,
     noBenchmark: 'Nije odabran',
-    noBenchmarkCaption: 'Odaberite ga u postavkama',
+    noBenchmarkCaption: 'Odaberi ga u postavkama',
     noCloses: 'Još nema cijena',
     noCloseThen: 'Tada nema cijene',
     leftOut: 'Izostavljeno',

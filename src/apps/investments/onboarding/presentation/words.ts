@@ -46,7 +46,7 @@ export const hr: Translation<typeof en> = {
     openOnDrive: 'Otvori datoteku ulaganja na Driveu',
   },
   find: {
-    title: 'Pronađite datoteku ulaganja na Driveu',
+    title: 'Pronađi datoteku ulaganja na Driveu',
     before: '„Pronađi datoteku” otvara ',
     after:
       ', datoteku koju je aplikacija označila kao datoteku ulaganja, ili traži da je odaberete kad je nema. „Odaberi drugu datoteku” omogućuje da sami odaberete .json datoteku. Aplikacija čuva kopiju u ovom pregledniku.',

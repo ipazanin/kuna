@@ -71,7 +71,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   description: 'Što ste ovaj mjesec potrošili po skupinama i prema ograničenjima, prethodni mjeseci i vaši računi.',
   empty: {
-    title: 'Počnite s jednim računom',
+    title: 'Počni s jednim računom',
     description: 'Račun kojim se najviše služite i njegovo stanje prvog u mjesecu. Zatim u Uvozu uvezite izvoz iz Revoluta ili upišite nekoliko unosa. Ostali računi mogu pričekati.',
     descriptionWithBank:
       'Račun kojim se najviše služite. Povežite banku pa mu retke donosi sinkronizacija s bankom ili ga dodajte ručno s njegovim stanjem prvog u mjesecu. Ostali računi mogu pričekati.',
@@ -82,8 +82,8 @@ export const hr: Translation<typeof en> = {
     inBrowser: 'Datoteka potrošnje je spremna i čuva se u ovom pregledniku.',
   },
   setUp: {
-    firstAccount: 'Dodajte jedan račun',
-    firstEntries: 'Uvezite izvoz iz Revoluta ili upišite prve unose na stranici Unosi',
+    firstAccount: 'Dodaj jedan račun',
+    firstEntries: 'Uvezi izvoz iz Revoluta ili upiši prve unose na stranici Unosi',
     importLink: 'Uvoz',
   },
   problems: {

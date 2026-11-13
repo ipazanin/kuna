@@ -76,7 +76,7 @@ const sheetOpen = ref(false)
         :placeholder="phone ? words.categories.searchShort : words.categories.searchLong"
         :aria-label="words.categories.searchLabel"
         size="sm"
-        class="min-w-0 flex-1 sm:w-72 sm:flex-none"
+        class="min-w-0 flex-1 sm:w-80 sm:flex-none"
         data-testid="category-search"
         @update:model-value="set('search', String($event))"
       >

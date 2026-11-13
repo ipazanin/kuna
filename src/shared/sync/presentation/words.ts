@@ -57,7 +57,7 @@ export const hr: Translation<typeof en> = {
   syncNotYet: 'Sinkroniziraj. Još nije sinkronizirano',
   syncedAgo: (age, stamp) => `Sinkronizirano ${age}, ${stamp}. Sinkroniziraj sada`,
   googleAsks: 'Google traži da se prijavite prije sinkronizacije.',
-  lookAt: (_count, steps) => ({ one: `Pogledajte korak ${steps}`, few: `Pogledajte korake ${steps}`, other: `Pogledajte korake ${steps}` }),
+  lookAt: (_count, steps) => ({ one: `Pogledaj korak ${steps}`, few: `Pogledaj korake ${steps}`, other: `Pogledaj korake ${steps}` }),
   lastSyncSteps: 'Koraci zadnje sinkronizacije',
   steps: {
     none: 'Na ovoj stranici još nije bilo sinkronizacije.',

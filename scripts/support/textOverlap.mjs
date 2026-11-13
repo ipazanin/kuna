@@ -1,5 +1,5 @@
 /**
- * Finds text drawn over other text and labels cut down to a stub, on whatever the page shows now, an
+ * Finds text drawn over other text, labels cut down to a stub and placeholders cut short, on whatever the page shows now, an
  * open menu or dialog included. It measures the text itself with `Range.getClientRects`, since an
  * element's box says nothing about the text that spills out of it. Text meant to stack is a named
  * entry of `TEXT_OVERLAP_ALLOWED`, and nothing else gets through.
@@ -8,7 +8,7 @@
 /** What may overlap or be cut, each with why. An entry covers a text that sits inside its selector. */
 export const TEXT_OVERLAP_ALLOWED = []
 
-/** Runs in the page. Each overlap of more than `slack` px each way and each cut label, as a sentence. */
+/** Runs in the page. Each overlap of more than `slack` px each way, each cut label and each cut placeholder, as a sentence. */
 function textOverlapsOnScreen(allowedSelectors, slack) {
   const allowed = (element) => allowedSelectors.some((selector) => element.closest(selector) !== null)
   const clips = (overflow) => overflow === 'hidden' || overflow === 'clip'
@@ -95,6 +95,19 @@ function textOverlapsOnScreen(allowedSelectors, slack) {
     }
   }
 
+  // A placeholder is drawn by the browser, so no text node shows it. It is measured at the field's font against the room inside the
+  // field, and one cut with an ellipsis says so, as a label does.
+  const ruler = document.createElement('canvas').getContext('2d')
+  for (const field of document.querySelectorAll('input[placeholder]:placeholder-shown')) {
+    if (field.getClientRects().length === 0 || allowed(field) || !drawn(field)) continue
+    const style = getComputedStyle(field)
+    ruler.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`
+    // An input's clientWidth can leave out its padding in Chrome, so the room comes from its outer width.
+    const room = field.offsetWidth - [style.borderLeftWidth, style.borderRightWidth, style.paddingLeft, style.paddingRight].reduce((sum, length) => sum + parseFloat(length), 0)
+    const needs = ruler.measureText(field.placeholder).width
+    if (needs > room + 1 && style.textOverflow !== 'ellipsis') problems.add(`the placeholder ${quoted(field.placeholder)} needs ${Math.round(needs)} px in a field with ${Math.round(room)} px`)
+  }
+
   boxes.sort((first, second) => first.top - second.top)
   for (const [index, box] of boxes.entries()) {
     for (let later = index + 1; later < boxes.length; later++) {
@@ -111,7 +124,7 @@ function textOverlapsOnScreen(allowedSelectors, slack) {
   return [...problems]
 }
 
-/** Each overlap and each cut label on the page now, as a sentence. */
+/** Each overlap, each cut label and each cut placeholder on the page now, as a sentence. */
 export function textOverlapsOn(page) {
   const selectors = TEXT_OVERLAP_ALLOWED.map((entry) => entry.selector)
   return page.evaluate(textOverlapsOnScreen, selectors, 2)

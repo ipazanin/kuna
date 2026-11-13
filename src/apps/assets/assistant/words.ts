@@ -38,7 +38,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   guides: {
     setUp: {
-      title: 'Postavite Imovinu kroz razgovor',
+      title: 'Postavi Imovinu kroz razgovor',
       body: [
         'Najprije postavite Kredite, da se može navesti kredit kojim je imovina kupljena. Pripremite kupoprodajni ugovor, prometnu dozvolu automobila i svaku procjenu. PDF ili fotografija šalje se pružatelju umjetne inteligencije cijela.',
         'Kartice, ovim redom:',

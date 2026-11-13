@@ -291,9 +291,11 @@ function save(): void {
             <UInput
               :model-value="draft.label"
               :placeholder="displayName(draft.category)"
+              :title="draft.label === '' ? displayName(draft.category) : undefined"
               :aria-label="words.categories.columns.label"
               size="sm"
               class="w-44"
+              :ui="{ base: 'text-ellipsis' }"
               @update:model-value="update(index, 'label', String($event))"
             />
           </td>

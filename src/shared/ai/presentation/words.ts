@@ -276,7 +276,7 @@ export const hr: Translation<typeof en> = {
     chatSends: (app) => `zapisi i iznosi iz aplikacije ${app} koje razgovor zatraži.`,
     change: 'Promijeni Uvijek dopusti u postavkama Kune',
     chatOnly: (app) => `S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji ${app}.`,
-    addKey: 'Dodajte ključ u postavkama Kune',
+    addKey: 'Dodaj ključ u postavkama Kune',
   },
   retention: {
     anthropic: 'Anthropic briše ono što Kuna pošalje u roku od 30 dana i ne uči na tome.',
@@ -304,8 +304,8 @@ export const hr: Translation<typeof en> = {
     empty: 'Razgovor još ne vidi podatke ove aplikacije.',
     emptyReads: 'Pitajte o svojim iznosima ili o tome kako Kuna radi.',
     emptyAsks: 'Razgovor čita vaše aplikacije tek kad to dopustite.',
-    placeholder: 'Pitajte kako nešto radi',
-    placeholderReads: 'Pitajte o svojim iznosima',
+    placeholder: 'Pitaj kako nešto radi',
+    placeholderReads: 'Pitaj o svojim iznosima',
     sends: 'ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili i, kad pitanje to traži, zapisi i iznosi iz vaših aplikacija.',
     sendsWithFiles: 'ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili, priložene datoteke i, kad pitanje to traži, zapisi i iznosi iz vaših aplikacija.',
     aliases:
@@ -314,9 +314,9 @@ export const hr: Translation<typeof en> = {
     thinking: 'Tražim…',
     spent: (cost) => `Dosad potrošeno: ${cost}`,
     chainChanged: 'Promijenili ste AI tvrtku ili model, pa asistent više ne vidi poruke iznad.',
-    report: 'Predložite to na GitHubu',
+    report: 'Predloži to na GitHubu',
     removeTag: (label) => `Ukloni oznaku: ${label}`,
-    placeholderAbout: (label) => `Pitajte o ovome: ${label}`,
+    placeholderAbout: (label) => `Pitaj o ovome: ${label}`,
   },
   ask: {
     button: 'Pitaj u razgovoru',
@@ -326,7 +326,7 @@ export const hr: Translation<typeof en> = {
   files: {
     attach: 'Priloži fotografiju, PDF ili izvod',
     takePhoto: 'Snimi fotografiju',
-    drop: 'Ispustite za prilaganje',
+    drop: 'Ispusti za prilaganje',
     sentWith: 'Datoteke poslane uz poruku',
     dropKinds: 'Fotografije, PDF-ovi, tablice, CSV, XML, JSON i tekstne datoteke',
     remove: (name) => `Ukloni ${name}`,

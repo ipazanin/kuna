@@ -227,7 +227,7 @@ export const hr: Translation<typeof en> = {
       note: 'Bilješka',
       link: linkHr.label,
       from: 'Od',
-      condition: 'Traži',
+      condition: 'Uvjet',
       closed: 'Zatvoren',
       rowsFrom: 'Retci',
       hidden: 'Skrivena',
@@ -296,7 +296,7 @@ export const hr: Translation<typeof en> = {
   },
   guides: {
     setUp: {
-      title: 'Postavite Potrošnju kroz razgovor',
+      title: 'Postavi Potrošnju kroz razgovor',
       body: [
         'Pripremite izvod svakog računa. Svaki izvod, i izvoz iz Revoluta, ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija.',
         'Kartice, ovim redom:',
@@ -307,7 +307,7 @@ export const hr: Translation<typeof en> = {
       ].join('\n'),
     },
     rules: {
-      title: 'Postavite pravila za svoju banku',
+      title: 'Postavi pravila za svoju banku',
       body: (labels) =>
         [
           'Pravilo automatski razvrstava redak izvoda. Gleda primatelja ili IBAN druge strane, pa jednako radi za svaku banku čiji retci dolaze u Kunu.',
@@ -318,7 +318,7 @@ export const hr: Translation<typeof en> = {
         ].join('\n'),
     },
     import: {
-      title: 'Uvezite izvod',
+      title: 'Uvezi izvod',
       body: (labels) =>
         [
           `Na zaslonu ${labels.entries}, na kartici ${labels.import} ispustite izvoz iz Revoluta, kao datoteku .xlsx ili .csv. Za druge banke ovdje još nema čitača datoteka, a njihovi retci dolaze sinkronizacijom s bankom.`,
@@ -328,7 +328,7 @@ export const hr: Translation<typeof en> = {
         ].join('\n'),
     },
     bankSync: {
-      title: 'Povežite banku',
+      title: 'Poveži banku',
       body: (labels) =>
         [
           `Sinkronizacija s bankom donosi proknjižene retke iz OTP-a i Revoluta preko vaše vlastite skripte, u isti pregled kao i izvod. Nalazi se na zaslonu ${labels.settings}, na kartici ${labels.bankSync}.`,
@@ -338,16 +338,16 @@ export const hr: Translation<typeof en> = {
         ].join('\n'),
     },
     limits: {
-      title: 'Postavite mjesečno ograničenje',
+      title: 'Postavi mjesečno ograničenje',
       body: (labels) =>
         `Na zaslonu ${labels.limits} postavite mjesečno ograničenje u eurima na skupinu kao što je Hrana ili na neku od njezinih kategorija. Ono što u mjesecu ne potrošite prenosi se u sljedeći, a prekoračenje umanjuje sljedeći mjesec.`,
     },
     categories: {
-      title: 'Promijenite kategorije',
+      title: 'Promijeni kategorije',
       body: (labels) => `Skupine i kategorije nalaze se na zaslonu ${labels.settings}, na kartici ${labels.general}. Skrivena kategorija zadržava svoje unose.`,
     },
     receipts: {
-      title: 'Dodajte fiskalni račun kroz razgovor',
+      title: 'Dodaj fiskalni račun kroz razgovor',
       body: (labels) =>
         [
           `Priložite fotografiju fiskalnog računa u razgovoru ili je snimite na zaslonu ${labels.entries}, pod ${labels.addReceipt}, ili kamerom na unosu, koja označava taj unos. Razgovor prepisuje stavke, a Kuna sama čita datum i ukupan iznos iz QR koda.`,

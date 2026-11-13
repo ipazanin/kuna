@@ -120,7 +120,7 @@ export const hr: Translation<typeof en> = {
   startDay: {
     label: 'Prati se od',
     help: 'Retci prije ovog dana ostaju izvan Kune.',
-    between: (earliest, latest) => `Odaberite dan od ${dayLabel(earliest)} do ${dayLabel(latest)}`,
+    between: (earliest, latest) => `Odaberi dan od ${dayLabel(earliest)} do ${dayLabel(latest)}`,
   },
   dialog: {
     addTitle: 'Dodaj račun',
@@ -128,12 +128,12 @@ export const hr: Translation<typeof en> = {
     description: 'Jedan račun za svaku valutu, pa je kartica s eurima i dolarima dva računa.',
     name: 'Naziv',
     namePlaceholder: 'Tekući račun',
-    nameError: 'Upišite naziv računa',
+    nameError: 'Upiši naziv računa',
     kind: 'Vrsta',
     bank: 'Banka',
     noBank: 'Nije postavljeno',
     currency: 'Valuta',
-    findCurrency: 'Pronađi valutu',
+    findCurrency: 'Pretraži valute',
     currencyKept: 'Račun s unosima zadržava svoju valutu',
     opening: 'Početno stanje',
     openingHelp: 'Stanje na početku tog dana',

@@ -27,7 +27,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   name: 'Krediti',
   start: 'Početak',
-  pickFile: 'Odaberite datoteku kredita',
+  pickFile: 'Odaberi datoteku kredita',
   form: {
     aDate: (example) => `Datum, na primjer ${dayLabel(example)}`,
     anAmount: 'Iznos veći od nule s najviše dvije decimale',

@@ -45,7 +45,7 @@ export const hr: Translation<typeof en> = {
     openOnDrive: 'Otvori datoteku potrošnje na Driveu',
   },
   find: {
-    title: 'Pronađite datoteku potrošnje na Driveu',
+    title: 'Pronađi datoteku potrošnje na Driveu',
     before: '„Pronađi datoteku” otvara ',
     after:
       ', datoteku koju je aplikacija označila kao datoteku potrošnje, ili traži da je odaberete kad je nema. „Odaberi drugu datoteku” omogućuje da sami odaberete .json datoteku. Aplikacija čuva kopiju u ovom pregledniku.',

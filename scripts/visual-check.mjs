@@ -17,8 +17,8 @@
  * inside the ring's hole with 2 px to spare. In a titled card a table's first cell that shows starts its text where the
  * title does, a card's header actions sit under its title on a phone, a tab's one card of words and fields keeps to 42rem,
  * and a DrillLink wears the colour of the text class it is given.
- * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px
- * and no label may be cut to under half its width with no ellipsis, other than what `support/textOverlap.mjs` allows by name.
+ * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
+ * no label may be cut to under half its width with no ellipsis, and no placeholder may be cut short, other than what `support/textOverlap.mjs` allows by name.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
  * On every screen and at every step of a flow in Croatian it fails on English left on the page,
  * other than the data `support/englishLeft.mjs` lets through by name. Every flow has a Croatian run,
@@ -999,7 +999,7 @@ const SCREENS = [
     hash: '#/company/transactions?tab=import',
     title: 'Transakcije',
     charts: 0,
-    shows: ['Ispustite datoteku izvoda ovdje', 'Datoteka izvoda'],
+    shows: ['Ispusti datoteku izvoda ovdje', 'Datoteka izvoda'],
     cards: false,
   },
   { name: 'analysis', hash: '#/company/analysis', title: 'Analysis', charts: 0, shows: ['External contractors', 'Who the company paid most'] },
@@ -1722,7 +1722,7 @@ const SCREENS = [
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="assist-add-key"]',
-    shows: ['S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji Tvrtka.', 'Dodajte ključ u postavkama Kune'],
+    shows: ['S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji Tvrtka.', 'Dodaj ključ u postavkama Kune'],
     cards: false,
   },
   {
@@ -1957,7 +1957,7 @@ const SOURCE_SCREENS = [
     hash: '#/company/start?path=open&step=find',
     title: 'Tvrtka',
     charts: 0,
-    shows: ['Pronađite svoju datoteku na Driveu', 'Odaberi drugu datoteku'],
+    shows: ['Pronađi svoju datoteku na Driveu', 'Odaberi drugu datoteku'],
     cards: false,
   },
   { name: 'company-settings-browser', query: 'fake=browser', hash: '#/company/settings', title: 'Settings', charts: 0, shows: 'Save settings' },
@@ -2415,7 +2415,7 @@ const SOURCE_SCREENS = [
     hash: '#/loans/start?step=find',
     title: 'Krediti',
     charts: 0,
-    shows: ['Pronađite datoteku kredita na Driveu', 'Odaberi drugu datoteku', 'kuna-loans.json'],
+    shows: ['Pronađi datoteku kredita na Driveu', 'Odaberi drugu datoteku', 'kuna-loans.json'],
     cards: false,
   },
   { name: 'loans-overview', query: 'loans=drive', hash: '#/loans', title: 'Overview', charts: 0, shows: ['No loans yet', 'on Google Drive as kuna-loans.json'], cards: false },
@@ -2922,7 +2922,7 @@ const SOURCE_SCREENS = [
     hash: '#/spending',
     title: 'Pregled',
     charts: 0,
-    shows: ['Počnite s jednim računom', 'Revoluta', 'Dodaj račun', 'kuna-spending.json'],
+    shows: ['Počni s jednim računom', 'Revoluta', 'Dodaj račun', 'kuna-spending.json'],
     cards: false,
   },
   {
@@ -3320,7 +3320,7 @@ const SOURCE_SCREENS = [
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="assist-add-key"]',
-    shows: ['S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji Potrošnja.', 'Dodajte ključ u postavkama Kune'],
+    shows: ['S ključem razgovor može čitati i mijenjati vaše zapise u aplikaciji Potrošnja.', 'Dodaj ključ u postavkama Kune'],
     cards: false,
   },
   {
@@ -3723,7 +3723,7 @@ const SOURCE_SCREENS = [
       'iz izdvajanja',
       'Pojedinosti',
       'Nije poznato',
-      'Upišite to pod Promijeni',
+      'Upiši to pod Promijeni',
       'Profil tvrtke iz izvora Finnhub',
       'Burza',
       ...SAMPLE_SPIN_CO_PAGE.croatian,
@@ -4097,7 +4097,7 @@ const SOURCE_SCREENS = [
     title: 'Uspješnost',
     charts: 1,
     ready: '[data-testid="performance-tiles"]',
-    shows: ['Manje od godine', 'vremenski ponderirano', 'Nije odabran', 'Odaberite ga u postavkama', ...YOUNG_PERFORMANCE.croatian],
+    shows: ['Manje od godine', 'vremenski ponderirano', 'Nije odabran', 'Odaberi ga u postavkama', ...YOUNG_PERFORMANCE.croatian],
   },
   {
     name: 'investments-performance-no-benchmark',
@@ -4216,7 +4216,7 @@ const SOURCE_SCREENS = [
     title: 'Porez',
     charts: 0,
     ready: '[data-testid="tax-deadlines"]',
-    shows: ['Vaš grad u 2023.', 'Grad nije odabran', 'Odaberite ga pod Vaš grad u 2023.'],
+    shows: ['Vaš grad u 2023.', 'Grad nije odabran', 'Odaberi ga pod Vaš grad u 2023.'],
   },
   {
     name: 'investments-tax-sales',

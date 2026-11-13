@@ -330,7 +330,7 @@ export const hr: Translation<typeof en> = {
       haveOne: 'Već čuvate ovu datoteku na Driveu? Otvorite je umjesto da izradite praznu. Kuna ne vidi uvijek datoteku koju ste jednom odabrali ručno.',
       openExisting: 'Otvori datoteku koju već imam',
       elsewhere: 'Stavi mapu Kuna drugdje',
-      pickerTitle: 'Odaberite gdje ide mapa Kuna',
+      pickerTitle: 'Odaberi gdje ide mapa Kuna',
       create: 'Izradi datoteku ovdje',
       created: (name, folder) => `Datoteka „${name}” izrađena je u mapi „${folder}”`,
       createdNote: 'Aplikacija čuva kopiju u ovom pregledniku i mapu sa sigurnosnim kopijama uz datoteku.',

@@ -185,7 +185,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   guides: {
     setUp: {
-      title: 'Postavite Ulaganja kroz razgovor',
+      title: 'Postavi Ulaganja kroz razgovor',
       body: [
         'Pripremite izvode svakog brokera. Svaki izvod, i IBKR-ov Flex izvještaj i radna knjiga portfelja, ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija.',
         'Kartice, ovim redom:',

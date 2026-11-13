@@ -33,6 +33,7 @@ import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { roomAtLeast } from '../../../../shared/layout/pageRoom'
+import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
 import { formatMoney, formatPercent, formatShare } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
@@ -54,6 +55,7 @@ const { sources, figures: today, facts } = usePortfolio()
 const route = useRoute()
 const router = useRouter()
 const wide = roomAtLeast(45)
+const phone = usePhoneLayout()
 
 const find = ref('')
 const sort = ref<HoldingsSort | null>(null)
@@ -170,7 +172,15 @@ const description = computed(() => {
       <HoldingsMapCard v-if="figures !== null && held > 0" :figures="figures" />
       <AppCard data-testid="holdings">
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pt-4 pb-3 sm:px-5">
-          <UInput v-model="find" icon="i-lucide-search" :placeholder="words.find" :aria-label="words.find" size="sm" class="min-w-0 flex-1 sm:w-56 sm:flex-none" data-testid="holdings-find" />
+          <UInput
+            v-model="find"
+            icon="i-lucide-search"
+            :placeholder="phone ? words.findShort : words.find"
+            :aria-label="words.find"
+            size="sm"
+            class="min-w-0 flex-1 sm:w-56 sm:flex-none"
+            data-testid="holdings-find"
+          />
           <USelect v-model="grouping" :items="groupings" size="sm" :aria-label="words.groupBy" class="w-36 shrink-0" data-testid="holdings-group-by" />
         </div>
         <p v-if="list.groups.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="holdings-none">{{ find === '' ? words.nothingHeld : words.noMatch(find) }}</p>

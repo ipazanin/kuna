@@ -483,7 +483,7 @@ function exportCsv(): void {
               <FilterBar :workbook="ledger.workbook" :window="ledger.window" />
 
               <div class="flex flex-wrap items-center gap-2">
-                <UInput v-model="search" icon="i-lucide-search" :placeholder="words.search" :aria-label="words.searchLabel" size="sm" class="w-full sm:w-96" />
+                <UInput v-model="search" icon="i-lucide-search" :placeholder="phone ? words.searchShort : words.search" :aria-label="words.searchLabel" size="sm" class="w-full @2xl:w-96" />
                 <USelect v-model="groupBy" :items="[...GROUPINGS]" size="sm" :aria-label="words.groupLabel" class="w-44" />
                 <template v-if="groups">
                   <UButton

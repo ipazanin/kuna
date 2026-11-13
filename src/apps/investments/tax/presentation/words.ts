@@ -350,7 +350,7 @@ export const hr: Translation<typeof en> = {
     rateSettled: 'Stopa utvrđena, polje tumačenje',
     payoutSettled: 'Iznos utvrđen, način tumačenje',
     cityNotChosen: 'Grad nije odabran',
-    chooseCity: `Odaberite ga pod ${workbookHr.settingLabels.surtaxCity2023}`,
+    chooseCity: `Odaberi ga pod ${workbookHr.settingLabels.surtaxCity2023}`,
     surtaxAt: (percent, city) => `${percent} polja 14.1 za ${city}. Tumačenje.`,
     noSurtax: 'Vaš grad u 2023. nije imao prirez. Tumačenje.',
     paymentWithSurtax: (amount) => `1, ${amount} umanjeno za polje 14.2`,

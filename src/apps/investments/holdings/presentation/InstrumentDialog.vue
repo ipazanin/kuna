@@ -142,7 +142,7 @@ async function remove(): Promise<void> {
       <UButton
         type="submit"
         form="instrument"
-        :label="instrument === null ? text.add : text.save"
+        :label="instrument !== null ? text.save : asBenchmark ? text.addBenchmark : text.add"
         :icon="instrument === null ? 'i-lucide-plus' : 'i-lucide-save'"
         :loading="writes.saving('save')"
         :disabled="writes.busy.value"

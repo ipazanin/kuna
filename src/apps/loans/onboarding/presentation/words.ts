@@ -44,7 +44,7 @@ export const hr: Translation<typeof en> = {
     openOnDrive: 'Otvori datoteku kredita na Driveu',
   },
   find: {
-    title: 'Pronađite datoteku kredita na Driveu',
+    title: 'Pronađi datoteku kredita na Driveu',
     before: '„Pronađi datoteku” otvara ',
     after:
       ', datoteku koju je aplikacija označila kao datoteku kredita, ili traži da je odaberete kad je nema. „Odaberi drugu datoteku” omogućuje da sami odaberete .json datoteku. Aplikacija čuva kopiju u ovom pregledniku.',

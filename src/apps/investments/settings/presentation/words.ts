@@ -124,7 +124,7 @@ export const hr: Translation<typeof en> = {
     name: 'Naziv',
     nameHelp: 'Na primjer broker i za što je račun',
     note: 'Napomena',
-    nameError: 'Upišite naziv',
+    nameError: 'Upiši naziv',
     add: 'Dodaj račun',
     save: 'Spremi',
     delete: 'Obriši',

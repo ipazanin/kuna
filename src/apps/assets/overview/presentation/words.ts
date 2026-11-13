@@ -38,7 +38,7 @@ export const hr: Translation<typeof en> = {
     inBrowser: 'Datoteka imovine je spremna i čuva se u ovom pregledniku.',
   },
   setUp: {
-    firstAsset: 'Dodajte svoju prvu imovinu',
+    firstAsset: 'Dodaj svoju prvu imovinu',
   },
   problems: {
     title: (count): CroatianForms => ({
@@ -48,7 +48,7 @@ export const hr: Translation<typeof en> = {
     }),
   },
   card: {
-    addValuation: 'Dodajte procjenu na njezinoj stranici',
+    addValuation: 'Dodaj procjenu na njezinoj stranici',
     yours: 'Vaše nakon kredita',
   },
 }

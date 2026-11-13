@@ -136,7 +136,7 @@ export const hr: Translation<typeof en> = {
   },
   guides: {
     setUp: {
-      title: 'Postavite Tvrtku kroz razgovor',
+      title: 'Postavi Tvrtku kroz razgovor',
       body: [
         'Pripremite izvadak iz sudskog registra, jedan izdani račun i bankovni izvod. Svaki ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija, i izvod camt.053.',
         'Kartice, ovim redom:',
@@ -149,7 +149,7 @@ export const hr: Translation<typeof en> = {
       ].join('\n'),
     },
     review: {
-      title: 'Razvrstajte retke koji čekaju provjeru',
+      title: 'Razvrstaj retke koji čekaju provjeru',
       body: (labels) =>
         [
           `Retci koje nijedno pravilo ne razvrsta čekaju na zaslonu ${labels.transactions}, na kartici ${labels.review}. Otvorite redak da vidite partnera, opis, iznos i što pravila kažu o njemu.`,

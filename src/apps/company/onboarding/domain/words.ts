@@ -10,8 +10,8 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  typeSender: 'Upišite adresu s koje banka šalje izvode',
-  typeSubject: 'Upišite riječi ispred broja izvoda',
+  typeSender: 'Upiši adresu s koje banka šalje izvode',
+  typeSubject: 'Upiši riječi ispred broja izvoda',
 }
 
 export const words = language === 'hr' ? hr : en

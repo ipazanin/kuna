@@ -130,7 +130,7 @@ export const hr: Translation<typeof en> = {
     inBrowser: 'Datoteka kredita je spremna i čuva se u ovom pregledniku.',
   },
   setUp: {
-    firstLoan: 'Dodajte svoj prvi kredit',
+    firstLoan: 'Dodaj svoj prvi kredit',
   },
   problems: {
     title: (count) => ({

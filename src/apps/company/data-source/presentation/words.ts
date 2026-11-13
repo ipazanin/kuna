@@ -49,8 +49,8 @@ export const hr: Translation<typeof en> = {
     title: 'Otvori datoteku',
     description:
       'Excel datoteka, na primjer preuzeta Google tablica, ili Kunina datoteka iz mape sigurnosnih kopija. Provjerite što sadrži, a zatim je čuvajte na Google Driveu ili u ovom pregledniku.',
-    drop: 'Ispustite .xlsx ili .json datoteku ovdje',
-    orChoose: 'ili kliknite i odaberite je',
+    drop: 'Ispusti .xlsx ili .json datoteku ovdje',
+    orChoose: 'ili klikni i odaberi je',
   },
   newBooks: {
     title: 'Započni novu datoteku',

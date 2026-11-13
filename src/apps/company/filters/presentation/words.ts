@@ -19,7 +19,7 @@ export const en = {
   accounts: 'Accounts',
   addFilter: 'Add filter',
   groups: { buckets: 'Buckets', categories: 'Categories', counterparties: 'Counterparties' },
-  searchChoices: 'Search buckets, categories, counterparties',
+  searchChoices: 'Search bucket, category, counterparty',
   activeFilters: 'Active filters',
   removeFilter: (label: string) => `Remove filter ${label}`,
   more: (count: number) => `+${count} more`,

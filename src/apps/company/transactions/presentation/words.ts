@@ -88,6 +88,7 @@ export const en = {
   rowsWithTotal: (count: number): EnglishForms => ({ one: `${count} row, total`, other: `${count} rows, total` }),
   groupings: { none: 'No grouping', month: 'By month', category: 'By category', counterparty: 'By counterparty' },
   search: 'Search counterparty, description, category, reference',
+  searchShort: 'Search',
   searchLabel: 'Search transactions',
   groupLabel: 'Group rows',
   collapseAll: 'Collapse all',
@@ -273,6 +274,7 @@ export const hr: Translation<typeof en> = {
   rowsWithTotal: (count) => ({ one: `${count} stavka, ukupno`, few: `${count} stavke, ukupno`, other: `${count} stavki, ukupno` }),
   groupings: { none: 'Bez grupiranja', month: 'Po mjesecu', category: 'Po kategoriji', counterparty: 'Po partneru' },
   search: 'Pretraži partnera, opis, kategoriju, poziv na broj',
+  searchShort: 'Pretraži',
   searchLabel: 'Pretraži transakcije',
   groupLabel: 'Grupiraj stavke',
   collapseAll: 'Sklopi sve',
@@ -329,7 +331,7 @@ export const hr: Translation<typeof en> = {
     ofWhole: (whole) => `od ${whole}`,
   },
   picker: {
-    choose: 'Odaberite kategoriju',
+    choose: 'Odaberi kategoriju',
     search: 'Pretraži kategorije',
   },
   splitDialog: {
@@ -350,7 +352,7 @@ export const hr: Translation<typeof en> = {
     }),
     openProblems: 'Otvori popis problema',
     noUndo: 'Ovo spremanje ne može se poništiti, jer se stari dijelovi nisu brojali.',
-    chooseCategory: 'Odaberite kategoriju',
+    chooseCategory: 'Odaberi kategoriju',
     sign: 'Svaki dio preuzima predznak stavke i u svim se izračunima broji u svojoj kategoriji, s vremenom knjiženja te kategorije.',
     delete: 'Obriši podjelu',
     cancel: 'Odustani',
@@ -368,7 +370,7 @@ export const hr: Translation<typeof en> = {
     description: (counterparty, day) => `${counterparty || 'Bez partnera'}, ${day}`,
     confirmedBy: 'Potvrđeno:',
     filedByRule: 'Razvrstalo pravilo',
-    newCategory: 'Odaberite novu kategoriju',
+    newCategory: 'Odaberi novu kategoriju',
     ruleAgainst: {
       before: 'Pravilo',
       after: (ruleCategory, picked) =>

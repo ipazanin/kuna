@@ -13,7 +13,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   name: 'Ulaganja',
   start: 'Početak',
-  pickFile: 'Odaberite datoteku ulaganja',
+  pickFile: 'Odaberi datoteku ulaganja',
 }
 
 export const words = language === 'hr' ? hr : en

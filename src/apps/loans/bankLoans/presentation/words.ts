@@ -522,7 +522,7 @@ export const hr: Translation<typeof en> = {
     moreWrong: 'Ovdje nešto treba ispraviti',
     subsidised: 'Subvencija plaća dio svakog anuiteta',
     subsidisedHelp: 'Na primjer APN-ova, za određen broj anuiteta.',
-    subsidyError: 'Ispunite subvenciju',
+    subsidyError: 'Ispuni subvenciju',
     delete: 'Obriši kredit',
     add: 'Dodaj kredit',
     save: 'Spremi kredit',
@@ -552,9 +552,9 @@ export const hr: Translation<typeof en> = {
     changeTitle: 'Uredi zakašnjeli anuitet',
     description: 'Dan kad je anuitet stvarno plaćen. Mijenja samo dan od kojeg se redak smatra plaćenim, a otplatni plan ostaje isti.',
     due: 'Dospijeće anuiteta',
-    choose: 'Odaberite anuitet',
-    search: 'Traži dospijeća',
-    dueError: 'Odaberite anuitet koji je plaćen sa zakašnjenjem',
+    choose: 'Odaberi anuitet',
+    search: 'Pretraži dospijeća',
+    dueError: 'Odaberi anuitet koji je plaćen sa zakašnjenjem',
     paidOn: 'Datum plaćanja',
     afterDue: 'Nakon dospijeća',
     delete: 'Obriši',
@@ -651,10 +651,10 @@ export const hr: Translation<typeof en> = {
     from: 'Od anuiteta koji dospijeva',
     firstHelp: 'Prvo razdoblje počinje s prvim anuitetom.',
     laterHelp: 'Stopa vrijedi od ovog dospijeća nadalje.',
-    choose: 'Odaberite dospijeće',
-    search: 'Traži dospijeća',
+    choose: 'Odaberi dospijeće',
+    search: 'Pretraži dospijeća',
     dueDate: (day, number) => `${day}, ${number}. anuitet`,
-    fromError: 'Odaberite dospijeće prvog anuiteta po ovoj stopi',
+    fromError: 'Odaberi dospijeće prvog anuiteta po ovoj stopi',
     delete: 'Obriši razdoblje',
     add: 'Dodaj razdoblje',
     save: 'Spremi razdoblje',
@@ -704,7 +704,7 @@ const enEqualPrincipal: typeof en = {
 }
 
 /** The Croatian of an equal principal loan, whose instalment is rata. */
-const hrEqualPrincipal: Translation<typeof en> = {
+export const hrEqualPrincipal: Translation<typeof en> = {
   ...hr,
   terms: (count, principal) => ({ one: `${principal} u ${count} rati`, few: `${principal} u ${count} rate`, other: `${principal} u ${count} rata` }),
   noPlan: (day) => `Nijedno razdoblje kamatne stope ne počinje s prvom ratom ${day} Dodajte ga u odjeljku Razdoblja kamatne stope.`,
@@ -773,8 +773,8 @@ const hrEqualPrincipal: Translation<typeof en> = {
     changeTitle: 'Uredi zakašnjelu ratu',
     description: 'Dan kad je rata stvarno plaćena. Mijenja samo dan od kojeg se redak smatra plaćenim, a otplatni plan ostaje isti.',
     due: 'Dospijeće rate',
-    choose: 'Odaberite ratu',
-    dueError: 'Odaberite ratu koja je plaćena sa zakašnjenjem',
+    choose: 'Odaberi ratu',
+    dueError: 'Odaberi ratu koja je plaćena sa zakašnjenjem',
   },
   instalment: { monthly: 'Mjesečna rata', last: (amount) => `posljednja ${amount}` },
   whatIf: { ...hr.whatIf, shorterNote: 'Glavnica u svakoj rati ostaje ista, a rata se i dalje smanjuje.', lower: 'Niža rata', newInstalment: 'Nova rata' },
@@ -806,7 +806,7 @@ const hrEqualPrincipal: Translation<typeof en> = {
     from: 'Od rate koja dospijeva',
     firstHelp: 'Prvo razdoblje počinje s prvom ratom.',
     dueDate: (day, number) => `${day}, ${number}. rata`,
-    fromError: 'Odaberite dospijeće prve rate po ovoj stopi',
+    fromError: 'Odaberi dospijeće prve rate po ovoj stopi',
   },
 }
 

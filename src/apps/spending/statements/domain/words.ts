@@ -50,8 +50,8 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   noColumn: (column) => `Datoteka nema stupac ${column}`,
-  addToBringIn: (accounts) => `Dodajte ${accounts} da biste uvezli ovu datoteku`,
-  addToBringInSavings: (accounts) => `Dodajte ${accounts} da biste uvezli izostavljene retke štednje`,
+  addToBringIn: (accounts) => `Dodaj ${accounts} za uvoz ove datoteke`,
+  addToBringInSavings: (accounts) => `Dodaj ${accounts} za uvoz izostavljenih redaka štednje`,
   revolutBankAccounts: (_count, currencies): CroatianForms => ({
     one: `Revolutov bankovni račun u valuti ${currencies}`,
     few: `Revolutove bankovne račune u valutama ${currencies}`,

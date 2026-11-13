@@ -193,10 +193,20 @@ export function askSilentlyOnOpen(): boolean {
  */
 export async function requestAccess(scopes: readonly GoogleScope[], then: RedirectResume | null): Promise<void> {
   const asked = scopesOf(['drive.file', ...(needed ?? []), ...scopes])
-  // Inline, not hoisted, so a production build folds the fake away. The fake build's Google grants everything asked, unless `?fake=google-closed` closes its window
-  // or, with `?google=expired`, a phone asks with nothing to resume, which the real one refuses so as not to leave the page.
+  // Inline, not hoisted, so a production build folds the fake away. The fake build's Google opens its window where Google's library
+  // would, so a browser that blocks a window asked for outside a tap refuses it here too. It grants everything asked, unless
+  // `?fake=google-closed` closes its window or, with `?google=expired`, a phone asks with nothing to resume, which the real one
+  // refuses so as not to leave the page.
   if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
     const query = new URLSearchParams(window.location.search)
+    // Only a browser that tracks a tap's activation blocks a window asked for after it, so only such a browser gets the window.
+    if ('userActivation' in navigator && !signsInByRedirect()) {
+      const consent = window.open('about:blank', 'kuna-fake-google', 'popup,width=500,height=600')
+      if (consent === null) {
+        throw new Error(POPUP_FAILURES.popup_failed_to_open)
+      }
+      consent.close()
+    }
     if (query.get('fake') === 'google-closed') {
       throw new Error(POPUP_FAILURES.popup_closed)
     }

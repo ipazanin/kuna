@@ -73,7 +73,7 @@ const shown = (error: string | null): string | false => (props.tried && error) |
       <div class="flex flex-col gap-4">
         <FormGrid>
           <UFormField :label="words.editor.name">
-            <UInput v-model="texts.name" :placeholder="autoName" class="w-full" data-testid="scenario-name" />
+            <UInput v-model="texts.name" :placeholder="autoName" class="w-full" :ui="{ base: 'text-ellipsis' }" data-testid="scenario-name" />
           </UFormField>
           <UFormField :label="loanWords.loanDialog.lender">
             <UInput v-model="texts.lender" :placeholder="loanWords.loanDialog.lenderPlaceholder" class="w-full" data-testid="offer-lender" />

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PortfolioCheck } from '../src/apps/investments/overview/domain/portfolioChecks'
@@ -177,10 +179,11 @@ describe('full stops in Croatian', () => {
 })
 
 describe('every words file in Croatian', () => {
-  /** Every Croatian sentence of every words file, by its file. */
+  /** Every Croatian sentence of every object typed as a translation, by its file. */
   async function croatianSentences(): Promise<readonly (readonly [string, string])[]> {
-    const loaders = import.meta.glob<{ readonly hr: unknown }>('../src/**/words.ts')
-    const dictionaries = await inCroatian(() => Promise.all(Object.entries(loaders).map(async ([path, load]) => [path, (await load()).hr] as const)))
+    const loaders = import.meta.glob<Readonly<Record<string, unknown>>>(['../src/**/*.ts', '!../src/**/*.d.ts'])
+    const translations = Object.keys(loaders).flatMap((path) => translationsIn(path).map(({ name }) => [path, name] as const))
+    const dictionaries = await inCroatian(() => Promise.all(translations.map(async ([path, name]) => [path, (await loaders[path]!())[name]] as const)))
     const { dayLabel } = await import('../src/shared/calendar/dayLabel')
     const { monthLabel } = await import('../src/shared/calendar/monthLabel')
     const samples: DateSamples = {
@@ -189,6 +192,16 @@ describe('every words file in Croatian', () => {
     }
     return dictionaries.flatMap(([path, croatian]) => sentencesOf(croatian, samples).map((sentence) => [path, sentence] as const))
   }
+
+  it('exports every object typed as a translation, so these checks read it', () => {
+    const hidden = Object.keys(import.meta.glob(['../src/**/*.ts', '!../src/**/*.d.ts'])).flatMap((path) =>
+      translationsIn(path)
+        .filter(({ exported }) => !exported)
+        .map(({ name }) => `${path}: ${name}`),
+    )
+
+    expect(hidden).toEqual([])
+  })
 
   it('ends a sentence on a date with the date’s own full stop', async () => {
     const doubled = (await croatianSentences()).filter(([, sentence]) => /(?<!\.)\.\.(?!\.)/.test(sentence)).map(([path, sentence]) => `${path}: ${sentence}`)
@@ -200,6 +213,18 @@ describe('every words file in Croatian', () => {
     const slips = (await croatianSentences()).flatMap(([path, sentence]) => placeSlipsIn(sentence).map((slip) => `${path}: ${slip}`))
 
     expect([...new Set(slips)]).toEqual([])
+  })
+
+  it('words a button, title, placeholder or field message in the short imperative, and a sentence with vi', async () => {
+    const formal = (await croatianSentences()).flatMap(([path, sentence]) => formalImperativesIn(sentence).map((verb) => `${path}: ${verb} in „${sentence}”`))
+
+    expect([...new Set(formal)]).toEqual([])
+  })
+
+  it('says Pretraži on every search field and button, and Pronađi only for finding a file', async () => {
+    const searches = (await croatianSentences()).filter(([, sentence]) => /^((Po)?Traži|Pronađi(?! (svoju )?datoteku))(?!\p{L})/u.test(sentence)).map(([path, sentence]) => `${path}: ${sentence}`)
+
+    expect([...new Set(searches)]).toEqual([])
   })
 })
 
@@ -618,6 +643,24 @@ function placeSlipsIn(sentence: string): string[] {
     const after = preposition!.toLowerCase()
     return after !== 'pod' && (after === 'na' || !declined.has(form!)) ? [phrase] : []
   })
+}
+
+/** The objects a source file, named from this folder, declares as a translation of its English, and whether it exports each. */
+function translationsIn(path: string): readonly { readonly name: string; readonly exported: boolean }[] {
+  const source = readFileSync(new URL(path, import.meta.url), 'utf8')
+  return [...source.matchAll(/^(export )?const (\w+): Translation</gm)].map(([, exported, name]) => ({ name: name!, exported: exported !== undefined }))
+}
+
+/**
+ * The vi imperatives of a phrase that starts with a capital or with ili and has no closing full stop, question mark or
+ * exclamation mark, where a verb opens it or follows ili or i. A sentence keeps vi, and another lowercase piece belongs
+ * to one, so neither is read. Kasnite is the present tense, spelled like the imperative.
+ */
+function formalImperativesIn(sentence: string): string[] {
+  if (!/^(\p{Lu}|ili\s)/u.test(sentence) || /[.?!]["”)]?$/u.test(sentence.trim())) {
+    return []
+  }
+  return [...sentence.matchAll(/(?:^|(?<=\s(?:ili|i)\s))(\p{L}+(?:ite|jte))(?!\p{L})/gu)].map(([verb]) => verb).filter((verb) => verb !== 'Kasnite')
 }
 
 /** Dates as a builder takes them: typed values it words itself, and dates already worded for a parameter named for one. */

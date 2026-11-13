@@ -34,7 +34,7 @@ export const en = {
 
 export const hr: Translation<typeof en> = {
   keyRow: {
-    placeholder: 'Zalijepite ključ',
+    placeholder: 'Zalijepi ključ',
     keptEnding: (ending) => `U ovom pregledniku čuva se ključ koji završava na ${ending}.`,
     kept: 'U ovom pregledniku čuva se ključ.',
     noKey: 'U ovom pregledniku nema ključa.',

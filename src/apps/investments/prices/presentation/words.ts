@@ -164,9 +164,9 @@ export const hr: Translation<typeof en> = {
     subtitle:
       'CSV dnevnih zaključnih cijena za svaku poziciju, nazvan po njezinoj oznaci, npr. SXR8.DE.csv, sa stupcima Date i Close. Yahoova preuzeta povijest radi takva kakva jest. Kuna uzima Close, cijenu kako se trgovalo, i dohvaća samo dane nakon zadnje.',
     drop: 'Ovdje ispustite CSV datoteke zaključnih cijena',
-    dropMore: 'ili kliknite da ih odaberete, jednu ili više',
+    dropMore: 'ili klikni i odaberi jednu ili više',
     holding: 'Pozicija',
-    pick: 'Odaberite poziciju',
+    pick: 'Odaberi poziciju',
     noMatch: 'Nijedna pozicija nema ovu oznaku. Odaberite onu za koju je.',
     twoMatch: 'Ovu oznaku ima više pozicija. Odaberite onu za koju je.',
     adds: (added, first, last, replaced) => withFullStop(`Dodaje dana: ${added}, od ${first} do ${last}${replaced === 0 ? '' : `, umjesto ${replaced} već unesenih`}`),

@@ -76,9 +76,9 @@ export const en = {
 export const hr: Translation<typeof en> = {
   step: {
     label: 'Izvješće IBKR-a',
-    searching: 'Traži izvješće IBKR-a u pošti',
+    searching: 'U pošti traži izvješće IBKR-a',
     beforeBooks: 'Čeka datoteku ulaganja',
-    seeList: 'Pogledajte što je pročitano',
+    seeList: 'Pogledaj što je pročitano',
     misfit: (name, reason) => `${name} ne odgovara. ${reason}.`,
     filesMisfit: (count) => ({ one: `${count} datoteka ne odgovara.`, few: `${count} datoteke ne odgovaraju.`, other: `${count} datoteka ne odgovara.` }),
     fixes: { 'no-section': 'Označite taj odjeljak u upitu Flex Query.', 'no-column': 'Označite to polje u upitu Flex Query.' },
@@ -100,7 +100,7 @@ export const hr: Translation<typeof en> = {
     contentsHelp: 'Gmail traži te riječi. Prazno prihvaća svaku poruku.',
     since: 'Prvi dan za čitanje',
     sinceHelp: 'Raniji retci se izostavljaju, pa se ono što ste već upisali ne broji dvaput.',
-    sinceMissing: 'Odaberite dan',
+    sinceMissing: 'Odaberi dan',
     unconfirmed: 'Ovi filtri još nisu potvrđeni',
     unconfirmedWhy: 'Kuna još nije vidjela pravu poruku IBKR-a, pa je pošiljatelj njezina najbolja procjena. Prva sinkronizacija koja je pronađe to potvrđuje.',
     format: `U IBKR-ovu upitu Flex Query postavite format XML za zadnjih 7 do 14 dana, s odjeljcima: ${SECTIONS}.`,
@@ -135,8 +135,8 @@ export const hr: Translation<typeof en> = {
     title: 'Učitaj izvješće',
     intro:
       'Odaberite izvješće Activity Flex u formatu XML koje ste spremili iz IBKR-a ili iz njegove poruke. Svaki redak provjerite prije nego što išta uđe. Redak je već u Kuni, pa se preskače, kad neki zapis ima njegovu oznaku iz IBKR-a. Redak s računom, danom i iznosima zapisa koji ste upisali ili uvezli pita je li to taj zapis.',
-    drop: 'Ispustite izvješće IBKR-a ovdje',
-    orChoose: 'ili odaberite datoteku XML',
+    drop: 'Ispusti izvješće IBKR-a ovdje',
+    orChoose: 'ili odaberi datoteku XML',
   },
   guide: {
     title: 'Izvješće IBKR-a poštom',

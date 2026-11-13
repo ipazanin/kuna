@@ -97,7 +97,7 @@ export const hr: Translation<typeof en> = {
     openSettings: 'Otvori postavke',
     reading: 'Čitanje datoteke',
     onItsWay: 'Prva kopija stiže.',
-    syncToRead: (name) => (name === null ? 'Sinkronizirajte da se datoteka pročita' : `Sinkronizirajte da se pročita „${name}”`),
+    syncToRead: (name) => (name === null ? 'Sinkroniziraj da se datoteka pročita' : `Sinkroniziraj da se pročita „${name}”`),
     noCopy: 'Ovaj preglednik još nema njezinu kopiju.',
     sync: 'Sinkroniziraj',
   },

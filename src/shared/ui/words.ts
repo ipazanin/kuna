@@ -71,7 +71,7 @@ export const hr: Translation<typeof en> = {
   showAll: (total) => `Prikaži sve (${total})`,
   shownOf: (shown, total) => `Prikazano ${shown} od ${total}`,
   verdict: { unchanged: 'bez promjene', better: 'bolje', worse: 'lošije' },
-  pickDay: 'Odaberite dan',
+  pickDay: 'Odaberi dan',
   warning: 'Upozorenje',
   chart: {
     emptyTitle: 'Za ovo razdoblje nema ništa za prikaz',

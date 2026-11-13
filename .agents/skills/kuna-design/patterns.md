@@ -139,6 +139,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 - `?theme=light` or `?theme=dark` pins the theme for one visit. `?lang=en` or `?lang=hr` pins the language for one visit. Use them in checks and in the gallery.
 - Croatian terms in the English UI, such as form names and law citations, carry `lang="hr"`.
+- Croatian words without a closing full stop, such as a button, link, title, placeholder or field message, take the short imperative: Dodaj procjenu, Odaberi kategoriju, Upiši naziv. A sentence that ends in a full stop speaks with a lowercase vi: Odaberite dulje razdoblje ili uklonite filtar. A search field and its button say Pretraži. A placeholder that lists what a search reads may leave the verb to the field's label. A placeholder fits its field at every width, so a phone gets a shorter one or a long name ends in an ellipsis. `tests/croatianSentences.spec.ts` holds both.
 
 ## Gallery
 

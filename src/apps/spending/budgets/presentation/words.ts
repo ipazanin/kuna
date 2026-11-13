@@ -69,7 +69,7 @@ export const hr: Translation<typeof en> = {
     changeTitle: 'Promijeni ograničenje',
     description: 'Koliko najviše želite potrošiti svaki mjesec, u eurima.',
     category: 'Skupina ili kategorija',
-    aCategory: 'Odaberite skupinu ili kategoriju',
+    aCategory: 'Odaberi skupinu ili kategoriju',
     amount: 'Mjesečno ograničenje',
     anAmount: 'Iznos veći od nule s najviše dvije decimale',
     from: 'Od',

@@ -101,7 +101,7 @@ export const hr: Translation<typeof en> = {
     themeNote: 'Sustav prati postavku ovog uređaja kad se promijeni. Svijetla ili Tamna pamti se na ovom uređaju.',
     privacy:
       'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune, izvorima cijena za Ulaganja i AI tvrtki vašeg ključa kad koristite asistenta.',
-    privacyLink: 'Pročitajte napomene o privatnosti',
+    privacyLink: 'Pročitaj napomene o privatnosti',
   },
   filesHome: {
     title: 'Gdje idu nove datoteke',
@@ -140,7 +140,7 @@ export const hr: Translation<typeof en> = {
       browserSettingsGo: 'Gdje idu nove datoteke, izbori za asistenta i automatsku sinkronizaciju te Google prijava kad na Driveu više nema datoteka. Tema i jezik ostaju.',
       browserSettingsStay: 'Ostaju u ovom pregledniku.',
       stays: 'Ostale datoteke na Driveu, mapa Kuna, datoteke koje ste izvezli i kopije u drugim preglednicima ostaju.',
-      typeName: (name) => `Upišite ${name} za potvrdu`,
+      typeName: (name) => `Upiši ${name} za potvrdu`,
       cancel: 'Odustani',
       confirm: 'Obriši',
       deleted: 'Podaci Kune su obrisani',

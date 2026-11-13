@@ -4831,7 +4831,7 @@ export function investmentsBondFlowIn(language) {
     await fill(page, 'instrument-name', 'Example Treasury Bond')
     await fill(page, 'instrument-symbol', 'EXB')
     await pressSelector(page, press, '[data-testid="instrument-save"]')
-    await elementSays(page, '[data-testid="instrument-form"]', [croatian ? 'Odaberite datum' : 'Pick a date'], 'a bond without a maturity is not marked')
+    await elementSays(page, '[data-testid="instrument-form"]', [croatian ? 'Odaberi datum' : 'Pick a date'], 'a bond without a maturity is not marked')
     await scrollIntoDialogView(page, '[data-testid="instrument-coupon"]')
     await inspect?.('the holding dialog for a bond without its coupon and maturity')
     await shoot('investments-instrument-quoted-bond-marked')

@@ -168,7 +168,7 @@ export const hr: Translation<typeof en> = {
     inBrowser: 'Datoteka ulaganja je spremna i čuva se u ovom pregledniku.',
   },
   setUp: {
-    firstHoldings: 'Dodajte što držite ili uvezite cijelu povijest',
+    firstHoldings: 'Dodaj što držim ili uvezi cijelu povijest',
     cashBelowZero: 'Novac je ispod nule, pa je vrijednost preniska. Dodajte uplatu kojom su plaćene kupnje',
     transactionsLink: 'Transakcije',
     prices: (count) => ({
@@ -177,7 +177,7 @@ export const hr: Translation<typeof en> = {
       other: `${count} pozicija nema cijenu, pa nisu u vrijednosti. Dodajte besplatni ključ za cijene ili upišite cijene`,
     }),
     pricesLink: 'Cijene',
-    history: 'Javite Kuni kad je ovo cijela povijest, da vidite porez na prodaje',
+    history: 'Javi Kuni kad je ovo cijela povijest, da se prikaže porez na prodaje',
     taxLink: 'Porez',
   },
   problems: {

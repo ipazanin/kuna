@@ -143,7 +143,7 @@ export const hr: Translation<typeof en> = {
   },
   guides: {
     setUp: {
-      title: 'Postavite Kredite kroz razgovor',
+      title: 'Postavi Kredite kroz razgovor',
       body: [
         'Pripremite ugovor o kreditu ili otplatni plan, svaku obavijest o promjeni kamatne stope od tada i svaku ponudu koju razmatrate. PDF ili fotografija šalje se pružatelju umjetne inteligencije cijela.',
         'Kartice, ovim redom:',

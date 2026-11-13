@@ -13,7 +13,7 @@ export const en = {
   intro: (checkedOn: string) =>
     `The Croatian law behind the pack's figures: each rule's value per year, the article it comes from, and how sure that value is. Each rule's sources were checked on or after ${checkedOn}, and each source shows its own day.`,
   localRatesHint: 'Search for a city or municipality, or show them all. Set where the director lives on Salaries to open on that one.',
-  search: 'Search by rule id, name, act or article',
+  search: 'Rule id, name, act or article',
   searchLabel: 'Search the ruleset',
   clearSearch: 'Clear the search',
   area: 'Area',
@@ -101,7 +101,7 @@ export const hr: Translation<typeof en> = {
   intro: (checkedOn) =>
     `Hrvatski propisi iza izračuna paketa: vrijednost svake odredbe po godini, članak iz kojeg dolazi i koliko je ta vrijednost sigurna. Izvori svake odredbe provjereni su ${withFullStop(checkedOn)} ili kasnije, a svaki izvor pokazuje svoj dan.`,
   localRatesHint: 'Potražite grad ili općinu ili ih prikažite sve. Na zaslonu Plaće postavite gdje direktor živi da se tablica otvori na toj jedinici.',
-  search: 'Pretraži po oznaci, nazivu, propisu ili članku',
+  search: 'Oznaka, naziv, propis ili članak',
   searchLabel: 'Pretraži propise',
   clearSearch: 'Očisti pretragu',
   area: 'Područje',

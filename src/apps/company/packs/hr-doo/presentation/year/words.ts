@@ -56,9 +56,9 @@ export const hr: Translation<typeof en> = {
   noPaymentCalendar: 'nijedan porez nema kalendar plaćanja',
   noVatBefore: 'Nijedna kategorija nema postavljen ',
   noVatAfter: ' tretman, pa se iz troškova ne izdvaja pretporez.',
-  setOnCategories: 'Postavite ga u Postavkama, pod Kategorije',
+  setOnCategories: 'Postavi ga u Postavkama, pod Kategorije',
   unregistered: (year) => `Postavka „${domainHr.settingNames.registered}” prazna je, pa se ${year}. broji kao cijelo porezno razdoblje, a predujmovi plaćeni u njoj nisu poznati.`,
-  setOnSettings: 'Postavite je u Postavkama',
+  setOnSettings: 'Postavi je u Postavkama',
   notWorkedOut: 'Godina se nije mogla izračunati',
 }
 

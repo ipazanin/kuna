@@ -282,8 +282,8 @@ export const hr: Translation<typeof en> = {
   import: 'Uvezi',
   file: {
     intro: 'Odaberite radnu knjigu s karticom Transactions, jedan redak za svaku stavku koju je broker knjižio. Kasnija inačica iste radne knjige dodaje samo ono što je novo.',
-    drop: 'Ispustite radnu knjigu portfelja ovdje',
-    orChoose: 'ili odaberite tablicu',
+    drop: 'Ispusti radnu knjigu portfelja ovdje',
+    orChoose: 'ili odaberi tablicu',
     sample: 'Upotrijebi izmišljenu radnu knjigu',
     reading: 'Čitanje radne knjige',
     read: (count, fileName) => ({
@@ -361,7 +361,7 @@ export const hr: Translation<typeof en> = {
     newAccount: 'Novi račun',
     name: 'Naziv',
     nameHelp: 'Kako ga zovete, na primjer broker i čemu račun služi',
-    nameMissing: 'Imenujte račun',
+    nameMissing: 'Imenuj račun',
     likely: (count, account) => ({
       one: `Kuna predlaže ${account}: ${count} redak nalikuje jednom od njegovih zapisa koji još nije došao iz izvješća.`,
       few: `Kuna predlaže ${account}: ${count} retka nalikuju njegovim zapisima koji još nisu došli iz izvješća.`,
@@ -423,7 +423,7 @@ export const hr: Translation<typeof en> = {
       other: `${units} jedinica, vrijednih ${worth} po cijeni iz retka.`,
     }),
     parent: 'Primljeno uz poziciju',
-    parentMissing: 'Odaberite poziciju',
+    parentMissing: 'Odaberi poziciju',
     costShare: 'Udio u trošku, u %',
     costShareProposed: 'Predloženo: njihova vrijednost prema trošku onoga što ste držali',
     costShareFromCloses: (day) => `Predloženo prema tržišnoj vrijednosti, iz obiju zaključnih cijena od ${day}`,
@@ -434,7 +434,7 @@ export const hr: Translation<typeof en> = {
     costShareUnclear: (cell, asPercent, asFraction) => `Cost share ${cell} iz retka nema znak postotka. Može značiti ${asPercent} ili ${asFraction}.`,
     costShareReadings: 'Što znači Cost share iz retka',
     costShareReading: (percent) => `${percent} %`,
-    costShareReadingMissing: 'Odaberite što redak znači ili upišite postotak',
+    costShareReadingMissing: 'Odaberi što redak znači ili upiši postotak',
     unlisted: {
       'no-key': (vendor) => `Predloženo prema držanim jedinicama jer u ovom pregledniku nema ključa za ${vendor}.`,
       pending: (vendor) => `Predloženo prema držanim jedinicama dok se pita ${vendor}.`,

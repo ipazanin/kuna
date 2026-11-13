@@ -75,7 +75,7 @@ function update(index: number, field: 'group' | 'percent', value: string): void 
             :items="GROUP_ITEMS[picked]"
             value-key="value"
             :placeholder="text.pickGroup"
-            :search-input="picked === 'country' ? { placeholder: text.findCountry } : false"
+            :search-input="picked === 'country' ? { placeholder: words.findShort } : false"
             :aria-label="text.mixGroup(index + 1)"
             class="w-full"
             data-testid="instrument-mix-group"

@@ -142,7 +142,7 @@ function update<Field extends keyof InstrumentTexts>(field: Field, value: Instru
       :model-value="texts.country || NOT_SET"
       :items="COUNTRY_CHOICES"
       value-key="value"
-      :search-input="{ placeholder: text.findCountry }"
+      :search-input="{ placeholder: words.findShort }"
       class="w-full"
       :data-testid="`${testId}-country`"
       @update:model-value="update('country', $event === NOT_SET ? '' : $event)"

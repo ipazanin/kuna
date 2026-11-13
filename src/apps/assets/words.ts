@@ -26,7 +26,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   name: 'Imovina',
   start: 'Početak',
-  pickFile: 'Odaberite datoteku imovine',
+  pickFile: 'Odaberi datoteku imovine',
   setUpAfterLoans: 'Postavite Kredite prije Imovine, da imovina s kreditom pokaže što je vaše nakon kredita.',
   form: {
     aDate: (example) => `Datum, na primjer ${dayLabel(example)}`,

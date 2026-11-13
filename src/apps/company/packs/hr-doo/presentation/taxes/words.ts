@@ -118,7 +118,7 @@ export const hr: Translation<typeof en> = {
       'Razlika za uplatu i mjesečni predujmovi svake godine od prvog poreznog razdoblja, koje bankovne stavke popunjavaju od najstarijeg dospijeća, jer godišnja uplata i predujmovi dijele isti poziv na broj. Godina čija prijava nije na listu „year-end” predujmove određuje iz naše procjene.',
     seenOn: (day) => `Gledano na dan ${day}, dan najnovije stavke.`,
     unregistered: `Postavka „${domainHr.settingNames.registered}” prazna je, pa porezna razdoblja i raspored predujmova nisu poznati.`,
-    setOnSettings: 'Postavite je u Postavkama',
+    setOnSettings: 'Postavi je u Postavkama',
     overdueBefore: (count) => ({ one: `${count} uplata kasni, a još se duguje `, few: `${count} uplate kasne, a još se duguje `, other: `${count} uplata kasni, a još se duguje ` }),
     overdueAfter: '.',
     unmatched: 'Uplate koje ne pokrivaju nijednu obvezu i povrati:',
