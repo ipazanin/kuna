@@ -169,6 +169,14 @@ describe('the file with parts no receipt split', () => {
     ])
   })
 
+  it('counts a part of the other sign, as a discount is, once the parts add up to the entry', async () => {
+    const discount = { ...handParts[1]!, id: recordIdOf(PART_RECORDS, keys()()), amount: accountMoneyFromAmount(10) }
+    const store = await storeWith([spend], [handParts[0]!, { ...handParts[1]!, amount: accountMoneyFromAmount(-80) }, discount])
+    const book = store.state.workbook!
+    expect(book.problems).toEqual([])
+    expect(book.lines.map((held) => held.amount)).toEqual([accountMoneyFromAmount(-30), accountMoneyFromAmount(-80), accountMoneyFromAmount(10)])
+  })
+
   it('lets a row split by hand take a receipt, whose lines then replace its parts', async () => {
     const other = row(OTP, '2026-11-04', -12, 'Food/Groceries')
     const store = await storeWith([spend, other], handParts)

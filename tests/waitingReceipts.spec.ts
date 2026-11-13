@@ -242,6 +242,23 @@ describe('a stored receipt', () => {
     expect(receiptOf(fields({ transaction: key }), id)).toMatchObject({ transaction: recordIdOf(TRANSACTION_RECORDS, key), account: null })
   })
 
+  it('keeps its lines out while they miss minus its total, and says what they add up to', async () => {
+    const split = receiptSplit(DRAFT, { account: OTP }, LINES)
+    const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', {
+      ...stored(ACCOUNT_RECORDS, ACCOUNTS),
+      ...stored(CATEGORY_RECORDS, CATEGORIES),
+      ...stored(RECEIPT_RECORDS, [split.receipt]),
+      ...stored(PART_RECORDS, split.lines.slice(0, 2)),
+    })
+    const { store } = await browserHarness(used, document, SPENDING)
+    const book = store.state.workbook!
+    expect(book.lines).toEqual([])
+    expect(book.problems.map((problem) => problem.reason)).toEqual([
+      'the parts of its entry add up to -23.47, and the entry says -23.49',
+      'the parts of its entry add up to -23.47, and the entry says -23.49',
+    ])
+  })
+
   it('does not count while it waits on an account the file does not hold, and neither do its lines', async () => {
     const gone = { ...OTP, id: recordIdOf(ACCOUNT_RECORDS, key) }
     const split = receiptSplit(DRAFT, { account: gone }, LINES)

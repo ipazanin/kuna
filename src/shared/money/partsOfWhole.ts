@@ -9,7 +9,10 @@ export type PartsRefusal = 'one-rest' | 'zero-part' | 'wrong-sign' | 'over'
 
 export type PlacedParts<Cents extends number> = { readonly parts: readonly Cents[] } | { readonly refused: PartsRefusal }
 
-/** What is left of the whole once the amounts are taken out, of either sign. */
+/**
+ * What is left of the whole once the amounts are taken out, of either sign. A transaction's parts add up to their whole when
+ * this leaves nothing, and no other code works that out.
+ */
 export function restOfWhole<Cents extends number>(whole: Cents, amounts: readonly Cents[]): Cents {
   let rest: number = whole
   for (const amount of amounts) rest -= amount

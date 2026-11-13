@@ -29,6 +29,7 @@ import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
 import { accountMoneyOfEuros, negateAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { restOfWhole } from '../../../../shared/money/partsOfWhole'
 import { plainAmount } from '../../../../shared/money/money'
 import type { RecordKind, RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { problemOf, readEach } from '../../../../shared/storage/domain/recordsRead'
@@ -264,10 +265,10 @@ function readParts(read: RecordsRead<EntryPart>, transactions: readonly Transact
     if (part.receipt !== null && receiptOf.get(part.receipt)?.transaction !== part.transaction) return words.noReceipt
     return categories.has(part.category) ? null : words.noCategory
   }
-  const sums = new Map<RecordId | null, AccountMoney[]>()
+  const amountsOf = new Map<RecordId | null, AccountMoney[]>()
   const brokenWholes = new Set<RecordId | null>()
   for (const { record: part } of read.records) {
-    sums.set(wholeOf(part), [...(sums.get(wholeOf(part)) ?? []), part.amount])
+    amountsOf.set(wholeOf(part), [...(amountsOf.get(wholeOf(part)) ?? []), part.amount])
     if (ownReason(part) !== null) brokenWholes.add(wholeOf(part))
   }
   return readEach(read, ({ record: part }) => {
@@ -275,9 +276,9 @@ function readParts(read: RecordsRead<EntryPart>, transactions: readonly Transact
     if (own !== null) return [own]
     // All or none, since parts left counting without their sibling would drop its money from every figure.
     if (brokenWholes.has(wholeOf(part))) return [words.siblingPartLeftOut]
-    const sum = sumAccountMoney(sums.get(wholeOf(part)) ?? [])
-    const amount = wholes.get(wholeOf(part)!)
-    return sum === amount ? [] : [words.partsDoNotAddUp(plainAmount(sum), plainAmount(amount ?? sum))]
+    const amounts = amountsOf.get(wholeOf(part)) ?? []
+    const whole = wholes.get(wholeOf(part)!)!
+    return restOfWhole(whole, amounts) === 0 ? [] : [words.partsDoNotAddUp(plainAmount(sumAccountMoney(amounts)), plainAmount(whole))]
   })
 }
 

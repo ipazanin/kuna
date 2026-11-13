@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
+import type { AccountMoney } from '../src/shared/money/accountMoney'
 import { moneyFromCents } from '../src/shared/money/money'
+import type { Money } from '../src/shared/money/money'
 import { partsOfWhole, restOfWhole } from '../src/shared/money/partsOfWhole'
 
 const cents = moneyFromCents
@@ -52,5 +54,19 @@ describe('the rest of a whole', () => {
     expect(restOfWhole(cents(-6_000), [cents(-4_000), cents(-1_999)])).toBe(-1)
     expect(partsOfWhole(cents(6_000), [cents(4_000), cents(1_999), 'rest'])).toEqual({ parts: [4_000, 1_999, 1] })
     expect(Object.is(restOfWhole(cents(6_000), [cents(4_000), cents(2_000)]), 0)).toBe(true)
+  })
+})
+
+describe('stored parts against their whole', () => {
+  const account = accountMoneyFromCents
+  it.each<[string, Money | AccountMoney, readonly (Money | AccountMoney)[], number]>([
+    ['money parts that add up', cents(10_000), [cents(6_000), cents(4_000)], 0],
+    ['money parts that pass the whole', cents(6_000), [cents(4_500), cents(2_000)], -500],
+    ["an account's debit whose parts fall short", account(-10_000), [account(-3_000), account(-6_000)], -1_000],
+    ['a discount part of the other sign that brings the lines to the whole', account(-2_349), [account(-2_500), account(151)], 0],
+    ['a discount part of the other sign that takes too much off', account(-2_000), [account(-2_500), account(300)], 200],
+    ['no parts, which leave all of the whole', cents(500), [], 500],
+  ])('leaves the shortfall for %s', (_case, whole, parts, shortfall) => {
+    expect(restOfWhole(whole, parts)).toBe(shortfall)
   })
 })

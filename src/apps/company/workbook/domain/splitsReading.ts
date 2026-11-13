@@ -1,5 +1,6 @@
-import { ZERO, addMoney } from '../../../../shared/money/money'
+import { sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
+import { restOfWhole } from '../../../../shared/money/partsOfWhole'
 import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { SPLIT_PART_RECORDS } from './coreKinds'
@@ -197,9 +198,9 @@ function partReasons(group: SplitParts, categoryBySlug: ReadonlyMap<string, Cate
       reasons.push(words.splits.partNotOnTab(part.category, stored.label))
     }
   }
-  const total = parts.reduce((sum, stored) => addMoney(sum, stored.record.amount), ZERO)
-  if (group.unreadable === 0 && parts.length >= 2 && total !== rowAmount) {
-    reasons.push(words.splits.partsAddUp(total, rowAmount))
+  const amounts = parts.map((stored) => stored.record.amount)
+  if (group.unreadable === 0 && parts.length >= 2 && restOfWhole(rowAmount, amounts) !== 0) {
+    reasons.push(words.splits.partsAddUp(sumMoney(amounts), rowAmount))
   }
   return reasons
 }
