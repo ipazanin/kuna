@@ -72,10 +72,10 @@ The PravPDV issues are those the preamble of NN 35/26 lists, with NN 35/26 itsel
 
 These inform the docs but are never the source of a rule on their own. A value that rests on one of them carries a lower mark.
 
-- **Porezna uprava.** The JOPPD form with its annexes (PDF created 24 December 2025). The crypto JOPPD example (6 February 2026). The capital gains notices for 2025 gains (8281, 13 January 2026) and 2022 gains (6871, 19 January 2023). The JOPPD page (3956). The INO-IZJAVA (4526) and INO-DOH (4524) pages. The Austrian dividend INO-DOH example. The treaty map (7559).
+- **Porezna uprava.** The JOPPD form with its annexes (PDF created 24 December 2025). The crypto JOPPD example (6 February 2026). The capital gains notices for 2025 gains (8281, 13 January 2026) and 2022 gains (6871, 19 January 2023). The JOPPD page (3956). The opinion of 10 October 2014 on trip costs on the JOPPD (KLASA 410-01/14-01/2324). The INO-IZJAVA (4526) and INO-DOH (4524) pages. The Austrian dividend INO-DOH example. The treaty map (7559).
 - **Exchange rates.** The HNB API documentation and rows, the ECB USD reference rates.
 - **US.** SEC press release 2023-29. The IRS page on NRA withholding.
-- **Bills.** P.Z. 339, the income tax bill for 2027, and its Sabor page.
+- **Bills.** P.Z. 339, the income tax bill for 2027, its final text of 5 November 2026, and their Sabor pages.
 - **Professional commentary and guides.** RRiF 1/2025 (article 23629) and 2/2024 (article 22992), the RRiF copy of the Porezna uprava opinion of 6 April 2016 (KLASA 410-01/15-01/4725), TEB "Inozemni dohodak" of 29 June 2026, the Raiffeisen KAG guide for 2025 gains and the Finax guide for 2024.
 - **News.** croatiansonline.com of 3 November 2026 and tportal of 30 July 2026 on the US treaty.
 

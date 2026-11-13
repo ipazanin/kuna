@@ -1,14 +1,14 @@
 ---
-checked: 2026-11-10
-nn_through: 129/26
+checked: 2026-11-13
+nn_through: 131/26
 summary: Business trips of a d.o.o.'s employee, the tax-free per diems at home and abroad, private car kilometres, meals provided, the hours and the distance a trip needs, what the travel order holds, and the JOPPD code 17 with its deadlines
 ---
 
 # Business trips
 
-What the law asks of a business trip (_službeno putovanje_) a d.o.o. sends an employee on, and how Kuna counts it. The Trips screen, the JOPPD code 17 card on Salaries and the rule rows `hr.pit.business-trip`, `hr.pit.foreign-per-diem`, `hr.pit.foreign-per-diem-rate`, `hr.pit.trip-joppd` and `hr.pit.nontaxable-caps` rest on this file. Law as researched on 10 November 2026.
+What the law asks of a business trip (_službeno putovanje_) a d.o.o. sends an employee on, and how Kuna counts it. The Trips screen, the JOPPD code 17 card on Salaries and the rule rows `hr.pit.business-trip`, `hr.pit.foreign-per-diem`, `hr.pit.foreign-per-diem-rate`, `hr.pit.trip-joppd` and `hr.pit.nontaxable-caps` rest on this file. Law as researched on 10 November 2026 and rechecked on 13 November 2026.
 
-The Pravilnik o porezu na dohodak (PravPDoh) was read in the Porezna uprava consolidation through NN 157/25, "Na snazi i primjenjuje se od 1. siječnja 2026.". The amounts of Art. 7(2) were read in the NN text of NN 16/25, and the JOPPD codes in the NN text of NN 157/25, which changed neither Art. 7 nor Art. 8. A Narodne novine title search of 2025 and 2026 through NN 129/26 found no later amendment of the Pravilnik and no new Odluka on foreign per diems.
+The Pravilnik o porezu na dohodak (PravPDoh) was read in the Porezna uprava consolidation through NN 157/25, "Na snazi i primjenjuje se od 1. siječnja 2026.". The amounts of Art. 7(2) were read in the NN text of NN 16/25, and the JOPPD codes in the NN text of NN 157/25, which changed neither Art. 7 nor Art. 8. A Narodne novine title search of 2025 and 2026 through NN 131/26 found no later amendment of the Pravilnik and no new Odluka on foreign per diems.
 
 The payments below are tax-free only up to the amounts given. What is paid above them is salary (PravPDoh Art. 7(1)). The accountant books the trip, and Kuna only says how it counts it.
 
@@ -32,7 +32,7 @@ A per diem covers food, drink and local transport at the destination (Art. 7(11)
 
 PravPDoh Art. 7(2) items 21 and 22 (NN 16/25): "do iznosa utvrđenih propisima o izdacima za službena putovanja za korisnike državnog proračuna" and "do 50 % iznosa".
 
-The rule they point to is the Odluka o visini dnevnice za službeno putovanje u inozemstvo za korisnike koji se financiraju iz sredstava državnog proračuna, NN 16/24, item 277, adopted and in force on 8 February 2024 (its item III). It lists 105 states and areas and a row for every other state ("sve druge države"). It replaced the Odluka of NN 8/06 (item II). A title search of 2024 to 2026 through NN 129/26 found no later Odluka.
+The rule they point to is the Odluka o visini dnevnice za službeno putovanje u inozemstvo za korisnike koji se financiraju iz sredstava državnog proračuna, NN 16/24, item 277, adopted and in force on 8 February 2024 (its item III). It lists 105 states and areas and a row for every other state ("sve druge države"). It replaced the Odluka of NN 8/06 (item II). A title search of 2024 to 2026 through NN 131/26 found no later Odluka.
 
 The Odluka gives 47 amounts in euros and 59 in US dollars. The United Kingdom is 80,00 EUR (row 101), Germany 90,00 EUR (row 72), the United States 100,00 USD (row 88), and every other state 50,00 USD (row 106). Mark: `confirmed-nn`. `hr.pit.foreign-per-diem` holds every row, keyed by the ISO 3166-1 alpha-2 code, XK for Kosovo and `other` for every state not listed, each in its own currency. It is generated from the NN page by `npm run import:foreign-per-diems`.
 
@@ -123,12 +123,16 @@ Code 17 is in Annex 4 of the JOPPD form as NN 157/25 set it, and field 15.1 hold
 
 ### The month of a trip's line
 
-"Isplaćeni predujmovi dnevnica i/ili naknada za korištenje privatnog automobila u svrhu službenog putovanja iskazuju se na Obrascu JOPPD nakon konačnog obračuna tih primitaka." (PravPDoh Art. 79(9), read in the Porezna uprava consolidation through NN 157/25 on 11 November 2026)
+"Isplaćeni predujmovi dnevnica i/ili naknada za korištenje privatnog automobila u svrhu službenog putovanja iskazuju se na Obrascu JOPPD nakon konačnog obračuna tih primitaka." (PravPDoh Art. 79(9), read in the Porezna uprava consolidation through NN 157/25 on 13 November 2026)
 
 - An advance is reported only after the final settlement. So when the advance covers the whole trip and nothing more is paid out, the line goes in the month of the settled day. The Pravilnik does not say this in so many words, and nothing in it points to another month.
-- A trip paid out after its settlement could be read under Art. 79(6), by the month it was paid in. A Porezna uprava opinion of 10 October 2014, KLASA 410-01/14-01/2324, reads it by the settlement instead: per diems and costs the traveller paid "iskazuju se na Obrascu JOPPD do 15. dana mjeseca nakon isteka mjeseca konačnog obračuna putnog naloga", with payment code 0 while the traveller is not yet paid. It was read in RRiF's copy only, <https://rrif.hr/Iskazivanje_troskova_na_Obrascu_JOPPD_za_sluzbena_-2511-misljenje.html>, loaded on 11 November 2026, and predates the 2015 to 2025 amendments.
+- A trip paid out after its settlement could be read under Art. 79(6), by the month it was paid in. Porezna uprava's opinion of 10 October 2014, KLASA 410-01/14-01/2324, reads it by the settlement instead. Per diems and the costs the traveller paid "iskazuju se na Obrascu JOPPD do 15. dana mjeseca nakon isteka mjeseca konačnog obračuna putnog naloga", with payment code 0 while the traveller is not yet paid. "Kod naknadnog namirenja obveze poslodavci su dužni putem ispravka Obrasca JOPPD prikazati način isplate." A later payout corrects that line with its payment code.
+- The opinion read the Pravilnik of NN 95/05 to 160/13. It rests on the monthly report by the 15th, the report on the day of payment, and the rule that "Primici isplaćeni za službena putovanja za svrhe kojih je isplaćen predujam iskazuju se na Obrascu JOPPD prema konačnom obračunu tih primitaka". Today's Art. 79(6), 79(7) and 79(9) keep all three. Its list of costs to report, tickets, lodging and tolls among them, no longer applies, since Art. 78(1) item 15 now leaves out everything but per diems and private car kilometres paid in money.
+- Annex 5 of the JOPPD form has payment code 0, "Nema isplate", so the form allows a line before the payout.
 
-Kuna puts every settled trip's code 17 line in the month of the settled day, due by the 15th of the next month, whether or not a payout follows. The line holds the per diems and the kilometres at the order's rate or the cap, whichever is lower. `hr.pit.trip-joppd` holds it. Mark: `reading`. Screen: Salaries, JOPPD code 17, `reading`.
+What was looked for on 13 November 2026: the Pravilnik in the Porezna uprava consolidation through NN 157/25, which names no month for a settled trip, Narodne novine through NN 131/26, which holds no amendment of it, and Porezna uprava's list of opinions searched for "putnog naloga", "dnevnice", "konačnog obračuna", "predujam" and "JOPPD", which holds no other opinion on the month. The 2014 opinion was loaded from that list.
+
+Kuna puts every settled trip's code 17 line in the month of the settled day, due by the 15th of the next month, whether or not a payout follows. The line holds the per diems and the kilometres at the order's rate or the cap, whichever is lower. Kuna does not say which payment code the line takes, or that a later payout corrects it. `hr.pit.trip-joppd` holds it. Mark: `reading`, because the month rests on an opinion, which is guidance and not law. Screen: Salaries, JOPPD code 17, `reading`.
 
 ## Worked example
 
@@ -152,16 +156,18 @@ The JOPPD line under code 17 holds 461.00, the per diems and kilometres, reporte
 - **Days of a long trip.** The 24-hour blocks from departure, and which block a meal cuts. Mark: `reading`.
 - **Foreign amounts in dollars.** The Odluka sets 59 amounts in US dollars. Kuna turns them into euros at the ECB rate of the day the traveller left, which no text was found to settle. Mark: `unconfirmed`.
 - **A board member who is not employed.** Art. 7(2) speaks of payments "svojim radnicima", to the employer's own employees. Whether a board member who is not employed gets the same tax-free per diems was not settled. Kuna allows it with a warning. Mark: `unconfirmed`.
-- **The month of the code 17 line.** Kuna puts it in the month of the settled day, as Art. 79(9) and the 2014 opinion read. Mark: `reading`.
-- **2027 amounts.** Bill PZ 339 asks the Minister in its Art. 15 to align the Pravilnik within 90 days of the act. In its consultation table the ministry did not take up a proposal to raise the domestic per diem from 30 to 50 euros, saying the amounts are set by the Pravilnik. Kuna assumes the same amounts and rules in 2027. Mark: `pending`.
+- **The month of the code 17 line.** Kuna puts it in the month of the settled day, as Art. 79(9) and Porezna uprava's 2014 opinion read. The Pravilnik names no month, and no other opinion was found on 13 November 2026. Mark: `reading`.
+- **2027 amounts.** The final bill PZ 339 went to the Sabor on 6 November 2026 and had no vote by 13 November 2026. Its Art. 20 asks the Minister to align the Pravilnik within 90 days of the act's entry into force, which its Art. 21 sets for 1 January 2027. Neither the final bill nor the first one names an amount for per diems or kilometres. In the first bill's consultation table the ministry did not take up a proposal to raise the domestic per diem from 30 to 50 euros, saying the amounts are set by the Pravilnik. Narodne novine through NN 131/26 holds no amendment of the Pravilnik. A draft on e-Savjetovanja was not loaded, since the portal needs JavaScript, so whether one exists is unconfirmed. Kuna assumes the same amounts and rules in 2027. Mark: `pending`.
 
 ## Sources
 
-- Pravilnik o porezu na dohodak, Porezna uprava consolidation, NN 10/17 to 157/25, "Na snazi i primjenjuje se od 1. siječnja 2026.": Art. 7(1), 7(2), 7(8), 7(11), 7(13), 7(14), 7(18), 7(20), 7(29), 7(30), 7(34), 8(2), 78(1) item 15, 79(6), 79(7), 79(9), 79(10), 82(1) point 37. <https://porezna-uprava.gov.hr/Propisi/GetBasicData/4>, loaded on 10 November 2026.
+- Pravilnik o porezu na dohodak, Porezna uprava consolidation, NN 10/17 to 157/25, "Na snazi i primjenjuje se od 1. siječnja 2026.": Art. 7(1), 7(2), 7(8), 7(11), 7(13), 7(14), 7(18), 7(20), 7(29), 7(30), 7(34), 8(2), 78(1) item 15, 79(6), 79(7), 79(9), 79(10), 82(1) point 37. <https://porezna-uprava.gov.hr/Propisi/GetBasicData/4>, loaded on 10 November 2026, and Art. 7, 78 and 79 again on 13 November 2026.
 - Pravilnik o izmjenama i dopunama Pravilnika o porezu na dohodak, NN 16/25, item 148, of 31 January 2025: Art. 2 with the new Art. 7(2) items 19 to 22 and 31, Art. 11, Art. 16 and Art. 17. <https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_148.html>, loaded on 10 November 2026.
 - Pravilnik o izmjenama i dopunama Pravilnika o porezu na dohodak, NN 157/25, item 2365: Art. 1 to 6 and Annex 4 with code 17. <https://narodne-novine.nn.hr/clanci/sluzbeni/2025_12_157_2365.html>, loaded on 10 November 2026.
 - Odluka o visini dnevnice za službeno putovanje u inozemstvo za korisnike koji se financiraju iz sredstava državnog proračuna, NN 16/24, item 277, of 9 February 2024: items I to III. <https://narodne-novine.nn.hr/clanci/sluzbeni/2024_02_16_277.html>, loaded on 10 November 2026.
-- Porezna uprava opinion of 10 October 2014, KLASA 410-01/14-01/2324, on reporting trip costs on the JOPPD. Read in RRiF's copy, <https://rrif.hr/Iskazivanje_troskova_na_Obrascu_JOPPD_za_sluzbena_-2511-misljenje.html>, loaded on 11 November 2026. Secondary.
-- JOPPD form with its annexes, PDF created 24 December 2025, Annex 4. <https://porezna-uprava.gov.hr/UserDocsImages/Arhiva/HR_obrasci/Documents/POREZ%20NA%20DOHODAK/JOPPD.pdf?vel=1253556>, loaded on 10 November 2026.
-- Narodne novine title searches of 2024, 2025 and 2026 for "dnevnic", "putovanj", "inozemstvo", "porezu na dohodak" and "Pravilnika o porezu na dohodak", and the list of 2026 issues through 129, from `https://narodne-novine.nn.hr/search.aspx` and `https://narodne-novine.nn.hr/api/editions`, run on 10 November 2026.
+- Porezna uprava opinion of 10 October 2014, KLASA 410-01/14-01/2324, URBROJ 513-07-21-01/14-2, "Iskazivanje troškova na Obrascu JOPPD za službena putovanja plaćenih izravno s računa isplatitelja od 1. siječnja 2015.". <https://porezna-uprava.gov.hr/Misljenja/Detaljno/1892>, loaded on 13 November 2026. Guidance, not law.
+- Porezna uprava's list of opinions, searched for "putnog naloga", "dnevnice", "konačnog obračuna", "predujam" and "JOPPD". <https://porezna-uprava.gov.hr/hr/misljenja-su/3951>, run on 13 November 2026.
+- JOPPD form with its annexes, PDF created 24 December 2025, Annex 4, and Annex 5 with payment code 0. <https://porezna-uprava.gov.hr/UserDocsImages/Arhiva/HR_obrasci/Documents/POREZ%20NA%20DOHODAK/JOPPD.pdf?vel=1253556>, loaded on 10 November 2026, and Annex 5 on 13 November 2026.
+- Narodne novine title searches of 2024, 2025 and 2026 for "dnevnic", "putovanj", "inozemstvo", "porezu na dohodak" and "Pravilnika o porezu na dohodak", and the list of 2026 issues through 129, from `https://narodne-novine.nn.hr/search.aspx` and `https://narodne-novine.nn.hr/api/editions`, run on 10 November 2026. The 2026 searches for "porezu na dohodak", "Pravilnika o porezu", "dnevnice" and "inozemstvo" and the titles of NN 127/26 to 131/26 again on 13 November 2026.
 - Bill P.Z. 339, Art. 15, its explanation and the consultation table, row 18. <https://www.sabor.hr/sites/default/files/uploads/sabor/2026-09-11/121601/PZ_339.pdf>, loaded on 10 November 2026.
+- Final bill P.Z. 339 of 5 November 2026, Art. 20 and 21 with their explanation, and the differences from the first bill. <https://www.sabor.hr/sites/default/files/uploads/sabor/2026-11-06/131002/PZ_339.pdf>, and its Sabor page, <https://www.sabor.hr/hr/sjednice-sabora/konacni-prijedlog-zakona-o-izmjenama-i-dopunama-zakona-o-porezu-na-dohodak-drugo-12>. Both loaded on 13 November 2026.
