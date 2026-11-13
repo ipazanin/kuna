@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { words } from '../src/apps/spending/assistant/words'
+import { en as receiptWords } from '../src/apps/spending/receipts/domain/words'
 import type { ReceiptPhotos } from '../src/apps/spending/receipts/application/receiptPhotos'
 import { jpegWithMadeUpPlace, sampleFiscalQrText } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto'
 import type { ChatAttachment } from '../src/shared/ai/domain/chatAttachments'
@@ -249,6 +250,26 @@ describe('a receipt from the chat', () => {
         .lines.filter((candidate) => candidate.transaction === PHARMACY)
         .map((candidate) => candidate.category),
     ).toEqual([company, company])
+  })
+
+  it("files a buyer of Company's OIB under For the company, and without one keeps the lines as read and says on the entry where to set it", async () => {
+    const withOib = await spendingDesk(used, deskPorts(receiptPorts({ companyOib: () => '11111111119' })))
+    await withOib.propose([receipt(withOib, { buyerOib: '11111111119' })], [attachedPhoto()])
+    expect(withOib.cards[0]!.groups.flatMap((group) => group.notes)).toEqual([])
+    await withOib.accept()
+    const company = categoryNamed(withOib, 'For the company').id
+    expect(
+      new Set(
+        bookOf(withOib)
+          .lines.filter((candidate) => candidate.transaction === PHARMACY)
+          .map((candidate) => candidate.category),
+      ),
+    ).toEqual(new Set([company]))
+
+    const without = await spendingDesk(used)
+    await without.propose([receipt(without, { buyerOib: '11111111119' })], [attachedPhoto()])
+    const noted = without.cards[0]!.groups.flatMap((group) => group.notes.map((note) => ({ noun: group.noun.en.one, text: note.text, link: note.link?.label })))
+    expect(noted).toEqual([{ noun: 'entry', text: receiptWords.noCompanyOib, link: receiptWords.setOibInCompany }])
   })
 
   it('refuses a line under a group, under For the company, and a new category on the same card, which goes on a card of its own first', async () => {

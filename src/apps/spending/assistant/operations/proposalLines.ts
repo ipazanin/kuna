@@ -172,7 +172,8 @@ function lookAlikeNote({ lookAlikes }: StatementLeftOut, book: SpendingBook): Pr
 /** What a card warns on beyond its changes: what its import leaves out, each receipt whose read failed a check or that may be a payment already on the file, and each start day it moves. */
 export interface CardWarnings {
   readonly leftOut: StatementLeftOut | null
-  readonly receipts: readonly ProposalNote[]
+  /** Each on the group it belongs to, the receipts or the entry a receipt makes or fills. */
+  readonly receipts: readonly CardNote[]
   readonly moves: readonly StartDayMove[]
 }
 
@@ -213,7 +214,7 @@ export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, lo
   const statementNotes = leftOut === null ? [] : [lookAlikeNote(leftOut, book), leftOutNote(leftOut), inKunaNote(leftOut)].flatMap((note) => (note === null ? [] : [note]))
   const notes: CardNote[] = [
     ...statementNotes.map((note) => ({ noun: TRANSACTION_RECORDS.noun, note })),
-    ...receipts.map((receipt) => ({ noun: RECEIPT_RECORDS.noun, note: receipt })),
+    ...receipts,
     ...moves.flatMap((move) => {
       const note = startDayNote(move, book)
       return note === null ? [] : [{ noun: ACCOUNT_RECORDS.noun, note }]

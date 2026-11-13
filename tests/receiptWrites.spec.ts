@@ -16,9 +16,10 @@ import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settin
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { settingRow } from '../src/shared/storage/domain/settingRows'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
-import { COMPANY_OIB_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { readSpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { NO_RATES } from '../src/shared/money/rateBook'
@@ -238,11 +239,14 @@ describe('a receipt read into lines', () => {
     expect(spendingFigures(book, NO_RATES).totalsOf(month('2026-11')).spent).toEqual(moneyFromAmount(0))
   })
 
-  it('keeps the Company OIB in its setting, which no other reader refuses', async () => {
-    const store = await spendingStore()
-    await store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, [], COMPANY_OIB_KEY, '11111111119'))
+  it('keeps the company OIB an older Spending file holds through a save, and reads nothing from it', async () => {
+    const older = settingRow(SETTING_RECORDS, 'company_oib', '11111111119')
+    const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', { ...stored(ACCOUNT_RECORDS, ACCOUNTS_BY_HAND), ...stored(CATEGORY_RECORDS, CATEGORIES), ...stored(SETTING_RECORDS, [older]) })
+    const { store } = await browserHarness(used, document, SPENDING)
+    await store.write('Saved', (unit) => setSetting(unit, SETTING_WRITES, recordsOf(store.state.records!.settings), BANK_SYNC_DEPLOYMENT_KEY, 'AKfy-made-up'))
 
-    expect(store.state.workbook!.settings.companyOib).toBe('11111111119')
+    expect(recordsOf(store.state.records!.settings)).toContainEqual(older)
+    expect(store.state.workbook!.settings).not.toHaveProperty('companyOib')
     expect(store.state.workbook!.problems).toEqual([])
   })
 })

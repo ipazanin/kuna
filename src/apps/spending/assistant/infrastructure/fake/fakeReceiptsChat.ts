@@ -67,6 +67,8 @@ const says = ANSWERS[language]
 export const MADE_UP_MERCHANT_OIB = '12345678903'
 /** Another, the made-up buyer of an R1 receipt. */
 export const MADE_UP_BUYER_OIB = '11111111119'
+/** The OIB the fake Company keeps on its invoicing terms, which an R1 receipt for the company names as its buyer. */
+export const FAKE_COMPANY_OIB = '00000000001'
 
 const PET_FOOD: readonly string[] = [ANSWERS.en.petFood, ANSWERS.hr.petFood]
 
@@ -165,11 +167,19 @@ export function receiptReply(turn: FakeChatTurn): ModelReply {
 }
 
 /** The sample €17.00 receipt as read off its photo, dated the day of the run, its lines under the category given, paid as said and placed as said. */
-function receiptOf17(photo: string, paid: 'cash' | 'card', category: string, place: { readonly entry: string | null; readonly account: string | null }): ReturnType<typeof proposedStep> {
+function receiptOf17(
+  photo: string,
+  paid: 'cash' | 'card',
+  category: string,
+  place: { readonly entry: string | null; readonly account: string | null },
+  buyerOib: string | null = null,
+): ReturnType<typeof proposedStep> {
   return proposedStep(SPENDING_OPERATIONS, 'add-receipt', {
     photo,
     paid,
     ...place,
+    buyerOib,
+    markedR1: buyerOib !== null,
     merchant: 'Harbour bistro',
     merchantOib: MADE_UP_MERCHANT_OIB,
     issuedOn: fakeSpendingDayHere(),
@@ -241,6 +251,22 @@ export function cashReceiptReply({ request, tokens, typed }: FakeChatTurn): Mode
   const account = proposedStep(SPENDING_OPERATIONS, 'add-account', { name: says.cashName, kind: 'cash', currency: 'EUR', opening, openedOn: fakeSpendingDayHere(), rowsFrom: 'by-hand' }, '$cash')
   const steps = cash.length === 0 ? [account, receipt('$cash')] : [receipt(null)]
   return lookup(3, 'propose_changes', { app: 'spending', title: says.cashTitle, steps, next: false }, tokens)
+}
+
+/**
+ * Reads the attached photo as the sample €17.00 receipt paid in cash and marked R1, with the fake Company's OIB as its buyer, on
+ * the one cash account in euros. With Company open, Kuna files every line under For the company. Without it, the card says so.
+ */
+export function r1ReceiptReply({ request, tokens }: FakeChatTurn): ModelReply {
+  const photo = lastPhotoId(request)
+  if (photo === null) return answered(request, says.noPhoto, tokens)
+  const answers = answersSince(request)
+  if (answers.length === 0) return lookup(0, 'read_attachment', { attachment: photo, pages: null, sheet: null, rows: null }, tokens)
+  if (answers.length === 1) return lookup(1, 'find_records', findRecordsArgs('spending', 'category', { limit: 50 }), tokens)
+  if (answers.length > 2) return answered(request, says.cashProposed, tokens)
+  const groceries = recordsIn(answers[1]!.text).find((category) => GROCERIES.includes(category.name ?? ''))?.ref ?? ''
+  const step = receiptOf17(photo, 'cash', groceries, { entry: null, account: null }, FAKE_COMPANY_OIB)
+  return lookup(2, 'propose_changes', { app: 'spending', title: says.cashTitle, steps: [step], next: false }, tokens)
 }
 
 /**

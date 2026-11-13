@@ -1,3 +1,5 @@
+import type { RouteLocationRaw } from 'vue-router'
+
 import type { StrictSchema } from '../ai/domain/strictSchema'
 import type { RecordNoun } from '../storage/domain/recordKind'
 
@@ -101,6 +103,8 @@ export interface ProposalNote {
   readonly tone: 'info' | 'warning' | 'neutral'
   /** Rows the note lists under its text, each as what it is beside what it looks like. */
   readonly items?: readonly ProposalNoteItem[]
+  /** A page the note offers to open, such as the screen where a missing setting is set. */
+  readonly link?: { readonly label: string; readonly to: RouteLocationRaw }
 }
 
 export interface ProposalNoteItem {

@@ -84,16 +84,11 @@ export const en = {
   /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
   settingLabels: {
     deployment: 'Script deployment ID',
-    companyOib: 'Company OIB',
     personPayees: 'Payees who are people',
     notInKuna: 'Bank accounts not in Kuna',
     keepMine: 'Accounts that keep their own bank and kind',
     bankLink: (bank: string) => `${bank} link expiry`,
     bankFetched: (bank: string) => `Last answer from ${bank}`,
-  },
-  /** Sentences that name a setting, kept beside its label so a rename sees them. */
-  settingSentences: {
-    companyOibSaved: 'Company OIB saved',
   },
 }
 
@@ -156,15 +151,11 @@ export const hr: Translation<typeof en> = {
   settingNotABankAccount: (key, line) => `${key} redak „${line}” nije IBAN i valuta kao LT000000000000000001 USD`,
   settingLabels: {
     deployment: 'ID implementacije skripte',
-    companyOib: 'OIB tvrtke',
     personPayees: 'Primatelji koji su osobe',
     notInKuna: 'Bankovni računi koji nisu u Kuni',
     keepMine: 'Računi koji zadržavaju svoju banku i vrstu',
     bankLink: (bank) => `Istek veze s bankom ${bank}`,
     bankFetched: (bank) => `Zadnji odgovor banke ${bank}`,
-  },
-  settingSentences: {
-    companyOibSaved: 'OIB tvrtke je spremljen',
   },
 }
 

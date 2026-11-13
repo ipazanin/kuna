@@ -1,5 +1,5 @@
 import { dependentRefusalsOf } from '../../../../shared/storage/application/dependentRefusals'
-import { INVESTMENT_SETTING_CHECKS } from './settingWrites'
+import { INVESTMENT_RETIRED_SETTING_KEYS, INVESTMENT_SETTING_CHECKS } from './settingWrites'
 import { INVESTMENT_PARTS, investmentsRecordsOf, readInvestmentBook } from '../domain/readInvestmentBook'
 import type { InvestmentBookReading } from '../domain/readInvestmentBook'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
@@ -14,6 +14,7 @@ export function bookWith<R>(kind: RecordKind<R>, read: RecordsRead<R>, records: 
   return readInvestmentBook(
     investmentsRecordsOf(<K>(other: RecordKind<K>) => (other.name === kind.name ? (read as RecordsRead<unknown> as RecordsRead<K>) : records.of(other))),
     INVESTMENT_SETTING_CHECKS,
+    INVESTMENT_RETIRED_SETTING_KEYS,
   )
 }
 
@@ -21,6 +22,7 @@ export function bookOf(records: FreshRecords): InvestmentBookReading {
   return readInvestmentBook(
     investmentsRecordsOf((kind) => records.of(kind)),
     INVESTMENT_SETTING_CHECKS,
+    INVESTMENT_RETIRED_SETTING_KEYS,
   )
 }
 

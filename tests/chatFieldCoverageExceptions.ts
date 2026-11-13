@@ -56,7 +56,6 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'spending: Category.id',
       'spending: Receipt.id',
       'spending: EntryPart.id',
-      'spending: SettingRow.id',
       'spending: Transaction.id',
       'company: CategoryDraft.saved',
       'company: CategoryDraft.savedName',

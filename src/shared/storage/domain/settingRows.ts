@@ -56,12 +56,14 @@ export function settingRow(kind: RecordKind<SettingRow>, key: string, value: str
 
 /**
  * A key the app does not know, with the reason `unknownKey` words for it, and a value its key's check
- * refuses, are listed and left out, so a newer app's setting never stops the file from opening.
+ * refuses, are listed and left out, so a newer app's setting never stops the file from opening. A retired
+ * key, one the app no longer reads that an older file may hold, reads silently and a save keeps its row.
  */
-export function readSettingRows(read: RecordsRead<SettingRow>, checks: SettingChecks, unknownKey: (key: string) => string): Reading<SettingRow> {
+export function readSettingRows(read: RecordsRead<SettingRow>, checks: SettingChecks, retired: ReadonlySet<string>, unknownKey: (key: string) => string): Reading<SettingRow> {
   return readEach(read, ({ record: { key, value } }) => {
     const check = checks.get(key)
-    return check === undefined ? [unknownKey(key)] : check(value)
+    if (check !== undefined) return check(value)
+    return retired.has(key) ? [] : [unknownKey(key)]
   })
 }
 

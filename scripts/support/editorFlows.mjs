@@ -67,6 +67,7 @@ import { en as assetValuesEnglish, hr as assetValuesCroatian } from '../../src/a
 import { en as assetsFileEnglish, hr as assetsFileCroatian } from '../../src/apps/assets/workbook/presentation/words.ts'
 import { en as spendingAppEnglish, hr as spendingAppCroatian } from '../../src/apps/spending/words.ts'
 import { en as spendingAssistantEnglish, hr as spendingAssistantCroatian } from '../../src/apps/spending/assistant/words.ts'
+import { en as spendingReceiptDomainEnglish, hr as spendingReceiptDomainCroatian } from '../../src/apps/spending/receipts/domain/words.ts'
 import { en as spendingScreensEnglish, hr as spendingScreensCroatian } from '../../src/apps/spending/screenWords.ts'
 import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../../src/apps/spending/entries/presentation/words.ts'
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
@@ -10693,6 +10694,8 @@ export function chatReceiptRowFlowIn(language, photos) {
  * amount differs, lists the parts it replaces, and Accept leaves its two lines and a Difference line until Undo brings the split back.
  * `cash`: a cash receipt becomes an entry on the one cash account in euros. `cash-none`: with no cash account in euros, the
  * chat asks how much cash there was, and told €50 the same card adds one with that opening first. `cash-several`: once a second cash account is in, the chat asks which one the cash came from.
+ * `r1`: a cash receipt naming the fake Company's OIB as its buyer files every line under For the company. `r1-no-company`: without
+ * Company on the device, the same receipt keeps its lines as read and the card says to set the OIB in Company.
  */
 export function chatReceiptPathFlowIn(language, photos, path) {
   const words = ASSIST_WORDS[language]
@@ -10745,6 +10748,23 @@ export function chatReceiptPathFlowIn(language, photos, path) {
         await panelSettled(page)
         await shootAt(page, shoot, await card.$('[data-testid="chat-proposal-note"]'), 'chat-receipt-card-waits', { block: 'start' })
         await acceptCard(press, page, card)
+        return
+      }
+      if (path === 'r1' || path === 'r1-no-company') {
+        const card = await receiptCardFor(page, press, photos.noMatch, english ? 'Read the R1 receipt' : 'Pročitaj R1 račun', 1, 'the chat proposed no R1 receipt')
+        const says = await card.evaluate((element) => element.textContent ?? '')
+        const forCompany = english ? 'For the company' : 'Za tvrtku'
+        const receiptDomain = english ? spendingReceiptDomainEnglish : spendingReceiptDomainCroatian
+        const noOib = receiptDomain.noCompanyOib
+        if (path === 'r1' && !says.includes(forCompany)) throw new Error(`the R1 receipt card does not file its lines under ${forCompany}, and says "${says}"`)
+        if (path === 'r1' && says.includes(noOib)) throw new Error('the R1 receipt card says Company has no OIB while Company is open with one')
+        if (path === 'r1-no-company' && !says.includes(noOib)) throw new Error(`the R1 receipt card does not say to set the OIB in Company, and says "${says}"`)
+        if (path === 'r1-no-company' && !says.includes(receiptDomain.setOibInCompany)) throw new Error(`the R1 receipt card offers no way to Company, and says "${says}"`)
+        await inspect?.(`the R1 receipt card, ${path}`)
+        await shoot(`chat-receipt-${path}`)
+        await acceptCard(press, page, card)
+        await rowLinesAre(page, 'Harbour bistro', -1700, 2)
+        await undoCard(press, page, card, words)
         return
       }
       if (path === 'pick' || path === 'none') {

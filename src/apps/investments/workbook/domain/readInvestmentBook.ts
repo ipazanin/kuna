@@ -126,11 +126,11 @@ export interface InvestmentBookReading {
  * exactly when that currency is not the euro, and only a bond quoted in percent has accrued interest. A spin-off's
  * received instrument quotes in its parent's currency, and an instrument has one hand price a day. The lines of a fund's
  * mix add up to 100% with each group once, and so do the targets of each mix. A check is changed by one record at most, and a recipe's mail is read by one reader.
- * A setting counts when `settingChecks` knows its key and its check passes the value.
+ * A setting counts when `settingChecks` knows its key and its check passes the value, and a key of `retiredSettings` reads silently.
  * Whether a sale or a transfer is within what its account holds waits for the lots, so the write rules refuse it and the
  * figures leave it out.
  */
-export function readInvestmentBook(records: InvestmentsRecords, settingChecks: SettingChecks): InvestmentBookReading {
+export function readInvestmentBook(records: InvestmentsRecords, settingChecks: SettingChecks, retiredSettings: ReadonlySet<string>): InvestmentBookReading {
   const accountReading = readEach(records.accounts, () => [])
   const accountIds = new Set(accountReading.facts.map((account) => account.id))
   const accountReasons = (field: string, account: RecordId): string[] => (accountIds.has(account) ? [] : [words.noAccount(field)])
@@ -216,7 +216,7 @@ export function readInvestmentBook(records: InvestmentsRecords, settingChecks: S
   const readersShared = sharedKeys(records.mailReaders.records, ({ record }) => record.recipe)
   const mailReaders = readEach(records.mailReaders, ({ record: reader }) => (readersShared.has(reader.recipe) ? [words.mailReaderShared(reader.recipe)] : []))
 
-  const settings = readSettingRows(records.settings, settingChecks, recordWords.settingUnknown)
+  const settings = readSettingRows(records.settings, settingChecks, retiredSettings, recordWords.settingUnknown)
 
   const readings: InvestmentReadings = {
     accounts: accountReading,

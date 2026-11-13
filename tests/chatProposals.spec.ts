@@ -3,9 +3,7 @@ import { FILE_OPEN } from './fixtures/browserFile'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { spendingAcceptance, spendingProposer } from '../src/apps/spending/assistant/operations/spendingOperations'
-import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settingWrites'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { BANK_SYNC_DEPLOYMENT_KEY, COMPANY_OIB_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import { ATTACHMENT_REF } from '../src/shared/app/assistantOperations'
 import type { AppProposer, AssistantOperation, CheckedProposal, ProposalStep } from '../src/shared/app/assistantOperations'
@@ -227,7 +225,12 @@ describe('a proposal', () => {
     const d = await desk()
     d.reads.pseudonyms.know(['Ana Horvat'])
     const answer = await proposeChanges(
-      { app: 'spending', title: 'Rules for Person 1', steps: [{ op: 'set-setting', input: JSON.stringify({ key: COMPANY_OIB_KEY, value: '12345678903' }), as: null }], next: false },
+      {
+        app: 'spending',
+        title: 'Rules for Person 1',
+        steps: [{ op: 'add-category', input: JSON.stringify({ name: 'Pet food', kind: 'spending', parent: null, colour: null, hidden: null }), as: null }],
+        next: false,
+      },
       new Map([['spending', spendingProposer(d.store, deskPorts(), FILE_OPEN)]]),
       d.reads,
       [],
@@ -239,14 +242,14 @@ describe('a proposal', () => {
 
   it('checks nothing against the books without the yes to read them, and says so as a plain fact', async () => {
     const d = await desk()
-    const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'set-setting', { key: COMPANY_OIB_KEY, value: '1' })], false)
+    const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'add-category', { name: 'Pet food', kind: 'spending' })], false)
     expect(answer).toMatchObject({ isError: true, text: 'The person has not allowed the chat to read their books.' })
     expect(d.cards).toEqual([])
   })
 
-  it.each([BANK_SYNC_DEPLOYMENT_KEY, 'bank_link_otp', 'kuna-secrets', ''])('can never set %j', async (key) => {
+  it('can never set a setting', async () => {
     const d = await desk()
-    const answer = await d.propose([stepOf(SPENDING_OPERATIONS, 'set-setting', { key, value: 'AKfycbxAttacker' })])
+    const answer = await d.propose([{ op: 'set-setting', input: { key: 'bank_sync_deployment', value: 'AKfycbxAttacker' } }])
     expect(answer.isError).toBe(true)
     expect(d.cards).toEqual([])
     expect(bookOf(d).settings.bankSyncDeployment).toBe('')
@@ -264,16 +267,6 @@ describe('a proposal', () => {
     expect(named(d, 'Food shop')).toBeDefined()
     expect((await accept(d, 2)).kind).toBe('done')
     expect(named(d, 'Kava')).toBeDefined()
-  })
-
-  it('gives settings an Undo', async () => {
-    const d = await desk()
-    expect(SETTING_WRITES.undoable).toBe(true)
-    await d.propose([stepOf(SPENDING_OPERATIONS, 'set-setting', { key: COMPANY_OIB_KEY, value: '12345678903' })])
-    const result = await accept(d)
-    expect(bookOf(d).settings.companyOib).toBe('12345678903')
-    if (result.kind === 'done') await result.undo!()
-    expect(bookOf(d).settings.companyOib).toBe('')
   })
 })
 

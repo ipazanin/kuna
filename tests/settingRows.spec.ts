@@ -15,18 +15,22 @@ const CHECKS = new Map([
   ['note', ANY_VALUE],
   ['size', (value: string) => (/^\d+$/.test(value) ? [] : [`size "${value}" is not a number`])],
 ])
-const WRITES = settingWrites(KIND, CHECKS)
+const RETIRED = new Set(['old_size'])
+const WRITES = settingWrites(KIND, CHECKS, RETIRED)
 
 function changes(rows: readonly SettingRow[], key: string, value: string) {
   return changesOf((unit) => setSetting(unit, WRITES, rows, key, value)).map(({ change }) => change)
 }
 
 describe("an app's setting rows", () => {
-  it('reads a known key, and lists an unknown key and a value its check refuses', () => {
-    const rows = [settingRow(KIND, 'note', 'anything'), settingRow(KIND, 'size', 'big'), settingRow(KIND, 'constructor', 'x')]
-    const reading = readSettingRows({ records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: {} })), refused: [] }, CHECKS, recordWords.settingUnknown)
+  it('reads a known key and a retired one silently, and lists an unknown key and a value its check refuses', () => {
+    const rows = [settingRow(KIND, 'note', 'anything'), settingRow(KIND, 'size', 'big'), settingRow(KIND, 'constructor', 'x'), settingRow(KIND, 'old_size', 'any')]
+    const reading = readSettingRows({ records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: {} })), refused: [] }, CHECKS, RETIRED, recordWords.settingUnknown)
 
-    expect([reading.facts.map((row) => row.key), reading.problems.map((problem) => problem.reason)]).toEqual([['note'], ['size "big" is not a number', 'this Kuna knows no setting constructor']])
+    expect([reading.facts.map((row) => row.key), reading.problems.map((problem) => problem.reason)]).toEqual([
+      ['note', 'old_size'],
+      ['size "big" is not a number', 'this Kuna knows no setting constructor'],
+    ])
     expect([settingValue(rows, 'note'), settingValue(rows, 'missing')]).toEqual(['anything', ''])
   })
 

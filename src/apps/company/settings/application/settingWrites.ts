@@ -10,7 +10,7 @@ import { personPayeesOf, personPayeesText, withPayeeAsPerson } from '../../../..
 import { slugOf } from '../../../../shared/storage/domain/storedFields'
 import { words as recordWords } from '../../../../shared/storage/domain/words'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
-import { PERSON_PAYEES_KEY, bucketLabelsClash, companySettingChecks, heldSettingValue } from '../domain/settings'
+import { COMPANY_RETIRED_SETTING_KEYS, PERSON_PAYEES_KEY, bucketLabelsClash, companySettingChecks, heldSettingValue } from '../domain/settings'
 import type { SettingEntry } from '../domain/settings'
 import { words } from './words'
 
@@ -29,6 +29,7 @@ export const SETTING_WRITES: WriteRules<SettingRow> = {
         read.records.map((stored) => stored.record.key),
         installedPack().workbook?.settings ?? null,
       ),
+      COMPANY_RETIRED_SETTING_KEYS,
       recordWords.settingUnknown,
     ),
   refusals: (change) => {

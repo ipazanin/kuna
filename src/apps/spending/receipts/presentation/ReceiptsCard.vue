@@ -1,59 +1,29 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UFormField from '@nuxt/ui/components/FormField.vue'
-import UInput from '@nuxt/ui/components/Input.vue'
 
 import { words } from './words'
-import { isValidOib } from '../../../../shared/text/oib'
-import { oibIn } from '../domain/oib'
-import { SETTING_WRITES } from '../../workbook/application/settingWrites'
-import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
-import { words as spendingWords } from '../../words'
-import { setSetting } from '../../../../shared/storage/application/settingWrites'
-import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
-import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import { COMPANY_OIB_PAGE, companyOib } from '../application/companyOib'
 import AppCard from '../../../../shared/ui/AppCard.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import type { Tone } from '../../../../shared/ui/toneText'
 
-/** Settings' Receipts tab: the Company OIB that tells an R1 receipt for the company. */
-const store = useSpendingBooks()
-const writes = useRecordWrites(store)
-
-const saved = computed(() => store.state.workbook?.settings.companyOib ?? '')
-const typed = ref(saved.value)
-const tried = ref(false)
-watch(saved, (held) => {
-  typed.value = held
+/** Settings' Receipts tab: the OIB in Company that tells a receipt bought for the company, and the way to Company to set it. */
+const shown = computed((): { readonly text: string; readonly tone: Tone | 'muted'; readonly action: string | null } => {
+  const company = companyOib()
+  if (company === 'opening') return { text: words.settings.opening, tone: 'muted', action: null }
+  if (company === 'failed') return { text: words.settings.failed, tone: 'error', action: words.settings.openCompany }
+  if (company === null) return { text: words.settings.notSetUp, tone: 'muted', action: words.settings.openCompany }
+  if (company.oib === '') return { text: words.settings.noOib, tone: 'warning', action: words.settings.setOib }
+  return { text: words.settings.known(company.oib), tone: 'muted', action: words.settings.change }
 })
-
-const blank = computed(() => typed.value.trim() === '')
-const oib = computed(() => oibIn(typed.value))
-const error = computed(() => (!blank.value && !isValidOib(oib.value) ? words.settings.oibWrong : null))
-
-async function save(): Promise<void> {
-  tried.value = true
-  const records = store.state.records
-  if (error.value !== null || records === null) return
-  const value = oib.value
-  await writes.write(words.settings.saved, (unit) => setSetting(unit, SETTING_WRITES, recordsOf(records.settings), COMPANY_OIB_KEY, value), { failedTitle: spendingWords.form.notSaved })
-}
 </script>
 
 <template>
   <AppCard :title="words.settings.title" :subtitle="words.settings.subtitle" data-testid="spending-receipts-settings">
-    <form class="flex flex-col items-start gap-3 px-4 pt-3 pb-4 sm:px-5" @submit.prevent="save">
-      <UFormField :label="words.settings.companyOib" :error="(tried && error) || false" class="w-full sm:w-72">
-        <UInput v-model="typed" inputmode="numeric" autocomplete="off" class="w-full" data-testid="spending-company-oib" />
-      </UFormField>
-      <UButton
-        type="submit"
-        :label="words.settings.save"
-        icon="i-lucide-save"
-        :disabled="oib === saved && (oib !== '' || blank)"
-        :loading="writes.saving('save')"
-        data-testid="spending-company-oib-save"
-      />
-    </form>
+    <div class="flex flex-col items-start gap-3 px-4 pt-3 pb-4 sm:px-5">
+      <NoteLine size="body" :tone="shown.tone" data-testid="spending-company-oib">{{ shown.text }}</NoteLine>
+      <UButton v-if="shown.action !== null" :to="COMPANY_OIB_PAGE" :label="shown.action" icon="i-lucide-building-2" color="neutral" variant="outline" data-testid="spending-company-oib-open" />
+    </div>
   </AppCard>
 </template>

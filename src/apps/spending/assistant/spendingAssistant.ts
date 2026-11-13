@@ -16,7 +16,7 @@ import { words as settingsWords } from '../settings/presentation/words'
 import { words as statementWords } from '../statements/presentation/words'
 import * as spendingKinds from '../workbook/domain/spendingKinds'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../workbook/domain/spendingKinds'
-import { BANK_SYNC_DEPLOYMENT_KEY, COMPANY_OIB_KEY, LINKABLE_BANKS, bankLinkKey } from '../workbook/domain/spendingSettings'
+import { BANK_SYNC_DEPLOYMENT_KEY, LINKABLE_BANKS, bankLinkKey } from '../workbook/domain/spendingSettings'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
 import { spendingReader } from './spendingReader'
@@ -66,7 +66,6 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
   settings: [
     { key: BANK_SYNC_DEPLOYMENT_KEY, note: words.settings.bankSyncDeployment, neverPropose: true },
     ...LINKABLE_BANKS.map((bank) => ({ key: bankLinkKey(bank), note: words.settings.bankLink(bankSyncWords.banks[bank]), neverPropose: true as const })),
-    { key: COMPANY_OIB_KEY, note: words.settings.companyOib },
   ],
   guides: [
     { id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [SPENDING_OVERVIEW_ROUTE, SPENDING_ACCOUNTS_ROUTE, IMPORT_LINK] },

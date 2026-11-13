@@ -2,7 +2,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
-import { en as workbookEn, hr as workbookHr } from '../../workbook/domain/words'
+import { en as receiptEn, hr as receiptHr } from '../domain/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Račun is both an account and a receipt, so a receipt is fiskalni račun wherever both could be meant.
 
@@ -72,11 +72,15 @@ export const en = {
   },
   settings: {
     title: 'Fiscal receipts',
-    subtitle: 'A receipt whose buyer is your company files every line under For the company. With no OIB saved, any receipt naming a buyer does.',
-    companyOib: workbookEn.settingLabels.companyOib,
-    oibWrong: "The OIB's check digit is wrong",
-    save: 'Save',
-    saved: workbookEn.settingSentences.companyOibSaved,
+    subtitle: 'A receipt whose buyer is your company, an R1 receipt, files every line under For the company. Kuna knows your company by the OIB you keep in Company.',
+    known: (oib: string) => `Receipts naming ${oib} as the buyer go under For the company.`,
+    noOib: 'Company has no OIB yet, so no receipt goes under For the company by itself.',
+    notSetUp: 'Company is not set up on this device, so no receipt goes under For the company by itself.',
+    opening: 'Company is still opening.',
+    failed: 'Company did not open, so no receipt goes under For the company by itself.',
+    change: 'Change it in Company',
+    setOib: receiptEn.setOibInCompany,
+    openCompany: 'Open Company',
   },
 }
 
@@ -146,11 +150,15 @@ export const hr: Translation<typeof en> = {
   },
   settings: {
     title: 'Fiskalni računi',
-    subtitle: 'Fiskalni račun na kojem je kupac vaša tvrtka sve stavke stavlja pod Za tvrtku. Bez spremljenog OIB-a to čini svaki račun koji navodi kupca.',
-    companyOib: workbookHr.settingLabels.companyOib,
-    oibWrong: 'Kontrolna znamenka OIB-a nije ispravna',
-    save: 'Spremi',
-    saved: workbookHr.settingSentences.companyOibSaved,
+    subtitle: 'Fiskalni račun na kojem je kupac vaša tvrtka, R1 račun, sve stavke stavlja pod Za tvrtku. Kuna prepoznaje vašu tvrtku po OIB-u koji je upisan u Tvrtki.',
+    known: (oib) => `Fiskalni računi na kojima je kupac ${oib} idu pod Za tvrtku.`,
+    noOib: 'Tvrtka još nema OIB, pa nijedan fiskalni račun sam ne ide pod Za tvrtku.',
+    notSetUp: 'Tvrtka nije postavljena na ovom uređaju, pa nijedan fiskalni račun sam ne ide pod Za tvrtku.',
+    opening: 'Tvrtka se još otvara.',
+    failed: 'Tvrtka se nije otvorila, pa nijedan fiskalni račun sam ne ide pod Za tvrtku.',
+    change: 'Promijeni ga u Tvrtki',
+    setOib: receiptHr.setOibInCompany,
+    openCompany: 'Otvori Tvrtku',
   },
 }
 

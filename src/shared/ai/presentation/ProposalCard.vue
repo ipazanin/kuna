@@ -131,6 +131,7 @@ async function undo(event: Event): Promise<void> {
           variant="subtle"
           :title="note.label"
           :description="note.text"
+          :actions="note.link === undefined ? [] : [{ label: note.link.label, to: note.link.to, color: 'neutral', variant: 'outline' }]"
           :ui="{ title: 'wrap-anywhere', description: 'wrap-anywhere' }"
           data-testid="chat-proposal-note"
           :data-tone="note.tone"

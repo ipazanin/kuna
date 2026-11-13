@@ -5,13 +5,13 @@ import type { SettingChecks, SettingRow } from '../domain/settingRows'
 import type { WriteRules } from '../domain/writeRules'
 import { words } from '../domain/words'
 
-/** How an app's settings are written. They read nothing else and keep Undo. */
-export function settingWrites(kind: RecordKind<SettingRow>, checks: SettingChecks): WriteRules<SettingRow> {
+/** How an app's settings are written. They read nothing else and keep Undo. A retired key's row is kept as it is. */
+export function settingWrites(kind: RecordKind<SettingRow>, checks: SettingChecks, retired: ReadonlySet<string>): WriteRules<SettingRow> {
   return {
     kind,
     reads: [],
     undoable: true,
-    read: (read) => readSettingRows(read, checks, words.settingUnknown),
+    read: (read) => readSettingRows(read, checks, retired, words.settingUnknown),
     refusals: () => [],
   }
 }

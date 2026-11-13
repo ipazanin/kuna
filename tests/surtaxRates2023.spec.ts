@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { cityOf2023 } from '../src/apps/investments/tax/domain/citySurtax'
 import { SURTAX_CITIES_2023, surtaxCity2023 } from '../src/apps/investments/tax/domain/surtaxRates2023'
 import { surtaxCityChoices } from '../src/apps/investments/tax/presentation/surtaxCityChoices'
-import { INVESTMENT_SETTING_CHECKS } from '../src/apps/investments/workbook/application/settingWrites'
+import { INVESTMENT_RETIRED_SETTING_KEYS, INVESTMENT_SETTING_CHECKS } from '../src/apps/investments/workbook/application/settingWrites'
 import { SETTING_RECORDS } from '../src/apps/investments/workbook/domain/investmentKinds'
 import { SURTAX_CITY_2023_KEY } from '../src/apps/investments/workbook/domain/investmentSettings'
 import { writtenPercent } from '../src/shared/money/percent'
@@ -52,7 +52,12 @@ describe("Porezna's table of surtax rates for 2023", () => {
 
 describe("the owner's 2023 city", () => {
   const read = (rows: readonly SettingRow[]) =>
-    readSettingRows({ records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: {} })), refused: [] }, INVESTMENT_SETTING_CHECKS, recordWords.settingUnknown)
+    readSettingRows(
+      { records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: {} })), refused: [] },
+      INVESTMENT_SETTING_CHECKS,
+      INVESTMENT_RETIRED_SETTING_KEYS,
+      recordWords.settingUnknown,
+    )
 
   it('reads a code of the table, none for a city the table leaves out, and nothing for a code it lacks', () => {
     const of = (value: string) => cityOf2023([settingRow(SETTING_RECORDS, SURTAX_CITY_2023_KEY, value)])

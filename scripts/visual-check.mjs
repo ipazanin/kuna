@@ -2968,7 +2968,17 @@ const SOURCE_SCREENS = [
     title: 'Settings',
     charts: 0,
     ready: '[data-testid="spending-receipts-settings"]',
-    shows: ['Company OIB'],
+    shows: ['Receipts naming 00000000001 as the buyer go under For the company.', 'Change it in Company'],
+    cards: false,
+  },
+  {
+    name: 'spending-settings-receipts-no-company',
+    query: 'fake=empty&spending=receipts',
+    hash: '#/spending/settings?tab=receipts',
+    title: 'Settings',
+    charts: 0,
+    ready: '[data-testid="spending-receipts-settings"]',
+    shows: ['Company is not set up on this device', 'Open Company'],
     cards: false,
   },
   {
@@ -2978,7 +2988,17 @@ const SOURCE_SCREENS = [
     title: 'Postavke',
     charts: 0,
     ready: '[data-testid="spending-receipts-settings"]',
-    shows: ['OIB tvrtke'],
+    shows: ['Fiskalni računi na kojima je kupac 00000000001 idu pod Za tvrtku.', 'Promijeni ga u Tvrtki'],
+    cards: false,
+  },
+  {
+    name: 'spending-settings-receipts-no-company-croatian',
+    query: 'fake=empty&spending=receipts&lang=hr',
+    hash: '#/spending/settings?tab=receipts',
+    title: 'Postavke',
+    charts: 0,
+    ready: '[data-testid="spending-receipts-settings"]',
+    shows: ['Tvrtka nije postavljena na ovom uređaju', 'Otvori Tvrtku'],
     cards: false,
   },
   {
@@ -5437,7 +5457,7 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=receipts&lang=hr' },
   },
-  // The receipt paths beyond a payment that matches: two that may be it, none, one the person picked and split by hand, cash with one, no or two cash accounts, and a card payment the bank has not brought yet.
+  // The receipt paths beyond a payment that matches: two that may be it, none, one the person picked and split by hand, cash with one, no or two cash accounts, a card payment the bank has not brought yet, and an R1 receipt for the company with Company open and without it.
   ...[
     ['pick', 'receipts'],
     ['none', 'receipts'],
@@ -5446,6 +5466,8 @@ const FLOWS = [
     ['cash-none', 'foreign'],
     ['cash-several', 'receipts'],
     ['card-waits', 'receipts&banksync=saved'],
+    ['r1', 'receipts'],
+    ['r1-no-company', 'receipts&fake=empty'],
   ].flatMap(([path, set]) => [
     {
       name: `chat-receipt-${path}`,

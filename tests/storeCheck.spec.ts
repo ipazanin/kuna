@@ -10,7 +10,7 @@ import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/s
 import { isFixedKind } from '../src/apps/spending/workbook/domain/category'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
-import { COMPANY_OIB_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
@@ -42,8 +42,8 @@ async function spendingStore(): Promise<SpendingStore> {
   return store
 }
 
-function saveOib(store: SpendingStore, oib: string): (unit: UnitOfWork) => void {
-  return (unit) => setSetting(unit, SETTING_WRITES, recordsOf(store.state.records!.settings), COMPANY_OIB_KEY, oib)
+function saveDeployment(store: SpendingStore, deployment: string): (unit: UnitOfWork) => void {
+  return (unit) => setSetting(unit, SETTING_WRITES, recordsOf(store.state.records!.settings), BANK_SYNC_DEPLOYMENT_KEY, deployment)
 }
 
 const fixedCategory = CATEGORIES.find((candidate) => isFixedKind(candidate.kind))!
@@ -57,12 +57,12 @@ const CASES: readonly { readonly name: string; readonly outcome: 'ready' | 'noth
   {
     name: 'a setting saved',
     outcome: 'ready',
-    work: (store) => saveOib(store, '12345678903'),
+    work: (store) => saveDeployment(store, 'AKfy-first'),
   },
   {
     name: 'a blank setting that was never saved',
     outcome: 'nothingToChange',
-    work: (store) => saveOib(store, ''),
+    work: (store) => saveDeployment(store, ''),
   },
   {
     name: 'a fixed category deleted',
@@ -137,7 +137,7 @@ describe('Spending settings', () => {
   it('can be undone', async () => {
     const store = await spendingStore()
 
-    await store.write('Saved', saveOib(store, '12345678903'))
+    await store.write('Saved', saveDeployment(store, 'AKfy-first'))
     const [saved] = store.state.writes
     await store.undo(saved!)
 
@@ -148,18 +148,18 @@ describe('Spending settings', () => {
   it('is offered Undo until it is undone', async () => {
     const store = await spendingStore()
 
-    await store.write('Saved', saveOib(store, '12345678903'))
+    await store.write('Saved', saveDeployment(store, 'AKfy-first'))
 
     expect(canUndo(store.state.writes[0]!, store.state.writes)).toBe(true)
   })
 
   it('goes back to the value it held when a change is undone', async () => {
     const store = await spendingStore()
-    await store.write('Saved', saveOib(store, '12345678903'))
-    await store.write('Changed', saveOib(store, '98765432106'))
+    await store.write('Saved', saveDeployment(store, 'AKfy-first'))
+    await store.write('Changed', saveDeployment(store, 'AKfy-second'))
 
     await store.undo(store.state.writes[0]!)
 
-    expect(recordsOf(store.state.records!.settings).map((row) => row.value)).toEqual(['12345678903'])
+    expect(recordsOf(store.state.records!.settings).map((row) => row.value)).toEqual(['AKfy-first'])
   })
 })

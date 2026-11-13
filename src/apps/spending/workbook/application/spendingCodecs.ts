@@ -5,16 +5,7 @@ import { PART_CODEC } from '../domain/entryPartReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
 import { RULE_CODEC } from '../domain/ruleReading'
 import { SETTING_RECORDS } from '../domain/spendingKinds'
-import {
-  BANK_ACCOUNTS_KEEP_MINE_KEY,
-  BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
-  BANK_SYNC_DEPLOYMENT_KEY,
-  COMPANY_OIB_KEY,
-  LINKABLE_BANKS,
-  PERSON_PAYEES_KEY,
-  bankFetchedKey,
-  bankLinkKey,
-} from '../domain/spendingSettings'
+import { BANK_ACCOUNTS_KEEP_MINE_KEY, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, LINKABLE_BANKS, PERSON_PAYEES_KEY, bankFetchedKey, bankLinkKey } from '../domain/spendingSettings'
 import { words } from '../domain/words'
 import { words as accountWords } from '../../accounts/domain/words'
 import { settingCodec } from '../../../../shared/storage/domain/settingRows'
@@ -27,7 +18,6 @@ function settingLabel(key: string): string {
   const labels = words.settingLabels
   const named: Readonly<Record<string, string>> = {
     [BANK_SYNC_DEPLOYMENT_KEY]: labels.deployment,
-    [COMPANY_OIB_KEY]: labels.companyOib,
     [PERSON_PAYEES_KEY]: labels.personPayees,
     [BANK_ACCOUNTS_NOT_IN_KUNA_KEY]: labels.notInKuna,
     [BANK_ACCOUNTS_KEEP_MINE_KEY]: labels.keepMine,

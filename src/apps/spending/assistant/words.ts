@@ -30,7 +30,6 @@ export const en = {
   settings: {
     bankSyncDeployment: `${workbookEn.settingLabels.deployment}, the bank sync script's API executable deployment. Blank leaves the whole sync off.`,
     bankLink: (bank: string) => `The day the approval for ${bank} runs out, set by linking the bank.`,
-    companyOib: `${workbookEn.settingLabels.companyOib}, which tells an R1 receipt for the company.`,
   },
   proposals: {
     ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
@@ -183,6 +182,7 @@ export const en = {
           '2. With one payment ready, the card puts the receipt on it. When several may be, the chat asks you which one. Any other payment you name goes too, and the card warns when its day or amount differ.',
           "3. When none is, the chat asks whether you paid in cash. Cash becomes a new entry on your cash account in euros, and the chat asks which one when you keep several. With none, it asks how much cash you had before paying, and the card adds a cash account with that opening from the receipt's day, so its balance is right from the start. A card payment on an account the bank fills waits on To review until the bank's row comes, and then goes on it.",
           '4. A receipt on an entry you split by hand replaces your parts with its lines, and the card lists the parts that go.',
+          "5. A receipt whose buyer is your company files every line under For the company. Kuna knows the company by the OIB on Company's billing and invoice terms, so set it there. Without Company on this device, Kuna recognises no receipt as the company's.",
         ].join('\n'),
     },
   },
@@ -199,7 +199,6 @@ export const hr: Translation<typeof en> = {
   settings: {
     bankSyncDeployment: `${workbookHr.settingLabels.deployment}. Ako je prazno, sinkronizacija je isključena.`,
     bankLink: (bank) => `Datum isteka odobrenja za ${bank}. Postavlja se povezivanjem banke.`,
-    companyOib: `${workbookHr.settingLabels.companyOib}, po kojem se prepoznaje R1 račun za nju.`,
   },
   proposals: {
     ibanRule: (iban) => `Razvrstava svaki redak s ovog IBAN-a: ${iban}`,
@@ -356,6 +355,7 @@ export const hr: Translation<typeof en> = {
           '2. Kad je spremno jedno plaćanje, kartica stavlja račun na njega. Kad ih može biti više, razgovor vas pita koje. Ide i svako drugo plaćanje koje navedete, a kartica upozorava kad se dan ili iznos razlikuju.',
           '3. Kad nijedno ne odgovara, razgovor pita jeste li platili gotovinom. Gotovina postaje novi unos na vašem računu gotovine u eurima, a razgovor pita koji kad ih imate više. Ako ga nemate, pita koliko ste gotovine imali prije plaćanja, a kartica dodaje račun gotovine s tim početnim stanjem od dana računa, pa je stanje točno od početka. Plaćanje karticom na računu koji puni banka čeka pod Za pregled dok ne stigne redak iz banke, a zatim ide na njega.',
           '4. Fiskalni račun na unosu koji ste ručno podijelili zamjenjuje vaše dijelove svojim stavkama, a kartica navodi dijelove koji odlaze.',
+          '5. Fiskalni račun na kojem je kupac vaša tvrtka sve stavke stavlja pod Za tvrtku. Kuna prepoznaje tvrtku po OIB-u iz uvjeta naplate i računa u Tvrtki, pa ga upišite ondje. Bez Tvrtke na ovom uređaju nijedan račun ne ide na tvrtku.',
         ].join('\n'),
     },
   },

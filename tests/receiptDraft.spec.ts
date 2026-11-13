@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeReceiptsChat'
+import { FAKE_COMPANY_OIB, MADE_UP_BUYER_OIB, MADE_UP_MERCHANT_OIB } from '../src/apps/spending/assistant/infrastructure/fake/fakeReceiptsChat'
+import { fakeWorkbookRecords } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { entryCategoryChoices } from '../src/apps/spending/entries/presentation/categoryChoices'
 import { receiptCategories, receiptDraft, withR1Answer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { AnsweredLine, DraftContext, ReceiptAnswer } from '../src/apps/spending/receipts/domain/receiptDraft'
@@ -294,21 +295,32 @@ describe('a line remembered from a confirmed receipt', () => {
 describe('an R1 receipt', () => {
   const COMPANY = category('For the company').id
 
-  it('sets every line to For the company when its buyer is the Company OIB, whatever the read filed it under', () => {
+  it("sets every line to For the company when its buyer is Company's OIB, whatever the read filed it under", () => {
     const { read } = receiptDraft({ ...ANSWER, buyerOib: MADE_UP_BUYER_OIB, lines: [line('A', 20), line('B', 3.49, { category: 'no-such-category' })] }, { ...CONTEXT, companyOib: MADE_UP_BUYER_OIB })
 
     expect(read.r1).toBe(true)
     expect(read.lines.map((held) => held.category)).toEqual([COMPANY, COMPANY])
   })
 
-  it('flags any buyer OIB with no Company OIB saved', () => {
-    expect(receiptDraft({ ...ANSWER, buyerOib: MADE_UP_BUYER_OIB }, CONTEXT).read.r1).toBe(true)
+  it('leaves a receipt naming a buyer as read while Company has no OIB, and says to set it in Company', () => {
+    const { read, notes } = receiptDraft({ ...ANSWER, buyerOib: MADE_UP_BUYER_OIB }, CONTEXT)
+
+    expect([read.r1, read.r1Asked, read.noCompanyOib, read.lines[0]!.category]).toEqual([false, false, true, category('Food/Groceries').id])
+    expect(notes).toEqual([])
   })
 
-  it('leaves a receipt for another buyer alone once a Company OIB is saved', () => {
+  it('leaves a receipt for another buyer alone once Company has an OIB', () => {
     const { read } = receiptDraft({ ...ANSWER, buyerOib: MADE_UP_BUYER_OIB }, { ...CONTEXT, companyOib: MADE_UP_MERCHANT_OIB })
 
     expect(read.r1).toBe(false)
     expect(read.lines[0]!.category).toBe(category('Food/Groceries').id)
+  })
+})
+
+describe("the fake chat's R1 receipt", () => {
+  it("names the fake Company's OIB as its buyer, so the R1 flow files it under For the company", () => {
+    const companyOib = (fakeWorkbookRecords().setting ?? []).find((row) => row['key'] === 'invoice_oib')?.['value']
+
+    expect(FAKE_COMPANY_OIB).toBe(companyOib)
   })
 })

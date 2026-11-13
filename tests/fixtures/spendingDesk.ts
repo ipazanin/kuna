@@ -263,6 +263,7 @@ export function receiptPorts(fields: Partial<ReceiptPorts> = {}): ReceiptPorts {
     mayKeepNow: () => true,
     photos: async () => ({ keep: async () => 'made-up-drive-photo' }),
     reader: () => 'made-up-model',
+    companyOib: () => '',
     ...fields,
   }
 }

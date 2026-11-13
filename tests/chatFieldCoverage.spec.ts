@@ -327,7 +327,6 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     type: 'src/apps/spending/workbook/domain/entryPart.ts#EntryPart',
     operations: [{ name: 'add-receipt', prefix: 'lines.', renames: { amount: 'lines.lineTotal' } }],
   },
-  { path: 'src/apps/spending/workbook/application/settingWrites.ts#SETTING_WRITES', operations: ['set-setting'] },
   {
     path: 'src/apps/spending/statements/application/statementWrites.ts#writeRulesInto',
     from: ['conditions', 'category', 'withdrawal'],

@@ -421,7 +421,7 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
 ]
 
 /** Keys core no longer reads that older books may still hold. They read silently, and a save leaves their rows alone. */
-const RETIRED_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id'])
+export const COMPANY_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id'])
 
 /** The key of the counterparties the owner flagged as people. Only a person sets it, from a row in To review. */
 export const PERSON_PAYEES_KEY = 'person_payees'
@@ -678,7 +678,7 @@ function readCoreKeys(rows: readonly SettingEntry[], packKeys: ReadonlySet<strin
       problems.push({ id: null, label: recordWords.unnamed, reason: words.settings.noKey })
       continue
     }
-    if (packKeys.has(key) || RETIRED_KEYS.has(key)) {
+    if (packKeys.has(key) || COMPANY_RETIRED_SETTING_KEYS.has(key)) {
       continue
     }
     const definition = DEFINITION_BY_KEY.get(key)
@@ -710,7 +710,7 @@ function readCoreKeys(rows: readonly SettingEntry[], packKeys: ReadonlySet<strin
 
 /** A key neither core, the pack nor an import profile reads, which the tab keeps and the app reports. */
 function isUnknownSettingKey(key: string, packKeys: ReadonlySet<string>): boolean {
-  return key !== '' && !packKeys.has(key) && !RETIRED_KEYS.has(key) && !DEFINITION_BY_KEY.has(key) && !key.startsWith(IMPORT_PROFILE_PREFIX)
+  return key !== '' && !packKeys.has(key) && !COMPANY_RETIRED_SETTING_KEYS.has(key) && !DEFINITION_BY_KEY.has(key) && !key.startsWith(IMPORT_PROFILE_PREFIX)
 }
 
 /**
@@ -721,7 +721,7 @@ function isUnknownSettingKey(key: string, packKeys: ReadonlySet<string>): boolea
 export function unreadSettingKeys(rows: readonly SettingEntry[], pack: PackSettings<unknown> | null): ReadonlyMap<string, number> {
   const packKeys = packSettingKeys(pack)
   const holding = new Map<string, number>()
-  for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !RETIRED_KEYS.has(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
+  for (const key of rows.map(keyOfRow).filter((candidate) => candidate !== '' && !packKeys.has(candidate) && !COMPANY_RETIRED_SETTING_KEYS.has(candidate) && !DEFINITION_BY_KEY.has(candidate))) {
     holding.set(key, (holding.get(key) ?? 0) + 1)
   }
   return holding

@@ -28,7 +28,7 @@ import type { PartDraft } from '../../entries/domain/entrySplit'
 import { en as entriesEnglish } from '../../entries/presentation/words'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
-import { SETTING_WRITES, treatPayeeAsPerson } from '../../workbook/application/settingWrites'
+import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, rowsFromRefusal } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
@@ -36,11 +36,10 @@ import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/catego
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
 import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
-import { COMPANY_OIB_KEY } from '../../workbook/domain/spendingSettings'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { fileNotOpen } from '../../../../shared/app/assistantOperations'
-import type { AppAcceptance, AppProposer, AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { AppAcceptance, AppProposer, AssistantOperation, CardNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused, proposedWrites, refuseBesideImport } from '../../../../shared/app/proposedWrites'
 import { lookAlikesForTheModel } from '../../../../shared/ai/presentation/copiedRowsWords'
 import type { OpenBooks, ProposalWork } from '../../../../shared/app/proposedWrites'
@@ -54,7 +53,6 @@ import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { moneyFromAmount } from '../../../../shared/money/money'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { setSetting } from '../../../../shared/storage/application/settingWrites'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 
 const COLOUR_OR_NULL: StrictSchema = {
@@ -329,15 +327,6 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   IMPORT_STATEMENT,
   ...BANK_SETUP_OPERATIONS,
   SET_STARTING_ACCOUNT,
-  {
-    name: 'set-setting',
-    about: "A setting's value, for the keys listed here. Blank removes it.",
-    input: inputOf({ key: { type: 'string', enum: [COMPANY_OIB_KEY] }, value: TEXT }),
-    refs: {},
-    creates: null,
-    alone: false,
-    example: { key: COMPANY_OIB_KEY, value: '12345678903' },
-  },
 ]
 
 /** The record in Loans a step names: an instalment by its loan's name and due date, or an informal loan by its name. */
@@ -456,7 +445,7 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
   const made = new Map<string, string>()
   const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
   let imported: CardStatement | null = null
-  const receiptWarnings: ProposalNote[] = []
+  const receiptWarnings: CardNote[] = []
   const moves: StartDayMove[] = []
   const idOf = (value: unknown): string => {
     const text = String(value)
@@ -745,9 +734,6 @@ function planned(unit: UnitOfWork, books: OpenBooks<SpendingBooks>, steps: reado
       case 'import-statement':
         if (imported !== null) throw new StepRefused('A card imports one statement.')
         imported = importedStatement(field, book, accountOf)
-        break
-      case 'set-setting':
-        setSetting(unit, SETTING_WRITES, book.readings.settings.facts, field['key'], field['value'])
         break
       default:
         throw new StepRefused('There is no such operation.')

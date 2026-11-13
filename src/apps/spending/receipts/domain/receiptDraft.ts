@@ -69,6 +69,8 @@ export interface ReceiptRead {
   readonly r1: boolean
   /** Marked R1, or naming a buyer, with no OIB to tell whose: only you can say whether it is for the company. */
   readonly r1Asked: boolean
+  /** Names a buyer while there is no company OIB to compare it with, so its lines start as read. */
+  readonly noCompanyOib: boolean
 }
 
 /** Your answer to a receipt marked R1 with no buyer's OIB. */
@@ -106,7 +108,7 @@ function rememberedLines(
 export interface DraftContext {
   readonly qr: FiscalQr | null
   readonly book: Pick<SpendingBook, 'receipts' | 'lines' | 'categories'>
-  /** The Company OIB on Settings, blank when none is saved. */
+  /** Company's OIB, blank unless Company's books are open here with one. */
   readonly companyOib: string
 }
 
@@ -123,8 +125,8 @@ function clockOf(text: string): string | null {
  * Turns a model's read into a draft: amounts become cents at once, and the checks run on cents. Each failed check is a note
  * with the difference, and no figure is changed to pass one. The QR code's total and time win over the read's, with a note
  * when they differ. A line's category comes from the newest confirmed line of the same printed text at the same merchant, then
- * the model's pick. A receipt whose buyer is the company, or with no Company OIB saved any receipt naming a buyer, starts
- * every line under For the company. One marked R1 with no buyer's OIB starts them as read, and asks.
+ * the model's pick. A receipt whose buyer is Company's OIB starts every line under For the company, and one naming a buyer while
+ * there is no company OIB starts them as read and says so. One marked R1 with no buyer's OIB starts them as read, and asks.
  */
 export function receiptDraft(answer: ReceiptAnswer, { qr, book, companyOib }: DraftContext): { readonly read: ReceiptRead; readonly notes: readonly string[] } {
   const notes: string[] = []
@@ -134,7 +136,7 @@ export function receiptDraft(answer: ReceiptAnswer, { qr, book, companyOib }: Dr
   if (buyerOib !== '' && !isValidOib(buyerOib)) notes.push(words.buyerOib)
 
   const company = book.categories.find((category) => category.kind === 'company')?.id ?? null
-  const r1 = buyerOib !== '' && company !== null && (companyOib === '' || buyerOib === companyOib)
+  const r1 = buyerOib !== '' && company !== null && buyerOib === companyOib
   const r1Asked = buyerOib === '' && company !== null && (answer.markedR1 || (answer.buyerOib ?? '').trim() !== '')
   const remembered = rememberedLines(book, merchantOib, answer.merchant.name)
   const pickable = receiptCategories(book.categories)
@@ -189,6 +191,7 @@ export function receiptDraft(answer: ReceiptAnswer, { qr, book, companyOib }: Dr
       lines: answered.map(({ line }) => line),
       r1,
       r1Asked,
+      noCompanyOib: buyerOib !== '' && company !== null && companyOib === '',
     },
     notes,
   }

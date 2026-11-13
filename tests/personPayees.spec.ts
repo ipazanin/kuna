@@ -9,7 +9,7 @@ import { SPENDING_OPERATIONS } from '../src/apps/spending/assistant/operations/s
 import { treatPayeeAsPerson } from '../src/apps/spending/workbook/application/settingWrites'
 import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { PERSON_PAYEES_KEY, spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
-import { SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/readSpendingBook'
+import { SPENDING_RETIRED_SETTING_KEYS, SPENDING_SETTING_CHECKS } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import { flaggedAsPerson, personPayeesOf, withPayeeAsPerson } from '../src/shared/privacy/domain/personPayees'
 import { changesOf } from '../src/shared/storage/application/recordWrites'
 import { readSettingRows, settingRow } from '../src/shared/storage/domain/settingRows'
@@ -50,13 +50,13 @@ describe("Spending's person_payees setting", () => {
   it('reads one payee per line with blank lines dropped, and none by default', () => {
     const rows = [settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat\n\nMarko Kovač\n')]
 
-    expect(readSettingRows(spendingRead(rows), SPENDING_SETTING_CHECKS, recordWords.settingUnknown).problems).toEqual([])
+    expect(readSettingRows(spendingRead(rows), SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown).problems).toEqual([])
     expect(spendingSettingsOf(rows).personPayees).toEqual(['Ana Horvat', 'Marko Kovač'])
     expect(spendingSettingsOf([]).personPayees).toEqual([])
   })
 
   it('still refuses a key it does not know', () => {
-    const reading = readSettingRows(spendingRead([settingRow(SETTING_RECORDS, 'person_payee', 'Ana Horvat')]), SPENDING_SETTING_CHECKS, recordWords.settingUnknown)
+    const reading = readSettingRows(spendingRead([settingRow(SETTING_RECORDS, 'person_payee', 'Ana Horvat')]), SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
 
     expect(reading.facts).toEqual([])
     expect(reading.problems.map((problem) => problem.reason)).toEqual(['this Kuna knows no setting person_payee'])
@@ -86,8 +86,7 @@ describe("Spending's person_payees setting", () => {
   })
 
   it('is no key the chat may propose', () => {
-    const setSetting = SPENDING_OPERATIONS.find((operation) => operation.name === 'set-setting')
-    expect(JSON.stringify(setSetting?.input)).not.toContain(PERSON_PAYEES_KEY)
+    expect(JSON.stringify(SPENDING_OPERATIONS.map((operation) => operation.input))).not.toContain(PERSON_PAYEES_KEY)
   })
 })
 

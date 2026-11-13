@@ -17,8 +17,6 @@ export interface SpendingSettings {
   readonly bankLinks: Readonly<Record<LinkableBank, CivilDate | null>>
   /** When any device last got an answer from each bank, in epoch milliseconds, or null for one never asked. */
   readonly bankFetchedAt: Readonly<Record<LinkableBank, number | null>>
-  /** The company's OIB, which tells an R1 receipt for it. Blank until you save one. */
-  readonly companyOib: string
   /** The payees the owner flagged as people, whose names the chat and the AI tasks send as aliases. */
   readonly personPayees: readonly string[]
   /** The bank accounts the owner said Kuna does not keep, each as its IBAN and currency, so the bank sync neither offers nor reads them. */
@@ -28,7 +26,6 @@ export interface SpendingSettings {
 }
 
 export const BANK_SYNC_DEPLOYMENT_KEY = 'bank_sync_deployment'
-export const COMPANY_OIB_KEY = 'company_oib'
 export const PERSON_PAYEES_KEY = 'person_payees'
 export const BANK_ACCOUNTS_NOT_IN_KUNA_KEY = 'bank_sync_not_in_kuna'
 export const BANK_ACCOUNTS_KEEP_MINE_KEY = 'bank_sync_keep_mine'
@@ -78,7 +75,6 @@ export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSetting
     bankSyncDeployment: settingValue(rows, BANK_SYNC_DEPLOYMENT_KEY),
     bankLinks: { otp: linkOf('otp'), revolut: linkOf('revolut') },
     bankFetchedAt: { otp: fetchedOf('otp'), revolut: fetchedOf('revolut') },
-    companyOib: settingValue(rows, COMPANY_OIB_KEY),
     personPayees: personPayeesOf(settingValue(rows, PERSON_PAYEES_KEY)),
     bankAccountsNotInKuna: linesOf(settingValue(rows, BANK_ACCOUNTS_NOT_IN_KUNA_KEY)),
     bankAccountsKeepMine: linesOf(settingValue(rows, BANK_ACCOUNTS_KEEP_MINE_KEY)),

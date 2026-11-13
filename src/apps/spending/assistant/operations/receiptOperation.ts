@@ -6,7 +6,9 @@ import type { FiscalQr } from '../../receipts/domain/fiscalQr'
 import { placeInPhoto } from '../../receipts/domain/photoPlace'
 import type { PhotoPlace } from '../../receipts/domain/photoPlace'
 import { LINE_KINDS, receiptDraft, withR1Answer } from '../../receipts/domain/receiptDraft'
-import type { AnsweredLine, R1Answer, ReceiptAnswer } from '../../receipts/domain/receiptDraft'
+import type { AnsweredLine, R1Answer, ReceiptAnswer, ReceiptRead } from '../../receipts/domain/receiptDraft'
+import { words as receiptWords } from '../../receipts/domain/words'
+import { COMPANY_OIB_PAGE } from '../../receipts/application/companyOib'
 import { RECEIPT_PAYMENTS, heldReceiptOf, paidOn, receiptAccounts, receiptMatches, splittableRows } from '../../receipts/domain/receiptMatch'
 import type { ReceiptFacts, ReceiptPayment } from '../../receipts/domain/receiptMatch'
 import { receiptSplit, rowPlace } from '../../receipts/domain/receiptSplit'
@@ -14,10 +16,10 @@ import type { ReceiptPlace, ReceiptSplit } from '../../receipts/domain/receiptSp
 import { beforeStartDay, cashAccountsOn } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
 import { ATTACHMENT_REF } from '../../../../shared/app/assistantOperations'
-import type { AssistantOperation, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
+import type { AssistantOperation, CardNote, ProposalNote, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -39,7 +41,7 @@ export const ADD_RECEIPT: AssistantOperation = {
     "With entry null a new entry is made, which goes only when no payment paid that way may be this receipt. For cash, account is null and Kuna takes the one cash account in euros. With several, ask which and name it in account. With none, ask how much cash the person had before paying, and put add-account for a cash account in euros first on the same card, with that opening and openedOn the receipt's day. For a card, account names the euro account the card is on. On an account the bank fills, the receipt makes no entry: it waits on To review and goes on the bank's row when the sync or a file brings it.",
     'Amounts are euros above zero, a discount below zero. Each line gets a category ref Kuna handed out, a spending category with no categories under it.',
     'A line whose category does not exist yet waits: propose that category on a card of its own first, and this receipt on the next card once it is accepted.',
-    'A receipt marked R1, or naming a buyer, with no buyer\'s OIB readable needs the person to say whose it is: whose is "company" or "personal", as they said. A buyer\'s OIB Kuna can read decides by itself, so whose is null then, as for every other receipt.',
+    "A receipt marked R1, or naming a buyer, with no buyer's OIB readable needs the person to say whose it is: whose is \"company\" or \"personal\", as they said. A buyer's OIB Kuna can read decides by itself, so whose is null then, as for every other receipt. Kuna matches it against the OIB on Company's billing and invoice terms. Without Company on this device, or with no OIB there, the card says so and the lines start as read. Spending keeps no OIB of its own, so tell the person to set it in Company. Call the receipt the company's in the title only when its buyer's OIB is Company's.",
     'keepPhoto true keeps the photo as taken in the Receipts folder beside the Spending file on Drive, which stays there after Undo. Ask the person first.',
   ].join(' '),
   input: inputOf({
@@ -113,6 +115,8 @@ export interface ReceiptPorts {
   photos(): Promise<ReceiptPhotos>
   /** The model the chat runs, which the receipt keeps as the one that read it. */
   reader(): string
+  /** Company's OIB, which a receipt bought for the company names as its buyer, blank unless Company's books are open here with one. */
+  companyOib(): string
 }
 
 /** The photo as this device read it, which stands in the step for the attachment once read. */
@@ -270,12 +274,20 @@ function placeNotes(split: ReceiptSplit, book: SpendingBook): readonly string[] 
   ]
 }
 
-/** What the card says of one receipt: the read's checks that failed and what differs on the entry it goes on, as a warning, and that it waits for the bank's row. */
-function notesOf(warnings: readonly string[], split: ReceiptSplit, book: SpendingBook): readonly ProposalNote[] {
+/**
+ * What the card says of one receipt: the read's checks that failed and what differs on the entry it goes on, as a warning, and
+ * that it waits for the bank's row, on the receipts. A buyer with no company OIB to compare is said on the entry the receipt
+ * makes or fills, beside the category it leaves as read, with the way to set the OIB in Company. A waiting receipt says it on itself.
+ */
+function notesOf(warnings: readonly string[], read: ReceiptRead, split: ReceiptSplit, book: SpendingBook): readonly CardNote[] {
   const waitsOn = split.receipt.account === null ? undefined : book.accounts.find((account) => account.id === split.receipt.account)
+  const label = split.receipt.merchant
+  const onReceipt = (note: ProposalNote): CardNote => ({ noun: RECEIPT_RECORDS.noun, note })
+  const noOib: ProposalNote = { label, text: receiptWords.noCompanyOib, tone: 'warning', link: { label: receiptWords.setOibInCompany, to: COMPANY_OIB_PAGE } }
   return [
-    ...(warnings.length === 0 ? [] : [{ label: split.receipt.merchant, text: warnings.map(sentence).join(' '), tone: 'warning' as const }]),
-    ...(waitsOn === undefined ? [] : [{ label: split.receipt.merchant, text: words.receipts.waits(waitsOn.name), tone: 'neutral' as const }]),
+    ...(read.noCompanyOib ? [split.row === null ? onReceipt(noOib) : { noun: TRANSACTION_RECORDS.noun, note: noOib }] : []),
+    ...(warnings.length === 0 ? [] : [onReceipt({ label, text: warnings.map(sentence).join(' '), tone: 'warning' })]),
+    ...(waitsOn === undefined ? [] : [onReceipt({ label, text: words.receipts.waits(waitsOn.name), tone: 'neutral' })]),
   ]
 }
 
@@ -288,9 +300,9 @@ export function writeReceiptStep(
   book: SpendingBook,
   field: Readonly<Record<string, never>>,
   idOf: (value: unknown) => string,
-  ports: Pick<ReceiptPorts, 'keepsOnDrive' | 'mayKeepNow' | 'reader'>,
+  ports: Pick<ReceiptPorts, 'keepsOnDrive' | 'mayKeepNow' | 'reader' | 'companyOib'>,
   photoId: string,
-): { readonly split: ReceiptSplit; readonly notes: readonly ProposalNote[] } {
+): { readonly split: ReceiptSplit; readonly notes: readonly CardNote[] } {
   const photo = photoOf(field)
   if (field['keepPhoto'] === true && !ports.keepsOnDrive()) throw new StepRefused('The photo is kept only beside a Spending file on Drive. Propose it with keepPhoto false.')
   if (field['keepPhoto'] === true && !ports.mayKeepNow())
@@ -304,7 +316,7 @@ export function writeReceiptStep(
   const answer = answerOf(field)
   const unknown = answer.lines.filter((line) => !book.categories.some((category) => category.id === idOf(line.category)))
   if (unknown.length > 0) throw new StepRefused('A new category goes on a card of its own first, and this receipt on the next card once that one is accepted.')
-  const drafted = receiptDraft({ ...answer, lines: answer.lines.map((line) => ({ ...line, category: idOf(line.category) })) }, { qr: photo.qr, book, companyOib: book.settings.companyOib })
+  const drafted = receiptDraft({ ...answer, lines: answer.lines.map((line) => ({ ...line, category: idOf(line.category) })) }, { qr: photo.qr, book, companyOib: ports.companyOib() })
   const company = book.categories.find((category) => category.kind === 'company')
   let read = drafted.read
   if (read.r1Asked) {
@@ -345,5 +357,5 @@ export function writeReceiptStep(
     read.lines.map((line) => ({ printed: line.printed, text: line.text, amount: line.amount, category: line.category! })),
   )
   writeReceiptSplit(unit, split)
-  return { split, notes: notesOf([...drafted.notes, ...placeNotes(split, book)], split, book) }
+  return { split, notes: notesOf([...drafted.notes, ...placeNotes(split, book)], read, split, book) }
 }

@@ -14,6 +14,7 @@ import {
 } from './overview/presentation/spendingLinks'
 import { rowLinksOf } from './facts'
 import { loanTargets } from './links/application/loanTargets'
+import { companyOib, oibToMatch } from './receipts/application/companyOib'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
 import { ratesNeeded } from './rates/domain/ratesNeeded'
 import { useRates } from '../../shared/rates/application/pageRates'
@@ -120,6 +121,7 @@ export const spendingApp: AppContribution = {
         const preset = providerInUse()
         return preset === null ? '' : modelOf(preset.id).id
       },
+      companyOib: () => oibToMatch(companyOib()),
     }
     const ports: SpendingPorts = { receipts, device: { bankSetup: heldBankSetup, lastAccountId, startingAccount, rememberLastAccount, forgetLastAccount }, linkTargets: loanTargets }
     return spendingAssistant(

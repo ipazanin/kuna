@@ -14,7 +14,6 @@ function settings(otpIn: number | null, revolutIn: number | null = null, deploym
     bankSyncDeployment: deployment,
     bankLinks: { otp: until(otpIn), revolut: until(revolutIn) },
     bankFetchedAt: fetchedAt,
-    companyOib: '',
     personPayees: [],
     bankAccountsNotInKuna: [],
     bankAccountsKeepMine: [],
