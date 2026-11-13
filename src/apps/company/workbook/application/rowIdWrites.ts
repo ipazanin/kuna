@@ -2,13 +2,18 @@ import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
 import { installedPack } from '../../packs/packContribution'
 import { SPLIT_WRITES } from '../../transactions/application/splitWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { definedCategories } from '../domain/categoriesReading'
 import { readLedger } from '../domain/ledgerReading'
-import type { WorkbookRecords } from '../domain/readWorkbook'
+import type { CompanyBooks, WorkbookRecords } from '../domain/readWorkbook'
 import { rowsOfSplitKey } from '../domain/splits'
 import type { Transaction } from '../domain/workbook'
+import { ITEM_WRITES } from '../../transactions/application/itemWrites'
+import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import { ITEM_RECORDS, SPLIT_PART_RECORDS } from '../domain/coreKinds'
+import type { ItemRecord } from '../domain/splitsReading'
+import { storesItems } from '../domain/rowItems'
 
 /**
  * Gives every ledger row that has no row id a new one, and in the same write links what finds such a row by its content to
@@ -32,4 +37,67 @@ export function giveRowsIds(unit: UnitOfWork, records: WorkbookRecords, newId: (
     if (rowId !== null) parts.change(part, { ...part, key: { ...part.key, rowId } })
   }
   installedPack().linkToRows(unit, records, { transactions, categories })
+}
+
+/** What keeps books from before items from moving, since the move writes only what the books count today and repairs nothing. */
+export type ItemsMoveBlocker =
+  /** A ledger row the reader cannot read, which no item can name. */
+  | { readonly kind: 'unreadable-row'; readonly label: string }
+  /** A part of the splits tab that cannot be read, or whose split the guards refuse, so its row counts whole today. */
+  | { readonly kind: 'refused-part'; readonly label: string }
+  /** A split of a row the pack keeps whole, so the row counts whole today. */
+  | { readonly kind: 'kept-whole'; readonly label: string }
+  /** A row of no amount, which no item can hold. */
+  | { readonly kind: 'zero-row'; readonly label: string }
+
+/** Why the books cannot move to the items tab yet, each with what names the record. None for books that can, or already have. */
+export function itemsMoveBlockers(books: CompanyBooks): readonly ItemsMoveBlocker[] {
+  const { records, workbook } = books
+  if (storesItems(records)) return []
+  const counted = new Set(workbook.splits.map((split) => split.row.id))
+  const splitProblems = workbook.problems.filter((problem) => problem.tab === 'splits')
+  return [
+    ...records.ledger.refused.map((refused): ItemsMoveBlocker => ({ kind: 'unreadable-row', label: refused.label })),
+    ...splitProblems.map((problem): ItemsMoveBlocker => ({ kind: 'refused-part', label: problem.label })),
+    ...workbook.splits.filter((split) => workbook.rowsKeptWhole.has(split.row.id)).map((split): ItemsMoveBlocker => ({ kind: 'kept-whole', label: split.row.date })),
+    ...workbook.transactions.filter((row) => !counted.has(row.id) && row.amount === 0).map((row): ItemsMoveBlocker => ({ kind: 'zero-row', label: row.date })),
+  ]
+}
+
+/** An item's id under the key its split part was stored by. */
+function itemIdOfPart(id: RecordId): RecordId {
+  return recordIdOf(ITEM_RECORDS, keyOfRecordId(SPLIT_PART_RECORDS, id))
+}
+
+/**
+ * Moves books from before items to the items tab in one write. Every ledger row gets a row id if it has none, and gives up its
+ * category and share to its items: a row not split one item under its own id with them, and a split row its parts, each under the
+ * key it was stored by, in the order the splits tab holds them. The splits tab is emptied, and the pack's records that name a row
+ * name its items. Gives what the move wrote for each row, in the order of the ledger.
+ */
+export function moveToItems(unit: UnitOfWork, books: CompanyBooks, newId: () => string = newRecordId): readonly ItemRecord[] {
+  const { records, workbook } = books
+  const ledger = unit.of(LEDGER_WRITES)
+  const rowOf = new Map(workbook.transactions.map((row) => [row.id, row]))
+  const counted = new Set(workbook.splits.map((split) => split.row.id))
+  const parts = recordsOf(records.splits)
+  const items = recordsOf(records.ledger).flatMap((entry): ItemRecord[] => {
+    const rowId = entry.rowId ?? newId()
+    ledger.change(entry, { ...entry, rowId, category: '', ownerShare: null })
+    const row: Transaction | undefined = rowOf.get(entry.id)
+    if (row !== undefined && counted.has(row.id)) {
+      return parts
+        .filter((part) => rowsOfSplitKey([row], part.key).length === 1)
+        .map((part) => ({ row: rowId, amount: part.amount, category: part.category, note: part.note, ownerShare: part.ownerShare, id: itemIdOfPart(part.id) }))
+    }
+    return [{ row: rowId, amount: entry.amount, category: entry.category, note: '', ownerShare: entry.ownerShare, id: recordIdOf(ITEM_RECORDS, rowId) }]
+  })
+  const splitParts = unit.of(SPLIT_WRITES)
+  parts.forEach((part) => splitParts.remove(part))
+  const itemWrites = unit.of(ITEM_WRITES)
+  items.forEach((item) => itemWrites.add(item))
+  const byRow = new Map<string, RecordId[]>()
+  for (const item of items) byRow.set(item.row, [...(byRow.get(item.row) ?? []), item.id])
+  installedPack().linkToItems(unit, records, (rowId) => byRow.get(rowId) ?? [])
+  return items
 }

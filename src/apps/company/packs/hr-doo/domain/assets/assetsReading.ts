@@ -5,7 +5,8 @@ import type { Asset } from './assets'
 import { labelWords, withIdField } from '../../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../../shared/storage/domain/recordFields'
-import { newRecordId, recordIdOf } from '../../../../../../shared/storage/domain/recordId'
+import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../../../shared/storage/domain/recordId'
+import { ITEM_RECORDS } from '../../../../workbook/domain/coreKinds'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import { ASSET_RECORDS } from '../hrDooKinds'
 import { sharedKeys } from '../../../../../../shared/storage/domain/sharedKeys'
@@ -42,6 +43,7 @@ export function assetOf(fields: StoredFields, id: RecordId | null): Asset {
     rowId: textOf(fields.row_id) || null,
     note: textOf(fields.note),
     id: ownId(id),
+    ...(textOf(fields.item) === '' ? {} : { payment: recordIdOf(ITEM_RECORDS, textOf(fields.item)) }),
   }
 }
 
@@ -61,6 +63,7 @@ export const ASSET_CODEC: RecordCodec<Asset> = withIdField(
       disposed: asset.disposed,
       funded_by: asset.fundedBy,
       ledger_reference: asset.ledgerReference,
+      item: asset.payment === undefined ? null : keyOfRecordId(ITEM_RECORDS, asset.payment),
       row_id: asset.rowId,
       note: asset.note,
     }),

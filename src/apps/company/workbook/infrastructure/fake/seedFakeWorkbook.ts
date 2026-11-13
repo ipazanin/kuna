@@ -11,7 +11,7 @@ import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
 import { FAKE_MAIL_SETTINGS } from '../../../mail/infrastructure/fake/fakeMailbox'
-import { FAKE_FOLDERS, FAKE_WORKBOOK_ID, categoryMovePlanRecords, fakeWorkbookDocument, withoutRegistrationDay } from './fakeWorkbook'
+import { FAKE_FOLDERS, FAKE_WORKBOOK_ID, categoryMovePlanRecords, fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems, itemOfLedgerRow, withoutRegistrationDay } from './fakeWorkbook'
 import { sampleCopiedLedgerRow } from '../../../imports/infrastructure/fake/sampleImportFiles'
 import type { FakeStaff } from './fakeWorkbook'
 
@@ -35,6 +35,13 @@ function withRefusedSplits(document: WorkbookDocument): WorkbookDocument {
     return fields
   })
   return { ...document, records: { ...document.records, 'split-part': parts } }
+}
+
+/** The books with a ledger row the AI copied, which the sample camt statement's client payment looks like, and its one item. */
+function withCopiedRow(document: WorkbookDocument): WorkbookDocument {
+  const { category: _category, ...copied } = sampleCopiedLedgerRow()
+  const { records } = document
+  return { ...document, records: { ...records, 'ledger-row': [copied, ...(records['ledger-row'] ?? [])], item: [itemOfLedgerRow(sampleCopiedLedgerRow()), ...(records.item ?? [])] } }
 }
 
 /** Each load of the fake build starts with the home welcome unanswered, unless the address says otherwise, so one check's answer does not reach the next. */
@@ -64,7 +71,9 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
  * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, and one that
  * ends in `category-move` adds plan rows a category's move joins or cannot change. One that ends in `donations` adds a donation above its cap and a
- * sponsorship to a listed club, each in a category of its class. One that ends in `no-row-ids` holds books from before every ledger row had an id, and one that ends in `refused-splits` holds two splits the guards refuse.
+ * sponsorship to a listed club, each in a category of its class. The books keep every row's money on the items tab, but for a variant
+ * that ends in `no-row-ids`, which holds books from before items and from before every ledger row had an id, and one that ends in
+ * `refused-splits`, which holds books from before items with two splits the guards refuse.
  */
 export async function seedFakeWorkbook(variant: string | null, staffOf: (variant: string | null) => FakeStaff | null): Promise<void> {
   seedFakeStart(new URLSearchParams(window.location.search).get('start'))
@@ -75,9 +84,10 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const source = variant?.startsWith('browser') ? 'browser' : 'drive'
   const now = Date.now()
   const savedAt = new Date(now).toISOString()
-  const made = fakeWorkbookDocument(savedAt, source, staffOf(variant), variant?.endsWith('donations') ?? false)
+  const beforeItems = variant?.endsWith('no-row-ids') === true || variant?.endsWith('refused-splits') === true
+  const made = (beforeItems ? fakeWorkbookDocumentBeforeItems : fakeWorkbookDocument)(savedAt, source, staffOf(variant), variant?.endsWith('donations') ?? false)
   const seeded = variant === 'unregistered' ? withoutRegistrationDay(made) : made
-  const full = variant?.endsWith('copied') ? { ...seeded, records: { ...seeded.records, 'ledger-row': [sampleCopiedLedgerRow(), ...(seeded.records['ledger-row'] ?? [])] } } : seeded
+  const full = variant?.endsWith('copied') ? withCopiedRow(seeded) : seeded
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full
   const unlinked = variant?.endsWith('no-row-ids') ? withoutRowIds(planned) : variant?.endsWith('refused-splits') ? withRefusedSplits(planned) : planned

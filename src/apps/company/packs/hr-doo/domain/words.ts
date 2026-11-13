@@ -125,8 +125,8 @@ export const en = {
     const quoted = listInWords(names.map((name) => `"${name}"`))
     return names.length === 1 ? `the asset ${quoted} claims it as payment` : `the assets ${quoted} claim it as payment`
   },
-  /** Why a row keeps the split a travel order filed it in, as `the travel order 1/2026 files it`. */
-  tripFiling: (number: string) => `the travel order ${number} files it`,
+  /** Why an item a travel order names stays as it is, and how to change it, which follows "stays as". */
+  tripFiling: (number: string) => `travel order ${number} names it. Unlink it on the trip's Settlement tab to change it`,
   /** The labels of what the owner's benefits and loans would cost or save. */
   owner: {
     inYear: (name: string, year: number) => `${name} in ${year}`,
@@ -285,7 +285,7 @@ export const hr: Translation<typeof en> = {
     const quoted = listInWords(names.map((name) => `„${name}”`))
     return names.length === 1 ? `sredstvo ${quoted} vodi je kao plaćanje` : `sredstva ${quoted} vode je kao plaćanje`
   },
-  tripFiling: (number) => `ju je tako razvrstao putni nalog ${number}`,
+  tripFiling: (number) => `je navodi putni nalog ${number}. Da biste je promijenili, uklonite vezu na kartici Obračun putnog naloga`,
   owner: {
     inYear: (name, year) => `${name}, ${year}.`,
     taxAvoidedIn: (year) => `Ušteda na porezu u ${year}.`,

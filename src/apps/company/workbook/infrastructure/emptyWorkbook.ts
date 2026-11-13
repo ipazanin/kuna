@@ -61,6 +61,7 @@ export function emptyWorkbookTabs(on: CivilDate, settings: Settings = DEFAULT_SE
     'trip-legs': [],
     'trip-costs': [],
     splits: [],
+    items: [],
     dismissed: [],
   }
 }

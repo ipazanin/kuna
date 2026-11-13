@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { ledgerWindowOf } from '../src/apps/company/workbook/domain/workbook'
 import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { fakeWorkbookDocument, fakeWorkbookRecords } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { salaryReconciliation } from '../src/apps/company/packs/hr-doo/domain/salaries/salaryReconciliation'
 import type { SalaryProblem, SalaryReconciliation } from '../src/apps/company/packs/hr-doo/domain/salaries/salaryReconciliation'
@@ -23,7 +24,7 @@ const SYNCED = '2026-10-16T08:00:00.000Z'
 /** A fake variant's books as the fake build opens them on Drive, reconciled. */
 function reconciled(variant: 'one-employee' | 'five-employees') {
   const read = readDocument({ id: 'fake', source: 'drive', title: 'Fake workbook', syncedAt: SYNCED }, fakeWorkbookDocument(SYNCED, 'drive', fakeStaffOf(variant)))
-  const workbook = hrDooWorkbook(read.workbook)
+  const workbook = hrDooWorkbook(presentedWorkbook(read.workbook))
   const window = ledgerWindowOf(workbook.transactions)
   if (window === null) throw new Error('the fake ledger is empty')
   return { workbook, reconciliation: salaryReconciliation(workbook), partMonth: window.partMonth }

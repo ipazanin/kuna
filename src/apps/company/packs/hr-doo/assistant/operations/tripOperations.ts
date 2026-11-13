@@ -3,7 +3,7 @@ import { LEDGER_RECORDS } from '../../../../workbook/domain/coreKinds'
 import { amountText } from '../../../../../../shared/storage/domain/recordFields'
 import { dismissTripRow, fileTripRows, linkTripRow, markTripReported } from '../../application/tripRowWrites'
 import { tripRowProblemText } from '../../domain/hrDooWrites'
-import { TRIP_ROW_LINKS, tripRowProblem, tripRowsSplit, withLinkedRow } from '../../domain/trips/tripBankRows'
+import { TRIP_ROW_LINKS, tripRowProblem, tripRowsSplit } from '../../domain/trips/tripBankRows'
 import type { TripRowLink, TripSplitRefusal } from '../../domain/trips/tripBankRows'
 import { tripSettlement } from '../../domain/trips/tripSettlement'
 import { ruleValue } from '../../ruleset/ruleset'
@@ -35,6 +35,7 @@ import { TEXT, dayOf, inputOf } from '../../../../../../shared/app/operationInpu
 import { StepRefused } from '../../../../../../shared/app/proposedWrites'
 import type { StrictSchema } from '../../../../../../shared/ai/domain/strictSchema'
 import type { UnitOfWork } from '../../../../../../shared/storage/application/repository'
+import { storesItems } from '../../../../workbook/domain/rowItems'
 
 const DAY: StrictSchema = { type: ['string', 'null'], description: 'A day such as 2026-03-12, "" to blank it, or null to leave it.' }
 const MOMENT: StrictSchema = { type: ['string', 'null'], description: 'A day and time such as 2026-03-12 07:30, "" to blank it, or null to leave it.' }
@@ -293,7 +294,9 @@ function splitRefusalText(refusal: TripSplitRefusal): string {
     case 'payout-differs':
       return `The payout row pays ${amountText(refusal.row)}, and the settlement pays out ${amountText(refusal.payout)}.`
     case 'no-category-for-return':
-      return 'The advance row has no category to keep what the traveller returns in. File it first.'
+      return 'The advance row has no category to keep what the traveller returns in. File it on Transactions first.'
+    case 'no-category-for-rest':
+      return `The ${refusal.link} row has no category to keep what it paid outside the travel order in. File it on Transactions first.`
   }
 }
 
@@ -356,9 +359,10 @@ export function plannedTripStep(unit: UnitOfWork, books: CompanyBooks, { operati
       if (row === undefined) throw new StepRefused('That ledger row is no longer in the books.')
       if (row.rowId === null) throw new StepRefused('That ledger row has no id yet. Give the ledger rows their ids on Settings, Books file, first.')
       const link = linkOf(field)
-      const problem = tripRowProblem(withLinkedRow(trip, link, row.rowId), link, trips(), books.workbook.transactions)
+      const linked = link === 'advance' ? { ...trip, advanceRow: row.rowId, advanceItems: [] } : { ...trip, payoutRow: row.rowId, payoutItems: [] }
+      const problem = tripRowProblem(linked, link, trips(), books.workbook)
       if (problem !== null) throw new StepRefused(tripRowProblemText(problem))
-      linkTripRow(unit, trip, link, row.rowId)
+      linkTripRow(unit, books, trip, link, row)
       return true
     }
     case 'dismiss-trip-row': {
@@ -366,7 +370,7 @@ export function plannedTripStep(unit: UnitOfWork, books: CompanyBooks, { operati
       const row = books.workbook.transactions.find((candidate) => candidate.id === idOf(field['row']))
       if (row === undefined) throw new StepRefused('That ledger row is no longer in the books.')
       if (row.rowId === null) throw new StepRefused('That ledger row has no id yet. Give the ledger rows their ids on Settings, Books file, first.')
-      dismissTripRow(unit, trip, row.rowId)
+      dismissTripRow(unit, books, trip, row)
       return true
     }
     case 'mark-trip-reported': {
@@ -378,16 +382,16 @@ export function plannedTripStep(unit: UnitOfWork, books: CompanyBooks, { operati
     }
     case 'unlink-trip-row': {
       const { trip } = fileOf(books, idOf(field['trip']))
-      linkTripRow(unit, trip, linkOf(field), null)
+      linkTripRow(unit, books, trip, linkOf(field), null)
       return true
     }
     case 'file-trip-rows': {
       const file = fileOf(books, idOf(field['trip']))
       const settlement = tripSettlement(file, ruleValue)
       if (settlement.kind === 'waiting') throw new StepRefused(`The settlement still waits for ${settlement.gaps.join(', ')}, so its rows cannot be filed by it yet.`)
-      const split = tripRowsSplit(file, settlement, books.workbook.transactions, books.workbook.categories)
+      const split = tripRowsSplit(file, settlement, books.workbook, books.workbook.categories, storesItems(books.records))
       if ('refused' in split) throw new StepRefused(splitRefusalText(split.refused))
-      fileTripRows(unit, books, split.rows, books.workbook.settings.reviewLabel)
+      fileTripRows(unit, books, file.trip, split.rows, books.workbook.settings.reviewLabel)
       return true
     }
     case 'add-trip-leg': {

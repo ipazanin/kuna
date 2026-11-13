@@ -358,7 +358,7 @@ describe('an account from a camt file', () => {
     expect(run.statements[0]).toMatchObject({ account: 'business', refusal: null, newAccount: { iban: NEW_IBAN } })
     expect(importTitle(run)).toBe('Added business and imported 1 row')
 
-    await store.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records!.ledger))
+    await store.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records!))
 
     expect(store.state.workbook!.accounts.find((account) => account.slug === 'business')).toMatchObject({ iban: NEW_IBAN, currency: 'EUR' })
     expect(store.state.workbook!.transactions.filter((row) => row.account === 'business').map((row) => row.balance)).toEqual([moneyFromCents(117_315)])

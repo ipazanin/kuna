@@ -21,7 +21,8 @@ import { words as ruleWords } from '../src/apps/company/rules/domain/words'
 import { words as ruleFormWords } from '../src/apps/company/rules/presentation/words'
 import { proposalGroupsOf } from '../src/apps/company/assistant/operations/proposalLines'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { storedItemIdOf } from '../src/apps/company/transactions/application/itemWrites'
 import { wholeItemId } from '../src/apps/company/workbook/domain/splits'
 import { words as sharedWords } from '../src/shared/app/words'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
@@ -58,7 +59,7 @@ function exampleRecords(desk: CompanyDesk): Readonly<Record<string, string>> {
   return {
     'ledger-row-waiting': desk.row('REF-9').id,
     'ledger-row': desk.row('REF-6').id,
-    'ledger-row-confirmed': desk.row('REF-7').id,
+    'ledger-row-confirmed': desk.row('REF-2').id,
     'ledger-row-dismissed': desk.row('REF-6').id,
     'ledger-row-split': desk.row('REF-7').id,
     category: 'equipment',
@@ -450,7 +451,7 @@ describe('splits and owner shares', () => {
     const desk = await companyDesk(used)
     const split = () => desk.store.state.workbook!.splits.find((candidate) => candidate.row.reference === 'REF-7')!
     const [larger, smaller] = split().parts
-    const partRef = (id: string) => desk.ref(SPLIT_PART_RECORDS.name, id)
+    const partRef = (id: string) => desk.ref(ITEM_RECORDS.name, id)
     const row = desk.ref(LEDGER_RECORDS.name, desk.row('REF-7').id)
     await desk.propose([
       {
@@ -499,20 +500,20 @@ describe('splits and owner shares', () => {
           by: 'share',
           parts: [
             { part: null, amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
-            { part: desk.ref(SPLIT_PART_RECORDS.name, wholeItemId(row)), amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+            { part: desk.ref(ITEM_RECORDS.name, wholeItemId(row)), amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
           ],
         },
       },
     ])
     expect((await desk.accept()).kind).toBe('done')
     const split = desk.store.state.workbook!.splits.find((candidate) => candidate.row.id === row.id)!
-    expect(split.parts.map((part) => part.id)).toContain(wholeItemId(row))
+    expect(split.parts.map((part) => part.id)).toContain(storedItemIdOf(desk.store.state.records!, wholeItemId(row)))
   })
 
   it("sets a split part's share, and refuses a share on a row still waiting", async () => {
     const desk = await companyDesk(used)
     const second = desk.store.state.workbook!.splits.find((split) => split.row.reference === 'REF-7')!.parts[1]!
-    await desk.propose([{ op: 'set-owner-share', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-7').id), part: desk.ref(SPLIT_PART_RECORDS.name, second.id), share: 50 } }])
+    await desk.propose([{ op: 'set-owner-share', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-7').id), part: desk.ref(ITEM_RECORDS.name, second.id), share: 50 } }])
     await desk.accept()
     expect(desk.store.state.workbook!.splits.find((split) => split.row.reference === 'REF-7')!.parts.find((part) => part.id === second.id)!.ownerShare).toBe(50)
     const waiting = await desk.propose([{ op: 'set-owner-share', input: { row: desk.ref(LEDGER_RECORDS.name, desk.row('REF-8').id), part: null, share: 50 } }])

@@ -34,7 +34,7 @@ export function packWaitingJobs(workbook: HrDooWorkbook, asOf: CivilDate, rates:
     job === null ? [] : [job],
   )
   const trips = workbook.trips.map((file) => file.trip).filter((trip) => waitsForSettlement(trip, asOf))
-  const { toLink, reports } = tripsWaiting(workbook.trips, workbook.employees, workbook.transactions, asOf, ruleValue, rates)
+  const { toLink, reports } = tripsWaiting(workbook.trips, workbook.employees, workbook, asOf, ruleValue, rates)
   const nameOf = (slug: string) => {
     const traveller = workbook.employees.find((employee) => employee.slug === slug)
     return traveller === undefined ? slug : employeeName(traveller)

@@ -19,6 +19,7 @@ import RuleCoverage from './RuleCoverage.vue'
 import RuleEditor from './RuleEditor.vue'
 import type { RuleEditorSource } from './RuleEditor.vue'
 import RulesTab from './RulesTab.vue'
+import { rowsOfOneItem } from '../../workbook/domain/splits'
 import { words } from './words'
 
 /** The Category rules tab of Settings: the rules, the rows a person filed that no rule repeats, and the suggestions dismissed. */
@@ -30,7 +31,10 @@ const off = computed(() => writes.busy.value || writes.refused.value)
 /** The tab has no filters, so the rows no rule repeats come from the whole ledger. */
 const coverage = computed(() => {
   const workbook = state.workbook
-  return withoutDismissed(workbook === null ? { notCovered: [], exceptions: [] } : ruleCoverage(workbook.transactions, workbook.rules, categorisationContextOf(workbook)), workbook?.dismissals ?? [])
+  return withoutDismissed(
+    workbook === null ? { notCovered: [], exceptions: [] } : ruleCoverage(rowsOfOneItem(workbook.transactions, workbook.splits), workbook.rules, categorisationContextOf(workbook)),
+    workbook?.dismissals ?? [],
+  )
 })
 const hiddenGroups = computed(() => coverage.value.dismissed.filter((entry) => entry.group !== null).length)
 

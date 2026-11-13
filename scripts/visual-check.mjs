@@ -526,7 +526,7 @@ import {
   setUpChatNamesFlowIn,
 } from './support/setUpChatFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
-import { tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
+import { overpaidFilingFlowIn, tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
 import { categoriesDonationsFlowIn, yearDonationsFlowIn } from './support/donationFlows.mjs'
 import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
@@ -2109,6 +2109,22 @@ const SOURCE_SCREENS = [
     title: 'Putni nalog 2/2026',
     charts: 0,
     shows: ['Polijetanje', 'Platilo društvo, izvan isplate', 'Kuna je našla plaćanje'],
+  },
+  {
+    name: 'trips-overpaid',
+    query: 'fake=one-employee-overpaid',
+    hash: '#/company/trips?trip=00000000-0000-4000-8000-002000000003&tab=settlement',
+    title: 'Travel order 2/2026',
+    charts: 0,
+    shows: ['Bank rows', 'File by the settlement', 'Outside the travel order, stays in Travel', 'more than the settlement pays out.'],
+  },
+  {
+    name: 'trips-overpaid-croatian',
+    query: 'fake=one-employee-overpaid&lang=hr',
+    hash: '#/company/trips?trip=00000000-0000-4000-8000-002000000003&tab=settlement',
+    title: 'Putni nalog 2/2026',
+    charts: 0,
+    shows: ['Bankovne stavke', 'Razvrstaj po obračunu', 'Izvan putnog naloga, ostaje u kategoriji', 'više nego što obračun isplaćuje.'],
   },
   {
     name: 'trips-waiting',
@@ -6616,6 +6632,15 @@ const FLOWS = [
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&fake=one-employee&lang=hr' },
   },
+  ...['en', 'hr'].map((language) => ({
+    name: language === 'en' ? 'trips-overpaid-filing' : 'trips-overpaid-filing-croatian',
+    hash: '#/company/trips?trip=00000000-0000-4000-8000-002000000003&tab=settlement',
+    title: language === 'en' ? 'Travel order 2/2026' : 'Putni nalog 2/2026',
+    run: overpaidFilingFlowIn(language),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: `&fake=one-employee-overpaid${language === 'en' ? '' : '&lang=hr'}` },
+  })),
   { name: 'onboarding-drive', hash: '#/company/start', title: 'Company', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-pack', hash: '#/company/start', title: 'Company', run: onboardingPackFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-delivery', hash: '#/company/start', title: 'Company', run: onboardingDeliveryFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },

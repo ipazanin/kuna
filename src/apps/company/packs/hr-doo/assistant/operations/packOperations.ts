@@ -14,7 +14,7 @@ import type { KeyedLine, PlanLineDraft } from '../../application/planWrites'
 import { copyScenario, renameScenario, scenarioRowsOf } from '../../application/scenarioWrites'
 import { ASSET_GROUPS } from '../../domain/assets/assets'
 import type { Asset, AssetGroup } from '../../domain/assets/assets'
-import { paymentRowsOf } from '../../domain/assets/assetRegister'
+import { assetPaidBy } from '../../application/assetLinkWrites'
 import { assetOfFields } from '../../domain/assets/assetsReading'
 import type { Employee } from '../../domain/employees/employees'
 import { employeeOfFields } from '../../domain/employees/employeesReading'
@@ -80,8 +80,10 @@ function withPayment(asset: Asset, field: Readonly<Record<string, never>>, books
   const row = books.workbook.transactions.find((candidate) => candidate.id === id)
   if (row === undefined) throw new StepRefused('That ledger row is no longer in the books.')
   if (row.rowId === null) throw new StepRefused('That ledger row has no id yet. Give the ledger rows their ids on Settings, Books file, first.')
-  if (paymentRowsOf(row.rowId, books.workbook.transactions).length === 0) throw new StepRefused('An asset is paid by money going out, and that row brings money in.')
-  return { ...asset, rowId: row.rowId }
+  if (row.amount >= 0) throw new StepRefused('An asset is paid by money going out, and that row brings money in.')
+  const paid = assetPaidBy(asset, row, books)
+  if (paid === null) throw new StepRefused('That row is split in parts. An asset is linked to a row of one part, which it keeps whole.')
+  return paid
 }
 
 const ASSET_PAYMENT: EditorInput<Asset> = {

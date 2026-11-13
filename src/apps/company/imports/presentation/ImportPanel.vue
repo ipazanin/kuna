@@ -170,7 +170,7 @@ const waitingName = computed(() => dryRun.value?.statements.filter((statement) =
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
-  const written = await writes.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records?.ledger ?? NO_RECORDS), {
+  const written = await writes.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records), {
     failedTitle: words.panel.notImported,
     key: 'import',
   })

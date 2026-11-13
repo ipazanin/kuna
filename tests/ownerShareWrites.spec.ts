@@ -10,24 +10,40 @@ import { writeRulesChange } from '../src/apps/company/rules/application/ruleWrit
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { writeSplit } from '../src/apps/company/transactions/application/splitWrites'
-import { SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import type { SplitKey } from '../src/apps/company/workbook/domain/splits'
 import type { SplitTabRow } from '../src/apps/company/workbook/domain/splitsReading'
+import { workbookRecordsOf } from '../src/apps/company/workbook/domain/readWorkbook'
+import type { WorkbookRecords } from '../src/apps/company/workbook/domain/readWorkbook'
+import { NO_RECORDS } from '../src/shared/storage/domain/recordsRead'
+import type { RecordsRead } from '../src/shared/storage/domain/recordsRead'
 import { changesOf } from '../src/shared/storage/application/recordWrites'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { WriteReceipt } from '../src/shared/storage/application/recordWrites'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
 import type { CellValue } from '../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { ownerAdvanceOfDraft } from '../src/apps/company/packs/hr-doo/application/ownerAdvanceWrites'
 import type { OwnerAdvanceEntry } from '../src/apps/company/packs/hr-doo/domain/ownerAdvancesReading'
 import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
-import { civil, euros } from './fixtures/ledger'
+import { civil, euros, ledger } from './fixtures/ledger'
+import { amountOf } from '../src/shared/money/money'
 import { LEDGER_HEADER, LEDGER_ROWS, browserHarness, forgetCaches, driveHarness } from './fixtures/writeBack'
 import type { WriteBackHarness } from './fixtures/writeBack'
 
 const used = new Set<string>()
+
+/** Books from before items holding one bank row of the key and these parts of its split, read as the app reads them. */
+function splitBooks(key: SplitKey, held: readonly SplitTabRow[]): { readonly bankRow: Transaction; readonly records: WorkbookRecords } {
+  const [row] = ledger([{ date: key.date, amount: amountOf(key.rowAmount), balance: amountOf(key.rowBalance) }])
+  const bankRow: Transaction = { ...row!, rowId: key.rowId }
+  const read = <R extends { readonly id: RecordId }>(records: readonly R[]): RecordsRead<R> => ({ records: records.map((record) => ({ record, id: record.id, label: '', fields: {} })), refused: [] })
+  const records = workbookRecordsOf((kind) => (kind.name === SPLIT_PART_RECORDS.name ? read(held) : kind.name === LEDGER_RECORDS.name ? read([bankRow]) : NO_RECORDS) as never, null)
+  return { bankRow, records }
+}
 
 afterEach(async () => {
   await forgetCaches(used)
@@ -67,7 +83,7 @@ function row(store: WorkbookStore<CompanyBooks>, counterparty: string): Transact
 }
 
 function file(store: WorkbookStore<CompanyBooks>, verdicts: readonly RowVerdict[]): Promise<WriteReceipt | null> {
-  return store.write('Filed', (unit) => fileRows(unit, store.state.records!.ledger, verdicts, store.state.workbook!.categories))
+  return store.write('Filed', (unit) => fileRows(unit, { records: store.state.records!, workbook: store.state.workbook! }, verdicts, store.state.workbook!.categories))
 }
 
 describe.each([
@@ -165,11 +181,12 @@ describe('the share of a record filed outside the ledger', () => {
       { key, amount: euros(-20), category: 'ai-services', note: '', ownerShare: share(10), id: recordIdOf(SPLIT_PART_RECORDS, 'part-a') },
       { key, amount: euros(-10), category: 'ai-services', note: '', ownerShare: share(50), id: recordIdOf(SPLIT_PART_RECORDS, 'part-b') },
     ]
-    const bankRow = { date: key.date, account: 'main', amount: key.rowAmount, balance: key.rowBalance, rowId: null }
+    const { bankRow, records } = splitBooks(key, held)
 
     const changes = changesOf((unit) =>
       writeSplit(
         unit,
+        records,
         bankRow,
         { parts: held, refused: false, unreadable: 0 },
         [
@@ -195,11 +212,12 @@ describe('the share of a record filed outside the ledger', () => {
       { key, amount: euros(-6), category: 'ai-services', note: 'Seats', ownerShare: null, id: recordIdOf(SPLIT_PART_RECORDS, 'part-b') },
       { key, amount: euros(-4), category: 'equipment', note: '', ownerShare: share(30), id: recordIdOf(SPLIT_PART_RECORDS, 'part-c') },
     ]
-    const bankRow = { date: key.date, account: 'main', amount: key.rowAmount, balance: key.rowBalance, rowId: null }
+    const { bankRow, records } = splitBooks(key, held)
 
     const changes = changesOf((unit) =>
       writeSplit(
         unit,
+        records,
         bankRow,
         { parts: held, refused: false, unreadable: 0 },
         [

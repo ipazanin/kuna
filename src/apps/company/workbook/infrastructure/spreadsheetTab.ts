@@ -11,6 +11,7 @@ import {
   CLIENT_RECORDS,
   DISMISSAL_RECORDS,
   INVOICE_RECORDS,
+  ITEM_RECORDS,
   LEDGER_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
@@ -71,6 +72,7 @@ export const CORE_TABS: { readonly [Tab in CoreTab]: SpreadsheetTab<WorkbookReco
     kind: SPLIT_PART_RECORDS,
     formatOf: byColumn({ date: 'date', row_amount: 'amount', row_balance: 'amount', amount: 'amount', owner_share: 'number' }),
   },
+  items: { tab: 'items', kind: ITEM_RECORDS, formatOf: byColumn({ date: 'date', amount: 'amount', owner_share: 'number' }) },
   dismissed: { tab: 'dismissed', kind: DISMISSAL_RECORDS, formatOf: byColumn({ dismissed_on: 'date' }) },
 }
 

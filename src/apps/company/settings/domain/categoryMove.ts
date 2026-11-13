@@ -3,6 +3,7 @@ import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import type { CategoryNaming, EditedOn, NamedRecordsMove } from '../../workbook/domain/packPart'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
+import type { ItemRecord } from '../../workbook/domain/splitsReading'
 import type { SplitTabRow } from '../../workbook/domain/splitsReading'
 import { countsBy } from '../../workbook/domain/slug'
 import { cellText } from '../../../../shared/text/cellText'
@@ -31,6 +32,7 @@ export interface PackRecordsMove extends NamedRecordsMove<unknown> {
 export interface CategoryMove {
   readonly ledger: readonly MovedRecord<LedgerEntry>[]
   readonly splits: readonly MovedRecord<SplitTabRow>[]
+  readonly items: readonly MovedRecord<ItemRecord>[]
   readonly rules: readonly MovedRecord<RuleTabRow>[]
   readonly packs: readonly PackRecordsMove[]
 }
@@ -43,20 +45,27 @@ export interface KeptByMove {
 }
 
 /**
- * The ledger rows and split parts filed in `category`, each moved into `into` with that category's default share, the rules that
+ * The ledger rows, split parts and items filed in `category`, each moved into `into` with that category's default share, the rules that
  * file into it, each filing into `into`, and the pack's records that name it, each moved as its kind says. A row keeps who filed
  * it, so a row a person confirmed stays confirmed.
  */
 export function categoryMove(
   category: string,
   into: string,
-  records: { readonly ledger: readonly LedgerEntry[]; readonly splits: readonly SplitTabRow[]; readonly rules: readonly RuleTabRow[]; readonly packs: readonly PackNamedRecords[] },
+  records: {
+    readonly ledger: readonly LedgerEntry[]
+    readonly splits: readonly SplitTabRow[]
+    readonly items: readonly ItemRecord[]
+    readonly rules: readonly RuleTabRow[]
+    readonly packs: readonly PackNamedRecords[]
+  },
   categories: readonly ShareDefault[],
 ): CategoryMove {
   const filedIn = (record: { readonly category: string }) => record.category.toLowerCase() === category
   return {
     ledger: records.ledger.filter(filedIn).map((entry) => ({ before: entry, after: movedTo(entry, into, categories) })),
     splits: records.splits.filter(filedIn).map((part) => ({ before: part, after: movedTo(part, into, categories) })),
+    items: records.items.filter(filedIn).map((item) => ({ before: item, after: movedTo(item, into, categories) })),
     rules: records.rules.filter((rule) => cellText(rule.fields.category).trim().toLowerCase() === category).map((rule) => ({ before: rule, after: { fields: { ...rule.fields, category: into } } })),
     packs: records.packs.map(({ naming, records: read }) => ({ writes: naming.writes, ...naming.movedInto(read, category, into, categories) })),
   }

@@ -22,6 +22,7 @@ import type { RuleSource } from '../payroll/payrollArithmetic'
 import { payrollMonth } from '../payroll/payrollMonth'
 import type { PayrollMonth, PayrollWarning } from '../payroll/payrollMonth'
 import { CONTRIBUTION_ACCOUNTS } from './contributionAccounts'
+import { TRIP_ROW_LINKS, linkedPayment } from '../trips/tripBankRows'
 import { tripUnitsOf } from '../trips/tripPayments'
 import { words } from '../words'
 
@@ -140,7 +141,9 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
     }),
   )
   const settledTrips = new Map(
-    workbook.trips.flatMap((file) => (file.trip.settledOn === null ? [] : [file.trip.advanceRow, file.trip.payoutRow].flatMap((rowId) => (rowId === null ? [] : [[rowId, file] as const])))),
+    workbook.trips.flatMap((file) =>
+      file.trip.settledOn === null ? [] : TRIP_ROW_LINKS.flatMap((link) => linkedPayment(file.trip, link, workbook)?.row.rowId ?? []).map((rowId) => [rowId, file] as const),
+    ),
   )
   const counted = new Set<string>()
   const taxFreeParts = payParts.flatMap((pay): TaxFreePart[] => {

@@ -1,6 +1,17 @@
 import { normaliseIban } from '../../../../shared/text/fold'
-import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
-import { counted, countedBy, usesOf } from '../../workbook/domain/slug'
+import {
+  ACCOUNT_RECORDS,
+  BILLING_RECORDS,
+  CATEGORY_RECORDS,
+  CLIENT_RECORDS,
+  INVOICE_RECORDS,
+  ITEM_RECORDS,
+  LEDGER_RECORDS,
+  RULE_RECORDS,
+  SETTING_RECORDS,
+  SPLIT_PART_RECORDS,
+} from '../../workbook/domain/coreKinds'
+import { counted, countedBy, countsBy, usesOf } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { readAccounts } from '../../workbook/domain/accountsReading'
 import { ibanListOf } from '../../workbook/domain/iban'
@@ -25,6 +36,7 @@ import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { installedPack } from '../../packs/packContribution'
 import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
 import { RULE_WRITES } from '../../rules/application/ruleWrites'
+import { ITEM_WRITES } from '../../transactions/application/itemWrites'
 import { SPLIT_WRITES } from '../../transactions/application/splitWrites'
 import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
@@ -53,8 +65,23 @@ export function categoryUses(records: RecordsOfKind): SlugUses {
     countedBy(storedFieldsOf(records(LEDGER_RECORDS)), (fields) => [slugOf(fields.category)], counted(words.uses.ledgerRows)),
     rulesNaming(storedFieldsOf(records(RULE_RECORDS))),
     countedBy(storedFieldsOf(records(SPLIT_PART_RECORDS)), (fields) => [slugOf(fields.category)], counted(words.uses.splitParts)),
+    ...itemUses(storedFieldsOf(records(ITEM_RECORDS))),
     ...packNaming(records),
   ])
+}
+
+/** What the items tab names each category by: the one item of a row as that ledger row, and an item of a split row as a split part. */
+function itemUses(items: readonly StoredFields[]): ReadonlyMap<string, string>[] {
+  const perRow = countsBy(items, (fields) => [textOf(fields.row_id)])
+  const ofSplit = (fields: StoredFields) => (perRow.get(textOf(fields.row_id)) ?? 0) > 1
+  return [
+    countedBy(
+      items.filter((fields) => !ofSplit(fields)),
+      (fields) => [slugOf(fields.category)],
+      counted(words.uses.ledgerRows),
+    ),
+    countedBy(items.filter(ofSplit), (fields) => [slugOf(fields.category)], counted(words.uses.splitParts)),
+  ]
 }
 
 /** The pack's records that name categories, of each of its kinds. */
@@ -99,7 +126,13 @@ export function categoryMoveOf(records: WorkbookRecords, category: string, into:
   return categoryMove(
     category,
     into,
-    { ledger: recordsOf(records.ledger), splits: recordsOf(records.splits), rules: recordsOf(records.rules), packs: packNamedRecords((kind) => recordsOfKindIn(records, kind)) },
+    {
+      ledger: recordsOf(records.ledger),
+      splits: recordsOf(records.splits),
+      items: recordsOf(records.items),
+      rules: recordsOf(records.rules),
+      packs: packNamedRecords((kind) => recordsOfKindIn(records, kind)),
+    },
     categories,
   )
 }
@@ -112,6 +145,7 @@ export function deleteCategoryInto(unit: UnitOfWork, records: WorkbookRecords, c
   const move = categoryMoveOf(records, category.slug, into, categories)
   move.ledger.forEach(({ before, after }) => unit.of(LEDGER_WRITES).change(before, after))
   move.splits.forEach(({ before, after }) => unit.of(SPLIT_WRITES).change(before, after))
+  move.items.forEach(({ before, after }) => unit.of(ITEM_WRITES).change(before, after))
   move.rules.forEach(({ before, after }) => unit.of(RULE_WRITES).change(before, after))
   for (const pack of move.packs) {
     pack.changed.forEach(({ before, after }) => unit.of(pack.writes).change(before, after))
@@ -178,7 +212,7 @@ function categoryFieldsOf(fields: StoredFields): {
 export const CATEGORY_WRITES: WriteRules<CategoryRecord> = {
   kind: CATEGORY_RECORDS,
   get reads() {
-    return [LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS, ...(installedPack().workbook?.categoryNaming.map((naming) => naming.writes.kind) ?? [])]
+    return [LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS, ITEM_RECORDS, ...(installedPack().workbook?.categoryNaming.map((naming) => naming.writes.kind) ?? [])]
   },
   undoable: true,
   read: (read) => readCategories(read),

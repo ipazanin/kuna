@@ -18,7 +18,6 @@ import DryRunStatementCard from './DryRunStatementCard.vue'
 import { useDryRun } from './useDryRun'
 import { useStatementSync } from './useStatementSync'
 import { words } from './words'
-import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 
 const store = useWorkbook()
 const statements = useStatementSync()
@@ -57,7 +56,7 @@ async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
   const filing = run.statements.filter((statement) => statement.rows.some((row) => row.verdict !== null))
-  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run, store.state.records?.ledger ?? NO_RECORDS), { failedTitle: words.folder.notFiled })
+  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run, store.state.records), { failedTitle: words.folder.notFiled })
 }
 </script>
 

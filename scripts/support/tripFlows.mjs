@@ -93,4 +93,24 @@ export function tripsFlowIn(language) {
   }
 }
 
+/** The overpaid fake's London payout on its trip's Settlement tab before and after a person files it, each showing what it pays outside the travel order. */
+export function overpaidFilingFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await shows(page, '[data-testid="trip-bank-outside"]', 'the payout shows nothing outside the travel order')
+    await inspect?.('a payout that pays more than its trip')
+    await shoot('trips-overpaid-unfiled')
+
+    await pressSelector(page, press, '[data-testid="trip-bank-file"]')
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="trip-bank-file"]') === null, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('File by the settlement did not file the payout')
+      })
+    await shows(page, '[data-testid="trip-bank-outside"]', 'the filed payout no longer shows what it pays outside the travel order')
+    await inspect?.('a filed payout that pays more than its trip')
+    await shoot('trips-overpaid-filed')
+  }
+}
+
 export const tripsFlow = tripsFlowIn('en')

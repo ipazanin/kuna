@@ -7,20 +7,21 @@ import type { ShareDefault } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { CATEGORY_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
-import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { definedCategories } from '../../workbook/domain/categoriesReading'
 import { changesOnly } from '../../workbook/domain/fieldEdits'
 import { readLedger } from '../../workbook/domain/ledgerReading'
-import { rowsOfSplitKey, splitKeyOf, wholeRowPartId } from '../../workbook/domain/splits'
+import { rowItemsOf, rowsOfSplitKey, wholeItemId } from '../../workbook/domain/splits'
+import type { StoredItem, StoredSplit } from '../../workbook/domain/splits'
 import { readSplits, storedSplitKey } from '../../workbook/domain/splitsReading'
-import type { SplitTabRow, StoredSplit } from '../../workbook/domain/splitsReading'
+import type { SplitTabRow } from '../../workbook/domain/splitsReading'
 import { packRecordsOf } from '../../workbook/domain/packPart'
 import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { refuseOn } from '../../../../shared/storage/application/workbookWriteRefused'
-import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
-import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
+import type { CompanyBooks, WorkbookRecords } from '../../workbook/domain/readWorkbook'
+import { storedItemIdOf, writeRowItems } from './itemWrites'
+import type { ItemDraft } from './itemWrites'
 import type { FreshRecords, WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { words } from '../../workbook/domain/words'
 
@@ -30,72 +31,79 @@ export interface SplitPartDraft {
   readonly category: string
   readonly note: string
   /** The stored part the editor opened, whose id it keeps and whose share it keeps while it keeps its category, or null for a part added in the editor. */
-  readonly opened: Pick<SplitTabRow, 'id' | 'category' | 'ownerShare'> | null
+  readonly opened: Pick<StoredItem, 'id' | 'category' | 'ownerShare'> | null
 }
 
 /**
- * Leaves the row's split holding these parts: a draft opened from a stored part changes that part, other drafts are added with
- * ids of their own, and stored parts no draft opened are removed. The first part of a row with nothing stored keeps the id of
- * the part the row stood for. Each part kept or added takes the row's key as the app read it, its row id with it. A part added
- * in the editor, or one put in another category, takes its category's default share, and a part that keeps its category keeps
- * the share it was opened with. Parts of a refused split are replaced with no Undo, since the guards would refuse to write them
- * back. Gives what each part replaces.
+ * Leaves the row's split holding these parts: a draft opened from a stored part keeps that part, other drafts are added with ids
+ * of their own, and stored parts no draft opened are removed. The first part of a row with nothing stored keeps the id of the
+ * one item the row stood for. A part added in the editor, or one put in another category, takes its category's default share,
+ * and a part that keeps its category keeps the share it was opened with. Parts of a refused split are replaced with no Undo,
+ * since the guards would refuse to write them back. Gives what each part replaces.
  */
 export function writeSplit(
   unit: UnitOfWork,
-  row: Pick<Transaction, 'date' | 'account' | 'amount' | 'balance' | 'rowId'>,
+  records: WorkbookRecords,
+  row: Pick<Transaction, 'id' | 'date' | 'account' | 'amount' | 'balance' | 'rowId' | 'category' | 'ownerShare'>,
   stored: StoredSplit,
   drafts: readonly SplitPartDraft[],
   categories: readonly ShareDefault[],
 ): readonly PartReplacement<RecordId>[] {
-  const parts = unit.of(SPLIT_WRITES)
-  const held = stored.refused ? unit.of(REFUSED_SPLIT_WRITES) : parts
-  const key = splitKeyOf(row)
-  const wholeId = wholeRowPartId(row)
+  if (drafts.length === 0) return writeOneItem(unit, records, row, stored, { category: row.category, ownerShare: row.ownerShare }, null)
   const nothingStored = stored.parts.length === 0 && stored.unreadable === 0
-  const written = drafts.map((draft, index): SplitTabRow => {
+  const items = drafts.map((draft, index): ItemDraft => {
     const filed = movedTo(draft.opened ?? { category: '', ownerShare: null }, draft.category, categories)
-    const wanted = { amount: draft.amount, category: filed.category, note: draft.note.trim(), ownerShare: filed.ownerShare }
-    const part = stored.parts.find((candidate) => candidate.id === draft.opened?.id)
-    if (part === undefined) {
-      const added = { key, ...wanted, id: index === 0 && nothingStored && wholeId !== null ? wholeId : recordIdOf(SPLIT_PART_RECORDS, newRecordId()) }
-      parts.add(added)
-      return added
-    }
-    const changed = { ...part, key, ...wanted }
-    held.change(part, changed)
-    return changed
+    const kept = stored.parts.find((candidate) => candidate.id === draft.opened?.id)
+    const id = kept?.id ?? (index === 0 && nothingStored && row.rowId !== null ? wholeItemId(row) : null)
+    return { id, amount: draft.amount, category: filed.category, note: draft.note.trim(), ownerShare: filed.ownerShare }
   })
-  for (const part of stored.parts.filter((candidate) => !written.some((kept) => kept.id === candidate.id))) {
-    held.remove(part)
-  }
-  const whole = wholeId === null ? [] : [{ id: wholeId, amount: row.amount }]
-  return partReplacements(stored.parts.length > 0 ? stored.parts : whole, written.length > 0 ? written : whole)
+  return partReplacements(stored.parts.length > 0 ? stored.parts : wholeOf(records, row), writeRowItems(unit, records, row, stored, items))
 }
 
-/** Why a person cannot take the row's split off, since a record of the pack files it, in a sentence, or null when they can. */
-export function splitKeptRefusal(books: CompanyBooks, row: Pick<Transaction, 'id' | 'account' | 'date' | 'amount'>): string | null {
-  const why = installedPack().workbook?.splitsKept(books.records.pack, books.workbook).get(row.id)
-  return why === undefined ? null : words.splits.refusedSplitKept(row.account, row.date, row.amount, why)
+/** The one item a row stands for while it is not split, by the id the books store its first part under, or none for a row with no row id yet. */
+function wholeOf(records: WorkbookRecords, row: Pick<Transaction, 'id' | 'amount' | 'rowId'>): { readonly id: RecordId; readonly amount: Money }[] {
+  return row.rowId === null ? [] : [{ id: storedItemIdOf(records, wholeItemId(row)), amount: row.amount }]
+}
+
+/** Leaves the row as one item, filed as given, and who filed it when `flaggedBy` is given. Gives what the one item replaces. */
+function writeOneItem(
+  unit: UnitOfWork,
+  records: WorkbookRecords,
+  row: Pick<Transaction, 'id' | 'date' | 'account' | 'amount' | 'balance' | 'rowId'>,
+  stored: StoredSplit,
+  filed: Pick<StoredItem, 'category' | 'ownerShare'>,
+  flaggedBy: string | null,
+): readonly PartReplacement<RecordId>[] {
+  writeRowItems(unit, records, row, stored, [{ id: wholeItemId(row), amount: row.amount, category: filed.category, note: '', ownerShare: filed.ownerShare }], flaggedBy)
+  const whole = wholeOf(records, row)
+  return partReplacements(stored.parts.length > 0 ? stored.parts : whole, whole)
+}
+
+/** Why a person cannot take the row's split off, since a record of the pack files its items, in a sentence, or null when they can. */
+export function splitKeptRefusal(books: CompanyBooks, row: Transaction): string | null {
+  const pack = installedPack().workbook
+  if (pack === null) return null
+  const kept = pack.itemsKept(books.records.pack, books.workbook)
+  const why = rowItemsOf(books.workbook.splits)(row)
+    .map((item) => kept.get(item.id))
+    .find((reason) => reason !== undefined)
+  return why === undefined ? null : words.splits.refusedItemNamed(row.account, row.date, row.amount, why)
 }
 
 /**
- * Takes the split off the row, which then counts whole under the category most of its money was in, with that part's owner
- * share, filed by the person. A row that keeps its category is left as it is. A split the guards refused never counted, so the
- * row keeps the category it counted in. A split a record of the pack files stays, as `splitKeptRefusal` says. Gives what the
- * one part the row stands for again replaces.
+ * Takes the split off the row, which then counts as one item in the category most of its money was in, with that part's owner
+ * share. When that files the row otherwise than the books hold it, the person files it. A split the guards refused never counted,
+ * so the row keeps the category it counted in. A split a record of the pack files stays, as `splitKeptRefusal` says. Gives what
+ * the one item the row stands for again replaces.
  */
 export function removeSplit(unit: UnitOfWork, books: CompanyBooks, row: Transaction, stored: StoredSplit): readonly PartReplacement<RecordId>[] {
   const refusal = splitKeptRefusal(books, row)
   refuseOn(refusal === null ? [] : [refusal])
-  const replaced = writeSplit(unit, row, stored, [], books.workbook.categories)
+  const entry = recordWithId(books.records.ledger, row.id)?.record
   const mainCategory = stored.refused || stored.parts.length === 0 ? null : mainCategoryOf(stored.parts)
-  const main = stored.parts.find((part) => part.category === mainCategory) ?? null
-  if (main !== null && (main.category !== row.category || main.ownerShare !== row.ownerShare)) {
-    const entry = recordWithId(books.records.ledger, row.id)?.record
-    if (entry !== undefined) unit.of(LEDGER_WRITES).change(entry, { ...entry, category: main.category, ownerShare: main.ownerShare, flaggedBy: books.workbook.settings.reviewLabel })
-  }
-  return replaced
+  const main = stored.parts.find((part) => part.category === mainCategory) ?? { category: row.category, ownerShare: row.ownerShare }
+  const refiled = entry !== undefined && (main.category !== entry.category || main.ownerShare !== entry.ownerShare)
+  return writeOneItem(unit, books.records, row, stored, main, refiled ? books.workbook.settings.reviewLabel : null)
 }
 
 function ledgerOfRecords(fresh: FreshRecords): { readonly transactions: readonly Transaction[]; readonly categories: readonly Category[] } {
@@ -139,7 +147,7 @@ export const SPLIT_WRITES: WriteRules<SplitTabRow> = {
 }
 
 /** The split parts' rules for the parts of a split the guards refused, which keep no Undo. */
-const REFUSED_SPLIT_WRITES: WriteRules<SplitTabRow> = {
+export const REFUSED_SPLIT_WRITES: WriteRules<SplitTabRow> = {
   kind: SPLIT_PART_RECORDS,
   get reads() {
     return SPLIT_WRITES.reads

@@ -19,6 +19,7 @@ import { planAgainstActual } from '../src/apps/company/packs/hr-doo/domain/forec
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
+import { rowsOfOneItem } from '../src/apps/company/workbook/domain/splits'
 
 const SYNCED = '2026-10-16T08:00:00.000Z'
 
@@ -40,8 +41,8 @@ describe('fake workbook', () => {
 
     expect(workbook.splits.map((split) => [split.row.date, split.parts.map((part) => part.category)])).toEqual([
       ['2026-07-12', ['salary-net', 'salary-bonus']],
-      ['2026-03-16', ['external-contractors', 'consulting']],
       ['2026-05-10', ['representation', 'owner-loan-out']],
+      ['2026-03-16', ['external-contractors', 'consulting']],
       ['2025-10-02', ['office-supplies', 'owner-loan-out']],
     ])
     expect(workbook.splits.at(-1)?.parts.map((part) => part.amount)).toEqual([-4041, -1345])
@@ -83,7 +84,11 @@ describe('fake workbook', () => {
     const aiRows = workbook.transactions.filter((row) => row.category === 'ai-services')
     expect(aiRows.length).toBeGreaterThan(0)
     expect(aiRows.every((row) => row.ownerShare === 50)).toBe(true)
-    expect(workbook.transactions.filter((row) => row.category !== 'ai-services' && row.ownerShare !== null).map((row) => [row.category, row.ownerShare])).toEqual([['equipment', 30]])
+    expect(
+      rowsOfOneItem(workbook.transactions, workbook.splits)
+        .filter((row) => row.category !== 'ai-services' && row.ownerShare !== null)
+        .map((row) => [row.category, row.ownerShare]),
+    ).toEqual([['equipment', 30]])
     expect(
       workbook.splits
         .flatMap((split) => split.parts)

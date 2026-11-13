@@ -3,7 +3,7 @@ import type { Money } from '../../../../shared/money/money'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
 import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
-import { SPLIT_PART_RECORDS } from './coreKinds'
+import { ITEM_RECORDS, SPLIT_PART_RECORDS } from './coreKinds'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
@@ -11,12 +11,13 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { SHARED_ID_REASON, idSharing, problemOf } from '../../../../shared/storage/domain/recordsRead'
 import type { ReadRecord, Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { partOrder, rowsOfSplitKey } from './splits'
-import type { LedgerSplit, SplitKey, SplitPart } from './splits'
+import type { LedgerSplit, SplitKey, SplitPart, StoredSplit } from './splits'
 import { ownId, refusalOr, refuse, requiredDate, requiredMoney, slugOf, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { Category, Transaction } from './workbook'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
+import { UNCLASSIFIED } from './bucket'
 
 /** One record of the `splits` tab: the key of a ledger row and one part of it. */
 export interface SplitTabRow {
@@ -140,18 +141,8 @@ export function readSplits(read: RecordsRead<SplitTabRow>, transactions: readonl
   return { facts, problems, splits }
 }
 
-/** What the splits tab holds for a row, which a write to the row's split replaces. */
-export interface StoredSplit {
-  /** The parts that can be read, larger first. */
-  readonly parts: readonly SplitTabRow[]
-  /** True when the row has parts but no split of it counts, since the guards refused it. */
-  readonly refused: boolean
-  /** How many records with the row's key cannot be read, which keep any split of the row from counting until they are fixed. */
-  readonly unreadable: number
-}
-
 /** The parts the splits tab holds for the row, whether its split is among the counted ones or was refused. */
-export function storedSplitOf(read: RecordsRead<SplitTabRow>, splits: readonly LedgerSplit[], row: Pick<Transaction, 'id' | 'date' | 'account' | 'amount' | 'balance' | 'rowId'>): StoredSplit {
+export function storedSplitOfTab(read: RecordsRead<SplitTabRow>, splits: readonly LedgerSplit[], row: Pick<Transaction, 'id' | 'date' | 'account' | 'amount' | 'balance' | 'rowId'>): StoredSplit {
   const findsRow = (key: SplitKey | null) => key !== null && rowsOfSplitKey([row], key).length === 1
   const parts = read.records
     .map(({ record }) => record)
@@ -203,4 +194,155 @@ function partReasons(group: SplitParts, categoryBySlug: ReadonlyMap<string, Cate
     reasons.push(words.splits.partsAddUp(sumMoney(amounts), rowAmount))
   }
   return reasons
+}
+
+/** One record of the `items` tab: what of a ledger row's money counts in which category. */
+export interface ItemRecord {
+  /** The `rowId` of the ledger row whose money it is. */
+  readonly row: string
+  /** The same sign as the row, never zero. */
+  readonly amount: Money
+  /** Blank, or one the categories tab lacks, only on a row's one item, which then waits on To review. */
+  readonly category: string
+  readonly note: string
+  readonly ownerShare: OwnerShare | null
+  readonly id: RecordId
+}
+
+function itemOf(fields: StoredFields, id: RecordId | null): ItemRecord {
+  const row = textOf(fields.row_id)
+  if (row === '') refuse(words.items.noRowId)
+  return { row, amount: requiredMoney(fields, 'amount'), category: slugOf(fields.category), note: textOf(fields.note), ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
+}
+
+export const ITEM_CODEC: RecordCodec<ItemRecord> = withIdField(ITEM_RECORDS, words.labels.item, itemOf, (item) =>
+  filledFields({ row_id: item.row, amount: amountText(item.amount), category: item.category, note: item.note, owner_share: ownerShareText(item.ownerShare) }),
+)
+
+/** The items of the ledger rows, as the `items` tab holds them. */
+export interface ItemsReading {
+  /** The records that count, in the order the tab holds them. */
+  readonly facts: readonly ItemRecord[]
+  readonly problems: readonly RecordProblem[]
+  /** Each row whose items pass the guards, by the row's record id, with its items larger first. */
+  readonly itemsByRow: ReadonlyMap<RecordId, readonly SplitPart[]>
+  /** The rows the tab holds no item of, which count whole and wait on To review. */
+  readonly rowsWithoutItems: readonly Transaction[]
+}
+
+/** The items the tab holds for one row id. */
+interface RowItems {
+  readonly rowId: string
+  readonly found: readonly Transaction[]
+  readonly items: ReadRecord<ItemRecord>[]
+  unreadable: number
+}
+
+/**
+ * The items of the ledger rows, grouped by the row id each names. A row's items count when they find exactly one row, can all be
+ * read, none is zero or signed against the row, each has a category the categories tab defines, but for a row's one item, which
+ * waits on To review with none or one the tab lacks, and they add up to the row to the cent. Otherwise every item of the row is reported and the row
+ * counts whole with no category, so it waits on To review. An item whose owner share cannot be read is reported and counts with none.
+ */
+export function readItems(read: RecordsRead<ItemRecord>, transactions: readonly Transaction[], categories: readonly Category[]): ItemsReading {
+  const problems: RecordProblem[] = []
+  const groups = new Map<string, RowItems>()
+  const groupOf = (rowId: string): RowItems => {
+    const group = groups.get(rowId) ?? { rowId, found: transactions.filter((row) => row.rowId === rowId), items: [], unreadable: 0 }
+    groups.set(rowId, group)
+    return group
+  }
+  for (const refused of read.refused) {
+    problems.push(problemOf(refused, refused.reason))
+    const rowId = textOf(refused.fields.row_id)
+    if (rowId !== '') groupOf(rowId).unreadable += 1
+  }
+  const sharesId = idSharing(read)
+  for (const stored of read.records) {
+    const share = ownerShareProblem(stored.fields.owner_share)
+    if (share !== null) problems.push(problemOf(stored, share))
+    if (sharesId(stored)) {
+      problems.push(problemOf(stored, SHARED_ID_REASON))
+      groupOf(stored.record.row).unreadable += 1
+    } else {
+      groupOf(stored.record.row).items.push(stored)
+    }
+  }
+
+  const categoryBySlug = new Map(categories.map((category) => [category.slug, category]))
+  const facts: ItemRecord[] = []
+  const itemsByRow = new Map<RecordId, readonly SplitPart[]>()
+  for (const group of groups.values()) {
+    const reasons = [...itemRowReasons(group, transactions), ...itemReasons(group, categoryBySlug)]
+    if (reasons.length > 0) {
+      const reason = words.items.waitsOnReview(reasons.join(', '))
+      problems.push(...group.items.map((stored) => problemOf(stored, reason)))
+      continue
+    }
+    facts.push(...group.items.map((stored) => stored.record))
+    itemsByRow.set(
+      group.found[0]!.id,
+      group.items
+        .map(({ record: item }): SplitPart => {
+          const category = categoryBySlug.get(item.category)
+          return {
+            amount: item.amount,
+            category: item.category,
+            family: category?.family ?? UNCLASSIFIED,
+            bucket: category?.bucket ?? UNCLASSIFIED,
+            note: item.note,
+            ownerShare: item.ownerShare,
+            id: item.id,
+          }
+        })
+        .sort(partOrder),
+    )
+  }
+  const named = new Set([...groups.values()].flatMap((group) => group.found.map((row) => row.id)))
+  return { facts, problems, itemsByRow, rowsWithoutItems: transactions.filter((row) => !named.has(row.id)) }
+}
+
+/** Items count only on a ledger row that no other row shares its id or its key with. */
+function itemRowReasons(group: RowItems, transactions: readonly Transaction[]): string[] {
+  const { rowId, found, unreadable } = group
+  const sharing = found.length === 1 ? transactions.filter((transaction) => transaction.id === found[0]!.id).length : 0
+  const [row] = found
+  return [
+    ...(found.length === 0 ? [words.items.noRow(rowId)] : []),
+    ...(found.length > 1 ? [words.splits.severalRowsWithId(found.length, rowId)] : []),
+    ...(sharing > 1 && row !== undefined ? [words.splits.sharesKey(row.account, row.date, row.amount, row.balance)] : []),
+    ...(unreadable > 0 ? [plural(words.splits.unreadableParts(unreadable), unreadable)] : []),
+  ]
+}
+
+/** The items against the one row their id finds. */
+function itemReasons(group: RowItems, categoryBySlug: ReadonlyMap<string, Category>): string[] {
+  const [row] = group.found
+  if (row === undefined || group.found.length > 1) return []
+  const { items } = group
+  const reasons: string[] = []
+  for (const stored of items) {
+    const item = stored.record
+    if (item.amount === 0) {
+      reasons.push(words.splits.partZero(stored.label))
+    } else if (Math.sign(item.amount) !== Math.sign(row.amount)) {
+      reasons.push(words.splits.partOtherSign(stored.label))
+    }
+    const alone = items.length + group.unreadable === 1
+    if (item.category === '') {
+      if (!alone) reasons.push(words.items.noCategoryBeside(stored.label))
+    } else if (!alone && !categoryBySlug.has(item.category)) {
+      reasons.push(words.splits.partNotOnTab(item.category, stored.label))
+    }
+  }
+  const amounts = items.map((stored) => stored.record.amount)
+  if (group.unreadable === 0 && restOfWhole(row.amount, amounts) !== 0) {
+    reasons.push(words.splits.partsAddUp(sumMoney(amounts), row.amount))
+  }
+  return reasons
+}
+
+/** The problem on a ledger row the items tab holds no item of, which counts whole and waits on To review. */
+export function rowWithoutItems(stored: Pick<RecordProblem, 'id' | 'label'>): RecordProblem {
+  return problemOf(stored, words.items.noItems)
 }

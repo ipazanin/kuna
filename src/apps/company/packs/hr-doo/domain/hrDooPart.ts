@@ -1,6 +1,6 @@
 import { packPart, recordsOfKind } from '../../../workbook/domain/packPart'
 import { recordsOf } from '../../../../../shared/storage/domain/recordsRead'
-import { TRIP_ROW_LINKS, linkedRow, linkedRowId } from './trips/tripBankRows'
+import { itemsTripsFile } from './trips/tripBankRows'
 import type { RecordCodec } from '../../../../../shared/storage/domain/recordCodec'
 import type { PackKey, PackPart } from '../../../workbook/domain/packPart'
 import { CATEGORY_NAMING, OWNER_ADVANCE_NAMING } from './categoryNaming'
@@ -115,7 +115,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
     TRIP_CODECS.leg,
     TRIP_CODECS.cost,
   ] as readonly RecordCodec<unknown>[],
-  schemaVersion: 1,
+  schemaVersion: 2,
   settings: COMPANY_FACT_SETTINGS,
   categoryNaming: CATEGORY_NAMING,
   ownerAdvanceNaming: OWNER_ADVANCE_NAMING,
@@ -161,7 +161,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
         ...tabProblems('employees', employees.problems),
         ...tabProblems('trips', [
           ...trips.trips.problems,
-          ...tripRowProblems(trips.trips.facts, core.transactions).map(({ trip, problem }) => problemOf({ id: trip.id, label: trip.number }, tripRowProblemText(problem))),
+          ...tripRowProblems(trips.trips.facts, core).map(({ trip, problem }) => problemOf({ id: trip.id, label: trip.number }, tripRowProblemText(problem))),
         ]),
         ...tabProblems('trip-legs', trips.legs.problems),
         ...tabProblems('trip-costs', trips.costs.problems),
@@ -175,13 +175,6 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
       [...assetsClaimingRows(readAssets(recordsOfKind(records, ASSET_RECORDS), new Set()).facts, ledger.transactions, ledger.categories)].map(([row, names]) => [row, words.assetsClaiming(names)]),
     ),
   keptWholeReads: [ASSET_RECORDS],
-  splitsKept: (records, ledger) =>
-    new Map(
-      recordsOf(recordsOfKind(records, TRIP_RECORDS)).flatMap((trip) =>
-        TRIP_ROW_LINKS.flatMap((link) => {
-          const row = linkedRow(linkedRowId(trip, link), ledger.transactions)
-          return row === null ? [] : [[row.id, words.tripFiling(trip.number)] as const]
-        }),
-      ),
-    ),
+  itemsKept: (records, ledger) => new Map([...itemsTripsFile(recordsOf(recordsOfKind(records, TRIP_RECORDS)), ledger)].map(([item, number]) => [item, words.tripFiling(number)])),
+  itemsKeptReads: [TRIP_RECORDS],
 }

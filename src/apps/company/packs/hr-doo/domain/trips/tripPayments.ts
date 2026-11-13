@@ -11,10 +11,9 @@ import { perDiemShares } from './perDiems'
 import { legKilometres } from './trip'
 import type { Trip } from './trip'
 import { kmRateCapOn } from './tripDefaults'
-import type { Transaction } from '../../../../workbook/domain/workbook'
 import type { Employee } from '../employees/employees'
 import { tripRowSuggestions } from './tripBankRows'
-import type { TripRowSuggestion } from './tripBankRows'
+import type { TripBooks, TripRowSuggestion } from './tripBankRows'
 import type { TripFile } from './tripReading'
 import { tripSettlement } from './tripSettlement'
 import type { WorkedSettlement } from './tripSettlement'
@@ -126,7 +125,7 @@ export function reportWaiting(report: TripReport, asOf: CivilDate): ReportWaitin
 export function tripsWaiting(
   files: readonly TripFile[],
   employees: readonly Employee[],
-  transactions: readonly Transaction[],
+  books: TripBooks,
   asOf: CivilDate,
   rules: RuleSource,
   rates: RateBook,
@@ -135,7 +134,7 @@ export function tripsWaiting(
   const toLink = files.flatMap((file) => {
     const settlement = tripSettlement(file, rules, rates)
     const traveller = employees.find((employee) => employee.slug === file.trip.traveller) ?? null
-    return tripRowSuggestions(file, settlement.kind === 'worked' ? settlement : null, traveller, trips, transactions).map((suggestion) => ({ ...suggestion, trip: file.trip }))
+    return tripRowSuggestions(file, settlement.kind === 'worked' ? settlement : null, traveller, trips, books).map((suggestion) => ({ ...suggestion, trip: file.trip }))
   })
   const reports = tripReports(files, rules, rates).flatMap((report) => reportWaiting(report, asOf) ?? [])
   return { toLink, reports }

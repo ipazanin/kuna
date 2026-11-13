@@ -8,7 +8,7 @@ import type { FieldDocs } from '../../../../../shared/privacy/domain/exposure'
 import { TRIP_COST_RECORDS, TRIP_LEG_RECORDS, TRIP_RECORDS } from '../domain/hrDooKinds'
 import { hrDooWorkbook } from '../domain/hrDooPart'
 import type { HrDooWorkbook } from '../domain/hrDooPart'
-import { linkedRow, tripRowSuggestions } from '../domain/trips/tripBankRows'
+import { linkedPayment, tripRowSuggestions } from '../domain/trips/tripBankRows'
 import type { TripRowLink } from '../domain/trips/tripBankRows'
 import { LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
 import type { TripCost, TripLeg } from '../domain/trips/trip'
@@ -129,14 +129,13 @@ function tripViewOf(file: TripFile, travellerName: string, workbook: HrDooWorkbo
   const { trip } = file
   const settlement = tripSettlement(file, ruleValue)
   const worked = settlement.kind === 'worked' ? settlement : null
-  const { transactions } = workbook
   const traveller = workbook.employees.find((employee) => employee.slug === trip.traveller) ?? null
   const suggestions = tripRowSuggestions(
     file,
     worked,
     traveller,
     workbook.trips.map((entry) => entry.trip),
-    transactions,
+    workbook,
   )
   const suggested = (link: TripRowLink) => suggestions.find((suggestion) => suggestion.link === link)?.row.id ?? ''
   return {
@@ -170,8 +169,8 @@ function tripViewOf(file: TripFile, travellerName: string, workbook: HrDooWorkbo
     kilometres: worked?.kilometres?.amount ?? ZERO,
     payout: worked?.payout ?? ZERO,
     waitsFor: settlement.kind === 'waiting' ? settlement.gaps.join(', ') : '',
-    advanceRow: linkedRow(trip.advanceRow, transactions)?.id ?? '',
-    payoutRow: linkedRow(trip.payoutRow, transactions)?.id ?? '',
+    advanceRow: linkedPayment(trip, 'advance', workbook)?.row.id ?? '',
+    payoutRow: linkedPayment(trip, 'payout', workbook)?.row.id ?? '',
     suggestedAdvanceRow: suggested('advance'),
     suggestedPayoutRow: suggested('payout'),
   }

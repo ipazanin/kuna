@@ -9,9 +9,10 @@ import type { ImportedStatement } from '../src/apps/company/imports/domain/impor
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { en } from '../src/apps/company/imports/domain/words'
 import { paymentRowsOf } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister'
-import { linkedRow } from '../src/apps/company/packs/hr-doo/domain/trips/tripBankRows'
+import { ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { writeSplit } from '../src/apps/company/transactions/application/splitWrites'
-import { storedSplitOf } from '../src/apps/company/workbook/domain/splitsReading'
+import { storedSplitOf } from '../src/apps/company/workbook/domain/rowItems'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { LookAlikes } from '../src/shared/money/lookAlikeBookings'
@@ -256,7 +257,7 @@ describe('a file over a row the AI copied, on the Import screen', () => {
     expect(asked.statements[0]!.questions.map((question) => question.copied.id)).toEqual([copiedKiosk.id])
     const run = replacingRun(desk, copiedKiosk, statement)
     expect(run.removed).toHaveLength(1)
-    const receipt = await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!.ledger))
+    const receipt = await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!))
     const kioskRows = () => desk.store.state.workbook!.transactions.filter((row) => row.account === 'main' && row.amount === moneyFromAmount(-12.5)).map((row) => row.reference)
     expect(kioskRows()).toEqual(['CAMT-K'])
     await desk.store.undo(desk.store.state.writes.find((write) => write.receipt === receipt)!)
@@ -267,15 +268,15 @@ describe('a file over a row the AI copied, on the Import screen', () => {
     const { desk, copiedKiosk, statement } = await copiedKioskAndFile()
     const { rowId } = copiedKiosk
     expect(rowId).not.toBeNull()
-    const stored = storedSplitOf(desk.store.state.records!.splits, desk.store.state.workbook!.splits, copiedKiosk)
+    const stored = storedSplitOf(desk.store.state.records!, desk.store.state.workbook!, copiedKiosk)
     const drafts = [
       { amount: euros(-10), category: 'office', note: '', opened: null },
       { amount: euros(-2.5), category: 'travel', note: 'Snack', opened: null },
     ]
-    await desk.store.write('Split', (unit) => writeSplit(unit, copiedKiosk, stored, drafts, desk.store.state.workbook!.categories))
+    await desk.store.write('Split', (unit) => writeSplit(unit, desk.store.state.records!, copiedKiosk, stored, drafts, desk.store.state.workbook!.categories))
 
     const run = replacingRun(desk, copiedKiosk, statement)
-    await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!.ledger))
+    await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!))
 
     const { transactions, splits } = desk.store.state.workbook!
     const split = splits.find((candidate) => candidate.row.reference === 'CAMT-K')
@@ -284,8 +285,8 @@ describe('a file over a row the AI copied, on the Import screen', () => {
       [euros(-10), 'office', ''],
       [euros(-2.5), 'travel', 'Snack'],
     ])
-    expect(linkedRow(rowId, transactions)?.reference).toBe('CAMT-K')
-    expect(paymentRowsOf(rowId!, transactions).map((row) => row.reference)).toEqual(['CAMT-K'])
+    expect(transactions.filter((row) => row.rowId === rowId).map((row) => row.reference)).toEqual(['CAMT-K'])
+    expect(paymentRowsOf(recordIdOf(ITEM_RECORDS, rowId!), transactions).map((row) => row.reference)).toEqual(['CAMT-K'])
   })
 })
 

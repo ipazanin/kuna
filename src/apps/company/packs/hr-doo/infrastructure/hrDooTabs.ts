@@ -50,8 +50,12 @@ const ASSET_COLUMNS: readonly TemplateColumn[] = [
   { name: 'doubled', note: 'TRUE when the depreciation rate is doubled for this asset. Blank or FALSE uses the single rate.' },
   { name: 'disposed', note: 'The day it was sold or written off, as a date cell. Blank while you still have it.' },
   { name: 'funded_by', note: 'The grant that paid for it, by the name in the grants tab. Optional.' },
-  { name: 'ledger_reference', note: 'Text that finds the purchase on the ledger, such as its bank reference, while row_id is blank. Optional.' },
-  { name: 'row_id', note: 'The id of the ledger row that paid for it, which the app writes. When it is set, the asset finds its payment by it alone. Optional.' },
+  { name: 'ledger_reference', note: 'Text that finds the purchase on the ledger, such as its bank reference, while item and row_id are blank. Optional.' },
+  { name: 'item', note: 'The id of the item on the items tab that paid for it, which the app writes. When it is set, the asset finds its payment by it alone. Optional.' },
+  {
+    name: 'row_id',
+    note: 'In books from before the items tab, the id of the ledger row that paid for it, which the app writes. When it is set, the asset finds its payment by it alone. Optional.',
+  },
   { name: 'note', note: 'Anything worth keeping with it. Optional.' },
   ID_TEMPLATE_COLUMN,
 ]
@@ -178,10 +182,16 @@ const TRIP_COLUMNS: readonly TemplateColumn[] = [
   { name: 'report', note: 'The report on the trip, which a settled trip needs.' },
   { name: 'settled_on', note: 'The day the trip was settled, as a date cell. Blank while it is open.' },
   { name: 'note', note: 'Anything worth keeping with it. Optional.' },
-  { name: 'advance_row', note: 'The id of the ledger row that paid the advance, which the app writes when a person links it. Optional.' },
-  { name: 'payout_row', note: 'The id of the ledger row that paid out the settlement, which the app writes when a person links it. Optional.' },
+  { name: 'advance_items', note: 'The ids of the items that paid the advance, comma separated, which the app writes when a person links them or the settlement files them. Optional.' },
+  { name: 'payout_items', note: 'The ids of the items that paid out the settlement, comma separated, which the app writes when a person links them or the settlement files them. Optional.' },
+  { name: 'advance_row', note: 'In books from before the items tab, the id of the ledger row that paid the advance, which the app writes when a person links it. Optional.' },
+  { name: 'payout_row', note: 'In books from before the items tab, the id of the ledger row that paid out the settlement, which the app writes when a person links it. Optional.' },
   { name: 'reported_on', note: 'The day the JOPPD code 17 line of the trip was marked as reported, as a date cell. Blank while it is not.' },
-  { name: 'dismissed_rows', note: "The ids of ledger rows a person said are not this trip's payments, comma separated, which the app writes. Optional." },
+  { name: 'dismissed_items', note: "The ids of items a person said are not this trip's payments, comma separated, which the app writes. Optional." },
+  {
+    name: 'dismissed_rows',
+    note: "In books from before the items tab, the ids of ledger rows a person said are not this trip's payments, comma separated, which the app writes. Optional.",
+  },
   ID_TEMPLATE_COLUMN,
 ]
 

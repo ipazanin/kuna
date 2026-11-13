@@ -4,11 +4,13 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { SPLIT_WRITES, removeSplit, writeSplit as writeSplitParts } from '../src/apps/company/transactions/application/splitWrites'
 import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
-import { storedSplitOf } from '../src/apps/company/workbook/domain/splitsReading'
+import { storedSplitOf } from '../src/apps/company/workbook/domain/rowItems'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
-import { wholeRowPartId } from '../src/apps/company/workbook/domain/splits'
+import { SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { ownerShareOf } from '../src/apps/company/owner-share/domain/ownerShare'
-import type { SplitTabRow } from '../src/apps/company/workbook/domain/splitsReading'
+import type { StoredItem } from '../src/apps/company/workbook/domain/splits'
+import { recordWithId } from '../src/shared/storage/domain/recordsRead'
 import type { PartReplacement } from '../src/shared/categorising/domain/partReplacements'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
@@ -51,9 +53,9 @@ function rowOf(store: WorkbookStore<CompanyBooks>, counterparty: string): Transa
 }
 
 function writeSplit(store: WorkbookStore<CompanyBooks>, row: Transaction, parts: readonly (readonly [number, string, string?])[]) {
-  const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, row)
+  const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
   const drafts = parts.map(([amount, category, note = ''], index) => ({ amount: euros(amount), category, note, opened: stored.parts[index] ?? null }))
-  return store.write('Split', (unit) => writeSplitParts(unit, row, stored, drafts, store.state.workbook!.categories))
+  return store.write('Split', (unit) => writeSplitParts(unit, store.state.records!, row, stored, drafts, store.state.workbook!.categories))
 }
 
 describe.each([
@@ -178,21 +180,21 @@ describe.each([
     })
     const model = rowOf(store, 'MODEL API INC')
 
-    const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, model)
+    const stored = storedSplitOf(store.state.records!, store.state.workbook!, model)
 
     expect([stored.parts.map((part) => part.amount), stored.refused, stored.unreadable]).toEqual([[euros(-14)], true, 1])
-    expect(storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, rowOf(store, 'Desk Co'))).toEqual({ parts: [], refused: false, unreadable: 0 })
+    expect(storedSplitOf(store.state.records!, store.state.workbook!, rowOf(store, 'Desk Co'))).toEqual({ parts: [], refused: false, unreadable: 0 })
   })
 })
 
 describe('which split part keeps its id', () => {
   /** Writes the parts, each opened from the stored part it names, and gives what each part replaces. */
   async function writeOpened(store: WorkbookStore<CompanyBooks>, row: Transaction, parts: readonly (readonly [number, string, RecordId | null])[]): Promise<readonly PartReplacement<RecordId>[]> {
-    const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, row)
-    const opened = (id: RecordId | null): SplitTabRow | null => stored.parts.find((part) => part.id === id) ?? null
+    const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
+    const opened = (id: RecordId | null): StoredItem | null => stored.parts.find((part) => part.id === id) ?? null
     const drafts = parts.map(([amount, category, id]) => ({ amount: euros(amount), category, note: '', opened: opened(id) }))
     let replaced: readonly PartReplacement<RecordId>[] = []
-    await store.write('Split', (unit) => (replaced = writeSplitParts(unit, row, stored, drafts, store.state.workbook!.categories)))
+    await store.write('Split', (unit) => (replaced = writeSplitParts(unit, store.state.records!, row, stored, drafts, store.state.workbook!.categories)))
     return replaced
   }
   const partsOf = (store: WorkbookStore<CompanyBooks>, row: Transaction) => store.state.workbook!.splits.find((split) => split.row.id === row.id)?.parts ?? []
@@ -200,7 +202,7 @@ describe('which split part keeps its id', () => {
   it('gives the first part of a row not yet split the id of the part the row stood for, and the others replace it', async () => {
     const { store } = await browserHarness(used, grids())
     const model = rowOf(store, 'MODEL API INC')
-    const whole = wholeRowPartId(model)!
+    const whole = recordIdOf(SPLIT_PART_RECORDS, model.rowId!)
 
     const replaced = await writeOpened(store, model, [
       [-8, 'owner-loan-out', null],
@@ -266,8 +268,8 @@ describe('which split part keeps its id', () => {
     const replaced = await writeOpened(store, model, [])
 
     expect(partsOf(store, model)).toEqual([])
-    expect(seats!.id).toBe(wholeRowPartId(model))
-    expect(replaced).toEqual([{ part: wholeRowPartId(model), replaces: [owners!.id] }])
+    expect(seats!.id).toBe(recordIdOf(SPLIT_PART_RECORDS, model.rowId!))
+    expect(replaced).toEqual([{ part: recordIdOf(SPLIT_PART_RECORDS, model.rowId!), replaces: [owners!.id] }])
   })
 })
 
@@ -277,7 +279,7 @@ describe('a split taken off', () => {
     await writeSplit(store, rowOf(store, 'MODEL API INC'), parts)
     const remove = () => {
       const row = rowOf(store, 'MODEL API INC')
-      const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, row)
+      const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
       return store.write('Removed', (unit) => removeSplit(unit, { records: store.state.records!, workbook: store.state.workbook! }, row, stored))
     }
     return { store, remove }
@@ -304,8 +306,8 @@ describe('a split taken off', () => {
       [-12, 'owner-loan-out'],
     ])
     const row = rowOf(store, 'MODEL API INC')
-    const stored = storedSplitOf(store.state.records!.splits, store.state.workbook!.splits, row)
-    const larger = stored.parts.find((part) => part.category === 'owner-loan-out')!
+    const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
+    const larger = recordWithId(store.state.records!.splits, stored.parts.find((part) => part.category === 'owner-loan-out')!.id)!.record
     await store.write('Shared', (unit) => unit.of(SPLIT_WRITES).change(larger, { ...larger, ownerShare: ownerShareOf(30) }))
 
     await remove()

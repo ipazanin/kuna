@@ -67,6 +67,8 @@ import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals.t
 import { counterpartyLabels } from '../src/apps/company/workbook/domain/counterpartyIdentity.ts'
 import { needsReview } from '../src/apps/company/workbook/domain/needsReview.ts'
 import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkbook.ts'
+import { rowsOfOneItem } from '../src/apps/company/workbook/domain/splits.ts'
+import { storesItems } from '../src/apps/company/workbook/domain/rowItems.ts'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead.ts'
 import { bookingOfAdvance, ledgerWindowOf, newestBookingOf } from '../src/apps/company/workbook/domain/workbook.ts'
 import { decodeDocument } from '../src/shared/storage/infrastructure/documentFormat.ts'
@@ -308,7 +310,7 @@ if (companyAsked) {
       .filter(needsReview)
       .map((row) => categorise(row, cash.rules, context)),
   )
-  group('review.rules', () => withoutDismissed(ruleCoverage(raw.transactions, raw.rules, context), raw.dismissals))
+  group('review.rules', () => withoutDismissed(ruleCoverage(rowsOfOneItem(raw.transactions, raw.splits), raw.rules, context), raw.dismissals))
   group('review.unaccounted', () => unaccountedInView(booked, DEFAULT_FILTERS))
 
   const invoiceDay = newestBookingOf(raw.transactions)
@@ -414,12 +416,12 @@ if (companyAsked) {
         const worked = settlement.kind === 'worked' ? settlement : null
         const traveller = salaryBooks.employees.find((employee) => employee.slug === file.trip.traveller) ?? null
         const trips = salaryBooks.trips.map((entry) => entry.trip)
-        const split = worked === null ? null : tripRowsSplit(file, worked, salaryBooks.transactions, salaryBooks.categories)
+        const split = worked === null ? null : tripRowsSplit(file, worked, salaryBooks, salaryBooks.categories, storesItems(records))
         return {
           number: file.trip.number,
-          problems: tripRowProblems([file.trip], salaryBooks.transactions),
-          suggestions: tripRowSuggestions(file, worked, traveller, trips, salaryBooks.transactions).map((suggestion) => [suggestion.link, suggestion.row.id]),
-          split: split === null || 'refused' in split ? split : split.rows.map((row) => ({ link: row.link, parts: row.parts, filed: filedBySettlement(row, salaryBooks.splits) })),
+          problems: tripRowProblems([file.trip], salaryBooks),
+          suggestions: tripRowSuggestions(file, worked, traveller, trips, salaryBooks).map((suggestion) => [suggestion.link, suggestion.row.id]),
+          split: split === null || 'refused' in split ? split : split.rows.map((row) => ({ link: row.link, parts: row.parts, filed: filedBySettlement(row) })),
         }
       }),
     )

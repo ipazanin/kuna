@@ -4,6 +4,7 @@ import { ownerShareText } from '../../../../owner-share/domain/ownerShare'
 import { displayNamesOf } from '../../../../workbook/domain/displayName'
 import type { Workbook } from '../../../../workbook/domain/workbook'
 import { moneyFormatOf } from '../../../../settings/domain/settings'
+import { assetItemOf, paymentRowsOf } from '../../domain/assets/assetRegister'
 import { NEW_ASSET_DEFAULTS } from '../../domain/assets/assets'
 import type { GrantClawback, GrantParts } from '../../domain/grants/grants'
 import { ASSET_RECORDS, EMPLOYEE_RECORDS, GRANT_RECORDS, OWNER_ADVANCE_RECORDS, PLAN_RECORDS, SCENARIO_RECORDS, YEAR_END_RECORDS } from '../../domain/hrDooKinds'
@@ -26,6 +27,7 @@ import type { MoneyFormat } from '../../../../../../shared/money/moneyFormat'
 import { writtenPercent } from '../../../../../../shared/money/percent'
 import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 import type { RecordKind } from '../../../../../../shared/storage/domain/recordKind'
+import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 
 /** The fields Kuna keeps by itself on the pack's records, which no operation sets. A plan row's kind and a scenario row's key show through other fields, so the card reads them as nothing. */
 const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'ownerPart'])
@@ -137,9 +139,9 @@ export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
 }
 
 /** The bank row an asset is linked to, by its day, its other side and its amount, or nothing for an asset linked to none. */
-function paymentText(workbook: Workbook, rowId: string | null, format: MoneyFormat): string | null {
-  const row = rowId === null ? undefined : workbook.transactions.find((candidate) => candidate.rowId === rowId)
-  if (row === undefined) return rowId
+function paymentText(workbook: Workbook, item: RecordId | null, format: MoneyFormat): string | null {
+  const row = item === null ? undefined : paymentRowsOf(item, workbook.transactions)[0]
+  if (row === undefined) return item
   return [dayLabel(row.date), row.counterparty || row.description, formatMoney(row.amount, 'negative', format)].filter((part) => part !== '').join(', ')
 }
 
@@ -161,7 +163,7 @@ export function packDescriber(workbook: Workbook): PackDescriber {
     keptByKuna: KEPT_BY_KUNA,
     fieldName: (field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
     shown: (kind, field, record) => {
-      if (isKind(kind, ASSET_RECORDS, record) && field === 'rowId') return paymentText(workbook, record.rowId, format)
+      if (isKind(kind, ASSET_RECORDS, record) && (field === 'rowId' || field === 'payment')) return paymentText(workbook, assetItemOf(record), format)
       const trip = tripShownValue(kind, field, record, format, workbook)
       return trip === undefined ? shownValue(kind, field, record, format, category) : trip
     },

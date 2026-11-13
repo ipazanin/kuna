@@ -1,6 +1,6 @@
 import { definedCategories, definedCategorySlugs } from '../../../workbook/domain/categoriesReading'
-import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
-import { readLedger } from '../../../workbook/domain/ledgerReading'
+import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../../../workbook/domain/coreKinds'
+import { ledgerOfRecords } from '../../../workbook/domain/readWorkbook'
 import { storedFieldsOf } from '../../../../../shared/storage/domain/recordsRead'
 import { counted, countedBy, slugChangeRefusals, usesOf } from '../../../workbook/domain/slug'
 import { words } from './words'
@@ -311,7 +311,7 @@ export function tripRowProblemText(problem: TripRowProblem): string {
   const said = words.tripReading
   switch (problem.kind) {
     case 'row-gone':
-      return said.rowGone(ROW_FIELDS[problem.link], problem.rowId)
+      return said.rowGone(problem.byItems ? ITEM_FIELDS[problem.link] : ROW_FIELDS[problem.link], problem.named)
     case 'no-advance':
       return said.noAdvanceToLink
     case 'linked-twice':
@@ -320,20 +320,21 @@ export function tripRowProblemText(problem: TripRowProblem): string {
 }
 
 const ROW_FIELDS: Readonly<Record<TripRowLink, string>> = { advance: 'advance_row', payout: 'payout_row' }
+const ITEM_FIELDS: Readonly<Record<TripRowLink, string>> = { advance: 'advance_items', payout: 'payout_items' }
 
 /** A link the write sets or changes holds against the ledger and the other trips' links. */
-function linkRefusals(change: KindChange<Trip>, fresh: FreshRecords): string[] {
-  const linked = (edit: RecordEdit<Trip>, link: TripRowLink) =>
-    textOf(edit.after?.fields[ROW_FIELDS[link]]) !== '' && textOf(edit.after?.fields[ROW_FIELDS[link]]) !== textOf(edit.before?.fields[ROW_FIELDS[link]])
+function linkRefusals(change: KindChange<Trip>, after: FreshRecords): string[] {
+  const named = (edit: RecordEdit<Trip>, link: TripRowLink, stored: 'before' | 'after') => [ROW_FIELDS[link], ITEM_FIELDS[link]].map((field) => textOf(edit[stored]?.fields[field])).join(' ')
+  const linked = (edit: RecordEdit<Trip>, link: TripRowLink) => named(edit, link, 'after').trim() !== '' && named(edit, link, 'after') !== named(edit, link, 'before')
   const set = change.edits.flatMap((edit) => {
-    const after = edit.after
-    return after !== null && 'record' in after ? TRIP_ROW_LINKS.filter((link) => linked(edit, link)).map((link) => ({ trip: after.record, link })) : []
+    const changed = edit.after
+    return changed !== null && 'record' in changed ? TRIP_ROW_LINKS.filter((link) => linked(edit, link)).map((link) => ({ trip: changed.record, link })) : []
   })
   if (set.length === 0) return []
-  const transactions = readLedger(fresh.of(LEDGER_RECORDS), definedCategories(fresh.of(CATEGORY_RECORDS))).facts
+  const books = ledgerOfRecords({ ledger: after.of(LEDGER_RECORDS), splits: after.of(SPLIT_PART_RECORDS), items: after.of(ITEM_RECORDS) }, definedCategories(after.of(CATEGORY_RECORDS)))
   const trips = change.after.records.map((stored) => stored.record)
   return set.flatMap(({ trip, link }) => {
-    const problem = tripRowProblem(trip, link, trips, transactions)
+    const problem = tripRowProblem(trip, link, trips, books)
     return problem === null ? [] : [`${trip.number}: ${tripRowProblemText(problem)}`]
   })
 }
@@ -341,10 +342,10 @@ function linkRefusals(change: KindChange<Trip>, fresh: FreshRecords): string[] {
 /** A travel order is checked by the trips reader against the employees and its legs, is removed only with its legs and costs, and links only a bank row that can be its. */
 export const TRIP_WRITES: WriteRules<Trip> = {
   kind: TRIP_RECORDS,
-  reads: [...TRIP_KINDS, LEDGER_RECORDS, CATEGORY_RECORDS],
+  reads: [...TRIP_KINDS, LEDGER_RECORDS, CATEGORY_RECORDS, SPLIT_PART_RECORDS, ITEM_RECORDS],
   undoable: true,
   read: (read, records) => tripsWith(TRIP_RECORDS, read, records).trips,
-  refusals: (change, fresh, after) => [...tripsStillNamed(change, after), ...linkRefusals(change, fresh)],
+  refusals: (change, _fresh, after) => [...tripsStillNamed(change, after), ...linkRefusals(change, after)],
 }
 
 /** A leg names a travel order that counts, and the legs of a trip by private car fit its odometer. */

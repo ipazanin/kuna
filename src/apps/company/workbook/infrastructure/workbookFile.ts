@@ -4,6 +4,7 @@ import { readEveryTab, sheetJs } from '../../../../shared/xlsx/sheetGrids'
 import { installedPack } from '../../packs/packContribution'
 import { settingNote } from '../../settings/domain/settings'
 import type { Workbook } from '../domain/workbook'
+import { holdsItems } from '../domain/rowItems'
 import { settingsTabRows } from './emptyWorkbook'
 import { numberFormatOf } from './spreadsheetTab'
 import { templateColumnNames, templateColumns } from './workbookTemplate'
@@ -24,7 +25,7 @@ export interface WorkbookFileContents {
   readonly missingTabs: readonly WorkbookTab[]
 }
 
-/** Reads the workbook tabs of an xlsx file, by tab name in any letter case. Other tabs are ignored. */
+/** Reads the workbook tabs of an xlsx file, by tab name in any letter case. Other tabs are ignored, and so is the tab books of the file's shape never have. */
 export async function readWorkbookFile(bytes: ArrayBuffer | Uint8Array): Promise<WorkbookFileContents> {
   const fileTabs = await readEveryTab(bytes)
   const missingTabs: WorkbookTab[] = []
@@ -37,11 +38,13 @@ export async function readWorkbookFile(bytes: ArrayBuffer | Uint8Array): Promise
     }
     tabs[tab] = sheetRowsFromValues(found.grid)
   }
-  return { tabs: { ...EMPTY_TABS, ...tabs }, missingTabs }
+  const read = { ...EMPTY_TABS, ...tabs }
+  const otherShape: WorkbookTab = holdsItems(read.ledger.length, read.items.length) ? 'splits' : 'items'
+  return { tabs: read, missingTabs: missingTabs.filter((tab) => tab !== otherShape) }
 }
 
 /**
- * Writes the tabs in the template format: known columns in template order, then any other columns
+ * Writes the tabs of the books' shape in the template format: known columns in template order, then any other columns
  * the tabs carry, every row at its own row number, a note on each header. A workbook without a
  * settings tab gets one with the settings it was read with.
  */
@@ -52,6 +55,7 @@ export async function writeWorkbookFile(tabs: WorkbookTabs, workbook: Workbook):
   const packSettings = installedPack().workbook?.settings ?? null
   for (const tab of WORKBOOK_TABS) {
     const grid = grids[tab]
+    if (grid === undefined) continue
     const sheet = XLSX.utils.aoa_to_sheet([[...grid.header], ...grid.rows.map((cells) => [...cells])])
     const notes = new Map(templateColumns(tab).map((column) => [column.name, column.note]))
     grid.header.forEach((name, column) => {
@@ -90,10 +94,17 @@ function columnWidth(tab: WorkbookTab, name: string): number {
   return name.endsWith('iban') || name.endsWith('reference') || name.endsWith('_until') ? 26 : 14
 }
 
-/** The grid of every tab, without SheetJS, so the layout can be tested on its own. */
-export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<WorkbookTab, TabGrid> {
+/** The ledger's columns books with an items tab leave to their items. */
+const ITEM_COLUMNS: readonly string[] = ['category', 'owner_share']
+
+/**
+ * The grid of every tab of the books' own shape, without SheetJS, so the layout can be tested on its own. Books with an items tab
+ * have no splits tab and no category or owner share on the ledger, and books from before items have no items tab.
+ */
+export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Partial<Record<WorkbookTab, TabGrid>> {
+  const onItemsTab = holdsItems(tabs.ledger.length, tabs.items.length)
   return {
-    ledger: gridFor('ledger', tabs.ledger),
+    ledger: gridFor('ledger', tabs.ledger, onItemsTab ? ITEM_COLUMNS : []),
     categories: gridFor('categories', tabs.categories),
     accounts: gridFor('accounts', tabs.accounts),
     settings: gridFor('settings', tabs.settings.length === 0 ? settingsTabRows(workbook.settings) : tabs.settings),
@@ -111,13 +122,13 @@ export function workbookGrids(tabs: WorkbookTabs, workbook: Workbook): Record<Wo
     trips: gridFor('trips', tabs.trips),
     'trip-legs': gridFor('trip-legs', tabs['trip-legs']),
     'trip-costs': gridFor('trip-costs', tabs['trip-costs']),
-    splits: gridFor('splits', tabs.splits),
+    ...(onItemsTab ? { items: gridFor('items', tabs.items) } : { splits: gridFor('splits', tabs.splits) }),
     dismissed: gridFor('dismissed', tabs.dismissed),
   }
 }
 
-function gridFor(tab: WorkbookTab, rows: readonly SheetRow[]): TabGrid {
-  const known = templateColumnNames(tab)
+function gridFor(tab: WorkbookTab, rows: readonly SheetRow[], leftOut: readonly string[] = []): TabGrid {
+  const known = templateColumnNames(tab).filter((name) => !leftOut.includes(name))
   const ordered = [...rows].sort((upper, lower) => upper.sheetRow - lower.sheetRow)
   const extra = [...new Set(ordered.flatMap((row) => Object.keys(row.cells)))].filter((name) => !known.includes(name))
   const header = [...known, ...extra]

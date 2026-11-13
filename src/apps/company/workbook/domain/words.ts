@@ -107,6 +107,7 @@ export const en = {
     ledgerRow: (fields: StoredFields) =>
       labelWords([dayText(fields.date), textOf(fields.counterparty) || textOf(fields.description), numberText(fields.amount), labelled('balance', numberText(fields.balance))]),
     splitPart: (fields: StoredFields) => labelWords([textOf(fields.category), numberText(fields.amount), dayText(fields.date)]),
+    item: (fields: StoredFields) => labelWords([textOf(fields.category), numberText(fields.amount)]),
     dismissal: (fields: StoredFields) => labelWords([textOf(fields.key), dayText(fields.dismissed_on)]),
     billingItem: (fields: StoredFields) => labelWords([textOf(fields.item), textOf(fields.client), dayText(fields.date), numberText(fields.amount)]),
   },
@@ -146,7 +147,16 @@ export const en = {
     countsWhole: (reasons: string) => `${reasons}, so the ledger row counts whole`,
     keptWhole: (account: string, date: CivilDate, why: string) => `the ${account} row of ${date} stays whole, since ${why}`,
     refusedKeptWhole: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${date} for ${plainAmount(amount)} stays whole, since ${why}.`,
-    refusedSplitKept: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${date} for ${plainAmount(amount)} keeps its split, since ${why}.`,
+    refusedItemNamed: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${date} for ${plainAmount(amount)} stays as ${why}.`,
+  },
+  items: {
+    noRowId: 'no row_id',
+    noRow: (rowId: string) => `the ledger holds no row with the id ${rowId}`,
+    noItems: 'the items tab holds no part of this row, so it waits on To review',
+    noCategoryBeside: (label: string) => `the part "${label}" has no category, which only the one part of a row may lack`,
+    waitsOnReview: (reasons: string) => `${reasons}, so the ledger row counts whole and waits on To review`,
+    fileTheSplit: (account: string, date: CivilDate, amount: Money) =>
+      `The ${account} row of ${date} for ${plainAmount(amount)} is split in parts, each in its own category. Change its split to file it otherwise.`,
   },
   accounts: {
     noName: 'no account name',
@@ -195,6 +205,7 @@ export const hr: Translation<typeof en> = {
     ledgerRow: (fields) =>
       labelWords([dayInWords(fields.date), textOf(fields.counterparty) || textOf(fields.description), moneyInWords(fields.amount), labelled('saldo', moneyInWords(fields.balance))]),
     splitPart: (fields) => labelWords([textOf(fields.category), moneyInWords(fields.amount), dayInWords(fields.date)]),
+    item: (fields) => labelWords([textOf(fields.category), moneyInWords(fields.amount)]),
     dismissal: (fields) => labelWords([textOf(fields.key), dayInWords(fields.dismissed_on)]),
     billingItem: (fields) => labelWords([textOf(fields.item), textOf(fields.client), dayInWords(fields.date), moneyInWords(fields.amount)]),
   },
@@ -235,7 +246,16 @@ export const hr: Translation<typeof en> = {
     countsWhole: (reasons) => `${reasons}, pa se stavka evidencije broji cijela`,
     keptWhole: (account, date, why) => `stavka računa „${account}” od ${dayLabel(date)} ostaje cijela jer ${why}`,
     refusedKeptWhole: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje cijela jer ${why}.`,
-    refusedSplitKept: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje podijeljena jer ${why}.`,
+    refusedItemNamed: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje kako ${why}.`,
+  },
+  items: {
+    noRowId: 'polje row_id je prazno',
+    noRow: (rowId) => `u evidenciji nema stavke s ID-om ${rowId}`,
+    noItems: 'u kartici items nema nijednog dijela ove stavke, pa čeka provjeru',
+    noCategoryBeside: (label) => `dio „${label}” nema kategoriju, a bez nje smije biti samo jedini dio stavke`,
+    waitsOnReview: (reasons) => `${reasons}, pa se stavka evidencije broji cijela i čeka provjeru`,
+    fileTheSplit: (account, date, amount) =>
+      `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} podijeljena je na dijelove, svaki u svojoj kategoriji. Da biste je razvrstali drukčije, promijenite podjelu.`,
   },
   accounts: {
     noName: 'polje account je prazno',

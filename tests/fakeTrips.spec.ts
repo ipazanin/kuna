@@ -8,6 +8,7 @@ import { newestBookingOf } from '../src/apps/company/workbook/domain/workbook'
 import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
 import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { NO_RATES } from '../src/shared/money/rateBook'
+import { isLinked, linkedPayment, tripRowsSplit } from '../src/apps/company/packs/hr-doo/domain/trips/tripBankRows'
 import { decimalOfText } from '../src/shared/money/decimal'
 import { civil, euros } from './fixtures/ledger'
 
@@ -77,9 +78,20 @@ describe('the made-up trips', () => {
   })
 
   it("has Zadar's payout linked and filed by its settlement, and New York's advance linked", () => {
-    expect([byNumber('1/2026').trip.payoutRow !== null, byNumber('4/2026').trip.advanceRow !== null, byNumber('2/2026').trip.payoutRow]).toEqual([true, true, null])
-    const zadar = workbook.splits.find((split) => split.row.rowId === byNumber('1/2026').trip.payoutRow)
-    expect(zadar?.parts.map((part) => part.category).sort()).toEqual(['car-kilometres', 'per-diems', 'trip-costs'])
+    expect([isLinked(byNumber('1/2026').trip, 'payout'), isLinked(byNumber('4/2026').trip, 'advance'), isLinked(byNumber('2/2026').trip, 'payout')]).toEqual([true, true, false])
+    const zadar = linkedPayment(byNumber('1/2026').trip, 'payout', workbook)
+    expect(zadar?.items.map((part) => part.category).sort()).toEqual(['car-kilometres', 'per-diems', 'trip-costs'])
+    expect(workbook.splits.find((split) => split.row.id === zadar?.row.id)?.parts).toEqual(zadar?.items)
+  })
+
+  it("has London's payout linked in the overpaid variant, paying 50.00 more than its settlement, which the filing keeps outside the trip", () => {
+    const overpaid = fakeBooks('one-employee-overpaid')
+    const london = overpaid.workbook.trips.find((file) => file.trip.number === '2/2026')!
+    const settlement = settlementOf(london, NO_RATES)
+    if (settlement.kind !== 'worked') throw new Error('London waits.')
+    const split = tripRowsSplit(london, settlement, overpaid.workbook, overpaid.workbook.categories, true)
+    expect(overpaid.problems).toEqual([])
+    expect('rows' in split ? split.rows.map((row) => [row.link, row.rest?.amount, row.rest?.category]) : split).toEqual([['payout', euros(-50), 'travel']])
   })
 
   it('leaves the other variants without trips', () => {

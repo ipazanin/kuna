@@ -3,7 +3,10 @@ import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import { problemOf } from '../../../../../../shared/storage/domain/recordsRead'
 import type { RecordProblem } from '../../../../../../shared/storage/domain/recordsRead'
 import type { Asset } from './assets'
+import { recordIdOf } from '../../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
+import { ITEM_RECORDS } from '../../../../workbook/domain/coreKinds'
+import { wholeItemId } from '../../../../workbook/domain/splits'
 import type { Category, Transaction, Workbook } from '../../../../workbook/domain/workbook'
 import { daysBetween } from '../../../../../../shared/calendar/civilDate'
 import { ZERO, addMoney, negateMoney, sumMoney } from '../../../../../../shared/money/money'
@@ -21,7 +24,7 @@ import { netCostOf } from './depreciationSchedule'
 import type { AssetCostOf } from './depreciationSchedule'
 import { words } from './words'
 
-/** How an asset found its payment: its `row_id` is the row's id, its `ledger_reference` equals the row's reference or appears in its description, or the amount fits. */
+/** How an asset found its payment: it names the row's item, its `ledger_reference` equals the row's reference or appears in its description, or the amount fits. */
 export type AssetMatch = 'row' | 'reference' | 'description' | 'date-and-amount'
 
 export interface AssetPayment {
@@ -114,14 +117,24 @@ export function assetCostsOf(workbook: Pick<Workbook, 'transactions' | 'categori
   return { costOf: (asset) => costs.get(asset) ?? netCostOf(asset), privateShareVatOf: (asset) => privateShareVat.get(asset) ?? ZERO }
 }
 
-/** The debits that carry this row id, of which an asset linked to it takes the one paid nearest the day it was bought. */
-export function paymentRowsOf<Row extends Pick<Transaction, 'amount' | 'rowId'>>(rowId: string, transactions: readonly Row[]): Row[] {
-  return transactions.filter((row) => row.amount < 0 && row.rowId === rowId)
+/** The item an asset names as its payment: the one it names, or in books from before items the one item of the row it links. */
+export function assetItemOf(asset: Pick<Asset, 'payment' | 'rowId'>): RecordId | null {
+  return asset.payment ?? (asset.rowId === null ? null : recordIdOf(ITEM_RECORDS, asset.rowId))
+}
+
+/** The item a row as listed stands for: a part of a split row its own, and a row of one item that one. */
+function itemIdOfRow(row: Pick<Transaction, 'id' | 'rowId' | 'split'>): RecordId {
+  return row.split?.id ?? wholeItemId(row)
+}
+
+/** The debits whose item is this one, of which an asset naming it takes the one paid nearest the day it was bought. */
+export function paymentRowsOf<Row extends Pick<Transaction, 'amount' | 'id' | 'rowId' | 'split'>>(item: RecordId, transactions: readonly Row[]): Row[] {
+  return transactions.filter((row) => row.amount < 0 && itemIdOfRow(row) === item)
 }
 
 /**
- * Each asset matched to the debit that paid for it. An asset with a `row_id` takes the debit with
- * that id and nothing else, as a person linked it. Without one, a `ledger_reference` is looked for on every
+ * Each asset matched to the debit that paid for it. An asset that names an item takes the debit of
+ * that item and nothing else, as a person linked it. Without one, a `ledger_reference` is looked for on every
  * debit, first as the row's reference and then inside its description, because older rows carry no
  * reference. An asset left over takes an unclaimed `capital-purchase` debit of its net cost, or of
  * its net cost with VAT at the standard rate, nearest to the day it was bought. A payment the
@@ -133,14 +146,14 @@ export function assetRegister(assets: readonly Asset[], transactions: readonly T
   const capitalPurchaseCategories = categoriesWithRole(categories, PACK_ROLES.capitalPurchase)
   const debits = oldestFirst(transactions.filter((row) => row.amount < 0))
   const linked = assets.map((asset) => linkedPayment(asset, debits))
-  const found = assets.map((asset) => (asset.rowId === null ? referenceMatch(asset, debits) : null))
+  const found = assets.map((asset) => (assetItemOf(asset) === null ? referenceMatch(asset, debits) : null))
   const byReference = found.map((payment) => (payment !== null && vatRateKnown(payment.row) ? payment : null))
   const uncheckedClaims: UncheckedClaim[] = []
 
   const claimed = new Set([...linked, ...byReference].flatMap((payment) => (payment === null ? [] : [payment.row])))
   const purchases = debits.filter((row) => capitalPurchaseCategories.includes(row.category))
   const registered = assets.map((asset, position): RegisteredAsset => {
-    if (asset.rowId !== null) {
+    if (assetItemOf(asset) !== null) {
       return { asset, payment: linked[position] ?? null }
     }
     const referenced = found[position] ?? null
@@ -207,7 +220,7 @@ export function assetsToLink(assets: readonly Asset[], transactions: readonly Tr
   const debits = transactions.filter((row) => row.amount < 0)
   const mismatched = new Set(register.mismatchedPayments.map((payment) => payment.row))
   return register.assets.flatMap(({ asset, payment }) => {
-    if (asset.rowId !== null || payment === null || payment.row.rowId === null || mismatched.has(payment.row)) return []
+    if (assetItemOf(asset) !== null || payment === null || payment.row.rowId === null || mismatched.has(payment.row)) return []
     const { rows } = referencedRows(asset, debits)
     return rows.length === 1 && rows[0] === payment.row ? [{ asset, rowId: payment.row.rowId }] : []
   })
@@ -221,9 +234,10 @@ export function assetPaymentProblems(assets: readonly Asset[], transactions: rea
   const unchecked = assetRegister(assets, transactions, categories).uncheckedClaims.map(({ asset, row, matchedBy }) =>
     problemOf({ id: asset.id, label: asset.name }, words.unchecked(matchedBy === 'date-and-amount', row.date)),
   )
-  const unlinked = assets.flatMap((asset) =>
-    asset.rowId !== null && paymentRowsOf(asset.rowId, transactions).length === 0 ? [problemOf({ id: asset.id, label: asset.name }, words.noLinkedPayment(asset.rowId))] : [],
-  )
+  const unlinked = assets.flatMap((asset) => {
+    const item = assetItemOf(asset)
+    return item !== null && paymentRowsOf(item, transactions).length === 0 ? [problemOf({ id: asset.id, label: asset.name }, words.noLinkedPayment(asset.rowId ?? item))] : []
+  })
   return [...unchecked, ...unlinked]
 }
 
@@ -239,7 +253,8 @@ function mismatchedPayments(assets: readonly Asset[], byReference: readonly (Ass
 }
 
 function linkedPayment(asset: Asset, debits: readonly Transaction[]): AssetPayment | null {
-  const row = asset.rowId === null ? null : nearestTo(asset, paymentRowsOf(asset.rowId, debits))
+  const item = assetItemOf(asset)
+  const row = item === null ? null : nearestTo(asset, paymentRowsOf(item, debits))
   return row === null ? null : { row, matchedBy: 'row', drill: rowDrill(row) }
 }
 

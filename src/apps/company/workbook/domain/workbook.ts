@@ -67,7 +67,7 @@ export interface Transaction {
   readonly amount: Money
   /** The account's running balance after this entry. */
   readonly balance: Money
-  /** Empty when the cell is blank. */
+  /** As the row's items file it: its one item's, or for a row of several the category most of its money is in. Empty while it waits on To review. */
   readonly category: string
   readonly family: string
   readonly bucket: Bucket
@@ -77,7 +77,7 @@ export interface Transaction {
   readonly signals: TransactionSignals
   /** Why the statement parser wants a person to look at the row, such as `reversal`. Column U. */
   readonly reviewReasons: readonly string[]
-  /** The row's own share, copied from its category when the row was filed. A part of a split row holds the part's. */
+  /** The share of the item its category comes from, copied from the category when it was filed. A part of a split row holds the part's. */
   readonly ownerShare: OwnerShare | null
   /** By its key: its account and reference, or for a row without a reference its account, day, amount, balance and description. */
   readonly id: RecordId
@@ -204,6 +204,7 @@ export interface WorkbookProblem extends RecordProblem {
     | 'trip-legs'
     | 'trip-costs'
     | 'splits'
+    | 'items'
     | 'dismissed'
 }
 
@@ -233,8 +234,8 @@ export interface Workbook {
   /** The costs the owner paid privately, which a pack hands core, in the order its tab holds them. */
   readonly ownerAdvances: readonly OwnerAdvance[]
   /**
-   * The bank rows split into parts on the `splits` tab, each split once the tab's guards pass. The
-   * screens count a split row through its parts, and the ledger and its readers keep the row whole.
+   * The bank rows of several items, each once its items pass the guards. The screens count such a row through its items, and the
+   * ledger and its readers keep the row whole.
    */
   readonly splits: readonly LedgerSplit[]
   /** The ledger rows a pack keeps whole, by record id, each with why in the pack's words. */

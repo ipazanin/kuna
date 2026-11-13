@@ -50,7 +50,7 @@ function ruleFields(store: Store, id: string): RuleFields {
 
 /** Files the rows under their verdicts, as the To review tab does. */
 function setVerdicts(store: WorkbookStore<CompanyBooks>, verdicts: readonly RowVerdict[]): Promise<WriteReceipt | null> {
-  return store.write('Filed', (unit) => fileRows(unit, store.state.records!.ledger, verdicts, store.state.workbook!.categories))
+  return store.write('Filed', (unit) => fileRows(unit, { records: store.state.records!, workbook: store.state.workbook! }, verdicts, store.state.workbook!.categories))
 }
 
 /** Undoes the session's write with this receipt, as its Undo does. */

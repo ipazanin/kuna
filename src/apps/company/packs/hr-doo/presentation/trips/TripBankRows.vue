@@ -17,11 +17,12 @@ import { rowDrill } from '../../../../filters/domain/drillTarget'
 import { useBookedWorkbook } from '../../../../transactions/application/useBookedWorkbook'
 import { useWorkbook } from '../../../../workbook/application/workbookStore'
 import { displayNamesOf } from '../../../../workbook/domain/displayName'
+import { storesItems } from '../../../../workbook/domain/rowItems'
 import type { Transaction } from '../../../../workbook/domain/workbook'
 import { dismissTripRow, fileTripRows, linkTripRow } from '../../application/tripRowWrites'
 import type { Employee } from '../../domain/employees/employees'
 import { hrDooWorkbook } from '../../domain/hrDooPart'
-import { filedBySettlement, linkedRow, linkedRowId, tripRowSuggestions, tripRowsSplit } from '../../domain/trips/tripBankRows'
+import { filedBySettlement, isLinked, linkedPayment, paidOutsideTrip, tripRowSuggestions, tripRowsSplit } from '../../domain/trips/tripBankRows'
 import type { TripRowLink, TripSplitRefusal } from '../../domain/trips/tripBankRows'
 import type { TripFile } from '../../domain/trips/tripReading'
 import type { TripSettlement } from '../../domain/trips/tripSettlement'
@@ -55,7 +56,7 @@ const suggestions = computed(() => {
     worked.value,
     traveller,
     workbook.trips.map((entry) => entry.trip),
-    workbook.transactions,
+    workbook,
   )
 })
 
@@ -70,27 +71,28 @@ interface LinkLine {
 }
 
 const lines = computed((): LinkLine[] => {
-  const transactions = books.value?.transactions ?? []
+  const workbook = books.value
   const lineOf = (link: TripRowLink, amount: Money | null, empty: string): LinkLine => ({
     link,
     label: said.links[link],
     amount,
-    linked: linkedRow(linkedRowId(trip.value, link), transactions),
+    linked: workbook === null ? null : (linkedPayment(trip.value, link, workbook)?.row ?? null),
     found: suggestions.value.find((suggestion) => suggestion.link === link)?.row ?? null,
     empty,
   })
   const advance = trip.value.advance
   const payout = worked.value !== null && worked.value.payout > 0 ? worked.value.payout : null
   return [
-    ...(advance !== null || trip.value.advanceRow !== null ? [lineOf('advance', advance, advance === null ? said.notLinked : said.notFound)] : []),
-    ...(payout !== null || trip.value.payoutRow !== null ? [lineOf('payout', payout, trip.value.settledOn === null ? said.afterSettling : payout === null ? said.notLinked : said.notFound)] : []),
+    ...(advance !== null || isLinked(trip.value, 'advance') ? [lineOf('advance', advance, advance === null ? said.notLinked : said.notFound)] : []),
+    ...(payout !== null || isLinked(trip.value, 'payout') ? [lineOf('payout', payout, trip.value.settledOn === null ? said.afterSettling : payout === null ? said.notLinked : said.notFound)] : []),
   ]
 })
 
 const split = computed(() => {
   const workbook = books.value
-  if (workbook === null || worked.value === null || (trip.value.advanceRow === null && trip.value.payoutRow === null)) return null
-  return tripRowsSplit(props.file, worked.value, workbook.transactions, workbook.categories)
+  const records = store.state.records
+  if (workbook === null || records === null || records === undefined || worked.value === null || (!isLinked(trip.value, 'advance') && !isLinked(trip.value, 'payout'))) return null
+  return tripRowsSplit(props.file, worked.value, workbook, workbook.categories, storesItems(records))
 })
 
 const names = computed(() => (books.value === null ? null : displayNamesOf(books.value)))
@@ -101,10 +103,26 @@ const splitRows = computed(() => {
   return planned.rows.map((row) => ({
     ...row,
     label: said.links[row.link],
-    filed: filedBySettlement(row, books.value?.splits ?? []),
+    filed: filedBySettlement(row),
     parts: row.parts.map((part) => ({ ...part, name: part.payment === null ? said.returned : (names.value?.category(part.category) ?? part.category) })),
+    outside: [...(row.rest === null ? [] : [row.rest]), ...row.others].map((part, index) => ({
+      key: `outside-${index}`,
+      amount: part.amount,
+      name: said.outside(names.value?.category(part.category) ?? part.category),
+    })),
   }))
 })
+
+/** What each linked payment pays outside the travel order, by its link, read positive, while it pays something there. */
+const paidMore = computed(
+  () =>
+    new Map(
+      splitRows.value.flatMap((row) => {
+        const more = paidOutsideTrip(row)
+        return more > 0 ? [[row.link, more] as const] : []
+      }),
+    ),
+)
 const allFiled = computed(() => splitRows.value.length > 0 && splitRows.value.every((row) => row.filed))
 
 function refusalText(refusal: TripSplitRefusal): string {
@@ -123,6 +141,8 @@ function refusalText(refusal: TripSplitRefusal): string {
       return said.refusals.payoutDiffers(formatMoney(refusal.row), formatMoney(refusal.payout))
     case 'no-category-for-return':
       return said.refusals.noCategoryForReturn
+    case 'no-category-for-rest':
+      return said.refusals.noCategoryForRest(refusal.link)
   }
 }
 
@@ -137,7 +157,10 @@ function rowLink(row: Transaction) {
 
 async function link(line: LinkLine, row: Transaction | null): Promise<void> {
   const before = trip.value
-  await writes.write(row === null ? said.unlinked(line.label) : said.linked(line.label), (unit) => linkTripRow(unit, before, line.link, row?.rowId ?? null), {
+  const current = store.state.records
+  const workbook = books.value
+  if (current === null || current === undefined || workbook === null) return
+  await writes.write(row === null ? said.unlinked(line.label) : said.linked(line.label), (unit) => linkTripRow(unit, { records: current, workbook }, before, line.link, row), {
     key: `${line.link}-link`,
     failedTitle: said.linkNotSaved,
   })
@@ -145,9 +168,10 @@ async function link(line: LinkLine, row: Transaction | null): Promise<void> {
 
 async function dismiss(line: LinkLine, row: Transaction): Promise<void> {
   const before = trip.value
-  const { rowId } = row
-  if (rowId === null) return
-  await writes.write(said.dismissed, (unit) => dismissTripRow(unit, before, rowId), { key: `${line.link}-dismiss`, failedTitle: said.dismissNotSaved })
+  const current = store.state.records
+  const workbook = books.value
+  if (row.rowId === null || current === null || current === undefined || workbook === null) return
+  await writes.write(said.dismissed, (unit) => dismissTripRow(unit, { records: current, workbook }, before, row), { key: `${line.link}-dismiss`, failedTitle: said.dismissNotSaved })
 }
 
 async function fileRows(): Promise<void> {
@@ -155,7 +179,10 @@ async function fileRows(): Promise<void> {
   const current = store.state.records
   const workbook = books.value
   if (planned === null || 'refused' in planned || current === null || workbook === null) return
-  await writes.write(said.fileSaved, (unit) => fileTripRows(unit, { records: current, workbook }, planned.rows, workbook.settings.reviewLabel), { key: 'file-rows', failedTitle: said.notSaved })
+  await writes.write(said.fileSaved, (unit) => fileTripRows(unit, { records: current, workbook }, trip.value, planned.rows, workbook.settings.reviewLabel), {
+    key: 'file-rows',
+    failedTitle: said.notSaved,
+  })
 }
 </script>
 
@@ -167,6 +194,10 @@ async function fileRows(): Promise<void> {
           <span v-if="line.linked" class="type-caption">
             <DrillLink :to="rowLink(line.linked)">{{ said.paidOn(shortDayLabel(line.linked.date), line.linked.counterparty || name) }}</DrillLink>
           </span>
+          <NoteLine v-if="line.linked && paidMore.has(line.link)" tone="info" data-testid="trip-bank-row-more">
+            {{ said.paidMore(line.link, formatMoney(paidMore.get(line.link)!)) }}
+            <DrillLink :to="rowLink(line.linked)">{{ said.fileOnTransactions }}</DrillLink>
+          </NoteLine>
           <span v-else-if="line.found" class="break-words type-caption text-toned" data-testid="trip-bank-row-found">{{
             said.found(shortDayLabel(line.found.date), line.found.counterparty || name)
           }}</span>
@@ -239,6 +270,10 @@ async function fileRows(): Promise<void> {
               <td class="text-end"><MoneyText :cents="row.row.amount" sign="magnitude" class="text-muted" /></td>
             </tr>
             <tr v-for="part in row.parts" :key="part.category">
+              <th scope="row" class="cell-wraps text-start font-normal text-toned">{{ part.name }}</th>
+              <td class="text-end"><MoneyText :cents="part.amount" sign="magnitude" /></td>
+            </tr>
+            <tr v-for="part in row.outside" :key="part.key" data-testid="trip-bank-outside">
               <th scope="row" class="cell-wraps text-start font-normal text-toned">{{ part.name }}</th>
               <td class="text-end"><MoneyText :cents="part.amount" sign="magnitude" /></td>
             </tr>

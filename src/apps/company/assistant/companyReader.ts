@@ -11,7 +11,7 @@ import { countedLedger } from '../transactions/domain/countedLedger'
 import type { CountedLedger } from '../transactions/domain/countedLedger'
 import { bucketTotals } from '../workbook/domain/bucketTotals'
 import type { ProfitAndLossLine } from '../workbook/domain/bucketTotals'
-import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INVOICE_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS } from '../workbook/domain/coreKinds'
 import { displayName, displayNamesOf } from '../workbook/domain/displayName'
 import { isHumanConfirmed, needsReview, reviewCount } from '../workbook/domain/needsReview'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
@@ -219,7 +219,7 @@ const LEDGER_FIELDS: FieldDocs<LedgerRowView> = {
 }
 
 const SPLIT_PART_FIELDS: FieldDocs<SplitPartView> = {
-  id: { exposure: 'ref', to: SPLIT_PART_RECORDS.name, meaning: 'The part.' },
+  id: { exposure: 'ref', to: ITEM_RECORDS.name, meaning: 'The part.' },
   row: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row whose money it is. A row not split is one part, and a split row counts as its parts.' },
   amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'What of the row counts in its category, signed as the row is.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'Its category.' },
@@ -535,7 +535,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
         sets: [{ name: 'waiting', about: 'The rows waiting on To review.', holds: (row) => row.waits }],
       }),
       readableKind({
-        kind: SPLIT_PART_RECORDS,
+        kind: ITEM_RECORDS,
         about: words.reads.splitPart,
         fields: SPLIT_PART_FIELDS,
         dated: null,

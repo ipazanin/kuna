@@ -15,6 +15,7 @@ import { BUCKETS } from '../src/apps/company/workbook/domain/bucket'
 import { CATEGORY_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { VAT_TREATMENTS } from '../src/apps/company/workbook/domain/vatTreatment'
 import type { LedgerEntry } from '../src/apps/company/workbook/domain/ledgerReading'
+import type { ItemRecord } from '../src/apps/company/workbook/domain/splitsReading'
 import type { SplitTabRow } from '../src/apps/company/workbook/domain/splitsReading'
 import { moneyFromAmount, sumMoney } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
@@ -55,18 +56,20 @@ function planTotals(lines: readonly PlanLine[]): ReadonlyMap<number, Money> {
 }
 
 describe('deleting a category into another', () => {
-  it('moves its rows and split parts with the other category’s share, keeps who filed each row, and moves its rules', () => {
+  it('moves its rows, split parts and items with the other category’s share, keeps who filed each row, and moves its rules', () => {
     const [moved, kept] = ledger([
       { date: '2026-01-02', amount: -10, category: 'office' },
       { date: '2026-01-03', amount: -20, category: 'equipment', flaggedBy: 'human' },
     ]) as LedgerEntry[]
     const part = { category: 'Equipment', ownerShare: null } as unknown as SplitTabRow
+    const item = { category: 'equipment', ownerShare: null } as unknown as ItemRecord
     const rules = [{ fields: { rule: 'merchant-model', category: 'equipment' } }, { fields: { rule: 'merchant-paper', category: 'office' } }]
 
-    const move = categoryMove('equipment', 'office', { ledger: [kept!, moved!], splits: [part], rules, packs: [] }, [{ slug: 'office', ownerShare: OFFICE_SHARE }])
+    const move = categoryMove('equipment', 'office', { ledger: [kept!, moved!], splits: [part], items: [item], rules, packs: [] }, [{ slug: 'office', ownerShare: OFFICE_SHARE }])
 
     expect(move.ledger).toEqual([{ before: moved, after: { ...moved, category: 'office', ownerShare: OFFICE_SHARE, flaggedBy: 'human' } }])
     expect(move.splits).toEqual([{ before: part, after: { ...part, category: 'office', ownerShare: OFFICE_SHARE } }])
+    expect(move.items).toEqual([{ before: item, after: { ...item, category: 'office', ownerShare: OFFICE_SHARE } }])
     expect(move.rules).toEqual([{ before: rules[0], after: { fields: { rule: 'merchant-model', category: 'office' } } }])
   })
 

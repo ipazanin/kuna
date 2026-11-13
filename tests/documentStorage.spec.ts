@@ -59,7 +59,7 @@ describe('the document as the file holds it', () => {
       '{',
       '  "format": "kuna",',
       '  "app": "company",',
-      '  "schema": {"core":1,"hr-doo":1},',
+      '  "schema": {"core":2,"hr-doo":2},',
       `  "savedAt": "${SAVED_AT}",`,
       '  "records": {',
       '    "category": [',
@@ -144,7 +144,7 @@ describe.each([
   })
 
   it('reads a file a newer app saved, and never writes it', async () => {
-    const harness = await harnessOf(used, books({ category: CATEGORIES }, { core: 2, 'hr-doo': 1 }))
+    const harness = await harnessOf(used, books({ category: CATEGORIES }, { core: 3, 'hr-doo': 2 }))
     const before = await harness.held()
 
     expect(harness.store.savedByNewerApp()).toBe(true)
@@ -159,7 +159,7 @@ describe.each([
   })
 
   it('keeps a file a newer app saved in this browser when an import would replace it', async () => {
-    const { store, held } = await browserHarness(used, books({ category: CATEGORIES }, { core: 2, 'hr-doo': 1 }))
+    const { store, held } = await browserHarness(used, books({ category: CATEGORIES }, { core: 3, 'hr-doo': 2 }))
     const before = await held()
 
     await store.replaceLocalWorkbook(books({ category: [CATEGORIES[0]!] }), 'Imported')
@@ -169,7 +169,7 @@ describe.each([
   })
 
   it('treats a file with a contributor this app lacks as saved by a newer app', async () => {
-    const { store } = await harnessOf(used, books({ category: CATEGORIES }, { core: 1, 'hr-doo': 1, 'hr-obrt': 1 }))
+    const { store } = await harnessOf(used, books({ category: CATEGORIES }, { core: 2, 'hr-doo': 2, 'hr-obrt': 1 }))
 
     await expect(label(store, 'software', 'Software')).rejects.toThrow(NEWER_FILE)
   })

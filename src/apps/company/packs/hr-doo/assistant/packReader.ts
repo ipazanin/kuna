@@ -90,7 +90,7 @@ interface YearEndLineView {
 }
 
 /** An asset as the chat reads it, its payment named by the ledger row's ref rather than the row id it stores. */
-type AssetView = Omit<Asset, 'rowId'> & {
+type AssetView = Omit<Asset, 'rowId' | 'payment'> & {
   readonly payment: string | null
   readonly paymentFoundBy: AssetMatch | ''
 }
@@ -282,7 +282,7 @@ function clawbackText(clawback: GrantClawback | null): string {
 
 function assetViews(assets: readonly Asset[], workbook: Workbook | null): readonly AssetView[] {
   const register = workbook === null ? null : assetRegister(assets, workbook.transactions, workbook.categories)
-  return assets.map(({ rowId: _rowId, ...asset }, position) => {
+  return assets.map(({ rowId: _rowId, payment: _payment, ...asset }, position) => {
     const payment = register?.assets[position]?.payment ?? null
     return { ...asset, payment: payment?.row.id ?? null, paymentFoundBy: payment?.matchedBy ?? '' }
   })

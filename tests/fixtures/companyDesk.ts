@@ -22,7 +22,7 @@ import { LEDGER_HEADER, browserHarness, ruleRow } from './writeBack'
 /** The IBAN of the account no row is on yet, which the camt fixture's statement is of. */
 export const FRESH_IBAN = 'HR2923400091110000001'
 
-/** Ledger rows newest first, all made up: two waiting, two confirmed, one filed by a rule, and one split. */
+/** Ledger rows newest first, all made up: two waiting, four confirmed, two of them a purchase and its refund, one filed by a rule, and one split. */
 const LEDGER: CellValue[][] = [
   [46305, 'main', 's-003', 'NEW SHOP', '', 'Card purchase', -50, 760, 'unknown', 'ai', 'REF-9', '', '', '', '', '', '', ''],
   [46304, 'main', 's-003', 'MARKET ONE', '', 'Card purchase', -30, 810, 'office', 'ai', 'REF-8', '', '', '', '', '', '', ''],
@@ -30,6 +30,8 @@ const LEDGER: CellValue[][] = [
   [46302, 'main', 's-002', 'Desk Co', '', 'Desk', -60, 940, 'equipment', 'ivan', 'REF-6', '', '', '', '', '', '', ''],
   [46301, 'main', 's-002', 'MODEL API INC', '', 'Card purchase', -20, 1000, 'ai-services', 'rule', 'REF-5', '', '', '', '', '', '', ''],
   [46300, 'main', 's-001', 'Client Ltd', '', 'Invoice 1', 1020, 1020, 'revenue', 'rule', 'REF-4', '', '', '', '', '', '', ''],
+  [46299, 'main', 's-001', 'PAPER CORNER', '', 'Card refund', 10, 0, 'office', 'ivan', 'REF-3', '', '', '', '', '', '', ''],
+  [46299, 'main', 's-001', 'PAPER CORNER', '', 'Card purchase', -10, -10, 'office', 'ivan', 'REF-2', '', '', '', '', '', '', ''],
 ]
 
 const CATEGORY_COLUMNS = ['category', 'label', 'family', 'bucket', 'roles', 'vat', 'owner_share']

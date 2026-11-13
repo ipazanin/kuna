@@ -81,11 +81,17 @@ export interface Trip {
   readonly report: string
   readonly settledOn: CivilDate | null
   readonly note: string
-  /** The row id of the ledger row that paid the advance, as a person linked it. */
+  /** The items of the payment that paid the advance, as a person linked them or the settlement filed them. */
+  readonly advanceItems: readonly RecordId[]
+  /** The items of the payment that paid out the settlement, as a person linked them or the settlement filed them. */
+  readonly payoutItems: readonly RecordId[]
+  /** Items of payments Kuna offered for a link that a person said are not this trip's. */
+  readonly dismissedItems: readonly RecordId[]
+  /** In books from before items: the row id of the ledger row that paid the advance, every item of which the link names. */
   readonly advanceRow: string | null
-  /** The row id of the ledger row that paid out the settlement, as a person linked it. */
+  /** In books from before items: the row id of the ledger row that paid out the settlement, every item of which the link names. */
   readonly payoutRow: string | null
-  /** Row ids of payments Kuna offered for a link that a person said are not this trip's. */
+  /** In books from before items: row ids of payments a person set aside, every item of which the trip sets aside. */
   readonly dismissedRows: readonly string[]
   /** The day a person marked the trip's JOPPD code 17 line as reported, or null while it is not. */
   readonly reportedOn: CivilDate | null

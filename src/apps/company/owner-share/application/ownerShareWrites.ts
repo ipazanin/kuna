@@ -1,6 +1,8 @@
 import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
 import { installedPack } from '../../packs/packContribution'
+import { ITEM_WRITES } from '../../transactions/application/itemWrites'
 import { SPLIT_WRITES } from '../../transactions/application/splitWrites'
+import { storedItemsOfRow, storesItems } from '../../workbook/domain/rowItems'
 import type { Repository, UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
@@ -41,10 +43,15 @@ function ownerAdvances(records: WorkbookRecords): { readonly rules: WriteRules<S
 
 function changeShareOf(unit: UnitOfWork, records: WorkbookRecords, target: ShareTarget, shareFrom: ShareFrom): void {
   switch (target.holder) {
-    case 'ledger':
-      return changeShare(unit.of(LEDGER_WRITES), records.ledger, target.id, shareFrom)
+    case 'ledger': {
+      if (!storesItems(records)) return changeShare(unit.of(LEDGER_WRITES), records.ledger, target.id, shareFrom)
+      const row = recordWithId(records.ledger, target.id)?.record
+      const [item] = row === undefined ? [] : storedItemsOfRow(records.items, row)
+      if (item === undefined) throw new Error(words.rowGone)
+      return changeShare(unit.of(ITEM_WRITES), records.items, item.id, shareFrom)
+    }
     case 'split-part':
-      return changeShare(unit.of(SPLIT_WRITES), records.splits, target.id, shareFrom)
+      return storesItems(records) ? changeShare(unit.of(ITEM_WRITES), records.items, target.id, shareFrom) : changeShare(unit.of(SPLIT_WRITES), records.splits, target.id, shareFrom)
     case 'owner-advance': {
       const advances = ownerAdvances(records)
       return changeShare(unit.of(advances.rules), advances.read, target.id, shareFrom)

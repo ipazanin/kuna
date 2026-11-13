@@ -25,11 +25,11 @@ import type { SplitPartDraft } from '../../transactions/application/splitWrites'
 import { fitsPairSide, pairSidesWith } from '../../transactions/domain/pairSides'
 import { confirmation, confirmedRowsRefiledBy, recategorisation } from '../../transactions/domain/verdictChanges'
 import type { RowVerdict } from '../../transactions/domain/verdictChanges'
-import { CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
+import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../workbook/domain/displayName'
 import { needsReview } from '../../workbook/domain/needsReview'
-import { storedSplitOf } from '../../workbook/domain/splitsReading'
-import { wholeItemId } from '../../workbook/domain/splits'
+import { storedSplitOf } from '../../workbook/domain/rowItems'
+import { rowsOfOneItem, wholeItemId } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { FLAG_OR_NULL, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
@@ -47,7 +47,7 @@ import { NO_RECORDS, recordWithId, recordsOf } from '../../../../shared/storage/
 const ROW = LEDGER_RECORDS.name
 const CATEGORY = CATEGORY_RECORDS.name
 const RULE = RULE_RECORDS.name
-const SPLIT_PART = SPLIT_PART_RECORDS.name
+const SPLIT_PART = ITEM_RECORDS.name
 
 const CONFIDENCE_OR_NULL = { type: ['string', 'null'], description: 'rule files the row, review files it and leaves it waiting on To review, or null to leave it.' } as const
 
@@ -218,7 +218,7 @@ function fileRow(card: CompanyCard, step: ProposalStep): void {
       card.note({ noun: LEDGER_RECORDS.noun, note: { label: row.counterparty || names.category(row.category), text: warning, tone: 'warning' } })
     }
   }
-  fileRows(card.unit, card.records().ledger, [verdict], card.workbook.categories)
+  fileRows(card.unit, { records: card.records(), workbook: card.workbook }, [verdict], card.workbook.categories)
 }
 
 function confidenceOf(text: string | null, kept: RuleConfidence): RuleConfidence {
@@ -246,7 +246,7 @@ function writeRules(card: CompanyCard, change: RulesTabChange, settledBy: string
   const rows = recordsOf(card.records().rules)
   const defined = new Set(workbook.categories.map((category) => category.slug))
   const context = categorisationContextOf(workbook)
-  const preview = previewRulesChange(rows, change, defined, readRules(rows, defined).rules, workbook.transactions, context)
+  const preview = previewRulesChange(rows, change, defined, readRules(rows, defined).rules, rowsOfOneItem(workbook.transactions, workbook.splits), context)
   if (preview.refusals.length > 0) throw new StepRefused(preview.refusals.join(' '))
   const refiled = settledBy === null ? [] : confirmedRowsRefiledBy(settledBy, preview.backtest.humanConflicts)
   if (settledBy === null) {
@@ -342,7 +342,7 @@ function deleteRule(card: CompanyCard, step: ProposalStep): void {
 /** The suggestions of Settings, Category rules as it shows them, and those dismissed. */
 function suggestionsOf(card: CompanyCard) {
   const { workbook } = card
-  return withoutDismissed(ruleCoverage(workbook.transactions, workbook.rules, categorisationContextOf(workbook)), workbook.dismissals)
+  return withoutDismissed(ruleCoverage(rowsOfOneItem(workbook.transactions, workbook.splits), workbook.rules, categorisationContextOf(workbook)), workbook.dismissals)
 }
 
 function holds(rows: readonly Transaction[], row: Transaction): boolean {
@@ -394,7 +394,7 @@ function splitRow(card: CompanyCard, step: ProposalStep): void {
   const row = rowOf(card, field['row'])
   const parts = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly note: string }[]
   if (parts.length < 2) throw new StepRefused('A split has at least two parts.')
-  const stored = storedSplitOf(card.records().splits, card.workbook.splits, row)
+  const stored = storedSplitOf(card.records(), card.workbook, row)
   const amounts = partAmounts(
     row,
     field['by'],
@@ -409,12 +409,12 @@ function splitRow(card: CompanyCard, step: ProposalStep): void {
   const drafts = parts.map((part, at): SplitPartDraft => ({ amount: amounts[at]!, category: categoryOf(card, part.category).slug, note: part.note, opened: openedOf(part.part) }))
   const kept = drafts.flatMap((draft) => (draft.opened === null ? [] : [draft.opened.id]))
   if (new Set(kept).size < kept.length) throw new StepRefused("Each of the row's split parts is kept by one part at most.")
-  writeSplit(card.unit, row, stored, drafts, card.workbook.categories)
+  writeSplit(card.unit, card.records(), row, stored, drafts, card.workbook.categories)
 }
 
 function deleteSplit(card: CompanyCard, step: ProposalStep): void {
   const row = rowOf(card, fieldsOf(step)['row'])
-  const stored = storedSplitOf(card.records().splits, card.workbook.splits, row)
+  const stored = storedSplitOf(card.records(), card.workbook, row)
   if (stored.parts.length === 0) throw new StepRefused('That row is not split.')
   const books = { records: card.records(), workbook: card.workbook }
   const refusal = splitKeptRefusal(books, row)

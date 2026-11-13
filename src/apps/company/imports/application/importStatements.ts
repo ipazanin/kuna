@@ -6,14 +6,13 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 import { accountOfFields } from '../../workbook/domain/accountsReading'
 import { slugProblem } from '../../workbook/domain/slug'
 import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
-import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { storedFieldOfValue } from '../../../../shared/storage/domain/storedFields'
-import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
+import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { readCamtDocument } from '../domain/camtStatement'
 import { importDryRun } from '../domain/importDryRun'
 import type { ImportDryRun } from '../domain/importDryRun'
-import { LEDGER_WRITES } from './ledgerWrites'
+import { replaceLedgerRows } from '../../transactions/application/itemWrites'
 import type { ImportProfile } from '../domain/importProfile'
 import type { StatementReading } from '../domain/importedStatement'
 import { headerRowOf, readTabularStatement } from '../domain/tabularStatement'
@@ -85,19 +84,16 @@ export function dryRunFor(
 
 /**
  * The write of an import: the accounts it adds, the copied rows its entries take the place of, as the app read them, then its
- * ledger entries. A copied row the records on screen no longer hold stays, and the ledger then refuses entries that do not run on.
+ * ledger entries with their items, in the shape the books keep. A copied row the records on screen no longer hold stays, and the
+ * ledger then refuses entries that do not run on.
  */
-export function writeImport(unit: UnitOfWork, run: ImportDryRun, ledger: RecordsRead<LedgerEntry>): void {
+export function writeImport(unit: UnitOfWork, run: ImportDryRun, records: WorkbookRecords | null | undefined): void {
+  if (records === null || records === undefined) throw new Error('The books are not read yet, so nothing is imported.')
   for (const account of run.accounts) {
     unit.of(ACCOUNT_WRITES).add(accountOfFields({ account: storedFieldOfValue(account.slug), iban: storedFieldOfValue(account.iban), currency: storedFieldOfValue(account.currency) }))
   }
-  for (const copied of run.removed) {
-    const stored = recordWithId(ledger, copied.id)?.record
-    if (stored !== undefined) unit.of(LEDGER_WRITES).remove(stored)
-  }
-  for (const entry of run.added) {
-    unit.of(LEDGER_WRITES).add(entry)
-  }
+  const removed = run.removed.flatMap((copied) => recordWithId(records.ledger, copied.id)?.record ?? [])
+  replaceLedgerRows(unit, records, removed, run.added)
 }
 
 /** "Imported 4 rows", or "Added main and imported 4 rows" when the import adds accounts. */

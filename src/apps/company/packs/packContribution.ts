@@ -16,6 +16,7 @@ import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
 import { newestBookingOf } from '../workbook/domain/workbook'
 import type { Category, Transaction, Workbook } from '../workbook/domain/workbook'
 import type { UnitOfWork } from '../../../shared/storage/application/repository'
+import type { RecordId } from '../../../shared/storage/domain/recordId'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 import type { Money } from '../../../shared/money/money'
 import type { RateBook } from '../../../shared/money/rateBook'
@@ -122,6 +123,11 @@ export interface PackContribution {
   employees(records: WorkbookRecords): readonly KnownPerson[]
   /** Links the pack's records that find their bank row by its content to that row's id, in the write that gives the ledger rows their ids. */
   linkToRows(unit: UnitOfWork, records: WorkbookRecords, ledger: { readonly transactions: readonly Transaction[]; readonly categories: readonly Category[] }): void
+  /**
+   * Turns the pack's records that name a bank row by its row id to name the row's items instead, in the write that moves the books
+   * from before items to the items tab. `itemsOf` gives the items a row id's row holds once moved, or none for a row id no row carries.
+   */
+  linkToItems(unit: UnitOfWork, records: WorkbookRecords, itemsOf: (rowId: string) => readonly RecordId[]): void
 }
 
 const NO_PACK: PackContribution = {
@@ -144,6 +150,7 @@ const NO_PACK: PackContribution = {
   onboarding: null,
   employees: () => [],
   linkToRows: () => {},
+  linkToItems: () => {},
 }
 
 let installed: PackContribution = NO_PACK

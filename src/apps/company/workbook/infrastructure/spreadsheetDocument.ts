@@ -1,6 +1,6 @@
 import { cellText } from '../../../../shared/text/cellText'
 import { codecOfKind } from '../application/recordCodecs'
-import { LEDGER_RECORDS } from '../domain/coreKinds'
+import { ITEM_RECORDS, LEDGER_RECORDS } from '../domain/coreKinds'
 import { ID_FIELD } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordFields } from '../../../../shared/storage/domain/recordFields'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -23,6 +23,9 @@ function spreadsheetTabs(): readonly SpreadsheetTab<unknown>[] {
   return [...Object.values(CORE_TABS), ...installedPackTabs()] as readonly SpreadsheetTab<unknown>[]
 }
 
+/** The ledger row's fields the items tab repeats in front of each item for a person reading an export, which an import leaves out. */
+const COPIED_FROM_LEDGER = ['date', 'account', 'counterparty'] as const
+
 /** A cell's field as the file holds it: a day in a date column as `yyyy-mm-dd`, a flag as a flag, anything else as its text. */
 function documentValueOf(field: StoredField, format: CellFormat | null): string | boolean {
   if (field.flag !== null) {
@@ -38,7 +41,12 @@ function documentValueOf(field: StoredField, format: CellFormat | null): string 
 function documentRecordOfRow(mapping: SpreadsheetTab<unknown>, row: SheetRow): DocumentRecord {
   const fields = storedFieldsOfCells(row.cells)
   const fieldOf = (column: string): string => cellText(row.cells[column]).toLowerCase()
-  const record = Object.fromEntries(Object.entries(fields).map(([name, field]) => [name, documentValueOf(field, mapping.formatOf(name, fieldOf))]))
+  const copied: readonly string[] = mapping.kind.name === ITEM_RECORDS.name ? COPIED_FROM_LEDGER : []
+  const record = Object.fromEntries(
+    Object.entries(fields)
+      .filter(([name]) => !copied.includes(name))
+      .map(([name, field]) => [name, documentValueOf(field, mapping.formatOf(name, fieldOf))]),
+  )
   if (mapping.kind.name !== LEDGER_RECORDS.name || ID_FIELD in record) {
     return record
   }
@@ -78,13 +86,32 @@ function fieldsOfRecord(record: DocumentRecord): RecordFields {
   )
 }
 
-/** The document as the tabs of an xlsx file, each record a row of its kind's tab in the order the document holds them. A kind no tab maps is left out. */
+/** What an item's row repeats of its ledger row, by the ledger row's id. */
+function copiedOfLedger(document: WorkbookDocument): ReadonlyMap<string, DocumentRecord> {
+  const ledger = document.records[LEDGER_RECORDS.name] ?? []
+  return new Map(
+    ledger.flatMap((record) => {
+      const id = fieldValueOf(record[ID_FIELD])
+      return typeof id === 'string' && id !== '' ? [[id, Object.fromEntries(COPIED_FROM_LEDGER.map((name) => [name, record[name]]))] as const] : []
+    }),
+  )
+}
+
+/**
+ * The document as the tabs of an xlsx file, each record a row of its kind's tab in the order the document holds them. A kind no
+ * tab maps is left out. Each item repeats its ledger row's day, account and counterparty for a person reading it.
+ */
 export function tabsOfDocument(document: WorkbookDocument): WorkbookTabs {
+  const copied = copiedOfLedger(document)
+  const withCopies = (mapping: SpreadsheetTab<unknown>, record: DocumentRecord): DocumentRecord => {
+    const row = fieldValueOf(record['row_id'])
+    return mapping.kind.name === ITEM_RECORDS.name && typeof row === 'string' ? { ...(copied.get(row) ?? {}), ...record } : record
+  }
   const tabs = Object.fromEntries(
     spreadsheetTabs().map((mapping) => [
       mapping.tab,
       (document.records[mapping.kind.name] ?? []).map((record, index): SheetRow => {
-        const cells = cellsOfFields(spreadsheetTabOfKind(mapping.kind), fieldsOfRecord(record))
+        const cells = cellsOfFields(spreadsheetTabOfKind(mapping.kind), fieldsOfRecord(withCopies(mapping, record)))
         return { sheetRow: index + 2, cells: Object.fromEntries(Object.entries(cells).filter(([, cell]) => cellText(cell) !== '')) }
       }),
     ]),

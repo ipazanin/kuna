@@ -13,7 +13,7 @@ import { words as ruleFormWords } from '../../rules/presentation/words'
 import { readRules } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import { conditionInWords } from '../../rules/domain/ruleSummary'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, DISMISSAL_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, DISMISSAL_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SETTING_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
 import { displayName, displayNamesOf } from '../../workbook/domain/displayName'
 import type { DisplayNames } from '../../workbook/domain/displayName'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
@@ -69,11 +69,11 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   if (isKind(kind, RULE_RECORDS, record) && field === 'fields') return ruleInWords(record, workbook, names)
   const money = (amount: Money) => formatMoney(amount, 'negative', moneyFormatOf(workbook.settings))
   if (isKind(kind, LEDGER_RECORDS, record) && field === 'amount') return money(record.amount)
-  if (isKind(kind, SPLIT_PART_RECORDS, record) && field === 'amount') return money(record.amount)
+  if ((isKind(kind, SPLIT_PART_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'amount') return money(record.amount)
   if (isKind(kind, LEDGER_RECORDS, record) && field === 'date') return dayLabel(record.date)
   if (isKind(kind, DISMISSAL_RECORDS, record) && field === 'dismissedOn') return record.dismissedOn === null ? null : dayLabel(record.dismissedOn)
   if (isKind(kind, LEDGER_RECORDS, record) && field === 'flaggedBy') return filedBy(record.flaggedBy)
-  if ((isKind(kind, LEDGER_RECORDS, record) || isKind(kind, SPLIT_PART_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record)) && field === 'ownerShare') {
+  if ((isKind(kind, LEDGER_RECORDS, record) || isKind(kind, SPLIT_PART_RECORDS, record) || isKind(kind, ITEM_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record)) && field === 'ownerShare') {
     const share = ownerShareText(record.ownerShare)
     return share === null ? null : `${share} %`
   }
@@ -99,7 +99,7 @@ function bucketName(bucket: string, workbook: Workbook): string {
 /** What the record is called on screen: a row by its counterparty or else its category, a part by its category, a setting by its form's name, a rule by its id, and others by their name. */
 function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, names: DisplayNames, packSettingNames: Readonly<Record<string, string>>): string {
   if (isKind(kind, LEDGER_RECORDS, record)) return record.counterparty !== '' ? record.counterparty : names.category(record.category)
-  if (isKind(kind, SPLIT_PART_RECORDS, record)) return names.category(record.category)
+  if (isKind(kind, SPLIT_PART_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) return names.category(record.category)
   if (isKind(kind, CATEGORY_RECORDS, record)) return displayName(record.slug, record.label)
   if (isKind(kind, ACCOUNT_RECORDS, record)) return displayName(record.slug, record.label)
   if (isKind(kind, SETTING_RECORDS, record)) return settingName(record.key, packSettingNames)

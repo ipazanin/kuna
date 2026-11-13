@@ -40,7 +40,7 @@ export const ID_TEMPLATE_COLUMN: TemplateColumn = {
   note: 'A code the app gives each row so it can find the row again. Leave it as it is.',
 }
 
-/** The column of a row's owner share, on the ledger, categories, splits and owner-advances tabs. */
+/** The column of a row's owner share, on the ledger, categories, splits, items and owner-advances tabs. */
 const OWNER_SHARE_COLUMN = 'owner_share'
 
 export const OWNER_SHARE_TEMPLATE_COLUMN: TemplateColumn = {
@@ -64,8 +64,11 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'description', note: 'The payment description. Optional.' },
     { name: 'amount', note: 'The amount as a number, money in positive and money out negative. Required.' },
     { name: 'balance', note: "The account's balance after this row, as a number. Required." },
-    { name: 'category', note: 'A category from the categories tab. A blank or unknown one waits for review.' },
-    { name: 'flagged_by', note: 'Who set the category: rule, ai for a guess that waits for review, or a person.' },
+    {
+      name: 'category',
+      note: 'In books from before the items tab, a category from the categories tab, and a blank or unknown one waits for review. Books with an items tab file each item there and leave it blank.',
+    },
+    { name: 'flagged_by', note: "Who filed the row's items: rule, ai for a guess that waits for review, or a person." },
     { name: 'reference', note: "The bank's own reference for the entry. Optional." },
     { name: 'purpose', note: 'The ISO purpose code a camt statement gave the entry, such as SALA. Optional.' },
     { name: 'tx_domain', note: 'The ISO bank transaction domain code from a camt statement, such as PMNT. Optional.' },
@@ -171,6 +174,20 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'category', note: 'A category from the categories tab. The part counts there, with its own timing. Required.' },
     { name: 'note', note: 'What this part paid for. Optional.' },
     OWNER_SHARE_TEMPLATE_COLUMN,
+    ID_TEMPLATE_COLUMN,
+  ],
+  items: [
+    { name: 'date', note: 'The booking date of the ledger row, copied from the ledger for reading. The app ignores it on import.' },
+    { name: 'account', note: 'The account of the ledger row, copied from the ledger for reading. The app ignores it on import.' },
+    { name: 'counterparty', note: 'Who paid or was paid on the ledger row, copied from the ledger for reading. The app ignores it on import.' },
+    { name: 'row_id', note: 'The id of the ledger row whose money this is, from its id column. Required.' },
+    {
+      name: 'amount',
+      note: "What of the row this item is, with the row's sign. A row's items add up to it, so filtering this tab by category gives the books by category. Required.",
+    },
+    { name: 'category', note: "A category from the categories tab. A row's one item may leave it blank or name one the tab lacks, and then waits for review." },
+    OWNER_SHARE_TEMPLATE_COLUMN,
+    { name: 'note', note: 'What this item paid for. Optional.' },
     ID_TEMPLATE_COLUMN,
   ],
   dismissed: [

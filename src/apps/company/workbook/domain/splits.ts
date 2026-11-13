@@ -1,10 +1,11 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import type { Money } from '../../../../shared/money/money'
 import { naturalOrder } from '../../../../shared/text/naturalOrder'
 import { ownerPartKey } from '../../owner-share/domain/ownerParts'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import type { Bucket } from './bucket'
-import { LEDGER_RECORDS, SPLIT_PART_RECORDS } from './coreKinds'
+import { ITEM_RECORDS, LEDGER_RECORDS } from './coreKinds'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Transaction } from './workbook'
@@ -36,6 +37,22 @@ export interface SplitPart {
   readonly id: RecordId
 }
 
+/** A part of a row as the books store it, which a write to the row's items keeps, changes or removes by its id. */
+export type StoredItem = Pick<SplitPart, 'id' | 'amount' | 'category' | 'note' | 'ownerShare'>
+
+/** What the books hold of a row's split, which a write to the row's items replaces. */
+export interface StoredSplit {
+  /** The parts that can be read, larger first. None for a row of one item. */
+  readonly parts: readonly StoredItem[]
+  /** True when the row has parts but none of them counts, since the guards refused them. */
+  readonly refused: boolean
+  /** How many records of the row's parts cannot be read, which keep any split of the row from counting until they are fixed. */
+  readonly unreadable: number
+}
+
+/** What the books hold of a row of one item: no split. */
+export const NOTHING_STORED: StoredSplit = { parts: [], refused: false, unreadable: 0 }
+
 /** A bank row and the parts that count in its place, which add up to it. */
 export interface LedgerSplit {
   readonly row: Transaction
@@ -49,16 +66,11 @@ export function partOrder(earlier: Pick<SplitPart, 'amount' | 'category' | 'note
 }
 
 /**
- * The id of the one part a bank row that is not split stands for, which its first part keeps when it is split, or null for a row
- * with no row id yet.
+ * The id of the one item of a bank row that is not split: the one its row id makes, or for a row with none yet one its own key
+ * makes. A split's first part keeps it, and the one item left when a split comes off takes it again.
  */
-export function wholeRowPartId(row: Pick<Transaction, 'rowId'>): RecordId | null {
-  return row.rowId === null ? null : recordIdOf(SPLIT_PART_RECORDS, row.rowId)
-}
-
-/** The id of the one item a bank row that is not split stands for: the one its row id makes, or for a row with none yet one its own key makes. */
 export function wholeItemId(row: Pick<Transaction, 'id' | 'rowId'>): RecordId {
-  return wholeRowPartId(row) ?? recordIdOf(SPLIT_PART_RECORDS, keyOfRecordId(LEDGER_RECORDS, row.id))
+  return recordIdOf(ITEM_RECORDS, row.rowId ?? keyOfRecordId(LEDGER_RECORDS, row.id))
 }
 
 /** A bank row's items: the parts of its split, or while it has none the one item the row stands for, with its whole amount, category and share and no note. */
@@ -71,6 +83,24 @@ export function itemsOfRow(row: Transaction, split: LedgerSplit | undefined): re
 export function rowItemsOf(splits: readonly LedgerSplit[]): (row: Transaction) => readonly SplitPart[] {
   const splitOf = new Map(splits.map((split) => [split.row.id, split]))
   return (row) => itemsOfRow(row, splitOf.get(row.id))
+}
+
+/** The item of the category most of the row's money is in, the first of them in item order. */
+export function mainItemOf(items: readonly SplitPart[]): SplitPart {
+  const category = mainCategoryOf(items)
+  return items.find((item) => item.category === category)!
+}
+
+/** The row as its items file it whole: as its one item, or for a row of several as the item of the category most of its money is in. */
+export function rowFiledAs(row: Transaction, items: readonly SplitPart[]): Transaction {
+  const main = mainItemOf(items)
+  return { ...row, category: main.category, family: main.family, bucket: main.bucket, ownerShare: main.ownerShare }
+}
+
+/** The rows a rule may file: those of one item, since a row of several says by its split where each part of its money goes. */
+export function rowsOfOneItem<Row extends Pick<Transaction, 'id'>>(transactions: readonly Row[], splits: readonly Pick<LedgerSplit, 'row'>[]): Row[] {
+  const split = new Set(splits.map((held) => held.row.id))
+  return transactions.filter((row) => !split.has(row.id))
 }
 
 /** The key a part of this row is written with. */

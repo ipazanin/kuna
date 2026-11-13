@@ -16,7 +16,6 @@ import { useOnboarding } from './useOnboarding'
 import { words } from './words'
 import { withGoogleAccess } from '../../../../shared/google/withGoogleAccess'
 import StepCard from '../../../../shared/ui/StepCard.vue'
-import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 /**
  * The first statement: a camt.053 file, whose IBAN, currency and opening balance make the account
  * the person names, as Import's dry run offers. A bank export needs its columns named, which Import
@@ -69,7 +68,7 @@ async function importNow(): Promise<void> {
   let imported = false
   try {
     imported = await withGoogleAccess(inBrowser.value ? [] : ['drive.file'], () =>
-      writes.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records?.ledger ?? NO_RECORDS), { failedTitle: words.statement.notImported }),
+      writes.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records), { failedTitle: words.statement.notImported }),
     )
   } catch (refused) {
     loadFailure.value = refused instanceof Error ? refused.message : String(refused)

@@ -12,7 +12,6 @@ import { categorisationContextOf } from '../../rules/domain/categorisationContex
 import { categoryRuleLink } from '../../rules/presentation/ruleLinks'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -53,12 +52,12 @@ const against = computed(() => {
 })
 
 async function change(): Promise<void> {
-  const workbook = state.workbook
+  const { records, workbook } = state
   const category = picked.value
-  if (workbook === null || category === undefined || !changed.value) return
+  if (workbook === null || workbook === undefined || records === null || records === undefined || category === undefined || !changed.value) return
   const contradicting = against.value
   const verdict = recategorisation(props.row, category, workbook.settings)
-  const written = await writes.write(words.changeDialog.filedAs(names.value.category(category)), (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], workbook.categories), {
+  const written = await writes.write(words.changeDialog.filedAs(names.value.category(category)), (unit) => fileRows(unit, { records, workbook }, [verdict], workbook.categories), {
     failedTitle: words.changeDialog.notWritten,
     description: props.row.counterparty || words.changeDialog.noCounterpartyRow,
     ...(contradicting === null

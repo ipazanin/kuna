@@ -8,6 +8,7 @@ import { previewRulesChange } from '../domain/rulesChangePreview'
 import type { RulesChangePreview } from '../domain/rulesChangePreview'
 import type { RulesTabChange } from '../domain/rulesTabChange'
 import { categorisationContextOf } from '../domain/categorisationContext'
+import { rowsOfOneItem } from '../../workbook/domain/splits'
 
 /** The back-test and the checks of a rules change, kept current as the change is edited. Null without a workbook or a change. */
 export function useRulesChangePreview(change: () => RulesTabChange | null): ComputedRef<RulesChangePreview<Transaction> | null> {
@@ -20,6 +21,6 @@ export function useRulesChangePreview(change: () => RulesTabChange | null): Comp
       return null
     }
     const definedCategories = new Set(workbook.categories.map((category) => category.slug))
-    return previewRulesChange(recordsOf(records.rules), pending, definedCategories, workbook.rules, workbook.transactions, categorisationContextOf(workbook))
+    return previewRulesChange(recordsOf(records.rules), pending, definedCategories, workbook.rules, rowsOfOneItem(workbook.transactions, workbook.splits), categorisationContextOf(workbook))
   })
 }

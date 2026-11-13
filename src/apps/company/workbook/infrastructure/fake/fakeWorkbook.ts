@@ -283,6 +283,11 @@ const LOSS_MONTH = '2025-11'
  * kinds without a business key, and every ledger row, carry a fixed id.
  */
 export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): Readonly<Record<string, readonly RecordFields[]>> {
+  return onItemsTab(fakeWorkbookRecordsBeforeItems(source, staff, giving))
+}
+
+/** The made-up company's books as they stood before the items tab: each row's category and share on the row, and its splits on the splits tab. */
+export function fakeWorkbookRecordsBeforeItems(source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): Readonly<Record<string, readonly RecordFields[]>> {
   const records = fakeKinds(source, staff, giving)
   return Object.fromEntries(Object.entries(records).map(([kind, held]) => [kind, held.map((fields, index) => recordFields(withFixedId(kind, fields, index)))]))
 }
@@ -290,6 +295,52 @@ export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: Fak
 /** The made-up company's books as the document a Drive file or this browser holds. */
 export function fakeWorkbookDocument(savedAt: string, source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): WorkbookDocument {
   return newDocument(COMPANY_APP, installedSchema(), fakeWorkbookRecords(source, staff, giving), savedAt)
+}
+
+/** The made-up company's books as a file saved before the items tab holds them. */
+export function fakeWorkbookDocumentBeforeItems(savedAt: string, source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): WorkbookDocument {
+  return newDocument(COMPANY_APP, installedSchema(), fakeWorkbookRecordsBeforeItems(source, staff, giving), savedAt)
+}
+
+/** The one item of a ledger row that is not split: its whole amount, category and share, under the row's own id. */
+export function itemOfLedgerRow(row: RecordFields): RecordFields {
+  return filledFields({ row_id: row[ID_FIELD], amount: row.amount, category: row.category, owner_share: row.owner_share, [ID_FIELD]: row[ID_FIELD] })
+}
+
+/** The ledger row without the category and share its items hold. */
+function rowOnItemsTab({ category: _category, owner_share: _share, ...row }: RecordFields): RecordFields {
+  return row
+}
+
+/**
+ * The books with every row's money on the items tab, as the fake writes them: each row not split one item under its own id, a
+ * split row its parts in the order the splits tab holds them, each under its own id, and the ledger rows without their category
+ * and share. A trip names the items of the rows it links or set aside.
+ */
+function onItemsTab(records: Readonly<Record<string, readonly RecordFields[]>>): Readonly<Record<string, readonly RecordFields[]>> {
+  const { 'split-part': parts = [], 'ledger-row': ledger = [], 'hr-doo.trip': trips, ...rest } = records
+  const partsOf = (row: RecordFields) =>
+    parts
+      .filter((part) => part.row_id === row[ID_FIELD])
+      .map((part) => filledFields({ row_id: part.row_id, amount: part.amount, category: part.category, note: part.note, owner_share: part.owner_share, [ID_FIELD]: part[ID_FIELD] }))
+  const items = ledger.flatMap((row) => {
+    const split = partsOf(row)
+    return split.length > 0 ? split : [itemOfLedgerRow(row)]
+  })
+  const itemsOf = (rowId: FieldValue | undefined) => items.filter((item) => item.row_id === rowId).map((item) => item[ID_FIELD])
+  const linked = (trip: RecordFields, field: string) => (trip[field] === undefined ? {} : { [field.replace('_row', '_items')]: itemsOf(trip[field]).join(', ') })
+  return {
+    ...rest,
+    'ledger-row': ledger.map(rowOnItemsTab),
+    item: items,
+    ...(trips === undefined
+      ? {}
+      : {
+          'hr-doo.trip': trips.map(({ advance_row: _advance, payout_row: _payout, ...trip }, index) =>
+            filledFields({ ...trip, ...linked(trips[index]!, 'advance_row'), ...linked(trips[index]!, 'payout_row') }),
+          ),
+        }),
+  }
 }
 
 /** The kinds whose records carry an id, each with its place in the fixed ids, so every run gives the same ids. */

@@ -10,7 +10,8 @@ import { readEach } from '../../../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordsRead } from '../../../../../../shared/storage/domain/recordsRead'
 import { sharedKeys } from '../../../../../../shared/storage/domain/sharedKeys'
 import { optionalDate, optionalMoney, ownId, positiveMoney, refuse, requiredChoice, requiredDate, slugOf, textOf, wholeNumberOf } from '../../../../../../shared/storage/domain/storedFields'
-import type { StoredFields } from '../../../../../../shared/storage/domain/storedFields'
+import type { StoredField, StoredFields } from '../../../../../../shared/storage/domain/storedFields'
+import { ITEM_RECORDS } from '../../../../workbook/domain/coreKinds'
 import type { RuleSource } from '../payroll/payrollArithmetic'
 import { ruleValue } from '../../ruleset/ruleset'
 import { TRIP_COST_RECORDS, TRIP_LEG_RECORDS, TRIP_RECORDS } from '../hrDooKinds'
@@ -135,14 +136,32 @@ function tripOf(fields: StoredFields, id: RecordId | null, say: TripWording): Tr
     report: textOf(fields.report),
     settledOn: optionalDate(fields, 'settled_on'),
     note: textOf(fields.note),
+    advanceItems: listOf(fields.advance_items).map(itemIdOf),
+    payoutItems: listOf(fields.payout_items).map(itemIdOf),
+    dismissedItems: listOf(fields.dismissed_items).map(itemIdOf),
     advanceRow: textOf(fields.advance_row) || null,
     payoutRow: textOf(fields.payout_row) || null,
-    dismissedRows: textOf(fields.dismissed_rows)
-      .split(',')
-      .map((rowId) => rowId.trim())
-      .filter((rowId) => rowId !== ''),
+    dismissedRows: listOf(fields.dismissed_rows),
     reportedOn: optionalDate(fields, 'reported_on'),
   }
+}
+
+/** The ids a field holds, comma separated. */
+function listOf(field: StoredField | undefined): string[] {
+  return textOf(field)
+    .split(',')
+    .map((key) => key.trim())
+    .filter((key) => key !== '')
+}
+
+/** An item's id from the key a trip stores it by. */
+function itemIdOf(key: string): RecordId {
+  return recordIdOf(ITEM_RECORDS, key)
+}
+
+/** Items' ids as a trip stores them, by their keys, comma separated. */
+function listText(items: readonly RecordId[]): string {
+  return items.map((id) => keyOfRecordId(ITEM_RECORDS, id)).join(', ')
 }
 
 /** The trip a leg or a cost names, read as a trip, so an id of another kind names no trip the reader finds. */
@@ -226,6 +245,9 @@ export function tripCodecs(say: TripWording): TripCodecs {
           report: trip.report,
           settled_on: trip.settledOn,
           note: trip.note,
+          advance_items: listText(trip.advanceItems),
+          payout_items: listText(trip.payoutItems),
+          dismissed_items: listText(trip.dismissedItems),
           advance_row: trip.advanceRow,
           payout_row: trip.payoutRow,
           dismissed_rows: trip.dismissedRows.join(', '),

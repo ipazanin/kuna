@@ -5,6 +5,7 @@ import type { PackContribution } from '../packContribution'
 import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts'
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { linkAssetsToRows } from './application/assetLinkWrites'
+import { linkPackToItems } from './application/itemLinkWrites'
 import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
 import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { tripRatesDemand } from './domain/trips/tripSettlement'
@@ -64,5 +65,6 @@ export const hrDooPack: PackContribution = {
   onboarding: packWords.onboarding,
   // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.
   linkToRows: linkAssetsToRows,
+  linkToItems: linkPackToItems,
   employees: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map(({ record }) => ({ name: record.name || record.slug, employee: true, ibans: record.ibans })),
 }

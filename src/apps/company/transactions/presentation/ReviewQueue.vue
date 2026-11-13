@@ -70,7 +70,9 @@ const { ask: askAboutQueue, marked: queueMarked } = useChatElement(
 )
 
 function file(title: string, verdict: RowVerdict, options: RecordWriteOptions): Promise<boolean> {
-  return writes.write(title, (unit) => fileRows(unit, state.records?.ledger ?? NO_RECORDS, [verdict], state.workbook?.categories ?? []), { failedTitle: words.review.notWritten, ...options })
+  const { records, workbook } = state
+  if (records === null || records === undefined || workbook === null || workbook === undefined) return Promise.resolve(false)
+  return writes.write(title, (unit) => fileRows(unit, { records, workbook }, [verdict], workbook.categories), { failedTitle: words.review.notWritten, ...options })
 }
 
 async function confirm(transaction: Transaction): Promise<void> {

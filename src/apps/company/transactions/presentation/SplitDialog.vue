@@ -13,10 +13,10 @@ import SplitEditor from '../../../../shared/ui/SplitEditor.vue'
 import { givenParts, splitField } from '../../../../shared/ui/splitFields'
 import { words as splitWords } from '../../../../shared/ui/words'
 import type { SplitField } from '../../../../shared/ui/splitFields'
-import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { storedSplitOf } from '../../workbook/domain/splitsReading'
+import { storedSplitOf } from '../../workbook/domain/rowItems'
+import { NOTHING_STORED } from '../../workbook/domain/splits'
 import type { SplitPart } from '../../workbook/domain/splits'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -45,8 +45,11 @@ const names = useDisplayNames()
 
 /** The row's split as the figures count it, or null to split it. */
 const split = computed(() => booked.value?.splits.find((candidate) => candidate.row.id === props.row.id) ?? null)
-/** What the splits tab holds for the row as the app read it, a refused split's parts too. A change writes only the fields that differ, so a field left alone is never rewritten. */
-const stored = computed(() => storedSplitOf(store.state.records?.splits ?? NO_RECORDS, booked.value?.splits ?? [], props.row))
+/** What the books hold of the row's split as the app read it, a refused split's parts too. A change writes only the fields that differ, so a field left alone is never rewritten. */
+const stored = computed(() => {
+  const { records, workbook } = store.state
+  return records === null || records === undefined || workbook === null || workbook === undefined ? NOTHING_STORED : storedSplitOf(records, workbook, props.row)
+})
 
 /** Each part holds the stored part it opened, whose share it keeps while it keeps its category. */
 const parts = ref<SplitField<SplitPart>[]>([])
@@ -96,13 +99,14 @@ const refusedParts = computed(() => (stored.value.refused ? stored.value.parts.l
 async function save(): Promise<void> {
   tried.value = true
   const placed = outcome.value
-  if (placed === null || 'refused' in placed) return
+  const records = store.state.records
+  if (placed === null || 'refused' in placed || records === null || records === undefined) return
   const amounts = placed.parts
   const signed = (amount: Money): Money => (props.row.amount < 0 ? negateMoney(amount) : amount)
   const drafts = parts.value.map((part, index) => ({ amount: signed(amounts[index]!), category: part.category, note: part.note, opened: part.held }))
   const saved = await writes.write(
     split.value === null ? plural(words.splitInParts(drafts.length), drafts.length) : words.splitDialog.saved,
-    (unit) => writeSplit(unit, props.row, stored.value, drafts, props.categories),
+    (unit) => writeSplit(unit, records, props.row, stored.value, drafts, props.categories),
     {
       description: [words.splitDialog.paymentOf(props.row.counterparty, props.row.amount), ...(stored.value.refused ? [words.splitDialog.noUndo] : [])].join(' '),
       failedTitle: words.splitDialog.notSaved,

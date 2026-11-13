@@ -22,15 +22,19 @@ async function downloadedTemplate(): Promise<{ readonly bytes: Uint8Array; reado
 }
 
 describe('the template download', () => {
-  it('hands the browser an xlsx file with every tab and its headers', async () => {
+  /** The tabs of new books, which keep their money on the items tab and so have no splits tab. */
+  const NEW_BOOK_TABS = WORKBOOK_TABS.filter((tab) => tab !== 'splits')
+
+  it('hands the browser an xlsx file with every tab of new books and its headers, the ledger without the columns its items hold', async () => {
     const { bytes, fileName, type } = await downloadedTemplate()
     const tabs = await readEveryTab(bytes)
 
     expect(fileName).toBe('kuna-template.xlsx')
     expect(type).toBe(XLSX_MIME_TYPE)
-    expect(tabs.map((tab) => tab.name)).toEqual([...WORKBOOK_TABS])
-    for (const tab of WORKBOOK_TABS) {
-      expect(tabs.find((candidate) => candidate.name === tab)?.grid[0], tab).toEqual(templateColumnNames(tab))
+    expect(tabs.map((tab) => tab.name)).toEqual(NEW_BOOK_TABS)
+    for (const tab of NEW_BOOK_TABS) {
+      const columns = templateColumnNames(tab).filter((column) => tab !== 'ledger' || (column !== 'category' && column !== 'owner_share'))
+      expect(tabs.find((candidate) => candidate.name === tab)?.grid[0], tab).toEqual(columns)
     }
   })
 

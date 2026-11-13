@@ -234,9 +234,15 @@ const ALEX_TRIP_PAYMENTS: readonly FakeTripPayment[] = [
   tripPayment('2026-09-28', 'Advance, travel order 4/2026', 300, NEW_YORK, 'advance', true),
 ]
 
+/** The owner's trip rows with London's payout linked, paying 50.00 more than its settlement, which the filing keeps outside the trip. */
+const ALEX_OVERPAID_TRIP_PAYMENTS: readonly FakeTripPayment[] = ALEX_TRIP_PAYMENTS.map((payment) =>
+  payment.trip === LONDON ? tripPayment(payment.date, payment.description, 576.4, LONDON, 'payout', true) : payment,
+)
+
 /**
  * The made-up staffs by variant. `one-employee` is the owner alone at the director floor, as one
- * person's company runs. `five-employees` adds four ordinary employees on agreed salaries in three
+ * person's company runs, and `one-employee-overpaid` the same with London's payout linked and paying
+ * more than the trip. `five-employees` adds four ordinary employees on agreed salaries in three
  * cities, one outside pillar II, one with two children and one who joins in February 2026.
  */
 const STAFFINGS: Readonly<Record<string, FakeStaffing>> = {
@@ -245,6 +251,12 @@ const STAFFINGS: Readonly<Record<string, FakeStaffing>> = {
     healthShort: {},
     trips: ALEX_TRIPS,
     tripPayments: ALEX_TRIP_PAYMENTS,
+  },
+  'one-employee-overpaid': {
+    employees: [ALEX],
+    healthShort: {},
+    trips: ALEX_TRIPS,
+    tripPayments: ALEX_OVERPAID_TRIP_PAYMENTS,
   },
   'five-employees': {
     employees: [

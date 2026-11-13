@@ -7,6 +7,7 @@ import type { ClientRecord } from './clientsReading'
 import type { Dismissal } from './dismissals'
 import type { LedgerEntry } from './ledgerReading'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
+import type { ItemRecord } from './splitsReading'
 import type { SplitTabRow } from './splitsReading'
 import type { Invoice } from './workbook'
 
@@ -45,6 +46,10 @@ export const BILLING_RECORDS = recordKind<BillingItem>('billing-item', {
 export const SPLIT_PART_RECORDS = recordKind<SplitTabRow>('split-part', {
   en: { one: 'split part', many: 'split parts', article: 'a' },
   hr: { one: 'dio podjele', of: 'dijela podjele', few: 'dijela podjele', other: 'dijelova podjele', gender: 'masculine' },
+})
+export const ITEM_RECORDS = recordKind<ItemRecord>('item', {
+  en: { one: 'part of a ledger row', many: 'parts of ledger rows', article: 'a' },
+  hr: { one: 'dio stavke evidencije', of: 'dijela stavke evidencije', few: 'dijela stavke evidencije', other: 'dijelova stavke evidencije', gender: 'masculine' },
 })
 export const DISMISSAL_RECORDS = recordKind<Dismissal>('dismissal', {
   en: { one: 'dismissed suggestion', many: 'dismissed suggestions', article: 'a' },

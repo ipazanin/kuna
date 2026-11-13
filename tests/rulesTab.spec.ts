@@ -39,6 +39,7 @@ function snapshotWith(rules: CellValue[][], ledger: CellValue[][] = [['date', 'a
     'trip-legs': [],
     'trip-costs': [],
     splits: [],
+    items: [],
     dismissed: [],
   }
 }

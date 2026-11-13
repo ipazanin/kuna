@@ -78,13 +78,16 @@ function removedRefusals(removedRows: ReadonlySet<RecordId | null>, before: read
   return refusals
 }
 
-/** A verdict names a category the categories tab defines, unless it puts back what an earlier write replaced. Giving a row its id files nothing. */
+/**
+ * A verdict names a category the categories tab defines, unless it puts back what an earlier write replaced. Giving a row its id
+ * files nothing, and neither does a row left without a category, as books with an items tab keep every row, since its items hold it.
+ */
 function verdictRefusals(change: KindChange<LedgerEntry>, definedCategories: ReadonlySet<string>): string[] {
   if (change.undoing) return []
   return change.edits.flatMap((edit) => {
     if (edit.before === null || edit.after === null || changesOnly(edit.before.fields, edit.after.fields, ID_FIELD)) return []
     const category = textOf(edit.after.fields.category)
-    return definedCategories.has(category.toLowerCase()) ? [] : [words.ledger.notACategory(category)]
+    return category === '' || definedCategories.has(category.toLowerCase()) ? [] : [words.ledger.notACategory(category)]
   })
 }
 
