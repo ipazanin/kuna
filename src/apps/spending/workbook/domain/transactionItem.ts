@@ -14,5 +14,6 @@ export interface TransactionItem {
   readonly text: string
   /** Signed as the entry is, in its account's currency. */
   readonly amount: AccountMoney
-  readonly category: RecordId
+  /** Null only on the one item of a row waiting on review. */
+  readonly category: RecordId | null
 }

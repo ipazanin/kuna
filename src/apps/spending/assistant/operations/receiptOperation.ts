@@ -264,7 +264,7 @@ function placeNotes(split: ReceiptSplit, book: SpendingBook): readonly string[] 
   if (split.before === null) return []
   const { before, receipt } = split
   const total = negateAccountMoney(accountMoneyOfEuros(receipt.total))
-  const nameOf = (category: string): string => book.categories.find((held) => held.id === category)?.name ?? ''
+  const nameOf = (category: string | null): string => book.categories.find((held) => held.id === category)?.name ?? ''
   return [
     ...(before.date === receipt.issuedOn ? [] : [words.receipts.otherDay(dayLabel(before.date), dayLabel(receipt.issuedOn))]),
     ...(before.amount === total ? [] : [words.receipts.otherAmount(formatAccountMoney(before.amount, EURO, 'magnitude'), formatAccountMoney(total, EURO, 'magnitude'))]),

@@ -21,7 +21,8 @@ import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/s
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
-import { TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
@@ -470,6 +471,27 @@ describe('an entry split by hand', () => {
       [accountMoneyFromAmount(-20), '', null],
     ])
     expect(rowOf(desk, typed)).toMatchObject({ category: EXAMPLE_RECORDS['category-other'], categorisedBy: 'person', amount: before!.amount })
+    expect(bookOf(desk).problems).toEqual([])
+  })
+
+  it('takes the one part of an entry not split yet by its ref, which the first part keeps', async () => {
+    const desk = await spendingDesk(used)
+    const whole = wholeRowItemId(rowOf(desk, typed)!)
+    await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'split-entry', {
+        entry: desk.ref('transaction', typed),
+        parts: [
+          { part: null, amount: 10, category: desk.ref('category', EXAMPLE_RECORDS['category']!), text: '' },
+          { part: desk.ref(ITEM_RECORDS.name, whole), amount: null, category: desk.ref('category', EXAMPLE_RECORDS['category-other']!), text: '' },
+        ],
+      }),
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(
+      bookOf(desk)
+        .items.filter((part) => part.transaction === typed)
+        .map((part) => part.id),
+    ).toEqual([whole, expect.any(String)])
     expect(bookOf(desk).problems).toEqual([])
   })
 

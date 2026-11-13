@@ -37,7 +37,7 @@ export const en = {
   },
   reads: {
     ledgerRow: 'One row of a bank statement in the ledger, with its category once it is filed.',
-    splitPart: 'One part of a split ledger row: how much of the payment counts in which category.',
+    splitPart: 'The parts of every ledger row: how much of the payment counts in which category. A row not split is one part.',
     category: 'The categories rows are filed in, each with its bucket in profit and loss.',
     account: "The company's own bank accounts.",
     rule: 'What files a bank row by itself, tried in order.',
@@ -112,7 +112,7 @@ export const hr: Translation<typeof en> = {
   },
   reads: {
     ledgerRow: 'Jedan redak izvoda banke u evidenciji, s kategorijom kad je razvrstan.',
-    splitPart: 'Jedan dio podijeljenog retka evidencije: koliki dio plaćanja ide u koju kategoriju.',
+    splitPart: 'Dijelovi svakog retka evidencije: koliki dio plaćanja ide u koju kategoriju. Redak koji nije podijeljen je jedan dio.',
     category: 'Kategorije u koje se razvrstavaju retci, svaka sa svojom skupinom u računu dobiti i gubitka.',
     account: 'Bankovni računi tvrtke.',
     rule: 'Ono što sâmo razvrstava bankovni redak, redom kojim se pravila isprobavaju.',

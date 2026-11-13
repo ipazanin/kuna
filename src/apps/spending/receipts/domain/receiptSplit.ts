@@ -17,7 +17,7 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 export type ReceiptDraft = Omit<Receipt, 'id' | 'transaction' | 'account'>
 
 /** A line the owner confirmed, its amount signed as the row is. */
-export type ReceiptPart = Pick<TransactionItem, 'printed' | 'text' | 'amount' | 'category'>
+export type ReceiptPart = Pick<TransactionItem, 'printed' | 'text' | 'amount'> & { readonly category: RecordId }
 
 /** The one line of a receipt filed whole under one category. */
 export function wholeReceipt(total: Money, category: RecordId): readonly ReceiptPart[] {
@@ -48,7 +48,7 @@ export interface ReceiptSplit {
 }
 
 /** The row once a receipt split it: under the category most of the receipt's money is in, by your word, named after the merchant when it had no payee. */
-export function rowFiledBy(row: Transaction, merchant: string, category: RecordId): Transaction {
+export function rowFiledBy(row: Transaction, merchant: string, category: RecordId | null): Transaction {
   return { ...row, payee: row.payee === '' ? merchant : row.payee, category, categorisedBy: 'person' }
 }
 

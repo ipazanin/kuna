@@ -263,7 +263,7 @@ function readItems(read: RecordsRead<TransactionItem>, transactions: readonly Tr
     const whole = wholeOf(part)
     if (whole === null || !wholes.has(whole)) return part.transaction === null ? words.noReceipt : words.noEntry
     if (part.receipt !== null && receiptOf.get(part.receipt)?.transaction !== part.transaction) return words.noReceipt
-    return categories.has(part.category) ? null : words.noCategory
+    return part.category !== null && categories.has(part.category) ? null : words.noCategory
   }
   const amountsOf = new Map<RecordId | null, AccountMoney[]>()
   const brokenWholes = new Set<RecordId | null>()

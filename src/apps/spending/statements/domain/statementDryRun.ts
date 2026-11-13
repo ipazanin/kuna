@@ -17,6 +17,9 @@ import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import { HELD_ROW_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { rowKey } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { allUnder, rowItemsOf } from '../../workbook/domain/rowItems'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { addDays, daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { overlapOf, rangeContains } from '../../../../shared/calendar/dateRange'
@@ -272,7 +275,8 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const context = spendingCategorisationContext(book)
   const transfer = book.categories.find((category) => category.kind === 'transfer')?.id ?? null
   const movesOwnMoney = (row: StatementRow): boolean => row.movedAt !== '' || context.ownIbans.has(normaliseIban(row.counterpartyIban))
-  const isTypedLeg = (typed: Transaction): boolean => typed.pair !== null || (transfer !== null && typed.category === transfer)
+  const itemsOf = rowItemsOf(book)
+  const isTypedLeg = (typed: Transaction): boolean => typed.pair !== null || allUnder(itemsOf(typed), transfer)
   const typedRows = typedRowsOf(book)
   const legsFilled = sameMoney(typedRows.filter(isTypedLeg), coming.filter(movesOwnMoney)).matches
   const legsTaken = new Set(legsFilled.map(({ typed }) => typed))
@@ -330,7 +334,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   )
   const since = addDays([day, ...coming.map((row) => row.date)].sort()[0]!, -PAIRING_DAYS)
   const onFileToPair = book.transactions.filter((row) => row.date >= since && isPairable(row)).map((row) => replacedOf.get(row) ?? row)
-  const asTransfers = transfer === null ? new Map<Transaction, Transaction>() : transferred([...newRowOf.values(), ...onFileToPair], book, transfer)
+  const asTransfers = transfer === null ? new Map<Transaction, Transaction>() : transferred([...newRowOf.values(), ...onFileToPair], book, transfer, itemsOf)
 
   const comingIn = [...newRowOf.values()].map((row) => asTransfers.get(row) ?? row)
   const withdrawals = comingIn.filter((row) => transfer !== null && row.category === transfer && isWithdrawal(row, ruleOf(row), book.accounts))
@@ -363,7 +367,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
       return { row, outcome: 'replaced', category: replacedRows.find(({ before }) => before === like)!.after.category, like }
     }
     const typed = typedOf.get(row)
-    if (typed !== undefined) return { row, outcome: 'filled', category: typed.category }
+    if (typed !== undefined) return { row, outcome: 'filled', category: mainCategoryOf(itemsOf(typed)) }
     const fresh = newRowOf.get(row)!
     const after = asTransfers.get(fresh) ?? fresh
     return { row, outcome: 'new', category: (filedByReceipt.get(after) ?? after).category, withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1] ?? null } : null }
@@ -418,8 +422,13 @@ export function rowsAfterDryRun(rows: readonly Transaction[], run: Pick<Statemen
 }
 
 /** Each row the pairing changes, as it becomes: a pair's leg, or a lone leg that counts as a transfer and waits. */
-function transferred(rows: readonly Transaction[], book: Pick<SpendingBook, 'accounts'>, transfer: RecordId): ReadonlyMap<Transaction, Transaction> {
-  const { pairs, waiting } = transferPairs(rows, book.accounts)
+function transferred(
+  rows: readonly Transaction[],
+  book: Pick<SpendingBook, 'accounts'>,
+  transfer: RecordId,
+  itemsOf: (row: Transaction) => readonly TransactionItem[],
+): ReadonlyMap<Transaction, Transaction> {
+  const { pairs, waiting } = transferPairs(rows, book.accounts, itemsOf)
   const changes = new Map<Transaction, Transaction>()
   for (const { debit, credit } of pairs) {
     const [debitLeg, creditLeg] = legsOfPair(debit, credit, transfer)

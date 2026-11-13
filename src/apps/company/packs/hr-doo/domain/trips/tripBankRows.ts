@@ -4,6 +4,7 @@ import { ZERO, negateMoney, subtractMoney, sumMoney } from '../../../../../../sh
 import type { Money } from '../../../../../../shared/money/money'
 import { settleOpenRows } from '../../../../../../shared/money/settleOpenRows'
 import { normaliseIban } from '../../../../../../shared/text/fold'
+import { rowItemsOf } from '../../../../workbook/domain/splits'
 import type { LedgerSplit } from '../../../../workbook/domain/splits'
 import type { Category, Transaction } from '../../../../workbook/domain/workbook'
 import type { Employee } from '../employees/employees'
@@ -201,13 +202,11 @@ export function tripRowsSplit(file: TripFile, settlement: WorkedSettlement, tran
 
 /** Whether a linked row is already filed as the settlement files it: whole in its one category, or split into its parts. */
 export function filedBySettlement(split: TripRowSplit, splits: readonly LedgerSplit[]): boolean {
-  const held = splits.find((candidate) => candidate.row.id === split.row.id)
-  const [only, ...more] = split.parts
-  if (only !== undefined && more.length === 0) return held === undefined && split.row.category === only.category
-  if (held === undefined || held.parts.length !== split.parts.length) return false
+  const items = rowItemsOf(splits)(split.row)
+  if (items.length !== split.parts.length) return false
   const key = (part: { readonly category: string; readonly amount: Money }) => `${part.category} ${part.amount}`
   const wanted = split.parts.map(key).sort()
-  return held.parts
+  return items
     .map(key)
     .sort()
     .every((part, index) => part === wanted[index])

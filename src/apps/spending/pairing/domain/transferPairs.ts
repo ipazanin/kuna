@@ -1,6 +1,8 @@
 import { nearestTo } from './sameMoney'
 import type { Account } from '../../workbook/domain/account'
+import { waitsOnReview } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -39,10 +41,10 @@ export function namesNoStranger(row: Pick<Transaction, 'counterpartyIban'>, ownI
 
 /**
  * Finds the transfers between two of your accounts among rows `isPairable` lets through. A friend paid the same amount on
- * the same day names an IBAN that is not yours, so that payment is neither paired nor offered. A row that has a category
+ * the same day names an IBAN that is not yours, so that payment is neither paired nor offered. A row whose items have a category
  * is not offered either.
  */
-export function transferPairs(rows: readonly Transaction[], accounts: readonly Account[]): TransferPairs {
+export function transferPairs(rows: readonly Transaction[], accounts: readonly Account[], itemsOf: (row: Transaction) => readonly TransactionItem[]): TransferPairs {
   const accountById = new Map<RecordId, Account>(accounts.map((account) => [account.id, account]))
   const ownIbans = ownIbansOf(accounts)
   const inDateOrder = [...rows].sort((earlier, later) => earlier.date.localeCompare(later.date))
@@ -78,7 +80,7 @@ export function transferPairs(rows: readonly Transaction[], accounts: readonly A
   const waiting = inDateOrder.filter((row) => !paired.has(row) && (row.movedAt !== '' || (row.amount < 0 && ownIbans.has(row.counterpartyIban))))
   waiting.forEach((row) => paired.add(row))
   const offered = pairWhere(
-    (debit, credit) => debit.category === null && credit.category === null && sameMoneyMoved(debit, credit) && namesNoStranger(debit, ownIbans) && namesNoStranger(credit, ownIbans),
+    (debit, credit) => waitsOnReview(itemsOf(debit)) && waitsOnReview(itemsOf(credit)) && sameMoneyMoved(debit, credit) && namesNoStranger(debit, ownIbans) && namesNoStranger(credit, ownIbans),
   )
   return { pairs, waiting, offered }
 }

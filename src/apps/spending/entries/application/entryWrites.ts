@@ -1,10 +1,11 @@
 import { refusedOnAccount } from '../domain/bankRows'
-import { heldItemsOf, wholeRowItemId } from '../domain/entrySplit'
 import type { EntrySplit } from '../domain/entrySplit'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
+import { itemsOfRow } from '../../workbook/domain/rowItems'
+import type { WholeRow } from '../../workbook/domain/rowItems'
 import { ACCOUNT_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { RowLink } from '../../workbook/domain/rowLink'
@@ -161,20 +162,20 @@ export function writeEntrySplit(unit: UnitOfWork, records: Pick<SpendingRecords,
     if (opened === undefined) unit.of(ITEM_WRITES).add(part)
     else unit.of(ITEM_WRITES).change(opened, part)
   }
-  return partReplacements(heldItemsOf(before, held), parts)
+  return partReplacements(itemsOfRow(before, held), parts)
 }
 
 /**
  * Takes the row's parts out, with the receipt that split it when one did, which leaves the row under its main category. A photo
  * kept on Drive stays there. Gives what the one part the row stands for again replaces.
  */
-export function removeSplitOf(unit: UnitOfWork, records: Pick<SpendingRecords, 'receipts' | 'items'>, row: Pick<Transaction, 'id' | 'amount'>): readonly PartReplacement<RecordId>[] {
+export function removeSplitOf(unit: UnitOfWork, records: Pick<SpendingRecords, 'receipts' | 'items'>, row: WholeRow): readonly PartReplacement<RecordId>[] {
   const held = partsOf(records, row)
   held.forEach((part) => unit.of(ITEM_WRITES).remove(part))
   recordsOf(records.receipts)
     .filter((receipt) => receipt.transaction === row.id)
     .forEach((receipt) => unit.of(RECEIPT_WRITES).remove(receipt))
-  return partReplacements(held, [{ id: wholeRowItemId(row), amount: row.amount }])
+  return partReplacements(held, itemsOfRow(row, []))
 }
 
 function partsOf(records: Pick<SpendingRecords, 'items'>, row: Pick<Transaction, 'id'>): readonly TransactionItem[] {

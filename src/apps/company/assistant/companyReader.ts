@@ -15,8 +15,9 @@ import { ACCOUNT_RECORDS, BILLING_RECORDS, CATEGORY_RECORDS, CLIENT_RECORDS, INV
 import { displayName, displayNamesOf } from '../workbook/domain/displayName'
 import { isHumanConfirmed, needsReview, reviewCount } from '../workbook/domain/needsReview'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
-import type { LedgerSplit, SplitPart } from '../workbook/domain/splits'
-import type { Category, Workbook } from '../workbook/domain/workbook'
+import { rowItemsOf } from '../workbook/domain/splits'
+import type { SplitPart } from '../workbook/domain/splits'
+import type { Category, Transaction, Workbook } from '../workbook/domain/workbook'
 import type { BillingItem } from '../workbook/domain/billingPlan'
 import { readableKind } from '../../../shared/app/assistantReader'
 import type { AppReader, AssistantReport, ReadableKind, ReportFigure, TraceRules } from '../../../shared/app/assistantReader'
@@ -120,7 +121,7 @@ interface LedgerRowView {
   readonly ownerShare: string
 }
 
-/** A part of a split ledger row as the chat reads it, with the row it is part of. */
+/** An item of a ledger row as the chat reads it, with the row whose money it is. */
 interface SplitPartView {
   readonly id: string
   readonly row: string
@@ -218,12 +219,12 @@ const LEDGER_FIELDS: FieldDocs<LedgerRowView> = {
 
 const SPLIT_PART_FIELDS: FieldDocs<SplitPartView> = {
   id: { exposure: 'ref', to: SPLIT_PART_RECORDS.name, meaning: 'The part.' },
-  row: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row it is part of, which counts as its parts instead.' },
+  row: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row whose money it is. A row not split is one part, and a split row counts as its parts.' },
   amount: { exposure: 'plain', amount: 'app', sign: 'either', meaning: 'What of the row counts in its category, signed as the row is.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'Its category.' },
   family: { exposure: 'plain', meaning: "Its category's family." },
   bucket: { exposure: 'plain', meaning: 'Where profit and loss counts it.' },
-  note: { exposure: 'free-text', meaning: "The person's note on the part." },
+  note: { exposure: 'free-text', meaning: "The person's note on the part, or empty, as it always is on the one part of a row not split." },
   ownerShare: { exposure: 'plain', meaning: "The owner's private share of it in percent, or empty for none." },
 }
 
@@ -347,10 +348,10 @@ function ledgerRowOf(row: Workbook['transactions'][number]): LedgerRowView {
   }
 }
 
-function splitPartOf(split: LedgerSplit, part: SplitPart): SplitPartView {
+function splitPartOf(row: Transaction, part: SplitPart): SplitPartView {
   return {
     id: part.id,
-    row: split.row.id,
+    row: row.id,
     amount: part.amount,
     category: part.category,
     family: part.family,
@@ -533,7 +534,11 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
         about: words.reads.splitPart,
         fields: SPLIT_PART_FIELDS,
         dated: null,
-        rows: () => rows((workbook) => workbook.splits.flatMap((split) => split.parts.map((part) => splitPartOf(split, part)))),
+        rows: () =>
+          rows((workbook) => {
+            const itemsOf = rowItemsOf(workbook.splits)
+            return workbook.transactions.flatMap((row) => itemsOf(row).map((part) => splitPartOf(row, part)))
+          }),
         currencyOf: currency,
       }),
       readableKind({

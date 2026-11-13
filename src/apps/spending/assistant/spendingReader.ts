@@ -3,7 +3,7 @@ import { monthFlow } from '../analytics/domain/monthFlow'
 import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
 import { countedAccounts } from '../rates/domain/euroRows'
-import { isWaiting, reviewCount } from '../statements/domain/reviewQueue'
+import { reviewCount } from '../statements/domain/reviewQueue'
 import { bookingOf } from '../statements/domain/statementDryRun'
 import type { BankSetup } from '../bankSync/application/bankSync'
 import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setupLines, startDays } from '../bankSync/domain/bankAccountSetup'
@@ -22,6 +22,7 @@ import type { Category } from '../workbook/domain/category'
 import type { SpendingBook } from '../workbook/domain/readSpendingBook'
 import type { Receipt } from '../workbook/domain/receipt'
 import type { TransactionItem } from '../workbook/domain/transactionItem'
+import { rowItemsOf, waitsOnReview } from '../workbook/domain/rowItems'
 import {
   ACCOUNT_RECORDS,
   BUDGET_RECORDS,
@@ -210,11 +211,11 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
 const ITEM_FIELDS: FieldDocs<TransactionItem> = {
   id: { exposure: 'ref', to: ITEM_RECORDS.name, meaning: 'The part.' },
   transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it is part of, or null for a line of a receipt that waits for the bank's row." },
-  receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand.' },
+  receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand and for the one part of a whole entry.' },
   printed: { exposure: 'free-text', meaning: 'As the till printed it, or empty.' },
   text: { exposure: 'free-text', meaning: 'In plain words, or empty.' },
   amount: { exposure: 'plain', amount: 'account', sign: 'either', meaning: 'Signed as the entry is.' },
-  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The figures count this instead of the entry.' },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'What this part of the money is filed under, or none while the entry waits on To review. The figures count it.' },
 }
 
 function monthOfPeriod(period: string | null): MonthKey {
@@ -367,6 +368,12 @@ export function spendingReader(reading: SpendingReading): AppReader {
     return book === null ? [] : of(book)
   }
   const accountCurrency = (id: string): string => reading.book()?.accounts.find((account) => account.id === id)?.currency ?? EURO
+  let itemsIn: { readonly book: SpendingBook; readonly of: (row: Transaction) => readonly TransactionItem[] } | null = null
+  /** The items of a row of the book read last, so a set over every row builds them once. */
+  const itemsOf = (book: SpendingBook, row: Transaction): readonly TransactionItem[] => {
+    if (itemsIn?.book !== book) itemsIn = { book, of: rowItemsOf(book) }
+    return itemsIn.of(row)
+  }
   const report = (figures: (book: SpendingBook, rates: RateBook, period: string | null) => readonly ReportFigure[]) => (period: string | null) => {
     const book = reading.book()
     return book === null ? [] : figures(book, reading.rates(), period)
@@ -381,7 +388,16 @@ export function spendingReader(reading: SpendingReading): AppReader {
         dated: 'date',
         rows: () => rows((book) => book.transactions),
         currencyOf: (row) => accountCurrency(row.account),
-        sets: [{ name: 'waiting', about: words.reads.waiting, holds: isWaiting }],
+        sets: [
+          {
+            name: 'waiting',
+            about: words.reads.waiting,
+            holds: (row) => {
+              const book = reading.book()
+              return book !== null && waitsOnReview(itemsOf(book, row))
+            },
+          },
+        ],
       }),
       readableKind({
         kind: ACCOUNT_RECORDS,
@@ -409,7 +425,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
         about: words.reads.line,
         fields: ITEM_FIELDS,
         dated: null,
-        rows: () => rows((book) => book.items),
+        rows: () => rows((book) => [...book.transactions.flatMap((row) => itemsOf(book, row)), ...book.items.filter((line) => line.transaction === null)]),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),
       }),
       readableKind<BankAccountLine>({

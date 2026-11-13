@@ -3,6 +3,7 @@ import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
+import { allUnder, rowItemsOf } from '../../workbook/domain/rowItems'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { accountMoneyOfEuros, addAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
@@ -75,11 +76,12 @@ export function heldReceiptOf(codes: Pick<Receipt, 'jir' | 'zki'>, receipts: rea
  * account is not the same money at the same number. No row a receipt split already and no row that moves money between
  * your accounts. A row split by hand may take one, and the receipt's lines replace its parts.
  */
-export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>): readonly Transaction[] {
+export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts' | 'items'>): readonly Transaction[] {
   const euroAccounts = new Set(book.accounts.filter((account) => account.currency === EURO).map((account) => account.id))
   const ownIbans = new Set(book.accounts.flatMap((account) => (account.iban === '' ? [] : [normaliseIban(account.iban)])))
   const transfer = book.categories.find((category) => category.kind === 'transfer')?.id ?? null
   const withReceipt = new Set(book.receipts.map((receipt) => receipt.transaction))
+  const itemsOf = rowItemsOf(book)
   return book.transactions.filter(
     (row) =>
       row.amount < 0 &&
@@ -87,7 +89,7 @@ export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories
       !withReceipt.has(row.id) &&
       row.pair === null &&
       row.movedAt === '' &&
-      (transfer === null || row.category !== transfer) &&
+      !allUnder(itemsOf(row), transfer) &&
       !ownIbans.has(normaliseIban(row.counterpartyIban)),
   )
 }
@@ -96,7 +98,7 @@ export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories
  * The splittable rows this receipt may be. A receipt that says how it was paid matches only rows on accounts paid that way,
  * and one that does not say matches on any. `matchesAmong` gives the order and the rule.
  */
-export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts'>, paid: ReceiptPayment | null): ReceiptMatches {
+export function receiptMatches(receipt: ReceiptFacts, book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts' | 'items'>, paid: ReceiptPayment | null): ReceiptMatches {
   const paidThere = new Set(book.accounts.filter((account) => paid === null || paidOn(paid, account)).map((account) => account.id))
   return matchesAmong(
     receipt,

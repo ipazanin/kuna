@@ -29,6 +29,7 @@ import { CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS } fr
 import { displayNamesOf } from '../../workbook/domain/displayName'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { storedSplitOf } from '../../workbook/domain/splitsReading'
+import { wholeItemId } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
 import { FLAG_OR_NULL, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, inputOf } from '../../../../shared/app/operationInput'
@@ -142,7 +143,7 @@ const OPERATIONS: readonly AssistantOperation[] = [
     about: [
       "Splits a ledger row into parts in categories, or changes its split, as the row's Split does. by amount: each part's amount above zero, and exactly one part has amount null and takes the rest, which must leave something.",
       'by share: each amount a whole number such as 70 and 30, none null, and Kuna works out the amounts so no cent is lost. A row a pack keeps whole cannot be split.',
-      "part is the ref of the row's split part it keeps, which stays the same part with its new amount, category and note, or null for a new part.",
+      "part is the ref of the row's split part it keeps, which stays the same part with its new amount, category and note, or null for a new part. The one part of a row not split yet goes to the first part.",
     ].join(' '),
     input: inputOf({
       row: TEXT,
@@ -400,7 +401,7 @@ function splitRow(card: CompanyCard, step: ProposalStep): void {
     parts.map((part) => part.amount),
   )
   const openedOf = (ref: string | null) => {
-    if (ref === null) return null
+    if (ref === null || (stored.parts.length === 0 && card.idOf(ref) === wholeItemId(row))) return null
     const opened = stored.parts.find((held) => held.id === card.idOf(ref))
     if (opened === undefined) throw new StepRefused("A part keeps only one of the row's own split parts.")
     return opened
@@ -426,7 +427,7 @@ function shareTargetOf(card: CompanyCard, row: Transaction, part: string | null)
   if (!card.workbook.settings.ownerPayModule) throw new StepRefused('Owner shares show only while owner pay is on, on Settings, General.')
   const split = card.workbook.splits.find((candidate) => candidate.row.id === row.id)
   if (split === undefined) {
-    if (part !== null) throw new StepRefused('That row is not split, so part is null.')
+    if (part !== null && card.idOf(part) !== wholeItemId(row)) throw new StepRefused('That row is not split, so part is null.')
     if (row.bucket !== 'operating') throw new StepRefused('An owner share sits only on operating cost.')
     if (needsReview(row)) throw new StepRefused('That row still waits on To review, which files it with its category’s share.')
     return { holder: 'ledger', id: row.id }

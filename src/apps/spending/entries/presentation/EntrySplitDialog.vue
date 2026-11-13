@@ -52,7 +52,7 @@ watch(open, (opened) => {
       ? [splitField<RecordId>('', props.entry.category ?? '', '', false), splitField<RecordId>('', '', '', true)]
       : held.map((part, place) => {
           const rest = place === held.length - 1
-          return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.category, part.text, rest, part.id)
+          return splitField(rest ? '' : amountForTyping(absAccountMoney(part.amount)), part.category ?? '', part.text, rest, part.id)
         })
 })
 

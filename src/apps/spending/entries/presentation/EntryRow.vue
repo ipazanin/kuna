@@ -8,6 +8,7 @@ import { LINK_TONE } from '../../links/presentation/linkLine'
 import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
+import { isSplit } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
@@ -47,7 +48,7 @@ const { marked } = useChatElement(asked, 'row')
         <span class="break-words text-sm text-highlighted">{{ title }}</span>
         <span v-if="details !== ''" class="break-words type-caption">{{ details }}</span>
         <NoteLine v-if="link !== null" as="span" :tone="LINK_TONE[link.look]" :icon="link.icon" data-testid="spending-row-link">{{ link.text }}</NoteLine>
-        <RowLines v-if="row.items.length > 0" :lines="row.items" :categories="categories" :currency="row.account.currency" />
+        <RowLines v-if="isSplit(row.items)" :lines="row.items" :categories="categories" :currency="row.account.currency" />
       </span>
       <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
         <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" sign="always" tone="flow" />

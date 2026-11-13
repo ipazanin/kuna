@@ -1,13 +1,14 @@
 import type { Category } from '../../workbook/domain/category'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { ITEM_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
+import { rowItemsOf, wholeRowItemId } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { partsOfWhole, restOfWhole } from '../../../../shared/money/partsOfWhole'
 import type { PartsRefusal } from '../../../../shared/money/partsOfWhole'
-import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** A part of an entry as you give it: an amount signed as the entry is, or the rest, with its category and optional words. */
@@ -32,16 +33,6 @@ export interface EntrySplit {
   readonly parts: readonly TransactionItem[]
 }
 
-/** The id of the one part an entry that is not split stands for, which its first part keeps when it is split. */
-export function wholeRowItemId(row: Pick<Transaction, 'id'>): RecordId {
-  return recordIdOf(ITEM_RECORDS, keyOfRecordId(TRANSACTION_RECORDS, row.id))
-}
-
-/** The money of an entry as parts: the parts it was split into, or the one part it stands for while it is not split. */
-export function heldItemsOf(row: Pick<Transaction, 'id' | 'amount'>, parts: readonly Pick<TransactionItem, 'id' | 'amount'>[]): readonly Pick<TransactionItem, 'id' | 'amount'>[] {
-  return parts.length > 0 ? parts : [{ id: wholeRowItemId(row), amount: row.amount }]
-}
-
 function categoryRefusal(category: Category | undefined, categories: readonly Category[]): SplitRefusal | null {
   if (category === undefined) return 'unknown-category'
   if (category.kind === 'transfer') return 'between-accounts'
@@ -61,7 +52,8 @@ export function entrySplit(
   newKey: () => string = newRecordId,
 ): EntrySplit | { readonly refused: SplitRefusal } {
   const categories = new Map(book.categories.map((category) => [category.id, category]))
-  if (row.pair !== null || (row.category !== null && categories.get(row.category)?.kind === 'transfer')) return { refused: 'transfer-leg' }
+  const isTransfer = (category: RecordId | null): boolean => category !== null && categories.get(category)?.kind === 'transfer'
+  if (row.pair !== null || rowItemsOf(book)(row).every((item) => isTransfer(item.category))) return { refused: 'transfer-leg' }
   if (book.receipts.some((receipt) => receipt.transaction === row.id)) return { refused: 'receipt' }
   if (drafts.length < 2) return { refused: 'too-few' }
   const wrongCategory = drafts.map((draft) => categoryRefusal(categories.get(draft.category), book.categories)).find((refusal) => refusal !== null) ?? null

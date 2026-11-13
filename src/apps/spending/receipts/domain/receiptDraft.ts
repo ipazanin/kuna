@@ -4,6 +4,7 @@ import { oibIn } from './oib'
 import { words } from './words'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { accountMoneyOfEuros, negateAccountMoney } from '../../../../shared/money/accountMoney'
@@ -93,11 +94,7 @@ function sameMerchant(heldOib: string, heldName: string, oib: string, name: stri
 }
 
 /** Confirmed lines that remember a category, newest receipt first. */
-function rememberedLines(
-  book: Pick<SpendingBook, 'receipts' | 'items'>,
-  merchantOib: string,
-  merchant: string,
-): readonly { readonly printed: string; readonly text: string; readonly category: RecordId }[] {
+function rememberedLines(book: Pick<SpendingBook, 'receipts' | 'items'>, merchantOib: string, merchant: string): readonly Pick<TransactionItem, 'printed' | 'text' | 'category'>[] {
   return [...book.receipts]
     .filter((receipt) => sameMerchant(receipt.merchantOib, receipt.merchant, merchantOib, merchant))
     .sort((one, other) => other.issuedOn.localeCompare(one.issuedOn))
@@ -140,7 +137,7 @@ export function receiptDraft(answer: ReceiptAnswer, { qr, book, companyOib }: Dr
   const r1Asked = buyerOib === '' && company !== null && (answer.markedR1 || (answer.buyerOib ?? '').trim() !== '')
   const remembered = rememberedLines(book, merchantOib, answer.merchant.name)
   const pickable = receiptCategories(book.categories)
-  const pickableId = (id: string): RecordId | null => pickable.find((category) => category.id === id)?.id ?? null
+  const pickableId = (id: string | null): RecordId | null => pickable.find((category) => category.id === id)?.id ?? null
 
   const answered = answer.lines.flatMap((line) => {
     const cents = moneyFromAmount(line.lineTotal)

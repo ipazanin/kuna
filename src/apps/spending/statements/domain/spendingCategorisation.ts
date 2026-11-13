@@ -1,6 +1,7 @@
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
+import { rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { categorise } from '../../../../shared/categorising/domain/categorise'
 import { inTryingOrder } from '../../../../shared/categorising/domain/rule'
@@ -84,21 +85,23 @@ export interface RowChange {
 }
 
 /**
- * What a set of rules does to the file: a row a rule filed follows the rules, back to waiting when none holds any more,
- * and a row waiting on review takes the first rule that holds. A row you set, or that the file reader or the pairing
+ * What a set of rules does to the file: a row of one item a rule filed follows the rules, back to waiting when none holds any
+ * more, and a row waiting on review takes the first rule that holds. A row you set, or that the file reader or the pairing
  * filed, stays as it is, and so does a row To review offers as the same money as a typed row, until you answer.
  */
-export function rulesRerun(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions'>, rules: readonly SpendingRule[]): readonly RowChange[] {
+export function rulesRerun(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'items'>, rules: readonly SpendingRule[]): readonly RowChange[] {
   const categoryOf = ruleVerdicts(rules, book)
+  const itemsOf = rowItemsOf(book)
   const { matches, near } = sameMoney(
     typedRowsOf(book),
-    book.transactions.filter((row) => row.source === 'statement' && row.category === null),
+    book.transactions.filter((row) => row.source === 'statement' && waitsOnReview(itemsOf(row))),
   )
   const offered = new Set([...matches, ...near].map(({ bank }) => bank))
   return book.transactions.flatMap((before) => {
-    const waiting = before.category === null && before.categorisedBy === null
-    if ((before.categorisedBy !== 'rule' && !waiting) || offered.has(before)) return []
+    const items = itemsOf(before)
+    const waiting = waitsOnReview(items) && before.categorisedBy === null
+    if ((before.categorisedBy !== 'rule' && !waiting) || offered.has(before) || items.length > 1) return []
     const category = categoryOf(before)
-    return category === before.category ? [] : [{ before, after: { ...before, category, categorisedBy: category === null ? null : ('rule' as const) } }]
+    return category === items[0]!.category ? [] : [{ before, after: { ...before, category, categorisedBy: category === null ? null : ('rule' as const) } }]
   })
 }

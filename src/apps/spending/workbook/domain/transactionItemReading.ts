@@ -35,6 +35,6 @@ export const ITEM_CODEC: RecordCodec<TransactionItem> = withIdField(ITEM_RECORDS
     printed: part.printed,
     text: part.text,
     amount: amountText(part.amount),
-    category: keyOfRecordId(CATEGORY_RECORDS, part.category),
+    category: part.category === null ? null : keyOfRecordId(CATEGORY_RECORDS, part.category),
   }),
 )

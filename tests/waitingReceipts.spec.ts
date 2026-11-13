@@ -4,18 +4,19 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/entryWrites'
-import { wholeRowItemId } from '../src/apps/spending/entries/domain/entrySplit'
+import { rowItemsOf, waitsOnReview, wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { placeWaitingReceipt, removeWaitingReceipt, writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { receiptOnRow, receiptsArriving, waitingReceipts } from '../src/apps/spending/receipts/domain/waitingReceipts'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
-import { isWaiting, reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
+import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import type { StatementRow } from '../src/apps/spending/statements/domain/statementRows'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { receiptOf } from '../src/apps/spending/workbook/domain/receiptReading'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
@@ -93,6 +94,12 @@ async function waiting(store: WorkbookStore<SpendingBooks>, draft: ReceiptDraft 
   await store.write('Saved', (unit) => writeReceiptSplit(unit, receiptSplit(draft, { account: OTP }, LINES)))
 }
 
+/** How many rows of the book wait on To review for a category. */
+function waitingCount(book: Pick<SpendingBook, 'transactions' | 'items'>): number {
+  const itemsOf = rowItemsOf(book)
+  return book.transactions.filter((row) => waitsOnReview(itemsOf(row))).length
+}
+
 function figures(store: WorkbookStore<SpendingBooks>) {
   const book = store.state.workbook!
   const totals = spendingFigures(book, NO_RATES).totalsOf(month('2026-11'))
@@ -155,7 +162,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
 
     const [asking] = waitingReceipts(store.state.workbook!)
     expect(asking?.matches).toMatchObject({ kind: 'pick', candidates: [{ row: { importKey: 'bank-1' } }, { row: { importKey: 'bank-2' } }] })
-    expect(reviewCount(store.state.workbook!)).toBe(store.state.workbook!.transactions.filter(isWaiting).length + 1)
+    expect(reviewCount(store.state.workbook!)).toBe(waitingCount(store.state.workbook!) + 1)
     const picked = asking!.matches.kind === 'pick' ? asking!.matches.candidates[1]!.row : null
     await store.write('Placed', (unit) => placeWaitingReceipt(unit, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(picked!, []), 'Difference')))
 
@@ -163,7 +170,7 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     expect(book.problems).toEqual([])
     expect(book.receipts).toMatchObject([{ transaction: picked!.id }])
     expect(book.transactions.find((held) => held.id === picked!.id)).toMatchObject({ category: GROCERIES.id, categorisedBy: 'person' })
-    expect(reviewCount(book)).toBe(book.transactions.filter(isWaiting).length)
+    expect(reviewCount(book)).toBe(waitingCount(book))
   })
 
   it('takes a Difference line when the person picks a row the bank booked for more, as with a tip', async () => {

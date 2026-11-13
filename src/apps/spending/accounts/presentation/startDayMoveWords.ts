@@ -1,6 +1,7 @@
 import { words } from './words'
 import type { StartDayMove } from '../domain/startDayMove'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import { rowItemsOf } from '../../workbook/domain/rowItems'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
@@ -16,7 +17,7 @@ export interface CutoverWords {
 }
 
 /** The move's confirm in words, with the opening Kuna worked out. */
-export function cutoverWords(move: StartDayMove, book: Pick<SpendingBook, 'accounts' | 'categories'>): CutoverWords {
+export function cutoverWords(move: StartDayMove, book: Pick<SpendingBook, 'accounts' | 'categories' | 'items'>): CutoverWords {
   const { rows, receipts, parts, held } = words.dialog.cutover
   const goes = [
     { count: move.rows.length, forms: rows },
@@ -33,8 +34,9 @@ export function cutoverWords(move: StartDayMove, book: Pick<SpendingBook, 'accou
     legs.map((leg) => leg.account),
     book.accounts,
   )
+  const itemsOf = rowItemsOf(book)
   const categories = names(
-    legs.flatMap((leg) => (leg.category === null ? [] : [leg.category])),
+    legs.flatMap((leg) => itemsOf(leg).flatMap((item) => (item.category === null ? [] : [item.category]))),
     book.categories,
   )
   return {

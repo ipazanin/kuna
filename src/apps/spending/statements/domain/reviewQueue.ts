@@ -9,7 +9,9 @@ import { isPairable, transferPairs } from '../../pairing/domain/transferPairs'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import { allUnder, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
+import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -47,33 +49,29 @@ export interface ReviewQueue {
   readonly withdrawals: readonly WithdrawalWithoutCash[]
 }
 
-/** Whether a row waits on To review for a category. */
-export function isWaiting(row: Transaction): boolean {
-  return row.category === null
-}
-
 /**
  * How many things wait on To review for the person: rows for a category, the bank rows on hold, the withdrawals filed with no
  * cash leg, and the waiting receipts that ask which payment they are.
  */
 export function reviewCount(book: SpendingBook): number {
-  const transfer = transferOf(book)
-  const filedWithoutCash = withdrawalsWithoutCash(book, transfer).filter(({ row }) => !isWaiting(row)).length
+  const itemsOf = rowItemsOf(book)
+  const isWaiting = (row: Transaction): boolean => waitsOnReview(itemsOf(row))
+  const filedWithoutCash = withdrawalsWithoutCash(book, transferOf(book), itemsOf).filter(({ row }) => !isWaiting(row)).length
   const receiptsAsking = waitingReceipts(book).filter(asksForPayment).length
   return book.transactions.filter(isWaiting).length + book.held.length + filedWithoutCash + receiptsAsking
 }
 
-function transferOf(book: Pick<SpendingBook, 'categories'>): RecordId | undefined {
-  return book.categories.find((category) => category.kind === 'transfer')?.id
+function transferOf(book: Pick<SpendingBook, 'categories'>): RecordId | null {
+  return book.categories.find((category) => category.kind === 'transfer')?.id ?? null
 }
 
 /**
  * The bank's rows that take cash out with no cash leg yet, as the bank's row type or the rule deciding them says, which the
  * person has not filed or called no cash, and the reader did not file elsewhere. A withdrawal filed before its rule was made is one of them.
  */
-function withdrawalsWithoutCash(book: SpendingBook, transfer: RecordId | undefined): readonly WithdrawalWithoutCash[] {
+function withdrawalsWithoutCash(book: SpendingBook, transfer: RecordId | null, itemsOf: (row: Transaction) => readonly TransactionItem[]): readonly WithdrawalWithoutCash[] {
   const ruleOf = decidingRule(book.rules, book)
-  const unfiled = (row: Transaction): boolean => row.categorisedBy === 'rule' || (row.categorisedBy === null && (row.category === null || row.category === transfer))
+  const unfiled = (row: Transaction): boolean => row.categorisedBy === 'rule' || (row.categorisedBy === null && (waitsOnReview(itemsOf(row)) || allUnder(itemsOf(row), transfer)))
   return book.transactions
     .filter((row) => row.source === 'statement' && unfiled(row) && isWithdrawal(row, ruleOf(row), book.accounts))
     .reverse()
@@ -88,15 +86,16 @@ function withdrawalsWithoutCash(book: SpendingBook, transfer: RecordId | undefin
 export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
   const since = addDays(day, -PAIRS_SHOWN_DAYS)
   const transfer = transferOf(book)
-  const withdrawals = withdrawalsWithoutCash(book, transfer)
+  const itemsOf = rowItemsOf(book)
+  const withdrawals = withdrawalsWithoutCash(book, transfer, itemsOf)
   const wantingCash = new Set(withdrawals.map(({ row }) => row))
-  const waitingRows = book.transactions.filter((row) => isWaiting(row) && !wantingCash.has(row))
+  const waitingRows = book.transactions.filter((row) => waitsOnReview(itemsOf(row)) && !wantingCash.has(row))
   const { matches, near } = sameMoney(
     typedRowsOf(book),
     waitingRows.filter((row) => row.source === 'statement'),
   )
   const maybeTyped = new Map<Transaction, NearMatch<Transaction, Transaction>>([...matches.map((match) => ({ ...match, difference: ZERO_ACCOUNT_MONEY })), ...near].map((match) => [match.bank, match]))
-  const { offered } = transferPairs(waitingRows.filter(isPairable), book.accounts)
+  const { offered } = transferPairs(waitingRows.filter(isPairable), book.accounts, itemsOf)
   const maybeTransfer = new Map<Transaction, TransferPair>(offered.flatMap((pair) => [[pair.debit, pair] as const, [pair.credit, pair] as const]))
 
   const byId = new Map(book.transactions.map((row) => [row.id, row]))
@@ -105,7 +104,7 @@ export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
     const other = row.pair === null ? undefined : byId.get(row.pair)
     return row.amount < 0 && other !== undefined ? [{ debit: row, credit: other }] : []
   })
-  const loneLegs = recent.filter((row) => row.pair === null && row.category === transfer && !wantingCash.has(row))
+  const loneLegs = recent.filter((row) => row.pair === null && allUnder(itemsOf(row), transfer) && !wantingCash.has(row))
 
   return {
     waiting: [...waitingRows].reverse().map((row) => ({ row, maybeTyped: maybeTyped.get(row) ?? null, maybeTransfer: maybeTransfer.get(row) ?? null })),

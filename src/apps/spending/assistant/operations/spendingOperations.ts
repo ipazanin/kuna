@@ -32,6 +32,7 @@ import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, rowsFromRefusal } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
+import { wholeRowItemId } from '../../workbook/domain/rowItems'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
@@ -261,7 +262,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
       "Splits an entry into parts by hand, each under a category of its own, as the entry's Split does. A split has two parts or more, and splitting an entry again puts the new parts in place of its old ones.",
       "Each amount is above zero in the entry's account currency. Kuna signs it as the entry is, and exactly one part has amount null and takes the rest, which must leave something.",
       'A part goes under any category a row may take, For the company too, but never under a group with categories under it or under Between my accounts. text is optional words for the part, or "".',
-      "part is the ref of the entry's part it keeps, which stays the same part with its new amount, category and text, or null for a new part.",
+      "part is the ref of the entry's part it keeps, which stays the same part with its new amount, category and text, or null for a new part. The one part of an entry not split yet goes to the first part.",
       "The entry goes under the category most of its money is in. A transfer's leg and an entry a receipt split stay as they are.",
     ].join(' '),
     input: inputOf({
@@ -685,7 +686,7 @@ function plannedSteps(
         const given = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly text: string }[]
         const held = book.items.filter((part) => part.transaction === row.id)
         const keptPart = (ref: string | null): RecordId | null => {
-          if (ref === null) return null
+          if (ref === null || (held.length === 0 && idOf(ref) === wholeRowItemId(row))) return null
           const part = held.find((candidate) => candidate.id === idOf(ref))
           if (part === undefined) throw new StepRefused("A part keeps only one of the entry's own parts.")
           return part.id

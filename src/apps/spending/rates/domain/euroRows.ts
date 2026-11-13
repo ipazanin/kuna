@@ -1,6 +1,7 @@
 import { accountBalance } from '../../accounts/domain/accountBalance'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -9,27 +10,23 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import type { Money } from '../../../../shared/money/money'
 import { eurosOfAccountMoney } from '../../../../shared/money/rateBook'
 import type { RateBook } from '../../../../shared/money/rateBook'
-import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /** An entry with its account and what it is in euros at the ECB rate of its own day, null while the rates do not reach that day. */
 export interface EuroRow {
   readonly transaction: Transaction
   readonly account: Account
   readonly euros: Money | null
-  /** The parts a receipt or you split the entry into, none for an entry that is whole. */
+  /** At least one: the items a receipt or you split the entry into, or the one item a whole entry is. */
   readonly items: readonly TransactionItem[]
 }
 
 /** Every entry of the book in euros, each at the rate of its day. An entry on a euro account passes through. */
 export function euroRows(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'items'>, rates: RateBook): EuroRow[] {
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
-  const itemsOf = new Map<RecordId, TransactionItem[]>()
-  for (const item of book.items) {
-    if (item.transaction !== null) itemsOf.set(item.transaction, [...(itemsOf.get(item.transaction) ?? []), item])
-  }
+  const itemsOf = rowItemsOf(book)
   return book.transactions.flatMap((transaction) => {
     const account = accounts.get(transaction.account)
-    return account === undefined ? [] : [{ transaction, account, euros: eurosOfAccountMoney(transaction.amount, account.currency, transaction.date, rates), items: itemsOf.get(transaction.id) ?? [] }]
+    return account === undefined ? [] : [{ transaction, account, euros: eurosOfAccountMoney(transaction.amount, account.currency, transaction.date, rates), items: itemsOf(transaction) }]
   })
 }
 

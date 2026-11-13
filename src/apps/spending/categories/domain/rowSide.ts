@@ -40,7 +40,7 @@ function eurosOfItems({ euros, items }: EuroRow): readonly (Money | null)[] {
 }
 
 /**
- * What a row counts as, by the kind of its category, or part by part when a receipt or you split it. Money out on a
+ * What a row counts as, item by item, by the kind of each item's category. Money out on a
  * spending category is spending and money in a refund that lowers it. Money in on an income category is income. Money out
  * to Saved to investments is saved. A transfer between your accounts, money for the company, and a row waiting on review
  * count nowhere.
@@ -51,13 +51,11 @@ export function rowSide(row: EuroRow, categories: ReadonlyMap<RecordId, Category
     const side = sideOf(category)
     return { category, side, counted: euros === null ? null : side === 'income' ? euros : negateMoney(euros) }
   }
-  if (row.items.length === 0) return [partOf(row.transaction.category, row.euros)]
   const euros = eurosOfItems(row)
-  return row.items.map((line, place) => partOf(line.category, euros[place] ?? null))
+  return row.items.map((item, place) => partOf(item.category, euros[place] ?? null))
 }
 
-/** The categories a row counts under: its parts' when it is split, else its own. */
-export function categoriesOfRow({ transaction, items }: Pick<EuroRow, 'transaction' | 'items'>): readonly RecordId[] {
-  if (items.length > 0) return items.map((item) => item.category)
-  return transaction.category === null ? [] : [transaction.category]
+/** The categories a row counts under, its items'. */
+export function categoriesOfRow({ items }: Pick<EuroRow, 'items'>): readonly RecordId[] {
+  return items.flatMap((item) => (item.category === null ? [] : [item.category]))
 }

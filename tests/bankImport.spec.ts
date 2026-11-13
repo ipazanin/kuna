@@ -53,7 +53,7 @@ function bookOf(transactions: readonly Transaction[], otpLink: string | null = '
     budgets: [],
     rules: [],
     receipts: [],
-    lines: [],
+    items: [],
     held: [],
     settings: spendingSettingsOf(links as never),
     readings: { settings: { facts: links, problems: [] } },

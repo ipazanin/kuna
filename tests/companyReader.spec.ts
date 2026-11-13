@@ -13,6 +13,7 @@ import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import * as coreKinds from '../src/apps/company/workbook/domain/coreKinds'
 import { displayNamesOf } from '../src/apps/company/workbook/domain/displayName'
 import { needsReview } from '../src/apps/company/workbook/domain/needsReview'
+import { wholeItemId } from '../src/apps/company/workbook/domain/splits'
 import { newestBookingOf } from '../src/apps/company/workbook/domain/workbook'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
@@ -66,12 +67,16 @@ describe("what the chat reads of the company's books", () => {
     expect(READER.kinds.slice(core.length).every((readable) => readable.name.startsWith('hr-doo.'))).toBe(true)
   })
 
-  it('reads each part of a counted split by its id, with the row it is part of, so an operation can name the part it keeps', () => {
+  it('reads every part of every row by its id, with the row it is part of, so an operation can name the part it keeps', () => {
     const parts = kind(coreKinds.SPLIT_PART_RECORDS.name).rows()
-    const counted = BOOKS.workbook.splits.flatMap((split) => split.parts.map((part) => [part.id, split.row.id]))
-    expect(counted.length).toBeGreaterThan(0)
     const rowOf = (fields: (typeof parts)[number]['fields']) => fields.flatMap((field) => (field.name === 'row' && field.exposure === 'ref' ? [field.id] : []))[0]
-    expect(parts.map((row) => [row.id, rowOf(row.fields)])).toEqual(counted)
+    const read = parts.map((row) => [row.id, rowOf(row.fields)])
+    const split = BOOKS.workbook.splits.flatMap((held) => held.parts.map((part) => [part.id, held.row.id]))
+    expect(split.length).toBeGreaterThan(0)
+    expect(read).toEqual(expect.arrayContaining(split))
+    const whole = BOOKS.workbook.transactions.find((row) => row.rowId !== null && !BOOKS.workbook.splits.some((held) => held.row.id === row.id))!
+    expect(read).toContainEqual([wholeItemId(whole), whole.id])
+    expect(read).toHaveLength(BOOKS.workbook.transactions.length - BOOKS.workbook.splits.length + split.length)
   })
 
   it('classes every field it hands over, and hands over no field it classes as never', () => {

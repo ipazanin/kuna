@@ -14,7 +14,7 @@ import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_EUR, REVOLUT_USD, row } from '
 const ISSUED = civil('2026-11-03')
 
 function matchesOf(rows: readonly Transaction[], merchant = '', total = 23.49, receipts: readonly Receipt[] = []) {
-  return receiptMatches({ merchant, issuedOn: ISSUED, total: euros(total) }, { accounts: ACCOUNTS, categories: CATEGORIES, transactions: rows, receipts }, null)
+  return receiptMatches({ merchant, issuedOn: ISSUED, total: euros(total) }, { accounts: ACCOUNTS, categories: CATEGORIES, transactions: rows, receipts, items: [] }, null)
 }
 
 function rowsOf(matches: ReturnType<typeof matchesOf>) {
@@ -144,7 +144,7 @@ describe('the rows that can take a receipt', () => {
     const spend = row(OTP, '2026-11-04', -23.49, null)
     const salary = row(OTP, '2026-11-04', 1200, 'Income/Salary')
 
-    expect(splittableRows({ accounts: ACCOUNTS, categories: CATEGORIES, transactions: [spend, salary], receipts: [] })).toEqual([spend])
+    expect(splittableRows({ accounts: ACCOUNTS, categories: CATEGORIES, transactions: [spend, salary], receipts: [], items: [] })).toEqual([spend])
   })
 
   it('leave out a payment To review asks about as maybe a transfer, until that is answered', () => {

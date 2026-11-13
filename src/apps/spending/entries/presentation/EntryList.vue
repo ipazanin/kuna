@@ -6,9 +6,11 @@ import { useLinkLines } from '../../links/presentation/linkLine'
 import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
+import { isSplit } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import EntryRow from './EntryRow.vue'
 import { words } from './words'
+import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -49,13 +51,14 @@ const days = computed(() => {
   const groups: { day: CivilDate; lines: Line[] }[] = []
   for (const row of props.rows) {
     const { transaction, account } = row
-    const category = transaction.category === null ? null : (byId.value.get(transaction.category) ?? null)
+    const shown = mainCategoryOf(row.items)
+    const category = shown === null ? null : (byId.value.get(shown) ?? null)
     const categoryName = category?.name ?? words.waitsOnReview
     const line: Line = {
       row,
       title: transaction.payee === '' ? categoryName : transaction.payee,
       colour: `var(${category === null ? '--chart-deemphasis' : colours.value(category)})`,
-      details: [transaction.payee === '' || row.items.length > 0 ? '' : categoryName, props.showAccount ? account.name : '', transaction.note].filter((part) => part !== '').join(' · '),
+      details: [transaction.payee === '' || isSplit(row.items) ? '' : categoryName, props.showAccount ? account.name : '', transaction.note].filter((part) => part !== '').join(' · '),
       euros: account.currency === EURO || row.euros === null ? '' : formatMoney(row.euros, 'always'),
       link: transaction.link === null ? null : linkLineOf.value(transaction.link),
     }

@@ -22,6 +22,7 @@ import { words as ruleFormWords } from '../src/apps/company/rules/presentation/w
 import { proposalGroupsOf } from '../src/apps/company/assistant/operations/proposalLines'
 import { transcribedStatement } from '../src/apps/company/imports/domain/importedStatement'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS, RULE_RECORDS, SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { wholeItemId } from '../src/apps/company/workbook/domain/splits'
 import { words as sharedWords } from '../src/shared/app/words'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
@@ -482,6 +483,27 @@ describe('splits and owner shares', () => {
       },
     ])
     expect(refused.text).toContain("A part keeps only one of the row's own split parts.")
+  })
+
+  it('takes the one part of a row not split yet by its ref, which the first part keeps', async () => {
+    const desk = await companyDesk(used)
+    const row = desk.row('REF-6')
+    await desk.propose([
+      {
+        op: 'split-row',
+        input: {
+          row: desk.ref(LEDGER_RECORDS.name, row.id),
+          by: 'share',
+          parts: [
+            { part: null, amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'equipment'), note: '' },
+            { part: desk.ref(SPLIT_PART_RECORDS.name, wholeItemId(row)), amount: 1, category: desk.ref(CATEGORY_RECORDS.name, 'office'), note: '' },
+          ],
+        },
+      },
+    ])
+    expect((await desk.accept()).kind).toBe('done')
+    const split = desk.store.state.workbook!.splits.find((candidate) => candidate.row.id === row.id)!
+    expect(split.parts.map((part) => part.id)).toContain(wholeItemId(row))
   })
 
   it("sets a split part's share, and refuses a share on a row still waiting", async () => {
