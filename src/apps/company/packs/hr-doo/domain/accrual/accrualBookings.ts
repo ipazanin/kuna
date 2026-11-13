@@ -1,5 +1,6 @@
 import { advanceDrill, rowDrill } from '../../../../filters/domain/drillTarget'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
+import { countedShareIn } from '../../../../owner-share/domain/ownerParts'
 import { RECEIVABLE_ROLES } from '../../../../receivables/domain/invoiceMatching'
 import type { Asset } from '../assets/assets'
 import { PROFIT_AND_LOSS_BUCKETS } from '../../../../workbook/domain/bucket'
@@ -100,7 +101,7 @@ const TAKEN_OUT: readonly (readonly [role: string, treatment: TakenOutTreatment]
 
 /**
  * Every booking the cash view counts, bank rows and the owner's advances alike, with what the
- * accrual view does with it. A capital purchase goes to the asset books only when an asset row
+ * accrual view does with it, its VAT split at the owner share the cash view counts. A capital purchase goes to the asset books only when an asset row
  * claims it. One no asset claims is small inventory and counts as a cost when paid.
  */
 export function accrualBookings(workbook: HrDooWorkbook, rules: RuleSource = ruleValue): readonly AccrualBooking[] {
@@ -127,7 +128,7 @@ export function accrualBookings(workbook: HrDooWorkbook, rules: RuleSource = rul
     if (takenOut !== undefined) {
       return [{ ...described, treatment: takenOut[1] }]
     }
-    const vat = vatSplit(described.booking, category, rules)
+    const vat = vatSplit(described.booking, category, countedShareIn(workbook, source.kind === 'ledger' ? source.row : source.advance), rules)
     const assets = source.kind === 'ledger' ? claimed.get(source.row) : undefined
     if (assets !== undefined) {
       return [{ ...described, treatment: 'capitalised', vat, assets }]

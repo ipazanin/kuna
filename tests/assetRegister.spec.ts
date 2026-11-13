@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import type { Asset } from '../src/apps/company/packs/hr-doo/domain/assets/assets'
-import type { Category } from '../src/apps/company/workbook/domain/workbook'
-import { assetPaymentProblems, assetRegister } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister'
+import type { Category, Transaction } from '../src/apps/company/workbook/domain/workbook'
+import { assetCostsOf, assetPaymentProblems, assetRegister } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister'
+import { depreciationSchedule, netCostOf } from '../src/apps/company/packs/hr-doo/domain/assets/depreciationSchedule'
+import { ownerShareOf } from '../src/apps/company/owner-share/domain/ownerShare'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
@@ -197,5 +200,60 @@ describe('a workbook with a capital purchase dated before the ruleset', () => {
     expect(workbook.problems.filter((problem) => problem.tab === 'assets').map((problem) => [problem.label, problem.reason])).toEqual([
       ['Example dock', 'its ledger_reference finds the bank row of 2024-05-24, but the app has no standard VAT rate for that day to check the amount against, so the row is left unclaimed'],
     ])
+  })
+})
+
+describe('assetCostsOf', () => {
+  const BENEFIT: Category = { slug: 'benefits', family: 'owner-pay', bucket: 'owner-pay', colour: BUCKET_COLOUR, roles: ['owner-benefit'], vat: 'none', ownerShare: null }
+  const CAR: Category = { ...EQUIPMENT, slug: 'company-car', vat: 'car-50' }
+  const books = (transactions: readonly Transaction[], assets: readonly Asset[]) => ({
+    transactions,
+    assets,
+    categories: [...CATEGORIES, CAR, BENEFIT],
+    settings: { ...DEFAULT_SETTINGS, ownerPayModule: true },
+  })
+
+  it('adds the VAT on the owner’s private share of a laptop to its cost', () => {
+    // 1,250.00 holds 250.00 of VAT. At a 30% owner share 75.00 of it is not deductible, so the laptop costs 1,000.00 + 75.00 = 1,075.00.
+    const [payment] = ledger([{ date: '2026-03-02', amount: -1250, category: 'equipment' }])
+    const laptop = asset('Example laptop', 1000, '2026-03-02', 'REF-1')
+    const cost = assetCostsOf(books([{ ...payment!, ownerShare: ownerShareOf(30) }], [laptop])).costOf(laptop)
+
+    expect(cost.amount).toBe(euros(1075))
+    expect(cost.steps.map((step) => step.amount)).toEqual([euros(1000), euros(75)])
+    // At 50% a year over two years, from April: 9 months of 1,075.00 × 50% / 12 = 403.13.
+    expect(depreciationSchedule(laptop, { depreciationDoubled: false }, undefined, cost).years[0]!.charge.amount).toBe(euros(403.13))
+  })
+
+  it('adds the half of a personal car’s VAT that is not deductible to its cost', () => {
+    // 50,000.00 holds 10,000.00 of VAT, and half of it is deductible, so the car costs 40,000.00 + 5,000.00 = 45,000.00.
+    const [payment] = ledger([{ date: '2026-01-05', amount: -50000, category: 'company-car' }])
+    const car: Asset = { ...asset('Example car', 40000, '2026-01-05', 'REF-1'), group: 'car' }
+    const cost = assetCostsOf(books([payment!], [car])).costOf(car)
+
+    expect(cost.amount).toBe(euros(45000))
+    // At 20% a year from February: 11 months of 45,000.00 × 20% / 12 = 8,250.00, where the net cost would give 7,333.33.
+    expect(depreciationSchedule(car, { depreciationDoubled: false }, undefined, cost).years[0]!.charge.amount).toBe(euros(8250))
+  })
+
+  it('shares the VAT of one payment between the assets it paid for, by their net costs', () => {
+    // The fixture gives the row the reference REF-1. Of the 75.00 the laptop takes 45.00 and the screen 30.00.
+    const [payment] = ledger([{ date: '2026-03-02', amount: -1250, category: 'equipment' }])
+    const laptop = asset('Example laptop', 600, '2026-03-02', 'REF-1')
+    const screen = asset('Example screen', 400, '2026-03-02', 'REF-1')
+    const { costOf, privateShareVatOf } = assetCostsOf(books([{ ...payment!, ownerShare: ownerShareOf(30) }], [laptop, screen]))
+
+    expect([costOf(laptop).amount, costOf(screen).amount]).toEqual([euros(645), euros(430)])
+    expect([privateShareVatOf(laptop), privateShareVatOf(screen)]).toEqual([euros(45), euros(30)])
+  })
+
+  it('keeps the net cost of an asset whose payment deducts all its VAT, or that has no payment', () => {
+    const [payment] = ledger([{ date: '2026-03-02', amount: -1250, category: 'equipment' }])
+    const laptop = asset('Example laptop', 1000, '2026-03-02', 'REF-1')
+    const planned = asset('Planned laptop', 1000, '2027-03-02')
+    const { costOf } = assetCostsOf(books([payment!], [laptop]))
+
+    expect(costOf(laptop)).toEqual(netCostOf(laptop))
+    expect(costOf(planned)).toEqual(netCostOf(planned))
   })
 })

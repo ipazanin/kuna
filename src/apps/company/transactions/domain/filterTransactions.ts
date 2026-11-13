@@ -73,11 +73,12 @@ export function advancesLeftOutByBankFilters(advances: readonly OwnerAdvance[], 
 
 /**
  * Whether a row is in the categories chosen. The owner's part of a shared row counts in the benefit
- * category, but the row was filed in its source category, so a choice of either finds it.
+ * category and its VAT part in the settlement category, but the row was filed in its source
+ * category, so a choice of either finds them.
  */
 function inCategories(categories: readonly string[], row: Pick<Transaction, 'category' | 'ownerPart'> | Pick<OwnerAdvance, 'category' | 'ownerPart'>): boolean {
   const part = row.ownerPart
-  return includes(categories, row.category) || (part?.side === 'owner' && categories.includes(part.sourceCategory))
+  return includes(categories, row.category) || (part !== undefined && part.side !== 'business' && categories.includes(part.sourceCategory))
 }
 
 function includes<Value>(selection: readonly Value[], candidate: Value): boolean {

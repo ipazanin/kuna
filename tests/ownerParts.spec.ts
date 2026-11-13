@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { monthKey } from '../src/shared/calendar/monthKey'
 import { euroSplit } from '../src/apps/company/overview/domain/euroSplit'
-import { ownerPartOrigin, ownerPartsOf, ownerShareProblems, withOwnerParts } from '../src/apps/company/owner-share/domain/ownerParts'
+import { NO_VAT_ON_PRIVATE_SHARE, ownerPartOrigin, ownerPartsOf, ownerShareProblems, withOwnerParts } from '../src/apps/company/owner-share/domain/ownerParts'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import { categoryTotals } from '../src/apps/company/spending/domain/categoryTotals'
 import { transactionsCsv } from '../src/apps/company/transactions/application/transactionsCsv'
@@ -10,7 +10,7 @@ import { presentedWorkbook } from '../src/apps/company/transactions/domain/prese
 import { categoryChangeOf } from '../src/apps/company/transactions/domain/categoryChange'
 import { scopeOwnerAdvances, scopeTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
-import { listedRows, withPartHeadings } from '../src/apps/company/transactions/domain/listedRows'
+import { listedRows, partPlace, withPartHeadings } from '../src/apps/company/transactions/domain/listedRows'
 import type { ListedEntry } from '../src/apps/company/transactions/domain/listedRows'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -22,9 +22,10 @@ import { ownerTake, ownerTakeByMonth } from '../src/apps/company/packs/hr-doo/do
 import { civil, euros } from './fixtures/ledger'
 import { BENEFIT, CATEGORIES, EXAMPLE, WINDOW, YEAR, category, rows, share, workbookOf } from './fixtures/ownerShareExample'
 import { splitOf } from './fixtures/splits'
+import { vatOnPrivateShare } from '../src/apps/company/packs/hr-doo/domain/vat/vatSplit'
 
 const booked = EXAMPLE as readonly Booking[]
-const shared = withOwnerParts(workbookOf(EXAMPLE)).transactions as readonly Booking[]
+const shared = withOwnerParts(workbookOf(EXAMPLE), NO_VAT_ON_PRIVATE_SHARE).transactions as readonly Booking[]
 
 describe('the worked example', () => {
   it('moves the shares from operating cost to owner pay and leaves cost and net alone', () => {
@@ -85,7 +86,7 @@ describe('the worked example', () => {
     const workbook = workbookOf(EXAMPLE)
 
     expect(presentedWorkbook(workbook).transactions).toEqual(workbook.transactions)
-    expect(withOwnerParts(workbook).transactions).toHaveLength(workbook.transactions.length + 13)
+    expect(withOwnerParts(workbook, NO_VAT_ON_PRIVATE_SHARE).transactions).toHaveLength(workbook.transactions.length + 13)
   })
 })
 
@@ -93,7 +94,7 @@ describe('ownerPartsOf', () => {
   const [laptop] = rows([{ date: '2026-03-15', amount: -2000, category: 'equipment', share: 30 }])
 
   it('gives the owner the share of the amount in the benefit category and the business the rest, each naming where it comes from', () => {
-    const [business, owner] = ownerPartsOf(laptop!, BENEFIT)
+    const [business, owner] = ownerPartsOf(laptop!, BENEFIT, CATEGORIES, NO_VAT_ON_PRIVATE_SHARE)
 
     expect(business).toMatchObject({ amount: euros(-1400), category: 'equipment', bucket: 'operating', ownerPart: { share: 30, sourceCategory: 'equipment', side: 'business', whole: laptop } })
     expect(owner).toMatchObject({
@@ -118,7 +119,7 @@ describe('ownerPartsOf', () => {
       { date: '2026-03-02', amount: -1.5, category: 'equipment', share: 1 },
       { date: '2026-03-03', amount: 1.5, category: 'equipment', share: 1 },
     ])
-    const amounts = (row: Transaction) => ownerPartsOf(row, BENEFIT).map((part) => part.amount)
+    const amounts = (row: Transaction) => ownerPartsOf(row, BENEFIT, CATEGORIES, NO_VAT_ON_PRIVATE_SHARE).map((part) => part.amount)
 
     expect(amounts(odd!)).toEqual([euros(-6.71), euros(-3.3)])
     expect(amounts(half!)).toEqual([euros(-1.48), euros(-0.02)])
@@ -127,7 +128,7 @@ describe('ownerPartsOf', () => {
 
   it('gives a refund in a shared category its share back from owner pay', () => {
     const [refund] = rows([{ date: '2026-04-02', amount: 100, category: 'ai-services' }])
-    const parts = ownerPartsOf(refund!, BENEFIT)
+    const parts = ownerPartsOf(refund!, BENEFIT, CATEGORIES, NO_VAT_ON_PRIVATE_SHARE)
 
     expect(parts.map((part) => [part.category, part.amount])).toEqual([
       ['ai-services', euros(50)],
@@ -146,14 +147,14 @@ describe('ownerPartsOf', () => {
     ])
 
     for (const row of kept) {
-      expect(ownerPartsOf(row, BENEFIT)).toEqual([row])
+      expect(ownerPartsOf(row, BENEFIT, CATEGORIES, NO_VAT_ON_PRIVATE_SHARE)).toEqual([row])
     }
   })
 
   it('leaves out a business part of nothing, so a 100% share is the owner part alone', () => {
     const [whole] = rows([{ date: '2026-04-01', amount: -80, category: 'equipment', share: 100 }])
 
-    expect(ownerPartsOf(whole!, BENEFIT).map((part) => [part.category, part.amount, part.ownerPart?.side])).toEqual([['benefits', euros(-80), 'owner']])
+    expect(ownerPartsOf(whole!, BENEFIT, CATEGORIES, NO_VAT_ON_PRIVATE_SHARE).map((part) => [part.category, part.amount, part.ownerPart?.side])).toEqual([['benefits', euros(-80), 'owner']])
   })
 
   it('shares each part of a split row by the part’s own share, and ignores the row’s', () => {
@@ -174,7 +175,7 @@ describe('ownerPartsOf', () => {
       ],
     }
     const workbook = workbookOf([order!], { splits: [parts] })
-    const counted = withOwnerParts(presentedWorkbook(workbook)).transactions
+    const counted = withOwnerParts(presentedWorkbook(workbook), NO_VAT_ON_PRIVATE_SHARE).transactions
 
     expect(counted.map((row) => [row.category, row.amount, row.split?.index, row.ownerPart?.side])).toEqual([
       ['ai-services', euros(-100), 0, 'business'],
@@ -199,7 +200,7 @@ describe('withOwnerParts', () => {
   }
 
   it('shares an owner advance the same way, and its bookings say which part they are', () => {
-    const parts = withOwnerParts(workbookOf(EXAMPLE, { ownerAdvances: [advance] })).ownerAdvances
+    const parts = withOwnerParts(workbookOf(EXAMPLE, { ownerAdvances: [advance] }), NO_VAT_ON_PRIVATE_SHARE).ownerAdvances
 
     expect(parts.map((part) => [part.category, part.amount, part.ownerPart?.side, part.ownerPart?.whole])).toEqual([
       ['ai-services', euros(75), 'business', advance],
@@ -215,8 +216,8 @@ describe('withOwnerParts', () => {
   it('counts nothing with the owner-pay module off, where the figures are as booked', () => {
     const workbook = presentedWorkbook(workbookOf(EXAMPLE, { settings: { ...DEFAULT_SETTINGS, ownerPayModule: false }, ownerAdvances: [advance] }))
 
-    expect(withOwnerParts(workbook)).toBe(workbook)
-    expect(bucketTotals(withOwnerParts(workbook).transactions)).toEqual(bucketTotals(workbook.transactions))
+    expect(withOwnerParts(workbook, NO_VAT_ON_PRIVATE_SHARE)).toBe(workbook)
+    expect(bucketTotals(withOwnerParts(workbook, NO_VAT_ON_PRIVATE_SHARE).transactions)).toEqual(bucketTotals(workbook.transactions))
     expect(ownerShareProblems(workbookOf(EXAMPLE, { categories: CATEGORIES.filter((candidate) => candidate !== BENEFIT), settings: { ...DEFAULT_SETTINGS, ownerPayModule: false } }))).toEqual([])
   })
 
@@ -229,7 +230,7 @@ describe('withOwnerParts', () => {
         .map((problem) => `${problem.tab}: ${problem.reason}`)
     const unshared = presentedWith(without)
 
-    expect(withOwnerParts(unshared)).toBe(unshared)
+    expect(withOwnerParts(unshared, NO_VAT_ON_PRIVATE_SHARE)).toBe(unshared)
 
     expect(reasonWith(without)).toEqual([
       'categories: 14 rows hold an owner share, but no category carries the owner-benefit role. So every share counts as 0 until one owner-pay category carries the role.',
@@ -278,6 +279,7 @@ describe('a shared row on Transactions', () => {
   }
   const cash = withOwnerParts(
     presentedWorkbook(workbookOf([laptop!, lunch!, order!], { splits: [{ ...split, parts: [{ ...split.parts[0]!, ownerShare: share(50) }, split.parts[1]!] }], ownerAdvances: [advance] })),
+    NO_VAT_ON_PRIVATE_SHARE,
   )
   const listed = listedRows(cash.transactions, cash.ownerAdvances)
   const shown = (entries: readonly ListedEntry[]) =>
@@ -355,9 +357,10 @@ describe('a category filter on shared rows', () => {
         ],
       },
     ),
+    NO_VAT_ON_PRIVATE_SHARE,
   )
   const equipment = { ...DEFAULT_FILTERS, categories: ['equipment'] }
-  const parts = (bookings: readonly (Transaction | OwnerAdvance)[]) => bookings.map((row) => [row.category, row.amount, ownerPartOrigin(row.ownerPart, (slug) => slug)])
+  const parts = (bookings: readonly (Transaction | OwnerAdvance)[]) => bookings.map((row) => [row.category, row.amount, ownerPartOrigin(row.ownerPart, (slug) => slug, String)])
 
   it('finds the owner’s part of a row filed in the category, the whole of a 100% share among them', () => {
     // 100% of 1,500.00 leaves no business part, and 40% of 500.00 is 200.00 to the owner and 300.00 left in equipment.
@@ -383,5 +386,86 @@ describe('a category filter on shared rows', () => {
   it('leaves out the owner’s part of a row filed in another category', () => {
     expect(scopeTransactions(cash.transactions, { ...DEFAULT_FILTERS, categories: ['ai-services'] }).map((row) => row.amount)).toEqual([euros(-45), euros(-45)])
     expect(scopeTransactions(cash.transactions, { ...DEFAULT_FILTERS, categories: ['benefits'] })).toHaveLength(3)
+  })
+})
+
+describe("the reverse charge's VAT on the owner's share", () => {
+  const SETTLEMENT: Category = category('vat-settlement', 'taxes', ['vat-settlement'])
+  const reverseCharged = [...CATEGORIES.map((candidate): Category => (candidate.slug === 'ai-services' ? { ...candidate, vat: 'reverse-charge' } : candidate)), SETTLEMENT]
+  const partsOf = (row: Transaction) => ownerPartsOf(row, BENEFIT, reverseCharged, vatOnPrivateShare).map((part) => [part.category, part.amount])
+
+  it("puts the VAT self-charged on the private share into the owner's part and takes it back off in the settlement category", () => {
+    // 77.60 at a 50% share: the business keeps 38.80, the owner's 38.80 carries the 9.70 the reverse charge self-charges on it, and the VAT part gives the 9.70 back.
+    const [subscription] = rows([{ date: '2026-10-05', amount: -77.6, category: 'ai-services' }])
+
+    expect(partsOf(subscription!)).toEqual([
+      ['ai-services', euros(-38.8)],
+      ['benefits', euros(-48.5)],
+      ['vat-settlement', euros(9.7)],
+    ])
+  })
+
+  it('leaves the business nothing at a 100% share', () => {
+    const [subscription] = rows([{ date: '2026-10-05', amount: -100, category: 'ai-services', share: 100 }])
+
+    expect(partsOf(subscription!)).toEqual([
+      ['benefits', euros(-125)],
+      ['vat-settlement', euros(25)],
+    ])
+  })
+
+  it("gives the VAT back with a refund's share", () => {
+    const [refund] = rows([{ date: '2026-03-21', amount: 100, category: 'ai-services' }])
+
+    expect(partsOf(refund!)).toEqual([
+      ['ai-services', euros(50)],
+      ['benefits', euros(62.5)],
+      ['vat-settlement', euros(-12.5)],
+    ])
+  })
+
+  it("says on the owner's part how much VAT it carries", () => {
+    const [subscription] = rows([{ date: '2026-10-05', amount: -77.6, category: 'ai-services' }])
+    const owner = ownerPartsOf(subscription!, BENEFIT, reverseCharged, vatOnPrivateShare).find((part) => part.ownerPart?.side === 'owner')
+
+    expect(
+      ownerPartOrigin(
+        owner?.ownerPart,
+        (slug) => slug,
+        (amount) => String(amount),
+      ),
+    ).toBe(`50% to owner, with ${euros(9.7)} VAT, from ai-services`)
+  })
+
+  it('lists the three parts under the row, business, owner and VAT in that order', () => {
+    const [subscription] = rows([{ date: '2026-10-05', amount: -77.6, category: 'ai-services' }])
+    const listed = withPartHeadings(listedRows([...ownerPartsOf(subscription!, BENEFIT, reverseCharged, vatOnPrivateShare)].reverse(), []))
+    const heading = listed[0]
+
+    expect(heading?.kind).toBe('shared')
+    expect(heading?.kind === 'shared' ? heading.parts.map((part) => [part.category, partPlace(part)]) : []).toEqual([
+      ['ai-services', { number: 1, count: 3 }],
+      ['benefits', { number: 2, count: 3 }],
+      ['vat-settlement', { number: 3, count: 3 }],
+    ])
+  })
+
+  it('adds nothing for VAT the supplier charges, which the row already holds', () => {
+    const deductible = reverseCharged.map((candidate): Category => (candidate.slug === 'ai-services' ? { ...candidate, vat: 'deductible-25' } : candidate))
+    const [subscription] = rows([{ date: '2026-03-20', amount: -125, category: 'ai-services' }])
+
+    expect(ownerPartsOf(subscription!, BENEFIT, deductible, vatOnPrivateShare).map((part) => part.amount)).toEqual([euros(-62.5), euros(-62.5)])
+  })
+
+  it('moves no VAT without one settlement category', () => {
+    const [subscription] = rows([{ date: '2026-10-05', amount: -77.6, category: 'ai-services' }])
+
+    expect(ownerPartsOf(subscription!, BENEFIT, reverseCharged.slice(0, -1), vatOnPrivateShare).map((part) => part.amount)).toEqual([euros(-38.8), euros(-38.8)])
+  })
+
+  it('counts the VAT in the owner benefit and the take', () => {
+    const cash = withOwnerParts(workbookOf(rows([{ date: '2026-03-20', amount: -100, category: 'ai-services' }]), { categories: reverseCharged }), vatOnPrivateShare)
+
+    expect(ownerTake(cash.transactions, reverseCharged, YEAR, WINDOW).total.amount).toBe(euros(62.5))
   })
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
@@ -91,9 +92,9 @@ function partLabel(row: ListedRow): string | null {
   return place === null ? null : `${words.part(place.number, place.count)}${note === '' ? '' : `, ${note}`}`
 }
 
-/** The owner's part of a shared row names the share and the category it comes from. */
+/** The owner's part of a shared row names the share, any VAT it carries and the category it comes from. */
 function ownerPartNote(row: ListedRow): string | null {
-  return ownerPartOrigin(listedOwnerPart(row), names.value.category)
+  return ownerPartOrigin(listedOwnerPart(row), names.value.category, (amount) => formatMoney(amount))
 }
 </script>
 

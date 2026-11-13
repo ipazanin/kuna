@@ -43,7 +43,10 @@ export interface YearEndOpenItem {
   readonly settled: boolean
 }
 
-type JudgementId = Extract<AdjustmentId, 'grant-schedule' | 'arrears-cut-off' | 'representation-as-booked' | 'cost-placement' | 'receivable-placement' | 'liability-placement'>
+type JudgementId = Extract<
+  AdjustmentId,
+  'grant-schedule' | 'arrears-cut-off' | 'representation-as-booked' | 'private-vat-as-booked' | 'cost-placement' | 'receivable-placement' | 'liability-placement'
+>
 
 const JUDGEMENTS: Readonly<Record<JudgementId, { readonly settledBy: string; readonly rules: readonly RuleId[] }>> = {
   'grant-schedule': {
@@ -57,6 +60,10 @@ const JUDGEMENTS: Readonly<Record<JudgementId, { readonly settledBy: string; rea
   'representation-as-booked': {
     settledBy: words.judgements['representation-as-booked'],
     rules: ['hr.cit.representation-add-back'],
+  },
+  'private-vat-as-booked': {
+    settledBy: words.judgements['private-vat-as-booked'],
+    rules: ['hr.vat.input-deduction'],
   },
   'cost-placement': {
     settledBy: words.judgements['cost-placement'],

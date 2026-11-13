@@ -1,5 +1,5 @@
 import { negateMoney } from '../../../../shared/money/money'
-import { ownerPartKey } from '../../owner-share/domain/ownerParts'
+import { ownerPartCount, ownerPartKey, ownerPartNumber } from '../../owner-share/domain/ownerParts'
 import type { OwnerPart } from '../../owner-share/domain/ownerParts'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { listedRowKey } from '../../workbook/domain/splits'
@@ -67,7 +67,7 @@ export function partPlace(row: ListedRow): { readonly number: number; readonly c
     return { number: row.split.index + 1, count: row.split.count }
   }
   const part = listedOwnerPart(row)
-  return part === undefined ? null : { number: part.side === 'owner' ? 2 : 1, count: 2 }
+  return part === undefined ? null : { number: ownerPartNumber(part), count: ownerPartCount(part) }
 }
 
 /** A listed row, or the row as booked above the parts of it that are listed. */
@@ -106,8 +106,11 @@ function headingKey(row: ListedRow): string | null {
 /** Parts in their split's order, and of one shared part or row the business part first. */
 function partOrder(earlier: ListedRow, later: ListedRow): number {
   const splitIndex = (row: ListedRow) => (row.kind === 'bank' ? (row.split?.index ?? 0) : 0)
-  const ownerSide = (row: ListedRow) => Number(listedOwnerPart(row)?.side === 'owner')
-  return splitIndex(earlier) - splitIndex(later) || ownerSide(earlier) - ownerSide(later)
+  const partNumber = (row: ListedRow) => {
+    const part = listedOwnerPart(row)
+    return part === undefined ? 0 : ownerPartNumber(part)
+  }
+  return splitIndex(earlier) - splitIndex(later) || partNumber(earlier) - partNumber(later)
 }
 
 /**

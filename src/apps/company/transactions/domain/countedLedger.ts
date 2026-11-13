@@ -1,6 +1,7 @@
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
 import type { FilterState } from '../../filters/domain/filterState'
 import { withOwnerParts } from '../../owner-share/domain/ownerParts'
+import type { VatOnPrivateShare } from '../../owner-share/domain/ownerParts'
 import { bookingOfAdvance, ledgerWindowOf } from '../../workbook/domain/workbook'
 import type { Booking, OwnerAdvance, Transaction, Workbook } from '../../workbook/domain/workbook'
 import { scopeOwnerAdvances, scopeTransactions } from './filterTransactions'
@@ -25,10 +26,10 @@ export interface CountedLedger {
   readonly profitAndLossRows: readonly Booking[]
 }
 
-/** Null for books with no transaction. */
-export function countedLedger(workbook: Workbook, filters: FilterState): CountedLedger | null {
+/** Null for books with no transaction. The pack's slot gives the VAT an owner's part carries beyond its row. */
+export function countedLedger(workbook: Workbook, filters: FilterState, vatOnPrivateShare: VatOnPrivateShare): CountedLedger | null {
   const booked = presentedWorkbook(workbook)
-  const cash = withOwnerParts(booked)
+  const cash = withOwnerParts(booked, vatOnPrivateShare)
   const window = ledgerWindowOf(cash.transactions)
   if (window === null) {
     return null

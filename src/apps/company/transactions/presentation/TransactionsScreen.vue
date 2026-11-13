@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, h, onBeforeUnmount, ref, watch } from 'vue'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { SortingState } from '@tanstack/vue-table'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
@@ -242,9 +243,9 @@ function reviewBadge(listed: ListedRow) {
   return null
 }
 
-/** The owner's part of a shared row names the share and the category it comes from. */
+/** The owner's part of a shared row names the share, any VAT it carries and the category it comes from. */
 function ownerPartNote(listed: ListedRow) {
-  const origin = ownerPartOrigin(listedOwnerPart(listed), names.value.category)
+  const origin = ownerPartOrigin(listedOwnerPart(listed), names.value.category, (amount) => formatMoney(amount))
   return origin === null ? null : h('span', { class: 'text-xs text-muted' }, origin)
 }
 

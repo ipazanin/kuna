@@ -39,6 +39,7 @@ export const en = {
     otherIncome: 'Other operating income: the grant released and other income',
     costPlacement: 'Costs split over the lines as the accountant splits them',
     asPlaced: 'As the accountant places it',
+    privateVatAsBooked: "VAT on the owner's private share, deducted as the accountant booked it",
     sales: 'Sales, by delivery period',
     ownUse: 'Own use: nothing the ledger records',
     financialIncome: 'Financial income, such as interest the company earned',
@@ -62,6 +63,8 @@ export const en = {
   },
   /** The labels of the balance sheet on the accrual view. */
   balance: {
+    privateVatAsBooked: "VAT on the owner's private share the accountant deducted",
+    privateVatInAssets: "VAT on the owner's private share the accountant deducted, taken out of the assets",
     bookValue: 'Book value of the assets',
     assetBookValue: (asset: string) => `${asset}, book value`,
     delivered: 'Revenue delivered to the year end',
@@ -120,6 +123,8 @@ export const en = {
     representationOn: (konto: string) => `Representation on konto ${konto}`,
     representationAsBooked: 'Representation added back as the accountant booked it, against the bank amounts',
     onto: (line: string) => `Onto ${line}, as the accountant places it`,
+    privateVatAsBooked: "VAT on the owner's private share, deducted as the accountant booked it",
+    privateVatOn: (line: string) => `${line}: VAT on the owner's private share the accountant deducted`,
   },
   delivery: {
     invoiceDays: (number: string, days: number, total: number) => `Invoice ${number}, ${days} of ${total} delivery days`,
@@ -166,6 +171,7 @@ export const hr: Translation<typeof en> = {
     otherIncome: 'Ostali poslovni prihodi: priznata potpora i ostali prihodi',
     costPlacement: 'Troškovi raspoređeni po pozicijama kako ih raspoređuje knjigovođa',
     asPlaced: 'Kako raspoređuje knjigovođa',
+    privateVatAsBooked: 'PDV na privatni udio vlasnika, odbijen kako ga je knjižio knjigovođa',
     sales: 'Prihodi od prodaje, po razdoblju isporuke',
     ownUse: 'Vlastita upotreba: ništa što evidencija bilježi',
     financialIncome: 'Financijski prihodi, poput kamata koje je društvo zaradilo',
@@ -188,6 +194,8 @@ export const hr: Translation<typeof en> = {
     cashNet: 'Neto kako ga broji aplikacija, bankovne stavke i predujmovi vlasnika',
   },
   balance: {
+    privateVatAsBooked: 'PDV na privatni udio vlasnika koji je knjigovođa odbio',
+    privateVatInAssets: 'PDV na privatni udio vlasnika koji je knjigovođa odbio, umanjen iz imovine',
     bookValue: 'Knjigovodstvena vrijednost sredstava',
     assetBookValue: (asset) => `${asset}, knjigovodstvena vrijednost`,
     delivered: 'Prihod isporučen do kraja godine',
@@ -245,6 +253,8 @@ export const hr: Translation<typeof en> = {
     representationOn: (konto) => `Reprezentacija na kontu ${konto}`,
     representationAsBooked: 'Reprezentacija dodana osnovici kako ju je knjižio knjigovođa, prema bankovnim iznosima',
     onto: (line) => `Na poziciju ${line}, kako raspoređuje knjigovođa`,
+    privateVatAsBooked: 'PDV na privatni udio vlasnika, odbijen kako ga je knjižio knjigovođa',
+    privateVatOn: (line) => `${line}: PDV na privatni udio vlasnika koji je knjigovođa odbio`,
   },
   delivery: {
     invoiceDays: (number, days, total) => `Račun ${number}, ${days} od ${total} dana isporuke`,

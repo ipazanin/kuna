@@ -224,7 +224,7 @@ export const vatRules: readonly RuleIn<VatValues>[] = [
           },
         ],
         confidence: 'confirmed-nn',
-        note: 'Art. 58(5) was read in NN 152/24 and Art. 61 only in the consolidated text. Input VAT is deductible on business purchases, also for supplies made abroad that would carry a deduction right in Croatia. That is why a company with only foreign sales has a structural VAT credit. There is no deduction on representation. Half of the VAT on personal cars and their running costs is deductible, with narrow exceptions. An asset also used privately gives a deduction for the business share only. The right arises when the VAT becomes chargeable. 2027 is assumed: no enacted change was found through NN 109/26.',
+        note: 'Art. 58(5) was read in NN 152/24 and Art. 61 only in the consolidated text. Input VAT is deductible on business purchases, also for supplies made abroad that would carry a deduction right in Croatia. That is why a company with only foreign sales has a structural VAT credit. There is no deduction on representation. Half of the VAT on personal cars and their running costs is deductible, with narrow exceptions. A good or a service also used privately gives a deduction for the business share only, by Art. 58(8) and PravPDV Art. 137(3), and on a reverse-charged service the output VAT stays whole. A personal car keeps its 50% whatever the private use, by Art. 8(5), unless it is used only privately. The right arises when the VAT becomes chargeable. 2027 is assumed: no enacted change was found through NN 109/26.',
       },
     ],
   },

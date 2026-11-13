@@ -2,6 +2,7 @@ import type { CompanyReading, PackReader } from '../../../assistant/companyReade
 import { DEFAULT_FILTERS } from '../../../filters/domain/filterState'
 import { ownerShareText } from '../../../owner-share/domain/ownerShare'
 import { countedLedger } from '../../../transactions/domain/countedLedger'
+import { vatOnPrivateShare } from '../domain/vat/vatSplit'
 import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../../workbook/domain/displayName'
 import { recordsOfKindIn } from '../../../workbook/domain/readWorkbook'
@@ -328,7 +329,7 @@ interface YearBooks {
 }
 
 function yearBooksOf(workbook: Workbook): YearBooks | null {
-  const ledger = countedLedger(workbook, DEFAULT_FILTERS)
+  const ledger = countedLedger(workbook, DEFAULT_FILTERS, vatOnPrivateShare)
   return ledger === null ? null : { books: hrDooWorkbook(ledger.booked), window: ledger.window, asOf: ledger.window.newestDay, currency: currencyCodeOf(workbook.settings.currency) ?? EURO }
 }
 

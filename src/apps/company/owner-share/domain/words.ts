@@ -9,6 +9,7 @@ import { croatianBucket } from '../../settings/domain/words'
 export const en = {
   unreadableShare: (text: string) => `owner_share "${text}" is not a whole number from 0 to 100, so it reads as blank`,
   origin: (share: number, category: string) => `${share}% to owner, from ${category}`,
+  originWithVat: (share: number, vat: string, category: string) => `${share}% to owner, with ${vat} VAT, from ${category}`,
   noRoleCarrier: (role: string) => `no category carries the ${role} role`,
   severalCarriers: (role: string, categories: string) => `the ${role} role is on ${categories}, and only one category may carry it`,
   wrongBucket: (role: string, slug: string, bucket: string) => `the ${role} role is on "${slug}" in the ${bucket} bucket, and only an owner-pay category may carry it`,
@@ -21,6 +22,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   unreadableShare: (text) => `owner_share „${text}” nije cijeli broj od 0 do 100, pa se čita kao prazno`,
   origin: (share, category) => `${share}\u00a0% vlasniku, iz kategorije „${category}”`,
+  originWithVat: (share, vat, category) => `${share}\u00a0% vlasniku, s ${vat} PDV-a, iz kategorije „${category}”`,
   noRoleCarrier: (role) => `nijedna kategorija nema ulogu ${role}`,
   severalCarriers: (role, categories) => `ulogu ${role} imaju ${categories}, a smije je imati samo jedna kategorija`,
   wrongBucket: (role, slug, bucket) => `ulogu ${role} ima „${slug}” u skupini ${croatianBucket(bucket)}, a smije je imati samo kategorija skupine ${croatianBucket('owner-pay')}`,

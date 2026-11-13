@@ -155,9 +155,9 @@ export const ACTS: Readonly<Record<ActId, Act>> = {
   PravPDV: {
     id: 'PravPDV',
     title: 'Pravilnik o porezu na dodanu vrijednost',
-    nn: [],
+    nn: ['79/13', '85/13', '160/13', '35/14', '157/14', '130/15', '1/17', '41/17', '128/17', '1/19', '1/20', '1/21', '73/21', '41/22', '133/22', '43/23', '1/24', '39/24', '16/25', '11/26', '35/26'],
     nnComplete: false,
-    textUrl: null,
+    textUrl: 'https://www.zakon.hr/cms.htm?id=60055',
   },
   ZoR: {
     id: 'ZoR',

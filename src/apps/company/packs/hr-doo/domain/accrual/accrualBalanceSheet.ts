@@ -44,6 +44,14 @@ export interface BalanceSheetContext {
   /** The judgements the profit after tax rests on. */
   readonly profitJudgements: readonly AdjustmentId[]
   readonly cutOffCategories: ReadonlySet<string>
+  /** In a closed year whose accountant deducted the VAT on the owner's private share, that judgement, what was deducted in the year and what of it the assets hold at its end. */
+  readonly privateVatAsBooked: {
+    readonly id: AdjustmentId
+    /** VAT on the private share of the year's costs and purchases, which the accountant claimed from the state. */
+    readonly vatDeducted: Money
+    /** What that VAT adds to the assets' book value at the year end. */
+    readonly inAssets: Money
+  } | null
   readonly firstPeriod: boolean
   readonly rules: RuleSource
 }
@@ -106,7 +114,10 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const owed = netOwed(ownerLoans(rows, workbook.categories), ownerAdvances(advances, rows, workbook.categories), workbook.categories)
   const owedFigure = withDrill(tracedFigure(words.balance.owedByOwner, owed.amount, 'ledger', []), owed.drill)
 
-  const vat = vatPosition(bookings, monthKey(year, 12), rowsFigure(words.balance.vatSettled, roleRows(PACK_ROLES.vatSettlement)))
+  const ourVat = vatPosition(bookings, monthKey(year, 12), rowsFigure(words.balance.vatSettled, roleRows(PACK_ROLES.vatSettlement)))
+  const asBooked = context.privateVatAsBooked
+  const vat = asBooked === null ? ourVat : summed(ourVat.label, [ourVat, tracedFigure(words.balance.privateVatAsBooked, asBooked.vatDeducted, 'accountant', [])], 'ledger')
+  const vatJudgements: AdjustmentId[] = asBooked === null ? [] : [asBooked.id]
 
   const citOwed = citOwedAt(context, rows, roleRows(PACK_ROLES.corporateIncomeTax))
 
@@ -137,16 +148,21 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   const nothing = (label: string) => tracedFigure(label, ZERO, 'ledger', [])
 
   put('intangible-assets', nothing(words.balance.noIntangible))
-  put('tangible-assets', tangible)
+  put(
+    'tangible-assets',
+    asBooked === null || asBooked.inAssets === 0
+      ? tangible
+      : summed(tangible.label, [tangible, deducted(tracedFigure(words.balance.privateVatInAssets, asBooked.inAssets, 'accountant', []))], 'assets'),
+    asBooked === null || asBooked.inAssets === 0 ? [] : vatJudgements,
+  )
   put('financial-assets', nothing(words.balance.noFinancialAssets))
   put('inventories', nothing(words.balance.noInventories))
   put('receivables-trade', receivablesTrade)
   put('receivables-members-employees', summed(words.balance.receivableFromOwner, positive(owedFigure), 'ledger'))
-  put(
-    'receivables-state',
-    summed(words.balance.receivableFromState, [...positive(vat), ...negativeAsOwed(citOwed, words.balance.taxOverpaid)], 'ledger'),
-    citOwed.amount < 0 ? context.profitJudgements : [],
-  )
+  put('receivables-state', summed(words.balance.receivableFromState, [...positive(vat), ...negativeAsOwed(citOwed, words.balance.taxOverpaid)], 'ledger'), [
+    ...(citOwed.amount < 0 ? context.profitJudgements : []),
+    ...(vat.amount > 0 ? vatJudgements : []),
+  ])
   put('receivables-other', nothing(words.balance.noOtherReceivables))
   const cash = latestBalances(rows).cashOnHand
   put('cash', withDrill(tracedFigure(words.balance.cash, cash.amount, 'ledger', []), cash.drill))
@@ -158,6 +174,7 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
   put('payables-employees', summed(words.balance.ownerAndEmployees, [...accruedIn('owner-pay'), ...negativeAsOwed(owedFigure, words.balance.owedToOwner)], 'ledger'), cutOffOn('owner-pay'))
   put('payables-taxes', summed(words.balance.taxesOwed, [...accruedIn('taxes'), ...positive(citOwed), ...negativeAsOwed(vat, words.balance.vatOwed)], 'ledger'), [
     ...cutOffOn('taxes'),
+    ...(vat.amount < 0 ? vatJudgements : []),
     ...(citOwed.amount > 0 ? context.profitJudgements : []),
   ])
   put('payables-loans', nothing(words.balance.noLoans))

@@ -11,6 +11,8 @@ export const en = {
   /** The labels of an asset's depreciation, which the build-ups name. */
   schedule: {
     cost: 'Cost without deductible VAT',
+    costNet: 'Net cost on the assets tab',
+    keptVat: 'VAT its payment cannot deduct',
     depreciationIn: (year: number, months: number, rate: string) => `Depreciation in ${year}, ${months} ${months === 1 ? 'month' : 'months'} at ${rate}`,
     doubledRate: (rate: string) => `${rate}, the doubled rate`,
     accumulated: 'Accumulated depreciation on',
@@ -48,6 +50,8 @@ export const en = {
 export const hr: Translation<typeof en> = {
   schedule: {
     cost: 'Nabavna vrijednost bez odbitnog PDV-a',
+    costNet: 'Neto nabavna vrijednost s lista „assets”',
+    keptVat: 'PDV plaćanja koji se ne odbija',
     depreciationIn: (year, months, rate) => `Amortizacija u ${year}., ${months} ${plural({ one: 'mjesec', few: 'mjeseca', other: 'mjeseci' }, months)} po stopi ${rate}`,
     doubledRate: (rate) => `${rate}, udvostručena stopa`,
     accumulated: 'Ispravak vrijednosti na dan',

@@ -6,6 +6,7 @@ import { transactionsInPeriod } from '../../filters/domain/filterState'
 import type { FilterState } from '../../filters/domain/filterState'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { OwnerAdvance, Transaction } from '../../workbook/domain/workbook'
+import { installedPack } from '../../packs/packContribution'
 import { countedLedger } from '../domain/countedLedger'
 import type { CountedLedger } from '../domain/countedLedger'
 import { filterTransactions } from '../domain/filterTransactions'
@@ -27,7 +28,7 @@ export function useFilteredLedger(): ComputedRef<FilteredLedger | null> {
   const { filters } = useFilters()
   return computed(() => {
     const current = filters.value as FilterState
-    const counted = state.workbook === null ? null : countedLedger(state.workbook, current)
+    const counted = state.workbook === null ? null : countedLedger(state.workbook, current, installedPack().vatOnPrivateShare)
     if (counted === null) {
       return null
     }

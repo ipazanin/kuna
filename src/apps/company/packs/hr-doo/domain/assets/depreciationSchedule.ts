@@ -51,17 +51,24 @@ export interface DepreciationSchedule {
 
 const MONTHS_PER_YEAR = 12
 
+/** What an asset depreciates at. */
+export type AssetCostOf = (asset: Asset) => TracedFigure
+
+/** An asset's cost as the assets tab states it, without the VAT its payment may not deduct. */
+export function netCostOf(asset: Asset): TracedFigure {
+  return tracedFigure(words.schedule.cost, asset.costNet, 'assets', [])
+}
+
 /**
  * Straight-line depreciation of one asset at its group's rate, doubled when the asset or the
- * settings say so. Each year's charge is rounded to the cent, and the months share it out so they
- * add up to it. An item at or below the asset threshold is small inventory, written off in full in
- * the month it is put in use.
+ * settings say so, on its cost. Each year's charge is rounded to the cent, and the months share it
+ * out so they add up to it. An item at or below the asset threshold is small inventory, written off
+ * in full in the month it is put in use.
  */
-export function depreciationSchedule(asset: Asset, settings: DepreciationSettings, rules: RuleSource = ruleValue): DepreciationSchedule {
-  const cost = tracedFigure(words.schedule.cost, asset.costNet, 'assets', [])
+export function depreciationSchedule(asset: Asset, settings: DepreciationSettings, rules: RuleSource = ruleValue, cost: TracedFigure = netCostOf(asset)): DepreciationSchedule {
   const useYear = taxPeriodOf(yearOf(asset.inUse))
   const thresholdRule = rules('hr.cit.asset-threshold', useYear)
-  if (asset.costNet <= thresholdRule.value.unitCostAbove.cents) {
+  if (cost.amount <= thresholdRule.value.unitCostAbove.cents) {
     return smallInventory(asset, cost, thresholdRule, rules('hr.acc.capitalisation', useYear))
   }
 
@@ -73,7 +80,7 @@ export function depreciationSchedule(asset: Asset, settings: DepreciationSetting
   const doubledAsked = asset.doubledRate || settings.depreciationDoubled
   const rateOf = (year: number): YearRate => groupRate(asset, year, doubledAsked, rules)
 
-  const months = monthlyCharges(asset.costNet, firstMonth, lastMonth, (year) => rateOf(year).rate)
+  const months = monthlyCharges(cost.amount, firstMonth, lastMonth, (year) => rateOf(year).rate)
   const years = [...new Set(months.map((entry) => yearOfMonth(entry.month)))].map((year) => {
     const inYear = months.filter((entry) => yearOfMonth(entry.month) === year)
     const yearRate = rateOf(year)
@@ -87,7 +94,7 @@ export function depreciationSchedule(asset: Asset, settings: DepreciationSetting
       [cost],
     )
     const capRule = asset.group === 'car' ? rules('hr.cit.car-depreciation-cap', taxPeriodOf(year)) : null
-    return { year, rate: yearRate.rate, doubled: yearRate.doubled, charge, deductible: deductibleOf(charge, asset.costNet, capRule) }
+    return { year, rate: yearRate.rate, doubled: yearRate.doubled, charge, deductible: deductibleOf(charge, cost.amount, capRule) }
   })
 
   return { asset, treatment: 'depreciated', cost, months, years, writeOff: disposalWriteOff(asset, cost, months, years) }

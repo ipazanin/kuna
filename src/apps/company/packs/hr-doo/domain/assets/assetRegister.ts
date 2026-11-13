@@ -4,14 +4,21 @@ import { problemOf } from '../../../../../../shared/storage/domain/recordsRead'
 import type { RecordProblem } from '../../../../../../shared/storage/domain/recordsRead'
 import type { Asset } from './assets'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
-import type { Category, Transaction } from '../../../../workbook/domain/workbook'
+import type { Category, Transaction, Workbook } from '../../../../workbook/domain/workbook'
 import { daysBetween } from '../../../../../../shared/calendar/civilDate'
-import { addMoney, negateMoney, sumMoney } from '../../../../../../shared/money/money'
+import { ZERO, addMoney, negateMoney, sumMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { moneyAt } from '../../../../../../shared/money/percent'
+import { moneyParts } from '../../../../../../shared/money/decimal'
+import { countedShareIn } from '../../../../owner-share/domain/ownerParts'
 import { hasVersionOn, ruleValue } from '../../ruleset/ruleset'
+import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { PACK_ROLES, categoriesWithRole } from '../packRoles'
+import { tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
+import { vatKeptForPrivateShare, vatSplit } from '../vat/vatSplit'
+import { netCostOf } from './depreciationSchedule'
+import type { AssetCostOf } from './depreciationSchedule'
 import { words } from './words'
 
 /** How an asset found its payment: its `row_id` is the row's id, its `ledger_reference` equals the row's reference or appears in its description, or the amount fits. */
@@ -62,6 +69,49 @@ export interface AssetRegister {
   readonly mismatchedPayments: readonly MismatchedPayment[]
   /** Empty when no category carries the role, so a screen can say why nothing matched by amount. */
   readonly capitalPurchaseCategories: readonly string[]
+}
+
+/** What each asset depreciates at, and the part of it that is VAT on the owner's private share. */
+export interface AssetCosts {
+  readonly costOf: AssetCostOf
+  /** Positive, and zero for an asset whose cost holds no such VAT. */
+  readonly privateShareVatOf: (asset: Asset) => Money
+}
+
+/**
+ * What each asset depreciates at: its net cost, and its share of the VAT its payment cannot deduct,
+ * such as the half of a personal car's VAT or the VAT on the owner's private share. Assets that
+ * share a payment share that VAT by their net costs. An asset without a payment, or one these
+ * books do not hold, depreciates at its net cost.
+ */
+export function assetCostsOf(workbook: Pick<Workbook, 'transactions' | 'categories' | 'settings'> & { readonly assets: readonly Asset[] }, rules: RuleSource = ruleValue): AssetCosts {
+  const byPayment = new Map<Transaction, Asset[]>()
+  for (const { asset, payment } of assetRegister(workbook.assets, workbook.transactions, workbook.categories, rules).assets) {
+    if (payment !== null) {
+      byPayment.set(payment.row, [...(byPayment.get(payment.row) ?? []), asset])
+    }
+  }
+  const costs = new Map<Asset, TracedFigure>()
+  const privateShareVat = new Map<Asset, Money>()
+  for (const [row, claiming] of byPayment) {
+    const category = workbook.categories.find((candidate) => candidate.slug === row.category)
+    if (category === undefined) {
+      continue
+    }
+    const split = vatSplit(row, category, countedShareIn(workbook, row), rules)
+    const weights = claiming.map((asset) => BigInt(asset.costNet))
+    const parts = moneyParts(negateMoney(split.kept.amount), weights)
+    const privateParts = moneyParts(negateMoney(vatKeptForPrivateShare(split)), weights)
+    claiming.forEach((asset, position) => {
+      const part = parts[position] ?? ZERO
+      privateShareVat.set(asset, privateParts[position] ?? ZERO)
+      if (part !== 0) {
+        const steps = [tracedFigure(words.schedule.costNet, asset.costNet, 'assets', []), tracedFigure(words.schedule.keptVat, part, 'ledger', split.kept.rules)]
+        costs.set(asset, tracedFigure(words.schedule.cost, addMoney(asset.costNet, part), 'assets', split.kept.rules, steps))
+      }
+    })
+  }
+  return { costOf: (asset) => costs.get(asset) ?? netCostOf(asset), privateShareVatOf: (asset) => privateShareVat.get(asset) ?? ZERO }
 }
 
 /** The debits that carry this row id, of which an asset linked to it takes the one paid nearest the day it was bought. */

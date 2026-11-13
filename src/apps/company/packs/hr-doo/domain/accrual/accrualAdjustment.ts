@@ -1,6 +1,7 @@
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { YearEndStatement } from '../yearEnd/yearEnd'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
+import type { Money } from '../../../../../../shared/money/money'
 
 /**
  * How an adjustment stands against the accountant. `matched` agrees with the accountant's own line
@@ -31,6 +32,7 @@ export type AdjustmentId =
   | 'arrears-cut-off'
   | 'prepaid-spread'
   | 'representation-as-booked'
+  | 'private-vat-as-booked'
   | 'corporate-income-tax'
   | 'cost-placement'
   | 'liability-placement'
@@ -54,6 +56,14 @@ export interface AccrualAdjustment {
   readonly figure: TracedFigure
   /** The year-end lines it rests on or explains. */
   readonly lines: readonly YearEndLineRef[]
+  /** What it adds to each of its lines, for one that adds a different amount to each, such as a placement. */
+  readonly perLine?: readonly LineAmount[]
+}
+
+/** What an adjustment adds to one year-end line. */
+export interface LineAmount {
+  readonly line: string
+  readonly amount: Money
 }
 
 export function withDrill(figure: TracedFigure, drill: DrillTarget | null): TracedFigure {

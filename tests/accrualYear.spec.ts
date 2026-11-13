@@ -7,7 +7,8 @@ import { costLineOf } from '../src/apps/company/packs/hr-doo/domain/accrual/cate
 import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import type { AccrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualYear'
 import type { HrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
-import { sumMoney } from '../src/shared/money/money'
+import { addMoney, sumMoney } from '../src/shared/money/money'
+import { ownerShareOf } from '../src/apps/company/owner-share/domain/ownerShare'
 import type { Money } from '../src/shared/money/money'
 import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
 import type { Category } from '../src/apps/company/workbook/domain/workbook'
@@ -334,5 +335,71 @@ describe('accrualYear, a representation category its VAT or its roles contradict
     const result = accrual(2025, exampleStudio({ categories: representationWith({ roles: ['representation', 'non-deductible'] }) }))
 
     expect(lineAmount(result, 'tax', 'increases')).toBe(lineAmount(accrual(2025), 'tax', 'increases'))
+  })
+})
+
+describe('accrualYear with an owner share', () => {
+  const BENEFIT = { ...STUDIO_CATEGORIES.find((category) => category.slug === 'salary-net')!, slug: 'benefits', roles: ['owner-benefit'] }
+  const AI = { ...STUDIO_CATEGORIES.find((category) => category.slug === 'software')!, slug: 'ai-services', vat: 'reverse-charge' as const }
+  const categories = [...STUDIO_CATEGORIES, BENEFIT, AI]
+  const shares: Readonly<Record<string, number>> = { 'Order 1001': 30, 'Order 1002': 30 }
+  const transactions = withPackBuckets(ledger(STUDIO_ROWS.flatMap((row) => (row.category === 'fines' ? [row, { date: '2025-06-16', amount: -100, category: 'ai-services' }] : [row]))), categories).map(
+    (row) => ({
+      ...row,
+      ownerShare: ownerShareOf(shares[row.description] ?? (row.category === 'software' || row.category === 'ai-services' ? 50 : 0)),
+    }),
+  )
+  const shared = exampleStudio({ categories, transactions })
+  const year = accrual(2025, shared)
+
+  it('puts the VAT on the private share of an asset and of small inventory into their cost, so capital purchases, assets and write-offs add up', () => {
+    // The laptop's 600.00 of VAT keeps 180.00 at 30%, so it costs 2,580.00. The desk keeps 15.00 of its 50.00 and costs 215.00.
+    expect(step(year, 'capital-purchases')?.figure.steps.map((entry) => entry.amount)).toEqual([euros(2580), euros(215)])
+    expect(step(year, 'asset-write-offs')?.figure.amount).toBe(euros(-215))
+    // 50% a year from May: 2,580.00 × 50% × 8 / 12 = 860.00.
+    expect(amountOfStep(year, 'depreciation')).toBe(euros(-860))
+    expect(lineAmount(year, 'balance', 'tangible-assets')).toBe(euros(2580 - 860))
+    expect(lineAmount(year, 'balance', 'share-capital')).toBe(euros(2500))
+  })
+
+  it('deducts only the business share, and owes the reverse charge on the private share', () => {
+    // 691.25 less the private shares: 180.00 and 15.00 of equipment, 12.50 of software, and the 12.50 the reverse charge owes on the AI service.
+    expect(amountOfStep(year, 'input-vat')).toBe(euros(691.25 - 180 - 15 - 12.5 - 12.5))
+    expect(bridgeTotal(year)).toBe(year.bridge.profitBeforeTax.amount)
+  })
+
+  it('shows on a closed year the VAT the accountant deducted on the private share as one judgement, and the lines match again', () => {
+    const ours = (line: string) => lineAmount(year, 'pl', line) ?? 0
+    // The accountant deducted all of it: 12.50 of software, 12.50 of the AI service and the desk's 15.00 off material costs, and the laptop's 180.00 kept out of its cost,
+    // so 2,400.00 depreciates 800.00 against our 860.00. It also put the 50.00 of fines on other costs.
+    const closed = accrual(
+      2025,
+      exampleStudio({
+        categories,
+        transactions,
+        yearEndLines: [
+          yearEndLine(2025, 'pl', 'material-costs', (ours('material-costs') - 1250 - 1250 - 1500) / 100),
+          yearEndLine(2025, 'pl', 'personnel-costs', ours('personnel-costs') / 100),
+          yearEndLine(2025, 'pl', 'other-costs', 50),
+          yearEndLine(2025, 'pl', 'depreciation', 800),
+          yearEndLine(2025, 'pl', 'impairment-provisions-other', (ours('impairment-provisions-other') - 5000) / 100),
+          yearEndLine(2025, 'pl', 'financial-expenses', 0),
+        ],
+      }),
+    )
+
+    expect(step(closed, 'private-vat-as-booked')).toMatchObject({ kind: 'judgement', effect: 'profit' })
+    // 12.50 + 12.50 + 15.00 on material costs and 60.00 of depreciation.
+    expect(amountOfStep(closed, 'private-vat-as-booked')).toBe(euros(100))
+    expect(step(closed, 'cost-placement')).toMatchObject({ kind: 'judgement', effect: 'placement' })
+    expect(lineAmount(closed, 'pl', 'other-costs')).toBe(euros(50))
+    expect(lineAmount(closed, 'pl', 'depreciation')).toBe(euros(800))
+    expect(accrualLine(closed, 'pl', 'material-costs')?.judgements).toEqual(['private-vat-as-booked'])
+    expect(accrualLine(closed, 'pl', 'other-costs')?.judgements).toEqual(['cost-placement'])
+    expect(lineAmount(closed, 'pl', 'profit-before-tax')).toBe(addMoney(year.bridge.profitBeforeTax.amount, euros(100)))
+    expect(bridgeTotal(closed)).toBe(closed.bridge.profitBeforeTax.amount)
+    // The laptop at the accountant's 2,400.00 less 800.00, and the share capital still closes the balance sheet.
+    expect(lineAmount(closed, 'balance', 'tangible-assets')).toBe(euros(1600))
+    expect(lineAmount(closed, 'balance', 'share-capital')).toBe(euros(2500))
   })
 })

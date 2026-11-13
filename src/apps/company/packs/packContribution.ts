@@ -9,6 +9,8 @@ import type { WaitingJob } from '../overview/presentation/waitingForYou'
 import type { Settings } from '../settings/domain/settings'
 import type { SettingsTab } from '../settings/presentation/settingsTabs'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
+import { NO_VAT_ON_PRIVATE_SHARE } from '../owner-share/domain/ownerParts'
+import type { VatOnPrivateShare } from '../owner-share/domain/ownerParts'
 import type { PackPart } from '../workbook/domain/packPart'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
 import { newestBookingOf } from '../workbook/domain/workbook'
@@ -94,6 +96,8 @@ export interface PackContribution {
   waitingJobs(workbook: Workbook, asOf: CivilDate, rates: RateBook): readonly WaitingJob[]
   /** What the owner could take out on the newest booking. Null without a pack, which has no such figure. */
   ownerTakeOut(workbook: Workbook, asOf: CivilDate): OwnerTakeOut | null
+  /** The VAT the company owes beyond a shared row for the owner's private share of it, which the owner's part carries. None without a pack. */
+  readonly vatOnPrivateShare: VatOnPrivateShare
   /** The ECB rates the pack's figures need, each currency from the first day it is needed. Empty without a pack. */
   ratesDemand(workbook: Workbook): RatesDemand
   readonly reviewCards: readonly PackReviewCard[]
@@ -125,6 +129,7 @@ const NO_PACK: PackContribution = {
   screens: [],
   waitingJobs: () => [],
   ownerTakeOut: () => null,
+  vatOnPrivateShare: NO_VAT_ON_PRIVATE_SHARE,
   ratesDemand: () => new Map(),
   reviewCards: [],
   settingsTabs: [],

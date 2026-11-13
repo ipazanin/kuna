@@ -37,7 +37,7 @@ import EmptyState from '../../../../../../shared/ui/EmptyState.vue'
 import { ruleValue } from '../../ruleset/ruleset'
 import { ruleLink } from '../../ruleset/presentation/taxRuleLinks'
 import { assetBooks, depreciationByYear, doubledRatesEffect } from '../../domain/assets/assetBooks'
-import { assetRegister } from '../../domain/assets/assetRegister'
+import { assetCostsOf, assetRegister } from '../../domain/assets/assetRegister'
 import { accumulatedDepreciationOn, bookValueOn } from '../../domain/assets/depreciationSchedule'
 import type { DepreciationSchedule } from '../../domain/assets/depreciationSchedule'
 import { effectiveTaxRate } from '../../domain/effectiveTaxRate'
@@ -118,7 +118,7 @@ function when(year: number): 'past' | 'current' | 'ahead' {
 
 function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number) {
   const { assets, grants, categories, transactions } = workbook
-  const asWorkbook = assetBooks(assets, grants, workbook.companyFacts)
+  const asWorkbook = assetBooks(assets, grants, workbook.companyFacts, ruleValue, assetCostsOf(workbook).costOf)
   const revenueOf = (year: number) => effectiveTaxRate(transactions, categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
   const effect = doubledRatesEffect(assets, grants, asWorkbook, revenueOf)
   const doubled = doubledAsked.value && effect.changesAnything
@@ -278,7 +278,7 @@ function assetsView(workbook: HrDooWorkbook, window: LedgerWindow, year: number)
       payment: paymentDrill === null ? null : drillLocation(paymentDrill),
       bought: dayLabel(asset.bought),
       inUse: dayLabel(asset.inUse),
-      cost: asset.costNet,
+      cost: schedule.cost.amount,
       group: GROUPS[asset.group],
       rate: schedule.treatment === 'small-inventory' || rateYear === undefined ? words.smallInventory : words.rate(percentText(rateYear.rate), rateYear.doubled),
       rateLink: ruleLink(schedule.treatment === 'small-inventory' ? 'hr.cit.asset-threshold' : 'hr.cit.depreciation-rates'),

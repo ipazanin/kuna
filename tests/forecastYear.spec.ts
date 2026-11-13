@@ -10,6 +10,8 @@ import { maxMoney, minMoney, subtractMoney } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import type { TaxBase } from '../src/apps/company/packs/hr-doo/domain/cit/taxBase'
 import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
+import type { Category } from '../src/apps/company/workbook/domain/workbook'
+import { ownerShareOf } from '../src/apps/company/owner-share/domain/ownerShare'
 import { STUDIO_CATEGORIES, exampleStudio } from './fixtures/exampleStudio'
 import { planRow } from './fixtures/billingPlan'
 import { civil, euros } from './fixtures/ledger'
@@ -476,5 +478,30 @@ describe('forecastYear and accrualYear on a closed year’s representation', () 
 
   it.fails('adds back the same representation in both when it is stored with a deductible rate', () => {
     expect(addBacks('deductible-25')).toEqual({ forecast: euros(40), accrual: euros(40) })
+  })
+})
+
+describe('forecastYear with an AI service the owner half uses privately', () => {
+  const categories = [
+    ...STEADY_CATEGORIES.map((category): Category => (category.slug === 'ai-services' ? { ...category, vat: 'reverse-charge' } : category)),
+    { ...STEADY_CATEGORIES.find((category) => category.slug === 'salary-net')!, slug: 'benefits', roles: ['owner-benefit'] },
+  ]
+  const shared = (share: number) => {
+    const books = steadyStudio({ categories })
+    return { ...books, transactions: books.transactions.map((row) => (row.category === 'ai-services' ? { ...row, ownerShare: ownerShareOf(share) } : row)) }
+  }
+  const forecast = forecastYear(shared(50), 2026, civil('2026-10-19'))
+  const whole = forecastYear(shared(0), 2026, civil('2026-10-19'))
+
+  it('counts the VAT the reverse charge owes on the private share in the cost, months and average alike', () => {
+    // 120.00 a month self-charges 30.00, and the owner's half of it, 15.00, is not deductible.
+    expect(amounts(categoryLine(forecast, 'ai-services'))).toEqual(amounts(categoryLine(whole, 'ai-services')).map((amount) => subtractMoney(amount, euros(15))))
+  })
+
+  it('owes that VAT to the state, so the VAT the state owes the company falls by it', () => {
+    // Every payment to the forecast's day, each 120.00 owing 15.00.
+    const paid = shared(50).transactions.filter((row) => row.category === 'ai-services' && row.date <= civil('2026-10-31'))
+    expect(paid.every((row) => row.amount === euros(-120))).toBe(true)
+    expect(subtractMoney(whole.vatPosition.amount, forecast.vatPosition.amount)).toBe(euros(15 * paid.length))
   })
 })

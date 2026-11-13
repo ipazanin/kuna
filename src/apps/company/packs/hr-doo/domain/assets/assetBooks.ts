@@ -12,8 +12,8 @@ import { grantRelease } from '../grants/grantRelease'
 import type { GrantReleaseSchedule } from '../grants/grantRelease'
 import { deducted, rulesOf, summed, tracedFigure } from '../payroll/payrollArithmetic'
 import type { RuleSource } from '../payroll/payrollArithmetic'
-import { depreciationSchedule } from './depreciationSchedule'
-import type { DepreciationSchedule, DepreciationSettings, DepreciationYear } from './depreciationSchedule'
+import { depreciationSchedule, netCostOf } from './depreciationSchedule'
+import type { AssetCostOf, DepreciationSchedule, DepreciationSettings, DepreciationYear } from './depreciationSchedule'
 import { words } from './words'
 
 /** Every asset's depreciation and every grant's release, worked out under one depreciation setting. */
@@ -56,8 +56,9 @@ export interface DoubledRatesEffect {
   readonly changesAnything: boolean
 }
 
-export function assetBooks(assets: readonly Asset[], grants: readonly Grant[], settings: DepreciationSettings, rules: RuleSource = ruleValue): AssetBooks {
-  const schedules = assets.map((asset) => depreciationSchedule(asset, settings, rules))
+/** The assets' depreciation at the cost each one gives, and the grants' release with it. */
+export function assetBooks(assets: readonly Asset[], grants: readonly Grant[], settings: DepreciationSettings, rules: RuleSource = ruleValue, costOf: AssetCostOf = netCostOf): AssetBooks {
+  const schedules = assets.map((asset) => depreciationSchedule(asset, settings, rules, costOf(asset)))
   return { schedules, grants: grants.map((grant) => grantRelease(grant, schedules, grant.release, rules)) }
 }
 
@@ -118,7 +119,8 @@ export function doubledRatesEffect(
   rateTestRevenue: (year: number) => Money,
   rules: RuleSource = ruleValue,
 ): DoubledRatesEffect {
-  const doubled = assetBooks(assets, grants, { depreciationDoubled: true }, rules)
+  const costs = new Map(asWorkbook.schedules.map((schedule) => [schedule.asset, schedule.cost]))
+  const doubled = assetBooks(assets, grants, { depreciationDoubled: true }, rules, (asset) => costs.get(asset) ?? netCostOf(asset))
   const baseDepreciation = depreciationByYear(asWorkbook.schedules)
   const doubledDepreciation = depreciationByYear(doubled.schedules)
   const years = yearsOf([

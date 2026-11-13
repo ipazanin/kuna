@@ -42,6 +42,7 @@ import { runway } from '../src/apps/company/overview/domain/runway.ts'
 import { recentChange, windowAverages } from '../src/apps/company/overview/domain/windowAverages.ts'
 import { waitingJobs } from '../src/apps/company/overview/presentation/waitingForYou.ts'
 import { withOwnerParts } from '../src/apps/company/owner-share/domain/ownerParts.ts'
+import { vatOnPrivateShare } from '../src/apps/company/packs/hr-doo/domain/vat/vatSplit.ts'
 import { installedPack } from '../src/apps/company/packs/packContribution.ts'
 import { categoryChanges } from '../src/apps/company/period-review/domain/categoryChanges.ts'
 import { periodReview, reviewPeriodOf } from '../src/apps/company/period-review/domain/periodReview.ts'
@@ -76,7 +77,7 @@ import { documentOfTabs } from '../src/apps/company/workbook/infrastructure/spre
 import { readWorkbookFile } from '../src/apps/company/workbook/infrastructure/workbookFile.ts'
 import { accrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualYear.ts'
 import { assetBooks, depreciationByYear, doubledRatesEffect } from '../src/apps/company/packs/hr-doo/domain/assets/assetBooks.ts'
-import { assetRegister } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister.ts'
+import { assetCostsOf, assetRegister } from '../src/apps/company/packs/hr-doo/domain/assets/assetRegister.ts'
 import { accumulatedDepreciationOn, bookValueOn } from '../src/apps/company/packs/hr-doo/domain/assets/depreciationSchedule.ts'
 import { dividendCapacity } from '../src/apps/company/packs/hr-doo/domain/dividend/dividendCapacity.ts'
 import { effectiveTaxRate } from '../src/apps/company/packs/hr-doo/domain/effectiveTaxRate.ts'
@@ -271,7 +272,7 @@ if (companyAsked) {
   const { records, workbook: raw } = readDocument({ id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, await documentOfInput())
   setMoneyFormat({ currency: raw.settings.currency, locale: amountLocaleOf(raw.settings) })
   const booked = presentedWorkbook(raw)
-  const cash = withOwnerParts(booked)
+  const cash = withOwnerParts(booked, vatOnPrivateShare)
   const books = hrDooWorkbook(booked)
   const window = ledgerWindowOf(cash.transactions)
   const asOf = newestBookingOf(cash.transactions)
@@ -382,7 +383,7 @@ if (companyAsked) {
     })
   }
   group('year.assets', () => {
-    const asBooks = assetBooks(books.assets, books.grants, books.companyFacts)
+    const asBooks = assetBooks(books.assets, books.grants, books.companyFacts, ruleValue, assetCostsOf(books).costOf)
     const revenueOf = (year) => effectiveTaxRate(books.transactions, books.categories, { preset: 'custom', range: { from: civilDate(year, 1, 1), to: civilDate(year, 12, 31) } }, window).revenue.amount
     const onToday = [asBooks.schedules.map((schedule) => [bookValueOn(schedule, today), accumulatedDepreciationOn(schedule, today)]), asBooks.grants.map((schedule) => deferredOn(schedule, today))]
     const threshold = ruleValue('hr.cit.asset-threshold', civilDate(yearOf(today), 1, 1))

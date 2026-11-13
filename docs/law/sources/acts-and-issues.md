@@ -36,6 +36,19 @@ Every act and bylaw these docs cite: its abbreviation, its title, the Narodne no
 | OPZ          | [Opći porezni zakon](https://www.zakon.hr/z/100/Op%C4%87i-porezni-zakon)                          | 115/16, 106/18, 121/19, 32/20, 42/20, 114/22, 152/24, 151/25 | Consolidated text, Art. 4, 5   |
 | ZUP          | [Zakon o općem upravnom postupku](https://www.zakon.hr/z/65/Zakon-o-op%C4%87em-upravnom-postupku) | 47/09, 110/21                                                | Consolidated text, Art. 80, 81 |
 
+## Company
+
+The acts behind the Company app's [tax classes](../company/tax-classes.md). The ruleset's act registry in `src/apps/company/packs/hr-doo/ruleset/acts.ts` lists the same issues.
+
+| Abbreviation | Act                                                                                                    | NN issues                                                                                                                                         | Read                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ZPD          | [Zakon o porezu na dobit](https://www.zakon.hr/z/99/zakon-o-porezu-na-dobit)                           | 177/04 to 114/23 as the consolidated text lists them, 151/25                                                                                      | Consolidated text through NN 128/26, NN 114/23 and NN 151/25 in NN |
+| PravPD       | [Pravilnik o porezu na dobit](https://www.zakon.hr/cms.htm?id=60061)                                   | 95/05 to 156/23 as the consolidated text lists them, 16/25, 39/26                                                                                 | Consolidated text through NN 128/26, NN 16/25 and NN 39/26 in NN   |
+| ZPDV         | [Zakon o porezu na dodanu vrijednost](https://www.zakon.hr/z/1455/zakon-o-porezu-na-dodanu-vrijednost) | 73/13 to 151/25 as the consolidated text lists them, 32/26, 48/26                                                                                 | Consolidated text through NN 128/26, NN 32/26 and NN 48/26 in NN   |
+| PravPDV      | [Pravilnik o porezu na dodanu vrijednost](https://www.zakon.hr/cms.htm?id=60055)                       | 79/13, 85/13, 160/13, 35/14, 157/14, 130/15, 1/17, 41/17, 128/17, 1/19, 1/20, 1/21, 73/21, 41/22, 133/22, 43/23, 1/24, 39/24, 16/25, 11/26, 35/26 | Consolidated text through NN 128/26, NN 11/26 and NN 35/26 in NN   |
+
+The PravPDV issues are those the preamble of NN 35/26 lists, with NN 35/26 itself. The zakon.hr consolidated text lists 72/21 for 73/21 and adds 68/25, which the NN preamble leaves out. Neither was settled in NN, so the registry marks the history incomplete.
+
 ## EU law
 
 | Abbreviation | Act                                                                                                   | Official Journal                       | Read                                                                                                                                                                                  |

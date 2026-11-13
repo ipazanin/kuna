@@ -986,6 +986,23 @@ const SCREENS = [
   },
   { name: 'transactions', hash: '#/company/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics', cards: false },
   { name: 'transactions-owner-part', hash: '#/company/transactions?p=all&cat=equipment', title: 'Transactions', charts: 0, shows: ['30% to owner, from Equipment', 'Laptop Store'], cards: false },
+  {
+    name: 'transactions-owner-part-reverse-charge',
+    hash: '#/company/transactions?p=l3&cat=ai-services',
+    title: 'Transactions',
+    charts: 0,
+    shows: ['50% to owner', 'MODEL API SUBSCRIPTION'],
+    cards: false,
+  },
+  {
+    name: 'transactions-owner-part-reverse-charge-croatian',
+    query: 'lang=hr',
+    hash: '#/company/transactions?p=l3&cat=ai-services',
+    title: 'Transakcije',
+    charts: 0,
+    shows: ['50\u00a0% vlasniku', 'MODEL API SUBSCRIPTION'],
+    cards: false,
+  },
   { name: 'transactions-croatian', query: 'lang=hr', hash: '#/company/transactions', title: 'Transakcije', charts: 0, shows: ['Northwind Analytics', 'Izvezi CSV', 'Stavke', 'Uvoz'], cards: false },
   {
     name: 'transactions-owner-part-croatian',

@@ -14,7 +14,9 @@ import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleId } from '../../ruleset/ruleset'
 import type { TracedFigure } from '../../ruleset/tracedFigure'
 import { assetBooks, carDepreciationAllowed, depreciationAboveAllowed, depreciationByYear } from '../assets/assetBooks'
-import type { DepreciationSettings } from '../assets/depreciationSchedule'
+import { assetCostsOf } from '../assets/assetRegister'
+import { bookValueOn } from '../assets/depreciationSchedule'
+import type { DepreciationSchedule, DepreciationSettings } from '../assets/depreciationSchedule'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import type { CitLiability, TaxPeriod } from '../cit/citLiability'
 import { donationsOfYear, lossesCarriedInto, taxBase } from '../cit/taxBase'
@@ -32,7 +34,9 @@ import { accrualBookings, bookingFigure, hasVat, isCounted } from './accrualBook
 import type { AccrualBooking, CapitalisedBooking, CountedBooking, TakenOutTreatment } from './accrualBookings'
 import { moneyLine } from './accrualLines'
 import type { AccrualLine, MoneyLine } from './accrualLines'
-import { arrearsCutOff, bookingsAfterCutOff, grantScheduleJudgement, placementJudgement, representationAsBooked } from './closedYear'
+import { amountOnLine, arrearsCutOff, bookingsAfterCutOff, grantScheduleJudgement, placementJudgement, privateVatAsBooked, representationAsBooked } from './closedYear'
+import { vatKeptForPrivateShare } from '../vat/vatSplit'
+import { moneyParts } from '../../../../../../shared/money/decimal'
 import { COST_LINES, costLineOf, incomeLineOf } from './categoryLines'
 import type { CostLine, IncomeLine } from './categoryLines'
 import { revenueByDelivery } from './revenueByDelivery'
@@ -121,7 +125,8 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
     return found?.figure.kind === 'money' ? found.figure.amount : null
   }
 
-  const books = assetBooks(workbook.assets, workbook.grants, inputs.depreciation, rules)
+  const assetCosts = assetCostsOf(workbook, rules)
+  const books = assetBooks(workbook.assets, workbook.grants, inputs.depreciation, rules, assetCosts.costOf)
   // The bridge adjusts the bookings as our policy times them. The lines use them after the
   // accountant's cut-off, which the bridge then shows as its own step.
   const byPolicy = accrualBookings(workbook, rules)
@@ -220,7 +225,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
     figure: deducted(depreciation),
     lines: [{ statement: 'pl', line: 'depreciation' }],
   }
-  const profitSteps: AccrualAdjustment[] = [
+  const ledgerSteps: AccrualAdjustment[] = [
     revenueAdjustment,
     takenOut('owner-loans', 'owner-loan', words.year.ownerLoans, [], [{ statement: 'balance', line: 'receivables-members-employees' }]),
     takenOut('grant-receipts', 'grant', words.year.grantReceipts, ['hr.acc.grant-recognition', 'hr.cit.grant-revenue']),
@@ -241,7 +246,6 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
     takenOut('corporate-tax-paid', 'corporate-income-tax', words.year.corporateTaxPaid, ['hr.cit.balance-due']),
     takenOut('profit-distributions', 'profit-distribution', words.year.profitDistributions, ['hr.ztd.distributable-profit']),
   ].filter((step) => isShown(step.figure))
-  const profitJudgements = profitSteps.filter((step) => step.kind === 'judgement').map((step) => step.id)
 
   // The lines, from the same bookings, each category on one line.
   const counted = bookings.filter(isCounted)
@@ -274,22 +278,60 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   costSteps.get('material-costs')?.push(smallInventory)
   costSteps.get('impairment-provisions-other')?.push(disposals)
   const ourCosts = new Map(COST_LINES.map((line) => [line, summed(words.costLines[line], (costSteps.get(line) ?? []).filter(isShown), 'ledger')]))
+  // The VAT on the owner's private share each line holds, so a closed year can hold it apart where the accountant deducted it.
+  const privateVat = new Map<CostLine, Money>(COST_LINES.map((line) => [line, ZERO]))
+  const addPrivateVat = (line: CostLine, amount: Money) => privateVat.set(line, addMoney(privateVat.get(line) ?? ZERO, amount))
+  for (const entry of contributing.filter((candidate) => candidate.category.bucket !== 'income')) {
+    addPrivateVat(costLineOf(entry.category, year, workbook.yearEndLines), privateShareVatIn(entry, year))
+  }
+  const countedPrivateVat = sumMoney([...privateVat.values()])
+  const withoutPrivateVat = assetBooks(workbook.assets, workbook.grants, inputs.depreciation, rules, (asset) => {
+    const cost = assetCosts.costOf(asset)
+    const vat = assetCosts.privateShareVatOf(asset)
+    return vat === 0 ? cost : tracedFigure(cost.label, subtractMoney(cost.amount, vat), 'assets', cost.rules)
+  })
+  const ofAssets = (schedules: readonly DepreciationSchedule[]) => ({
+    depreciation: depreciationByYear(schedules).find((entry) => entry.year === year)?.total.amount ?? ZERO,
+    writtenOff: (treatment: DepreciationSchedule['treatment']) =>
+      sumMoney(schedules.flatMap((schedule) => (schedule.writeOff !== null && inYear(schedule.writeOff.on) && schedule.treatment === treatment ? [schedule.writeOff.figure.amount] : []))),
+  })
+  const [withVat, withoutVat] = [ofAssets(books.schedules), ofAssets(withoutPrivateVat.schedules)]
+  addPrivateVat('depreciation', subtractMoney(withVat.depreciation, withoutVat.depreciation))
+  addPrivateVat('material-costs', subtractMoney(withVat.writtenOff('small-inventory'), withoutVat.writtenOff('small-inventory')))
+  addPrivateVat('impairment-provisions-other', subtractMoney(withVat.writtenOff('depreciated'), withoutVat.writtenOff('depreciated')))
+  const yearEnd = civilDate(year, 12, 31)
+  const privateVatInAssets = sumMoney(
+    books.schedules.map((schedule, position) =>
+      subtractMoney(bookValueOn(schedule, yearEnd).amount, withoutPrivateVat.schedules[position] === undefined ? ZERO : bookValueOn(withoutPrivateVat.schedules[position]!, yearEnd).amount),
+    ),
+  )
+  const privateVatBought = sumMoney(workbook.assets.filter((asset) => inYear(asset.bought)).map(assetCosts.privateShareVatOf))
+
+  const placedLines = COST_LINES.filter((line) => line !== 'depreciation')
+  const ourCostOf = (line: CostLine) => ourCosts.get(line)?.amount ?? ZERO
+  const asBooked = privateVatAsBooked(new Map(COST_LINES.map((line) => [line, ourCostOf(line)])), privateVat, year, workbook.yearEndLines)
+  const asBookedOn = (line: CostLine) => (asBooked === null ? ZERO : amountOnLine(asBooked, line))
   const placement = placementJudgement(
     'cost-placement',
     words.year.costPlacement,
     'pl',
-    new Map(COST_LINES.filter((line) => line !== 'depreciation').map((line) => [line, ourCosts.get(line)?.amount ?? ZERO])),
+    new Map(placedLines.map((line) => [line, addMoney(ourCostOf(line), asBookedOn(line))])),
     year,
     workbook.yearEndLines,
   )
   const costLines = COST_LINES.map((line): MoneyLine => {
     const ours = ourCosts.get(line) ?? summed(words.costLines[line], [], 'ledger')
     const move = placement?.moves.get(line)
-    const judgements = costJudgements.get(line) ?? []
-    return move === undefined
-      ? moneyLine('pl', line, ours, judgements)
-      : moneyLine('pl', line, summed(ours.label, [ours, tracedFigure(words.year.asPlaced, move, 'accountant', [])], 'ledger'), [...judgements, 'cost-placement'])
+    const asBookedVat = asBookedOn(line)
+    const steps = [
+      ...(asBookedVat === 0 ? [] : [tracedFigure(words.year.privateVatAsBooked, asBookedVat, 'accountant', [])]),
+      ...(move === undefined ? [] : [tracedFigure(words.year.asPlaced, move, 'accountant', [])]),
+    ]
+    const judgements = [...(costJudgements.get(line) ?? []), ...(asBookedVat === 0 ? [] : (['private-vat-as-booked'] as const)), ...(move === undefined ? [] : (['cost-placement'] as const))]
+    return steps.length === 0 ? moneyLine('pl', line, ours, judgements) : moneyLine('pl', line, summed(ours.label, [ours, ...steps], 'ledger'), judgements)
   })
+  const profitSteps = asBooked === null ? ledgerSteps : [...ledgerSteps, asBooked]
+  const profitJudgements = profitSteps.filter((step) => step.kind === 'judgement').map((step) => step.id)
 
   const sales = tracedFigure(words.year.sales, delivered.total.amount, 'invoices', delivered.total.rules, [delivered.total])
   const ownUse = tracedFigure(words.year.ownUse, ZERO, 'ledger', [])
@@ -374,6 +416,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
     profitAfterTax,
     profitJudgements: taxJudgements,
     cutOffCategories,
+    privateVatAsBooked: asBooked === null ? null : { id: asBooked.id, vatDeducted: addMoney(countedPrivateVat, privateVatBought), inAssets: privateVatInAssets },
     firstPeriod: period.first,
     rules,
   })
@@ -497,4 +540,21 @@ function isShown(step: TracedFigure): boolean {
 function rangeOf(dates: readonly CivilDate[]): DateRange {
   const sorted = [...dates].sort()
   return { from: sorted[0] as CivilDate, to: sorted[sorted.length - 1] as CivilDate }
+}
+
+/** The VAT on the owner's private share that a counted booking keeps in the year's cost, as a positive cost. A booking spread over years keeps it in proportion. */
+function privateShareVatIn(entry: CountedBooking, year: number): Money {
+  const kept = negateMoney(vatKeptForPrivateShare(entry.vat))
+  const inYear = entry.shares.map((share) => yearOfMonth(share.month) === year)
+  if (kept === 0 || inYear.every((counts) => !counts)) {
+    return ZERO
+  }
+  if (inYear.every((counts) => counts)) {
+    return kept
+  }
+  const parts = moneyParts(
+    kept,
+    entry.shares.map((share) => BigInt(Math.abs(share.amount))),
+  )
+  return sumMoney(parts.filter((_, position) => inYear[position]))
 }

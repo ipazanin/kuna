@@ -24,6 +24,7 @@ import { addMonths, monthOf } from '../src/shared/calendar/monthKey'
 import { addMoney } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import { companyReaderOf, companyReadsOf, fakeCompanyBooks, readingOf, withSettings } from './fixtures/companyChatBooks'
+import { vatOnPrivateShare } from '../src/apps/company/packs/hr-doo/domain/vat/vatSplit'
 
 const BOOKS = fakeCompanyBooks()
 const READER = companyReaderOf(BOOKS)
@@ -253,7 +254,7 @@ function payDoubled(books: CompanyBooks): CompanyBooks {
 }
 
 describe('the reports the chat reads', () => {
-  const ledger = countedLedger(BOOKS.workbook, DEFAULT_FILTERS)!
+  const ledger = countedLedger(BOOKS.workbook, DEFAULT_FILTERS, vatOnPrivateShare)!
   const { booked, window } = ledger
   const totals = bucketTotals(transactionsInPeriod(ledger.profitAndLossRows, monthPeriod(MONTH), window))
   const settings = BOOKS.workbook.settings

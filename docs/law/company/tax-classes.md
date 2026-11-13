@@ -14,7 +14,7 @@ The percentages are not copied here from the law alone. Each one is the value of
 
 ## Classes
 
-`From` is the day the percentages are read from the ruleset. `CIT add-back` is the share of the cost Kuna adds back to the profit tax base, or for donations the part above the cap. `Input VAT back` is the share of the VAT inside a purchase that Kuna counts as a claim on the state, for each kind of VAT the class allows, and `none` where the class carries no VAT Kuna splits out. `Profit and loss line` is the line of the year's profit and loss a category of the class counts on in each bucket, where no konto line of the accountant names it, as under [Profit and loss lines](#profit-and-loss-lines). It is `none` for a class Kuna takes out of profit or replaces, such as revenue, which the invoices replace.
+`From` is the day the percentages are read from the ruleset. `CIT add-back` is the share of the cost Kuna adds back to the profit tax base, or for donations the part above the cap. `Input VAT back` is the share of the VAT inside a purchase that Kuna counts as a claim on the state, for each kind of VAT the class allows, and `none` where the class carries no VAT Kuna splits out. `Profit and loss line` is the line of the year's profit and loss a category of the class counts on in each bucket, where no konto line of the accountant names it, as under [Profit and loss lines](#profit-and-loss-lines). It is `none` for a class Kuna takes out of profit or replaces, such as revenue, which the invoices replace. A row with an owner share gets that share of the VAT back on its business share only, as under [Private share of a cost](#private-share-of-a-cost).
 
 | Class                                     | CIT add-back        | Input VAT back | VAT treatments                                                                                      | Buckets              | Profit and loss line                                                       | From       |
 | ----------------------------------------- | ------------------- | -------------- | --------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------- | ---------- |
@@ -150,7 +150,7 @@ Mark: `confirmed-nn`. The decrease net of the deductible VAT is a `reading`.
 
 ## Capital purchase
 
-Kuna counts this as an asset above the threshold, depreciated over its life. An item costing more than 665.00 a unit and lasting longer than a year is a long-term asset (ZPD Art. 12(3), HSFI 6.19 and 6.20). Below the threshold it is small inventory, written off when put in use. A personal car bought as an asset keeps half of its VAT, as under personal transport.
+Kuna counts this as an asset above the threshold, depreciated over its life. An item costing more than 665.00 a unit and lasting longer than a year is a long-term asset (ZPD Art. 12(3), HSFI 6.19 and 6.20). Below the threshold it is small inventory, written off when put in use. A personal car bought as an asset keeps half of its VAT, as under personal transport. The VAT its payment cannot deduct, a car's half or the VAT on the owner's private share, is part of what the asset costs, so Kuna depreciates the net cost on the assets tab with that VAT added, and tests the threshold and the car cap on the same cost. Assets one payment buys share its VAT by their net costs. Counting non-deductible VAT in the cost is a `reading`, since the HSFI text was not loaded for it.
 
 Mark: `confirmed-nn`.
 
@@ -199,6 +199,39 @@ Mark: `confirmed-consolidated`.
 Kuna counts this as the owner's private share of company costs, in the owner-pay bucket. ZPDoh Art. 66(1) taxes a member's private use of the company's assets and services as capital income. ZPD Art. 7(1)(13) adds private costs back to the profit tax base, unless income tax was paid on them (Art. 7(2)).
 
 Mark: `reading`. Kuna adds nothing back for the private share and counts no tax on it. Whether that holds depends on the income tax being paid, so it is on the [watch list](../sources/watch-list.md#company-classes).
+
+The VAT on the private share is not deductible, as under [Private share of a cost](#private-share-of-a-cost).
+
+## Private share of a cost
+
+Kuna deducts the input VAT on a cost the owner partly uses privately only for the business share, and counts the VAT on the private share as part of the cost. The private share is the row's owner share, counted where the cash screens count it: on a row in operating cost, with the owner-pay module on and one owner-benefit category.
+
+ZPDV Art. 58(8): "Ako se radi o nekretninama ili drugim gospodarskim dobrima koja su dio poslovne imovine poreznog obveznika i koja se koriste i za potrebe poslovanja poreznog obveznika i za njegove privatne potrebe ili za privatne potrebe njegovih zaposlenika ili općenito u druge svrhe osim za potrebe obavljanja njegove djelatnosti, PDV se može odbiti samo u dijelu koji se koristi u poslovne svrhe poreznog obveznika." The article names property and other business assets. For a service the same limit follows from Art. 58(1), which deducts VAT only on supplies "za potrebe njegovih oporezivih transakcija". PravPDV Art. 137(3) states it for both: "Ako se isporučeno dobro ili usluga koristi u poslovne i neposlovne svrhe, a moguće je odrediti udjel korištenja u neposlovne svrhe, pretporez se mora podijeliti prema svrsi uporabe na dio koji se može i na dio koji se ne može odbiti. Ovaj način razgraničenja provodi se ako se radi o nekretninama, a osobito o pokretnim dobrima koja se u gospodarskom prometu količinski određuju po broju, mjeri ili težini te kod korištenja usluga." An owner share is such a known share, so goods and services split alike.
+
+Only where no share can be set may the company take the whole supply into the business, deduct in full and charge VAT on the private use as a supply (PravPDV Art. 137(4), ZPDV Art. 7(3) and 8(3)(a)). With a share on the row that route is closed, and Kuna does not model it. PravPDV Art. 137(2) counts use that is almost all business as all business, and use that is barely business as all private, without a figure. Kuna takes the owner share as it stands.
+
+**The reverse charge.** The company owes the VAT on the whole of a service from a supplier abroad (ZPDV Art. 75(1)(6)) and deducts it on the same return (Art. 58(2)). The output VAT stays whole, and only the deduction is cut to the business share, so the two no longer cancel out and the company pays the VAT on the private share with the return. The `reverse-charge` treatment names no rate, so Kuna self-charges the standard rate. That is a `reading`.
+
+**Personal cars.** ZPDV Art. 61(2) cuts the deduction on a personal car and all goods and services for it to 50%, and Art. 8(5) and PravPDV Art. 16(3) say its private use is then no supply. Porezna uprava reads the 50% as the private share: "smatra se da pretporez nije odbijen u dijelu u kojem se prijevozna sredstva koriste u privatne svrhe", and "odbitak pretporeza uključujući odbitak 50% pretporeza nije moguć u situacijama kada se prijevozna sredstva za osobni prijevoz koriste isključivo za privatne potrebe" (opinion of 27 March 2018). Its opinion of 17 April 2026 rests the 50% on Council Implementing Decision (EU) 2018/1994 for cars "koji se ne upotrebljavaju isključivo u poslovne svrhe". So a `car-50` row keeps half of its VAT whatever its owner share, and deducts nothing at a share of 100%. That is a `reading` of guidance.
+
+**The VAT return.** PravPDV Art. 175 and 176, as NN 11/26 set them:
+
+| Purchase                             | Output VAT                | Input VAT deducted                             | The VAT on the private share |
+| ------------------------------------ | ------------------------- | ---------------------------------------------- | ---------------------------- |
+| Domestic at 25%, 13% or 5%           | None                      | III.3, III.2 or III.1, the business share only | On no line, stays in cost    |
+| A service from an EU supplier at 25% | II.10, whole base and VAT | III.10, the business share only                | On no line, stays in cost    |
+| A service from outside the EU at 25% | II.13, whole base and VAT | III.13, the business share only                | On no line, stays in cost    |
+| A personal car or its running costs  | None                      | III.3, half of the VAT, with the base on VI.1  | On no line, stays in cost    |
+
+Art. 176 says for III.1 to III.3 that a split deduction shows "pripadajući dio porezne osnovice". That III.10 and III.13 take the business share of the base too is a `reading`.
+
+**Where the private VAT goes.** It stays in the cost, so Year counts the cost with it and the input VAT and the VAT owed to the company without it. On an asset it joins the asset's cost, as under [Capital purchase](#capital-purchase). The owner benefit counts it as the owner's. For VAT the supplier charges, the owner's part of the row already holds it. For the reverse charge the VAT is paid with the return and not in the row, so the row gets a third part: the owner's part carries the VAT on top of its share of the row, and a part in the VAT settlement category takes it back off. The business part keeps its own share, and the parts still add up to what the bank shows. The profit tax counts the private share, VAT included, as under [Owner benefit](#owner-benefit).
+
+**A closed year.** Kuna recounts every year, 2025 included. Where the accountant deducted the VAT on the private share in full, a closed year's cost lines add up to the accountant's only without that VAT. Kuna then takes the accountant's figure and shows the difference as one judgement, "VAT on the owner's private share, deducted as the accountant booked it". It covers the VAT kept in the year's costs, in small inventory written off and in disposals, and what the VAT in an asset's cost adds to depreciation, which must then agree with the accountant's depreciation where the year-end tab has it. The same judgement carries the VAT into what the state owes at the year end and takes it out of the assets' book value, and the cost lines are placed as the accountant places them.
+
+**Dating.** The rule holds from 1 January 2025, the first day the ruleset covers, through 2026. NN 32/26 and NN 48/26 amend only ZPDV Art. 38 and add Art. 38.a, NN 11/26 and NN 35/26 leave PravPDV Art. 11, 16 and 137 alone, and an NN title search of 13 November 2026 found no other 2026 amendment of the act or the Pravilnik.
+
+Mark: `confirmed-consolidated` for the split of goods and services. The reverse charge's rate and return lines and the car at a 100% share are `reading`.
 
 ## Owner loan out
 
@@ -254,11 +287,15 @@ Made-up figures, on the rules of 2026:
 - A donation of 2,000.00 to a youth choir in a donation category, in a year with revenue of 80,000.00 and 60,000.00 the year before. The cap is 2% of 80,000.00, which is 1,600.00. Kuna counts the whole 2,000.00 as a cost and adds 400.00 back on PD line 14.
 - A sponsorship of 1,000.00 to a sports club on the ministry's list, with no VAT, in a listed sponsorship category in 2026. Kuna counts 1,000.00 as a cost and takes another 1,000.00 off the base on PD line 33.a.
 - An insurance policy of 400.00 and a registration fee of 60.00 for the same car, in a vehicle insurance, interest, tax and fees category. Kuna counts the whole 460.00 as an allowed cost and adds nothing back.
+- An AI service of 100.00 a month from an EU supplier, with no VAT on the invoice, in a deductible cost category with the reverse charge and an owner share of 50%. Kuna self-charges 25.00 on line II.10 and deducts 12.50 on III.10, so the company pays 12.50 with the return. Year counts 112.50 as the cost. The owner's part of the row is 62.50, the VAT included, the business part 50.00, and a third part of 12.50 in the VAT settlement category takes the VAT back off the row.
+- A laptop of 1,250.00 with 250.00 of VAT inside, at an owner share of 30%. Kuna deducts 175.00 and keeps 75.00 in the cost, which is 1,075.00. The owner's part of the row is 375.00, its 75.00 of VAT included.
 - The same car on the assets tab at a cost of 40,000.00, put in use in December 2025. At 20% it depreciates 8,000.00 in 2026, all of it under the 54,000.00 cap. Kuna adds 4,000.00 back on PD line 7, which is 400.00 of profit tax at 10%.
 
 ## Open points
 
 - The owner's private share, as under [Owner benefit](#owner-benefit).
+- The rate and the return lines of a reverse-charged service with a private share, and a car used only privately, as under [Private share of a cost](#private-share-of-a-cost).
+- An asset's non-deductible VAT in its cost, as under [Capital purchase](#capital-purchase).
 - Half of a personal car's depreciation, taken from what the cap allows and for every car, as under [Capital purchase](#capital-purchase).
 - Which registration costs the add-back leaves out, as under [Personal transport](#personal-transport).
 - The car add-back where private use is taxed as salary, as under [Personal transport](#personal-transport). The class cannot express it.
@@ -279,6 +316,9 @@ Made-up figures, on the rules of 2026:
 - Ministry of Tourism and Sport, "Porezne olakšice za sponzorstva". https://mint.gov.hr/sport-21680/porezni-poticaji-u-sportu/porezne-olaksice-za-sponzorstva/24228, loaded on 13 November 2026. Its two decisions are scans that were not read.
 - Pravilnik o porezu na dobit (PravPD), consolidated, NN 95/05 to 39/26: Art. 22(3), 25(1), 25(2) and 25(3). https://www.zakon.hr/cms.htm?id=60061, loaded on 9 November 2026. NN 16/25 (https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_151.html) and NN 39/26 (https://narodne-novine.nn.hr/clanci/sluzbeni/2026_04_39_469.html) were read for the articles they amend, and touch neither Art. 22 nor 25. No 2026 issue through NN 129/26 carries a further amendment of the act or the Pravilnik, by an NN title search of 9 November 2026.
 - Zakon o porezu na dodanu vrijednost (ZPDV), consolidated, "na snazi od 30.03.2026.": Art. 40(1)(a) and (b), 57(1), 58(1), 61(1), 61(2), 66(1), 66(2) and 75(1)(6). https://www.zakon.hr/z/1455/zakon-o-porezu-na-dodanu-vrijednost, loaded on 4 November 2026.
+- Zakon o porezu na dodanu vrijednost (ZPDV), consolidated, the database "ažurirana 08.11.2026. zaključno sa NN 128/26": Art. 7(3), 8(3) to 8(5), 58(1), 58(2), 58(8), 61(2) and 75(1)(6). Reloaded on 13 November 2026. NN 32/26 (https://narodne-novine.nn.hr/clanci/sluzbeni/2026_03_32_377.html) and NN 48/26 (https://narodne-novine.nn.hr/clanci/sluzbeni/2026_05_48_578.html) were read in NN.
+- Pravilnik o porezu na dodanu vrijednost (PravPDV), consolidated, NN 79/13 to 35/26: Art. 11(1), 16(3), 137(2) to 137(4), 175 and 176. https://www.zakon.hr/cms.htm?id=60055, loaded on 13 November 2026, the database through NN 128/26. NN 11/26 (https://narodne-novine.nn.hr/clanci/sluzbeni/2026_01_11_90.html) and NN 35/26 (https://narodne-novine.nn.hr/clanci/sluzbeni/2026_04_35_427.html) were read in NN. An NN title search of 13 November 2026 for "dodanu vrijednost" found no other 2026 item.
+- Porezna uprava, opinion on personal transport, 27 March 2018, https://porezna-uprava.gov.hr/Misljenja/Detaljno/2334, and opinion on benefits in kind and Fiskalizacija 1.0, 17 April 2026, https://porezna-uprava.gov.hr/Misljenja/Detaljno/2705, both loaded on 13 November 2026. Guidance, not law.
 - Zakon o porezu na dohodak (ZPDoh): Art. 9(1)(9), 19, 21(3), 24(3), 57(1), 62(1), 66(1), 69 and 70. https://www.zakon.hr/z/85/zakon-o-porezu-na-dohodak
 - Pravilnik o izmjenama i dopunama Pravilnika o porezu na dohodak, NN 16/25, Art. 2 replacing Art. 7(2). https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_148.html
 - Zakon o doprinosima (ZDop): Art. 13(1) and 14(1)(1), as the ruleset cites them.

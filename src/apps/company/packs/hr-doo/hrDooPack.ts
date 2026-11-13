@@ -9,6 +9,7 @@ import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
 import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { tripRatesDemand } from './domain/trips/tripSettlement'
 import { ruleValue } from './ruleset/ruleset'
+import { vatOnPrivateShare } from './domain/vat/vatSplit'
 import { unaccountedInView } from './domain/ownerAdvances'
 import { ownerTakeOut } from './presentation/ownerTakeOut'
 import { packWaitingJobs } from './presentation/packWaitingJobs'
@@ -37,6 +38,7 @@ export const hrDooPack: PackContribution = {
   ],
   waitingJobs: (workbook, asOf, rates) => packWaitingJobs(hrDooWorkbook(workbook), asOf, rates),
   ownerTakeOut: (workbook, asOf) => ownerTakeOut(hrDooWorkbook(workbook), asOf),
+  vatOnPrivateShare,
   ratesDemand: (workbook) =>
     tripRatesDemand(
       hrDooWorkbook(workbook).trips.map((file) => file.trip),

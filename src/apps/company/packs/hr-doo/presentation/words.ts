@@ -231,7 +231,7 @@ export const en = {
       (rentTaxed ? `${ENGLISH_RENT_NOTE} The rows it opens add up to more by that tax.` : ''),
     payments: (count: number): EnglishForms => ({ one: `${count} payment`, other: `${count} payments` }),
     benefitsDefinition:
-      "The owner's parts of company costs, at each row's owner share. They count as owner pay with no tax on them. The share is your own estimate, and the accountant books these costs in full.",
+      "The owner's parts of company costs, at each row's owner share, with the VAT the company cannot deduct on that share. They count as owner pay with no tax on them. The share is your own estimate.",
     grossCost: 'Gross cost of the owner',
     taxOnPay: (amount: string) => `${amount} of it tax on the pay`,
     grossCostDefinition: (rentTaxed: boolean) =>
@@ -395,7 +395,7 @@ export const en = {
   },
   /** The card of the owner's parts of shared company costs. */
   benefits: {
-    estimate: 'Your estimate of private use. The accountant books these costs in full.',
+    estimate: 'Your estimate of private use. Its VAT is deducted only for the business share.',
     atShare: (category: string, share: string, amount: string) => `${category} at ${share} ${amount}`,
     mixed: 'mixed',
     description: (title: string, period: string, listed: string, total: string) => `${title} in ${period}, by the category each comes from: ${listed}. Together ${total}.`,
@@ -706,7 +706,7 @@ export const hr: Translation<typeof en> = {
       (rentTaxed ? `${CROATIAN_RENT_NOTE} Stavke koje otvara zbrajaju se na toliko više.` : ''),
     payments: (count) => ({ one: `${count} plaćanje`, few: `${count} plaćanja`, other: `${count} plaćanja` }),
     benefitsDefinition:
-      'Vlasnikovi dijelovi troškova tvrtke, po udjelu vlasnika svake stavke. Broje se kao isplate vlasniku bez poreza. Udio je vaša procjena, a knjigovođa te troškove knjiži u cijelosti.',
+      'Vlasnikovi dijelovi troškova tvrtke, po udjelu vlasnika svake stavke, s PDV-om koji se na taj udio ne odbija. Broje se kao isplate vlasniku bez poreza. Udio je vaša procjena.',
     grossCost: 'Bruto trošak vlasnika',
     taxOnPay: (amount) => `od toga ${amount} poreza na isplate`,
     grossCostDefinition: (rentTaxed) =>
@@ -867,7 +867,7 @@ export const hr: Translation<typeof en> = {
     paidRows: (label) => `${label}, uplate, otvori stavke`,
   },
   benefits: {
-    estimate: 'Vaša procjena privatne upotrebe. Knjigovođa te troškove knjiži u cijelosti.',
+    estimate: 'Vaša procjena privatne upotrebe. PDV se odbija samo za poslovni udio.',
     atShare: (category, share, amount) => `${category} uz udio ${share} ${amount}`,
     mixed: 'različit',
     description: (title, period, listed, total) => `„${title}”, ${period}, po kategoriji iz koje dolazi: ${listed}. Zajedno ${total}.`,

@@ -32,6 +32,7 @@ import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
 import { ruleConditionValues } from './ruleConditionFields'
 import type { RuleConditionValues } from './ruleConditionFields'
 import { words } from './words'
+import { installedPack } from '../packs/packContribution'
 
 /** What the reader reads from, which `app.ts` hands in over the company's store, so this folder holds no store. */
 export interface CompanyReading {
@@ -235,7 +236,11 @@ const CATEGORY_FIELDS: FieldDocs<CategoryView> = {
   bucket: { exposure: 'plain', meaning: 'Where profit and loss counts it.' },
   roles: { exposure: 'plain', meaning: 'What the figures select it for, such as revenue or its tax class.' },
   vat: { exposure: 'plain', meaning: 'How a purchase in it splits into cost and VAT.' },
-  ownerShare: { exposure: 'plain', meaning: "The owner's private share a row filed in it takes, in percent, or empty for none." },
+  ownerShare: {
+    exposure: 'plain',
+    meaning:
+      "The owner's private share a row filed in it takes, in percent, or empty for none. Only the business share's VAT is deducted, and the VAT on the private share, the reverse charge's included, counts in the owner's part.",
+  },
 }
 
 const ACCOUNT_FIELDS: FieldDocs<AccountView> = {
@@ -509,7 +514,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
   const ownerPayCost = pack?.ownerPayCost ?? ((category: Category) => category.bucket === 'owner-pay')
   const report = (figures: (books: ReportBooks, period: string | null) => readonly ReportFigure[]) => (period: string | null) => {
     const workbook = reading.workbook()
-    const ledger = workbook === null ? null : countedLedger(workbook, DEFAULT_FILTERS)
+    const ledger = workbook === null ? null : countedLedger(workbook, DEFAULT_FILTERS, installedPack().vatOnPrivateShare)
     return workbook === null || ledger === null ? [] : figures({ workbook, ledger, pay: payCategories(workbook, ownerPayCost) }, period)
   }
   const settingRows = (): readonly SettingView[] =>

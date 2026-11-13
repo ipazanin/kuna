@@ -15,6 +15,7 @@ import type { AccrualAdjustment, AdjustmentId, YearEndLineRef } from './accrualA
 import { withDrill } from './accrualAdjustment'
 import { bookingFigure, isCounted, keptInMonthPaid } from './accrualBookings'
 import type { AccrualBooking, CountedBooking } from './accrualBookings'
+import type { CostLine } from './categoryLines'
 import { words } from './words'
 
 // For a closed year the accountant's figure wins where it rests on a choice the ledger cannot
@@ -179,17 +180,62 @@ export function placementJudgement(
       effect: 'placement',
       figure: tracedFigure(label, sumMoney(steps.map((step) => step.amount)), 'accountant', rulesOf(steps), steps),
       lines: [...moves.keys()].map((line) => ({ statement, line })),
+      perLine: [...moves].map(([line, amount]) => ({ line, amount })),
     },
     moves,
   }
 }
 
-/** What an adjustment adds to one line: a placement's move onto it, or the adjustment's own amount. */
+/**
+ * The VAT on the owner's private share that the accountant deducted in a closed year, when our cost
+ * lines less that VAT add up to the accountant's: the accountant's figure stands, the difference
+ * has its own name, and the lines can still be placed. The depreciation line takes off what the
+ * same VAT adds to depreciation, and must then agree with the accountant's where there is one.
+ * Null when nothing holds such VAT, or the totals still differ without it. Both maps hold positive
+ * costs by cost line.
+ */
+export function privateVatAsBooked(ours: ReadonlyMap<CostLine, Money>, privateVat: ReadonlyMap<CostLine, Money>, year: number, yearEnd: readonly YearEndLine[]): AccrualAdjustment | null {
+  const theirs = (line: CostLine): Money | null => {
+    const found = yearEnd.find((candidate) => candidate.year === year && candidate.statement === 'pl' && candidate.line === line)
+    return found?.figure.kind === 'money' ? found.figure.amount : null
+  }
+  const vatOn = (line: CostLine) => privateVat.get(line) ?? ZERO
+  const oursOn = (line: CostLine) => ours.get(line) ?? ZERO
+  const placed = [...ours.keys()].filter((line) => line !== 'depreciation' && theirs(line) !== null)
+  const vat = sumMoney([...privateVat.values()])
+  if (vat === 0 || placed.length === 0) {
+    return null
+  }
+  const placedVat = sumMoney(placed.map(vatOn))
+  const placedAgree = subtractMoney(sumMoney(placed.map(oursOn)), placedVat) === sumMoney(placed.map((line) => theirs(line) ?? ZERO))
+  const depreciation = theirs('depreciation')
+  const depreciationAgrees = depreciation !== null && depreciation === subtractMoney(oursOn('depreciation'), vatOn('depreciation'))
+  if (!placedAgree || (vatOn('depreciation') !== 0 && depreciation !== null && !depreciationAgrees) || (placedVat === 0 && !depreciationAgrees)) {
+    return null
+  }
+  const held = [...privateVat].filter(([, amount]) => amount !== 0)
+  return {
+    id: 'private-vat-as-booked',
+    kind: 'judgement',
+    effect: 'profit',
+    figure: tracedFigure(
+      words.closed.privateVatAsBooked,
+      vat,
+      'accountant',
+      [],
+      held.map(([line, amount]) => tracedFigure(words.closed.privateVatOn(words.costLines[line]), amount, 'accountant', [])),
+    ),
+    lines: held.map(([line]) => ({ statement: 'pl', line })),
+    perLine: held.map(([line, amount]) => ({ line, amount: negateMoney(amount) })),
+  }
+}
+
+/** What an adjustment adds to one line: its own amount, or for one that adds a different amount to each line, that line's. */
 export function amountOnLine(adjustment: AccrualAdjustment, line: string): Money {
-  if (adjustment.effect !== 'placement') {
+  if (adjustment.perLine === undefined) {
     return adjustment.figure.amount
   }
-  return adjustment.figure.steps.find((step) => step.label === ontoLabel(line))?.amount ?? ZERO
+  return adjustment.perLine.find((entry) => entry.line === line)?.amount ?? ZERO
 }
 
 function ontoLabel(line: string): string {

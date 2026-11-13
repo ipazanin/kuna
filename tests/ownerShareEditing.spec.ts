@@ -6,7 +6,7 @@ import { fillShares, writeOwnerShare } from '../src/apps/company/owner-share/app
 import { ownerPartOf, ownerShareOf, shareFillsOf, typedOwnerShare } from '../src/apps/company/owner-share/domain/ownerShare'
 import type { OwnerShare, ShareTarget } from '../src/apps/company/owner-share/domain/ownerShare'
 import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
-import { ownerPartsOf } from '../src/apps/company/owner-share/domain/ownerParts'
+import { NO_VAT_ON_PRIVATE_SHARE, ownerPartsOf } from '../src/apps/company/owner-share/domain/ownerParts'
 import { listedRows, withPartHeadings } from '../src/apps/company/transactions/domain/listedRows'
 import { ownerShareChangeOf } from '../src/apps/company/transactions/domain/ownerShareChange'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
@@ -295,7 +295,9 @@ describe('where Transactions offers the owner share', () => {
       id: 'owner-advance:pens',
     }
 
-    const entries = withPartHeadings(listedRows(ownerPartsOf(laptop as never, benefit as never), ownerPartsOf(advance as never, benefit as never)))
+    const entries = withPartHeadings(
+      listedRows(ownerPartsOf(laptop as never, benefit as never, [], NO_VAT_ON_PRIVATE_SHARE), ownerPartsOf(advance as never, benefit as never, [], NO_VAT_ON_PRIVATE_SHARE)),
+    )
     const offered = entries.map((entry) => (entry.kind === 'row' ? ownerShareChangeOf(entry.row) : entry.kind === 'shared' ? ownerShareChangeOf(entry.whole) : entry.kind))
 
     expect(entries.map((entry) => entry.kind)).toEqual(['shared', 'row', 'row', 'shared', 'row', 'row'])

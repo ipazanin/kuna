@@ -32,6 +32,7 @@ import { words as accrualWords } from '../accrual/words'
 import type { DeliveredRevenue, UninvoicedMonth } from '../accrual/revenueByDelivery'
 import { assetBooks, carDepreciationAllowed, depreciationAboveAllowed } from '../assets/assetBooks'
 import type { AssetBooks } from '../assets/assetBooks'
+import { assetCostsOf } from '../assets/assetRegister'
 import { citLiability, taxPeriodOf } from '../cit/citLiability'
 import type { CitLiability, TaxPeriod } from '../cit/citLiability'
 import { citSchedule, firstAdvanceAtNewAmount } from '../cit/citSchedule'
@@ -312,7 +313,7 @@ function forecastOne(context: ForecastContext): YearForecast {
     known.planLines.filter((line) => line.year <= year && guarded(line) === null),
     calendar,
   )
-  const books = assetBooks([...known.assets, ...plannedAssets], known.grants, known.companyFacts, rules)
+  const books = assetBooks([...known.assets, ...plannedAssets], known.grants, known.companyFacts, rules, assetCostsOf(known, rules).costOf)
   const scheduled = scheduledLines(calendar, books, year)
 
   const partsOn = (line: ForecastPlLine['line']): LinePart[] =>

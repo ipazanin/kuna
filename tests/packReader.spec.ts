@@ -20,6 +20,7 @@ import type { ReportFigure } from '../src/shared/app/assistantReader'
 import { civilDate, yearOf } from '../src/shared/calendar/civilDate'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { companyReadsOf, fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
+import { vatOnPrivateShare } from '../src/apps/company/packs/hr-doo/domain/vat/vatSplit'
 
 /** The books with the pack's part changed, as a file edited by hand could hold it. */
 function withPart(books: CompanyBooks, change: (part: HrDooWorkbook) => Partial<HrDooWorkbook>): CompanyBooks {
@@ -34,7 +35,7 @@ function unregistered(books: CompanyBooks): CompanyBooks {
 
 const BOOKS = fakeCompanyBooks()
 const PACK = HR_DOO_ASSISTANT.reader(readingOf(BOOKS))
-const LEDGER = countedLedger(BOOKS.workbook, DEFAULT_FILTERS)!
+const LEDGER = countedLedger(BOOKS.workbook, DEFAULT_FILTERS, vatOnPrivateShare)!
 const BOOKED = hrDooWorkbook(LEDGER.booked)
 const AS_OF = LEDGER.window.newestDay
 const YEAR = yearOf(AS_OF)

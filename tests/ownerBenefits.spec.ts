@@ -4,7 +4,7 @@ import { percentFromWhole } from '../src/shared/money/percent'
 import type { ChartTokens } from '../src/shared/charts/chartTokens'
 import type { DrillTarget } from '../src/apps/company/filters/domain/drillTarget'
 import { DEFAULT_FILTERS } from '../src/apps/company/filters/domain/filterState'
-import { withOwnerParts } from '../src/apps/company/owner-share/domain/ownerParts'
+import { NO_VAT_ON_PRIVATE_SHARE, withOwnerParts } from '../src/apps/company/owner-share/domain/ownerParts'
 import { filterTransactions } from '../src/apps/company/transactions/domain/filterTransactions'
 import type { Booking, Transaction } from '../src/apps/company/workbook/domain/workbook'
 import type { TracedRate } from '../src/apps/company/packs/hr-doo/domain/cit/citLiability'
@@ -17,7 +17,7 @@ import { civil, euros, windowOf } from './fixtures/ledger'
 import { BENEFIT, CATEGORIES, EXAMPLE, WINDOW, YEAR, rows, workbookOf } from './fixtures/ownerShareExample'
 
 const rateOf = (percent: number): TracedRate => ({ label: 'PD line 43', basisPoints: percentFromWhole(percent), rules: [] })
-const cashOf = (transactions: typeof EXAMPLE) => withOwnerParts(workbookOf(transactions)).transactions as readonly Booking[]
+const cashOf = (transactions: typeof EXAMPLE) => withOwnerParts(workbookOf(transactions), NO_VAT_ON_PRIVATE_SHARE).transactions as readonly Booking[]
 const steps = (figure: TracedFigure) => figure.steps.map((step) => [step.label, step.amount, step.steps.map((inner) => [inner.label, inner.amount])])
 
 describe('ownerBenefits on the worked example', () => {
