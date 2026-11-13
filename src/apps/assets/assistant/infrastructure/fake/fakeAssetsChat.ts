@@ -10,11 +10,15 @@ const ANSWERS = {
     title: 'A new valuation',
     proposed: 'The card below adds the valuation to your newest asset. Nothing changes until you accept it.',
     noAsset: 'There is no asset in Assets to value.',
+    months: (cited: string) =>
+      `A month has passed on the day of the next month with the same number as the day the car was first registered, or on that month's last day when it has no such day ${cited}. A car first registered on 31 January has one month behind it on 28 February ${cited}.\n\n> Customs may still value a car by looking at it, so take Kuna's figure as an estimate.`,
   },
   hr: {
     title: 'Nova procjena',
     proposed: 'Kartica ispod dodaje procjenu vašoj najnovijoj stavci imovine. Ništa se ne mijenja dok je ne prihvatite.',
     noAsset: 'U Imovini nema nijedne stavke imovine koju biste mogli procijeniti.',
+    months: (cited: string) =>
+      `Mjesec je protekao onoga dana sljedećeg mjeseca koji brojem odgovara danu prve registracije, a ako toga dana nema, posljednjeg dana tog mjeseca ${cited}. Automobil prvi put registriran 31. siječnja ima 28. veljače jedan mjesec iza sebe ${cited}.\n\n> Carina automobil može procijeniti i pregledom, pa Kunin iznos uzmite kao procjenu.`,
   },
 }
 
@@ -33,9 +37,18 @@ function valuationReply({ request, tokens }: FakeChatTurn): ModelReply {
   return answered(request, says.proposed, tokens)
 }
 
-/** Assets' part of the fake chat: one that starts with valuation adds a valuation of the newest asset. */
+/** Reads how the customs table counts a car's months and answers from it, citing the section and setting its own knowledge apart. */
+function carMonthsReply({ request, tokens }: FakeChatTurn): ModelReply {
+  const [read] = answersSince(request)
+  if (read === undefined) return lookup(0, 'kuna_docs', { path: 'assets/law/used-car-value#how-months-count' }, tokens)
+  const cited = /Cite this section as (\[law-\d+\])/.exec(read.text)?.[1] ?? ''
+  return answered(request, ANSWERS[language === 'hr' ? 'hr' : 'en'].months(cited), tokens)
+}
+
+/** Assets' part of the fake chat: one that starts with valuation adds a valuation of the newest asset, and one about a car's months reads the law. */
 function assetsChat(turn: FakeChatTurn): ModelReply | null {
-  return /^valuation|^procjen/i.test(turn.typed) ? valuationReply(turn) : null
+  if (/^valuation|^procjen/i.test(turn.typed)) return valuationReply(turn)
+  return /^how does customs count|^kako carina broji/i.test(turn.typed) ? carMonthsReply(turn) : null
 }
 
 export function registerFakeAssetsChat(): void {

@@ -431,6 +431,11 @@ export const ENGLISH_ALLOWED = [
     oneWordAnywhere: true,
   },
   {
+    name: 'cited law',
+    reason: "A section of docs/law the chat cites is named by its file and heading as the research writes them, which the language plan keeps English, as it keeps the ruleset's notes.",
+    selector: '[data-testid="chat-citation"] [lang="en"]',
+  },
+  {
     name: 'ruleset research notes',
     reason: 'The notes of the rules and the open items are legal research prose, which the language plan keeps English.',
     texts: ruleNotes(),

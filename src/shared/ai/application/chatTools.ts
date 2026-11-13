@@ -32,7 +32,7 @@ export const CHAT_TOOLS: readonly ModelTool[] = [
     readOnly: true,
     strict: false,
     description:
-      'Opens one page about this version of Kuna, by a path the instructions or another page name, such as "spending" or "spending/guide/first-rules". Holds nothing from the person\'s books.',
+      'Opens one page about this version of Kuna, by a path the instructions or another page name, such as "spending", "spending/guide/first-rules" or "investments/law/capital-gains". Holds nothing from the person\'s books.',
     input: { type: 'object', properties: { path: { type: 'string', description: 'The path of the page.' } }, required: ['path'], additionalProperties: false },
   },
   {
@@ -300,9 +300,18 @@ export async function runChatTool(tools: ChatTools, call: ToolCall): Promise<Cha
   }
 }
 
-function openPage({ catalogue, reads }: ChatTools, path: string): ChatToolAnswer {
-  const page = catalogue.pages.get(path)
-  if (page === undefined) return { text: 'There is no page at that path. Start from one the instructions list.', isError: true }
+/** A page of the catalogue, or of the law an app rests on, which loads from its file and gives a section's ref to cite. */
+async function openPage({ catalogue, reads }: ChatTools, path: string): Promise<ChatToolAnswer> {
+  let page = catalogue.pages.get(path)
+  if (page === undefined) {
+    try {
+      const law = await catalogue.lawPage(path)
+      page = law === null ? undefined : law.citation === null ? law.text : `${law.text}\n\nCite this section as [${reads.refs.lawRef(law.citation)}].`
+    } catch {
+      return refusal('Kuna could not load that law file just now. Try it once more, or say that you could not read it.')
+    }
+  }
+  if (page === undefined) return refusal('There is no page at that path. Start from one the instructions list.')
   reads.refs.noteFiguresIn(page)
   return { text: page, isError: false }
 }

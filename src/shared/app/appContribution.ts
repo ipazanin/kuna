@@ -12,6 +12,7 @@ import type { Money } from '../money/money'
 import type { KnownPerson } from '../privacy/domain/pseudonyms'
 import type { AppAcceptance, AppProposer, AssistantQuickAction } from './assistantOperations'
 import type { AppReader } from './assistantReader'
+import type { LawSource } from '../law/domain/lawSections'
 
 /** A screen of an app, on a route under the app's id such as `/company/transactions`. Each one loads as its own chunk. */
 export interface AppScreen {
@@ -164,6 +165,8 @@ export interface AppAssistant {
   readonly acceptance: AppAcceptance | null
   /** One tap in an empty chat. */
   readonly quickActions: readonly AssistantQuickAction[]
+  /** The files of `docs/law` the app rests on, which the chat reads and cites. An app with none leaves it out. */
+  readonly law?: readonly LawSource[]
   /** The people the app knows by name, read from its books at each call, whose names go under an alias while Anonymise is on. */
   persons(): readonly KnownPerson[]
 }

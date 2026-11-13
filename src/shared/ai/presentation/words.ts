@@ -208,6 +208,13 @@ export const en = {
   answer: {
     strayFigure: 'Contains a figure Kuna did not compute',
     tryAgain: 'Try again',
+    /** The day the law of a cited section was checked, after the file and heading, which stay as the research writes them. */
+    checked: (day: string) => `checked ${day}`,
+    /** What a screen reader hears for the list of law sections under an answer. */
+    sources: 'Sources',
+    /** What a screen reader hears for the numbered mark where an answer cites a section. */
+    source: (number: string) => `source ${number}`,
+    ownKnowledge: "Not from Kuna's rules",
   },
 }
 
@@ -417,6 +424,10 @@ export const hr: Translation<typeof en> = {
   answer: {
     strayFigure: 'Sadrži iznos koji Kuna nije izračunala',
     tryAgain: 'Pokušaj ponovno',
+    checked: (day) => `provjereno ${day}`,
+    sources: 'Izvori',
+    source: (number) => `izvor ${number}`,
+    ownKnowledge: 'Nije iz Kuninih pravila',
   },
 }
 

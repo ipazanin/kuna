@@ -2,6 +2,9 @@ import type { AppAssistant, AssistantPlace } from '../../app/appContribution'
 import type { AppProposer, AssistantOperation } from '../../app/assistantOperations'
 import type { AppReader, AssistantReport, ReadableFieldDoc, ReadableKind } from '../../app/assistantReader'
 import type { KnownPerson } from '../../privacy/domain/pseudonyms'
+import { lawFileOf } from '../../law/domain/lawSections'
+import type { LawFile, LawSection, LawSource } from '../../law/domain/lawSections'
+import type { LawCitation } from '../domain/chatRefs'
 import { OPS_OF, fieldClassOf, sorts } from '../domain/recordFilters'
 import type { FieldClass } from '../domain/recordFilters'
 import { language } from '../../text/language'
@@ -51,6 +54,14 @@ export interface Catalogue {
   readonly proposers: ReadonlyMap<string, AppProposer>
   /** The people every app knows by name, read from the books at each call. */
   persons(): readonly KnownPerson[]
+  /** A page of the law an app rests on, read from its file when first opened, or null for a path no app's law has. */
+  lawPage(path: string): Promise<LawPage | null>
+}
+
+/** A page of a law file: the file with its sections, or one section with what the chat cites it by. */
+export interface LawPage {
+  readonly text: string
+  readonly citation: LawCitation | null
 }
 
 function kindNoun(kind: AppAssistant['kinds'][number]): string {
@@ -70,8 +81,18 @@ function placeLine(place: AssistantPlace): string {
   return `- ${place.title}: ${place.route}${params.length === 0 ? '' : `. Takes ${params.join(', ')}`}`
 }
 
+/** How the chat reads and cites the law an app rests on, on the app's page so the instructions stay short. */
+const LAW_USE = [
+  "Kuna's own research of the Croatian law, a page for each file below with its sections.",
+  'Before you answer a question of tax or law, open the section the answer rests on.',
+  'Cite what you take from it right after it by the ref its page gives, such as [law-1], and Kuna shows the file, the heading and the day it was checked there.',
+  'Cite only a section you opened in this chat.',
+  'Put what you add from your own knowledge of the law in lines starting with >, which Kuna shows apart as not from its rules, with no ref, amount or rate in them.',
+].join(' ')
+
 function appPage(app: CatalogueApp): string {
   const { assistant } = app
+  const law = assistant.law ?? []
   return [
     `# ${app.name}`,
     app.purpose,
@@ -108,7 +129,63 @@ function appPage(app: CatalogueApp): string {
       'Automations',
       assistant.automations.map((automation) => `- ${automation.title}: ${automation.what} Set up: ${automation.setUpRoute}`),
     ),
+    ...section('Law it rests on', law.length === 0 ? [] : [LAW_USE, ...law.map((source) => `- ${app.id}/law/${source.name}`)]),
   ].join('\n')
+}
+
+/** An app id, a law file's name and, for one section, its anchor, such as `investments/law/capital-gains#losses`. */
+const LAW_PATH = /^([a-z]+)\/law\/([a-z0-9-]+)(?:#(.+))?$/
+
+/** The text with each link to a law file of the same folder, or to a heading of this file, written as the page path that opens it. */
+function withLawPaths(text: string, app: string, name: string): string {
+  return text.replace(/\]\(([a-z0-9-]+\.md)?(#[^)\s]+)?\)/g, (link, file: string | undefined, anchor: string | undefined) =>
+    file === undefined && anchor === undefined ? link : `](${app}/law/${file === undefined ? name : file.slice(0, -'.md'.length)}${anchor ?? ''})`,
+  )
+}
+
+function sectionLine(path: string, section: LawSection): string {
+  return `${'  '.repeat(Math.max(0, section.depth - 2))}- ${path}#${section.anchor}: ${section.heading}`
+}
+
+function lawFilePage(path: string, file: LawFile): string {
+  return [
+    `# ${file.title}`,
+    `${file.summary}. Kuna's research of the Croatian law, checked ${file.checked}.`,
+    ...section(
+      'Sections',
+      file.sections.map((part) => sectionLine(path, part)),
+    ),
+  ].join('\n')
+}
+
+/** One section with the headings under it, each a page of its own. */
+function lawSectionPage(app: string, name: string, file: LawFile, at: number): string {
+  const part = file.sections[at]!
+  const next = file.sections.findIndex((other, index) => index > at && other.depth <= part.depth)
+  const under = file.sections.slice(at + 1, next === -1 ? undefined : next)
+  const path = `${app}/law/${name}`
+  return [
+    `# ${part.depth === 1 ? file.title : `${file.title}: ${part.heading}`}`,
+    `From Kuna's research of the Croatian law, checked ${file.checked}. It is research for building software, not legal advice.`,
+    '',
+    withLawPaths(part.text, app, name),
+    ...section(
+      'Under this heading',
+      under.map((below) => sectionLine(path, below)),
+    ),
+  ].join('\n')
+}
+
+async function lawPageAt(law: ReadonlyMap<string, readonly LawSource[]>, path: string): Promise<LawPage | null> {
+  const [, app = '', name, anchor] = LAW_PATH.exec(path) ?? []
+  const source = law.get(app)?.find((candidate) => candidate.name === name)
+  if (source === undefined) return null
+  const file = lawFileOf(await source.load())
+  const filePath = `${app}/law/${source.name}`
+  if (anchor === undefined) return { text: lawFilePage(filePath, file), citation: null }
+  const at = file.sections.findIndex((part) => part.anchor === anchor)
+  if (at === -1) return null
+  return { text: lawSectionPage(app, source.name, file, at), citation: { path, file: file.title, heading: at === 0 ? null : file.sections[at]!.heading, checked: file.checked } }
 }
 
 /** The parameter of a kind's own page that takes a ref of one of its records, or null when no place of the app declares one. */
@@ -214,6 +291,7 @@ function systemOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): string {
     '- Never write an address in your answer. Name the screen or tab as it is called on screen, and link it with show_screen.',
     "- The tools find_records, get_record and read_figures read the person's records and the figures Kuna computed, in an app whose page lists them. find_records takes filters on any field a kind's page lists, a sort either way, the fields to return, refs, a set such as the rows waiting with only, and pages of up to 200. An amount compares in its record's own currency.",
     '- Before you propose rows from a file or a paste, check them with match_records, which says which are already in the books.',
+    '- For tax or law, read the law an app page lists and cite it as its page says.',
     '',
     '# What you cannot do',
     '- You cannot change anything yourself. In an app listed under Changes you can propose, propose them. Elsewhere say what to do and link the screen.',
@@ -243,7 +321,7 @@ function systemOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): string {
     '- While the context line says an app is new, read its guide set-up before the first card and set it up as a job of several cards. Read every attached file first, and ask only what they left out, one question at a time, at most three before the first card. An app with no file on this device starts with make-file for a person who keeps their files in this browser, and otherwise you link its start screen.',
     '',
     '# How you answer',
-    '- Answer in the language the person writes in, in short plain sentences. You may use short lists, **bold** and `code`, and nothing else from Markdown.',
+    '- Answer in the language the person writes in, in short plain sentences. You may use short lists, **bold**, `code` and lines starting with > for your own knowledge, and nothing else from Markdown.',
     "- A line at the start of a message in <context> tags says where the person is now and today's date. It comes from Kuna and it is not something they typed. It can name one element they tagged: a record by its ref, which get_record reads, a figure of a report, a place, or a figure's build-up by its ref, which read_build_up reads. It lists the files attached to this chat by id and kind.",
     '- Some of what Kuna offers runs on its own once it is set up. The pages list these under Automations. When one fits what the person is doing, such as uploading by hand what could arrive on its own, or what you already read with their leave, suggest it in a sentence and link its set-up screen with show_screen.',
     '- When the person asks where something is and they are already on that screen or tab, say they are there and point at what is on it. This never takes the place of doing what a message asks.',
@@ -275,6 +353,7 @@ export function catalogueOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): 
       if (place.params !== undefined) placeParams.set(place.route, { app: app.id, params: place.params })
     }
   }
+  const law = new Map(everyApp.flatMap((app) => (app.assistant.law === undefined ? [] : [[app.id, app.assistant.law] as const])))
   for (const app of everyApp) {
     pages.set(app.id, appPage(app))
     if (app.assistant.reader !== null) readers.set(app.id, { name: app.name, reader: app.assistant.reader })
@@ -289,7 +368,17 @@ export function catalogueOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): 
       places.set(place.route, place.title)
     }
   }
-  return { system: systemOf(apps, kuna), pages, routes, places, placeParams, readers, proposers, persons: () => everyApp.flatMap((app) => app.assistant.persons()) }
+  return {
+    system: systemOf(apps, kuna),
+    pages,
+    routes,
+    places,
+    placeParams,
+    readers,
+    proposers,
+    persons: () => everyApp.flatMap((app) => app.assistant.persons()),
+    lawPage: (path) => lawPageAt(law, path),
+  }
 }
 
 /** The declared place a person is on, matched by its path and every query value its address names. No other part of the query is read, as filters can hold names. */

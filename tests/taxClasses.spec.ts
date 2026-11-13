@@ -12,7 +12,7 @@ import { knownRoles } from '../src/apps/company/settings/domain/categoryGuards'
 import { BUCKETS } from '../src/apps/company/workbook/domain/bucket'
 import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
 import { VAT_TREATMENTS } from '../src/apps/company/workbook/domain/vatTreatment'
-import { anchorOf } from './support/headingAnchor'
+import { lawFileOf } from '../src/shared/law/domain/lawSections'
 
 describe('tax classes', () => {
   it.each(TAX_CLASSES.map((taxClass) => [taxClass.id, taxClass] as const))('reads the class %s from rules the ruleset holds', (_id, taxClass) => {
@@ -73,10 +73,13 @@ describe('tax classes', () => {
       expect(carried.map((taxClass) => taxClass.id)).toEqual(['vehicle-insurance-interest-tax-and-fees'])
       const help = classWords.classes.vehicleInsuranceInterestTaxAndFees.toLowerCase()
       const [file, anchor] = carried[0]!.law.split('#')
-      const section =
-        readFileSync(`docs/law/${file}`, 'utf8')
-          .split(/^## /m)
-          .find((part) => anchorOf(part.slice(0, part.indexOf('\n'))) === anchor) ?? ''
+      const sections = lawFileOf(readFileSync(`docs/law/${file}`, 'utf8')).sections
+      const at = sections.findIndex((part) => part.anchor === anchor)
+      const next = sections.findIndex((part, index) => index > at && part.depth <= sections[at]!.depth)
+      const section = sections
+        .slice(at, next === -1 ? undefined : next)
+        .map((part) => part.text)
+        .join('\n')
       expect(LEFT_OUT.filter((cost) => !help.includes(cost))).toEqual([])
       expect(LEFT_OUT.filter((cost) => !section.toLowerCase().includes(cost))).toEqual([])
     })

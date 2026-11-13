@@ -7,14 +7,14 @@ import { ONE_DAY_SETTLEMENT_FROM } from '../src/apps/investments/tax/domain/sett
 import { JOPPD_CODES, TAX_RULES, rulesOf } from '../src/apps/investments/tax/domain/taxRules'
 import type { RuleMark } from '../src/apps/investments/tax/domain/taxRules'
 import { en } from '../src/apps/investments/tax/presentation/words'
-import { LAW_README, indexedReadme } from '../scripts/law-index.mjs'
+import { LAW_README, indexedReadme, lawFile } from '../scripts/law-index.mjs'
 import { TAX_CLASSES } from '../src/apps/company/packs/hr-doo/preset/domain/taxClasses'
 import { startingRules } from '../src/apps/company/packs/hr-doo/preset/domain/startingRules'
 import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import type { CivilDate } from '../src/shared/calendar/civilDate'
 import { civilDate, parseCivilDate } from '../src/shared/calendar/civilDate'
 import type { VatTreatment } from '../src/apps/company/workbook/domain/vatTreatment'
-import { anchorOf } from './support/headingAnchor'
+import { lawFileOf, sectionsOf } from '../src/shared/law/domain/lawSections'
 
 const root = join(import.meta.dirname, '..')
 const lawDir = join(root, 'docs/law')
@@ -26,35 +26,22 @@ function markdownFiles(dir: string): string[] {
   })
 }
 
-/** The lines of a Markdown file outside fenced code. */
-function proseLines(path: string): string[] {
-  let fenced = false
-  return readFileSync(path, 'utf8')
-    .split('\n')
-    .filter((line) => {
-      if (line.startsWith('```')) {
-        fenced = !fenced
-        return false
-      }
-      return !fenced
-    })
+/** The sections of a Markdown file, read as the chat reads a law file. */
+function sectionsIn(path: string) {
+  return sectionsOf(readFileSync(path, 'utf8'))
 }
 
 /** The anchors GitHub gives a file's headings. */
 function anchorsOf(path: string): Set<string> {
-  return new Set(
-    proseLines(path)
-      .flatMap((line) => line.match(/^#{1,6} (.+)$/)?.slice(1) ?? [])
-      .map(anchorOf),
-  )
+  return new Set(sectionsIn(path).map((section) => section.anchor))
 }
 
 /** The first sentence after "Screen: " in the section under a heading, up to the next heading of any level. */
 function screenSentenceOf(file: string, anchor: string): string | undefined {
-  const lines = proseLines(join(lawDir, file))
-  const start = lines.findIndex((line) => /^#{1,6} /.test(line) && anchorOf(line.replace(/^#+ /, '')) === anchor)
-  const end = lines.findIndex((line, index) => index > start && /^#{1,6} /.test(line))
-  const line = lines.slice(start + 1, end < 0 ? undefined : end).find((candidate) => candidate.includes('Screen: '))
+  const line = sectionsIn(join(lawDir, file))
+    .find((section) => section.anchor === anchor)
+    ?.text.split('\n')
+    .find((candidate) => candidate.includes('Screen: '))
   return line?.slice(line.indexOf('Screen: ') + 'Screen: '.length).split(/\.( |$)/)[0]
 }
 
@@ -66,10 +53,10 @@ const cellsOf = (line: string): string[] =>
 
 /** The rows of the first table under a heading, keyed by the table's header. */
 function tableUnder(file: string, heading: string): Record<string, string>[] {
-  const lines = proseLines(join(lawDir, file))
-  const start = lines.findIndex((line) => /^#{2,6} /.test(line) && line.replace(/^#+ /, '') === heading)
-  expect(start, `${file} has no heading "${heading}"`).toBeGreaterThanOrEqual(0)
-  const first = lines.findIndex((line, index) => index > start && line.startsWith('|'))
+  const section = sectionsIn(join(lawDir, file)).find((candidate) => candidate.depth > 1 && candidate.heading === heading)
+  expect(section, `${file} has no heading "${heading}"`).toBeDefined()
+  const lines = section!.text.split('\n')
+  const first = lines.findIndex((line) => line.startsWith('|'))
   const end = lines.findIndex((line, index) => index > first && !line.startsWith('|'))
   const [header, , ...rows] = lines.slice(first, end < 0 ? undefined : end).map(cellsOf)
   return rows.map((row) => Object.fromEntries(header!.map((name, index) => [name, row[index] ?? ''])))
@@ -179,7 +166,8 @@ describe('law docs', () => {
 
   it.each(markdownFiles(lawDir).map((path) => relative(root, path)))('has links in %s that reach a file and heading', (file) => {
     const path = join(root, file)
-    const links = proseLines(path)
+    const links = sectionsIn(path)
+      .flatMap((section) => section.text.split('\n'))
       .map((line) => line.replace(/`[^`]*`/g, ''))
       .flatMap((line) => [...line.matchAll(/\]\(([^)\s]+)\)/g)].map((match) => match[1]!))
       .filter((link) => !/^(https?:|mailto:)/.test(link))
@@ -191,6 +179,18 @@ describe('law docs', () => {
         expect([...anchorsOf(linked)], `${file} links to ${link}`).toContain(anchor)
       }
     }
+  })
+
+  it.each(
+    markdownFiles(lawDir)
+      .filter((path) => path !== LAW_README)
+      .map((path) => relative(root, path)),
+  )('reads the title, day and summary of %s as the index does, with each heading once', (file) => {
+    const read = lawFileOf(readFileSync(join(root, file), 'utf8'))
+    const indexed = lawFile(join(root, file))
+    expect({ title: read.title, checked: read.checked, summary: read.summary }).toEqual({ title: indexed.title, checked: indexed.checked, summary: indexed.summary })
+    const anchors = read.sections.map((section) => section.anchor)
+    expect(anchors.filter((anchor, at) => anchors.indexOf(anchor) !== at)).toEqual([])
   })
 
   it('keeps the index in docs/law/README.md in step with the files, so run npm run law-index after changing one', async () => {

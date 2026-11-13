@@ -31,7 +31,7 @@ const {
   promptFileNotes,
   promptFilesCost,
   removePromptFile,
-  chatFigure,
+  shownRefs,
   chatGoingOn,
   chatLines,
   chatSpent,
@@ -60,6 +60,7 @@ const CATALOGUE: Catalogue = {
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
   persons: () => CHAT_PERSONS,
+  lawPage: async () => null,
 }
 const knowledge = async (): Promise<Catalogue> => CATALOGUE
 const TOKENS = { input: 1000, cacheRead: 0, cacheWrite: 0, output: 1000 }
@@ -340,8 +341,8 @@ describe('a chat in memory', () => {
       port.current = scripted([lookup('read_figures', { app: 'spending', report: 'month', period: '2026-10' }), answer('You spent [f1], and €4,300.00 last year.')])
       await sendChatMessage('First', CONTEXT, knowledge)
       expect(chatLines.at(-1)!.strayFigure).toBe(true)
-      expect(chatFigure('f1')).toMatchObject({ cents: 64530, currency: 'EUR' })
-      expect(chatFigure('f9')).toBeNull()
+      expect(shownRefs.figureOf('f1')).toMatchObject({ cents: 64530, currency: 'EUR' })
+      expect(shownRefs.figureOf('f9')).toBeNull()
     })
 
     it('sends real names with the setting off, while the loop still cuts an IBAN', async () => {

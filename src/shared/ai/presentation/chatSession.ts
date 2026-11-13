@@ -20,7 +20,8 @@ import { attachedFile } from '../application/chatFiles'
 import { newPseudonyms } from '../../privacy/domain/pseudonyms'
 import type { PersonWord } from '../../privacy/domain/pseudonyms'
 import { language } from '../../text/language'
-import type { ChatFigure } from '../domain/chatRefs'
+import type { ShownRefs } from '../domain/chatRefs'
+import { citationLabel } from './citationLabel'
 import type { ChatElementAbout } from '../domain/chatElement'
 import { forgetSavedChat, readSavedChat, saveChat } from '../application/savedChat'
 import type { ProposalState, SavedChat, SavedLine, SavedProposal } from '../application/savedChat'
@@ -225,9 +226,11 @@ function contextAt(where: ChatWhere, known: Catalogue, provider: ProviderId): Ch
   return { app: where.app, screen: where.screen, place: place?.title ?? null, path: place?.address ?? where.path, today: where.today, setUp }
 }
 
-/** An answer as this browser keeps it: aliases stay as the model wrote them, and a figure ref is written out, as its figure goes with the page. */
+/** An answer as this browser keeps it: aliases stay as the model wrote them, and a figure ref or a law ref is written out, as what it stands for goes with the page. */
 function storedText(text: string): string {
-  return text.replace(/\[(f\d+)\]/g, (written, ref: string) => {
+  return text.replace(/\[(f\d+|law-\d+)\]/g, (written, ref: string) => {
+    const cited = refs.lawOf(ref)
+    if (cited !== null) return `(${citationLabel(cited)})`
     const figure = refs.figureOf(ref)
     return figure === null ? written : `${plainAmount(figure.cents)} ${figure.currency}`
   })
@@ -668,9 +671,10 @@ export function shownOnScreen(text: string): string {
   return pseudonyms.restored(text)
 }
 
-/** Kuna's own figure behind a ref in an answer, or null for one no tool gave. */
-export function chatFigure(ref: string): ChatFigure | null {
-  return refs.figureOf(ref)
+/** Kuna's own figure or cited law section behind a ref in an answer, or null for one no tool gave. */
+export const shownRefs: ShownRefs = {
+  figureOf: (ref) => refs.figureOf(ref),
+  lawOf: (ref) => refs.lawOf(ref),
 }
 
 /** What the chat has spent so far, as "about $0.04", or null before it spent anything. It only ever informs, and nothing stops on it. */

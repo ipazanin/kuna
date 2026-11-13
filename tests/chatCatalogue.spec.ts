@@ -17,6 +17,10 @@ import { en as spendingWords, hr as spendingCroatian } from '../src/apps/spendin
 import { en as investmentsWords, hr as investmentsCroatian } from '../src/apps/investments/assistant/words'
 import { en as investmentsSettingsWords, hr as investmentsSettingsCroatian } from '../src/apps/investments/settings/presentation/words'
 import { catalogueOf, placeAt, recordPageParam } from '../src/shared/ai/application/catalogue'
+import { runChatTool } from '../src/shared/ai/application/chatTools'
+import type { ChatReads } from '../src/shared/ai/application/chatReads'
+import { chatRefs } from '../src/shared/ai/domain/chatRefs'
+import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { words as companyTransactionWords } from '../src/apps/company/transactions/presentation/words'
@@ -361,5 +365,74 @@ describe('what a page says a link and a search take', () => {
     expect(catalogue.system).toContain('Never fill in a row or a balance')
     expect(catalogue.system).toContain('read_build_up')
     expect(catalogue.system).not.toContain('by its label only')
+  })
+})
+
+describe('the law an app rests on', () => {
+  const catalogue = catalogueOf(APPS, KUNA)
+  const LAW_APPS = { investments: 'investments', assets: 'assets' } as const
+  const filesIn = (folder: string): string[] =>
+    readdirSync(join(ROOT, 'docs/law', folder))
+      .filter((name) => name.endsWith('.md'))
+      .map((name) => name.slice(0, -'.md'.length))
+      .sort()
+  const readsOf = (): ChatReads => ({ readers: catalogue.readers, pseudonyms: newPseudonyms(), refs: chatRefs(), anonymising: () => true, persons: () => [], mayRead: () => false })
+  const open = (reads: ChatReads, path: string) =>
+    runChatTool({ catalogue, reads, attachments: [], readsPdf: false, showChip: () => undefined, showProposal: () => undefined }, { id: 'call', name: 'kuna_docs', args: { path } })
+
+  it.each(Object.entries(LAW_APPS))('lists on the %s page every file of its folder in docs/law, and tells the model to cite what it opened', (app, folder) => {
+    const listed = catalogue.pages.get(app)!.split('## Law it rests on\n')[1]!.split('\n## ')[0]!
+    expect([...listed.matchAll(/^- [a-z]+\/law\/([a-z0-9-]+)$/gm)].map((match) => match[1])).toEqual(filesIn(folder))
+    expect(listed).toContain('[law-1]')
+    expect(listed).toContain('starting with >')
+  })
+
+  it('lists no law on a page of an app that keeps none', () => {
+    for (const app of ['company', 'loans', 'spending', 'kuna']) expect(catalogue.pages.get(app), app).not.toContain('## Law it rests on')
+  })
+
+  it.each(Object.entries(LAW_APPS).flatMap(([app, folder]) => filesIn(folder).map((name) => `${app}/law/${name}`)))(
+    'opens %s with each of its sections, and every section with the day it was checked',
+    async (path) => {
+      const file = await catalogue.lawPage(path)
+      expect(file?.citation).toBeNull()
+      const sections = [...file!.text.matchAll(/^\s*- ([a-z]+\/law\/[a-z0-9-]+#\S+): (.+)$/gmu)]
+      expect(sections.length).toBeGreaterThan(2)
+      for (const [, section, heading] of sections) {
+        const page = await catalogue.lawPage(section!)
+        expect(page?.citation, section).toMatchObject({ path: section })
+        expect(page!.text, section).toContain(`checked ${page!.citation!.checked}`)
+        if (page!.citation!.heading !== null) expect(page!.citation!.heading).toBe(heading)
+      }
+    },
+  )
+
+  it('writes a link to a law file of the same folder as the page that opens it', async () => {
+    const page = await catalogue.lawPage('investments/law/capital-gains#capital-gains')
+    expect(page!.text).toContain('](investments/law/hnb-rates-and-settlement)')
+    for (const [, linked] of page!.text.matchAll(/\]\(([a-z]+\/law\/[^)]+)\)/g)) expect(await catalogue.lawPage(linked!), linked).not.toBeNull()
+  })
+
+  it('opens no law page at a path no app keeps, and keeps the instructions as they were', async () => {
+    const system = catalogue.system
+    for (const path of ['investments/law/capital-gains#no-such-heading', 'investments/law/no-such-file', 'company/law/tax-classes', 'loans/law/capital-gains', 'investments/law/']) {
+      expect(await catalogue.lawPage(path), path).toBeNull()
+    }
+    expect(catalogue.system).toBe(system)
+    expect(catalogueOf(APPS, KUNA).system).toBe(system)
+  })
+
+  it('hands out one ref a section, the same on a second read, and counts the law as known figures', async () => {
+    const reads = readsOf()
+    const first = await open(reads, 'investments/law/capital-gains#rates-by-year')
+    const other = await open(reads, 'assets/law/used-car-value#how-months-count')
+    const again = await open(reads, 'investments/law/capital-gains#rates-by-year')
+    expect(first.text).toContain('Cite this section as [law-1].')
+    expect(other.text).toContain('Cite this section as [law-2].')
+    expect(again.text).toContain('Cite this section as [law-1].')
+    expect(reads.refs.lawOf('law-1')).toMatchObject({ file: 'Capital gains', heading: 'Rates by year' })
+    expect(reads.refs.lawOf('law-3')).toBeNull()
+    expect(reads.refs.holdsStrayFigure('Gains are taxed at 12% [law-1].')).toBe(false)
+    expect((await open(reads, 'investments/law/capital-gains')).text).not.toContain('Cite this section')
   })
 })

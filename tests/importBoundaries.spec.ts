@@ -261,6 +261,9 @@ function broken(rule: (entry: Import) => boolean): string[] {
   return IMPORTS.filter((entry) => !rule(entry)).map((entry) => `${entry.at} imports ${entry.specifier}`)
 }
 
+/** The one file that reads outside `src`: the law files of `docs/law`, each as raw text in a chunk of its own. */
+const LAW_LOADER = 'src/shared/law/infrastructure/lawFiles.ts'
+
 /** The files nothing in `src` imports: the page's entry and Vite's type declarations. */
 const UNIMPORTED = ['src/env.d.ts', 'src/main.ts']
 
@@ -453,6 +456,13 @@ describe('import boundaries', () => {
 
   it('reads a key in the AI module only through its one door', () => {
     expect(linesHolding(/\bstoredSecret(Changes)?\b/, (file) => !file.startsWith('src/shared/ai/') || file === 'src/shared/ai/application/modelAccess.ts')).toEqual([])
+  })
+
+  it('reads outside src only in the law loader, and there only the law files of docs/law as raw text', () => {
+    expect(broken((entry) => entry.target === null || entry.target.startsWith('src/'))).toEqual([])
+    expect(linesHolding(/import\.meta\.glob|\?raw\b/, (file) => file === LAW_LOADER)).toEqual([])
+    const globs = [...readFileSync(join(ROOT, LAW_LOADER), 'utf8').matchAll(/import\.meta\.glob\b[^(]*\(([^)]*)\)/g)].map((match) => match[1])
+    expect(globs).toEqual(["'../../../../docs/law/*/*.md', { query: '?raw', import: 'default' }"])
   })
 
   it('offers no model the web, and names the suffix that would turn it on only where a typed model is refused for it', () => {

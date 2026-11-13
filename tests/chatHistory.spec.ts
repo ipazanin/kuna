@@ -8,6 +8,7 @@ import type { AppProposer } from '../src/shared/app/assistantOperations'
 import type { ModelPort, ModelReply, ModelTurn } from '../src/shared/ai/application/modelPort'
 import { forgetSavedChat, readSavedChat, saveChat } from '../src/shared/ai/application/savedChat'
 import type { SavedLine } from '../src/shared/ai/application/savedChat'
+import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
 import { CHAT_PERSONS, CHAT_READING } from './fixtures/chatBook'
 
@@ -18,6 +19,7 @@ vi.mock('../src/shared/secrets/presentation/pageSecrets', async () => {
   return { useSecretsChanged: () => ref(0) }
 })
 
+const LAW_SECTION = 'investments/law/capital-gains#losses'
 const CATALOGUE: Catalogue = {
   system: 'Be Kuna.',
   pages: new Map(),
@@ -27,6 +29,7 @@ const CATALOGUE: Catalogue = {
   readers: new Map([['spending', { name: 'Spending', reader: spendingReader(CHAT_READING) }]]),
   proposers: new Map(),
   persons: () => CHAT_PERSONS,
+  lawPage: async (path) => (path === LAW_SECTION ? { text: '# Capital gains: Losses', citation: { path, file: 'Capital gains', heading: 'Losses', checked: parseCivilDate('2026-11-04')! } } : null),
 }
 const CONTEXT = { app: 'Spending', screen: 'Entries', path: '/spending', query: {}, element: null, today: '2026-11-07', setUp: [] }
 const TOKENS = { input: 1, cacheRead: 0, cacheWrite: 0, output: 1 }
@@ -119,6 +122,20 @@ describe('a chat kept in this browser', () => {
     expect(second.chatLines.some((line) => line.note)).toBe(false)
     expect(second.shownOnScreen('Person 1')).toBe('Ana Horvat')
     expect(second.chatLines.at(-1)!.sent).toEqual([])
+  })
+
+  it('writes a cited law section out as its file, heading and day, as the citation goes with the page', async () => {
+    const first = await loadSession()
+    port.current = scripted([
+      { kind: 'tool-calls', calls: [{ id: 'a', name: 'kuna_docs', args: { path: LAW_SECTION } }], raw: [], tokens: TOKENS },
+      { kind: 'answer', text: 'A loss counts against gains of the same year [law-1], not [law-7].', raw: [], tokens: TOKENS },
+    ])
+    await first.sendChatMessage('Can I offset a loss?', CONTEXT, async () => CATALOGUE)
+    expect(first.shownRefs.lawOf('law-1')).toMatchObject({ file: 'Capital gains', heading: 'Losses' })
+    await settled()
+
+    const stored = (await readSavedChat())!.lines.at(-1)!.text
+    expect(stored).toBe('A loss counts against gains of the same year (Capital gains: Losses, checked 4 Nov 2026), not [law-7].')
   })
 
   it('keeps the names of the files a card was made after reading, so its line comes back after a reload', async () => {

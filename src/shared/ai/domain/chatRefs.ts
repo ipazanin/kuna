@@ -1,3 +1,4 @@
+import type { CivilDate } from '../../calendar/civilDate'
 import type { AccountMoney } from '../../money/accountMoney'
 import type { CurrencyCode } from '../../money/currencyCode'
 import type { Money } from '../../money/money'
@@ -12,6 +13,20 @@ export type ChatFigure = FigureAmount & { readonly ref: string }
 
 /** A figure's build-up a person tagged, which the chat holds in memory and `read_build_up` reads. */
 export type ChatBuildUp = Extract<ChatElementAbout, { readonly kind: 'build-up' }>
+
+/** A section of a law file a page handed to the model, which an answer cites by its ref. */
+export interface LawCitation {
+  /** The page it was read from, such as `investments/law/capital-gains#losses`. */
+  readonly path: string
+  readonly file: string
+  /** Null for the lines under the file's own title. */
+  readonly heading: string | null
+  /** The day the file's law was last verified. */
+  readonly checked: CivilDate
+}
+
+/** What the screen resolves the refs of an answer by. */
+export type ShownRefs = Pick<ChatRefs, 'figureOf' | 'lawOf'>
 
 /** The record a ref stands for. */
 export interface RecordOfRef {
@@ -40,6 +55,9 @@ export interface ChatRefs {
   buildUpOf(ref: string): ChatBuildUp | null
   figureRef(key: string, amount: FigureAmount): string
   figureOf(ref: string): ChatFigure | null
+  /** The ref of a law section, the same one for the same section through the chat. */
+  lawRef(citation: LawCitation): string
+  lawOf(ref: string): LawCitation | null
   /** An amount a tool returned without a ref, such as a record's. */
   noteAmount(cents: number): void
   noteRate(basisPoints: number): void
@@ -66,6 +84,7 @@ export function chatRefs(numberedFrom: RefsHandedOut = NONE_HANDED_OUT): ChatRef
   const buildUps = new Map<string, ChatBuildUp>()
   const figures = new Map<string, ChatFigure>()
   const figureRefs = new Map<string, string>()
+  const citations = new Map<string, LawCitation>()
   const amounts = new Set<number>()
   const rates = new Set<number>()
   return {
@@ -100,6 +119,14 @@ export function chatRefs(numberedFrom: RefsHandedOut = NONE_HANDED_OUT): ChatRef
       return ref
     },
     figureOf: (ref) => figures.get(ref) ?? null,
+    lawRef(citation) {
+      const known = [...citations].find(([, held]) => held.path === citation.path)?.[0]
+      if (known !== undefined) return known
+      const ref = `law-${citations.size + 1}`
+      citations.set(ref, citation)
+      return ref
+    },
+    lawOf: (ref) => citations.get(ref) ?? null,
     noteAmount: (cents) => void amounts.add(Math.abs(cents)),
     noteRate: (basisPoints) => void rates.add(basisPoints),
     noteFiguresIn(text) {

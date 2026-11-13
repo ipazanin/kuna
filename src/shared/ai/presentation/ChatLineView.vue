@@ -9,7 +9,7 @@ import ChatMessageText from './ChatMessageText.vue'
 import ProposalCard from './ProposalCard.vue'
 import NoteLine from '../../ui/NoteLine.vue'
 import SentRow from './SentRow.vue'
-import { chatFigure, shownOnScreen } from './chatSession'
+import { shownOnScreen, shownRefs } from './chatSession'
 import type { ChatLine } from './chatSession'
 import { words } from './words'
 
@@ -39,7 +39,7 @@ const emit = defineEmits<{ retry: [message: string] }>()
       </li>
     </ul>
   </template>
-  <ChatMessageText v-else-if="line.text !== ''" :text="shownOnScreen(line.text)" :figure="chatFigure" data-testid="chat-answer" />
+  <ChatMessageText v-else-if="line.text !== ''" :text="shownOnScreen(line.text)" :refs="shownRefs" data-testid="chat-answer" />
   <NoteLine v-if="line.strayFigure" tone="warning" class="mt-1.5" data-testid="chat-stray">{{ words.answer.strayFigure }}</NoteLine>
   <ProposalCard v-for="proposal in line.proposals" :key="proposal.id" :proposal="proposal" />
   <div v-if="line.chips.length > 0" class="mt-2 flex flex-wrap gap-1.5">

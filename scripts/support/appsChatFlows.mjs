@@ -243,3 +243,33 @@ export function appChatCardFlowIn(language, card, files = {}) {
     }
   }
 }
+
+/** The question the fake Assets chat answers from the law, and what its citation and its own knowledge must say, as each language writes them. */
+const LAW_ANSWER = {
+  en: { ask: 'How does customs count the months of a car?', cites: 'Used car value: How months count, checked', apart: "Not from Kuna's rules" },
+  hr: { ask: 'Kako carina broji mjesece automobila?', cites: 'Used car value: How months count, provjereno', apart: 'Nije iz Kuninih pravila' },
+}
+
+/** A question of law in Assets: the chat reads the section of docs/law it rests on, cites it with the file, heading and day checked, and sets its own knowledge apart. */
+export function appChatLawFlowIn(language) {
+  const says = LAW_ANSWER[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await ask(page, press, says.ask)
+      await page.waitForSelector('[data-status="ready"] [data-testid="chat-answer"] [data-testid="chat-citation"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('the answer on the law cites no section')
+      })
+      await elementSays(page, '[data-testid="chat-citation"]', [says.cites], 'the citation does not name the file, the heading and the day it was checked')
+      await elementSays(page, '[data-testid="chat-own-knowledge"]', [says.apart], "the answer does not set the model's own knowledge apart")
+      await delay(300)
+      await inspect?.('an answer on the law with its citation and its own knowledge apart')
+      await shoot('assets-chat-law')
+      await newChat(page, press)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}

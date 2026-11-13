@@ -532,7 +532,7 @@ import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { overpaidFilingFlowIn, tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
 import { categoriesDonationsFlowIn, yearDonationsFlowIn } from './support/donationFlows.mjs'
 import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
-import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
+import { appChatCardFlowIn, appChatLawFlowIn } from './support/appsChatFlows.mjs'
 import { MADE_UP_ANTHROPIC_KEY } from './support/chatFlows.mjs'
 import { SAMPLE_DAY, writeFlexReportSamples, writeImportSamples, writeSpendingImportSamples, writeSpendingReceiptSamples } from './support/importSampleFiles.mjs'
 import { screenMenusFlow } from './support/menuFlows.mjs'
@@ -6159,6 +6159,24 @@ const FLOWS = [
     hash: '#/assets',
     title: 'Pregled',
     run: appChatCardFlowIn('hr', 'valuation'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&assets=sample&loans=sample&lang=hr' },
+  },
+  {
+    name: 'assets-chat-law',
+    hash: '#/assets',
+    title: 'Overview',
+    run: appChatLawFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&assets=sample&loans=sample' },
+  },
+  {
+    name: 'assets-chat-law-croatian',
+    hash: '#/assets',
+    title: 'Pregled',
+    run: appChatLawFlowIn('hr'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&assets=sample&loans=sample&lang=hr' },

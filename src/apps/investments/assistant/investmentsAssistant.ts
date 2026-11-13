@@ -23,6 +23,7 @@ import { INSTRUMENT_RECORDS } from '../workbook/domain/investmentKinds'
 import { SURTAX_CITY_2023_KEY } from '../workbook/domain/investmentSettings'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
+import { lawFilesIn } from '../../../shared/law/infrastructure/lawFiles'
 import { investmentsReader } from './investmentsReader'
 import type { InvestmentsReading } from './investmentsReader'
 import { words } from './words'
@@ -63,10 +64,11 @@ const PLACES: readonly AssistantPlace[] = [
   { route: INVESTMENTS_SETTINGS_ROUTE, title: settingsWords.title },
 ]
 
-/** What Investments tells the chat: what it keeps and where things are, the 2023 city the Tax screen keeps, the automations it offers, what it can read and what it can change. */
+/** What Investments tells the chat: what it keeps and where things are, the 2023 city the Tax screen keeps, the automations it offers, the law its Tax screen rests on, what it can read and what it can change. */
 export const investmentsAssistant = (reading: InvestmentsReading, changes: { readonly proposer: AppProposer; readonly acceptance: AppAcceptance } | null = null): AppAssistant => ({
   kinds: Object.values(investmentKinds),
   places: PLACES,
+  law: lawFilesIn('investments'),
   settings: [{ key: SURTAX_CITY_2023_KEY, note: words.settings.surtaxCity2023 }],
   guides: [
     { id: 'set-up', label: words.guides.setUp.label, title: words.guides.setUp.title, body: words.guides.setUp.body, places: [INVESTMENTS_GENERAL_ROUTE, TRANSACTIONS_ROUTE] },

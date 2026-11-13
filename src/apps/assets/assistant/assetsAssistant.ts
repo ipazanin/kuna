@@ -6,6 +6,7 @@ import * as assetKinds from '../workbook/domain/assetKinds'
 import { ASSET_RECORDS } from '../workbook/domain/assetKinds'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
+import { lawFilesIn } from '../../../shared/law/infrastructure/lawFiles'
 import { assetsReader } from './assetsReader'
 import type { AssetsReading } from './assetsReader'
 import { words } from './words'
@@ -19,13 +20,14 @@ const PLACES: readonly AssistantPlace[] = [
 ]
 
 /**
- * What Assets tells the chat: what it keeps and where, what it can read, and the changes it takes, over the book and store
+ * What Assets tells the chat: what it keeps and where, the law a car's estimate rests on, what it can read, and the changes it takes, over the book and store
  * `app.ts` hands in. It has no settings table of its own, and no record of it names a person.
  */
 export function assetsAssistant(reading: AssetsReading, changes: { readonly proposer: AppProposer; readonly acceptance: AppAcceptance } | null = null): AppAssistant {
   return {
     kinds: Object.values(assetKinds),
     places: PLACES,
+    law: lawFilesIn('assets'),
     settings: [],
     guides: [{ id: 'set-up', label: words.guides.setUp.label, title: words.guides.setUp.title, body: words.guides.setUp.body, places: [ASSETS_OVERVIEW_ROUTE] }],
     automations: [],

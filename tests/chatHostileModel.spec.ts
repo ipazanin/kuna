@@ -22,6 +22,7 @@ import type { ChatBuildUp } from '../src/shared/ai/domain/chatRefs'
 import { NO_TOKENS } from '../src/shared/ai/domain/modelUsage'
 import { pdfPages } from '../src/shared/ai/infrastructure/pdfPages'
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
+import { lawFilesIn } from '../src/shared/law/infrastructure/lawFiles'
 import { moneyFromCents } from '../src/shared/money/money'
 import { newPseudonyms } from '../src/shared/privacy/domain/pseudonyms'
 import type { KnownPerson } from '../src/shared/privacy/domain/pseudonyms'
@@ -61,6 +62,7 @@ const CATALOGUE: Catalogue = catalogueOf(
         acceptance: null,
         quickActions: [],
         persons: () => CHAT_PERSONS,
+        law: lawFilesIn('investments'),
       },
     },
   ],
@@ -81,6 +83,14 @@ const HOSTILE_PATHS = [
   'spending/record/1',
   '__proto__',
   'constructor',
+  'spending/law/../../README',
+  'spending/law/../sources/watch-list',
+  'spending/law/capital-gains/../../../package',
+  'spending/law/capital-gains#../../x',
+  'spending/law/capital-gains#__proto__',
+  'spending/law/__proto__',
+  'spending/law/README',
+  'investments/law/capital-gains',
 ]
 const HOSTILE_ROUTES = [
   'https://example.com/',
