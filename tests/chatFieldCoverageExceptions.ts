@@ -91,7 +91,8 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['investments: MailReader.since'],
   },
   {
-    reason: "Facts a file brings rather than a person: import keys, what the bank's statement says of a row, what a mailed report left out, and who read a receipt and where its photo was taken.",
+    reason:
+      "Facts a file brings rather than a person: import keys, the day a broker's report says a trade settles, what the bank's statement says of a row, what a mailed report left out, and who read a receipt and where its photo was taken.",
     fields: [
       'investments: CashMovement.importKey',
       'investments: Exchange.importKey',
@@ -99,6 +100,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'investments: SpinOff.importKey',
       'investments: Split.importKey',
       'investments: Trade.importKey',
+      'investments: Trade.settles',
       'investments: Transfer.importKey',
       'spending: Transaction.importKey',
       'spending: Transaction.source',

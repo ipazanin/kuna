@@ -4397,7 +4397,8 @@ const SOURCE_SCREENS = [
     title: 'Tax',
     charts: 0,
     ready: '[data-testid="tax-sales"]',
-    shows: ['Example Tech', 'Example Spinco', 'Tax-free', 'Old loss, not offset', 'Download for Porezna (XLSX)', ...SAMPLE_TAX.sales],
+    shows: ['Example Tech', 'Example Spinco', 'Tax-free', 'Old loss, not offset', 'Download for Porezna (XLSX)', 'settles 5 Oct 2026, estimated', 'settles 20 Oct 2026', ...SAMPLE_TAX.sales],
+    lacks: ['settles 20 Oct 2026, estimated'],
   },
   {
     name: 'investments-tax-sales-croatian',
@@ -4406,7 +4407,8 @@ const SOURCE_SCREENS = [
     title: 'Porez',
     charts: 0,
     ready: '[data-testid="tax-sales"]',
-    shows: ['Bez poreza', 'Stari gubitak, ne odbija se', 'Preuzmi za Poreznu (XLSX)', ...SAMPLE_TAX.salesCroatian],
+    shows: ['Bez poreza', 'Stari gubitak, ne odbija se', 'Preuzmi za Poreznu (XLSX)', 'namira 5.\u00a010.\u00a02026., procjena', 'namira 20.\u00a010.\u00a02026.', ...SAMPLE_TAX.salesCroatian],
+    lacks: ['namira 20.\u00a010.\u00a02026., procjena'],
   },
   {
     name: 'investments-tax-foreign',

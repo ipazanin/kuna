@@ -44,7 +44,12 @@ describe("a year's capital gains", () => {
     const sale = capitalGainsYear(exampleYear(), EXAMPLE_RATES, 2026).sales.find((candidate) => candidate.instrument.id === TECH.id)!
 
     // $200.00 of gain ÷ 1.2000, the list HNB publishes on Monday, is 166.67. Friday's 1.1900 would give 168.07, and the stored 1.08 would give 185.19.
-    expect([sale.settles, sale.rate.kind === 'hnb' ? decimalText(sale.rate.rate.unitsPerEuro) : null, decimalText(sale.gainInCurrency), sale.gain]).toEqual(['2026-10-05', '1.2', '200', euros(166.67)])
+    expect([sale.settlement.day, sale.rate.kind === 'hnb' ? decimalText(sale.rate.rate.unitsPerEuro) : null, decimalText(sale.gainInCurrency), sale.gain]).toEqual([
+      '2026-10-05',
+      '1.2',
+      '200',
+      euros(166.67),
+    ])
     const storedElsewhere = exampleYear()
     const restated = { ...storedElsewhere, trades: storedElsewhere.trades.map((record) => (record.instrument === TECH.id ? { ...record, rate: decimal('1.5') } : record)) }
     expect(capitalGainsYear(restated, EXAMPLE_RATES, 2026).tax).toBe(euros(16.3))
@@ -185,9 +190,20 @@ describe("a year's capital gains", () => {
 
     const [sale] = capitalGainsYear(records, EXAMPLE_RATES, 2027).sales
     // TARGET is closed on 1 Jan, so two TARGET working days after Wednesday 30 Dec is Monday 4 Jan.
-    expect([sale!.settles, sale!.settlesNextYear, sale!.gain]).toEqual(['2027-01-04', true, euros(50)])
+    expect([sale!.settlement, sale!.settlesNextYear, sale!.gain]).toEqual([{ day: '2027-01-04', estimated: true }, true, euros(50)])
     expect(capitalGainsYear(records, EXAMPLE_RATES, 2026).sales).toEqual([])
     expect(taxYearsOf(records, civil('2027-03-02'))).toEqual([2027])
+  })
+
+  it("counts a sale of 30 Dec 2026 in 2026 when the broker's report says it settles on 31 Dec, over the estimate", () => {
+    const etf = instrument('etf')
+    const reported = { ...trade('sell', BROKER, etf, '2026-12-30', '10', '105', '0'), settles: civil('2026-12-31') }
+    const records = withTrades(book({ instruments: [etf] }), [trade('buy', BROKER, etf, '2026-01-05', '10', '100', '0'), reported])
+
+    const [sale] = capitalGainsYear(records, EXAMPLE_RATES, 2026).sales
+    expect([sale!.settlement, sale!.settlesNextYear]).toEqual([{ day: '2026-12-31', estimated: false }, false])
+    expect(capitalGainsYear(records, EXAMPLE_RATES, 2027).sales).toEqual([])
+    expect(taxYearsOf(records, civil('2027-02-01'))).toEqual([2026])
   })
 
   it("marks a JOPPD dated 31 December with the year's two digits and the day of the year, 366 in a leap year", () => {

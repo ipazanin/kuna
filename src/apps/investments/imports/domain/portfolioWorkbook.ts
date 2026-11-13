@@ -134,6 +134,8 @@ export interface WorkbookRow {
   /** The currency of the Commission cell where a report gives one. A workbook's exchange gives its commission in euros. */
   readonly commissionCurrency: CurrencyCode | null
   readonly dividend: DividendFacts | null
+  /** The day a buy or a sale settles where a report gives one. The workbook gives none. */
+  readonly settles: CivilDate | null
 }
 
 /** Why a row of the tab is not imported. The dry run adds the last three, for a row read whole that Kuna cannot keep as booked. */
@@ -292,6 +294,7 @@ function rowOf(fileRow: number, cellAt: (column: WorkbookColumn | OptionalColumn
     actionId: null,
     commissionCurrency: null,
     dividend: null,
+    settles: null,
   }
 }
 

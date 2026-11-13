@@ -34,13 +34,15 @@ export type ListedTransaction = LatestRecord | { readonly kind: 'price'; readonl
 
 /**
  * The record a person's edit makes, keeping what they cannot see in the dialog: the key of the rows it came from, or a
- * report that overlaps would add it again, what a report said about a dividend, and a bond trade's accrued interest while it stays a trade of that bond.
+ * report that overlaps would add it again, what a report said about a dividend, a bond trade's accrued interest while it
+ * stays a trade of that bond, and the settlement day a report gave a trade while it keeps its trade day.
  */
 export function withImportFacts(before: TransactionRecord, after: TransactionRecord): TransactionRecord {
   if (before.kind === 'price' || after.kind === 'price') return after
   const dividend = before.kind === 'income' && before.record.dividend !== undefined && after.kind === 'income' ? { dividend: before.record.dividend } : {}
   const accrued = before.kind === 'trade' && after.kind === 'trade' && after.record.instrument === before.record.instrument ? { accrued: before.record.accrued } : {}
-  return { ...after, record: { ...after.record, importKey: before.record.importKey, ...dividend, ...accrued } } as TransactionRecord
+  const settles = before.kind === 'trade' && before.record.settles !== undefined && after.kind === 'trade' && after.record.date === before.record.date ? { settles: before.record.settles } : {}
+  return { ...after, record: { ...after.record, importKey: before.record.importKey, ...dividend, ...accrued, ...settles } } as TransactionRecord
 }
 
 /** Every record of what happened and every hand price, newest first. Records of one day keep the order the latest records give them, with prices last. */

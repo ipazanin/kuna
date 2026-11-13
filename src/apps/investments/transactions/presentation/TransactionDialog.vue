@@ -101,7 +101,8 @@ const rateHelp = computed(() => {
 })
 
 const preview = computed(() => {
-  const record = draft.value.record
+  const drafted = draft.value.record
+  const record = drafted === null || props.editing === null ? drafted : withImportFacts(props.editing, drafted)
   if (record?.kind !== 'trade') return null
   const instrument = book.value.instruments.find((candidate) => candidate.id === record.record.instrument)
   const account = book.value.accounts.find((candidate) => candidate.id === record.record.account)

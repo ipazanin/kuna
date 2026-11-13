@@ -3,14 +3,20 @@ import { INSTRUMENT_RECORDS, INVESTMENT_ACCOUNT_RECORDS, TRADE_RECORDS } from '.
 import { TRADE_SIDES } from './trade'
 import type { Trade } from './trade'
 import { words } from './words'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
+import { optionalDate, ownId, refuse, requiredChoice, requiredDate, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
+
+function settlesOf(fields: StoredFields): { readonly settles?: CivilDate } {
+  const settles = optionalDate(fields, 'settles')
+  return settles === null ? {} : { settles }
+}
 
 /**
  * A buy or a sale. Its rate is read here, and whether it is filled exactly when the instrument quotes in a currency
@@ -32,6 +38,7 @@ export function tradeOf(fields: StoredFields, id: RecordId | null): Trade {
     accrued: optionalUnsigned(fields, 'accrued'),
     importKey: importKeyOf(fields),
     note: textOf(fields.note),
+    ...settlesOf(fields),
   }
 }
 
@@ -48,5 +55,6 @@ export const TRADE_CODEC: RecordCodec<Trade> = withIdField(TRADE_RECORDS, words.
     accrued: decimalField(trade.accrued),
     import_key: trade.importKey,
     note: trade.note,
+    settles: trade.settles,
   }),
 )

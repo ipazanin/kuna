@@ -8,7 +8,7 @@ import type { InvestmentBook } from '../../workbook/domain/investmentBook'
 import type { Trade } from '../../workbook/domain/trade'
 import { taxWithSurtax } from '../../tax/domain/citySurtax'
 import { isEstimate } from '../../tax/domain/hnbRate'
-import { settlementDay } from '../../tax/domain/settlementDay'
+import { settlementOf } from '../../tax/domain/settlementDay'
 import { FIRST_TAX_YEAR } from '../../tax/domain/taxRules'
 import { capitalGainsYear } from '../../tax/domain/taxYear'
 import { yearOf } from '../../../../shared/calendar/civilDate'
@@ -55,7 +55,7 @@ export interface TradePreview {
 
 /** The tax a sale adds to its year, against the file without it. Null for a buy, a sale with no rate to convert it, and a year Kuna has no rules for. */
 function saleTax(book: InvestmentBook, after: InvestmentBook, rates: RateBook, instrument: Instrument, trade: Trade): SaleTax | null {
-  const year = yearOf(settlementDay(trade.date, instrument.currency))
+  const year = yearOf(settlementOf(trade, instrument.currency).day)
   if (trade.side !== 'sell' || year < FIRST_TAX_YEAR) {
     return null
   }

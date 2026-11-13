@@ -74,7 +74,9 @@ describe("IBKR's built-in recipe", () => {
   it('reads the made-up report into records of every kind seen so far, passing over rows of other levels', () => {
     const run = workbookDryRun(rowsOf(), { book: kept(), rates: RATES, answers: ANSWERS })
     const records = recordsOf(run.entries)
-    expect(records.map((imported) => imported.kind).sort()).toEqual(['cash-movement', 'cash-movement', 'cash-movement', 'cash-movement', 'exchange', 'income', 'income', 'trade', 'trade'].sort())
+    expect(records.map((imported) => imported.kind).sort()).toEqual(
+      ['cash-movement', 'cash-movement', 'cash-movement', 'cash-movement', 'cash-movement', 'exchange', 'income', 'income', 'trade', 'trade'].sort(),
+    )
     expect(run.entries.filter((entry) => entry.outcome.kind === 'waiting')).toEqual([])
     expect(run.skipped).toEqual([])
   })
@@ -91,6 +93,15 @@ describe("IBKR's built-in recipe", () => {
     expect(sale?.record).toMatchObject({ quantity: decimal('0.5'), fees: decimal('0') })
     const fee = records.find((imported) => imported.kind === 'cash-movement' && imported.record.kind === 'fee' && imported.record.currency === EUR)
     expect(fee?.record).toMatchObject({ amount: decimal('0.25'), note: expect.stringContaining('ABC') })
+  })
+
+  it('keeps the day the report says a buy or a sale settles', () => {
+    const records = recordsOf(workbookDryRun(rowsOf(), { book: kept(), rates: RATES, answers: ANSWERS }).entries)
+    const trades = records.flatMap((imported) => (imported.kind === 'trade' ? [[imported.record.side, imported.record.settles]] : []))
+    expect(trades.sort()).toEqual([
+      ['buy', NEXT_DAY],
+      ['sell', NEXT_DAY],
+    ])
   })
 
   it('books a CASH row with no ISIN as an exchange, each leg after fees', () => {
@@ -127,6 +138,7 @@ describe("IBKR's built-in recipe", () => {
         ['deposit', decimal('1000'), EUR],
         ['withdrawal', decimal('200'), EUR],
         ['fee', decimal('1.5'), USD],
+        ['fee-refund', decimal('0.5'), USD],
       ]),
     )
   })
@@ -145,7 +157,7 @@ describe("IBKR's built-in recipe", () => {
       ].sort(),
     )
     const run = workbookDryRun(rows, { book: kept(), rates: RATES, answers: ANSWERS })
-    expect(recordsOf(run.entries)).toHaveLength(9)
+    expect(recordsOf(run.entries)).toHaveLength(10)
     expect(run.report?.asked).toHaveLength(6)
   })
 
@@ -263,7 +275,7 @@ describe('a rolling report', () => {
 
   it('says what waits for the person, and nothing once all of it is booked', () => {
     const rows = rowsOf([DAY], 'unseen')
-    expect(reportNews(rows, kept(), RATES)).toEqual({ fresh: 9, changed: 0, asked: 6 })
+    expect(reportNews(rows, kept(), RATES)).toEqual({ fresh: 10, changed: 0, asked: 6 })
     const planned = workbookDryRun(rows, { book: kept(), rates: RATES, answers: ANSWERS }).planned
     expect(reportNews(rows, planned, RATES)).toEqual({ fresh: 0, changed: 0, asked: 6 })
     expect(newestReportDay(planned)).toBe(DAY)

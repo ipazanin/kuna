@@ -25,4 +25,6 @@ export interface Trade {
   /** The key of the imported rows it came from, so importing them again adds nothing. Null for a record typed in. */
   readonly importKey: string | null
   readonly note: string
+  /** The day the broker's report says the trade settles. Only a trade read from a report that gives one has it. */
+  readonly settles?: CivilDate
 }

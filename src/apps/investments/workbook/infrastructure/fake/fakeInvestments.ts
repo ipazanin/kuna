@@ -428,10 +428,13 @@ function fakeDollarRate(date: string): string {
   return fakeClose(rateSeriesKey('USD'), day(date))
 }
 
-/** A sale of Example Tech closing its ten units past two years and two of the 8 Sep lot, and a sale of the spinco below what it cost, a loss on lots past two years. */
+/**
+ * A sale of Example Tech closing its ten units past two years and two of the 8 Sep lot, and a sale of the spinco below
+ * what it cost, a loss on lots past two years, whose settlement day came in the broker's report.
+ */
 const TAX_TRADES: readonly Trade[] = [
   trade('sell', BROKER_ONE, SHARE_A, '2026-10-02', '12', fakeClose(FAKE_SERIES.shareA, day('2026-10-02')), '1.00', fakeDollarRate('2026-10-02')),
-  trade('sell', BROKER_ONE, SPIN_CO, '2026-10-19', '6', '8.95', '1.00', fakeDollarRate('2026-10-19')),
+  { ...trade('sell', BROKER_ONE, SPIN_CO, '2026-10-19', '6', '8.95', '1.00', fakeDollarRate('2026-10-19')), settles: day('2026-10-20') },
 ]
 
 /** A US dividend with 30% withheld, a distribution of the Irish fund with nothing withheld, stock lending and a referral credit. */

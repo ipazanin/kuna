@@ -2,7 +2,8 @@ import { cityOf2023, taxWithSurtax, yearSurtax } from './citySurtax'
 import type { YearSurtax } from './citySurtax'
 import { dayRate, inEurosAt, isEstimate } from './hnbRate'
 import type { DayRate } from './hnbRate'
-import { settlementDay } from './settlementDay'
+import { settlementOf } from './settlementDay'
+import type { Settlement } from './settlementDay'
 import { joppdDue, yearDueNext } from './taxDeadlines'
 import { FIRST_TAX_YEAR, joppdReportMark, rulesOf } from './taxRules'
 import type { YearRules } from './taxRules'
@@ -41,8 +42,8 @@ export interface TaxLine {
 export interface TaxSale {
   readonly instrument: Instrument
   readonly trade: Trade
-  /** Estimated from the trade's day. */
-  readonly settles: CivilDate
+  /** The day the broker's report gives, or the estimate from the trade's day. */
+  readonly settlement: Settlement
   /** HNB's rate of the settlement day. */
   readonly rate: DayRate
   readonly lines: readonly TaxLine[]
@@ -102,8 +103,8 @@ function statusOf(taxFree: boolean, gain: Decimal): LineStatus {
  * rate of the sale's settlement day, never at the rate the record stores.
  */
 function taxSaleOf(instrument: Instrument, trade: Trade, lines: readonly RealisedLine[], rates: RateBook): TaxSale {
-  const settles = settlementDay(trade.date, instrument.currency)
-  const rate = dayRate(rates, instrument.currency, settles)
+  const settlement = settlementOf(trade, instrument.currency)
+  const rate = dayRate(rates, instrument.currency, settlement.day)
   const taxLines = lines.map((realised): TaxLine => {
     const gainInCurrency = subtractDecimal(subtractDecimal(realised.proceedsInCurrency, realised.feesInCurrency), realised.costInCurrency)
     const lotTaxFreeFrom = taxFreeFrom(realised.opened)
@@ -120,12 +121,12 @@ function taxSaleOf(instrument: Instrument, trade: Trade, lines: readonly Realise
   return {
     instrument,
     trade,
-    settles,
+    settlement,
     rate,
     lines: taxLines,
     gainInCurrency: sumDecimal(taxLines.map((line) => line.gainInCurrency)),
     gain: gains.every((gain) => gain !== null) ? sumMoney(gains) : null,
-    settlesNextYear: yearOf(settles) > yearOf(trade.date),
+    settlesNextYear: yearOf(settlement.day) > yearOf(trade.date),
   }
 }
 
@@ -150,7 +151,7 @@ function sumOf(lines: readonly TaxLine[], status: LineStatus): Money {
  * in January's year, since a receipt counts when it is paid.
  */
 export function capitalGainsYear(book: InvestmentBook, rates: RateBook, year: number): CapitalGainsYear {
-  const sales = taxSales(book, rates).filter((sale) => yearOf(sale.settles) === year)
+  const sales = taxSales(book, rates).filter((sale) => yearOf(sale.settlement.day) === year)
   const counted = sales.filter((sale) => sale.rate.kind !== 'missing').flatMap((sale) => sale.lines)
   const taxableGains = sumOf(counted, 'taxable')
   const losses = subtractMoney(ZERO, sumOf(counted, 'loss'))
@@ -189,7 +190,7 @@ function recordYears(book: InvestmentBook): number[] {
   const currencies = new Map(book.instruments.map((instrument) => [instrument.id, instrument.currency]))
   const sales = book.trades.flatMap((trade) => {
     const currency = currencies.get(trade.instrument)
-    return trade.side === 'sell' && currency !== undefined ? [yearOf(settlementDay(trade.date, currency))] : []
+    return trade.side === 'sell' && currency !== undefined ? [yearOf(settlementOf(trade, currency).day)] : []
   })
   const payments = book.income.filter((payment) => payment.kind !== 'coupon').map((payment) => yearOf(payment.date))
   return [...new Set([...sales, ...payments])].sort((first, second) => second - first)

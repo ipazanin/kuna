@@ -1,5 +1,6 @@
 import { addDays } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { weekdaysAfter } from '../../../tax/domain/workingDays'
 
 /** Every value here is made up, in the shape of an Activity Flex report. Holdings use the fake portfolio's ISINs. */
 const ACCOUNT = 'U0000001'
@@ -71,6 +72,7 @@ function compact(day: CivilDate): string {
 /** The rows of a day, each with its transaction id, so overlapping reports repeat them exactly. */
 function tradeRows(day: CivilDate): readonly string[] {
   const date = compact(day)
+  const settles = compact(weekdaysAfter(day, 1))
   return [
     trade({
       transactionID: `90${date}01`,
@@ -84,7 +86,7 @@ function tradeRows(day: CivilDate): readonly string[] {
       fxRateToBase: '0.9',
       dateTime: `${date};103015`,
       tradeDate: date,
-      settleDateTarget: date,
+      settleDateTarget: settles,
       buySell: 'BUY',
       quantity: '1.2345',
       tradePrice: '100.5',
@@ -118,6 +120,8 @@ function tradeRows(day: CivilDate): readonly string[] {
       issuerCountryCode: 'US',
       currency: 'USD',
       dateTime: `${date};143000`,
+      tradeDate: date,
+      settleDateTarget: settles,
       buySell: 'SELL',
       quantity: '-0.5',
       tradePrice: '110',
@@ -169,6 +173,7 @@ function cashRows(day: CivilDate): readonly string[] {
     cash({ transactionID: `80${date}05`, type: 'Deposits/Withdrawals', description: 'CASH RECEIPT', currency: 'EUR', dateTime: date, settleDate: date, amount: '1000' }),
     cash({ transactionID: `80${date}06`, type: 'Deposits/Withdrawals', description: 'DISBURSEMENT', currency: 'EUR', dateTime: date, settleDate: date, amount: '-200' }),
     cash({ transactionID: `80${date}07`, type: 'Other Fees', description: 'MARKET DATA FEE', currency: 'USD', dateTime: date, settleDate: date, amount: '-1.5' }),
+    cash({ transactionID: `80${date}08`, type: 'Other Fees', description: 'MARKET DATA FEE REFUND', currency: 'USD', dateTime: date, settleDate: date, amount: '0.5' }),
   ]
 }
 

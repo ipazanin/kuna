@@ -197,6 +197,11 @@ function fieldsOf(book: () => InvestmentBook | null) {
     },
     importKey: { exposure: 'never', meaning: 'What names the imported rows it came from.' },
     note: { exposure: 'free-text', meaning: "The owner's note." },
+    settles: {
+      exposure: 'plain',
+      meaning: "The settlement day a broker's report gave, or null when Kuna estimates it from the trade day. A sale's tax converts at HNB's rate of that day and counts in its year.",
+      read: (record) => record.settles ?? null,
+    },
   }
   const income: FieldDocs<Income> = {
     id: { exposure: 'ref', to: INCOME_RECORDS.name, meaning: 'The payment.' },

@@ -33,12 +33,17 @@ const showAll = ref(false)
 const shown = computed(() => (showAll.value ? props.gains.sales : props.gains.sales.slice(0, FIRST_SHOWN)))
 const summary = computed(() => plural(text.summary(props.gains.sales.length, formatMoney(props.gains.taxableGains)), props.gains.sales.length))
 
+function settlesLine(sale: TaxSale): string {
+  const day = dayLabel(sale.settlement.day)
+  return sale.settlement.estimated ? text.settlesEstimated(day) : text.settles(day)
+}
+
 function rateLine(sale: TaxSale): string | null {
   switch (sale.rate.kind) {
     case 'euro':
       return null
     case 'missing':
-      return text.noRate(dayLabel(sale.settles))
+      return text.noRate(dayLabel(sale.settlement.day))
     case 'hnb': {
       const rate = text.rate(formatQuantity(sale.rate.rate.unitsPerEuro, QUANTITY_PLACES))
       return sale.rate.rate.estimatedFrom === null ? rate : `${rate}. ${text.rateNotOut(dayLabel(sale.rate.rate.estimatedFrom))}`
@@ -87,7 +92,7 @@ async function download(): Promise<void> {
             <span class="flex items-start justify-between gap-3">
               <span class="min-w-0">
                 <DrillLink :to="holdingLink(sale.instrument)">{{ sale.instrument.name }}</DrillLink>
-                <span class="block type-caption font-normal">{{ text.sold(dayLabel(sale.trade.date)) }}, {{ text.settles(dayLabel(sale.settles)) }}</span>
+                <span class="block type-caption font-normal">{{ text.sold(dayLabel(sale.trade.date)) }}, {{ settlesLine(sale) }}</span>
                 <span
                   v-if="rateLine(sale) !== null"
                   class="block type-caption font-normal"

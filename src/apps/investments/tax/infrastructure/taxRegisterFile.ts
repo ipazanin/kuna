@@ -149,7 +149,7 @@ function ledgerOf(book: InvestmentBook, instrument: Instrument, sales: ReadonlyM
           decimalCell(fees),
           sale === undefined ? undefined : decimalCell(sale.gainInCurrency),
           instrument.currency,
-          sale === undefined ? undefined : dayCell(sale.settles),
+          sale === undefined ? undefined : dayCell(sale.settlement.day),
           sale === undefined ? undefined : rateCell(sale.rate),
           eurosCell(sale?.gain ?? null),
         ],
@@ -183,7 +183,7 @@ function salesRows(gains: CapitalGainsYear): Cell[][] {
   return gains.sales.flatMap((sale) =>
     sale.lines.map((line) => [
       dayCell(sale.trade.date),
-      dayCell(sale.settles),
+      dayCell(sale.settlement.day),
       sale.instrument.name,
       decimalCell(line.realised.quantity),
       dayCell(line.realised.opened),

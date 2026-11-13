@@ -135,6 +135,21 @@ describe('the transaction dialog writes', () => {
     expect(kept.record).toEqual({ ...edited, accrued: decimal('12.34') })
     expect(moved.record).toEqual({ ...edited, instrument: SHARE.id })
   })
+
+  it('stores the settlement day a report gave a trade, and keeps it through an edit until the trade names another day', async () => {
+    const store = await storeWithBuys()
+    const bought = trade('buy', ONE, SHARE, '2026-09-15', '5', '158', '1', '1.0853')
+    const reported = { ...bought, settles: civil('2026-09-16') }
+    await store.write('Added', (unit) => writeTransaction(unit, null, { kind: 'trade', record: reported }))
+    expect(bookOf(store).trades).toContainEqual(reported)
+
+    const edited = { ...bought, note: 'Checked' }
+    const kept = withImportFacts({ kind: 'trade', record: reported }, { kind: 'trade', record: edited })
+    const moved = withImportFacts({ kind: 'trade', record: reported }, { kind: 'trade', record: { ...edited, date: civil('2026-09-14') } })
+
+    expect(kept.record).toEqual({ ...edited, settles: civil('2026-09-16') })
+    expect(moved.record).toEqual({ ...edited, date: civil('2026-09-14') })
+  })
 })
 
 describe('the refusals the dialogs show', () => {

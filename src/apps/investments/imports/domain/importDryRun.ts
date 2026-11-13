@@ -840,6 +840,7 @@ function tradeOf(row: WorkbookRow, key: string, mapping: Mapping): Trade {
     accrued: null,
     importKey: key,
     note: row.note,
+    ...(row.settles === null ? {} : { settles: row.settles }),
   }
 }
 

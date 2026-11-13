@@ -59,6 +59,7 @@ function rowOf(recipe: Recipe, row: RecipeRow, fileName: string, type: WorkbookT
       type === 'DIVIDEND'
         ? { exDate: row.dates.exDate ?? null, payDate: row.dates.payDate ?? null, sourceCountry: row.texts.sourceCountry ?? null, dividendType: row.texts.dividendType ?? null }
         : null,
+    settles: row.dates.settles ?? null,
   }
 }
 

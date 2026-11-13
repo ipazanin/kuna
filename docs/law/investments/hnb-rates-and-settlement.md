@@ -33,7 +33,7 @@ Mark: `reading`. Screen: A reading.
 
 The rate is of the "dan isplate", the day the proceeds are paid, and ZPDoh Art. 11(3) counts receipts by the cash principle. For a sale that is the settlement day, which also picks the sale's tax year, see [Capital gains](capital-gains.md#which-year-a-sale-counts-in). A dividend or interest payment converts at its own payment day.
 
-Kuna does not store the settlement day. It estimates it from the trade day by the cycles below.
+A trade read from IBKR's report keeps the day the report gives, its `settleDateTarget`. That is the day IBKR means to settle, so a settlement that fails would pay later. Kuna estimates the settlement day of every other trade from its trade day by the cycles below, and the Sales tab says so.
 
 Mark: `reading`. Screen: A reading.
 

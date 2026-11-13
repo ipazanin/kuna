@@ -62,7 +62,7 @@ import { countryName } from '../../../../shared/text/countryName'
 import { plural } from '../../../../shared/text/translation'
 
 /** The fields Kuna keeps by itself or an import brought, which no operation sets, so a card leaves them off. */
-const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'importKey', 'dividend', 'recipe'])
+const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'importKey', 'dividend', 'settles', 'recipe'])
 
 /** The mail reader's fields by the names its card gives them, and how an account's rows come in by the account dialog's. */
 const MAIL_FIELD_NAMES: Readonly<Record<string, string>> = {

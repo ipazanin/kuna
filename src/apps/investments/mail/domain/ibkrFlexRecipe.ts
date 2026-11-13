@@ -24,6 +24,12 @@ const WHAT_A_HOLDING_NAMES: RecipeFields = {
   name: { from: 'description', as: 'text', blank: true },
 }
 
+/** A buy or a sale names its holding and the day IBKR means to settle it, which a sale's tax is of. */
+const WHAT_A_TRADE_NAMES: RecipeFields = {
+  ...WHAT_A_HOLDING_NAMES,
+  settles: { from: 'settleDateTarget', as: 'date', formats: DATE_FORMATS, blank: true },
+}
+
 /**
  * IBKR's Activity Flex report in XML. Each section's rows are taken apart by type or asset category, and any row this
  * recipe has not seen goes to the person. Sections it has no kinds for are still required, so a report that stops
@@ -50,8 +56,8 @@ export const IBKR_FLEX_RECIPE: Recipe = {
         commissionCurrency: { from: 'ibCommissionCurrency', as: 'currency', blank: true },
       },
       kinds: [
-        { kind: 'BUY', when: [{ column: 'assetCategory', is: ['STK'] }, { column: 'buySell', is: ['BUY'] }, PLAIN_NOTES], fields: WHAT_A_HOLDING_NAMES },
-        { kind: 'SELL', when: [{ column: 'assetCategory', is: ['STK'] }, { column: 'buySell', is: ['SELL'] }, PLAIN_NOTES], fields: WHAT_A_HOLDING_NAMES },
+        { kind: 'BUY', when: [{ column: 'assetCategory', is: ['STK'] }, { column: 'buySell', is: ['BUY'] }, PLAIN_NOTES], fields: WHAT_A_TRADE_NAMES },
+        { kind: 'SELL', when: [{ column: 'assetCategory', is: ['STK'] }, { column: 'buySell', is: ['SELL'] }, PLAIN_NOTES], fields: WHAT_A_TRADE_NAMES },
         {
           kind: 'FX',
           when: [{ column: 'assetCategory', is: ['CASH'] }, { column: 'buySell', is: ['BUY', 'SELL'] }, PLAIN_NOTES],
@@ -119,6 +125,14 @@ export const IBKR_FLEX_RECIPE: Recipe = {
           when: [
             { column: 'type', is: ['Other Fees'] },
             { column: 'amount', sign: 'below-zero' },
+          ],
+          fields: {},
+        },
+        {
+          kind: 'FEE REFUND',
+          when: [
+            { column: 'type', is: ['Other Fees'] },
+            { column: 'amount', sign: 'above-zero' },
           ],
           fields: {},
         },
