@@ -35,7 +35,7 @@ export function loansAssistant(reading: LoansReading, changes: { readonly propos
     kinds: Object.values(loanKinds),
     places: PLACES,
     settings: [],
-    guides: [{ id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [LOANS_OVERVIEW_ROUTE, SCENARIOS_ROUTE] }],
+    guides: [{ id: 'set-up', label: words.guides.setUp.label, title: words.guides.setUp.title, body: words.guides.setUp.body, places: [LOANS_OVERVIEW_ROUTE, SCENARIOS_ROUTE] }],
     automations: [],
     setUp: [{ key: 'first-loan', about: 'The file has no loan yet.', operations: ['add-bank-loan', 'add-informal-loan'] }],
     reader: loansReader(reading),

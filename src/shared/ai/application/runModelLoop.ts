@@ -24,7 +24,7 @@ export interface ModelLoop {
 /** How a loop ended: the model's answer with every turn to keep, or a reply or a failure that gave no answer. */
 export type LoopEnd =
   | { readonly kind: 'answer'; readonly text: string; readonly turns: readonly ModelTurn[]; readonly usage: AiUsage | null }
-  | { readonly kind: 'refused' | 'cut-off' | 'failed' | 'holds-secret'; readonly reason: string; readonly usage: AiUsage | null }
+  | { readonly kind: 'refused' | 'cut-off' | 'failed' | 'holds-secret' | 'out-of-credit' | 'key-refused'; readonly reason: string; readonly usage: AiUsage | null }
 
 /** Masks what it was given, sends it, runs the tools the model asks for and adds up what the requests spent. */
 export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
@@ -53,7 +53,7 @@ export async function runModelLoop(loop: ModelLoop): Promise<LoopEnd> {
       }
       if (failure instanceof ModelRequestFailed) {
         spend(failure.tokens)
-        return { kind: 'failed', reason: failure.message, usage: usageSoFar() }
+        return { kind: failure.kind === 'other' ? 'failed' : failure.kind, reason: failure.message, usage: usageSoFar() }
       }
       throw failure
     }

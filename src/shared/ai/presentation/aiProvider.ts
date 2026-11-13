@@ -73,8 +73,8 @@ export function costWords(dollars: number | null): string {
   return cost === ZERO ? words.usage.underCent(amount(moneyFromCents(1))) : words.usage.about(amount(cost))
 }
 
-/** Why a turn gave no answer, in a sentence. */
-export function resultLine(end: Exclude<LoopEnd, { readonly kind: 'answer' }>): string {
+/** Why a turn gave no answer, in a sentence, naming the AI company `provider` where the person has to act there. */
+export function resultLine(end: Exclude<LoopEnd, { readonly kind: 'answer' }>, provider: string): string {
   switch (end.kind) {
     case 'refused':
       return end.reason === '' ? words.result.declined : words.result.refused(end.reason)
@@ -84,5 +84,9 @@ export function resultLine(end: Exclude<LoopEnd, { readonly kind: 'answer' }>): 
       return words.result.failed(end.reason)
     case 'holds-secret':
       return words.result.holdsSecret
+    case 'out-of-credit':
+      return words.result.outOfCredit(provider)
+    case 'key-refused':
+      return words.result.keyRefused(provider)
   }
 }

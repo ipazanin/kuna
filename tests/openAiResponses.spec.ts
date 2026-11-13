@@ -249,9 +249,20 @@ describe('the Responses stream', () => {
     await expect(openAiResponses(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ status: 404, message: "The model 'made-up' does not exist" })
   })
 
-  it('cuts the key out of what the provider says back', async () => {
+  it('cuts the key out of what the provider says back, and says the key is refused', async () => {
     stubFetch(Response.json({ error: { message: `Incorrect key ${KEY}` } }, { status: 401 }))
-    await expect(openAiResponses(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ status: 401, message: 'Incorrect key [key]' })
+    await expect(openAiResponses(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ status: 401, message: 'Incorrect key [key]', kind: 'key-refused' })
+  })
+
+  it('says the account is out of credit on a 429 whose code says so, and leaves a spend limit and a rate limit in its words', async () => {
+    stubFetch(
+      Response.json({ error: { message: 'Your organization has no prepaid credits remaining.', type: 'insufficient_quota', code: 'credit_balance_exhausted' } }, { status: 429 }),
+      Response.json({ error: { message: 'Your organization reached its enforced spend limit.', type: 'insufficient_quota', code: 'organization_spend_limit_exceeded' } }, { status: 429 }),
+      Response.json({ error: { message: 'Rate limit reached for requests.', type: 'requests', code: 'rate_limit_exceeded' } }, { status: 429 }),
+    )
+    await expect(openAiResponses(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ status: 429, kind: 'out-of-credit' })
+    await expect(openAiResponses(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ status: 429, kind: 'other' })
+    await expect(openAiResponses(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ status: 429, kind: 'other' })
   })
 
   it('fails with the reason it was aborted for when the abort cuts a stream under way', async () => {

@@ -45,7 +45,8 @@
  * from its contract warns where its first instalment differs from the printed one, and an extra
  * payment is a card. Setting an app up with the chat: each first run's home and folder steps offer it, it makes one file and opens the
  * chat on the overview, the overview and the set-up card offer it too, a card made while Loans is new says the chat goes on and Accept
- * sends Go on, and the first send of a new app with a file of cells says the app knows no names yet. In Investments a buy is a card, a sale over the units held is refused, and an attached workbook with no
+ * sends Go on, the first send of a new app with a file of cells says the app knows no names yet, the empty chat on the home offers one
+ * button for each new app the person uses, and a send with no credit left says so in plain words. In Investments a buy is a card, a sale over the units held is refused, and an attached workbook with no
  * split or spin-off is an import card. In Assets a valuation is a card. Each card is accepted and undone, in Croatian too.
  * A text note put beside a photo on the prompt is a refused chip that names the kinds Kuna takes. On Salaries with Anonymise
  * off for Anthropic, Explain on a salary figure reads its build-up, and after a switch to OpenAI and back the same Explain is
@@ -524,6 +525,8 @@ import {
   setUpChatGoesOnFlowIn,
   setUpChatHomeFlowIn,
   setUpChatNamesFlowIn,
+  setUpOpenersFlowIn,
+  chatOutOfCreditFlowIn,
 } from './support/setUpChatFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
 import { overpaidFilingFlowIn, tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
@@ -6944,6 +6947,34 @@ const FLOWS = [
     modes: ['browser'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { browser: '&fake=empty&lang=hr' },
+  },
+  {
+    name: 'set-up-chat-openers',
+    hash: '#/?chat=1',
+    title: 'All apps',
+    run: setUpOpenersFlowIn('en'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&start=browser' },
+  },
+  {
+    name: 'set-up-chat-openers-croatian',
+    hash: '#/?chat=1',
+    title: 'Sve aplikacije',
+    run: setUpOpenersFlowIn('hr'),
+    modes: ['browser'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { browser: '&fake=empty&start=browser&lang=hr' },
+  },
+  { name: 'chat-out-of-credit', hash: '#/?chat=1', title: 'All apps', run: chatOutOfCreditFlowIn('en'), modes: ['drive'], viewports: DESIGN_REVIEW_VIEWPORTS, queries: { drive: '&ai=out-of-credit' } },
+  {
+    name: 'chat-out-of-credit-croatian',
+    hash: '#/?chat=1',
+    title: 'Sve aplikacije',
+    run: chatOutOfCreditFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&ai=out-of-credit&lang=hr' },
   },
   {
     name: 'set-up-chat-card-investments',

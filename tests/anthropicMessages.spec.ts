@@ -371,7 +371,30 @@ describe('an Anthropic Messages request that fails', () => {
       .send(request())
       .catch((error: unknown) => error)
     expect(failure).toBeInstanceOf(ModelRequestFailed)
-    expect(failure).toMatchObject({ status: 401, message: 'invalid x-api-key' })
+    expect(failure).toMatchObject({ status: 401, message: 'invalid x-api-key', kind: 'key-refused' })
+  })
+
+  it.each([
+    ['the documented billing error', 402, { type: 'billing_error', message: 'There is an issue with your billing.' }],
+    [
+      'an empty balance answered as a bad request',
+      400,
+      { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.' },
+    ],
+  ])('says the account is out of credit on %s', async (_what, status, error) => {
+    stubFetch(Response.json({ type: 'error', error, request_id: 'req_011Cf75wfCXCbniKKrP6wSut' }, { status }))
+
+    await expect(anthropicMessages(KEY, SONNET).send(request())).rejects.toMatchObject({ name: 'ModelRequestFailed', status, kind: 'out-of-credit' })
+  })
+
+  it("leaves a spend limit the person set, and a rate limit, in the provider's words", async () => {
+    stubFetch(
+      Response.json({ type: 'error', error: { type: 'invalid_request_error', message: 'You have reached your specified API usage limits.' } }, { status: 400 }),
+      Response.json({ type: 'error', error: { type: 'rate_limit_error', message: 'Number of requests has exceeded your rate limit.' } }, { status: 429 }),
+    )
+
+    await expect(anthropicMessages(KEY, SONNET).send(request())).rejects.toMatchObject({ status: 400, kind: 'other' })
+    await expect(anthropicMessages(KEY, SONNET).send(request())).rejects.toMatchObject({ status: 429, kind: 'other' })
   })
 
   it('reports an overloaded provider with its status and message', async () => {

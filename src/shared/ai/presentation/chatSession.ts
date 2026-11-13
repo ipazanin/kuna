@@ -570,8 +570,8 @@ export async function sendChatMessage(message: string, where: ChatWhere, knowled
       lastContext = contextNow
       lastElement = elementNow
     } else if (!stoppedByPerson) {
-      line.failure = resultLine(end)
-      line.retry = message
+      line.failure = resultLine(end, preset.name)
+      line.retry = end.kind === 'key-refused' ? null : message
     }
   } catch (failure) {
     if (current === controller && !stoppedByPerson) {

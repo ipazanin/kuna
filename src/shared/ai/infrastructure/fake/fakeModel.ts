@@ -1,17 +1,20 @@
+import { ModelRequestFailed } from '../../application/modelPort'
 import type { ModelPort, ModelReply } from '../../application/modelPort'
 import type { KeyTest, ModelChoice, ProviderPreset } from '../../domain/providerPresets'
 import { fakeChatReply } from './fakeChatReply'
 
 /**
  * How the fake model answers, as `?ai=` names it: `ok` with a good answer, `refused` with a refusal, `cut-off` at the
- * length limit, `invented-figure` with an answer that holds an amount Kuna did not send, and `key-refused` turning away
- * every key on a Test. Without it, `ok`.
+ * length limit, `invented-figure` with an answer that holds an amount Kuna did not send, `key-refused` turning away
+ * every key on a Test, and `out-of-credit` failing every send as an empty balance does. Without it, `ok`.
  */
-export type FakeAiVariant = 'ok' | 'refused' | 'cut-off' | 'invented-figure' | 'key-refused'
+export type FakeAiVariant = 'ok' | 'refused' | 'cut-off' | 'invented-figure' | 'key-refused' | 'out-of-credit'
+
+const VARIANTS: readonly FakeAiVariant[] = ['refused', 'cut-off', 'invented-figure', 'key-refused', 'out-of-credit']
 
 export function fakeAiVariant(): FakeAiVariant {
-  const variant = new URLSearchParams(window.location.search).get('ai')
-  return variant === 'refused' || variant === 'cut-off' || variant === 'invented-figure' || variant === 'key-refused' ? variant : 'ok'
+  const named = new URLSearchParams(window.location.search).get('ai')
+  return VARIANTS.find((variant) => variant === named) ?? 'ok'
 }
 
 const TOKENS = { input: 812, cacheRead: 3400, cacheWrite: 600, output: 1190 }
@@ -29,6 +32,9 @@ export function fakeModelPort(model: ModelChoice): ModelPort {
       }
       if (variant === 'cut-off') {
         return { kind: 'cut-off', tokens: TOKENS }
+      }
+      if (variant === 'out-of-credit') {
+        throw new ModelRequestFailed(400, 'Your credit balance is too low to access the Anthropic API.', undefined, 'out-of-credit')
       }
       return fakeChatReply(request, TOKENS, variant === 'invented-figure')
     },

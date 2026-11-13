@@ -84,15 +84,20 @@ export interface ModelPort {
   send(request: ModelRequest): Promise<ModelReply>
 }
 
+/** What a failed request means for the person: the account behind the key is out of credit, the key no longer works, or something the provider's own words say. */
+export type ModelFailureKind = 'out-of-credit' | 'key-refused' | 'other'
+
 /** The provider answered with an error status, could not be reached, which `status` 0 marks, or spent `tokens` on a reply Kuna cannot use. */
 export class ModelRequestFailed extends Error {
   readonly status: number
   readonly tokens: ModelTokens
+  readonly kind: ModelFailureKind
 
-  constructor(status: number, message: string, tokens: ModelTokens = NO_TOKENS) {
+  constructor(status: number, message: string, tokens: ModelTokens = NO_TOKENS, kind: ModelFailureKind = 'other') {
     super(message)
     this.name = 'ModelRequestFailed'
     this.status = status
     this.tokens = tokens
+    this.kind = kind
   }
 }

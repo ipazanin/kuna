@@ -1,4 +1,6 @@
 import { ModelRequestFailed } from '../application/modelPort'
+import type { ModelFailureKind } from '../application/modelPort'
+import { NO_TOKENS } from '../domain/modelUsage'
 import type { KeyTest } from '../domain/providerPresets'
 import { serverSentEvents } from './serverSentEvents'
 
@@ -80,7 +82,7 @@ async function okResponse(call: ProviderCall): Promise<Response> {
   }
   if (!response.ok) {
     const answer: unknown = await response.json().catch(() => null)
-    throw new ModelRequestFailed(response.status, withoutKey(errorMessage(answer) ?? (response.statusText || `HTTP ${response.status}`), call.key))
+    throw new ModelRequestFailed(response.status, withoutKey(errorMessage(answer) ?? (response.statusText || `HTTP ${response.status}`), call.key), NO_TOKENS, failureKindOf(response.status, answer))
   }
   return response
 }
@@ -94,4 +96,16 @@ function unreachableMessage(failure: unknown, call: ProviderCall): string {
 function errorMessage(answer: unknown): string | null {
   const message = (answer as { error?: { message?: unknown } } | null)?.error?.message
   return typeof message === 'string' ? message : null
+}
+
+/**
+ * What an error answer means. Anthropic documents a 402 billing_error, yet an empty balance has been seen as a 400 with
+ * this message, so the message counts too. OpenAI sends a 429 whose code names the empty balance, and OpenRouter a 402.
+ * A 401 is a key every provider refuses.
+ */
+function failureKindOf(status: number, answer: unknown): ModelFailureKind {
+  if (status === 401) return 'key-refused'
+  const error = (answer as { error?: { type?: unknown; code?: unknown } } | null)?.error
+  const outOfCredit = status === 402 || error?.type === 'billing_error' || error?.code === 'credit_balance_exhausted' || errorMessage(answer)?.startsWith('Your credit balance is too low') === true
+  return outOfCredit ? 'out-of-credit' : 'other'
 }

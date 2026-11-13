@@ -6,6 +6,7 @@ import type { Translation } from '../../../shared/text/translation'
 export const en = {
   guides: {
     setUp: {
+      label: 'Set up Assets',
       title: 'Set up Assets with the chat',
       body: [
         "Set up Loans first, so the bank loan an asset was bought with can be named. Have ready the purchase contract, a car's registration document, and any valuation report. A PDF or photo goes to the AI provider whole.",
@@ -38,6 +39,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   guides: {
     setUp: {
+      label: 'Postavi Imovinu',
       title: 'Postavi Imovinu kroz razgovor',
       body: [
         'Najprije postavite Kredite, da se može navesti kredit kojim je imovina kupljena. Pripremite kupoprodajni ugovor, prometnu dozvolu automobila i svaku procjenu. PDF ili fotografija šalje se pružatelju umjetne inteligencije cijela.',

@@ -69,7 +69,7 @@ const phone = usePhoneLayout()
 const provider = computed(() => providerInUse())
 /** A message waiting on the person's yes before it goes, with who it comes from. */
 const asking = ref<{ readonly message: string; readonly origin: MessageOrigin } | null>(null)
-/** Whether the chat can read the app on screen, which the app's lazy assistant says. */
+/** Whether the chat can read the books on screen: the app's, which its lazy assistant says, or on Kuna's own screens every app's. */
 const readsHere = ref(false)
 const quickActions = ref<readonly AssistantQuickAction[]>([])
 
@@ -93,7 +93,7 @@ watch(
   async (app) => {
     const assistant = app === null ? null : await app.assistant()
     if (app !== props.app) return
-    readsHere.value = assistant !== null && assistant.reader !== null
+    readsHere.value = assistant === null || assistant.reader !== null
     quickActions.value = assistant?.quickActions ?? []
   },
   { immediate: true },
@@ -105,8 +105,24 @@ function setUpNow(): readonly AppSetUp[] {
   return props.apps.filter((app) => app.id === props.app?.id || inUse.has(app.id)).flatMap((app) => appSetUpOf(app) ?? [])
 }
 
-/** The app on screen is new, so it knows no names yet to put aliases on. */
-const appOnScreenNew = computed(() => props.app !== null && appSetUpOf(props.app) !== null)
+/** The apps the empty chat offers to set up: the app on screen while it is new, or on Kuna's own screens each app the person said they use while it is new. */
+const appsToSetUp = computed(() => {
+  if (props.app !== null) return appSetUpOf(props.app) === null ? [] : [props.app]
+  const inUse = new Set(kunaStart()?.apps ?? [])
+  return props.apps.filter((app) => inUse.has(app.id) && appSetUpOf(app) !== null)
+})
+/** A button for each of those apps, with its set-up guide's short label, that sends the task the guide is titled with, as its first-run step does. */
+const setUpOpeners = ref<readonly AssistantQuickAction[]>([])
+
+watch(
+  appsToSetUp,
+  async (apps) => {
+    const assistants = await Promise.all(apps.map((app) => app.assistant()))
+    if (apps !== appsToSetUp.value) return
+    setUpOpeners.value = assistants.flatMap(({ guides }) => guides.flatMap((guide) => (guide.label === undefined ? [] : [{ label: guide.label, prompt: guide.title }])))
+  },
+  { immediate: true },
+)
 
 const aliasLine = computed(() => (anonymisingNow() ? words.chat.aliases : words.chat.noAliases(provider.value?.name ?? '')))
 /** The card says what leaves, and what Anonymise does unless the note on files of cells under it says that already. */
@@ -118,7 +134,7 @@ const held = computed(() => asking.value !== null)
 const readingFiles = computed(() => chatPromptFiles.value.some((file) => file.state === 'reading'))
 const placeholder = computed(() => {
   if (chatElement.value !== null) return words.chat.placeholderAbout(chatElement.value.label)
-  return readsHere.value ? words.chat.placeholderReads : words.chat.placeholder
+  return readsHere.value && setUpOpeners.value.length === 0 ? words.chat.placeholderReads : words.chat.placeholder
 })
 
 const messages = computed(() => chatLines.map((line) => ({ id: line.id, role: line.role, parts: [{ type: 'text' as const, text: line.text }], line })))
@@ -130,8 +146,9 @@ function allowed(): boolean {
 
 /** What the empty chat says it can do here, and that it asks first unless the person already said yes. */
 function emptyLine(): string {
-  if (!readsHere.value || props.app === null) return words.chat.empty
-  return allowed() ? words.chat.emptyReads : `${words.chat.emptyReads} ${words.chat.emptyAsks}`
+  if (!readsHere.value) return words.chat.empty
+  const can = setUpOpeners.value.length > 0 ? words.chat.emptySetUp : words.chat.emptyReads
+  return allowed() ? can : `${can} ${words.chat.emptyAsks}`
 }
 
 /** A message waiting on the yes stays in the prompt, so a task a button named shows there as a typed one does. */
@@ -270,7 +287,19 @@ function dropped(event: DragEvent): void {
       <div class="mx-auto w-full max-w-2xl">
         <div v-if="chatLines.length === 0" class="flex flex-col items-start gap-3">
           <p class="type-body text-muted" data-testid="chat-empty">{{ emptyLine() }}</p>
-          <div v-if="quickActions.length > 0 && !appOnScreenNew" class="flex flex-wrap gap-1.5">
+          <div v-if="setUpOpeners.length > 0" class="flex flex-wrap gap-1.5">
+            <UButton
+              v-for="opener in setUpOpeners"
+              :key="opener.label"
+              :label="opener.label"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              data-testid="chat-set-up"
+              @click="send(opener.prompt, 'task')"
+            />
+          </div>
+          <div v-else-if="quickActions.length > 0" class="flex flex-wrap gap-1.5">
             <UButton
               v-for="action in quickActions"
               :key="action.label"

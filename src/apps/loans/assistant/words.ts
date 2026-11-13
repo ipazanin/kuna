@@ -56,6 +56,7 @@ export const en = {
   },
   guides: {
     setUp: {
+      label: 'Set up Loans',
       title: 'Set up Loans with the chat',
       body: [
         'Have ready the loan contract or its repayment plan, each notice of a rate change since, and any offer being weighed. A PDF or photo goes to the AI provider whole.',
@@ -143,6 +144,7 @@ export const hr: Translation<typeof en> = {
   },
   guides: {
     setUp: {
+      label: 'Postavi Kredite',
       title: 'Postavi Kredite kroz razgovor',
       body: [
         'Pripremite ugovor o kreditu ili otplatni plan, svaku obavijest o promjeni kamatne stope od tada i svaku ponudu koju razmatrate. PDF ili fotografija šalje se pružatelju umjetne inteligencije cijela.',

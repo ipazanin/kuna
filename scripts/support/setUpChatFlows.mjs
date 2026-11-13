@@ -1,20 +1,29 @@
 /**
  * Setting an app up with the chat, which the visual and touch checks share: the "Set up with the chat" button on a first run's home
  * and folder steps, on the empty overview and in the set-up card's header, a card made while the app is new that says the chat goes
- * on after Accept, and the first-send card that says a new app knows no names yet. Each flow keeps the made-up key, since the button
- * shows only while a key is kept.
+ * on after Accept, the first-send card that says a new app knows no names yet, the empty chat's one button for each new app, and the
+ * plain line a send gets once the account behind the key is out of credit. Each flow keeps the made-up key, since the button shows
+ * only while a key is kept.
  */
 
 import { en as chatEnglish, hr as chatCroatian } from '../../src/shared/ai/presentation/words.ts'
 import { en as onboardingEnglish, hr as onboardingCroatian } from '../../src/apps/company/onboarding/presentation/words.ts'
 import { en as storageEnglish, hr as storageCroatian } from '../../src/shared/storage/presentation/words.ts'
-import { forgetAssist, keepAiKey, sendInChat } from './chatFlows.mjs'
+import { en as companyAssistantEnglish, hr as companyAssistantCroatian } from '../../src/apps/company/assistant/words.ts'
+import { en as loansAssistantEnglish, hr as loansAssistantCroatian } from '../../src/apps/loans/assistant/words.ts'
+import { en as assetsAssistantEnglish, hr as assetsAssistantCroatian } from '../../src/apps/assets/assistant/words.ts'
+import { allowIfAsked, forgetAssist, keepAiKey, openChat, sendInChat } from './chatFlows.mjs'
 import { delay, pressSelector } from './pressing.mjs'
 
 const CHAT_WORDS = { en: chatEnglish, hr: chatCroatian }
 const FIRST_RUN_WORDS = { en: storageEnglish.firstRun, hr: storageCroatian.firstRun }
 const ONBOARDING_WORDS = { en: onboardingEnglish, hr: onboardingCroatian }
 const STEP = '[data-testid="onboarding-step"]'
+/** The set-up guides of the apps the fake build's `?start=` answer says the person uses, in the order the apps are listed. */
+const SET_UP_GUIDES = {
+  en: [companyAssistantEnglish.guides.setUp, loansAssistantEnglish.guides.setUp, assetsAssistantEnglish.guides.setUp],
+  hr: [companyAssistantCroatian.guides.setUp, loansAssistantCroatian.guides.setUp, assetsAssistantCroatian.guides.setUp],
+}
 
 /** What the person types for a loan contract, which the fake Loans chat answers with a card adding the car loan. */
 const CONTRACT = { en: 'Contract of my car loan, add the loan', hr: 'Ugovor o kreditu za automobil, dodaj kredit' }
@@ -340,6 +349,73 @@ export function setUpCardHeaderFlowIn(app, language) {
       await inspect?.(`the ${app} set-up card of a file with records`)
       await shoot(`${app}-set-up-card-chat`)
       if (button !== null) throw new Error(`the ${app} set-up card offers Set up with the chat though the file has records`)
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/**
+ * The empty chat on the home of a device that answered the welcome (`?start=browser`) but keeps no file yet: one button for each app
+ * it said it uses, named short, which sends the app's whole set-up task as its first-run step does, through the first-send card with the task waiting in the prompt.
+ */
+export function setUpOpenersFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = named(shootAs, language)
+    const words = CHAT_WORDS[language]
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await page
+        .waitForFunction((count) => document.querySelectorAll('[data-testid="chat-set-up"]').length === count, { timeout: 10_000 }, SET_UP_GUIDES[language].length)
+        .catch(() => {
+          throw new Error('the empty chat on the home does not offer to set up each new app')
+        })
+      const offered = await page.$$eval('[data-testid="chat-set-up"]', (buttons) => buttons.map((button) => button.textContent?.trim() ?? ''))
+      if (offered.join('|') !== SET_UP_GUIDES[language].map((guide) => guide.label).join('|')) throw new Error(`the empty chat offers ${offered.join(', ')}`)
+      const said = await page.$eval('[data-testid="chat-empty"]', (line) => line.textContent?.trim() ?? '')
+      if (said !== `${words.chat.emptySetUp} ${words.chat.emptyAsks}`) throw new Error(`the empty chat on the home says "${said}"`)
+      await page.mouse.move(0, 0)
+      await delay(300)
+      await inspect?.('the empty chat on the home with a button for each new app')
+      await shoot('chat-set-up-openers')
+      await pressSelector(page, press, '[data-testid="chat-set-up"]')
+      await page.waitForSelector('[data-testid="chat-consent"]', { visible: true, timeout: 10_000 }).catch(() => {
+        throw new Error('the set-up button did not send its task')
+      })
+      const waiting = await page.$eval('textarea[data-testid="chat-prompt"]', (prompt) => prompt.value.trim())
+      if (waiting !== SET_UP_GUIDES[language][0].title) throw new Error(`the set-up button sent "${waiting}"`)
+      await page.mouse.move(0, 0)
+      await delay(300)
+      await inspect?.('the first-send card over the set-up task the button sent')
+      await shoot('chat-set-up-opener-asks')
+      await pressSelector(page, press, '[data-testid="chat-allow-cancel"]')
+    } finally {
+      await forgetAssist(page)
+    }
+  }
+}
+
+/** A send while the account behind the key is out of credit (`?ai=out-of-credit`) says so in plain words, with Try again. */
+export function chatOutOfCreditFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = named(shootAs, language)
+    const words = CHAT_WORDS[language]
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, language === 'en' ? 'How does Kuna work?' : 'Kako Kuna radi?')
+      await allowIfAsked(page, press)
+      const line = await page.waitForSelector('[data-testid="chat-failure"]', { visible: true, timeout: 15_000 }).catch(() => {
+        throw new Error('a send with no credit left shows no failure line')
+      })
+      const said = await line.evaluate((element) => element.textContent?.trim() ?? '')
+      if (said !== words.result.outOfCredit('Anthropic')) throw new Error(`a send with no credit left says "${said}"`)
+      if ((await page.$('[data-testid="chat-retry"]')) === null) throw new Error('a send with no credit left offers no Try again')
+      await page.mouse.move(0, 0)
+      await delay(300)
+      await inspect?.('the chat after a send with no credit left')
+      await shoot('chat-out-of-credit')
     } finally {
       await forgetAssist(page)
     }

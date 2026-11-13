@@ -68,7 +68,7 @@ export const spendingAssistant = (reading: SpendingReading, changes: { readonly 
     ...LINKABLE_BANKS.map((bank) => ({ key: bankLinkKey(bank), note: words.settings.bankLink(bankSyncWords.banks[bank]), neverPropose: true as const })),
   ],
   guides: [
-    { id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [SPENDING_OVERVIEW_ROUTE, SPENDING_ACCOUNTS_ROUTE, IMPORT_LINK] },
+    { id: 'set-up', label: words.guides.setUp.label, title: words.guides.setUp.title, body: words.guides.setUp.body, places: [SPENDING_OVERVIEW_ROUTE, SPENDING_ACCOUNTS_ROUTE, IMPORT_LINK] },
     { id: 'first-rules', title: words.guides.rules.title, body: words.guides.rules.body(LABELS), places: [SPENDING_REVIEW_LINK, IMPORT_LINK, RULES_LINK] },
     { id: 'first-import', title: words.guides.import.title, body: words.guides.import.body(LABELS), places: [IMPORT_LINK, SPENDING_REVIEW_LINK] },
     { id: 'link-a-bank', title: words.guides.bankSync.title, body: words.guides.bankSync.body(LABELS), places: [SPENDING_BANK_SYNC_LINK] },

@@ -14,6 +14,8 @@ import { loansAssistant } from '../src/apps/loans/assistant/loansAssistant'
 import { spendingAssistant } from '../src/apps/spending/assistant/spendingAssistant'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
 import { en as spendingWords, hr as spendingCroatian } from '../src/apps/spending/assistant/words'
+import { en as investmentsWords, hr as investmentsCroatian } from '../src/apps/investments/assistant/words'
+import { en as investmentsSettingsWords, hr as investmentsSettingsCroatian } from '../src/apps/investments/settings/presentation/words'
 import { catalogueOf, placeAt, recordPageParam } from '../src/shared/ai/application/catalogue'
 import { kunaAssistant } from '../src/shell/assistant/kunaAssistant'
 import { KUNA_CHAT } from '../src/shell/assistant/kunaChat'
@@ -152,6 +154,11 @@ describe('the catalogue', () => {
     expect(catalogue.system).toContain('propose the changes on cards rather than ask what to do')
     expect(catalogue.system).toContain('Set next to true on each card that another card follows')
     expect(catalogue.system).toContain('This never takes the place of doing what a message asks.')
+  })
+
+  it('tells the model to read what was attached before it asks, and to ask one question at a time', () => {
+    expect(catalogue.system).toContain('Read every attached file first, and ask only what they left out')
+    expect(catalogue.system).toContain('one question at a time, at most three before the first card')
   })
 
   it('keeps its instructions under their budget of 9,000 tokens at three characters each', () => {
@@ -317,6 +324,12 @@ describe('the catalogue', () => {
     for (const words of [spendingWords, spendingCroatian]) {
       expect(words.guides.rules.body(labels)).toContain('A')
       expect(Object.keys(words.guides)).toEqual(['setUp', 'rules', 'import', 'bankSync', 'limits', 'categories', 'receipts'])
+    }
+    for (const [guide, dialog] of [
+      [investmentsWords, investmentsSettingsWords],
+      [investmentsCroatian, investmentsSettingsCroatian],
+    ] as const) {
+      expect(guide.guides.setUp.body.toLowerCase()).toContain(dialog.accountDialog.rowsFromOptions.mail.toLowerCase())
     }
   })
 })

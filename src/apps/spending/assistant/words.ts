@@ -123,6 +123,7 @@ export const en = {
   },
   guides: {
     setUp: {
+      label: 'Set up Spending',
       title: 'Set up Spending with the chat',
       body: [
         'Have a statement of each account ready. Every statement, a Revolut export included, goes to the AI company as text cell by cell, as a PDF or as a photo.',
@@ -296,6 +297,7 @@ export const hr: Translation<typeof en> = {
   },
   guides: {
     setUp: {
+      label: 'Postavi Potrošnju',
       title: 'Postavi Potrošnju kroz razgovor',
       body: [
         'Pripremite izvod svakog računa. Svaki izvod, i izvoz iz Revoluta, ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija.',

@@ -17,13 +17,14 @@ export interface AutomationLabels {
 export const en = {
   guides: {
     setUp: {
+      label: 'Set up Investments',
       title: 'Set up Investments with the chat',
       body: [
         "Have ready each broker's statements. Every statement, an IBKR Flex report and the portfolio workbook included, goes to the AI company as text cell by cell, as a PDF or as a photo.",
         'The cards, in this order:',
-        '1. The accounts, one for each broker account.',
-        '2. The import, in parts. Opening positions go as holdings when the person says the history is not complete.',
-        "Tax treatment, split ratios, exchange rates, whether two accounts are one person's and whether the history is complete stay with the person.",
+        '1. The accounts, one for each broker account, each with whether IBKR report by mail brings its rows or the person does, and with mail the day it brings them from.',
+        '2. The import, in parts. Opening positions go as holdings when the person says the history is not complete. A mail account takes only the rows before its start day, as the report brings the rest.',
+        "Turning on IBKR report by mail asks Google's consent, so it stays with the person, on Settings, General. Tax treatment, split ratios, exchange rates, whether two accounts are one person's and whether the history is complete stay with the person too.",
       ].join('\n'),
     },
   },
@@ -185,13 +186,14 @@ export const en = {
 export const hr: Translation<typeof en> = {
   guides: {
     setUp: {
+      label: 'Postavi Ulaganja',
       title: 'Postavi Ulaganja kroz razgovor',
       body: [
-        'Pripremite izvode svakog brokera. Svaki izvod, i IBKR-ov Flex izvještaj i radna knjiga portfelja, ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija.',
+        'Pripremite izvode svakog brokera. Svaki izvod, i IBKR-ovo izvješće Flex i radna knjiga portfelja, ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija.',
         'Kartice, ovim redom:',
-        '1. Računi, po jedan za svaki račun kod brokera.',
-        '2. Uvoz, u dijelovima. Početne pozicije idu kao pozicije kad osoba kaže da povijest nije cijela.',
-        'Porezni tretman, omjeri podjele dionica, tečajevi, jesu li dva računa iste osobe i je li povijest cijela ostaju osobi.',
+        '1. Računi, po jedan za svaki račun kod brokera, za svaki donosi li mu retke izvješće IBKR-a poštom ili ih unosi osoba, a uz poštu i dan od kojeg ih izvješće donosi.',
+        '2. Uvoz, u dijelovima. Početne pozicije idu kao pozicije kad osoba kaže da povijest nije cijela. Račun s poštom prima samo retke prije svog početnog dana jer ostale donosi izvješće.',
+        'Uključivanje izvješća IBKR-a poštom traži Googleovu privolu, pa ostaje osobi, u Postavkama, na kartici Općenito. Porezni tretman, omjeri podjele dionica, tečajevi, jesu li dva računa iste osobe i je li povijest cijela također ostaju osobi.',
       ].join('\n'),
     },
   },

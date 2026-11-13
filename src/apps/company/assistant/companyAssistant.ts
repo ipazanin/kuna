@@ -112,7 +112,13 @@ export function companyAssistant(
       ...pack.settings,
     ],
     guides: [
-      { id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [GENERAL_SETTINGS_LINK, CATEGORY_RULES_LINK, '/company/transactions?tab=import'] },
+      {
+        id: 'set-up',
+        label: words.guides.setUp.label,
+        title: words.guides.setUp.title,
+        body: words.guides.setUp.body,
+        places: [GENERAL_SETTINGS_LINK, CATEGORY_RULES_LINK, '/company/transactions?tab=import'],
+      },
       { id: 'review', title: words.guides.review.title, body: words.guides.review.body(LABELS), places: [REVIEW_LINK, CATEGORY_RULES_LINK] },
     ],
     automations: [

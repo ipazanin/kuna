@@ -121,6 +121,8 @@ export interface AssistantSetting {
 /** A short how-to the chat can read, written in the language on screen, with the places it sends a person to. */
 export interface AssistantGuide {
   readonly id: string
+  /** The short words of the set-up guide's button in the empty chat, which sends the title as the task. Other guides have none. */
+  readonly label?: string
   readonly title: string
   readonly body: string
   readonly places: readonly `/${string}`[]

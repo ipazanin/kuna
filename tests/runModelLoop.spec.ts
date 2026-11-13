@@ -82,6 +82,12 @@ describe('a run of the model loop', () => {
     expect(await loopOver(model, [ROW])).toEqual({ kind: 'failed', reason: 'Overloaded', usage: null })
   })
 
+  it('ends on the credit or the key when the provider says one of them is why', async () => {
+    const failingWith = (failure: ModelRequestFailed): ModelPort => ({ ...modelOf([]), send: () => Promise.reject(failure) })
+    expect(await loopOver(failingWith(new ModelRequestFailed(402, 'Billing.', undefined, 'out-of-credit')), [ROW])).toMatchObject({ kind: 'out-of-credit' })
+    expect(await loopOver(failingWith(new ModelRequestFailed(401, 'Bad key.', undefined, 'key-refused')), [ROW])).toMatchObject({ kind: 'key-refused' })
+  })
+
   it('hands back the turns a chat keeps, ending with the whole assistant turn, and passes the pieces of the text along', async () => {
     const seen: unknown[] = []
     const model: ModelPort = {

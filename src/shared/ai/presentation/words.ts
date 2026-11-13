@@ -100,6 +100,7 @@ export const en = {
     empty: "The chat can't see this app's books yet.",
     emptyReads: 'Ask about your figures or how Kuna works.',
     emptyAsks: 'The chat reads your apps only once you allow it.',
+    emptySetUp: 'Set up an app by talking. Attach its contracts, statements or photos, and the chat fills in what they say and asks about the rest.',
     placeholder: 'Ask how something works',
     placeholderReads: 'Ask about your figures',
     sends: 'what you type here, the screen you are on, the name of anything you tagged and, when a question needs them, records and figures from your apps.',
@@ -201,6 +202,8 @@ export const en = {
     holdsSecret: 'This request holds a key or a token, so Kuna did not send it.',
     failed: (reason: string) => `The assistant could not answer: ${reason}`,
     noPdf: (provider: string) => `${provider} does not read PDFs in Kuna. Pick Anthropic or OpenAI in Kuna settings.`,
+    outOfCredit: (provider: string) => `Your ${provider} account is out of credit. Add credit there, then try again. Nothing here was lost.`,
+    keyRefused: (provider: string) => `${provider} refused your key. Make a new key there and paste it in Kuna settings.`,
   },
   answer: {
     strayFigure: 'Contains a figure Kuna did not compute',
@@ -304,6 +307,7 @@ export const hr: Translation<typeof en> = {
     empty: 'Razgovor još ne vidi podatke ove aplikacije.',
     emptyReads: 'Pitajte o svojim iznosima ili o tome kako Kuna radi.',
     emptyAsks: 'Razgovor čita vaše aplikacije tek kad to dopustite.',
+    emptySetUp: 'Postavite aplikaciju kroz razgovor. Priložite ugovore, izvode ili fotografije, a razgovor upisuje ono što u njima piše i pita za ostalo.',
     placeholder: 'Pitaj kako nešto radi',
     placeholderReads: 'Pitaj o svojim iznosima',
     sends: 'ono što ovdje upišete, zaslon na kojem ste, naziv onoga što ste označili i, kad pitanje to traži, zapisi i iznosi iz vaših aplikacija.',
@@ -407,6 +411,8 @@ export const hr: Translation<typeof en> = {
     holdsSecret: 'Ovaj zahtjev sadrži ključ ili token, pa ga Kuna nije poslala.',
     failed: (reason) => `Asistent nije mogao odgovoriti: ${reason}`,
     noPdf: (provider) => `${provider} u Kuni ne čita PDF-ove. Odaberite Anthropic ili OpenAI u postavkama Kune.`,
+    outOfCredit: (provider) => `Na vašem računu kod tvrtke ${provider} nema više uplaćenih sredstava. Uplatite ih ondje pa pokušajte ponovno. Ovdje se ništa nije izgubilo.`,
+    keyRefused: (provider) => `Tvrtka ${provider} odbila je vaš ključ. Ondje napravite novi ključ i zalijepite ga u postavkama Kune.`,
   },
   answer: {
     strayFigure: 'Sadrži iznos koji Kuna nije izračunala',

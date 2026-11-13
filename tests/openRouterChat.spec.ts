@@ -366,7 +366,13 @@ describe('a Chat Completions request that fails', () => {
       .send(request())
       .catch((error: unknown) => error)
     expect(failure).toBeInstanceOf(ModelRequestFailed)
-    expect(failure).toMatchObject({ status: 401, message: 'Incorrect API key provided: made-up-***********0042.' })
+    expect(failure).toMatchObject({ status: 401, message: 'Incorrect API key provided: made-up-***********0042.', kind: 'key-refused' })
+  })
+
+  it('says the account is out of credit on a 402', async () => {
+    stubFetch(Response.json({ error: { code: 402, message: 'Insufficient credits. Add more using https://openrouter.ai/settings/credits' } }, { status: 402 }))
+
+    await expect(openRouterChat(BASE_URL, KEY, SOL).send(request())).rejects.toMatchObject({ status: 402, kind: 'out-of-credit' })
   })
 
   it('reports a provider error with its status, and the status text when the body is not JSON', async () => {

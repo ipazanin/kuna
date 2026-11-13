@@ -63,6 +63,7 @@ export const en = {
   },
   guides: {
     setUp: {
+      label: 'Set up Company',
       title: 'Set up Company with the chat',
       body: [
         'Have ready the court register extract, an issued invoice and a bank statement. Each goes to the AI company as text cell by cell, as a PDF or as a photo, a camt.053 statement included.',
@@ -138,6 +139,7 @@ export const hr: Translation<typeof en> = {
   },
   guides: {
     setUp: {
+      label: 'Postavi Tvrtku',
       title: 'Postavi Tvrtku kroz razgovor',
       body: [
         'Pripremite izvadak iz sudskog registra, jedan izdani račun i bankovni izvod. Svaki ide AI tvrtki kao tekst ćeliju po ćeliju, kao PDF ili kao fotografija, i izvod camt.053.',

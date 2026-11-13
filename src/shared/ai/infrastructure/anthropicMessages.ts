@@ -221,7 +221,7 @@ async function streamedMessage(key: string, body: object, request: ModelRequest)
     }
   } catch (failure) {
     if (failure instanceof ModelRequestFailed && failure.tokens === NO_TOKENS) {
-      throw new ModelRequestFailed(failure.status, failure.message, tokensOf(usage))
+      throw new ModelRequestFailed(failure.status, failure.message, tokensOf(usage), failure.kind)
     }
     throw failure
   }

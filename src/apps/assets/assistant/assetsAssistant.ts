@@ -27,7 +27,7 @@ export function assetsAssistant(reading: AssetsReading, changes: { readonly prop
     kinds: Object.values(assetKinds),
     places: PLACES,
     settings: [],
-    guides: [{ id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [ASSETS_OVERVIEW_ROUTE] }],
+    guides: [{ id: 'set-up', label: words.guides.setUp.label, title: words.guides.setUp.title, body: words.guides.setUp.body, places: [ASSETS_OVERVIEW_ROUTE] }],
     automations: [],
     setUp: [{ key: 'first-asset', about: 'The file has no asset yet.', operations: ['add-asset'] }],
     reader: assetsReader(reading),

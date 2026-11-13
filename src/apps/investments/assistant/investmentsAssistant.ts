@@ -69,7 +69,7 @@ export const investmentsAssistant = (reading: InvestmentsReading, changes: { rea
   places: PLACES,
   settings: [{ key: SURTAX_CITY_2023_KEY, note: words.settings.surtaxCity2023 }],
   guides: [
-    { id: 'set-up', title: words.guides.setUp.title, body: words.guides.setUp.body, places: [INVESTMENTS_GENERAL_ROUTE, TRANSACTIONS_ROUTE] },
+    { id: 'set-up', label: words.guides.setUp.label, title: words.guides.setUp.title, body: words.guides.setUp.body, places: [INVESTMENTS_GENERAL_ROUTE, TRANSACTIONS_ROUTE] },
     { id: 'ibkr-mail', title: mailWords.guide.title, body: mailWords.guide.body, places: [INVESTMENTS_GENERAL_ROUTE] },
   ],
   automations: [
