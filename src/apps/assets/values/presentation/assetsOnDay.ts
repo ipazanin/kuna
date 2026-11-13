@@ -3,7 +3,7 @@ import type { AssetLoan } from '../../loans/application/assetLoans'
 import type { Asset } from '../../workbook/domain/asset'
 import type { AssetBook, AssetWithValuations } from '../../workbook/domain/readAssetBook'
 import type { Valuation } from '../../workbook/domain/valuation'
-import { assetValueOn, needsHouseIndex } from '../domain/assetValue'
+import { assetValueOn, isEstimate, needsHouseIndex } from '../domain/assetValue'
 import type { AssetValue } from '../domain/assetValue'
 import { equityOf } from '../domain/equity'
 import type { Equity } from '../domain/equity'
@@ -48,9 +48,10 @@ export function assetsOnDay(book: Pick<AssetBook, 'assets'>, day: CivilDate, ind
   })
 }
 
-/** What the assets add up to on the day: their value, what is yours after each loan that is known, how many have no value, and whether a home's region waited on an index that failed. */
+/** What the assets add up to on the day: their value, whether it includes an estimate, what is yours after each loan that is known, how many have no value, and whether a home's region waited on an index that failed. */
 export interface AssetsTotal {
   readonly value: Money
+  readonly estimated: boolean
   readonly yoursAfter: readonly { readonly loan: AssetLoan; readonly yours: Money }[]
   readonly unvalued: number
   readonly indexFailed: boolean
@@ -64,6 +65,7 @@ export function assetsTotal(book: Pick<AssetBook, 'assets'>, day: CivilDate, ind
   const assets = assetsOnDay(book, day, index, loans)
   return {
     value: sumMoney(assets.map((entry) => entry.equity.value ?? ZERO)),
+    estimated: assets.some((entry) => entry.value !== null && isEstimate(entry.value.basis)),
     yoursAfter: assets.flatMap(({ link, equity }) => (link.kind === 'linked' && equity.yours !== null ? [{ loan: link.loan, yours: equity.yours }] : [])),
     unvalued: assets.filter((entry) => entry.equity.value === null).length,
     indexFailed: indexWanted && index === 'failed',

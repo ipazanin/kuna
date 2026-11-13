@@ -4,6 +4,7 @@ import type { EnglishForms, Translation } from '../../shared/text/translation'
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 
 export const en = {
+  opening: 'Opening the books',
   navigation: {
     sidebar: 'Application',
     open: 'Open navigation',
@@ -45,6 +46,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
+  opening: 'Datoteke se otvaraju',
   navigation: {
     sidebar: 'Aplikacija',
     open: 'Otvori izbornik',

@@ -24,6 +24,11 @@ export interface AssetValue {
   readonly basis: ValueBasis
 }
 
+/** Whether the value is Kuna's estimate, carried by the house price index or read from the customs table, rather than a valuation or a price you typed. */
+export function isEstimate(basis: ValueBasis): boolean {
+  return basis.kind === 'house-index' || basis.kind === 'customs'
+}
+
 /** Whether the house price index carries the asset's value: a flat or house with its region. */
 export function carriedByIndex(asset: Asset): asset is Asset & { readonly region: HouseRegion } {
   return asset.kind === 'home' && asset.region !== null

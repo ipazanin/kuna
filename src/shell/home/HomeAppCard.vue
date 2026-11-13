@@ -26,7 +26,16 @@ const to = computed(() => entryPath(props.app))
 
 <template>
   <RouterLink v-slot="{ href, navigate }" :to="to" custom>
-    <AppCard as="a" :href="href" class="gap-4 p-4 transition-colors hover:border-accented sm:p-5" :data-app="app.id" :data-state="setUp ? 'set-up' : 'open'" data-testid="home-card" @click="navigate">
+    <AppCard
+      as="a"
+      :href="href"
+      class="gap-4 p-4 transition-colors hover:border-accented sm:p-5"
+      :data-app="app.id"
+      :data-state="setUp ? 'set-up' : 'open'"
+      :aria-busy="figures === 'opening'"
+      data-testid="home-card"
+      @click="navigate"
+    >
       <div class="flex items-center gap-3">
         <AppMark :icon="app.homeCard.icon" :colour="app.colour" size="large" />
         <div class="min-w-0 flex-1">

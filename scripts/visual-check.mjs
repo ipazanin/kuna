@@ -1384,14 +1384,7 @@ const SCREENS = [
     hash: '#/overview',
     title: 'Net worth',
     charts: 0,
-    shows: [
-      'Nothing to add up until an app is set up: Loans, Investments, Assets or Spending.',
-      'Not set up: Company',
-      'Not set up: Loans',
-      'Not set up: Investments',
-      'Not set up: Assets',
-      'Not set up: Spending',
-    ],
+    shows: ['Nothing to add up until an app is set up.', 'Not set up: Company', 'Not set up: Loans', 'Not set up: Investments', 'Not set up: Assets', 'Not set up: Spending'],
     cards: false,
   },
   {

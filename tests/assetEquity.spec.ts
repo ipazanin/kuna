@@ -89,6 +89,6 @@ describe('what is yours after the loan on an asset', () => {
       ['shared', null],
     ])
     // 238,884.80 for the flat and 20,000.00 for the garage, with the loan taken off once by Loans and never here.
-    expect(assetsTotal(book, DAY, INDEX, [homeLoan(150_000)])).toEqual({ value: euros(258_884.8), yoursAfter: [], unvalued: 0, indexFailed: false })
+    expect(assetsTotal(book, DAY, INDEX, [homeLoan(150_000)])).toEqual({ value: euros(258_884.8), estimated: true, yoursAfter: [], unvalued: 0, indexFailed: false })
   })
 })

@@ -103,6 +103,14 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
     ],
   },
   {
+    title: 'Net worth: what you have and what you owe',
+    measure: 'as-mark',
+    swatches: [
+      { name: 'What you have', token: '--net-has' },
+      { name: 'What you owe', token: '--net-owes' },
+    ],
+  },
+  {
     title: 'How late money owed is',
     measure: 'none',
     swatches: [1, 2, 3, 4, 5].map((step) => ({ name: `Step ${step}`, token: `--ageing-${step}` })),

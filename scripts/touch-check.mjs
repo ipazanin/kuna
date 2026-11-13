@@ -763,10 +763,12 @@ async function checkWidth(width) {
     await page.waitForSelector('[data-testid="overview-apart-part"]')
     await expect(
       page.evaluate(() =>
-        [...document.querySelectorAll('[data-testid="overview-tiles"] .kpi-tile, [data-testid="overview-apart"] .kpi-tile')].map((tile) => Math.round(tile.getBoundingClientRect().height)),
+        [...document.querySelectorAll('[data-testid="overview-part"] a, [data-testid="overview-apart-part"] a, [data-testid="overview-not-set-up"] a')].map((row) =>
+          Math.round(row.getBoundingClientRect().height),
+        ),
       ),
       (heights) => heights.length >= 4 && heights.every((height) => height >= 44),
-      'a tile on Net worth is under 44 px tall',
+      'a row or a Set up button on Net worth is under 44 px tall',
     )
     await screenshotWholePage(page, join(OUTPUT_DIR, `${width}-kuna-overview.png`))
     for (const [label, path, title] of [

@@ -312,6 +312,13 @@
   --invest-buy: var(--chart-dot);
   --invest-sale: var(--series-2);
 
+  /*
+   * What you have and what you owe on Net worth, two bars on one scale. A neutral pair of series colours, not a tone or a
+   * loss tint, since owing is no bad news in itself. They pass the palette check together in both themes, and each bar sits beside its words.
+   */
+  --net-has: var(--series-3);
+  --net-owes: var(--series-2);
+
   /* The edge of a checkbox or a radio, and the edge and thumb of a switch that is off. It passes 3:1 as a mark on the page, a card and a popover in both themes. */
   --control-edge: var(--ink-muted);
 

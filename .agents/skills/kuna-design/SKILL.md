@@ -23,7 +23,7 @@ A component starts in the app that needs it and moves to `src/shared/ui` when a 
 ## Rules
 
 - Colours come from `tokens.css`. No Tailwind palette colour, `white`, `black`, literal, palette variable or `dark:` in a class. Every token already has a dark value.
-- An app's identity colour is its `--app-*` token, passed to `AppMark` by the app's registration. It tiles the app's icon on the home card, in its menu and in the phone top bar, and nothing else. Buttons, links, focus and the selected menu item keep the accent.
+- An app's identity colour is its `--app-*` token, passed to `AppMark` by the app's registration. It tiles the app's icon on the home card, in its menu, in the phone top bar and beside each of its figures on Net worth, and nothing else. Buttons, links, focus and the selected menu item keep the accent.
 - Tones are Nuxt UI's: `text-success`, `text-error`, `text-warning`, `text-info`. Money in and out is not a tone. See `MoneyText` in [components.md](components.md).
 - Text roles are `type-page-title`, `type-card-title`, `type-body`, `type-label`, `type-caption`, `type-figure`, `type-figure-secondary` and `type-wordmark`. Figures that lead a hero use `text-figure-lg` or `text-figure-xl`.
 - Stack with `z-control` and `z-top-bar`, and fade with `duration-fade`. No numeric `z-*` or `duration-*`.

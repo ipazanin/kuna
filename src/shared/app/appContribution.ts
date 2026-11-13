@@ -178,7 +178,7 @@ export interface AppContribution {
   readonly id: string
   /** The app's name, on its row in the menu and its card on the home, and in the browser tab of its screens, such as Company. */
   readonly name: string
-  /** The custom property of the app's identity colour, such as `--app-company`, on the tile of its icon on the home card, on its row in the menu and in the phone top bar. */
+  /** The custom property of the app's identity colour, such as `--app-company`, on the tile of its icon on the home card, on its row in the menu, in the phone top bar and beside its figures on Net worth. */
   readonly colour: `--${string}`
   /** Called once before the router is made and before any books are read. */
   install(): Promise<void>

@@ -12,6 +12,7 @@ export const en = {
   indexNote: 'the DZS index, which did not load, so flats count at their valuation or the price paid',
   yoursAfterLoan: (amount: string, loan: string) => `${amount} yours after the ${loan}`,
   yoursAfterLoans: (amount: string) => `${amount} yours after their loans`,
+  includesEstimates: (yours: string | null) => (yours === null ? 'Includes estimates' : `Includes estimates, ${yours}`),
 }
 
 export const hr: Translation<typeof en> = {
@@ -22,6 +23,7 @@ export const hr: Translation<typeof en> = {
   indexNote: 'indeks DZS-a, koji se nije učitao, pa se stanovi računaju po procjeni ili plaćenoj cijeni',
   yoursAfterLoan: (amount, loan) => `${amount} vaše nakon kredita „${loan}”`,
   yoursAfterLoans: (amount) => `${amount} vaše nakon kredita na njima`,
+  includesEstimates: (yours) => (yours === null ? 'Uključuje procjene' : `Uključuje procjene, ${yours}`),
 }
 
 export const words = language === 'hr' ? hr : en

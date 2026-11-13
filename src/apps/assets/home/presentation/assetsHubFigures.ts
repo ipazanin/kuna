@@ -17,8 +17,14 @@ export function yoursCaption(yoursAfter: AssetsTotal['yoursAfter']): string | nu
   return more.length === 0 ? words.yoursAfterLoan(formatMoney(only.yours), only.loan.name) : words.yoursAfterLoans(formatMoney(sumMoney(yoursAfter.map((entry) => entry.yours))))
 }
 
+/** The line under Assets value on Net worth: that it includes estimates when it does, then what is yours after the loans. */
+function hubCaption(total: AssetsTotal): string | null {
+  const yours = yoursCaption(total.yoursAfter)
+  return total.estimated ? words.includesEstimates(yours) : yours
+}
+
 /**
- * What the assets are worth on the day for Net worth, with what is yours after the loans on them under it, and the
+ * What the assets are worth on the day for Net worth, with whether it includes estimates and what is yours after the loans on them under it, and the
  * assets it counts as nothing. It waits while the house price index loads for a home with a region, and a file with no
  * assets has nothing to show.
  */
@@ -31,7 +37,7 @@ export function assetsHubFigures(book: Pick<AssetBook, 'assets'>, day: CivilDate
         label: words.value,
         cents: total.value,
         side: 'has',
-        caption: yoursCaption(total.yoursAfter),
+        caption: hubCaption(total),
         to: ASSETS_OVERVIEW_ROUTE,
       },
     ],
