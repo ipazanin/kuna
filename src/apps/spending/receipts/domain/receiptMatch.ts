@@ -3,7 +3,7 @@ import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Receipt } from '../../workbook/domain/receipt'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { allUnder, rowItemsOf } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, rowItemsOf } from '../../workbook/domain/rowItems'
 import { daysBetween } from '../../../../shared/calendar/civilDate'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { accountMoneyOfEuros, addAccountMoney, negateAccountMoney } from '../../../../shared/money/accountMoney'
@@ -79,7 +79,7 @@ export function heldReceiptOf(codes: Pick<Receipt, 'jir' | 'zki'>, receipts: rea
 export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'receipts' | 'items'>): readonly Transaction[] {
   const euroAccounts = new Set(book.accounts.filter((account) => account.currency === EURO).map((account) => account.id))
   const ownIbans = new Set(book.accounts.flatMap((account) => (account.iban === '' ? [] : [normaliseIban(account.iban)])))
-  const transfer = book.categories.find((category) => category.kind === 'transfer')?.id ?? null
+  const isTransfer = filedAsTransfer(book.categories)
   const withReceipt = new Set(book.receipts.map((receipt) => receipt.transaction))
   const itemsOf = rowItemsOf(book)
   return book.transactions.filter(
@@ -89,7 +89,7 @@ export function splittableRows(book: Pick<SpendingBook, 'accounts' | 'categories
       !withReceipt.has(row.id) &&
       row.pair === null &&
       row.movedAt === '' &&
-      !allUnder(itemsOf(row), transfer) &&
+      !isTransfer(itemsOf(row)) &&
       !ownIbans.has(normaliseIban(row.counterpartyIban)),
   )
 }

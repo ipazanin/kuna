@@ -20,6 +20,7 @@ import { words } from './words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -70,7 +71,7 @@ const accounts = computed(() => book.value?.accounts ?? [])
 /** What your rules would file a row under, which To review only suggests for a row that may be the same money as a typed one. */
 const ruleSays = computed(() => (book.value === null ? null : ruleVerdicts(book.value.rules, book.value)))
 const categories = computed(() => book.value?.categories ?? [])
-const transfer = computed(() => categories.value.find((category) => category.kind === 'transfer') ?? null)
+const transfer = computed(() => transferCategoryOf(categories.value))
 
 /** A first import waits with thousands of rows, each with a menu, which a phone cannot lay out at once. */
 const allShown = ref(false)

@@ -36,7 +36,7 @@ import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } fro
 import type { Category } from '../../workbook/domain/category'
 import { isSplit, itemizedRow, largestItem, linkOfItems, wholeItemOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
-import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
+import { NEW_CATEGORY_DEFAULTS, isFixedKind, isTransferCategory, transferCategoryOf } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
 import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
@@ -426,8 +426,8 @@ function openedBy(day: CivilDate, accounts: readonly Account[]): CivilDate {
 
 /** The two legs of a transfer the step asks for, with the amount that reached the other account when its currency differs. */
 function transferLegs(book: SpendingBook, from: Account, to: Account, day: CivilDate, amount: AccountMoney, arrived: AccountMoney | null, note: string): readonly [ItemizedRow, ItemizedRow] {
-  const transfer = book.categories.find((category) => category.kind === 'transfer')
-  if (transfer === undefined) throw new StepRefused('The file has no Between my accounts category to file a transfer under.')
+  const transfer = transferCategoryOf(book.categories)
+  if (transfer === null) throw new StepRefused('The file has no Between my accounts category to file a transfer under.')
   if (from.id === to.id) throw new StepRefused('A transfer moves money between two different accounts.')
   if (from.currency !== to.currency && arrived === null) throw new StepRefused("The two accounts' currencies differ, so toAmount says what reached the other one.")
   return newTransfer({ account: from.id, amount }, { account: to.id, amount: from.currency === to.currency ? amount : arrived! }, { date: openedBy(day, [from, to]), note, category: transfer.id })
@@ -632,7 +632,7 @@ function plannedSteps(
         const filedUnder = field['category'] === null ? null : categoryOf(field['category'])
         const onlyFiled = [field['account'], field['kind'], field['date'], field['amount'], field['payee'], field['note']].every((value) => value === null)
         const legs = legsOf(book, before.row)
-        const plain = legs !== null && (kind !== null || (filedUnder !== null && filedUnder.kind !== 'transfer'))
+        const plain = legs !== null && (kind !== null || (filedUnder !== null && !isTransferCategory(filedUnder)))
         const [whole] = before.items
         if (isSplit(before.items) && (filedUnder !== null || field['note'] !== null))
           throw new StepRefused('That entry is split, so each part keeps its own category and note. split-entry changes them.')

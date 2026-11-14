@@ -12,6 +12,7 @@ import { ruleTestOf } from './ruleTest'
 import { words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import { sameCondition } from '../../workbook/domain/spendingRule'
 import type { RuleWithdrawal, SpendingRule } from '../../workbook/domain/spendingRule'
@@ -46,7 +47,7 @@ const goesTo = ref(ANOTHER_ACCOUNT)
 const book = computed(() => store.state.workbook)
 const categories = computed(() => book.value?.categories ?? [])
 const pickedCategory = computed(() => categories.value.find((category) => category.id === picked.value) ?? null)
-const isTransfer = computed(() => pickedCategory.value?.kind === 'transfer')
+const isTransfer = computed(() => pickedCategory.value !== null && isTransferCategory(pickedCategory.value))
 /** The open cash accounts, and the one the rule names though closed, so changing the rule does not drop it. */
 const cashAccounts = computed(() => (book.value?.accounts ?? []).filter((account) => account.kind === 'cash' && (!account.closed || account.id === props.rule?.withdrawal?.cashAccount)))
 const goesToItems = computed(() => [

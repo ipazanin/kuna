@@ -3,7 +3,7 @@ import type { Account } from './account'
 import { ibanKey } from './accountReading'
 import type { Budget } from './budget'
 import type { Category } from './category'
-import { isFixedKind } from './category'
+import { isFixedKind, isTransferCategory } from './category'
 import type { TransactionItem } from './transactionItem'
 import { isBeforeItems, itemOfWaitingLine, itemsOfStoredRow } from './beforeItems'
 import type { StoredLine } from './beforeItems'
@@ -226,12 +226,13 @@ function readBudgets(read: RecordsRead<Budget>, categories: readonly Category[])
 
 /** Why a rule does not count: it names no category that counts, or it spots a withdrawal off Between my accounts or into an account that is not cash. */
 function readRules(read: RecordsRead<SpendingRule>, categories: readonly Category[], accounts: readonly Account[]): Reading<SpendingRule> {
-  const kindOf = new Map(categories.map((category) => [category.id, category.kind]))
+  const categoryOf = new Map(categories.map((category) => [category.id, category]))
   const cash = new Set(accounts.filter((account) => account.kind === 'cash').map((account) => account.id))
   const reading = readEach(read, ({ record: rule }) => {
-    if (!kindOf.has(rule.category)) return [words.noCategory]
+    const category = categoryOf.get(rule.category)
+    if (category === undefined) return [words.noCategory]
     if (rule.withdrawal === null) return []
-    if (kindOf.get(rule.category) !== 'transfer') return [words.withdrawalNotTransfer]
+    if (!isTransferCategory(category)) return [words.withdrawalNotTransfer]
     return rule.withdrawal.cashAccount === null || cash.has(rule.withdrawal.cashAccount) ? [] : [words.withdrawalNotCash]
   })
   return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }

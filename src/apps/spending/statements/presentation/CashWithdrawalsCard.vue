@@ -12,6 +12,7 @@ import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
+import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { today } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -37,7 +38,7 @@ const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
 const accounts = computed(() => store.state.workbook?.accounts ?? [])
-const transfer = computed(() => store.state.workbook?.categories.find((category) => category.kind === 'transfer') ?? null)
+const transfer = computed(() => transferCategoryOf(store.state.workbook?.categories ?? []))
 const accountOf = (row: Transaction): Account | undefined => accounts.value.find((account) => account.id === row.account)
 const captionOf = (row: Transaction): string => rowCaption(row, accountOf(row))
 

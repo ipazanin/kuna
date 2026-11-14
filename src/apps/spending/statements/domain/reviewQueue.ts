@@ -9,10 +9,9 @@ import { isPairable, transferPairs } from '../../pairing/domain/transferPairs'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { allUnder, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
-import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { addDays } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO_ACCOUNT_MONEY } from '../../../../shared/money/accountMoney'
@@ -56,22 +55,22 @@ export interface ReviewQueue {
 export function reviewCount(book: SpendingBook): number {
   const itemsOf = rowItemsOf(book)
   const isWaiting = (row: Transaction): boolean => waitsOnReview(itemsOf(row))
-  const filedWithoutCash = withdrawalsWithoutCash(book, transferOf(book), itemsOf).filter(({ row }) => !isWaiting(row)).length
+  const filedWithoutCash = withdrawalsWithoutCash(book, filedAsTransfer(book.categories), itemsOf).filter(({ row }) => !isWaiting(row)).length
   const receiptsAsking = waitingReceipts(book).filter(asksForPayment).length
   return book.transactions.filter(isWaiting).length + book.held.length + filedWithoutCash + receiptsAsking
-}
-
-function transferOf(book: Pick<SpendingBook, 'categories'>): RecordId | null {
-  return book.categories.find((category) => category.kind === 'transfer')?.id ?? null
 }
 
 /**
  * The bank's rows that take cash out with no cash leg yet, as the bank's row type or the rule deciding them says, which the
  * person has not filed or called no cash, and the reader did not file elsewhere. A withdrawal filed before its rule was made is one of them.
  */
-function withdrawalsWithoutCash(book: SpendingBook, transfer: RecordId | null, itemsOf: (row: Transaction) => readonly TransactionItem[]): readonly WithdrawalWithoutCash[] {
+function withdrawalsWithoutCash(
+  book: SpendingBook,
+  isTransfer: (items: readonly TransactionItem[]) => boolean,
+  itemsOf: (row: Transaction) => readonly TransactionItem[],
+): readonly WithdrawalWithoutCash[] {
   const ruleOf = decidingRule(book.rules, book)
-  const unfiled = (row: Transaction): boolean => row.categorisedBy === 'rule' || (row.categorisedBy === null && (waitsOnReview(itemsOf(row)) || allUnder(itemsOf(row), transfer)))
+  const unfiled = (row: Transaction): boolean => row.categorisedBy === 'rule' || (row.categorisedBy === null && (waitsOnReview(itemsOf(row)) || isTransfer(itemsOf(row))))
   return book.transactions
     .filter((row) => row.source === 'statement' && unfiled(row) && isWithdrawal(row, ruleOf(row), book.accounts))
     .reverse()
@@ -85,9 +84,9 @@ function withdrawalsWithoutCash(book: SpendingBook, transfer: RecordId | null, i
  */
 export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
   const since = addDays(day, -PAIRS_SHOWN_DAYS)
-  const transfer = transferOf(book)
   const itemsOf = rowItemsOf(book)
-  const withdrawals = withdrawalsWithoutCash(book, transfer, itemsOf)
+  const isTransfer = filedAsTransfer(book.categories)
+  const withdrawals = withdrawalsWithoutCash(book, isTransfer, itemsOf)
   const wantingCash = new Set(withdrawals.map(({ row }) => row))
   const waitingRows = book.transactions.filter((row) => waitsOnReview(itemsOf(row)) && !wantingCash.has(row))
   const { matches, near } = sameMoney(
@@ -104,7 +103,7 @@ export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
     const other = row.pair === null ? undefined : byId.get(row.pair)
     return row.amount < 0 && other !== undefined ? [{ debit: row, credit: other }] : []
   })
-  const loneLegs = recent.filter((row) => row.pair === null && allUnder(itemsOf(row), transfer) && !wantingCash.has(row))
+  const loneLegs = recent.filter((row) => row.pair === null && isTransfer(itemsOf(row)) && !wantingCash.has(row))
 
   return {
     waiting: [...waitingRows].reverse().map((row) => ({ row, maybeTyped: maybeTyped.get(row) ?? null, maybeTransfer: maybeTransfer.get(row) ?? null })),

@@ -14,7 +14,6 @@ import { words } from './words'
 import { knownPayees, payeeChoices } from '../domain/knownPayees'
 import { newTransfer } from '../domain/transfer'
 import { linkEntry, newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
-import { fixedCategories } from '../../categories/domain/categoryTree'
 import { LINK_TONE, useLinkLines } from '../../links/presentation/linkLine'
 import { words as linkWords } from '../../links/presentation/words'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
@@ -25,6 +24,7 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { fixedByBank } from '../domain/bankRows'
 import { beforeStartDay, takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
+import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { isSplit, itemizedRow, linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import { words as spendingWords } from '../../words'
@@ -61,7 +61,7 @@ type EntryKind = 'out' | 'in' | 'transfer'
 
 const accounts = computed(() => store.state.workbook?.accounts ?? [])
 const categories = computed(() => store.state.workbook?.categories ?? [])
-const transferCategory = computed(() => fixedCategories(categories.value).find((category) => category.kind === 'transfer') ?? null)
+const transferCategory = computed(() => transferCategoryOf(categories.value))
 
 const kind = ref<EntryKind>('out')
 const amount = ref('')

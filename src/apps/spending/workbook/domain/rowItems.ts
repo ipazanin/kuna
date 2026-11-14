@@ -2,6 +2,8 @@ import { ITEM_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { Transaction } from './transaction'
 import type { TransactionItem } from './transactionItem'
 import type { RowLink } from './rowLink'
+import { isTransferCategory } from './category'
+import type { Category } from './category'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -72,7 +74,8 @@ export function waitsOnReview(items: readonly Pick<TransactionItem, 'category'>[
   return items.some((item) => item.category === null)
 }
 
-/** Whether all of the row's money is under the category, as a transfer's leg is under Between my accounts. */
-export function allUnder(items: readonly Pick<TransactionItem, 'category'>[], category: RecordId | null): boolean {
-  return category !== null && items.length > 0 && items.every((item) => item.category === category)
+/** Tells whether all of a row's money moves between your own accounts, as a transfer's leg does: each of its items is under a transfer category. */
+export function filedAsTransfer(categories: readonly Pick<Category, 'id' | 'kind'>[]): (items: readonly Pick<TransactionItem, 'category'>[]) => boolean {
+  const transfers = new Set(categories.filter(isTransferCategory).map((category) => category.id))
+  return (items) => items.length > 0 && items.every((item) => item.category !== null && transfers.has(item.category))
 }

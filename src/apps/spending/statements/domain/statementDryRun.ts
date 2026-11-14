@@ -12,12 +12,13 @@ import { words as receiptWords } from '../../receipts/domain/words'
 import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/transferPairs'
 import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
+import { transferCategoryOf } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import { HELD_ROW_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { rowKey } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
-import { allUnder, refiledItems, rowItemsOf, wholeItemOf } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, refiledItems, rowItemsOf, wholeItemOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
@@ -276,10 +277,11 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const coming = toMatch.filter((row) => twinOutcome.get(row) === null)
 
   const context = spendingCategorisationContext(book)
-  const transfer = book.categories.find((category) => category.kind === 'transfer')?.id ?? null
+  const transfer = transferCategoryOf(book.categories)?.id ?? null
+  const isTransfer = filedAsTransfer(book.categories)
   const movesOwnMoney = (row: StatementRow): boolean => row.movedAt !== '' || context.ownIbans.has(normaliseIban(row.counterpartyIban))
   const itemsOf = rowItemsOf(book)
-  const isTypedLeg = (typed: Transaction): boolean => typed.pair !== null || allUnder(itemsOf(typed), transfer)
+  const isTypedLeg = (typed: Transaction): boolean => typed.pair !== null || isTransfer(itemsOf(typed))
   const typedRows = typedRowsOf(book)
   const legsFilled = sameMoney(typedRows.filter(isTypedLeg), coming.filter(movesOwnMoney)).matches
   const legsTaken = new Set(legsFilled.map(({ typed }) => typed))
@@ -335,10 +337,10 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   )
   const since = addDays([day, ...coming.map((row) => row.date)].sort()[0]!, -PAIRING_DAYS)
   const onFileToPair = book.transactions.filter((row) => row.date >= since && isPairable(row)).map((row) => replacedOf.get(row) ?? row)
-  const asTransfers = transfer === null ? new Map<Transaction, ItemizedRow>() : transferred([...newRowOf.values()].map(({ row }) => row).concat(onFileToPair), book, transfer, itemsAt)
+  const asTransfers = transfer === null ? new Map<Transaction, ItemizedRow>() : transferred([...newRowOf.values()].map(({ row }) => row).concat(onFileToPair), book, transfer, isTransfer, itemsAt)
 
   const comingIn = [...newRowOf.values()].map((itemized) => asTransfers.get(itemized.row) ?? itemized)
-  const withdrawals = comingIn.filter(({ row, items }) => transfer !== null && allUnder(items, transfer) && isWithdrawal(row, ruleOf(row), book.accounts))
+  const withdrawals = comingIn.filter(({ row, items }) => isTransfer(items) && isWithdrawal(row, ruleOf(row), book.accounts))
   const cashLegs = new Map(
     withdrawals.flatMap((itemized) => {
       const [cash, ...others] = cashAccountsFor(itemized.row, ruleOf(itemized.row)?.withdrawal?.cashAccount ?? null, book.accounts)
@@ -437,6 +439,7 @@ function transferred(
   rows: readonly Transaction[],
   book: Pick<SpendingBook, 'accounts'>,
   transfer: RecordId,
+  isTransfer: (items: readonly TransactionItem[]) => boolean,
   itemsOf: (row: Transaction) => readonly TransactionItem[],
 ): ReadonlyMap<Transaction, ItemizedRow> {
   const { pairs, waiting } = transferPairs(rows, book.accounts, itemsOf)
@@ -448,7 +451,7 @@ function transferred(
   }
   for (const row of waiting) {
     const items = itemsOf(row)
-    if (!allUnder(items, transfer)) changes.set(row, { row: { ...row, categorisedBy: null }, items: refiledItems(items, transfer) })
+    if (!isTransfer(items)) changes.set(row, { row: { ...row, categorisedBy: null }, items: refiledItems(items, transfer) })
   }
   return changes
 }

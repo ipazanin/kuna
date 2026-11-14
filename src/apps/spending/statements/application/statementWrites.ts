@@ -13,6 +13,7 @@ import { words as receiptWords } from '../../receipts/domain/words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { Account } from '../../workbook/domain/account'
+import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { isSplit, refiledItems, rowItemsOf } from '../../workbook/domain/rowItems'
@@ -59,7 +60,7 @@ export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<S
 
 /** The row's one item under the category you picked, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it. */
 export function fileRow(unit: UnitOfWork, records: EntryRecords, row: Transaction, category: Category): void {
-  writeRows(unit, records, [{ before: row, after: { ...row, categorisedBy: category.kind === 'transfer' ? null : 'person' }, items: refiledItems(heldItemsOf(records)(row), category.id) }])
+  writeRows(unit, records, [{ before: row, after: { ...row, categorisedBy: isTransferCategory(category) ? null : 'person' }, items: refiledItems(heldItemsOf(records)(row), category.id) }])
 }
 
 /**

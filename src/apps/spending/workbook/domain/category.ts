@@ -18,6 +18,16 @@ export function isFixedKind(kind: CategoryKind): kind is FixedKind {
   return (FIXED_KINDS as readonly CategoryKind[]).includes(kind)
 }
 
+/** Whether money under the category moves between your own accounts. A second transfer category, which the reader doubts, does too. */
+export function isTransferCategory(category: Pick<Category, 'kind'>): boolean {
+  return category.kind === 'transfer'
+}
+
+/** The category a new transfer is filed under, which is the first transfer category in file order, or null when the file has none. */
+export function transferCategoryOf(categories: readonly Category[]): Category | null {
+  return categories.find(isTransferCategory) ?? null
+}
+
 /** A group, with no parent, or a child of a group of the same kind. */
 export interface Category {
   readonly id: RecordId

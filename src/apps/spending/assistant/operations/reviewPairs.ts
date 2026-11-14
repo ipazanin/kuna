@@ -3,6 +3,7 @@ import { joinWithTyped, notAPair, notCash, pairRows, writeCashLegs } from '../..
 import { reviewQueue } from '../../statements/domain/reviewQueue'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { Account } from '../../workbook/domain/account'
+import { transferCategoryOf } from '../../workbook/domain/category'
 import { ACCOUNT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
@@ -85,9 +86,9 @@ function statementPair(book: SpendingBook, row: Transaction): { readonly debit: 
 
 /** Writes what To review offers for the row, refused when it offers nothing of the kind. */
 export function writeReviewStep(unit: UnitOfWork, book: SpendingBook, operation: string, row: Transaction, cashAccount: Account | null = null): void {
-  const transfer = book.categories.find((category) => category.kind === 'transfer')
+  const transfer = transferCategoryOf(book.categories)
   if (operation === 'move-to-cash') {
-    if (transfer === undefined) throw new StepRefused('The file has no Between my accounts category.')
+    if (transfer === null) throw new StepRefused('The file has no Between my accounts category.')
     writeCashLegs(unit, book.stored, [{ row, cash: cashFor(book, row, cashAccount) }], transfer.id)
     return
   }
@@ -107,6 +108,6 @@ export function writeReviewStep(unit: UnitOfWork, book: SpendingBook, operation:
     joinWithTyped(unit, book.stored, waiting.maybeTyped.typed, waiting.maybeTyped.bank)
     return
   }
-  if (waiting.maybeTransfer === null || transfer === undefined) throw new StepRefused('To review offers no row on another account as the other side of that one.')
+  if (waiting.maybeTransfer === null || transfer === null) throw new StepRefused('To review offers no row on another account as the other side of that one.')
   pairRows(unit, book.stored, waiting.maybeTransfer, transfer.id)
 }

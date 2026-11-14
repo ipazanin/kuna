@@ -1,8 +1,9 @@
+import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
-import { isSplit, linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, isSplit, linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -35,7 +36,7 @@ export interface EntrySplit {
 
 function categoryRefusal(category: Category | undefined, categories: readonly Category[]): SplitRefusal | null {
   if (category === undefined) return 'unknown-category'
-  if (category.kind === 'transfer') return 'between-accounts'
+  if (isTransferCategory(category)) return 'between-accounts'
   return categories.some((child) => child.parent === category.id) ? 'group-with-children' : null
 }
 
@@ -52,9 +53,8 @@ export function entrySplit(
   newKey: () => string = newRecordId,
 ): EntrySplit | { readonly refused: SplitRefusal } {
   const categories = new Map(book.categories.map((category) => [category.id, category]))
-  const isTransfer = (category: RecordId | null): boolean => category !== null && categories.get(category)?.kind === 'transfer'
   const held = rowItemsOf(book)(row)
-  if (row.pair !== null || (held.length > 0 && held.every((item) => isTransfer(item.category)))) return { refused: 'transfer-leg' }
+  if (row.pair !== null || filedAsTransfer(book.categories)(held)) return { refused: 'transfer-leg' }
   if (book.receipts.some((receipt) => receipt.transaction === row.id)) return { refused: 'receipt' }
   if (drafts.length < 2) return { refused: 'too-few' }
   const wrongCategory = drafts.map((draft) => categoryRefusal(categories.get(draft.category), book.categories)).find((refusal) => refusal !== null) ?? null

@@ -1,4 +1,5 @@
 import { categoryTree, fixedCategories } from '../../categories/domain/categoryTree'
+import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -30,7 +31,7 @@ export function entryCategoryChoices(categories: readonly Category[], side: Entr
       return picked.length === 0 ? [] : [[{ type: 'label' as const, label: group.name }, ...picked.map(choice)]]
     }),
   )
-  const fixed = fixedCategories(categories).filter((category) => (category.kind !== 'transfer' || withTransfer || category.id === own) && shown(category))
+  const fixed = fixedCategories(categories).filter((category) => (!isTransferCategory(category) || withTransfer || category.id === own) && shown(category))
   return [...groups, ...(fixed.length === 0 ? [] : [fixed.map(choice)])]
 }
 
