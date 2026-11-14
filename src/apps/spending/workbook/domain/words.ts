@@ -36,7 +36,7 @@ export const en = {
   ibanShared: (accounts: string, iban: string, currency: string) =>
     `your account ${accounts} already has the IBAN ${iban} in ${currency}. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds`,
   fixedWithParent: 'a fixed category has no parent',
-  fixedShared: (kind: string) => `another category is of kind ${kind} too. Each of transfer, saving and company is one category`,
+  fixedShared: (kind: string) => `another category is of kind ${kind} too. Each of transfer, saving, company and repayment is one category`,
   noParent: 'names a parent that is not in the file',
   parentHasParent: 'names a parent that is itself a child. Categories go two levels deep',
   parentOfOtherKind: 'names a parent of another kind',
@@ -111,7 +111,7 @@ export const hr: Translation<typeof en> = {
   ibanShared: (accounts, iban, currency) =>
     `vaš račun ${accounts} već ima IBAN ${iban} u valuti ${currency}. Banka kao Revolut daje svakoj valuti zaseban račun pod istim IBAN-om, pa postavite valutu u kojoj se ovaj račun vodi`,
   fixedWithParent: 'stalna kategorija nema nadređenu',
-  fixedShared: (kind) => `i druga kategorija je vrste „${kind}”. Svaka od vrsta „transfer”, „saving” i „company” jedna je kategorija`,
+  fixedShared: (kind) => `i druga kategorija je vrste „${kind}”. Svaka od vrsta „transfer”, „saving”, „company” i „repayment” jedna je kategorija`,
   noParent: 'navodi nadređenu kategoriju koje nema u datoteci',
   parentHasParent: 'navodi nadređenu kategoriju koja je i sama podređena. Kategorije imaju dvije razine',
   parentOfOtherKind: 'navodi nadređenu kategoriju druge vrste',

@@ -210,6 +210,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/accounts/application/accountWrites.ts#ACCOUNT_WRITES.remove',
       'src/apps/spending/entries/application/entryWrites.ts#removeEntry',
       'src/apps/spending/entries/application/entryWrites.ts#removeSplitOf',
+      'src/apps/spending/entries/application/entryWrites.ts#unlinkEntry',
       'src/apps/company/transactions/application/splitWrites.ts#removeSplit',
       'src/apps/spending/receipts/application/receiptWrites.ts#removeWaitingReceipt',
       'src/apps/spending/statements/application/statementWrites.ts#deleteRule',

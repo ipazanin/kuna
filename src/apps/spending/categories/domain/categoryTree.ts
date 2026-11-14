@@ -20,7 +20,7 @@ export function categoryTree(categories: readonly Category[], kinds: readonly Ca
     .map((group) => ({ group, children: categories.filter((child) => child.parent === group.id).sort(byOrder) }))
 }
 
-/** The fixed categories, Between my accounts, Saved to investments and For the company, in the order of the file. */
+/** The fixed categories, Between my accounts, Saved to investments, For the company and Loan principal, in the order of the file. */
 export function fixedCategories(categories: readonly Category[]): Category[] {
   return categories.filter((category) => isFixedKind(category.kind))
 }

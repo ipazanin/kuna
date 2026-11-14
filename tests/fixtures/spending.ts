@@ -271,7 +271,7 @@ export const ROWS: readonly StoredRow[] = [
   row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip', { payee: 'Diner in Boston' }),
   row(OTP, '2026-10-12', -350, 'Food/Groceries', { payee: 'Corner market' }),
   row(REVOLUT_EUR, '2026-10-14', -90, 'Food/Restaurants', { payee: 'Harbour bistro' }),
-  row(OTP, '2026-10-15', -650, 'Money and fees/Loan instalments', { payee: 'Example Bank' }),
+  row(OTP, '2026-10-15', -650, 'Money and fees/Loan interest', { payee: 'Example Bank' }),
   row(CASH, '2026-10-16', -36, 'Food/Coffee', { payee: 'Café on the square' }),
   row(REVOLUT_EUR, '2026-10-20', -89.5, 'Transport/Fuel', { payee: 'Fuel station' }),
   row(OTP, '2026-10-25', -300, 'Saved to investments', { payee: 'Example Broker' }),

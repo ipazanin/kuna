@@ -20,14 +20,15 @@ import { setLimit } from '../../budgets/application/budgetWrites'
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../../categories/application/categoryWrites'
 import { lastOrder, siblingsUnder, swappedPlaces } from '../../categories/domain/categoryPlaces'
 import { newTransfer } from '../../entries/domain/transfer'
-import { moveToItems } from '../../entries/application/rowRecords'
+import { heldItemsOf, moveToItems } from '../../entries/application/rowRecords'
 import { isBeforeItems, moveBlockers } from '../../workbook/domain/beforeItems'
-import { linkEntry, newEntry, removeEntry, removeSplitOf, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
+import { linkEntry, newEntry, removeEntry, removeSplitOf, unlinkEntry, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
 import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
 import { fixedByBank } from '../../entries/domain/bankRows'
 import { entrySplit } from '../../entries/domain/entrySplit'
 import type { ItemDraft } from '../../entries/domain/entrySplit'
 import { en as entriesEnglish } from '../../entries/presentation/words'
+import { words as linkWords } from '../../links/presentation/words'
 import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
@@ -55,6 +56,7 @@ import { absAccountMoney, accountMoneyFromAmount, negateAccountMoney } from '../
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { currencyCodeOf } from '../../../../shared/money/currencyCode'
 import { moneyFromAmount } from '../../../../shared/money/money'
+import { language } from '../../../../shared/text/language'
 import type { WorkbookStore } from '../../../../shared/storage/application/createWorkbookStore'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -305,7 +307,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'link-entry',
     about:
-      "Links an entry to the record in Loans it is: a bank loan's instalment by the loan's name as Loans lists it and the instalment's due date, or an informal loan by its name with due null. A link replaces the one the entry had, and changes no figure: the entry counts by its category.",
+      "Links an entry to the record in Loans it is, in place of any link it had: a bank loan's instalment or interim interest by the loan's name as Loans lists it and its due date, or an informal loan by its name with due null. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. Any other link changes no figure.",
     input: inputOf({ entry: TEXT, loan: TEXT, due: { type: ['string', 'null'], description: "The instalment's due date as yyyy-mm-dd, or null for an informal loan." } }),
     refs: { entry: TRANSACTION_RECORDS.name },
     creates: null,
@@ -754,13 +756,23 @@ function plannedSteps(
         receiptWarnings.push(...notes)
         break
       }
-      case 'link-entry':
-        linkEntry(unit, records(), rowOf(field['entry']), linkedTarget(loans, field['loan'], field['due'] === null ? null : dayOf(field['due'])).link)
+      case 'link-entry': {
+        const row = rowOf(field['entry'])
+        const target = linkedTarget(loans, field['loan'], field['due'] === null ? null : dayOf(field['due']))
+        const place = { currency: accountOf(row.account).currency, categories: book.categories, language, notes: linkWords.notes }
+        const { entry, added } = linkEntry(unit, records(), row, target, place)
+        book = {
+          ...book,
+          categories: added === null ? book.categories : [...book.categories, added],
+          transactions: book.transactions.map((held) => (held.id === row.id ? entry.row : held)),
+          items: [...book.items.filter((part) => part.transaction !== row.id), ...entry.items],
+        }
         break
+      }
       case 'unlink-entry': {
         const row = rowOf(field['entry'])
-        if (linkOfItems(itemizedRow(book, row).items) === null) throw new StepRefused('That entry has no link.')
-        linkEntry(unit, records(), row, null)
+        if (linkOfItems(heldItemsOf(records())(row)) === null) throw new StepRefused('That entry has no link.')
+        unlinkEntry(unit, records(), row)
         break
       }
       case 'move-to-items': {

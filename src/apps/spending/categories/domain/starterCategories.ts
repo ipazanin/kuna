@@ -1,4 +1,4 @@
-import type { Category, CategoryKind } from '../../workbook/domain/category'
+import type { Category, CategoryKind, FixedKind } from '../../workbook/domain/category'
 import { CATEGORY_RECORDS } from '../../workbook/domain/spendingKinds'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { Language } from '../../../../shared/text/language'
@@ -107,7 +107,7 @@ const STARTER_GROUPS: readonly StarterGroup[] = [
   {
     name: ['Money and fees', 'Novac i naknade'],
     kind: 'spending',
-    children: [BANK_FEES, ['Taxes and charges', 'Porezi i pristojbe'], ['Insurance', 'Osiguranja'], ['Loan instalments', 'Rate kredita']],
+    children: [BANK_FEES, ['Taxes and charges', 'Porezi i pristojbe'], ['Insurance', 'Osiguranja'], ['Loan interest', 'Kamate na kredit']],
   },
   { name: ['Other', 'Ostalo'], kind: 'spending', children: [['Other', 'Ostalo']] },
   {
@@ -123,6 +123,7 @@ const STARTER_GROUPS: readonly StarterGroup[] = [
   { name: ['Between my accounts', 'Između mojih računa'], kind: 'transfer', children: [] },
   { name: ['Saved to investments', 'Prijenos u ulaganja'], kind: 'saving', children: [] },
   { name: ['For the company', 'Za tvrtku'], kind: 'company', children: [] },
+  { name: ['Loan principal', 'Glavnica kredita'], kind: 'repayment', children: [] },
 ]
 
 /** The starter category a statement's fee goes in, by its name in either language, or undefined once it was renamed or deleted. */
@@ -132,25 +133,42 @@ export function bankFeesCategory(categories: readonly Category[]): Category | un
 
 /**
  * The categories a new Spending file starts with, named in the first run's language: eleven spending groups with their
- * children, Income, and the three fixed categories. Every one can be renamed, moved, hidden or deleted later, but the
- * fixed three, which can only be renamed. `newKey` makes each category's bare UUID.
+ * children, Income, and the four fixed categories. Every one can be renamed, moved, hidden or deleted later, but the
+ * fixed four, which can only be renamed. `newKey` makes each category's bare UUID.
  */
 export function starterCategories(language: Language, newKey: () => string = newRecordId): Category[] {
-  const nameOf = ([en, hr]: Named): string => (language === 'hr' ? hr : en)
   return STARTER_GROUPS.flatMap((group, groupPlace) => {
-    const id = recordIdOf(CATEGORY_RECORDS, newKey())
-    const parent: Category = { id, name: nameOf(group.name), kind: group.kind, parent: null, order: groupPlace + 1, colour: '', hidden: false }
+    const parent = groupCategory(group, groupPlace, language, newKey)
     return [
       parent,
       ...group.children.map((child, childPlace): Category => ({
         id: recordIdOf(CATEGORY_RECORDS, newKey()),
-        name: nameOf(child),
+        name: nameIn(language, child),
         kind: group.kind,
-        parent: id,
+        parent: parent.id,
         order: childPlace + 1,
         colour: '',
         hidden: false,
       })),
     ]
   })
+}
+
+/**
+ * The file's fixed category of the kind, or a new one as a new file has it, named in the language, for a file made before
+ * that kind was. Says whether it is new, so the write that needs it adds it.
+ */
+export function fixedCategoryIn(categories: readonly Category[], kind: FixedKind, language: Language, newKey: () => string = newRecordId): { readonly category: Category; readonly added: boolean } {
+  const held = categories.find((category) => category.kind === kind)
+  if (held !== undefined) return { category: held, added: false }
+  const groupPlace = STARTER_GROUPS.findIndex((group) => group.kind === kind)
+  return { category: groupCategory(STARTER_GROUPS[groupPlace]!, groupPlace, language, newKey), added: true }
+}
+
+function nameIn(language: Language, [en, hr]: Named): string {
+  return language === 'hr' ? hr : en
+}
+
+function groupCategory(group: StarterGroup, groupPlace: number, language: Language, newKey: () => string): Category {
+  return { id: recordIdOf(CATEGORY_RECORDS, newKey()), name: nameIn(language, group.name), kind: group.kind, parent: null, order: groupPlace + 1, colour: '', hidden: false }
 }

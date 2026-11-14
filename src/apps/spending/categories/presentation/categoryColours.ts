@@ -1,4 +1,5 @@
 import { categoryTree, groupOf } from '../domain/categoryTree'
+import { CATEGORY_KINDS } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import { swatchOf, swatchToken } from '../../../../shared/charts/swatches'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -13,7 +14,7 @@ const SLOTS = 8
  */
 export function categoryColours(categories: readonly Category[]): (category: Category) => string {
   const byId = new Map(categories.map((category) => [category.id, category]))
-  const groups = categoryTree(categories, ['spending', 'income', 'saving', 'transfer', 'company']).map((entry) => entry.group)
+  const groups = categoryTree(categories, CATEGORY_KINDS).map((entry) => entry.group)
   const taken = new Set(groups.flatMap((group) => swatchOf(group.colour)?.slot ?? []))
   const free = Array.from({ length: SLOTS }, (_, place) => place + 1).filter((slot) => !taken.has(slot))
   const groupTokens = new Map<RecordId, string>()

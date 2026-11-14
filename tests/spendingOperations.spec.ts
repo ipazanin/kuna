@@ -25,7 +25,6 @@ import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accoun
 import { ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
-import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
 import { exampleInput } from './fixtures/exampleInput'
@@ -611,18 +610,35 @@ describe('an entry’s receipt and payee', () => {
 })
 
 describe('an entry’s link to Loans', () => {
-  it('links an entry to an instalment by its loan and due date and shows it on the card as Entries does, keeping its category, and one Undo takes it off', async () => {
+  it("links entries to instalments by loan and due date, splits each into the plan's interest and principal under one Loan principal it adds, shows the link on the card as Entries does, and one Undo takes it all back", async () => {
     const desk = await spendingDesk(used)
     const entry = EXAMPLE_RECORDS['transaction']!
-    const before = rowOf(desk, entry)
-    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry: desk.ref('transaction', entry), loan: 'Housing loan', due: '2026-11-15' })])
+    const other = EXAMPLE_RECORDS['transaction-joinable']!
+    const before = bookOf(desk)
+    const category = rowOf(desk, entry)!.category
+    await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'link-entry', { entry: desk.ref('transaction', entry), loan: 'Housing loan', due: '2026-11-15' }),
+      stepOf(SPENDING_OPERATIONS, 'link-entry', { entry: desk.ref('transaction', other), loan: 'Housing loan', due: '2026-10-15' }),
+    ])
     const fields = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields)
     expect(fields.find((field) => field.name === 'Linked to')).toMatchObject({ after: 'Housing loan, instalment due 15 Nov 2026' })
     const result = await desk.accept()
     expect(result.kind).toBe('done')
-    expect(rowOf(desk, entry)).toEqual({ ...before, link: { app: 'loans', kind: 'bank-loan', key: 'made-up-housing-loan', due: parseCivilDate('2026-11-15') } })
+    const principal = bookOf(desk).categories.filter((held) => held.kind === 'repayment')
+    expect(principal.map((held) => held.name)).toEqual(['Loan principal'])
+    // The entry is 45.30 against the plan's 650.00, so the 604.70 below the plan stays as a part of the other sign.
+    expect(
+      bookOf(desk)
+        .items.filter((part) => part.transaction === entry)
+        .map((part) => [part.amount, part.category, part.note, part.link?.due]),
+    ).toEqual([
+      [accountMoneyFromAmount(-250), category, 'Interest', '2026-11-15'],
+      [accountMoneyFromAmount(-400), principal[0]!.id, '', '2026-11-15'],
+      [accountMoneyFromAmount(604.7), category, 'Difference from the plan', '2026-11-15'],
+    ])
+    expect(bookOf(desk).problems).toEqual([])
     if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
-    expect(rowOf(desk, entry)).toEqual(before)
+    expect([bookOf(desk).categories, bookOf(desk).items]).toEqual([before.categories, before.items])
   })
 
   it('links an informal loan by its name, and refuses a loan Loans does not list, an instalment on a day the plan has none, and a link off an entry with none', async () => {

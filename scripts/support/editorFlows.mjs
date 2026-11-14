@@ -70,6 +70,7 @@ import { en as spendingAssistantEnglish, hr as spendingAssistantCroatian } from 
 import { en as spendingReceiptDomainEnglish, hr as spendingReceiptDomainCroatian } from '../../src/apps/spending/receipts/domain/words.ts'
 import { en as spendingScreensEnglish, hr as spendingScreensCroatian } from '../../src/apps/spending/screenWords.ts'
 import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../../src/apps/spending/entries/presentation/words.ts'
+import { en as spendingLinksEnglish, hr as spendingLinksCroatian } from '../../src/apps/spending/links/presentation/words.ts'
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
 import { monthOf } from '../../src/shared/calendar/monthKey.ts'
 import { writeJpegWithPlace } from './importSampleFiles.mjs'
@@ -217,6 +218,7 @@ const SCREEN_WORDS = {
     spendingApp: spendingAppEnglish.name,
     spendingScreens: spendingScreensEnglish,
     spendingEntries: spendingEntriesEnglish,
+    spendingLinks: spendingLinksEnglish,
     spendingStatements: spendingStatementsEnglish,
     spendingReceipts: spendingReceiptsEnglish,
     spendingReceiptNotes: spendingReceiptNotesEnglish,
@@ -303,6 +305,7 @@ const SCREEN_WORDS = {
     spendingApp: spendingAppCroatian.name,
     spendingScreens: spendingScreensCroatian,
     spendingEntries: spendingEntriesCroatian,
+    spendingLinks: spendingLinksCroatian,
     spendingStatements: spendingStatementsCroatian,
     spendingReceipts: spendingReceiptsCroatian,
     spendingReceiptNotes: spendingReceiptNotesCroatian,
@@ -6370,10 +6373,14 @@ export function spendingCreditToTransferFlowIn(language) {
 }
 
 /**
- * A row linked to a Loans instalment, on Entries and in its dialog with the link to the loan's page, then a row whose instalment
- * Loans no longer has, in `goneMonth`. A key is kept, so each row carries its receipt camera as it does for a person with one.
+ * A row linked to a Loans instalment, on Entries and in its dialog with the link to the loan's page and what it paid above the
+ * plan, then a row whose instalment Loans no longer has, in `goneMonth`. That row's link comes off, and the row is linked again
+ * from its dialog to the instalment due near its day, which splits it into the plan's interest, its principal under Loan principal
+ * and the difference. A key is kept, so each row carries its receipt camera as it does for a person with one.
  */
 export function spendingLinkFlowIn(language, goneMonth) {
+  const words = SCREEN_WORDS[language]
+  const links = words.spendingLinks
   return async (page, { press, shoot: shootAs }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     await page.evaluate((key) => localStorage.setItem('kuna.secret.anthropic', key), MADE_UP_ANTHROPIC_KEY)
@@ -6389,6 +6396,32 @@ export function spendingLinkFlowIn(language, goneMonth) {
     await page.evaluate((month) => (location.hash = `#/spending/transactions?month=${month}`), goneMonth)
     await page.waitForFunction(() => document.querySelector('[data-testid="spending-row-link"]')?.classList.contains('text-warning') === true, { timeout: 10_000 })
     await shootLinked('gone')
+
+    await openSpendingRow(page, press, 'Example Bank', -65000)
+    await press(await page.waitForSelector('[data-testid="spending-entry-link-remove"]', { visible: true }))
+    await toast(page, links.removed)
+    await dismissToasts(page)
+    await openSpendingRow(page, press, 'Example Bank', -65000)
+    const picker = await page.waitForSelector('[data-testid="spending-entry-link-target"]', { visible: true })
+    await picker.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(picker)
+    const nearest = await page.waitForSelector('[role="option"]', { visible: true, timeout: 5_000 })
+    const offered = await nearest.evaluate((option) => option.textContent ?? '')
+    if (!offered.startsWith('Home loan')) throw new Error(`the nearest record offered is not the home loan's instalment: ${offered}`)
+    await press(nearest)
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await page.waitForSelector('[data-testid="spending-entry-link-note"]', { visible: true, timeout: 10_000 })
+    await shootAt(page, shoot, '[data-testid="spending-entry-link-pick"]', 'spending-entry-link-pick')
+    await press(await page.waitForSelector('[data-testid="spending-entry-link-add"]:not([disabled])', { visible: true }))
+    await toast(page, links.linked)
+    await dismissToasts(page)
+    await openSpendingRow(page, press, 'Example Bank', -65000)
+    await waitForTextIn(page, '[data-testid="spending-entry-lines"]', words.spendingStarter['Loan principal'])
+    await page.waitForSelector('[data-testid="spending-entry-link"]', { visible: true, timeout: 10_000 })
+    await shootAt(page, shoot, '[data-testid="spending-entry-link"]', 'spending-entry-linked')
+    await shootAt(page, shoot, '[data-testid="spending-entry-lines"]', 'spending-entry-linked-split')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
   }
 }
 

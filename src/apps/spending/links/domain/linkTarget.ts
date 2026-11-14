@@ -1,13 +1,17 @@
+import { daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../shared/money/money'
 import type { RowLink } from '../../workbook/domain/rowLink'
+import type { Transaction } from '../../workbook/domain/transaction'
 
 /** The app a link to Loans names, the one app whose records Spending reads so far. */
 export const LOANS_APP = 'loans'
 
-/** A bank loan's instalment in Loans that a row can pay: when it falls due and what of it you pay. */
+/** A bank loan's instalment in Loans that a row can pay, or its interim interest: when it falls due and what of it you pay. */
 export interface InstalmentTarget {
   readonly kind: 'instalment'
+  /** The interest charged before the first instalment, which is all interest. */
+  readonly interim: boolean
   readonly link: RowLink
   readonly loanName: string
   readonly due: CivilDate
@@ -46,4 +50,17 @@ export function linkStateOf<Target extends { readonly link: RowLink }>(link: Row
 
 function sameRecord(one: RowLink, other: RowLink): boolean {
   return one.app === other.app && one.kind === other.kind && one.key === other.key && one.due === other.due
+}
+
+/** Instalments fall due a month apart, so half a month either side of an entry's day finds the one it pays. */
+const INSTALMENT_DAYS = 15
+
+/** The records an entry can be linked to: for money out the instalments due within half a month of its day, nearest first, then for any entry each informal loan. */
+export function targetsFor<Target extends LinkTarget>(row: Pick<Transaction, 'date' | 'amount'>, targets: readonly Target[]): readonly Target[] {
+  const instalments = targets
+    .flatMap((target) => (target.kind === 'instalment' && row.amount < 0 ? [{ target, away: Math.abs(daysBetween(row.date, target.due)) }] : []))
+    .filter(({ away }) => away <= INSTALMENT_DAYS)
+    .sort((one, other) => one.away - other.away)
+    .map(({ target }) => target)
+  return [...instalments, ...targets.filter((target) => target.kind === 'informal-loan')]
 }

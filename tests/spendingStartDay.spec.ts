@@ -79,7 +79,7 @@ function part(place: number, of: Transaction, amount: number, path: string, rece
 
 const PARTS: readonly TransactionItem[] = [
   part(1, RENT, -400, 'Home/Rent', RENT_RECEIPT),
-  part(2, RENT, -200, 'Money and fees/Loan instalments', RENT_RECEIPT),
+  part(2, RENT, -200, 'Money and fees/Loan interest', RENT_RECEIPT),
   part(3, SALARY, 2_000, 'Income/Salary', null),
   part(4, SALARY, 400, 'Income/Salary', null),
 ]

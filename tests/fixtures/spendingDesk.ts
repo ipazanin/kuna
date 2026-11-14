@@ -94,6 +94,7 @@ const HOUSING_LOAN_OCTOBER: RowLink = { app: 'loans', kind: 'bank-loan', key: HO
 export const DESK_LOAN_TARGETS: readonly LinkTarget[] = [
   ...['2026-10-15', '2026-11-15'].map((due): LinkTarget => ({
     kind: 'instalment',
+    interim: false,
     link: { app: 'loans', kind: 'bank-loan', key: HOUSING_LOAN_KEY, due: on(due) },
     loanName: 'Housing loan',
     due: on(due),

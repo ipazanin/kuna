@@ -13,14 +13,16 @@ import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recor
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
 
-/** A category keeps its children, entries, parts of entries, limits and rules, and the three fixed ones are never deleted. */
+/** A category keeps its children, entries, parts of entries, limits and rules, and a fixed one is never deleted, but Undo takes back one a write added. */
 export const CATEGORY_WRITES: WriteRules<Category> = {
   kind: CATEGORY_RECORDS,
   reads: SPENDING_KINDS,
   undoable: true,
   read: (read, records) => bookWith(CATEGORY_RECORDS, read, records).readings.categories,
   refusals: (change, fresh, after) => [
-    ...change.edits.flatMap((edit) => (edit.after === null && edit.before !== null && 'record' in edit.before && isFixedKind(edit.before.record.kind) ? [words.fixedKept(edit.before.label)] : [])),
+    ...change.edits.flatMap((edit) =>
+      !change.undoing && edit.after === null && edit.before !== null && 'record' in edit.before && isFixedKind(edit.before.record.kind) ? [words.fixedKept(edit.before.label)] : [],
+    ),
     ...dependentRefusals(['categories', 'transactions', 'budgets', 'rules', 'lines', 'items'], fresh, after),
   ],
 }

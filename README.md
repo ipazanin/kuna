@@ -3052,7 +3052,7 @@ or refuse them.
 `categories/domain/starterCategories.ts`: eleven spending groups, such as Food, Home, Transport and
 Boat, each with its children, and Income with its own. Each can be renamed, moved to another group,
 reordered, recoloured, hidden, which keeps its history, or deleted into another category, which moves
-its entries there and deletes its limits in the same write, while the other category keeps its own. A category takes its own swatch or its group's. Three fixed
+its entries there and deletes its limits in the same write, while the other category keeps its own. A category takes its own swatch or its group's. Four fixed
 categories sit beside the groups and never count as spending. They can only be renamed:
 
 - **Between my accounts** counts nowhere and only moves balances.
@@ -3060,12 +3060,15 @@ categories sit beside the groups and never count as spending. They can only be r
   month shows it under Saved to investments.
 - **For the company** counts in no spending, income or limit figure. A company cost paid privately and
   its repayment from the company both land here, so the pair nets out.
+- **Loan principal** is the part of a loan instalment that lowers what the loan still owes. It counts
+  in no spending, income or limit figure.
 
 What a row counts as has one owner, `rowSide` in `categories/domain/rowSide.ts`. On a spending
 category money out is spending and money in a refund that lowers it, and on an income category money
-in is income. A loan instalment is spending under Loan instalments, so Spending takes the whole
-instalment off the account while Loans takes the principal off what you owe, and Net worth moves by
-the interest only.
+in is income. An entry linked to a Loans instalment splits into the plan's interest, which stays
+spending under the entry's category, such as Loan interest, and its principal under Loan principal.
+What you paid above or below the plan is a part of its own beside the interest. A file made before the
+starter category was named Loan interest keeps the name it has.
 
 **Limits carry over**, by `budgetMonths` in `budgets/domain/budgetCarry.ts`. A category's limit in a
 month is its newest budget from that month or before. Available is the limit plus what carried in,

@@ -2,15 +2,16 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /**
  * What money in a category counts as. Spending and income are the groups you edit. Saving is money sent to
- * investments, transfer money between your own accounts, and company money spent for the company, and each of
- * these three is one fixed category that no spending, income or limit figure counts as spending.
+ * investments, transfer money between your own accounts, company money spent for the company, and repayment the
+ * principal of a loan you pay back, and each of these four is one fixed category that no spending, income or limit
+ * figure counts as spending.
  */
-export const CATEGORY_KINDS = ['spending', 'income', 'saving', 'transfer', 'company'] as const
+export const CATEGORY_KINDS = ['spending', 'income', 'saving', 'transfer', 'company', 'repayment'] as const
 
 export type CategoryKind = (typeof CATEGORY_KINDS)[number]
 
 /** The kinds that hold one fixed category each, with no parent and no children, which cannot be deleted. */
-export const FIXED_KINDS = ['transfer', 'saving', 'company'] as const satisfies readonly CategoryKind[]
+export const FIXED_KINDS = ['transfer', 'saving', 'company', 'repayment'] as const satisfies readonly CategoryKind[]
 
 export type FixedKind = (typeof FIXED_KINDS)[number]
 

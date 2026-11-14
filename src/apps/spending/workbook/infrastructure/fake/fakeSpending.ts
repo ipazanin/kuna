@@ -139,7 +139,7 @@ function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
     { account: CASH, date: on(16), amount: food.coffee, payee: 'Café on the square', category: 'Food/Coffee' },
     ...(food.delivery === 0 ? [] : [{ account: REVOLUT_EUR, date: on(18), amount: food.delivery, payee: 'Food delivery', category: 'Food/Delivery' }]),
     { account: REVOLUT_EUR, date: on(20), amount: -80, payee: 'Fuel station', category: 'Transport/Fuel' },
-    { account: OTP, date: on(15), amount: -650, payee: 'Example Bank', category: 'Money and fees/Loan instalments', link: homeLoanInstalment(month, back === 2 ? 15 : 20) },
+    { account: OTP, date: on(15), amount: -650, payee: 'Example Bank', category: 'Money and fees/Loan interest', link: homeLoanInstalment(month, back === 2 ? 15 : 20) },
     { account: OTP, date: on(25), amount: -300, payee: 'Example Broker', category: 'Saved to investments' },
     { account: REVOLUT_EUR, date: on(22), amount: -45, payee: 'Office supplies shop', category: 'For the company' },
     { account: OTP, date: on(28), amount: 45, payee: 'Example Studio d.o.o.', category: 'For the company' },

@@ -129,7 +129,7 @@ const ACCOUNT_FIELDS: FieldDocs<Account> = {
 const CATEGORY_FIELDS: FieldDocs<Category> = {
   id: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category.' },
   name: { exposure: 'plain', meaning: 'The name the owner gave it.' },
-  kind: { exposure: 'plain', meaning: 'spending, income, saving, transfer or company. Only spending and income count as such in the figures.' },
+  kind: { exposure: 'plain', meaning: 'spending, income, saving, transfer, company or repayment, a loan principal paid back. Only spending and income count as such in the figures.' },
   parent: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The group it sits in, or none for a group.' },
   order: { exposure: 'plain', meaning: 'Its place among its siblings.' },
   colour: { exposure: 'never', meaning: 'Its colour on screen.' },
@@ -140,7 +140,10 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
 function linkRead(item: TransactionItem, loans: AppTargets<LinkTarget>): string | null {
   if (item.link === null) return null
   const read = linkStateOf(item.link, loans)
-  if (read.state === 'there') return read.target.kind === 'instalment' ? words.reads.linkInstalment(read.target.loanName, read.target.due) : words.reads.linkInformalLoan(read.target.name)
+  if (read.state === 'there')
+    return read.target.kind === 'instalment'
+      ? (read.target.interim ? words.reads.linkInterim : words.reads.linkInstalment)(read.target.loanName, read.target.due)
+      : words.reads.linkInformalLoan(read.target.name)
   return { gone: words.reads.linkGone, opening: words.reads.linkUnknown, failed: words.reads.linkUnknown, 'not-set-up': words.reads.linkNotSetUp }[read.state]
 }
 

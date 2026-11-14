@@ -16,7 +16,7 @@ export interface RowPart {
   readonly counted: Money | null
 }
 
-/** The side a category's money counts on. Between my accounts and For the company count nowhere. */
+/** The side a category's money counts on. Between my accounts, For the company and Loan principal count nowhere. */
 export function sideOf(category: Category | null): Side {
   switch (category?.kind) {
     case 'spending':
@@ -42,8 +42,8 @@ function eurosOfItems({ euros, items }: EuroRow): readonly (Money | null)[] {
 /**
  * What a row counts as, item by item, by the kind of each item's category. Money out on a
  * spending category is spending and money in a refund that lowers it. Money in on an income category is income. Money out
- * to Saved to investments is saved. A transfer between your accounts, money for the company, and a row waiting on review
- * count nowhere.
+ * to Saved to investments is saved. A transfer between your accounts, money for the company, a loan's principal paid back
+ * and a row waiting on review count nowhere.
  */
 export function rowSide(row: EuroRow, categories: ReadonlyMap<RecordId, Category>): readonly RowPart[] {
   const partOf = (id: RecordId | null, euros: Money | null): RowPart => {

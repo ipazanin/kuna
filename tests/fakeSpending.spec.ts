@@ -187,6 +187,6 @@ describe("the fake build's Spending sets", () => {
     const book = bookOf(fakeStarterDocument(SAVED_AT))
 
     expect([book.problems, book.accounts, book.transactions, book.budgets]).toEqual([[], [], [], []])
-    expect(book.categories).toHaveLength(59)
+    expect(book.categories).toHaveLength(60)
   })
 })

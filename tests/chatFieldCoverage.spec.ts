@@ -85,6 +85,12 @@ const OFFER_RENAMES = {
 }
 
 /** An entry keeps the link it has when it is retyped, and link-entry sets it. */
+/** The chat names the record in Loans an entry links to by its loan's name and its due date, and Kuna finds the rest of it. */
+const LINK_TARGET_RENAMES = Object.fromEntries(
+  ['kind', 'interim', 'link.app', 'link.kind', 'link.key', 'loanName', 'yourShare', 'interest', 'principal', 'name', 'counterparty', 'direction']
+    .map((field) => [field, 'loan'])
+    .concat([['link.due', 'due']]),
+)
 const LINK_ENTRY_RENAMES = { 'link.app': 'link-entry:loan', 'link.kind': 'link-entry:loan', 'link.key': 'link-entry:loan', 'link.due': 'link-entry:due' }
 
 const FIELD_SOURCES: readonly FieldSource[] = [
@@ -320,8 +326,8 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#linkEntry',
-    from: ['link'],
-    operations: [{ name: 'link-entry', renames: { app: 'loan', kind: 'loan', key: 'loan' } }],
+    from: ['target'],
+    operations: [{ name: 'link-entry', renames: LINK_TARGET_RENAMES }],
   },
   {
     path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntrySplit',

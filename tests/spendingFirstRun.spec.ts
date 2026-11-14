@@ -27,10 +27,11 @@ const FIXED = [
   ['Between my accounts', 'Između mojih računa', 'transfer'],
   ['Saved to investments', 'Prijenos u ulaganja', 'saving'],
   ['For the company', 'Za tvrtku', 'company'],
+  ['Loan principal', 'Glavnica kredita', 'repayment'],
 ] as const
 
-// Eleven spending groups with 40 children, Income with 5, and the three fixed categories.
-const STARTER_COUNT = 11 + 40 + 1 + 4 + 3
+// Eleven spending groups with 40 children, Income with 5, and the four fixed categories.
+const STARTER_COUNT = 11 + 40 + 1 + 4 + 4
 
 const downloads: { readonly contents: unknown; readonly fileName: string; readonly type: string }[] = []
 
@@ -163,7 +164,7 @@ describe('the starter categories', () => {
     return categories.filter((category) => category.parent === null).map((group) => [group.name, group.kind, categories.filter((child) => child.parent === group.id).map((child) => child.name)])
   }
 
-  it('are eleven spending groups, Income and the three fixed categories, in English for a first run in English', () => {
+  it('are eleven spending groups, Income and the four fixed categories, in English for a first run in English', () => {
     const tree = treeOf('en')
 
     expect(tree.map(([name]) => name)).toEqual([...ENGLISH_GROUPS, ...FIXED.map(([en]) => en)])
@@ -173,7 +174,7 @@ describe('the starter categories', () => {
       ...FIXED.map(([en, , kind]) => [en, kind, []]),
     ])
     expect(tree[0]).toEqual(['Food', 'spending', ['Groceries', 'Restaurants', 'Coffee', 'Delivery']])
-    expect(tree[9]).toEqual(['Money and fees', 'spending', ['Bank fees', 'Taxes and charges', 'Insurance', 'Loan instalments']])
+    expect(tree[9]).toEqual(['Money and fees', 'spending', ['Bank fees', 'Taxes and charges', 'Insurance', 'Loan interest']])
     expect(starterCategories('en')).toHaveLength(STARTER_COUNT)
   })
 
@@ -191,7 +192,7 @@ describe('the starter categories', () => {
     const categories = starterCategories('en')
 
     expect(new Set(categories.map((category) => category.id)).size).toBe(categories.length)
-    expect(categories.filter((category) => category.parent === null).map((category) => category.order)).toEqual(Array.from({ length: 15 }, (_, place) => place + 1))
+    expect(categories.filter((category) => category.parent === null).map((category) => category.order)).toEqual(Array.from({ length: 16 }, (_, place) => place + 1))
     expect(categories.filter((category) => category.parent === categories[0]!.id).map((category) => category.order)).toEqual([1, 2, 3, 4])
     expect(categories.every((category) => category.colour === '' && !category.hidden)).toBe(true)
   })

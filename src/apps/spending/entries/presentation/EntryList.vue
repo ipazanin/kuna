@@ -63,7 +63,7 @@ const days = computed(() => {
         .filter((part) => part !== '')
         .join(' · '),
       euros: account.currency === EURO || row.euros === null ? '' : formatMoney(row.euros, 'always'),
-      link: entryLink === null ? null : linkLineOf.value(entryLink),
+      link: entryLink === null ? null : linkLineOf.value(entryLink, { amount: transaction.amount, currency: account.currency }),
     }
     const last = groups.at(-1)
     if (last?.day === transaction.date) last.lines.push(line)

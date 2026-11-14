@@ -38,8 +38,10 @@ export function publishedBankLoans(day: CivilDate): readonly PublishedBankLoan[]
   return homeCardFigures(state, (book) => bankLoansOf(book, day))
 }
 
-/** A bank loan's instalment as another app reads it: when it falls due and what of it you pay, as interest and as principal. */
+/** A bank loan's instalment, or its interest before the first instalment, as another app reads it: when it falls due and what of it you pay, as interest and as principal. */
 export interface PublishedInstalment {
+  /** Interim interest is all interest. */
+  readonly kind: 'instalment' | 'interim-interest'
   /** The loan's bare UUID. */
   readonly loan: string
   readonly loanName: string
@@ -61,7 +63,7 @@ export interface PublishedInformalLoan {
   readonly to: RouteLocationRaw
 }
 
-/** What a payment in another app may name in Loans: each instalment of a bank loan whose plan can be worked out, and each informal loan. */
+/** What a payment in another app may name in Loans: each instalment and interim interest of a bank loan whose plan can be worked out, and each informal loan. */
 export interface PublishedLoanTargets {
   readonly instalments: readonly PublishedInstalment[]
   readonly informalLoans: readonly PublishedInformalLoan[]
@@ -72,10 +74,11 @@ export function loanTargetsOf(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
   return {
     instalments: book.bankLoans.flatMap(({ loan, plan }) =>
       (plan ?? []).flatMap((row) => {
-        if (row.kind !== 'instalment') return []
+        if (row.kind === 'extra-payment') return []
         const { interest, principal } = splitOf(row)
         return [
           {
+            kind: row.kind,
             loan: keyOfRecordId(BANK_LOAN_RECORDS, loan.id),
             loanName: loan.name,
             due: row.date,
