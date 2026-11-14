@@ -11,7 +11,16 @@ import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/cho
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
 import { FAKE_MAIL_SETTINGS } from '../../../mail/infrastructure/fake/fakeMailbox'
-import { FAKE_FOLDERS, FAKE_WORKBOOK_ID, categoryMovePlanRecords, fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems, itemOfLedgerRow, withoutRegistrationDay } from './fakeWorkbook'
+import {
+  FAKE_FOLDERS,
+  FAKE_WORKBOOK_ID,
+  categoryMovePlanRecords,
+  fakeWorkbookDocument,
+  fakeWorkbookDocumentBeforeItems,
+  itemOfLedgerRow,
+  withOlderInterestCategory,
+  withoutRegistrationDay,
+} from './fakeWorkbook'
 import { sampleCopiedLedgerRow } from '../../../imports/infrastructure/fake/sampleImportFiles'
 import type { FakeStaff } from './fakeWorkbook'
 
@@ -62,7 +71,7 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * Fills the browser from the synthetic workbook, as a successful sync would, and chooses it: a file
  * on the fake build's Drive, or with `?fake=browser` a workbook kept in this browser with changes nine
  * days past their last export, and `?fake=mail-move` books whose statements folder on the fake Drive holds a mix for a move, `?fake=browser-beside-drive` that workbook with a file another
- * device made on the fake Drive too. `?fake=unregistered` is the file on Drive without the company's registration day. `?fake=empty` keeps nothing, which is a first run. A variant that ends
+ * device made on the fake Drive too. `?fake=unregistered` is the file on Drive without the company's registration day, and a variant that ends in `older-interest` keeps bank interest on the other income class as older books do. `?fake=empty` keeps nothing, which is a first run. A variant that ends
  * in `no-billing-plan`, `no-scenarios`, `no-plan` or `no-ledger` starts without those records. `?fake=newer-file`
  * is a file a newer app saved, and with `?fake=race` another device saves at the same moment as the
  * first save, with `?fake=slow-writes` every save takes a few seconds to land, and with `?fake=save-fails` the first of them then fails. A variant that starts with `mail` names the bank's mail, which the
@@ -86,7 +95,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const savedAt = new Date(now).toISOString()
   const beforeItems = variant?.endsWith('no-row-ids') === true || variant?.endsWith('refused-splits') === true
   const made = (beforeItems ? fakeWorkbookDocumentBeforeItems : fakeWorkbookDocument)(savedAt, source, staffOf(variant), variant?.endsWith('donations') ?? false)
-  const seeded = variant === 'unregistered' ? withoutRegistrationDay(made) : made
+  const seeded = variant === 'unregistered' ? withoutRegistrationDay(made) : variant?.endsWith('older-interest') === true ? withOlderInterestCategory(made) : made
   const full = variant?.endsWith('copied') ? withCopiedRow(seeded) : seeded
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full

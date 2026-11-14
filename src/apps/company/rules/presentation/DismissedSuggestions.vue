@@ -4,11 +4,11 @@ import UButton from '@nuxt/ui/components/Button.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import type { Dismissal } from '../../workbook/domain/dismissals'
+import type { CoverageKind } from '../../workbook/domain/dismissals'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
-import type { DismissedSuggestion } from '../domain/dismissedSuggestions'
+import type { CoverageDismissal, DismissedSuggestion } from '../domain/dismissedSuggestions'
 import { plural } from '../../../../shared/text/translation'
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words as transactionWords } from '../../transactions/presentation/words'
@@ -24,10 +24,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  restore: [dismissal: Dismissal]
+  restore: [dismissal: CoverageDismissal]
 }>()
 
-const KIND_LABELS: Readonly<Record<Dismissal['kind'], string>> = words.dismissedCard.kinds
+const KIND_LABELS: Readonly<Record<CoverageKind, string>> = words.dismissedCard.kinds
 
 const bucketBySlug = computed(() => new Map(props.categories.map((category) => [category.slug, category.bucket])))
 

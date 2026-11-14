@@ -1,8 +1,12 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="Problem extends WorkbookProblem">
 import type { WorkbookProblem } from '../../workbook/domain/workbook'
 
 defineProps<{
-  problems: readonly WorkbookProblem[]
+  problems: readonly Problem[]
+}>()
+
+defineSlots<{
+  action?: (props: { problem: Problem }) => unknown
 }>()
 </script>
 

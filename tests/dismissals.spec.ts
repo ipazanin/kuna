@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { DISMISSAL_WRITES, dismissalOfGroup } from '../src/apps/company/rules/application/dismissalWrites'
+import { DISMISSAL_WRITES, dismissalOfGroup, dismissalOfNewerClass } from '../src/apps/company/rules/application/dismissalWrites'
 import { withoutDismissed } from '../src/apps/company/rules/domain/dismissedSuggestions'
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
@@ -63,7 +63,7 @@ describe('the dismissed tab', () => {
 
     expect(reading.facts).toEqual([{ kind: 'exception', key: 'name:corner shop', category: '', dismissedOn: null, id: recordIdOf(DISMISSAL_RECORDS, 'dismissal-3') }])
     expect(reading.problems.map((problem) => [problem.label, problem.reason])).toEqual([
-      ['name:kiosk', '"rule" is not a kind of suggestion. Use not-covered, exception'],
+      ['name:kiosk', '"rule" is not a kind of suggestion. Use not-covered, exception, newer-class'],
       ['unnamed', 'no key'],
       ['name:bakery, Tuesday', 'dismissed_on "Tuesday" is not a date cell'],
       [`${DESK_KEY}, 2026-10-21`, `${DESK_KEY} is dismissed on more than one row, so none of them counts`],
@@ -106,6 +106,15 @@ describe('the dismissed tab', () => {
 
     expect(shown.coverage.exceptions.map((group) => group.ruleId)).toEqual(['desk-chairs'])
     expect(shown.dismissed.map((entry) => entry.group?.key)).toEqual([`${DESK_KEY}|desk-rent`])
+  })
+
+  it('leaves a dismissed tax class out of Category rules, even under a key a group of rows shares', () => {
+    const group = { key: DESK_KEY, name: 'Desk Co', iban: DESK_IBAN, rows: [], categories: [] }
+    const exception = { ...group, ruleId: 'desk-rent', ruleCategory: 'equipment' }
+
+    const shown = withoutDismissed({ notCovered: [group], exceptions: [exception] }, [{ ...dismissalOfNewerClass('interest-income', DAY), key: DESK_KEY }])
+
+    expect(shown).toEqual({ coverage: { notCovered: [group], exceptions: [exception] }, dismissed: [] })
   })
 })
 

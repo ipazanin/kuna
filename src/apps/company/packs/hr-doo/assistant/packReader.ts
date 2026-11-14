@@ -25,6 +25,7 @@ import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
 import type { ScenarioRow } from '../domain/scenarios/scenariosReading'
 import { taxByType } from '../domain/taxByType'
 import { isOwnerPayCost } from '../domain/packRoles'
+import { startingClassChange } from '../preset/domain/startingCategories'
 import { yearOptions } from '../domain/yearChoice'
 import type { YearOption } from '../domain/yearChoice'
 import type { YearEndLine } from '../domain/yearEnd/yearEnd'
@@ -452,5 +453,6 @@ export function hrDooReader(reading: CompanyReading): PackReader {
     ],
     traceRules: HR_DOO_TRACE_RULES,
     ownerPayCost: isOwnerPayCost,
+    suggestedClass: (category) => startingClassChange(category, reading.workbook()?.dismissals ?? [])?.to ?? null,
   }
 }

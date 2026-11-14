@@ -5,7 +5,7 @@ import { today } from '../../../../shared/calendar/civilDate'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import type { Dismissal, SuggestionKind } from '../../workbook/domain/dismissals'
+import type { CoverageKind, Dismissal } from '../../workbook/domain/dismissals'
 import type { Transaction } from '../../workbook/domain/workbook'
 import { DISMISSAL_WRITES, dismissalOfGroup } from '../application/dismissalWrites'
 import { withoutDismissed } from '../domain/dismissedSuggestions'
@@ -56,7 +56,7 @@ function makeRuleForGroup(group: CoverageGroup<Transaction>): void {
   editorOpen.value = true
 }
 
-function dismiss(kind: SuggestionKind, group: CoverageGroup<Transaction>): void {
+function dismiss(kind: CoverageKind, group: CoverageGroup<Transaction>): void {
   void writes.write(words.suggestions.dismissed(group.name), (unit) => unit.of(DISMISSAL_WRITES).add(dismissalOfGroup(kind, group, today())), {
     failedTitle: words.suggestions.notDismissed,
     key: `dismiss-${group.name}`,

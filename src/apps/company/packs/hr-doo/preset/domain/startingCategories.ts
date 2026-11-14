@@ -1,16 +1,23 @@
 import { OWNER_SHARE_ROLES } from '../../../../owner-share/domain/ownerShare'
 import { RECEIVABLE_ROLES } from '../../../../receivables/domain/invoiceMatching'
+import { classOf } from '../../../../settings/domain/categoryClasses'
 import type { DefinedBucket } from '../../../../workbook/domain/bucket'
+import { newerClassDismissed } from '../../../../workbook/domain/dismissals'
+import type { Dismissal } from '../../../../workbook/domain/dismissals'
 import type { StartingCategory } from '../../../../workbook/domain/packPart'
 import type { VatTreatment } from '../../../../workbook/domain/vatTreatment'
 import { PACK_ROLES } from '../../domain/packRoles'
+import { CATEGORY_CLASSES } from './taxClassOf'
 
 interface Family {
   readonly family: string
   readonly bucket: DefinedBucket
   readonly colour: string
-  /** Each with its class first and its modifiers after it, and its VAT treatment, none when left out. */
-  readonly categories: readonly (readonly [slug: string, roles: readonly string[], vat?: VatTreatment])[]
+  /**
+   * Each with its class first and its modifiers after it, its VAT treatment, none when left out, and the class older
+   * books gave it where new books give another.
+   */
+  readonly categories: readonly (readonly [slug: string, roles: readonly string[], vat?: VatTreatment, earlierClass?: string])[]
 }
 
 const FAMILIES: readonly Family[] = [
@@ -23,7 +30,7 @@ const FAMILIES: readonly Family[] = [
       ['grant-income', [PACK_ROLES.grant]],
       ['client-refund', [RECEIVABLE_ROLES.clientRefund]],
       ['other-income', [PACK_ROLES.otherIncome]],
-      ['interest-income', [PACK_ROLES.interestIncome]],
+      ['interest-income', [PACK_ROLES.interestIncome], 'none', PACK_ROLES.otherIncome],
     ],
   },
   {
@@ -102,3 +109,23 @@ const FAMILIES: readonly Family[] = [
 export const STARTING_CATEGORIES: readonly StartingCategory[] = FAMILIES.flatMap(({ family, bucket, colour, categories }) =>
   categories.map(([slug, roles, vat = 'none']) => ({ slug, family, bucket, colour, roles, vat })),
 )
+
+/** The class older books gave each starting category that new books give another, and the one new books give it, by the category's short name. */
+const CLASS_CHANGES: ReadonlyMap<string, StartingClassChange> = new Map(
+  FAMILIES.flatMap(({ categories }) => categories.flatMap(([slug, [newer], , earlier]) => (earlier === undefined || newer === undefined ? [] : [[slug, { from: earlier, to: newer }] as const]))),
+)
+
+/** The class a starting category counts by and the one new books give it. */
+interface StartingClassChange {
+  readonly from: string
+  readonly to: string
+}
+
+/**
+ * The change for a starting category that still counts by the class older books gave it, or null, and null too once the person
+ * dismissed it. The figures count the class it carries, so the person picks the new one.
+ */
+export function startingClassChange(category: { readonly slug: string; readonly roles: readonly string[] }, dismissals: readonly Dismissal[]): StartingClassChange | null {
+  const change = CLASS_CHANGES.get(category.slug)
+  return change !== undefined && classOf(category.roles, CATEGORY_CLASSES)?.role === change.from && !newerClassDismissed(dismissals, category.slug) ? change : null
+}

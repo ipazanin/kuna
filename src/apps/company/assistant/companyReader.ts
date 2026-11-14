@@ -52,6 +52,8 @@ export interface PackReader {
   readonly traceRules?: TraceRules
   /** Whether a category is a cost of paying the owner or an employee, whose figures only a report marked as holding employees' pay gives. */
   readonly ownerPayCost: (category: Category) => boolean
+  /** The tax class the pack suggests a category takes in place of the one it carries, or null for none or once the person dismissed it. */
+  readonly suggestedClass: (category: Category) => string | null
 }
 
 /**
@@ -142,6 +144,7 @@ interface CategoryView {
   readonly roles: string
   readonly vat: string
   readonly ownerShare: string
+  readonly suggestedClass: string
 }
 
 interface AccountView {
@@ -240,6 +243,11 @@ const CATEGORY_FIELDS: FieldDocs<CategoryView> = {
     exposure: 'plain',
     meaning:
       "The owner's private share a row filed in it takes, in percent, or empty for none. Only the business share's VAT is deducted, and the VAT on the private share, the reverse charge's included, counts in the owner's part.",
+  },
+  suggestedClass: {
+    exposure: 'plain',
+    meaning:
+      'The tax class Settings suggests in place of the one it carries, as new books give it, or empty, also once the person dismissed it there. Offer it with change-category, and the person decides.',
   },
 }
 
@@ -512,6 +520,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
     return workbook === null ? EURO : currencyOf(workbook)
   }
   const ownerPayCost = pack?.ownerPayCost ?? ((category: Category) => category.bucket === 'owner-pay')
+  const suggestedClass = pack?.suggestedClass ?? (() => null)
   const report = (figures: (books: ReportBooks, period: string | null) => readonly ReportFigure[]) => (period: string | null) => {
     const workbook = reading.workbook()
     const ledger = workbook === null ? null : countedLedger(workbook, DEFAULT_FILTERS, installedPack().vatOnPrivateShare)
@@ -561,6 +570,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
               roles: category.roles.join(', '),
               vat: category.vat,
               ownerShare: ownerShareText(category.ownerShare) ?? '',
+              suggestedClass: suggestedClass(category) ?? '',
             })),
           ),
         currencyOf: currency,

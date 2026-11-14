@@ -1416,7 +1416,7 @@ const SCREENS = [
     hash: '#/company/settings',
     title: 'Settings',
     charts: 0,
-    shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner', 'Categories to sort', 'Kuna counts these by bucket and VAT'],
+    shows: ['The workbook', 'Mail', 'Company and owner facts', 'Bucket labels', 'Loans to the owner', 'Categories to sort', 'Each line names a category that may not count the way you mean'],
   },
   {
     name: 'company-settings-loan-rate',
@@ -1445,6 +1445,22 @@ const SCREENS = [
     shows: ['Skupina određuje gdje se stavka broji', 'Spremi kategorije', 'Kategorije', 'Porezna pravila', 'Porezni tretman', 'Još nije razvrstana', 'Kuna ovo broji pod „Reprezentacija'],
     collapsedBefore: ['settings.categories'],
     linkedCard: 'settings.categories',
+  },
+  {
+    name: 'company-settings-older-interest',
+    query: 'fake=older-interest',
+    hash: '#/company/settings',
+    title: 'Settings',
+    charts: 0,
+    shows: ['Categories to sort', 'Interest income', 'It carries "Other income", and new books give it "Interest, financial income".', 'Dismiss'],
+  },
+  {
+    name: 'company-settings-older-interest-croatian',
+    query: 'fake=older-interest&lang=hr',
+    hash: '#/company/settings',
+    title: 'Postavke',
+    charts: 0,
+    shows: ['Kategorije za razvrstavanje', 'Ima porezni tretman „Ostali prihodi”, a nova datoteka ovoj kategoriji daje „Kamate, financijski prihod”.', 'Odbaci'],
   },
   {
     name: 'company-settings-croatian',

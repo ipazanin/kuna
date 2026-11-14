@@ -7,6 +7,7 @@ import { monthPeriod } from '../src/apps/company/filters/domain/drillTarget'
 import { DEFAULT_FILTERS, transactionsInPeriod } from '../src/apps/company/filters/domain/filterState'
 import { amountsOwed } from '../src/apps/company/receivables/domain/ageing'
 import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching'
+import { dismissalOfNewerClass } from '../src/apps/company/rules/application/dismissalWrites'
 import { lineLabel } from '../src/apps/company/settings/domain/profitAndLossLabels'
 import { countedLedger } from '../src/apps/company/transactions/domain/countedLedger'
 import { bucketTotals } from '../src/apps/company/workbook/domain/bucketTotals'
@@ -24,6 +25,7 @@ import { addMonths, monthOf } from '../src/shared/calendar/monthKey'
 import { addMoney } from '../src/shared/money/money'
 import type { Money } from '../src/shared/money/money'
 import { companyReaderOf, companyReadsOf, fakeCompanyBooks, readingOf, withSettings } from './fixtures/companyChatBooks'
+import { civil } from './fixtures/ledger'
 import { vatOnPrivateShare } from '../src/apps/company/packs/hr-doo/domain/vat/vatSplit'
 
 const BOOKS = fakeCompanyBooks()
@@ -185,6 +187,20 @@ describe("what the chat reads of the company's books", () => {
         .rows()
         .map((row) => row.id),
     ).toEqual(BOOKS.workbook.clients.map((client) => client.slug))
+  })
+
+  it('tells the chat the class Settings suggests for the interest category older books started on other income, none for the rest, and none once the person dismissed it', () => {
+    const interest = BOOKS.workbook.categories.find((category) => category.slug === 'bank-interest')!
+    const older = { ...BOOKS, workbook: { ...BOOKS.workbook, categories: [...BOOKS.workbook.categories, { ...interest, slug: 'interest-income', roles: ['other-income'] }] } }
+    const suggestedIn = (books: typeof older) =>
+      companyReaderOf(books)
+        .kinds.find((candidate) => candidate.name === coreKinds.CATEGORY_RECORDS.name)!
+        .rows()
+        .flatMap((row) => row.fields.flatMap((field) => (field.name === 'suggestedClass' && 'value' in field && field.value !== '' ? [[row.id, field.value]] : [])))
+    const dismissed = { ...older, workbook: { ...older.workbook, dismissals: [...older.workbook.dismissals, dismissalOfNewerClass('interest-income', civil('2026-11-14'))] } }
+
+    expect(suggestedIn(older)).toEqual([['interest-income', 'interest-income']])
+    expect(suggestedIn(dismissed)).toEqual([])
   })
 })
 

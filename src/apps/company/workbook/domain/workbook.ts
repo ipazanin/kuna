@@ -209,7 +209,7 @@ export interface WorkbookProblem extends RecordProblem {
 }
 
 /** A tab's record problems as the workbook lists them. */
-export function tabProblems(tab: WorkbookProblem['tab'], problems: readonly RecordProblem[]): WorkbookProblem[] {
+export function tabProblems<Problem extends RecordProblem>(tab: WorkbookProblem['tab'], problems: readonly Problem[]): (Problem & WorkbookProblem)[] {
   return problems.map((problem) => ({ tab, ...problem }))
 }
 

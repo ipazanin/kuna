@@ -80,7 +80,7 @@ describe('the starting categories', () => {
   const asCategories: Category[] = STARTING_CATEGORIES.map((category) => ({ ...category, colour: categoryColourOf(category.colour), ownerShare: null }))
 
   it('give every category one class it keeps to, so new books read and save with no class problem', () => {
-    expect(categoriesToSort(asCategories, civil('2026-10-30'))).toEqual([])
+    expect(categoriesToSort(asCategories, civil('2026-10-30'), [])).toEqual([])
     expect(
       categoryClassRefusals(
         STARTING_CATEGORIES.map((category) => ({ before: null, after: category })),

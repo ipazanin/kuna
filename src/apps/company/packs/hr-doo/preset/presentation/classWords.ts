@@ -57,6 +57,7 @@ export const en = {
       `It carries "${taxClass}", which takes ${listInWords(treatments, 'or')}, and its VAT reads ${vat}. Change one of them on Settings, Categories.`,
     bucket: (taxClass: string, buckets: readonly string[], bucket: string) =>
       `It carries "${taxClass}", which sits in ${listInWords(buckets, 'or')}, and the category sits in ${bucket}. Change one of them on Settings, Categories.`,
+    newerClass: (carried: string, newer: string) => `It carries "${carried}", and new books give it "${newer}". Pick that one on Settings, Categories.`,
   },
 }
 
@@ -100,6 +101,7 @@ export const hr: Translation<typeof en> = {
     vat: (taxClass, treatments, vat) => `Ima porezni tretman „${taxClass}”, koji uzima ${listInWords(treatments, 'or')}, a PDV glasi ${vat}. Promijenite jedno od toga u Postavkama, Kategorije.`,
     bucket: (taxClass, buckets, bucket) =>
       `Ima porezni tretman „${taxClass}”, koji ide u skupinu ${listInWords(buckets, 'or')}, a kategorija je u skupini ${bucket}. Promijenite jedno od toga u Postavkama, Kategorije.`,
+    newerClass: (carried, newer) => `Ima porezni tretman „${carried}”, a nova datoteka ovoj kategoriji daje „${newer}”. Odaberite taj tretman u Postavkama, Kategorije.`,
   },
 }
 

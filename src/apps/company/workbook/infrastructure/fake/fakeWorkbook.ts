@@ -5,7 +5,7 @@ import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../../shared/storage/domain/recordFields'
 import type { FieldValue, RecordFields } from '../../../../../shared/storage/domain/recordFields'
 import type { WorkbookSource } from '../../../../../shared/storage/domain/recordsRead'
-import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
+import type { DocumentRecord, WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP } from '../../domain/companyApp'
 import { installedSchema } from '../companyDocument'
@@ -431,6 +431,14 @@ const REGISTERED = ['hr_company_registered', '2025-05-12'] as const
 export function withoutRegistrationDay(document: WorkbookDocument): WorkbookDocument {
   const [key] = REGISTERED
   return { ...document, records: { ...document.records, setting: (document.records['setting'] ?? []).filter((fields) => fields['key'] !== key) } }
+}
+
+/** The books with bank interest in its starting category on the other income class, as books started before interest counted on financial income keep it. */
+export function withOlderInterestCategory(document: WorkbookDocument): WorkbookDocument {
+  const renamed = (fields: DocumentRecord): DocumentRecord => (fields['category'] === 'bank-interest' ? { ...fields, category: 'interest-income' } : fields)
+  const records = Object.fromEntries(Object.entries(document.records).map(([kind, rows]) => [kind, rows.map(renamed)]))
+  const categories = (records['category'] ?? []).map((fields) => (fields['category'] === 'interest-income' ? { ...fields, roles: 'other-income' } : fields))
+  return { ...document, records: { ...records, category: categories } }
 }
 
 const setting = ([key, value]: readonly [string, FieldValue | number]): FakeFields => ({ key, value })

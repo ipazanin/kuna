@@ -47,7 +47,11 @@ export async function previewImport(file: File): Promise<ImportPreview> {
   const { document, missingTabs } = file.name.toLowerCase().endsWith('.json') ? await documentOfFile(file) : await documentOfWorkbookFile(file)
   const workbook = readDocument(previewIdentity(file.name), document).workbook
   const counts = recordCountsOf(document)
-  const summary = importSummary(workbook, missingTabs, tabProblems('categories', installedPack().categoriesToSort(workbook.categories, newestBookingOf(workbook.transactions) ?? today())))
+  const summary = importSummary(
+    workbook,
+    missingTabs,
+    tabProblems('categories', installedPack().categoriesToSort(workbook.categories, newestBookingOf(workbook.transactions) ?? today(), workbook.dismissals)),
+  )
   return {
     fileName: file.name,
     title: workbook.settings.companyName || withoutExtension(file.name),

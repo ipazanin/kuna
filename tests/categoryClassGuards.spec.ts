@@ -126,7 +126,7 @@ describe.each([
     const stored = (slug: string) => recordWithId(store.state.records!.categories, categoryIdOf({ slug }))!.record
     const reported = () =>
       installedPack()
-        .categoriesToSort(store.state.workbook!.categories, civil('2026-10-30'))
+        .categoriesToSort(store.state.workbook!.categories, civil('2026-10-30'), store.state.workbook!.dismissals)
         .map((line) => line.reason)
     const dinnersLine =
       'It carries "Representation: 50% added back to the profit tax base, no VAT back", which takes Representation, and its VAT reads Input VAT 25\u00a0%. Change one of them on Settings, Categories.'

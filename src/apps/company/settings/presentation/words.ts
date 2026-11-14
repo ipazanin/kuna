@@ -54,10 +54,20 @@ export const en = {
     save: 'Save settings',
     discard: 'Discard changes',
   },
-  /** The card of the categories the pack cannot count one way yet, on Settings, General and in an import's summary. */
+  /** The card of the categories the pack cannot count one way yet, or not as new books count them, on Settings, General and in an import's summary, with the suggestions dismissed on Settings. */
   categoriesToSort: {
     title: 'Categories to sort',
-    help: 'Kuna counts these by bucket and VAT until each has a tax class.',
+    help: 'Each line names a category that may not count the way you mean, and what to change.',
+    dismiss: 'Dismiss',
+    dismissNamed: (name: string) => `Dismiss the suggested tax class for ${name}`,
+    dismissedToast: (name: string) => `Suggested tax class for ${name} dismissed`,
+    notDismissed: 'Not dismissed',
+    dismissed: 'You dismissed the suggested tax class.',
+    dismissedOn: (day: string) => `You dismissed the suggested tax class on ${day}.`,
+    restore: 'Restore',
+    restoreNamed: (name: string) => `Restore the suggested tax class for ${name}`,
+    restored: 'Suggestion restored',
+    notRestored: 'Not restored',
   },
   /** The card of what the reader could not use, under Settings, General. */
   problems: {
@@ -272,7 +282,17 @@ export const hr: Translation<typeof en> = {
   },
   categoriesToSort: {
     title: 'Kategorije za razvrstavanje',
-    help: 'Kuna ih broji po skupini i PDV-u dok svaka ne dobije porezni tretman.',
+    help: 'Svaki redak navodi kategoriju koja se možda ne broji kako želite i što u njoj promijeniti.',
+    dismiss: 'Odbaci',
+    dismissNamed: (name) => `Odbaci predloženi porezni tretman za ${name}`,
+    dismissedToast: (name) => `Predloženi porezni tretman za ${name} je odbačen`,
+    notDismissed: 'Nije odbačeno',
+    dismissed: 'Odbacili ste predloženi porezni tretman.',
+    dismissedOn: (day) => `Dana ${day} odbacili ste predloženi porezni tretman.`,
+    restore: 'Vrati',
+    restoreNamed: (name) => `Vrati predloženi porezni tretman za ${name}`,
+    restored: 'Prijedlog je vraćen',
+    notRestored: 'Nije vraćeno',
   },
   problems: {
     title: 'Retci koje aplikacija nije mogla upotrijebiti kako su napisani',

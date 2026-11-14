@@ -9,7 +9,7 @@ import type { CoverageGroup, RuleCoverage } from '../domain/ruleCoverage'
 import CategoryChip from '../../transactions/presentation/CategoryChip.vue'
 import { UNCLASSIFIED } from '../../workbook/domain/bucket'
 import type { Bucket } from '../../workbook/domain/bucket'
-import type { SuggestionKind } from '../../workbook/domain/dismissals'
+import type { CoverageKind } from '../../workbook/domain/dismissals'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { plural } from '../../../../shared/text/translation'
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -35,7 +35,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   makeRule: [group: CoverageGroup<Transaction>]
-  dismiss: [kind: SuggestionKind, group: CoverageGroup<Transaction>]
+  dismiss: [kind: CoverageKind, group: CoverageGroup<Transaction>]
 }>()
 
 const bucketBySlug = computed(() => new Map(props.categories.map((category) => [category.slug, category.bucket])))

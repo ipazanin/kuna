@@ -40,6 +40,7 @@ export const en = {
   suggestion: {
     'not-covered': 'Rows no rule files',
     exception: 'Rows a rule files elsewhere',
+    'newer-class': 'The tax class new books give a category',
   },
   ruleDisagrees: (category: string) => `You confirmed this row. The rules now say ${category}. The row keeps its category, and rows filed after the change follow the rule.`,
   ruleBreaksAgreement: (category: string) => `A rule filed this row. The rules now say ${category}. The row keeps its category.`,
@@ -104,6 +105,7 @@ export const hr: Translation<typeof en> = {
   suggestion: {
     'not-covered': 'Retci koje nijedno pravilo ne razvrstava',
     exception: 'Retci koje pravilo razvrstava drugamo',
+    'newer-class': 'Porezni tretman koji nova datoteka daje kategoriji',
   },
   ruleDisagrees: (category) => `Ovaj ste redak potvrdili. Pravila sada kažu ${category}. Redak zadržava kategoriju, a retke razvrstane nakon promjene pravilo prati.`,
   ruleBreaksAgreement: (category) => `Ovaj je redak razvrstalo pravilo. Pravila sada kažu ${category}. Redak zadržava kategoriju.`,

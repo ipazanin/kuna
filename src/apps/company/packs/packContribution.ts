@@ -11,6 +11,7 @@ import type { SettingsTab } from '../settings/presentation/settingsTabs'
 import type { FilteredLedger } from '../transactions/application/useFilteredLedger'
 import { NO_VAT_ON_PRIVATE_SHARE } from '../owner-share/domain/ownerParts'
 import type { VatOnPrivateShare } from '../owner-share/domain/ownerParts'
+import type { Dismissal } from '../workbook/domain/dismissals'
 import type { PackPart } from '../workbook/domain/packPart'
 import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
 import { newestBookingOf } from '../workbook/domain/workbook'
@@ -87,6 +88,11 @@ export function classSharesDay(workbook: Workbook | null): CivilDate {
   return newestBookingOf(workbook?.transactions ?? []) ?? today()
 }
 
+/** A line of Categories to sort. A line that suggests the tax class new books give a category names that category, and the person may dismiss it. */
+export interface CategoryToSort extends RecordProblem {
+  readonly newerClassOf?: string
+}
+
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
 export interface PackContribution {
   /** The pack's part of the workbook, read whatever the owner-pay switch says. */
@@ -112,10 +118,10 @@ export interface PackContribution {
   /** The help for the class a role carries, with the law's figures in force on the day, or null for a role that carries none. */
   categoryClassHelp(role: string, on: CivilDate): CategoryClassHelp | null
   /**
-   * The categories that do not count one way yet, each with what to change, with the law's figures in
-   * force on the day. They are no reading problem: the figures still count each by its bucket and VAT.
+   * The categories that do not count one way yet, or not the way new books count them, each with what to change, with the
+   * law's figures in force on the day. A suggestion the person dismissed is left out. They are no reading problem.
    */
-  categoriesToSort(categories: readonly Category[], on: CivilDate): readonly RecordProblem[]
+  categoriesToSort(categories: readonly Category[], on: CivilDate, dismissals: readonly Dismissal[]): readonly CategoryToSort[]
   /** The words for the records of one of the kinds the pack's part names categories with, by the kind's name. */
   categoryNamingWords(kind: string): CategoryNamingWords
   readonly onboarding: PackOnboarding | null

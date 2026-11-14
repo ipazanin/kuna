@@ -191,12 +191,15 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     ID_TEMPLATE_COLUMN,
   ],
   dismissed: [
-    { name: 'kind', note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}, the two lists of confirmed rows no rule repeats on Settings, Category rules. Required.` },
+    {
+      name: 'kind',
+      note: `What was dismissed: ${SUGGESTION_KINDS.join(' or ')}. The first two are the lists of confirmed rows no rule repeats on Settings, Category rules, and newer-class is the tax class Categories to sort suggests for a category. Required.`,
+    },
     {
       name: 'key',
-      note: 'The counterparty the suggestion groups its rows by: iban: and the IBAN, or name: and the name in lower case without accents. An exception adds | and the id of the rule it differs from. Required.',
+      note: "The counterparty the suggestion groups its rows by: iban: and the IBAN, or name: and the name in lower case without accents. An exception adds | and the id of the rule it differs from. A newer-class row holds the category's short name. Required.",
     },
-    { name: 'category', note: "The category most of the group's rows were in when it was dismissed. Optional." },
+    { name: 'category', note: "The category most of the group's rows were in when it was dismissed, or for newer-class the category itself. Optional." },
     { name: 'dismissed_on', note: 'The day it was dismissed, as a date cell. Optional.' },
     ID_TEMPLATE_COLUMN,
   ],

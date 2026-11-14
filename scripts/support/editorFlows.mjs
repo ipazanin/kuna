@@ -2987,6 +2987,50 @@ export function dismissFlowIn(language) {
 
 export const dismissFlow = dismissFlowIn('en')
 
+/** Waits until Categories to sort shows the button with this test id, as `shown` asks, and brings a shown one to the middle. */
+async function toSortButtonShown(page, testId, shown) {
+  const selector = `[data-testid="categories-to-sort"] [data-testid="${testId}"]`
+  await page
+    .waitForFunction((wanted, present) => (document.querySelector(wanted) !== null) === present, { timeout: 10_000 }, selector, shown)
+    .catch(() => {
+      throw new Error(shown ? `Categories to sort has no ${testId}` : `Categories to sort still has ${testId}`)
+    })
+  if (!shown) return
+  await page.$eval(selector, (element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+}
+
+/**
+ * Settings, General in books that keep interest on the other income class: dismiss the suggested class in Categories to
+ * sort, find it there with Restore, restore it, and Undo the restore.
+ */
+export function newerClassFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openCard(page, press, 'categories-to-sort')
+    await toSortButtonShown(page, 'dismiss-newer-class', true)
+    await inspect?.('the suggested class with Dismiss')
+    await shoot('newer-class-suggested')
+    await pressSelector(page, press, '[data-testid="categories-to-sort"] [data-testid="dismiss-newer-class"]')
+    await toastMatching(page, new RegExp(words.settings.categoriesToSort.dismissedToast('.+')))
+    await toSortButtonShown(page, 'dismiss-newer-class', false)
+    await toSortButtonShown(page, 'restore-newer-class', true)
+    await dismissToasts(page)
+    await inspect?.('the dismissed class with Restore')
+    await shoot('newer-class-dismissed')
+    await pressSelector(page, press, '[data-testid="categories-to-sort"] [data-testid="restore-newer-class"]')
+    await toast(page, words.settings.categoriesToSort.restored)
+    await toSortButtonShown(page, 'dismiss-newer-class', true)
+    await undoIn(page, press, words)
+    await toSortButtonShown(page, 'restore-newer-class', true)
+    await shoot('newer-class-restore-undone')
+    await dismissToasts(page)
+  }
+}
+
+export const newerClassFlow = newerClassFlowIn('en')
+
 const STATEMENTS_FOLDER = '[data-testid="statements-folder"]'
 
 /** The Save settings button once it is enabled or disabled, as `enabled` asks. */
