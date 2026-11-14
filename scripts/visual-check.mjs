@@ -2468,7 +2468,7 @@ const SOURCE_SCREENS = [
     title: 'Krediti',
     charts: 0,
     shows: ['Gdje se čuva datoteka kredita', 'Nova datoteka na Google Driveu', 'Moja datoteka na Google Driveu'],
-    ready: '[data-testid="home-link"][aria-label="Kuna, sve aplikacije"]',
+    ready: '[data-testid="home-link"][aria-label="Kuna, Početna"]',
     cards: false,
   },
   { name: 'loans-start-folder', hash: '#/loans/start?step=folder', title: 'Loans', charts: 0, shows: ['Where the Loans file is saved', 'Kuna › loans', 'Create the file here'], cards: false },
