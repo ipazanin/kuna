@@ -11,12 +11,11 @@ import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpen
 import { filedAsTransfer } from '../src/apps/spending/workbook/domain/rowItems'
 import { CATEGORY_RECORDS, RULE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { SpendingRule } from '../src/apps/spending/workbook/domain/spendingRule'
-import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil } from './fixtures/ledger'
-import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_EUR, category, row, storedBeforeItems, wholeItems } from './fixtures/spending'
+import { CASH, CATEGORIES, OTP, REVOLUT_EUR, category, row, spendingBook, wholeItems } from './fixtures/spending'
 
 const DAY = civil('2026-10-30')
 const FIRST = category('Between my accounts')
@@ -35,20 +34,7 @@ const SECOND: Category = {
 const CATEGORIES_WITH_SECOND: readonly Category[] = [...CATEGORIES, SECOND]
 
 function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRule[] = []): SpendingBook {
-  return {
-    accounts: ACCOUNTS,
-    categories: CATEGORIES_WITH_SECOND,
-    transactions,
-    budgets: [],
-    rules,
-    receipts: [],
-    items: wholeItems(transactions),
-    held: [],
-    settings: spendingSettingsOf([]),
-    stored: storedBeforeItems(transactions),
-    readings: {} as SpendingBook['readings'],
-    problems: [],
-  }
+  return spendingBook(transactions, { categories: CATEGORIES_WITH_SECOND, rules })
 }
 
 const underSecond = (on: typeof OTP, amount: number, payee: string, fields: Partial<StoredRow> = {}): StoredRow =>

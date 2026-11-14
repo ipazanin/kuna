@@ -2,7 +2,7 @@ import type { InstalmentTarget, LinkTarget } from './linkTarget'
 import type { Category } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
-import { allUnder, wholeRowItemId } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, wholeRowItemId } from '../../workbook/domain/rowItems'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
@@ -79,8 +79,7 @@ export function linkFiling({ row, items }: ItemizedRow, target: LinkTarget, on: 
   if (row.amount >= 0) return whole('money-in')
   if (on.currency !== EURO) return whole('not-euro')
   const kinds = new Map(on.categories.map((category) => [category.id, category.kind]))
-  const transfer = on.categories.find((category) => category.kind === 'transfer')?.id ?? null
-  if (row.pair !== null || allUnder(items, transfer)) return whole('transfer-leg')
+  if (row.pair !== null || filedAsTransfer(on.categories)(items)) return whole('transfer-leg')
   if (on.receipt) return whole('receipt')
   const filed = items.filter((item): item is TransactionItem & { readonly category: RecordId } => item.category !== null && kinds.get(item.category) !== 'repayment')
   if (filed.length === 0) return whole('unfiled')
