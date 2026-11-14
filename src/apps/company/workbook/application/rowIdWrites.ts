@@ -72,8 +72,9 @@ function itemIdOfPart(id: RecordId): RecordId {
 /**
  * Moves books from before items to the items tab in one write. Every ledger row gets a row id if it has none, and gives up its
  * category and share to its items: a row not split one item under its own id with them, and a split row its parts, each under the
- * key it was stored by, in the order the splits tab holds them. The splits tab is emptied, and the pack's records that name a row
- * name its items. Gives what the move wrote for each row, in the order of the ledger.
+ * key it was stored by, in the order the splits tab holds them. The splits tab is emptied, and the pack splits the items by what
+ * its records count them as today and has its records that name a row name its items. Gives the items the move wrote, in the
+ * order of the ledger.
  */
 export function moveToItems(unit: UnitOfWork, books: CompanyBooks, newId: () => string = newRecordId): readonly ItemRecord[] {
   const { records, workbook } = books
@@ -81,23 +82,32 @@ export function moveToItems(unit: UnitOfWork, books: CompanyBooks, newId: () => 
   const rowOf = new Map(workbook.transactions.map((row) => [row.id, row]))
   const counted = new Set(workbook.splits.map((split) => split.row.id))
   const parts = recordsOf(records.splits)
-  const items = recordsOf(records.ledger).flatMap((entry): ItemRecord[] => {
-    const rowId = entry.rowId ?? newId()
-    ledger.change(entry, { ...entry, rowId, category: '', ownerShare: null })
-    const row: Transaction | undefined = rowOf.get(entry.id)
-    if (row !== undefined && counted.has(row.id)) {
-      return parts
-        .filter((part) => rowsOfSplitKey([row], part.key).length === 1)
-        .map((part) => ({ row: rowId, amount: part.amount, category: part.category, note: part.note, ownerShare: part.ownerShare, id: itemIdOfPart(part.id) }))
-    }
-    return [{ row: rowId, amount: entry.amount, category: entry.category, note: '', ownerShare: entry.ownerShare, id: recordIdOf(ITEM_RECORDS, rowId) }]
-  })
+  const byEntry = new Map(
+    recordsOf(records.ledger).map((entry): [RecordId, ItemRecord[]] => {
+      const rowId = entry.rowId ?? newId()
+      ledger.change(entry, { ...entry, rowId, category: '', ownerShare: null })
+      const row: Transaction | undefined = rowOf.get(entry.id)
+      if (row !== undefined && counted.has(row.id)) {
+        return [
+          entry.id,
+          parts
+            .filter((part) => rowsOfSplitKey([row], part.key).length === 1)
+            .map((part) => ({ row: rowId, amount: part.amount, category: part.category, note: part.note, ownerShare: part.ownerShare, id: itemIdOfPart(part.id) })),
+        ]
+      }
+      return [entry.id, [{ row: rowId, amount: entry.amount, category: entry.category, note: '', ownerShare: entry.ownerShare, id: recordIdOf(ITEM_RECORDS, rowId) }]]
+    }),
+  )
   const splitParts = unit.of(SPLIT_WRITES)
   parts.forEach((part) => splitParts.remove(part))
+  const items = installedPack().linkToItems(unit, books, {
+    items: [...byEntry.values()].flat(),
+    itemOf: ({ id, split }) => {
+      const held = byEntry.get(split?.whole.id ?? id) ?? []
+      return split === undefined ? held[0] : held.find((item) => item.id === itemIdOfPart(split.id))
+    },
+  })
   const itemWrites = unit.of(ITEM_WRITES)
   items.forEach((item) => itemWrites.add(item))
-  const byRow = new Map<string, RecordId[]>()
-  for (const item of items) byRow.set(item.row, [...(byRow.get(item.row) ?? []), item.id])
-  installedPack().linkToItems(unit, records, (rowId) => byRow.get(rowId) ?? [])
   return items
 }

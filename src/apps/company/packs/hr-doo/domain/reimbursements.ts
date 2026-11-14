@@ -4,17 +4,20 @@ import { ZERO, absMoney, addMoney, minMoney, subtractMoney } from '../../../../.
 import type { Money } from '../../../../../shared/money/money'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
 
+/** What of a payment a reimbursement reads: its category, amount, day and place in booking order. */
+export type ReimbursementRow = Pick<Transaction, 'category' | 'amount' | 'date' | 'sequence'>
+
 /** A payment on a reimbursement category, with what is left of it once a payment the other way on its day is taken off, read positive. */
-export interface NetReimbursement {
-  readonly payment: Transaction
+export interface NetReimbursement<Row extends ReimbursementRow = Transaction> {
+  readonly payment: Row
   readonly amount: Money
 }
 
-export interface NetReimbursements {
+export interface NetReimbursements<Row extends ReimbursementRow = Transaction> {
   /** Payments to the owner, oldest first. They repay the costs the owner paid. */
-  readonly toOwner: readonly NetReimbursement[]
+  readonly toOwner: readonly NetReimbursement<Row>[]
   /** Payments from the owner, oldest first. They repay what the owner owes the company. */
-  readonly fromOwner: readonly NetReimbursement[]
+  readonly fromOwner: readonly NetReimbursement<Row>[]
 }
 
 /**
@@ -22,7 +25,7 @@ export interface NetReimbursements {
  * way on the same day returned, as when the owner paid a private share back twice and the company
  * sent the extra back. A payment that only returned another one drops out.
  */
-export function netReimbursements(transactions: readonly Transaction[], categories: readonly Category[]): NetReimbursements {
+export function netReimbursements<Row extends ReimbursementRow>(transactions: readonly Row[], categories: readonly Category[]): NetReimbursements<Row> {
   const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
   const rows = transactions.filter((transaction) => reimbursement.includes(transaction.category)).sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
   const toOwner = rows.filter((row) => row.amount < 0)
@@ -30,7 +33,7 @@ export function netReimbursements(transactions: readonly Transaction[], categori
   return { toOwner: lessReturns(toOwner, fromOwner), fromOwner: lessReturns(fromOwner, toOwner) }
 }
 
-function lessReturns(payments: readonly Transaction[], otherWay: readonly Transaction[]): NetReimbursement[] {
+function lessReturns<Row extends ReimbursementRow>(payments: readonly Row[], otherWay: readonly Row[]): NetReimbursement<Row>[] {
   const otherWayByDay = new Map<CivilDate, Money>()
   for (const row of otherWay) {
     otherWayByDay.set(row.date, addMoney(otherWayByDay.get(row.date) ?? ZERO, absMoney(row.amount)))

@@ -158,14 +158,9 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/company/settings/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
   { path: 'src/apps/company/transactions/application/splitWrites.ts#writeSplit', from: ['drafts'], operations: [{ name: 'split-row', prefix: 'parts.', renames: { 'opened.id': 'parts.part' } }] },
   {
-    path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#OWNER_ADVANCE_WRITES.add',
+    path: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#writeOwnerAdvance',
     type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
-    operations: ['add-owner-advance'],
-  },
-  {
-    path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#OWNER_ADVANCE_WRITES.change',
-    type: 'src/apps/company/packs/hr-doo/application/ownerAdvanceWrites.ts#OwnerAdvanceDraft',
-    operations: ['change-owner-advance'],
+    operations: ['add-owner-advance', 'change-owner-advance'],
   },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#ASSET_WRITES', operations: ['add-asset', 'change-asset'].map((name) => ({ name, renames: ASSET_RENAMES })) },
   { path: 'src/apps/company/packs/hr-doo/domain/hrDooWrites.ts#GRANT_WRITES', operations: ['add-grant', 'change-grant'].map((name) => ({ name, renames: GRANT_RENAMES })) },

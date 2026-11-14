@@ -3,6 +3,7 @@ import { words as cardWords } from '../../../../../../shared/app/words'
 import { ownerShareText } from '../../../../owner-share/domain/ownerShare'
 import { displayNamesOf } from '../../../../workbook/domain/displayName'
 import type { Workbook } from '../../../../workbook/domain/workbook'
+import { splitLedger } from '../../../../workbook/domain/splits'
 import { moneyFormatOf } from '../../../../settings/domain/settings'
 import { assetItemOf, paymentRowsOf } from '../../domain/assets/assetRegister'
 import { NEW_ASSET_DEFAULTS } from '../../domain/assets/assets'
@@ -28,6 +29,7 @@ import { writtenPercent } from '../../../../../../shared/money/percent'
 import type { DateRange } from '../../../../../../shared/calendar/dateRange'
 import type { RecordKind } from '../../../../../../shared/storage/domain/recordKind'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
+import { listInWords } from '../../../../../../shared/text/listInWords'
 
 /** The fields Kuna keeps by itself on the pack's records, which no operation sets. A plan row's kind and a scenario row's key show through other fields, so the card reads them as nothing. */
 const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'ownerPart'])
@@ -145,6 +147,13 @@ function paymentText(workbook: Workbook, item: RecordId | null, format: MoneyFor
   return [dayLabel(row.date), row.counterparty || row.description, formatMoney(row.amount, 'negative', format)].filter((part) => part !== '').join(', ')
 }
 
+/** The payments that paid an advance back, each by its day, its other side and its amount, and one the card's write splits off as a new part. */
+function repaidByText(workbook: Workbook, items: readonly RecordId[], format: MoneyFormat): string | null {
+  if (items.length === 0) return null
+  const listed = { ...workbook, transactions: splitLedger(workbook.transactions, workbook.splits) }
+  return listInWords(items.map((item) => (paymentRowsOf(item, listed.transactions).length === 0 ? words.proposals.newPaymentPart : (paymentText(listed, item, format) ?? item))))
+}
+
 /** A plan row's label names its item and year, so an add or a removal leaves both off its line. */
 const PLAN_IN_LABEL: ReadonlySet<string> = new Set(['year', 'item'])
 
@@ -164,6 +173,7 @@ export function packDescriber(workbook: Workbook): PackDescriber {
     fieldName: (field) => (words.proposals.fields as Readonly<Record<string, string>>)[field] ?? field,
     shown: (kind, field, record) => {
       if (isKind(kind, ASSET_RECORDS, record) && (field === 'rowId' || field === 'payment')) return paymentText(workbook, assetItemOf(record), format)
+      if (isKind(kind, OWNER_ADVANCE_RECORDS, record) && field === 'repaidBy') return repaidByText(workbook, record.repaidBy ?? [], format)
       const trip = tripShownValue(kind, field, record, format, workbook)
       return trip === undefined ? shownValue(kind, field, record, format, category) : trip
     },

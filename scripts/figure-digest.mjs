@@ -314,7 +314,7 @@ if (companyAsked) {
       .map((row) => categorise(row, cash.rules, context)),
   )
   group('review.rules', () => withoutDismissed(ruleCoverage(rowsOfOneItem(raw.transactions, raw.splits), raw.rules, context), raw.dismissals))
-  group('review.unaccounted', () => unaccountedInView(booked, DEFAULT_FILTERS))
+  group('review.unaccounted', () => unaccountedInView(books, DEFAULT_FILTERS))
 
   const invoiceDay = newestBookingOf(raw.transactions)
   const receivables = receivablesOf(booked.transactions, booked.categories, booked.invoices, booked.clients)

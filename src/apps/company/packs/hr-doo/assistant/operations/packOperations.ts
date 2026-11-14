@@ -1,5 +1,5 @@
 import type { PackOperations } from '../../../../assistant/companyAssistant'
-import { LEDGER_RECORDS } from '../../../../workbook/domain/coreKinds'
+import { ITEM_RECORDS, LEDGER_RECORDS } from '../../../../workbook/domain/coreKinds'
 import { recordsOfKindIn } from '../../../../workbook/domain/readWorkbook'
 import type { CompanyBooks } from '../../../../workbook/domain/readWorkbook'
 import { slugProblem } from '../../../../workbook/domain/slug'
@@ -8,7 +8,12 @@ import type { DraftColumn, DraftFactory } from '../../../../settings/domain/reco
 import type { EditorColumn } from '../../../../settings/presentation/factTabColumns'
 import { typedOwnerShare } from '../../../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../../../owner-share/domain/ownerShare'
-import { ownerAdvanceOfDraft } from '../../application/ownerAdvanceWrites'
+import { ownerAdvanceOfDraft, writeOwnerAdvance } from '../../application/ownerAdvanceWrites'
+import { repaidMoreThanPaid, repaymentChoices, repaymentsPlaced } from '../../domain/advanceRepayments'
+import type { RepaymentChoice } from '../../domain/advanceRepayments'
+import type { OwnerAdvanceEntry } from '../../domain/ownerAdvancesReading'
+import { presentedWorkbook } from '../../../../transactions/domain/presentedWorkbook'
+import { storesItems } from '../../../../workbook/domain/rowItems'
 import { categoryPlanLine, dividendPlanLine, ownerPayPlanLine, purchasePlanLine, replacePlanLines } from '../../application/planWrites'
 import type { KeyedLine, PlanLineDraft } from '../../application/planWrites'
 import { copyScenario, renameScenario, scenarioRowsOf } from '../../application/scenarioWrites'
@@ -204,26 +209,43 @@ const COMPONENT_FIELDS = {
   to: { type: ['string', 'null'], description: 'The last day it holds, or null for 31 December. A dividend and a tax-free item take none.' },
 } as const satisfies Readonly<Record<string, StrictSchema>>
 
+/** What the advance operations say of the payments that paid a cost back. */
+const PAID_BACK_BY =
+  'paidBackBy lists the items of payments to the owner on a reimbursement category that paid it back, each paid on or after the cost, in books that keep items: one the advance names already, or one no advance accounts for, whose part the cost still needs becomes an item of its own noted with the description. Books from before items take an empty list, since they match those payments by themselves.'
+
+const PAID_BACK_ITEMS = { type: 'array', items: inputOf({ item: TEXT }) } as const satisfies StrictSchema
+
 /** Every change the chat can propose in the Croatian d.o.o. pack. Each calls the write functions the pack's screens use. */
 export const PACK_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-owner-advance',
-    about: 'A cost the owner paid privately for the company, which the company owes back, in an operating or taxes category, above zero.',
-    input: inputOf({ date: DAY, amount: NUMBER, description: TEXT, category: TEXT }),
-    refs: { category: 'category' },
+    about: `A cost the owner paid privately for the company, which the company owes back, in an operating or taxes category, above zero. ${PAID_BACK_BY}`,
+    input: inputOf({ date: DAY, amount: NUMBER, description: TEXT, category: TEXT, paidBackBy: PAID_BACK_ITEMS }),
+    refs: { category: 'category', 'paidBackBy.item': ITEM_RECORDS.name },
     creates: null,
     alone: false,
-    example: { date: '2026-10-10', amount: 117.3, description: 'Desk lamp', category: 'category' },
+    example: { date: '2026-10-10', amount: 117.3, description: 'Desk lamp', category: 'category', paidBackBy: [] },
   },
   {
     name: 'change-owner-advance',
-    about:
-      "Fixes an owner advance's day, amount, description, category or owner share. One moved to another category takes that category's owner share unless ownerShare gives one. The owner share is the owner's private part in percent, a whole number from 0 to 100 or \"\" for none, only while owner pay is on and on an operating cost. Null leaves a field as it is.",
-    input: inputOf({ advance: TEXT, date: TEXT_OR_NULL, amount: NUMBER_OR_NULL, description: TEXT_OR_NULL, category: TEXT_OR_NULL, ownerShare: TEXT_OR_NULL }),
-    refs: { advance: OWNER_ADVANCE_RECORDS.name, category: 'category' },
+    about: [
+      "Fixes an owner advance's day, amount, description, category, owner share or the payments that paid it back. One moved to another category takes that category's owner share unless ownerShare gives one. The owner share is the owner's private part in percent, a whole number from 0 to 100 or \"\" for none, only while owner pay is on and on an operating cost. Null leaves a field as it is.",
+      `${PAID_BACK_BY} paidBack keep leaves the payments that paid it back as they are and takes an empty paidBackBy, and set puts paidBackBy in their place, each payment it names already keeping its part.`,
+    ].join(' '),
+    input: inputOf({
+      advance: TEXT,
+      date: TEXT_OR_NULL,
+      amount: NUMBER_OR_NULL,
+      description: TEXT_OR_NULL,
+      category: TEXT_OR_NULL,
+      ownerShare: TEXT_OR_NULL,
+      paidBack: { type: 'string', enum: ['keep', 'set'] },
+      paidBackBy: PAID_BACK_ITEMS,
+    }),
+    refs: { advance: OWNER_ADVANCE_RECORDS.name, category: 'category', 'paidBackBy.item': ITEM_RECORDS.name },
     creates: null,
     alone: false,
-    example: { advance: 'advance', date: null, amount: 45, description: null, category: null, ownerShare: null },
+    example: { advance: 'advance', date: null, amount: null, description: 'Train tickets to the client', category: null, ownerShare: null, paidBack: 'keep', paidBackBy: [] },
   },
   {
     name: 'delete-owner-advance',
@@ -514,6 +536,37 @@ function yearLines(books: CompanyBooks, year: number, matches: (line: PlanLine) 
   return recordsOf(recordsOfKindIn(books.records, PLAN_RECORDS)).filter((line) => line.year === year && matches(line))
 }
 
+/**
+ * The payments the step names as what paid the advance back, each one a person could choose in the advance's dialog, or for a
+ * change that names none the ones it names already. Refused when one is not on offer, when they add up to more than the cost,
+ * or when the cost is paid back before one of them.
+ */
+function chosenRepayments(
+  books: CompanyBooks,
+  before: OwnerAdvanceEntry | null,
+  advance: OwnerAdvanceEntry,
+  named: readonly { readonly item: string }[] | null,
+  idOf: (value: unknown) => string,
+): RepaymentChoice[] {
+  const choices = repaymentChoices(hrDooWorkbook(presentedWorkbook(books.workbook)), before, advance.date)
+  if (named !== null && named.length > 0 && !storesItems(books.records))
+    throw new StepRefused('These books are from before items and match payments to the owner by themselves, so paidBackBy is an empty list.')
+  const chosen =
+    named === null
+      ? choices.filter((choice) => choice.named)
+      : named.map(({ item }) => {
+          const choice = choices.find((candidate) => candidate.item === idOf(item))
+          if (choice === undefined)
+            throw new StepRefused('Each paidBackBy item is a payment to the owner on a reimbursement category, paid on or after the cost, that this advance names already or no advance accounts for.')
+          return choice
+        })
+  const applied = repaymentsPlaced(advance.amount, chosen)
+  if (repaidMoreThanPaid(advance.amount, applied) !== null)
+    throw new StepRefused('The payments the advance names already add up to more than this amount, so raise the amount or set paidBackBy without one of them.')
+  if (applied.some((share) => share <= 0)) throw new StepRefused('The cost is paid back in full before the last payment paidBackBy names, so leave that one out.')
+  return chosen
+}
+
 /** One planned line put in place of what its key held, as the plan dialogs save. */
 function replaceLine(unit: UnitOfWork, held: readonly PlanLine[], key: string, line: PlanLineDraft): void {
   replacePlanLines(
@@ -529,16 +582,14 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
   const field = input as Readonly<Record<string, never>>
   const advances = () => recordsOfKindIn(books.records, OWNER_ADVANCE_RECORDS)
   switch (operation) {
-    case 'add-owner-advance':
-      unit
-        .of(OWNER_ADVANCE_WRITES)
-        .add(
-          ownerAdvanceOfDraft(
-            { date: dayOf(field['date']), amount: aboveZero(field['amount'], 'amount'), description: field['description'], category: idOf(field['category']) },
-            books.workbook.categories,
-          ),
-        )
+    case 'add-owner-advance': {
+      const advance = ownerAdvanceOfDraft(
+        { date: dayOf(field['date']), amount: aboveZero(field['amount'], 'amount'), description: field['description'], category: idOf(field['category']) },
+        books.workbook.categories,
+      )
+      writeOwnerAdvance(unit, books.records, null, advance, chosenRepayments(books, null, advance, field['paidBackBy'], idOf))
       return
+    }
     case 'change-owner-advance': {
       const before = heldOf(advances(), 'advance', (advance) => advance.id === field['advance'])
       const draft = {
@@ -547,8 +598,9 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
         description: (field['description'] as string | null) ?? before.description,
         category: field['category'] === null ? before.category : idOf(field['category']),
       }
-      const after = ownerAdvanceOfDraft(draft, books.workbook.categories, before)
-      unit.of(OWNER_ADVANCE_WRITES).change(before, field['ownerShare'] === null ? after : { ...after, ownerShare: advanceShare(books, after.category, field['ownerShare']) })
+      const drafted = ownerAdvanceOfDraft(draft, books.workbook.categories, before)
+      const after = field['ownerShare'] === null ? drafted : { ...drafted, ownerShare: advanceShare(books, drafted.category, field['ownerShare']) }
+      writeOwnerAdvance(unit, books.records, before, after, chosenRepayments(books, before, after, field['paidBack'] === 'keep' ? null : field['paidBackBy'], idOf))
       return
     }
     case 'delete-owner-advance':

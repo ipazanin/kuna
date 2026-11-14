@@ -9,6 +9,7 @@ import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { storedFieldOfValue } from '../../../../shared/storage/domain/storedFields'
 import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
 import type { Workbook } from '../../workbook/domain/workbook'
+import { installedPack } from '../../packs/packContribution'
 import { readCamtDocument } from '../domain/camtStatement'
 import { importDryRun } from '../domain/importDryRun'
 import type { ImportDryRun } from '../domain/importDryRun'
@@ -79,13 +80,22 @@ export function dryRunFor(
       taken.add(name)
     }
   }
-  return importDryRun(current, { transactions: workbook.transactions, rules: workbook.rules, context: categorisationContextOf(workbook), categories: workbook.categories, starts, named, twinAnswers })
+  return importDryRun(current, {
+    transactions: workbook.transactions,
+    rules: workbook.rules,
+    context: categorisationContextOf(workbook),
+    categories: workbook.categories,
+    starts,
+    named,
+    twinAnswers,
+    repaymentsOf: (added) => installedPack().repaymentsOf(workbook, added),
+  })
 }
 
 /**
  * The write of an import: the accounts it adds, the copied rows its entries take the place of, as the app read them, then its
- * ledger entries with their items, in the shape the books keep. A copied row the records on screen no longer hold stays, and the
- * ledger then refuses entries that do not run on.
+ * ledger entries with their items, in the shape the books keep, and what of them pays back the records the pack keeps. A copied
+ * row the records on screen no longer hold stays, and the ledger then refuses entries that do not run on.
  */
 export function writeImport(unit: UnitOfWork, run: ImportDryRun, records: WorkbookRecords | null | undefined): void {
   if (records === null || records === undefined) throw new Error('The books are not read yet, so nothing is imported.')
@@ -93,7 +103,8 @@ export function writeImport(unit: UnitOfWork, run: ImportDryRun, records: Workbo
     unit.of(ACCOUNT_WRITES).add(accountOfFields({ account: storedFieldOfValue(account.slug), iban: storedFieldOfValue(account.iban), currency: storedFieldOfValue(account.currency) }))
   }
   const removed = run.removed.flatMap((copied) => recordWithId(records.ledger, copied.id)?.record ?? [])
-  replaceLedgerRows(unit, records, removed, run.added)
+  replaceLedgerRows(unit, records, removed, run.added, run.repayments)
+  installedPack().linkRepayments(unit, records, run.repayments)
 }
 
 /** "Imported 4 rows", or "Added main and imported 4 rows" when the import adds accounts. */

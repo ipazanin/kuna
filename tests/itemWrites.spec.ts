@@ -190,7 +190,7 @@ describe.each([
       rowId: 'printed-row',
     }
     const entry: LedgerEntry = { ...fields, id: ledgerIdOf(fields) }
-    const run = { accounts: [], removed: [], added: [entry], newRows: 1, statements: [] } as unknown as ImportDryRun
+    const run = { accounts: [], removed: [], added: [entry], repayments: [], newRows: 1, statements: [] } as unknown as ImportDryRun
 
     await store.write('Imported', (unit) => writeImport(unit, run, store.state.records!))
 

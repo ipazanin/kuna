@@ -90,7 +90,7 @@ describe('the template', () => {
       'id',
     ])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['year-end']!, { header: 1 })[0]).toEqual(['year', 'statement', 'line', 'label', 'amount', 'categories', 'aop', 'source', 'note', 'id'])
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category', 'owner_share', 'id'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets['owner-advances']!, { header: 1 })[0]).toEqual(['date', 'amount', 'description', 'category', 'owner_share', 'items', 'id'])
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.items!, { header: 1 })[0]).toEqual(['date', 'account', 'counterparty', 'row_id', 'amount', 'category', 'owner_share', 'note', 'id'])
     expect(book.Sheets.items?.A1?.c?.[0]?.t).toMatch(/ignores it on import/)
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.ledger!, { header: 1 })[0]).not.toContain('category')
@@ -312,7 +312,7 @@ describe('exporting', () => {
     expect(workbook.invoices.length).toBeGreaterThan(10)
     expect(workbook.clients).toHaveLength(2)
     expect(workbook.ownerAdvances).toHaveLength(3)
-    expect(workbook.splits).toHaveLength(4)
+    expect(workbook.splits).toHaveLength(5)
     expect(imported.tabs.splits.every((row) => typeof row.cells.date === 'number' && typeof row.cells.row_balance === 'number')).toBe(true)
     expect(workbook.assets).toHaveLength(2)
     expect(workbook.yearEndLines.length).toBeGreaterThan(40)

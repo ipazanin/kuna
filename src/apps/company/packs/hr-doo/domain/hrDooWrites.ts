@@ -32,7 +32,8 @@ import {
   TRIP_RECORDS,
   YEAR_END_RECORDS,
 } from './hrDooKinds'
-import { readOwnerAdvances } from './ownerAdvancesReading'
+import { advanceItemProblemsOf, readOwnerAdvances } from './ownerAdvancesReading'
+import { storesItems } from '../../../workbook/domain/rowItems'
 import type { OwnerAdvanceEntry } from './ownerAdvancesReading'
 import { scenarioGuards } from './scenarios/scenarioGuards'
 import { readScenarios } from './scenarios/scenariosReading'
@@ -62,13 +63,36 @@ function untouchedSlugs<R>(change: KindChange<R>, field: string): { readonly slu
   return pickedUntouched(change, (fields) => ({ slug: slugOf(fields[field]) })).filter((row) => row.slug !== '')
 }
 
-/** A cost the owner paid, checked by its reader against the categories: an amount above zero, in an operating or taxes category. */
+/** The ledger rows filed as their items, as the records a check reads hold them. */
+function ledgerOf(records: FreshRecords): ReturnType<typeof ledgerOfRecords> {
+  return ledgerOfRecords({ ledger: records.of(LEDGER_RECORDS), splits: records.of(SPLIT_PART_RECORDS), items: records.of(ITEM_RECORDS) }, definedCategories(records.of(CATEGORY_RECORDS)))
+}
+
+/** The advances as the records hold them, read against the categories and the shape the books keep. */
+function advancesOf(read: RecordsRead<OwnerAdvanceEntry>, records: FreshRecords): ReturnType<typeof readOwnerAdvances> {
+  return readOwnerAdvances(read, definedCategories(records.of(CATEGORY_RECORDS)), storesItems({ ledger: records.of(LEDGER_RECORDS), items: records.of(ITEM_RECORDS) }))
+}
+
+/** An advance a write adds or changes names as what paid it back only payments to the owner that no older advance names, and no more than the owner paid. */
+function advanceItemRefusals(change: KindChange<OwnerAdvanceEntry>, after: FreshRecords): string[] {
+  if (change.undoing) return []
+  const written = new Set(change.edits.flatMap((edit) => (edit.after !== null && edit.after.id !== null ? [edit.after.id] : [])))
+  if (written.size === 0) return []
+  return advanceItemProblemsOf(change.after, advancesOf(change.after, after), ledgerOf(after))
+    .filter((problem) => problem.id !== null && written.has(problem.id))
+    .map((problem) => `${problem.label}: ${problem.reason}`)
+}
+
+/**
+ * A cost the owner paid, checked by its reader against the categories: an amount above zero, in an operating or taxes category,
+ * and against the ledger for the items that paid it back.
+ */
 export const OWNER_ADVANCE_WRITES: WriteRules<OwnerAdvanceEntry> = {
   kind: OWNER_ADVANCE_RECORDS,
-  reads: [CATEGORY_RECORDS],
+  reads: [CATEGORY_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS, ITEM_RECORDS],
   undoable: true,
-  read: (read, records) => readOwnerAdvances(read, definedCategories(records.of(CATEGORY_RECORDS))),
-  refusals: () => [],
+  read: advancesOf,
+  refusals: (change, _fresh, after) => advanceItemRefusals(change, after),
 }
 
 function grantSlugs(records: FreshRecords): ReadonlySet<string> {

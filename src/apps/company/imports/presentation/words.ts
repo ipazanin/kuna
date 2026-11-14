@@ -81,6 +81,8 @@ export const en = {
     onLedger: 'On the ledger',
     waitsForAnswer: 'Waits for your answer',
     replacesCopied: "Takes the copied row's place",
+    paysBack: (what: string, amount: string) => `Pays back ${what}, ${amount}`,
+    paysBackPart: (amount: string) => `Pays back ${amount} of a cost`,
     waitsForReview: 'Waits for review',
   },
   profile: {
@@ -228,6 +230,8 @@ export const hr: Translation<typeof en> = {
     onLedger: 'U evidenciji',
     waitsForAnswer: 'Čeka vaš odgovor',
     replacesCopied: 'Zamjenjuje prepisani redak',
+    paysBack: (what, amount) => `Vraća trošak „${what}”, ${amount}`,
+    paysBackPart: (amount) => `Vraća ${amount} troška`,
     waitsForReview: 'Čeka provjeru',
   },
   profile: {

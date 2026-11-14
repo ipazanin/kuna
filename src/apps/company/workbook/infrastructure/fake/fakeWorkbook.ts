@@ -312,20 +312,38 @@ function rowOnItemsTab({ category: _category, owner_share: _share, ...row }: Rec
   return row
 }
 
+/** The payments to the owner that paid back the costs the owner paid, by the row's description, each with the places of the advances it paid back. */
+const ADVANCE_REPAYMENTS: Readonly<Record<string, readonly number[]>> = {
+  'Refund of travel paid privately': [0],
+  'Refund of the design tool and the printer paper': [1, 2],
+}
+
 /**
  * The books with every row's money on the items tab, as the fake writes them: each row not split one item under its own id, a
  * split row its parts in the order the splits tab holds them, each under its own id, and the ledger rows without their category
- * and share. A trip names the items of the rows it links or set aside.
+ * and share. A payment that paid back the costs the owner paid is one item per cost, the first under the row's own id and each
+ * other one under it with its place after it, and each cost names its item. A trip names the items of the rows it links or set aside.
  */
 function onItemsTab(records: Readonly<Record<string, readonly RecordFields[]>>): Readonly<Record<string, readonly RecordFields[]>> {
-  const { 'split-part': parts = [], 'ledger-row': ledger = [], 'hr-doo.trip': trips, ...rest } = records
+  const { 'split-part': parts = [], 'ledger-row': ledger = [], 'hr-doo.trip': trips, 'hr-doo.owner-advance': advances, ...rest } = records
   const partsOf = (row: RecordFields) =>
     parts
       .filter((part) => part.row_id === row[ID_FIELD])
       .map((part) => filledFields({ row_id: part.row_id, amount: part.amount, category: part.category, note: part.note, owner_share: part.owner_share, [ID_FIELD]: part[ID_FIELD] }))
+  const repaidBy = new Map<number, string>()
+  const repaymentsOf = (row: RecordFields, item: RecordFields): RecordFields[] => {
+    const paidBack = ADVANCE_REPAYMENTS[String(row.description)] ?? []
+    if (advances === undefined || paidBack.length === 0) return [item]
+    return paidBack.map((place, index) => {
+      const advance = advances[place]!
+      const id = index === 0 ? String(item[ID_FIELD]) : `${String(item[ID_FIELD])}-${index}`
+      repaidBy.set(place, id)
+      return filledFields({ ...item, amount: money(-Number(advance.amount)), note: advance.description, [ID_FIELD]: id })
+    })
+  }
   const items = ledger.flatMap((row) => {
     const split = partsOf(row)
-    return split.length > 0 ? split : [itemOfLedgerRow(row)]
+    return split.length > 0 ? split : repaymentsOf(row, itemOfLedgerRow(row))
   })
   const itemsOf = (rowId: FieldValue | undefined) => items.filter((item) => item.row_id === rowId).map((item) => item[ID_FIELD])
   const linked = (trip: RecordFields, field: string) => (trip[field] === undefined ? {} : { [field.replace('_row', '_items')]: itemsOf(trip[field]).join(', ') })
@@ -333,6 +351,7 @@ function onItemsTab(records: Readonly<Record<string, readonly RecordFields[]>>):
     ...rest,
     'ledger-row': ledger.map(rowOnItemsTab),
     item: items,
+    ...(advances === undefined ? {} : { 'hr-doo.owner-advance': advances.map((advance, place) => filledFields({ ...advance, items: repaidBy.get(place) })) }),
     ...(trips === undefined
       ? {}
       : {

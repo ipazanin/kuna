@@ -12,6 +12,6 @@ import { words } from './words'
 export function owedByOwnerOn(workbook: HrDooWorkbook, on: CivilDate): TracedFigure {
   const rows = workbook.transactions.filter((row) => row.date <= on)
   const advances = workbook.ownerAdvances.filter((advance) => advance.date <= on)
-  const owed = netOwed(ownerLoans(rows, workbook.categories), ownerAdvances(advances, rows, workbook.categories), workbook.categories)
+  const owed = netOwed(ownerLoans(rows, workbook.categories), ownerAdvances(advances, rows, workbook.categories, workbook.repaidBy), workbook.categories)
   return withDrill({ ...tracedFigure(words.owedOn, owed.amount > 0 ? owed.amount : ZERO, 'ledger', []), on }, owed.drill)
 }

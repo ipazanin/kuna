@@ -6,7 +6,7 @@ import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
 import { useFilters } from '../../../filters/application/filterStore'
-import { listedRowKey } from '../../../workbook/domain/splits'
+import { itemIdOfRow, listedRowKey } from '../../../workbook/domain/splits'
 import type { UnaccountedReimbursement } from '../domain/ownerAdvances'
 import type { AdvancePrefill } from './AdvanceDialog.vue'
 import { words } from './words'
@@ -23,9 +23,9 @@ const emit = defineEmits<{
 
 const { drillLocation } = useFilters()
 
-/** The cost is dated the day before the payment that reimbursed it, for the amount the payment left unaccounted. */
+/** The cost is dated the day before the payment that reimbursed it, for the amount the payment left unaccounted, and paid back by it. */
 function addCost(line: UnaccountedReimbursement): void {
-  emit('addCost', { date: addDays(line.payment.date, -1), amount: line.amount, description: line.payment.description })
+  emit('addCost', { date: addDays(line.payment.date, -1), amount: line.amount, description: line.payment.description, paidBackBy: itemIdOfRow(line.payment) })
 }
 </script>
 

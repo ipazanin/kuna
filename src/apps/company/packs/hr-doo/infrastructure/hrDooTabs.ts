@@ -38,6 +38,10 @@ const OWNER_ADVANCE_COLUMNS: readonly TemplateColumn[] = [
   { name: 'description', note: 'What it was for. Optional.' },
   { name: 'category', note: 'A category from the categories tab in the operating or taxes bucket. The cost counts there on its date. Required.' },
   OWNER_SHARE_TEMPLATE_COLUMN,
+  {
+    name: 'items',
+    note: 'The ids of the items on the items tab that paid it back, separated by |, which the app writes. Blank while it is open, and in books from before the items tab, which match each cost to the payments to the owner by themselves. Optional.',
+  },
   ID_TEMPLATE_COLUMN,
 ]
 

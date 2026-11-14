@@ -36,10 +36,11 @@ describe('fake workbook', () => {
     expect(window).not.toBeNull()
   })
 
-  it('splits four rows, two of them with the owner’s own part', () => {
+  it('splits five rows, two of them with the owner’s own part and one by the costs it paid back', () => {
     const presented = presentedWorkbook(workbook)
 
     expect(workbook.splits.map((split) => [split.row.date, split.parts.map((part) => part.category)])).toEqual([
+      ['2026-10-05', ['reimbursement-to-owner', 'reimbursement-to-owner']],
       ['2026-07-12', ['salary-net', 'salary-bonus']],
       ['2026-05-10', ['representation', 'owner-loan-out']],
       ['2026-03-16', ['external-contractors', 'consulting']],
@@ -47,7 +48,7 @@ describe('fake workbook', () => {
     ])
     expect(workbook.splits.at(-1)?.parts.map((part) => part.amount)).toEqual([-4041, -1345])
     expect(presented.problems).toEqual([])
-    expect(presented.transactions).toHaveLength(workbook.transactions.length + 4)
+    expect(presented.transactions).toHaveLength(workbook.transactions.length + 5)
   })
 
   it('is the same on every run, every ledger row with an id of its own', () => {

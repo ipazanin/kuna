@@ -6,7 +6,14 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { SAMPLE_CAMT_FILE_NAME, SAMPLE_TABLE_FILE_NAME, sampleCamtXml, sampleTableFile } from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
+import {
+  SAMPLE_CAMT_FILE_NAME,
+  SAMPLE_REFUND_FILE_NAME,
+  SAMPLE_TABLE_FILE_NAME,
+  sampleCamtXml,
+  sampleOwnerRefundXml,
+  sampleTableFile,
+} from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
 import {
   SAMPLE_MISSING_FILE_NAME,
   SAMPLE_REFUSED_FILE_NAME,
@@ -25,9 +32,11 @@ export const SAMPLE_DAY = today()
 export async function writeImportSamples(folder) {
   const camt = join(folder, SAMPLE_CAMT_FILE_NAME)
   const table = join(folder, SAMPLE_TABLE_FILE_NAME)
+  const refund = join(folder, SAMPLE_REFUND_FILE_NAME)
   writeFileSync(camt, sampleCamtXml())
   writeFileSync(table, await sampleTableFile())
-  return { camt, table }
+  writeFileSync(refund, sampleOwnerRefundXml())
+  return { camt, table, refund }
 }
 
 /** Writes a made-up IBKR Activity Flex report of the three days before yesterday, as a person saves it from IBKR, and one that no longer fits its recipe. */

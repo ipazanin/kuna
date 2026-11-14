@@ -900,6 +900,91 @@ export function advanceFlowIn(language) {
 
 export const advanceFlow = advanceFlowIn('en')
 
+/**
+ * To review: add the cost of the payment to the owner no cost accounts for. The dialog starts with that payment as what paid the
+ * cost back, its menu lists it, and the save takes the payment off the card until Undo.
+ */
+export function advancePaidBackFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.pack.advanceDialog
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const unaccounted = () => page.evaluate(() => document.querySelectorAll('[data-testid="unaccounted-reimbursement"]').length)
+    await page.waitForSelector('[data-testid="unaccounted-reimbursement"]', { visible: true, timeout: 10_000 })
+    const before = await unaccounted()
+    await pressSelector(page, press, '[data-testid="add-unaccounted-cost"]')
+    await page.waitForSelector('[data-testid="add-advance"]', { visible: true })
+    await elementSays(page, '[data-testid="advance-paid-back-by"]', ['Refund of a parking fee'], 'Add the cost did not start with its payment as what paid it back')
+    await chooseCategory(page, press, await page.$('[data-testid="advance-category"]'), words.categoryName('travel'))
+    await shoot('advance-paid-back')
+    await pressSelector(page, press, '[data-testid="advance-paid-back-by"]')
+    await page.waitForSelector('[role="listbox"] [role="option"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await shoot('advance-paid-back-menu')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await pressSelector(page, press, 'button[form="add-advance"]')
+    await toast(page, said.added)
+    await dialogGone(page, '[data-testid="add-advance"]')
+    if ((await unaccounted()) !== before - 1) throw new Error('the payment is still on the card once its cost is on file')
+    await undoIn(page, press, words)
+    await page
+      .waitForFunction((count) => document.querySelectorAll('[data-testid="unaccounted-reimbursement"]').length === count, { timeout: 10_000 }, before)
+      .catch(() => {
+        throw new Error('Undo did not put the payment back on the card')
+      })
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * To review: the newest advance names the payment that paid it back. Choosing the payment no cost accounts for as well shows two
+ * payments in the field, lowering the amount below the one it names shows the amount's error, and a save in between is undone.
+ */
+export function advancePaidBackTwiceFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const said = words.pack.advanceDialog
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="advance-edit"]')
+    await page.waitForSelector('[data-testid="add-advance"]', { visible: true })
+    const amount = await page.waitForSelector(`[data-testid="add-advance"] input[placeholder="${said.amountPlaceholder}"]`)
+    await setField(amount, '60')
+    await pressSelector(page, press, '[data-testid="advance-paid-back-by"]')
+    const parking = await page
+      .waitForFunction(() => [...document.querySelectorAll('[role="listbox"] [role="option"]')].find((option) => option.textContent?.includes('Refund of a parking fee')) ?? null, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('the payment no cost accounts for is not on offer')
+      })
+    await press(parking.asElement())
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await elementSays(page, '[data-testid="advance-paid-back-by"]', ['Refund of a parking fee'], 'the field does not show the payment chosen')
+    await shootAt(page, shoot, '[data-testid="advance-paid-back-by"]', 'advance-paid-back-two')
+    await pressSelector(page, press, 'button[form="add-advance"]')
+    await toast(page, said.changed)
+    await dialogGone(page, '[data-testid="add-advance"]')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+
+    await pressSelector(page, press, '[data-testid="advance-edit"]')
+    await page.waitForSelector('[data-testid="add-advance"]', { visible: true })
+    await setField(await page.waitForSelector(`[data-testid="add-advance"] input[placeholder="${said.amountPlaceholder}"]`), '20')
+    await pressSelector(page, press, 'button[form="add-advance"]')
+    await elementSays(
+      page,
+      '[data-testid="add-advance"]',
+      said
+        .repaidMore('|')
+        .split('|')
+        .map((part) => part.trim()),
+      'a lowered amount does not say the payments add up to more',
+    )
+    await shootAt(page, shoot, `[data-testid="add-advance"] input[placeholder="${said.amountPlaceholder}"]`, 'advance-repaid-more')
+    await page.keyboard.press('Escape')
+  }
+}
+
 /** Assets: add a monitor, note it, delete it, and Undo the delete. */
 export function assetFlowIn(language) {
   const words = SCREEN_WORDS[language]
@@ -1889,6 +1974,26 @@ export function importCamtFlowIn(language, path) {
 }
 
 export const importCamtFlow = (path) => importCamtFlowIn('en', path)
+
+/**
+ * Import a payment to the owner in books with a cost the owner paid that nothing has paid back yet: the dry run says the payment
+ * pays that cost back, and the import writes it.
+ */
+export function importRepaymentFlowIn(language, path) {
+  const words = SCREEN_WORDS[language]
+  const panel = words.imports.panel
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await dropFile(page, path)
+    await dryRunSays(page, countedIn(words, panel.addsRows(1), 1))
+    await elementSays(page, '[data-testid="dry-run-pays-back"]', ['Taxi to the client'], 'the dry run does not say which cost the payment pays back')
+    await shootAt(page, shoot, '[data-testid="dry-run-pays-back"]', 'import-repayment-dry-run')
+    await pressSelector(page, press, '[data-testid="import-confirm"]')
+    await toastCounted(page, (count) => words.importWrites.imported([], count))
+    await dryRunSays(page, panel.writesNothing)
+    await dismissToasts(page)
+  }
+}
 
 /**
  * Import with a ledger row the AI copied a day before the sample camt statement's client payment: the dry run holds that payment

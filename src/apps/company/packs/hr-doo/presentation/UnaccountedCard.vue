@@ -7,6 +7,7 @@ import { plural } from '../../../../../shared/text/translation'
 import AppCard from '../../../../../shared/ui/AppCard.vue'
 import { useFilteredLedger } from '../../../transactions/application/useFilteredLedger'
 import { newestBookingOf } from '../../../workbook/domain/workbook'
+import { hrDooWorkbook } from '../domain/hrDooPart'
 import AdvanceDialog from './AdvanceDialog.vue'
 import type { AdvancePrefill } from './AdvanceDialog.vue'
 import UnaccountedReimbursements from './UnaccountedReimbursements.vue'
@@ -15,7 +16,7 @@ import { words } from './words'
 
 /** The To review tab's card of reimbursements to the owner with no cost on file, each with a way to add its cost. */
 const ledger = useFilteredLedger()
-const unaccounted = computed(() => (ledger.value === null ? [] : unaccountedInView(ledger.value.booked, ledger.value.filters)))
+const unaccounted = computed(() => (ledger.value === null ? [] : unaccountedInView(hrDooWorkbook(ledger.value.booked), ledger.value.filters)))
 const summary = computed(() => words.unaccounted.summary(formatMoney(sumMoney(unaccounted.value.map((payment) => payment.amount)))))
 const newestBooking = computed(() => newestBookingOf(ledger.value?.workbook.transactions ?? []))
 const addingCost = ref(false)

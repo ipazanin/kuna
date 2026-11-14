@@ -6,6 +6,9 @@ import { COMPANY_FACT_SETTINGS, companyFactsErrors } from './domain/companyFacts
 import { recordsOfKindIn } from '../../workbook/domain/readWorkbook'
 import { linkAssetsToRows } from './application/assetLinkWrites'
 import { linkPackToItems } from './application/itemLinkWrites'
+import { linkRepayments } from './application/ownerAdvanceWrites'
+import { proposedRepayments } from './domain/advanceRepayments'
+import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
 import { EMPLOYEE_RECORDS } from './domain/hrDooKinds'
 import { HR_DOO_PART, hrDooWorkbook } from './domain/hrDooPart'
 import { tripRatesDemand } from './domain/trips/tripSettlement'
@@ -48,7 +51,7 @@ export const hrDooPack: PackContribution = {
   reviewCards: [
     {
       component: defineAsyncComponent(() => import('./presentation/UnaccountedCard.vue')),
-      shows: (ledger) => unaccountedInView(ledger.booked, ledger.filters).length > 0,
+      shows: (ledger) => unaccountedInView(hrDooWorkbook(ledger.booked), ledger.filters).length > 0,
     },
   ],
   settingsTabs: [{ value: TAX_RULES_TAB, label: rulesetWords.tab, icon: 'i-lucide-scale', component: defineAsyncComponent(() => import('./ruleset/presentation/RulesetPanel.vue')) }],
@@ -66,5 +69,7 @@ export const hrDooPack: PackContribution = {
   // The records, not the workbook's employees, which drop an IBAN two of them share and a row listed twice.
   linkToRows: linkAssetsToRows,
   linkToItems: linkPackToItems,
+  repaymentsOf: (workbook, added) => proposedRepayments(hrDooWorkbook(presentedWorkbook(workbook)), added),
+  linkRepayments,
   employees: (records) => recordsOfKindIn(records, EMPLOYEE_RECORDS).records.map(({ record }) => ({ name: record.name || record.slug, employee: true, ibans: record.ibans })),
 }

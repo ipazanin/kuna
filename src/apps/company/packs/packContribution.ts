@@ -13,11 +13,13 @@ import { NO_VAT_ON_PRIVATE_SHARE } from '../owner-share/domain/ownerParts'
 import type { VatOnPrivateShare } from '../owner-share/domain/ownerParts'
 import type { Dismissal } from '../workbook/domain/dismissals'
 import type { PackPart } from '../workbook/domain/packPart'
-import type { WorkbookRecords } from '../workbook/domain/readWorkbook'
+import type { CompanyBooks, WorkbookRecords } from '../workbook/domain/readWorkbook'
+import type { ItemRecord } from '../workbook/domain/splitsReading'
+import type { LedgerEntry } from '../workbook/domain/ledgerReading'
+import type { RowRepayments } from '../workbook/domain/repayments'
 import { newestBookingOf } from '../workbook/domain/workbook'
 import type { Category, Transaction, Workbook } from '../workbook/domain/workbook'
 import type { UnitOfWork } from '../../../shared/storage/application/repository'
-import type { RecordId } from '../../../shared/storage/domain/recordId'
 import type { RecordProblem } from '../../../shared/storage/domain/recordsRead'
 import type { Money } from '../../../shared/money/money'
 import type { RateBook } from '../../../shared/money/rateBook'
@@ -93,6 +95,14 @@ export interface CategoryToSort extends RecordProblem {
   readonly newerClassOf?: string
 }
 
+/** What the move to the items tab writes of the ledger's money, before the pack splits any of it further. */
+export interface MovedItems {
+  /** Row by row, in the order of the ledger. */
+  readonly items: readonly ItemRecord[]
+  /** The moved item a row as the books present it stands for: a split row's part, or a row not split its one item. */
+  itemOf(row: Transaction): ItemRecord | undefined
+}
+
 /** What a pack adds to the core screens and figures. Its components are async, so the pack's code loads only with them. */
 export interface PackContribution {
   /** The pack's part of the workbook, read whatever the owner-pay switch says. */
@@ -130,10 +140,18 @@ export interface PackContribution {
   /** Links the pack's records that find their bank row by its content to that row's id, in the write that gives the ledger rows their ids. */
   linkToRows(unit: UnitOfWork, records: WorkbookRecords, ledger: { readonly transactions: readonly Transaction[]; readonly categories: readonly Category[] }): void
   /**
-   * Turns the pack's records that name a bank row by its row id to name the row's items instead, in the write that moves the books
-   * from before items to the items tab. `itemsOf` gives the items a row id's row holds once moved, or none for a row id no row carries.
+   * In the write that moves the books from before items to the items tab, splits the moved items by what the pack's records count
+   * them as today, such as a payment to the owner by the advances it paid back, and turns the pack's records that name a bank row
+   * to name its items. Gives the items the move writes.
    */
-  linkToItems(unit: UnitOfWork, records: WorkbookRecords, itemsOf: (rowId: string) => readonly RecordId[]): void
+  linkToItems(unit: UnitOfWork, books: CompanyBooks, moved: MovedItems): readonly ItemRecord[]
+  /**
+   * What the new rows an import adds pay back of the records the pack keeps open, such as the costs the owner paid, each row as
+   * the items it becomes, for the dry run to propose. None in books from before items, which match such payments on every read.
+   */
+  repaymentsOf(workbook: Workbook, added: readonly LedgerEntry[]): readonly RowRepayments[]
+  /** Has each record the import's rows pay back name the items that pay it, in the write that adds them. */
+  linkRepayments(unit: UnitOfWork, records: WorkbookRecords, repayments: readonly RowRepayments[]): void
 }
 
 const NO_PACK: PackContribution = {
@@ -156,7 +174,9 @@ const NO_PACK: PackContribution = {
   onboarding: null,
   employees: () => [],
   linkToRows: () => {},
-  linkToItems: () => {},
+  linkToItems: (_unit, _books, moved) => moved.items,
+  repaymentsOf: () => [],
+  linkRepayments: () => {},
 }
 
 let installed: PackContribution = NO_PACK

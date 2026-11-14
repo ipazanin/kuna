@@ -86,7 +86,7 @@ const owed = computed(() => {
   const inPeriod = owedInPeriod(workbook, filters.period, window, props.asOf)
   const balance = inPeriod.net
   const on = dayLabel(inPeriod.on)
-  const unaccounted = ownerAdvances(workbook.ownerAdvances, transactions, categories).unaccounted
+  const unaccounted = ownerAdvances(workbook.ownerAdvances, transactions, categories, workbook.repaidBy).unaccounted
   const months = loanMonths(transactions, categories, periodMonths(filters.period, window), window)
   const lentInMonths = sumMoney(months.map((month) => month.lent.amount))
   const repaidInMonths = sumMoney(months.map((month) => month.repaid.amount))

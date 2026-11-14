@@ -3,6 +3,10 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { itemsMoveBlockers, moveToItems } from '../src/apps/company/workbook/application/rowIdWrites'
 import { storesItems } from '../src/apps/company/workbook/domain/rowItems'
+import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
+import { ownerAdvances } from '../src/apps/company/packs/hr-doo/domain/ownerAdvances'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
+import { euros } from './fixtures/ledger'
 import { fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { fakeStaffOf } from '../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff'
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
@@ -46,9 +50,24 @@ describe('moving books from before items to the items tab', () => {
 
     const moved = store.state.workbook!
     const partsOf = (splits: typeof read.splits) => new Map(splits.map((held) => [held.row.id, held.parts.map((part) => [part.amount, part.category, part.note, part.ownerShare])]))
-    expect(partsOf(moved.splits)).toEqual(partsOf(read.splits))
-    const split = new Set(read.splits.map((held) => held.row.id))
+    const repayment = moved.splits.find((held) => held.row.description === 'Refund of the design tool and the printer paper')!
+    expect(partsOf(moved.splits.filter((held) => held !== repayment))).toEqual(partsOf(read.splits))
+    expect(repayment.parts.map((part) => [part.amount, part.note])).toEqual([
+      [euros(-89), 'Design tool, annual plan on the owner’s card'],
+      [euros(-34.2), 'Printer paper'],
+    ])
+    const split = new Set(moved.splits.map((held) => held.row.id))
     expect(filed(moved.transactions.filter((row) => !split.has(row.id)))).toEqual(filed(read.transactions.filter((row) => !split.has(row.id))))
+    const advancesOf = (workbook: typeof read) => {
+      const books = hrDooWorkbook(presentedWorkbook(workbook))
+      const book = ownerAdvances(books.ownerAdvances, books.transactions, books.categories, books.repaidBy)
+      return [
+        book.advances.map((line) => [line.advance.id, line.remaining, line.status, line.repaidOn, line.repayments.map((share) => share.applied)]),
+        book.unaccounted.map((line) => [line.payment.id, line.amount]),
+      ]
+    }
+    expect(hrDooWorkbook(moved).repaidBy).toBeDefined()
+    expect(advancesOf(moved)).toEqual(advancesOf(read))
 
     await store.undo(store.state.writes[0]!)
 

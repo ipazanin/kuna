@@ -14,7 +14,8 @@ import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { reviewReasonLabel } from '../domain/camtStatement'
-import type { CopiedTwinQuestion, DryRunStatement } from '../domain/importDryRun'
+import type { CopiedTwinQuestion, DryRunRow, DryRunStatement } from '../domain/importDryRun'
+import { absMoney } from '../../../../shared/money/money'
 import type { Transaction } from '../../workbook/domain/workbook'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
@@ -92,6 +93,15 @@ const subtitle = computed(() => {
   return opening === null || closing === null ? where : words.statement.range(where, formatMoney(opening), formatMoney(closing))
 })
 
+/** What a new entry pays back of the records the pack keeps, one line per item, each with what it pays back and how much. */
+function repaid(row: DryRunRow): readonly { readonly id: string; readonly text: string }[] {
+  return (row.repays ?? []).flatMap((item) => {
+    if (item.of === null) return []
+    const amount = formatMoney(absMoney(item.amount))
+    return [{ id: item.id, text: item.note === '' ? words.statement.paysBackPart(amount) : words.statement.paysBack(item.note, amount) }]
+  })
+}
+
 /** An IBAN in groups of four, as a bank prints it. */
 function grouped(iban: string): string {
   return iban.replace(/(.{4})(?=.)/g, '$1 ')
@@ -156,6 +166,7 @@ function grouped(iban: string): string {
         >
           <template #details>
             <span v-if="row.counterparty && row.description" class="break-words type-caption">{{ row.description }}</span>
+            <span v-for="item in repaid(row)" :key="item.id" class="break-words type-caption" data-testid="dry-run-pays-back">{{ item.text }}</span>
             <span class="mt-1 flex flex-wrap gap-1">
               <UBadge v-if="row.inLedger && waitingRefs.has(row.reference)" :label="words.statement.waitsForAnswer" color="info" variant="subtle" size="sm" />
               <UBadge v-else-if="row.inLedger" :label="words.statement.onLedger" color="neutral" variant="subtle" size="sm" />

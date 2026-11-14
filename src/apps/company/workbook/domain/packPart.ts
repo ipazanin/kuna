@@ -104,8 +104,11 @@ export interface PackPart<Part, Values> {
   readonly startingCategories: readonly StartingCategory[]
   /** The category rules new books made on the day start with. */
   startingRules(on: CivilDate): readonly Rule[]
-  /** The part, from the pack's records, the values its settings keys hold and core's workbook, with the problems of its records and its keys. */
-  assemble(records: PackRecords, values: Values, core: Workbook): { readonly part: Part; readonly problems: readonly WorkbookProblem[] }
+  /**
+   * The part, from the pack's records, the values its settings keys hold and core's workbook, with the problems of its records and
+   * its keys. `itemsStored` says whether the books keep every row's money on the items tab, which the pack's records may name.
+   */
+  assemble(records: PackRecords, values: Values, core: Workbook, itemsStored: boolean): { readonly part: Part; readonly problems: readonly WorkbookProblem[] }
   /** The costs the owner paid privately that the part holds, which profit and loss, Transactions and the filters count beside the bank rows. */
   ownerAdvances(part: Part): readonly OwnerAdvance[]
   /**

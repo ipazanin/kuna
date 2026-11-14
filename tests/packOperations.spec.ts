@@ -575,7 +575,7 @@ describe('what the write check refuses for the chat as for the screens', () => {
     )!
     const change = (fields: Record<string, unknown>) => ({
       op: 'change-owner-advance',
-      input: { advance: desk.ref(OWNER_ADVANCE_RECORDS.name, advance.id), date: null, amount: null, description: null, category: null, ownerShare: null, ...fields },
+      input: { advance: desk.ref(OWNER_ADVANCE_RECORDS.name, advance.id), date: null, amount: null, description: null, category: null, ownerShare: null, paidBack: 'keep', paidBackBy: [], ...fields },
     })
 
     const set = await desk.propose([change({ ownerShare: '30' })])
@@ -585,6 +585,48 @@ describe('what the write check refuses for the chat as for the screens', () => {
     expect((await desk.accept(0)).kind).toBe('done')
     expect(recordsOfKind(desk, OWNER_ADVANCE_RECORDS).find((candidate) => candidate.id === advance.id)!.ownerShare).toBe(30)
     expect(wrong).toMatchObject({ isError: true, text: expect.stringContaining('whole number from 0 to 100') })
+  })
+
+  it('adds a cost the owner paid with the payment that paid it back, which splits off the part it repays, and refuses one on offer to no cost', async () => {
+    const desk = await packDesk()
+    const parking = desk.store.state.workbook!.transactions.find((row) => row.description === 'Refund of a parking fee')!
+    const train = desk.store.state.workbook!.transactions.find((row) => row.description === 'Refund of travel paid privately')!
+    const add = (item: string) =>
+      stepOf(PACK_OPERATIONS, 'add-owner-advance', {
+        date: '2026-10-05',
+        amount: 20,
+        description: 'Parking at the client',
+        category: desk.ref(CATEGORY_RECORDS.name, 'travel'),
+        paidBackBy: [{ item: desk.ref(ITEM_RECORDS.name, item) }],
+      })
+
+    const taken = await desk.propose([add(recordIdOf(ITEM_RECORDS, train.rowId!))])
+    const answer = await desk.propose([add(recordIdOf(ITEM_RECORDS, parking.rowId!))])
+
+    expect(taken).toMatchObject({ isError: true, text: expect.stringContaining('no advance accounts for') })
+    expect(answer.isError, answer.text).toBe(false)
+    expect((await desk.accept(0)).kind).toBe('done')
+    const items = recordsOf(desk.store.state.records!.items).filter((item) => item.row === parking.rowId)
+    expect(items.map((item) => [item.amount, item.note])).toEqual([
+      [euros(-18.5), ''],
+      [euros(-20), 'Parking at the client'],
+    ])
+    expect(recordsOfKind(desk, OWNER_ADVANCE_RECORDS).find((advance) => advance.description === 'Parking at the client')?.repaidBy).toEqual([items[1]!.id])
+  })
+
+  it('refuses to lower an owner advance below the payments that paid it back', async () => {
+    const desk = await packDesk()
+    const paper = recordsOfKind(desk, OWNER_ADVANCE_RECORDS).find((advance) => advance.description === 'Printer paper')!
+    const lowered = (amount: number) => ({
+      op: 'change-owner-advance',
+      input: { advance: desk.ref(OWNER_ADVANCE_RECORDS.name, paper.id), date: null, amount, description: null, category: null, ownerShare: null, paidBack: 'keep', paidBackBy: [] },
+    })
+
+    const below = await desk.propose([lowered(20)])
+    const raised = await desk.propose([lowered(40)])
+
+    expect(below).toMatchObject({ isError: true, text: expect.stringContaining('add up to more than this amount') })
+    expect(raised.isError, raised.text).toBe(false)
   })
 
   it('refuses to delete a grant an asset is funded by', async () => {

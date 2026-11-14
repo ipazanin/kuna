@@ -41,6 +41,7 @@ function inputsOf(transactions: readonly Transaction[], twinAnswers: DryRunInput
     starts: new Map(),
     named: new Map(),
     twinAnswers,
+    repaymentsOf: () => [],
   }
 }
 

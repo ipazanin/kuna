@@ -21,6 +21,7 @@ export const en = {
     parts: (fixed: string, variable: string) => `${fixed} fixed, ${variable} variable`,
     period: (from: string, to: string) => `${from} to ${to}`,
     whole: 'the whole grant',
+    newPaymentPart: 'a new part of a payment to the owner',
     fields: {
       date: 'Date',
       amount: 'Amount',
@@ -54,6 +55,7 @@ export const en = {
       ledgerReference: 'Ledger reference',
       rowId: 'Payment',
       payment: 'Payment',
+      repaidBy: 'Paid back by',
       received: 'Received',
       parts: 'Parts',
       period: 'Period',
@@ -132,6 +134,7 @@ export const hr: Translation<typeof en> = {
     parts: (fixed, variable) => `${fixed} fiksno, ${variable} varijabilno`,
     period: (from, to) => `${from} do ${to}`,
     whole: 'cijela potpora',
+    newPaymentPart: 'novi dio isplate vlasniku',
     fields: {
       date: 'Datum',
       amount: 'Iznos',
@@ -165,6 +168,7 @@ export const hr: Translation<typeof en> = {
       ledgerReference: 'Referenca u evidenciji',
       rowId: 'Plaćanje',
       payment: 'Plaćanje',
+      repaidBy: 'Vraćeno isplatom',
       received: 'Primljeno',
       parts: 'Dijelovi',
       period: 'Razdoblje',

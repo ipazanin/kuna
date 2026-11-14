@@ -21,7 +21,7 @@ import {
   withOlderInterestCategory,
   withoutRegistrationDay,
 } from './fakeWorkbook'
-import { sampleCopiedLedgerRow } from '../../../imports/infrastructure/fake/sampleImportFiles'
+import { sampleCopiedLedgerRow, sampleOpenAdvanceRecords } from '../../../imports/infrastructure/fake/sampleImportFiles'
 import type { FakeStaff } from './fakeWorkbook'
 
 const DAY = 86_400_000
@@ -53,6 +53,12 @@ function withCopiedRow(document: WorkbookDocument): WorkbookDocument {
   return { ...document, records: { ...records, 'ledger-row': [copied, ...(records['ledger-row'] ?? [])], item: [itemOfLedgerRow(sampleCopiedLedgerRow()), ...(records.item ?? [])] } }
 }
 
+function withOpenAdvance(document: WorkbookDocument): WorkbookDocument {
+  const { advance, rule } = sampleOpenAdvanceRecords()
+  const { records } = document
+  return { ...document, records: { ...records, 'hr-doo.owner-advance': [...(records['hr-doo.owner-advance'] ?? []), advance], rule: [rule, ...(records.rule ?? [])] } }
+}
+
 /** Each load of the fake build starts with the home welcome unanswered, unless the address says otherwise, so one check's answer does not reach the next. */
 function seedFakeStart(home: string | null): void {
   forgetKunaStart()
@@ -78,7 +84,8 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * fake mailbox answers. A variant a pack pays a made-up staff in, which `staffOf` gives, pays them in place of
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
- * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, and one that
+ * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, one that ends
+ * in `open-advance` adds a cost the owner paid that the sample refund to the owner pays back, with the rule that files that refund, and one that
  * ends in `category-move` adds plan rows a category's move joins or cannot change. One that ends in `donations` adds a donation above its cap and a
  * sponsorship to a listed club, each in a category of its class. The books keep every row's money on the items tab, but for a variant
  * that ends in `no-row-ids`, which holds books from before items and from before every ledger row had an id, and one that ends in
@@ -96,7 +103,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const beforeItems = variant?.endsWith('no-row-ids') === true || variant?.endsWith('refused-splits') === true
   const made = (beforeItems ? fakeWorkbookDocumentBeforeItems : fakeWorkbookDocument)(savedAt, source, staffOf(variant), variant?.endsWith('donations') ?? false)
   const seeded = variant === 'unregistered' ? withoutRegistrationDay(made) : variant?.endsWith('older-interest') === true ? withOlderInterestCategory(made) : made
-  const full = variant?.endsWith('copied') ? withCopiedRow(seeded) : seeded
+  const full = variant?.endsWith('copied') ? withCopiedRow(seeded) : variant?.endsWith('open-advance') ? withOpenAdvance(seeded) : seeded
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full
   const unlinked = variant?.endsWith('no-row-ids') ? withoutRowIds(planned) : variant?.endsWith('refused-splits') ? withRefusedSplits(planned) : planned

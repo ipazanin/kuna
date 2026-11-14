@@ -223,7 +223,7 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
   if (pack === null) {
     return core
   }
-  const { part, problems: partProblems } = pack.assemble(records.pack, settingsTab.packValues, core)
+  const { part, problems: partProblems } = pack.assemble(records.pack, settingsTab.packValues, core, storesItems(records))
   return {
     ...core,
     ownerAdvances: pack.ownerAdvances(part),

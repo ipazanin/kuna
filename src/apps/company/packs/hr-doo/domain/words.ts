@@ -63,6 +63,9 @@ export const en = {
     noCategory: 'no category',
     notOnCategories: (slug: string) => `"${slug}" is not on the categories tab`,
     advanceBucket: (slug: string, bucket: string) => `"${slug}" is in the ${bucket} bucket, and an advance counts as an operating cost or a tax`,
+    advanceItemNotAPayment: (item: string) => `no payment to the owner on a reimbursement category holds the item ${item}, so it pays nothing back`,
+    advanceItemNamedBefore: (item: string) => `an older advance names the item ${item} already, so it pays this one nothing back`,
+    advanceRepaidMore: (repaid: string) => `the items that paid it back add up to ${repaid}, more than the owner paid`,
     noAssetName: 'no asset name',
     before: (later: string, laterDay: string, earlier: string, earlierDay: string) => `${later} ${laterDay} is before ${earlier} ${earlierDay}`,
     notAFlag: (name: string, text: string) => `${name} "${text}" is neither TRUE nor FALSE`,
@@ -127,6 +130,8 @@ export const en = {
   },
   /** Why an item a travel order names stays as it is, and how to change it, which follows "stays as". */
   tripFiling: (number: string) => `travel order ${number} names it. Unlink it on the trip's Settlement tab to change it`,
+  /** Why an item an owner advance names as what paid it back stays as it is, and how to change it, which follows "stays as". */
+  advanceRepaid: (advance: string) => `the owner advance "${advance}" names it as paid back. Take it off the advance's Paid back by to change it`,
   /** The labels of what the owner's benefits and loans would cost or save. */
   owner: {
     inYear: (name: string, year: number) => `${name} in ${year}`,
@@ -226,6 +231,9 @@ export const hr: Translation<typeof en> = {
     noCategory: 'polje category je prazno',
     notOnCategories: (slug) => `„${slug}” nije na listu „categories”`,
     advanceBucket: (slug, bucket) => `„${slug}” je u skupini ${croatianBucket(bucket)}, a predujam se broji kao poslovni rashod ili porez`,
+    advanceItemNotAPayment: (item) => `stavku ${item} ne drži nijedna isplata vlasniku na kategoriji povrata troškova, pa ništa ne vraća`,
+    advanceItemNamedBefore: (item) => `stavku ${item} već navodi stariji predujam, pa ovome ništa ne vraća`,
+    advanceRepaidMore: (repaid) => `stavke kojima je vraćen zbrajaju se u ${repaid}, više nego što je vlasnik platio`,
     noAssetName: 'sredstvo nema naziv',
     before: (later, laterDay, earlier, earlierDay) => `${later} ${laterDay} je prije ${earlier} ${earlierDay}`,
     notAFlag: (name, text) => `${name} „${text}” nije ni TRUE ni FALSE`,
@@ -286,6 +294,7 @@ export const hr: Translation<typeof en> = {
     return names.length === 1 ? `sredstvo ${quoted} vodi je kao plaćanje` : `sredstva ${quoted} vode je kao plaćanje`
   },
   tripFiling: (number) => `je navodi putni nalog ${number}. Da biste je promijenili, uklonite vezu na kartici Obračun putnog naloga`,
+  advanceRepaid: (advance) => `je predujam vlasnika „${advance}” navodi kao povrat. Da biste je promijenili, maknite je iz polja Vraćeno isplatom na predujmu`,
   owner: {
     inYear: (name, year) => `${name}, ${year}.`,
     taxAvoidedIn: (year) => `Ušteda na porezu u ${year}.`,

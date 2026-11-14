@@ -73,6 +73,11 @@ export function wholeItemId(row: Pick<Transaction, 'id' | 'rowId'>): RecordId {
   return recordIdOf(ITEM_RECORDS, row.rowId ?? keyOfRecordId(LEDGER_RECORDS, row.id))
 }
 
+/** The item a row as listed stands for: a part of a split row its own, and a row of one item that one. */
+export function itemIdOfRow(row: Pick<Transaction, 'id' | 'rowId' | 'split'>): RecordId {
+  return row.split?.id ?? wholeItemId(row)
+}
+
 /** A bank row's items: the parts of its split, or while it has none the one item the row stands for, with its whole amount, category and share and no note. */
 export function itemsOfRow(row: Transaction, split: LedgerSplit | undefined): readonly SplitPart[] {
   if (split !== undefined) return split.parts

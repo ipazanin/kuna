@@ -15,6 +15,7 @@ import { ledgerIdOf } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
 import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { Transaction } from '../../workbook/domain/workbook'
+import type { RepaymentItem, RowRepayments } from '../../workbook/domain/repayments'
 import { isTranscribedReference } from './importedStatement'
 import type { ImportedRow, ImportedStatement, NewAccountOffer, StatementReading } from './importedStatement'
 import { words } from './words'
@@ -32,6 +33,8 @@ export interface DryRunRow extends ImportedRow {
   readonly copiedTwin?: Transaction
   /** The row the AI copied that this entry takes the place of, whose category, share and row id it keeps. */
   readonly replaces?: Transaction
+  /** The items a new entry's money becomes since part of it pays back what a pack keeps, as the import proposes it. */
+  readonly repays?: readonly RepaymentItem[]
 }
 
 /** An entry of a file Kuna read that looks like a row the AI copied, and what the person said of it, null until they say. */
@@ -100,6 +103,8 @@ export interface ImportDryRun {
   readonly removed: readonly Transaction[]
   /** The accounts confirming would add before those entries. */
   readonly accounts: readonly AddedAccount[]
+  /** The new entries whose money pays back what a pack keeps, each as the items it becomes, which confirming writes. */
+  readonly repayments: readonly RowRepayments[]
   readonly newRows: number
   readonly inLedger: number
 }
@@ -128,6 +133,8 @@ export interface DryRunInputs {
   readonly named: ReadonlyMap<string, string>
   /** What the person said of the entries that look like rows the AI copied, by `copiedTwinKey`. */
   readonly twinAnswers: ReadonlyMap<string, TwinAnswer>
+  /** What the new entries pay back of the records a pack keeps, each entry as the items it becomes. */
+  repaymentsOf(added: readonly LedgerEntry[]): readonly RowRepayments[]
 }
 
 /**
@@ -208,7 +215,31 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
     if (planned.statement.refusal === null) accounts.set(slug, { slug, iban: newAccount.iban, currency: newAccount.currency })
   }
   const rows = statements.flatMap((statement) => statement.rows)
-  return { statements, added, removed, accounts: [...accounts.values()], newRows: added.length, inLedger: rows.filter((row) => row.inLedger).length }
+  const repayments = inputs.repaymentsOf(added.filter((entry) => !removed.some((copied) => copied.rowId !== null && copied.rowId === entry.rowId)))
+  return {
+    statements: withRepayments(statements, added, repayments),
+    added,
+    removed,
+    accounts: [...accounts.values()],
+    repayments,
+    newRows: added.length,
+    inLedger: rows.filter((row) => row.inLedger).length,
+  }
+}
+
+/** Each new entry of the statements with the items its money becomes when it pays back what a pack keeps, found by its account and reference. */
+function withRepayments(statements: readonly DryRunStatement[], added: readonly LedgerEntry[], repayments: readonly RowRepayments[]): DryRunStatement[] {
+  if (repayments.length === 0) return [...statements]
+  const itemsOf = new Map(repayments.map((repayment) => [repayment.row, repayment.items]))
+  const entryOf = new Map(added.map((entry) => [`${entry.account} ${entry.reference}`, entry]))
+  return statements.map((statement) => ({
+    ...statement,
+    rows: statement.rows.map((row) => {
+      const rowId = row.inLedger ? null : entryOf.get(`${statement.account} ${row.reference}`)?.rowId
+      const repays = rowId === null || rowId === undefined ? undefined : itemsOf.get(rowId)
+      return repays === undefined ? row : { ...row, repays }
+    }),
+  }))
 }
 
 /** Where a statement of a new account would start it: the balance before its first entry, on that entry's day. */

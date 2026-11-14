@@ -1,6 +1,6 @@
 import { addDays, parseCivilDate } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
-import { fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
+import { FAKE_OWNER, fakeWorkbookRecords } from '../../../workbook/infrastructure/fake/fakeWorkbook'
 import { transcribedReferences } from '../../domain/importedStatement'
 import { addMoney, moneyFromAmount } from '../../../../../shared/money/money'
 import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
@@ -17,6 +17,7 @@ import type { CellValue } from '../../../workbook/infrastructure/workbookSnapsho
  */
 export const SAMPLE_CAMT_FILE_NAME = 'example-bank-statement.xml'
 export const SAMPLE_TABLE_FILE_NAME = 'example-bank-export.xlsx'
+export const SAMPLE_REFUND_FILE_NAME = 'example-owner-refund.xml'
 
 interface MainAccount {
   readonly iban: string
@@ -79,45 +80,46 @@ export function sampleCopiedLedgerRow(): RecordFields {
   }
 }
 
+/** The sample camt statement's entries: a client payment, a card purchase in dollars, a bank fee and a reversal. */
+const SAMPLE_ENTRIES: readonly SampleEntry[] = [
+  {
+    credit: true,
+    cents: 712_000,
+    codes: ['PMNT', 'RCDT', 'ESCT'],
+    reference: 'SAMPLE-CAMT-0001',
+    party: `<Dbtr><Pty><Nm>Northwind Analytics Ltd</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>XX00FAKE0000000000000010</IBAN></Id></DbtrAcct>`,
+    description: 'Invoice 9-1-26',
+  },
+  {
+    credit: false,
+    cents: 5_834,
+    codes: ['PMNT', 'CCRD', 'POSD'],
+    reference: 'SAMPLE-CAMT-0002',
+    party: '<Cdtr><Pty><Nm>MODEL API SUBSCRIPTION</Nm></Pty></Cdtr>',
+    description: 'Card purchase, monthly plan',
+    instructedCurrency: 'USD',
+  },
+  { credit: false, cents: 785, codes: ['ACMT', 'MDOP', 'CHRG'], reference: 'SAMPLE-CAMT-0003', party: '', description: 'Account fee' },
+  {
+    credit: true,
+    cents: 640,
+    codes: ['PMNT', 'CCRD', 'POSD'],
+    reference: 'SAMPLE-CAMT-0004',
+    party: '<Cdtr><Pty><Nm>SNACK KIOSK</Nm></Pty></Cdtr>',
+    description: 'Card purchase reversed',
+    reversal: true,
+  },
+]
+
 /**
  * A camt.053.001.08 statement booked four days after the main account's newest row, of the main
- * account, or of another IBAN as that account's statement with the given number.
+ * account, or of another IBAN as that account's statement with the given number, holding the entries given.
  */
-export function sampleCamtXml(other?: { readonly iban: string; readonly sequence: number }): string {
+export function sampleCamtXml(other?: { readonly iban: string; readonly sequence: number }, entries: readonly SampleEntry[] = SAMPLE_ENTRIES): string {
   const main = mainAccount()
   const shape = sampleCamtShape(main)
   const { booked, created } = shape
   const sequence = other?.sequence ?? shape.sequence
-  const client = 'XX00FAKE0000000000000010'
-  const entries: SampleEntry[] = [
-    {
-      credit: true,
-      cents: 712_000,
-      codes: ['PMNT', 'RCDT', 'ESCT'],
-      reference: 'SAMPLE-CAMT-0001',
-      party: `<Dbtr><Pty><Nm>Northwind Analytics Ltd</Nm></Pty></Dbtr><DbtrAcct><Id><IBAN>${client}</IBAN></Id></DbtrAcct>`,
-      description: 'Invoice 9-1-26',
-    },
-    {
-      credit: false,
-      cents: 5_834,
-      codes: ['PMNT', 'CCRD', 'POSD'],
-      reference: 'SAMPLE-CAMT-0002',
-      party: '<Cdtr><Pty><Nm>MODEL API SUBSCRIPTION</Nm></Pty></Cdtr>',
-      description: 'Card purchase, monthly plan',
-      instructedCurrency: 'USD',
-    },
-    { credit: false, cents: 785, codes: ['ACMT', 'MDOP', 'CHRG'], reference: 'SAMPLE-CAMT-0003', party: '', description: 'Account fee' },
-    {
-      credit: true,
-      cents: 640,
-      codes: ['PMNT', 'CCRD', 'POSD'],
-      reference: 'SAMPLE-CAMT-0004',
-      party: '<Cdtr><Pty><Nm>SNACK KIOSK</Nm></Pty></Cdtr>',
-      description: 'Card purchase reversed',
-      reversal: true,
-    },
-  ]
   const opening = Math.round(main.balance * 100)
   const credits = entries.filter((entry) => entry.credit)
   const debits = entries.filter((entry) => !entry.credit)
@@ -222,4 +224,41 @@ export async function sampleTableFile(): Promise<Uint8Array> {
   const book = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet(sampleTableGrid()), 'Promet')
   return new Uint8Array(XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+}
+
+/** The description of the sample refund to the owner, which the rule of a variant ending in `open-advance` files as a reimbursement. */
+const TAXI_REFUND = 'TAXI REFUND'
+
+/** A camt statement of the main account with one payment to the owner, which pays back the open advance of a variant ending in `open-advance`. */
+export function sampleOwnerRefundXml(): string {
+  return sampleCamtXml(undefined, [
+    {
+      credit: false,
+      cents: 4_520,
+      codes: ['PMNT', 'ICDT', 'ESCT'],
+      reference: 'SAMPLE-CAMT-0005',
+      party: `<Cdtr><Pty><Nm>${FAKE_OWNER.name}</Nm></Pty></Cdtr><CdtrAcct><Id><IBAN>${FAKE_OWNER.iban}</IBAN></Id></CdtrAcct>`,
+      description: TAXI_REFUND,
+    },
+  ])
+}
+
+/**
+ * What a variant ending in `open-advance` adds: a taxi the owner paid two days after the main account's newest row, not paid back
+ * yet, and a rule that files the owner's taxi refund as a reimbursement, tried before the rule that holds the owner's other rows.
+ */
+export function sampleOpenAdvanceRecords(): { readonly advance: RecordFields; readonly rule: RecordFields } {
+  return {
+    advance: { [ID_FIELD]: '00000000-0000-4000-8000-000900000002', date: addDays(mainAccount().date, 2), amount: '45.20', description: 'Taxi to the client', category: 'travel' },
+    rule: {
+      rule: 'owner-taxi-refund',
+      order: '50',
+      enabled: true,
+      confidence: 'rule',
+      counterparty_iban: FAKE_OWNER.iban,
+      description_starts_with: TAXI_REFUND,
+      direction: 'debit',
+      category: 'reimbursement-to-owner',
+    },
+  }
 }

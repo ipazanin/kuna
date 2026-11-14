@@ -9,6 +9,7 @@ import { periodRange } from '../../../filters/domain/filterState'
 import type { FilterState, Period } from '../../../filters/domain/filterState'
 import type { Category, OwnerAdvance, Transaction } from '../../../workbook/domain/workbook'
 import { advanceBookFilters, netOwed, ownerAdvances } from './ownerAdvances'
+import type { RepaidBy } from './ownerAdvancesReading'
 import type { NetOwed, OwnerAdvanceLine } from './ownerAdvances'
 import { loanBookFilters, ownerLoans } from './ownerLoans'
 import type { OwnerLoan } from './ownerLoans'
@@ -50,6 +51,7 @@ interface Books {
   readonly transactions: readonly Transaction[]
   readonly ownerAdvances: readonly OwnerAdvance[]
   readonly categories: readonly Category[]
+  readonly repaidBy?: RepaidBy
 }
 
 /**
@@ -105,5 +107,5 @@ export function owedInPeriod(books: Books, period: Period, window: LedgerWindow,
 function booksBefore(books: Books, day: CivilDate) {
   const rows = books.transactions.filter((row) => row.date < day)
   const advances = books.ownerAdvances.filter((advance) => advance.date < day)
-  return { loans: ownerLoans(rows, books.categories), advances: ownerAdvances(advances, rows, books.categories) }
+  return { loans: ownerLoans(rows, books.categories), advances: ownerAdvances(advances, rows, books.categories, books.repaidBy) }
 }

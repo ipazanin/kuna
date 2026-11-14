@@ -1,5 +1,5 @@
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
-import { ZERO, addMoney, moneyFromCents, subtractMoney } from '../../../../../shared/money/money'
+import { ZERO, absMoney, addMoney, moneyFromCents, subtractMoney } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
 import { settlePayments } from '../../../../../shared/money/settleOpenRows'
 import { advanceDrill, drillToTransactions, rowDrill } from '../../../filters/domain/drillTarget'
@@ -8,10 +8,14 @@ import { EVERY_OWNER_ADVANCE } from '../../../filters/domain/filterState'
 import type { AmountRange, FilterState } from '../../../filters/domain/filterState'
 import { scopeTransactions } from '../../../transactions/domain/filterTransactions'
 import { ownerAdvanceOrder } from '../../../workbook/domain/workbook'
-import type { Category, OwnerAdvance, Transaction, Workbook } from '../../../workbook/domain/workbook'
+import type { Category, OwnerAdvance, Transaction } from '../../../workbook/domain/workbook'
 import type { OwnerLoanBook } from './ownerLoans'
 import { PACK_ROLES, categoriesWithRole } from './packRoles'
 import { netReimbursements } from './reimbursements'
+import type { RepaidBy } from './ownerAdvancesReading'
+import type { HrDooWorkbook } from './hrDooPart'
+import type { NetReimbursement, ReimbursementRow } from './reimbursements'
+import { itemIdOfRow } from '../../../workbook/domain/splits'
 
 /** The part of one reimbursement that went towards one advance. */
 export interface AdvanceRepaymentShare {
@@ -72,51 +76,126 @@ export interface NetOwed {
 
 const DEBITS: AmountRange = { min: null, max: moneyFromCents(-1) }
 
+/** What of one payment to the owner pays back one advance. */
+export interface AdvanceShare {
+  readonly advance: OwnerAdvance
+  /** Above zero. */
+  readonly applied: Money
+}
+
+/** A payment to the owner, less what a payment the other way returned the same day, with the advances it pays back. */
+export interface PlacedRepayment<Row extends ReimbursementRow = Transaction> extends NetReimbursement<Row> {
+  readonly shares: readonly AdvanceShare[]
+}
+
+/** An advance with what of it is still open, read positive. */
+export interface OpenAdvance {
+  readonly advance: OwnerAdvance
+  readonly open: Money
+}
+
 /**
- * The costs the owner paid matched to the reimbursements paid to the owner. Each reimbursement,
- * less what it returned of a payment from the owner the same day, settles the fewest costs paid by
- * its day that it equals exactly. The reimbursements no set of costs equals then go to the oldest
- * open costs first with no date cap. What no cost takes is listed as unaccounted. The balance comes
+ * Where payments to the owner, given oldest first, go among the advances, given oldest first with what is open of each. Each
+ * payment settles the fewest advances paid by its day that it equals exactly, and the payments no set of advances equals then go
+ * to the oldest open advances first with no date cap. What no advance takes stays with the payment.
+ */
+export function placeRepayments<Row extends ReimbursementRow>(advances: readonly OpenAdvance[], payments: readonly NetReimbursement<Row>[]): PlacedRepayment<Row>[] {
+  const placed = settlePayments(
+    advances.map((advance) => advance.open),
+    payments.map((payment) => payment.amount),
+    (payment, row) => advances[row]!.advance.date <= payments[payment]!.payment.date,
+  )
+  return payments.map((payment, index) => ({ ...payment, shares: placed[index]!.map(({ index: row, applied }) => ({ advance: advances[row]!.advance, applied })) }))
+}
+
+/** What each advance was paid back, by the advance's place, the payments to the owner an advance names, and what no advance accounts for. */
+export interface Repayments {
+  readonly shares: readonly (readonly AdvanceRepaymentShare[])[]
+  readonly named: ReadonlySet<Transaction>
+  readonly unaccounted: readonly UnaccountedReimbursement[]
+}
+
+/**
+ * What each advance's items paid back: each item of a payment to the owner on a reimbursement category, whole, in booking order.
+ * An item no such payment holds, or one an older advance names already, pays back nothing. Each payment to the owner no advance
+ * names, less what a payment from the owner returned the same day, is unaccounted.
+ */
+export function storedRepayments(advances: readonly OwnerAdvance[], repaidBy: RepaidBy, transactions: readonly Transaction[], categories: readonly Category[]): Repayments {
+  const byItem = new Map(paymentsToOwner(transactions, categories).map((row) => [itemIdOfRow(row), row]))
+  const named = new Set<Transaction>()
+  const shares = advances.map((advance) =>
+    (repaidBy.get(advance.id) ?? [])
+      .flatMap((item) => {
+        const row = byItem.get(item)
+        if (row === undefined || named.has(row)) return []
+        named.add(row)
+        return [row]
+      })
+      .sort((earlier, later) => earlier.date.localeCompare(later.date) || earlier.sequence - later.sequence)
+      .map((row): AdvanceRepaymentShare => ({ repaidOn: row.date, applied: absMoney(row.amount), drill: rowDrill(row) })),
+  )
+  const unaccounted = netReimbursements(
+    transactions.filter((row) => !named.has(row)),
+    categories,
+  ).toOwner.map((repayment): UnaccountedReimbursement => ({ ...repayment, drill: rowDrill(repayment.payment) }))
+  return { shares, named, unaccounted }
+}
+
+/** The rows that pay the owner on a reimbursement category, each item of a split row its own. */
+export function paymentsToOwner<Row extends Pick<Transaction, 'category' | 'amount'>>(transactions: readonly Row[], categories: readonly Category[]): Row[] {
+  const reimbursement = categoriesWithRole(categories, PACK_ROLES.reimbursement)
+  return transactions.filter((row) => row.amount < 0 && reimbursement.includes(row.category))
+}
+
+/** Every payment to the owner placed on the advances, given oldest first, as books from before items match them on every read. */
+export function matchedPayments(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): PlacedRepayment[] {
+  return placeRepayments(
+    advances.map((advance) => ({ advance, open: advance.amount })),
+    netReimbursements(transactions, categories).toOwner,
+  )
+}
+
+/** What each advance was paid back and what no advance accounts for, by the matching of books from before items. */
+function matchedRepayments(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): Repayments {
+  const placed = matchedPayments(advances, transactions, categories)
+  const shares = advances.map((advance) =>
+    placed.flatMap((repayment) =>
+      repayment.shares
+        .filter((share) => share.advance === advance)
+        .map((share): AdvanceRepaymentShare => ({ repaidOn: repayment.payment.date, applied: share.applied, drill: rowDrill(repayment.payment) })),
+    ),
+  )
+  const unaccounted = placed.flatMap((repayment): UnaccountedReimbursement[] => {
+    const left = repayment.shares.reduce((rest, share) => subtractMoney(rest, share.applied), repayment.amount)
+    return left > 0 ? [{ payment: repayment.payment, amount: left, drill: rowDrill(repayment.payment) }] : []
+  })
+  return { shares, named: new Set(), unaccounted }
+}
+
+/**
+ * The costs the owner paid and the reimbursements paid to the owner. In books that keep items each advance is paid back by the
+ * items it names, and each payment to the owner no advance names, less what a payment from the owner returned the same day, is
+ * unaccounted. Books from before items match them on every read, as `placeRepayments` places the payments. The balance comes
  * from the rows themselves, so it states a reimbursement no advance accounts for.
  */
-export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[]): OwnerAdvanceBook {
-  const repayments = netReimbursements(transactions, categories).toOwner
+export function ownerAdvances(advances: readonly OwnerAdvance[], transactions: readonly Transaction[], categories: readonly Category[], repaidBy: RepaidBy | undefined): OwnerAdvanceBook {
   const paidByOwner = [...advances].sort(ownerAdvanceOrder)
-
-  const placed = settlePayments(
-    paidByOwner.map((advance) => advance.amount),
-    repayments.map((repayment) => repayment.amount),
-    (payment, row) => paidByOwner[row]!.date <= repayments[payment]!.payment.date,
-  )
-  const open = paidByOwner.map((advance) => advance.amount)
-  const shares: AdvanceRepaymentShare[][] = paidByOwner.map(() => [])
-  const unaccounted: UnaccountedReimbursement[] = []
-  placed.forEach((placedShares, payment) => {
-    const repayment = repayments[payment]!
-    for (const { index, applied } of placedShares) {
-      open[index] = subtractMoney(open[index]!, applied)
-      shares[index]!.push({ repaidOn: repayment.payment.date, applied, drill: rowDrill(repayment.payment) })
-    }
-    const left = placedShares.reduce((rest, share) => subtractMoney(rest, share.applied), repayment.amount)
-    if (left > 0) {
-      unaccounted.push({ payment: repayment.payment, amount: left, drill: rowDrill(repayment.payment) })
-    }
-  })
+  const { shares, unaccounted } = repaidBy === undefined ? matchedRepayments(paidByOwner, transactions, categories) : storedRepayments(paidByOwner, repaidBy, transactions, categories)
   const lines = paidByOwner.map((advance, index): OwnerAdvanceLine => {
-    const remaining = open[index]!
     const repaymentShares = shares[index]!
+    const remaining = repaymentShares.reduce((open, share) => subtractMoney(open, share.applied), advance.amount)
     return {
       advance,
       drill: advanceDrill(advance),
       remaining,
-      status: remaining === 0 ? 'repaid' : 'open',
-      repaidOn: remaining === 0 ? (repaymentShares[repaymentShares.length - 1]?.repaidOn ?? null) : null,
+      status: remaining > 0 ? 'open' : 'repaid',
+      repaidOn: remaining > 0 ? null : (repaymentShares[repaymentShares.length - 1]?.repaidOn ?? null),
       repayments: repaymentShares,
     }
   })
 
   const advanced = paidByOwner.reduce((total, advance) => addMoney(total, advance.amount), ZERO)
-  const reimbursed = repayments.reduce((total, repayment) => addMoney(total, repayment.amount), ZERO)
+  const reimbursed = netReimbursements(transactions, categories).toOwner.reduce((total, repayment) => addMoney(total, repayment.amount), ZERO)
   const filters = advanceBookFilters(categories)
   return {
     advances: lines,
@@ -164,7 +243,7 @@ export function netOwed(loans: OwnerLoanBook, advances: OwnerAdvanceBook, catego
  * Payments to the owner under the filters that no cost the owner paid accounts for, which wait until a person
  * adds the cost. Payments match every cost on file, so a filter changes which are shown, never which match.
  */
-export function unaccountedInView(booked: Workbook, filters: FilterState): readonly UnaccountedReimbursement[] {
+export function unaccountedInView(booked: Pick<HrDooWorkbook, 'transactions' | 'ownerAdvances' | 'categories' | 'repaidBy'>, filters: FilterState): readonly UnaccountedReimbursement[] {
   const inView = new Set(scopeTransactions(booked.transactions, filters))
-  return ownerAdvances(booked.ownerAdvances, booked.transactions, booked.categories).unaccounted.filter((line) => inView.has(line.payment))
+  return ownerAdvances(booked.ownerAdvances, booked.transactions, booked.categories, booked.repaidBy).unaccounted.filter((line) => inView.has(line.payment))
 }

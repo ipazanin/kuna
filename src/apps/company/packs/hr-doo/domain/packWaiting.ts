@@ -32,7 +32,7 @@ export interface PackWaiting {
 
 export function packWaiting(workbook: HrDooWorkbook, asOf: CivilDate): PackWaiting {
   return {
-    unaccounted: ownerAdvances(workbook.ownerAdvances, workbook.transactions, workbook.categories).unaccounted.length,
+    unaccounted: ownerAdvances(workbook.ownerAdvances, workbook.transactions, workbook.categories, workbook.repaidBy).unaccounted.length,
     payroll: missedPayroll(workbook),
     corporateTax: corporateTaxWaiting(workbook, asOf),
   }

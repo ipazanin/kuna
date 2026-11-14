@@ -6,7 +6,7 @@ import type { Asset } from './assets'
 import { recordIdOf } from '../../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../../shared/storage/domain/recordId'
 import { ITEM_RECORDS } from '../../../../workbook/domain/coreKinds'
-import { wholeItemId } from '../../../../workbook/domain/splits'
+import { itemIdOfRow } from '../../../../workbook/domain/splits'
 import type { Category, Transaction, Workbook } from '../../../../workbook/domain/workbook'
 import { daysBetween } from '../../../../../../shared/calendar/civilDate'
 import { ZERO, addMoney, negateMoney, sumMoney } from '../../../../../../shared/money/money'
@@ -120,11 +120,6 @@ export function assetCostsOf(workbook: Pick<Workbook, 'transactions' | 'categori
 /** The item an asset names as its payment: the one it names, or in books from before items the one item of the row it links. */
 export function assetItemOf(asset: Pick<Asset, 'payment' | 'rowId'>): RecordId | null {
   return asset.payment ?? (asset.rowId === null ? null : recordIdOf(ITEM_RECORDS, asset.rowId))
-}
-
-/** The item a row as listed stands for: a part of a split row its own, and a row of one item that one. */
-function itemIdOfRow(row: Pick<Transaction, 'id' | 'rowId' | 'split'>): RecordId {
-  return row.split?.id ?? wholeItemId(row)
 }
 
 /** The debits whose item is this one, of which an asset naming it takes the one paid nearest the day it was bought. */

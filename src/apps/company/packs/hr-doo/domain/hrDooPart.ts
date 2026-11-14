@@ -1,5 +1,6 @@
 import { packPart, recordsOfKind } from '../../../workbook/domain/packPart'
 import { recordsOf } from '../../../../../shared/storage/domain/recordsRead'
+import { dayLabel } from '../../../../../shared/calendar/dayLabel'
 import { itemsTripsFile } from './trips/tripBankRows'
 import type { RecordCodec } from '../../../../../shared/storage/domain/recordCodec'
 import type { PackKey, PackPart } from '../../../workbook/domain/packPart'
@@ -47,7 +48,8 @@ import {
 import { tripRowProblems } from './trips/tripBankRows'
 import { problemOf } from '../../../../../shared/storage/domain/recordsRead'
 import type { TripFile } from './trips/tripReading'
-import { OWNER_ADVANCE_CODEC, readOwnerAdvances } from './ownerAdvancesReading'
+import { OWNER_ADVANCE_CODEC, advanceItemProblemsOf, readOwnerAdvances } from './ownerAdvancesReading'
+import type { RepaidBy } from './ownerAdvancesReading'
 import { PACK_ROLES, TAX_FREE_ROLES } from './packRoles'
 import type { OwnerPayScenario } from './scenarios/ownerPayScenarios'
 import { SCENARIO_CODEC, readScenarios } from './scenarios/scenariosReading'
@@ -62,6 +64,8 @@ import { words } from './words'
 export interface HrDooPart {
   /** In the order the tab holds them. */
   readonly ownerAdvances: readonly OwnerAdvance[]
+  /** What paid each advance back, in books that keep items. Left out in books from before items, which read as they did. */
+  readonly repaidBy?: RepaidBy
   /** In the order the tab holds them. */
   readonly assets: readonly Asset[]
   /** In the order the tab holds them. */
@@ -125,11 +129,11 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
   pairSides: { [PACK_ROLES.ownerLoanOut]: 'debit', [PACK_ROLES.ownerLoanRepaid]: 'credit' },
   startingCategories: STARTING_CATEGORIES,
   startingRules,
-  assemble: (records, companyFacts, core) => {
+  assemble: (records, companyFacts, core, itemsStored) => {
     const categorySlugs = new Set(core.categories.map((category) => category.slug))
     const grants = readGrants(recordsOfKind(records, GRANT_RECORDS))
     const scenarios = readScenarios(recordsOfKind(records, SCENARIO_RECORDS))
-    const ownerAdvances = readOwnerAdvances(recordsOfKind(records, OWNER_ADVANCE_RECORDS), core.categories)
+    const ownerAdvances = readOwnerAdvances(recordsOfKind(records, OWNER_ADVANCE_RECORDS), core.categories, itemsStored)
     const assets = readAssets(recordsOfKind(records, ASSET_RECORDS), new Set(grants.facts.map((grant) => grant.slug)))
     const yearEndLines = readYearEnd(recordsOfKind(records, YEAR_END_RECORDS), categorySlugs)
     const employees = readEmployees(recordsOfKind(records, EMPLOYEE_RECORDS))
@@ -141,6 +145,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
     return {
       part: {
         ownerAdvances: ownerAdvances.facts,
+        ...(ownerAdvances.repaidBy === null ? {} : { repaidBy: ownerAdvances.repaidBy }),
         assets: assets.facts,
         grants: grants.facts,
         yearEndLines: yearEndLines.facts,
@@ -154,7 +159,7 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
       problems: [
         ...tabProblems('grants', grants.problems),
         ...tabProblems('scenarios', scenarios.problems),
-        ...tabProblems('owner-advances', ownerAdvances.problems),
+        ...tabProblems('owner-advances', [...ownerAdvances.problems, ...advanceItemProblemsOf(recordsOfKind(records, OWNER_ADVANCE_RECORDS), ownerAdvances, core)]),
         ...tabProblems('assets', [...assets.problems, ...assetPaymentProblems(assets.facts, core.transactions, core.categories)]),
         ...tabProblems('year-end', yearEndLines.problems),
         ...tabProblems('plan', planLines.problems),
@@ -175,6 +180,12 @@ export const HR_DOO_PART: PackPart<HrDooPart, CompanyFacts> = {
       [...assetsClaimingRows(readAssets(recordsOfKind(records, ASSET_RECORDS), new Set()).facts, ledger.transactions, ledger.categories)].map(([row, names]) => [row, words.assetsClaiming(names)]),
     ),
   keptWholeReads: [ASSET_RECORDS],
-  itemsKept: (records, ledger) => new Map([...itemsTripsFile(recordsOf(recordsOfKind(records, TRIP_RECORDS)), ledger)].map(([item, number]) => [item, words.tripFiling(number)])),
-  itemsKeptReads: [TRIP_RECORDS],
+  itemsKept: (records, ledger) =>
+    new Map([
+      ...[...itemsTripsFile(recordsOf(recordsOfKind(records, TRIP_RECORDS)), ledger)].map(([item, number]) => [item, words.tripFiling(number)] as const),
+      ...recordsOf(recordsOfKind(records, OWNER_ADVANCE_RECORDS)).flatMap((advance) =>
+        (advance.repaidBy ?? []).map((item) => [item, words.advanceRepaid(advance.description || dayLabel(advance.date))] as const),
+      ),
+    ]),
+  itemsKeptReads: [TRIP_RECORDS, OWNER_ADVANCE_RECORDS],
 }

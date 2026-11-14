@@ -16,6 +16,7 @@ import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
 import { storedItemsOfRow, storesItems } from '../../workbook/domain/rowItems'
 import { splitKeyOf, wholeItemId } from '../../workbook/domain/splits'
 import type { StoredItem, StoredSplit } from '../../workbook/domain/splits'
+import type { RowRepayments } from '../../workbook/domain/repayments'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
 import { words } from '../../workbook/domain/words'
 import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -211,11 +212,11 @@ function storedEntry(records: WorkbookRecords, entry: LedgerEntry): LedgerEntry 
 
 /**
  * Takes the replaced rows out and adds the new ones, each with the category and share its entry names. Books with an items tab
- * give a new row one item under them. A new row that takes the place of one taken out keeps that row's items, and when its
- * amount differs the largest of them takes up the difference, so they still add up to it. Items of a row taken out that nothing
- * takes the place of go with it.
+ * give a new row one item under them, or when it pays back what a pack keeps the items `repayments` give it. A new row that takes
+ * the place of one taken out keeps that row's items, and when its amount differs the largest of them takes up the difference, so
+ * they still add up to it. Items of a row taken out that nothing takes the place of go with it.
  */
-export function replaceLedgerRows(unit: UnitOfWork, records: WorkbookRecords, removed: readonly LedgerEntry[], added: readonly LedgerEntry[]): void {
+export function replaceLedgerRows(unit: UnitOfWork, records: WorkbookRecords, removed: readonly LedgerEntry[], added: readonly LedgerEntry[], repayments: readonly RowRepayments[] = []): void {
   const ledger = unit.of(LEDGER_WRITES)
   removed.forEach((entry) => ledger.remove(entry))
   added.forEach((entry) => ledger.add(storedEntry(records, entry)))
@@ -226,7 +227,9 @@ export function replaceLedgerRows(unit: UnitOfWork, records: WorkbookRecords, re
     const held = heldBy(entry.rowId)
     if (entry.rowId === null) throw new Error('A new ledger row has a row id.')
     if (held.length === 0) {
-      items.add({ row: entry.rowId, amount: entry.amount, category: entry.category, note: '', ownerShare: entry.ownerShare, id: wholeItemId(entry) })
+      const rowId = entry.rowId
+      const repaid = repayments.find((repayment) => repayment.row === rowId)?.items ?? [{ id: wholeItemId(entry), amount: entry.amount, note: '' }]
+      repaid.forEach((item) => items.add({ row: rowId, amount: item.amount, category: entry.category, note: item.note, ownerShare: entry.ownerShare, id: item.id }))
       continue
     }
     const gap = restOfWhole(
