@@ -111,12 +111,14 @@ export const en = {
     showRest: (date: string) => `${date}, show interest, principal and status`,
     estimateMark: 'est.',
     lateMark: 'late',
+    notSeenMark: 'not seen',
+    unchecked: 'Not checked against your statements, as Spending did not open.',
     extraMark: 'extra',
     anEstimate: (status: string) => `${status}, an estimate`,
     total: (year: number) => `Total ${year}`,
     numbered: (day: string, number: number) => `${day}, no. ${number}`,
   },
-  /** What a row of the plan is or how it stands: "Paid", "Due", "Paid 8 Dec, 18 days late" or "Extra payment". */
+  /** What a row of the plan is or how it stands: "Paid", "Due", "Paid 8 Dec, 18 days late", "Paid 20 Nov, seen in your statement" or "Extra payment". */
   status: {
     extra: 'Extra payment',
     interimPaid: 'Interim interest, paid',
@@ -124,6 +126,9 @@ export const en = {
     paidLate: (count: number, day: string): EnglishForms => ({ one: `Paid ${day}, 1 day late`, other: `Paid ${day}, ${count} days late` }),
     paid: 'Paid',
     due: 'Due',
+    seen: (day: string) => `Paid ${day}, seen in your statement`,
+    seenLate: (count: number, day: string): EnglishForms => ({ one: `Paid ${day}, 1 day late, seen in your statement`, other: `Paid ${day}, ${count} days late, seen in your statement` }),
+    notSeen: 'Not seen in your statement',
   },
   /** What a dot on the balance chart names. */
   moves: {
@@ -156,10 +161,12 @@ export const en = {
     addPayment: 'Add payment',
     extraDetail: (day: string, effect: Effect) => `${day}, ${ENGLISH_EFFECTS[effect].label.toLowerCase()}`,
     lateInstalments: 'Late instalments',
-    lateInstalmentsSubtitle: 'Every instalment counts as paid on its due date, unless it is here.',
+    lateInstalmentsSubtitle: 'Every instalment counts as paid on its due date, unless it is here or your statement shows another day.',
     noLateInstalment: 'Every instalment went out on time.',
     markLate: 'Mark late',
     due: (day: string) => `Due ${day}`,
+    /** A late instalment whose linked statement row went out on another day, which the plan goes by. */
+    statementDay: (detail: string, day: string) => `${detail}. Kuna goes by your statement, ${day}`,
   },
   loanDialog: {
     addTitle: 'Add a bank loan',
@@ -440,6 +447,8 @@ export const hr: Translation<typeof en> = {
     showRest: (date) => `${date}, prikaži kamatu, glavnicu i status`,
     estimateMark: 'procjena',
     lateMark: 'zakašnjeli',
+    notSeenMark: 'nije na izvodu',
+    unchecked: 'Nije provjereno prema vašim izvodima jer se Potrošnja nije otvorila.',
     extraMark: 'prijevremena',
     anEstimate: (status) => `${status}, procjena`,
     total: (year) => `Ukupno ${year}.`,
@@ -452,6 +461,13 @@ export const hr: Translation<typeof en> = {
     paidLate: (count, day) => ({ one: `Plaćen ${day}, ${count} dan nakon dospijeća`, few: `Plaćen ${day}, ${count} dana nakon dospijeća`, other: `Plaćen ${day}, ${count} dana nakon dospijeća` }),
     paid: 'Plaćen',
     due: 'Dospijeva',
+    seen: (day) => `Plaćen ${day}, vidljiv na vašem izvodu`,
+    seenLate: (count, day) => ({
+      one: `Plaćen ${day}, ${count} dan nakon dospijeća, vidljiv na vašem izvodu`,
+      few: `Plaćen ${day}, ${count} dana nakon dospijeća, vidljiv na vašem izvodu`,
+      other: `Plaćen ${day}, ${count} dana nakon dospijeća, vidljiv na vašem izvodu`,
+    }),
+    notSeen: 'Nije na vašem izvodu',
   },
   moves: {
     instalment: (number) => `${number}. anuitet`,
@@ -482,10 +498,11 @@ export const hr: Translation<typeof en> = {
     addPayment: 'Dodaj otplatu',
     extraDetail: (day, effect) => `${day}, ${CROATIAN_EFFECTS[effect].label.toLowerCase()}`,
     lateInstalments: 'Zakašnjeli anuiteti',
-    lateInstalmentsSubtitle: 'Svaki anuitet smatra se plaćenim na dan dospijeća, osim ako je ovdje.',
+    lateInstalmentsSubtitle: 'Svaki anuitet smatra se plaćenim na dan dospijeća, osim ako je ovdje ili vaš izvod pokazuje drugi dan.',
     noLateInstalment: 'Svaki je anuitet plaćen na vrijeme.',
     markLate: 'Označi kašnjenje',
     due: (day) => `Dospijeće ${day}`,
+    statementDay: (detail, day) => `${detail}. Kuna uzima dan s vašeg izvoda, ${day}`,
   },
   loanDialog: {
     addTitle: 'Novi kredit',
@@ -748,6 +765,12 @@ export const hrEqualPrincipal: Translation<typeof en> = {
     ...hr.status,
     paidLate: (count, day) => ({ one: `Plaćena ${day}, ${count} dan nakon dospijeća`, few: `Plaćena ${day}, ${count} dana nakon dospijeća`, other: `Plaćena ${day}, ${count} dana nakon dospijeća` }),
     paid: 'Plaćena',
+    seen: (day) => `Plaćena ${day}, vidljiva na vašem izvodu`,
+    seenLate: (count, day) => ({
+      one: `Plaćena ${day}, ${count} dan nakon dospijeća, vidljiva na vašem izvodu`,
+      few: `Plaćena ${day}, ${count} dana nakon dospijeća, vidljiva na vašem izvodu`,
+      other: `Plaćena ${day}, ${count} dana nakon dospijeća, vidljiva na vašem izvodu`,
+    }),
   },
   moves: { ...hr.moves, instalment: (number) => `${number}. rata` },
   changes: {
@@ -758,7 +781,7 @@ export const hrEqualPrincipal: Translation<typeof en> = {
     extraPaymentsSubtitle: 'Glavnica vraćena prije roka, za kraći rok otplate ili nižu ratu.',
     extraDetail: (day, effect) => `${day}, ${CROATIAN_EQUAL_PRINCIPAL_EFFECTS[effect].label.toLowerCase()}`,
     lateInstalments: 'Zakašnjele rate',
-    lateInstalmentsSubtitle: 'Svaka rata smatra se plaćenom na dan dospijeća, osim ako je ovdje.',
+    lateInstalmentsSubtitle: 'Svaka rata smatra se plaćenom na dan dospijeća, osim ako je ovdje ili vaš izvod pokazuje drugi dan.',
     noLateInstalment: 'Svaka je rata plaćena na vrijeme.',
   },
   loanDialog: {

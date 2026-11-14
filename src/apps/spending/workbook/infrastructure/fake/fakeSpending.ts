@@ -126,7 +126,7 @@ const BALANCES: Readonly<Record<string, number>> = {
   [REVOLUT_GBP]: 80,
 }
 
-/** The rows of a complete month `back` months before the day's: salary, rent, food, fuel, a loan instalment linked to Loans, money saved and a company cost paid back. The month before last links an instalment Loans does not have. */
+/** The rows of a complete month `back` months before the day's: salary, rent, food, fuel, a loan instalment linked to Loans, money saved and a company cost paid back. Last month links an instalment Loans does not have, so the home loan's plan reads that month's as not seen in your statement. */
 function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
   const on = (dayOfTheMonth: number): CivilDate => dayIn(month, dayOfTheMonth, day)
   const food = back === 2 ? { groceries: -220, restaurants: -90, coffee: -40, delivery: 0 } : { groceries: -260, restaurants: -150, coffee: -40, delivery: -30 }
@@ -139,7 +139,7 @@ function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
     { account: CASH, date: on(16), amount: food.coffee, payee: 'Café on the square', category: 'Food/Coffee' },
     ...(food.delivery === 0 ? [] : [{ account: REVOLUT_EUR, date: on(18), amount: food.delivery, payee: 'Food delivery', category: 'Food/Delivery' }]),
     { account: REVOLUT_EUR, date: on(20), amount: -80, payee: 'Fuel station', category: 'Transport/Fuel' },
-    { account: OTP, date: on(15), amount: -650, payee: 'Example Bank', category: 'Money and fees/Loan interest', link: homeLoanInstalment(month, back === 2 ? 15 : 20) },
+    { account: OTP, date: on(15), amount: -650, payee: 'Example Bank', category: 'Money and fees/Loan interest', link: homeLoanInstalment(month, back === 1 ? 15 : 20) },
     { account: OTP, date: on(25), amount: -300, payee: 'Example Broker', category: 'Saved to investments' },
     { account: REVOLUT_EUR, date: on(22), amount: -45, payee: 'Office supplies shop', category: 'For the company' },
     { account: OTP, date: on(28), amount: 45, payee: 'Example Studio d.o.o.', category: 'For the company' },

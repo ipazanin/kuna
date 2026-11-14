@@ -5,7 +5,7 @@ import type { RedirectReturn } from '../google/googleRedirect'
 import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
 import type { AppData } from '../storage/application/appData'
 import type { RatesDemand } from '../rates/domain/ratesDemand'
-import type { AppRowLinks } from './rowLinks'
+import type { AppLinkedRows, AppRowLinks } from './rowLinks'
 import type { RecordKind } from '../storage/domain/recordKind'
 import type { AppSyncGroup } from '../sync/presentation/pageSync'
 import type { Money } from '../money/money'
@@ -177,6 +177,12 @@ export interface SetUpOrder {
   readonly why: string
 }
 
+/** What the shell lets an app read of the other apps, handed over as the app installs. */
+export interface ShellReads {
+  /** The rows each installed app has linked to records in other apps, by app, read afresh at each call. */
+  linkedRows(): readonly AppLinkedRows[]
+}
+
 /** What an app gives the shell: its screens and menu, its card on the home, its figures on Net worth, its first run, its part of the page's sync, and what runs while the page is open. */
 export interface AppContribution {
   /** The first part of every route of the app, and the app the document names. */
@@ -185,8 +191,8 @@ export interface AppContribution {
   readonly name: string
   /** The custom property of the app's identity colour, such as `--app-company`, on the tile of its icon on the home card, on its row in the menu, in the phone top bar and beside its figures on Net worth. */
   readonly colour: `--${string}`
-  /** Called once before the router is made and before any books are read. */
-  install(): Promise<void>
+  /** Called once before the router is made and before any books are read, with what the app may read of the others. */
+  install(shell: ShellReads): Promise<void>
   /** Every route of the app, whatever its settings switch on, its Settings included. The first one is where the app opens. */
   readonly screens: readonly AppScreen[]
   /** The menu items, in order, without Settings. */

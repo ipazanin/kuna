@@ -124,6 +124,8 @@ import { scenarioKey, workedOffers } from '../src/apps/loans/scenarios/domain/wo
 import { offersComparison, scenarioRows, slotted } from '../src/apps/loans/scenarios/presentation/scenariosView.ts'
 import { rateOfText } from '../src/apps/loans/bankLoans/domain/yearlyRate.ts'
 import { bankLoanFigures, bankLoanMonths, bankLoanPaidOffOn } from '../src/apps/loans/bankLoans/domain/bankLoanFigures.ts'
+import { statementPaymentsFrom } from '../src/apps/loans/bankLoans/application/statementPayments.ts'
+import { instalmentStandings } from '../src/apps/loans/bankLoans/domain/instalmentPayments.ts'
 import { bankLoanMoves, planYearsOnScreen } from '../src/apps/loans/bankLoans/presentation/bankLoanView.ts'
 import { savedTries } from '../src/apps/loans/bankLoans/presentation/savedTries.ts'
 import { planStanding, plannedOwed } from '../src/apps/loans/informalLoans/domain/expectedPlan.ts'
@@ -135,7 +137,7 @@ import { owedOnDay } from '../src/apps/loans/overview/domain/owedTotals.ts'
 import { bankLoansOf, loanTargetsOf } from '../src/apps/loans/facts.ts'
 import { loansNetWorthParts } from '../src/apps/loans/home/domain/loansNetWorthParts.ts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
-import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
+import { LOANS_APP, LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument.ts'
 import { moneyFromAmount } from '../src/shared/money/money.ts'
 import { closedPositions } from '../src/apps/investments/holdings/domain/closedPositions.ts'
 import { accountIntakes } from '../src/apps/investments/imports/domain/accountIntake.ts'
@@ -193,6 +195,7 @@ import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow.ts'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures.ts'
 import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures.ts'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
+import { SPENDING_APP } from '../src/apps/spending/workbook/domain/spendingBooks.ts'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
 import { decodeRatesFile, emptyRatesFile } from '../src/shared/rates/domain/ratesFile.ts'
 import { everydayBook } from '../src/shared/rates/domain/rateBooks.ts'
@@ -455,23 +458,26 @@ if (personal.length >= 2) {
  * is worked out from the day, an offer over its whole loan, with a move's break-even month and an
  * offer's effective rate. Scenarios compares the first offers against A with savings earning 3%: the side
  * by side and the list. Each bank loan's page lists the tries saved for it and tries a 3% rate from its next due date.
- * The published group is the bank loans Loans gives another app. Returns how Net worth reads the file, and the
- * loans it read.
+ * The published group is the bank loans Loans gives another app. The statements group is how each instalment
+ * stands against the statement rows linked to it, kept apart so the plan's years and moves read as before
+ * statements. Returns how Net worth reads the file, and the loans it read.
  */
 function loansGroups(add) {
   const document = options.loans === undefined ? fakeLoansDocument(AT, options['fake-loans']) : decodeDocument(readFileSync(options.loans, 'utf8'))
   const { records, workbook } = LOANS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
+  const statements = statementsOfRun()
   add('loans.read.records', records)
   add('loans.read.problems', workbook.problems)
   for (const [index, book] of workbook.bankLoans.entries()) {
     const at = `loans.bank-loan-${index + 1}`
     add(`${at}.plan`, book.plan)
     add(`${at}.figures`, () => [bankLoanFigures(book, today), book.plan && paidSoFar(book.plan, book.lateInstalments, today)])
-    add(`${at}.years`, () => planYearsOnScreen(book, today))
+    add(`${at}.years`, () => planYearsOnScreen(book, today, instalmentStandings(book, [], today)))
     add(`${at}.payments`, () => book.plan && [...paymentsByYear(book.plan), splitOfRows(book.plan)])
     add(`${at}.months`, () => bankLoanMonths(book))
     add(`${at}.what-if`, () => whatIfExtraPayment(book, today, moneyFromAmount(1000)))
-    add(`${at}.moves`, () => bankLoanMoves(book, today))
+    add(`${at}.moves`, () => bankLoanMoves(book, today, instalmentStandings(book, [], today)))
+    add(`${at}.statements`, () => instalmentStandings(book, statements, today))
     add(`${at}.saved-tries`, () => savedTries(book, workbook.scenarios, today))
     add(`${at}.what-if-rate`, () => {
       const next = book.plan?.find((row) => row.kind === 'instalment' && row.date > today) ?? null
@@ -532,6 +538,14 @@ function loansGroups(add) {
   add('loans.published', () => bankLoansOf(workbook, today))
   add('loans.published.targets', () => loanTargetsOf(workbook))
   return { hub: () => ({ parts: loansNetWorthParts(workbook, today), notes: [] }), book: workbook }
+}
+
+/** The statement rows a Loans run checks its instalments against: those of the Spending file the run names, or of the fake Spending set, which links the fake home loan, for a fake Loans set. */
+function statementsOfRun() {
+  if (options.spending === undefined && options.loans !== undefined) return []
+  const document = options.spending === undefined ? fakeSpendingDocument(AT, options['fake-spending'], today) : decodeDocument(readFileSync(options.spending, 'utf8'))
+  const { workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
+  return statementPaymentsFrom([{ app: SPENDING_APP, links: rowLinksOf(workbook) }], LOANS_APP)
 }
 
 /** The prices file of an Investments input: the fake one for the fake set, the one given, or none. */

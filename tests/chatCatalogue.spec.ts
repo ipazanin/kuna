@@ -53,7 +53,10 @@ const ASSETS_ASSISTANT = assetsAssistant(
   { status: () => 'none', book: () => null, index: () => 'loading', loans: () => null },
   { proposer: assetsProposer(NO_STORE, NO_PORTS, FILE_OPEN), acceptance: assetsAcceptance(NO_STORE, NO_PORTS, FILE_OPEN) },
 )
-const LOANS_ASSISTANT = loansAssistant({ status: () => 'none', book: () => null }, { proposer: loansProposer(NO_STORE, FILE_OPEN), acceptance: loansAcceptance(NO_STORE, FILE_OPEN) })
+const LOANS_ASSISTANT = loansAssistant(
+  { status: () => 'none', book: () => null, statementPayments: () => [] },
+  { proposer: loansProposer(NO_STORE, FILE_OPEN), acceptance: loansAcceptance(NO_STORE, FILE_OPEN) },
+)
 const SPENDING_ASSISTANT = spendingAssistant(CHAT_READING, { proposer: spendingProposer(NO_STORE, NO_PORTS, FILE_OPEN), acceptance: spendingAcceptance(NO_STORE, NO_PORTS, FILE_OPEN) })
 const INVESTMENTS_ASSISTANT = investmentsAssistant(
   { status: () => 'none', book: () => null, sources: () => null, taxShown: () => false },

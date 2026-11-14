@@ -89,6 +89,10 @@ export const en = {
   reports: {
     balances: { title: 'what the loans owe', about: 'What you owe and are owed on a day, each bank loan with its next instalment and payoff, and each informal loan by its start.' },
     offers: { title: 'the offers compared', about: "Each saved offer worked out over its whole loan: the instalment, payoff, interest, costs, total, and Kuna's EKS beside the printed one." },
+    statements: {
+      title: 'instalments in your statements',
+      about: 'Each bank loan instalment a linked row of your statement paid, with its day, and each one from the first linked instalment on that no row shows.',
+    },
   },
 }
 
@@ -177,6 +181,10 @@ export const hr: Translation<typeof en> = {
   reports: {
     balances: { title: 'koliko krediti duguju', about: 'Koliko dugujete i koliko vam duguju na dan, svaki kredit sa sljedećom ratom i otplatom, a svaka pozajmica po početku.' },
     offers: { title: 'usporedba ponuda', about: 'Svaka spremljena ponuda izračunata za cijeli kredit: rata, otplata, kamate, troškovi, ukupno i EKS prema Kuni uz onaj koji je banka navela.' },
+    statements: {
+      title: 'rate na vašim izvodima',
+      about: 'Svaka rata kredita koju je platio povezani redak vašeg izvoda, s danom plaćanja, i svaka od prve povezane rate nadalje koju nijedan redak ne pokazuje.',
+    },
   },
 }
 

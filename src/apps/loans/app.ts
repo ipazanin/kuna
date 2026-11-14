@@ -6,6 +6,7 @@ import { today } from '../../shared/calendar/civilDate'
 import { DEFAULT_MONEY_FORMAT } from '../../shared/money/moneyFormat'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
+import { readStatementsThrough, statementPayments, statementPaymentsFrom } from './bankLoans/application/statementPayments'
 import { words as bankLoanWords } from './bankLoans/presentation/words'
 import { LOANS_HOME_CARD } from './home/presentation/loansHomeCard'
 import { loansHubFigures } from './home/presentation/loansHubFigures'
@@ -33,7 +34,8 @@ export const loansApp: AppContribution = {
   id: LOANS_APP,
   name: words.name,
   colour: '--app-loans',
-  async install() {
+  async install(shell) {
+    readStatementsThrough(() => statementPaymentsFrom(shell.linkedRows(), LOANS_APP))
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
     if (import.meta.env.VITE_FAKE_WORKBOOK === 'true') {
       const { seedFakeLoans } = await import('./workbook/infrastructure/fake/seedFakeLoans')
@@ -80,7 +82,7 @@ export const loansApp: AppContribution = {
     const [{ browserFileOf }, { newLoansFileContents, LOCAL_LOANS_TITLE }] = await Promise.all([import('../../shared/app/browserFileCards'), import('./workbook/presentation/loansFile')])
     const file = browserFileOf(store, { id: 'loans', name: words.name }, () => ({ contents: newLoansFileContents(store), title: LOCAL_LOANS_TITLE }))
     return loansAssistant(
-      { status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'), book: () => state.workbook },
+      { status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'), book: () => state.workbook, statementPayments },
       { proposer: loansProposer(store, file), acceptance: loansAcceptance(store, file) },
     )
   },

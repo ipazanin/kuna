@@ -6,6 +6,8 @@ export interface ChangeLine {
   readonly title: string
   /** When it applies and anything else worth a glance, such as "From 20 Sep 2025". */
   readonly detail: string
+  /** Set where the record is only removed, so it has Delete in place of Change. */
+  readonly removable?: true
 }
 </script>
 
@@ -16,7 +18,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import { words } from './words'
 
-/** A card of one kind of change to a bank loan, each record with its Change button, or Delete where records are only removed, and Add in the header. */
+/** A card of one kind of change to a bank loan, each record with its Change button, or Delete where it is only removed, and Add in the header. */
 withDefaults(
   defineProps<{
     title: string
@@ -30,12 +32,10 @@ withDefaults(
     collapseId: string
     /** False where the loan holds one record at most, such as its subsidy, and has it, or where records are added elsewhere. */
     canAdd?: boolean
-    /** Each record has Delete in place of Change. */
-    removable?: boolean
     /** The record whose Delete is being written, which spins. */
     removing?: string | null
   }>(),
-  { addLabel: '', canAdd: true, removable: false, removing: null },
+  { addLabel: '', canAdd: true, removing: null },
 )
 
 const emit = defineEmits<{
@@ -58,7 +58,7 @@ const emit = defineEmits<{
           <p class="text-xs text-muted">{{ line.detail }}</p>
         </div>
         <UButton
-          v-if="removable"
+          v-if="line.removable"
           :label="words.changes.delete"
           icon="i-lucide-trash-2"
           color="neutral"

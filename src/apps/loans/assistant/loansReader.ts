@@ -1,4 +1,6 @@
 import { bankLoanFigures } from '../bankLoans/domain/bankLoanFigures'
+import { instalmentStandings } from '../bankLoans/domain/instalmentPayments'
+import type { StatementPayments } from '../bankLoans/domain/instalmentPayments'
 import { fractionOf, rateText } from '../bankLoans/domain/yearlyRate'
 import type { YearlyRate } from '../bankLoans/domain/yearlyRate'
 import { planStanding } from '../informalLoans/domain/expectedPlan'
@@ -42,6 +44,8 @@ import { words } from './words'
 export interface LoansReading {
   status(): ReturnType<AppReader['status']>
   book(): LoanBook | null
+  /** The rows of your statements linked to bank loan instalments. */
+  statementPayments(): StatementPayments
 }
 
 /** A scenario as the chat reads it: the bank loan a try starts from, or an offer's terms as lines. */
@@ -245,6 +249,29 @@ function balancesReport(book: LoanBook, period: string | null): readonly ReportF
   ]
 }
 
+/**
+ * Each bank loan's instalments against the rows of your statements linked to them, as each loan's plan
+ * shows them on the day: the day a linked row went out, with a late-instalment record it overrules,
+ * and each instalment from the first linked one on that no row shows. Every other instalment counts as
+ * paid on its due date and is left out.
+ */
+function statementsReport(book: LoanBook, payments: StatementPayments, period: string | null): readonly ReportFigure[] {
+  const day = dayOfPeriod(period)
+  if (payments === 'unchecked') return [{ label: 'instalments checked against your statements, as Spending did not open', count: 0 }]
+  const names = distinctNames(book.bankLoans.map(({ loan }) => `bank loan from ${loan.lender} paid out ${loan.drawdown}`))
+  return book.bankLoans.flatMap((loanBook, at) => {
+    const named = names[at]!
+    const standings = instalmentStandings(loanBook, payments, day)
+    return (loanBook.plan ?? []).flatMap((row): ReportFigure[] => {
+      const standing = row.kind === 'instalment' ? standings.get(row.date) : undefined
+      if (standing?.standing === 'not-seen') return [amount(`${named}: instalment due ${row.date}, your share, not seen in your statement`, row.yourShare)]
+      if (standing?.standing !== 'seen') return []
+      const overruled = standing.overruled === null ? '' : `, which overrules the late-instalment record of ${standing.overruled.paid}`
+      return [amount(`${named}: instalment due ${row.date}, your share, paid ${standing.paid} as your statement shows${overruled}`, row.yourShare)]
+    })
+  })
+}
+
 /** An offer by its lender, amount, term, first rate and upfront costs, which tell apart a fixed and a variable offer from one bank. Never by the name a person gave it. */
 function offerName(terms: OfferTerms, changes: readonly ScenarioChange[]): string {
   const [first] = changes.flatMap((change) => (change.kind === 'rate-change' ? [change] : [])).sort((one, other) => one.from.localeCompare(other.from))
@@ -354,6 +381,13 @@ export function loansReader(reading: LoansReading): AppReader {
     reports: [
       { id: 'balances', title: words.reports.balances.title, about: words.reports.balances.about, period: 'day', figures: report(balancesReport) },
       { id: 'offers', title: words.reports.offers.title, about: words.reports.offers.about, period: 'day', figures: report(offersReport) },
+      {
+        id: 'statements',
+        title: words.reports.statements.title,
+        about: words.reports.statements.about,
+        period: 'day',
+        figures: report((book, period) => statementsReport(book, reading.statementPayments(), period)),
+      },
     ],
   }
 }

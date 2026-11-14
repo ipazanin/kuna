@@ -1,11 +1,11 @@
 import type { AppContribution } from '../../shared/app/appContribution'
-import type { AppRowLinks } from '../../shared/app/rowLinks'
+import type { AppLinkedRows } from '../../shared/app/rowLinks'
 
 const installed: AppContribution[] = []
 
 /** Called by main.ts for each app, before the router is made. The home lists the apps in this order. */
 export async function installApp(app: AppContribution): Promise<void> {
-  await app.install()
+  await app.install({ linkedRows })
   installed.push(app)
 }
 
@@ -13,8 +13,8 @@ export function installedApps(): readonly AppContribution[] {
   return installed
 }
 
-/** The rows each installed app has linked to records in other apps, by app, for the matching across apps to read. */
-export function linkedRows(): readonly { readonly app: string; readonly links: AppRowLinks }[] {
+/** The rows each installed app has linked to records in other apps, by app, which each app reads through the `ShellReads` it installed with. */
+function linkedRows(): readonly AppLinkedRows[] {
   return installed.flatMap((app) => (app.rowLinks === undefined ? [] : [{ app: app.id, links: app.rowLinks() }]))
 }
 

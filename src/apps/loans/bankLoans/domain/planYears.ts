@@ -1,3 +1,5 @@
+import { lateOn } from './instalmentPayments'
+import type { InstalmentStanding } from './instalmentPayments'
 import { isEstimate } from './loanFigures'
 import type { PlanRow } from './loanPlan'
 import type { BankLoanBook } from '../../workbook/domain/readLoanBook'
@@ -20,6 +22,7 @@ export interface PlanLine {
   readonly balance: Money
   /** Worked out at a variable rate, so the bank's figure may differ. */
   readonly estimate: boolean
+  /** An instalment that went out after its due date. */
   readonly late: boolean
 }
 
@@ -36,16 +39,15 @@ export interface PlanYear {
 
 const NO_TOTALS: PlanTotals = { payment: ZERO, yourShare: ZERO, interest: ZERO, principal: ZERO, subsidy: ZERO }
 
-/** The plan grouped by the calendar year its rows fall due in, with each year's totals, oldest first. */
-export function planYears(book: BankLoanBook, day: CivilDate): PlanYear[] {
-  const paidLate = new Set(book.lateInstalments.map((late) => late.due))
+/** The plan grouped by the calendar year its rows fall due in, with each year's totals, oldest first. Each instalment stands as `standings` gives it. */
+export function planYears(book: BankLoanBook, day: CivilDate, standings: ReadonlyMap<CivilDate, InstalmentStanding>): PlanYear[] {
   const years = new Map<number, PlanLine[]>()
   for (const [index, row] of (book.plan ?? []).entries()) {
     const line: PlanLine = {
       ...row,
       key: `${row.kind}-${row.date}-${index}`,
       estimate: isEstimate(row, book.ratePeriods, day),
-      late: row.kind === 'instalment' && paidLate.has(row.date),
+      late: row.kind === 'instalment' && lateOn(row.date, standings.get(row.date)) !== null,
     }
     const year = yearOf(row.date)
     years.set(year, [...(years.get(year) ?? []), line])

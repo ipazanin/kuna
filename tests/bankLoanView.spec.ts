@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { instalmentStandings } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { bankLoanFigures } from '../src/apps/loans/bankLoans/domain/bankLoanFigures'
 import { planYears } from '../src/apps/loans/bankLoans/domain/planYears'
@@ -16,7 +17,7 @@ describe("a bank loan's plan by year", () => {
     const periods = [ratePeriod(loan, '2026-02-05', '12'), { ...ratePeriod(loan, '2026-08-05', '6'), rateType: 'variable' as const }]
     const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
 
-    const lines = planYears(book, civil('2026-09-20')).flatMap((year) => year.lines)
+    const lines = planYears(book, civil('2026-09-20'), new Map()).flatMap((year) => year.lines)
 
     // August and September 2026 fell due at the variable rate before the day, so the bank's rate for them is known.
     expect(lines.filter((line) => line.estimate).map((line) => line.date)).toEqual(['2026-10-05', '2026-11-05', '2026-12-05', '2027-01-05'])
@@ -30,14 +31,37 @@ describe("a bank loan's plan on the table", () => {
     const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, []) }
     const day = civil('2026-03-20')
 
-    const onScreen = planYearsOnScreen(book, day)
+    const onScreen = planYearsOnScreen(book, day, instalmentStandings(book, [], day))
 
     expect(onScreen[0]!.lines.slice(0, 3).map((line) => [line.date, line.late, line.status])).toEqual([
       ['2026-02-05', false, 'Paid'],
       ['2026-03-05', true, 'Paid 9 Mar, 4 days late'],
       ['2026-04-05', false, 'Due'],
     ])
-    expect(onScreen.map((year) => ({ ...year, lines: year.lines.map(({ status: _status, ...line }) => line) }))).toEqual(planYears(book, day))
+    expect(onScreen.map((year) => ({ ...year, lines: year.lines.map(({ status: _status, ...line }) => line) }))).toEqual(planYears(book, day, instalmentStandings(book, [], day)))
+  })
+
+  it('words each instalment by your statement from the first linked one on, the linked row winning over a late record, and marks one not seen', () => {
+    const loan = bankLoan()
+    const periods = [ratePeriod(loan, '2026-02-05', '12')]
+    const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [lateInstalment(loan, '2026-04-05', '2026-04-08')], plan: loanPlan(loan, periods, []) }
+    const payments = [
+      { loan: loan.id, due: civil('2026-03-05'), booked: civil('2026-03-03') },
+      { loan: loan.id, due: civil('2026-04-05'), booked: civil('2026-04-10') },
+    ]
+
+    const day = civil('2026-06-08')
+
+    const lines = planYearsOnScreen(book, day, instalmentStandings(book, payments, day))[0]!.lines.slice(0, 5)
+
+    // May's instalment is 34 days past due with no row, and June's is still inside the 7 days a bank may take to book it.
+    expect(lines.map((line) => [line.date, line.late, line.notSeen ?? false, line.status])).toEqual([
+      ['2026-02-05', false, false, 'Paid'],
+      ['2026-03-05', false, false, 'Paid 3 Mar, seen in your statement'],
+      ['2026-04-05', true, false, 'Paid 10 Apr, 5 days late, seen in your statement'],
+      ['2026-05-05', false, true, 'Not seen in your statement'],
+      ['2026-06-05', false, false, 'Paid'],
+    ])
   })
 })
 
@@ -65,7 +89,9 @@ describe("what a bank loan's balance chart marks", () => {
     const extras = [extraPayment(loan, '2026-04-20', 300, 'shorter-term'), extraPayment(loan, '2026-09-20', 100, 'shorter-term')]
     const book = { loan, ratePeriods: periods, extraPayments: extras, lateInstalments: [lateInstalment(loan, '2026-03-05', '2026-03-09')], plan: loanPlan(loan, periods, extras) }
 
-    const moves = bankLoanMoves(book, civil('2026-04-30'))
+    const day = civil('2026-04-30')
+
+    const moves = bankLoanMoves(book, day, instalmentStandings(book, [], day))
 
     expect(moves.map((move) => [move.date, move.kind, move.note, move.effect])).toEqual([
       ['2026-02-05', 'Instalment 1', '', 'lowers'],

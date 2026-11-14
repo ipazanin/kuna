@@ -32,7 +32,12 @@ const APPS: readonly { readonly id: string; readonly source: string; readonly as
     assistant: companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => []),
     operations: companyOperations(deskPorts({ pack: hrDooOperations(() => false) })),
   },
-  { id: 'loans', source: 'src/apps/loans/overview/presentation/loansSetUp.ts', assistant: loansAssistant({ status: () => 'none', book: () => null }), operations: LOANS_OPERATIONS },
+  {
+    id: 'loans',
+    source: 'src/apps/loans/overview/presentation/loansSetUp.ts',
+    assistant: loansAssistant({ status: () => 'none', book: () => null, statementPayments: () => [] }),
+    operations: LOANS_OPERATIONS,
+  },
   {
     id: 'assets',
     source: 'src/apps/assets/overview/presentation/assetsSetUp.ts',

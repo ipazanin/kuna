@@ -4,6 +4,8 @@ import { useRoute } from 'vue-router'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
+import { statementPayments } from '../application/statementPayments'
+import { instalmentStandings } from '../domain/instalmentPayments'
 import { subsidyLastCovered } from '../domain/loanFigures'
 import { fractionOf } from '../domain/yearlyRate'
 import { balanceChart } from '../../balances/presentation/balanceChart'
@@ -11,6 +13,7 @@ import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
 import { bankLoanNamed, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { removeScenario } from '../../scenarios/application/scenarioWrites'
 import { useLoansBooks } from '../../workbook/application/loansStore'
+import { LATE_INSTALMENT_WRITES } from '../application/bankLoanWrites'
 import BalanceHero from './BalanceHero.vue'
 import BankLoanDialog from './BankLoanDialog.vue'
 import BankLoanTiles from './BankLoanTiles.vue'
@@ -27,9 +30,11 @@ import RatePeriodDialog from './RatePeriodDialog.vue'
 import { savedTries } from './savedTries'
 import SubsidyDialog from './SubsidyDialog.vue'
 import WhatIfPanel from './WhatIfPanel.vue'
+import type { InstalmentStanding } from '../domain/instalmentPayments'
 import type { LateInstalment } from '../../workbook/domain/lateInstalment'
 import type { RatePeriod } from '../../workbook/domain/ratePeriod'
 import { daysBetween, today, yearOf } from '../../../../shared/calendar/civilDate'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
 import { monthInRange, wholeMonthsSpan } from '../../../../shared/charts/chartRange'
@@ -58,7 +63,9 @@ const day = today()
 const book = computed(() => (state.workbook === null ? null : bankLoanNamed(state.workbook, route.query.loan)))
 const loanWords = provideLoanWords(() => book.value?.loan.repayment ?? 'annuity')
 const figures = computed(() => (book.value === null ? null : bankLoanFigures(book.value, day)))
-const years = computed(() => (book.value === null ? [] : planYearsOnScreen(book.value, day)))
+const payments = computed(() => statementPayments())
+const standings = computed(() => (book.value === null ? new Map<CivilDate, InstalmentStanding>() : instalmentStandings(book.value, payments.value, day)))
+const years = computed(() => (book.value === null ? [] : planYearsOnScreen(book.value, day, standings.value)))
 const payer = computed(() => book.value?.loan.subsidy?.payer ?? '')
 const phone = usePhoneLayout()
 const estimateFrom = computed(() => years.value.flatMap((year) => year.lines).find((line) => line.estimate)?.date ?? null)
@@ -80,7 +87,7 @@ const chart = computed(() => {
     phone.value,
     {
       token: DIRECTION_LOOKS['you-owe'].token,
-      moves: bankLoanMoves(book.value, day),
+      moves: bankLoanMoves(book.value, day, standings.value),
       estimateFrom: estimateFrom.value === null ? null : monthOf(estimateFrom.value),
     },
   )
@@ -119,12 +126,16 @@ const extraLines = computed((): ChangeLine[] =>
     .sort((earlier, later) => earlier.date.localeCompare(later.date))
     .map((payment) => ({ key: payment.id, title: formatMoney(payment.amount), detail: loanWords.value.changes.extraDetail(dayLabel(payment.date), payment.effect) })),
 )
+/** Each late instalment, and Delete in place of Change on one whose linked statement row went out on another day, since the plan goes by the row. */
 const lateLines = computed((): ChangeLine[] =>
   [...(book.value?.lateInstalments ?? [])]
     .sort((earlier, later) => earlier.due.localeCompare(later.due))
     .map((late) => {
       const days = daysBetween(late.due, late.paid)
-      return { key: late.id, title: loanWords.value.changes.due(dayLabel(late.due)), detail: plural(loanWords.value.status.paidLate(days, dayLabel(late.paid)), days) }
+      const line = { key: late.id, title: loanWords.value.changes.due(dayLabel(late.due)), detail: plural(loanWords.value.status.paidLate(days, dayLabel(late.paid)), days) }
+      const standing = standings.value.get(late.due)
+      if (standing?.standing !== 'seen' || standing.overruled === null) return line
+      return { ...line, detail: loanWords.value.changes.statementDay(line.detail, dayLabel(standing.paid)), removable: true }
     }),
 )
 
@@ -153,6 +164,7 @@ function changeExtra(key: string): void {
 }
 
 const tries = computed(() => (book.value === null || state.workbook === null ? [] : savedTries(book.value, state.workbook.scenarios, day)))
+const triedLines = computed((): ChangeLine[] => tries.value.map((tried) => ({ ...tried, removable: true })))
 
 async function removeTry(key: string): Promise<void> {
   const records = state.records
@@ -163,6 +175,13 @@ async function removeTry(key: string): Promise<void> {
       failedTitle: loansWords.form.notDeleted,
       key: `delete-${key}`,
     })
+  }
+}
+
+async function removeLate(key: string): Promise<void> {
+  const late = book.value?.lateInstalments.find((entry) => entry.id === key)
+  if (late !== undefined) {
+    await writes.write(loanWords.value.lateDialog.deleted, (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(late), { failedTitle: loansWords.form.notDeleted, key: `delete-${key}` })
   }
 }
 
@@ -228,17 +247,16 @@ function openLate(key: string | null): void {
           <ChangeListCard
             :title="loanWords.savedTries.title"
             :subtitle="loanWords.savedTries.subtitle"
-            :lines="tries"
+            :lines="triedLines"
             :empty="loanWords.savedTries.empty"
             :can-add="false"
-            removable
             :removing="tries.find((entry) => writes.saving(`delete-${entry.key}`))?.key ?? null"
             collapse-id="loans.saved-tries"
             data-testid="saved-tries"
             @remove="removeTry"
           />
         </DashboardGrid>
-        <PlanCard :years="years" :open-year="openYear" :has-subsidy="book.loan.subsidy !== null" />
+        <PlanCard :years="years" :open-year="openYear" :has-subsidy="book.loan.subsidy !== null" :unchecked="payments === 'unchecked'" />
       </template>
       <DashboardGrid layout="pair">
         <ChangeListCard
@@ -283,10 +301,12 @@ function openLate(key: string | null): void {
           :lines="lateLines"
           :empty="loanWords.changes.noLateInstalment"
           :add-label="loanWords.changes.markLate"
+          :removing="lateLines.find((line) => writes.saving(`delete-${line.key}`))?.key ?? null"
           collapse-id="loans.late-instalments"
           data-testid="late-instalments"
           @add="openLate(null)"
           @change="openLate"
+          @remove="removeLate"
         />
       </DashboardGrid>
       <BankLoanDialog v-model:open="editingLoan" :book="book" />

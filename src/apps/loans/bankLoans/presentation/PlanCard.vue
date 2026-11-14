@@ -10,6 +10,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import { plural } from '../../../../shared/text/translation'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { useLoanWords } from './useLoanWords'
 
 /**
@@ -21,6 +22,8 @@ const props = defineProps<{
   /** The year that starts open, the current one. */
   openYear: number
   hasSubsidy: boolean
+  /** True while your statements cannot be read, so no instalment is checked against them. */
+  unchecked: boolean
 }>()
 const loanWords = useLoanWords()
 
@@ -46,6 +49,7 @@ function dateOf(line: PlanLineOnScreen): string {
 
 <template>
   <AppCard :title="loanWords.plan.title" :subtitle="loanWords.plan.subtitle" collapse-id="loans.plan" :summary="summary" data-testid="loan-plan">
+    <NoteLine v-if="unchecked" tone="muted" class="px-4 pb-2 sm:px-5" data-testid="plan-unchecked">{{ loanWords.plan.unchecked }}</NoteLine>
     <ol class="flex flex-col pb-2">
       <li v-for="year in years" :key="year.year" class="border-t border-default first:border-t-0" :data-year="year.year">
         <button
@@ -80,7 +84,7 @@ function dateOf(line: PlanLineOnScreen): string {
           </thead>
           <tbody>
             <template v-for="line in year.lines" :key="line.key">
-              <tr :data-kind="line.kind" :data-late="line.late || undefined" data-testid="plan-row">
+              <tr :data-kind="line.kind" :data-late="line.late || undefined" :data-not-seen="line.notSeen" data-testid="plan-row">
                 <th scope="row" class="text-start font-normal">
                   <UButton
                     color="neutral"
@@ -94,9 +98,10 @@ function dateOf(line: PlanLineOnScreen): string {
                     <span class="text-highlighted">{{ dateOf(line) }}</span>
                   </UButton>
                   <span class="hidden text-highlighted @4xl:inline">{{ dateOf(line) }}</span>
-                  <span v-if="line.estimate" class="ms-1 text-xs text-muted">{{ loanWords.plan.estimateMark }}</span>
-                  <span v-if="line.late" class="ms-1 text-xs text-warning">{{ loanWords.plan.lateMark }}</span>
-                  <span v-if="line.kind === 'extra-payment'" class="ms-1 text-xs text-muted">{{ loanWords.plan.extraMark }}</span>
+                  <span v-if="line.estimate" class="block text-xs text-muted @4xl:ms-1 @4xl:inline">{{ loanWords.plan.estimateMark }}</span>
+                  <span v-if="line.late" class="block text-xs text-warning @4xl:ms-1 @4xl:inline">{{ loanWords.plan.lateMark }}</span>
+                  <span v-if="line.notSeen" class="block text-xs text-warning @4xl:ms-1 @4xl:inline">{{ loanWords.plan.notSeenMark }}</span>
+                  <span v-if="line.kind === 'extra-payment'" class="block text-xs text-muted @4xl:ms-1 @4xl:inline">{{ loanWords.plan.extraMark }}</span>
                 </th>
                 <td class="text-end"><MoneyText :cents="line.yourShare" /></td>
                 <td class="hidden text-end @md:table-cell"><MoneyText :cents="line.payment" /></td>
@@ -104,7 +109,7 @@ function dateOf(line: PlanLineOnScreen): string {
                 <td class="hidden text-end @xl:table-cell"><MoneyText :cents="line.principal" /></td>
                 <td v-if="hasSubsidy" class="hidden text-end @3xl:table-cell"><MoneyText :cents="line.subsidy" /></td>
                 <td class="text-end"><MoneyText :cents="line.balance" /></td>
-                <td class="hidden text-start text-muted @4xl:table-cell">{{ line.status }}</td>
+                <td class="cell-wraps hidden text-start text-muted @4xl:table-cell">{{ line.status }}</td>
               </tr>
               <tr v-if="tapped.has(line.key)" class="@4xl:hidden" data-testid="plan-row-detail">
                 <td :colspan="hasSubsidy ? 8 : 7" class="cell-wraps">

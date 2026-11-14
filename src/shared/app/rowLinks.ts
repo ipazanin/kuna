@@ -27,3 +27,9 @@ export interface PublishedRowLink {
 
 /** An app's linked rows, a wait while its file opens, a failure, or null while the app is not set up. */
 export type AppRowLinks = readonly PublishedRowLink[] | 'opening' | 'failed' | null
+
+/** The rows one app has linked, under the app's id. */
+export interface AppLinkedRows {
+  readonly app: string
+  readonly links: AppRowLinks
+}

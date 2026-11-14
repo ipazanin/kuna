@@ -25,12 +25,12 @@ afterEach(async () => forgetCaches(used))
 
 async function readerOfDesk(): Promise<{ readonly reader: AppReader; readonly desk: Awaited<ReturnType<typeof loansDesk>> }> {
   const desk = await loansDesk(used)
-  return { desk, reader: loansReader({ status: () => 'open', book: () => desk.store.state.workbook }) }
+  return { desk, reader: loansReader({ status: () => 'open', book: () => desk.store.state.workbook, statementPayments: () => [] }) }
 }
 
 /** The chat's reads over the desk's Loans, with Anonymise on and the people Loans names known. */
 function chatReadsOf(desk: Awaited<ReturnType<typeof loansDesk>>): ChatReads {
-  const reading = { status: () => 'open' as const, book: () => desk.store.state.workbook }
+  const reading = { status: () => 'open' as const, book: () => desk.store.state.workbook, statementPayments: () => [] }
   return {
     readers: new Map([['loans', { name: 'Loans', reader: loansReader(reading) }]]),
     pseudonyms: newPseudonyms(),
@@ -137,6 +137,28 @@ describe("Loans' reports", () => {
     expect(figureOf(figures, `${named}: total paid`)).toMatchObject({ cents: worked!.outcome!.total })
     // 3.5% a year paid monthly comes to an effective 3.56%.
     expect(figureOf(figures, `${named}: Kuna's EKS estimate`)).toMatchObject({ basisPoints: 356 })
+  })
+
+  it('gives the instalments your statements paid and those they do not show, from the first linked one on, and says when Spending did not open', async () => {
+    const { desk } = await readerOfDesk()
+    const loan = desk.store.state.workbook!.bankLoans[0]!.loan.id
+    const payments = [
+      { loan, due: civil('2026-03-05'), booked: civil('2026-03-11') },
+      { loan, due: civil('2026-04-05'), booked: civil('2026-04-03') },
+    ]
+    const reader = loansReader({ status: () => 'open', book: () => desk.store.state.workbook, statementPayments: () => payments })
+    const named = 'bank loan from Example Bank paid out 2026-01-05'
+
+    const figures = reader.reports.find((report) => report.id === 'statements')!.figures('2026-07-01')
+
+    expect(figures.map((figure) => figure.label)).toEqual([
+      `${named}: instalment due 2026-03-05, your share, paid 2026-03-11 as your statement shows, which overrules the late-instalment record of 2026-03-09`,
+      `${named}: instalment due 2026-04-05, your share, paid 2026-04-03 as your statement shows`,
+      `${named}: instalment due 2026-05-05, your share, not seen in your statement`,
+      `${named}: instalment due 2026-06-05, your share, not seen in your statement`,
+    ])
+    const unchecked = loansReader({ status: () => 'open', book: () => desk.store.state.workbook, statementPayments: () => 'unchecked' })
+    expect(unchecked.reports.find((report) => report.id === 'statements')!.figures(null)).toEqual([{ label: 'instalments checked against your statements, as Spending did not open', count: 0 }])
   })
 
   it('keeps two offers alike apart, with a number after the second', async () => {
