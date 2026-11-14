@@ -4,31 +4,13 @@ import { statementDryRun } from '../src/apps/spending/statements/domain/statemen
 import { transcribedImportKeys } from '../src/apps/spending/statements/domain/statementRows'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
-import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import type { LookAlikes } from '../src/shared/money/lookAlikeBookings'
-import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_EUR, row, storedBeforeItems, wholeItems } from './fixtures/spending'
+import { CATEGORIES, OTP, REVOLUT_EUR, row, spendingBook } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-11-04')
-
-function bookOf(transactions: readonly Transaction[]): SpendingBook {
-  return {
-    accounts: ACCOUNTS,
-    categories: CATEGORIES,
-    transactions,
-    budgets: [],
-    rules: [],
-    receipts: [],
-    items: wholeItems(transactions),
-    held: [],
-    stored: storedBeforeItems(transactions),
-    settings: spendingSettingsOf([]),
-    readings: {} as SpendingBook['readings'],
-    problems: [],
-  }
-}
 
 /** Rows of a Revolut export already on the file. */
 const REVOLUT_ROWS: readonly Transaction[] = [
@@ -64,7 +46,7 @@ describe('a copied statement over a Revolut export', () => {
       ['2026-10-15', -12.5, 'Corner market Zagreb'],
       ['2026-10-18', -8, 'Kiosk'],
     ])
-    const run = statementDryRun(bookOf(REVOLUT_ROWS), statement, DAY)
+    const run = statementDryRun(spendingBook(REVOLUT_ROWS), statement, DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'look-alike', 'new'])
     expect(run.lines[1]).toMatchObject({ outcome: 'look-alike', like: REVOLUT_ROWS[1] })
     expect(run.added.map((added) => added.payee)).toEqual(['Kiosk'])
@@ -80,7 +62,7 @@ describe('a copied statement over a Revolut export', () => {
       ],
       'import',
     )
-    expect(outcomes(bookOf(REVOLUT_ROWS), statement)).toEqual(['already-in', 'new'])
+    expect(outcomes(spendingBook(REVOLUT_ROWS), statement)).toEqual(['already-in', 'new'])
   })
 
   it.each([
@@ -89,12 +71,12 @@ describe('a copied statement over a Revolut export', () => {
     ['money in against money out', ['2026-10-20', 30, 'Pharmacy'] as const],
     ['another payee', ['2026-10-20', -30, 'Bookshop'] as const],
   ])('adds a row %s as new', (_, near) => {
-    expect(outcomes(bookOf(REVOLUT_ROWS), copied(REVOLUT_EUR.id, [near]))).toEqual(['new'])
+    expect(outcomes(spendingBook(REVOLUT_ROWS), copied(REVOLUT_EUR.id, [near]))).toEqual(['new'])
   })
 
   it('leaves a parsed Revolut export as it was, matching by key alone', () => {
     const { transcribed: _, ...parsed } = copied(REVOLUT_EUR.id, [['2026-10-12', -45.3, 'Konzum']])
-    expect(outcomes(bookOf(REVOLUT_ROWS), parsed)).toEqual(['new'])
+    expect(outcomes(spendingBook(REVOLUT_ROWS), parsed)).toEqual(['new'])
   })
 })
 
@@ -105,12 +87,12 @@ describe('a copied statement over the bank sync', () => {
       ['2026-10-16', -20, 'Bakery'],
       ['2026-10-17', -5, 'Parking'],
     ])
-    expect(outcomes(bookOf(SYNC_ROWS), statement)).toEqual(['already-in', 'look-alike', 'new'])
+    expect(outcomes(spendingBook(SYNC_ROWS), statement)).toEqual(['already-in', 'look-alike', 'new'])
   })
 
   it('still leaves out a parsed file’s rows on the days the sync covers', () => {
     const { transcribed: _, ...parsed } = copied(OTP.id, [['2026-10-17', -5, 'Parking']])
-    expect(outcomes(bookOf(SYNC_ROWS), parsed)).toEqual(['other-source'])
+    expect(outcomes(spendingBook(SYNC_ROWS), parsed)).toEqual(['other-source'])
   })
 })
 
@@ -128,7 +110,7 @@ describe('a bank sync over rows the AI copied', () => {
 
   it('matches them row by row, since the copied days belong to no source, and puts a look-alike on hold', () => {
     const run = statementDryRun(
-      bookOf(COPIED_OTP),
+      spendingBook(COPIED_OTP),
       synced([
         ['2026-10-12', -45.3, 'Konzum'],
         ['2026-10-18', -8, 'Kiosk'],
@@ -144,7 +126,7 @@ describe('a bank sync over rows the AI copied', () => {
 describe('a copied statement over typed rows', () => {
   it('fills the typed row of the same money, as a bank row does, and holds nothing', () => {
     const typed = row(OTP, '2026-10-12', -45.3, 'Home/Rent', { payee: 'Konzum', categorisedBy: 'person' })
-    const run = statementDryRun(bookOf([typed]), copied(OTP.id, [['2026-10-13', -45.3, 'KONZUM PLUS']]), DAY)
+    const run = statementDryRun(spendingBook([typed]), copied(OTP.id, [['2026-10-13', -45.3, 'KONZUM PLUS']]), DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['filled'])
     expect(run.changed).toMatchObject([{ before: typed, after: { id: typed.id, date: civil('2026-10-13') } }])
   })
@@ -158,7 +140,7 @@ describe('a copied statement over another copied one', () => {
       ['2026-10-12', -45.3, 'Konzum'],
       ['2026-10-15', -3, 'Coffee'],
     ])
-    expect(outcomes(bookOf([earlier, ownPart]), statement)).toEqual(['already-in', 'new'])
+    expect(outcomes(spendingBook([earlier, ownPart]), statement)).toEqual(['already-in', 'new'])
   })
 })
 
@@ -182,7 +164,7 @@ describe('a parsed export over rows the AI copied', () => {
   ]
 
   it('skips the same row, holds a look-alike as a question, and adds the rest', () => {
-    const run = statementDryRun(bookOf(COPIED_ROWS), parsed(EXPORT), DAY)
+    const run = statementDryRun(spendingBook(COPIED_ROWS), parsed(EXPORT), DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'look-alike', 'new'])
     expect(run.added.map((added) => added.payee)).toEqual(['Kiosk'])
     expect(run.questions).toEqual([{ key: `${REVOLUT_EUR.id} 0123456789abcdef-1`, row: run.lines[1]!.row, booked: COPIED_ROWS[1], keep: null }])
@@ -191,7 +173,7 @@ describe('a parsed export over rows the AI copied', () => {
 
   it('adds the look-alike beside the copied row when the person keeps both', () => {
     const statement = { ...parsed(EXPORT), twinAnswers: new Map([[`${REVOLUT_EUR.id} 0123456789abcdef-1`, { booked: COPIED_ROWS[1]!.id, keep: 'both' as const }]]) }
-    const run = statementDryRun(bookOf(COPIED_ROWS), statement, DAY)
+    const run = statementDryRun(spendingBook(COPIED_ROWS), statement, DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'new', 'new'])
     expect(run.added.map((added) => added.payee)).toEqual(['Corner market Zagreb', 'Kiosk'])
     expect(run.questions.map((question) => question.keep)).toEqual(['both'])
@@ -201,7 +183,7 @@ describe('a parsed export over rows the AI copied', () => {
   it("lets the file's row take the copied row's place, keeping its id, category and note, in the same write as the new rows", () => {
     const filed = { ...COPIED_ROWS[1]!, category: CATEGORIES[0]!.id, categorisedBy: 'person' as const, note: 'Milk' }
     const statement = { ...parsed(EXPORT), twinAnswers: new Map([[`${REVOLUT_EUR.id} 0123456789abcdef-1`, { booked: filed.id, keep: 'file' as const }]]) }
-    const run = statementDryRun(bookOf([COPIED_ROWS[0]!, filed, COPIED_ROWS[2]!]), statement, DAY)
+    const run = statementDryRun(spendingBook([COPIED_ROWS[0]!, filed, COPIED_ROWS[2]!]), statement, DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'replaced', 'new'])
     expect(run.changed).toEqual([
       {
@@ -215,16 +197,16 @@ describe('a parsed export over rows the AI copied', () => {
 
   it("keeps the copied row when the person keeps the row Kuna has, which takes the file's key so the file read again finds it", () => {
     const statement = { ...parsed(EXPORT), twinAnswers: new Map([[`${REVOLUT_EUR.id} 0123456789abcdef-1`, { booked: COPIED_ROWS[1]!.id, keep: 'kept' as const }]]) }
-    const run = statementDryRun(bookOf(COPIED_ROWS), statement, DAY)
+    const run = statementDryRun(spendingBook(COPIED_ROWS), statement, DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'already-in', 'new'])
     expect(run.changed).toEqual([{ before: COPIED_ROWS[1], after: { ...COPIED_ROWS[1]!, importKey: '0123456789abcdef-1' } }])
-    const again = statementDryRun(bookOf([COPIED_ROWS[0]!, run.changed[0]!.after, COPIED_ROWS[2]!]), parsed(EXPORT), DAY)
+    const again = statementDryRun(spendingBook([COPIED_ROWS[0]!, run.changed[0]!.after, COPIED_ROWS[2]!]), parsed(EXPORT), DAY)
     expect(again.lines[1]!.outcome).toBe('already-in')
   })
 
   it('asks again once the answer was given against another copied row', () => {
     const statement = { ...parsed(EXPORT), twinAnswers: new Map([[`${REVOLUT_EUR.id} 0123456789abcdef-1`, { booked: COPIED_ROWS[2]!.id, keep: 'file' as const }]]) }
-    const run = statementDryRun(bookOf(COPIED_ROWS), statement, DAY)
+    const run = statementDryRun(spendingBook(COPIED_ROWS), statement, DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['already-in', 'look-alike', 'new'])
     expect(run.questions.map((question) => question.keep)).toEqual([null])
   })
@@ -234,12 +216,12 @@ describe('a parsed export over rows the AI copied', () => {
     ['a cent off', ['2026-10-20', -30.01, 'Pharmacy'] as const],
     ['another payee', ['2026-10-20', -30, 'Bookshop'] as const],
   ])('adds a row %s as new', (_, near) => {
-    const run = statementDryRun(bookOf(COPIED_ROWS), parsed([near]), DAY)
+    const run = statementDryRun(spendingBook(COPIED_ROWS), parsed([near]), DAY)
     expect(run.lines.map((line) => line.outcome)).toEqual(['new'])
     expect(run.notes).toEqual([])
   })
 
   it('matches a file only against copied rows, never against another file', () => {
-    expect(outcomes(bookOf(REVOLUT_ROWS), parsed([['2026-10-12', -45.3, 'Konzum']]))).toEqual(['new'])
+    expect(outcomes(spendingBook(REVOLUT_ROWS), parsed([['2026-10-12', -45.3, 'Konzum']]))).toEqual(['new'])
   })
 })

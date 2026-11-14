@@ -8,12 +8,10 @@ import { decidingRule } from '../src/apps/spending/statements/domain/spendingCat
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { Account } from '../src/apps/spending/workbook/domain/account'
-import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import { RULE_CODEC } from '../src/apps/spending/workbook/domain/ruleReading'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { RuleWithdrawal, SpendingRule } from '../src/apps/spending/workbook/domain/spendingRule'
-import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { SPENDING_DOCUMENT, spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
@@ -22,7 +20,7 @@ import type { WorkbookStore } from '../src/shared/storage/application/createWork
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { civil } from './fixtures/ledger'
-import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_USD, USD, account, category, filedDryRun, filedRows, row, storedBeforeItems, wholeItems } from './fixtures/spending'
+import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_USD, USD, account, category, filedDryRun, filedRows, row, spendingBook } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const DAY = civil('2026-10-30')
@@ -39,23 +37,6 @@ const WALLET = account(5, {
   closed: false,
 })
 const DOLLARS = account(6, { name: 'Dollars', kind: 'cash', bank: null, currency: USD, opening: accountMoneyFromAmount(0), openedOn: CASH.openedOn, rowsFrom: 'by-hand', iban: '', closed: false })
-
-function bookOf(transactions: readonly Transaction[], rules: readonly SpendingRule[] = [], accounts: readonly Account[] = ACCOUNTS): SpendingBook {
-  return {
-    accounts,
-    categories: CATEGORIES,
-    transactions,
-    budgets: [],
-    rules,
-    receipts: [],
-    items: wholeItems(transactions),
-    held: [],
-    settings: spendingSettingsOf([]),
-    stored: storedBeforeItems(transactions),
-    readings: {} as SpendingBook['readings'],
-    problems: [],
-  }
-}
 
 function bankomat(withdrawal: RuleWithdrawal | null = { cashAccount: null }, into = BETWEEN): SpendingRule {
   return { id: recordIdOf(RULE_RECORDS, 'rule-bankomat'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Bankomat' }, category: into, withdrawal }
@@ -114,7 +95,7 @@ describe('a rule that spots cash taken out', () => {
   })
 
   it('holds only for money out, so a refund from the cash machine waits', () => {
-    const ruleOf = decidingRule([bankomat()], bookOf([]))
+    const ruleOf = decidingRule([bankomat()], spendingBook([]))
 
     expect(ruleOf(statementRow(OTP, -50, 'Bankomat Ilica'))?.id).toBe(bankomat().id)
     expect(ruleOf(statementRow(OTP, 50, 'Bankomat Ilica'))).toBeNull()
@@ -123,7 +104,7 @@ describe('a rule that spots cash taken out', () => {
 
 describe('the dry run of cash taken out', () => {
   it('pairs the row with the same money into the one cash account of its currency, under Between my accounts', () => {
-    const run = filedDryRun(bookOf([], [bankomat()]), statementOf(statementRow(OTP, -50, 'Bankomat Ilica')), DAY, counting())
+    const run = filedDryRun(spendingBook([], { rules: [bankomat()] }), statementOf(statementRow(OTP, -50, 'Bankomat Ilica')), DAY, counting())
     const [debit, leg] = run.added
 
     expect(run.added).toHaveLength(2)
@@ -135,19 +116,24 @@ describe('the dry run of cash taken out', () => {
 
   it('leaves out a cash account opened after the day the cash was taken out', () => {
     const opensLater = { ...WALLET, openedOn: civil('2026-10-25') }
-    const run = filedDryRun(bookOf([], [bankomat()], [...ACCOUNTS, opensLater]), statementOf(statementRow(OTP, -50, 'Bankomat Ilica')), DAY, counting())
+    const run = filedDryRun(spendingBook([], { rules: [bankomat()], accounts: [...ACCOUNTS, opensLater] }), statementOf(statementRow(OTP, -50, 'Bankomat Ilica')), DAY, counting())
 
     expect(run.added[1]).toMatchObject({ account: CASH.id })
   })
 
   it('takes the cash account the rule names over the others of the currency', () => {
-    const run = filedDryRun(bookOf([], [bankomat({ cashAccount: WALLET.id })], [...ACCOUNTS, WALLET]), statementOf(statementRow(OTP, -50, 'Bankomat Ilica')), DAY, counting())
+    const run = filedDryRun(
+      spendingBook([], { rules: [bankomat({ cashAccount: WALLET.id })], accounts: [...ACCOUNTS, WALLET] }),
+      statementOf(statementRow(OTP, -50, 'Bankomat Ilica')),
+      DAY,
+      counting(),
+    )
 
     expect(run.added[1]).toMatchObject({ account: WALLET.id })
   })
 
   it('reads a row the bank marks as cash taken out with no rule', () => {
-    const run = filedDryRun(bookOf([]), statementOf(statementRow(OTP, -40, 'Cash at Ilica ATM', { cashWithdrawal: true })), DAY, counting())
+    const run = filedDryRun(spendingBook([]), statementOf(statementRow(OTP, -40, 'Cash at Ilica ATM', { cashWithdrawal: true })), DAY, counting())
 
     expect(run.added.map((added) => [added.account, added.amount, added.category])).toEqual([
       [OTP.id, accountMoneyFromAmount(-40), BETWEEN],
@@ -159,23 +145,23 @@ describe('the dry run of cash taken out', () => {
     ['no cash account keeps its currency', ACCOUNTS, REVOLUT_USD],
     ['two cash accounts keep its currency', [...ACCOUNTS, WALLET], OTP],
   ])('files it under Between my accounts with no leg and a note when %s, so To review asks', (_case, accounts, on) => {
-    const run = filedDryRun(bookOf([], [bankomat()], accounts), statementOf(statementRow(on, -50, 'Bankomat Ilica')), DAY, counting())
+    const run = filedDryRun(spendingBook([], { rules: [bankomat()], accounts }), statementOf(statementRow(on, -50, 'Bankomat Ilica')), DAY, counting())
 
     expect(run.added).toMatchObject([{ category: BETWEEN, pair: null, categorisedBy: 'rule' }])
     expect(run.lines[0]).toMatchObject({ outcome: 'new', withdrawal: { cashLeg: null } })
     expect(run.notes).toEqual(['1 cash withdrawal counts as a transfer and waits on To review for its cash account.'])
-    expect(reviewQueue(bookOf(run.added, [bankomat()], accounts), DAY).withdrawals.map(({ row: waiting }) => waiting.payee)).toEqual(['Bankomat Ilica'])
+    expect(reviewQueue(spendingBook(run.added, { rules: [bankomat()], accounts }), DAY).withdrawals.map(({ row: waiting }) => waiting.payee)).toEqual(['Bankomat Ilica'])
   })
 
   it('lets the cash withdrawal fill a typed transfer of the same money instead, so the cash is not counted twice', () => {
     const typed = row(OTP, '2026-10-19', -50, 'Between my accounts', { source: 'typed', categorisedBy: 'person', pair: recordIdOf(TRANSACTION_RECORDS, 'typed-in') })
-    const run = filedDryRun(bookOf([typed], [bankomat()]), statementOf(statementRow(OTP, -50, 'Bankomat Ilica', { cashWithdrawal: true })), DAY, counting())
+    const run = filedDryRun(spendingBook([typed], { rules: [bankomat()] }), statementOf(statementRow(OTP, -50, 'Bankomat Ilica', { cashWithdrawal: true })), DAY, counting())
 
     expect(run).toMatchObject({ added: [], filled: 1 })
   })
 
   it('leaves a row that is not money out of a bank account alone, such as a fee or a deposit', () => {
-    const run = filedDryRun(bookOf([], [bankomat()]), statementOf(statementRow(OTP, 50, 'Bankomat Ilica'), statementRow(CASH, -5, 'Bankomat coffee')), DAY, counting())
+    const run = filedDryRun(spendingBook([], { rules: [bankomat()] }), statementOf(statementRow(OTP, 50, 'Bankomat Ilica'), statementRow(CASH, -5, 'Bankomat coffee')), DAY, counting())
 
     expect(run.added.every((added) => added.pair === null)).toBe(true)
     expect(run.lines.every((line) => line.outcome !== 'new' || line.withdrawal === null)).toBe(true)
@@ -184,14 +170,13 @@ describe('the dry run of cash taken out', () => {
 
 describe('the withdrawals To review lists', () => {
   it('lists cash taken out already on the file with no cash leg, newest first, whatever its rule or the bank said', () => {
-    const book = bookOf(
+    const book = spendingBook(
       [
         onFile(OTP, -50, 'Bankomat Ilica'),
         onFile(OTP, -100, 'Bankomat Trg', { category: BETWEEN, categorisedBy: 'rule' }),
         onFile(REVOLUT_USD, -60, 'Cash at Boston ATM', { category: BETWEEN, cashWithdrawal: true }),
       ],
-      [bankomat()],
-      [...ACCOUNTS, DOLLARS],
+      { rules: [bankomat()], accounts: [...ACCOUNTS, DOLLARS] },
     )
     const { withdrawals, waiting } = reviewQueue(book, DAY)
 
@@ -205,14 +190,14 @@ describe('the withdrawals To review lists', () => {
   })
 
   it('leaves out a row a person filed elsewhere or said is no pair, one the reader filed, and one with its cash leg', () => {
-    const book = bookOf(
+    const book = spendingBook(
       [
         onFile(OTP, -50, 'Bankomat Ilica', { category: category('Food/Groceries').id, categorisedBy: 'person' }),
         onFile(OTP, -50, 'Bankomat Trg', { categorisedBy: 'person' }),
         onFile(OTP, -2, 'Bankomat fee', { category: category('Money and fees/Bank fees').id }),
         onFile(OTP, -20, 'Bankomat Split', { category: BETWEEN, pair: recordIdOf(TRANSACTION_RECORDS, 'leg') }),
       ],
-      [bankomat()],
+      { rules: [bankomat()] },
     )
 
     expect(reviewQueue(book, DAY).withdrawals).toEqual([])

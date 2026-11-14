@@ -17,8 +17,9 @@ const DOMAIN = 'src/apps/loans/planted/domain/planted.ts'
 const SCREEN = 'src/apps/loans/planted/presentation/Planted.vue'
 const WORDS = 'src/apps/loans/planted/presentation/words.ts'
 const FLOWS = 'scripts/support/plantedFlows.mjs'
+const SPEC = 'tests/planted.spec.ts'
 
-describe('money, domain and note lint rules', { timeout: 120_000 }, () => {
+describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => {
   it.each([
     ['a cast', DOMAIN, 'export const a = 1 as Money', 'kuna/money-casts'],
     ['a cast to an account amount', DOMAIN, 'export const a = 1 as AccountMoney', 'kuna/money-casts'],
@@ -56,6 +57,12 @@ describe('money, domain and note lint rules', { timeout: 120_000 }, () => {
     ['a success icon before words', SCREEN, '<template><p><UIcon name="i-lucide-circle-check" /><span>Done</span></p></template>', 'kuna/note-lines'],
     ['a tone icon taken from TONE_ICONS before words', SCREEN, '<template><p><UIcon :name="TONE_ICONS.error" />{{ a }}</p></template>', 'kuna/note-lines'],
     ['a warning icon picked by a condition', SCREEN, "<template><p><UIcon :name=\"a ? 'i-lucide-triangle-alert' : 'i-lucide-check'\" />Late</p></template>", 'kuna/note-lines'],
+    ['a Spending book cast through unknown in a test', SPEC, 'export const a = {} as unknown as SpendingBook', 'kuna/book-casts'],
+    ['a Company workbook cast through unknown in a test', SPEC, 'export const a = {} as unknown as Workbook | null', 'kuna/book-casts'],
+    ['a list of books cast through unknown in a test', SPEC, 'export const a = [] as unknown as SpendingBooks[]', 'kuna/book-casts'],
+    ['a part of a book cast through unknown in a test', SPEC, "export const a = {} as unknown as Pick<SpendingBook, 'accounts'>", 'kuna/book-casts'],
+    ["a book's readings cast through unknown in a test", SPEC, "export const a = {} as unknown as SpendingBook['readings']", 'kuna/book-casts'],
+    ['a literal cast to a book in a test', SPEC, 'export const a = { accounts: [] } as SpendingBook', 'kuna/book-casts'],
   ])('refuses %s', async (_name, file, code, rule) => {
     expect(await rulesBroken(file, code)).toContain(rule)
   })
@@ -85,6 +92,10 @@ describe('money, domain and note lint rules', { timeout: 120_000 }, () => {
       SCREEN,
       '<template><span><UIcon :name="TONE_ICONS.warning" /><span class="sr-only">Warning</span><span class="figure">1</span></span></template>',
     ],
+    ['a store cast through unknown in a test', SPEC, 'export const a = {} as unknown as WorkbookStore<SpendingBooks>'],
+    ['a null placeholder for a book in a test', SPEC, 'export const a = { state: null as unknown as { workbook: Workbook | null } }'],
+    ["a store's state read as a book in a test", SPEC, 'export const a = store.state as CompanyBooks'],
+    ['a book checked with satisfies in a test', SPEC, 'export const a = { accounts: [] } satisfies Partial<SpendingBook>'],
   ])('allows %s', async (_name, file, code) => {
     expect(await rulesBroken(file, code)).toEqual([])
   })

@@ -5,12 +5,14 @@ import { assetsSetUp } from '../src/apps/assets/overview/presentation/assetsSetU
 import { gettingSetUp } from '../src/apps/company/onboarding/presentation/gettingSetUp'
 import { hr as croatianWords } from '../src/apps/company/onboarding/presentation/words'
 import { payeesWaiting } from '../src/apps/company/rules/domain/ruleCoverage'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { investmentsSetUp } from '../src/apps/investments/overview/presentation/investmentsSetUp'
 import type { PortfolioFigures } from '../src/apps/investments/holdings/domain/portfolioFigures'
 import { loansSetUp } from '../src/apps/loans/overview/presentation/loansSetUp'
 import { spendingSetUp } from '../src/apps/spending/overview/presentation/spendingSetUp'
 import { account, book, cashMovement } from './fixtures/investments'
+import { exampleStudio } from './fixtures/exampleStudio'
 import { ledger } from './fixtures/ledger'
 
 function fakeRule(id: string, confidence: Rule['confidence']): Rule {
@@ -113,14 +115,7 @@ describe("the company's first rules", () => {
   })
 
   const workbook = (rules: Workbook['rules']): Workbook =>
-    ({
-      transactions: waitingRows,
-      rules,
-      categories: [],
-      clients: [],
-      accounts: [],
-      settings: { statementsSync: false, statementsFolder: [], cardSettlementIbans: [], invoicing: {} },
-    }) as unknown as Workbook
+    exampleStudio({ transactions: waitingRows, rules, categories: [], clients: [], accounts: [], settings: { ...DEFAULT_SETTINGS, statementsSync: false } })
 
   it('asks to teach who appears most after a first import, counting only what a rule filed', () => {
     const [line] = gettingSetUp(workbook([]), true).filter((candidate) => candidate.key === 'first-rules')

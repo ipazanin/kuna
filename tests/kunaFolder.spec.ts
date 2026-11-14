@@ -6,10 +6,12 @@ import { placeOfDriveDocument } from '../src/shared/storage/infrastructure/drive
 import { FOLDER_MIME_TYPE } from '../src/shared/google/driveClient'
 import { statementFilesToRead } from '../src/apps/company/imports/domain/statementFiles'
 import { companyFileBeside, settingsAfterMove } from '../src/apps/company/settings/presentation/companyFileBeside'
+import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { createFakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
 import type { FakeDrive } from '../src/shared/storage/infrastructure/fake/fakeDrive'
 import { finishDriveMove, findKunaFolder, isKunaFolderOfApp, kunaFolderOfApp, moveDriveDocument, planDriveMove, unfinishedMoveOf } from '../src/shared/storage/infrastructure/kunaFolder'
+import { exampleStudio } from './fixtures/exampleStudio'
 
 const NOTHING: DriveFileBeside = { files: [], folders: [], stays: [] }
 
@@ -250,8 +252,7 @@ describe('moving only what Kuna made', () => {
 })
 
 describe('what the Company file takes along', () => {
-  const books = (settings: Partial<Workbook['settings']>) =>
-    ({ packParts: {}, settings: { statementsFolder: [], statementsMailFrom: [], invoicing: { folderId: '' }, ...settings } }) as unknown as Workbook
+  const books = (settings: Partial<Workbook['settings']>) => exampleStudio({ settings: { ...DEFAULT_SETTINGS, ...settings } })
 
   it('takes statements Kuna files from mail and rewrites the setting to the folder beside the file', () => {
     const workbook = books({ statementsFolder: ['work', 'statements'], statementsMailFrom: ['bank@example.com'] })
@@ -268,7 +269,7 @@ describe('what the Company file takes along', () => {
   })
 
   it('needs no new setting for a folder already named from the file, and leaves the invoice folder where the person picked it', () => {
-    const workbook = books({ statementsFolder: ['.', 'statements'], invoicing: { folderId: 'picked' } as Workbook['settings']['invoicing'] })
+    const workbook = books({ statementsFolder: ['.', 'statements'], invoicing: { ...DEFAULT_SETTINGS.invoicing, folderId: 'picked' } })
 
     expect(companyFileBeside(workbook).folders).toEqual([{ name: 'statements', mailSource: 'statements' }])
     expect(companyFileBeside(workbook).stays).toHaveLength(1)

@@ -3,7 +3,8 @@ import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
 import type { SpendingBook } from '../../src/apps/spending/workbook/domain/readSpendingBook'
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../src/apps/spending/workbook/domain/spendingKinds'
+import { PERSON_PAYEES_KEY } from '../../src/apps/spending/workbook/domain/spendingSettings'
 import type { Transaction } from '../../src/apps/spending/workbook/domain/transaction'
 import { wholeItemOf } from '../../src/apps/spending/workbook/domain/rowItems'
 import type { ItemizedRow } from '../../src/apps/spending/workbook/domain/rowItems'
@@ -15,6 +16,9 @@ import { moneyFromAmount } from '../../src/shared/money/money'
 import { NO_RATES } from '../../src/shared/money/rateBook'
 import type { KnownPerson } from '../../src/shared/privacy/domain/pseudonyms'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
+import { settingRow } from '../../src/shared/storage/domain/settingRows'
+import { month } from './ledger'
+import { spendingBook } from './spending'
 
 const on = (date: string) => parseCivilDate(date)!
 
@@ -79,17 +83,18 @@ const RECEIPT: Receipt = {
 }
 
 /** A small Spending book, all made up: a payee flagged as a person and paid under two spellings, a shop, and a row whose text tries to give orders. */
-export const CHAT_BOOK = {
-  accounts: [ACCOUNT],
-  categories: [FOOD, GROCERIES, RENT],
-  transactions: ROWS.map(({ row: entry }) => entry),
-  budgets: [{ id: recordIdOf(BUDGET_RECORDS, 'budget-a'), category: FOOD.id, from: '2026-01', amount: moneyFromAmount(200) }],
-  rules: [{ id: recordIdOf(RULE_RECORDS, 'rule-a'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Ana Horvat' }, category: RENT.id }],
-  receipts: [RECEIPT],
-  items: ROWS.flatMap(({ items }) => items),
-  held: [],
-  settings: { personPayees: ['Ana Horvat'] },
-} as unknown as SpendingBook
+export const CHAT_BOOK: SpendingBook = spendingBook(
+  ROWS.map(({ row: entry }) => entry),
+  {
+    accounts: [ACCOUNT],
+    categories: [FOOD, GROCERIES, RENT],
+    budgets: [{ id: recordIdOf(BUDGET_RECORDS, 'budget-a'), category: FOOD.id, from: month('2026-01'), amount: moneyFromAmount(200) }],
+    rules: [{ id: recordIdOf(RULE_RECORDS, 'rule-a'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Ana Horvat' }, category: RENT.id, withdrawal: null }],
+    receipts: [RECEIPT],
+    items: ROWS.flatMap((itemized) => itemized.items),
+    settingRows: [settingRow(SETTING_RECORDS, PERSON_PAYEES_KEY, 'Ana Horvat')],
+  },
+)
 
 /** The people the chat knows in this book: the payee the owner flagged as a person. */
 export const CHAT_PERSONS: readonly KnownPerson[] = [{ name: 'Ana Horvat', employee: false, ibans: [] }]

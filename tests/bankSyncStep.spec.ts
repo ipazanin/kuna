@@ -1,14 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { LinkedAccount } from '../src/apps/spending/bankSync/domain/bankAnswer'
-import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
-import { ACCOUNTS } from './fixtures/spending'
+import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
+import { BANK_SYNC_DEPLOYMENT_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { settingRow } from '../src/shared/storage/domain/settingRows'
+import { spendingBook } from './fixtures/spending'
 
 const NOW = Date.parse('2026-10-30T12:00:00.000Z')
 const HOUR = 3_600_000
 
 // The step reads the store's state as it runs, so each test sets the file this device opened.
-const store = vi.hoisted(() => ({ state: { workbook: null as unknown, writes: [] as unknown[] } }))
+const store = vi.hoisted(() => ({ state: { workbook: null as SpendingWorkbook | null, writes: [] as unknown[] } }))
 const fetchAndImport = vi.hoisted(() =>
   vi.fn(async () => ({ dryRun: { newRows: 0, alreadyIn: 0, filled: 0, notes: [] }, problems: [], linked: [], proposals: [], differences: [], olderRows: [], receipt: null })),
 )
@@ -31,12 +34,12 @@ function stubStorage(): void {
 /** This device opens the file, in which another device's fetch wrote when OTP last answered. */
 function openedWithOtpFetchedAt(fetchedAt: number): void {
   vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
-  const rows = [
-    { id: 'w', key: 'bank_sync_deployment', value: 'AKfycb-made-up' },
-    { id: 'x', key: 'bank_link_otp', value: '2027-01-01' },
-    { id: 'y', key: 'bank_sync_fetched_otp', value: new Date(fetchedAt).toISOString() },
+  const settingRows = [
+    settingRow(SETTING_RECORDS, BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-made-up'),
+    settingRow(SETTING_RECORDS, bankLinkKey('otp'), '2027-01-01'),
+    settingRow(SETTING_RECORDS, bankFetchedKey('otp'), new Date(fetchedAt).toISOString()),
   ]
-  store.state.workbook = { accounts: ACCOUNTS, categories: [], rules: [], transactions: [], receipts: [], items: [], held: [], settings: spendingSettingsOf(rows as never) }
+  store.state.workbook = { ...spendingBook([], { categories: [], settingRows }), title: 'made-up' }
 }
 
 afterEach(() => {

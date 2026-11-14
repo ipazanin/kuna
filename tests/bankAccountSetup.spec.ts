@@ -24,6 +24,7 @@ import { statementDryRun } from '../src/apps/spending/statements/domain/statemen
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
@@ -45,9 +46,9 @@ function linked(uid: string, iban: string, currency: string, described: Partial<
 
 const revolut = (account: LinkedAccount): LinkedOfBank => ({ bank: 'revolut', account })
 const fromEarliest = (proposals: readonly AccountProposal[]) => proposals.map((proposal) => ({ proposal, startsOn: startDays(proposal).earliest }))
-const book = (accounts = ACCOUNTS, transactions: readonly { account: string }[] = [], marks: { notInKuna?: readonly string[]; keepMine?: readonly string[] } = {}) => ({
+const book = (accounts = ACCOUNTS, transactions: readonly Pick<Transaction, 'account'>[] = [], marks: { notInKuna?: readonly string[]; keepMine?: readonly string[] } = {}) => ({
   accounts,
-  transactions: transactions as never,
+  transactions,
   settings: { bankAccountsNotInKuna: marks.notInKuna ?? [], bankAccountsKeepMine: marks.keepMine ?? [] },
 })
 

@@ -8,13 +8,14 @@ import type { BankTransaction, LinkedAccount } from '../src/apps/spending/bankSy
 import type { PendingLink } from '../src/apps/spending/bankSync/domain/bankReturn'
 import { bankHeldResult, bankStepResult, pendingCaption, pendingLine } from '../src/apps/spending/bankSync/presentation/bankStepResult'
 import { hr } from '../src/apps/spending/bankSync/presentation/words'
-import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
-import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
+import { SETTING_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { SpendingWorkbook } from '../src/apps/spending/workbook/domain/spendingBooks'
+import { BANK_SYNC_DEPLOYMENT_KEY, bankFetchedKey, bankLinkKey } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { accountMoneyFromCents } from '../src/shared/money/accountMoney'
 import type { UnitOfWork } from '../src/shared/storage/application/repository'
-import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, row, storedBeforeItems, wholeItems } from './fixtures/spending'
+import { settingRow } from '../src/shared/storage/domain/settingRows'
+import { ACCOUNTS, OTP, REVOLUT_USD, row, spendingBook } from './fixtures/spending'
 import { civil } from './fixtures/ledger'
 
 const DAY = civil('2026-10-30')
@@ -39,32 +40,18 @@ const BANK: BankTransaction = {
 const NOW = Date.parse('2026-10-30T12:00:00.000Z')
 const HOUR = 3_600_000
 
-function bookOf(transactions: readonly Transaction[], otpLink: string | null = '2027-01-01', otpFetchedAt: number | null = null): SpendingBooks {
-  const links = [
-    { id: 'w', key: 'bank_sync_deployment', value: 'AKfycb-made-up' },
-    ...(otpLink === null ? [] : [{ id: 'x', key: 'bank_link_otp', value: otpLink }]),
-    ...(otpFetchedAt === null ? [] : [{ id: 'y', key: 'bank_sync_fetched_otp', value: new Date(otpFetchedAt).toISOString() }]),
+function bookOf(transactions: readonly Transaction[], otpLink: string | null = '2027-01-01', otpFetchedAt: number | null = null): SpendingWorkbook {
+  const settingRows = [
+    settingRow(SETTING_RECORDS, BANK_SYNC_DEPLOYMENT_KEY, 'AKfycb-made-up'),
+    ...(otpLink === null ? [] : [settingRow(SETTING_RECORDS, bankLinkKey('otp'), otpLink)]),
+    ...(otpFetchedAt === null ? [] : [settingRow(SETTING_RECORDS, bankFetchedKey('otp'), new Date(otpFetchedAt).toISOString())]),
   ]
-  return {
-    title: 'made-up',
-    accounts: ACCOUNTS,
-    categories: CATEGORIES,
-    transactions,
-    budgets: [],
-    rules: [],
-    receipts: [],
-    items: wholeItems(transactions),
-    held: [],
-    settings: spendingSettingsOf(links as never),
-    stored: storedBeforeItems(transactions),
-    readings: { settings: { facts: links, problems: [] } },
-    problems: [],
-  } as unknown as SpendingBooks
+  return { ...spendingBook(transactions, { settingRows }), title: 'made-up' }
 }
 
 /** A store over the book given, whose writes run their work against a unit that records what was added and set. */
-function storeOver(first: SpendingBooks) {
-  const state = { workbook: first as SpendingBooks | null, writes: [] }
+function storeOver(first: SpendingWorkbook) {
+  const state: { workbook: SpendingWorkbook | null; writes: never[] } = { workbook: first, writes: [] }
   const added: Transaction[] = []
   const settings: { key: string; value: string }[] = []
   const titles: string[] = []
@@ -364,7 +351,7 @@ describe('finishing a link', () => {
 describe('what the step says', () => {
   const dryRun = { newRows: 2, alreadyIn: 1, filled: 0, notes: [] } as never
   const noWrite = { dryRun, problems: [], linked: [], proposals: [], differences: [], olderRows: [], receipt: null }
-  const bookNow = () => bookOf([]) as unknown as SpendingBook
+  const bookNow = () => bookOf([])
   const other = { bank: 'otp' as const, account: linked('u', 'HR0000000000000000077', 'EUR') }
 
   it('is done with a link to review when nothing went wrong', () => {

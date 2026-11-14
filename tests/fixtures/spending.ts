@@ -11,7 +11,9 @@ import type { ItemizedRow } from '../../src/apps/spending/workbook/domain/rowIte
 import { BLANK_CELLS, storedRowOf } from '../../src/apps/spending/workbook/domain/transaction'
 import type { StoredLine } from '../../src/apps/spending/workbook/domain/beforeItems'
 import { NO_RECORDS } from '../../src/shared/storage/domain/recordsRead'
-import type { RecordsRead } from '../../src/shared/storage/domain/recordsRead'
+import type { Reading, RecordsRead } from '../../src/shared/storage/domain/recordsRead'
+import type { SettingRow } from '../../src/shared/storage/domain/settingRows'
+import { spendingSettingsOf } from '../../src/apps/spending/workbook/domain/spendingSettings'
 import type { RowCells, Transaction } from '../../src/apps/spending/workbook/domain/transaction'
 import { writeRows } from '../../src/apps/spending/entries/application/rowRecords'
 import type { SpendingBook, SpendingRecords } from '../../src/apps/spending/workbook/domain/readSpendingBook'
@@ -166,8 +168,51 @@ export function storedBeforeItems(rows: readonly Transaction[], lines: readonly 
 }
 
 /** Rows and their items as a file moved to items stores them. */
-export function storedWithItems(rows: readonly StoredRow[], items: readonly TransactionItem[]): SpendingBook['stored'] {
-  return { transactions: readOf(rows.map((stored) => storedRowOf(stored, BLANK_CELLS))), lines: NO_RECORDS, items: readOf(items) }
+function storedWithItems(rows: readonly Transaction[], items: readonly TransactionItem[]): SpendingBook['stored'] {
+  return { transactions: readOf(rows.map((entry) => storedRowOf(entry, BLANK_CELLS))), lines: NO_RECORDS, items: readOf(items) }
+}
+
+/** The parts of a Spending book a test may give, with its setting rows in place of the settings they make. */
+type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'budgets' | 'rules' | 'receipts' | 'items' | 'held' | 'stored'> & { readonly settingRows: readonly SettingRow[] }
+
+/**
+ * A Spending book over these rows in which every record counts. Unless given, it has the worked example's accounts and
+ * categories. Given items are stored as a file moved to items stores them; without them each row is read as one item
+ * from a file from before items.
+ */
+export function spendingBook(transactions: readonly Transaction[], parts: Partial<BookParts> = {}): SpendingBook {
+  const { settingRows = [], ...given } = parts
+  const book = {
+    accounts: ACCOUNTS,
+    categories: CATEGORIES,
+    budgets: [],
+    rules: [],
+    receipts: [],
+    items: wholeItems(transactions),
+    held: [],
+    stored: given.items === undefined ? storedBeforeItems(transactions) : storedWithItems(transactions, given.items),
+    ...given,
+  }
+  const counting = <R>(facts: readonly R[]): Reading<R> => ({ facts, problems: [] })
+  const storedOf = <R>(read: RecordsRead<R>): readonly R[] => read.records.map((stored) => stored.record)
+  return {
+    ...book,
+    transactions,
+    settings: spendingSettingsOf(settingRows),
+    readings: {
+      accounts: counting(book.accounts),
+      categories: counting(book.categories),
+      transactions: counting(storedOf(book.stored.transactions)),
+      budgets: counting(book.budgets),
+      rules: counting(book.rules),
+      receipts: counting(book.receipts),
+      lines: counting(storedOf(book.stored.lines)),
+      items: counting(storedOf(book.stored.items)),
+      held: counting(book.held),
+      settings: counting(settingRows),
+    },
+    problems: [],
+  }
 }
 
 /** Each row of the book with the category, note and link its items give it, as a row not split carried them on itself before items. */

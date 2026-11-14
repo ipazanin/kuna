@@ -132,6 +132,14 @@ const refusedSyntax = (selectors, message) => ({
 const castedBrand = String.raw`[typeName.name=/^(?:Money|AccountMoney|Percent|Share|Decimal)$/]`
 const castedAs = (cast) => [`${cast} > TSTypeReference.typeAnnotation${castedBrand}`, `${cast} > *.typeAnnotation TSTypeReference${castedBrand}`]
 
+// A test that casts a literal to a book, or anything to a book through unknown, wherever the book sits in the type. A store
+// typed with a book and a null placeholder for one stay allowed, since neither builds a book.
+const castThroughUnknown = "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword']:not([expression.expression.raw='null'])"
+const castOfLiteral = 'TSAsExpression[expression.type=/^(?:ObjectExpression|ArrayExpression)$/]'
+const bookType = String.raw`TSTypeReference[typeName.name=/(?:Book|Books|Workbook)$/]`
+const outsideStore = String.raw`:not(TSTypeReference[typeName.name=/Store$/] ${bookType})`
+const castToBook = [castThroughUnknown, castOfLiteral].flatMap((cast) => [`${cast} > ${bookType}.typeAnnotation`, `${cast} > .typeAnnotation ${bookType}${outsideStore}`])
+
 // esquery's regular expressions only read strings, so these read a literal's raw text rather than its value.
 const scaleLiteral = String.raw`/^(?:100|10_?000)n?$/`
 const scaleConstant = String.raw`/^10_?000n?$/`
@@ -262,6 +270,10 @@ const kunaPlugin = {
     'money-casts': refusedSyntax(
       [...castedAs('TSAsExpression'), ...castedAs('TSTypeAssertion')],
       'Make Money, AccountMoney, Percent, Share and Decimal with the functions in src/shared/money. A cast skips the check that keeps the brand true.',
+    ),
+    'book-casts': refusedSyntax(
+      castToBook,
+      'Build a book with a typed fixture, such as spendingBook or exampleStudio, or check it with satisfies. A cast hides a field the book no longer has or still lacks.',
     ),
     'money-scale': refusedSyntax(
       [
@@ -428,6 +440,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },
     { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },
+    { name: 'kuna/book-casts', files: ['tests/**/*.ts'], rules: { 'kuna/book-casts': 'error' } },
     { name: 'kuna/date-parameters', files: ['src/**/words.ts'], rules: { 'kuna/date-parameters': 'error' } },
     ...Object.entries(baselineRules).map(([list, { files, ignores, rules }]) => ({ name: `kuna/baseline-${list}`, files, ignores: [...ignores, ...exempt[list]], rules })),
     prettier,

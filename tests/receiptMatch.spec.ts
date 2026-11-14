@@ -3,13 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches, splittableRows } from '../src/apps/spending/receipts/domain/receiptMatch'
 import { rowsTakingReceipt } from '../src/apps/spending/statements/domain/reviewQueue'
 import { RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
-import type { SpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
 import type { Receipt } from '../src/apps/spending/workbook/domain/receipt'
-import { spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil, euros } from './fixtures/ledger'
-import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_EUR, REVOLUT_USD, row, storedBeforeItems, wholeItems } from './fixtures/spending'
+import { ACCOUNTS, CASH, CATEGORIES, OTP, REVOLUT_EUR, REVOLUT_USD, row, spendingBook, wholeItems } from './fixtures/spending'
 
 const ISSUED = civil('2026-11-03')
 
@@ -151,23 +149,8 @@ describe('the rows that can take a receipt', () => {
     const topUp = row(OTP, '2026-11-04', -60, null, { source: 'statement', payee: 'Card top-up' })
     const toppedUp = row(REVOLUT_EUR, '2026-11-04', 60, null, { source: 'statement', payee: 'Top-up by card' })
     const spend = row(OTP, '2026-11-04', -23.49, null, { source: 'statement', payee: 'Corner market' })
-    const book = (transactions: readonly Transaction[]): SpendingBook => ({
-      accounts: ACCOUNTS,
-      categories: CATEGORIES,
-      transactions,
-      budgets: [],
-      rules: [],
-      receipts: [],
-      items: wholeItems(transactions),
-      stored: storedBeforeItems(transactions),
-      held: [],
-      settings: spendingSettingsOf([]),
-      readings: {} as SpendingBook['readings'],
-      problems: [],
-    })
-
-    expect([...rowsTakingReceipt(book([topUp, toppedUp, spend]), ISSUED)]).toEqual([spend.id])
-    expect([...rowsTakingReceipt(book([topUp, spend]), ISSUED)]).toEqual([topUp.id, spend.id])
+    expect([...rowsTakingReceipt(spendingBook([topUp, toppedUp, spend]), ISSUED)]).toEqual([spend.id])
+    expect([...rowsTakingReceipt(spendingBook([topUp, spend]), ISSUED)]).toEqual([topUp.id, spend.id])
   })
 })
 
