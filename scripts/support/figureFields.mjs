@@ -11,6 +11,8 @@ export const SPENDING_ROW = {
 export const SPENDING_ITEM = { record: new Set(['link']), cells: new Set(['link']) }
 export const SPENDING_ACCOUNT = { record: new Set(['rowsFrom']), cells: new Set(['rows_from']) }
 export const INVESTMENT_ACCOUNT = { record: new Set(['intake']), cells: new Set(['rows_from', 'starts_on']) }
+/** A Company item leaves nothing out: its invoice is a figure, since what an invoice is owed reads it. */
+export const COMPANY_ITEM = { record: new Set(), cells: new Set() }
 export const COMPANY_LEDGER_ROW = {
   record: new Set(['statement', 'counterpartyIban', 'description', 'flaggedBy', 'reference', 'signals']),
   cells: new Set(['statement', 'counterparty_iban', 'description', 'flagged_by', 'reference', 'purpose', 'tx_domain', 'tx_family', 'tx_sub_family', 'creditor_reference', 'instructed_currency']),
@@ -29,9 +31,11 @@ function investmentsKindOf(record) {
   return Object.hasOwn(record, 'intake') ? INVESTMENT_ACCOUNT : null
 }
 
-/** A Company ledger row carries the bank's signals. */
+/** A Company ledger row carries the bank's signals, and an item the invoice it pays. */
 function companyKindOf(record) {
-  return Object.hasOwn(record, 'signals') ? COMPANY_LEDGER_ROW : null
+  if (Object.hasOwn(record, 'signals')) return COMPANY_LEDGER_ROW
+  if (Object.hasOwn(record, 'invoice') && Object.hasOwn(record, 'row')) return COMPANY_ITEM
+  return null
 }
 
 /** A value with every record in it, however deep, without its kind's fields above, and a stored record without those cells. */

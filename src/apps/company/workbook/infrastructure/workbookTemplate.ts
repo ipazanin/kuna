@@ -188,6 +188,10 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     { name: 'category', note: "A category from the categories tab. A row's one item may leave it blank or name one the tab lacks, and then waits for review." },
     OWNER_SHARE_TEMPLATE_COLUMN,
     { name: 'note', note: 'What this item paid for. Optional.' },
+    {
+      name: 'invoice_id',
+      note: 'The invoice a client paid with this item, by its client and number as the app keeps them, such as ["northwind","1-5-26"]. The app writes it when it places a payment on an invoice. Optional.',
+    },
     ID_TEMPLATE_COLUMN,
   ],
   dismissed: [

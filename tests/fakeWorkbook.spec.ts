@@ -11,7 +11,10 @@ import { plannedAgainstInvoiced } from '../src/apps/company/billingPlan/domain/p
 import { latestBalances } from '../src/apps/company/cash/domain/balances'
 import { monthlyProfitAndLoss } from '../src/apps/company/trends/domain/monthlyProfitAndLoss'
 import { ledgerWindowOf, newestBookingOf } from '../src/apps/company/workbook/domain/workbook'
-import { fakeWorkbookDocument, fakeWorkbookRecords } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
+import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
+import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching'
+import { addMoney } from '../src/shared/money/money'
+import { fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems, fakeWorkbookRecords } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { categorise } from '../src/shared/categorising/domain/categorise'
 import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
@@ -36,19 +39,59 @@ describe('fake workbook', () => {
     expect(window).not.toBeNull()
   })
 
-  it('splits five rows, two of them with the owner’s own part and one by the costs it paid back', () => {
+  it('splits ten rows, two of them with the owner’s own part, one by the costs it paid back and five client payments by the invoices they paid', () => {
     const presented = presentedWorkbook(workbook)
 
     expect(workbook.splits.map((split) => [split.row.date, split.parts.map((part) => part.category)])).toEqual([
       ['2026-10-05', ['reimbursement-to-owner', 'reimbursement-to-owner']],
+      ['2026-10-04', ['revenue', 'revenue']],
       ['2026-07-12', ['salary-net', 'salary-bonus']],
+      ['2026-06-04', ['revenue', 'revenue']],
       ['2026-05-10', ['representation', 'owner-loan-out']],
+      ['2026-04-04', ['revenue', 'revenue']],
       ['2026-03-16', ['external-contractors', 'consulting']],
+      ['2026-01-19', ['revenue', 'revenue']],
+      ['2026-01-04', ['revenue', 'revenue']],
       ['2025-10-02', ['office-supplies', 'owner-loan-out']],
     ])
     expect(workbook.splits.at(-1)?.parts.map((part) => part.amount)).toEqual([-4041, -1345])
     expect(presented.problems).toEqual([])
-    expect(presented.transactions).toHaveLength(workbook.transactions.length + 5)
+    expect(presented.transactions).toHaveLength(workbook.transactions.length + 10)
+  })
+
+  it('names the invoice each client payment pays, as the matching of books from before items places it', () => {
+    const owed = (books: Workbook) =>
+      receivablesOf(presentedWorkbook(books)).clients.map((client) => [
+        client.outstanding,
+        client.overpaid,
+        client.creditsWithNoInvoice,
+        client.unplaced ?? [],
+        client.invoices.map((matched) => [matched.remaining, matched.received]),
+      ])
+    const before = readDocument(
+      { id: 'before', source: 'browser', title: 'before', syncedAt: '2026-10-16T09:00:00.000Z' },
+      fakeWorkbookDocumentBeforeItems('2026-10-16T09:00:00.000Z', 'drive'),
+    ).workbook
+
+    expect(workbook.paidInvoices?.size).toBe(23)
+    expect(owed(workbook)).toEqual(owed(before).map(([outstanding, overpaid, noInvoice, , invoices]) => [outstanding, overpaid, noInvoice, [], invoices]))
+  })
+
+  it('matches the payments to the invoices on every read on books with an items tab whose items name no invoice', () => {
+    const owed = (books: Workbook) =>
+      receivablesOf(presentedWorkbook(books)).clients.map((client) => [
+        client.outstanding,
+        // The matching on every read counts a moved payment's part that no invoice takes as paid with no invoice, not as overpaid.
+        addMoney(client.overpaid, client.creditsWithNoInvoice),
+        client.invoices.map((matched) => [matched.remaining, matched.received]),
+      ])
+    const document = fakeWorkbookDocument(SYNCED, 'drive')
+    const items = (document.records.item ?? []).map((item) => Object.fromEntries(Object.entries(item).filter(([field]) => field !== 'invoice_id')))
+    const unplaced = readDocument({ id: 'unplaced', source: 'drive', title: 'unplaced', syncedAt: SYNCED }, { ...document, records: { ...document.records, item: items } }).workbook
+
+    expect(unplaced.paidInvoices).toBeUndefined()
+    expect(receivablesOf(presentedWorkbook(unplaced)).clients.every((client) => client.unplaced === undefined)).toBe(true)
+    expect(owed(unplaced)).toEqual(owed(workbook))
   })
 
   it('is the same on every run, every ledger row with an id of its own', () => {

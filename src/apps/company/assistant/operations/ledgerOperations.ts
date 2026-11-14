@@ -28,7 +28,7 @@ import type { RowVerdict } from '../../transactions/domain/verdictChanges'
 import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../workbook/domain/displayName'
 import { needsReview } from '../../workbook/domain/needsReview'
-import { storedSplitOf } from '../../workbook/domain/rowItems'
+import { storedSplitsOf } from '../../workbook/domain/storedSplits'
 import { rowsOfOneItem, wholeItemId } from '../../workbook/domain/splits'
 import type { Transaction } from '../../workbook/domain/workbook'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -394,7 +394,7 @@ function splitRow(card: CompanyCard, step: ProposalStep): void {
   const row = rowOf(card, field['row'])
   const parts = field['parts'] as readonly { readonly part: string | null; readonly amount: number | null; readonly category: string; readonly note: string }[]
   if (parts.length < 2) throw new StepRefused('A split has at least two parts.')
-  const stored = storedSplitOf(card.records(), card.workbook, row)
+  const stored = storedSplitsOf(card.records())(row)
   const amounts = partAmounts(
     row,
     field['by'],
@@ -414,7 +414,7 @@ function splitRow(card: CompanyCard, step: ProposalStep): void {
 
 function deleteSplit(card: CompanyCard, step: ProposalStep): void {
   const row = rowOf(card, fieldsOf(step)['row'])
-  const stored = storedSplitOf(card.records(), card.workbook, row)
+  const stored = storedSplitsOf(card.records())(row)
   if (stored.parts.length === 0) throw new StepRefused('That row is not split.')
   const books = { records: card.records(), workbook: card.workbook }
   const refusal = splitKeptRefusal(books, row)

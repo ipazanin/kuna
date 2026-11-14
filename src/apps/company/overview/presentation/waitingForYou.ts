@@ -102,7 +102,7 @@ function invoiceJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
 }
 
 function overdueJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
-  const invoices = receivablesOf(workbook.transactions, workbook.categories, workbook.invoices, workbook.clients).clients.flatMap((entry) => entry.invoices)
+  const invoices = receivablesOf(workbook).clients.flatMap((entry) => entry.invoices)
   const { overdue, overdueCount } = amountsOwed(invoices, asOf)
   if (overdueCount === 0) return null
   return {

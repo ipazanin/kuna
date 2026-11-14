@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { SPLIT_WRITES, removeSplit, writeSplit as writeSplitParts } from '../src/apps/company/transactions/application/splitWrites'
 import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
 import { WorkbookWriteRefused } from '../src/shared/storage/application/workbookWriteRefused'
-import { storedSplitOf } from '../src/apps/company/workbook/domain/rowItems'
+import { storedSplitsOf } from '../src/apps/company/workbook/domain/storedSplits'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
 import { SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -53,7 +53,7 @@ function rowOf(store: WorkbookStore<CompanyBooks>, counterparty: string): Transa
 }
 
 function writeSplit(store: WorkbookStore<CompanyBooks>, row: Transaction, parts: readonly (readonly [number, string, string?])[]) {
-  const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
+  const stored = storedSplitsOf(store.state.records!)(row)
   const drafts = parts.map(([amount, category, note = ''], index) => ({ amount: euros(amount), category, note, opened: stored.parts[index] ?? null }))
   return store.write('Split', (unit) => writeSplitParts(unit, store.state.records!, row, stored, drafts, store.state.workbook!.categories))
 }
@@ -180,17 +180,17 @@ describe.each([
     })
     const model = rowOf(store, 'MODEL API INC')
 
-    const stored = storedSplitOf(store.state.records!, store.state.workbook!, model)
+    const stored = storedSplitsOf(store.state.records!)(model)
 
     expect([stored.parts.map((part) => part.amount), stored.refused, stored.unreadable]).toEqual([[euros(-14)], true, 1])
-    expect(storedSplitOf(store.state.records!, store.state.workbook!, rowOf(store, 'Desk Co'))).toEqual({ parts: [], refused: false, unreadable: 0 })
+    expect(storedSplitsOf(store.state.records!)(rowOf(store, 'Desk Co'))).toEqual({ parts: [], refused: false, unreadable: 0 })
   })
 })
 
 describe('which split part keeps its id', () => {
   /** Writes the parts, each opened from the stored part it names, and gives what each part replaces. */
   async function writeOpened(store: WorkbookStore<CompanyBooks>, row: Transaction, parts: readonly (readonly [number, string, RecordId | null])[]): Promise<readonly PartReplacement<RecordId>[]> {
-    const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
+    const stored = storedSplitsOf(store.state.records!)(row)
     const opened = (id: RecordId | null): StoredItem | null => stored.parts.find((part) => part.id === id) ?? null
     const drafts = parts.map(([amount, category, id]) => ({ amount: euros(amount), category, note: '', opened: opened(id) }))
     let replaced: readonly PartReplacement<RecordId>[] = []
@@ -279,7 +279,7 @@ describe('a split taken off', () => {
     await writeSplit(store, rowOf(store, 'MODEL API INC'), parts)
     const remove = () => {
       const row = rowOf(store, 'MODEL API INC')
-      const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
+      const stored = storedSplitsOf(store.state.records!)(row)
       return store.write('Removed', (unit) => removeSplit(unit, { records: store.state.records!, workbook: store.state.workbook! }, row, stored))
     }
     return { store, remove }
@@ -306,7 +306,7 @@ describe('a split taken off', () => {
       [-12, 'owner-loan-out'],
     ])
     const row = rowOf(store, 'MODEL API INC')
-    const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
+    const stored = storedSplitsOf(store.state.records!)(row)
     const larger = recordWithId(store.state.records!.splits, stored.parts.find((part) => part.category === 'owner-loan-out')!.id)!.record
     await store.write('Shared', (unit) => unit.of(SPLIT_WRITES).change(larger, { ...larger, ownerShare: ownerShareOf(30) }))
 

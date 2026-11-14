@@ -38,6 +38,7 @@ export const en = {
     invoicesTitle: 'Every invoice, with the payments that settled it',
     invoicesSubtitle: (period: string) =>
       `The invoices issued in ${period}, and every one still open. Payments fill the oldest invoice first, and only invoices already issued on the day a payment arrives.`,
+    invoicesSubtitlePlaced: (period: string) => `The invoices issued in ${period}, and every one still open. Each payment counts on the invoice it is placed on.`,
     record: 'Record invoice',
     clientFirst: 'Add the client on the Clients tab first',
     recordHelp: 'Add the row of an invoice made elsewhere',
@@ -50,6 +51,10 @@ export const en = {
     unattributedTitle: 'Revenue no client accounts for',
     unattributedSubtitle: 'From an IBAN the clients tab does not name, so it pays no invoice. Add the IBAN to the clients tab to match it.',
     openCredit: (day: string, counterparty: string) => `Credit of ${day} from ${counterparty}, open the row`,
+    unplacedTitle: 'Payments to place on an invoice',
+    unplacedSubtitle: 'A client paid these, and no invoice holds them yet, so the invoices they pay still count as owed.',
+    unplacedSummary: (count: number): EnglishForms => ({ one: `${count} payment waits`, other: `${count} payments wait` }),
+    unplacedCaption: (day: string) => `Paid ${day}, on no invoice`,
   },
   list: {
     status: { paid: 'Paid', partial: 'Part paid', outstanding: 'Unpaid' },
@@ -152,6 +157,7 @@ export const hr: Translation<typeof en> = {
     recordElsewhere: 'Upiši račun izrađen drugdje',
     invoicesTitle: 'Svi računi, s uplatama koje su ih podmirile',
     invoicesSubtitle: (period) => `Računi izdani u razdoblju ${period} i svi koji su još otvoreni. Uplate najprije podmiruju najstariji račun, i to samo račune izdane do dana uplate.`,
+    invoicesSubtitlePlaced: (period) => `Računi izdani u razdoblju ${period} i svi koji su još otvoreni. Svaka uplata vrijedi za račun s kojim je povezana.`,
     record: 'Upiši račun',
     clientFirst: 'Najprije dodajte klijenta na kartici Klijenti',
     recordHelp: 'Upiši redak računa izrađenog drugdje',
@@ -164,6 +170,10 @@ export const hr: Translation<typeof en> = {
     unattributedTitle: 'Prihodi bez klijenta',
     unattributedSubtitle: 'S IBAN-a kojeg nema u popisu klijenata, pa ne podmiruju nijedan račun. Dodajte taj IBAN klijentu da se uplate povežu.',
     openCredit: (day, counterparty) => `Uplata ${day}, ${counterparty}, otvori stavku`,
+    unplacedTitle: 'Uplate za povezivanje s računom',
+    unplacedSubtitle: 'Klijent je ovo platio, a nijedan račun još ne sadrži te uplate, pa se računi koje plaćaju i dalje vode kao neplaćeni.',
+    unplacedSummary: (count) => ({ one: `${count} uplata čeka`, few: `${count} uplate čekaju`, other: `${count} uplata čeka` }),
+    unplacedCaption: (day) => `Plaćeno ${day}, bez računa`,
   },
   list: {
     status: { paid: 'Plaćen', partial: 'Djelomično plaćen', outstanding: 'Neplaćen' },

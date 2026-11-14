@@ -325,7 +325,7 @@ describe('the reports the chat reads', () => {
   })
 
   it('gives what clients owe on the day as Invoicing counts it', () => {
-    const matched = receivablesOf(booked.transactions, booked.categories, booked.invoices, booked.clients).clients.flatMap((client) => client.invoices)
+    const matched = receivablesOf(booked).clients.flatMap((client) => client.invoices)
     const owed = amountsOwed(matched, NEWEST)
     const figures = report('receivables').figures(NEWEST)
     expect(amountLabelled(figures, 'still owed')).toBe(owed.outstanding)

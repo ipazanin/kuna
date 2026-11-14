@@ -21,16 +21,18 @@ import { GRANT_WRITES, TRIP_COST_WRITES, TRIP_WRITES } from '../src/apps/company
 import { fakeStaffOf } from '../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
-import { writeRowItems } from '../src/apps/company/transactions/application/itemWrites'
+import { ITEM_WRITES, writeRowItems } from '../src/apps/company/transactions/application/itemWrites'
 import { wholeItemId } from '../src/apps/company/workbook/domain/splits'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { removeSplit } from '../src/apps/company/transactions/application/splitWrites'
-import { linkTripRow } from '../src/apps/company/packs/hr-doo/application/tripRowWrites'
+import { fileTripRows, linkTripRow } from '../src/apps/company/packs/hr-doo/application/tripRowWrites'
+import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
+import { canUndo } from '../src/shared/storage/application/createWorkbookStore'
 import { filedBySettlement, paidOutsideTrip, tripRowsSplit } from '../src/apps/company/packs/hr-doo/domain/trips/tripBankRows'
 import { tripSettlement } from '../src/apps/company/packs/hr-doo/domain/trips/tripSettlement'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
-import { storedSplitOf } from '../src/apps/company/workbook/domain/rowItems'
+import { storedSplitsOf } from '../src/apps/company/workbook/domain/storedSplits'
 import { recordsOfKindIn } from '../src/apps/company/workbook/domain/readWorkbook'
 import { fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import type { CheckedProposal } from '../src/shared/app/assistantOperations'
@@ -408,7 +410,7 @@ describe.each([
 
     expect(answer).toMatchObject({ isError: true, text: expect.stringContaining(said) })
     const books = desk.store.state as CompanyBooks
-    const stored = storedSplitOf(books.records, books.workbook, advance)
+    const stored = storedSplitsOf(books.records)(advance)
     await expect(desk.store.write('Removed', (unit) => removeSplit(unit, books, advance, stored))).rejects.toThrow(said)
     expect(desk.store.state.workbook!.splits.some((split) => split.row.id === advance.id)).toBe(true)
   })
@@ -426,7 +428,7 @@ async function filedTrip(document: typeof fakeWorkbookDocument) {
   const partsOfAdvance = () => desk.store.state.workbook!.splits.find((split) => split.row.id === advance.id)!.parts
   await fileRows()
   const held = desk.store.state.records!
-  const stored = storedSplitOf(held, desk.store.state.workbook!, advance)
+  const stored = storedSplitsOf(held)(advance)
   const [, larger, smaller] = [...stored.parts].sort((one, other) => Math.abs(other.amount) - Math.abs(one.amount))
   // A person moves a euro between the two smaller parts and notes one.
   const moved = stored.parts.map((part) =>
@@ -486,6 +488,70 @@ describe('a payout that pays more than its trip', () => {
   it('refuses it in books from before items, which cannot keep the rest apart from the trip', async () => {
     const { desk } = await overpaid(fakeWorkbookDocumentBeforeItems)
     expect(desk.cards).toEqual([])
+  })
+})
+
+describe("filing a trip's rows from its screen", () => {
+  it('keeps Undo on books as booked, for a payout of two items, and Undo puts back its items and the trip', async () => {
+    const desk = await packDesk(fakeWorkbookDocument)
+    const books = () => desk.store.state as CompanyBooks
+    const tripHeld = () => recordsOf(recordsOfKindIn(desk.store.state.records!, TRIP_RECORDS))[0]!
+    const { payout } = tripRows(books())
+    const whole = { id: wholeItemId(payout), category: payout.category, note: '', ownerShare: payout.ownerShare }
+    await desk.store.write('Split', (unit) =>
+      writeRowItems(unit, books().records, payout, storedSplitsOf(books().records)(payout), [
+        { ...whole, amount: addMoney(payout.amount, euros(100)) },
+        { ...whole, id: null, amount: euros(-100), note: 'Second part' },
+      ]),
+    )
+    await desk.store.write('Linked', (unit) => linkTripRow(unit, books(), tripHeld(), 'payout', payout))
+    const itemsOfPayout = () => recordsOf(desk.store.state.records!.items).filter((item) => item.row === payout.rowId)
+    const [itemsBefore, tripBefore] = [itemsOfPayout(), tripHeld()]
+    // The trip's screen reads the books as booked, with the payout as one row per item.
+    const booked = hrDooWorkbook(presentedWorkbook(books().workbook))
+    const file = booked.trips.find((entry) => entry.trip.id === tripBefore.id)!
+    const settlement = tripSettlement(file, ruleValue)
+    if (settlement.kind !== 'worked') throw new Error('The settlement waits.')
+    const split = tripRowsSplit(file, settlement, booked, booked.categories, true)
+    if ('refused' in split) throw new Error(split.refused.kind)
+
+    await desk.store.write('Filed', (unit) => fileTripRows(unit, { records: books().records, workbook: booked }, file.trip, split.rows, booked.settings.reviewLabel))
+
+    const [filing] = desk.store.state.writes
+    expect(itemsOfPayout()).not.toEqual(itemsBefore)
+    expect(canUndo(filing!, desk.store.state.writes)).toBe(true)
+    await desk.store.undo(filing!)
+    expect([itemsOfPayout(), tripHeld()]).toEqual([itemsBefore, tripBefore])
+  })
+
+  it('keeps the invoice each item of the payout pays', async () => {
+    const desk = await packDesk(fakeWorkbookDocument)
+    const books = () => desk.store.state as CompanyBooks
+    const tripHeld = () => recordsOf(recordsOfKindIn(desk.store.state.records!, TRIP_RECORDS))[0]!
+    const { payout } = tripRows(books())
+    const invoice = books().workbook.invoices[0]!.id
+    const itemsOfPayout = () => recordsOf(desk.store.state.records!.items).filter((item) => item.row === payout.rowId)
+    const whole = { id: wholeItemId(payout), category: payout.category, note: '', ownerShare: payout.ownerShare }
+    await desk.store.write('Split', (unit) =>
+      writeRowItems(unit, books().records, payout, storedSplitsOf(books().records)(payout), [
+        { ...whole, amount: addMoney(payout.amount, euros(100)) },
+        { ...whole, id: null, amount: euros(-100), note: 'Second part' },
+      ]),
+    )
+    await desk.store.write('Placed', (unit) => itemsOfPayout().forEach((item) => unit.of(ITEM_WRITES).change(item, { ...item, invoice })))
+    const itemsBefore = itemsOfPayout()
+    await desk.store.write('Linked', (unit) => linkTripRow(unit, books(), tripHeld(), 'payout', payout))
+    const booked = hrDooWorkbook(presentedWorkbook(books().workbook))
+    const file = booked.trips.find((entry) => entry.trip.id === tripHeld().id)!
+    const settlement = tripSettlement(file, ruleValue)
+    if (settlement.kind !== 'worked') throw new Error('The settlement waits.')
+    const split = tripRowsSplit(file, settlement, booked, booked.categories, true)
+    if ('refused' in split) throw new Error(split.refused.kind)
+
+    await desk.store.write('Filed', (unit) => fileTripRows(unit, { records: books().records, workbook: booked }, file.trip, split.rows, booked.settings.reviewLabel))
+
+    expect(itemsOfPayout()).not.toEqual(itemsBefore)
+    expect(new Set(itemsOfPayout().map((item) => item.invoice))).toEqual(new Set([invoice]))
   })
 })
 

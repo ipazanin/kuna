@@ -160,6 +160,7 @@ export const en = {
     noItems: 'the items tab holds no part of this row, so it waits on To review',
     noCategoryBeside: (label: string) => `the part "${label}" has no category, which only the one part of a row may lack`,
     waitsOnReview: (reasons: string) => `${reasons}, so the ledger row counts whole and waits on To review`,
+    noInvoice: (invoice: string) => `the invoices tab holds no invoice ${invoice}, so this item pays none`,
     fileTheSplit: (account: string, date: CivilDate, amount: Money) =>
       `The ${account} row of ${date} for ${plainAmount(amount)} is split in parts, each in its own category. Change its split to file it otherwise.`,
   },
@@ -259,6 +260,7 @@ export const hr: Translation<typeof en> = {
     noItems: 'u kartici items nema nijednog dijela ove stavke, pa čeka provjeru',
     noCategoryBeside: (label) => `dio „${label}” nema kategoriju, a bez nje smije biti samo jedini dio stavke`,
     waitsOnReview: (reasons) => `${reasons}, pa se stavka evidencije broji cijela i čeka provjeru`,
+    noInvoice: (invoice) => `u kartici invoices nema računa ${invoice}, pa ovaj dio ne plaća nijedan račun`,
     fileTheSplit: (account, date, amount) =>
       `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} podijeljena je na dijelove, svaki u svojoj kategoriji. Da biste je razvrstali drukčije, promijenite podjelu.`,
   },

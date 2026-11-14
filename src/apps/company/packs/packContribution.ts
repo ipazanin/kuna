@@ -16,7 +16,7 @@ import type { PackPart } from '../workbook/domain/packPart'
 import type { CompanyBooks, WorkbookRecords } from '../workbook/domain/readWorkbook'
 import type { ItemRecord } from '../workbook/domain/splitsReading'
 import type { LedgerEntry } from '../workbook/domain/ledgerReading'
-import type { RowRepayments } from '../workbook/domain/repayments'
+import type { RowPayments } from '../workbook/domain/rowPayments'
 import { newestBookingOf } from '../workbook/domain/workbook'
 import type { Category, Transaction, Workbook } from '../workbook/domain/workbook'
 import type { UnitOfWork } from '../../../shared/storage/application/repository'
@@ -149,9 +149,9 @@ export interface PackContribution {
    * What the new rows an import adds pay back of the records the pack keeps open, such as the costs the owner paid, each row as
    * the items it becomes, for the dry run to propose. None in books from before items, which match such payments on every read.
    */
-  repaymentsOf(workbook: Workbook, added: readonly LedgerEntry[]): readonly RowRepayments[]
+  repaymentsOf(workbook: Workbook, added: readonly LedgerEntry[]): readonly RowPayments[]
   /** Has each record the import's rows pay back name the items that pay it, in the write that adds them. */
-  linkRepayments(unit: UnitOfWork, records: WorkbookRecords, repayments: readonly RowRepayments[]): void
+  linkRepayments(unit: UnitOfWork, records: WorkbookRecords, repayments: readonly RowPayments[]): void
 }
 
 const NO_PACK: PackContribution = {

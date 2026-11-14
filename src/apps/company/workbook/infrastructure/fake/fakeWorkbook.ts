@@ -8,7 +8,12 @@ import type { WorkbookSource } from '../../../../../shared/storage/domain/record
 import type { DocumentRecord, WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP } from '../../domain/companyApp'
-import { installedSchema } from '../companyDocument'
+import { installedSchema, readDocument } from '../companyDocument'
+import { invoiceSharesOf, receivablesOf } from '../../../receivables/domain/invoiceMatching'
+import { presentedWorkbook } from '../../../transactions/domain/presentedWorkbook'
+import { INVOICE_RECORDS, ITEM_RECORDS } from '../../domain/coreKinds'
+import { movedPartId, paymentParts } from '../../domain/rowPayments'
+import { keyOfRecordId, recordIdOf } from '../../../../../shared/storage/domain/recordId'
 
 /**
  * A synthetic workbook for fake mode and tests. Every name, IBAN and amount is made up. It spans
@@ -283,8 +288,43 @@ const LOSS_MONTH = '2025-11'
  * kinds without a business key, and every ledger row, carry a fixed id.
  */
 export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): Readonly<Record<string, readonly RecordFields[]>> {
-  return onItemsTab(fakeWorkbookRecordsBeforeItems(source, staff, giving))
+  const before = fakeWorkbookRecordsBeforeItems(source, staff, giving)
+  const records = onItemsTab(before)
+  return { ...records, item: withInvoicePayments(before, records.item ?? []) }
 }
+
+/**
+ * The items with each client payment's item split by the invoices it pays today, as the move to the items tab splits it: what pays
+ * no invoice keeps the item, and each invoice it pays gets an item that names it, the first under the row's own id and each other
+ * one under it with its place after it.
+ */
+function withInvoicePayments(before: Readonly<Record<string, readonly RecordFields[]>>, items: readonly RecordFields[]): RecordFields[] {
+  const { workbook } = readDocument({ id: 'fake', source: 'browser', title: 'fake', syncedAt: FAKE_READ_AT }, newDocument(COMPANY_APP, installedSchema(), before, FAKE_READ_AT))
+  const paying = new Map(
+    [...invoiceSharesOf(receivablesOf(presentedWorkbook(workbook)))].flatMap(([row, shares]) => (row.rowId === null || row.split !== undefined ? [] : [[row.rowId, { row, shares }] as const])),
+  )
+  return items.flatMap((item) => {
+    const placed = item[ID_FIELD] === item.row_id ? paying.get(String(item.row_id)) : undefined
+    if (placed === undefined) return [item]
+    const id = recordIdOf(ITEM_RECORDS, String(item[ID_FIELD]))
+    const parts = paymentParts(
+      { id, amount: placed.row.amount, note: '' },
+      placed.shares.map((share) => ({ paid: { id: share.invoice, note: '' }, applied: share.applied })),
+      (place) => movedPartId(id, place),
+    )
+    return parts.map((part) =>
+      filledFields({
+        ...item,
+        amount: amountText(part.amount),
+        invoice_id: part.of === null ? undefined : keyOfRecordId(INVOICE_RECORDS, part.of),
+        [ID_FIELD]: keyOfRecordId(ITEM_RECORDS, part.id),
+      }),
+    )
+  })
+}
+
+/** When the fake reads its books from before items, to split its client payments as the move would. */
+const FAKE_READ_AT = '2026-01-01T00:00:00.000Z'
 
 /** The made-up company's books as they stood before the items tab: each row's category and share on the row, and its splits on the splits tab. */
 export function fakeWorkbookRecordsBeforeItems(source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): Readonly<Record<string, readonly RecordFields[]>> {

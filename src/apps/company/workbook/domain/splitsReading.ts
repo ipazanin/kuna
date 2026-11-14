@@ -3,10 +3,11 @@ import type { Money } from '../../../../shared/money/money'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
 import { ownerShareProblem, ownerShareText, storedOwnerShare } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
-import { ITEM_RECORDS, SPLIT_PART_RECORDS } from './coreKinds'
+import { INVOICE_RECORDS, ITEM_RECORDS, SPLIT_PART_RECORDS } from './coreKinds'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
+import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { SHARED_ID_REASON, idSharing, problemOf } from '../../../../shared/storage/domain/recordsRead'
 import type { ReadRecord, Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
@@ -206,17 +207,35 @@ export interface ItemRecord {
   readonly category: string
   readonly note: string
   readonly ownerShare: OwnerShare | null
+  /** The invoice whose payment this item is, or null for an item that pays none. */
+  readonly invoice: RecordId | null
   readonly id: RecordId
 }
 
 function itemOf(fields: StoredFields, id: RecordId | null): ItemRecord {
   const row = textOf(fields.row_id)
   if (row === '') refuse(words.items.noRowId)
-  return { row, amount: requiredMoney(fields, 'amount'), category: slugOf(fields.category), note: textOf(fields.note), ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id) }
+  const invoice = textOf(fields.invoice_id)
+  return {
+    row,
+    amount: requiredMoney(fields, 'amount'),
+    category: slugOf(fields.category),
+    note: textOf(fields.note),
+    ownerShare: storedOwnerShare(fields.owner_share),
+    invoice: invoice === '' ? null : recordIdOf(INVOICE_RECORDS, invoice),
+    id: ownId(id),
+  }
 }
 
 export const ITEM_CODEC: RecordCodec<ItemRecord> = withIdField(ITEM_RECORDS, words.labels.item, itemOf, (item) =>
-  filledFields({ row_id: item.row, amount: amountText(item.amount), category: item.category, note: item.note, owner_share: ownerShareText(item.ownerShare) }),
+  filledFields({
+    row_id: item.row,
+    amount: amountText(item.amount),
+    category: item.category,
+    note: item.note,
+    owner_share: ownerShareText(item.ownerShare),
+    invoice_id: item.invoice === null ? undefined : keyOfRecordId(INVOICE_RECORDS, item.invoice),
+  }),
 )
 
 /** The items of the ledger rows, as the `items` tab holds them. */
@@ -300,6 +319,25 @@ export function readItems(read: RecordsRead<ItemRecord>, transactions: readonly 
   }
   const named = new Set([...groups.values()].flatMap((group) => group.found.map((row) => row.id)))
   return { facts, problems, itemsByRow, rowsWithoutItems: transactions.filter((row) => !named.has(row.id)) }
+}
+
+/** The invoice each item pays, by the item's id, and a problem on each item that names an invoice the invoices tab lacks. */
+export interface ItemInvoices {
+  readonly paid: ReadonlyMap<RecordId, RecordId>
+  readonly problems: readonly RecordProblem[]
+}
+
+/** The invoices the counted items pay, of those the invoices tab holds. An item naming any other pays none. */
+export function readItemInvoices(read: RecordsRead<ItemRecord>, counted: ReadonlySet<RecordId>, invoices: ReadonlySet<RecordId>): ItemInvoices {
+  const problems: RecordProblem[] = []
+  const paid = new Map<RecordId, RecordId>()
+  for (const stored of read.records) {
+    const { invoice, id } = stored.record
+    if (invoice === null || !counted.has(id)) continue
+    if (invoices.has(invoice)) paid.set(id, invoice)
+    else problems.push(problemOf(stored, words.items.noInvoice(keyOfRecordId(INVOICE_RECORDS, invoice))))
+  }
+  return { paid, problems }
 }
 
 /** Items count only on a ledger row that no other row shares its id or its key with. */

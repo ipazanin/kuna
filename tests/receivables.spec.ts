@@ -4,12 +4,14 @@ import { AGEING_BUCKETS, ageingOf } from '../src/apps/company/receivables/domain
 import { daysToPaid, medianInWholeDays } from '../src/apps/company/receivables/domain/daysToPaid'
 import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching'
 import type { ClientReceivables, Receivables } from '../src/apps/company/receivables/domain/invoiceMatching'
-import { INVOICE_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
-import type { Category, Client, Invoice } from '../src/apps/company/workbook/domain/workbook'
+import { INVOICE_RECORDS, ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { wholeItemId } from '../src/apps/company/workbook/domain/splits'
+import type { Category, Client, Invoice, Transaction } from '../src/apps/company/workbook/domain/workbook'
 import { civil, euros, ledger } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { NO_CLIENT_INVOICING } from '../src/apps/company/workbook/domain/workbook'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
 
 const NORTH = 'XX00FAKE0000000000000101'
@@ -45,7 +47,7 @@ function match(rows: readonly RowSpec[], invoices: readonly Invoice[], clients: 
     const category = CATEGORIES.find((candidate) => candidate.slug === transaction.category)
     return category === undefined ? transaction : { ...transaction, family: category.family, bucket: category.bucket }
   })
-  return receivablesOf(transactions, CATEGORIES, invoices, clients)
+  return receivablesOf({ transactions, categories: CATEGORIES, invoices, clients })
 }
 
 function client(receivables: Receivables, slug: string): ClientReceivables {
@@ -237,5 +239,133 @@ describe('days to get paid', () => {
 
   it('has no figure when nothing was paid in the range', () => {
     expect(daysToPaid(north.invoices, { from: civil('2026-07-01'), to: civil('2026-07-31') })).toEqual({ days: [], median: null, mean: null })
+  })
+})
+
+/** The rows as booked on books that keep items, each row's item paying the invoice `pays` names by its place, if any. */
+function placed(
+  rows: readonly (RowSpec & { readonly pays?: Invoice | null; readonly parts?: readonly { readonly amount: number; readonly pays: Invoice | null }[] })[],
+  invoices: readonly Invoice[],
+): Receivables {
+  const paidInvoices = new Map<RecordId, RecordId>()
+  // The ledger lists the newest row first, so it is turned back to the order the rows are given in.
+  const transactions = [...ledger(rows)].reverse().flatMap((row, place): Transaction[] => {
+    const spec = rows[place]!
+    if (spec.parts === undefined) {
+      if (spec.pays !== undefined && spec.pays !== null) paidInvoices.set(wholeItemId(row), spec.pays.id)
+      return [row]
+    }
+    return spec.parts.map((part, index) => {
+      const id = recordIdOf(ITEM_RECORDS, `${row.rowId ?? row.id}-${index}`)
+      if (part.pays !== null) paidInvoices.set(id, part.pays.id)
+      return { ...row, amount: euros(part.amount), split: { whole: row, index, count: spec.parts!.length, note: '', id } }
+    })
+  })
+  return receivablesOf({ transactions, categories: CATEGORIES, invoices, clients: CLIENTS, paidInvoices })
+}
+
+describe('invoice payments the books store', () => {
+  it('fills each invoice with the payments that name it, oldest first, received on the day the last one brings it to its amount', () => {
+    const [first, second] = [invoice('1', 1000, '2026-01-31'), invoice('2', 600, '2026-02-28')]
+    const north = client(
+      placed(
+        [
+          { ...paid('2026-02-10', 400), pays: first },
+          { ...paid('2026-03-05', 600), pays: second },
+          { ...paid('2026-03-10', 600), pays: first },
+        ],
+        [first, second],
+      ),
+      'north',
+    )
+
+    expect(states(north)).toEqual([
+      ['1', 'paid', euros(0), civil('2026-03-10')],
+      ['2', 'paid', euros(0), civil('2026-03-05')],
+    ])
+    expect(north.invoices[0]!.allocations.map((allocation) => allocation.amount)).toEqual([euros(400), euros(600)])
+    expect([north.outstanding, north.overpaid, north.creditsWithNoInvoice, north.unplaced]).toEqual([euros(0), euros(0), euros(0), []])
+  })
+
+  it('counts what a payment holds past an invoice that was lowered as an overpayment of it', () => {
+    const lowered = invoice('1', 800, '2026-01-31')
+    const north = client(placed([{ ...paid('2026-02-10', 1000), pays: lowered }], [lowered]), 'north')
+
+    expect(states(north)).toEqual([['1', 'paid', euros(0), civil('2026-02-10')]])
+    expect(north.invoices[0]!.overpayments.map((overpayment) => overpayment.amount)).toEqual([euros(200)])
+    expect([north.overpaid, north.creditsWithNoInvoice]).toEqual([euros(200), euros(0)])
+  })
+
+  it('reads an item that pays no invoice beside items of its row that do as an overpayment of the newest of them', () => {
+    const [first, second] = [invoice('1', 1000, '2026-01-31'), invoice('2', 500, '2026-02-28')]
+    const north = client(
+      placed(
+        [
+          {
+            ...paid('2026-03-03', 1570),
+            parts: [
+              { amount: 1000, pays: first },
+              { amount: 500, pays: second },
+              { amount: 70, pays: null },
+            ],
+          },
+        ],
+        [first, second],
+      ),
+      'north',
+    )
+
+    expect(states(north).map(([number, status]) => [number, status])).toEqual([
+      ['1', 'paid'],
+      ['2', 'paid'],
+    ])
+    expect(north.invoices.map((matched) => matched.overpayments.map((overpayment) => overpayment.amount))).toEqual([[], [euros(70)]])
+    expect([north.overpaid, north.creditsWithNoInvoice, north.unplaced]).toEqual([euros(70), euros(0), []])
+  })
+
+  it('leaves a client’s payment that names no invoice waiting under the client, with the invoice still owed', () => {
+    const first = invoice('1', 1250, '2026-02-28')
+    const north = client(placed([paid('2026-03-03', 1250)], [first]), 'north')
+
+    expect(states(north)).toEqual([['1', 'outstanding', euros(1250), null]])
+    expect(north.unplaced?.map((payment) => payment.transaction.amount)).toEqual([euros(1250)])
+    expect([north.outstanding, north.creditsWithNoInvoice]).toEqual([euros(1250), euros(1250)])
+  })
+
+  it('puts a payment from an IBAN no client names on the client of the invoice it pays, and keeps refunds by IBAN', () => {
+    const south = invoice('S-1', 900, '2026-01-31', null, 'south')
+    const receivables = placed(
+      [{ ...paid('2026-02-02', 900, STRANGER), pays: south }, paid('2026-02-03', 250, STRANGER), { date: '2026-02-20', amount: -70, category: 'money-back', iban: SOUTH }],
+      [south],
+    )
+
+    expect(states(client(receivables, 'south'))).toEqual([['S-1', 'paid', euros(0), civil('2026-02-02')]])
+    expect(client(receivables, 'south').refunded).toBe(euros(70))
+    expect(receivables.unattributedCredits.map((credit) => credit.transaction.amount)).toEqual([euros(250)])
+  })
+
+  it('reads the same as the matching of books from before items when each payment names what that matching gives it', () => {
+    const [first, second] = [invoice('1', 1000, '2026-01-31'), invoice('2', 500, '2026-02-28')]
+    const rows = [paid('2026-02-03', 1070), paid('2026-03-03', 500)]
+    const scanned = client(match(rows, [first, second]), 'north')
+    const stored = client(
+      placed(
+        [
+          {
+            ...rows[0]!,
+            parts: [
+              { amount: 1000, pays: first },
+              { amount: 70, pays: null },
+            ],
+          },
+          { ...rows[1]!, pays: second },
+        ],
+        [first, second],
+      ),
+      'north',
+    )
+
+    expect(states(stored)).toEqual(states(scanned))
+    expect([stored.outstanding, stored.overpaid, stored.creditsWithNoInvoice]).toEqual([scanned.outstanding, scanned.overpaid, scanned.creditsWithNoInvoice])
   })
 })

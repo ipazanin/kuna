@@ -86,7 +86,7 @@ const KIND_ORDER: readonly CashKind[] = ['carried-revenue', 'carried-costs', 'op
 
 /** The median days from issue to payment of every invoice paid so far, or a day when none is, so the revenue of a month comes in the month after. */
 export function paymentLagOf(known: HrDooWorkbook): PaymentLag {
-  const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
+  const receivables = receivablesOf(known)
   const medianDays = medianInWholeDays(
     daysToPaid(
       receivables.clients.flatMap((client) => client.invoices),
@@ -201,7 +201,7 @@ function carriedEvents({ year, carried }: CashInputs): CashEvent[] {
 
 /** On the newest booking: the invoices still open, as their clients pay, and the VAT position, settled the month after. */
 function nowEvents({ known, asOf, vatPosition, paymentLag }: CashInputs, running: MonthKey): CashEvent[] {
-  const receivables = receivablesOf(known.transactions, known.categories, known.invoices, known.clients)
+  const receivables = receivablesOf(known)
   const open = receivables.clients.flatMap((client) => client.invoices.filter((matched) => matched.remaining > 0))
   const invoices = open.map((matched): CashEvent => {
     const expected = addDays(matched.invoice.issued, paymentLag.days)

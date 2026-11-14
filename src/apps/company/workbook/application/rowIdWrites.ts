@@ -7,7 +7,10 @@ import { definedCategories } from '../domain/categoriesReading'
 import { readLedger } from '../domain/ledgerReading'
 import type { CompanyBooks, WorkbookRecords } from '../domain/readWorkbook'
 import { rowsOfSplitKey } from '../domain/splits'
-import type { Transaction } from '../domain/workbook'
+import type { Transaction, Workbook } from '../domain/workbook'
+import { invoiceSharesOf, receivablesOf } from '../../receivables/domain/invoiceMatching'
+import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
+import { movedPartId, paymentParts } from '../domain/rowPayments'
 import { ITEM_WRITES } from '../../transactions/application/itemWrites'
 import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -70,9 +73,33 @@ function itemIdOfPart(id: RecordId): RecordId {
 }
 
 /**
+ * Splits each client payment's item by what today's matching puts on each invoice: what pays no invoice keeps the item, and each
+ * invoice the payment pays gets an item of its own that names it, with the item's note. A payment that pays one invoice in full
+ * stays one item that names it.
+ */
+function placeInvoicePayments(workbook: Workbook, items: readonly ItemRecord[], itemOf: (row: Transaction) => ItemRecord | undefined): readonly ItemRecord[] {
+  const placed = new Map<RecordId, readonly ItemRecord[]>()
+  for (const [row, shares] of invoiceSharesOf(receivablesOf(presentedWorkbook(workbook)))) {
+    const item = itemOf(row)
+    if (item === undefined) continue
+    const parts = paymentParts(
+      item,
+      shares.map((share) => ({ paid: { id: share.invoice, note: item.note }, applied: share.applied })),
+      (place) => movedPartId(item.id, place),
+    )
+    placed.set(
+      item.id,
+      parts.map((part): ItemRecord => ({ ...item, id: part.id, amount: part.amount, note: part.note, invoice: part.of })),
+    )
+  }
+  return items.flatMap((item) => placed.get(item.id) ?? [item])
+}
+
+/**
  * Moves books from before items to the items tab in one write. Every ledger row gets a row id if it has none, and gives up its
  * category and share to its items: a row not split one item under its own id with them, and a split row its parts, each under the
- * key it was stored by, in the order the splits tab holds them. The splits tab is emptied, and the pack splits the items by what
+ * key it was stored by, in the order the splits tab holds them. Each client payment's item is split by the invoices it pays today,
+ * as `placeInvoicePayments` says. The splits tab is emptied, and the pack splits the items by what
  * its records count them as today and has its records that name a row name its items. Gives the items the move wrote, in the
  * order of the ledger.
  */
@@ -92,21 +119,19 @@ export function moveToItems(unit: UnitOfWork, books: CompanyBooks, newId: () => 
           entry.id,
           parts
             .filter((part) => rowsOfSplitKey([row], part.key).length === 1)
-            .map((part) => ({ row: rowId, amount: part.amount, category: part.category, note: part.note, ownerShare: part.ownerShare, id: itemIdOfPart(part.id) })),
+            .map((part) => ({ row: rowId, amount: part.amount, category: part.category, note: part.note, ownerShare: part.ownerShare, invoice: null, id: itemIdOfPart(part.id) })),
         ]
       }
-      return [entry.id, [{ row: rowId, amount: entry.amount, category: entry.category, note: '', ownerShare: entry.ownerShare, id: recordIdOf(ITEM_RECORDS, rowId) }]]
+      return [entry.id, [{ row: rowId, amount: entry.amount, category: entry.category, note: '', ownerShare: entry.ownerShare, invoice: null, id: recordIdOf(ITEM_RECORDS, rowId) }]]
     }),
   )
   const splitParts = unit.of(SPLIT_WRITES)
   parts.forEach((part) => splitParts.remove(part))
-  const items = installedPack().linkToItems(unit, books, {
-    items: [...byEntry.values()].flat(),
-    itemOf: ({ id, split }) => {
-      const held = byEntry.get(split?.whole.id ?? id) ?? []
-      return split === undefined ? held[0] : held.find((item) => item.id === itemIdOfPart(split.id))
-    },
-  })
+  const itemOf = ({ id, split }: Transaction): ItemRecord | undefined => {
+    const held = byEntry.get(split?.whole.id ?? id) ?? []
+    return split === undefined ? held[0] : held.find((item) => item.id === itemIdOfPart(split.id))
+  }
+  const items = installedPack().linkToItems(unit, books, { items: placeInvoicePayments(workbook, [...byEntry.values()].flat(), itemOf), itemOf })
   const itemWrites = unit.of(ITEM_WRITES)
   items.forEach((item) => itemWrites.add(item))
   return items

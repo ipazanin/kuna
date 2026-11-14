@@ -317,7 +317,7 @@ if (companyAsked) {
   group('review.unaccounted', () => unaccountedInView(books, DEFAULT_FILTERS))
 
   const invoiceDay = newestBookingOf(raw.transactions)
-  const receivables = receivablesOf(booked.transactions, booked.categories, booked.invoices, booked.clients)
+  const receivables = receivablesOf(booked)
   const matched = receivables.clients.flatMap((client) => client.invoices)
   group('invoicing.receivables', receivables)
   group('invoicing.owed', () => [amountsOwed(matched, invoiceDay), receivables.clients.map((client) => ageingOf(client.invoices, invoiceDay))])

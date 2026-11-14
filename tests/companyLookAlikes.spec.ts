@@ -12,7 +12,7 @@ import { paymentRowsOf } from '../src/apps/company/packs/hr-doo/domain/assets/as
 import { ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { writeSplit } from '../src/apps/company/transactions/application/splitWrites'
-import { storedSplitOf } from '../src/apps/company/workbook/domain/rowItems'
+import { storedSplitsOf } from '../src/apps/company/workbook/domain/storedSplits'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LEDGER_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import type { LookAlikes } from '../src/shared/money/lookAlikeBookings'
@@ -269,7 +269,7 @@ describe('a file over a row the AI copied, on the Import screen', () => {
     const { desk, copiedKiosk, statement } = await copiedKioskAndFile()
     const { rowId } = copiedKiosk
     expect(rowId).not.toBeNull()
-    const stored = storedSplitOf(desk.store.state.records!, desk.store.state.workbook!, copiedKiosk)
+    const stored = storedSplitsOf(desk.store.state.records!)(copiedKiosk)
     const drafts = [
       { amount: euros(-10), category: 'office', note: '', opened: null },
       { amount: euros(-2.5), category: 'travel', note: 'Snack', opened: null },

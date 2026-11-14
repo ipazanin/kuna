@@ -53,6 +53,13 @@ function withCopiedRow(document: WorkbookDocument): WorkbookDocument {
   return { ...document, records: { ...records, 'ledger-row': [copied, ...(records['ledger-row'] ?? [])], item: [itemOfLedgerRow(sampleCopiedLedgerRow()), ...(records.item ?? [])] } }
 }
 
+/** The books with the first client payment of one item the items tab places on an invoice placed on none, so it waits on Receivables to be placed. */
+function withUnplacedPayment(document: WorkbookDocument): WorkbookDocument {
+  const items = document.records.item ?? []
+  const placed = items.find((item) => item.invoice_id !== undefined && items.filter((other) => other.row_id === item.row_id).length === 1)
+  return { ...document, records: { ...document.records, item: items.map((item) => (item === placed ? Object.fromEntries(Object.entries(item).filter(([field]) => field !== 'invoice_id')) : item)) } }
+}
+
 function withOpenAdvance(document: WorkbookDocument): WorkbookDocument {
   const { advance, rule } = sampleOpenAdvanceRecords()
   const { records } = document
@@ -85,7 +92,8 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * the owner's flat salary. Only the company app's install imports this, behind an inline VITE_FAKE_WORKBOOK comparison,
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
  * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, one that ends
- * in `open-advance` adds a cost the owner paid that the sample refund to the owner pays back, with the rule that files that refund, and one that
+ * in `open-advance` adds a cost the owner paid that the sample refund to the owner pays back, with the rule that files that refund, one that ends
+ * in `unplaced` leaves a client payment on no invoice, so it waits to be placed, and one that
  * ends in `category-move` adds plan rows a category's move joins or cannot change. One that ends in `donations` adds a donation above its cap and a
  * sponsorship to a listed club, each in a category of its class. The books keep every row's money on the items tab, but for a variant
  * that ends in `no-row-ids`, which holds books from before items and from before every ledger row had an id, and one that ends in
@@ -103,7 +111,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const beforeItems = variant?.endsWith('no-row-ids') === true || variant?.endsWith('refused-splits') === true
   const made = (beforeItems ? fakeWorkbookDocumentBeforeItems : fakeWorkbookDocument)(savedAt, source, staffOf(variant), variant?.endsWith('donations') ?? false)
   const seeded = variant === 'unregistered' ? withoutRegistrationDay(made) : variant?.endsWith('older-interest') === true ? withOlderInterestCategory(made) : made
-  const full = variant?.endsWith('copied') ? withCopiedRow(seeded) : variant?.endsWith('open-advance') ? withOpenAdvance(seeded) : seeded
+  const full = variant?.endsWith('copied') ? withCopiedRow(seeded) : variant?.endsWith('open-advance') ? withOpenAdvance(seeded) : variant?.endsWith('unplaced') ? withUnplacedPayment(seeded) : seeded
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full
   const unlinked = variant?.endsWith('no-row-ids') ? withoutRowIds(planned) : variant?.endsWith('refused-splits') ? withRefusedSplits(planned) : planned

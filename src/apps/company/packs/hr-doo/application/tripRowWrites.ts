@@ -7,7 +7,8 @@ import { filedIn, movedTo } from '../../../owner-share/domain/ownerShare'
 import { writeRowItems } from '../../../transactions/application/itemWrites'
 import type { ItemDraft } from '../../../transactions/application/itemWrites'
 import type { CompanyBooks } from '../../../workbook/domain/readWorkbook'
-import { storedSplitOf, storesItems } from '../../../workbook/domain/rowItems'
+import { storesItems } from '../../../workbook/domain/rowItems'
+import { storedSplitsOf } from '../../../workbook/domain/storedSplits'
 import { rowItemsOf, wholeItemId } from '../../../workbook/domain/splits'
 import type { SplitPart } from '../../../workbook/domain/splits'
 import type { Transaction } from '../../../workbook/domain/workbook'
@@ -81,6 +82,7 @@ export function fileTripRows(unit: UnitOfWork, books: CompanyBooks, trip: Trip, 
   const { categories } = workbook
   const onItemsTab = storesItems(records)
   const itemsOf = rowItemsOf(workbook.splits)
+  const storedSplitOf = storedSplitsOf(records)
   let filedTrip = trip
   const replaced = splits.flatMap((split) => {
     const before = itemsOf(split.row)
@@ -93,7 +95,7 @@ export function fileTripRows(unit: UnitOfWork, books: CompanyBooks, trip: Trip, 
       unit,
       records,
       split.row,
-      storedSplitOf(records, workbook, split.row),
+      storedSplitOf(split.row),
       one ? [{ ...filedIn(only, only.category, categories), id: wholeItemId(split.row) }] : items,
       one ? reviewLabel : null,
     )

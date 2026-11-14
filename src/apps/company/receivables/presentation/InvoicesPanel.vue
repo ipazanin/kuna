@@ -17,6 +17,7 @@ import ChartLegend from '../../../../shared/ui/ChartLegend.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { useFilters } from '../../filters/application/filterStore'
 import { drillToTransactions } from '../../filters/domain/drillTarget'
@@ -127,7 +128,7 @@ const view = computed(() => {
   }
   const { booked: workbook, window } = current
   const transactions = workbook.transactions
-  const receivables = receivablesOf(transactions, workbook.categories, workbook.invoices, workbook.clients)
+  const receivables = receivablesOf(workbook)
   const revenue = workbook.categories.filter((category) => category.roles.includes(RECEIVABLE_ROLES.revenue)).map((category) => category.slug)
   const asOf = transactions.reduce((newest, transaction) => (transaction.date > newest ? transaction.date : newest), transactions[0]!.date)
   const range = periodRange(period.value, window)
@@ -201,8 +202,19 @@ const view = computed(() => {
     { label: words.panel.noInvoice, amount: inView.reduce((total, entry) => addMoney(total, entry.creditsWithNoInvoice), ZERO) },
   ]
 
+  const unplaced = inView.flatMap((entry) =>
+    (entry.unplaced ?? []).map((payment) => ({
+      key: listedRowKey(payment.transaction),
+      client: clientName(entry),
+      date: dayLabel(payment.transaction.date),
+      amount: payment.transaction.amount,
+      to: drillLocation(payment.drill),
+    })),
+  )
+
   return {
     hasInvoices: workbook.invoices.length > 0,
+    placed: workbook.paidInvoices !== undefined,
     asOf: dayLabel(asOf),
     periodText: periodInWords(period.value, window),
     window,
@@ -218,6 +230,8 @@ const view = computed(() => {
     invoices: listed,
     invoicesSummary: plural(words.panel.invoicesSummary(listed.length, formatMoney(outstanding)), listed.length),
     sums,
+    unplaced,
+    unplacedSummary: plural(words.panel.unplacedSummary(unplaced.length), unplaced.length),
     unattributedSummary: plural(words.panel.unattributedSummary(payers, formatMoney(unattributedTotal)), payers),
     unattributed: unattributed.map((credit) => ({
       key: listedRowKey(credit.transaction),
@@ -269,7 +283,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
               data-testid="invoices"
             >
               <template #subtitle>
-                {{ words.panel.invoicesSubtitle(view.periodText) }}
+                {{ (view.placed ? words.panel.invoicesSubtitlePlaced : words.panel.invoicesSubtitle)(view.periodText) }}
               </template>
               <template #actions>
                 <UButton
@@ -302,6 +316,26 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
             </AppCard>
 
             <DashboardGrid>
+              <AppCard
+                v-if="view.unplaced.length > 0"
+                class="@4xl:col-span-2 @8xl:col-span-1"
+                :title="words.panel.unplacedTitle"
+                :subtitle="words.panel.unplacedSubtitle"
+                collapse-id="invoicing.unplaced"
+                :summary="view.unplacedSummary"
+                data-testid="unplaced-payments"
+              >
+                <ul class="divide-y divide-default">
+                  <ProposalRow v-for="payment in view.unplaced" :key="payment.key" :title="payment.client" :caption="words.panel.unplacedCaption(payment.date)" data-testid="unplaced-payment">
+                    <template #amount>
+                      <DrillLink :to="payment.to" :label="words.panel.openCredit(payment.date, payment.client)">
+                        <MoneyText :cents="payment.amount" class="font-medium text-highlighted" />
+                      </DrillLink>
+                    </template>
+                  </ProposalRow>
+                </ul>
+              </AppCard>
+
               <DrillChartCard
                 id="invoices-ageing"
                 class="@4xl:col-span-2 @8xl:col-span-1"

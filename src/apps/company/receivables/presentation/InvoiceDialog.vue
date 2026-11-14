@@ -19,7 +19,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
-import { INVOICE_WRITES } from '../application/invoiceWrites'
+import { INVOICE_WRITES, changeInvoice, removeInvoice } from '../application/invoiceWrites'
 import { invoiceDatesProblems } from '../domain/invoiceGuards'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 import { words } from './words'
@@ -155,13 +155,14 @@ async function save(): Promise<void> {
     deliveryPeriod: changed('period_from') || changed('period_to') ? typed.deliveryPeriod : before.deliveryPeriod,
     id: invoiceIdOf(kept),
   }
-  if (await writes.write(words.dialog.saved, (unit) => unit.of(INVOICE_WRITES).change(before, after), { failedTitle: words.dialog.notSaved })) open.value = false
+  if (await writes.write(words.dialog.saved, (unit) => changeInvoice(unit, store.state.records?.items ?? NO_RECORDS, before, after), { failedTitle: words.dialog.notSaved })) open.value = false
 }
 
 async function remove(): Promise<void> {
   const before = stored.value?.record ?? null
   if (props.id === null || before === null) return
-  if (await writes.write(words.dialog.deleted, (unit) => unit.of(INVOICE_WRITES).remove(before), { key: 'delete', failedTitle: words.dialog.notDeleted })) open.value = false
+  if (await writes.write(words.dialog.deleted, (unit) => removeInvoice(unit, store.state.records?.items ?? NO_RECORDS, before), { key: 'delete', failedTitle: words.dialog.notDeleted }))
+    open.value = false
 }
 </script>
 

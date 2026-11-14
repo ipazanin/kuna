@@ -39,7 +39,7 @@ import { UNCLASSIFIED } from './bucket'
 import { storesItems } from './rowItems'
 import { rowFiledAs } from './splits'
 import type { LedgerSplit, SplitPart } from './splits'
-import { readItems, readSplits, rowWithoutItems } from './splitsReading'
+import { readItemInvoices, readItems, readSplits, rowWithoutItems } from './splitsReading'
 import type { SplitTabRow } from './splitsReading'
 import { tabProblems } from './workbook'
 import type { Category, Invoice, Transaction, Workbook, WorkbookProblem } from './workbook'
@@ -203,13 +203,14 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
   const items = ledgerItemsOf(records, ledger, categories)
   problems.push(...items.problems)
   const { transactions } = items
+  const invoices = keep('invoices', readInvoices(records.invoices, clientSlugs))
   const core: Workbook = {
     ...identity,
     transactions,
     categories,
     accounts: withoutIds(keep('accounts', readAccounts(records.accounts, settings.currency))),
     rules: rules.rules,
-    invoices: keep('invoices', readInvoices(records.invoices, clientSlugs)),
+    invoices,
     clients,
     billingPlan: keep('outgoing-plan', readBillingPlan(records['outgoing-plan'], clientSlugs)),
     ownerAdvances: [],
@@ -219,6 +220,7 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
     settings,
     packParts: {},
     problems,
+    ...(placesPayments(records) ? { paidInvoices: paidInvoicesOf(records.items, items.itemsByRow, invoices, problems) } : {}),
   }
   if (pack === null) {
     return core
@@ -231,6 +233,28 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
     packParts: { [pack.key.name]: part },
     problems: [...problems, ...partProblems],
   }
+}
+
+/**
+ * Whether the books store which invoice each payment pays, which they do once an item names one. Books with an items tab that name
+ * none, as those started on the items tab before payments were placed, match the payments to the invoices on every read, as books
+ * from before items do.
+ */
+function placesPayments(records: ItemRecords): boolean {
+  return storesItems(records) && records.items.records.some(({ record }) => record.invoice !== null)
+}
+
+/** The invoice each counted item pays, by the item's id, with a problem on the items tab for each item that names an invoice the books lack. */
+function paidInvoicesOf(
+  read: RecordsRead<ItemRecord>,
+  itemsByRow: ReadonlyMap<RecordId, readonly SplitPart[]>,
+  invoices: readonly Invoice[],
+  problems: WorkbookProblem[],
+): ReadonlyMap<RecordId, RecordId> {
+  const counted = new Set([...itemsByRow.values()].flatMap((parts) => parts.map((part) => part.id)))
+  const { paid, problems: unknown } = readItemInvoices(read, counted, new Set(invoices.map((invoice) => invoice.id)))
+  problems.push(...tabProblems('items', unknown))
+  return paid
 }
 
 /** The rows of several items, each with its items, in the order the tab holds their first items. */

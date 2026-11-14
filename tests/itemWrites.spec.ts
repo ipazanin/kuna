@@ -11,11 +11,12 @@ import { ITEM_WRITES } from '../src/apps/company/transactions/application/itemWr
 import { removeSplit, writeSplit } from '../src/apps/company/transactions/application/splitWrites'
 import { confirmation, recategorisation } from '../src/apps/company/transactions/domain/verdictChanges'
 import { moveToItems } from '../src/apps/company/workbook/application/rowIdWrites'
-import { ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { INVOICE_RECORDS, ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { ledgerIdOf } from '../src/apps/company/workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../src/apps/company/workbook/domain/ledgerReading'
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
-import { storedSplitOf, storesItems } from '../src/apps/company/workbook/domain/rowItems'
+import { storesItems } from '../src/apps/company/workbook/domain/rowItems'
+import { storedSplitsOf } from '../src/apps/company/workbook/domain/storedSplits'
 import type { Transaction } from '../src/apps/company/workbook/domain/workbook'
 import { tabsOfDocument } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument'
 import { documentOfTabs } from '../src/apps/company/workbook/infrastructure/spreadsheetDocument'
@@ -75,7 +76,7 @@ function filed(store: Store, counterparty: string): unknown {
 
 function split(store: Store, counterparty: string, parts: readonly (readonly [number, string, string])[]) {
   const row = rowOf(store, counterparty)
-  const stored = storedSplitOf(store.state.records!, store.state.workbook!, row)
+  const stored = storedSplitsOf(store.state.records!)(row)
   const drafts = parts.map(([amount, category, note], index) => ({ amount: euros(amount), category, note, opened: stored.parts[index] ?? null }))
   return store.write('Split', (unit) => writeSplit(unit, store.state.records!, row, stored, drafts, store.state.workbook!.categories))
 }
@@ -105,7 +106,7 @@ describe.each([
     ])
 
     const row = rowOf(store, 'MODEL API INC')
-    await store.write('Removed', (unit) => removeSplit(unit, books(store), row, storedSplitOf(store.state.records!, store.state.workbook!, row)))
+    await store.write('Removed', (unit) => removeSplit(unit, books(store), row, storedSplitsOf(store.state.records!)(row)))
 
     expect(filed(store, 'MODEL API INC')).toEqual(['ai-services', 50, 'ivan'])
     expect(store.state.workbook!.problems).toEqual([])
@@ -196,7 +197,7 @@ describe.each([
 
     expect(filed(store, 'PRINT SHOP')).toEqual(['office', null, 'rule'])
     expect(recordsOf(store.state.records!.items).filter((item) => item.row === 'printed-row')).toEqual(
-      onItemsTab ? [{ row: 'printed-row', amount: euros(-10), category: 'office', note: '', ownerShare: null, id: recordIdOf(ITEM_RECORDS, 'printed-row') }] : [],
+      onItemsTab ? [{ row: 'printed-row', amount: euros(-10), category: 'office', note: '', ownerShare: null, invoice: null, id: recordIdOf(ITEM_RECORDS, 'printed-row') }] : [],
     )
     await store.undo(store.state.writes[0]!)
     expect(store.state.workbook!.transactions.some((row) => row.counterparty === 'PRINT SHOP')).toBe(false)
@@ -227,5 +228,31 @@ describe('the items tab', () => {
     expect(row?.cells).toMatchObject({ date: 46298, account: 'main', counterparty: 'Desk Co', amount: -100, category: 'equipment' })
     const read = (records: readonly Readonly<Record<string, unknown>>[] | undefined) => (records ?? []).map((item) => ({ ...item, amount: Number(item['amount']) }))
     expect(read(documentOfTabs(COMPANY_APP, tabs, document.savedAt).records['item'])).toEqual(read(document.records['item']))
+  })
+
+  it('keeps the invoice an item pays through a new category and a hand split, and reports an invoice the books lack', async () => {
+    const store = await storeOf(true)
+    const deposit = rowOf(store, 'Cash deposit')
+    const invoice = recordIdOf(INVOICE_RECORDS, JSON.stringify(['north', '1-3-26']))
+    const invoiceOf = () =>
+      recordsOf(store.state.records!.items)
+        .filter((held) => held.row === deposit.rowId)
+        .map((held) => [held.amount, held.category, held.invoice])
+    const [item] = recordsOf(store.state.records!.items).filter((held) => held.row === deposit.rowId)
+    await store.write('Placed', (unit) => unit.of(ITEM_WRITES).change(item!, { ...item!, invoice }))
+    expect(store.state.workbook!.problems.map((problem) => [problem.tab, problem.reason])).toEqual([['items', 'the invoices tab holds no invoice ["north","1-3-26"], so this item pays none']])
+    expect(store.state.workbook!.paidInvoices).toEqual(new Map())
+
+    await store.write('Filed', (unit) => fileRows(unit, books(store), [recategorisation(rowOf(store, 'Cash deposit'), 'equipment', store.state.workbook!.settings)], store.state.workbook!.categories))
+    expect(invoiceOf()).toEqual([[euros(500), 'equipment', invoice]])
+    await split(store, 'Cash deposit', [
+      [300, 'revenue', ''],
+      [200, 'revenue', ''],
+    ])
+
+    expect(invoiceOf()).toEqual([
+      [euros(300), 'revenue', invoice],
+      [euros(200), 'revenue', invoice],
+    ])
   })
 })

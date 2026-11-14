@@ -240,6 +240,11 @@ export interface Workbook {
   readonly splits: readonly LedgerSplit[]
   /** The ledger rows a pack keeps whole, by record id, each with why in the pack's words. */
   readonly rowsKeptWhole: ReadonlyMap<RecordId, string>
+  /**
+   * The invoice each item pays, by the item's id, on books whose items name the invoices they pay. Absent on other books, which
+   * match a client's payments to its invoices on every read.
+   */
+  readonly paidInvoices?: ReadonlyMap<RecordId, RecordId>
   /** The suggestions on the Category rules tab a person dismissed, in the order the tab holds them. */
   readonly dismissals: readonly Dismissal[]
   readonly settings: Settings

@@ -1,6 +1,7 @@
 import { absMoney, addMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
+import { partReplacements } from '../../../../shared/categorising/domain/partReplacements'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { installedPack } from '../../packs/packContribution'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
@@ -16,7 +17,7 @@ import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
 import { storedItemsOfRow, storesItems } from '../../workbook/domain/rowItems'
 import { splitKeyOf, wholeItemId } from '../../workbook/domain/splits'
 import type { StoredItem, StoredSplit } from '../../workbook/domain/splits'
-import type { RowRepayments } from '../../workbook/domain/repayments'
+import type { RowPayments } from '../../workbook/domain/rowPayments'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
 import { words } from '../../workbook/domain/words'
 import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -188,13 +189,15 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
   const repository = unit.of(stored.refused ? REFUSED_ITEM_WRITES : ITEM_WRITES)
   const held = storedItemsOfRow(records.items, row)
   const whole = items.length === 1 ? wholeItemId(row) : null
-  const written = items.map((item): ItemRecord => {
-    const id = whole ?? item.id ?? newItemId()
-    const wanted: ItemRecord = { row: rowId, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, id }
+  const placed = items.map((item) => ({ ...item, id: whole ?? item.id ?? newItemId() }))
+  const invoiceOf = paidInvoices(held, placed)
+  const written = placed.map((item): ItemRecord => {
+    const { id } = item
+    const wanted: ItemRecord = { row: rowId, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: invoiceOf(id), id }
     const record = held.find((candidate) => candidate.id === id)
     if (record === undefined) {
       unit.of(ITEM_WRITES).add(wanted)
-    } else if (record.amount !== wanted.amount || record.category !== wanted.category || record.note !== wanted.note || record.ownerShare !== wanted.ownerShare) {
+    } else if (record.amount !== wanted.amount || record.category !== wanted.category || record.note !== wanted.note || record.ownerShare !== wanted.ownerShare || record.invoice !== wanted.invoice) {
       repository.change(record, wanted)
     }
     return wanted
@@ -205,6 +208,21 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
   return written
 }
 
+/**
+ * The invoice each item a write leaves on a row pays, by its id: an item the row held keeps the invoice it paid, and a new one
+ * takes the invoice of the items it replaces when they pay one between them, so splitting a payment keeps its money on its invoice.
+ */
+function paidInvoices(held: readonly ItemRecord[], written: readonly { readonly id: RecordId; readonly amount: Money }[]): (id: RecordId) => RecordId | null {
+  const replacing = new Map(partReplacements(held, written).map((replacement) => [replacement.part, replacement.replaces]))
+  const invoiceOfHeld = new Map(held.map((item) => [item.id, item.invoice]))
+  return (id) => {
+    if (invoiceOfHeld.has(id)) return invoiceOfHeld.get(id) ?? null
+    const invoices = new Set((replacing.get(id) ?? []).map((replaced) => invoiceOfHeld.get(replaced) ?? null))
+    const [only] = invoices
+    return invoices.size === 1 && only !== undefined ? only : null
+  }
+}
+
 /** The ledger entry as the books store it: without its category and share on books with an items tab, which its items hold. */
 function storedEntry(records: WorkbookRecords, entry: LedgerEntry): LedgerEntry {
   return storesItems(records) ? { ...entry, category: '', ownerShare: null } : entry
@@ -212,11 +230,11 @@ function storedEntry(records: WorkbookRecords, entry: LedgerEntry): LedgerEntry 
 
 /**
  * Takes the replaced rows out and adds the new ones, each with the category and share its entry names. Books with an items tab
- * give a new row one item under them, or when it pays back what a pack keeps the items `repayments` give it. A new row that takes
+ * give a new row one item under them, or when it pays back what a pack keeps the items `payments` give it. A new row that takes
  * the place of one taken out keeps that row's items, and when its amount differs the largest of them takes up the difference, so
  * they still add up to it. Items of a row taken out that nothing takes the place of go with it.
  */
-export function replaceLedgerRows(unit: UnitOfWork, records: WorkbookRecords, removed: readonly LedgerEntry[], added: readonly LedgerEntry[], repayments: readonly RowRepayments[] = []): void {
+export function replaceLedgerRows(unit: UnitOfWork, records: WorkbookRecords, removed: readonly LedgerEntry[], added: readonly LedgerEntry[], payments: readonly RowPayments[] = []): void {
   const ledger = unit.of(LEDGER_WRITES)
   removed.forEach((entry) => ledger.remove(entry))
   added.forEach((entry) => ledger.add(storedEntry(records, entry)))
@@ -228,8 +246,8 @@ export function replaceLedgerRows(unit: UnitOfWork, records: WorkbookRecords, re
     if (entry.rowId === null) throw new Error('A new ledger row has a row id.')
     if (held.length === 0) {
       const rowId = entry.rowId
-      const repaid = repayments.find((repayment) => repayment.row === rowId)?.items ?? [{ id: wholeItemId(entry), amount: entry.amount, note: '' }]
-      repaid.forEach((item) => items.add({ row: rowId, amount: item.amount, category: entry.category, note: item.note, ownerShare: entry.ownerShare, id: item.id }))
+      const paid = payments.find((payment) => payment.row === rowId)?.items ?? [{ id: wholeItemId(entry), amount: entry.amount, note: '' }]
+      paid.forEach((item) => items.add({ row: rowId, amount: item.amount, category: entry.category, note: item.note, ownerShare: entry.ownerShare, invoice: null, id: item.id }))
       continue
     }
     const gap = restOfWhole(

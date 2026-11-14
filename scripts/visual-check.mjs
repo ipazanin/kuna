@@ -1039,6 +1039,22 @@ const SCREENS = [
   { name: 'analysis-over-time-croatian', query: 'lang=hr', hash: '#/company/analysis?tab=over-time', title: 'Analiza', charts: 2, shows: ['Pomični neto', 'Kumulativni neto', 'Tekući mjesec'] },
   { name: 'analysis-compare-croatian', query: 'lang=hr', hash: '#/company/analysis?tab=compare', title: 'Analiza', charts: 0, shows: ['Račun dobiti i gubitka', 'Po kategorijama', 'Pozicija'] },
   { name: 'invoicing', hash: '#/company/invoicing', title: 'Invoicing', charts: 1, shows: ['Next invoice', 'Every invoice', 'Show all'] },
+  {
+    name: 'invoicing-unplaced',
+    query: 'fake=unplaced',
+    hash: '#/company/invoicing',
+    title: 'Invoicing',
+    charts: 1,
+    shows: ['Payments to place on an invoice', 'on no invoice', 'Each payment counts on the invoice it is placed on'],
+  },
+  {
+    name: 'invoicing-unplaced-croatian',
+    query: 'fake=unplaced&lang=hr',
+    hash: '#/company/invoicing',
+    title: 'Računi',
+    charts: 1,
+    shows: ['Uplate za povezivanje s računom', 'bez računa', 'Svaka uplata vrijedi za račun'],
+  },
   { name: 'invoicing-plan', hash: '#/company/invoicing?tab=plan', title: 'Invoicing', charts: 0, shows: ['Plan rows, 2026', 'Month by month, 2026', 'Totals over every client'] },
   {
     name: 'invoicing-month',

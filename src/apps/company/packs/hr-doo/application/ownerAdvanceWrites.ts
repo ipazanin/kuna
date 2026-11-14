@@ -8,15 +8,15 @@ import type { UnitOfWork } from '../../../../../shared/storage/application/repos
 import { recordsOf } from '../../../../../shared/storage/domain/recordsRead'
 import { recordsOfKindIn } from '../../../workbook/domain/readWorkbook'
 import type { WorkbookRecords } from '../../../workbook/domain/readWorkbook'
-import type { RowRepayments } from '../../../workbook/domain/repayments'
-import { ledgerOfRecords } from '../../../workbook/domain/readWorkbook'
-import { definedCategories } from '../../../workbook/domain/categoriesReading'
-import { storedItemsOfRow, storedSplitOf, storesItems } from '../../../workbook/domain/rowItems'
+import type { RowPayments } from '../../../workbook/domain/rowPayments'
+import { storedItemsOfRow, storesItems } from '../../../workbook/domain/rowItems'
+import { storedSplitsOf } from '../../../workbook/domain/storedSplits'
 import { ITEM_RECORDS } from '../../../workbook/domain/coreKinds'
 import type { Transaction } from '../../../workbook/domain/workbook'
 import { writeRowItems } from '../../../transactions/application/itemWrites'
 import type { ItemDraft } from '../../../transactions/application/itemWrites'
-import { repaymentParts, repaymentsPlaced } from '../domain/advanceRepayments'
+import { paymentParts } from '../../../workbook/domain/rowPayments'
+import { advancePaid, repaymentsPlaced } from '../domain/advanceRepayments'
 import type { RepaymentChoice } from '../domain/advanceRepayments'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
 import { OWNER_ADVANCE_RECORDS } from '../domain/hrDooKinds'
@@ -45,7 +45,7 @@ export function ownerAdvanceOfDraft(draft: OwnerAdvanceDraft, categories: readon
 }
 
 /** Has each advance the new rows pay back name the items that pay it, after those it names already. */
-export function linkRepayments(unit: UnitOfWork, records: WorkbookRecords, repayments: readonly RowRepayments[]): void {
+export function linkRepayments(unit: UnitOfWork, records: WorkbookRecords, repayments: readonly RowPayments[]): void {
   const paid = new Map<RecordId, RecordId[]>()
   for (const item of repayments.flatMap((repayment) => repayment.items)) {
     if (item.of !== null) paid.set(item.of, [...(paid.get(item.of) ?? []), item.id])
@@ -76,7 +76,6 @@ export function writeOwnerAdvance(unit: UnitOfWork, records: WorkbookRecords, be
 /** The items that pay the advance back once the chosen payments are placed on it, in the order chosen, each row's items written once. */
 function placeRepayments(unit: UnitOfWork, records: WorkbookRecords, advance: OwnerAdvanceEntry, chosen: readonly RepaymentChoice[]): RecordId[] {
   const applied = repaymentsPlaced(advance.amount, chosen)
-  const ledger = ledgerOfRecords(records, definedCategories(records.categories))
   const itemOf = new Map<RecordId, RecordId>()
   const rows = new Map<RecordId, Transaction>()
   chosen.forEach((choice, index) => {
@@ -85,15 +84,16 @@ function placeRepayments(unit: UnitOfWork, records: WorkbookRecords, advance: Ow
       rows.set(row.id, row)
     }
   })
+  const storedSplitOf = storedSplitsOf(records)
   for (const row of rows.values()) {
     const items = storedItemsOfRow(records.items, row).flatMap((item): ItemDraft[] => {
       const index = chosen.findIndex((choice) => !choice.named && choice.item === item.id)
       if (index < 0 || applied[index]! <= 0) return [item]
-      const parts = repaymentParts(item, [{ advance, applied: applied[index]! }], () => recordIdOf(ITEM_RECORDS, newRecordId()))
-      itemOf.set(item.id, parts.find((part) => part.advance !== null)!.id)
+      const parts = paymentParts(item, [advancePaid({ advance, applied: applied[index]! })], () => recordIdOf(ITEM_RECORDS, newRecordId()))
+      itemOf.set(item.id, parts.find((part) => part.of !== null)!.id)
       return parts.map((part) => ({ id: part.id, amount: part.amount, category: item.category, note: part.note, ownerShare: item.ownerShare }))
     })
-    writeRowItems(unit, records, row, storedSplitOf(records, ledger, row), items)
+    writeRowItems(unit, records, row, storedSplitOf(row), items)
   }
   return chosen.flatMap((choice) => {
     const placed = itemOf.get(choice.item)

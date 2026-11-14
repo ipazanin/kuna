@@ -109,6 +109,20 @@ describe('owner advances paid back by items', () => {
     expect(itemsOf(store, PARKING)).toEqual([parkingItem])
   })
 
+  it('keeps the invoice a payment pays on both items when a cost placed on it gives part of it an item of its own', async () => {
+    const store = await storeOf(true)
+    const parkingItem = itemsOf(store, PARKING)[0]!
+    const invoice = store.state.workbook!.invoices[0]!.id
+    await store.write('Placed', (unit) => unit.of(ITEM_WRITES).change(parkingItem, { ...parkingItem, invoice }))
+
+    await addAdvance(store, 20, 'Parking at the client', [PARKING])
+
+    expect(itemsOf(store, PARKING).map((item) => [item.amount, item.invoice])).toEqual([
+      [euros(-18.5), invoice],
+      [euros(-20), invoice],
+    ])
+  })
+
   it('names the whole item of a payment that pays back all of it, with the cost as its note', async () => {
     const store = await storeOf(true)
     const [item] = itemsOf(store, PARKING)

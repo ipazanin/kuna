@@ -8,7 +8,17 @@ import { fakeWorkbookDocument } from '../src/apps/company/workbook/infrastructur
 import { civil } from './fixtures/ledger'
 import { fakeInvestmentsDocument } from '../src/apps/investments/workbook/infrastructure/fake/fakeInvestments'
 import { INVESTMENTS_DOCUMENT } from '../src/apps/investments/workbook/infrastructure/investmentsDocument'
-import { COMPANY_LEDGER_ROW, INVESTMENT_ACCOUNT, SPENDING_ACCOUNT, SPENDING_ITEM, SPENDING_ROW, companyFiguresOf, investmentsFiguresOf, spendingFiguresOf } from '../scripts/support/figureFields.mjs'
+import {
+  COMPANY_ITEM,
+  COMPANY_LEDGER_ROW,
+  INVESTMENT_ACCOUNT,
+  SPENDING_ACCOUNT,
+  SPENDING_ITEM,
+  SPENDING_ROW,
+  companyFiguresOf,
+  investmentsFiguresOf,
+  spendingFiguresOf,
+} from '../scripts/support/figureFields.mjs'
 
 const DAY = civil('2026-11-10')
 const SAVED_AT = '2026-01-01T00:00:00.000Z'
@@ -43,6 +53,11 @@ const KINDS = {
     figures: ['account', 'amount', 'balance', 'category', 'counterparty', 'date', 'id', 'ownerShare', 'reviewReasons', 'rowId'],
     cells: ['account', 'amount', 'balance', 'category', 'counterparty', 'date', 'id', 'owner_share', 'review_reasons'],
   },
+  'a Company item': {
+    kind: COMPANY_ITEM,
+    figures: ['amount', 'category', 'id', 'invoice', 'note', 'ownerShare', 'row'],
+    cells: ['amount', 'category', 'id', 'invoice_id', 'note', 'owner_share', 'row_id'],
+  },
 } as const
 
 const spending = SPENDING_DOCUMENT.read({
@@ -68,6 +83,7 @@ const STORED: Record<keyof typeof KINDS, readonly Stored[]> = {
   'a Spending account': spending.records.accounts.records,
   'an Investments account': investments.records.accounts.records,
   'a Company ledger row': company.records.ledger.records,
+  'a Company item': company.records.items.records,
 }
 
 /** The name of every field of every record in a value, however deep. */

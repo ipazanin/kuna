@@ -2,7 +2,7 @@ import { fieldsOf } from './companyCard'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
 import { BILLING_WRITES, newBillingItem } from '../../billingPlan/application/billingWrites'
 import { fillRestOfYear } from '../../billingPlan/domain/fillRestOfYear'
-import { INVOICE_WRITES } from '../../receivables/application/invoiceWrites'
+import { INVOICE_WRITES, changeInvoice, removeInvoice } from '../../receivables/application/invoiceWrites'
 import { invoiceDatesProblems } from '../../receivables/domain/invoiceGuards'
 import { CLIENT_WRITES } from '../../settings/application/namedRecordWrites'
 import { CLIENT_RECORDS, BILLING_RECORDS, INVOICE_RECORDS } from '../../workbook/domain/coreKinds'
@@ -261,11 +261,11 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
         deliveryPeriod: periodOf(field['periodFrom'], field['periodTo'], before.deliveryPeriod),
         id: invoiceIdOf({ client, number }),
       }
-      unit.of(INVOICE_WRITES).change(before, checkedInvoice(after))
+      changeInvoice(unit, records.items, before, checkedInvoice(after))
       return
     }
     case 'delete-invoice':
-      unit.of(INVOICE_WRITES).remove(invoiceOf(field['invoice']).record)
+      removeInvoice(unit, records.items, invoiceOf(field['invoice']).record)
       return
     case 'add-billing-item':
       unit

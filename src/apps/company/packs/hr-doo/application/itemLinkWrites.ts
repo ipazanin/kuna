@@ -8,7 +8,8 @@ import { ITEM_RECORDS } from '../../../workbook/domain/coreKinds'
 import { recordsOfKindIn } from '../../../workbook/domain/readWorkbook'
 import type { CompanyBooks, WorkbookRecords } from '../../../workbook/domain/readWorkbook'
 import type { ItemRecord } from '../../../workbook/domain/splitsReading'
-import { movedPartId, repaymentParts } from '../domain/advanceRepayments'
+import { movedPartId, paymentParts } from '../../../workbook/domain/rowPayments'
+import { advancePaid } from '../domain/advanceRepayments'
 import { ASSET_RECORDS, OWNER_ADVANCE_RECORDS, TRIP_RECORDS } from '../domain/hrDooKinds'
 import { hrDooWorkbook } from '../domain/hrDooPart'
 import { ASSET_WRITES, OWNER_ADVANCE_WRITES, TRIP_WRITES } from '../domain/hrDooWrites'
@@ -36,13 +37,13 @@ function placeAdvances(unit: UnitOfWork, books: CompanyBooks, moved: MovedItems)
   for (const placed of matchedPayments([...ownerAdvances].sort(ownerAdvanceOrder), transactions, categories)) {
     const item = moved.itemOf(placed.payment)
     if (item === undefined || placed.shares.length === 0) continue
-    const parts = repaymentParts(item, placed.shares, (place) => movedPartId(item.id, place))
+    const parts = paymentParts(item, placed.shares.map(advancePaid), (place) => movedPartId(item.id, place))
     replaced.set(
       item.id,
       parts.map((part) => ({ ...item, id: part.id, amount: part.amount, note: part.note })),
     )
     for (const part of parts) {
-      if (part.advance !== null) repaidBy.set(part.advance.id, [...(repaidBy.get(part.advance.id) ?? []), part.id])
+      if (part.of !== null) repaidBy.set(part.of, [...(repaidBy.get(part.of) ?? []), part.id])
     }
   }
   const advances = unit.of(OWNER_ADVANCE_WRITES)

@@ -487,12 +487,7 @@ function receivablesReport({ workbook, ledger }: ReportBooks, period: string | n
   const day = dayOfPeriod(period, ledger.window.newestDay)
   const { booked } = ledger
   const issued = booked.invoices.filter((invoice) => invoice.issued <= day)
-  const matched = receivablesOf(
-    booked.transactions.filter((row) => row.date <= day),
-    booked.categories,
-    issued,
-    booked.clients,
-  ).clients.flatMap((client) => client.invoices)
+  const matched = receivablesOf({ ...booked, transactions: booked.transactions.filter((row) => row.date <= day), invoices: issued }).clients.flatMap((client) => client.invoices)
   const owed = amountsOwed(matched, day)
   const ageing = ageingOf(matched, day)
   const currency = currencyOf(workbook)

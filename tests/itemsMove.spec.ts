@@ -7,6 +7,8 @@ import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart
 import { ownerAdvances } from '../src/apps/company/packs/hr-doo/domain/ownerAdvances'
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { euros } from './fixtures/ledger'
+import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching'
+import { sumMoney } from '../src/shared/money/money'
 import { fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { fakeStaffOf } from '../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff'
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
@@ -51,7 +53,14 @@ describe('moving books from before items to the items tab', () => {
     const moved = store.state.workbook!
     const partsOf = (splits: typeof read.splits) => new Map(splits.map((held) => [held.row.id, held.parts.map((part) => [part.amount, part.category, part.note, part.ownerShare])]))
     const repayment = moved.splits.find((held) => held.row.description === 'Refund of the design tool and the printer paper')!
-    expect(partsOf(moved.splits.filter((held) => held !== repayment))).toEqual(partsOf(read.splits))
+    const splitBefore = new Set(read.splits.map((held) => held.row.id))
+    expect(partsOf(moved.splits.filter((held) => splitBefore.has(held.row.id)))).toEqual(partsOf(read.splits))
+    // A client payment that paid two invoices, or more than its invoice, is split by what it paid, each part in its category.
+    const payments = moved.splits.filter((held) => held !== repayment && !splitBefore.has(held.row.id))
+    expect(payments.map((held) => [held.row.id, sumMoney(held.parts.map((part) => part.amount)), new Set(held.parts.map((part) => part.category))])).toEqual(
+      payments.map((held) => [held.row.id, held.row.amount, new Set([held.row.category])]),
+    )
+    expect(payments).toHaveLength(5)
     expect(repayment.parts.map((part) => [part.amount, part.note])).toEqual([
       [euros(-89), 'Design tool, annual plan on the owner’s card'],
       [euros(-34.2), 'Printer paper'],
@@ -68,6 +77,21 @@ describe('moving books from before items to the items tab', () => {
     }
     expect(hrDooWorkbook(moved).repaidBy).toBeDefined()
     expect(advancesOf(moved)).toEqual(advancesOf(read))
+    const owed = (workbook: typeof read) =>
+      receivablesOf(presentedWorkbook(workbook)).clients.map((client) => [
+        client.client.slug,
+        [client.outstanding, client.overpaid, client.creditsWithNoInvoice, client.refunded],
+        client.invoices.map((matched) => [
+          matched.invoice.id,
+          matched.remaining,
+          matched.status,
+          matched.received,
+          sumMoney(matched.allocations.map((allocation) => allocation.amount)),
+          sumMoney(matched.overpayments.map((overpayment) => overpayment.amount)),
+        ]),
+      ])
+    expect(moved.paidInvoices).toBeDefined()
+    expect(owed(moved)).toEqual(owed(read))
 
     await store.undo(store.state.writes[0]!)
 

@@ -1,12 +1,13 @@
-import { ZERO, absMoney, minMoney, negateMoney, subtractMoney, sumMoney } from '../../../../../shared/money/money'
+import { ZERO, absMoney, minMoney, subtractMoney, sumMoney } from '../../../../../shared/money/money'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../../shared/money/money'
-import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../../shared/storage/domain/recordId'
+import { newRecordId, recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import { ITEM_RECORDS } from '../../../workbook/domain/coreKinds'
 import { itemIdOfRow, splitLedger, wholeItemId } from '../../../workbook/domain/splits'
 import type { LedgerEntry } from '../../../workbook/domain/ledgerReading'
-import type { RowRepayments } from '../../../workbook/domain/repayments'
+import { paymentParts } from '../../../workbook/domain/rowPayments'
+import type { PaidRecord, RowPayments } from '../../../workbook/domain/rowPayments'
 import type { HrDooWorkbook } from './hrDooPart'
 import { netReimbursements } from './reimbursements'
 import type { ReimbursementRow } from './reimbursements'
@@ -15,42 +16,9 @@ import type { OwnerAdvance, Transaction, Workbook } from '../../../workbook/doma
 import { ownerAdvances, paymentsToOwner, placeRepayments, storedRepayments } from './ownerAdvances'
 import type { RepaidBy } from './ownerAdvancesReading'
 
-/** One item a payment's item becomes once it is placed on the advances it pays back. */
-export interface RepaymentPart {
-  readonly id: RecordId
-  /** The same sign as the payment. */
-  readonly amount: Money
-  /** What the advance was for, or for what pays back no advance the item's own note. */
-  readonly note: string
-  /** The advance it pays back, or null for what pays back none. */
-  readonly advance: PaidBack | null
-}
-
-/** What an item that pays an advance back reads of it. */
-type PaidBack = Pick<OwnerAdvance, 'id' | 'description'>
-
-/**
- * The items a payment's item becomes once placed: first what no advance takes, then one item per advance it pays back, which
- * takes the advance's description as its note. The first keeps the item's id, as a split's first part does, and each other one
- * takes the id `idOf` gives its place among them.
- */
-export function repaymentParts(
-  item: { readonly id: RecordId; readonly amount: Money; readonly note: string },
-  shares: readonly { readonly advance: PaidBack; readonly applied: Money }[],
-  idOf: (place: number) => RecordId,
-): RepaymentPart[] {
-  const sign = (amount: Money): Money => (item.amount < 0 ? negateMoney(amount) : amount)
-  const rest = subtractMoney(absMoney(item.amount), sumMoney(shares.map((share) => share.applied)))
-  const parts = [
-    ...(rest > 0 ? [{ amount: sign(rest), note: item.note, advance: null }] : []),
-    ...shares.map((share) => ({ amount: sign(share.applied), note: share.advance.description, advance: share.advance })),
-  ]
-  return parts.map((part, place) => ({ ...part, id: place === 0 ? item.id : idOf(place) }))
-}
-
-/** The id the move gives a payment's item's later part: the item's own key with the part's place after it, so a move writes the same ids every time. */
-export function movedPartId(item: RecordId, place: number): RecordId {
-  return recordIdOf(ITEM_RECORDS, `${keyOfRecordId(ITEM_RECORDS, item)}-${place}`)
+/** What an item that pays back an advance pays: the advance, whose description its part takes as its note. */
+export function advancePaid(share: { readonly advance: Pick<OwnerAdvance, 'id' | 'description'>; readonly applied: Money }): { readonly paid: PaidRecord; readonly applied: Money } {
+  return { paid: { id: share.advance.id, note: share.advance.description }, applied: share.applied }
 }
 
 /** Why the items an advance names cannot all count as what paid it back. */
@@ -102,7 +70,7 @@ export function repaidMoreThanPaid(paid: Money, repaid: readonly Money[]): Money
  * reimbursement category, less what a payment from the owner returned the same day, placed as the books matched payments before
  * items. Each such row becomes its items, what pays back no advance under the row's own item id and each advance's part under a new one.
  */
-export function proposedRepayments(books: Pick<HrDooWorkbook, 'ownerAdvances' | 'transactions' | 'categories' | 'repaidBy'>, added: readonly LedgerEntry[]): RowRepayments[] {
+export function proposedRepayments(books: Pick<HrDooWorkbook, 'ownerAdvances' | 'transactions' | 'categories' | 'repaidBy'>, added: readonly LedgerEntry[]): RowPayments[] {
   if (books.repaidBy === undefined || added.length === 0) return []
   const advances = [...books.ownerAdvances].sort(ownerAdvanceOrder)
   const { shares, named } = storedRepayments(advances, books.repaidBy, books.transactions, books.categories)
@@ -112,11 +80,10 @@ export function proposedRepayments(books: Pick<HrDooWorkbook, 'ownerAdvances' | 
   const fresh = [...added].reverse().map((entry, index) => ({ ...entry, sequence: last + index + 1 }))
   const isNew = new Set<ReimbursementRow>(fresh)
   const payments = netReimbursements([...books.transactions.filter((row) => !named.has(row)), ...fresh], books.categories).toOwner.filter((payment) => isNew.has(payment.payment))
-  return placeRepayments(open, payments).flatMap((placed): RowRepayments[] => {
+  return placeRepayments(open, payments).flatMap((placed): RowPayments[] => {
     const { payment } = placed
     if (placed.shares.length === 0 || payment.rowId === null) return []
-    const parts = repaymentParts({ id: wholeItemId(payment), amount: payment.amount, note: '' }, placed.shares, () => recordIdOf(ITEM_RECORDS, newRecordId()))
-    return [{ row: payment.rowId, items: parts.map((part) => ({ id: part.id, amount: part.amount, note: part.note, of: part.advance?.id ?? null })) }]
+    return [{ row: payment.rowId, items: paymentParts({ id: wholeItemId(payment), amount: payment.amount, note: '' }, placed.shares.map(advancePaid), () => recordIdOf(ITEM_RECORDS, newRecordId())) }]
   })
 }
 

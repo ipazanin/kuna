@@ -79,7 +79,7 @@ const tiles = computed(() => {
   if (current === null || day === null) return null
   const { booked: workbook, window } = current
   if (workbook.invoices.length === 0 && workbook.billingPlan.length === 0) return null
-  const invoices = receivablesOf(workbook.transactions, workbook.categories, workbook.invoices, workbook.clients).clients.flatMap((entry) => entry.invoices)
+  const invoices = receivablesOf(workbook).clients.flatMap((entry) => entry.invoices)
   const owed = amountsOwed(invoices, day)
   const paid = daysToPaid(invoices, periodRange({ preset: 'l12' }, window))
   const next = billing.value?.expected[0] ?? null

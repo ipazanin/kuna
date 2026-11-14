@@ -195,7 +195,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/company/packs/hr-doo/application/tripWrites.ts#removeTrip',
       'src/apps/company/packs/hr-doo/application/tripWrites.ts#removeTripLeg',
       'src/apps/company/packs/hr-doo/application/tripWrites.ts#removeTripCost',
-      'src/apps/company/receivables/application/invoiceWrites.ts#INVOICE_WRITES.remove',
+      'src/apps/company/receivables/application/invoiceWrites.ts#removeInvoice',
       'src/apps/company/rules/application/dismissalWrites.ts#DISMISSAL_WRITES.remove',
       'src/apps/company/settings/application/settingWrites.ts#removeSettings',
       'src/apps/investments/holdings/application/holdingWrites.ts#INSTRUMENT_WRITES.remove',

@@ -15,7 +15,7 @@ import { words as splitWords } from '../../../../shared/ui/words'
 import type { SplitField } from '../../../../shared/ui/splitFields'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
-import { storedSplitOf } from '../../workbook/domain/rowItems'
+import { storedSplitsOf } from '../../workbook/domain/storedSplits'
 import { NOTHING_STORED } from '../../workbook/domain/splits'
 import type { SplitPart } from '../../workbook/domain/splits'
 import type { Category, Transaction } from '../../workbook/domain/workbook'
@@ -47,8 +47,8 @@ const names = useDisplayNames()
 const split = computed(() => booked.value?.splits.find((candidate) => candidate.row.id === props.row.id) ?? null)
 /** What the books hold of the row's split as the app read it, a refused split's parts too. A change writes only the fields that differ, so a field left alone is never rewritten. */
 const stored = computed(() => {
-  const { records, workbook } = store.state
-  return records === null || records === undefined || workbook === null || workbook === undefined ? NOTHING_STORED : storedSplitOf(records, workbook, props.row)
+  const { records } = store.state
+  return records === null || records === undefined ? NOTHING_STORED : storedSplitsOf(records)(props.row)
 })
 
 /** Each part holds the stored part it opened, whose share it keeps while it keeps its category. */

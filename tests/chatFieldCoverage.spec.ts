@@ -117,6 +117,11 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     path: 'src/apps/company/receivables/application/invoiceWrites.ts#INVOICE_WRITES.change',
     operations: [{ name: 'change-invoice', renames: { 'deliveryPeriod.from': 'periodFrom', 'deliveryPeriod.to': 'periodTo' } }],
   },
+  {
+    path: 'src/apps/company/receivables/application/invoiceWrites.ts#changeInvoice',
+    from: ['after'],
+    operations: [{ name: 'change-invoice', renames: { 'deliveryPeriod.from': 'periodFrom', 'deliveryPeriod.to': 'periodTo' } }],
+  },
   { path: 'src/apps/company/owner-share/application/ownerShareWrites.ts#writeOwnerShare', from: ['share'], operations: ['set-owner-share'] },
   {
     path: 'src/apps/company/rules/application/ruleWrites.ts#writeRuleSave',
