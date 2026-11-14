@@ -34,7 +34,7 @@ const WIDTHS = [
 const LANGUAGES = ['en', 'hr']
 const THEMES = ['light', 'dark']
 
-/** Net worth, All apps and every screen of each app's menu, with their settings. */
+/** Home, Net worth and every screen of each app's menu, with their settings. */
 const SCREENS = [
   { name: 'home', hash: '#/' },
   { name: 'net-worth', hash: '#/overview' },

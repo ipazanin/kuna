@@ -51,7 +51,11 @@ const to = computed(() => entryPath(props.app))
         <dl class="flex flex-wrap gap-x-8 gap-y-3">
           <div v-for="(amount, index) in figures.amounts" :key="amount.label" class="flex flex-col gap-1">
             <dt class="type-label">{{ amount.label }}</dt>
-            <dd :class="index === 0 ? 'type-figure' : 'type-figure-secondary'">
+            <dd
+              :class="[index === 0 ? 'type-figure' : 'type-figure-secondary', { '-mx-2 w-fit rounded-control px-2': amount.tint !== undefined }]"
+              :style="amount.tint === undefined ? undefined : { backgroundColor: `var(${amount.tint})` }"
+              :data-tint="amount.tint"
+            >
               <MoneyText :cents="amount.cents" :sign="amount.sign" :tone="amount.tone" :format="app.moneyFormat()" />
             </dd>
           </div>

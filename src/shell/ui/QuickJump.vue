@@ -5,11 +5,9 @@ import UCommandPalette from '@nuxt/ui/components/CommandPalette.vue'
 import { defineShortcuts } from '@nuxt/ui/composables/defineShortcuts'
 
 import { openChat } from '../../shared/ai/presentation/chatDock'
-import { words as sharedWords } from '../../shared/app/words'
 import { usePhoneLayout } from '../../shared/layout/viewport'
 import AppDialog from '../../shared/ui/AppDialog.vue'
 import type { Navigation, NavigationEntry } from './navigation'
-import { HOME_SCREEN } from '../routing/screens'
 import { words } from './words'
 
 /** Every page of the menu in one searchable list, opened with Cmd+K or Ctrl+K. Records such as a loan or a holding stay out. */
@@ -34,7 +32,7 @@ function rowOf(entry: NavigationEntry, keywords: readonly string[] = []) {
 }
 
 const groups = computed(() => {
-  const { netWorth, apps, kunaSettings } = props.navigation
+  const { home, netWorth, apps, kunaSettings } = props.navigation
   const chat = props.chatAvailable
     ? [
         {
@@ -48,7 +46,7 @@ const groups = computed(() => {
         },
       ]
     : []
-  const kuna = [...chat, ...(netWorth === null ? [] : [rowOf(netWorth)]), rowOf({ to: HOME_SCREEN.path, label: sharedWords.allApps, icon: 'i-lucide-layout-grid' }), rowOf(kunaSettings)]
+  const kuna = [...chat, ...[home, netWorth].filter((entry) => entry !== null).map((entry) => rowOf(entry)), rowOf(kunaSettings)]
   return [
     { id: 'kuna', label: words.quickJump.kuna, items: kuna.map((row) => ({ ...row, keywords: [...row.keywords, words.quickJump.kuna] })) },
     ...apps.map((app) => ({ id: app.id, label: app.name, items: app.entries.map((entry) => rowOf(entry, [app.name])) })),

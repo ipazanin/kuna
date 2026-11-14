@@ -4,8 +4,7 @@ import type { Translation } from '../text/translation'
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 
 export const en = {
-  allApps: 'All apps',
-  homeLink: 'Kuna, all apps',
+  homeLink: 'Kuna, Home',
   loadingScreen: 'Loading the screen',
   privacy: 'Privacy',
   terms: 'Terms',
@@ -26,8 +25,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  allApps: 'Sve aplikacije',
-  homeLink: 'Kuna, sve aplikacije',
+  homeLink: 'Kuna, Početna',
   loadingScreen: 'Učitavanje zaslona',
   privacy: 'Privatnost',
   terms: 'Uvjeti',

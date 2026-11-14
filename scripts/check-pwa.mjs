@@ -241,7 +241,7 @@ try {
   const secondWindow = watch(await context.newPage())
   await secondWindow.goto(appUrl)
   await waitForWorker(secondWindow)
-  await waitForTitle(secondWindow, 'All apps')
+  await waitForTitle(secondWindow, 'Home')
   const originalCaches = await probe.evaluate(() => caches.keys())
   const originalDocument = await page.evaluate(() => {
     window.pwaCheckDocument = crypto.randomUUID()

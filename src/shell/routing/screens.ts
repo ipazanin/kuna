@@ -1,12 +1,15 @@
 import type { AppScreen } from '../../shared/app/appContribution'
+import { words as homeWords } from '../home/words'
 import { words as netWorthWords } from '../netWorth/words'
 import { words as settingsWords } from '../settings/words'
 
-/** Kuna's home at `#/`, a card per installed app. The browser tab says only Kuna. */
-export const HOME_SCREEN = {
+/** Kuna's home at `#/`, a card per installed app, first in the menu. The browser tab says only Kuna. */
+export const HOME_SCREEN: AppScreen = {
   path: '/',
+  title: homeWords.title,
+  icon: 'i-lucide-layout-grid',
   component: () => import('../home/HomeScreen.vue'),
-} as const
+}
 
 /** Net worth, your money across the apps, at the top of the menu. */
 export const NET_WORTH_SCREEN: AppScreen = {

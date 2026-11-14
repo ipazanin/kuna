@@ -64,6 +64,7 @@ watch(() => route.path, showCurrentPage, { flush: 'post' })
 <template>
   <nav :aria-label="words.navigation.label" class="flex min-h-0 flex-1 flex-col">
     <div ref="list" class="min-h-0 flex-1 overflow-y-auto py-1" :class="rail ? 'px-1.5 [scrollbar-width:none]' : 'px-3 [scrollbar-gutter:stable]'" @animationend="showCurrentPageOnceOpen">
+      <NavigationLink v-if="navigation.home !== null" v-bind="navigation.home" :rail="rail" class="mb-0.5" data-testid="nav-home" />
       <NavigationLink v-if="navigation.netWorth !== null" v-bind="navigation.netWorth" :rail="rail" class="mb-1.5" data-testid="nav-net-worth" />
       <ul class="flex flex-col sm:gap-0.5" data-testid="nav-apps">
         <li v-for="app in navigation.apps" :key="app.id" data-testid="nav-app" :data-app="app.id">

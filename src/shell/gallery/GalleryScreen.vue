@@ -956,8 +956,8 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
           class="@4xl:col-span-2 @8xl:col-span-1"
         >
           <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
-            <HomeLink label="Kuna, all apps" look="standard" class="max-w-60" />
-            <HomeLink label="Kuna, all apps" look="quiet" class="max-w-60" />
+            <HomeLink label="Kuna, Home" look="standard" class="max-w-60" />
+            <HomeLink label="Kuna, Home" look="quiet" class="max-w-60" />
           </div>
         </AppCard>
         <AppCard

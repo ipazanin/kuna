@@ -304,11 +304,13 @@ install, and uses the same offline copy in a normal tab.
 
 ## The home and the menu
 
-`#/` is Kuna's home, titled All apps. The installed app opens on it, and so does any address no
+`#/` is Kuna's home, titled Home. The installed app opens on it, and so does any address no
 screen has. It shows a card per app, in the order `main.ts` installs them, and the whole card is a
 link into the app's first screen. Company's card names the company and leads with the cash on hand
-over every account, with how many rows wait for review when any do. The Loans card leads with what
-you owe in all, and with what others owe you when they do. The Investments card says what the app
+over every account, with how many rows wait for review when any do. The Loans card leads with the net,
+what others owe you less what you owe, signed and on a light tint of the way it runs, with what you owe in all and what
+others owe you under it. The Spending card leads with Bank and cash as Net worth shows it, with Overdrawn beside it while an
+account is below zero, then what this month spent. The Investments card says what the app
 keeps until its figures arrive, and then its badge names the nearest tax date: last year's INO-DOH by
 its safe day in January, last year's JOPPD for its sales until its deadline, or the tax on payments with
 nothing withheld abroad while their 30 days run. A tax date wins over late prices, and Kuna does not know
@@ -321,11 +323,11 @@ top bar use too, and nothing else is tinted. Any app can be set up first, and a
 fresh device opens on the home with every card in Set up and no sync control in the sidebar or the top bar.
 
 The sidebar is one menu with the apps in use, in 240 px. At the top a small Kuna mark and the name, in one row, link home
-and read "Kuna, all apps" to a screen reader. Then come Net worth and a row per app that has a file, with its icon on a tile in the app's own colour
+and read "Kuna, Home" to a screen reader. Then come Home, Net worth and a row per app that has a file, with its icon on a tile in the app's own colour
 (brass for Company, teal for Loans, plum for Investments). The app on screen is open, with its name heavier, its subtitle such as the
 company's name, its menu with counts and its Settings. A small arrow on a closed app's row shows its pages without leaving the screen, and
 the next change of screen closes them again. A closed app's row counts what waits in it. While an app has no file it is left out, and once the welcome has an answer an Add an app row leads to the home, whose cards offer every app.
-Before any app is set up Net worth is left out too. Kuna settings and Sync stay pinned at the foot, and only the list scrolls on a short window.
+Before any app is set up Home and Net worth are left out too. Kuna settings and Sync stay pinned at the foot, and only the list scrolls on a short window.
 The sidebar is expanded, icons or hidden, and shows as chosen once it leaves the page 640 px, from an 880 px window expanded and from 696 px as icons. Narrower, or hidden, the same menu is in the drawer behind the top bar's menu button, and the drawer opens with the current page in view. The home has the same top bar and drawer
 as every screen, so Net worth and Kuna settings are reached from the menu. There is one Sync, in the same
 place on the home and in every app, and it syncs every app's file on Drive. Each first run starts

@@ -476,6 +476,7 @@ async function checkWidth(width) {
           apps: links.map((link) => link.querySelector('[data-testid="nav-label"]')?.textContent?.trim()),
           open: [...(drawer?.querySelectorAll('[data-testid="nav-app"]:has([data-testid="nav-entries"]) [data-testid="nav-label"]') ?? [])][0]?.textContent?.trim(),
           lastPage: [...(drawer?.querySelectorAll('[data-testid="nav-entries"] a') ?? [])].at(-1)?.textContent?.trim(),
+          homeEntry: drawer?.querySelector('[data-testid="nav-home"]')?.textContent?.trim(),
           netWorth: drawer?.querySelector('[data-testid="nav-net-worth"]')?.textContent?.trim(),
           kunaSettings: drawer?.querySelector('[data-testid="nav-kuna-settings"]')?.textContent?.trim(),
           oneLine: [...(drawer?.querySelectorAll('nav [data-testid="nav-label"]') ?? [])].every((label) => label.getBoundingClientRect().height <= parseFloat(getComputedStyle(label).lineHeight) + 1),
@@ -486,10 +487,11 @@ async function checkWidth(width) {
         JSON.stringify(drawer.apps) === JSON.stringify(['Company']) &&
         drawer.open === 'Company' &&
         drawer.lastPage === 'Settings' &&
+        drawer.homeEntry === 'Home' &&
         drawer.netWorth === 'Net worth' &&
         drawer.kunaSettings === 'Kuna settings' &&
         drawer.oneLine,
-      'the drawer does not start with the link home and hold Company, the one app set up, with its pages open between Net worth and Kuna settings, each name on one line',
+      'the drawer does not start with the link home and hold Company, the one app set up, with its pages open between Home and Net worth and Kuna settings, each name on one line',
     )
     await inspect(page, `${width}px drawer open`)
     await shoot('drawer-open')
@@ -635,8 +637,8 @@ async function checkWidth(width) {
   // With one app set up the drawer lists it alone with Add an app, in both languages, and Add an app leads to the home's five cards.
   await step('drawer-one-app', async () => {
     for (const [query, title, company, netWorth, addApp, home] of [
-      ['', 'Overview', 'Company', 'Net worth', 'Add an app', 'All apps'],
-      ['&lang=hr', 'Pregled', 'Tvrtka', 'Neto imovina', 'Dodaj aplikaciju', 'Sve aplikacije'],
+      ['', 'Overview', 'Company', 'Net worth', 'Add an app', 'Home'],
+      ['&lang=hr', 'Pregled', 'Tvrtka', 'Neto imovina', 'Dodaj aplikaciju', 'Početna'],
     ]) {
       await page.goto(`${BASE}?theme=dark${query}&start=drive&load=${Date.now()}#/company`, { waitUntil: 'networkidle0' })
       await waitForTitle(page, title)
@@ -672,7 +674,7 @@ async function checkWidth(width) {
     await open(page, '#/company', 'Overview')
     await openDrawer(page)
     await (await page.waitForSelector('[role="dialog"] [data-testid="home-link"]')).tap()
-    await waitForTitle(page, 'All apps')
+    await waitForTitle(page, 'Home')
     await drawerClosed(page)
     await expect(
       page.evaluate(() => {
@@ -709,7 +711,7 @@ async function checkWidth(width) {
   })
 
   await step('assets-home-card', async () => {
-    await open(page, `&assets=sample&load=${Date.now()}#/`, 'All apps')
+    await open(page, `&assets=sample&load=${Date.now()}#/`, 'Home')
     await (await page.waitForSelector('[data-testid="home-card"][data-app="assets"][data-state="open"]')).tap()
     await waitForTitle(page, 'Overview')
     await expect(hashOf(page), (hash) => hash === '#/assets', 'the Assets card did not open the Assets Overview')
@@ -718,7 +720,7 @@ async function checkWidth(width) {
   })
 
   await step('spending-home-card', async () => {
-    await open(page, `&spending=sample&load=${Date.now()}#/`, 'All apps')
+    await open(page, `&spending=sample&load=${Date.now()}#/`, 'Home')
     await (await page.waitForSelector('[data-testid="home-card"][data-app="spending"][data-state="open"]')).tap()
     await waitForTitle(page, 'Overview')
     await expect(hashOf(page), (hash) => hash === '#/spending', 'the Spending card did not open the Spending Overview')
@@ -757,7 +759,7 @@ async function checkWidth(width) {
 
   // The company kept in this browser beside the sample Loans, Investments, Assets and Spending files.
   await step('kuna-overview', async () => {
-    await openFreshBrowser(page, '#/', 'All apps', '&loans=sample&investments=sample&assets=sample&spending=sample')
+    await openFreshBrowser(page, '#/', 'Home', '&loans=sample&investments=sample&assets=sample&spending=sample')
     await openDrawer(page)
     await (await page.waitForSelector('[role="dialog"] [data-testid="nav-net-worth"]')).tap()
     await waitForTitle(page, 'Net worth')
@@ -3137,7 +3139,7 @@ async function checkWidth(width) {
     ['loans-start-on-drive', 'drive&loans=other-device', firstRunOnDriveFlowIn('loans', 'en'), '#/loans/start?step=folder', 'Loans'],
     ['assets-start-on-drive', 'drive&assets=other-device', firstRunOnDriveFlowIn('assets', 'en'), '#/assets/start?step=folder', 'Assets'],
     ['assets-start-browser', 'drive', firstRunBrowserFlowIn('assets', 'en'), '#/assets', 'Assets'],
-    ['set-up-in-other-tab', 'drive', setUpInOtherTabFlow, '#/', 'All apps'],
+    ['set-up-in-other-tab', 'drive', setUpInOtherTabFlow, '#/', 'Home'],
     ['assets-flat', 'drive&assets=drive&loans=sample', assetsEditorFlow, '#/assets', 'Overview'],
     ['assets-car-valuation', 'drive&assets=sample&loans=sample', assetsValuationFlow, `#/assets/asset?asset=${SAMPLE_CAR}`, 'Family car'],
     ['spending-start-on-drive', 'drive&spending=other-device', firstRunOnDriveFlowIn('spending', 'en'), '#/spending/start?step=folder', 'Spending'],

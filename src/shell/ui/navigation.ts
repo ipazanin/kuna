@@ -33,6 +33,8 @@ export interface NavigationApp {
 }
 
 export interface Navigation {
+  /** The home's cards, first in the menu. Null before any app is set up, when the home is the welcome. */
+  readonly home: NavigationEntry | null
   /** Null before any app is set up, when that page has nothing to show. */
   readonly netWorth: NavigationEntry | null
   /** The apps that are set up. */
@@ -69,13 +71,14 @@ function navigationAppOf(app: AppContribution, openAppId: string | null, under: 
 }
 
 /**
- * The whole menu: Net worth, the apps in use with the open one showing its pages, and Kuna settings. An app in its first
+ * The whole menu: Home, Net worth, the apps in use with the open one showing its pages, and Kuna settings. An app in its first
  * run has no file, so it stays out, and `firstRun` stays false for a file still opening or one whose read failed.
  * `under` is the path of the menu screen the shown screen opens from, which the menu lights, or null.
  */
 export function navigationOf(apps: readonly AppContribution[], openAppId: string | null, under: string | null = null): Navigation {
   const inUse = apps.filter((app) => !app.firstRun())
   return {
+    home: inUse.length === 0 ? null : entryOf(HOME_SCREEN),
     netWorth: inUse.length === 0 ? null : entryOf(NET_WORTH_SCREEN),
     apps: inUse.map((app) => navigationAppOf(app, openAppId, under)),
     addApp: kunaStart() === null || inUse.length === apps.length ? null : { to: HOME_SCREEN.path, label: words.navigation.addApp, icon: 'i-lucide-plus' },

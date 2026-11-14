@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 
 import { kunaStart } from '../../shared/app/kunaStart'
-import { words as sharedWords } from '../../shared/app/words'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../shared/ui/PageHeader.vue'
 import { installedApps } from '../routing/appRegistry'
@@ -25,7 +24,7 @@ const used = computed(() => apps.filter((app) => !left.value.includes(app)))
 
 <template>
   <section class="flex flex-col gap-6">
-    <PageHeader v-if="!welcomes" :title="sharedWords.allApps" :description="words.description" />
+    <PageHeader v-if="!welcomes" :title="words.title" :description="words.description" />
     <KunaWelcome v-if="welcomes" />
     <template v-else>
       <DashboardGrid data-testid="home-cards">

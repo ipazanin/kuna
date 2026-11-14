@@ -148,7 +148,7 @@ function spendingStarterIn(language) {
 /** What the menus, the Loans screens and the Company screens say in each language, from the app's own words. */
 const SCREEN_WORDS = {
   en: {
-    allApps: sharedEnglish.allApps,
+    homeTitle: homeEnglish.title,
     homeLink: sharedEnglish.homeLink,
     setUp: homeEnglish.setUp,
     kunaSettings: kunaSettingsEnglish.menu,
@@ -235,7 +235,7 @@ const SCREEN_WORDS = {
     locale: 'en-GB',
   },
   hr: {
-    allApps: sharedCroatian.allApps,
+    homeTitle: homeCroatian.title,
     homeLink: sharedCroatian.homeLink,
     setUp: homeCroatian.setUp,
     kunaSettings: kunaSettingsCroatian.menu,
@@ -5469,6 +5469,8 @@ function menuShown() {
     entries: [...(group?.querySelectorAll('[data-testid="nav-entries"] a') ?? [])].map((link) => link.textContent?.trim() ?? ''),
     apps: [...(scope?.querySelectorAll('[data-testid="nav-app-link"]') ?? [])].map((link) => link.dataset.app),
     current: scope?.querySelector('a[aria-current="page"]')?.textContent?.trim() ?? null,
+    homeEntry: scope?.querySelector('[data-testid="nav-home"]')?.textContent?.trim() ?? null,
+    homeEntryCurrent: scope?.querySelector('[data-testid="nav-home"]')?.getAttribute('aria-current') === 'page',
     netWorth: scope?.querySelector('[data-testid="nav-net-worth"]')?.textContent?.trim() ?? null,
     addApp: scope?.querySelector('[data-testid="nav-add-app"]')?.textContent?.trim() ?? null,
     drawerArrows: [...document.querySelectorAll('[role="dialog"] [data-testid="nav-arrow"]')].map((arrow) =>
@@ -5487,7 +5489,7 @@ function homeLinkLeads(menu, words, where) {
   if (!menu.ruled) throw new Error(`no line runs under the link home in ${where}`)
 }
 
-/** The menu holds the apps in use and one is open: Net worth over them, Add an app and Kuna settings under them, and the open app's name heavier, in line with its pages' names and without its own count. */
+/** The menu holds the apps in use and one is open: Home and Net worth over them, Add an app and Kuna settings under them, and the open app's name heavier, in line with its pages' names and without its own count. */
 function appLeadsItsPages(menu, app, listed, words) {
   if (menu.groups !== 1 || menu.name !== app) throw new Error(`the menu opens ${menu.groups} apps, the first ${menu.name}, instead of ${app} alone`)
   if (menu.expanded !== 'true') throw new Error(`the arrow of the open ${app} reads aria-expanded ${menu.expanded}`)
@@ -5496,15 +5498,15 @@ function appLeadsItsPages(menu, app, listed, words) {
   if (menu.drawerArrows.some((side) => side < 44)) throw new Error(`an arrow in the drawer is only ${Math.min(...menu.drawerArrows)} px, where a thumb presses it`)
   if (menu.countOnOpenRow) throw new Error(`the open ${app} shows a count on its row and on its page`)
   if (JSON.stringify(menu.apps) !== JSON.stringify(listed)) throw new Error(`the ${app} menu lists the apps ${menu.apps.join(', ')}, not ${listed.join(', ')}`)
-  if (menu.netWorth !== words.netWorth || menu.kunaSettings !== words.kunaSettings || menu.addApp !== words.addApp)
-    throw new Error(`the ${app} menu shows ${menu.netWorth}, ${menu.addApp} and ${menu.kunaSettings} around the apps`)
+  if (menu.homeEntry !== words.homeTitle || menu.netWorth !== words.netWorth || menu.kunaSettings !== words.kunaSettings || menu.addApp !== words.addApp)
+    throw new Error(`the ${app} menu shows ${menu.homeEntry}, ${menu.netWorth}, ${menu.addApp} and ${menu.kunaSettings} around the apps`)
 }
 
 /** Takes the link home from the sidebar or the drawer, to the home with every app. */
 async function goHome(page, press, words = SCREEN_WORDS.en) {
   await openMenu(page, press)
   await pressSelector(page, press, '[data-testid="home-link"]')
-  await screenTitled(page, words.allApps)
+  await screenTitled(page, words.homeTitle)
 }
 
 /** The cards of the home, read in the page: which app, whether it waits to be set up, its text, its lead figure, its tile's colour and where it leads. */
@@ -5513,7 +5515,9 @@ function homeCards() {
     app: card.dataset.app,
     state: card.dataset.state,
     text: card.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    lead: card.querySelector('dt')?.textContent?.trim() ?? null,
     figure: card.querySelector('dd')?.textContent?.trim() ?? null,
+    tint: card.querySelector('dd')?.dataset.tint ?? null,
     colour: card.querySelector('[data-testid="app-mark"]') === null ? null : getComputedStyle(card.querySelector('[data-testid="app-mark"]')).color,
     href: card.getAttribute('href'),
   }))
@@ -5557,8 +5561,8 @@ function sidebarMatchesCards(menu, cards, words = SCREEN_WORDS.en) {
 }
 
 /**
- * The one menu, in the sidebar or the drawer: the Kuna mark first in one row as the link home, named Kuna, all apps, with
- * a line under it, Net worth, the apps with a file with Loans open and its Overview, Scenarios and Settings under it, then Add an
+ * The one menu, in the sidebar or the drawer: the Kuna mark first in one row as the link home, named Kuna, Home, with
+ * a line under it, Home, Net worth, the apps with a file with Loans open and its Overview, Scenarios and Settings under it, then Add an
  * app and Kuna settings. The arrow on Company shows Company's pages in place of Loans' without leaving the screen, and shows them no
  * more when pressed again, and a press on the row of Loans opens its pages again, closing the drawer. The link home shows the home, with no app open, and the phone's top bar there has its menu button like any screen.
  * From the home, Company opens, whose Transactions item opens its To review tab while rows wait.
@@ -5597,7 +5601,7 @@ export function appMenuFlowIn(language) {
     if (backOnLoans.groups !== 1 || backOnLoans.name !== words.loans) throw new Error(`a press on the row of the Loans on screen left ${backOnLoans.groups} apps open`)
 
     await pressSelector(page, press, '[data-testid="home-link"]')
-    await screenTitled(page, words.allApps)
+    await screenTitled(page, words.homeTitle)
     const homeTitle = await page.title()
     if (homeTitle !== 'Kuna') throw new Error(`the browser tab on the home says "${homeTitle}"`)
     const bar = await page.evaluate(() => ({
@@ -5618,6 +5622,7 @@ export function appMenuFlowIn(language) {
       const home = await page.evaluate(menuShown)
       if (home.groups !== 0) throw new Error("the sidebar on the home shows an app's pages")
       homeLinkLeads(home, words, "the home's sidebar")
+      if (!home.homeEntryCurrent) throw new Error(`the sidebar on the home does not mark ${words.homeTitle} as the current page`)
       sidebarMatchesCards(await page.evaluate(homeMenu), await page.evaluate(homeCards), words)
     }
     await inspect?.('the home')
@@ -5681,7 +5686,7 @@ export function sidebarAdjustsFlowIn(language, listed) {
     }
 
     await pressSelector(page, press, '[data-testid="nav-add-app"]')
-    await screenTitled(page, words.allApps)
+    await screenTitled(page, words.homeTitle)
     const cards = await page.evaluate(homeCards)
     if (cards.length !== 5) throw new Error(`the home shows ${cards.length} cards after Add an app`)
     await inspect?.('the home after Add an app')
@@ -5808,7 +5813,7 @@ function centsIn(text, language) {
 
 /**
  * The home with the books of Company, Loans, Investments, Assets and Spending open: Company's card leads with the cash on hand
- * Overview shows and opens it, the Loans card with what you owe in all, which the Loans Overview says too, the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign, the Assets card with what the assets are worth, which its Overview's tile says too, and the Spending card with what this month spent, which its Overview's Spent tile says too. Each
+ * Overview shows and opens it, the Loans card with what others owe you less what you owe, on the tint of the way it runs, which the Loans Overview's Net tile says too, the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign, the Assets card with what the assets are worth, which its Overview's tile says too, and the Spending card with Bank and cash, which its Overview's accounts total says too. Each
  * card tiles its icon in a colour of its own. From 1024 px the sidebar lists every app as their cards do, and its
  * Company row opens Overview.
  */
@@ -5821,12 +5826,22 @@ export function homeFlowIn(language) {
     if (cards.length !== 5 || company.app !== 'company' || loans.app !== 'loans' || investments.app !== 'investments' || assets.app !== 'assets' || spending.app !== 'spending')
       throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company, Loans, Investments, Assets and Spending`)
     if (company.state !== 'open' || !company.text.includes(words.companyHome.cashOnHand) || !/€/.test(company.figure ?? '')) throw new Error(`the Company card reads "${company.text}"`)
-    if (loans.state !== 'open' || !loans.text.includes(words.loansHome.owed) || !/€/.test(loans.figure ?? '')) throw new Error(`the Loans card reads "${loans.text}"`)
+    if (
+      loans.state !== 'open' ||
+      loans.lead !== words.loansOverview.tiles.net ||
+      !loans.text.includes(words.loansHome.owed) ||
+      !loans.text.includes(words.loansHome.owedToYou) ||
+      !/€/.test(loans.figure ?? '')
+    )
+      throw new Error(`the Loans card reads "${loans.text}"`)
+    const owesOnBalance = (loans.figure ?? '').startsWith('−')
+    if (loans.tint !== (owesOnBalance ? '--loan-you-owe-tint' : '--loan-owed-to-you-tint')) throw new Error(`the Loans card's net ${loans.figure} sits on ${loans.tint}`)
     const gain = new RegExp(`${words.investmentsHome.totalGain}[+−]?(?:€|\\d)`)
     if (investments.state !== 'open' || !investments.text.includes(words.investmentsHome.value) || !gain.test(investments.text) || !/€/.test(investments.figure ?? ''))
       throw new Error(`the Investments card reads "${investments.text}"`)
     if (assets.state !== 'open' || !assets.text.includes(words.assetsHome.value) || !/€/.test(assets.figure ?? '')) throw new Error(`the Assets card reads "${assets.text}"`)
-    if (spending.state !== 'open' || !spending.text.includes(words.spendingHome.spentThisMonth) || !/€/.test(spending.figure ?? '')) throw new Error(`the Spending card reads "${spending.text}"`)
+    if (spending.state !== 'open' || spending.lead !== words.spendingHome.bankAndCash || !spending.text.includes(words.spendingHome.spentThisMonth) || !/€/.test(spending.figure ?? ''))
+      throw new Error(`the Spending card reads "${spending.text}"`)
     const colours = cards.map((card) => card.colour)
     if (colours.includes(null) || new Set(colours).size !== colours.length) throw new Error(`the cards tile their icons in ${colours.join(', ')}, not one colour each`)
     const menu = await page.evaluate(homeMenu)
@@ -5856,10 +5871,11 @@ export function homeFlowIn(language) {
     await goHome(page, press, words)
     await pressSelector(page, press, '[data-testid="home-card"][data-app="loans"]')
     await screenTitled(page, words.overview)
-    const total = await page
-      .waitForFunction(() => document.querySelector('[data-testid="loans-you-owe"] .text-figure-lg')?.textContent?.replace(/\s+/g, ' ').trim() ?? null, { timeout: 10_000 })
+    const net = await page
+      .waitForFunction(() => document.querySelector('[data-testid="loans-net"]')?.textContent?.replace(/\s+/g, ' ').trim() ?? null, { timeout: 10_000 })
       .then((handle) => handle.jsonValue())
-    if (centsIn(total, language) !== centsIn(loans.figure, language)) throw new Error(`the Loans card says ${loans.figure} owed, the Loans Overview "${total}"`)
+    const way = owesOnBalance ? words.loansOverview.tiles.netYouOwe : words.loansOverview.tiles.netOwedToYou
+    if (centsIn(net, language) !== centsIn(loans.figure, language) || !net.includes(way)) throw new Error(`the Loans card says ${loans.figure} net, the Loans Overview's Net tile "${net}"`)
     await inspect?.('the Loans Overview from the home')
 
     await goHome(page, press, words)
@@ -5881,10 +5897,18 @@ export function homeFlowIn(language) {
     await goHome(page, press, words)
     await pressSelector(page, press, '[data-testid="home-card"][data-app="spending"]')
     await screenTitled(page, words.spendingScreens.overview)
-    const spent = await page
-      .waitForFunction(() => document.querySelector('[data-testid="spending-spent"] .text-figure-lg')?.textContent?.trim() ?? null, { timeout: 10_000 })
+    const held = await page
+      .waitForFunction(
+        (label) =>
+          [...document.querySelectorAll('[data-testid="spending-accounts-total"]')]
+            .find((total) => total.querySelector('th')?.textContent?.trim() === label)
+            ?.querySelector('td')
+            ?.textContent?.trim() ?? null,
+        { timeout: 10_000 },
+        words.spendingHome.bankAndCash,
+      )
       .then((handle) => handle.jsonValue())
-    if (spent !== spending.figure) throw new Error(`the Spending card says ${spending.figure} spent, the Spending Overview's tile ${spent}`)
+    if (held !== spending.figure) throw new Error(`the Spending card says ${spending.figure} in bank and cash, the Spending Overview's accounts ${held}`)
 
     if (menu === null) return
     await goHome(page, press, words)
@@ -5940,7 +5964,7 @@ export function setUpFlowIn(language) {
       await screenTitled(page, name)
       await inspect?.(`the ${app.name} first run from the home`)
       await pressSelector(page, press, '[data-testid="home-link"]')
-      await screenTitled(page, words.allApps)
+      await screenTitled(page, words.homeTitle)
     }
 
     await pressSelector(page, press, '[data-testid="home-card"][data-app="company"]')

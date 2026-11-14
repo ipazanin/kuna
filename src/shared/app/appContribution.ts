@@ -44,6 +44,8 @@ export interface HomeAmount {
   readonly sign?: SignDisplay
   /** As on `MoneyText`, such as `outcome` for a gain that is green and a loss that is red. */
   readonly tone?: MoneyTone
+  /** The custom property of a light tint the figure sits on in ink, such as `--loan-you-owe-tint` for a position that says which way it runs. */
+  readonly tint?: `--${string}`
 }
 
 /** What the app's card on the Kuna home shows while the app's books are on screen. */

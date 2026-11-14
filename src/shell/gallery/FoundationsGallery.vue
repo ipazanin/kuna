@@ -103,6 +103,14 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
     ],
   },
   {
+    title: 'Loans: the tint under a net position in ink, by the way it runs, with the contrast of ink on each',
+    measure: 'under-ink',
+    swatches: [
+      { name: 'You owe more', token: '--loan-you-owe-tint' },
+      { name: 'Owed to you more', token: '--loan-owed-to-you-tint' },
+    ],
+  },
+  {
     title: 'Net worth: what you have and what you owe',
     measure: 'as-mark',
     swatches: [

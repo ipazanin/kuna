@@ -49,6 +49,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A screen formats money as its app does. A figure shown outside its app, as on the home, passes its app's `moneyFormat()` to `MoneyText` as `format`.
 - `tone="flow"` for money in and out: green coming in, ink going out. `tone="outcome"` for a result such as a net, where negative is a loss. No tone for a cost.
 - Costs that read positive use `sign="magnitude"`. Changes use `sign="always"`.
+- A net position, such as what others owe you less what you owe, is not a loss, so it never takes `outcome`. It shows signed with `sign="always"` in ink, on the light tint of the way it runs (`--loan-you-owe-tint` or `--loan-owed-to-you-tint`), with the two figures it comes from beside it. At zero it has no tint.
 
 ## Dialogs
 
@@ -100,12 +101,12 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 
 ## Navigation
 
-- One menu holds every app, in the sidebar and the drawer alike. It opens with `HomeLink` in its standard look: a 24 px Kuna mark and the name in one row, a link home, with a thin line under it. Net worth comes next, then a row per app in use with a small `AppMark`, then Kuna settings pinned over Sync, so it keeps one place while the list scrolls. Where the chosen sidebar does not fit, the same menu is in the drawer, pinned the same way.
+- One menu holds every app, in the sidebar and the drawer alike. It opens with `HomeLink` in its standard look: a 24 px Kuna mark and the name in one row, a link home, with a thin line under it. Home comes next, then Net worth, then a row per app in use with a small `AppMark`, then Kuna settings pinned over Sync, so it keeps one place while the list scrolls. Where the chosen sidebar does not fit, the same menu is in the drawer, pinned the same way.
 - One app is open at a time, and the address decides which, so nothing about it is stored. An open app shows its optional subtitle in `type-caption`, its menu and its Settings. The small arrow on a closed app's row opens its pages without leaving the screen, and the next change of address closes them. The arrow is a button beside the row's link, never inside it, and 44 px in the drawer and for a coarse pointer.
 - Menu items and app rows share one grid: a 24 px column for the icon or tile, then the name, so an item's name lines up with its app's. The open app stands out by weight and its tile, never by indenting or tinting. The selected item keeps the accent.
 - A pill on a menu item means something waits there, and nothing else. A closed app's row adds up its items' pills, and an open app's row shows none, since its item carries it. An app in its first run has no file, so it is left out.
-- While any app is left out and the welcome has an answer, a quiet Add an app row closes the list and leads to the home, whose cards offer every app. Before any app is set up, Net worth is left out too, since it has nothing to show.
-- Kuna's home at `#/` has a card per app, and no app is open in its menu. The phone home has the same drawer as every screen, so Net worth and Kuna settings are reached there and the home carries no buttons for them.
+- While any app is left out and the welcome has an answer, a quiet Add an app row closes the list and leads to the home, whose cards offer every app. Before any app is set up, Home and Net worth are left out too, since the home is the welcome and Net worth has nothing to show.
+- Kuna's home at `#/`, titled Home in the menu, its header and Jump to a page, has a card per app, and no app is open in its menu. The phone home has the same drawer as every screen, so Net worth and Kuna settings are reached there and the home carries no buttons for them.
 - Kuna settings at `#/settings` holds only what is the same for every app: sync, sign-out, where new files go, the AI key and model, Always allow and Anonymise for the AI company in use, theme and language. Each app's Assistant tab shows whether the chat asks first and links to Kuna settings.
 - A first run starts with the quiet `HomeLink`, so it can be left for the home.
 - The sidebar is expanded, icons or hidden, picked in the Sidebar layout menu beside the Kuna mark, whose icon shows the choice in force. Hidden gives the top bar and the drawer of a narrower window, with only the menu button on the left. The layout menu sits at the top of the drawer whenever some sidebar fits the window. Icons show each name as a tooltip and what waits as a small figure on its corner.

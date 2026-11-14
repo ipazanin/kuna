@@ -12,13 +12,13 @@ import { standingWords } from '../../informalLoans/presentation/informalLoanView
 import type { LoanDirection } from '../../workbook/domain/informalLoan'
 import type { BankLoanBook, InformalLoanBook, LoanBook } from '../../workbook/domain/readLoanBook'
 import type { UpcomingPayment } from '../domain/loansTogether'
-import { owedTotals } from '../domain/owedTotals'
+import { netDirection, netOwed, owedTotals } from '../domain/owedTotals'
 import type { OwedTotals } from '../domain/owedTotals'
 import { bankLoanLink, informalLoanLink } from './loanLinks'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
-import { negateMoney, subtractMoney } from '../../../../shared/money/money'
+import { negateMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
 
@@ -71,7 +71,7 @@ export function loansOverview(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
     settled: informalClosedOn(loanBook, day),
   }))
   const totals = owedTotals({ bank: bank.map((entry) => entry.open.figures), informal: informal.map((entry) => entry.open.figures) })
-  const net = subtractMoney(totals.owedToYou, totals.owed)
+  const net = netOwed(totals)
   return {
     openBank: bank.flatMap((entry) => (entry.paidOff === null ? [entry.open] : [])),
     openInformal: informal.flatMap((entry) => (entry.settled === null ? [entry.open] : [])),
@@ -88,7 +88,7 @@ export function loansOverview(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
       }),
     ],
     totals,
-    net: { amount: net < 0 ? negateMoney(net) : net, direction: net === 0 ? null : net < 0 ? 'you-owe' : 'owed-to-you' },
+    net: { amount: net < 0 ? negateMoney(net) : net, direction: netDirection(net) },
   }
 }
 

@@ -4,7 +4,7 @@ import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { bankLoanFigures } from '../src/apps/loans/bankLoans/domain/bankLoanFigures'
 import { informalLoanFigures } from '../src/apps/loans/informalLoans/domain/informalLoanFigures'
 import { loansNetWorthParts } from '../src/apps/loans/home/domain/loansNetWorthParts'
-import { owedOnDay, owedTotals } from '../src/apps/loans/overview/domain/owedTotals'
+import { netDirection, netOwed, owedOnDay, owedTotals } from '../src/apps/loans/overview/domain/owedTotals'
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -70,6 +70,25 @@ describe('what you owe over every loan of the file on a day', () => {
       loansYouOwe: 1,
       loansOwedToYou: 1,
     })
+  })
+})
+
+describe('the net of what others owe you and what you owe', () => {
+  it('is below zero while you owe more, as with a home loan and a small loan to a friend', () => {
+    // 1,200.00 − 182,400.00.
+    expect(netOwed({ owed: euros(182_400), owedToYou: euros(1_200) })).toEqual(euros(-181_200))
+    expect(netDirection(euros(-181_200))).toBe('you-owe')
+  })
+
+  it('is above zero while others owe you more', () => {
+    // 182,400.00 − 1,200.00.
+    expect(netOwed({ owed: euros(1_200), owedToYou: euros(182_400) })).toEqual(euros(181_200))
+    expect(netDirection(euros(181_200))).toBe('owed-to-you')
+  })
+
+  it('is zero with no direction when the two ways are even', () => {
+    expect(netOwed({ owed: euros(500), owedToYou: euros(500) })).toEqual(euros(0))
+    expect(netDirection(euros(0))).toBeNull()
   })
 })
 

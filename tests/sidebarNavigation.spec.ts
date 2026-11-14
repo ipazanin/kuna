@@ -95,19 +95,21 @@ describe('the menu', () => {
     expect(navigationOf([appWith(new Map())], null).addApp).toBeNull()
   })
 
-  it('shows Add an app and no Net worth before any app is set up', () => {
+  it('shows Add an app and no Home or Net worth before any app is set up', () => {
     answerKunaStart({ apps: ['books'], home: 'drive' })
-    const { apps, addApp, netWorth, kunaSettings } = navigationOf([appWith(new Map(), true)], null)
+    const { apps, addApp, home, netWorth, kunaSettings } = navigationOf([appWith(new Map(), true)], null)
 
     expect(apps).toEqual([])
     expect(addApp).not.toBeNull()
+    expect(home).toBeNull()
     expect(netWorth).toBeNull()
     expect(kunaSettings).toMatchObject({ to: '/settings', label: 'Kuna settings' })
   })
 
-  it('holds Net worth and Kuna settings once an app is in use', () => {
-    const { netWorth, kunaSettings } = navigationOf([appWith(new Map())], null)
+  it('holds Home, Net worth and Kuna settings once an app is in use', () => {
+    const { home, netWorth, kunaSettings } = navigationOf([appWith(new Map())], null)
 
+    expect(home).toMatchObject({ to: '/', label: 'Home', icon: 'i-lucide-layout-grid' })
     expect(netWorth).toMatchObject({ to: '/overview', label: 'Net worth' })
     expect(kunaSettings).toMatchObject({ to: '/settings', label: 'Kuna settings' })
   })

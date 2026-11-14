@@ -1,10 +1,11 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { negateMoney, sumMoney } from '../../../../shared/money/money'
+import { negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { bankLoanFigures } from '../../bankLoans/domain/bankLoanFigures'
 import type { BankLoanFigures } from '../../bankLoans/domain/bankLoanFigures'
 import { informalLoanFigures } from '../../informalLoans/domain/informalLoanFigures'
 import type { InformalLoanFigures } from '../../informalLoans/domain/informalLoanFigures'
+import type { LoanDirection } from '../../workbook/domain/informalLoan'
 import type { LoanBook } from '../../workbook/domain/readLoanBook'
 
 export interface OwedTotals {
@@ -29,6 +30,17 @@ export function owedTotals(loans: LoanFigures): OwedTotals {
   const youOwe = owed.filter((amount) => amount > 0)
   const owedToYou = owed.filter((amount) => amount < 0).map(negateMoney)
   return { owed: sumMoney(youOwe), owedToYou: sumMoney(owedToYou), loansYouOwe: youOwe.length, loansOwedToYou: owedToYou.length }
+}
+
+/** What others owe you less what you owe, below zero while you owe more. */
+export function netOwed(totals: Pick<OwedTotals, 'owed' | 'owedToYou'>): Money {
+  return subtractMoney(totals.owedToYou, totals.owed)
+}
+
+/** Who owes on balance by the sign of the net, or null when the two ways are even. */
+export function netDirection(net: Money): LoanDirection | null {
+  if (net === 0) return null
+  return net < 0 ? 'you-owe' : 'owed-to-you'
 }
 
 /** The totals over every loan of the file on a day, for the figures shown outside the Overview. */

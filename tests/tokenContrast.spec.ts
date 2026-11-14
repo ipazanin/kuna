@@ -22,8 +22,8 @@ const WASHED_SURFACES = ['--surface-page', '--surface-raised']
 const APP_COLOURS = ['--app-company', '--app-loans', '--app-investments', '--app-assets', '--app-spending']
 const APP_TILE_WASH = 0.14
 const CHART_INKS = ['--chart-ink', '--chart-ink-secondary', '--chart-ink-muted']
-/** The gain and loss steps, which tint a tile or a cell under a figure in ink. */
-const STEPS = ['--gain-1', '--gain-2', '--gain-3', '--loss-1', '--loss-2', '--loss-3']
+/** The gain and loss steps, which tint a tile or a cell under a figure in ink, and the tints under a net position by the way it runs. */
+const STEPS = ['--gain-1', '--gain-2', '--gain-3', '--loss-1', '--loss-2', '--loss-3', '--loan-you-owe-tint', '--loan-owed-to-you-tint']
 /** The class ring's colours that are not series, marks on the card and on the chart's surface. */
 const CLASS_MARKS = ['--invest-gold', '--invest-crypto']
 /** The dots that mark a buy, a sale or a loan's movement on a time chart, and the ring of a new rate, as marks on the card and on the chart's surface. */
@@ -73,7 +73,7 @@ function colourOf(tokens: ReadonlyMap<string, string>, name: string): string {
  * The pairs that carry text in one theme: every ink and tone on the page, a card and a popover, each
  * tone on the 10% wash of itself that Nuxt UI's subtle badges and alerts lie on, ink on the accent
  * wash of a picked row or tab, each app's colour on the surfaces as text and on its own tile as a mark, the label of a primary button, the chart's ink, and the ink inside a
- * filled chart mark, which carries icons and large text only, ink on each gain and loss step, and each class colour, each dot colour and the edge of a checkbox, a radio or an off switch as a mark.
+ * filled chart mark, which carries icons and large text only, ink on each gain and loss step and on each net position's tint, and each class colour, each dot colour and the edge of a checkbox, a radio or an off switch as a mark.
  */
 function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
   const colour = (name: string): string => colourOf(tokens, name)

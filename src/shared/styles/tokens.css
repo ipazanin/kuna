@@ -147,6 +147,13 @@
   --loss-1: #ef9d93;
   --loss-2: #e4847a;
   --loss-3: #d46e64;
+
+  /*
+   * The light tint under a net position in ink, in the hue of the way it runs: what you owe more of in the you-owe red, what is owed
+   * to you more of in the owed-to-you green. A position is no loss, so it never takes the outcome tone. Each passes 4.5:1 with ink.
+   */
+  --loan-you-owe-tint: #f9e3e0;
+  --loan-owed-to-you-tint: #dcefe4;
 }
 
 .dark {
@@ -226,6 +233,9 @@
   --loss-1: #772a25;
   --loss-2: #8f3832;
   --loss-3: #a04e46;
+
+  --loan-you-owe-tint: #3d2220;
+  --loan-owed-to-you-tint: #173326;
 }
 
 /* Colour follows the bucket on every chart, so operating is the same orange wherever it appears. */

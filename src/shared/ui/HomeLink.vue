@@ -9,7 +9,7 @@ defineOptions({ inheritAttrs: false })
 
 /** The Kuna mark and name, which open the home with every app: quiet beside a grid icon on a first run, or standard at the top of a menu. */
 defineProps<{
-  /** The link's name for a screen reader and its tooltip, which starts with the visible Kuna, such as "Kuna, all apps". */
+  /** The link's name for a screen reader and its tooltip, which starts with the visible Kuna, such as "Kuna, Home". */
   label: string
   /** Quiet beside a grid icon on a first run, standard in one row at the top of a menu, or the mark alone on the icon sidebar. */
   look: 'quiet' | 'standard' | 'rail'
