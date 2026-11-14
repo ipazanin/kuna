@@ -26,6 +26,7 @@ When you see something worth improving that the work at hand should not take on,
 - Search open and closed issues first. Nothing is created without the owner's yes.
 - A subagent lists proposals at the end of its report, apart from findings to fix now. The lead brings them to the owner at the end of a chunk as pickers: create, drop or merge into an existing issue.
 - Approved ones get the `tech-debt` label. A rule problem is fixed in the rule or skill and, where possible, in a lint or boundary check.
+- Every task and every workflow also takes one open `tech-debt` issue, preferably one that touches the same files, and delivers it in the same chunk.
 
 ## Review what a person sees
 
