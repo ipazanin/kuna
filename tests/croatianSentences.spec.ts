@@ -341,6 +341,13 @@ describe('Company record labels and sentences in Croatian', () => {
     expect(words.labels.splitPart(storedFieldsOfValues({ category: 'travel', amount: '-40', date: '2026-10-01' }))).toBe('travel, −40,00 €, 1. 10. 2026.')
   })
 
+  it('names an item by its category in Croatian, not by its slug', async () => {
+    const { words } = await inCroatian(() => import('../src/apps/company/workbook/domain/words'))
+
+    expect(words.labels.item(storedFieldsOfValues({ category: 'equipment', amount: '-30' }))).toBe('Oprema, −30,00 €')
+    expect(words.labels.item(storedFieldsOfValues({ category: 'printer-ink', amount: '-8.9' }))).toBe('Printer ink, −8,90 €')
+  })
+
   it('counts the owner advances a filter leaves out, with the verb of one filter or two', async () => {
     const { words } = await inCroatian(() => import('../src/apps/company/transactions/presentation/words'))
 

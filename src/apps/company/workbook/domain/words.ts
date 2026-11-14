@@ -84,6 +84,11 @@ const SEEDED_NAMES: ReadonlyMap<string, string> = new Map([
   ['share-capital', 'Temeljni kapital'],
 ])
 
+/** A category or family by Kuna's Croatian name for it, else its slug in words. */
+function croatianName(slug: string): string {
+  return SEEDED_NAMES.get(slug) ?? slugInWords(slug)
+}
+
 /** A date field as the day Croatian writes, anything else as its text. */
 export function dayInWords(field: StoredField | undefined): string {
   const day = field?.date ?? null
@@ -107,7 +112,7 @@ export const en = {
     ledgerRow: (fields: StoredFields) =>
       labelWords([dayText(fields.date), textOf(fields.counterparty) || textOf(fields.description), numberText(fields.amount), labelled('balance', numberText(fields.balance))]),
     splitPart: (fields: StoredFields) => labelWords([textOf(fields.category), numberText(fields.amount), dayText(fields.date)]),
-    item: (fields: StoredFields) => labelWords([textOf(fields.category), numberText(fields.amount)]),
+    item: (fields: StoredFields) => labelWords([slugInWords(textOf(fields.category)), numberText(fields.amount)]),
     dismissal: (fields: StoredFields) => labelWords([textOf(fields.key), dayText(fields.dismissed_on)]),
     billingItem: (fields: StoredFields) => labelWords([textOf(fields.item), textOf(fields.client), dayText(fields.date), numberText(fields.amount)]),
   },
@@ -205,11 +210,11 @@ export const hr: Translation<typeof en> = {
     ledgerRow: (fields) =>
       labelWords([dayInWords(fields.date), textOf(fields.counterparty) || textOf(fields.description), moneyInWords(fields.amount), labelled('saldo', moneyInWords(fields.balance))]),
     splitPart: (fields) => labelWords([textOf(fields.category), moneyInWords(fields.amount), dayInWords(fields.date)]),
-    item: (fields) => labelWords([textOf(fields.category), moneyInWords(fields.amount)]),
+    item: (fields) => labelWords([croatianName(textOf(fields.category)), moneyInWords(fields.amount)]),
     dismissal: (fields) => labelWords([textOf(fields.key), dayInWords(fields.dismissed_on)]),
     billingItem: (fields) => labelWords([textOf(fields.item), textOf(fields.client), dayInWords(fields.date), moneyInWords(fields.amount)]),
   },
-  unlabelled: (slug) => SEEDED_NAMES.get(slug) ?? slugInWords(slug),
+  unlabelled: croatianName,
   categories: {
     notAllFilled: 'category, family i bucket nisu svi popunjeni',
     notABucket: (bucket) => `„${bucket}” nije skupina`,

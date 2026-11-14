@@ -2017,14 +2017,15 @@ async function checkWidth(width) {
     await (await waitForText(page, '[role="dialog"] button', 'Cancel')).tap()
     await page.waitForFunction(() => !document.querySelector('[role="dialog"]'))
 
-    // A rule by the fragment STORE files PAPER & INK STORE as equipment, against the person's office supplies, so that row turns into an exception.
+    // A rule by the fragment Steady files the Steady Health Plans policy as equipment, against the person's health insurance, so that
+    // row turns into an exception. The row is not split, since a split row stays out of rules.
     const laptop = await waitForText(page, '[data-testid="coverage-gap"]', 'Laptop Store')
     await laptop.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
     await (await laptop.$('[data-testid="coverage-make-rule"]')).tap()
     const fragment = await page.waitForSelector('[data-testid="rule-condition"] input[aria-label="Counterparty contains"]')
     await fragment.evaluate((input) => input.select())
-    await page.keyboard.type('STORE')
+    await page.keyboard.type('Steady')
     const accept = await page.waitForSelector('[data-testid="accept-backtest"][role="checkbox"], [data-testid="accept-backtest"] [role="checkbox"]')
     await accept.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(300)
@@ -2035,7 +2036,7 @@ async function checkWidth(width) {
     await waitForText(page, '[data-slot="title"]', 'Added merchant-laptop-store')
     await closeToasts(page)
 
-    const exception = await waitForText(page, '[data-testid="coverage-exception"]', 'PAPER & INK STORE')
+    const exception = await waitForText(page, '[data-testid="coverage-exception"]', 'Steady Health Plans')
     await expect(
       exception.evaluate((group) => group.textContent ?? ''),
       (text) => text.includes('merchant-laptop-store files them as') && !text.includes('Make this a rule'),

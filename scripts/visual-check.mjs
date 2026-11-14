@@ -2503,7 +2503,7 @@ const SOURCE_SCREENS = [
       'Nobody owes you',
       'Interest still to pay',
       'Bank loans paid off',
-      'Overdue, to Dora',
+      'Overdue, repaying Dora',
       'Owed over time',
       'What goes out each month',
       'Your upcoming payments',

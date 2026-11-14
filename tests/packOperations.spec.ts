@@ -206,7 +206,7 @@ async function packDesk(books = fakeWorkbookDocument): Promise<PackDesk> {
 }
 
 /** Fields Kuna keeps by itself or shows through another field, which a card leaves off. */
-const NOT_ON_CARD: ReadonlySet<string> = new Set(['id', 'ownerPart', 'kind', 'key'])
+const NOT_ON_CARD: ReadonlySet<string> = new Set(['id', 'ownerPart', 'kind', 'key', 'row'])
 
 /** For each record a card adds or changes, the field names it shows and the names of the fields the change sets. */
 function fieldsOnCard(card: CheckedProposal): { readonly shown: readonly string[]; readonly set: readonly string[] }[] {

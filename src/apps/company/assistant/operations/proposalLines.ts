@@ -33,7 +33,7 @@ import type { Rule } from '../../../../shared/categorising/domain/rule'
 import { cellText } from '../../../../shared/text/cellText'
 
 /** The fields Kuna keeps by itself, which no operation sets, so a card leaves them off. */
-export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'rowId', 'signals', 'reviewReasons', 'reference', 'statement', 'balance', 'key'])
+export const KEPT_BY_KUNA: ReadonlySet<string> = new Set(['id', 'rowId', 'signals', 'reviewReasons', 'reference', 'statement', 'balance', 'key', 'row'])
 
 /** The fields that say where money goes, which a card warns on. */
 const WARNS: ReadonlySet<string> = new Set(['iban', 'counterpartyIban'])
@@ -134,9 +134,13 @@ function warns(kind: RecordKind<unknown>, field: string, after: ProposedRecord |
   return false
 }
 
-/** Whether the change files a row a person confirmed under another category. */
-function movesConfirmed(kind: RecordKind<unknown>, before: ProposedRecord, after: ProposedRecord): boolean {
-  return isKind(kind, LEDGER_RECORDS, before) && isKind(kind, LEDGER_RECORDS, after) && isHumanConfirmed(before) && before.category !== '' && before.category !== after.category
+/** Whether the change files a row a person confirmed under another category. In books with an items tab the category sits on the row's item. */
+function movesConfirmed(kind: RecordKind<unknown>, before: ProposedRecord, after: ProposedRecord, workbook: Workbook): boolean {
+  if (before['category'] === '' || before['category'] === after['category']) return false
+  if (isKind(kind, LEDGER_RECORDS, before)) return isHumanConfirmed(before)
+  if (!isKind(kind, ITEM_RECORDS, before)) return false
+  const row = workbook.transactions.find((transaction) => transaction.rowId === before.row)
+  return row !== undefined && isHumanConfirmed(row)
 }
 
 /** Where a rule is tried among the rules, with the rule tried next by its name now. */
@@ -194,7 +198,7 @@ export function proposalGroupsOf(checked: CheckedWrite, workbook: Workbook, note
     reading: categoryReading,
     inLabel: fieldsInLabel,
     warns,
-    movesConfirmed,
+    movesConfirmed: (kind, before, after) => movesConfirmed(kind, before, after, workbook),
     checked: (kind, record, line): ProposalLine => {
       if (!isKind(kind, RULE_RECORDS, record)) return line
       const moved = placements.get(cellText(record.fields.rule).toLowerCase())

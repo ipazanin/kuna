@@ -30,6 +30,7 @@ import { moneyFromAmount } from '../src/shared/money/money'
 import type { RuledChange } from '../src/shared/storage/application/recordWrites'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { writeRulesChange } from '../src/apps/company/rules/application/ruleWrites'
+import { moveToItems } from '../src/apps/company/workbook/application/rowIdWrites'
 import { companyDesk, deskPorts, mailDraftsHeld } from './fixtures/companyDesk'
 import type { CompanyDesk } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
@@ -207,6 +208,14 @@ describe('rules', () => {
     if (accepted.kind === 'done') expect((await accepted.undo!()).kind).toBe('undone')
     expect(desk.row('REF-6')).toMatchObject({ category: 'equipment', flaggedBy: 'ivan' })
     expect(desk.store.state.workbook!.rules.map((rule) => rule.id)).not.toContain('office-desk')
+  })
+
+  it('warns on the item of a confirmed row it re-files in books that keep items on their own tab', async () => {
+    const desk = await companyDesk(used)
+    await desk.store.write('Moved', (unit) => moveToItems(unit, { records: desk.store.state.records!, workbook: desk.store.state.workbook! }))
+    await desk.propose([{ op: 'add-rule', input: ruleInput(desk, { payeeWords: 'Desk' }) }])
+    const items = desk.cards[0]!.groups.find((group) => group.noun === ITEM_RECORDS.noun)!
+    expect(items.lines.map((line) => [line.label, line.warning])).toEqual([['Office', sharedWords.confirmedRowMoves]])
   })
 
   it('warns on a confirmed row another rule now decides, and leaves it filed', async () => {

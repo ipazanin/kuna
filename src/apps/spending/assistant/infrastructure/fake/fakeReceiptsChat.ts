@@ -206,7 +206,10 @@ export function pickedReceiptReply({ request, tokens }: FakeChatTurn): ModelRepl
     return lookup(2, 'find_records', findRecordsArgs('spending', 'item', { refs: rows, fields: ['transaction', 'category'], limit: 20 }), tokens)
   }
   if (answers.length === 3) {
-    const filed = recordsIn(answers[2]!.text).find((item) => item.category !== undefined && item.transaction !== undefined)
+    const items = recordsIn(answers[2]!.text)
+    const filed = recordsIn(answers[1]!.text)
+      .flatMap((row) => items.filter((item) => item.transaction === row.ref))
+      .find((item) => item.category !== undefined)
     if (filed?.category === undefined || filed.transaction === undefined) return answered(request, says.noPayment, tokens)
     const step = receiptOf17(photo, 'card', filed.category, { entry: filed.transaction, account: null })
     return lookup(3, 'propose_changes', { app: 'spending', title: says.pickedTitle, steps: [step], next: false }, tokens)
