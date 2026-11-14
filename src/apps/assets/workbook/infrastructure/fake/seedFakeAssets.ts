@@ -1,9 +1,8 @@
 import { replaceBrowserDocument } from '../../../../../shared/storage/infrastructure/browserDocument'
 import { encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
-import type { DocumentCopy } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
 import { fakeBooksFolder, fakeDriveSession, holdReadsOf } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
-import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
+import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/chosenCopy'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { ASSETS_APP, emptyAssetsDocument } from '../assetsDocument'
 import { fakeAssetsDocument } from './fakeAssets'
@@ -45,7 +44,7 @@ export async function seedFakeAssets(variant: string | null): Promise<void> {
       else await fakeDriveSession().trash(created.fileId)
     } else if (variant !== 'other-device') {
       const meta = { id: created.fileId, source: 'drive', title: documentName(ASSETS_APP), syncedAt: savedAt, lastExportedAt: null, unexportedSince: null } as const
-      await keepChosen({ meta, revision: created.document.revision, document })
+      await keepChosenCopy(ASSETS_APP, { meta, revision: created.document.revision, document })
     } else {
       saveWorkbookChoice(ASSETS_APP, null)
     }
@@ -58,19 +57,8 @@ export async function seedFakeAssets(variant: string | null): Promise<void> {
       lastExportedAt: new Date(now - 12 * DAY).toISOString(),
       unexportedSince: new Date(now - 9 * DAY).toISOString(),
     } as const
-    await keepChosen({ meta, revision: (await replaceBrowserDocument(FAKE_ASSETS_ID, text)).revision, document })
+    await keepChosenCopy(ASSETS_APP, { meta, revision: (await replaceBrowserDocument(FAKE_ASSETS_ID, text)).revision, document })
   } else {
     saveWorkbookChoice(ASSETS_APP, null)
   }
-}
-
-/** Fills the cache with the copy, as a successful read would, and chooses it. */
-async function keepChosen(copy: DocumentCopy): Promise<void> {
-  const cache = openWorkbookCache(copy.meta.id)
-  try {
-    await cache.replace(copy)
-  } finally {
-    cache.close()
-  }
-  saveWorkbookChoice(ASSETS_APP, { source: copy.meta.source, id: copy.meta.id, name: copy.meta.title })
 }

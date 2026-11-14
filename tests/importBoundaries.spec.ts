@@ -219,6 +219,11 @@ function isFakeSeed(file: string): boolean {
   return /\/infrastructure\/fake\//.test(file)
 }
 
+/** What starts the apps on made-up books in the fake build, or on a copy of real books on `npm run dev:real`. A production build loads neither. */
+function isDevSeed(file: string): boolean {
+  return /\/infrastructure\/(fake|real)\//.test(file)
+}
+
 /** The files that declare a branded type. Adding one here is a decision the `kuna-domain` skill describes. */
 const BRAND_OWNERS = [
   'src/apps/company/owner-share/domain/ownerShare.ts',
@@ -392,7 +397,7 @@ describe('import boundaries', () => {
           !isStorageAdapter(entry.target) ||
           isStorage(entry.from) ||
           isAppEntry(entry.from) ||
-          isFakeSeed(entry.from) ||
+          isDevSeed(entry.from) ||
           (packOf(entry.from) !== null && /\/infrastructure\//.test(entry.from) && SPREADSHEET_MAPPING.includes(entry.target)),
       ),
     ).toEqual([])

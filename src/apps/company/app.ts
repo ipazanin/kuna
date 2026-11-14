@@ -69,6 +69,11 @@ export const companyApp: AppContribution = {
       registerFakeCompanyChat()
       registerFakeTripChat()
     }
+    // The real books of `npm run dev:real`, inline for the same reason.
+    if (import.meta.env.DEV && import.meta.env.VITE_REAL_BOOKS === 'true') {
+      const { seedRealBook } = await import('../../shared/storage/infrastructure/real/realBooks')
+      await seedRealBook(COMPANY_APP)
+    }
   },
   screens: [
     ...CORE_SCREENS,

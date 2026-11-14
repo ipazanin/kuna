@@ -4,7 +4,7 @@ import { replaceBrowserDocument } from '../../../../../shared/storage/infrastruc
 import { encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
 import { fakeBooksFolder, fakeDriveSession, holdReadsOf } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
-import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
+import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/chosenCopy'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { INVESTMENTS_APP, emptyInvestmentsDocument } from '../investmentsDocument'
 import { fakeInvestmentsDocument } from './fakeInvestments'
@@ -73,24 +73,18 @@ export async function seedFakeInvestments(variant: string | null, pricesVariant:
     holdReadsOf(created.fileId)
     return
   }
-  const cache = openWorkbookCache(created.fileId)
-  try {
-    await cache.replace({
-      meta: {
-        id: created.fileId,
-        source: 'drive',
-        title: choice.name,
-        syncedAt: keysSeeded || variant === 'binned' ? new Date(Date.parse(savedAt) - AUTO_SYNC_INTERVAL_MS - 60_000).toISOString() : savedAt,
-        lastExportedAt: null,
-        unexportedSince: null,
-      },
-      revision: created.document.revision,
-      document,
-    })
-  } finally {
-    cache.close()
-  }
-  saveWorkbookChoice(INVESTMENTS_APP, choice)
+  await keepChosenCopy(INVESTMENTS_APP, {
+    meta: {
+      id: created.fileId,
+      source: 'drive',
+      title: choice.name,
+      syncedAt: keysSeeded || variant === 'binned' ? new Date(Date.parse(savedAt) - AUTO_SYNC_INTERVAL_MS - 60_000).toISOString() : savedAt,
+      lastExportedAt: null,
+      unexportedSince: null,
+    },
+    revision: created.document.revision,
+    document,
+  })
   if (variant === 'given') {
     fakeDriveSession().file(created.fileId).ownedByMe = false
   }
@@ -113,16 +107,6 @@ async function seedInBrowser(pricesVariant: string | null): Promise<void> {
   const savedAt = new Date().toISOString()
   const document = fakeInvestmentsDocument(savedAt, 'sample')
   const stored = await replaceBrowserDocument(FAKE_LOCAL_INVESTMENTS_ID, encodeDocument(document))
-  const cache = openWorkbookCache(FAKE_LOCAL_INVESTMENTS_ID)
-  try {
-    await cache.replace({
-      meta: { id: FAKE_LOCAL_INVESTMENTS_ID, source: 'browser', title: LOCAL_INVESTMENTS_TITLE, syncedAt: savedAt, lastExportedAt: null, unexportedSince: null },
-      revision: stored.revision,
-      document,
-    })
-  } finally {
-    cache.close()
-  }
   const file = { ...fakePricesFile(pricesVariantOf(pricesVariant), pricesDay(savedAt)), writtenAt: savedAt }
   const prices = openPricesCache(FAKE_LOCAL_INVESTMENTS_ID)
   try {
@@ -130,7 +114,11 @@ async function seedInBrowser(pricesVariant: string | null): Promise<void> {
   } finally {
     prices.close()
   }
-  saveWorkbookChoice(INVESTMENTS_APP, { source: 'browser', id: FAKE_LOCAL_INVESTMENTS_ID, name: LOCAL_INVESTMENTS_TITLE })
+  await keepChosenCopy(INVESTMENTS_APP, {
+    meta: { id: FAKE_LOCAL_INVESTMENTS_ID, source: 'browser', title: LOCAL_INVESTMENTS_TITLE, syncedAt: savedAt, lastExportedAt: null, unexportedSince: null },
+    revision: stored.revision,
+    document,
+  })
 }
 
 /** Each load starts a new fake Drive whose ids repeat, so no copy of an earlier load's prices may stay to name another file. */

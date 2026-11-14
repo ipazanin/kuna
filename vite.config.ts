@@ -1,16 +1,25 @@
-import { defineConfig } from 'vite'
+import { createRequire } from 'node:module'
+import { dirname } from 'node:path'
+
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 import { devContentSecurityPolicy } from './scripts/devContentSecurityPolicy.ts'
+import { devRealBooks } from './scripts/devRealBooks.ts'
 import { offlineApp } from './scripts/pwa.ts'
 
 // The row of a list that Enter picks or a pointer is over, on the accented surface, so it shows on a card and in a popover in both themes.
 const highlightedRow = 'data-highlighted:not-data-disabled:before:bg-accented'
 
+// The folder the packages come from. A worktree under .claude/worktrees has none of its own and reads the main checkout's,
+// which the dev server refuses to serve, fonts included, unless it is allowed.
+const packagesFolder = dirname(dirname(dirname(createRequire(import.meta.url).resolve('@fontsource/inter/package.json'))))
+
 // Project site: https://ipazanin.github.io/kuna/
 // The leading and trailing slashes are both required, or every asset 404s once deployed.
 export default defineConfig({
   base: '/kuna/',
+  server: { fs: { allow: [searchForWorkspaceRoot(process.cwd()), packagesFolder] } },
   plugins: [
     vue(),
     ui({
@@ -62,6 +71,7 @@ export default defineConfig({
       },
     }),
     devContentSecurityPolicy(),
+    devRealBooks(),
     offlineApp(),
   ],
 })

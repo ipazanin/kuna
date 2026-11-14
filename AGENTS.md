@@ -33,6 +33,7 @@ When you see something worth improving that the work at hand should not take on,
 A change to anything a person sees gets a design review before it is pushed. That covers screens, components, styles, tokens and layout. A word change alone does not need it, unless it may no longer fit.
 
 - Run the `design-reviewer` agent on the diff, with the `frontend-design` skill as well as `kuna-design`, and give it screenshots at 360, 640, 1024 and 1440 px, both languages and both themes, with the before where one exists. A builder that cannot start agents says so, and the lead runs it.
+- Give the reviewer a port, a scratch copy of the owner's books and a scratch folder too, so it runs `npm run dev:real` and looks at the changed screens on real books. Real screenshots never leave the scratch folder.
 - Fix what it finds, or bring it to the owner. What is out of scope becomes a proposal.
 - Use the existing component library, colours and tokens first. A change may extend them or propose new ones, stating what it replaces or why nothing fits, with at least two uses or a clear second one coming. Removing or merging is a good outcome.
 

@@ -1990,6 +1990,7 @@ would otherwise print an ExperimentalWarning on Node 25 and later.
 npm install
 npm run dev            # http://localhost:5173/kuna/, talks to Google
 npm run dev:fake       # same app on a small synthetic workbook, no Google needed
+KUNA_REAL_BOOKS_DIR=/scratch/copy npm run dev:real -- --port 4420   # same app on a copy of real books, see below
 npm run check          # lint, format check, typecheck and unit tests, the import boundaries among them
 npm run build          # production build into dist/, then checks no dev-only code shipped
 npm run build:fake     # fake-mode build into dist-fake/, for the visual check
@@ -2118,6 +2119,26 @@ well. `--widths` takes widths the check already has. A name nothing is called fa
 there are, and a run that would check nothing fails too. A limited run keeps the screenshots it does not
 take and says on its last line that it was limited. Only the full run, without options, is the check
 before a commit. The address of the preview can go before or after the options.
+
+A design review also looks at the real books, since made-up books hide long payee names, many accounts,
+empty months and large figures. `npm run dev:real` starts the dev server with each app's install seeding
+this browser from the folder `KUNA_REAL_BOOKS_DIR` names: `kuna-company.json`, `kuna-loans.json`,
+`kuna-investments.json` with `kuna-investments-prices.json`, `kuna-assets.json`, `kuna-spending.json` and
+`kuna-rates.json`, each kept in this browser, so the sidebar shows export controls where the owner's
+device shows Drive's sync. The server only reads those names and never writes. Point
+it at a scratch copy, never at the Drive folder. A file the folder lacks leaves its app on its first run.
+`npm run shots:real` then shoots screens of that server at 360, 640, 1024 and 1440 px, in English and
+Croatian, light and dark, with the frames of chart animations and of what `--press <screen>=<selector>` opens, such as a dialog
+or a toast:
+
+```sh
+npm run shots:real -- http://localhost:4420/kuna/ --out /scratch/shots --only home,net-worth,company
+npm run shots:real -- http://localhost:4420/kuna/ --out /scratch/shots --route rules='#/company/settings?tab=rules'
+```
+
+The screen names are in `SCREENS` at the top of `scripts/real-shots.mjs`. The shots show real money, so
+`--out` is always a scratch folder outside the repo, and they never go into a commit, an issue or a PR.
+Neither the seeds nor the plugin reach a production build, and `assert-no-fake-bytes` checks that.
 
 CI runs the full checks side by side on twelve machines, since one machine takes nearly two hours. The
 visual check takes `--shard 3/10` for the third of ten shares: screen and flow names are dealt out in

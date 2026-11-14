@@ -67,6 +67,11 @@ export const investmentsApp: AppContribution = {
       const query = new URLSearchParams(window.location.search)
       await seedFakeInvestments(query.get('investments'), query.get('prices'), query.get('keys'))
     }
+    // The real books of `npm run dev:real`, inline for the same reason.
+    if (import.meta.env.DEV && import.meta.env.VITE_REAL_BOOKS === 'true') {
+      const { seedRealInvestments } = await import('./workbook/infrastructure/real/seedRealInvestments')
+      await seedRealInvestments()
+    }
   },
   screens: [
     OVERVIEW,

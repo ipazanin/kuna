@@ -1,7 +1,7 @@
 export const meta = {
   name: 'build-wave',
   description: 'Build, review and fix up to four Kuna lanes, each in a worktree the lead made at the pushed main',
-  whenToUse: 'Step 3 of the drive-feature skill. Pass args { scratch, base, lanes: [{ key, issue, worktree, port, brief }] }.',
+  whenToUse: 'Step 3 of the drive-feature skill. Pass args { scratch, base, books, lanes: [{ key, issue, worktree, port, brief }] }, where books is a read-only scratch copy of the real books.',
   phases: [
     { title: 'Build', detail: 'one builder per lane in its own worktree' },
     { title: 'Review', detail: 'design-reviewer for visible lanes, correctness review always' },
@@ -9,7 +9,7 @@ export const meta = {
   ],
 }
 
-const { scratch, base, lanes } = args
+const { scratch, base, books, lanes } = args
 
 const BUILD = {
   type: 'object',
@@ -45,7 +45,7 @@ const build = (lane, blockers) =>
 
 const review = (lane, built) =>
   agent(
-    `${common(lane)}\n\nReview the uncommitted diff in ${lane.worktree} against ${base}, untracked files included. The lane: ${lane.brief}\nThe builder reported: ${JSON.stringify(built).slice(0, 4000)}\n${built.visible ? `Review it as the design reviewer and for correctness. Screenshots are in ${scratch}/shots/${lane.key}/.` : 'Review it for correctness, regressions, one owner per rule, unused code left behind and test quality.'} Run npm run check yourself. Do not edit. blocks_push is true only for a real bug, a failing check, a broken design rule or a figure that moves without a reason.`,
+    `${common(lane)}\n\nReview the uncommitted diff in ${lane.worktree} against ${base}, untracked files included. The lane: ${lane.brief}\nThe builder reported: ${JSON.stringify(built).slice(0, 4000)}\n${built.visible ? `Review it as the design reviewer and for correctness. The builder's fake-build screenshots are in ${scratch}/shots/${lane.key}/. Also run the lane on the real books: KUNA_REAL_BOOKS_DIR=${books}, port ${lane.port + 100}, shots into ${scratch}/real-shots/${lane.key}/, and never copy a real figure or name into a finding.` : 'Review it for correctness, regressions, one owner per rule, unused code left behind and test quality.'} Run npm run check yourself. Do not edit. blocks_push is true only for a real bug, a failing check, a broken design rule or a figure that moves without a reason.`,
     { label: `review ${lane.key}`, phase: 'Review', schema: REVIEW, agentType: built.visible ? 'design-reviewer' : 'general-purpose' },
   )
 

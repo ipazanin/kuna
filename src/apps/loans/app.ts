@@ -41,6 +41,11 @@ export const loansApp: AppContribution = {
       registerFakeLoansChat()
       await seedFakeLoans(new URLSearchParams(window.location.search).get('loans'))
     }
+    // The real books of `npm run dev:real`, inline for the same reason.
+    if (import.meta.env.DEV && import.meta.env.VITE_REAL_BOOKS === 'true') {
+      const { seedRealBook } = await import('../../shared/storage/infrastructure/real/realBooks')
+      await seedRealBook(LOANS_APP)
+    }
   },
   screens: [
     OVERVIEW,

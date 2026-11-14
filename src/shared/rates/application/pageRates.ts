@@ -35,7 +35,7 @@ function updatePorts(cache: RatesCache, fetch: RatesFetch): RatesUpdatePorts {
 
 let held: Promise<PageRatesPorts> | null = null
 
-/** The page's adapters, the fake ones in the fake build, made once. */
+/** The page's adapters, the fake ones in the fake build, made once. The dev server's real books start this browser's copy from the owner's rates. */
 function pagePorts(): Promise<PageRatesPorts> {
   held ??= (async () => {
     // Inline, not hoisted into a constant, so a production build folds it away with the fixture.
@@ -47,7 +47,13 @@ function pagePorts(): Promise<PageRatesPorts> {
       ])
       return { update: updatePorts(memoryRatesCache(), fakeRatesFetch(new URLSearchParams(window.location.search).get('rates'))), drive: fakeRatesDrive() }
     }
-    return { update: updatePorts(browserRatesCache(), browserRatesFetch), drive: googleRatesDrive() }
+    const cache = browserRatesCache()
+    // The real books of `npm run dev:real`, inline for the same reason.
+    if (import.meta.env.DEV && import.meta.env.VITE_REAL_BOOKS === 'true') {
+      const { seedRealRates } = await import('../infrastructure/real/seedRealRates')
+      await seedRealRates(cache)
+    }
+    return { update: updatePorts(cache, browserRatesFetch), drive: googleRatesDrive() }
   })()
   return held
 }

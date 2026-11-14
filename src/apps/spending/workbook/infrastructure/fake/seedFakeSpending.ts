@@ -5,10 +5,9 @@ import { replaceBrowserDocument } from '../../../../../shared/storage/infrastruc
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { encodeDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
-import type { DocumentCopy } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
 import { fakeBooksFolder, fakeDriveSession, holdReadsOf } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
-import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
+import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/chosenCopy'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 
 /**
@@ -68,7 +67,7 @@ export async function seedFakeSpending(variant: string | null, bankSync: string 
       else await fakeDriveSession().trash(created.fileId)
     } else if (variant !== 'other-device') {
       const meta = { id: created.fileId, source: 'drive', title: documentName(SPENDING_APP), syncedAt: savedAt, lastExportedAt: null, unexportedSince: null } as const
-      await keepChosen({ meta, revision: created.document.revision, document })
+      await keepChosenCopy(SPENDING_APP, { meta, revision: created.document.revision, document })
     } else {
       saveWorkbookChoice(SPENDING_APP, null)
     }
@@ -81,7 +80,7 @@ export async function seedFakeSpending(variant: string | null, bankSync: string 
       lastExportedAt: new Date(now - 12 * DAY).toISOString(),
       unexportedSince: new Date(now - 9 * DAY).toISOString(),
     } as const
-    await keepChosen({ meta, revision: (await replaceBrowserDocument(FAKE_SPENDING_ID, text)).revision, document })
+    await keepChosenCopy(SPENDING_APP, { meta, revision: (await replaceBrowserDocument(FAKE_SPENDING_ID, text)).revision, document })
   } else {
     saveWorkbookChoice(SPENDING_APP, null)
   }
@@ -89,15 +88,4 @@ export async function seedFakeSpending(variant: string | null, bankSync: string 
 
 function savedByNewerSpending(document: WorkbookDocument): WorkbookDocument {
   return { ...document, schema: { ...document.schema, spending: (document.schema.spending ?? 0) + 1 } }
-}
-
-/** Fills the cache with the copy, as a successful read would, and chooses it. */
-async function keepChosen(copy: DocumentCopy): Promise<void> {
-  const cache = openWorkbookCache(copy.meta.id)
-  try {
-    await cache.replace(copy)
-  } finally {
-    cache.close()
-  }
-  saveWorkbookChoice(SPENDING_APP, { source: copy.meta.source, id: copy.meta.id, name: copy.meta.title })
 }

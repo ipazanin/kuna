@@ -7,7 +7,7 @@ import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
 import { COMPANY_APP } from '../../domain/companyApp'
 import { createDriveDocument, documentName } from '../../../../../shared/storage/infrastructure/driveDocument'
 import { failNextUpload, fakeBooksFolder, fakeDriveSession, raceTheNextSave, seedFakeBackups, slowUploads } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
-import { openWorkbookCache } from '../../../../../shared/storage/infrastructure/workbookCache'
+import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/chosenCopy'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
 import { MAIL_SOURCE_PROPERTY } from '../../../../../shared/mail-filing/domain/mailSource'
 import { FAKE_MAIL_SETTINGS } from '../../../mail/infrastructure/fake/fakeMailbox'
@@ -128,13 +128,7 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   if (source === 'drive' && new URLSearchParams(window.location.search).has('backups')) {
     await seedFakeBackups(copy.meta.id, COMPANY_APP)
   }
-  const cache = openWorkbookCache(copy.meta.id)
-  try {
-    await cache.replace(copy)
-  } finally {
-    cache.close()
-  }
-  saveWorkbookChoice(COMPANY_APP, { source, id: copy.meta.id, name: copy.meta.title })
+  await keepChosenCopy(COMPANY_APP, copy)
 }
 
 /** The save another device makes in a race: the snack kiosk's row confirmed on a phone, with its one item filed as travel. */

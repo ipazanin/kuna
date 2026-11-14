@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "dev:fake": "vite --mode fake",
+    "dev:real": "vite --mode real",
     "build": "vue-tsc -b && vite build && node scripts/assert-no-fake-bytes.mjs",
     "build:fake": "vite build --mode fake --outDir dist-fake",
     "preview": "vite preview",
@@ -15,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm test",
+    "shots:real": "node --no-experimental-webstorage scripts/real-shots.mjs",
     "check:visual": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/visual-check.mjs",
     "parity:year-end": "node --no-experimental-webstorage --import ./scripts/support/typescriptResolve.mjs scripts/parity-year-end.mjs",
     "import:foreign-per-diems": "node scripts/import-foreign-per-diems.mjs",
