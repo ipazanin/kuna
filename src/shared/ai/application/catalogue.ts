@@ -253,7 +253,7 @@ function reportPage(report: AssistantReport): string {
   return [`# ${report.id}`, report.about, `The period is a ${report.period}, such as ${report.period === 'month' ? '2026-10' : '2026-10-31'}, or null for the current one.`].join('\n')
 }
 
-/** The longest about an operation's line in the instructions takes whole. A longer one is cut to its first sentence, and then to what comes before its first colon, as its page holds the rest. */
+/** The longest about an operation's line on its app's list takes whole. A longer one is cut to its first sentence, and then to what comes before its first colon, as its page holds the rest. */
 const MOST_OPERATION_LINE = 100
 
 function operationLine(operation: AssistantOperation): string {
@@ -264,21 +264,25 @@ function operationLine(operation: AssistantOperation): string {
   return `- ${operation.name}: ${about}`
 }
 
-/**
- * Every operation of every app that proposes changes, by app, so the model knows what it can do without opening a page.
- * A line several apps have alike, such as make-file, goes once first with the apps that take it.
- */
-function operationsOf(everyApp: readonly CatalogueApp[]): readonly string[] {
-  const proposing = everyApp.flatMap((app) => {
-    const operations = app.assistant.proposer?.operations ?? []
-    return operations.length === 0 ? [] : [{ app, operations }]
-  })
-  const appsWith = (line: string) => proposing.filter(({ operations }) => operations.some((operation) => operationLine(operation) === line)).map(({ app }) => app.id)
-  const alike = [...new Set(proposing.flatMap(({ operations }) => operations.map(operationLine)))].filter((line) => appsWith(line).length > 1)
+function operationsOf(app: CatalogueApp): readonly AssistantOperation[] {
+  return app.assistant.proposer?.operations ?? []
+}
+
+/** What each operation of an app does, a line each, on a page of its own so a new operation adds only its name to the instructions. */
+function operationListPage(app: CatalogueApp): string {
   return [
-    ...(alike.length === 0 ? [] : ['## In several apps', ...alike.map((line) => line.replace(/^- ([a-z-]+): /, (_, name: string) => `- ${name} in ${appsWith(line).join(', ')}: `))]),
-    ...proposing.flatMap(({ app, operations }) => [`## ${app.name} (${app.id})`, ...operations.map(operationLine).filter((line) => !alike.includes(line))]),
-  ]
+    `# Changes in ${app.name}`,
+    `Each line is an operation propose_changes takes in ${app.id}, with what it does. Its own page, such as ${app.id}/op/${operationsOf(app)[0]!.name}, gives its input and an example.`,
+    ...operationsOf(app).map(operationLine),
+  ].join('\n')
+}
+
+/** One line for each app that proposes changes, naming its operations, so the model sees the whole menu. */
+function operationNamesOf(everyApp: readonly CatalogueApp[]): readonly string[] {
+  return everyApp.flatMap((app) => {
+    const names = operationsOf(app).map((operation) => operation.name)
+    return names.length === 0 ? [] : [`- ${app.id}: ${names.join(', ')}`]
+  })
 }
 
 function systemOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): string {
@@ -330,8 +334,8 @@ function systemOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): string {
     ...apps.map((app) => `- ${app.id}: ${app.name}. ${app.purpose}`),
     '',
     '# Changes you can propose',
-    'Each line is an operation propose_changes takes. Its page is the app id, op and its name, such as company/op/add-rule.',
-    ...operationsOf([kuna, ...apps]),
+    'Each line names the operations propose_changes takes in an app. The app id and op, such as company/op, says what each does, and the app id, op and its name, such as company/op/add-rule, gives its input.',
+    ...operationNamesOf([kuna, ...apps]),
   ].join('\n')
 }
 
@@ -357,7 +361,8 @@ export function catalogueOf(apps: readonly CatalogueApp[], kuna: CatalogueApp): 
     pages.set(app.id, appPage(app))
     if (app.assistant.reader !== null) readers.set(app.id, { name: app.name, reader: app.assistant.reader })
     if (app.assistant.proposer !== null) proposers.set(app.id, app.assistant.proposer)
-    for (const operation of app.assistant.proposer?.operations ?? []) pages.set(`${app.id}/op/${operation.name}`, operationPage(operation))
+    if (operationsOf(app).length > 0) pages.set(`${app.id}/op`, operationListPage(app))
+    for (const operation of operationsOf(app)) pages.set(`${app.id}/op/${operation.name}`, operationPage(operation))
     for (const kind of app.assistant.reader?.kinds ?? []) pages.set(`${app.id}/kind/${kind.name}`, kindPage(kind, recordPageParam(placeParams, app.id, kind) !== null))
     for (const report of app.assistant.reader?.reports ?? []) pages.set(`${app.id}/report/${report.id}`, reportPage(report))
     for (const guide of app.assistant.guides) pages.set(`${app.id}/guide/${guide.id}`, [`# ${guide.title}`, guide.body, ...section('Places', [...guide.places])].join('\n'))

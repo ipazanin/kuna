@@ -41,7 +41,7 @@ function restoredIn(value: unknown, pseudonyms: Pseudonyms): unknown {
  */
 function resolvedStep(app: string, proposer: AppProposer, step: ProposeInput['steps'][number], names: Set<string>, reads: ChatReads, attachments: readonly ChatAttachment[]): ProposalStep | string {
   const operation = proposer.operations.find((candidate) => candidate.name === step.op)
-  if (operation === undefined) return "There is no such operation. Take it from the app's page."
+  if (operation === undefined) return `There is no such operation. Take it from ${app}/op.`
   const input = parsed(step.input)
   if (input === null) return `The input of ${operation.name} is not a JSON object.`
   const problems = schemaProblems(input, operation.input)

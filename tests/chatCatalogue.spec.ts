@@ -116,25 +116,42 @@ describe('the catalogue', () => {
     expect(placeAt(catalogue, '/company/transactions', {})).toBeNull()
   })
 
-  it('lists every operation of every app in the instructions, by app, with its page holding the input', () => {
-    const listed = catalogue.system.split('# Changes you can propose')[1]!
+  it("names every operation of every app in the instructions, a line per app, and what each does on the app's op page", () => {
+    const lines = catalogue.system
+      .split('# Changes you can propose\n')[1]!
+      .split('\n')
+      .filter((line) => line.startsWith('- '))
+    expect(lines).toHaveLength(APPS.length + 1)
     for (const app of [KUNA, ...APPS]) {
       const operations = app.assistant.proposer?.operations ?? []
+      const names = operations.map((operation) => operation.name)
       expect(operations.length, app.id).toBeGreaterThan(0)
-      const linesUnder = (heading: string) => (listed.split(`${heading}\n`)[1] ?? '').split('\n## ')[0]!.split('\n')
-      const alike = linesUnder('## In several apps').flatMap((line) => {
-        const [, name, apps] = /^- ([a-z-]+) in ([a-z, -]+):/.exec(line) ?? []
-        return name !== undefined && apps!.split(', ').includes(app.id) ? [name] : []
-      })
-      const own = linesUnder(`## ${app.name} (${app.id})`).flatMap((line) => /^- ([a-z-]+):/.exec(line)?.[1] ?? [])
-      expect([...alike, ...own].sort(), app.id).toEqual(operations.map((operation) => operation.name).sort())
+      expect(lines, app.id).toContain(`- ${app.id}: ${names.join(', ')}`)
+      const list = catalogue.pages.get(`${app.id}/op`)!
+      expect(
+        [...list.matchAll(/^- ([a-z-]+): /gm)].map((match) => match[1]),
+        app.id,
+      ).toEqual(names)
       for (const operation of operations) {
         expect(catalogue.pages.get(`${app.id}/op/${operation.name}`), operation.name).toContain('Input, as a JSON string')
-        expect(listed).not.toContain(JSON.stringify(operation.input))
+        expect(list).not.toContain(JSON.stringify(operation.input))
       }
     }
-    expect(listed).toContain('- make-file in company, loans, investments, assets, spending: ')
+    for (const app of APPS)
+      expect(
+        lines.find((line) => line.startsWith(`- ${app.id}: `)),
+        app.id,
+      ).toMatch(/[ ,]make-file(,|$)/)
     expect(catalogue.pages.get('company')).not.toContain('Changes you can propose')
+  })
+
+  it('grows the instructions by the name of a new operation and the comma before it, however long its description', () => {
+    const loans = LOANS_ASSISTANT.proposer!
+    const longer = { ...loans.operations[0]!, name: 'pay-off-early', about: 'Pays the loan off early. '.repeat(40) }
+    const grown = catalogueOf([appOf('loans', { ...LOANS_ASSISTANT, proposer: { ...loans, operations: [...loans.operations, longer] } }, ['/loans'])], KUNA)
+    const before = catalogueOf([appOf('loans', LOANS_ASSISTANT, ['/loans'])], KUNA)
+    expect(grown.system.length - before.system.length).toBe(', pay-off-early'.length)
+    expect(grown.pages.get('loans/op')).toContain('- pay-off-early: Pays the loan off early.')
   })
 
   it('states the rest of a split the same way in every operation that splits into parts', () => {
@@ -168,7 +185,11 @@ describe('the catalogue', () => {
     expect(catalogue.system).toContain('one question at a time, at most three before the first card')
   })
 
-  it('keeps its instructions under their budget of 9,000 tokens at three characters each', () => {
+  it('keeps its instructions under their budget of 9,000 tokens at three characters each, with every app main.ts installs and every Company pack', () => {
+    const installed = [...readFileSync(join(ROOT, 'src/main.ts'), 'utf8').matchAll(/installApp\((\w+)App\)/g)].map((match) => match[1])
+    expect(APPS.map((app) => app.id)).toEqual(installed)
+    const packs = readdirSync(join(ROOT, 'src/apps/company/packs'), { withFileTypes: true }).filter((entry) => entry.isDirectory())
+    expect(packs.map((entry) => entry.name)).toEqual(['hr-doo'])
     expect(catalogue.system.length / 3).toBeLessThan(9000)
   })
 
