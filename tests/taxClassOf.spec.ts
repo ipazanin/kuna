@@ -59,7 +59,7 @@ describe('categoryClassHelp', () => {
   it('names a class with the shares in force on the day, says how Kuna counts it, and links to its rule', () => {
     expect(categoryClassHelp('personal-transport', civil('2026-10-30'))).toEqual({
       name: 'Personal car costs: 50% added back, 50% of the VAT back',
-      sentence: 'Kuna counts this as personal car costs: 50% added back, 50% of the VAT back.',
+      sentence: 'Kuna counts this under "Personal car costs: 50% added back, 50% of the VAT back".',
       link: { label: 'Rule on Tax rules', to: { path: '/company/settings', query: { tab: 'tax-rules', rule: 'hr.cit.personal-transport-add-back' } } },
     })
     expect(categoryClassHelp('tax-free:results-bonus', civil('2026-10-30'))?.name).toBe('Tax-free payment: results-bonus')

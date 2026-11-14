@@ -67,7 +67,7 @@ export type OwnerTakeOut =
 /** How the categories editor explains a class: its name, what Kuna counts with it, and where the rule behind it shows. */
 export interface CategoryClassHelp {
   readonly name: string
-  /** Such as "Kuna counts this as representation". */
+  /** Such as Kuna counts this under "Other income". */
   readonly sentence: string
   readonly link: { readonly label: string; readonly to: RouteLocationRaw }
 }

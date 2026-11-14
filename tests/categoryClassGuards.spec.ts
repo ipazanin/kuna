@@ -27,7 +27,7 @@ function edited(slug: string, roles: readonly string[], vat: string, bucket: str
 
 describe('categoryClassRefusals', () => {
   it('refuses an added category with no class, two classes, or a VAT treatment or bucket its class does not allow', () => {
-    expect(categoryClassRefusals([edited('stationery', ['watched'], '', 'operating')], CATEGORY_CLASSES)).toEqual(['Pick how Kuna counts "stationery".'])
+    expect(categoryClassRefusals([edited('stationery', ['watched'], '', 'operating')], CATEGORY_CLASSES)).toEqual(['Pick a tax class for "stationery".'])
     expect(categoryClassRefusals([edited('dinners', ['representation', 'non-deductible'], 'representation', 'operating')], CATEGORY_CLASSES)).toEqual([
       'Kuna counts a category one way, and "dinners" has representation and non-deductible.',
     ])
@@ -80,9 +80,9 @@ describe('the categories editor and the tax classes', () => {
     const added: CategoryDraft = { saved: null, savedName: '', category: 'stationery', label: '', family: 'operating', bucket: 'operating', colour: '', roles: '', vat: '', ownerShare: '' }
     const { errors, hints } = messagesOf([{ ...saved[0]!, bucket: 'taxes' }, { ...saved[1]!, bucket: 'taxes' }, added])
 
-    expect(errors.get(0)).toEqual({ class: 'Pick how Kuna counts this category.' })
+    expect(errors.get(0)).toEqual({ class: 'Pick a tax class for this category.' })
     expect(errors.get(1)).toEqual({ vat: 'This tax class allows only representation.', bucket: 'This tax class allows only operating.' })
-    expect(errors.get(2)).toEqual({ class: 'Pick how Kuna counts this category.' })
+    expect(errors.get(2)).toEqual({ class: 'Pick a tax class for this category.' })
     expect(hints).toEqual(new Map())
   })
 

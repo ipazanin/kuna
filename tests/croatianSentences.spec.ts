@@ -602,6 +602,20 @@ describe('the hr-doo screens in Croatian', () => {
     expect(overview.words.waiting.monthNotMade('veljača 2027.', 'Northwind')).toBe('Račun za veljaču 2027. klijentu „Northwind” još nije izdan')
   })
 
+  it('quotes every tax class in its caption after pod, so the name keeps the form the editor offers', async () => {
+    const { categoryClassHelp } = await inCroatian(() => import('../src/apps/company/packs/hr-doo/preset/presentation/categoryClassHelp'))
+    const { CATEGORY_CLASSES } = await import('../src/apps/company/packs/hr-doo/preset/domain/taxClassOf')
+    const { PACK_ROLES } = await import('../src/apps/company/packs/hr-doo/domain/packRoles')
+    const day = civil('2026-11-13')
+    const helps = CATEGORY_CLASSES.map((taxClass) => categoryClassHelp(taxClass.role, day)!)
+
+    expect(helps.filter((help) => help.sentence !== `Kuna ovo broji pod „${help.name}”.`)).toEqual([])
+    expect([PACK_ROLES.otherIncome, PACK_ROLES.grant].map((role) => categoryClassHelp(role, day)?.sentence)).toEqual([
+      'Kuna ovo broji pod „Ostali prihodi”.',
+      'Kuna ovo broji pod „Potpora, u prihod kako se koristi”.',
+    ])
+  })
+
   it('words a payment after a name so that no gender is needed', async () => {
     const forecast = await inCroatian(() => import('../src/apps/company/packs/hr-doo/domain/forecast/words'))
     const pack = await import('../src/apps/company/packs/hr-doo/presentation/words')

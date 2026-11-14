@@ -472,7 +472,7 @@ async function pickCategoryColour(page, press, row, words, name) {
     })
 }
 
-/** The selector of a categories row's "Kuna counts it as" menu. */
+/** The selector of a categories row's "Tax class" menu. */
 async function classSelectIn(row) {
   return `[data-position="${await row.evaluate((element) => element.getAttribute('data-position'))}"] [data-testid="category-class"]`
 }

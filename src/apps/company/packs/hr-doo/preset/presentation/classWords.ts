@@ -2,7 +2,6 @@ import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import { percentText } from '../../../../../../shared/money/percent'
 import { language } from '../../../../../../shared/text/language'
-import { uncapitalised } from '../../../../../../shared/text/capitalised'
 import { listInWords } from '../../../../../../shared/text/listInWords'
 import type { CroatianForms, EnglishForms, Translation } from '../../../../../../shared/text/translation'
 import { OWNER_SHARE_ROLES } from '../../../../owner-share/domain/ownerShare'
@@ -14,6 +13,7 @@ import type { TaxClass } from '../domain/taxClasses'
 
 // A tax-free payment keeps its key as the ruleset's caps table names it, such as results-bonus.
 // Croatian calls a class porezni tretman, since porezni razred reads as an income tax bracket.
+// The caption quotes a class name after under or pod, so the name keeps the form the editor offers it in.
 
 export const en = {
   /** The name of each class in the categories editor, with the shares in force on the day. */
@@ -43,7 +43,7 @@ export const en = {
     ownerLoanRepaid: 'The owner repaying a loan',
     outsideProfit: 'Outside profit: transfers, bank loans and capital',
   },
-  countsAs: (name: string) => `Kuna counts this as ${uncapitalised(name)}.`,
+  countsAs: (name: string) => `Kuna counts this under "${name}".`,
   ruleLink: 'Rule on Tax rules',
   /** The lines of the categories that do not count one way yet. Names and treatments come as the screens show them. */
   toSort: {
@@ -87,7 +87,7 @@ export const hr: Translation<typeof en> = {
     ownerLoanRepaid: 'Vlasnik vraća zajam',
     outsideProfit: 'Izvan dobiti: prijenosi, bankovni zajmovi i kapital',
   },
-  countsAs: (name) => `Kuna ovo broji kao ${uncapitalised(name)}.`,
+  countsAs: (name) => `Kuna ovo broji pod „${name}”.`,
   ruleLink: 'Pravilo u Poreznim pravilima',
   toSort: {
     unclassedLabel: 'Još bez poreznog tretmana',

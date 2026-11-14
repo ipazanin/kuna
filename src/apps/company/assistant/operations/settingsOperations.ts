@@ -99,7 +99,7 @@ function classesInWords(classes: readonly CategoryClass[]): string {
 function taxClassField(classes: readonly CategoryClass[], keeps: boolean): Readonly<Record<string, StrictSchema>> {
   if (classes.length === 0) return {}
   const roles = classes.map((taxClass) => taxClass.role)
-  const about = `How Kuna counts the category for profit tax and VAT, as Settings, Categories offers it under Counts as. ${classesInWords(classes)}`
+  const about = `How Kuna counts the category for profit tax and VAT, as Settings, Categories offers it under Tax class. ${classesInWords(classes)}`
   return { taxClass: keeps ? { type: ['string', 'null'], enum: [...roles, null], description: `${about} Null keeps the class it has.` } : { type: 'string', enum: roles, description: about } }
 }
 
@@ -279,7 +279,7 @@ function draftAt(drafts: readonly CategoryDraft[], slug: string): number {
 
 /** Why a category would not count one way, with every class the pack has, so the next step can name one. */
 function noClass(slug: string, classes: readonly CategoryClass[]): StepRefused {
-  return new StepRefused(`Pick how Kuna counts "${slug}" in taxClass, one of these. ${classesInWords(classes)}`)
+  return new StepRefused(`Pick a tax class for "${slug}" in taxClass, one of these. ${classesInWords(classes)}`)
 }
 
 /**

@@ -257,7 +257,7 @@ function save(): void {
           <SortableHeader :label="words.categories.columns.family" :model-value="directionOf('family')" @update:model-value="sortBy('family', $event)" />
           <SortableHeader :label="words.categories.columns.bucket" :model-value="directionOf('bucket')" @update:model-value="sortBy('bucket', $event)" />
           <th scope="col" class="text-start">{{ words.categories.columns.colour }}</th>
-          <th v-if="classes.length > 0" scope="col" class="text-start">{{ words.categories.columns.countsAs }}</th>
+          <th v-if="classes.length > 0" scope="col" class="text-start">{{ words.categories.columns.taxClass }}</th>
           <SortableHeader :label="words.categories.columns.roles" :model-value="directionOf('roles')" @update:model-value="sortBy('roles', $event)" />
           <SortableHeader :label="words.categories.columns.vat" :model-value="directionOf('vat')" @update:model-value="sortBy('vat', $event)" />
           <SortableHeader v-if="shares" :label="words.categories.columns.ownerShare" :model-value="directionOf('ownerShare')" @update:model-value="sortBy('ownerShare', $event)" />
@@ -344,7 +344,7 @@ function save(): void {
               :color="errors.get(index)?.class ? 'error' : 'neutral'"
               :highlight="Boolean(errors.get(index)?.class)"
               :placeholder="words.categories.pickClass"
-              :aria-label="words.categories.columns.countsAs"
+              :aria-label="words.categories.columns.taxClass"
               size="sm"
               class="w-60"
               data-testid="category-class"
