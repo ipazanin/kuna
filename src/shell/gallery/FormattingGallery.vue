@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { civilDate } from '../../shared/calendar/civilDate'
-import { dayLabel, shortDayLabel } from '../../shared/calendar/dayLabel'
+import { dayLabel, recentDayLabel, shortDayLabel } from '../../shared/calendar/dayLabel'
 import { monthKey } from '../../shared/calendar/monthKey'
 import { monthLabel, monthName, shortMonthLabel } from '../../shared/calendar/monthLabel'
 import { currencyUnitName, formatCompactMoney, formatDays, formatDecimal, formatMoney, formatPercent } from '../../shared/money/moneyFormat'
@@ -28,6 +28,11 @@ const FORMATTED = [
   { name: 'currencyUnitName', use: 'One unit of the currency in running text', text: currencyUnitName() },
   { name: 'dayLabel', use: 'A day', text: dayLabel(SAMPLE_DAY) },
   { name: 'shortDayLabel', use: 'A day where the year is plain', text: shortDayLabel(SAMPLE_DAY) },
+  {
+    name: 'recentDayLabel',
+    use: 'A day in a list of the newest, with its year only before this one',
+    text: `${recentDayLabel(SAMPLE_DAY, SAMPLE_DAY)}, ${recentDayLabel(civilDate(2025, 12, 30), SAMPLE_DAY)}`,
+  },
   { name: 'monthLabel', use: 'A month in tooltips and text', text: monthLabel(SAMPLE_MONTH) },
   { name: 'shortMonthLabel', use: 'A month on a tight axis', text: shortMonthLabel(SAMPLE_MONTH) },
   { name: 'monthName', use: 'A month where the year is plain', text: monthName(SAMPLE_MONTH) },

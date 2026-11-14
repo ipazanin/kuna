@@ -13,7 +13,7 @@ import { words as accountWords } from '../../accounts/presentation/words'
 import { accountNamed, categoryIdNamed, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
 import { takesRowsByHand } from '../../workbook/domain/account'
 import { categoriesOfRow } from '../../categories/domain/rowSide'
-import { euroRows } from '../../rates/domain/euroRows'
+import { entriesNewestFirst } from '../../rates/domain/euroRows'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as screenWords } from '../../screenWords'
@@ -110,11 +110,9 @@ const rows = computed(() => {
   if (book === null) return []
   const account = pickedAccount.value
   const under = filedUnder.value
-  return euroRows(book, everydayRates(rates.value))
-    .filter(
-      (row) => monthOf(row.transaction.date) === month.value && (account === null || row.transaction.account === account.id) && (under === null || categoriesOfRow(row).some((id) => under.has(id))),
-    )
-    .reverse()
+  return entriesNewestFirst(book, everydayRates(rates.value)).filter(
+    (row) => monthOf(row.transaction.date) === month.value && (account === null || row.transaction.account === account.id) && (under === null || categoriesOfRow(row).some((id) => under.has(id))),
+  )
 })
 
 const tabs = computed(() => [

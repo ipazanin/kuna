@@ -15,7 +15,7 @@ import GallerySection from './GallerySection.vue'
   <GallerySection
     id="proposal-row"
     title="ProposalRow"
-    description="A row that asks something of a person: its title beside its amount, the lines under it running on under the amount, and its actions underneath. As a button it expands as a whole. It spans a card with the card's gutter, or sits flush inside padding of its own."
+    description="A row of a list: its title beside its amount and the lines under it running on under the amount. A row that asks something of a person has its actions underneath, and as a button it expands as a whole. With a link it opens a page and ends with an arrow on the title's line, and a caption-sized figure beside the title shares its baseline. It spans a card with the card's gutter, or sits flush inside padding of its own."
   >
     <DashboardGrid>
       <AppCard title="Spanning a card">
@@ -57,7 +57,7 @@ import GallerySection from './GallerySection.vue'
       <AppCard title="A row that expands as a whole">
         <ul class="divide-y divide-default">
           <li>
-            <ProposalRow as="button" title="SNACK KIOSK" class="focus-visible:-outline-offset-2" :aria-expanded="false">
+            <ProposalRow as="button" title="SNACK KIOSK" :aria-expanded="false">
               <template #details>
                 <span class="mt-1 flex flex-wrap gap-1.5"><UBadge label="No rule" color="info" variant="subtle" size="sm" /></span>
               </template>
@@ -68,7 +68,7 @@ import GallerySection from './GallerySection.vue'
             </ProposalRow>
           </li>
           <li>
-            <ProposalRow as="button" title="GADGET CORNER" class="bg-elevated focus-visible:-outline-offset-2" :aria-expanded="true">
+            <ProposalRow as="button" title="GADGET CORNER" class="bg-elevated" :aria-expanded="true">
               <template #details>
                 <span class="mt-1 flex flex-wrap gap-1.5"><UBadge label="No rule" color="info" variant="subtle" size="sm" /></span>
               </template>
@@ -78,6 +78,35 @@ import GallerySection from './GallerySection.vue'
               </template>
             </ProposalRow>
             <p class="bg-elevated px-4 pb-4 type-body sm:px-5">What opens under it. Tab to a row to see its ring inside its edge.</p>
+          </li>
+        </ul>
+      </AppCard>
+      <AppCard title="Rows that open a page">
+        <ul class="flex flex-col py-2">
+          <li class="border-t border-default first:border-t-0">
+            <ProposalRow to="/gallery" title="Current account" caption="Bank · Main Bank · EUR">
+              <template #amount><MoneyText :cents="moneyFromCents(1_204_470)" class="text-highlighted" /></template>
+            </ProposalRow>
+          </li>
+          <li class="border-t border-default first:border-t-0">
+            <ProposalRow to="/gallery" title="Travel card" caption="Bank · Card Bank · USD">
+              <template #amount>
+                <span class="figure text-highlighted">$1,234.56</span>
+                <span class="figure text-xs text-toned">€1,140.20</span>
+              </template>
+              <template #details><span class="text-end type-caption">At the ECB rate of 13 Nov</span></template>
+            </ProposalRow>
+          </li>
+          <li class="border-t border-default first:border-t-0">
+            <ProposalRow to="/gallery" title="Savings for the long summer holiday by the sea with the whole family" caption="Savings · Main Bank · EUR">
+              <template #amount><MoneyText :cents="moneyFromCents(560_000)" class="text-highlighted" /></template>
+            </ProposalRow>
+          </li>
+          <li class="border-t border-default first:border-t-0">
+            <ProposalRow to="/gallery" title="Car loan">
+              <template #caption>Bank loan · <span class="text-toned">Main Bank</span></template>
+              <template #amount><span class="type-caption">Settled on 3 Mar 2026</span></template>
+            </ProposalRow>
           </li>
         </ul>
       </AppCard>

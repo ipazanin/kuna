@@ -102,14 +102,7 @@ function recategorise(category: string | undefined): void {
 
 <template>
   <li v-bind="marked" data-testid="review-row">
-    <ProposalRow
-      as="button"
-      :title="transaction.counterparty || words.noCounterparty"
-      :class="{ 'bg-elevated': expanded }"
-      class="focus-visible:-outline-offset-2"
-      :aria-expanded="expanded"
-      @click="emit('toggle')"
-    >
+    <ProposalRow as="button" :title="transaction.counterparty || words.noCounterparty" :class="{ 'bg-elevated': expanded }" :aria-expanded="expanded" @click="emit('toggle')">
       <template #details>
         <span class="mt-1 flex flex-wrap items-center gap-1.5">
           <UIcon v-if="rowSaving" name="i-lucide-loader-circle" class="size-3.5 shrink-0 animate-spin text-muted" data-testid="review-row-saving" />

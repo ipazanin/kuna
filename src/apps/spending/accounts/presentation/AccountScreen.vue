@@ -12,7 +12,7 @@ import EntryList from '../../entries/presentation/EntryList.vue'
 import ReceiptPhotoPicker from '../../receipts/presentation/ReceiptPhotoPicker.vue'
 import { useReceiptRows } from '../../receipts/presentation/useReceiptRows'
 import { accountNamed, SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
-import { accountOnDay, euroRows } from '../../rates/domain/euroRows'
+import { accountOnDay, entriesNewestFirst } from '../../rates/domain/euroRows'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { words as rateWords } from '../../rates/presentation/words'
@@ -74,7 +74,7 @@ const rows = computed(() => {
   const book = state.workbook
   const shown = account.value
   if (book === null || shown === null) return []
-  return euroRows({ accounts: [shown], transactions: book.transactions, items: book.items }, everydayRates(rates.value)).reverse()
+  return entriesNewestFirst({ accounts: [shown], transactions: book.transactions, items: book.items }, everydayRates(rates.value))
 })
 const expanded = ref(false)
 const listed = computed(() => (expanded.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))

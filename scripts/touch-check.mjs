@@ -2,7 +2,7 @@
  * Drives the fake-mode build with touch at the two phone widths, as a thumb would: the top app bar
  * with its one-line Sync button and its navigation drawer of the whole menu under the link home, ending with the company's footer and its lines, the arrow in it showing another app's pages with the drawer open and one of those pages closing it, the
  * home's top bar with its menu button and no Net worth or Kuna settings button beside the cards, Net worth opened from the drawer with each
- * tile opening its app and Back, Assets value among them, and the company's figure opening Year's Pay tab on the kept profit, a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, the filter sheet with a
+ * tile opening its app and Back, Assets value among them, and the company's figure opening Year's Pay tab on the kept profit, a fresh device's home with every app in Set up, the tabs of Settings with Back through them, a link to Year's Statements tab alone kept in its year through two tabs and Back, the review and corporate tax lines of Overview's waiting card, the review line again in Croatian, a chart's tap-then-drill, a row of each first screen's newest entries opening its dialog in place or its row on Transactions, an account and a completed loan opening their pages, the filter sheet with a
  * filter added and removed,
  * grouped transactions that collapse and expand, a payee's category breakdown in English and Croatian, Analysis and its Compare tab in Croatian, an owner share changed and cleared and a new default share's fill, each undone, in Croatian, an xlsx file opened and kept in this browser,
  * confirming and recategorising a row on the To review tab of Transactions with Undo, the session's changes with Undo from
@@ -755,6 +755,55 @@ async function checkWidth(width) {
     await page.goBack({ waitUntil: 'networkidle0' })
     await page.waitForFunction((group) => window.location.hash === `#/spending?group=${group}`, { timeout: 10_000 }, SAMPLE_FOOD)
     await waitForText(page, '[data-testid="spending-donut"] h2', 'Food by category')
+  })
+
+  // Each first screen's newest entries: Spending's and Investments' open their dialog in place, and Company's go to the row on Transactions.
+  await step('latest-entries', async () => {
+    const tapFirst = async (selector) => {
+      const row = await page.waitForSelector(selector, { visible: true })
+      await row.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      await delay(200)
+      await row.tap()
+    }
+    await open(page, `&spending=sample&load=${Date.now()}#/spending`, 'Overview')
+    await tapFirst('[data-testid="spending-latest-row"]')
+    await page.waitForSelector('[data-testid="spending-entry-dialog"]', { visible: true })
+    await expect(hashOf(page), (hash) => hash === '#/spending', 'a Spending row left the Overview')
+    await shoot('spending-latest-entry')
+    await page.keyboard.press('Escape')
+    await page.waitForSelector('[data-testid="spending-entry-dialog"]', { hidden: true })
+
+    await open(page, `&investments=sample&load=${Date.now()}#/investments`, 'Overview')
+    await tapFirst('[data-testid="investments-latest-row"]')
+    await waitForText(page, '[role="dialog"] h2', 'Change a transaction')
+    await expect(hashOf(page), (hash) => hash === '#/investments', 'an Investments row left the Overview')
+    await shoot('investments-latest-record')
+    await page.keyboard.press('Escape')
+
+    await open(page, '#/company', 'Overview')
+    await tapFirst('[data-testid="company-latest-row"]')
+    await waitForTitle(page, 'Transactions')
+    await expect(page.$$('[data-testid="transaction-card"]'), (cards) => cards.length > 0, 'a Company row opened Transactions with no row')
+    await shoot('company-latest-row')
+  })
+
+  // A row of a list that opens a page: an account, and a completed loan once its card is open.
+  await step('link-rows', async () => {
+    await open(page, `&spending=sample&load=${Date.now()}#/spending/accounts`, 'Accounts')
+    const account = await page.waitForSelector('[data-testid="spending-account-row"]', { visible: true })
+    const name = await account.evaluate((element) => element.querySelector('.proposal-row-title')?.textContent?.trim() ?? '')
+    await account.tap()
+    await waitForTitle(page, name)
+    await shoot('spending-account-from-list')
+
+    await open(page, `&loans=sample&load=${Date.now()}#/loans`, 'Overview')
+    await (await page.waitForSelector('[data-card="loans.completed"] [data-testid="card-toggle"][aria-expanded="false"]')).tap()
+    const loan = await page.waitForSelector('[data-testid="completed-loan"]', { visible: true })
+    await loan.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await delay(200)
+    await loan.tap()
+    await waitForTitle(page, 'Small loans')
+    await shoot('loans-completed-loan')
   })
 
   // The company kept in this browser beside the sample Loans, Investments, Assets and Spending files.

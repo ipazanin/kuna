@@ -59,6 +59,11 @@ export const en = {
     title: 'Income, spending and saved to investments',
     subtitle: 'Each month, with the share of income not spent.',
   },
+  latest: {
+    title: 'Latest entries',
+    subtitle: 'The five newest, by day',
+    allEntries: 'All entries',
+  },
   accounts: {
     title: 'Accounts',
     account: 'Account',
@@ -127,6 +132,11 @@ export const hr: Translation<typeof en> = {
   flow: {
     title: 'Prihodi, potrošnja i prijenos u ulaganja',
     subtitle: 'Za svaki mjesec, s udjelom prihoda koji nije potrošen.',
+  },
+  latest: {
+    title: 'Zadnji unosi',
+    subtitle: 'Pet najnovijih, po danu',
+    allEntries: 'Svi unosi',
   },
   accounts: {
     title: 'Računi',

@@ -6,11 +6,10 @@ import { useLinkLines } from '../../links/presentation/linkLine'
 import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
-import { isSplit, linkOfItems } from '../../workbook/domain/rowItems'
+import { linkOfItems } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import EntryRow from './EntryRow.vue'
-import { words } from './words'
-import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
+import { entryLine } from './entryLine'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -51,17 +50,13 @@ const days = computed(() => {
   const groups: { day: CivilDate; lines: Line[] }[] = []
   for (const row of props.rows) {
     const { transaction, account } = row
-    const shown = mainCategoryOf(row.items)
     const entryLink = linkOfItems(row.items)
-    const category = shown === null ? null : (byId.value.get(shown) ?? null)
-    const categoryName = category?.name ?? words.waitsOnReview
+    const { title, details, category } = entryLine(row, byId.value, props.showAccount)
     const line: Line = {
       row,
-      title: transaction.payee === '' ? categoryName : transaction.payee,
+      title,
       colour: `var(${category === null ? '--chart-deemphasis' : colours.value(category)})`,
-      details: [transaction.payee === '' || isSplit(row.items) ? '' : categoryName, props.showAccount ? account.name : '', isSplit(row.items) ? '' : (row.items[0]?.note ?? '')]
-        .filter((part) => part !== '')
-        .join(' · '),
+      details,
       euros: account.currency === EURO || row.euros === null ? '' : formatMoney(row.euros, 'always'),
       link: entryLink === null ? null : linkLineOf.value(entryLink, { amount: transaction.amount, currency: account.currency }),
     }

@@ -26,6 +26,7 @@ import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import AccountsCard from './AccountsCard.vue'
+import LatestEntriesCard from './LatestEntriesCard.vue'
 import LimitsCard from './LimitsCard.vue'
 import { SPENDING_BUDGETS_ROUTE, SPENDING_OVERVIEW_ROUTE, categoryIdNamed, transactionsLink } from './spendingLinks'
 import AccountDialog from '../../accounts/presentation/AccountDialog.vue'
@@ -54,7 +55,7 @@ import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
-/** This month's spending by group and against its limits, income and saving month by month, and the accounts. */
+/** This month's spending by group and against its limits, the newest entries, income and saving month by month, and the accounts. */
 const { state } = useSpendingBooks()
 const rates = useRates()
 const route = useRoute()
@@ -193,6 +194,7 @@ function openGroupMonth(selection: ChartPointSelection): void {
           </KpiTile>
         </DashboardGrid>
         <p v-if="unratedLine !== null" class="type-caption" data-testid="spending-unrated">{{ unratedLine }}</p>
+        <LatestEntriesCard :book="state.workbook" :rates="everydayRates(rates)" :day="day" />
         <DashboardGrid data-testid="spending-cards">
           <DonutCard
             v-if="ring.parts.length > 0"

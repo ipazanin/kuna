@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accountOnDay, euroRows } from '../src/apps/spending/rates/domain/euroRows'
+import { accountOnDay, entriesNewestFirst, euroRows } from '../src/apps/spending/rates/domain/euroRows'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded'
 import { moneyFromCents } from '../src/shared/money/money'
 import { NO_RATES } from '../src/shared/money/rateBook'
@@ -42,6 +42,28 @@ describe('a row in euros', () => {
     const elsewhere = account(9, { ...OTP, name: 'Elsewhere' })
 
     expect(euroRows({ accounts: ACCOUNTS, transactions: [row(elsewhere, '2026-10-12', -1, 'Food/Groceries')], items: [] }, RATES)).toEqual([])
+  })
+})
+
+describe('the entries newest first', () => {
+  it('puts the newest day first, and within a day the entry added last', () => {
+    const rows = [
+      row(OTP, '2026-10-10', -12, 'Food/Groceries', { payee: 'Konzum' }),
+      row(CASH, '2026-10-12', -3.5, 'Food/Coffee', { payee: 'Morning coffee' }),
+      row(OTP, '2026-10-12', -40, 'Food/Groceries', { payee: 'Lidl' }),
+      row(REVOLUT_USD, '2026-10-14', -30, 'Travel/On the trip', { payee: 'Diner in Boston' }),
+    ]
+
+    const newest = entriesNewestFirst({ accounts: ACCOUNTS, transactions: rows, items: [] }, RATES)
+
+    expect(newest.map((entry) => entry.transaction.payee)).toEqual(['Diner in Boston', 'Lidl', 'Morning coffee', 'Konzum'])
+  })
+
+  it('keeps a foreign entry’s euros at the rate of its own day', () => {
+    const newest = entriesNewestFirst({ accounts: ACCOUNTS, transactions: [row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip')], items: [] }, RATES)
+
+    // 30.00 ÷ 1.0800 = 27.777…
+    expect(newest.map((entry) => entry.euros)).toEqual([euros(-27.78)])
   })
 })
 

@@ -427,6 +427,7 @@ section + section > .group-row:not(tr) {
 
 .proposal-row-title {
   grid-area: title;
+  align-self: baseline;
 }
 
 .proposal-row-caption {
@@ -448,6 +449,7 @@ section + section > .group-row:not(tr) {
 
 .proposal-row-amount > :first-child {
   grid-area: amount;
+  align-self: baseline;
 }
 
 .proposal-row-amount > :nth-child(2) {

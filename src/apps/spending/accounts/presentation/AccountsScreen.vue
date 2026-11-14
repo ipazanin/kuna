@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
-import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AccountDialog from './AccountDialog.vue'
 import { accountsOnDay } from './accountsOnDay'
@@ -26,6 +24,7 @@ import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /** Every account with what it holds today in its currency, and in euros beside a foreign one, under what the open ones hold and owe in all. Closed accounts come apart. */
@@ -97,25 +96,23 @@ const adding = ref(false)
       <AppCard v-for="section in sections" :key="section.key" :title="section.title" :data-testid="section.testid">
         <ul class="flex flex-col py-2">
           <li v-for="row in section.rows" :key="row.account.id" class="border-t border-default first:border-t-0">
-            <RouterLink :to="accountLink(row.account)" class="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-elevated sm:px-5" data-testid="spending-account-row">
-              <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span class="flex items-baseline justify-between gap-3">
-                  <span class="min-w-0 break-words text-sm text-highlighted">{{ row.account.name }}</span>
-                  <span class="figure shrink-0 text-sm text-highlighted" data-testid="spending-account-balance">{{ row.balance }}</span>
+            <ProposalRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
+              <template #amount>
+                <span class="figure text-highlighted" data-testid="spending-account-balance">{{ row.balance }}</span>
+                <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-xs text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
+              </template>
+              <template #caption>
+                <span data-testid="spending-account-kind">
+                  <template v-for="(part, place) in kindParts(row.account)" :key="place">
+                    <template v-if="place > 0"> · </template>
+                    <span class="whitespace-nowrap">{{ part }}</span>
+                  </template>
                 </span>
-                <span class="flex items-baseline justify-between gap-3 text-xs text-muted">
-                  <span class="min-w-0" data-testid="spending-account-kind">
-                    <template v-for="(part, place) in kindParts(row.account)" :key="place">
-                      <template v-if="place > 0"> · </template>
-                      <span class="whitespace-nowrap">{{ part }}</span>
-                    </template>
-                  </span>
-                  <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure shrink-0 text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
-                </span>
-                <span v-if="row.euro !== null && row.euro.caption !== ''" class="text-end text-xs text-muted">{{ row.euro.caption }}</span>
-              </span>
-              <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" aria-hidden="true" />
-            </RouterLink>
+              </template>
+              <template v-if="row.euro !== null && row.euro.caption !== ''" #details>
+                <span class="text-end type-caption">{{ row.euro.caption }}</span>
+              </template>
+            </ProposalRow>
           </li>
         </ul>
       </AppCard>

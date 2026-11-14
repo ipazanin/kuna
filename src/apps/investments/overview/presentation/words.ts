@@ -114,9 +114,6 @@ export const en = {
   latest: {
     title: 'Latest transactions',
     subtitle: 'The five most recent',
-    date: 'Date',
-    what: 'What',
-    amount: 'Amount',
   },
   checks: {
     title: 'Portfolio checks',
@@ -268,9 +265,6 @@ export const hr: Translation<typeof en> = {
   latest: {
     title: 'Zadnje transakcije',
     subtitle: 'Pet najnovijih',
-    date: 'Datum',
-    what: 'Što',
-    amount: 'Iznos',
   },
   checks: {
     title: 'Provjere portfelja',

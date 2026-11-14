@@ -30,6 +30,11 @@ export function euroRows(book: Pick<SpendingBook, 'accounts' | 'transactions' | 
   })
 }
 
+/** Every entry of the book in euros, newest first: by day, and the last added first within a day, since the book keeps its entries by day in the order they were added. */
+export function entriesNewestFirst(book: Pick<SpendingBook, 'accounts' | 'transactions' | 'items'>, rates: RateBook): EuroRow[] {
+  return euroRows(book, rates).reverse()
+}
+
 /** An account's balance on the day, in its currency and in euros at that day's rate, null while the rates do not reach it. */
 export interface AccountOnDay {
   readonly account: Account

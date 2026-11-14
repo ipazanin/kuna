@@ -86,6 +86,11 @@ export const en = {
     ofIncome: (unit: string, shares: string) => `Of every ${unit} earned in the last 12 months: ${shares}.`,
     ofCost: (shortfall: string, unit: string, shares: string) => `In the last 12 months costs exceeded income by ${shortfall}, so the ring splits every ${unit} spent: ${shares}.`,
   },
+  latest: {
+    title: 'Latest rows',
+    subtitle: 'The five the bank booked last',
+    allRows: 'All rows',
+  },
   accounts: {
     title: 'Accounts',
     subtitle: 'Each account at its newest balance',
@@ -176,6 +181,11 @@ export const hr: Translation<typeof en> = {
     moreOutThanIn: 'više izašlo nego ušlo',
     ofIncome: (_unit, shares) => `Prihod zadnjih 12 mjeseci: ${shares}.`,
     ofCost: (shortfall, _unit, shares) => `U zadnjih 12 mjeseci troškovi su premašili prihod za ${shortfall}, pa prsten dijeli troškove: ${shares}.`,
+  },
+  latest: {
+    title: 'Zadnje stavke',
+    subtitle: 'Pet koje je banka zadnje proknjižila',
+    allRows: 'Sve stavke',
   },
   accounts: {
     title: 'Računi u banci',

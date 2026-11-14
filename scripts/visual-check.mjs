@@ -16,7 +16,7 @@
  * collapses and expands one card. The total and the label in the middle of every donut must sit
  * inside the ring's hole with 2 px to spare. In a titled card a table's first cell that shows starts its text where the
  * title does, a card's header actions sit under its title on a phone, a tab's one card of words and fields keeps to 42rem,
- * and a DrillLink wears the colour of the text class it is given.
+ * a DrillLink wears the colour of the text class it is given, and a row that opens a page has its arrow on its title's first line.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
  * no label may be cut to under half its width with no ellipsis, and no placeholder may be cut short, other than what `support/textOverlap.mjs` allows by name.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
@@ -252,6 +252,7 @@ import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/asse
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { bankLoansOf } from '../src/apps/loans/facts.ts'
 import { accountsOnDay } from '../src/apps/spending/accounts/presentation/accountsOnDay.ts'
+import { entriesNewestFirst } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { euroLine } from '../src/apps/spending/accounts/presentation/euroLine.ts'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures.ts'
 import { leftToSpend } from '../src/apps/spending/budgets/domain/budgetCarry.ts'
@@ -715,6 +716,7 @@ async function fakeSpendingShows(sample) {
   const [held] = spendingHubFigures(sample.book, sample.rates, day).parts
   const [heldWhileFailed] = spendingHubFigures(failed.book, failed.rates, day).parts
   const dollars = accountsOnDay(sample.book, day, sample.rates.everyday).find((entry) => entry.account.currency !== EURO)
+  const [newest] = entriesNewestFirst(sample.book, sample.rates.everyday)
   const overspent = spendingFigures(over.book, over.rates.everyday)
     .limitsIn(month)
     .filter((limit) => limit.left < 0)
@@ -733,6 +735,7 @@ async function fakeSpendingShows(sample) {
       english: overspent.map((limit) => budgetsEnglish.overBy(formatMoney(-limit.left))),
       croatian: overspent.map((limit) => budgetsCroatian.overBy(formatMoney(-limit.left, 'negative', CROATIAN_MONEY))),
     },
+    newest: { payee: newest.transaction.payee, amount: formatAccountMoney(newest.transaction.amount, newest.account.currency, 'always') },
     payees: [...new Set(sample.book.transactions.filter((row) => monthOf(row.date) === month).map((row) => row.payee))],
   }
 }
@@ -981,14 +984,14 @@ const ASSETS = fakeAssetsShows()
 const SPENDING = await fakeSpendingShows(SPENDING_SAMPLE)
 
 const SCREENS = [
-  { name: 'overview', hash: '#/company', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end'] },
+  { name: 'overview', hash: '#/company', title: 'Overview', charts: 2, shows: ['Waiting for you', 'A typical month', 'Every euro earned', 'Balance at month end', 'Latest rows', 'All rows'] },
   {
     name: 'overview-croatian',
     query: 'lang=hr',
     hash: '#/company',
     title: 'Pregled',
     charts: 2,
-    shows: ['Čeka vas', 'Tipičan mjesec, na tri načina', 'Kamo ide prihod', 'Stanje na kraju mjeseca', 'Novca dostaje za'],
+    shows: ['Čeka vas', 'Tipičan mjesec, na tri načina', 'Kamo ide prihod', 'Stanje na kraju mjeseca', 'Novca dostaje za', 'Zadnje stavke', 'Sve stavke'],
   },
   { name: 'transactions', hash: '#/company/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics', cards: false },
   { name: 'transactions-owner-part', hash: '#/company/transactions?p=all&cat=equipment', title: 'Transactions', charts: 0, shows: ['30% to owner, from Equipment', 'Laptop Store'], cards: false },
@@ -2498,6 +2501,24 @@ const SOURCE_SCREENS = [
     charts: 0,
     shows: ['Home loan', 'Dugujete', 'Duguje vam se', 'Neto', 'Petra kasni s otplatom', 'Završeno', 'Plaća APN', 'otplaćeno'],
   },
+  {
+    name: 'loans-sample-completed',
+    query: 'loans=sample',
+    hash: '#/loans',
+    title: 'Overview',
+    charts: 0,
+    expandedBefore: ['loans.completed'],
+    shows: ['Completed', 'Small loans', 'Owed to you · Luka', 'Settled on 24 Jun 2026'],
+  },
+  {
+    name: 'loans-sample-completed-croatian',
+    query: 'loans=sample&lang=hr',
+    hash: '#/loans',
+    title: 'Pregled',
+    charts: 0,
+    expandedBefore: ['loans.completed'],
+    shows: ['Završeno', 'Small loans', 'Luka', 'Podmireno'],
+  },
   { name: 'loans-one-loan', query: 'loans=one-loan', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'owed today', 'paid back', 'Subsidy ends'], cards: false },
   {
     name: 'loans-one-loan-croatian',
@@ -3149,7 +3170,19 @@ const SOURCE_SCREENS = [
     hash: '#/spending',
     title: 'Overview',
     charts: 2,
-    shows: ['Spent', SPENDING.spent.english, 'Left this month', SPENDING.left.english, 'Spending by group', 'Limits this month', 'Bank and cash', SPENDING.held.english],
+    shows: [
+      'Spent',
+      SPENDING.spent.english,
+      'Left this month',
+      SPENDING.left.english,
+      'Spending by group',
+      'Limits this month',
+      'Bank and cash',
+      SPENDING.held.english,
+      'Latest entries',
+      SPENDING.newest.payee,
+      SPENDING.newest.amount,
+    ],
     cards: false,
   },
   {
@@ -3158,7 +3191,18 @@ const SOURCE_SCREENS = [
     hash: '#/spending',
     title: 'Pregled',
     charts: 2,
-    shows: ['Potrošeno', SPENDING.spent.croatian, 'Preostalo ovaj mjesec', SPENDING.left.croatian, 'Potrošnja po skupinama', 'Ograničenja ovaj mjesec', 'Banka i gotovina', SPENDING.held.croatian],
+    shows: [
+      'Potrošeno',
+      SPENDING.spent.croatian,
+      'Preostalo ovaj mjesec',
+      SPENDING.left.croatian,
+      'Potrošnja po skupinama',
+      'Ograničenja ovaj mjesec',
+      'Banka i gotovina',
+      SPENDING.held.croatian,
+      'Zadnji unosi',
+      SPENDING.newest.payee,
+    ],
     cards: false,
   },
   {
@@ -4977,6 +5021,7 @@ function readPage(page) {
       phoneHeaderActions: phoneHeaderActions(),
       wideLoneCards: wideLoneCards(),
       drillLinksOffColour: drillLinksOffColour(),
+      misplacedRowArrows: misplacedRowArrows(),
     }
 
     const titleOf = (card) => (card.querySelector(':scope > header :is(h1, h2, h3)')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 48)
@@ -5048,6 +5093,23 @@ function readPage(page) {
         const wanted = getComputedStyle(probe).color
         probe.remove()
         if (getComputedStyle(link).color !== wanted) found.push(`the link "${link.textContent.trim().slice(0, 32)}" ignores its ${colourClass}`)
+      }
+      return found
+    }
+
+    /** A ProposalRow that opens a page has its arrow on its title's first line, whatever the number of lines under it. */
+    function misplacedRowArrows() {
+      const found = []
+      for (const arrow of document.querySelectorAll('[data-row-arrow]')) {
+        const title = arrow.parentElement.querySelector('.proposal-row-title')
+        if (title === null || arrow.getClientRects().length === 0) continue
+        const range = document.createRange()
+        range.selectNodeContents(title)
+        const firstLine = range.getClientRects()[0]
+        if (firstLine === undefined) continue
+        const placed = arrow.getBoundingClientRect()
+        const apart = placed.top + placed.height / 2 - (firstLine.top + firstLine.height / 2)
+        if (Math.abs(apart) > 2) found.push(`the arrow of the row "${title.textContent.trim().slice(0, 32)}" sits ${Math.round(apart)} px off its title's first line`)
       }
       return found
     }
@@ -8857,7 +8919,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
     for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
     for (const donut of report.crowdedDonuts) fail(scope, donut)
-    for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour]) fail(scope, problem)
+    for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows]) fail(scope, problem)
     if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
     if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
       for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
@@ -8960,6 +9022,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
             ...report.phoneHeaderActions,
             ...report.wideLoneCards,
             ...report.drillLinksOffColour,
+            ...report.misplacedRowArrows,
           ]
           for (const problem of lingering.filter((text) => !toldOnce.has(text))) {
             toldOnce.add(problem)

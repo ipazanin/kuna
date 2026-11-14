@@ -20,6 +20,8 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A row of `KpiTile` goes in `DashboardGrid layout="tiles"`. Each tile has a label, a figure, an optional change against a comparison, an optional trend and a caption. The tile itself opens the rows behind it.
 - A cost where a rise is bad news sets `higher-is-better` to false. The arrow and colour follow.
 - A figure that opens rows is a `DrillLink`. With no rows behind it, `to` is null and it shows as plain text. It wears the colour of the text class its caller gives it, such as `text-highlighted`, and inherits the text's colour without one. A hover underlines it in the accent and keeps its colour. The visual check fails a link that ignores its class.
+- A row of a list that opens a page, such as an account or a completed loan, is a `ProposalRow` with `to`. Its arrow sits on the title's line beside the figure, however many lines run under it, and the visual check fails one that does not. A row that opens a dialog in place is a `ProposalRow` with `as="button"` and no arrow.
+- An app with entries shows its five newest in one card of `ProposalRow` rows right after its tiles, newest by booking day. Within a day Spending and Investments put the last added first, and Company follows the bank's booking order, which runs through a day account by account. A row still waiting on review says so in the app's own words, and a tap opens the entry, in place where the app has a dialog for it.
 - A share of a whole, such as what is paid back, is a `ProgressMeter`, with a stripe on a part someone else pays. Labelled figures inside a card, such as a loan's dates, are a `FactGrid`.
 
 ## Tabs

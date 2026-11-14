@@ -44,6 +44,7 @@ import { runway } from '../domain/runway'
 import { recentChange, windowAverages } from '../domain/windowAverages'
 import { euroDonut } from './overviewCharts'
 import { statementsJob, waitingJobs } from './waitingForYou'
+import LatestRowsCard from './LatestRowsCard.vue'
 import WindowComparison from './WindowComparison.vue'
 import type { WindowRow } from './WindowComparison.vue'
 import { capitalised } from '../../../../shared/text/capitalised'
@@ -74,6 +75,13 @@ const waiting = computed(() => {
   if (ledger.value === null || state.workbook === null) return []
   const held = statementsJob(statements.held.value?.length ?? 0, statements.state.outcome?.problem ?? null)
   return [...(held === null ? [] : [held]), ...waitingJobs(ledger.value.booked, state.workbook.transactions, everydayRates(rates.value))]
+})
+
+/** Every row of the accounts in view as the bank booked it, from the workbook as read, so a split or shared row stays whole. */
+const booked = computed(() => {
+  const accounts = ledger.value?.filters.accounts ?? []
+  const rows = state.workbook?.transactions ?? []
+  return accounts.length === 0 ? rows : rows.filter((row) => accounts.includes(row.account))
 })
 
 const overview = computed(() => {
@@ -228,6 +236,8 @@ const overview = computed(() => {
         <DashboardGrid layout="tiles">
           <KpiTile v-for="tile in overview.tiles" :key="tile.label" v-bind="tile" />
         </DashboardGrid>
+
+        <LatestRowsCard :booked="booked" :counted="ledger.workbook.transactions" :names="names" />
 
         <DashboardGrid>
           <AppCard :title="words.typicalMonth.title" :subtitle="words.typicalMonth.subtitle" class="@4xl:col-span-2 @8xl:col-span-1">

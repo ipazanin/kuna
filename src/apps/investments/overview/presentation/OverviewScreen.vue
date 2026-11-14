@@ -98,13 +98,13 @@ const importing = ref(false)
         </GettingSetUpCard>
         <PricesNotice :book="sources.book" :figures="figures" />
         <OverviewTiles :sources="sources" :figures="figures" />
+        <LatestTransactionsCard :sources="sources" />
         <PortfolioChecksCard :sources="sources" :figures="figures" :facts="facts" />
         <DashboardGrid data-testid="investments-cards">
           <ValueOverTimeCard :sources="sources" class="@4xl:col-span-2" />
           <WhereTheMoneyIsCard :figures="figures" :book="sources.book" />
           <GainSourcesCard :figures="figures" />
           <MoversCard :figures="figures" />
-          <LatestTransactionsCard :sources="sources" />
         </DashboardGrid>
       </template>
       <TransactionDialog v-model:open="adding" :book="state.workbook.book" :editing="null" />
