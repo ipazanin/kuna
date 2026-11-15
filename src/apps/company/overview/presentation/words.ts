@@ -19,7 +19,6 @@ export const en = {
   waiting: {
     title: 'Waiting for you',
     subtitle: 'Across the whole workbook, whatever the filters.',
-    open: (job: string, page: string) => `${job}, open ${page}`,
     notFiled: (count: number): EnglishForms => ({ one: '1 statement was not filed', other: `${count} statements were not filed` }),
     folderUnread: 'The statements folder could not be read',
     toReview: (count: number): EnglishForms => ({ one: `${count} row waits for a category check`, other: `${count} rows wait for a category check` }),
@@ -98,7 +97,6 @@ export const en = {
     closedCount: (count: number): EnglishForms => ({ one: `, ${count} closed`, other: `, ${count} closed` }),
     closed: 'Closed',
     asOf: (day: string, count: number, since: string): EnglishForms => ({ one: `As of ${day}. ${count} row since ${since}.`, other: `As of ${day}. ${count} rows since ${since}.` }),
-    everyRow: (account: string) => `${account}, every row`,
   },
 }
 
@@ -109,7 +107,6 @@ export const hr: Translation<typeof en> = {
   waiting: {
     title: 'Čeka vas',
     subtitle: 'U cijeloj datoteci, bez obzira na filtre.',
-    open: (job, page) => `${job}, otvori ${page}`,
     notFiled: (count) => ({ one: `${count} izvod nije upisan`, few: `${count} izvoda nisu upisana`, other: `${count} izvoda nije upisano` }),
     folderUnread: 'Mapu izvoda nije moguće pročitati',
     toReview: (count) => ({
@@ -198,7 +195,6 @@ export const hr: Translation<typeof en> = {
       few: `Stanje na dan ${day}, ${count} stavke od ${since}`,
       other: `Stanje na dan ${day}, ${count} stavki od ${since}`,
     }),
-    everyRow: (account) => `${account}, sve stavke`,
   },
 }
 

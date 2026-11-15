@@ -23,9 +23,9 @@ describe('waiting for you', () => {
     expect(jobsOf(fake('drive'))).toEqual([
       ['review', '2 rows wait for a category check', 'warning', 'To review'],
       ['invoice', "This month's invoice for Northwind Analytics is not made yet", 'warning', 'Invoicing'],
-      ['overdue', '2 invoices are past the due date, €4,200.00 still owed', 'negative', 'Invoices'],
+      ['overdue', '2 invoices are past the due date, €4,200.00 still owed', 'error', 'Invoices'],
       ['unaccounted', 'A reimbursement to the owner has no cost on file', 'warning', 'To review'],
-      ['corporate-tax', 'A corporate tax payment is overdue, €447.50 still owed', 'negative', 'Year, Taxes'],
+      ['corporate-tax', 'A corporate tax payment is overdue, €447.50 still owed', 'error', 'Year, Taxes'],
     ])
   })
 
@@ -46,7 +46,7 @@ describe('waiting for you', () => {
   })
 
   it('holds the corporate tax against its schedule once the company has a registration day', () => {
-    expect(jobsOf(fake('browser')).at(-1)).toEqual(['corporate-tax', 'A corporate tax payment is overdue, €447.50 still owed', 'negative', 'Year, Taxes'])
+    expect(jobsOf(fake('browser')).at(-1)).toEqual(['corporate-tax', 'A corporate tax payment is overdue, €447.50 still owed', 'error', 'Year, Taxes'])
   })
 
   it('links the corporate tax to its card on the Taxes tab of Year', () => {
@@ -63,7 +63,7 @@ describe('waiting for you', () => {
     expect(payroll).toEqual({
       key: 'payroll',
       text: 'Payroll contributions: no payment landed in March',
-      tone: 'negative',
+      tone: 'error',
       link: { label: 'Year, Taxes', to: { path: '/company/year', query: { tab: 'taxes' }, hash: '#payroll-cadence' } },
     })
   })
@@ -71,7 +71,7 @@ describe('waiting for you', () => {
   it('counts every missed payroll month and names the latest, last year with its year', () => {
     const workbook = withoutContributions(fake('drive'), ['2025-11', '2025-12'])
 
-    expect(jobsOf(workbook).find(([key]) => key === 'payroll')).toEqual(['payroll', 'Payroll contributions: no payment landed in 2 months, the latest December 2025', 'negative', 'Year, Taxes'])
+    expect(jobsOf(workbook).find(([key]) => key === 'payroll')).toEqual(['payroll', 'Payroll contributions: no payment landed in 2 months, the latest December 2025', 'error', 'Year, Taxes'])
   })
 
   it('says nothing of the payroll while every complete month has a payment', () => {

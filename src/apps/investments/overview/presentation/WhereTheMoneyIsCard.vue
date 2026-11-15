@@ -43,9 +43,8 @@ const donut = computed(() => mixDonut(holdingMix(props.figures, props.book, fact
       <UButton
         :to="HOLDINGS_ROUTE"
         :label="holdingsWords.allHoldings"
-        icon="i-lucide-arrow-right"
-        trailing
-        color="primary"
+        trailing-icon="i-lucide-arrow-right"
+        color="neutral"
         variant="link"
         class="mt-2 px-0"
         data-testid="investments-allocation-holdings"

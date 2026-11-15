@@ -129,6 +129,8 @@ const refusedSyntax = (selectors, message) => ({
   },
 })
 
+const linkIcon = 'VElement[rawName=/^(?:RouterLink|router-link)$/] VElement[rawName=/^(?:UIcon|u-icon)$/]'
+
 const castedBrand = String.raw`[typeName.name=/^(?:Money|AccountMoney|Percent|Share|Decimal)$/]`
 const castedAs = (cast) => [`${cast} > TSTypeReference.typeAnnotation${castedBrand}`, `${cast} > *.typeAnnotation TSTypeReference${castedBrand}`]
 
@@ -316,6 +318,13 @@ const kunaPlugin = {
       'A choice kept on this device goes through src/shared/device/deviceChoice.ts, which gives the default where a private window denies the storage.',
     ),
     'note-lines': noteLines,
+    'link-rows': refusedSyntax(
+      [
+        `${linkIcon} > VStartTag > VAttribute[directive=false][key.name='name'][value.value='i-lucide-chevron-right']`,
+        `${linkIcon} > VStartTag > VAttribute[directive=true][key.argument.name='name'] > VExpressionContainer > Literal[value='i-lucide-chevron-right']`,
+      ],
+      "A row of a list that opens a page is a ProposalRow with to, which draws its arrow on the title's line.",
+    ),
     'card-reasons': refusedSyntax(
       ["Property[key.name='reason'] > Literal.value[value=/[A-Za-z]/]", "Property[key.name='reason'] > TemplateLiteral.value > TemplateElement[value.raw=/[A-Za-z]/]"],
       "A card's reason is read by the person, so it comes from the app's words in both languages, never a sentence typed beside the operation.",
@@ -437,6 +446,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/device-storage', files: ['src/**/*.{ts,vue}'], ignores: ['src/shared/device/deviceChoice.ts'], rules: { 'kuna/device-storage': 'error' } },
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
+    { name: 'kuna/link-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/link-rows': 'error' } },
     { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },
     { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },

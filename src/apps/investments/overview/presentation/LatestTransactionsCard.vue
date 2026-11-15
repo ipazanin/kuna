@@ -59,9 +59,8 @@ function change(entry: TransactionRecord): void {
       <UButton
         :to="TRANSACTIONS_ROUTE"
         :label="transactionWords.allTransactions"
-        icon="i-lucide-arrow-right"
-        trailing
-        color="primary"
+        trailing-icon="i-lucide-arrow-right"
+        color="neutral"
         variant="link"
         class="px-0"
         data-testid="investments-all-transactions"

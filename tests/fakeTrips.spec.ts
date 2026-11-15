@@ -73,7 +73,7 @@ describe('the made-up trips', () => {
       expect.objectContaining({ key: 'trip-3/2026', tone: 'warning', link: expect.objectContaining({ to: expect.objectContaining({ path: '/company/trips' }) }) }),
       expect.objectContaining({ key: 'trip-payout-2/2026', tone: 'info' }),
       expect.objectContaining({ key: 'trip-advance-3/2026', tone: 'info' }),
-      expect.objectContaining({ key: 'trip-joppd-2/2026', tone: 'negative' }),
+      expect.objectContaining({ key: 'trip-joppd-2/2026', tone: 'error' }),
     ])
   })
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 
 import { sortedPositions } from '../domain/closedPositions'
 import type { ClosedColumn, ClosedPosition, ClosedSort } from '../domain/closedPositions'
@@ -16,6 +15,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import SortableHeader from '../../../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../../../shared/ui/SortableHeader.vue'
@@ -89,16 +89,17 @@ function span(position: ClosedPosition): string {
     </FigureTable>
     <ul v-else class="pb-2" data-testid="closed-rows">
       <li v-for="position in shown" :key="position.instrument.id" class="border-t border-default first:border-t-0">
-        <RouterLink :to="holdingLink(position.instrument)" class="flex flex-col gap-0.5 px-4 py-2.5 hover:bg-elevated/40" data-testid="closed-row">
-          <span class="flex items-baseline justify-between gap-3 type-body">
-            <span class="min-w-0 truncate text-highlighted">{{ position.instrument.name }}</span>
-            <MoneyText :cents="position.realised" sign="always" tone="outcome" class="shrink-0 font-medium" />
-          </span>
-          <span class="flex items-baseline justify-between gap-3 type-caption">
-            <span class="min-w-0 truncate">{{ words.units(formatQuantity(position.units, QUANTITY_PLACES)) }} · {{ days(position) }}</span>
-            <span v-if="position.realisedShare !== null" class="figure shrink-0">{{ formatPercent(position.realisedShare, 'always') }}</span>
-          </span>
-        </RouterLink>
+        <ProposalRow
+          :to="holdingLink(position.instrument)"
+          :title="position.instrument.name"
+          :caption="`${words.units(formatQuantity(position.units, QUANTITY_PLACES))} · ${days(position)}`"
+          data-testid="closed-row"
+        >
+          <template #amount>
+            <MoneyText :cents="position.realised" sign="always" tone="outcome" class="font-medium" />
+            <span v-if="position.realisedShare !== null" class="figure type-caption">{{ formatPercent(position.realisedShare, 'always') }}</span>
+          </template>
+        </ProposalRow>
       </li>
     </ul>
     <ShowAllButton v-if="positions.length > FIRST_SHOWN" v-model:expanded="expanded" :total="positions.length" class="px-4 pb-4 sm:px-5" />

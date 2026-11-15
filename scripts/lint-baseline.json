@@ -8,7 +8,6 @@
     "src/apps/company/filters/presentation/FilterBar.vue",
     "src/apps/company/invoicing/presentation/InvoiceLinesEditor.vue",
     "src/apps/company/invoicing/presentation/InvoiceRunDialog.vue",
-    "src/apps/company/overview/presentation/OverviewScreen.vue",
     "src/apps/company/overview/presentation/WindowComparison.vue",
     "src/apps/company/owner-share/presentation/OwnerShareDialog.vue",
     "src/apps/company/packs/hr-doo/presentation/AdvanceList.vue",

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import UBadge from '@nuxt/ui/components/Badge.vue'
 
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthInYear, monthLabel } from '../../../../shared/calendar/monthLabel'
@@ -13,7 +12,9 @@ import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { balanceSeries, latestBalances } from '../../cash/domain/balances'
@@ -198,9 +199,10 @@ const overview = computed(() => {
       colour: colours.get(account.account) ?? 'var(--chart-ink)',
       balance: account.balance.amount,
       to: drillLocation(account.balance.drill),
-      asOf: dayLabel(account.asOf),
-      firstSeen: dayLabel(account.firstSeen),
-      count: account.transactionCount,
+      note: [
+        ...(account.closed ? [words.accounts.closed] : []),
+        plural(words.accounts.asOf(dayLabel(account.asOf), account.transactionCount, dayLabel(account.firstSeen)), account.transactionCount),
+      ].join(' · '),
       closed: account.closed,
     })),
     accountsSummary: `${plural(words.accounts.summary(balances.accounts.length), balances.accounts.length)}${closedCount > 0 ? plural(words.accounts.closedCount(closedCount), closedCount) : ''}`,
@@ -216,19 +218,21 @@ const overview = computed(() => {
       <template v-if="ledger && overview">
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
 
-        <p v-if="overview.headline" class="headline" data-testid="headline">
+        <p v-if="overview.headline" class="type-body" data-testid="headline">
           {{ overview.headline.month }}{{ words.headline.opening
-          }}<DrillLink :to="overview.headline.cameIn.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.cameIn.amount" /></DrillLink>{{ words.headline.between
-          }}<DrillLink :to="overview.headline.wentOut.to" in-prose class="headline-figure"><MoneyText :cents="overview.headline.wentOut.amount" /></DrillLink>{{ words.headline.closing
+          }}<DrillLink :to="overview.headline.cameIn.to" in-prose class="font-semibold text-highlighted"><MoneyText :cents="overview.headline.cameIn.amount" /></DrillLink>{{ words.headline.between
+          }}<DrillLink :to="overview.headline.wentOut.to" in-prose class="font-semibold text-highlighted"><MoneyText :cents="overview.headline.wentOut.amount" /></DrillLink>{{ words.headline.closing
           }}<template v-if="overview.headline.loss !== null">{{ words.headline.loss }}<MoneyText :cents="overview.headline.loss" class="text-error" /></template>.
         </p>
 
         <AppCard v-if="waiting.length" :title="words.waiting.title" :subtitle="words.waiting.subtitle" data-testid="waiting-for-you">
-          <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
-            <li v-for="job in waiting" :key="job.key" class="waiting-line" :data-job="job.key">
-              <span class="waiting-dot" :class="job.tone" aria-hidden="true" />
-              <span class="min-w-0 flex-1 text-sm text-toned">{{ job.text }}</span>
-              <DrillLink :to="job.link.to" :label="words.waiting.open(job.text, job.link.label)" class="shrink-0 text-sm font-medium text-highlighted">{{ job.link.label }}</DrillLink>
+          <ul class="flex flex-col py-2">
+            <li v-for="job in waiting" :key="job.key" class="border-t border-default first:border-t-0" :data-job="job.key">
+              <ProposalRow :to="job.link.to" :title="job.text">
+                <template #caption>
+                  <NoteLine inline as="span" :tone="job.tone">{{ job.link.label }}</NoteLine>
+                </template>
+              </ProposalRow>
             </li>
           </ul>
         </AppCard>
@@ -282,19 +286,14 @@ const overview = computed(() => {
             :subtitle="words.accounts.subtitle"
             data-testid="overview-accounts"
           >
-            <ul class="mt-3 border-t border-default">
-              <li v-for="account in overview.accounts" :key="account.account" class="account-row" :class="{ 'account-closed': account.closed }">
-                <div class="min-w-0">
-                  <p class="flex flex-wrap items-center gap-2 text-sm text-toned">
-                    <span class="size-2.5 shrink-0 rounded-[2px]" :style="{ background: account.colour }" aria-hidden="true" />
-                    {{ account.name }}
-                    <UBadge v-if="account.closed" :label="words.accounts.closed" color="neutral" variant="subtle" size="sm" />
-                  </p>
-                  <p class="mt-0.5 text-xs text-muted">{{ plural(words.accounts.asOf(account.asOf, account.count, account.firstSeen), account.count) }}</p>
-                </div>
-                <DrillLink :to="account.to" :label="words.accounts.everyRow(account.name)" class="shrink-0">
-                  <span class="figure text-base font-semibold whitespace-nowrap text-highlighted">{{ formatMoney(account.balance) }}</span>
-                </DrillLink>
+            <ul class="mt-3 flex flex-col border-t border-default">
+              <li v-for="account in overview.accounts" :key="account.account" class="border-t border-default first:border-t-0">
+                <ProposalRow v-bind="account.to === null ? { as: 'div' as const } : { to: account.to }" :title="account.name" :quiet="account.closed">
+                  <template #amount>
+                    <MoneyText :cents="account.balance" class="font-semibold" :class="account.closed ? 'text-muted' : 'text-highlighted'" />
+                  </template>
+                  <template #caption> <span class="swatch swatch-bar me-1.5 align-middle" :style="{ '--swatch': account.colour }" aria-hidden="true" />{{ account.note }} </template>
+                </ProposalRow>
               </li>
             </ul>
           </AppCard>
@@ -303,75 +302,3 @@ const overview = computed(() => {
     </LedgerGate>
   </section>
 </template>
-
-<style scoped>
-.headline {
-  max-width: 60ch;
-  font-size: 1.125rem;
-  line-height: 1.6;
-  color: var(--ink-secondary);
-}
-
-.headline-figure {
-  font-weight: 600;
-  color: var(--ink-strong);
-}
-
-.waiting-line {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  min-height: 2.5rem;
-}
-
-.waiting-line + .waiting-line {
-  border-top: 1px solid var(--border-default);
-}
-
-.waiting-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  flex: none;
-  border-radius: 50%;
-}
-
-.waiting-dot.info {
-  background: var(--tone-info);
-}
-
-.waiting-dot.warning {
-  background: var(--tone-warning);
-}
-
-.waiting-dot.negative {
-  background: var(--tone-negative);
-}
-
-.account-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-}
-
-.account-row + .account-row {
-  border-top: 1px solid var(--border-default);
-}
-
-.account-closed :deep(.text-highlighted) {
-  color: var(--ink-muted);
-}
-
-@media (min-width: 640px) {
-  .account-row {
-    padding-inline: 1.25rem;
-  }
-}
-
-@media (max-width: 639px) {
-  .headline {
-    font-size: 1rem;
-  }
-}
-</style>

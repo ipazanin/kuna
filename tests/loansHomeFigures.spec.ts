@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest'
+
+import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
+import { loansHomeFigures } from '../src/apps/loans/home/presentation/loansHomeFigures'
+import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
+import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
+import { INFORMAL_LOAN_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { civil, euros } from './fixtures/ledger'
+import { bankLoan, informalLoan, ratePeriod } from './fixtures/loans'
+
+// Before the first instalment, the bank loan's whole 1,200.00 is still owed.
+const DAY = civil('2026-01-20')
+
+function bankBook(loan: BankLoan) {
+  const periods = [ratePeriod(loan, loan.firstInstalment, '12')]
+  return { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [], plan: loanPlan(loan, periods, []) }
+}
+
+function informalBook(loan: InformalLoan) {
+  return { loan, movements: [] }
+}
+
+const TO_MARKO = informalLoan({ id: recordIdOf(INFORMAL_LOAN_RECORDS, 'to-marko'), name: 'To Marko', direction: 'owed-to-you', openingBalance: euros(800), start: civil('2026-01-02') })
+
+describe("Loans' card on the Kuna home", () => {
+  it('shows the net and what you owe for a bank loan alone', () => {
+    expect(loansHomeFigures({ bankLoans: [bankBook(bankLoan())], informalLoans: [] }, DAY)).toEqual({
+      amounts: [
+        { label: 'Net', cents: euros(-1200), sign: 'always', tint: '--loan-you-owe-tint' },
+        { label: 'You owe in all', cents: euros(1200) },
+      ],
+      waiting: null,
+    })
+  })
+
+  it('shows the net and what is owed to you for money lent alone', () => {
+    expect(loansHomeFigures({ bankLoans: [], informalLoans: [informalBook(TO_MARKO)] }, DAY).amounts).toEqual([
+      { label: 'Net', cents: euros(800), sign: 'always', tint: '--loan-owed-to-you-tint' },
+      { label: 'Owed to you', cents: euros(800) },
+    ])
+  })
+
+  it('shows both sides under the net while each is above zero', () => {
+    // 800.00 owed to you less 1,200.00 you owe.
+    expect(loansHomeFigures({ bankLoans: [bankBook(bankLoan())], informalLoans: [informalBook(TO_MARKO)] }, DAY).amounts).toEqual([
+      { label: 'Net', cents: euros(-400), sign: 'always', tint: '--loan-you-owe-tint' },
+      { label: 'You owe in all', cents: euros(1200) },
+      { label: 'Owed to you', cents: euros(800) },
+    ])
+  })
+
+  it('shows the net alone and untinted when nothing is owed either way', () => {
+    expect(loansHomeFigures({ bankLoans: [], informalLoans: [] }, DAY).amounts).toEqual([{ label: 'Net', cents: euros(0), sign: 'always' }])
+  })
+})

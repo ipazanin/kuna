@@ -860,7 +860,8 @@ async function checkWidth(width) {
       await open(page, `${words.query}#/company`, words.overview.title)
       await page.waitForSelector('[data-testid="waiting-for-you"]')
       await shoot(`overview-waiting${suffix}`)
-      const reviewLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="review"] a', words.overview.waiting.links.review)
+      await waitForText(page, '[data-testid="waiting-for-you"] [data-job="review"] a .proposal-row-caption', words.overview.waiting.links.review)
+      const reviewLink = await page.waitForSelector('[data-testid="waiting-for-you"] [data-job="review"] a')
       await reviewLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
       await delay(200)
       await reviewLink.tap()
@@ -871,7 +872,8 @@ async function checkWidth(width) {
 
   await step('waiting-corporate-tax', async () => {
     await openFreshBrowser(page, '#/company', 'Overview')
-    const taxLink = await waitForText(page, '[data-testid="waiting-for-you"] [data-job="corporate-tax"] a', 'Year, Taxes')
+    await waitForText(page, '[data-testid="waiting-for-you"] [data-job="corporate-tax"] a .proposal-row-caption', 'Year, Taxes')
+    const taxLink = await page.waitForSelector('[data-testid="waiting-for-you"] [data-job="corporate-tax"] a')
     await taxLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
     await taxLink.tap()

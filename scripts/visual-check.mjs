@@ -1900,6 +1900,7 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   { name: 'home-loans', query: 'loans=sample', hash: '#/', title: 'Home', charts: 0, shows: ['Cash on hand', 'Net', 'You owe in all', 'Owed to you'], cards: false },
+  { name: 'home-one-loan', query: 'loans=one-loan', hash: '#/', title: 'Home', charts: 0, shows: ['Net', 'You owe in all'], lacks: ['Owed to you'], cards: false },
   { name: 'home-assets', query: 'assets=sample', hash: '#/', title: 'Home', charts: 0, shows: ['Assets value', ASSETS.alone.english, '1 asset without a value'], cards: false },
   {
     name: 'home-spending-review',
@@ -1978,6 +1979,7 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   { name: 'home-loans-croatian', query: 'loans=sample&lang=hr', hash: '#/', title: 'Početna', charts: 0, shows: ['Novac na računima', 'Neto', 'Ukupno dugujete', 'Duguje vam se'], cards: false },
+  { name: 'home-one-loan-croatian', query: 'loans=one-loan&lang=hr', hash: '#/', title: 'Početna', charts: 0, shows: ['Neto', 'Ukupno dugujete'], lacks: ['Duguje vam se'], cards: false },
   { name: 'welcome', query: 'fake=empty', hash: '#/company/start', title: 'Company', charts: 0, shows: ['What brings you here?', 'Start new books', 'Open my books on Google Drive'], cards: false },
   {
     name: 'onboarding-access',

@@ -55,7 +55,7 @@ export function packWaitingJobs(workbook: HrDooWorkbook, asOf: CivilDate, rates:
             {
               key: `trip-joppd-${report.trip.number}`,
               text: (late ? words.waiting.tripReportLate : words.waiting.tripReportDue)(report.trip.number, nameOf(report.trip.traveller), formatMoney(report.amount), dayLabel(report.dueOn)),
-              tone: late ? 'negative' : 'info',
+              tone: late ? 'error' : 'info',
               link: { label: words.links.salaries, to: { path: '/company/salaries', query: { year: report.month.slice(0, 4), month: report.month } } },
             },
           ],
@@ -76,7 +76,7 @@ function tripJob(trip: Trip, workbook: HrDooWorkbook, asOf: CivilDate): WaitingJ
   return {
     key: `trip-${trip.number}`,
     text,
-    tone: late ? 'negative' : 'warning',
+    tone: late ? 'error' : 'warning',
     link: { label: words.links.tripSettlement, to: tripLink(trip.id, SETTLEMENT_TAB) },
   }
 }
@@ -100,7 +100,7 @@ function payrollJob(missed: MissedPayroll, workbook: HrDooWorkbook, asOf: CivilD
       : missed.months === 1
         ? words.waiting.missedOnce(name, latestMonth)
         : plural(words.waiting.missedMonths(name, missed.months, latestMonth), missed.months)
-  return { key: 'payroll', text, tone: 'negative', link: { label: words.links.yearTaxes, to: taxesTab('payroll-cadence') } }
+  return { key: 'payroll', text, tone: 'error', link: { label: words.links.yearTaxes, to: taxesTab('payroll-cadence') } }
 }
 
 function corporateTaxJob(waiting: CorporateTaxWaiting): WaitingJob {
@@ -108,5 +108,5 @@ function corporateTaxJob(waiting: CorporateTaxWaiting): WaitingJob {
   const text = overdue
     ? plural(words.waiting.taxOverdue(waiting.payments, formatMoney(waiting.owed)), waiting.payments)
     : plural(words.waiting.taxDue(waiting.payments, shortDayLabel(waiting.nextDueOn), formatMoney(waiting.owed)), waiting.payments)
-  return { key: 'corporate-tax', text, tone: overdue ? 'negative' : 'warning', link: { label: words.links.yearTaxes, to: taxesTab('corporate-tax') } }
+  return { key: 'corporate-tax', text, tone: overdue ? 'error' : 'warning', link: { label: words.links.yearTaxes, to: taxesTab('corporate-tax') } }
 }

@@ -20,6 +20,7 @@ import { words as booksWords } from '../../workbook/presentation/words'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import type { Transaction, Workbook } from '../../workbook/domain/workbook'
+import type { Tone } from '../../../../shared/ui/toneText'
 import { words } from './words'
 
 /** One job that has something to do, said in a line, with the page and tab that does it. */
@@ -27,9 +28,8 @@ export interface WaitingJob {
   /** Names the job, such as `review`. */
   readonly key: string
   readonly text: string
-  /** `negative` for something already late, `warning` for something due. */
-  /** Info for something Kuna offers to do, warning for something due, negative for something late. */
-  readonly tone: 'info' | 'warning' | 'negative'
+  /** Info for something Kuna offers to do, warning for something due, error for something late. */
+  readonly tone: Extract<Tone, 'info' | 'warning' | 'error'>
   readonly link: { readonly label: string; readonly to: RouteLocationRaw }
 }
 
@@ -96,7 +96,7 @@ function invoiceJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
   return {
     key: 'invoice',
     text,
-    tone: oldest.month < thisMonth ? 'negative' : 'warning',
+    tone: oldest.month < thisMonth ? 'error' : 'warning',
     link: { label: words.waiting.links.invoicing, to: planMonthLink(oldest.month) },
   }
 }
@@ -108,7 +108,7 @@ function overdueJob(workbook: Workbook, asOf: CivilDate): WaitingJob | null {
   return {
     key: 'overdue',
     text: plural(words.waiting.overdue(overdueCount, formatMoney(overdue)), overdueCount),
-    tone: 'negative',
+    tone: 'error',
     link: { label: words.waiting.links.invoices, to: '/company/invoicing' },
   }
 }
