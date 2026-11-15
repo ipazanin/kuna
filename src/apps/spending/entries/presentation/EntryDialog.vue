@@ -16,6 +16,7 @@ import { newTransfer } from '../domain/transfer'
 import { linkEntry, newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, unlinkEntry, writeEntry, writeTransfer } from '../application/entryWrites'
 import { loanTargets } from '../../links/application/loanTargets'
 import { beyondPlan, linkFiling } from '../../links/domain/instalmentSplit'
+import { loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { targetsFor } from '../../links/domain/linkTarget'
 import { LINK_TONE, useLinkLines } from '../../links/presentation/linkLine'
 import { choiceText, words as linkWords } from '../../links/presentation/words'
@@ -152,7 +153,7 @@ const linkNote = computed(() => {
   const filing = linkFiling({ row: props.entry, items: entryLines.value }, target, { currency: entryCurrency.value, receipt: receipt.value !== null, categories: categories.value })
   if (!filing.split) return linkWords.whole[filing.why]
   const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), entryCurrency.value)
-  const category = categories.value.find((candidate) => candidate.id === filing.category)?.name ?? ''
+  const category = categories.value.find((candidate) => candidate.id === filing.category)?.name ?? loanInterestCategoryIn(categories.value, language).category.name
   const beyond = beyondPlan(target, props.entry, entryCurrency.value) ?? 0
   const differs = beyond === 0 ? null : (beyond > 0 ? linkWords.paidMore : linkWords.paidLess)(money(beyond), category)
   return [linkWords.splits(money(filing.interest), money(filing.principal)), differs, split.value ? linkWords.replacesParts : null]

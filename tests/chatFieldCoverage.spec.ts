@@ -87,7 +87,7 @@ const OFFER_RENAMES = {
 /** An entry keeps the link it has when it is retyped, and link-entry sets it. */
 /** The chat names the record in Loans an entry links to by its loan's name and its due date, and Kuna finds the rest of it. */
 const LINK_TARGET_RENAMES = Object.fromEntries(
-  ['kind', 'interim', 'link.app', 'link.kind', 'link.key', 'loanName', 'yourShare', 'interest', 'principal', 'name', 'counterparty', 'direction']
+  ['kind', 'interim', 'link.app', 'link.kind', 'link.key', 'loanName', 'lender', 'number', 'count', 'yourShare', 'interest', 'principal', 'name', 'counterparty', 'direction']
     .map((field) => [field, 'loan'])
     .concat([['link.due', 'due']]),
 )

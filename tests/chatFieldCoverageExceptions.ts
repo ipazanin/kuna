@@ -166,6 +166,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
+    reason: "What To review's card of past instalments keeps when the person says Not now, which only that card writes.",
+    fields: ['spending: Setting.loan_instalments_not_now'],
+  },
+  {
     reason: "Where the bank's statements come from. Reading the folder or the bank's mail needs Google's consent, so the chat links the screen that asks for it.",
     fields: ['company: Setting.statements_folder', 'company: Setting.statements_sync', 'company: Setting.statements_mail_from'],
   },
@@ -184,6 +188,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
 ]
 
 export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
+  {
+    reason: "Link all on To review's card of past instalments, which links each row as link-entry does and takes no field of its own.",
+    paths: ['src/apps/spending/entries/application/entryWrites.ts#linkEntries'],
+  },
   {
     reason: "Moving a file from before items to items, which the person confirms on the file's offer and types nothing for. The chat's move-to-items reaches it.",
     paths: ['src/apps/spending/entries/application/rowRecords.ts#moveToItems'],

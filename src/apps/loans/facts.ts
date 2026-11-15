@@ -45,6 +45,12 @@ export interface PublishedInstalment {
   /** The loan's bare UUID. */
   readonly loan: string
   readonly loanName: string
+  /** The bank the loan is from, as you typed it, which may be blank. */
+  readonly lender: string
+  /** The instalment's number in the plan counting from 1, null for interim interest. */
+  readonly number: number | null
+  /** How many instalments the plan has. */
+  readonly count: number
   readonly due: CivilDate
   /** What you pay of it, the subsidy left out, which is your interest and your principal together. */
   readonly yourShare: Money
@@ -72,8 +78,9 @@ export interface PublishedLoanTargets {
 /** The instalments and informal loans of the book, for a reader that has the book in hand. */
 export function loanTargetsOf(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'>): PublishedLoanTargets {
   return {
-    instalments: book.bankLoans.flatMap(({ loan, plan }) =>
-      (plan ?? []).flatMap((row) => {
+    instalments: book.bankLoans.flatMap(({ loan, plan }) => {
+      const count = (plan ?? []).filter((row) => row.kind === 'instalment').length
+      return (plan ?? []).flatMap((row) => {
         if (row.kind === 'extra-payment') return []
         const { interest, principal } = splitOf(row)
         return [
@@ -81,6 +88,9 @@ export function loanTargetsOf(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
             kind: row.kind,
             loan: keyOfRecordId(BANK_LOAN_RECORDS, loan.id),
             loanName: loan.name,
+            lender: loan.lender,
+            number: row.number,
+            count,
             due: row.date,
             yourShare: row.yourShare,
             interest,
@@ -88,8 +98,8 @@ export function loanTargetsOf(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
             to: bankLoanLink(loan),
           },
         ]
-      }),
-    ),
+      })
+    }),
     informalLoans: book.informalLoans.map(({ loan }) => ({
       key: keyOfRecordId(INFORMAL_LOAN_RECORDS, loan.id),
       name: loan.name,

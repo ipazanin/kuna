@@ -75,7 +75,14 @@ async function save(): Promise<void> {
 async function remove(): Promise<void> {
   const before = props.editing
   if (before === null) return
-  if (await writes.write(loanWords.value.lateDialog.deleted, (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(before), { key: 'delete', failedTitle: loansWords.form.notDeleted })) open.value = false
+  if (
+    await writes.write(loanWords.value.lateDialog.deleted, (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(before), {
+      key: 'delete',
+      description: dayLabel(before.due),
+      failedTitle: loansWords.form.notDeleted,
+    })
+  )
+    open.value = false
 }
 </script>
 

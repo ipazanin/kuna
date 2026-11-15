@@ -13,6 +13,8 @@ interface StarterGroup {
 }
 
 const BANK_FEES: Named = ['Bank fees', 'Bankovne naknade']
+const MONEY_AND_FEES: Named = ['Money and fees', 'Novac i naknade']
+const LOAN_INTEREST: Named = ['Loan interest', 'Kamate na kredit']
 
 const STARTER_GROUPS: readonly StarterGroup[] = [
   {
@@ -105,9 +107,9 @@ const STARTER_GROUPS: readonly StarterGroup[] = [
     ],
   },
   {
-    name: ['Money and fees', 'Novac i naknade'],
+    name: MONEY_AND_FEES,
     kind: 'spending',
-    children: [BANK_FEES, ['Taxes and charges', 'Porezi i pristojbe'], ['Insurance', 'Osiguranja'], ['Loan interest', 'Kamate na kredit']],
+    children: [BANK_FEES, ['Taxes and charges', 'Porezi i pristojbe'], ['Insurance', 'Osiguranja'], LOAN_INTEREST],
   },
   { name: ['Other', 'Ostalo'], kind: 'spending', children: [['Other', 'Ostalo']] },
   {
@@ -129,6 +131,26 @@ const STARTER_GROUPS: readonly StarterGroup[] = [
 /** The starter category a statement's fee goes in, by its name in either language, or undefined once it was renamed or deleted. */
 export function bankFeesCategory(categories: readonly Category[]): Category | undefined {
   return categories.find((category) => category.kind === 'spending' && BANK_FEES.includes(category.name))
+}
+
+/** The starter category the interest of an instalment linked to a row with no category goes in, by its name in either language, or undefined once it was renamed or deleted. */
+export function loanInterestCategory(categories: readonly Category[]): Category | undefined {
+  return categories.find((category) => category.kind === 'spending' && category.parent !== null && LOAN_INTEREST.includes(category.name))
+}
+
+/**
+ * The file's Loan interest, or a new one named in the language under the file's Money and fees, which is added too when
+ * the file has none. Says which categories are new, so the write that needs them adds them.
+ */
+export function loanInterestCategoryIn(categories: readonly Category[], language: Language, newKey: () => string = newRecordId): { readonly category: Category; readonly added: readonly Category[] } {
+  const held = loanInterestCategory(categories)
+  if (held !== undefined) return { category: held, added: [] }
+  const groupPlace = STARTER_GROUPS.findIndex((group) => group.name === MONEY_AND_FEES)
+  const heldGroup = categories.find((category) => category.kind === 'spending' && category.parent === null && MONEY_AND_FEES.includes(category.name))
+  const group = heldGroup ?? groupCategory(STARTER_GROUPS[groupPlace]!, groupPlace, language, newKey)
+  const order = Math.max(0, ...categories.filter((category) => category.parent === group.id).map((category) => category.order)) + 1
+  const child: Category = { id: recordIdOf(CATEGORY_RECORDS, newKey()), name: nameIn(language, LOAN_INTEREST), kind: 'spending', parent: group.id, order, colour: '', hidden: false }
+  return { category: child, added: heldGroup === undefined ? [group, child] : [child] }
 }
 
 /**

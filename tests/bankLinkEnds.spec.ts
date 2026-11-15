@@ -17,6 +17,7 @@ function settings(otpIn: number | null, revolutIn: number | null = null, deploym
     personPayees: [],
     bankAccountsNotInKuna: [],
     bankAccountsKeepMine: [],
+    instalmentsPutOff: [],
   }
 }
 

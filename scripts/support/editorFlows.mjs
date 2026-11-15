@@ -6581,6 +6581,45 @@ export function spendingLinkFlowIn(language, goneMonth) {
 }
 
 /**
+ * To review with the sample Loans file: the waiting row that pays the home loan's last instalment links with Link and comes back with Undo,
+ * and the card of the row filed already that looks like an older instalment goes with Not now and with Link all, each undone.
+ */
+export function spendingInstalmentOffersFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const links = words.spendingLinks
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const shown = (selector, wanted) =>
+      page
+        .waitForFunction((where, on) => (document.querySelector(where) !== null) === on, { timeout: 10_000 }, selector, wanted)
+        .catch(() => {
+          throw new Error(`${selector} is ${wanted ? 'not' : 'still'} on To review`)
+        })
+    await shootAt(page, shoot, '[data-testid="spending-review-offer"]', 'spending-review-offer')
+    await pressSelector(page, press, '[data-testid="spending-review-link"]')
+    await toast(page, links.linked)
+    await shown('[data-testid="spending-review-offer"]', false)
+    await undoIn(page, press, words)
+    await shown('[data-testid="spending-review-offer"]', true)
+    await dismissToasts(page)
+
+    await shootAt(page, shoot, '[data-testid="spending-review-instalments"]', 'spending-review-instalments', { block: 'start' })
+    await pressSelector(page, press, '[data-testid="spending-review-instalments-not-now"]')
+    await toast(page, links.past.putOff)
+    await shown('[data-testid="spending-review-instalments"]', false)
+    await undoIn(page, press, words)
+    await shown('[data-testid="spending-review-instalments"]', true)
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="spending-review-instalments-link"]')
+    await toast(page, links.past.linked(1).one)
+    await shown('[data-testid="spending-review-instalments"]', false)
+    await undoIn(page, press, words)
+    await shown('[data-testid="spending-review-instalments"]', true)
+    await dismissToasts(page)
+  }
+}
+
+/**
  * With the bank sync set up, a row the bank synced onto Revolut EUR opens with its amount, day and way its money went locked,
  * saying why, and a new entry lists only the accounts kept by hand, so Cash and none of the accounts the bank fills.
  */
@@ -7525,60 +7564,60 @@ export function spendingReviewFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const ROW = '[data-testid="spending-review-row"]'
     const PAIR = '[data-testid="spending-pair"]'
-    await countOf(page, ROW, 5, 'the set should wait with five rows')
+    await countOf(page, ROW, 6, 'the set should wait with six rows')
     await pressSelector(page, press, '[data-testid="spending-not-a-pair"]')
     await toast(page, review.pairUndone)
-    await countOf(page, ROW, 7, 'Not a pair should send both legs back')
+    await countOf(page, ROW, 8, 'Not a pair should send both legs back')
     await countOf(page, PAIR, 0, 'Not a pair should end the pair')
     await dismissToasts(page)
     const leg = await reviewRowOf(page, 'Top-up from OTP')
     await choose(page, press, await leg.$('[data-testid="spending-review-category"]'), words.spendingStarter['Other income'])
     await toast(page, review.filed)
-    await countOf(page, ROW, 6, 'a category should take the leg off review')
+    await countOf(page, ROW, 7, 'a category should take the leg off review')
     await inspect?.('To review after Not a pair')
     await shoot('spending-review-not-a-pair')
     await undoIn(page, press, words)
-    await countOf(page, ROW, 7, 'Undo should bring the leg back')
+    await countOf(page, ROW, 8, 'Undo should bring the leg back')
     await dismissToasts(page)
     // A fresh load seeds the set again.
     await page.reload({ waitUntil: 'load' })
-    await countOf(page, ROW, 5, 'a fresh load should wait with five rows')
+    await countOf(page, ROW, 6, 'a fresh load should wait with six rows')
 
     await pressSelector(page, press, '[data-testid="spending-not-a-pair"]')
     await toast(page, review.pairUndone)
-    await countOf(page, ROW, 7, 'Not a pair should send both legs back')
+    await countOf(page, ROW, 8, 'Not a pair should send both legs back')
     await undoIn(page, press, words)
-    await countOf(page, ROW, 5, 'Undo should put the pair back')
+    await countOf(page, ROW, 6, 'Undo should put the pair back')
     await countOf(page, PAIR, 1, 'Undo should put the pair back')
     await dismissToasts(page)
 
     await pressSelector(page, press, '[data-testid="spending-review-join"]')
     await toast(page, review.joined)
-    await countOf(page, ROW, 4, 'joining should take the bank row off review')
+    await countOf(page, ROW, 5, 'joining should take the bank row off review')
     await undoIn(page, press, words)
-    await countOf(page, ROW, 5, 'Undo should bring the bank row back')
+    await countOf(page, ROW, 6, 'Undo should bring the bank row back')
     await dismissToasts(page)
 
     await pressSelector(page, press, '[data-testid="spending-review-pair"]')
     await toast(page, review.paired)
-    await countOf(page, ROW, 3, 'pairing should take both rows off review')
+    await countOf(page, ROW, 4, 'pairing should take both rows off review')
     await countOf(page, PAIR, 2, 'pairing should list the new pair')
     await undoIn(page, press, words)
-    await countOf(page, ROW, 5, 'Undo should bring both rows back')
+    await countOf(page, ROW, 6, 'Undo should bring both rows back')
     await dismissToasts(page)
 
     const topUp = await reviewRowOf(page, 'Top-up by card')
     await choose(page, press, await topUp.$('[data-testid="spending-review-category"]'), words.spendingStarter['Between my accounts'])
     await toast(page, review.filed)
-    await countOf(page, ROW, 4, 'Between my accounts should take the top-up off review')
+    await countOf(page, ROW, 5, 'Between my accounts should take the top-up off review')
     await countOf(page, '[data-testid="spending-lone-leg"]', 3, 'the top-up should wait as a lone leg')
     await undoIn(page, press, words)
-    await countOf(page, ROW, 5, 'Undo should bring the top-up back')
+    await countOf(page, ROW, 6, 'Undo should bring the top-up back')
     await dismissToasts(page)
     const refund = await reviewRowOf(page, 'Top-up by card')
     await choose(page, press, await refund.$('[data-testid="spending-review-category"]'), words.spendingStarter.Pharmacy)
     await toast(page, review.filed)
-    await countOf(page, ROW, 4, 'a spending category should file money in as a refund')
+    await countOf(page, ROW, 5, 'a spending category should file money in as a refund')
     await dismissToasts(page)
   }
 }
@@ -7593,12 +7632,12 @@ export function spendingRuleFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const ROW = '[data-testid="spending-review-row"]'
-    await countOf(page, ROW, 5, 'the set should wait with five rows')
+    await countOf(page, ROW, 6, 'the set should wait with six rows')
     const fileThenAsk = async () => {
       const row = await reviewRowOf(page, 'City pharmacy')
       await choose(page, press, await row.$('[data-testid="spending-review-category"]'), words.spendingStarter.Pharmacy)
       await toast(page, review.filed)
-      await countOf(page, ROW, 4, 'a category should take the row off review')
+      await countOf(page, ROW, 5, 'a category should take the row off review')
       const always = await page.waitForFunction(
         (label) => [...document.querySelectorAll('[data-sonner-toast] button, [role="alert"] button, li button')].find((button) => button.textContent?.trim() === label) ?? null,
         { timeout: 5_000 },
@@ -7618,15 +7657,15 @@ export function spendingRuleFlowIn(language) {
     await shoot('spending-rule-asks')
     await pressSelector(page, press, '[data-testid="spending-rule-cancel"]')
     await page.waitForFunction(() => document.querySelector('[data-testid="spending-rule-files"]') === null, { timeout: 5_000 })
-    await countOf(page, ROW, 4, 'Cancel should file nothing more')
+    await countOf(page, ROW, 5, 'Cancel should file nothing more')
     await dismissToasts(page)
     // A fresh load seeds the set again, with no rule written.
     await page.reload({ waitUntil: 'load' })
-    await countOf(page, ROW, 5, 'a fresh load should wait with five rows')
+    await countOf(page, ROW, 6, 'a fresh load should wait with six rows')
     await fileThenAsk()
     await pressSelector(page, press, '[data-testid="spending-rule-confirm"]')
     await toast(page, rules.made)
-    await countOf(page, ROW, 3, 'the rule should file the other row of that payee')
+    await countOf(page, ROW, 4, 'the rule should file the other row of that payee')
     await inspect?.('To review after a rule')
     await dismissToasts(page)
     await page.evaluate(() => {
@@ -8132,6 +8171,25 @@ export async function loansEditorFlow(page, { press, shoot, inspect }) {
   await pressSelector(page, press, '[data-testid="late-instalment-save"]')
   await toast(page, 'Late instalment added')
   await elementSays(page, '[data-testid="late-instalments"]', ['Due 10 Mar 2026', '10 days late'], 'the late instalment is not listed')
+  await dismissToasts(page)
+  const lateLine = await page
+    .waitForFunction(
+      () =>
+        [...document.querySelectorAll('[data-testid="late-instalments"] [data-testid="change-line"]')]
+          .find((line) => line.textContent?.includes('Due 10 Mar 2026'))
+          ?.querySelector('[data-testid="change-edit"]') ?? null,
+      { timeout: 10_000 },
+    )
+    .then((handle) => handle.asElement())
+  await lateLine.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(200)
+  await press(lateLine)
+  await pressSelector(page, press, '[data-testid="late-instalment-delete"]')
+  await toast(page, 'Late instalment deleted')
+  const deletedDue = await page.$eval(`${TOAST} [data-slot="description"]`, (element) => element.textContent?.trim() ?? '')
+  if (deletedDue !== '10 Mar 2026') throw new Error(`the late instalment's Delete does not say which one went: ${deletedDue}`)
+  await undoIn(page, press, SCREEN_WORDS.en)
+  await elementSays(page, '[data-testid="late-instalments"]', ['Due 10 Mar 2026'], 'Undo did not bring the late instalment back')
   await dismissToasts(page)
 
   await addChange(page, press, 'loan-subsidy')

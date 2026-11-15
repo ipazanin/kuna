@@ -92,11 +92,14 @@ const HOUSING_LOAN_OCTOBER: RowLink = { app: 'loans', kind: 'bank-loan', key: HO
 
 /** What the desk's Loans lists: the October and November instalments of a made-up housing loan, and an informal loan. */
 export const DESK_LOAN_TARGETS: readonly LinkTarget[] = [
-  ...['2026-10-15', '2026-11-15'].map((due): LinkTarget => ({
+  ...['2026-10-15', '2026-11-15'].map((due, place): LinkTarget => ({
     kind: 'instalment',
     interim: false,
     link: { app: 'loans', kind: 'bank-loan', key: HOUSING_LOAN_KEY, due: on(due) },
     loanName: 'Housing loan',
+    lender: 'Made-up Bank',
+    number: 14 + place,
+    count: 300,
     due: on(due),
     yourShare: moneyFromAmount(650),
     interest: moneyFromAmount(250),

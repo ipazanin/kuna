@@ -16,9 +16,9 @@ import { words } from './words'
 
 /**
  * The Spending card on the Kuna home: Bank and cash and Overdrawn as Net worth and the Accounts screen show them, then what this month spent and what
- * is left of its limits. The waiting line names the rows to review, what a figure leaves out for want of a rate and a bank link that is ending.
+ * is left of its limits. The waiting line names the rows to review with each loan's card of past instalments, what a figure leaves out for want of a rate and a bank link that is ending.
  */
-export function spendingHomeFigures(book: SpendingBook, rates: RatesState, day: CivilDate): HomeFigures | 'opening' | null {
+export function spendingHomeFigures(book: SpendingBook, rates: RatesState, day: CivilDate, pastInstalmentCards = 0): HomeFigures | 'opening' | null {
   const accounts = spendingHubFigures(book, rates, day)
   if (accounts === null || accounts === 'opening') return accounts
   const month = monthOf(day)
@@ -28,7 +28,7 @@ export function spendingHomeFigures(book: SpendingBook, rates: RatesState, day: 
   // This month's rows are all in the month's own count, so only the earlier months the limits carry from add to it.
   const unrated = totals.unrated + limits.reduce((sum, limit) => sum + limit.unratedCarried, 0)
   const unconverted = unconvertedCount(countedAccounts(book, day, everydayRates(rates)))
-  const toReview = reviewCount(book)
+  const toReview = reviewCount(book, pastInstalmentCards)
   return {
     amounts: [
       ...accounts.parts.map((part) => ({ label: part.label, cents: part.cents })),

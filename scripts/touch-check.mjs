@@ -201,6 +201,7 @@ import {
   spendingMoneyOutFlow,
   spendingPayeePickFlow,
   spendingReviewFlowIn,
+  spendingInstalmentOffersFlowIn,
   spendingRuleFlowIn,
   spendingRulesAddFlowIn,
   spendingTransferFlow,
@@ -3336,6 +3337,7 @@ async function checkWidth(width) {
     ['spending-account-start-day', 'drive&spending=sample', spendingAccountStartDayFlowIn('en'), '#/spending/account?account=fa4e3000-0000-4000-8000-000000001001', 'OTP current'],
     ['spending-review-near', 'drive&spending=statements', spendingReviewNearFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    ['spending-instalment-offers', 'drive&spending=statements&loans=sample', spendingInstalmentOffersFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     // The same saves and Undo once the page's Google token has lapsed, as on a phone after an hour: each asks Google and goes again.
     ['spending-review-lapsed', 'drive&spending=statements&google=expired', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],

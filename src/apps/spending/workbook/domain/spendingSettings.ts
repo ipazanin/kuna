@@ -23,12 +23,37 @@ export interface SpendingSettings {
   readonly bankAccountsNotInKuna: readonly string[]
   /** The bank accounts whose Spending account keeps its own bank and kind, so the bank sync stops offering the bank's. Named as in `bankAccountsNotInKuna`. */
   readonly bankAccountsKeepMine: readonly string[]
+  /** Per loan, the last due date its card of past instalments on To review offered when you said Not now. */
+  readonly instalmentsPutOff: readonly InstalmentPutOff[]
+}
+
+/** A loan whose past instalments To review no longer offers up to a due date. */
+export interface InstalmentPutOff {
+  /** The loan's key, as a row's link names it. */
+  readonly loan: string
+  readonly through: CivilDate
 }
 
 export const BANK_SYNC_DEPLOYMENT_KEY = 'bank_sync_deployment'
 export const PERSON_PAYEES_KEY = 'person_payees'
 export const BANK_ACCOUNTS_NOT_IN_KUNA_KEY = 'bank_sync_not_in_kuna'
 export const BANK_ACCOUNTS_KEEP_MINE_KEY = 'bank_sync_keep_mine'
+export const INSTALMENTS_PUT_OFF_KEY = 'loan_instalments_not_now'
+
+/** One loan per line: its key, then the last due date put off. */
+const PUT_OFF_LINE = /^(\S+) (\S+)$/
+
+/** The loan and day a line of the put-off setting names, or null for a line of another shape. */
+export function instalmentPutOffOf(line: string): InstalmentPutOff | null {
+  const [, loan = '', day = ''] = PUT_OFF_LINE.exec(line) ?? []
+  const through = parseCivilDate(day)
+  return loan === '' || through === null ? null : { loan, through }
+}
+
+/** The loans as the put-off setting's value holds them, one per line. */
+export function instalmentsPutOffText(putOff: readonly InstalmentPutOff[]): string {
+  return putOff.map(({ loan, through }) => `${loan} ${through}`).join('\n')
+}
 
 /** One bank account per line: its IBAN, or the bank's hash for an account without one, then its currency. */
 const BANK_ACCOUNT_LINE = /^\S+ [A-Z]{3}$/
@@ -78,5 +103,6 @@ export function spendingSettingsOf(rows: readonly SettingRow[]): SpendingSetting
     personPayees: personPayeesOf(settingValue(rows, PERSON_PAYEES_KEY)),
     bankAccountsNotInKuna: linesOf(settingValue(rows, BANK_ACCOUNTS_NOT_IN_KUNA_KEY)),
     bankAccountsKeepMine: linesOf(settingValue(rows, BANK_ACCOUNTS_KEEP_MINE_KEY)),
+    instalmentsPutOff: linesOf(settingValue(rows, INSTALMENTS_PUT_OFF_KEY)).flatMap((line) => instalmentPutOffOf(line) ?? []),
   }
 }

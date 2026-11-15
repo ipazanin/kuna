@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
-import { linkEntry, unlinkEntry } from '../src/apps/spending/entries/application/entryWrites'
+import { linkEntries, linkEntry, unlinkEntry } from '../src/apps/spending/entries/application/entryWrites'
 import type { LinkPlace } from '../src/apps/spending/entries/application/entryWrites'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets'
 import { beyondPlan, linkFiling, splitByInstalment } from '../src/apps/spending/links/domain/instalmentSplit'
@@ -10,6 +10,7 @@ import type { InstalmentSplit } from '../src/apps/spending/links/domain/instalme
 import { linkStateOf, targetsFor } from '../src/apps/spending/links/domain/linkTarget'
 import type { InstalmentTarget, LinkTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
+import { waitsOnReview } from '../src/apps/spending/workbook/domain/rowItems'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
@@ -72,8 +73,32 @@ describe("a Spending row's link", () => {
     const to = { path: '/loans' }
     const targets = loanTargetsFrom({
       instalments: [
-        { kind: 'interim-interest', loan: LOAN, loanName: 'Home loan', due: on('2026-10-31'), yourShare: moneyFromAmount(80), interest: moneyFromAmount(80), principal: moneyFromAmount(0), to },
-        { kind: 'instalment', loan: LOAN, loanName: 'Home loan', due: on('2026-11-20'), yourShare: moneyFromAmount(650), interest: moneyFromAmount(250), principal: moneyFromAmount(400), to },
+        {
+          kind: 'interim-interest',
+          loan: LOAN,
+          loanName: 'Home loan',
+          lender: 'Example Bank',
+          number: null,
+          count: 300,
+          due: on('2026-10-31'),
+          yourShare: moneyFromAmount(80),
+          interest: moneyFromAmount(80),
+          principal: moneyFromAmount(0),
+          to,
+        },
+        {
+          kind: 'instalment',
+          loan: LOAN,
+          loanName: 'Home loan',
+          lender: 'Example Bank',
+          number: 1,
+          count: 300,
+          due: on('2026-11-20'),
+          yourShare: moneyFromAmount(650),
+          interest: moneyFromAmount(250),
+          principal: moneyFromAmount(400),
+          to,
+        },
       ],
       informalLoans: [{ key: 'b', name: 'From Marko', counterparty: 'Marko', direction: 'you-owe', to }],
     })
@@ -103,6 +128,9 @@ const INSTALMENT: InstalmentTarget = {
   interim: false,
   link: { app: 'loans', kind: 'bank-loan', key: LOAN, due: on('2026-11-20') },
   loanName: 'Home loan',
+  lender: 'Example Bank',
+  number: 14,
+  count: 300,
   due: on('2026-11-20'),
   yourShare: moneyFromAmount(650),
   interest: moneyFromAmount(250),
@@ -129,7 +157,7 @@ describe('a row linked to a loan instalment', () => {
     expect(split(-640)).toEqual(parts(-250, -400, 10))
   })
 
-  it("links whole an informal loan, interim interest, money in, an account not in euros, a transfer's leg, a receipt's row and a row with no category", () => {
+  it("links whole an informal loan, interim interest, money in, an account not in euros, a transfer's leg and a receipt's row", () => {
     const paid = row(OTP, '2026-11-20', -650, 'Money and fees/Loan interest')
     const why = (target: LinkTarget, entry: StoredRow = paid, on = ON_OTP) => {
       const filing = linkFiling(filed(entry), target, on)
@@ -143,9 +171,19 @@ describe('a row linked to a loan instalment', () => {
       why(INSTALMENT, row(REVOLUT_USD, '2026-11-20', -650, 'Money and fees/Loan interest'), { ...ON_OTP, currency: REVOLUT_USD.currency }),
       why(INSTALMENT, { ...paid, pair: row(OTP, '2026-11-20', 650, null).id }),
       why(INSTALMENT, paid, { ...ON_OTP, receipt: true }),
-      why(INSTALMENT, row(OTP, '2026-11-20', -650, null)),
-      why(INSTALMENT, row(OTP, '2026-11-20', -650, null, { category: PRINCIPAL.id })),
-    ]).toEqual(['informal-loan', 'no-principal', 'money-in', 'not-euro', 'transfer-leg', 'receipt', 'unfiled', 'unfiled'])
+    ]).toEqual(['informal-loan', 'no-principal', 'money-in', 'not-euro', 'transfer-leg', 'receipt'])
+  })
+
+  it('keeps the interest of a row with no category under Loan interest, and leaves the category to the write in a file that has none', () => {
+    const category = (entry: StoredRow, on = ON_OTP) => {
+      const filing = linkFiling(filed(entry), INSTALMENT, on)
+      return filing.split ? filing.category : filing.why
+    }
+    expect([
+      category(row(OTP, '2026-11-20', -650, null)),
+      category(row(OTP, '2026-11-20', -650, null, { category: PRINCIPAL.id })),
+      category(row(OTP, '2026-11-20', -650, null), { ...ON_OTP, categories: CATEGORIES.filter((held) => held.id !== LOAN_INTEREST.id) }),
+    ]).toEqual([LOAN_INTEREST.id, LOAN_INTEREST.id, null])
   })
 
   it('keeps the interest under the category most of a split row is in besides Loan principal, and leaves out a part of nothing', () => {
@@ -159,7 +197,7 @@ describe('a row linked to a loan instalment', () => {
     if (!filing.split) throw new Error(`linked whole: ${filing.why}`)
     expect(filing.category).toBe(GROCERIES.id)
 
-    const linked = splitByInstalment({ row: spend, items }, INSTALMENT.link, filing, PRINCIPAL.id, NOTES, () => 'made-up-part')
+    const linked = splitByInstalment({ row: spend, items }, INSTALMENT.link, { ...filing, category: GROCERIES.id }, PRINCIPAL.id, NOTES, () => 'made-up-part')
     expect(linked.items.map((part) => [part.id, part.amount, part.category, part.note, part.link])).toEqual([
       [items[0]!.id, accountMoneyFromAmount(-250), GROCERIES.id, 'Interest', INSTALMENT.link],
       [recordIdOf(ITEM_RECORDS, 'made-up-part'), accountMoneyFromAmount(-400), PRINCIPAL.id, '', INSTALMENT.link],
@@ -199,7 +237,7 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
   }
 
   /** A file made before Loan principal, holding the rows. */
-  async function fileWith(rows: readonly StoredRow[]): Promise<WorkbookStore<SpendingBooks>> {
+  async function fileWith(rows: readonly StoredRow[], categories = CATEGORIES.filter((held) => held.kind !== 'repayment')): Promise<WorkbookStore<SpendingBooks>> {
     const entries =
       shape === 'before-items'
         ? stored(TRANSACTION_RECORDS, rows)
@@ -212,10 +250,7 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
           }
     const document = spendingDocumentOf('2026-11-20T09:00:00.000Z', {
       ...stored(ACCOUNT_RECORDS, ACCOUNTS),
-      ...stored(
-        CATEGORY_RECORDS,
-        CATEGORIES.filter((held) => held.kind !== 'repayment'),
-      ),
+      ...stored(CATEGORY_RECORDS, categories),
       ...entries,
     })
     const { store } = await browserHarness(used, document, SPENDING)
@@ -263,6 +298,65 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     await store.undo(earlier!)
     expect(book().categories.some((held) => held.kind === 'repayment')).toBe(false)
     expect(book().items.filter((part) => part.transaction === paid.id)).toEqual(wholeItems([paid]))
+  })
+
+  it('files the interest of a row with no category under Loan interest, adding it under Money and fees to a file without it, so the row leaves To review', async () => {
+    const waiting = row(OTP, '2026-11-20', -650, null)
+    const store = await fileWith(
+      [waiting],
+      CATEGORIES.filter((held) => held.kind !== 'repayment' && held.id !== LOAN_INTEREST.id),
+    )
+    const book = () => store.state.workbook!
+    await store.write('Linked', (unit) => linkEntry(unit, store.state.records!, book().transactions[0]!, INSTALMENT, { ...english, categories: book().categories }))
+
+    const interest = book().categories.find((held) => held.name === 'Loan interest')!
+    expect(interest).toMatchObject({ kind: 'spending', parent: category('Money and fees').id })
+    expect(book().problems).toEqual([])
+    expect(book().items.map((part) => part.category)).toEqual([interest.id, book().categories.find((held) => held.kind === 'repayment')!.id])
+    expect(waitsOnReview(book().items)).toBe(false)
+
+    await store.undo(store.state.writes[0]!)
+    expect(book().categories.some((held) => held.name === 'Loan interest')).toBe(false)
+    expect(waitsOnReview(book().items)).toBe(true)
+  })
+
+  it('links several rows in one write, adding Loan principal once, and one Undo takes them all back', async () => {
+    const rows = [row(OTP, '2026-10-20', -650, 'Money and fees/Loan interest'), row(OTP, '2026-11-20', -650, null)]
+    const store = await fileWith(rows)
+    const book = () => store.state.workbook!
+    const due = (date: string): InstalmentTarget => ({ ...INSTALMENT, due: on(date), link: { ...INSTALMENT.link, due: on(date) } })
+    await store.write('Linked', (unit) =>
+      linkEntries(
+        unit,
+        store.state.records!,
+        book().transactions.map((held, place) => ({ row: held, target: due(place === 0 ? '2026-10-20' : '2026-11-20'), currency: EURO })),
+        { ...english, categories: book().categories },
+      ),
+    )
+
+    expect(book().categories.filter((held) => held.kind === 'repayment')).toHaveLength(1)
+    expect(book().problems).toEqual([])
+    const principal = book().categories.find((held) => held.kind === 'repayment')!.id
+    expect(
+      book().transactions.map((held) =>
+        book()
+          .items.filter((part) => part.transaction === held.id)
+          .map((part) => [part.category, part.link?.due]),
+      ),
+    ).toEqual([
+      [
+        [LOAN_INTEREST.id, on('2026-10-20')],
+        [principal, on('2026-10-20')],
+      ],
+      [
+        [LOAN_INTEREST.id, on('2026-11-20')],
+        [principal, on('2026-11-20')],
+      ],
+    ])
+    expect(store.state.writes).toHaveLength(1)
+
+    await store.undo(store.state.writes[0]!)
+    expect(book().items).toEqual(wholeItems(rows))
   })
 
   it('takes the link off every part and leaves the parts as they are', async () => {

@@ -344,7 +344,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const cashLegs = new Map(
     withdrawals.flatMap((itemized) => {
       const [cash, ...others] = cashAccountsFor(itemized.row, ruleOf(itemized.row)?.withdrawal?.cashAccount ?? null, book.accounts)
-      return cash === undefined || others.length > 0 ? [] : [[itemized, withCashLeg(itemized, cash, transfer!, newKey)] as const]
+      return transfer === null || cash === undefined || others.length > 0 ? [] : [[itemized, withCashLeg(itemized, cash, transfer, newKey)] as const]
     }),
   )
   const arriving = comingIn.flatMap((itemized) => cashLegs.get(itemized) ?? [itemized])

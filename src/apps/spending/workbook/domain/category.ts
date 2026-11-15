@@ -29,6 +29,11 @@ export function transferCategoryOf(categories: readonly Category[]): Category | 
   return categories.find(isTransferCategory) ?? null
 }
 
+/** The fixed category company money spent for the company is filed under, or null when the file has none. */
+export function companyCategoryOf(categories: readonly Category[]): Category | null {
+  return categories.find((category) => category.kind === 'company') ?? null
+}
+
 /** A group, with no parent, or a child of a group of the same kind. */
 export interface Category {
   readonly id: RecordId

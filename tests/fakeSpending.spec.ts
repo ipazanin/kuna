@@ -86,11 +86,11 @@ describe("the fake build's Spending sets", () => {
     ).toEqual([true, true])
   })
 
-  it.each(['2026-11-04', '2026-12-01', '2027-03-31'])('wait in the statements set with five rows, a pair, two lone legs and offers on %s', (day) => {
+  it.each(['2026-11-04', '2026-12-01', '2027-03-31'])('wait in the statements set with six rows, a pair, two lone legs and offers on %s', (day) => {
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day)))
     const queue = reviewQueue(book, civil(day))
 
-    expect(reviewCount(book)).toBe(5)
+    expect(reviewCount(book)).toBe(6)
     expect(queue.pairs).toHaveLength(1)
     expect(queue.loneLegs).toHaveLength(2)
     expect(queue.wantingSavings).toBe(1)
@@ -153,7 +153,7 @@ describe("the fake build's Spending sets", () => {
       ['Dollars at home', 'Travel wallet'],
       [],
     ])
-    expect(reviewCount(book)).toBe(9)
+    expect(reviewCount(book)).toBe(10)
   })
 
   it('refuse the sample export without its Fee column', async () => {

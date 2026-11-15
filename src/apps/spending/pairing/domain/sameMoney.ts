@@ -4,7 +4,7 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { subtractAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 
-/** How long before and after the typed day a bank may book the same money. */
+/** How long before and after the expected day a bank may book the same money. */
 const BOOKED_DAYS_BEFORE = 3
 const BOOKED_DAYS_AFTER = 7
 
@@ -36,17 +36,17 @@ export interface SameMoney<Typed, Bank> {
 /** What the same-money tests read of each side, which need not be a row yet, as a receipt is not. */
 export type DatedMoney = Pick<Transaction, 'date' | 'amount'>
 
-/** Whether the bank's day falls from 3 days before to 7 days after the typed day. */
-export function inWindow(typed: DatedMoney, bank: DatedMoney): boolean {
-  const days = daysBetween(typed.date, bank.date)
+/** Whether the booked day falls from 3 days before to 7 days after the expected day, such as the day you typed or an instalment's due date. */
+export function inWindow(expected: DatedMoney, booked: DatedMoney): boolean {
+  const days = daysBetween(expected.date, booked.date)
   return days >= -BOOKED_DAYS_BEFORE && days <= BOOKED_DAYS_AFTER
 }
 
-/** Whether a bank row is close enough to be offered: an equal amount within 14 days, or within a tenth of the larger amount inside the window. */
-export function isNear(typed: DatedMoney, bank: DatedMoney): boolean {
-  if (typed.amount === bank.amount) return Math.abs(daysBetween(typed.date, bank.date)) <= NEAR_DAYS
-  const sameWay = typed.amount < 0 === bank.amount < 0
-  return sameWay && inWindow(typed, bank) && Math.abs(typed.amount - bank.amount) <= NEAR_AMOUNT_SHARE * Math.max(Math.abs(typed.amount), Math.abs(bank.amount))
+/** Whether a booked row is close enough to be offered: an equal amount within 14 days, or within a tenth of the larger amount inside the window. */
+export function isNear(expected: DatedMoney, booked: DatedMoney): boolean {
+  if (expected.amount === booked.amount) return Math.abs(daysBetween(expected.date, booked.date)) <= NEAR_DAYS
+  const sameWay = expected.amount < 0 === booked.amount < 0
+  return sameWay && inWindow(expected, booked) && Math.abs(expected.amount - booked.amount) <= NEAR_AMOUNT_SHARE * Math.max(Math.abs(expected.amount), Math.abs(booked.amount))
 }
 
 function byDate<Row extends MoneyRow>(rows: readonly Row[]): Row[] {

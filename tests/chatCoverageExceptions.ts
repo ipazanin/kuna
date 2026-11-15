@@ -17,6 +17,10 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     ],
   },
   {
+    reason: "Not now on To review's card of past instalments. It only stops that card offering what the person saw on it, and the chat does not show the card.",
+    paths: ['src/apps/spending/links/application/instalmentReview.ts#putOffPastInstalments'],
+  },
+  {
     reason: "Giving the ledger's rows their ids. The app's own prompt on Settings, Books file does it in one write, and no agent fills an id.",
     paths: ['src/apps/company/workbook/application/rowIdWrites.ts#giveRowsIds'],
   },

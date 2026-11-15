@@ -763,7 +763,7 @@ function plannedSteps(
         const { entry, added } = linkEntry(unit, records(), row, target, place)
         book = {
           ...book,
-          categories: added === null ? book.categories : [...book.categories, added],
+          categories: [...book.categories, ...added],
           transactions: book.transactions.map((held) => (held.id === row.id ? entry.row : held)),
           items: [...book.items.filter((part) => part.transaction !== row.id), ...entry.items],
         }

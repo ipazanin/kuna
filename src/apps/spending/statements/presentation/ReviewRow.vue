@@ -1,9 +1,16 @@
+<script lang="ts">
+/** What a To review row's buttons write. */
+export type ReviewAction = 'file' | 'join' | 'pair' | 'link'
+</script>
+
 <script setup lang="ts">
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { WaitingRow } from '../domain/reviewQueue'
+import type { InstalmentOffer } from '../../links/domain/instalmentOffers'
+import { instalmentText, words as linkWords } from '../../links/presentation/words'
 import { words } from './words'
 import { rowCaption, rowTitle } from './rowParts'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
@@ -27,13 +34,18 @@ const props = defineProps<{
   accounts: readonly Account[]
   /** What a rule would file this row under, offered beside joining it with what you typed. */
   ruleCategory: Category | null
+  /** An instalment in Loans this row may pay, which Link links it to. */
+  offer: InstalmentOffer | null
   takesReceipt: boolean
+  /** Whether the row's write of that kind is saving, so the button that started it spins. */
+  saving: (action: ReviewAction) => boolean
 }>()
 
 const emit = defineEmits<{
   file: [category: Category]
   join: []
   pair: []
+  link: []
   receipt: [entry: AskedElement]
 }>()
 
@@ -50,6 +62,15 @@ const typedLine = computed(() => {
   const match = props.waiting.maybeTyped
   if (match === null) return null
   return match.difference === 0 ? words.review.maybeApart(match.typed.date) : words.review.maybeDifferent(formatAccountMoney(absAccountMoney(match.difference), currency.value))
+})
+
+const offerLine = computed(() => {
+  const offer = props.offer
+  if (offer === null) return null
+  const instalment = instalmentText(offer.target)
+  if (offer.difference === 0) return (offer.suggested ? linkWords.offer.pays : linkWords.offer.mayPayAnotherDay)(instalment)
+  const amount = formatAccountMoney(absAccountMoney(offer.difference), currency.value)
+  return linkWords.offer.mayPay(instalment, (offer.difference < 0 ? linkWords.above : linkWords.below)(amount))
 })
 
 const transferLine = computed(() => {
@@ -85,15 +106,19 @@ function picked(id: string | undefined): void {
     </div>
     <div v-if="typedLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-typed">{{ typedLine }}</span>
-      <UButton color="neutral" variant="outline" :label="words.review.join" data-testid="spending-review-join" @click="emit('join')" />
+      <UButton color="neutral" variant="outline" :label="words.review.join" :loading="saving('join')" data-testid="spending-review-join" @click="emit('join')" />
     </div>
     <div v-if="ruleCategory !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-rule-says">{{ words.review.ruleSays(ruleCategory.name) }}</span>
-      <UButton color="neutral" variant="outline" :label="words.review.fileAsRule" data-testid="spending-review-file-as-rule" @click="emit('file', ruleCategory!)" />
+      <UButton color="neutral" variant="outline" :label="words.review.fileAsRule" :loading="saving('file')" data-testid="spending-review-file-as-rule" @click="emit('file', ruleCategory!)" />
+    </div>
+    <div v-if="offerLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-offer">{{ offerLine }}</span>
+      <UButton color="neutral" variant="outline" icon="i-lucide-link" :label="linkWords.link" :loading="saving('link')" data-testid="spending-review-link" @click="emit('link')" />
     </div>
     <div v-if="transferLine !== null" class="flex flex-wrap items-center gap-x-3 gap-y-1">
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-transfer">{{ transferLine }}</span>
-      <UButton color="neutral" variant="outline" :label="words.review.pair" data-testid="spending-review-pair" @click="emit('pair')" />
+      <UButton color="neutral" variant="outline" :label="words.review.pair" :loading="saving('pair')" data-testid="spending-review-pair" @click="emit('pair')" />
     </div>
   </ProposalRow>
 </template>

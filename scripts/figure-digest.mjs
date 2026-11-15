@@ -182,6 +182,8 @@ import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatc
 import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
 import { reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue.ts'
+import { instalmentOffers, pastInstalments } from '../src/apps/spending/links/domain/instalmentOffers.ts'
+import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets.ts'
 import { withCashLeg } from '../src/apps/spending/pairing/domain/cashWithdrawals.ts'
 import { itemizedRow } from '../src/apps/spending/workbook/domain/rowItems.ts'
 import { readBanks } from '../src/apps/spending/bankSync/application/bankRead.ts'
@@ -443,7 +445,7 @@ const personal = [
   ...(loans === null ? [] : [{ name: 'Loans', figures: loans.hub }]),
   ...(investmentsAsked ? [{ name: 'Investments', figures: investmentsGroups(group) }] : []),
   ...(assetsAsked ? [{ name: 'Assets', figures: assetsGroups(group, loans?.book ?? null) }] : []),
-  ...(spendingAsked ? [{ name: 'Spending', figures: await spendingGroups(group) }] : []),
+  ...(spendingAsked ? [{ name: 'Spending', figures: await spendingGroups(group, loans?.book ?? null) }] : []),
 ]
 if (personal.length >= 2) {
   group('hub.personal', () => personalNet(personal.map(({ name, figures }) => ({ name, notSetUp: false, currency: DEFAULT_MONEY_FORMAT.currency, figures: figures() }))))
@@ -696,9 +698,10 @@ async function ratesOfInput(workbook) {
  * The Spending groups: the records, where each account's rows come from and the problems, then per account, named by its place in the file and never by its
  * name, its balance on the day in its currency and in euros, then income, spending and saved for every month from the
  * oldest row to the day's, then for the newest complete month and the day's month what each category and group counts
- * and each limit with its carry, then Net worth's part. Returns how Net worth reads the file.
+ * and each limit with its carry, then Net worth's part, To review, and the rows it offers as paying the instalments of the Loans
+ * file the run names, or of the fake one for a fake set. Returns how Net worth reads the file.
  */
-async function spendingGroups(addGroup) {
+async function spendingGroups(addGroup, loansBook) {
   const add = (name, figures) => addGroup(name, typeof figures === 'function' ? () => spendingFiguresOf(figures()) : spendingFiguresOf(figures))
   const document = options.spending === undefined ? fakeSpendingDocument(AT, options['fake-spending'], today) : decodeDocument(readFileSync(options.spending, 'utf8'))
   const { records, workbook } = SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document })
@@ -744,6 +747,15 @@ async function spendingGroups(addGroup) {
   }
   add('spending.hub', () => spendingHubFigures(workbook, rates, today))
   add('spending.review', () => reviewQueue(workbook, today))
+  const offeredLoans =
+    loansBook ??
+    (options['fake-spending'] === undefined ? null : LOANS_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document: fakeLoansDocument(AT) }).workbook)
+  if (offeredLoans !== null) {
+    add('spending.links.offers', () => {
+      const offers = instalmentOffers(workbook, loanTargetsFrom(loanTargetsOf(offeredLoans)), today)
+      return [offers, pastInstalments(workbook, offers, workbook.settings.instalmentsPutOff)]
+    })
+  }
   add('spending.rules', workbook.rules)
   // A file with no label keeps this digest without the group.
   if (workbook.labels.length > 0) add('spending.labels', () => labelTotals(euroRows(workbook, rates.everyday), workbook.categories, workbook.labels))

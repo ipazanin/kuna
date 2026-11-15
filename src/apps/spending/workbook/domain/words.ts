@@ -88,12 +88,14 @@ export const en = {
   settingNotADay: (key: string, text: string) => `${key} "${text}" is not a date such as 2027-05-03`,
   settingNotATime: (key: string, text: string) => `${key} "${text}" is not a UTC time such as 2026-11-09T07:40:00.000Z`,
   settingNotABankAccount: (key: string, line: string) => `${key} line "${line}" is not an IBAN and a currency such as LT000000000000000001 USD`,
+  settingNotAPutOff: (key: string, line: string) => `${key} line "${line}" is not a loan's key and a day such as fa4e0000-0000-4000-8000-000000000001 2026-10-20`,
   /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
   settingLabels: {
     deployment: 'Script deployment ID',
     personPayees: 'Payees who are people',
     notInKuna: 'Bank accounts not in Kuna',
     keepMine: 'Accounts that keep their own bank and kind',
+    instalmentsPutOff: 'Past instalments put off',
     bankLink: (bank: string) => `${bank} link expiry`,
     bankFetched: (bank: string) => `Last answer from ${bank}`,
   },
@@ -163,11 +165,13 @@ export const hr: Translation<typeof en> = {
   settingNotADay: (key, text) => `${key} „${text}” nije datum kao 2027-05-03`,
   settingNotATime: (key, text) => `${key} „${text}” nije UTC vrijeme kao 2026-11-09T07:40:00.000Z`,
   settingNotABankAccount: (key, line) => `${key} redak „${line}” nije IBAN i valuta kao LT000000000000000001 USD`,
+  settingNotAPutOff: (key, line) => `${key} redak „${line}” nije ključ kredita i dan kao fa4e0000-0000-4000-8000-000000000001 2026-10-20`,
   settingLabels: {
     deployment: 'ID implementacije skripte',
     personPayees: 'Primatelji koji su osobe',
     notInKuna: 'Bankovni računi koji nisu u Kuni',
     keepMine: 'Računi koji zadržavaju svoju banku i vrstu',
+    instalmentsPutOff: 'Odgođene prošle rate',
     bankLink: (bank) => `Istek veze s bankom ${bank}`,
     bankFetched: (bank) => `Zadnji odgovor banke ${bank}`,
   },

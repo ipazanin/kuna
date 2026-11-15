@@ -181,7 +181,11 @@ async function removeTry(key: string): Promise<void> {
 async function removeLate(key: string): Promise<void> {
   const late = book.value?.lateInstalments.find((entry) => entry.id === key)
   if (late !== undefined) {
-    await writes.write(loanWords.value.lateDialog.deleted, (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(late), { failedTitle: loansWords.form.notDeleted, key: `delete-${key}` })
+    await writes.write(loanWords.value.lateDialog.deleted, (unit) => unit.of(LATE_INSTALMENT_WRITES).remove(late), {
+      description: dayLabel(late.due),
+      failedTitle: loansWords.form.notDeleted,
+      key: `delete-${key}`,
+    })
   }
 }
 

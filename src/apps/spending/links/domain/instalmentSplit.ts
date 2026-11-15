@@ -1,4 +1,5 @@
 import type { InstalmentTarget, LinkTarget } from './linkTarget'
+import { loanInterestCategory } from '../../categories/domain/starterCategories'
 import { labelsOf } from '../../labels/domain/labels'
 import type { Category } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -19,9 +20,9 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
 /**
  * Why a link leaves an entry's money as it is: it names an informal loan, the instalment is all interest, the entry is money in,
- * its account is not in euros as Loans' plan is, it is a transfer's leg, a receipt split it, or it has no category to keep the interest under.
+ * its account is not in euros as Loans' plan is, it is a transfer's leg, or a receipt split it.
  */
-export type WholeReason = 'informal-loan' | 'no-principal' | 'money-in' | 'not-euro' | 'transfer-leg' | 'receipt' | 'unfiled'
+export type WholeReason = 'informal-loan' | 'no-principal' | 'money-in' | 'not-euro' | 'transfer-leg' | 'receipt'
 
 /**
  * How a link files an entry: whole, or split into the instalment's interest and principal as the plan has them, with what the
@@ -33,7 +34,8 @@ export type LinkFiling = { readonly split: false; readonly why: WholeReason } | 
 /** An entry's money as an instalment splits it, each amount signed as the entry is, the interest and the difference under `category`. */
 export interface InstalmentSplit {
   readonly split: true
-  readonly category: RecordId
+  /** Null for an entry with no category in a file with no Loan interest yet, which the write adds and files them under. */
+  readonly category: RecordId | null
   readonly interest: AccountMoney
   readonly principal: AccountMoney
   readonly difference: AccountMoney
@@ -48,7 +50,7 @@ export interface LinkedOn {
 }
 
 /** Euros of the plan as money out of a euro account. */
-function paidOut(euros: Money): AccountMoney {
+export function paidOut(euros: Money): AccountMoney {
   return negateAccountMoney(accountMoneyOfEuros(euros))
 }
 
@@ -70,8 +72,9 @@ export function beyondPlan(target: LinkTarget, row: Pick<Transaction, 'amount'>,
 
 /**
  * How linking the entry to the target files its money. An instalment on money out of a euro account splits into the plan's
- * interest, under the category most of the entry's money is in besides Loan principal, and its principal, which goes under
- * Loan principal and counts as no spending. A part the entry already had gives way to them.
+ * interest, under the category most of the entry's money is in besides Loan principal or under Loan interest for an entry
+ * with no category, and its principal, which goes under Loan principal and counts as no spending. A part the entry already
+ * had gives way to them.
  */
 export function linkFiling({ row, items }: ItemizedRow, target: LinkTarget, on: LinkedOn): LinkFiling {
   const whole = (why: WholeReason): LinkFiling => ({ split: false, why })
@@ -83,8 +86,8 @@ export function linkFiling({ row, items }: ItemizedRow, target: LinkTarget, on: 
   if (row.pair !== null || filedAsTransfer(on.categories)(items)) return whole('transfer-leg')
   if (on.receipt) return whole('receipt')
   const filed = items.filter((item): item is TransactionItem & { readonly category: RecordId } => item.category !== null && kinds.get(item.category) !== 'repayment')
-  if (filed.length === 0) return whole('unfiled')
-  return { split: true, category: mainCategoryOf(filed), ...planParts(row.amount, target) }
+  const category = filed.length === 0 ? (loanInterestCategory(on.categories)?.id ?? null) : mainCategoryOf(filed)
+  return { split: true, category, ...planParts(row.amount, target) }
 }
 
 /** The words a split gives its parts, in the language the person reads. */
@@ -98,7 +101,14 @@ export interface PartNotes {
  * `principal`, then the difference, leaving out a part of nothing. The first part keeps the id of the entry's first item, and
  * the entry is filed by you. Every part carries every label of the entry.
  */
-export function splitByInstalment(entry: ItemizedRow, link: RowLink, split: InstalmentSplit, principal: RecordId, notes: PartNotes, newKey: () => string = newRecordId): ItemizedRow {
+export function splitByInstalment(
+  entry: ItemizedRow,
+  link: RowLink,
+  split: InstalmentSplit & { readonly category: RecordId },
+  principal: RecordId,
+  notes: PartNotes,
+  newKey: () => string = newRecordId,
+): ItemizedRow {
   const firstId = entry.items[0]?.id ?? wholeRowItemId(entry.row)
   const labels = labelsOf(entry.items)
   const parts: readonly (readonly [AccountMoney, RecordId, string])[] = [

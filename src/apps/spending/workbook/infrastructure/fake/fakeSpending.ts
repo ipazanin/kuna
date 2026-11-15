@@ -267,6 +267,16 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
     statementRow(1711, OTP, back(4), -18.9, 'City pharmacy', { counterpartyIban: PHARMACY_IBAN }),
     statementRow(1713, REVOLUT_EUR, back(3), -15, 'Pocket Winter coat', { category: between, movedAt: `${back(3)} 09:30:00`, pocket: true }),
     statementRow(1712, OTP, back(2), -75, 'Transfer to Revolut', { category: between, counterpartyIban: REVOLUT_IBAN }),
+    ...homeLoanRows(day, idOf),
+  ]
+}
+
+/** The home loan's instalment of 612.20 as the bank booked it: last month's three days after its due date and waiting for a category, and three months back's filed by hand. Neither is linked yet, so To review offers both. */
+function homeLoanRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
+  const bookedIn = (back: number, dayOfTheMonth: number): CivilDate => dayIn(addMonths(monthOf(day), -back), dayOfTheMonth, day)
+  return [
+    statementRow(1730, OTP, bookedIn(1, 23), -612.2, 'Example Bank', { description: 'Example Bank instalment' }),
+    statementRow(1731, OTP, bookedIn(3, 20), -612.2, 'Example Bank', { description: 'Example Bank instalment', category: idOf('Money and fees/Loan interest'), categorisedBy: 'person' }),
   ]
 }
 

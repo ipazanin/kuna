@@ -621,7 +621,7 @@ describe('an entry’s link to Loans', () => {
       stepOf(SPENDING_OPERATIONS, 'link-entry', { entry: desk.ref('transaction', other), loan: 'Housing loan', due: '2026-10-15' }),
     ])
     const fields = desk.cards[0]!.groups.flatMap((group) => group.lines).flatMap((line) => line.fields)
-    expect(fields.find((field) => field.name === 'Linked to')).toMatchObject({ after: 'Housing loan, instalment due 15 Nov 2026' })
+    expect(fields.find((field) => field.name === 'Linked to')).toMatchObject({ after: 'Housing loan, instalment 15 of 300, due 15 Nov 2026' })
     const result = await desk.accept()
     expect(result.kind).toBe('done')
     const principal = bookOf(desk).categories.filter((held) => held.kind === 'repayment')

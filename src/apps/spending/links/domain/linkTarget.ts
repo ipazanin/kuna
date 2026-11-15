@@ -14,6 +14,12 @@ export interface InstalmentTarget {
   readonly interim: boolean
   readonly link: RowLink
   readonly loanName: string
+  /** The bank the loan is from, which may be blank. */
+  readonly lender: string
+  /** Its number in the plan counting from 1, null for interim interest. */
+  readonly number: number | null
+  /** How many instalments the plan has. */
+  readonly count: number
   readonly due: CivilDate
   readonly yourShare: Money
   readonly interest: Money

@@ -63,6 +63,7 @@ const KEYS_EVER_READ: Readonly<Record<string, readonly string[]>> = {
     'person_payees',
     'bank_sync_not_in_kuna',
     'bank_sync_keep_mine',
+    'loan_instalments_not_now',
     'bank_link_otp',
     'bank_link_revolut',
     'bank_sync_fetched_otp',

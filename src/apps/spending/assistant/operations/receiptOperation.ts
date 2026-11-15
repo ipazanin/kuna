@@ -15,6 +15,7 @@ import type { ReceiptFacts, ReceiptPayment } from '../../receipts/domain/receipt
 import { receiptSplit, rowPlace } from '../../receipts/domain/receiptSplit'
 import type { ReceiptPlace, ReceiptSplit } from '../../receipts/domain/receiptSplit'
 import { beforeStartDay, cashAccountsOn } from '../../workbook/domain/account'
+import { companyCategoryOf } from '../../workbook/domain/category'
 import type { Account } from '../../workbook/domain/account'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -318,11 +319,11 @@ export function writeReceiptStep(
   const unknown = answer.lines.filter((line) => !book.categories.some((category) => category.id === idOf(line.category)))
   if (unknown.length > 0) throw new StepRefused('A new category goes on a card of its own first, and this receipt on the next card once that one is accepted.')
   const drafted = receiptDraft({ ...answer, lines: answer.lines.map((line) => ({ ...line, category: idOf(line.category) })) }, { qr: photo.qr, book, companyOib: ports.companyOib() })
-  const company = book.categories.find((category) => category.kind === 'company')
+  const company = companyCategoryOf(book.categories)
   let read = drafted.read
-  if (read.r1Asked) {
+  if (read.r1Asked && company !== null) {
     if (whose === null) throw new StepRefused("This receipt is marked R1, or names a buyer, with no buyer's OIB readable. Ask the person whether it is for the company, then propose it with whose.")
-    read = withR1Answer(read, whose, company!.id)
+    read = withR1Answer(read, whose, company.id)
   } else if (whose !== null) throw new StepRefused("whose is null unless the receipt is marked R1, or names a buyer, with no buyer's OIB readable.")
   if (read.issuedOn === null) throw new StepRefused('The receipt needs its date as printed in issuedOn, as no QR code gives one.')
   if (read.total === null) throw new StepRefused('The receipt needs its printed total above zero, as no QR code gives one.')

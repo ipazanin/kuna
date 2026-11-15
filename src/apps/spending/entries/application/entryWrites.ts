@@ -1,6 +1,6 @@
 import type { EntrySplit } from '../domain/entrySplit'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
-import { fixedCategoryIn } from '../../categories/domain/starterCategories'
+import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { labelsOf } from '../../labels/domain/labels'
 import { linkFiling, splitByInstalment } from '../../links/domain/instalmentSplit'
 import type { PartNotes } from '../../links/domain/instalmentSplit'
@@ -106,10 +106,10 @@ export interface LinkPlace {
   readonly notes: PartNotes
 }
 
-/** An entry as a link left it, with the Loan principal category the same write added to a file made before it, or null. */
+/** An entry as a link left it, with the categories the same write added to a file made before them: Loan principal, and Loan interest for an entry with no category. */
 export interface LinkedEntry {
   readonly entry: ItemizedRow
-  readonly added: Category | null
+  readonly added: readonly Category[]
 }
 
 /**
@@ -120,13 +120,27 @@ export function linkEntry(unit: UnitOfWork, records: EntryRecords, row: Transact
   const entry = { row, items: heldItemsOf(records)(row) }
   const receipt = recordsOf(records.receipts).some((held) => held.transaction === row.id)
   const filing = linkFiling(entry, target, { currency: place.currency, receipt, categories: place.categories })
-  if (!filing.split) return writeLinked(unit, records, row, { row, items: linkedItems(entry.items, target.link) }, null)
+  if (!filing.split) return writeLinked(unit, records, row, { row, items: linkedItems(entry.items, target.link) }, [])
   const principal = fixedCategoryIn(place.categories, 'repayment', place.language, newKey)
-  if (principal.added) unit.of(CATEGORY_WRITES).add(principal.category)
-  return writeLinked(unit, records, row, splitByInstalment(entry, target.link, filing, principal.category.id, place.notes, newKey), principal.added ? principal.category : null)
+  const interest = filing.category === null ? loanInterestCategoryIn(place.categories, place.language, newKey) : { category: { id: filing.category }, added: [] }
+  const added = [...(principal.added ? [principal.category] : []), ...interest.added]
+  added.forEach((category) => unit.of(CATEGORY_WRITES).add(category))
+  return writeLinked(unit, records, row, splitByInstalment(entry, target.link, { ...filing, category: interest.category.id }, principal.category.id, place.notes, newKey), added)
 }
 
-function writeLinked(unit: UnitOfWork, records: EntryRecords, before: Transaction, linked: ItemizedRow, added: Category | null): LinkedEntry {
+/** Each entry linked to its record in Loans as `linkEntry` links it, in one write, so one Undo takes them all back. A category the first needs is added once. */
+export function linkEntries(
+  unit: UnitOfWork,
+  records: EntryRecords,
+  links: readonly { readonly row: Transaction; readonly target: LinkTarget; readonly currency: CurrencyCode }[],
+  place: Omit<LinkPlace, 'currency'>,
+  newKey: () => string = newRecordId,
+): void {
+  let categories = place.categories
+  for (const { row, target, currency } of links) categories = [...categories, ...linkEntry(unit, records, row, target, { ...place, currency, categories }, newKey).added]
+}
+
+function writeLinked(unit: UnitOfWork, records: EntryRecords, before: Transaction, linked: ItemizedRow, added: readonly Category[]): LinkedEntry {
   writeRows(unit, records, [{ before, after: linked.row, items: linked.items }])
   return { entry: linked, added }
 }

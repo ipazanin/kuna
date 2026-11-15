@@ -1,14 +1,14 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { WholeReason } from '../domain/instalmentSplit'
-import type { LinkState, LinkTarget } from '../domain/linkTarget'
+import type { InstalmentTarget, LinkState, LinkTarget } from '../domain/linkTarget'
 import { language } from '../../../../shared/text/language'
-import type { Translation } from '../../../../shared/text/translation'
+import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian names the app Krediti, plural, so it takes plural verbs. A rate is rata, and an informal loan pozajmica.
 
 export const en = {
-  instalment: (loan: string, due: CivilDate) => `${loan}, instalment due ${dayLabel(due)}`,
+  instalment: (loan: string, number: number, count: number, due: CivilDate) => `${loan}, instalment ${number} of ${count}, due ${dayLabel(due)}`,
   interim: (loan: string, due: CivilDate) => `${loan}, interim interest due ${dayLabel(due)}`,
   choice: (loan: string, due: CivilDate) => `${loan}, ${dayLabel(due)}`,
   interimShare: (amount: string) => `${amount} of interim interest`,
@@ -37,7 +37,6 @@ export const en = {
   whole: {
     'not-euro': 'Links the whole entry, since the plan is in euros and the account is not.',
     receipt: 'Links the whole entry, since a receipt split it.',
-    unfiled: 'Links the whole entry, since it has no category to keep the interest under.',
     'no-principal': 'It is all interest, so the entry stays whole.',
     'informal-loan': '',
     'money-in': '',
@@ -45,10 +44,26 @@ export const en = {
   } satisfies Record<WholeReason, string>,
   /** The words a split gives its parts. */
   notes: { interest: 'Interest', difference: 'Difference from the plan' },
+  /** What To review offers for a row that may pay an instalment. */
+  offer: {
+    pays: (instalment: string) => `Pays ${instalment}?`,
+    mayPay: (instalment: string, difference: string) => `May pay ${instalment}, ${difference}?`,
+    mayPayAnotherDay: (instalment: string) => `May pay ${instalment}?`,
+  },
+  /** The card of rows filed already that look like a loan's instalments. */
+  past: {
+    title: (loan: string) => `Past instalments of ${loan}`,
+    rows: (count: number, from: string, to: string): EnglishForms => ({ one: `1 row from ${from} looks like an instalment.`, other: `${count} rows from ${from} to ${to} look like its instalments.` }),
+    note: "Linking splits each into the plan's interest and principal, which counts as no spending.",
+    linkAll: (count: number): EnglishForms => ({ one: 'Link it', other: `Link all ${count}` }),
+    linked: (count: number): EnglishForms => ({ one: 'Entry linked', other: `${count} entries linked` }),
+    notNow: 'Not now',
+    putOff: 'Not offered again before the next instalment',
+  },
 }
 
 export const hr: Translation<typeof en> = {
-  instalment: (loan, due) => `${loan}, rata s dospijećem ${dayLabel(due)}`,
+  instalment: (loan, number, count, due) => `${loan}, ${number}. rata od ${count}, s dospijećem ${dayLabel(due)}`,
   interim: (loan, due) => `${loan}, interkalarna kamata s dospijećem ${dayLabel(due)}`,
   choice: (loan, due) => `${loan}, ${dayLabel(due)}`,
   interimShare: (amount) => `interkalarna kamata od ${amount}`,
@@ -76,13 +91,30 @@ export const hr: Translation<typeof en> = {
   whole: {
     'not-euro': 'Povezuje se cijeli unos jer je plan u eurima, a račun nije.',
     receipt: 'Povezuje se cijeli unos jer ga je podijelio fiskalni račun.',
-    unfiled: 'Povezuje se cijeli unos jer nema kategoriju pod kojom bi ostale kamate.',
     'no-principal': 'Sve je kamata, pa unos ostaje cijeli.',
     'informal-loan': '',
     'money-in': '',
     'transfer-leg': '',
   },
   notes: { interest: 'Kamate', difference: 'Razlika prema planu' },
+  offer: {
+    pays: (instalment) => `Je li ovo ${instalment}?`,
+    mayPay: (instalment, difference) => `Je li ovo možda ${instalment}, ${difference}?`,
+    mayPayAnotherDay: (instalment) => `Je li ovo možda ${instalment}?`,
+  },
+  past: {
+    title: (loan) => `Prošle rate kredita ${loan}`,
+    rows: (count, from, to) => ({
+      one: count === 1 ? `1 redak, ${from}, izgleda kao rata.` : `${count} redak, ${from} – ${to}, izgleda kao njegove rate.`,
+      few: `${count} retka, ${from} – ${to}, izgledaju kao njegove rate.`,
+      other: `${count} redaka, ${from} – ${to}, izgleda kao njegove rate.`,
+    }),
+    note: 'Povezivanje svaki dijeli na kamate i glavnicu iz plana, koja se ne računa u potrošnju.',
+    linkAll: (count) => ({ one: count === 1 ? 'Poveži ga' : `Poveži svih ${count}`, few: `Poveži sva ${count}`, other: `Poveži svih ${count}` }),
+    linked: (count) => ({ one: `${count} unos povezan`, few: `${count} unosa povezana`, other: `${count} unosa povezano` }),
+    notNow: 'Ne sada',
+    putOff: 'Neće se ponovno nuditi do sljedeće rate',
+  },
 }
 
 export const words = language === 'hr' ? hr : en
@@ -92,11 +124,16 @@ export function choiceText(target: LinkTarget): string {
   return target.kind === 'informal-loan' ? words.informalLoan(target.name) : words.choice(target.loanName, target.due)
 }
 
+/** An instalment by its loan, its number in the plan and its due date, or interim interest by its loan and due date. */
+export function instalmentText(target: InstalmentTarget): string {
+  return target.number === null ? words.interim(target.loanName, target.due) : words.instalment(target.loanName, target.number, target.count, target.due)
+}
+
 /** What a row's link reads as: the record it names, or why that record is not shown. */
 export function linkText(read: LinkState<LinkTarget>): string {
   if (read.state === 'there') {
     const { target } = read
-    return target.kind === 'informal-loan' ? words.informalLoan(target.name) : (target.interim ? words.interim : words.instalment)(target.loanName, target.due)
+    return target.kind === 'informal-loan' ? words.informalLoan(target.name) : instalmentText(target)
   }
   return { opening: words.opening, failed: words.failed, 'not-set-up': words.notSetUp, gone: words.gone }[read.state]
 }

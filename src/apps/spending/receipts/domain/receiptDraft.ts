@@ -2,6 +2,7 @@ import type { FiscalQr } from './fiscalQr'
 import { isValidOib } from '../../../../shared/text/oib'
 import { oibIn } from './oib'
 import { words } from './words'
+import { companyCategoryOf } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
@@ -132,7 +133,7 @@ export function receiptDraft(answer: ReceiptAnswer, { qr, book, companyOib }: Dr
   if ((answer.merchant.oib ?? '').trim() !== '' && !isValidOib(merchantOib)) notes.push(words.merchantOib)
   if (buyerOib !== '' && !isValidOib(buyerOib)) notes.push(words.buyerOib)
 
-  const company = book.categories.find((category) => category.kind === 'company')?.id ?? null
+  const company = companyCategoryOf(book.categories)?.id ?? null
   const r1 = buyerOib !== '' && company !== null && buyerOib === companyOib
   const r1Asked = buyerOib === '' && company !== null && (answer.markedR1 || (answer.buyerOib ?? '').trim() !== '')
   const remembered = rememberedLines(book, merchantOib, answer.merchant.name)

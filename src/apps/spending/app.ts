@@ -14,6 +14,7 @@ import {
   SPENDING_TRANSACTIONS_ROUTE,
 } from './overview/presentation/spendingLinks'
 import { rowLinksOf } from './facts'
+import { toReviewCount } from './links/application/instalmentReview'
 import { loanTargets } from './links/application/loanTargets'
 import { companyOib, oibToMatch } from './receipts/application/companyOib'
 import { spendingSetUp } from './overview/presentation/spendingSetUp'
@@ -23,7 +24,6 @@ import { everydayRates } from '../../shared/rates/domain/ratesState'
 import { words as screenWords } from './screenWords'
 import type { ReceiptPorts } from './assistant/operations/receiptOperation'
 import type { SpendingPorts } from './assistant/operations/spendingOperations'
-import { reviewCount } from './statements/domain/reviewQueue'
 import { spendingSyncGroup } from './sync/presentation/spendingSyncGroup'
 import { words } from './words'
 import { useSpendingBooks } from './workbook/application/spendingStore'
@@ -93,7 +93,7 @@ export const spendingApp: AppContribution = {
   menu: () => [OVERVIEW, TRANSACTIONS, BUDGETS, LABELS, ACCOUNTS],
   settings: SETTINGS,
   menuCount: (screen) => {
-    const count = screen.path === SPENDING_TRANSACTIONS_ROUTE && state.workbook !== null ? reviewCount(state.workbook) : 0
+    const count = screen.path === SPENDING_TRANSACTIONS_ROUTE && state.workbook !== null ? toReviewCount(state.workbook, today()) : 0
     return count === 0 ? null : { count, opens: SPENDING_REVIEW_LINK }
   },
   subtitle: () => null,

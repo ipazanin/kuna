@@ -4,6 +4,7 @@ import type { AppHomeCard } from '../../../../shared/app/appContribution'
 import { homeCardFigures } from '../../../../shared/app/homeCardFigures'
 import { today } from '../../../../shared/calendar/civilDate'
 import { spendingHomeFigures } from './spendingHomeFigures'
+import { instalmentReview } from '../../links/application/instalmentReview'
 import { words } from './words'
 
 const { state } = useSpendingBooks()
@@ -13,5 +14,5 @@ const rates = useRates()
 export const SPENDING_HOME_CARD: AppHomeCard = {
   icon: 'i-lucide-wallet',
   purpose: words.purpose,
-  figures: () => homeCardFigures(state, (book) => spendingHomeFigures(book, rates.value, today())),
+  figures: () => homeCardFigures(state, (book) => spendingHomeFigures(book, rates.value, today(), instalmentReview(book, today()).past.length)),
 }

@@ -27,7 +27,7 @@ import ReceiptPhotoPicker from '../../receipts/presentation/ReceiptPhotoPicker.v
 import { useReceiptRows } from '../../receipts/presentation/useReceiptRows'
 import { receiptAccounts } from '../../receipts/domain/receiptMatch'
 import { words as receiptWords } from '../../receipts/presentation/words'
-import { reviewCount } from '../../statements/domain/reviewQueue'
+import { toReviewCount } from '../../links/application/instalmentReview'
 import ImportPanel from '../../statements/presentation/ImportPanel.vue'
 import ReviewPanel from '../../statements/presentation/ReviewPanel.vue'
 import { words as statementWords } from '../../statements/presentation/words'
@@ -170,7 +170,7 @@ function pick(entry: Transaction): void {
 
 const tabs = computed(() => [
   { value: 'entries', label: screenWords.entries, icon: 'i-lucide-list' },
-  { value: SPENDING_REVIEW_TAB, label: statementWords.tabs.review, icon: 'i-lucide-inbox', count: state.workbook === null ? 0 : reviewCount(state.workbook) },
+  { value: SPENDING_REVIEW_TAB, label: statementWords.tabs.review, icon: 'i-lucide-inbox', count: state.workbook === null ? 0 : toReviewCount(state.workbook, today()) },
   { value: 'import', label: statementWords.tabs.import, icon: 'i-lucide-file-up' },
 ])
 
@@ -286,7 +286,7 @@ function openEntry(entry: Transaction | null): void {
         </AppCard>
       </template>
       <template #review>
-        <ReviewPanel :takes-receipt="takesReceipt" @receipt="receiptPicker?.take($event)" />
+        <ReviewPanel :takes-receipt="takesReceipt" @receipt="receiptPicker?.take($event)" @open="openEntry" />
       </template>
       <template #import>
         <ImportPanel />

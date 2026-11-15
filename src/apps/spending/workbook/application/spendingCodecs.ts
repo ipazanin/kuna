@@ -6,7 +6,16 @@ import { ITEM_CODEC, LINE_CODEC } from '../domain/transactionItemReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
 import { RULE_CODEC } from '../domain/ruleReading'
 import { SETTING_RECORDS } from '../domain/spendingKinds'
-import { BANK_ACCOUNTS_KEEP_MINE_KEY, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, LINKABLE_BANKS, PERSON_PAYEES_KEY, bankFetchedKey, bankLinkKey } from '../domain/spendingSettings'
+import {
+  BANK_ACCOUNTS_KEEP_MINE_KEY,
+  BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
+  BANK_SYNC_DEPLOYMENT_KEY,
+  INSTALMENTS_PUT_OFF_KEY,
+  LINKABLE_BANKS,
+  PERSON_PAYEES_KEY,
+  bankFetchedKey,
+  bankLinkKey,
+} from '../domain/spendingSettings'
 import { words } from '../domain/words'
 import { words as accountWords } from '../../accounts/domain/words'
 import { settingCodec } from '../../../../shared/storage/domain/settingRows'
@@ -22,6 +31,7 @@ function settingLabel(key: string): string {
     [PERSON_PAYEES_KEY]: labels.personPayees,
     [BANK_ACCOUNTS_NOT_IN_KUNA_KEY]: labels.notInKuna,
     [BANK_ACCOUNTS_KEEP_MINE_KEY]: labels.keepMine,
+    [INSTALMENTS_PUT_OFF_KEY]: labels.instalmentsPutOff,
     ...Object.fromEntries(
       LINKABLE_BANKS.flatMap((bank) => [
         [bankLinkKey(bank), labels.bankLink(accountWords.banks[bank])],

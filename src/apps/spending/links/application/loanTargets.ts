@@ -11,11 +11,14 @@ export type ShownTarget = LinkTarget & { readonly to: RouteLocationRaw }
 /** The instalments and informal loans Loans publishes, as Spending reads them. */
 export function loanTargetsFrom(published: PublishedLoanTargets): readonly ShownTarget[] {
   return [
-    ...published.instalments.map(({ kind, loan, loanName, due, yourShare, interest, principal, to }): ShownTarget => ({
+    ...published.instalments.map(({ kind, loan, loanName, lender, number, count, due, yourShare, interest, principal, to }): ShownTarget => ({
       kind: 'instalment',
       interim: kind === 'interim-interest',
       link: { app: LOANS_APP, kind: 'bank-loan', key: loan, due },
       loanName,
+      lender,
+      number,
+      count,
       due,
       yourShare,
       interest,

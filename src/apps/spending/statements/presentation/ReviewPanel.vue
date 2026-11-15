@@ -11,6 +11,12 @@ import CashWithdrawalsCard from './CashWithdrawalsCard.vue'
 import WaitingReceiptsCard from '../../receipts/presentation/WaitingReceiptsCard.vue'
 import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingReceipts'
 import ReviewRow from './ReviewRow.vue'
+import type { ReviewAction } from './ReviewRow.vue'
+import { linkEntry } from '../../entries/application/entryWrites'
+import { instalmentReview } from '../../links/application/instalmentReview'
+import InstalmentsCard from '../../links/presentation/InstalmentsCard.vue'
+import { words as linkWords } from '../../links/presentation/words'
+import { language } from '../../../../shared/text/language'
 import { useHeldRows } from '../../bankSync/presentation/useHeldRows'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
@@ -49,13 +55,18 @@ defineProps<{
   takesReceipt: (entry: Transaction) => boolean
 }>()
 
-const emit = defineEmits<{ receipt: [entry: AskedElement] }>()
+const emit = defineEmits<{ receipt: [entry: AskedElement]; open: [entry: Transaction] }>()
 
 const book = computed(() => store.state.workbook)
 const held = useHeldRows()
 const { ask: askAboutQueue, marked: queueMarked } = useChatElement(REVIEW_ASKED, 'card', words.review.suggestCategoriesTask)
 const queue = computed(() => (book.value === null ? null : reviewQueue(book.value, today())))
 const receipts = computed(() => (book.value === null ? [] : waitingReceipts(book.value)))
+const instalments = computed(() => (book.value === null ? { offers: [], past: [] } : instalmentReview(book.value, today())))
+const offerOf = computed(() => {
+  const offers = new Map(instalments.value.offers.map((offer) => [offer.row.id, offer]))
+  return (row: Transaction) => offers.get(row.id) ?? null
+})
 /** Waiting receipts sit beside the pairs and lone legs, which also only wait, unless one asks which payment it is. */
 const receiptsAsk = computed(() => receipts.value.some(asksForPayment))
 const receiptsBelow = useTemplateRef('receiptsBelow')
@@ -99,27 +110,42 @@ async function makeRule(): Promise<void> {
     ruleDialogOpen.value = false
 }
 
+/** Names a To review row's write by what it does and the row, so only that row's button spins while it saves. */
+function reviewKey(action: ReviewAction, row: Transaction): string {
+  return `${action}-${row.id}`
+}
+
 async function file(row: Transaction, category: Category): Promise<void> {
   const condition = payeeCondition(row)
   const records = store.state.records
   if (records === null) return
   await writes.write(words.review.filed, (unit) => fileRow(unit, records, row, category), {
+    key: reviewKey('file', row),
     failedTitle: words.review.notWritten,
     ...(condition === null ? {} : { follow: { label: words.review.always, icon: 'i-lucide-list-plus', run: () => askRule(condition, category) } }),
   })
 }
 
-async function join({ maybeTyped }: WaitingRow): Promise<void> {
+/** Links the waiting row to the instalment it may pay, which files it and takes it off To review. */
+async function link(row: Transaction): Promise<void> {
+  const offer = offerOf.value(row)
   const records = store.state.records
-  if (maybeTyped !== null && records !== null)
-    await writes.write(words.review.joined, (unit) => joinWithTyped(unit, records, maybeTyped.typed, maybeTyped.bank), { failedTitle: words.review.notWritten })
+  if (offer === null || records === null) return
+  const place = { currency: currencyOf(row), categories: categories.value, language, notes: linkWords.notes }
+  await writes.write(linkWords.linked, (unit) => linkEntry(unit, records, row, offer.target, place), { key: reviewKey('link', row), failedTitle: words.review.notWritten })
 }
 
-async function pair({ maybeTransfer }: WaitingRow): Promise<void> {
+async function join({ row, maybeTyped }: WaitingRow): Promise<void> {
+  const records = store.state.records
+  if (maybeTyped !== null && records !== null)
+    await writes.write(words.review.joined, (unit) => joinWithTyped(unit, records, maybeTyped.typed, maybeTyped.bank), { key: reviewKey('join', row), failedTitle: words.review.notWritten })
+}
+
+async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
   const category = transfer.value
   const records = store.state.records
   if (maybeTransfer !== null && category !== null && records !== null)
-    await writes.write(words.review.paired, (unit) => pairRows(unit, records, maybeTransfer, category.id), { failedTitle: words.review.notWritten })
+    await writes.write(words.review.paired, (unit) => pairRows(unit, records, maybeTransfer, category.id), { key: reviewKey('pair', row), failedTitle: words.review.notWritten })
 }
 
 async function undoPair(legs: TransferPair): Promise<void> {
@@ -143,7 +169,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
     <CashWithdrawalsCard v-if="queue.withdrawals.length > 0" :withdrawals="queue.withdrawals" />
     <WaitingReceiptsCard v-if="receiptsAsk" :waiting="receipts" />
     <EmptyState
-      v-if="queue.waiting.length === 0 && held.items.value.length === 0 && queue.withdrawals.length === 0 && receipts.length === 0"
+      v-if="queue.waiting.length === 0 && held.items.value.length === 0 && queue.withdrawals.length === 0 && receipts.length === 0 && instalments.past.length === 0"
       icon="i-lucide-inbox"
       :title="words.review.empty"
       :description="words.review.emptyDescription"
@@ -162,7 +188,10 @@ async function undoPair(legs: TransferPair): Promise<void> {
           :accounts="accounts"
           :takes-receipt="takesReceipt(waiting.row)"
           :rule-category="waiting.maybeTyped === null ? null : (categories.find((category) => category.id === ruleSays?.(waiting.row)) ?? null)"
+          :offer="offerOf(waiting.row)"
+          :saving="(action: ReviewAction) => writes.saving(reviewKey(action, waiting.row))"
           @file="file(waiting.row, $event)"
+          @link="link(waiting.row)"
           @join="join(waiting)"
           @pair="pair(waiting)"
           @receipt="emit('receipt', $event)"
@@ -172,6 +201,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
         <ShowAllButton v-model:expanded="allShown" :total="queue.waiting.length" />
       </div>
     </AppCard>
+    <InstalmentsCard v-for="card in instalments.past" :key="card.loan" :card="card" @open="emit('open', $event)" />
     <AppCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :title="words.review.pairs" :subtitle="words.review.pairsSubtitle" data-testid="spending-pairs">
       <ul class="divide-y divide-default pt-1 pb-1">
         <ProposalRow
