@@ -76,6 +76,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
   if ((isKind(kind, TRANSACTION_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'link') return record.link === null ? null : linkText(linkStateOf(record.link, loans))
+  if (isKind(kind, ITEM_RECORDS, record) && field === 'labels') return record.labels.length === 0 ? null : record.labels.map((label) => namesOf.get(label) ?? label).join(', ')
   if (isKind(kind, RULE_RECORDS, record) && field === 'order') return null
   if (isKind(kind, RULE_RECORDS, record) && field === 'withdrawal') {
     const named = record.withdrawal?.cashAccount == null ? undefined : namesOf.get(record.withdrawal.cashAccount)
@@ -192,8 +193,9 @@ function startDayNote(move: StartDayMove, book: SpendingBook): ProposalNote | nu
   return { label, text: [`${title}: ${listInWords(goes)}.`, ...(loneLegs === null ? [] : [loneLegs]), opening].join(' '), tone: 'warning' }
 }
 
-/** What a new category or account holds unless a person sets it, which a card leaves off its add. */
+/** What a new category, account or part of an entry holds unless a person sets it, which a card leaves off its add. */
 export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
+  if (kind.name === ITEM_RECORDS.name) return { labels: [] }
   return kind.name === CATEGORY_RECORDS.name ? NEW_CATEGORY_DEFAULTS : kind.name === ACCOUNT_RECORDS.name ? NEW_ACCOUNT_DEFAULTS : {}
 }
 
@@ -202,7 +204,7 @@ export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, lo
   // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
   const added = checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === ACCOUNT_RECORDS.name ? [change.after as Account] : []))
   const book = { ...before, accounts: [...before.accounts, ...added] }
-  const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts].map((record) => [record.id, record.name]))
+  const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts, ...book.labels].map((record) => [record.id, record.name]))
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && 'name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
   })

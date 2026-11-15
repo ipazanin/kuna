@@ -1911,7 +1911,7 @@ const SOURCE_SCREENS = [
     hash: '#/',
     title: 'Home',
     charts: 0,
-    shows: ['Bank and cash', 'Spent this month', '5 rows to review'],
+    shows: ['Bank and cash', 'Spent this month', '6 rows to review'],
     cards: false,
   },
   {
@@ -1920,7 +1920,7 @@ const SOURCE_SCREENS = [
     hash: '#/',
     title: 'Početna',
     charts: 0,
-    shows: ['Banka i gotovina', 'Potrošeno ovaj mjesec', 'Za pregled: 5'],
+    shows: ['Banka i gotovina', 'Potrošeno ovaj mjesec', 'Za pregled: 6'],
     cards: false,
   },
   {
