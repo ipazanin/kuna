@@ -52,7 +52,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 - A screen formats money as its app does. A figure shown outside its app, as on the home, passes its app's `moneyFormat()` to `MoneyText` as `format`.
 - `tone="flow"` for money in and out: green coming in, ink going out. `tone="outcome"` for a result such as a net, where negative is a loss. No tone for a cost.
 - Costs that read positive use `sign="magnitude"`. Changes use `sign="always"`.
-- A net position, such as what others owe you less what you owe, is not a loss, so it never takes `outcome`. It shows signed with `sign="always"` in ink, on the light tint of the way it runs (`--loan-you-owe-tint` or `--loan-owed-to-you-tint`), with the two figures it comes from beside it. At zero it has no tint.
+- A net position, such as what others owe you less what you owe, is not a loss, so it never takes `outcome`. It shows signed with `sign="always"` in ink, on the light tint of the way it runs (`--loan-you-owe-tint` or `--loan-owed-to-you-tint`), with the two figures it comes from beside it. A side at zero is left out, as on the Loans home card. At zero it has no tint.
 
 ## Dialogs
 
