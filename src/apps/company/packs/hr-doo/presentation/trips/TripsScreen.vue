@@ -48,7 +48,7 @@ const tabs: readonly PageTab[] = [
   { value: SETTLEMENT_TAB, label: words.trip.settlement, icon: 'i-lucide-calculator' },
 ]
 
-const warnings = computed(() => (file.value === null ? [] : tripWarningTexts(file.value, employees.value)))
+const warnings = computed(() => (file.value === null ? [] : tripWarningTexts(file.value, employees.value, workbook.value?.ownerAdvances ?? [], workbook.value?.director ?? null)))
 
 const title = computed(() => (file.value === null ? packWords.screens.trips : words.trip.title(file.value.trip.number)))
 const description = computed(() => {
@@ -95,7 +95,7 @@ function allOrders(): void {
       </div>
 
       <template v-if="file">
-        <UAlert v-for="warning in warnings" :key="warning" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :description="warning" data-testid="trip-warning" />
+        <UAlert v-for="(warning, index) in warnings" :key="index" icon="i-lucide-triangle-alert" color="warning" variant="subtle" :description="warning" data-testid="trip-warning" />
         <PageTabs :tabs="tabs" :label="words.trip.tabsLabel" data-testid="trip-tabs">
           <template #order>
             <TripOrderPanel :file="file" :employees="employees" :company="workbook.settings.invoicing" @change="changeOrder" />

@@ -8,6 +8,7 @@ import type { AssistantOperation } from '../../src/shared/app/assistantOperation
 import { kunaOperations } from '../../src/shell/assistant/kunaOperations'
 import type { KunaDevice } from '../../src/shell/assistant/kunaOperations'
 import { deskPorts } from './companyDesk'
+import { NO_RATES } from '../../src/shared/money/rateBook'
 
 /** A device with Company installed and the chat's widths, which is all Kuna's operations read to list their inputs. */
 const DEVICE = { apps: () => [{ id: 'company', name: 'Company' }], chatWidths: { least: 384, most: 704, reset: 384 } } as unknown as KunaDevice
@@ -15,7 +16,7 @@ const DEVICE = { apps: () => [{ id: 'company', name: 'Company' }], chatWidths: {
 /** Every app's operations by the app's id, Company's with the pack's, as the chat lists them. */
 export const APP_OPERATIONS: ReadonlyMap<string, readonly AssistantOperation[]> = new Map([
   ['spending', SPENDING_OPERATIONS],
-  ['company', companyOperations(deskPorts({ pack: hrDooOperations(() => false) }))],
+  ['company', companyOperations(deskPorts({ pack: hrDooOperations({ anonymising: () => false, rates: () => NO_RATES }) }))],
   ['loans', LOANS_OPERATIONS],
   ['investments', INVESTMENTS_OPERATIONS],
   ['assets', ASSETS_OPERATIONS],

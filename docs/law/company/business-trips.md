@@ -1,5 +1,5 @@
 ---
-checked: 2026-11-13
+checked: 2026-11-15
 nn_through: 131/26
 summary: Business trips of a d.o.o.'s employee, the tax-free per diems at home and abroad, private car kilometres, meals provided, the hours and the distance a trip needs, what the travel order holds, and the JOPPD code 17 with its deadlines
 ---
@@ -65,6 +65,8 @@ On a trip, the travel order carries the car's make, plate and the odometer at th
 
 Mark: `confirmed-consolidated`. Which per diem day a meal cuts is Kuna's reading: the block the meal falls in.
 
+Salaries caps a per diem that a settled trip pays at the trip's per diems, each line less its meals, rather than at the day's amount times the days. A per diem abroad is checked the same way, and while a per diem in dollars waits for its ECB rate, Salaries says so and does not check it. A foreign per diem no settled trip links has no cap on Salaries, since the table needs the country.
+
 ## Length and distance
 
 - A trip at home lasts up to 30 days in a row (Art. 7(8)). A trip abroad, from Croatia to another state and back, between states or within one, lasts up to 30 days in a row (Art. 7(14)): "putovanje do 30 dana neprekidno".
@@ -92,7 +94,11 @@ Mark: `confirmed-consolidated`. How the domestic hours before and after the fore
 
 Per diems (items 19 to 22), EU-paid per diems (item 26), travel and lodging costs (items 27 and 28) and private car kilometres (item 31) exclude each other, with Art. 5(12), 5(13), 6(7) and 6(8), where they cover the same transport, food or lodging (Art. 7(29)). The trip per diem, the field-work per diem, the allowance for living apart from the family and the seafarer's allowance exclude each other too (Art. 7(30)).
 
-Mark: `confirmed-consolidated`. Kuna warns when a trip claims payments that exclude each other.
+"Primici iz stavka 2. r.br. 19. – 22., r.br. 26. – 28. te r.br. 31. ovoga članka, članka 5. stavaka 12. i 13. i članka 6. stavaka 7. i 8. ovoga Pravilnika koji se odnose na izdatke za prijevozne troškove, prehranu i smještaj, međusobno se isključuju." (PravPDoh Art. 7(29), read in the Porezna uprava consolidation through NN 157/25 on 15 November 2026)
+
+Mark: `confirmed-consolidated`.
+
+Of these, the one case Kuna's records show for sure is fuel on a trip by private car. The kilometres at up to 0.50 (item 31) pay for the car, so fuel beside them pays the same transport twice, as a travel cost (item 27) or on the company card. Kuna warns of it on the trip page and still counts the trip, as it does for a km rate over the cap. That the fuel is then not tax-free is Kuna's reading of "međusobno se isključuju", which says the payments exclude each other and not how the extra is taxed. Mark: `reading`. A ticket on a trip by private car is not warned of, since it may pay another leg.
 
 ## The travel order
 
@@ -161,7 +167,7 @@ The JOPPD line under code 17 holds 461.00, the per diems and kilometres, reporte
 
 ## Sources
 
-- Pravilnik o porezu na dohodak, Porezna uprava consolidation, NN 10/17 to 157/25, "Na snazi i primjenjuje se od 1. siječnja 2026.": Art. 7(1), 7(2), 7(8), 7(11), 7(13), 7(14), 7(18), 7(20), 7(29), 7(30), 7(34), 8(2), 78(1) item 15, 79(6), 79(7), 79(9), 79(10), 82(1) point 37. <https://porezna-uprava.gov.hr/Propisi/GetBasicData/4>, loaded on 10 November 2026, and Art. 7, 78 and 79 again on 13 November 2026.
+- Pravilnik o porezu na dohodak, Porezna uprava consolidation, NN 10/17 to 157/25, "Na snazi i primjenjuje se od 1. siječnja 2026.": Art. 7(1), 7(2), 7(8), 7(11), 7(13), 7(14), 7(18), 7(20), 7(29), 7(30), 7(34), 8(2), 78(1) item 15, 79(6), 79(7), 79(9), 79(10), 82(1) point 37. <https://porezna-uprava.gov.hr/Propisi/GetBasicData/4>, loaded on 10 November 2026, Art. 7, 78 and 79 again on 13 November 2026, and Art. 7(29) on 15 November 2026.
 - Pravilnik o izmjenama i dopunama Pravilnika o porezu na dohodak, NN 16/25, item 148, of 31 January 2025: Art. 2 with the new Art. 7(2) items 19 to 22 and 31, Art. 11, Art. 16 and Art. 17. <https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_148.html>, loaded on 10 November 2026.
 - Pravilnik o izmjenama i dopunama Pravilnika o porezu na dohodak, NN 157/25, item 2365: Art. 1 to 6 and Annex 4 with code 17. <https://narodne-novine.nn.hr/clanci/sluzbeni/2025_12_157_2365.html>, loaded on 10 November 2026.
 - Odluka o visini dnevnice za službeno putovanje u inozemstvo za korisnike koji se financiraju iz sredstava državnog proračuna, NN 16/24, item 277, of 9 February 2024: items I to III. <https://narodne-novine.nn.hr/clanci/sluzbeni/2024_02_16_277.html>, loaded on 10 November 2026.

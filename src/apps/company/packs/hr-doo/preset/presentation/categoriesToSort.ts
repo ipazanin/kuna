@@ -7,7 +7,7 @@ import type { Dismissal } from '../../../../workbook/domain/dismissals'
 import { displayName } from '../../../../workbook/domain/displayName'
 import { categoryIdOf } from '../../../../workbook/domain/workbook'
 import type { Category } from '../../../../workbook/domain/workbook'
-import { startingClassChange } from '../domain/startingCategories'
+import { startingChange } from '../domain/startingCategories'
 import { CATEGORY_CLASSES, taxClassOf } from '../domain/taxClassOf'
 import { classNameOf, words } from './classWords'
 
@@ -46,9 +46,10 @@ export function categoriesToSort(categories: readonly Category[], on: CivilDate,
           break
       }
     }
-    const change = startingClassChange(category, dismissals)
+    const change = startingChange(category, dismissals)
     if (change !== null) {
-      lines.push({ ...line(words.toSort.newerClass(nameOf(change.from), nameOf(change.to))), newerClassOf: category.slug })
+      const reason = change.kind === 'class' ? words.toSort.newerClass(nameOf(change.from), nameOf(change.to)) : words.toSort.newerRoles(change.added)
+      lines.push({ ...line(reason), newerClassOf: category.slug })
     }
   }
   return unclassed.length === 0 ? lines : [{ id: null, label: words.toSort.unclassedLabel, reason: plural(words.toSort.unclassed(unclassed), unclassed.length) }, ...lines]

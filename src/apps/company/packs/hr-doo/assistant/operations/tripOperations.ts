@@ -7,6 +7,7 @@ import { TRIP_ROW_LINKS, tripRowProblem, tripRowsSplit } from '../../domain/trip
 import type { TripRowLink, TripSplitRefusal } from '../../domain/trips/tripBankRows'
 import { tripSettlement } from '../../domain/trips/tripSettlement'
 import { ruleValue } from '../../ruleset/ruleset'
+import type { RateBook } from '../../../../../../shared/money/rateBook'
 import {
   costDraftOf,
   costOfDraft,
@@ -322,7 +323,7 @@ const BLANK_LEG: TripLegDraft = { date: '', from: '', to: '', km: '' }
 const BLANK_COST: TripCostDraft = { date: '', kind: '', description: '', amount: '', foreignAmount: '', currency: '', paidBy: '' }
 
 /** One trip step through the Trips screen's writes, or false for an operation that is not a trip's. */
-export function plannedTripStep(unit: UnitOfWork, books: CompanyBooks, { operation, input }: ProposalStep, idOf: (value: unknown) => string, anonymising: boolean): boolean {
+export function plannedTripStep(unit: UnitOfWork, books: CompanyBooks, { operation, input }: ProposalStep, idOf: (value: unknown) => string, anonymising: boolean, rates: RateBook): boolean {
   if (anonymising && NAMES_A_PERSON.has(operation)) throw new StepRefused(ANONYMISING)
   // The chat checked the input against this operation's schema, so each field has the type the schema gives it.
   const field = input as Field
@@ -387,7 +388,7 @@ export function plannedTripStep(unit: UnitOfWork, books: CompanyBooks, { operati
     }
     case 'file-trip-rows': {
       const file = fileOf(books, idOf(field['trip']))
-      const settlement = tripSettlement(file, ruleValue)
+      const settlement = tripSettlement(file, ruleValue, rates)
       if (settlement.kind === 'waiting') throw new StepRefused(`The settlement still waits for ${settlement.gaps.join(', ')}, so its rows cannot be filed by it yet.`)
       const split = tripRowsSplit(file, settlement, books.workbook, books.workbook.categories, storesItems(books.records))
       if ('refused' in split) throw new StepRefused(splitRefusalText(split.refused))

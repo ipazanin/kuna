@@ -17,6 +17,7 @@ import { words as recordWords } from '../src/shared/storage/domain/words'
 import type { SettingRow } from '../src/shared/storage/domain/settingRows'
 import type { RecordsRead } from '../src/shared/storage/domain/recordsRead'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
+import { NO_RATES } from '../src/shared/money/rateBook'
 
 function spendingRead(rows: readonly SettingRow[]): RecordsRead<SettingRow> {
   return { records: rows.map((row) => ({ record: row, id: row.id, label: row.key, fields: { key: storedFieldOf(row.key), value: storedFieldOf(row.value) } })), refused: [] }
@@ -128,7 +129,7 @@ describe("Company's person_payees setting", () => {
   })
 
   it('is never told to the chat', () => {
-    const told = companyAssistant(HR_DOO_ASSISTANT, { status: () => 'none', workbook: () => null, records: () => null }, () => []).settings.map((setting) => setting.key)
+    const told = companyAssistant(HR_DOO_ASSISTANT, { status: () => 'none', workbook: () => null, records: () => null, rates: () => NO_RATES }, () => []).settings.map((setting) => setting.key)
 
     expect(told).toContain('company_name')
     expect(told).not.toContain(COMPANY_PERSON_PAYEES_KEY)

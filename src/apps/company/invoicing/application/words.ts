@@ -5,8 +5,6 @@ import type { Translation } from '../../../../shared/text/translation'
 // A Gmail draft is skica, as Gmail's Croatian names it. A file or folder name keeps its spelling, such as 2026-10.
 
 export const en = {
-  /** The line Google's Picker shows above the folders beside a path folder. */
-  pickerTitle: (segment: string) => `Pick the existing ${segment} folder. Pick every folder you see beside it too, so the app does not ask again.`,
   /** What each step of a run did, or why it failed. */
   steps: {
     alreadyFiled: (fileName: string) => `${fileName} is already in the folder, and the app does not overwrite an invoice. Use Re-export on the invoice to replace it.`,
@@ -24,7 +22,6 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  pickerTitle: (segment) => `Odaberite postojeću mapu ${segment}. Odaberite i sve mape koje vidite pokraj nje, da aplikacija ne pita ponovno.`,
   steps: {
     alreadyFiled: (fileName) => `„${fileName}” već je u mapi, a aplikacija ne prepisuje račun. Za zamjenu upotrijebite Izvezi ponovno na tom računu.`,
     replaced: (fileName) => `Zamijenjen je „${fileName}”.`,

@@ -50,6 +50,7 @@ import { civilDate, yearOf } from '../../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../../shared/calendar/civilDate'
 import { moneyFromAmount } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
+import type { RateBook } from '../../../../../../shared/money/rateBook'
 import type { UnitOfWork } from '../../../../../../shared/storage/application/repository'
 import { recordsOf } from '../../../../../../shared/storage/domain/recordsRead'
 import type { ReadRecord, RecordsRead, StoredRecord } from '../../../../../../shared/storage/domain/recordsRead'
@@ -577,7 +578,7 @@ function replaceLine(unit: UnitOfWork, held: readonly PlanLine[], key: string, l
   )
 }
 
-function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: ProposalStep, idOf: (value: unknown) => string, anonymising: boolean): void {
+function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: ProposalStep, idOf: (value: unknown) => string, anonymising: boolean, rates: RateBook): void {
   if (anonymising && PAYS_A_PERSON.has(operation)) throw new StepRefused(ANONYMISING)
   // The chat checked the input against this operation's schema, so each field has the type the schema gives it.
   const field = input as Readonly<Record<string, never>>
@@ -711,17 +712,25 @@ function planned(unit: UnitOfWork, books: CompanyBooks, { operation, input }: Pr
         writeEditorRow(unit, books, name as EditorName, verb, field, idOf)
         return
       }
-      if (plannedTripStep(unit, books, { operation, input, as: null }, idOf, anonymising)) return
+      if (plannedTripStep(unit, books, { operation, input, as: null }, idOf, anonymising, rates)) return
       throw new StepRefused('There is no such operation.')
     }
   }
 }
 
-/** The pack's changes for Company's proposer, which asks `anonymising` at each check, since employees and pay stay on the device while it is on. */
-export function hrDooOperations(anonymising: () => boolean): PackOperations {
+/** What `app.ts` hands the pack's changes from outside the books. */
+export interface HrDooOperationPorts {
+  /** Asked at each check, since employees and pay stay on the device while Anonymise is on. */
+  anonymising(): boolean
+  /** The ECB rates a trip's per diem in dollars converts at. */
+  rates(): RateBook
+}
+
+/** The pack's changes for Company's proposer. */
+export function hrDooOperations(ports: HrDooOperationPorts): PackOperations {
   return {
     operations: PACK_OPERATIONS,
-    plan: (unit, books, step, idOf) => planned(unit, books, step, idOf, anonymising()),
+    plan: (unit, books, step, idOf) => planned(unit, books, step, idOf, ports.anonymising(), ports.rates()),
     describer: packDescriber,
   }
 }

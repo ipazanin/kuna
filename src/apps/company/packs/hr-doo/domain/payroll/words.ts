@@ -69,6 +69,8 @@ export const en = {
     yearly: 'Yearly cap',
     monthly: 'Monthly cap',
     capFor: (units: number, unitName: string) => `Cap for ${units} ${unitName}`,
+    perDiems: "Per diems of the trip's settlement",
+    perDiem: (meals: number, dated: boolean) => `${meals === 0 ? 'Per diem' : meals === 1 ? 'Per diem less one meal' : 'Per diem less two meals'}${dated ? ', from' : ''}`,
     limited: 'Cap, limited to the monthly cap',
   },
 }
@@ -143,6 +145,8 @@ export const hr: Translation<typeof en> = {
             : { one: 'dan', few: 'dana', other: 'dana' }
       return `Najviši iznos za ${units} ${plural(forms, units)}`
     },
+    perDiems: 'Dnevnice iz obračuna putnog naloga',
+    perDiem: (meals, dated) => `${meals === 0 ? 'Dnevnica' : meals === 1 ? 'Dnevnica umanjena za jedan obrok' : 'Dnevnica umanjena za dva obroka'}${dated ? ', od' : ''}`,
     limited: 'Najviši iznos, ograničen mjesečnim',
   },
 }

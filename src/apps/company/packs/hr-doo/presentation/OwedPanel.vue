@@ -42,6 +42,9 @@ import { hrDooWorkbook } from '../domain/hrDooPart'
 import { OWNER_ADVANCE_RECORDS } from '../domain/hrDooKinds'
 import type { OwnerAdvanceEntry } from '../domain/ownerAdvancesReading'
 import AdvanceDialog from './AdvanceDialog.vue'
+import { tripCostsPaidAsAdvances } from '../domain/trips/tripAdvanceMatches'
+import { tripLabel } from './trips/tripsView'
+import { tripLink } from './trips/tripLinks'
 import { plural } from '../../../../../shared/text/translation'
 import { words } from './words'
 
@@ -86,6 +89,7 @@ const owed = computed(() => {
   const inPeriod = owedInPeriod(workbook, filters.period, window, props.asOf)
   const balance = inPeriod.net
   const on = dayLabel(inPeriod.on)
+  const onTrips = tripCostsPaidAsAdvances(workbook.trips, workbook.ownerAdvances, workbook.director)
   const unaccounted = ownerAdvances(workbook.ownerAdvances, transactions, categories, workbook.repaidBy).unaccounted
   const months = loanMonths(transactions, categories, periodMonths(filters.period, window), window)
   const lentInMonths = sumMoney(months.map((month) => month.lent.amount))
@@ -145,6 +149,10 @@ const owed = computed(() => {
         date: dayLabel(share.repaidOn),
         applied: share.applied,
         to: drillLocation(share.drill),
+      })),
+      onTrips: [...new Map(onTrips.filter((match) => match.advance.id === line.advance.id).map((match) => [match.trip.id, match.trip] as const)).values()].map((trip) => ({
+        trip: tripLabel(trip),
+        to: tripLink(trip.id),
       })),
     })),
     loans: [...inPeriod.loanList].reverse().map((loan, index): LoanLine => ({

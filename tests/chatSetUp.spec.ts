@@ -22,6 +22,7 @@ import { answerKunaStart, forgetKunaStart, kunaStart } from '../src/shared/app/k
 import { CHAT_READING } from './fixtures/chatBook'
 import { deskPorts } from './fixtures/companyDesk'
 import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
+import { NO_RATES } from '../src/shared/money/rateBook'
 
 /** Each app's set-up line source, its assistant and every operation its chat can propose. */
 const APPS: readonly { readonly id: string; readonly source: string; readonly assistant: AppAssistant; readonly operations: readonly AssistantOperation[] }[] = [
@@ -30,7 +31,7 @@ const APPS: readonly { readonly id: string; readonly source: string; readonly as
     id: 'company',
     source: 'src/apps/company/onboarding/presentation/gettingSetUp.ts',
     assistant: companyAssistant(HR_DOO_ASSISTANT, readingOf(fakeCompanyBooks()), () => []),
-    operations: companyOperations(deskPorts({ pack: hrDooOperations(() => false) })),
+    operations: companyOperations(deskPorts({ pack: hrDooOperations({ anonymising: () => false, rates: () => NO_RATES }) })),
   },
   {
     id: 'loans',

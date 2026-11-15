@@ -10,6 +10,13 @@ export interface AdvanceRepaymentLine {
   readonly to: RouteLocationRaw | null
 }
 
+/** A trip of the director's that holds the same cost, which the company would otherwise pay back twice. */
+export interface AdvanceOnTrip {
+  /** The trip's number and where it went, such as "1/2026 (Zadar)". */
+  readonly trip: string
+  readonly to: RouteLocationRaw
+}
+
 export interface AdvanceLine {
   /** The advance's own id on its tab. */
   readonly id: RecordId
@@ -23,15 +30,18 @@ export interface AdvanceLine {
   readonly open: boolean
   readonly repaidOn: string | null
   readonly repayments: readonly AdvanceRepaymentLine[]
+  readonly onTrips: readonly AdvanceOnTrip[]
 }
 </script>
 
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import DrillLink from '../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../../shared/ui/NoteLine.vue'
 import { words } from './words'
 import type { Money } from '../../../../../shared/money/money'
 
@@ -83,6 +93,10 @@ const emit = defineEmits<{
           @click="emit('edit', advance.id)"
         />
       </div>
+      <NoteLine v-for="onTrip in advance.onTrips" :key="onTrip.trip" tone="warning" data-testid="advance-on-trip">
+        {{ words.advanceList.onTrip(onTrip.trip) }}
+        <RouterLink :to="onTrip.to" class="quiet-link">{{ words.advanceList.openTrip(onTrip.trip) }}</RouterLink>
+      </NoteLine>
       <ol v-if="advance.repayments.length > 0" class="advance-trail" :aria-label="words.advanceList.matched(advance.paidOn)">
         <li v-for="repayment in advance.repayments" :key="repayment.key">
           <DrillLink :to="repayment.to" :label="words.advanceList.reimbursementRow(repayment.date)" class="advance-share">

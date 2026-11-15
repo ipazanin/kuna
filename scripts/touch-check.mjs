@@ -287,7 +287,7 @@ import {
   chatConsentCellsFlow,
 } from './support/editorFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
-import { tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
+import { tripDriveFilingFlowIn, tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
 import { companyChatAcceptLapsedFlowIn, companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn } from './support/appsChatFlows.mjs'
 import { onFreshDevice, setUpChatGoesOnFlowIn, setUpChatHomeFlowIn } from './support/setUpChatFlows.mjs'
@@ -1677,6 +1677,7 @@ async function checkWidth(width) {
     ['salaries', '&fake=five-employees', salariesFlow, '#/company/salaries', 'Salaries'],
     ['trips', '&fake=one-employee', tripsFlow, '#/company/trips', 'Trips'],
     ['trips-croatian', '&fake=one-employee&lang=hr', tripsFlowIn('hr'), '#/company/trips', 'Putni nalozi'],
+    ['trips-drive-filing', '&fake=one-employee', tripDriveFilingFlowIn('en'), '#/company/trips?trip=00000000-0000-4000-8000-002000000001', 'Travel order 1/2026'],
     ['owner-net', '&fake=browser', ownerNetFlow, '#/company/owner?p=2026', 'Owner'],
     ['owner-net-unregistered', '&fake=unregistered', ownerNetUnregisteredFlow, '#/company/owner?p=2026', 'Owner'],
   ]) {

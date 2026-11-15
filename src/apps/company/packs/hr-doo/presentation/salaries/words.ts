@@ -114,6 +114,8 @@ export const en = {
     needsTrip: (name: string, payment: string, amount: string) =>
       `${name}: ${amount} of ${payment} is on a row no settled trip links, so its days or km and its tax-free cap are not checked. Link the row on the trip's settlement.`,
     needsEvents: (name: string, payment: string, amount: string) => `${name}: ${amount} of ${payment} has a cap per event, and a bank row does not say how many, so its tax-free cap is not checked.`,
+    tripWaits: (name: string, payment: string, amount: string, trip: string, waitsFor: string) =>
+      `${name}: ${amount} of ${payment} is on travel order ${trip}, whose per diems wait for ${waitsFor}, so its tax-free cap is not checked yet.`,
   },
   everyone: 'Everyone',
   screen: {
@@ -310,6 +312,8 @@ export const hr: Translation<typeof en> = {
     needsTrip: (name, payment, amount) =>
       `${name}, ${payment}: isplata od ${amount} na stavci je koju ne povezuje nijedan obračunani putni nalog, pa dani ili kilometri i neoporezivi iznos nisu provjereni. Povežite stavku u obračunu puta.`,
     needsEvents: (name, payment, amount) => `${name}, ${payment}: neoporezivi iznos vrijedi po događaju, a bankovna stavka od ${amount} ne kaže koliko ih je, pa nije provjeren.`,
+    tripWaits: (name, payment, amount, trip, waitsFor) =>
+      `${name}, ${payment}: isplata od ${amount} na putnom je nalogu ${trip}, čije dnevnice čekaju ${waitsFor}, pa neoporezivi iznos još nije provjeren.`,
   },
   everyone: 'Svi',
   screen: {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { gmailDrafts } from '../src/apps/company/invoicing/infrastructure/googleInvoiceDrive'
+import { gmailDrafts } from '../src/apps/company/invoicing/infrastructure/gmailDrafts'
 import { GoogleTimedOut } from '../src/shared/google/googleApi'
 import { hangingFetch } from './fixtures/hangingFetch'
 

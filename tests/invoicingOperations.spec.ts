@@ -21,6 +21,7 @@ import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
 import { exampleInput } from './fixtures/exampleInput'
+import { NO_RATES } from '../src/shared/money/rateBook'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -301,7 +302,7 @@ describe('clients', () => {
 
 describe('making an invoice', () => {
   it('is a link to the Invoices tab for a client or an invoice, never a card', () => {
-    const company = companyAssistant(HR_DOO_ASSISTANT, { status: () => 'none', workbook: () => null, records: () => null }, () => [])
+    const company = companyAssistant(HR_DOO_ASSISTANT, { status: () => 'none', workbook: () => null, records: () => null, rates: () => NO_RATES }, () => [])
     const invoices = company.places.find((place) => place.route === '/company/invoicing?tab=invoices')!
 
     expect(invoices.params).toMatchObject({ make: { kind: 'client' }, reexport: { kind: 'invoice' } })

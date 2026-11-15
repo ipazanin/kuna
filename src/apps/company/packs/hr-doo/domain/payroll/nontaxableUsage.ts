@@ -6,8 +6,9 @@ import type { Money } from '../../../../../../shared/money/money'
 import { ruleValue } from '../../ruleset/ruleset'
 import type { RuleLookup, RuleValues } from '../../ruleset/ruleset'
 import type { FigureBasis, TracedFigure } from '../../ruleset/tracedFigure'
-import { deducted, tracedFigure } from './payrollArithmetic'
+import { deducted, rulesOf, tracedFigure } from './payrollArithmetic'
 import type { RuleSource } from './payrollArithmetic'
+import type { PerDiemLine } from '../trips/perDiems'
 import { words } from './words'
 
 export interface NontaxablePaymentMade {
@@ -17,6 +18,8 @@ export interface NontaxablePaymentMade {
   readonly amount: Money
   /** Days for a per-day cap, kilometres for a per-kilometre cap, events for a per-event cap. */
   readonly units?: number
+  /** The per-diem lines of the settled trip that paid it, which cap a per diem in place of the day's cap times the days. */
+  readonly perDiems?: readonly PerDiemLine[]
 }
 
 /** How much of one cap the payments of its period used. */
@@ -66,7 +69,8 @@ export function nontaxableUsage(payments: readonly NontaxablePaymentMade[], year
     }
     const period = capRowsOf(made.payment, rules('hr.pit.nontaxable-caps', made.paidOn))[0].period.text
     const periodKey = period === 'year' || UNCAPPED_PERIODS.has(period) ? String(year) : monthOf(made.paidOn)
-    const groupKey = `${made.payment} ${periodKey}`
+    // Per diems a trip caps count apart from those no trip links, which abroad have no cap here.
+    const groupKey = `${made.payment} ${periodKey}${made.perDiems === undefined ? '' : ' trip'}`
     const group = groups.get(groupKey) ?? { payment: made.payment, periodKey, made: [] }
     group.made.push(made)
     groups.set(groupKey, group)
@@ -106,6 +110,9 @@ function capRowsOf(payment: string, capsRule: RuleLookup<RuleValues['hr.pit.nont
 
 function capOf(capRow: CapRow, made: readonly NontaxablePaymentMade[], basis: FigureBasis, capsRule: RuleLookup<RuleValues['hr.pit.nontaxable-caps']>): TracedFigure | null {
   const period = capRow.period.text
+  if (made.some((payment) => payment.perDiems !== undefined)) {
+    return perDiemsCap(capRow, made, basis, capsRule)
+  }
   if (UNCAPPED_PERIODS.has(period)) {
     return null
   }
@@ -128,6 +135,18 @@ function capOf(capRow: CapRow, made: readonly NontaxablePaymentMade[], basis: Fi
     return perUnit
   }
   return tracedFigure(words.caps.limited, monthlyCap, basis, citations, [perUnit])
+}
+
+/** The per diems the trips may pay tax-free: each line's per diem less its meals, limited to the monthly cap where the row has one. */
+function perDiemsCap(capRow: CapRow, made: readonly NontaxablePaymentMade[], basis: FigureBasis, capsRule: RuleLookup<RuleValues['hr.pit.nontaxable-caps']>): TracedFigure {
+  const lines = made.flatMap((payment) => payment.perDiems ?? [])
+  const steps = lines.map((line) => ({ ...tracedFigure(words.caps.perDiem(line.meals, line.from !== null), line.amount, basis, line.citations), on: line.from?.day ?? null }))
+  const perDiems = tracedFigure(words.caps.perDiems, sumMoney(steps.map((step) => step.amount)), basis, rulesOf(steps), steps)
+  const monthlyCap = capRow.monthlyCap?.cents
+  if (monthlyCap === undefined || perDiems.amount <= monthlyCap) {
+    return perDiems
+  }
+  return tracedFigure(words.caps.limited, monthlyCap, basis, [capsRule.citation], [perDiems])
 }
 
 function unitsOf(payment: NontaxablePaymentMade, unitName: string): number {

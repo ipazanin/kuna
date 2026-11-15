@@ -14,10 +14,10 @@ interface Family {
   readonly bucket: DefinedBucket
   readonly colour: string
   /**
-   * Each with its class first and its modifiers after it, its VAT treatment, none when left out, and the class older
-   * books gave it where new books give another.
+   * Each with its class first and its modifiers after it, its VAT treatment, none when left out, and the roles older
+   * books gave it where new books give others.
    */
-  readonly categories: readonly (readonly [slug: string, roles: readonly string[], vat?: VatTreatment, earlierClass?: string])[]
+  readonly categories: readonly (readonly [slug: string, roles: readonly string[], vat?: VatTreatment, earlierRoles?: readonly string[]])[]
 }
 
 const FAMILIES: readonly Family[] = [
@@ -30,7 +30,7 @@ const FAMILIES: readonly Family[] = [
       ['grant-income', [PACK_ROLES.grant]],
       ['client-refund', [RECEIVABLE_ROLES.clientRefund]],
       ['other-income', [PACK_ROLES.otherIncome]],
-      ['interest-income', [PACK_ROLES.interestIncome], 'none', PACK_ROLES.otherIncome],
+      ['interest-income', [PACK_ROLES.interestIncome], 'none', [PACK_ROLES.otherIncome]],
     ],
   },
   {
@@ -45,14 +45,14 @@ const FAMILIES: readonly Family[] = [
       ['office-rent', [PACK_ROLES.deductibleCost, PACK_ROLES.arrears], 'deductible-25'],
       ['office-supplies', [PACK_ROLES.deductibleCost], 'deductible-25'],
       ['telecom', [PACK_ROLES.deductibleCost], 'deductible-25'],
-      ['travel', [PACK_ROLES.deductibleCost, PACK_ROLES.otherCostsLine]],
+      ['travel', [PACK_ROLES.deductibleCost, PACK_ROLES.otherCostsLine], 'none', [PACK_ROLES.deductibleCost]],
       ['representation', [PACK_ROLES.representation], 'representation'],
       ['car-costs', [PACK_ROLES.personalTransport], 'car-50'],
       ['car-insurance-interest-tax-and-fees', [PACK_ROLES.vehicleInsuranceInterestTaxAndFees]],
-      ['insurance', [PACK_ROLES.deductibleCost, PACK_ROLES.prepaidAnnual, PACK_ROLES.otherCostsLine]],
-      ['training', [PACK_ROLES.deductibleCost, PACK_ROLES.otherCostsLine], 'deductible-25'],
+      ['insurance', [PACK_ROLES.deductibleCost, PACK_ROLES.prepaidAnnual, PACK_ROLES.otherCostsLine], 'none', [PACK_ROLES.deductibleCost, PACK_ROLES.prepaidAnnual]],
+      ['training', [PACK_ROLES.deductibleCost, PACK_ROLES.otherCostsLine], 'deductible-25', [PACK_ROLES.deductibleCost]],
       ['marketing', [PACK_ROLES.deductibleCost], 'deductible-25'],
-      ['bank-fees', [PACK_ROLES.deductibleCost, PACK_ROLES.otherCostsLine]],
+      ['bank-fees', [PACK_ROLES.deductibleCost, PACK_ROLES.otherCostsLine], 'none', [PACK_ROLES.deductibleCost]],
       ['fines', [PACK_ROLES.nonDeductible]],
       ['other-costs', [PACK_ROLES.deductibleCost]],
     ],
@@ -110,22 +110,37 @@ export const STARTING_CATEGORIES: readonly StartingCategory[] = FAMILIES.flatMap
   categories.map(([slug, roles, vat = 'none']) => ({ slug, family, bucket, colour, roles, vat })),
 )
 
-/** The class older books gave each starting category that new books give another, and the one new books give it, by the category's short name. */
-const CLASS_CHANGES: ReadonlyMap<string, StartingClassChange> = new Map(
-  FAMILIES.flatMap(({ categories }) => categories.flatMap(([slug, [newer], , earlier]) => (earlier === undefined || newer === undefined ? [] : [[slug, { from: earlier, to: newer }] as const]))),
+/** What older books gave a starting category that new books give otherwise: the roles they gave it, by the category's short name. */
+export const EARLIER_ROLES: ReadonlyMap<string, readonly string[]> = new Map(
+  FAMILIES.flatMap(({ categories }) => categories.flatMap(([slug, , , earlier]) => (earlier === undefined ? [] : [[slug, earlier] as const]))),
 )
 
-/** The class a starting category counts by and the one new books give it. */
-interface StartingClassChange {
-  readonly from: string
-  readonly to: string
+const NEWER_ROLES: ReadonlyMap<string, readonly string[]> = new Map(STARTING_CATEGORIES.map((category) => [category.slug, category.roles]))
+
+/** How new books give a starting category other roles than older books did: another tax class, or roles beside the same class. */
+export type StartingChange = { readonly kind: 'class'; readonly from: string; readonly to: string } | { readonly kind: 'roles'; readonly added: readonly string[] }
+
+function changeOf(earlier: readonly string[], newer: readonly string[]): StartingChange | null {
+  const from = classOf(earlier, CATEGORY_CLASSES)?.role
+  const to = classOf(newer, CATEGORY_CLASSES)?.role
+  if (from === undefined || to === undefined) return null
+  if (from !== to) return { kind: 'class', from, to }
+  const added = newer.filter((role) => !earlier.includes(role))
+  return added.length === 0 ? null : { kind: 'roles', added }
 }
 
 /**
- * The change for a starting category that still counts by the class older books gave it, or null, and null too once the person
- * dismissed it. The figures count the class it carries, so the person picks the new one.
+ * The change for a starting category that still carries what older books gave it, or null, and null too once the person dismissed
+ * it: the class older books gave it, or none of the roles new books add beside the same class. The figures count what it carries,
+ * so the person makes the change.
  */
-export function startingClassChange(category: { readonly slug: string; readonly roles: readonly string[] }, dismissals: readonly Dismissal[]): StartingClassChange | null {
-  const change = CLASS_CHANGES.get(category.slug)
-  return change !== undefined && classOf(category.roles, CATEGORY_CLASSES)?.role === change.from && !newerClassDismissed(dismissals, category.slug) ? change : null
+export function startingChange(category: { readonly slug: string; readonly roles: readonly string[] }, dismissals: readonly Dismissal[]): StartingChange | null {
+  const earlier = EARLIER_ROLES.get(category.slug)
+  const newer = NEWER_ROLES.get(category.slug)
+  if (earlier === undefined || newer === undefined || newerClassDismissed(dismissals, category.slug)) return null
+  const change = changeOf(earlier, newer)
+  const carried = classOf(category.roles, CATEGORY_CLASSES)?.role
+  if (change === null) return null
+  if (change.kind === 'class') return carried === change.from ? change : null
+  return carried === classOf(newer, CATEGORY_CLASSES)?.role && change.added.every((role) => !category.roles.includes(role)) ? change : null
 }

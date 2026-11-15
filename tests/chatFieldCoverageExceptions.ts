@@ -189,8 +189,8 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['company: Setting.statements_folder', 'company: Setting.statements_sync', 'company: Setting.statements_mail_from'],
   },
   {
-    reason: "The invoice folder. Only Google's Picker picks it, so the chat links the invoicing screen.",
-    fields: ['company: Setting.invoice_folder_id'],
+    reason: "The invoice and travel orders folders. Only Google's Picker picks them, so the chat links the screen that files them.",
+    fields: ['company: Setting.invoice_folder_id', 'company: Setting.trip_folder_id'],
   },
   {
     reason: "Kuna's own settings: the file's format version and whether the books place client payments, which Kuna writes, and the review label, which the owner keeps out of what the chat reads.",

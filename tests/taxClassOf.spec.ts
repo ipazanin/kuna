@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { CATEGORY_CLASSES, taxClassOf } from '../src/apps/company/packs/hr-doo/preset/domain/taxClassOf'
+import { EARLIER_ROLES, STARTING_CATEGORIES, startingChange } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
 import { categoriesToSort } from '../src/apps/company/packs/hr-doo/preset/presentation/categoriesToSort'
 import { displayName } from '../src/apps/company/workbook/domain/displayName'
 import { categoryClassHelp } from '../src/apps/company/packs/hr-doo/preset/presentation/categoryClassHelp'
@@ -82,6 +83,47 @@ describe('categoriesToSort', () => {
 
     expect(categoriesToSort([older], day, [dismissed])).toEqual([])
     expect(categoriesToSort([older], day, [dismissalOfNewerClass('other-income', day), { ...dismissed, kind: 'not-covered' }])).toHaveLength(1)
+  })
+})
+
+describe('the cost line older books keep for travel, insurance, training and bank fees', () => {
+  const day = civil('2026-11-15')
+  const older = (slug: string, roles: readonly string[]): Category => ({ ...representation, slug, family: 'operating', bucket: 'operating', roles, vat: 'none' })
+  const lineOf = (category: Category, reason: string) => ({ id: categoryIdOf(category), label: displayName(category.slug, category.label), reason })
+
+  it('suggests the other-costs-line role new books give, until the category carries it or the person dismissed it', () => {
+    const travel = older('travel', ['deductible-cost'])
+    const said = 'New books also give it "other-costs-line", which puts its costs on the profit and loss line the accountant uses. Add it on Settings, Categories.'
+
+    expect(categoriesToSort([travel, older('insurance', ['deductible-cost', 'prepaid-annual'])], day, [])).toEqual([
+      { ...lineOf(travel, said), newerClassOf: 'travel' },
+      { ...lineOf(older('insurance', ['deductible-cost', 'prepaid-annual']), said), newerClassOf: 'insurance' },
+    ])
+    expect(categoriesToSort([older('travel', ['deductible-cost', 'other-costs-line']), older('bank-fees', ['non-deductible'])], day, [])).toEqual([])
+    expect(categoriesToSort([travel], day, [dismissalOfNewerClass('travel', day)])).toEqual([])
+  })
+
+  it('suggests no class to the chat for a change of roles beside the same class', () => {
+    expect(startingChange({ slug: 'training', roles: ['deductible-cost'] }, [])).toEqual({ kind: 'roles', added: ['other-costs-line'] })
+  })
+})
+
+/**
+ * What each starting category carried in books started before the last change to the starting set. A change to the set changes a
+ * row here and gives the category in `startingCategories.ts` the roles it had, so older books are offered the change.
+ */
+const STARTING_ROLES_OF_OLDER_BOOKS: Readonly<Record<string, readonly string[]>> = {
+  'interest-income': ['other-income'],
+  travel: ['deductible-cost'],
+  insurance: ['deductible-cost', 'prepaid-annual'],
+  training: ['deductible-cost'],
+  'bank-fees': ['deductible-cost'],
+}
+
+describe('the starting categories', () => {
+  it('say what older books held for every category new books start otherwise', () => {
+    const changed = STARTING_CATEGORIES.filter((category) => EARLIER_ROLES.has(category.slug)).map((category) => category.slug)
+    expect(Object.fromEntries(changed.map((slug) => [slug, EARLIER_ROLES.get(slug)]))).toEqual(STARTING_ROLES_OF_OLDER_BOOKS)
   })
 })
 

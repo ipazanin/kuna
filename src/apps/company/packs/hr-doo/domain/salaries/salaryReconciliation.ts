@@ -23,7 +23,11 @@ import { payrollMonth } from '../payroll/payrollMonth'
 import type { PayrollMonth, PayrollWarning } from '../payroll/payrollMonth'
 import { CONTRIBUTION_ACCOUNTS } from './contributionAccounts'
 import { TRIP_ROW_LINKS, linkedPayment } from '../trips/tripBankRows'
-import { tripUnitsOf } from '../trips/tripPayments'
+import { tripCapOf } from '../trips/tripPayments'
+import type { TripCap } from '../trips/tripPayments'
+import type { Trip } from '../trips/trip'
+import type { SettlementGap } from '../trips/tripSettlement'
+import type { RateBook } from '../../../../../../shared/money/rateBook'
 import { words } from '../words'
 
 /** The lines of one employee's pay, named as `PayrollMonth` names them. */
@@ -79,6 +83,8 @@ export type SalaryProblem =
   | { readonly kind: 'over-cap'; readonly employee: Employee; readonly usage: NontaxableUsage }
   /** A row in a tax-free category whose cap counts days, kilometres or events, which a bank row does not state, so its cap is not checked. */
   | { readonly kind: 'needs-units'; readonly employee: Employee; readonly payment: string; readonly unit: string; readonly paid: TracedFigure }
+  /** A per-diem row of a settled trip whose per diems wait, such as for the ECB rate of a per diem in dollars, so its cap is not checked yet. */
+  | { readonly kind: 'trip-waits'; readonly employee: Employee; readonly payment: string; readonly trip: Trip; readonly gaps: readonly SettlementGap[]; readonly paid: TracedFigure }
   | { readonly kind: 'below-minimum-wage'; readonly employee: Employee; readonly warning: PayrollWarning }
 
 /** The month the bank paid a payroll in, with each employee paid then and the contributions of them all. */
@@ -118,7 +124,7 @@ interface PayPart {
  * employee on the agreed gross of their row, a director at least at the floor, for the month before
  * the payday, the month salaries are paid in arrears for.
  */
-export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource = ruleValue): SalaryReconciliation {
+export function salaryReconciliation(workbook: HrDooWorkbook, rates: RateBook, rules: RuleSource = ruleValue): SalaryReconciliation {
   const window = ledgerWindowOf(workbook.transactions)
   if (window === null) {
     return { paydays: [], extras: [] }
@@ -151,14 +157,18 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
     if (pay.employee === null || payment === undefined || pay.part.amount >= 0) return []
     const unit = capUnitOf(payment, pay.part.date, rules)
     const file = pay.whole.rowId === null ? undefined : settledTrips.get(pay.whole.rowId)
-    if (file === undefined || file.trip.settledOn === null) return [{ ...pay, employee: pay.employee, payment, unit, paidOn: pay.part.date, units: null }]
+    if (file === undefined || file.trip.settledOn === null) return [{ ...pay, employee: pay.employee, payment, unit, paidOn: pay.part.date, cap: { kind: 'unlinked' } }]
     const key = `${file.trip.id} ${payment}`
-    const units = unit === null || counted.has(key) ? 0 : tripUnitsOf(file, payment, rules)
+    const cap = tripCapOf(file, payment, rules, rates)
+    const first = !counted.has(key)
     counted.add(key)
-    return [{ ...pay, employee: pay.employee, payment, unit, paidOn: file.trip.settledOn, units }]
+    return [{ ...pay, employee: pay.employee, payment, unit, paidOn: file.trip.settledOn, cap: { ...(first ? cap : laterRowCap(cap)), trip: file.trip } }]
   })
   const extras = employees.flatMap((employee) => extrasOf(employee, taxFreeParts, rules))
-  const unitless = taxFreeParts.flatMap((pay) => (pay.unit === null || pay.units !== null ? [] : [{ payday: monthOf(pay.part.date), problem: needsUnits(pay, pay.unit) }]))
+  const unchecked = taxFreeParts.flatMap((pay) => {
+    const problem = uncheckedProblem(pay)
+    return problem === null ? [] : [{ payday: monthOf(pay.part.date), problem }]
+  })
   const overCaps = extras.flatMap((extra) => extra.usage.filter((usage) => usage.excess.amount > 0).map((usage) => ({ payday: lastPaidMonth(usage), employee: extra.employee, usage })))
   const inLedger = (month: MonthKey) => window.firstMonth <= month && month <= window.partMonth
   const expected = (employee: Employee, payday: MonthKey) => window.firstCompleteMonth <= payday && payday <= window.lastCompleteMonth && weekdaysEmployed(employee, addMonths(payday, -1)) !== null
@@ -205,7 +215,7 @@ export function salaryReconciliation(workbook: HrDooWorkbook, rules: RuleSource 
     const strays = partsOfDay.filter((pay) => pay.employee === null)
     if (strays.length > 0) problems.push({ kind: 'pay-to-no-employee', paid: paidFigure(words.salaries.paidToNoEmployee, strays, payCategories, payday) })
     problems.push(...overCaps.filter((over) => over.payday === payday).map(({ employee, usage }): SalaryProblem => ({ kind: 'over-cap', employee, usage })))
-    problems.push(...unitless.filter((entry) => entry.payday === payday).map((entry) => entry.problem))
+    problems.push(...unchecked.filter((entry) => entry.payday === payday).map((entry) => entry.problem))
     return { payday, employees: employeePaydays, contributions, problems }
   })
   return { paydays, extras }
@@ -293,31 +303,51 @@ function lineCheck<Line extends string>(line: Line, app: TracedFigure | null, ba
   return { line, app, bank, agrees: app === null || bank === null || app.amount === bank.amount }
 }
 
+/** What caps a tax-free part: nothing it states when no settled trip links it, or what the trip that links it gives. */
+type PartCap = { readonly kind: 'unlinked' } | (TripCap & { readonly trip: Trip })
+
 /**
- * A part paid to an employee in a `tax-free:` category, with what its cap counts per unit, if anything. A part of a row a settled
- * trip links counts on the day the trip was settled, and takes the trip's days or kilometres once per trip and payment.
+ * A part paid to an employee in a `tax-free:` category, with what caps it. A part of a row a settled trip links counts on the day
+ * the trip was settled, and takes the trip's per diems or kilometres once per trip and payment.
  */
 interface TaxFreePart extends PayPart {
   readonly employee: Employee
   readonly payment: string
   readonly unit: string | null
   readonly paidOn: CivilDate
-  /** Null for a part no settled trip links, whose cap cannot be checked when it counts units. */
-  readonly units: number | null
+  readonly cap: PartCap
 }
 
-/** The employee's payments in `tax-free:` categories, by year, against the caps, leaving out a part whose cap counts units the bank row does not state. */
+/** A trip caps a payment once, so a later row of the same trip and payment adds to what was paid and nothing to the cap. */
+function laterRowCap(cap: TripCap): TripCap {
+  return cap.kind === 'per-diems' ? { kind: 'per-diems', lines: [] } : cap.kind === 'units' ? { kind: 'units', units: 0 } : cap
+}
+
+/** Whether the part counts against its cap: a part a trip caps, or one whose cap needs no count. */
+function counts(pay: TaxFreePart): boolean {
+  return pay.cap.kind === 'unlinked' ? pay.unit === null : pay.cap.kind !== 'waits'
+}
+
+/** The employee's payments in `tax-free:` categories, by year, against the caps, leaving out a part whose cap cannot be counted yet. */
 function extrasOf(employee: Employee, parts: readonly TaxFreePart[], rules: RuleSource): EmployeeExtras[] {
   const made: NontaxablePaymentMade[] = parts
-    .filter((pay) => pay.employee === employee && (pay.unit === null || pay.units !== null))
-    .map((pay) => ({ payment: pay.payment, paidOn: pay.paidOn, amount: negateMoney(pay.part.amount), ...(pay.units === null ? {} : { units: pay.units }) }))
+    .filter((pay) => pay.employee === employee && counts(pay))
+    .map((pay) => ({
+      payment: pay.payment,
+      paidOn: pay.paidOn,
+      amount: negateMoney(pay.part.amount),
+      ...(pay.cap.kind === 'units' ? { units: pay.cap.units } : pay.cap.kind === 'per-diems' ? { perDiems: pay.cap.lines } : {}),
+    }))
   const years = [...new Set(made.map((payment) => yearOf(payment.paidOn)))].sort()
   return years.map((year) => ({ employee, year, usage: nontaxableUsage(made, year, 'ledger', rules) }))
 }
 
-function needsUnits(pay: TaxFreePart, unit: string): SalaryProblem {
+/** Why a part's cap is not checked: a count no bank row states, or a trip whose per diems wait. Null for a part that counts. */
+function uncheckedProblem(pay: TaxFreePart): SalaryProblem | null {
+  if (counts(pay)) return null
   const paid = withDrill({ ...tracedFigure(words.salaries.paidOn, negateMoney(pay.part.amount), 'ledger', []), on: pay.part.date }, rowDrill(pay.whole))
-  return { kind: 'needs-units', employee: pay.employee, payment: pay.payment, unit, paid }
+  if (pay.cap.kind === 'waits') return { kind: 'trip-waits', employee: pay.employee, payment: pay.payment, trip: pay.cap.trip, gaps: pay.cap.gaps, paid }
+  return { kind: 'needs-units', employee: pay.employee, payment: pay.payment, unit: pay.unit ?? '', paid }
 }
 
 /** The month of the last payment that a cap's period counts. */

@@ -5,6 +5,8 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { yearOfMonth } from '../../../../../../shared/calendar/monthKey'
+import { useRates } from '../../../../../../shared/rates/application/pageRates'
+import { everydayRates } from '../../../../../../shared/rates/domain/ratesState'
 import { monthLabel, shortMonthName } from '../../../../../../shared/calendar/monthLabel'
 import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import PageHeader from '../../../../../../shared/ui/PageHeader.vue'
@@ -40,9 +42,10 @@ const router = useRouter()
 
 /** With split rows in their parts, so a part in a pay or tax-free category counts on its own. */
 const booked = useBookedWorkbook()
+const rates = useRates()
 const workbook = computed(() => (booked.value === null ? null : hrDooWorkbook(booked.value)))
 const ledgerWindow = computed(() => (workbook.value === null ? null : ledgerWindowOf(workbook.value.transactions)))
-const reconciliation = computed(() => (workbook.value === null ? null : salaryReconciliation(workbook.value)))
+const reconciliation = computed(() => (workbook.value === null ? null : salaryReconciliation(workbook.value, everydayRates(rates.value))))
 
 const text = (key: string): string | null => (typeof route.query[key] === 'string' && route.query[key] !== '' ? route.query[key] : null)
 

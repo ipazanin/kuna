@@ -8,6 +8,7 @@ import { recategorisation } from '../src/apps/company/transactions/domain/verdic
 import { REVIEW_LINK } from '../src/apps/company/transactions/presentation/transactionsLinks'
 import { en, hr } from '../src/apps/company/transactions/presentation/words'
 import { ledger } from './fixtures/ledger'
+import { NO_RATES } from '../src/shared/money/rateBook'
 
 const presentation = (file: string) => readFileSync(join(import.meta.dirname, '..', 'src/apps/company/transactions/presentation', file), 'utf8')
 
@@ -27,7 +28,7 @@ describe("asking the chat from Company's To review", () => {
   })
 
   it('names the To review place for the chat, so a tag on the queue reaches the model', () => {
-    const places = companyAssistant(HR_DOO_ASSISTANT, { status: () => 'none', workbook: () => null, records: () => null }, () => []).places
+    const places = companyAssistant(HR_DOO_ASSISTANT, { status: () => 'none', workbook: () => null, records: () => null, rates: () => NO_RATES }, () => []).places
     expect(places.map((place) => place.route)).toContain(REVIEW_LINK)
   })
 

@@ -55,6 +55,7 @@ const KEYS_EVER_READ: Readonly<Record<string, readonly string[]>> = {
     'statements_mail_subject',
     'mail_since',
     'person_payees',
+    'trip_folder_id',
     'invoice_vat_id',
   ],
   investments: ['surtax_city_2023'],

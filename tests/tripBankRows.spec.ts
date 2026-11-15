@@ -12,6 +12,8 @@ import { ruleValue } from '../src/apps/company/packs/hr-doo/ruleset/ruleset'
 import { BUCKET_COLOUR } from '../src/apps/company/workbook/domain/categoryColour'
 import type { Category, Transaction } from '../src/apps/company/workbook/domain/workbook'
 import { NO_RATES } from '../src/shared/money/rateBook'
+import type { RateBook } from '../src/shared/money/rateBook'
+import { decimalOfText } from '../src/shared/money/decimal'
 import type { RecordFields } from '../src/shared/storage/domain/recordFields'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
@@ -358,12 +360,83 @@ describe('Salaries with a linked trip', () => {
       ],
       CATEGORIES,
     )
-    const { paydays, extras } = salaryReconciliation(exampleStudio({ categories: CATEGORIES, transactions: filed, employees: [ALEX], director: ALEX, trips: [file] }))
+    const { paydays, extras } = salaryReconciliation(exampleStudio({ categories: CATEGORIES, transactions: filed, employees: [ALEX], director: ALEX, trips: [file] }), NO_RATES)
     expect(paydays.flatMap((payday) => payday.problems.filter((problem) => problem.kind === 'needs-units' || problem.kind === 'over-cap'))).toEqual([])
+    // Two full per diems of 30.00, the second less 30% for one meal, cap the per diems at 30.00 + 21.00.
     expect(extras.flatMap((extra) => extra.usage.map((usage) => [usage.payment, usage.periodKey, usage.paid.amount, usage.cap?.amount ?? null]))).toEqual([
       ['business-travel-cost', '2026', euros(30), null],
-      ['domestic-per-diem-over-12-hours', '2026-03', euros(51), euros(60)],
+      ['domestic-per-diem-over-12-hours', '2026-03', euros(51), euros(51)],
       ['private-car-business-travel', '2026-03', euros(410), euros(410)],
     ])
+    const perDiemCap = extras[0]!.usage.find((usage) => usage.payment === 'domestic-per-diem-over-12-hours')!.cap!
+    expect(perDiemCap.steps.map((step) => [step.label, step.on, step.amount])).toEqual([
+      ['Per diem, from', civil('2026-03-03'), euros(30)],
+      ['Per diem less one meal, from', civil('2026-03-04'), euros(21)],
+    ])
+  })
+
+  it('taxes as salary what the per diems pay over the meal-cut cap', () => {
+    const base = rows(PAYMENTS.slice(0, 2))
+    const file = linked(fileOf(), base)
+    // The 100.00 advance files 60.00 of per diems, the full 30.00 twice, though the second day had a meal.
+    const filed = withSplit(
+      withSplit(
+        base,
+        { date: '2026-02-27', amount: -100 },
+        [
+          [-60, 'per-diems'],
+          [-40, 'car-km'],
+        ],
+        CATEGORIES,
+      ),
+      { date: '2026-03-09', amount: -391 },
+      [
+        [-370, 'car-km'],
+        [-21, 'trip-costs'],
+      ],
+      CATEGORIES,
+    )
+    const { paydays } = salaryReconciliation(exampleStudio({ categories: CATEGORIES, transactions: filed, employees: [ALEX], director: ALEX, trips: [file] }), NO_RATES)
+    const overCaps = paydays.flatMap((payday) => payday.problems.flatMap((problem) => (problem.kind === 'over-cap' ? [[problem.usage.payment, problem.usage.excess.amount]] : [])))
+    expect(overCaps).toContainEqual(['domestic-per-diem-over-12-hours', euros(9)])
+  })
+})
+
+/** New York by plane over the same two days, with lunch paid on the second, whose per diem the table states as 100.00 dollars a day. */
+function newYorkFile(): TripFile {
+  const { car: _car, plate: _plate, km_rate: _rate, odometer_start: _start, odometer_end: _end, ...order } = SPLIT_TRIP
+  const reading = tripsOf(
+    {
+      trips: tab(TRIP_CODECS.trip, [{ ...order, destination: 'New York', country: 'US', transport: 'plane', border_out: '2026-03-03 08:00', border_in: '2026-03-04 20:00' }]),
+      legs: tab(TRIP_CODECS.leg, []),
+      costs: tab(TRIP_CODECS.cost, []),
+    },
+    new Set(['alex']),
+  )
+  const [file] = reading.files
+  if (file === undefined) throw new Error(reading.trips.problems.map((problem) => problem.reason).join(', '))
+  return file
+}
+
+describe('Salaries with a linked trip abroad', () => {
+  const foreignCategories = [...CATEGORIES, category('foreign-per-diems', ['tax-free:foreign-per-diem'])]
+  const reconciledAt = (rates: RateBook) => {
+    const base = withPackBuckets(ledger([{ ...PAYMENTS[0]!, category: 'foreign-per-diems' }, PAYMENTS[1]!]), foreignCategories).map((row) => ({ ...row, rowId: `row-${row.date}-${row.amount}` }))
+    const file = linked(newYorkFile(), base)
+    return salaryReconciliation(exampleStudio({ categories: foreignCategories, transactions: base, employees: [ALEX], director: ALEX, trips: [file] }), rates)
+  }
+
+  it("caps the foreign per diem by the trip's per diems at the ECB rate, less the meal", () => {
+    const { extras } = reconciledAt({ unitsPerEuroOnOrBefore: () => decimalOfText('1.25'), newestDay: () => civil('2026-03-03') })
+    // From two hours before take-off to landing is 38 hours abroad, two full per diems of 100.00 USD, 80.00 each at 1.25, the second less 30% for lunch.
+    const usage = extras.flatMap((extra) => extra.usage).find((entry) => entry.payment === 'foreign-per-diem')!
+    expect([usage.paid.amount, usage.cap?.amount, usage.remaining?.amount]).toEqual([euros(100), euros(80 + 56), euros(36)])
+  })
+
+  it('waits for the ECB rate before it checks the cap', () => {
+    const { paydays, extras } = reconciledAt(NO_RATES)
+    expect(extras.flatMap((extra) => extra.usage).filter((entry) => entry.payment === 'foreign-per-diem')).toEqual([])
+    const waiting = paydays.flatMap((payday) => payday.problems.flatMap((problem) => (problem.kind === 'trip-waits' ? [[payday.payday, problem.payment, problem.gaps, problem.paid.amount]] : [])))
+    expect(waiting).toEqual([['2026-02', 'foreign-per-diem', ['rate'], euros(100)]])
   })
 })

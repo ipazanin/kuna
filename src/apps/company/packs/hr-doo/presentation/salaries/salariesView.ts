@@ -7,6 +7,7 @@ import type { BridgeBar } from '../../../../../../shared/charts/bridgeChart'
 import { absMoney, negateMoney } from '../../../../../../shared/money/money'
 import type { Money } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
+import { listInWords } from '../../../../../../shared/text/listInWords'
 import type { DonutPart } from '../../../../../../shared/ui/DonutCard.vue'
 import type { DrillTarget } from '../../../../filters/domain/drillTarget'
 import type { Employee } from '../../domain/employees/employees'
@@ -15,6 +16,7 @@ import type { PayFigures, PayPart, PersonPay } from '../../domain/salaries/salar
 import type { EmployeeLine, EmployeePayday, LineCheck, SalaryPayday, SalaryProblem } from '../../domain/salaries/salaryReconciliation'
 import { figureDetail } from '../tracedFigureView'
 import type { AskableDetail } from '../tracedFigureView'
+import { words as tripWords } from '../trips/words'
 import { words } from './words'
 
 type LinkOf = (drill: DrillTarget | null) => RouteLocationRaw | null
@@ -293,6 +295,12 @@ function problemView(problem: SalaryProblem, index: number, month: string, linkO
           problem.unit === 'event'
             ? words.problems.needsEvents(name, problem.payment, formatMoney(problem.paid.amount))
             : words.problems.needsTrip(name, problem.payment, formatMoney(problem.paid.amount)),
+        rows: linkOf(problem.paid.drill),
+      }
+    case 'trip-waits':
+      return {
+        ...plain,
+        text: words.problems.tripWaits(name, problem.payment, formatMoney(problem.paid.amount), problem.trip.number, listInWords(problem.gaps.map((gap) => tripWords.gaps[gap]))),
         rows: linkOf(problem.paid.drill),
       }
   }

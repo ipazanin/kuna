@@ -22,6 +22,7 @@ import { withPackBuckets } from './fixtures/hrDooCategories'
 import { euros, ledger, month } from './fixtures/ledger'
 import type { RowSpec } from './fixtures/ledger'
 import { withSplit } from './fixtures/splits'
+import { NO_RATES } from '../src/shared/money/rateBook'
 
 function category(slug: string, bucket: DefinedBucket, roles: readonly string[]): Category {
   return { slug, family: bucket, bucket, colour: BUCKET_COLOUR, roles, vat: 'none', ownerShare: null }
@@ -107,7 +108,7 @@ function oneEmployeeRows(person: Employee, worked: string, paidOn: string, incom
 
 function reconciled(rows: readonly RowSpec[] | readonly Transaction[], people: readonly Employee[]) {
   const transactions = rows.length > 0 && 'sequence' in rows[0]! ? (rows as readonly Transaction[]) : withPackBuckets(ledger(rows as readonly RowSpec[]), CATEGORIES)
-  return salaryReconciliation(exampleStudio({ categories: CATEGORIES, transactions, employees: people, director: people.find((person) => person.director) ?? null }))
+  return salaryReconciliation(exampleStudio({ categories: CATEGORIES, transactions, employees: people, director: people.find((person) => person.director) ?? null }), NO_RATES)
 }
 
 function paydayOf(paydays: readonly SalaryPayday[], payday: string): SalaryPayday {

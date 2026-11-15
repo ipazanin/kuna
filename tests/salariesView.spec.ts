@@ -15,6 +15,7 @@ import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { sumMoney } from '../src/shared/money/money'
 import { formatMoney } from '../src/shared/money/moneyFormat'
 import { euros } from './fixtures/ledger'
+import { NO_RATES } from '../src/shared/money/rateBook'
 
 const linkOf = () => null
 const PROBLEMS = { hash: '#salary-problems' }
@@ -27,7 +28,7 @@ function reconciled(variant: 'one-employee' | 'five-employees') {
   const workbook = hrDooWorkbook(presentedWorkbook(read.workbook))
   const window = ledgerWindowOf(workbook.transactions)
   if (window === null) throw new Error('the fake ledger is empty')
-  return { workbook, reconciliation: salaryReconciliation(workbook), partMonth: window.partMonth }
+  return { workbook, reconciliation: salaryReconciliation(workbook, NO_RATES), partMonth: window.partMonth }
 }
 
 function paydayOf(reconciliation: SalaryReconciliation, payday: string) {

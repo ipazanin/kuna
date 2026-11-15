@@ -15,13 +15,17 @@ import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/reco
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Client, Invoice } from '../../workbook/domain/workbook'
-import { invoiceDrafts, invoiceDrive } from '../application/invoiceGoogle'
-import { continueRun, locateFiling, runStepsOf } from '../application/invoiceRun'
-import type { FilingTarget, InvoiceDrive, RegisterChange, RunPlan, RunStep } from '../application/invoiceRun'
+import { filingDrive } from '../../documents/application/filingDrive'
+import { locateFiling } from '../../documents/application/driveFiling'
+import type { FilingDrive, FilingTarget } from '../../documents/application/driveFiling'
+import { pathInWords } from '../../documents/domain/filingPath'
+import { invoiceDrafts } from '../application/invoiceGoogle'
+import { continueRun, runStepsOf } from '../application/invoiceRun'
+import type { RegisterChange, RunPlan, RunStep } from '../application/invoiceRun'
 import { newInvoiceDates } from '../domain/invoiceDates'
 import { invoiceProblems, recipientOf } from '../domain/invoiceDocument'
 import type { InvoiceDocument } from '../domain/invoiceDocument'
-import { filingPathOf, pathInWords } from '../domain/invoiceFiling'
+import { filingPathOf } from '../domain/invoiceFiling'
 import { filledMail, gmailComposeUrl } from '../domain/invoiceMail'
 import type { InvoiceMail } from '../domain/invoiceMail'
 import { linesTotal, plannedLines, registerItemOf } from '../domain/invoiceLines'
@@ -262,7 +266,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     previewUrl.value = null
   }
 
-  async function pickInvoiceFolder(drive: InvoiceDrive): Promise<string | null> {
+  async function pickInvoiceFolder(drive: FilingDrive): Promise<string | null> {
     const [picked] = await drive.pickFolders(null, words.run.pickRoot)
     if (picked === undefined) return null
     await store.write(words.run.folderSaved, (unit) => setSettings(unit, store.state.records?.settings ?? NO_RECORDS, [{ key: 'invoice_folder_id', value: picked.id }]))
@@ -288,7 +292,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
         stage.value = { kind: 'edit', message: refusedAtFirst }
         return
       }
-      const drive = google.value ? await invoiceDrive() : null
+      const drive = google.value ? await filingDrive() : null
       if (drive !== null) {
         await store.sync()
         if (store.state.error !== null) throw new Error(words.run.unreadable(store.state.error))
@@ -377,7 +381,7 @@ export function useInvoiceRun(mode: Ref<InvoiceRunMode>) {
     let drive = null
     try {
       drafts = wantsDraft ? await invoiceDrafts() : null
-      drive = google.value ? await invoiceDrive() : null
+      drive = google.value ? await filingDrive() : null
     } catch (failure) {
       const message = failure instanceof Error ? failure.message : String(failure)
       const next = steps.value.find((step) => step.status !== 'done')

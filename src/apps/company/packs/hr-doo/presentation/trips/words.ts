@@ -71,6 +71,9 @@ export const en = {
     kmRateOverCap: (rate: string, cap: string) => `The rate of ${rate} per km is above the tax-free ${cap}. The part above it is taxed as salary.`,
     firstLegShort: (km: number, shortest: number) => `The first leg is ${km} km, and a business trip goes at least ${shortest} km from where the traveller lives.`,
     notEmployed: 'The traveller is not employed on the first day of the trip. Whether the tax-free amounts cover a board member who is not employed is not confirmed.',
+    fuelWithKilometres: (amount: string, day: string) => `The ${amount} of fuel on ${day} is on a trip by private car, whose kilometres already pay for the car. The fuel is not tax-free beside them.`,
+    paidAsOwnerAdvance: (amount: string, cost: string, day: string) =>
+      `The ${amount} ${cost} of ${day} is also among the costs the owner paid privately, on Owner. Remove it there, or the company pays it back twice.`,
   },
   gaps: {
     title: 'The settlement waits for',
@@ -193,6 +196,11 @@ export const en = {
     pdf: 'Download PDF',
     xlsx: 'Download xlsx',
     failed: 'The file could not be made',
+    toDrive: 'Save to Drive',
+    pickFolder: 'Pick the folder to file travel orders in. The app files each order in a folder for its year inside it.',
+    noFolder: 'No folder was picked, so the travel order was not filed',
+    filed: (names: readonly string[]) => `Filed ${names.join(' and ')} on Drive`,
+    notFiled: 'The travel order was not filed on Drive',
   },
   dialog: {
     cancel: 'Cancel',
@@ -386,6 +394,9 @@ export const hr: Translation<typeof en> = {
     kmRateOverCap: (rate, cap) => `Naknada od ${rate} po km veća je od neoporezivih ${cap}. Dio iznad toga oporezuje se kao plaća.`,
     firstLegShort: (km, shortest) => `Prva dionica ima ${km} km, a službeni put vodi najmanje ${shortest} km od mjesta u kojem putnik živi.`,
     notEmployed: 'Putnik prvog dana puta nije zaposlen. Nije potvrđeno vrijede li neoporezivi iznosi i za člana uprave koji nije zaposlen.',
+    fuelWithKilometres: (amount, day) => `Gorivo od ${amount} od ${day} na putu je privatnim automobilom, čija kilometraža već plaća automobil. Uz nju gorivo nije neoporezivo.`,
+    paidAsOwnerAdvance: (amount, cost, day) =>
+      `Trošak (${cost}) od ${amount} od ${day} je i među troškovima koje je vlasnik platio privatno, na stranici Vlasnik. Uklonite ga ondje, inače ga tvrtka vraća dvaput.`,
   },
   gaps: {
     title: 'Obračun čeka',
@@ -509,6 +520,11 @@ export const hr: Translation<typeof en> = {
     pdf: 'Preuzmi PDF',
     xlsx: 'Preuzmi xlsx',
     failed: 'Datoteka se nije mogla izraditi',
+    toDrive: 'Spremi na Drive',
+    pickFolder: 'Odaberite mapu za putne naloge. Aplikacija u njoj sprema svaki nalog, u mapu njegove godine.',
+    noFolder: 'Nije odabrana nijedna mapa, pa putni nalog nije spremljen',
+    filed: (names) => `Na Drive su spremljeni ${names.map((name) => `„${name}”`).join(' i ')}`,
+    notFiled: 'Putni nalog nije spremljen na Drive',
   },
   dialog: {
     cancel: 'Odustani',

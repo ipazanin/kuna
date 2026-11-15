@@ -378,6 +378,8 @@ export const en = {
     edit: (day: string) => `Change or delete the advance of ${day}`,
     matched: (day: string) => `Reimbursements matched to the advance of ${day}`,
     reimbursementRow: (day: string) => `Reimbursement of ${day}, open the row`,
+    onTrip: (trip: string) => `Travel order ${trip} also pays this cost back. Remove it here, or the company pays it back twice.`,
+    openTrip: (trip: string) => `Open travel order ${trip}`,
   },
   loanList: {
     openRow: (day: string) => `Loan of ${day}, open the row`,
@@ -860,6 +862,8 @@ export const hr: Translation<typeof en> = {
     edit: (day) => `Uredi ili obriši predujam od ${day}`,
     matched: (day) => `Povrati troškova povezani s predujmom od ${day}`,
     reimbursementRow: (day) => `Povrat troškova od ${day}, otvori stavku`,
+    onTrip: (trip) => `Putni nalog ${trip} također vraća ovaj trošak. Uklonite ga ovdje, inače ga tvrtka vraća dvaput.`,
+    openTrip: (trip) => `Otvori putni nalog ${trip}`,
   },
   loanList: {
     openRow: (day) => `Pozajmica od ${day}, otvori stavku`,

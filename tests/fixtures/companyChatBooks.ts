@@ -14,6 +14,7 @@ import { chatRefs } from '../../src/shared/ai/domain/chatRefs'
 import type { AppReader } from '../../src/shared/app/assistantReader'
 import { newPseudonyms } from '../../src/shared/privacy/domain/pseudonyms'
 import type { KnownPerson } from '../../src/shared/privacy/domain/pseudonyms'
+import { NO_RATES } from '../../src/shared/money/rateBook'
 
 const SAVED = '2026-01-01T00:00:00.000Z'
 
@@ -29,7 +30,7 @@ export function withSettings(books: CompanyBooks, entries: readonly SettingEntry
 }
 
 export function readingOf(books: CompanyBooks): CompanyReading {
-  return { status: () => 'open', workbook: () => books.workbook, records: () => books.records }
+  return { status: () => 'open', workbook: () => books.workbook, records: () => books.records, rates: () => NO_RATES }
 }
 
 /** The company's reader with the pack's, as `app.ts` builds it. */

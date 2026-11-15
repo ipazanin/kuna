@@ -1,76 +1,12 @@
+import { fileOnDrive } from '../../documents/application/driveFiling'
+import type { FilingDrive, FilingTarget } from '../../documents/application/driveFiling'
 import type { Invoice } from '../../workbook/domain/workbook'
-import type { FilingPath } from '../domain/invoiceFiling'
 import type { InvoiceMail } from '../domain/invoiceMail'
 import { words } from './words'
-
-/** A file or folder in Drive as the app sees it. */
-export interface DriveEntry {
-  readonly id: string
-  readonly name: string
-  readonly folder: boolean
-}
-
-/**
- * Drive as a `drive.file` token reaches it: only files and folders the app made or the person
- * picked. A folder another app made stays out of a listing until it is picked once.
- */
-export interface InvoiceDrive {
-  /** What the app can see inside a folder. */
-  children(folderId: string): Promise<readonly DriveEntry[]>
-  /** Opens Google's Picker on folders, inside `parentId` or from My Drive when it is null. Empty when cancelled. Picking grants the app what was picked. */
-  pickFolders(parentId: string | null, title: string): Promise<readonly DriveEntry[]>
-  createFolder(parentId: string, name: string): Promise<DriveEntry>
-  createPdf(folderId: string, name: string, pdf: Uint8Array): Promise<DriveEntry>
-  /** Gives a file the app can see new contents, keeping its id and links. */
-  replacePdf(fileId: string, pdf: Uint8Array): Promise<void>
-}
 
 export interface MailDrafts {
   /** Saves a draft with the PDF attached. It is never sent. */
   create(mail: InvoiceMail, attachment: { readonly fileName: string; readonly pdf: Uint8Array }): Promise<void>
-}
-
-/** Where the PDF goes: the deepest path folder found, the path folders still to make under it, and a file of the same name the app can see there. */
-export interface FilingTarget {
-  readonly folderId: string
-  readonly toCreate: readonly string[]
-  readonly fileName: string
-  readonly existing: DriveEntry | null
-}
-
-export type FolderLookup =
-  | { readonly kind: 'found'; readonly target: FilingTarget }
-  /** No folder of the name is in view and none was picked. `path` names it with its parents, such as 2026/2026-10. */
-  | { readonly kind: 'hidden'; readonly segment: string; readonly path: string }
-
-/** The line the Picker shows above the folders inside a path folder's parent. */
-export function pickerTitleFor(segment: string): string {
-  return words.pickerTitle(segment)
-}
-
-/**
- * Finds each folder of the path by name among what the app can see, from the picked invoice folder
- * down. A folder another app made, such as the invoice generator, is not in view until the person
- * picks it, and making a second one of the same name would split the invoices of a month. So a
- * folder that is not in view opens the Picker on its parent, and only a path in `create`, which the
- * person chose to make, is made, later by the filing step. A folder picked once stays in view.
- */
-export async function locateFiling(drive: InvoiceDrive, rootId: string, path: FilingPath, create: ReadonlySet<string>): Promise<FolderLookup> {
-  let current = rootId
-  for (const [index, segment] of path.folders.entries()) {
-    const prefix = path.folders.slice(0, index + 1).join('/')
-    if (create.has(prefix)) {
-      return { kind: 'found', target: { folderId: current, toCreate: path.folders.slice(index), fileName: path.fileName, existing: null } }
-    }
-    const named = (entries: readonly DriveEntry[]): DriveEntry | undefined => entries.find((entry) => entry.folder && entry.name === segment)
-    const found = named(await drive.children(current)) ?? named(await drive.pickFolders(current, pickerTitleFor(segment)))
-    if (found === undefined) {
-      return { kind: 'hidden', segment, path: prefix }
-    }
-    current = found.id
-  }
-  const existing = (await drive.children(current)).find((entry) => !entry.folder && entry.name === path.fileName) ?? null
-  return { kind: 'found', target: { folderId: current, toCreate: [], fileName: path.fileName, existing } }
 }
 
 export type RunStepKind = 'file' | 'download' | 'draft' | 'register'
@@ -104,7 +40,7 @@ export interface RunPlan {
 }
 
 export interface RunPorts {
-  readonly drive: InvoiceDrive | null
+  readonly drive: FilingDrive | null
   readonly drafts: MailDrafts | null
   download(pdf: Uint8Array, fileName: string): void
   writeRegister(change: RegisterChange): Promise<void>
@@ -124,24 +60,26 @@ export function runStepsOf(plan: RunPlan): RunStep[] {
   return kinds.map((kind) => ({ kind, status: 'waiting', note: '' }))
 }
 
-async function fileThePdf(plan: RunPlan, drive: InvoiceDrive): Promise<string> {
-  let target = plan.filing!
-  while (target.toCreate.length > 0) {
-    const [name, ...rest] = target.toCreate as [string, ...string[]]
-    const made = await drive.createFolder(target.folderId, name)
-    target = { ...target, folderId: made.id, toCreate: rest }
-    plan.filing = target
+const PDF_MIME_TYPE = 'application/pdf'
+
+async function fileThePdf(plan: RunPlan, drive: FilingDrive): Promise<string> {
+  // The folders made so far stay in the plan, so a retry does not make them again.
+  const filing = { target: plan.filing! }
+  try {
+    const filed = await fileOnDrive(drive, filing, { name: plan.fileName, content: plan.pdf, mimeType: PDF_MIME_TYPE }, plan.replace)
+    switch (filed) {
+      case 'refused':
+        throw new Error(words.steps.alreadyFiled(plan.fileName))
+      case 'replaced':
+        return words.steps.replaced(plan.fileName)
+      case 'filed-over-unseen':
+        return words.steps.filedOverUnseen(plan.fileName)
+      case 'filed':
+        return words.steps.filed(plan.fileName)
+    }
+  } finally {
+    plan.filing = filing.target
   }
-  const existing = (await drive.children(target.folderId)).find((entry) => !entry.folder && entry.name === plan.fileName) ?? null
-  if (existing !== null && !plan.replace) {
-    throw new Error(words.steps.alreadyFiled(plan.fileName))
-  }
-  if (existing !== null) {
-    await drive.replacePdf(existing.id, plan.pdf)
-    return words.steps.replaced(plan.fileName)
-  }
-  await drive.createPdf(target.folderId, plan.fileName, plan.pdf)
-  return plan.replace ? words.steps.filedOverUnseen(plan.fileName) : words.steps.filed(plan.fileName)
 }
 
 /**

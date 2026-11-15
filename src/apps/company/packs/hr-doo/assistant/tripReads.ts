@@ -3,6 +3,7 @@ import { readableKind } from '../../../../../shared/app/assistantReader'
 import type { ReadableKind } from '../../../../../shared/app/assistantReader'
 import { ZERO } from '../../../../../shared/money/money'
 import type { Money } from '../../../../../shared/money/money'
+import type { RateBook } from '../../../../../shared/money/rateBook'
 import { decimalText } from '../../../../../shared/money/decimal'
 import type { FieldDocs } from '../../../../../shared/privacy/domain/exposure'
 import { TRIP_COST_RECORDS, TRIP_LEG_RECORDS, TRIP_RECORDS } from '../domain/hrDooKinds'
@@ -132,9 +133,9 @@ const TRIP_COST_FIELDS: FieldDocs<TripCostView> = {
   paidBy: { exposure: 'plain', meaning: 'traveller, paid back in the settlement, or company.' },
 }
 
-function tripViewOf(file: TripFile, travellerName: string, workbook: HrDooWorkbook): TripView {
+function tripViewOf(file: TripFile, travellerName: string, workbook: HrDooWorkbook, rates: RateBook): TripView {
   const { trip } = file
-  const settlement = tripSettlement(file, ruleValue)
+  const settlement = tripSettlement(file, ruleValue, rates)
   const worked = settlement.kind === 'worked' ? settlement : null
   const traveller = workbook.employees.find((employee) => employee.slug === trip.traveller) ?? null
   const suggestions = tripRowSuggestions(
@@ -218,7 +219,7 @@ export function tripKinds(reading: CompanyReading, currency: () => string): read
       dated: 'departs',
       rows: () => {
         const workbook = reading.workbook()
-        return workbook === null ? [] : hrDooWorkbook(workbook).trips.map((file) => tripViewOf(file, nameOf(file.trip.traveller), hrDooWorkbook(workbook)))
+        return workbook === null ? [] : hrDooWorkbook(workbook).trips.map((file) => tripViewOf(file, nameOf(file.trip.traveller), hrDooWorkbook(workbook), reading.rates()))
       },
       currencyOf: currency,
     }),

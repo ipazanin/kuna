@@ -240,7 +240,7 @@ describe('warnings', () => {
   it('warns of a rate over the tax-free cap, a first leg under 30 km and a traveller not employed on the day', () => {
     const reading = read([{ ...SPLIT, km_rate: '0.60' }], [{ id: 'leg', trip: 'split', date: '2026-03-12', km: '12' }])
     const employee = director({ employee: 'alex', from: '2026-04-01' })
-    expect(tripWarnings(reading.files[0]!, employee, ruleValue)).toEqual([
+    expect(tripWarnings(reading.files[0]!, employee, ruleValue, [], employee)).toEqual([
       { kind: 'km-rate-over-cap', rate: euros(0.6), cap: euros(0.5) },
       { kind: 'first-leg-short', km: 12, shortest: 30 },
       { kind: 'not-employed' },

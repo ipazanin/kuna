@@ -18,6 +18,7 @@ import { newPseudonyms } from '../../src/shared/privacy/domain/pseudonyms'
 import type { WorkbookStore } from '../../src/shared/storage/application/createWorkbookStore'
 import type { CellValue } from '../../src/apps/company/workbook/infrastructure/workbookSnapshot'
 import { LEDGER_HEADER, browserHarness, ruleRow } from './writeBack'
+import { NO_RATES } from '../../src/shared/money/rateBook'
 
 /** The IBAN of the account no row is on yet, which the camt fixture's statement is of. */
 export const FRESH_IBAN = 'HR2923400091110000001'
@@ -133,7 +134,7 @@ export function deskPorts(given: DeskPorts = {}): CompanyOperationPorts {
     heldStatements: given.heldStatements ?? (() => []),
     setUpAnswers: setUpAnswersHeld(),
     mailDrafts: given.mailDrafts ?? mailDraftsHeld(),
-    pack: given.pack === undefined ? hrDooOperations(() => false) : given.pack,
+    pack: given.pack === undefined ? hrDooOperations({ anonymising: () => false, rates: () => NO_RATES }) : given.pack,
   }
 }
 

@@ -74,6 +74,8 @@ export interface Settings {
   readonly mailSince: CivilDate | null
   /** The counterparties the owner flagged as people, whose names the chat and the AI tasks send as aliases. */
   readonly personPayees: readonly string[]
+  /** The Google Drive folder travel orders are filed under, by year, as the app's folder picker sets it. Blank until one is picked. */
+  readonly tripFolderId: string
 }
 
 /**
@@ -203,6 +205,7 @@ export const DEFAULT_SETTINGS: Settings = {
   statementsMailSubject: '',
   mailSince: null,
   personPayees: [],
+  tripFolderId: '',
 }
 
 /** `flagged_by` values the categoriser writes, which a person's label must not reuse. */
@@ -429,6 +432,9 @@ export const COMPANY_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['invoi
 /** The key that says the books store which invoice each client payment pays. Only Kuna sets it. */
 export const CLIENT_PAYMENTS_PLACED_KEY = 'client_payments_placed'
 
+/** The key of the Drive folder travel orders are filed under. Only Google's Picker sets it. */
+export const TRIP_FOLDER_KEY = 'trip_folder_id'
+
 /** The key of the counterparties the owner flagged as people. Only a person sets it, from a row in To review. */
 export const PERSON_PAYEES_KEY = 'person_payees'
 
@@ -537,6 +543,14 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
   },
   ...BILLING_DEFINITIONS,
   ...INVOICING_DEFINITIONS,
+  {
+    key: TRIP_FOLDER_KEY,
+    label: words.settingLabels.tripFolderId,
+    note: 'The Google Drive folder travel orders are filed under, in a folder for each year, as the app’s folder picker sets it. Optional.',
+    type: 'text',
+    valueOf: (settings) => settings.tripFolderId,
+    apply: (settings, value) => ({ ...settings, tripFolderId: value.trim() }),
+  },
   {
     key: 'statements_folder',
     label: words.settingLabels.statementsFolder,

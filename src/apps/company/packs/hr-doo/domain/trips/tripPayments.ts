@@ -6,8 +6,8 @@ import { ZERO, addMoney, moneyFromCents, sumMoney } from '../../../../../../shar
 import type { Money } from '../../../../../../shared/money/money'
 import type { RateBook } from '../../../../../../shared/money/rateBook'
 import type { RuleSource } from '../payroll/payrollArithmetic'
-import type { PerDiemShare } from './perDiems'
-import { perDiemShares } from './perDiems'
+import type { PerDiemLine, PerDiemShare } from './perDiems'
+import { perDiemsOf } from './perDiems'
 import { legKilometres } from './trip'
 import type { Trip } from './trip'
 import { kmRateCapOn } from './tripDefaults'
@@ -15,8 +15,8 @@ import type { Employee } from '../employees/employees'
 import { tripRowSuggestions } from './tripBankRows'
 import type { TripBooks, TripRowSuggestion } from './tripBankRows'
 import type { TripFile } from './tripReading'
-import { tripSettlement } from './tripSettlement'
-import type { WorkedSettlement } from './tripSettlement'
+import { settlementGaps, tripSettlement } from './tripSettlement'
+import type { SettlementGap, WorkedSettlement } from './tripSettlement'
 
 /** The payments of the tax-free caps table a trip's settlement pays, by the ruleset's payment key. */
 export const TRIP_PAYMENTS = ['domestic-per-diem-over-12-hours', 'domestic-per-diem-8-to-12-hours', 'foreign-per-diem', 'private-car-business-travel', 'business-travel-cost'] as const
@@ -51,10 +51,22 @@ export function settlementPayments(settlement: WorkedSettlement): TripPayment[] 
   })
 }
 
-/** The days or kilometres of a trip that a payment's cap counts: per-diem days of its kind, or the kilometres of the legs. Zero for a payment the trip does not pay so. */
-export function tripUnitsOf(file: TripFile, payment: string, rules: RuleSource): number {
-  if (payment === 'private-car-business-travel') return file.trip.car === null ? 0 : legKilometres(file.legs)
-  return (perDiemShares(file.trip, rules) ?? []).filter((line) => perDiemPayment(line.place, line.share) === payment).length
+/** The payments of the caps table a trip's per diems are paid in. */
+const PER_DIEM_PAYMENTS: ReadonlySet<string> = new Set<TripPaymentKey>(['domestic-per-diem-over-12-hours', 'domestic-per-diem-8-to-12-hours', 'foreign-per-diem'])
+
+/**
+ * What caps a payment that a settled trip links: the trip's per-diem lines paid in that payment, each already less its meals, or for
+ * any other payment the kilometres of a private car, zero for a payment the trip does not pay by the unit. While the per diems wait,
+ * such as for the ECB rate of a per diem in dollars, it says what for.
+ */
+export type TripCap =
+  { readonly kind: 'per-diems'; readonly lines: readonly PerDiemLine[] } | { readonly kind: 'units'; readonly units: number } | { readonly kind: 'waits'; readonly gaps: readonly SettlementGap[] }
+
+export function tripCapOf(file: TripFile, payment: string, rules: RuleSource, rates: RateBook): TripCap {
+  if (!PER_DIEM_PAYMENTS.has(payment)) return { kind: 'units', units: payment === 'private-car-business-travel' && file.trip.car !== null ? legKilometres(file.legs) : 0 }
+  const perDiems = perDiemsOf(file.trip, rules, rates)
+  if (perDiems === null) return { kind: 'waits', gaps: settlementGaps(file, rules, rates) }
+  return { kind: 'per-diems', lines: perDiems.lines.filter((line) => perDiemPayment(line.place, line.share) === payment) }
 }
 
 /** The trip's line under JOPPD code 17: per diems and private car kilometres up to the tax-free amounts, in the month the trip was settled. */

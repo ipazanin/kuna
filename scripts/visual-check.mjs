@@ -547,7 +547,7 @@ import {
   chatOutOfCreditFlowIn,
 } from './support/setUpChatFlows.mjs'
 import { figureAskFlowIn } from './support/figureAskFlows.mjs'
-import { overpaidFilingFlowIn, tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
+import { overpaidFilingFlowIn, tripDriveFilingFlowIn, tripsFlow, tripsFlowIn } from './support/tripFlows.mjs'
 import { categoriesDonationsFlowIn, yearDonationsFlowIn } from './support/donationFlows.mjs'
 import { companyChatAnonymiseFlowIn, companyChatCardFlowIn, companyReviewAskFlowIn, kunaChatThemeFlowIn } from './support/companyChatFlows.mjs'
 import { appChatCardFlowIn, appChatLawFlowIn } from './support/appsChatFlows.mjs'
@@ -2205,7 +2205,6 @@ const SOURCE_SCREENS = [
     title: 'Travel order 3/2026',
     charts: 0,
     shows: ['The settlement waits for', 'above the tax-free', 'No leg yet.'],
-    cards: false,
   },
   {
     name: 'trips-waiting-croatian',
@@ -2214,7 +2213,6 @@ const SOURCE_SCREENS = [
     title: 'Putni nalog 3/2026',
     charts: 0,
     shows: ['Obračun čeka', 'veća je od neoporezivih', 'Još nema dionica.'],
-    cards: false,
   },
   {
     name: 'trips-dollars',
@@ -2231,6 +2229,58 @@ const SOURCE_SCREENS = [
     title: 'Putni nalog 4/2026',
     charts: 0,
     shows: ['Dnevnice', 'Umanjeno za predujam', 'Za isplatu', 'Bankovne stavke', 'Razvrstaj po obračunu'],
+  },
+  {
+    name: 'trips-paid-as-advance',
+    query: 'fake=one-employee',
+    hash: '#/company/trips?trip=00000000-0000-4000-8000-002000000005',
+    title: 'Travel order 4/2026',
+    charts: 0,
+    shows: ['ticket of 30 Sep 2026 is also among the costs the owner paid privately, on Owner.'],
+    cards: false,
+  },
+  {
+    name: 'trips-paid-as-advance-croatian',
+    query: 'fake=one-employee&lang=hr',
+    hash: '#/company/trips?trip=00000000-0000-4000-8000-002000000005',
+    title: 'Putni nalog 4/2026',
+    charts: 0,
+    shows: ['među troškovima koje je vlasnik platio privatno'],
+    cards: false,
+  },
+  {
+    name: 'trips-fuel',
+    query: 'fake=one-employee',
+    hash: '#/company/trips?trip=00000000-0000-4000-8000-002000000004',
+    title: 'Travel order 3/2026',
+    charts: 0,
+    shows: ['whose kilometres already pay for the car'],
+    cards: false,
+  },
+  {
+    name: 'trips-fuel-croatian',
+    query: 'fake=one-employee&lang=hr',
+    hash: '#/company/trips?trip=00000000-0000-4000-8000-002000000004',
+    title: 'Putni nalog 3/2026',
+    charts: 0,
+    shows: ['čija kilometraža već plaća automobil'],
+    cards: false,
+  },
+  {
+    name: 'owner-owed-on-trip',
+    query: 'fake=one-employee',
+    hash: '#/company/owner?tab=owed&p=all',
+    title: 'Owner',
+    charts: 0,
+    shows: ['Travel order 4/2026 (New York, United States) also pays this cost back.', 'Open travel order 4/2026 (New York, United States)'],
+  },
+  {
+    name: 'owner-owed-on-trip-croatian',
+    query: 'fake=one-employee&lang=hr',
+    hash: '#/company/owner?tab=owed&p=all',
+    title: 'Vlasnik',
+    charts: 0,
+    shows: ['Putni nalog 4/2026 (New York, Sjedinjene Američke Države) također vraća ovaj trošak.'],
   },
   {
     name: 'overview-one-employee',
@@ -7004,6 +7054,15 @@ const FLOWS = [
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: `&fake=one-employee-overpaid${language === 'en' ? '' : '&lang=hr'}` },
+  })),
+  ...['en', 'hr'].map((language) => ({
+    name: language === 'en' ? 'trips-drive-filing' : 'trips-drive-filing-croatian',
+    hash: '#/company/trips?trip=00000000-0000-4000-8000-002000000001',
+    title: language === 'en' ? 'Travel order 1/2026' : 'Putni nalog 1/2026',
+    run: tripDriveFilingFlowIn(language),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: `&fake=one-employee${language === 'en' ? '' : '&lang=hr'}` },
   })),
   { name: 'onboarding-drive', hash: '#/company/start', title: 'Company', run: onboardingDriveFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },
   { name: 'onboarding-pack', hash: '#/company/start', title: 'Company', run: onboardingPackFlow, modes: ['drive'], queries: { drive: '&fake=empty' } },

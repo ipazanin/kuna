@@ -48,6 +48,8 @@ export interface FakeStaff {
   readonly trips: Readonly<Record<string, readonly FakeFields[]>>
   /** The rows that paid the travel orders' advances and payouts. */
   readonly tripPayments: readonly FakeTripPayment[]
+  /** Owner advances for a cost a trip already pays back, so the trip page and the Owner screen show the match. Only books on the items tab hold them. */
+  readonly ownerAdvances: readonly FakeFields[]
   /** Categories the trips' rows are filed in, each with its roles and its label in the language on screen. */
   readonly categories: readonly (readonly [category: string, roles: string, label: string])[]
 }
@@ -295,7 +297,20 @@ const PAYMENTS_PLACED = [CLIENT_PAYMENTS_PLACED_KEY, true] as const
 export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): Readonly<Record<string, readonly RecordFields[]>> {
   const before = fakeWorkbookRecordsBeforeItems(source, staff, giving)
   const records = onItemsTab(before)
-  return { ...records, setting: [...(records.setting ?? []), recordFields(setting(PAYMENTS_PLACED))], item: withInvoicePayments(before, records.item ?? []) }
+  return {
+    ...records,
+    setting: [...(records.setting ?? []), recordFields(setting(PAYMENTS_PLACED))],
+    item: withInvoicePayments(before, records.item ?? []),
+    'hr-doo.owner-advance': withStaffAdvances(records['hr-doo.owner-advance'] ?? [], staff),
+  }
+}
+
+/**
+ * The owner advances with the staff's after them, which books on the items tab keep open. Books from before items leave them out,
+ * since their matching on every read would pay an open advance with the parking fee refund that no advance accounts for.
+ */
+function withStaffAdvances(advances: readonly RecordFields[], staff: FakeStaff | null): readonly RecordFields[] {
+  return [...advances, ...(staff?.ownerAdvances ?? []).map((fields, index) => recordFields(withFixedId('hr-doo.owner-advance', fields, advances.length + index)))]
 }
 
 /**

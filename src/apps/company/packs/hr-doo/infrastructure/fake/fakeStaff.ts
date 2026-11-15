@@ -35,6 +35,7 @@ interface FakeStaffing {
   /** The travel orders with their legs and costs, by kind. */
   readonly trips: Readonly<Record<string, readonly FakeFields[]>>
   readonly tripPayments: readonly FakeTripPayment[]
+  readonly ownerAdvances: readonly FakeFields[]
 }
 
 const MEAL = 100
@@ -60,7 +61,7 @@ const CAR = { car: 'Made-up Estate', plate: 'ZG-000-XX', km_rate: '0.50' } as co
 /**
  * The owner's trips: Zadar by private car over two days with one lunch paid, a ten-hour day in Osijek by
  * train, London by plane with the ticket paid privately and the hotel on the company card, an order to Rijeka
- * at a km rate over the tax-free cap with an advance whose days are over, which waits for its settlement, and
+ * at a km rate over the tax-free cap with fuel on the company card and an advance whose days are over, which waits for its settlement, and
  * New York by plane, whose per diem the table states in dollars, and a day by train to Varaždin settled in the same month as Zadar,
  * so March reports two trips. The code 17 lines of Osijek, Zadar and Varaždin are reported, and London's is late.
  */
@@ -200,6 +201,7 @@ const ALEX_TRIPS: Readonly<Record<string, readonly FakeFields[]>> = {
       currency: 'GBP',
       paid_by: 'company',
     },
+    { id: tripId(22, 6), trip: RIJEKA, date: '2026-10-01', kind: 'fuel', description: 'Fuel on the way to Rijeka', amount: amountText(moneyFromAmount(58.6)), paid_by: 'company' },
     { id: tripId(22, 5), trip: NEW_YORK, date: '2026-09-30', kind: 'ticket', description: 'Return flight Zagreb to New York', amount: amountText(moneyFromAmount(742.1)), paid_by: 'traveller' },
   ],
 }
@@ -240,6 +242,12 @@ const ALEX_OVERPAID_TRIP_PAYMENTS: readonly FakeTripPayment[] = ALEX_TRIP_PAYMEN
 )
 
 /**
+ * New York's flight, which the owner also entered as an owner advance after the trip, so the trip and the Owner screen warn that the
+ * company would pay it back twice. It is dated after the last payment to the owner, so no repayment is matched to it.
+ */
+const ALEX_OWNER_ADVANCES: readonly FakeFields[] = [{ date: '2026-10-09', amount: amountText(moneyFromAmount(742.1)), description: 'Flight to New York, paid privately', category: 'travel' }]
+
+/**
  * The made-up staffs by variant. `one-employee` is the owner alone at the director floor, as one
  * person's company runs, and `one-employee-overpaid` the same with London's payout linked and paying
  * more than the trip. `five-employees` adds four ordinary employees on agreed salaries in three
@@ -251,12 +259,14 @@ const STAFFINGS: Readonly<Record<string, FakeStaffing>> = {
     healthShort: {},
     trips: ALEX_TRIPS,
     tripPayments: ALEX_TRIP_PAYMENTS,
+    ownerAdvances: ALEX_OWNER_ADVANCES,
   },
   'one-employee-overpaid': {
     employees: [ALEX],
     healthShort: {},
     trips: ALEX_TRIPS,
     tripPayments: ALEX_OVERPAID_TRIP_PAYMENTS,
+    ownerAdvances: ALEX_OWNER_ADVANCES,
   },
   'five-employees': {
     employees: [
@@ -269,6 +279,7 @@ const STAFFINGS: Readonly<Record<string, FakeStaffing>> = {
     healthShort: { '2026-09': 10 },
     trips: {},
     tripPayments: [],
+    ownerAdvances: [],
   },
 }
 
@@ -292,6 +303,7 @@ export function fakeStaffOf(variant: string | null): FakeStaff | null {
     payday: (paidIn, worked) => paydayRows(staffing, paidIn, worked),
     trips: staffing.trips,
     tripPayments: staffing.tripPayments,
+    ownerAdvances: staffing.ownerAdvances,
     categories: staffing.tripPayments.length === 0 ? [] : TRIP_CATEGORIES,
   }
 }

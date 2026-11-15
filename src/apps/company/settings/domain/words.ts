@@ -132,6 +132,7 @@ export const en = {
     reviewLabel: 'Review label',
     cardIbans: 'Card settlement IBANs',
     statementsFolder: 'Statements folder',
+    tripFolderId: 'Travel orders folder',
     statementsSync: 'File new statements on sync',
     statementsMailFrom: 'The bank mails statements from',
     statementsMailSubject: 'Subject words',
@@ -167,6 +168,7 @@ export const en = {
   /** Sentences that name a setting, kept beside its label so a rename sees them. */
   settingSentences: {
     invoiceFolderSaved: 'Invoice folder saved',
+    tripFolderSaved: 'Travel orders folder saved',
     ownerPayOff: 'The owner-pay module is off',
   },
 }
@@ -260,6 +262,7 @@ export const hr: Translation<typeof en> = {
     reviewLabel: 'Oznaka provjere',
     cardIbans: 'IBAN-ovi za namiru kartica',
     statementsFolder: 'Mapa izvoda',
+    tripFolderId: 'Mapa putnih naloga',
     statementsSync: 'Upisuj nove izvode pri sinkronizaciji',
     statementsMailFrom: 'Banka šalje izvode s adresa',
     statementsMailSubject: 'Riječi u predmetu',
@@ -294,6 +297,7 @@ export const hr: Translation<typeof en> = {
   },
   settingSentences: {
     invoiceFolderSaved: 'Mapa računa je spremljena',
+    tripFolderSaved: 'Mapa putnih naloga je spremljena',
     ownerPayOff: 'Modul isplata vlasniku je isključen',
   },
 }

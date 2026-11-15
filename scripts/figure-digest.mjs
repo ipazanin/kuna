@@ -4,7 +4,7 @@
  * of them. It never prints a figure, so it is safe on a real export, and two trees compare with diff.
  *
  *   npm run check:figures -- --fake <drive, browser, browser-donations, one-employee or five-employees> [--today yyyy-mm-dd]
- *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--rates <path to a Kuna exchange rates file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --loans <path to a Kuna Loans file> [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-loans <sample, house-and-car or equal-principal> [--today yyyy-mm-dd]
  *   npm run check:figures -- --investments <path to a Kuna Investments file> [--investments-prices <path to its prices file>] [--today yyyy-mm-dd]
@@ -18,8 +18,8 @@
  * company's, in that order. With two or more, a last group adds them up as Net worth does. An Investments file
  * without its prices file is valued with no closes and no rates, and an Assets file without a saved DZS answer as if
  * the house price index failed. The fake Assets sets take the fake index. An asset's loan is read from the Loans input,
- * and without one Loans counts as not set up. A Spending file reads its rates from the
- * exchange rates file, and without one leaves its foreign rows unrated. The fake Spending sets take the fake ECB through
+ * and without one Loans counts as not set up. A Company or a Spending file reads its rates from the
+ * exchange rates file, and without one leaves its foreign figures unrated. The fake Company and Spending sets take the fake ECB through
  * the rates file, as the page does.
  */
 
@@ -204,7 +204,6 @@ import { SPENDING_APP } from '../src/apps/spending/workbook/domain/spendingBooks
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
 import { decodeRatesFile, emptyRatesFile } from '../src/shared/rates/domain/ratesFile.ts'
 import { everydayBook } from '../src/shared/rates/domain/rateBooks.ts'
-import { NO_RATES } from '../src/shared/money/rateBook.ts'
 import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRatesState.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { DEFAULT_MONEY_FORMAT } from '../src/shared/money/moneyFormat.ts'
@@ -292,6 +291,7 @@ if (companyAsked) {
   const forecastOf = (year) => forecastYear(books, year, asOf)
   // Where the forecast waits for a fact, Year shows what it needs in its place, and a group holds that need instead of figures.
   const forecastWaits = forecastNeed(books)
+  const rates = (await ratesOfInput(installedPack().ratesDemand(booked), options.fake !== undefined)).everyday
 
   group('read.records', companyFiguresOf(records))
   // The categories' other fields, which the digest of a category leaves out, so a change to the tab still shows here.
@@ -310,7 +310,7 @@ if (companyAsked) {
   group('overview.months', months)
   group('overview.headline', () => headline(months))
   group('overview.euro-split', () => euroSplit(bucketTotals(transactionsInPeriod(rows, { preset: 'l12' }, window)), { preset: 'l12' }))
-  group('overview.waiting', () => waitingJobs(booked, raw.transactions))
+  group('overview.waiting', () => waitingJobs(booked, raw.transactions, rates))
   group('overview.pack-waiting', () => packWaiting(books, asOf))
 
   group('review.queue', () =>
@@ -410,17 +410,21 @@ if (companyAsked) {
   })
 
   const salaryBooks = books
-  const reconciliation = salaryReconciliation(salaryBooks)
+  const reconciliation = salaryReconciliation(salaryBooks, rates)
   group('salaries.paydays', reconciliation)
   group('salaries.years', () => paydayYears(reconciliation).map((year) => salaryYearRows(reconciliation, year, null, ledgerWindowOf(salaryBooks.transactions).partMonth)))
 
   if (salaryBooks.trips.length > 0) {
-    group('trips.settlements', () => salaryBooks.trips.map((file) => [file.trip.number, tripSettlement(file, ruleValue)]))
-    group('trips.warnings', () => salaryBooks.trips.map((file) => tripWarnings(file, salaryBooks.employees.find((employee) => employee.slug === file.trip.traveller) ?? null, ruleValue)))
-    group('trips.code-17', () => tripReports(salaryBooks.trips, ruleValue, NO_RATES))
+    group('trips.settlements', () => salaryBooks.trips.map((file) => [file.trip.number, tripSettlement(file, ruleValue, rates)]))
+    group('trips.warnings', () =>
+      salaryBooks.trips.map((file) =>
+        tripWarnings(file, salaryBooks.employees.find((employee) => employee.slug === file.trip.traveller) ?? null, ruleValue, salaryBooks.ownerAdvances, salaryBooks.director),
+      ),
+    )
+    group('trips.code-17', () => tripReports(salaryBooks.trips, ruleValue, rates))
     group('trips.bank-rows', () =>
       salaryBooks.trips.map((file) => {
-        const settlement = tripSettlement(file, ruleValue)
+        const settlement = tripSettlement(file, ruleValue, rates)
         const worked = settlement.kind === 'worked' ? settlement : null
         const traveller = salaryBooks.employees.find((employee) => employee.slug === file.trip.traveller) ?? null
         const trips = salaryBooks.trips.map((entry) => entry.trip)
@@ -680,10 +684,10 @@ function assetsGroups(add, loansBook) {
   return () => assetsHubFigures(workbook, today, index, loans)
 }
 
-/** The rates of a Spending input as the page holds them: the fake ECB's through the rates file for a fake set, else the rates file given, or none. */
-async function ratesOfInput(workbook) {
-  if (options['fake-spending'] !== undefined) {
-    return fakeRatesState(ratesNeeded(workbook), today)
+/** The rates an input needs as the page holds them: the fake ECB's through the rates file for a fake set, else the rates file given, or none. */
+async function ratesOfInput(demand, fake) {
+  if (fake) {
+    return fakeRatesState(demand, today)
   }
   if (options.rates === undefined) {
     return { everyday: everydayBook(emptyRatesFile()), failed: false }
@@ -730,7 +734,7 @@ async function spendingGroups(addGroup, loansBook) {
   )
   add('spending.read.problems', workbook.problems)
   add('spending.published.links', () => rowLinksOf(workbook))
-  const rates = await ratesOfInput(workbook)
+  const rates = await ratesOfInput(ratesNeeded(workbook), options['fake-spending'] !== undefined)
   for (const [place, account] of workbook.accounts.entries()) {
     const { balance, euros } = accountOnDay(account, workbook.transactions, today, rates.everyday)
     add(`spending.account-${place + 1}.balance`, [balance, euros])

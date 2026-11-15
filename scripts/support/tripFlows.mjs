@@ -113,4 +113,39 @@ export function overpaidFilingFlowIn(language) {
   }
 }
 
+/**
+ * Zadar's order filed on the fake Drive: the fake Picker, the browser's confirm, picks the travel orders folder and then every
+ * folder inside it, and the toast names the PDF and the xlsx filed in the folder of 2026.
+ */
+export function tripDriveFilingFlowIn(language) {
+  const words = TRIP_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const asked = []
+    const answer = async (dialog) => {
+      asked.push(dialog.message())
+      await dialog.accept()
+    }
+    page.on('dialog', answer)
+    try {
+      await shows(page, '[data-testid="trip-file-drive"]', 'the order of 1/2026 offers no Save to Drive')
+      await inspect?.('the order with Save to Drive')
+      await shoot('trips-drive-button')
+      await pressSelector(page, press, '[data-testid="trip-file-drive"]')
+      const filed = words.downloads.filed(['putni-nalog-1-2026.pdf', 'putni-nalog-1-2026.xlsx'])
+      await page
+        .waitForFunction((wanted) => document.body.innerText.includes(wanted), { timeout: 20_000 }, filed)
+        .catch(() => {
+          throw new Error(`Save to Drive did not say "${filed}". The Picker asked: ${asked.join(' | ')}`)
+        })
+      if (!asked.some((message) => message.includes(words.downloads.pickFolder))) throw new Error('Save to Drive did not ask for the travel orders folder')
+      await delay(400)
+      await inspect?.('the order filed on Drive')
+      await shoot('trips-drive-filed')
+    } finally {
+      page.off('dialog', answer)
+    }
+  }
+}
+
 export const tripsFlow = tripsFlowIn('en')

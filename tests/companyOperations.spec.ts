@@ -37,6 +37,7 @@ import { fakeCompanyBooks, readingOf } from './fixtures/companyChatBooks'
 import { forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { exampleInput } from './fixtures/exampleInput'
+import { NO_RATES } from '../src/shared/money/rateBook'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -564,7 +565,7 @@ describe('settings, categories and accounts', () => {
   })
 
   it('names every key it may set as its screen does, never by the key the settings tab stores', () => {
-    const setSetting = companyOperations(deskPorts({ pack: hrDooOperations(() => false) })).find((operation) => operation.name === 'set-setting')!
+    const setSetting = companyOperations(deskPorts({ pack: hrDooOperations({ anonymising: () => false, rates: () => NO_RATES }) })).find((operation) => operation.name === 'set-setting')!
     const key = setSetting.input.type === 'object' ? setSetting.input.properties['key'] : undefined
     const keys = key !== undefined && 'enum' in key ? (key.enum as readonly string[]) : []
     const names = packDescriber(fakeCompanyBooks().workbook).settingNames

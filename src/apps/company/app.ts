@@ -7,6 +7,8 @@ import { forgetSetUpAnswer, hasSetUpAnswer, keepSetUpAnswer } from '../../shared
 import { tokenFor } from '../../shared/google/googleAuth'
 import { loadWorkbookChoice } from '../../shared/storage/infrastructure/workbookChoice'
 import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
+import { useRates } from '../../shared/rates/application/pageRates'
+import { everydayRates } from '../../shared/rates/domain/ratesState'
 import { bindFiltersToRouter } from './filters/application/filterStore'
 import { COMPANY_HOME_CARD } from './home/presentation/companyHomeCard'
 import { companyHubFigures } from './home/presentation/companyHubFigures'
@@ -48,6 +50,7 @@ const { state } = useWorkbook()
 const { lookRight: categoriesLookRight } = useCategoriesLookRight()
 const { offered: deliveryOffered } = useDeliveryOffer()
 const settings = useSettings()
+const rates = useRates()
 
 /** The company's books, figures and setup, with the Croatian d.o.o. pack installed. */
 export const companyApp: AppContribution = {
@@ -123,7 +126,7 @@ export const companyApp: AppContribution = {
         gmail: () => gmailForDrafts(state.workbook?.source === 'drive'),
         askGmail: () => tokenFor('gmail.compose', null),
       },
-      pack: hrDooOperations(anonymisingNow),
+      pack: hrDooOperations({ anonymising: anonymisingNow, rates: () => everydayRates(rates.value) }),
     }
     return companyAssistant(
       HR_DOO_ASSISTANT,
@@ -131,6 +134,7 @@ export const companyApp: AppContribution = {
         status: () => (state.workbook !== null ? 'open' : state.status === 'opening' ? 'opening' : 'none'),
         workbook: () => state.workbook,
         records: () => state.records,
+        rates: () => everydayRates(rates.value),
       },
       () => [...(state.records === null ? [] : installedPack().employees(state.records)), ...(state.workbook?.settings.personPayees ?? []).map((name) => ({ name, employee: false, ibans: [] }))],
       { proposer: companyProposer(store, ports, file), acceptance: companyAcceptance(store, ports, file) },

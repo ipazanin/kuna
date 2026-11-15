@@ -1,7 +1,8 @@
 import { reactive, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createFakeInvoiceGoogle, FAKE_INVOICE_FOLDER } from '../src/apps/company/invoicing/infrastructure/fake/fakeInvoiceGoogle'
+import { FAKE_INVOICE_FOLDER } from '../src/apps/company/documents/infrastructure/fake/fakeFilingDrive'
+import { createFakeInvoiceGoogle } from '../src/apps/company/invoicing/infrastructure/fake/fakeInvoiceGoogle'
 import type { FakeInvoiceGoogle } from '../src/apps/company/invoicing/infrastructure/fake/fakeInvoiceGoogle'
 import type { InvoiceRunMode } from '../src/apps/company/invoicing/presentation/useInvoiceRun'
 import { useInvoiceRun } from '../src/apps/company/invoicing/presentation/useInvoiceRun'
@@ -29,10 +30,8 @@ const store = vi.hoisted(() => ({
 const google = vi.hoisted(() => ({ session: null as unknown as FakeInvoiceGoogle }))
 
 vi.mock('../src/apps/company/workbook/application/workbookStore', () => ({ useWorkbook: () => store }))
-vi.mock('../src/apps/company/invoicing/application/invoiceGoogle', () => ({
-  invoiceDrive: async () => google.session.drive,
-  invoiceDrafts: async () => google.session.drafts,
-}))
+vi.mock('../src/apps/company/documents/application/filingDrive', () => ({ filingDrive: async () => google.session.drive }))
+vi.mock('../src/apps/company/invoicing/application/invoiceGoogle', () => ({ invoiceDrafts: async () => google.session.drafts }))
 vi.mock('../src/apps/company/documents/infrastructure/documentFonts', () => ({ documentFonts: async () => ({}) }))
 vi.mock('../src/apps/company/invoicing/infrastructure/invoicePdf', () => ({
   renderInvoicePdf: async (document: { number: string }) => new TextEncoder().encode(document.number),
@@ -106,7 +105,7 @@ describe('the checks before an invoice is made', () => {
     await run.make()
 
     expect(run.stage.value).toEqual({ kind: 'edit', message: 'Saved by a newer version.' })
-    expect(google.session.nodes.filter((node) => node.pdf !== undefined)).toEqual([])
+    expect(google.session.nodes.filter((node) => node.content !== undefined)).toEqual([])
     expect(google.session.savedDrafts).toEqual([])
     expect(store.written).toEqual([])
     run.dispose()

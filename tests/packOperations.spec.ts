@@ -55,6 +55,7 @@ import { browserHarness, forgetCaches } from './fixtures/writeBack'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
 import { stepOf } from './fixtures/operationSteps'
 import { exampleInput } from './fixtures/exampleInput'
+import { NO_RATES } from '../src/shared/money/rateBook'
 
 const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
@@ -204,7 +205,7 @@ async function packDesk(books = fakeWorkbookDocument): Promise<PackDesk> {
     }
   })
   const desk = { anonymising: false } as { anonymising: boolean }
-  return Object.assign(desk, { ...companyChat(store, deskPorts({ pack: hrDooOperations(() => desk.anonymising) }), false), store })
+  return Object.assign(desk, { ...companyChat(store, deskPorts({ pack: hrDooOperations({ anonymising: () => desk.anonymising, rates: () => NO_RATES }) }), false), store })
 }
 
 /** Fields Kuna keeps by itself or shows through another field, which a card leaves off. */
@@ -767,7 +768,7 @@ async function unreadableAssetDesk(): Promise<PackDesk> {
   const assets = (document.records['hr-doo.asset'] ?? []).map((record, at) => (at === 0 ? { ...record, cost_net: 'lots' } : record))
   const { store } = await browserHarness(used, { ...document, records: { ...document.records, 'hr-doo.asset': assets } })
   const desk = { anonymising: false } as { anonymising: boolean }
-  return Object.assign(desk, { ...companyChat(store, deskPorts({ pack: hrDooOperations(() => desk.anonymising) }), false), store })
+  return Object.assign(desk, { ...companyChat(store, deskPorts({ pack: hrDooOperations({ anonymising: () => desk.anonymising, rates: () => NO_RATES }) }), false), store })
 }
 
 describe('a row the editor cannot read', () => {

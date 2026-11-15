@@ -58,6 +58,8 @@ export const en = {
     bucket: (taxClass: string, buckets: readonly string[], bucket: string) =>
       `It carries "${taxClass}", which sits in ${listInWords(buckets, 'or')}, and the category sits in ${bucket}. Change one of them on Settings, Categories.`,
     newerClass: (carried: string, newer: string) => `It carries "${carried}", and new books give it "${newer}". Pick that one on Settings, Categories.`,
+    newerRoles: (roles: readonly string[]) =>
+      `New books also give it ${listInWords(roles.map((role) => `"${role}"`))}, which puts its costs on the profit and loss line the accountant uses. Add it on Settings, Categories.`,
   },
 }
 
@@ -102,6 +104,8 @@ export const hr: Translation<typeof en> = {
     bucket: (taxClass, buckets, bucket) =>
       `Ima porezni tretman „${taxClass}”, koji ide u skupinu ${listInWords(buckets, 'or')}, a kategorija je u skupini ${bucket}. Promijenite jedno od toga u Postavkama, Kategorije.`,
     newerClass: (carried, newer) => `Ima porezni tretman „${carried}”, a nova datoteka ovoj kategoriji daje „${newer}”. Odaberite taj tretman u Postavkama, Kategorije.`,
+    newerRoles: (roles) =>
+      `Nova datoteka ovoj kategoriji daje i ${listInWords(roles.map((role) => `„${role}”`))}, pa njezini troškovi idu u redak računa dobiti i gubitka koji koristi računovođa. Dodajte to u Postavkama, Kategorije.`,
   },
 }
 

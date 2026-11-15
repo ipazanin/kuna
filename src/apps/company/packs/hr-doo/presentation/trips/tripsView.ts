@@ -10,6 +10,8 @@ import type { RateBook } from '../../../../../../shared/money/rateBook'
 import { amountForTyping, typedAmount } from '../../../../../../shared/money/typedAmount'
 import { amountText } from '../../../../../../shared/storage/domain/recordFields'
 import { countryName } from '../../../../../../shared/text/countryName'
+import { uncapitalised } from '../../../../../../shared/text/capitalised'
+import type { OwnerAdvance } from '../../../../workbook/domain/workbook'
 import type { Employee } from '../../domain/employees/employees'
 import { HOME_COUNTRY } from '../../domain/trips/trip'
 import type { Trip } from '../../domain/trips/trip'
@@ -60,6 +62,11 @@ export function destinationText(trip: Trip): string {
   return trip.country === HOME_COUNTRY ? trip.destination : `${trip.destination}, ${countryName(trip.country)}`
 }
 
+/** A trip by its number and where it went, such as "1/2026 (Zadar)". */
+export function tripLabel(trip: Trip): string {
+  return `${trip.number} (${destinationText(trip)})`
+}
+
 /** The days the trip took, or the days its order approves while the traveller has not left. */
 export function tripDates(trip: Trip): string {
   const from = trip.left?.day ?? trip.departs
@@ -108,13 +115,17 @@ export function warningText(warning: TripWarning): string {
       return words.warnings.firstLegShort(warning.km, warning.shortest)
     case 'not-employed':
       return words.warnings.notEmployed
+    case 'fuel-with-kilometres':
+      return words.warnings.fuelWithKilometres(formatMoney(warning.cost.amount), dayLabel(warning.cost.date))
+    case 'paid-as-owner-advance':
+      return words.warnings.paidAsOwnerAdvance(formatMoney(warning.cost.amount), uncapitalised(words.costKinds[warning.cost.kind]), dayLabel(warning.cost.date))
   }
 }
 
 /** The warnings of a trip, in words. */
-export function tripWarningTexts(file: TripFile, employees: readonly Employee[]): string[] {
+export function tripWarningTexts(file: TripFile, employees: readonly Employee[], advances: readonly OwnerAdvance[], director: Employee | null): string[] {
   const traveller = employees.find((employee) => employee.slug === file.trip.traveller) ?? null
-  return tripWarnings(file, traveller, ruleValue).map(warningText)
+  return tripWarnings(file, traveller, ruleValue, advances, director).map(warningText)
 }
 
 /** A span of minutes in hours and minutes, such as "10 h 30 min". */

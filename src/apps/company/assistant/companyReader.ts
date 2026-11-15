@@ -28,6 +28,7 @@ import type { MonthKey } from '../../../shared/calendar/monthKey'
 import { EURO, currencyCodeOf } from '../../../shared/money/currencyCode'
 import { ZERO, subtractMoney } from '../../../shared/money/money'
 import type { Money } from '../../../shared/money/money'
+import type { RateBook } from '../../../shared/money/rateBook'
 import type { FieldDocs } from '../../../shared/privacy/domain/exposure'
 import { ruleConditionValues } from './ruleConditionFields'
 import type { RuleConditionValues } from './ruleConditionFields'
@@ -41,6 +42,8 @@ export interface CompanyReading {
   workbook(): Workbook | null
   /** The records of every kind, the pack's among them. */
   records(): WorkbookRecords | null
+  /** The ECB rates a figure in another currency converts at, as the screens read them. */
+  rates(): RateBook
 }
 
 /** What a pack adds to what the chat reads of the company: its kinds, its settings keys, its reports, and the rules behind its build-ups. */

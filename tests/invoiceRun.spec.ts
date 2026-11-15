@@ -1,10 +1,13 @@
 import { PDFDocument } from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 
-import { continueRun, locateFiling, pickerTitleFor, runStepsOf } from '../src/apps/company/invoicing/application/invoiceRun'
-import type { DriveEntry, RegisterChange, RunPlan, RunPorts } from '../src/apps/company/invoicing/application/invoiceRun'
+import { locateFiling, pickerTitleFor } from '../src/apps/company/documents/application/driveFiling'
+import type { DriveEntry } from '../src/apps/company/documents/application/driveFiling'
+import { continueRun, runStepsOf } from '../src/apps/company/invoicing/application/invoiceRun'
+import type { RegisterChange, RunPlan, RunPorts } from '../src/apps/company/invoicing/application/invoiceRun'
 import { DEFAULT_FILE_PATH, filingPathOf } from '../src/apps/company/invoicing/domain/invoiceFiling'
-import { createFakeInvoiceGoogle, FAKE_INVOICE_FOLDER } from '../src/apps/company/invoicing/infrastructure/fake/fakeInvoiceGoogle'
+import { FAKE_INVOICE_FOLDER } from '../src/apps/company/documents/infrastructure/fake/fakeFilingDrive'
+import { createFakeInvoiceGoogle } from '../src/apps/company/invoicing/infrastructure/fake/fakeInvoiceGoogle'
 import { renderInvoicePdf } from '../src/apps/company/invoicing/infrastructure/invoicePdf'
 import { documentFontFiles } from './fixtures/documentFonts'
 import { DEFAULT_SETTINGS } from '../src/apps/company/settings/domain/settings'
@@ -122,7 +125,7 @@ describe('the run', () => {
     const { google } = await yearsPicked()
     const year = (await google.drive.children(FAKE_INVOICE_FOLDER.id))[0] as DriveEntry
     const month = await google.drive.createFolder(year.id, 'made-here')
-    await google.drive.createPdf(month.id, PATH.fileName, new Uint8Array([1]))
+    await google.drive.createFile(month.id, PATH.fileName, new Uint8Array([1]), 'application/pdf')
     const plan = planFor({ filing: { folderId: month.id, toCreate: [], fileName: PATH.fileName, existing: null } })
     const steps = runStepsOf(plan)
     await continueRun(plan, steps, portsWith(google.drive, google.drafts, async () => undefined).ports)
@@ -160,10 +163,10 @@ describe('the run', () => {
     let uploads = 0
     const drive = {
       ...google.drive,
-      async createPdf(folderId: string, name: string, pdf: Uint8Array) {
+      async createFile(folderId: string, name: string, pdf: Uint8Array, mimeType: string) {
         uploads += 1
         if (uploads === 1) throw new Error('503 from /upload/drive/v3/files: backend error')
-        return google.drive.createPdf(folderId, name, pdf)
+        return google.drive.createFile(folderId, name, pdf, mimeType)
       },
     }
     const plan = planFor()
@@ -180,7 +183,7 @@ describe('the run', () => {
     const { google } = await yearsPicked()
     const year = (await google.drive.children(FAKE_INVOICE_FOLDER.id))[0] as DriveEntry
     const month = await google.drive.createFolder(year.id, 'made-here')
-    const old = await google.drive.createPdf(month.id, PATH.fileName, new Uint8Array([1]))
+    const old = await google.drive.createFile(month.id, PATH.fileName, new Uint8Array([1]), 'application/pdf')
     const plan = planFor({ replace: true, register: null, filing: { folderId: month.id, toCreate: [], fileName: PATH.fileName, existing: old } })
     const steps = runStepsOf(plan)
     await continueRun(plan, steps, portsWith(google.drive, google.drafts, async () => undefined).ports)
@@ -188,7 +191,7 @@ describe('the run', () => {
       ['file', 'done'],
       ['draft', 'done'],
     ])
-    expect(google.nodes.find((node) => node.id === old.id)?.pdf).toEqual(plan.pdf)
+    expect(google.nodes.find((node) => node.id === old.id)?.content).toEqual(plan.pdf)
     expect(steps[1]!.note).toContain('Delete the earlier draft')
   })
 })

@@ -16,7 +16,7 @@ import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, rolesOfText 
 import type { CategoryDraft } from '../../settings/domain/categoryDrafts'
 import { knownRoles } from '../../settings/domain/categoryGuards'
 import type { MadeDraft } from '../../settings/domain/recordDrafts'
-import { CLIENT_PAYMENTS_PLACED_KEY, PERSON_PAYEES_KEY, SETTING_DEFINITIONS, readSettingsTab, settingsErrors, unreadSettingKeys } from '../../settings/domain/settings'
+import { CLIENT_PAYMENTS_PLACED_KEY, PERSON_PAYEES_KEY, SETTING_DEFINITIONS, TRIP_FOLDER_KEY, readSettingsTab, settingsErrors, unreadSettingKeys } from '../../settings/domain/settings'
 import { IMPORT_PROFILE_PREFIX } from '../../imports/domain/importProfile'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { displayNamesOf } from '../../workbook/domain/displayName'
@@ -40,7 +40,7 @@ const ACCOUNT = ACCOUNT_RECORDS.name
 
 /**
  * The keys no card sets. Kuna's version marker and the review label are the owner's. The payees flagged as people are the chat's
- * own guard. The invoice folder needs Google's picker. The statements folder and the bank's mail address need Google's consent,
+ * own guard. The invoice and travel orders folders need Google's picker. The statements folder and the bank's mail address need Google's consent,
  * so the chat links their screen. The subject of the bank's mail and the day mail is read from need none, so a card sets them.
  */
 const NEVER_PROPOSED: ReadonlySet<string> = new Set([
@@ -49,6 +49,7 @@ const NEVER_PROPOSED: ReadonlySet<string> = new Set([
   'review_label',
   PERSON_PAYEES_KEY,
   'invoice_folder_id',
+  TRIP_FOLDER_KEY,
   'statements_folder',
   'statements_sync',
   'statements_mail_from',
