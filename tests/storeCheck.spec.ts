@@ -89,6 +89,7 @@ const CASES: readonly { readonly name: string; readonly outcome: 'ready' | 'noth
           payee: 'Corner cafe',
           category: category('Food/Coffee').id,
           note: '',
+          labels: [],
         }),
         null,
       ),

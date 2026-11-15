@@ -123,6 +123,11 @@ export const en = {
     categories: { title: 'spending by category', about: 'What each group and category counted in a month, the month before and the change, for asking why a month was higher.' },
     limits: { title: 'the monthly limits', about: 'Each limited category in a month: its limit, what carried in, what it spent and what is left.' },
     balances: { title: 'the account balances', about: 'What each account holds at the end of a day, and all of them in euros.' },
+    labels: {
+      title: 'what each label counts',
+      about:
+        "What each label counted up to the end of a day, as Spending counts its months: spent, by group, received and saved, with how many entries carry it. A transfer between the owner's accounts lists under a label and counts nowhere.",
+    },
   },
   guides: {
     setUp: {
@@ -300,6 +305,11 @@ export const hr: Translation<typeof en> = {
     categories: { title: 'potrošnja po kategorijama', about: 'Koliko je svaka skupina i kategorija brojala u mjesecu, u mjesecu prije i razlika, za pitanja zašto je mjesec bio viši.' },
     limits: { title: 'mjesečna ograničenja', about: 'Svaka ograničena kategorija u mjesecu: ograničenje, preneseno, potrošeno i preostalo.' },
     balances: { title: 'stanja računa', about: 'Koliko svaki račun ima na kraju dana i svi zajedno u eurima.' },
+    labels: {
+      title: 'što broji svaka oznaka',
+      about:
+        'Koliko je svaka oznaka brojala do kraja dana, kao što Potrošnja broji svoje mjesece: potrošeno, po skupinama, primljeno i ušteđeno, te koliko je unosa nosi. Prijenos između vlasnikovih računa navodi se pod oznakom i ne broji se nigdje.',
+    },
   },
   guides: {
     setUp: {

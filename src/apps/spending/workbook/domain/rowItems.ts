@@ -31,9 +31,9 @@ export interface WholeFiling {
   readonly labels: readonly RecordId[]
 }
 
-/** The one item of a row not split, with all of its money. */
+/** The one item of a row not split, with all of its money, which no link split off. */
 export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels }: WholeFiling): TransactionItem {
-  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link, labels }
+  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link, labels, splitByLink: false }
 }
 
 /** The items of any row, the ones the items given name it in, in their order. */

@@ -7,7 +7,6 @@ import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
@@ -24,11 +23,9 @@ export const LABEL_WRITES: WriteRules<Label> = {
 /** The rows and items a label write reads of the file. */
 type LabelRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts'>
 
-/** Adds a label of the name, trimmed, with an id of its own, and gives it, so the same write can put it on rows. */
-export function addLabel(unit: UnitOfWork, name: string): Label {
-  const label: Label = { id: recordIdOf(LABEL_RECORDS, newRecordId()), name: name.trim() }
+/** Adds the label, which `newLabel` made, so the same write can put it on rows. */
+export function addLabel(unit: UnitOfWork, label: Label): void {
   unit.of(LABEL_WRITES).add(label)
-  return label
 }
 
 /** The label under the name, trimmed. Items name it by its id, so every item keeps it. */
@@ -54,14 +51,23 @@ export function deleteLabel(unit: UnitOfWork, records: LabelRecords, label: Labe
   unit.of(LABEL_WRITES).remove(label)
 }
 
-/** Puts the label on every item of each row, or takes it off with `on` false, in one write. A file from before items keeps no labels, so it moves to items first. */
-export function labelRows(unit: UnitOfWork, records: LabelRecords, rows: readonly Transaction[], label: RecordId, on: boolean): void {
+/**
+ * Puts the label on every item of each row, or takes it off with `on` false, in one write. With `parts`, a row with a part
+ * among them changes those parts alone, such as one line of a receipt. A file from before items keeps no labels, so it moves to
+ * items first.
+ */
+export function labelRows(unit: UnitOfWork, records: LabelRecords, rows: readonly Transaction[], label: RecordId, on: boolean, parts: ReadonlySet<RecordId> = new Set()): void {
   if (isBeforeItems(records)) throw new Error('A file from before items keeps no labels. Move it to items first.')
   const itemsOf = heldItemsOf(records)
   const labelled = on ? withLabel : withoutLabel
   writeRows(
     unit,
     records,
-    rows.map((row) => ({ before: row, after: row, items: labelled(itemsOf(row), label) })),
+    rows.map((row) => {
+      const items = itemsOf(row)
+      const named = items.filter((item) => parts.has(item.id))
+      const changed = new Map(labelled(named.length > 0 ? named : items, label).map((item) => [item.id, item]))
+      return { before: row, after: row, items: items.map((item) => changed.get(item.id) ?? item) }
+    }),
   )
 }

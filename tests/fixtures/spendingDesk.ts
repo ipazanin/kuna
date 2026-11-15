@@ -13,6 +13,7 @@ import { settingRow } from '../../src/shared/storage/domain/settingRows'
 import { codecOfSpendingKind } from '../../src/apps/spending/workbook/application/spendingCodecs'
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Category } from '../../src/apps/spending/workbook/domain/category'
+import type { Label } from '../../src/apps/spending/workbook/domain/label'
 import type { TransactionItem } from '../../src/apps/spending/workbook/domain/transactionItem'
 import type { Receipt } from '../../src/apps/spending/workbook/domain/receipt'
 import type { SpendingBooks } from '../../src/apps/spending/workbook/domain/spendingBooks'
@@ -20,6 +21,7 @@ import {
   ACCOUNT_RECORDS,
   CATEGORY_RECORDS,
   ITEM_RECORDS,
+  LABEL_RECORDS,
   LINE_RECORDS,
   RECEIPT_RECORDS,
   RULE_RECORDS,
@@ -141,7 +143,10 @@ const ROWS: readonly StoredRow[] = [
   row('transaction-waiting-match', '2026-10-27', -18, 'KIOSK TISAK', { account: REVOLUT.id, importKey: 'made-up-10', category: GROCERIES.id, categorisedBy: 'rule' }),
 ]
 
-function handPart(key: string, amount: number, category: Category): TransactionItem {
+/** A label the hand split's rent part carries. */
+const RENOVATION: Label = { id: recordIdOf(LABEL_RECORDS, 'label-renovation'), name: 'Renovation' }
+
+function handPart(key: string, amount: number, category: Category, labels: readonly Label[] = []): TransactionItem {
   return {
     id: recordIdOf(ITEM_RECORDS, key),
     transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-split'),
@@ -151,11 +156,12 @@ function handPart(key: string, amount: number, category: Category): TransactionI
     amount: accountMoneyFromAmount(amount),
     category: category.id,
     link: null,
-    labels: [],
+    labels: labels.map((label) => label.id),
+    splitByLink: false,
   }
 }
 
-const HAND_PARTS: readonly TransactionItem[] = [handPart('line-hardware-rent', -40, RENT), handPart('line-hardware-groceries', -20, GROCERIES)]
+const HAND_PARTS: readonly TransactionItem[] = [handPart('line-hardware-rent', -40, RENT, [RENOVATION]), handPart('line-hardware-groceries', -20, GROCERIES)]
 
 const RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-bakery'),
@@ -199,6 +205,7 @@ const WAITING_LINE: TransactionItem = {
   category: GROCERIES.id,
   link: null,
   labels: [],
+  splitByLink: false,
 }
 
 const RULE: SpendingRule = { id: recordIdOf(RULE_RECORDS, 'rule-corner'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner' }, category: GROCERIES.id, withdrawal: null }
@@ -263,6 +270,7 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'account-other': SAVINGS.id,
   'account-empty': WALLET.id,
   rule: RULE.id,
+  label: RENOVATION.id,
   'bank-account-missing': 'uid-pounds GBP',
   'bank-account-update': 'uid-current EUR',
   'bank-account-left-out': 'uid-left-out EUR',
@@ -337,6 +345,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY]),
     ...storedEntries(shape),
     ...stored(RULE_RECORDS, [RULE]),
+    ...stored(LABEL_RECORDS, [RENOVATION]),
     ...stored(RECEIPT_RECORDS, [RECEIPT, WAITING_RECEIPT]),
     ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),
   })

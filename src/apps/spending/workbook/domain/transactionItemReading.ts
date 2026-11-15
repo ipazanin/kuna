@@ -1,6 +1,6 @@
 import type { StoredLine } from './beforeItems'
 import type { TransactionItem } from './transactionItem'
-import { requiredAccountMoney } from './fieldReading'
+import { flagOf, requiredAccountMoney } from './fieldReading'
 import { optionalReference, requiredReference } from './recordReference'
 import { rowLinkOf, rowLinkText } from './rowLink'
 import type { RowLink } from './rowLink'
@@ -42,7 +42,18 @@ export function linkOf(fields: StoredFields): RowLink | null {
 
 export function transactionItemOf(fields: StoredFields, id: RecordId | null): TransactionItem {
   const { transaction, receipt, printed, amount, category } = partOf(fields, id, () => optionalReference(fields, 'category', CATEGORY_RECORDS))
-  return { id: ownId(id), transaction, receipt, printed, note: textOf(fields.note), amount, category, link: linkOf(fields), labels: idsOf(fields.labels, LABEL_RECORDS) }
+  return {
+    id: ownId(id),
+    transaction,
+    receipt,
+    printed,
+    note: textOf(fields.note),
+    amount,
+    category,
+    link: linkOf(fields),
+    labels: idsOf(fields.labels, LABEL_RECORDS),
+    splitByLink: flagOf(fields, 'split_by_link'),
+  }
 }
 
 export const ITEM_CODEC: RecordCodec<TransactionItem> = withIdField(ITEM_RECORDS, words.partLabel, transactionItemOf, (item): RecordFields =>
@@ -53,6 +64,7 @@ export const ITEM_CODEC: RecordCodec<TransactionItem> = withIdField(ITEM_RECORDS
     category: item.category === null ? null : keyOfRecordId(CATEGORY_RECORDS, item.category),
     link: item.link === null ? null : rowLinkText(item.link),
     labels: idsText(item.labels, LABEL_RECORDS),
+    split_by_link: item.splitByLink ? true : null,
   }),
 )
 

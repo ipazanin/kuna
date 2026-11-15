@@ -29,9 +29,10 @@ function countedIds(): void {
 
 const byId = <R extends { readonly id: string }>(records: readonly R[]): R[] => [...records].sort((one, other) => one.id.localeCompare(other.id))
 
-/** What the book says, the same in either shape: each row as its items file it, every item, and the receipts. */
+/** What the book says, the same in either shape: each row as its items file it, every item, and the receipts. A file from before items keeps no labels and no mark of the parts a link split off. */
 function seen(book: SpendingBook) {
-  return { rows: byId(filedRows(book)), items: byId(book.items), receipts: byId(book.receipts), problems: book.problems }
+  const items = book.items.map(({ splitByLink: _splitByLink, labels: _labels, ...item }) => item)
+  return { rows: byId(filedRows(book)), items: byId(items), receipts: byId(book.receipts), problems: book.problems }
 }
 
 /** The desk once the operation's example is written, with the ids it made counted from one. */

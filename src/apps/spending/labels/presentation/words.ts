@@ -33,6 +33,7 @@ export const en = {
   added: 'Label added',
   saved: 'Label saved',
   deleted: 'Label deleted',
+  select: { none: 'No labels', search: 'Find or add a label' },
 }
 
 export const hr: Translation<typeof en> = {
@@ -64,6 +65,7 @@ export const hr: Translation<typeof en> = {
   added: 'Oznaka dodana',
   saved: 'Oznaka spremljena',
   deleted: 'Oznaka obrisana',
+  select: { none: 'Bez oznaka', search: 'Pretraži ili dodaj oznaku' },
 }
 
 export const words = language === 'hr' ? hr : en

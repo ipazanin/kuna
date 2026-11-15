@@ -16,8 +16,11 @@ import {
   SPENDING_ITEM,
   SPENDING_ROW,
   companyFiguresOf,
+  companyKindOf,
   investmentsFiguresOf,
+  investmentsKindOf,
   spendingFiguresOf,
+  spendingKindOf,
 } from '../scripts/support/figureFields.mjs'
 
 const DAY = civil('2026-11-10')
@@ -86,19 +89,24 @@ const STORED: Record<keyof typeof KINDS, readonly Stored[]> = {
   'a Company item': company.records.items.records,
 }
 
-/** The name of every field of every record in a value, however deep. */
-function fieldsIn(value: unknown): string[] {
-  if (value === null || typeof value !== 'object') return []
-  if (Array.isArray(value) || value instanceof Set) return [...value].flatMap(fieldsIn)
-  if (value instanceof Map) return [...value].flatMap(([key, entry]) => [...fieldsIn(key), ...fieldsIn(entry)])
-  return Object.entries(value).flatMap(([key, field]) => [key, ...fieldsIn(field)])
-}
+type KindOf = (record: object) => { readonly record: ReadonlySet<string>; readonly cells: ReadonlySet<string> } | null
 
-/** Whether a field is one that one of these kinds leaves out. */
-const leftOutOf =
-  (...kinds: readonly { readonly record: ReadonlySet<string>; readonly cells: ReadonlySet<string> }[]) =>
-  (field: string) =>
-    kinds.some((kind) => kind.record.has(field) || kind.cells.has(field))
+/**
+ * Every field a value still holds that the kind of the record holding it leaves out, however deep, and every stored cell its
+ * record's kind leaves out. A field of the same name on a record of another kind, such as the file's own labels, is no such field.
+ */
+function leftOutIn(value: unknown, kindOf: KindOf): string[] {
+  if (value === null || typeof value !== 'object') return []
+  if (Array.isArray(value) || value instanceof Set) return [...value].flatMap((entry: unknown) => leftOutIn(entry, kindOf))
+  if (value instanceof Map) return [...value].flatMap(([key, entry]: [unknown, unknown]) => [...leftOutIn(key, kindOf), ...leftOutIn(entry, kindOf)])
+  const kind = kindOf(value)
+  const record = 'record' in value && 'fields' in value && value.record !== null && typeof value.record === 'object' ? value.record : null
+  const cellsKind = record === null ? null : kindOf(record)
+  return Object.entries(value).flatMap(([key, field]: [string, unknown]) => {
+    if (key === 'fields' && cellsKind !== null && field !== null && typeof field === 'object') return Object.keys(field).filter((cell) => cellsKind.cells.has(cell))
+    return [...(kind?.record.has(key) === true ? [key] : []), ...leftOutIn(field, kindOf)]
+  })
+}
 
 describe("the figure digest's fields", () => {
   it.each(Object.keys(KINDS) as (keyof typeof KINDS)[])('names every field and stored cell of %s as a figure or as left out', (name) => {
@@ -116,26 +124,19 @@ describe("the figure digest's fields", () => {
   })
 
   it('leaves no field or stored cell that is not a figure in a Spending group, in Investments accounts or in Company ledger records, however deep', () => {
-    const queue = reviewQueue(spending.workbook, DAY)
-    // The file's labels are a part named as an item's labels are, and hold no field left out, so the walk below leaves the part's own key aside.
-    const { labels: _labels, ...records } = spending.records
     const group = {
-      queue,
-      records,
-      labelRecords: _labels,
+      queue: reviewQueue(spending.workbook, DAY),
+      records: spending.records,
       byAccount: new Map(spending.workbook.accounts.map((held) => [held, spending.workbook.transactions])),
       rows: new Set(spending.workbook.transactions),
     }
 
-    const spendingLeftOut = leftOutOf(SPENDING_ROW, SPENDING_ITEM, SPENDING_ACCOUNT)
-    const ledgerLeftOut = leftOutOf(COMPANY_LEDGER_ROW)
-
-    expect(fieldsIn(group).filter(spendingLeftOut)).toContain('import_key')
-    expect(fieldsIn(spendingFiguresOf(group)).filter(spendingLeftOut)).toEqual([])
-    expect(fieldsIn(investments.records.accounts).filter(leftOutOf(INVESTMENT_ACCOUNT))).toContain('starts_on')
-    expect(fieldsIn(investmentsFiguresOf(investments.records).accounts).filter(leftOutOf(INVESTMENT_ACCOUNT))).toEqual([])
-    expect(fieldsIn(company.records.ledger).filter(ledgerLeftOut)).toContain('signals')
-    expect(fieldsIn(companyFiguresOf(company.records).ledger).filter(ledgerLeftOut)).toEqual([])
+    expect(leftOutIn(group, spendingKindOf)).toEqual(expect.arrayContaining(['import_key', 'labels', 'splitByLink']))
+    expect(leftOutIn(spendingFiguresOf(group), spendingKindOf)).toEqual([])
+    expect(leftOutIn(investments.records.accounts, investmentsKindOf)).toContain('starts_on')
+    expect(leftOutIn(investmentsFiguresOf(investments.records).accounts, investmentsKindOf)).toEqual([])
+    expect(leftOutIn(company.records.ledger, companyKindOf)).toContain('signals')
+    expect(leftOutIn(companyFiguresOf(company.records).ledger, companyKindOf)).toEqual([])
   })
 
   it('keeps every figure of a record and its stored cells', () => {

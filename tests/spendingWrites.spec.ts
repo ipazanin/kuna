@@ -67,7 +67,7 @@ function topUp(amount = 200, into = REVOLUT_EUR, received = amount) {
 }
 
 function coffee(date: string, amount: number) {
-  return newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: ' Café on the square ', category: category('Food/Coffee').id, note: '' })
+  return newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: ' Café on the square ', category: category('Food/Coffee').id, note: '', labels: [] })
 }
 
 describe('Spending writes', () => {
@@ -353,8 +353,8 @@ describe('a statement in the Spending file', () => {
   it('keeps what the bank said on a row you retype, so a later statement still skips it, and marks a changed category as yours', () => {
     const typed = coffee('2026-10-19', -5)
     const filed = { ...typed, row: { ...typed.row, importKey: 'kept', description: 'CAFE 12', statement: 'export.csv', source: 'statement' as const, categorisedBy: 'rule' as const } }
-    const typedSame = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: accountMoneyFromAmount(-6), payee: 'Coffee', category: typed.items[0]!.category, note: '' })
-    const typedOther = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: accountMoneyFromAmount(-6), payee: 'Coffee', category: category('Food/Groceries').id, note: '' })
+    const typedSame = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: accountMoneyFromAmount(-6), payee: 'Coffee', category: typed.items[0]!.category, note: '', labels: [] })
+    const typedOther = newEntry({ account: OTP.id, date: civil('2026-10-20'), amount: accountMoneyFromAmount(-6), payee: 'Coffee', category: category('Food/Groceries').id, note: '', labels: [] })
 
     expect(retypedEntry(filed, typedSame).row).toMatchObject({
       id: filed.row.id,
@@ -546,7 +546,7 @@ describe('Spending account writes', () => {
         unit,
         store.state.records!,
         null,
-        newEntry({ account: REVOLUT_USD.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-30), payee: 'Diner', category: category('Food/Restaurants').id, note: '' }),
+        newEntry({ account: REVOLUT_USD.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-30), payee: 'Diner', category: category('Food/Restaurants').id, note: '', labels: [] }),
         null,
       ),
     )
@@ -566,7 +566,7 @@ describe('Spending category writes', () => {
     const store = await spendingStore()
     const [groceries, restaurants] = [category('Food/Groceries'), category('Food/Restaurants')]
     const shopping = (date: string, amount: number) =>
-      newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: 'Corner market', category: groceries.id, note: '' })
+      newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: 'Corner market', category: groceries.id, note: '', labels: [] })
     await store.write('Added', (unit) => {
       addEntries(unit, store.state.records!, [shopping('2026-10-12', -45.3)])
       addEntries(unit, store.state.records!, [shopping('2026-10-19', -60)])
@@ -649,7 +649,7 @@ describe('Spending limit writes', () => {
 describe('an account the bank fills', () => {
   const [bankOtp] = ACCOUNTS
   const typedOn = (account: Account) =>
-    newEntry({ account: account.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-12), payee: 'Kiosk', category: category('Food/Groceries').id, note: '' })
+    newEntry({ account: account.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-12), payee: 'Kiosk', category: category('Food/Groceries').id, note: '', labels: [] })
 
   it("refuses a typed or copied row, takes the bank sync's and a file's, and still takes a typed row on cash", async () => {
     const store = await spendingStore(ACCOUNTS)

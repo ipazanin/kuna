@@ -2,7 +2,8 @@ import { spendingFigures } from '../analytics/presentation/spendingFigures'
 import { monthFlow } from '../analytics/domain/monthFlow'
 import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
-import { countedAccounts } from '../rates/domain/euroRows'
+import { countedAccounts, euroRows } from '../rates/domain/euroRows'
+import { labelTotals } from '../labels/domain/labelTotals'
 import { reviewCount } from '../statements/domain/reviewQueue'
 import { bookingOf } from '../statements/domain/statementDryRun'
 import type { BankSetup } from '../bankSync/application/bankSync'
@@ -227,6 +228,7 @@ const itemFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<TransactionI
     read: (item) => linkRead(item, loans()),
   },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries, beside its category, such as a trip. A label changes no figure of its category.' },
+  splitByLink: { exposure: 'plain', meaning: "yes when linking the entry to a loan's instalment split this part off, no for a part split by hand, a receipt's line or a whole entry." },
 })
 
 function monthOfPeriod(period: string | null): MonthKey {
@@ -289,6 +291,22 @@ function balancesReport(book: SpendingBook, rates: RateBook, period: string | nu
     euros('all accounts, in euros', inEuros),
     { label: 'accounts left out of that sum because no exchange rate reaches them yet', count: accounts.filter((account) => account.euros === null).length },
   ]
+}
+
+/** What each label counts over its entries up to the day, as the Labels screen counts it, which is as Spending counts its months. */
+function labelsReport(book: SpendingBook, rates: RateBook, period: string | null): readonly ReportFigure[] {
+  const day = period === null ? today() : parseCivilDate(period)
+  if (day === null) throw new RangeError('Not a day.')
+  const names = new Map(book.categories.map((category) => [category.id, category.name]))
+  const rows = euroRows(book, rates).filter((row) => row.transaction.date <= day)
+  return labelTotals(rows, book.categories, book.labels).flatMap(({ label, spent, income, saved, groups, rows: carried, unrated }): readonly ReportFigure[] => [
+    euros(`${label.name}: spent`, spent),
+    ...groups.map(({ group, spent: groupSpent }) => euros(`${label.name} / ${names.get(group) ?? ''}: spent`, groupSpent)),
+    ...(income === 0 ? [] : [euros(`${label.name}: received`, income)]),
+    ...(saved === 0 ? [] : [euros(`${label.name}: saved to investments`, saved)]),
+    { label: `${label.name}: entries`, count: carried },
+    ...(unrated === 0 ? [] : [{ label: `${label.name}: entries left out because no exchange rate reaches them yet`, count: unrated }]),
+  ])
 }
 
 const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
@@ -465,6 +483,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       { id: 'categories', title: words.reports.categories.title, about: words.reports.categories.about, period: 'month', figures: report(categoriesReport) },
       { id: 'limits', title: words.reports.limits.title, about: words.reports.limits.about, period: 'month', figures: report(limitsReport) },
       { id: 'balances', title: words.reports.balances.title, about: words.reports.balances.about, period: 'day', figures: report(balancesReport) },
+      { id: 'labels', title: words.reports.labels.title, about: words.reports.labels.about, period: 'day', figures: report(labelsReport) },
     ],
     bookings: {
       kind: TRANSACTION_RECORDS.name,

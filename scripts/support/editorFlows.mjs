@@ -6196,6 +6196,95 @@ export function assetsValuationFlowIn(language) {
   }
 }
 
+/** Picks a label in a labels field, the existing one by its name or, with `create`, a new one typed into its search, and closes the list. */
+async function pickLabel(page, press, field, name, create) {
+  await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(150)
+  await press(field)
+  await page.waitForSelector('[role="listbox"]', { visible: true, timeout: 5_000 })
+  if (create) await page.keyboard.type(name)
+  const option = await page
+    .waitForFunction(
+      (wanted, typed) => [...document.querySelectorAll('[role="option"]')].find((element) => (typed ? element.textContent?.includes(`"${wanted}"`) : element.textContent?.trim() === wanted)) ?? null,
+      { timeout: 5_000 },
+      name,
+      create,
+    )
+    .catch(() => {
+      throw new Error(create ? `the labels field offers no way to add "${name}"` : `the labels field offers no "${name}"`)
+    })
+  await press(option.asElement())
+  await page.keyboard.press('Escape')
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  await page.waitForSelector(SPENDING_ENTRY_DIALOG, { visible: true, timeout: 2_000 }).catch(() => {
+    throw new Error('Escape on the labels list closed the entry dialog')
+  })
+  const shown = await field.evaluate((element) => element.textContent ?? '')
+  if (!shown.includes(name)) throw new Error(`the labels field shows "${shown.trim()}" after picking ${name}`)
+}
+
+/** The labels the Entries row of this payee and amount names in its caption, or blank. */
+async function rowLabels(page, title, cents) {
+  return page.$$eval(
+    SPENDING_ROW,
+    (rows, wanted, amount) =>
+      rows
+        .find((row) => row.dataset.amount === String(amount) && row.textContent?.includes(wanted))
+        ?.querySelector('[data-testid="spending-row-labels"]')
+        ?.textContent?.trim() ?? '',
+    title,
+    cents,
+  )
+}
+
+/**
+ * On the receipts Spending file's Entries: the receipt's groceries line labelled Garden in the entry dialog while its other line
+ * keeps New flat, and a new entry given a label typed into its labels field, each saved and undone.
+ */
+export function spendingEntryLabelsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { dialog } = words.spendingEntries
+  const garden = language === 'en' ? 'Garden' : 'Vrt'
+  const flat = language === 'en' ? 'New flat' : 'Novi stan'
+  const typed = language === 'en' ? 'Weekend away' : 'Vikend'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Corner market', -6120)
+    const parts = await page.$$('[data-testid="spending-entry-part-labels"]')
+    if (parts.length !== 2) throw new Error(`the receipt's entry dialog shows ${parts.length} labels fields, not one per line`)
+    if ((await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="spending-labels-select"]`)).length > 0) throw new Error('a split entry shows a labels field for the whole entry beside its parts')
+    const held = await parts[1].evaluate((element) => element.textContent ?? '')
+    if (!held.includes(flat)) throw new Error(`the receipt's second line shows "${held.trim()}", not its label ${flat}`)
+    await inspect?.("the entry dialog of a receipt's row, a labels field on each line")
+    await shoot('spending-entry-part-labels')
+    await pickLabel(page, press, parts[0], garden, false)
+    await delay(300)
+    await inspect?.('a receipt line labelled in the entry dialog')
+    await shoot('spending-entry-part-labelled')
+    await pressSelector(page, press, '[data-testid="spending-entry-save"]')
+    await toast(page, dialog.saved)
+    const labelled = await rowLabels(page, 'Corner market', -6120)
+    if (!labelled.includes(garden) || !labelled.includes(flat)) throw new Error(`the receipt's row names "${labelled}", not ${garden} and ${flat}`)
+    await undoIn(page, press, words)
+    if ((await rowLabels(page, 'Corner market', -6120)).includes(garden)) throw new Error(`Undo left ${garden} on the receipt's row`)
+    await dismissToasts(page)
+
+    await typeMoneyOut(page, press, words)
+    const whole = await page.$$(`${SPENDING_ENTRY_DIALOG} [data-testid="spending-labels-select"]`)
+    if (whole.length !== 1) throw new Error(`a new entry shows ${whole.length} labels fields, not one`)
+    await pickLabel(page, press, whole[0], typed, true)
+    await delay(300)
+    await inspect?.('a new entry with a label typed into its labels field')
+    await shoot('spending-entry-labels')
+    await pressSelector(page, press, '[data-testid="spending-entry-save"]')
+    await toast(page, dialog.added)
+    if (!(await rowLabels(page, SPENDING_PAYEE, -2500)).includes(typed)) throw new Error(`the new entry's row does not name ${typed}`)
+    await undoIn(page, press, words)
+    await spendingRowShown(page, SPENDING_PAYEE, -2500, false)
+    await dismissToasts(page)
+  }
+}
+
 export const assetsValuationFlow = assetsValuationFlowIn('en')
 
 /** The payee the Spending flows type, as anyone might. */
@@ -11320,6 +11409,48 @@ export function chatSplitFlowIn(language) {
           throw new Error('Undo did not say it was undone')
         })
       await rowLinesAre(page, 'Landlord', -60000, 0)
+    } finally {
+      await newChat(page, press)
+      await forgetAssist(page)
+    }
+  }
+}
+
+/**
+ * On the sample Spending file with a made-up key kept: asked to label last month's three largest payments, the chat proposes a card that
+ * adds the Renovation label and puts it on them, which Accept writes and Undo takes back.
+ */
+export function chatLabelFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  const request = language === 'en' ? "Label last month's three largest payments" : 'Označi tri najveća plaćanja prošlog mjeseca'
+  const renovation = language === 'en' ? 'Renovation' : 'Obnova'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, request)
+      await allowIfAsked(page, press)
+      const card = await newestCard(page, 1, 'the chat proposed no label card')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      const says = await card.evaluate((element) => element.textContent ?? '')
+      // The new label's name, then the label on each of the three entries' parts.
+      if (says.split(renovation).length - 1 < 4) throw new Error(`the label card does not name the label on each part it labels, and says "${says}"`)
+      await delay(300)
+      await acceptLooksReady(page)
+      await inspect?.('the card that labels entries')
+      await shoot('chat-label-card')
+      await press(await card.$('[data-testid="chat-proposal-accept"]'))
+      await card.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
+        throw new Error(`Accept did not land: ${refused}`)
+      })
+      await press(await card.$('[data-testid="chat-proposal-undo"]'))
+      await page
+        .waitForFunction((held, text) => held.textContent?.includes(text) ?? false, { timeout: 10_000 }, card, words.proposal.undone)
+        .catch(() => {
+          throw new Error('Undo did not say it was undone')
+        })
     } finally {
       await newChat(page, press)
       await forgetAssist(page)

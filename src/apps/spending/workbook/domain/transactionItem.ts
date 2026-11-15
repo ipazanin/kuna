@@ -21,4 +21,6 @@ export interface TransactionItem {
   readonly link: RowLink | null
   /** The labels this money carries, in the order they were put on it. A label sits beside the category and changes no figure of it. */
   readonly labels: readonly RecordId[]
+  /** Whether linking the entry to a loan's instalment split this part off, as against a part you made or a receipt's line. */
+  readonly splitByLink: boolean
 }

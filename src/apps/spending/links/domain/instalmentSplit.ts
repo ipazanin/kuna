@@ -100,7 +100,7 @@ export interface PartNotes {
 /**
  * The entry in the instalment's parts, in place of the items it had, each linked: the interest, the principal under
  * `principal`, then the difference, leaving out a part of nothing. The first part keeps the id of the entry's first item, and
- * the entry is filed by you. Every part carries every label of the entry.
+ * the entry is filed by you. Every part carries every label of the entry and says the link split it off.
  */
 export function splitByInstalment(
   entry: ItemizedRow,
@@ -129,6 +129,7 @@ export function splitByInstalment(
       category,
       link,
       labels,
+      splitByLink: true,
     }))
   return { row: { ...entry.row, categorisedBy: 'person' }, items }
 }

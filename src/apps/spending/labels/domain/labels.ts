@@ -1,8 +1,21 @@
 import type { Label } from '../../workbook/domain/label'
+import { LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { partReplacements } from '../../../../shared/categorising/domain/partReplacements'
+import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { fold } from '../../../../shared/text/fold'
+
+/** A new label of the name, trimmed, with an id of its own, so a write can add it and put it on items at once. */
+export function newLabel(name: string): Label {
+  return { id: recordIdOf(LABEL_RECORDS, newRecordId()), name: name.trim() }
+}
+
+/** The label that has the name once folded, or null, so a name typed again picks the label it already is. */
+export function labelCalled(name: string, labels: readonly Label[]): Label | null {
+  const folded = fold(name)
+  return folded === '' ? null : (labels.find((label) => fold(label.name) === folded) ?? null)
+}
 
 /** Why a name cannot be a label's: it is blank, or another label of the file has it once folded, so `Prague` and `prague` are one label. */
 export type LabelNameProblem = 'blank' | 'taken'

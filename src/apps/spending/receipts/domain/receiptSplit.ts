@@ -96,6 +96,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
     category: lineCategory,
     link,
     labels: [],
+    splitByLink: false,
   }))
   const difference = differenceItem(row?.amount ?? amount, lines, { transaction, receipt: receipt.id, category, link }, words.difference, newKey)
   return { before, row, receipt, lines: difference === null ? lines : [...lines, difference], replaced }

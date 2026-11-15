@@ -372,6 +372,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
     category: idOf(category),
     link: null,
     labels,
+    splitByLink: false,
   })
   return {
     receipts: [
@@ -621,6 +622,7 @@ export function fakeBeforeItemsDocument(savedAt: string, day: CivilDate = today(
     category: leg!.category,
     link: null,
     labels: [],
+    splitByLink: false,
   })
   const splitLeg = splitTransfer && leg !== undefined ? [legParts(1971, -150), legParts(1972, -50)] : []
   return spendingDocumentOf(savedAt, { ...records, ...stored(TRANSACTION_RECORDS, noted), ...stored(LINE_RECORDS, [...lines, ...splitLeg].map(plainLineOf)) })
@@ -665,6 +667,7 @@ function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): Retu
     category: idOf('Food/Groceries'),
     link: null,
     labels: [],
+    splitByLink: false,
   })
   return {
     receipts: [waiting(1961, 'Bakery on the corner', '08:05', 7.4, '3c4d5e6f-0000-4000-8000-1234567890ab'), waiting(1966, 'Tisak', '07:40', 9.8, '4d5e6f70-0000-4000-8000-1234567890ab')],

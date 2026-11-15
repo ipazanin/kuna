@@ -16,10 +16,6 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['spending: Transaction.payee'],
   },
   {
-    reason: "A label on an entry's parts. A person labels rows by selecting them on Entries, and the chat reads labels without changing them.",
-    fields: ['spending: TransactionItem.labels'],
-  },
-  {
     reason: "Ids Kuna makes. A person never types a record's id, and an operation names the record it changes by a ref.",
     fields: [
       'assets: Asset.id',
@@ -58,6 +54,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'loans: RatePeriod.id',
       'spending: Account.id',
       'spending: Category.id',
+      'spending: Label.id',
       'spending: Receipt.id',
       'spending: TransactionItem.id',
       'spending: Transaction.id',
@@ -66,7 +63,8 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
-    reason: 'Fields Kuna works out from what the person chose: which form or operation was used, the facts of the row or the span, and what a split part was opened as.',
+    reason:
+      'Fields Kuna works out from what the person chose: which form or operation was used, the facts of the row or the span, what a split part was opened as, and whether a link split a part off.',
     fields: [
       'company: PlanLine.kind',
       'company: ScenarioRow.key',
@@ -86,6 +84,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'spending: Category.kind',
       'spending: Account.closed',
       'spending: TransactionItem.category',
+      'spending: TransactionItem.splitByLink',
       'spending: fixOpening.opening',
     ],
   },
@@ -225,6 +224,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/entries/application/entryWrites.ts#unlinkEntry',
       'src/apps/company/transactions/application/splitWrites.ts#removeSplit',
       'src/apps/spending/receipts/application/receiptWrites.ts#removeWaitingReceipt',
+      'src/apps/spending/labels/application/labelWrites.ts#deleteLabel',
       'src/apps/spending/statements/application/statementWrites.ts#deleteRule',
     ],
   },

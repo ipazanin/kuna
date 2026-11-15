@@ -1,21 +1,25 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { newEntry, retypedEntry, transferOver } from '../src/apps/spending/entries/application/entryWrites'
+import { newTransfer } from '../src/apps/spending/entries/domain/transfer'
 import { addLabel, deleteLabel, labelRows, renameLabel } from '../src/apps/spending/labels/application/labelWrites'
-import { labelNameProblem } from '../src/apps/spending/labels/domain/labels'
+import { labelCalled, labelNameProblem, newLabel } from '../src/apps/spending/labels/domain/labels'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
 import { ITEM_CODEC } from '../src/apps/spending/workbook/domain/transactionItemReading'
 import type { Label } from '../src/apps/spending/workbook/domain/label'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
-import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
+import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import type { RecordId } from '../src/shared/storage/domain/recordId'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
-import { ACCOUNTS_BY_HAND, CATEGORIES, row, wholeItems } from './fixtures/spending'
+import { ACCOUNTS_BY_HAND, CATEGORIES, category, row, wholeItems } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const [OTP] = ACCOUNTS_BY_HAND
@@ -56,6 +60,12 @@ describe("a label's name", () => {
     expect(labelNameProblem('Prague', [PRAGUE], PRAGUE.id)).toBeNull()
     expect(labelNameProblem('Praha', [PRAGUE], null)).toBeNull()
   })
+
+  it('typed again names the label it already is once folded, and a blank or new name names none', () => {
+    expect(labelCalled(' PRAGUE ', [PRAGUE])).toBe(PRAGUE)
+    expect(labelCalled('Praha', [PRAGUE])).toBeNull()
+    expect(labelCalled('  ', [PRAGUE])).toBeNull()
+  })
 })
 
 describe('the labels of an item as the file stores them', () => {
@@ -76,7 +86,8 @@ describe('writing labels', () => {
     let label: Label | null = null
 
     await store.write('Labelled', (unit) => {
-      label = addLabel(unit, ' Prague ')
+      label = newLabel(' Prague ')
+      addLabel(unit, label)
       labelRows(unit, store.state.records!, [dinner, hotel], label.id, true)
     })
     expect(store.state.workbook!.labels).toEqual([{ id: label!.id, name: 'Prague' }])
@@ -92,7 +103,7 @@ describe('writing labels', () => {
     const flat = store.state.workbook!.labels[1]!
 
     await expect(store.write('Renamed', (unit) => renameLabel(unit, flat, 'PRAGUE'))).rejects.toThrow()
-    await expect(store.write('Added', (unit) => void addLabel(unit, 'prague'))).rejects.toThrow()
+    await expect(store.write('Added', (unit) => addLabel(unit, newLabel('prague')))).rejects.toThrow()
     expect(store.state.workbook!.labels.map((label) => label.name)).toEqual(['Prague', 'New flat'])
   })
 
@@ -114,5 +125,47 @@ describe('writing labels', () => {
 
     expect(book.transactions).toHaveLength(1)
     expect(book.problems.map((problem) => [problem.kind, problem.reason])).toEqual([['item', 'names a label prague that is not in the file, so it shows under no label']])
+  })
+})
+
+describe('labels typed in the entry dialog', () => {
+  const FLAT: Label = { id: recordIdOf(LABEL_RECORDS, 'flat'), name: 'New flat' }
+  const typedAs = (before: { readonly row: Transaction }, labels: readonly RecordId[]) =>
+    newEntry({ account: OTP!.id, date: before.row.date, amount: before.row.amount, payee: '', category: category('Food/Restaurants').id, note: '', labels })
+
+  it('replace the labels of an entry not split', () => {
+    const before = { row: dinner, items: [{ ...wholeItems([dinner])[0]!, labels: [PRAGUE.id] }] }
+
+    expect(retypedEntry(before, typedAs(before, [FLAT.id])).items.map((item) => item.labels)).toEqual([[FLAT.id]])
+    expect(retypedEntry(before, typedAs(before, [])).items.map((item) => item.labels)).toEqual([[]])
+  })
+
+  it('go on each part of a split entry by its id, and a part typed for no part keeps its own', () => {
+    const [whole] = wholeItems([dinner])
+    const parts = [
+      { ...whole!, id: recordIdOf(ITEM_RECORDS, 'food'), amount: accountMoneyFromAmount(-30), labels: [PRAGUE.id] },
+      { ...whole!, id: recordIdOf(ITEM_RECORDS, 'wine'), amount: accountMoneyFromAmount(-10), labels: [] },
+    ]
+    const before = { row: dinner, items: parts }
+    const typed = { row: typedAs(before, []).row, items: [{ ...parts[1]!, labels: [FLAT.id, PRAGUE.id] }] }
+
+    expect(retypedEntry(before, typed).items.map((item) => [item.id, item.labels])).toEqual([
+      [parts[0]!.id, [PRAGUE.id]],
+      [parts[1]!.id, [FLAT.id, PRAGUE.id]],
+    ])
+  })
+
+  it('leave a transfer alone, so a row turned into a leg and a leg typed over keep their labels', () => {
+    const before = { row: dinner, items: [{ ...wholeItems([dinner])[0]!, labels: [PRAGUE.id] }] }
+    const legs = newTransfer(
+      { account: OTP!.id, amount: accountMoneyFromAmount(40) },
+      { account: ACCOUNTS_BY_HAND[1]!.id, amount: accountMoneyFromAmount(40) },
+      { date: dinner.date, note: '', category: category('Between my accounts').id },
+    )
+
+    const { kept, added } = transferOver(before, legs)
+
+    expect(kept.items.map((item) => item.labels)).toEqual([[PRAGUE.id]])
+    expect(added.items.map((item) => item.labels)).toEqual([[]])
   })
 })

@@ -14,6 +14,9 @@ import { words } from './words'
 import { knownPayees, payeeChoices } from '../domain/knownPayees'
 import { newTransfer } from '../domain/transfer'
 import { linkEntry, newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, unlinkEntry, writeEntry, writeTransfer } from '../application/entryWrites'
+import { addLabel } from '../../labels/application/labelWrites'
+import { labelCalled, labelNameProblem, newLabel } from '../../labels/domain/labels'
+import LabelsSelect from '../../labels/presentation/LabelsSelect.vue'
 import { loanTargets } from '../../links/application/loanTargets'
 import { beyondPlan, linkFiling } from '../../links/domain/instalmentSplit'
 import { loanInterestCategoryIn } from '../../categories/domain/starterCategories'
@@ -27,8 +30,10 @@ import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { fixedByBank } from '../domain/bankRows'
 import { beforeStartDay, takesRowsByHand } from '../../workbook/domain/account'
+import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import type { Account } from '../../workbook/domain/account'
 import { transferCategoryOf } from '../../workbook/domain/category'
+import type { Label } from '../../workbook/domain/label'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { isSplit, itemizedRow, linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import { rowLinkText } from '../../workbook/domain/rowLink'
@@ -42,6 +47,7 @@ import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -79,10 +85,17 @@ const toAccount = ref('')
 const date = ref('')
 const payee = ref('')
 const note = ref('')
+/** The labels of an entry not split, and of each part of a split one by the part's id. */
+const labels = ref<readonly RecordId[]>([])
+const partLabels = ref<Readonly<Record<string, readonly RecordId[]>>>({})
+/** Labels typed into a labels field, which Save adds with the entry while a part carries them. */
+const created = ref<readonly Label[]>([])
 const tried = ref(false)
 
 /** The form's fields as one text, to tell whether the person changed any since the dialog opened. */
-const formNow = computed(() => JSON.stringify([kind.value, amount.value, toAmount.value, category.value, account.value, toAccount.value, date.value, payee.value, note.value]))
+const formNow = computed(() =>
+  JSON.stringify([kind.value, amount.value, toAmount.value, category.value, account.value, toAccount.value, date.value, payee.value, note.value, labels.value, partLabels.value]),
+)
 const openedAs = ref('')
 /** Whether the form holds changes not saved yet, which leaving for Loans would lose. */
 const edited = computed(() => formNow.value !== openedAs.value)
@@ -123,8 +136,7 @@ const entryLink = computed(() => {
 /** What the entry's parts are: a receipt's lines, the plan's interest and principal its link split it into, or parts you made. */
 const splitNote = computed(() => {
   if (receipt.value !== null) return receiptWords.splitNote
-  const principal = categories.value.find((category) => category.kind === 'repayment')?.id
-  const byLink = heldLink.value !== null && principal !== undefined && entryLines.value.some((line) => line.category === principal)
+  const byLink = heldLink.value !== null && entryLines.value.some((line) => line.splitByLink)
   return byLink ? linkWords.splitNote : words.split.note
 })
 
@@ -209,6 +221,9 @@ watch(open, (opened) => {
   date.value = entry?.date ?? today()
   payee.value = entry?.payee ?? ''
   note.value = wholeItem.value?.note ?? ''
+  labels.value = wholeItem.value?.labels ?? []
+  partLabels.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.labels]))
+  created.value = []
   tried.value = false
   pickedLink.value = ''
   openedAs.value = formNow.value
@@ -251,6 +266,24 @@ const sourceNote = computed(() =>
 /** Whether the account can be picked while an open account is left off the list because the bank fills it. */
 const bankAccountsHidden = computed(() => !fromFixed.value && !split.value && accounts.value.some((candidate) => !candidate.closed && !choosable.value.includes(candidate)))
 
+const labelChoices = computed(() => [...(store.state.workbook?.labels ?? []), ...created.value])
+/** Labels go on the parts of a file moved to items, and not on a transfer here, whose legs are labelled by selecting them on Entries. */
+const labelling = computed(() => store.state.workbook !== null && !isBeforeItems(store.state.workbook.stored) && kind.value !== 'transfer')
+
+/** The labels with the one a typed name names: a label the file or the dialog has under it, or a new one, none for a blank name. */
+function withTyped(picked: readonly RecordId[], name: string): readonly RecordId[] {
+  const held = labelCalled(name, labelChoices.value)
+  if (held !== null) return picked.includes(held.id) ? picked : [...picked, held.id]
+  if (labelNameProblem(name, labelChoices.value, null) !== null) return picked
+  const label = newLabel(name)
+  created.value = [...created.value, label]
+  return [...picked, label.id]
+}
+
+function labelPart(part: RecordId, picked: readonly RecordId[]): void {
+  partLabels.value = { ...partLabels.value, [part]: picked }
+}
+
 /** An amount above zero, or null. */
 function positive(text: string): AccountMoney | null {
   const typed = typedAccountAmount(text)
@@ -291,10 +324,17 @@ function entryWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate): (
   const filed = categories.value.find((candidate) => candidate.id === category.value)
   const records = store.state.records
   if ((filed === undefined && !split.value) || records === null) return null
-  const entry = newEntry({ account: fromAccount.id, date: on, amount: kind.value === 'out' ? negateAccountMoney(typed) : typed, payee: payee.value, category: filed?.id ?? null, note: note.value })
+  const amount = kind.value === 'out' ? negateAccountMoney(typed) : typed
+  const entry = newEntry({ account: fromAccount.id, date: on, amount, payee: payee.value, category: filed?.id ?? null, note: note.value, labels: split.value ? [] : labels.value })
+  const parts = split.value ? entryLines.value.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels })) : entry.items
   const before = props.entry === null ? null : { row: props.entry, items: entryLines.value }
   const other = legs.value?.find((leg) => leg.id !== before?.row.id) ?? null
-  return (unit) => writeEntry(unit, records, before, entry, other)
+  const carried = new Set(parts.flatMap((part) => part.labels))
+  const added = created.value.filter((label) => carried.has(label.id))
+  return (unit) => {
+    added.forEach((label) => addLabel(unit, label))
+    writeEntry(unit, records, before, { row: entry.row, items: parts }, other)
+  }
 }
 
 /** Both legs in one write: added, changed in place, or a plain entry turned into the money-out leg with the other leg beside it. */
@@ -413,6 +453,9 @@ async function remove(): Promise<void> {
       <UFormField v-if="!split" :label="spendingWords.form.note" :class="twoCurrencies ? '' : 'sm:col-span-2'">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
+      <UFormField v-if="labelling && !split" :label="words.dialog.labels" class="sm:col-span-2">
+        <LabelsSelect v-model="labels" :labels="labelChoices" :name="words.dialog.labels" class="w-full" @create="labels = withTyped(labels, $event)" />
+      </UFormField>
       <UFormField v-if="entryLink !== null" :label="linkWords.label" class="sm:col-span-2" data-testid="spending-entry-link">
         <div class="flex flex-col items-start gap-1">
           <NoteLine as="span" size="body" :tone="LINK_TONE[entryLink.look]" :icon="entryLink.icon">{{ entryLink.text }}</NoteLine>
@@ -449,7 +492,20 @@ async function remove(): Promise<void> {
       </UFormField>
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ splitNote }}</p>
-        <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full" />
+        <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full">
+          <template v-if="labelling" #line="{ line, title }">
+            <LabelsSelect
+              :model-value="partLabels[line.id] ?? []"
+              :labels="labelChoices"
+              :name="words.dialog.partLabels(title)"
+              size="sm"
+              class="w-full"
+              data-testid="spending-entry-part-labels"
+              @update:model-value="labelPart(line.id, $event)"
+              @create="labelPart(line.id, withTyped(partLabels[line.id] ?? [], $event))"
+            />
+          </template>
+        </RowLines>
         <p v-if="receiptPlace !== null" class="flex flex-col items-start text-sm" data-testid="spending-entry-place">
           <span>{{ receiptPlace.text }}</span>
           <a :href="receiptPlace.link" target="_blank" rel="noopener noreferrer" class="quiet-link" data-testid="spending-entry-place-link">{{ receiptWords.openMap }}</a>

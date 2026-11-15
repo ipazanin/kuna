@@ -1,14 +1,14 @@
 /**
  * The fields of a record that hold no figure, as its parsed record names them and as its stored cells do. A Spending row's are
  * the bank's words and marks, which spending.read.statements hashes, who filed the row, and its link, which spending.published.links
- * hashes, and so is the link of a Spending row's item, whose labels spending.labels hashes. A Spending account's is where its rows come from, which spending.read.sources hashes, and so is an Investments account's,
+ * hashes, and so is the link of a Spending row's item, whose labels spending.labels hashes, and whether a link split it off. A Spending account's is where its rows come from, which spending.read.sources hashes, and so is an Investments account's,
  * with its start day, which investments.read.sources hashes. A Company ledger row's are the bank's words and marks and who flagged it, which read.workbook hashes.
  */
 export const SPENDING_ROW = {
   record: new Set(['description', 'counterpartyIban', 'importKey', 'statement', 'categorisedBy', 'movedAt', 'pocket', 'cashWithdrawal', 'link']),
   cells: new Set(['description', 'counterparty_iban', 'import_key', 'statement', 'categorised_by', 'moved_at', 'pocket', 'cash_withdrawal', 'link']),
 }
-export const SPENDING_ITEM = { record: new Set(['link', 'labels']), cells: new Set(['link', 'labels']) }
+export const SPENDING_ITEM = { record: new Set(['link', 'labels', 'splitByLink']), cells: new Set(['link', 'labels', 'split_by_link']) }
 export const SPENDING_ACCOUNT = { record: new Set(['rowsFrom']), cells: new Set(['rows_from']) }
 export const INVESTMENT_ACCOUNT = { record: new Set(['intake']), cells: new Set(['rows_from', 'starts_on']) }
 /** A Company item leaves nothing out: its invoice is a figure, since what an invoice is owed reads it. */
@@ -19,7 +19,7 @@ export const COMPANY_LEDGER_ROW = {
 }
 
 /** A Spending row of the file, a statement's or a held one carries an import key, a row's item what the till printed, and an account where its rows come from. */
-function spendingKindOf(record) {
+export function spendingKindOf(record) {
   if (Object.hasOwn(record, 'importKey')) return SPENDING_ROW
   if (Object.hasOwn(record, 'printed')) return SPENDING_ITEM
   if (Object.hasOwn(record, 'rowsFrom')) return SPENDING_ACCOUNT
@@ -27,12 +27,12 @@ function spendingKindOf(record) {
 }
 
 /** An Investments account says how its rows come in. */
-function investmentsKindOf(record) {
+export function investmentsKindOf(record) {
   return Object.hasOwn(record, 'intake') ? INVESTMENT_ACCOUNT : null
 }
 
 /** A Company ledger row carries the bank's signals, and an item the invoice it pays. */
-function companyKindOf(record) {
+export function companyKindOf(record) {
   if (Object.hasOwn(record, 'signals')) return COMPANY_LEDGER_ROW
   if (Object.hasOwn(record, 'invoice') && Object.hasOwn(record, 'row')) return COMPANY_ITEM
   return null

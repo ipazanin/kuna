@@ -6,13 +6,14 @@ import UInput from '@nuxt/ui/components/Input.vue'
 
 import { words } from './words'
 import { addLabel, labelRows } from '../../labels/application/labelWrites'
-import { labelNameProblem } from '../../labels/domain/labels'
+import { labelNameProblem, newLabel } from '../../labels/domain/labels'
 import { words as labelWords } from '../../labels/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { Label } from '../../workbook/domain/label'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
+import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
@@ -65,9 +66,13 @@ async function addAndApply(): Promise<void> {
   tried.value = true
   const records = store.state.records
   if (error.value !== null || records === null) return
-  const typed = name.value.trim()
-  const title = words.labelling.put(typed, entries.value)
-  if (await writes.write(title, (unit) => labelRows(unit, records, props.rows, addLabel(unit, typed).id, true), { key: 'add', failedTitle: spendingWords.form.notSaved })) done()
+  const label = newLabel(name.value)
+  const title = words.labelling.put(label.name, entries.value)
+  const write = (unit: UnitOfWork): void => {
+    addLabel(unit, label)
+    labelRows(unit, records, props.rows, label.id, true)
+  }
+  if (await writes.write(title, write, { key: 'add', failedTitle: spendingWords.form.notSaved })) done()
 }
 
 function done(): void {

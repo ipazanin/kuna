@@ -771,3 +771,89 @@ describe('the account a new entry starts on', () => {
     expect((await desk.propose([step, stepOf(SPENDING_OPERATIONS, 'delete-rule', { rule: desk.ref('rule', EXAMPLE_RECORDS['rule']!) })])).text).toContain('card of its own')
   })
 })
+
+describe('labels through the chat', () => {
+  const RENT_PART = recordIdOf(ITEM_RECORDS, 'line-hardware-rent')
+  const GROCERIES_PART = recordIdOf(ITEM_RECORDS, 'line-hardware-groceries')
+  const labelsOn = (desk: SpendingDesk) => new Map(bookOf(desk).items.map((item) => [item.id, item.labels]))
+
+  it('adds a label and puts it on an entry and on one part of a split entry by its $ name on one card, which one Undo takes back', async () => {
+    const desk = await spendingDesk(used)
+    const typed = wholeRowItemId({ id: EXAMPLE_RECORDS['transaction'] as RecordId })
+    const renovation = EXAMPLE_RECORDS['label'] as RecordId
+
+    const answer = await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-label', { name: ' Prague ' }, '$trip'),
+      stepOf(SPENDING_OPERATIONS, 'label-entries', {
+        label: '$trip',
+        entries: [
+          { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!), part: null },
+          { entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-split']!), part: desk.ref('item', GROCERIES_PART) },
+        ],
+      }),
+    ])
+    expect(answer.isError, answer.text).toBe(false)
+    const shown = desk.cards[0]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields.filter((field) => field.name === words.proposals.fields.labels).map((field) => field.after)))
+    expect(shown).toEqual(['Prague', 'Prague'])
+    const result = await desk.accept()
+
+    const trip = bookOf(desk).labels.find((label) => label.name === 'Prague')!
+    expect([labelsOn(desk).get(typed), labelsOn(desk).get(GROCERIES_PART), labelsOn(desk).get(RENT_PART)]).toEqual([[trip.id], [trip.id], [renovation]])
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).labels.map((label) => label.name)).toEqual(['Renovation'])
+    expect(labelsOn(desk).get(typed)).toEqual([])
+  })
+
+  it('renames a label, takes it off an entry, and deletes it from every part that carries it', async () => {
+    const desk = await spendingDesk(used)
+    const label = desk.ref('label', EXAMPLE_RECORDS['label']!)
+    const split = desk.ref('transaction', EXAMPLE_RECORDS['transaction-split']!)
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'rename-label', { label, name: 'Home works' })])
+    await desk.accept()
+    expect(bookOf(desk).labels.map((held) => held.name)).toEqual(['Home works'])
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'unlabel-entries', { label, entries: [{ entry: split, part: null }] })])
+    await desk.accept()
+    expect(labelsOn(desk).get(RENT_PART)).toEqual([])
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'label-entries', { label, entries: [{ entry: split, part: null }] })])
+    await desk.accept()
+    expect([labelsOn(desk).get(RENT_PART), labelsOn(desk).get(GROCERIES_PART)]).toEqual([[EXAMPLE_RECORDS['label']], [EXAMPLE_RECORDS['label']]])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'delete-label', { label })])
+    await desk.accept()
+    expect(bookOf(desk).labels).toEqual([])
+    expect([labelsOn(desk).get(RENT_PART), labelsOn(desk).get(GROCERIES_PART)]).toEqual([[], []])
+  })
+
+  it('refuses a name another label has once folded, a part of another entry, and a label on a file from before items', async () => {
+    const desk = await spendingDesk(used)
+    const label = desk.ref('label', EXAMPLE_RECORDS['label']!)
+    const typed = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-label', { name: 'RENOVATION' })])).text).toContain('Another label is called RENOVATION')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-label', { name: '  ' })])).text).toContain('A label needs a name')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'label-entries', { label, entries: [{ entry: typed, part: desk.ref('item', GROCERIES_PART) }] })])).text).toContain("its entry's own parts")
+
+    const older = await spendingDesk(used, deskPorts(), 'before-items')
+    const olderLabel = older.ref('label', EXAMPLE_RECORDS['label']!)
+    const olderRow = older.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    expect((await older.propose([stepOf(SPENDING_OPERATIONS, 'label-entries', { label: olderLabel, entries: [{ entry: olderRow, part: null }] })])).text).toContain('move-to-items')
+  })
+
+  it('reads what each label counts as the month counts it, by group, with how many entries carry it', async () => {
+    const desk = await spendingDesk(used)
+    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => DESK_LOAN_TARGETS })
+    const labels = reader.reports.find((report) => report.id === 'labels')!
+
+    expect(labels.figures('2026-10-31')).toEqual([
+      { label: 'Renovation: spent', of: 'app', cents: 4000, currency: 'EUR' },
+      { label: 'Renovation / Rent: spent', of: 'app', cents: 4000, currency: 'EUR' },
+      { label: 'Renovation: entries', count: 1 },
+    ])
+    expect(labels.figures('2026-10-29')).toEqual([
+      { label: 'Renovation: spent', of: 'app', cents: 0, currency: 'EUR' },
+      { label: 'Renovation: entries', count: 0 },
+    ])
+  })
+})

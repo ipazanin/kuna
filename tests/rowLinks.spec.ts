@@ -2,7 +2,8 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
-import { linkEntries, linkEntry, unlinkEntry } from '../src/apps/spending/entries/application/entryWrites'
+import { linkEntries, linkEntry, unlinkEntry, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
+import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import type { LinkPlace } from '../src/apps/spending/links/domain/instalmentSplit'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets'
 import { linkLineOf, targetLineOf } from '../src/apps/spending/links/presentation/linkLine'
@@ -326,17 +327,19 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
       )
 
     await link(paid, INSTALMENT)
+    // A file from before items keeps no mark of the parts a link split off.
+    const byLink = shape === 'items'
     const principal = book().categories.find((held) => held.kind === 'repayment')!
     expect(principal).toMatchObject({ name: 'Loan principal', parent: null })
     expect(book().problems).toEqual([])
     expect(
       book()
         .items.filter((part) => part.transaction === paid.id)
-        .map((part) => [part.amount, part.category, part.note]),
+        .map((part) => [part.amount, part.category, part.note, part.splitByLink]),
     ).toEqual([
-      [accountMoneyFromAmount(-250), LOAN_INTEREST.id, 'Interest'],
-      [accountMoneyFromAmount(-400), principal.id, ''],
-      [accountMoneyFromAmount(-2.4), LOAN_INTEREST.id, 'Difference from the plan'],
+      [accountMoneyFromAmount(-250), LOAN_INTEREST.id, 'Interest', byLink],
+      [accountMoneyFromAmount(-400), principal.id, '', byLink],
+      [accountMoneyFromAmount(-2.4), LOAN_INTEREST.id, 'Difference from the plan', byLink],
     ])
     const november = spendingFigures(book(), NO_RATES).totalsOf(month('2026-11'))
     expect([november.spent, november.byCategory.get(LOAN_INTEREST.id), november.byCategory.get(principal.id)]).toEqual([moneyFromAmount(252.4), moneyFromAmount(252.4), undefined])
@@ -477,6 +480,27 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     await store.write('Unlinked', (unit) => unlinkEntry(unit, store.state.records!, book().transactions[0]!))
 
     expect(book().items).toEqual(split.map((part) => ({ ...part, link: null })))
+  })
+
+  it('says a part was split off by the link until you split the row again by hand, even when a part stays under Loan principal', async () => {
+    const paid = row(OTP, '2026-11-20', -650, 'Money and fees/Loan interest')
+    const store = await fileWith([paid])
+    const book = () => store.state.workbook!
+    await store.write('Linked', (unit) => linkEntry(unit, store.state.records!, book().transactions[0]!, INSTALMENT, { ...english, categories: book().categories }))
+    const [interest, principal] = book().items
+    const drafts = [
+      { id: interest!.id, amount: accountMoneyFromAmount(-200), category: interest!.category!, note: '' },
+      { id: principal!.id, amount: 'rest' as const, category: principal!.category!, note: '' },
+    ]
+    const split = entrySplit(book(), book().transactions[0]!, drafts)
+    if ('refused' in split) throw new Error(split.refused)
+
+    await store.write('Split', (unit) => writeEntrySplit(unit, store.state.records!, split))
+
+    expect(book().items.map((part) => [part.category, part.splitByLink])).toEqual([
+      [interest!.category, false],
+      [principal!.category, false],
+    ])
   })
 })
 

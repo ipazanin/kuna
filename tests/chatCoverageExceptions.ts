@@ -9,14 +9,6 @@ export interface ChatException {
 
 export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   {
-    reason: "Spending's labels. A person adds, renames and deletes them on Labels and the chat reads labels without changing them.",
-    paths: [
-      'src/apps/spending/labels/application/labelWrites.ts#addLabel',
-      'src/apps/spending/labels/application/labelWrites.ts#renameLabel',
-      'src/apps/spending/labels/application/labelWrites.ts#deleteLabel',
-    ],
-  },
-  {
     reason: "Not now on To review's card of past instalments. It only stops that card offering what the person saw on it, and the chat does not show the card.",
     paths: ['src/apps/spending/links/application/instalmentReview.ts#putOffPastInstalments'],
   },

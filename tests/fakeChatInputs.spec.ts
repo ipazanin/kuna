@@ -162,6 +162,8 @@ const FLOWS: readonly Flow[] = [
   { name: 'spending card receipt', said: ['No, by card'], context: PHOTO, proposes: ['add-receipt'] },
   { name: 'spending purse', said: ['Add a cash purse'], proposes: ['add-account'] },
   { name: 'spending split', said: ['Split the latest spend'], proposes: ['split-entry'] },
+  { name: 'spending label', said: ["Label last month's three largest payments"], proposes: ['add-label', 'label-entries'] },
+  { name: 'spending label cost', said: ['What did the Boston trip cost?'], proposes: [] },
   { name: 'spending rules guide', said: ['How do rules work?'], proposes: [] },
   { name: 'company sorting', said: [COMPANY_SORT], context: IN_COMPANY, proposes: ['file-row'] },
   {

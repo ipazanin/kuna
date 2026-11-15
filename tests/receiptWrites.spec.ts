@@ -7,6 +7,7 @@ import { deleteInto } from '../src/apps/spending/categories/application/category
 import { removeEntry, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
+import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
 import { RECEIPT_WRITES } from '../src/apps/spending/receipts/application/receiptRecords'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
@@ -372,12 +373,12 @@ describe('the lines of a receipt in place of what a row held', () => {
   ]
 
   async function labelled(store: Awaited<ReturnType<typeof spendingStore>>, rows: readonly Transaction[], name: string): Promise<RecordId> {
-    let id: RecordId | null = null
+    const label = newLabel(name)
     await store.write('Labelled', (unit) => {
-      id = addLabel(unit, name).id
-      labelRows(unit, store.state.records!, rows, id, true)
+      addLabel(unit, label)
+      labelRows(unit, store.state.records!, rows, label.id, true)
     })
-    return id!
+    return label.id
   }
 
   it('gives every line the labels of the one part a row not split stands for', async () => {
@@ -405,16 +406,16 @@ describe('the lines of a receipt in place of what a row held', () => {
     const split = store.state.workbook!.transactions[0]!
     const trip = await labelled(store, [split], 'Prague')
     const [first, second] = store.state.workbook!.items
-    let flat: RecordId | null = null
+    const flat = newLabel('New flat')
     await store.write('Relabelled', (unit) => {
-      flat = addLabel(unit, 'New flat').id
+      addLabel(unit, flat)
       writeRows(unit, store.state.records!, [
         {
           before: split,
           after: split,
           items: [
             { ...first!, labels: [] },
-            { ...second!, labels: [trip, flat] },
+            { ...second!, labels: [trip, flat.id] },
           ],
         },
       ])
@@ -426,8 +427,8 @@ describe('the lines of a receipt in place of what a row held', () => {
     const lines = store.state.workbook!.items
     expect(lines.some((line) => handParts.includes(line.id))).toBe(false)
     expect(lines.map((line) => line.labels)).toEqual([
-      [trip, flat],
-      [trip, flat],
+      [trip, flat.id],
+      [trip, flat.id],
     ])
   })
 

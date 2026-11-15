@@ -15,7 +15,7 @@ import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
 import type { CardStatement, CopiedRows } from './statementImport'
 import type { CardNote, ProposalGroup, ProposalNote } from '../../../../shared/app/assistantOperations'
@@ -47,6 +47,7 @@ export const KEPT_BY_KUNA: ReadonlySet<string> = new Set([
   'description',
   'transaction',
   'receipt',
+  'splitByLink',
 ])
 
 /** The fields that say where money or mail goes, which the owner lets a model fill with a warning on the field. */
@@ -109,14 +110,14 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   return namesOf.get(value) ?? String(value)
 }
 
-/** What the record is called on screen: an entry by its payee or else its first item's category, a rule by the payee or IBAN it files, a limit by its category, a part of an entry by its words or else its category, and others by their name. */
+/** What the record is called on screen: an entry by its payee or else its first item's category, a rule by the payee or IBAN it files, a limit by its category, a part of an entry by its words or else its category, and an account, a category and a label by its name. */
 function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>, categoryOf: (row: RecordId) => RecordId | null): string {
   if (isKind(kind, TRANSACTION_RECORDS, record)) return record.payee !== '' ? record.payee : (namesOf.get(record.category ?? categoryOf(record.id)) ?? fallback)
   if (isKind(kind, RULE_RECORDS, record)) return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment
   if (isKind(kind, BUDGET_RECORDS, record)) return namesOf.get(record.category) ?? fallback
   if (isKind(kind, RECEIPT_RECORDS, record)) return record.merchant !== '' ? record.merchant : fallback
   if (isKind(kind, ITEM_RECORDS, record)) return record.note !== '' ? record.note : record.printed !== '' ? record.printed : (namesOf.get(record.category) ?? fallback)
-  if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record)) return record.name
+  if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record) || isKind(kind, LABEL_RECORDS, record)) return record.name
   return fallback
 }
 
@@ -195,7 +196,7 @@ function startDayNote(move: StartDayMove, book: SpendingBook): ProposalNote | nu
 
 /** What a new category, account or part of an entry holds unless a person sets it, which a card leaves off its add. */
 export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
-  if (kind.name === ITEM_RECORDS.name) return { labels: [] }
+  if (kind.name === ITEM_RECORDS.name) return { labels: [], splitByLink: false }
   return kind.name === CATEGORY_RECORDS.name ? NEW_CATEGORY_DEFAULTS : kind.name === ACCOUNT_RECORDS.name ? NEW_ACCOUNT_DEFAULTS : {}
 }
 

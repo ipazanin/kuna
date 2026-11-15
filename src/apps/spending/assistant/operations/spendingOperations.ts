@@ -2,6 +2,7 @@ import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, 
 import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
 import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { BANK_SETUP_OPERATIONS, isBankSetupStep, planBankSetup } from './bankSetupOperations'
+import { LABEL_OPERATIONS, isLabelStep, writeLabelStep } from './labelOperations'
 import { NO_WARNINGS, proposalGroupsOf, statementLeftOut } from './proposalLines'
 import type { CardWarnings, StatementLeftOut } from './proposalLines'
 import { ADD_RECEIPT, keptPhotos, receiptsOutside, withPhotosRead, writeReceiptStep } from './receiptOperation'
@@ -341,6 +342,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     alone: true,
     example: {},
   },
+  ...LABEL_OPERATIONS,
   ...REVIEW_OPERATIONS,
   ...WAITING_RECEIPT_OPERATIONS,
   IMPORT_STATEMENT,
@@ -494,6 +496,14 @@ function plannedSteps(
   for (const [at, { operation, input, as }] of steps.entries()) {
     // The chat checked the input against this operation's schema, so each field has the type the schema gives it.
     const field = input as Readonly<Record<string, never>>
+    if (isLabelStep(operation)) {
+      const added = writeLabelStep(unit, book, records(), operation, field, idOf)
+      if (added !== null) {
+        book = { ...book, labels: [...book.labels, added] }
+        if (as !== null) made.set(as, added.id)
+      }
+      continue
+    }
     switch (operation) {
       case 'add-category': {
         const parent = field['parent'] === null ? null : categoryOf(field['parent']).id
@@ -622,6 +632,7 @@ function plannedSteps(
           payee: field['payee'],
           category: field['category'] === null ? null : categoryOf(field['category']).id,
           note: field['note'],
+          labels: [],
         })
         writeEntry(unit, records(), null, entry, null)
         book = { ...book, transactions: [...book.transactions, entry.row], items: [...book.items, ...entry.items] }

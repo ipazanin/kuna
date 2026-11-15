@@ -5,7 +5,7 @@ import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 
 import { addLabel, deleteLabel, renameLabel } from '../application/labelWrites'
-import { labelNameProblem } from '../domain/labels'
+import { labelNameProblem, newLabel } from '../domain/labels'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Label } from '../../workbook/domain/label'
 import { words as spendingWords } from '../../words'
@@ -52,7 +52,7 @@ async function save(): Promise<void> {
   const changed = props.label
   const done =
     changed === null
-      ? await writes.write(words.added, (unit) => void addLabel(unit, name.value), { failedTitle: spendingWords.form.notAdded })
+      ? await writes.write(words.added, (unit) => addLabel(unit, newLabel(name.value)), { failedTitle: spendingWords.form.notAdded })
       : await writes.write(words.saved, (unit) => renameLabel(unit, changed, name.value), { failedTitle: spendingWords.form.notSaved })
   if (done) open.value = false
 }

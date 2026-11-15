@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
+import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
 import type { Label } from '../src/apps/spending/workbook/domain/label'
 import { plainLineOf } from '../src/apps/spending/workbook/domain/beforeItems'
@@ -304,8 +305,10 @@ describe('the labels of a split', () => {
     let trip: Label | null = null
     let flat: Label | null = null
     await store.write('Labelled', (unit) => {
-      trip = addLabel(unit, 'Prague')
-      flat = addLabel(unit, 'New flat')
+      trip = newLabel('Prague')
+      flat = newLabel('New flat')
+      addLabel(unit, trip)
+      addLabel(unit, flat)
       labelRows(unit, records(), [spend], trip.id, true)
     })
     const write = (drafts: readonly ItemDraft[]) => store.write('Split', (unit) => writeEntrySplit(unit, records(), splitOf(book().transactions[0]!, drafts, book())))

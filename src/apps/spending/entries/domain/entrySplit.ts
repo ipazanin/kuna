@@ -69,7 +69,18 @@ export function entrySplit(
   const labelsById = new Map(held.map((item) => [item.id, item.labels]))
   const parts = drafts.map((draft, place): TransactionItem => {
     const id = draft.id ?? (whole !== null && place === 0 ? whole.id : recordIdOf(ITEM_RECORDS, newKey()))
-    return { id, transaction: row.id, receipt: null, printed: '', note: draft.note.trim(), amount: placed.parts[place]!, category: draft.category, link, labels: labelsById.get(id) ?? [] }
+    return {
+      id,
+      transaction: row.id,
+      receipt: null,
+      printed: '',
+      note: draft.note.trim(),
+      amount: placed.parts[place]!,
+      category: draft.category,
+      link,
+      labels: labelsById.get(id) ?? [],
+      splitByLink: false,
+    }
   })
   return { before: { row, items: held }, row: { ...row, categorisedBy: 'person' }, parts }
 }
@@ -91,5 +102,16 @@ export function differenceItem(
   )
   return rest === 0
     ? null
-    : { id: recordIdOf(ITEM_RECORDS, newKey()), transaction: like.transaction, receipt: like.receipt, printed: '', note, amount: rest, category: like.category, link: like.link, labels: [] }
+    : {
+        id: recordIdOf(ITEM_RECORDS, newKey()),
+        transaction: like.transaction,
+        receipt: like.receipt,
+        printed: '',
+        note,
+        amount: rest,
+        category: like.category,
+        link: like.link,
+        labels: [],
+        splitByLink: false,
+      }
 }

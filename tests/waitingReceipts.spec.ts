@@ -9,6 +9,7 @@ import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/recei
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { receiptOnRow, receiptsArriving, waitingReceipts } from '../src/apps/spending/receipts/domain/waitingReceipts'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
+import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
 import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
@@ -199,7 +200,9 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     const [tipped] = asking!.matches.kind === 'pick' ? asking!.matches.candidates : []
     let trip: RecordId | null = null
     await store.write('Labelled', (unit) => {
-      trip = addLabel(unit, 'Prague').id
+      const label = newLabel('Prague')
+      addLabel(unit, label)
+      trip = label.id
       labelRows(unit, store.state.records!, [tipped!.row], trip, true)
     })
 
