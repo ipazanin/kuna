@@ -110,10 +110,10 @@ export function slugListOf(field: StoredField | undefined): string[] {
     .filter((entry) => entry !== '')
 }
 
-/** The records of a kind a field names by their keys, separated by `|`, such as `k1 | k2`. */
+/** The records of a kind a field names by their keys, separated by `|` as `idsText` writes them, or by commas as older books do, such as `k1 | k2` or `k1, k2`. */
 export function idsOf(field: StoredField | undefined, kind: RecordKind): RecordId[] {
   return textOf(field)
-    .split('|')
+    .split(/[|,]/)
     .map((key) => key.trim())
     .filter((key) => key !== '')
     .map((key) => recordIdOf(kind, key))

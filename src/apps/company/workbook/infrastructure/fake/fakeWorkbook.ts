@@ -391,7 +391,7 @@ function onItemsTab(records: Readonly<Record<string, readonly RecordFields[]>>):
     return split.length > 0 ? split : repaymentsOf(row, itemOfLedgerRow(row))
   })
   const itemsOf = (rowId: FieldValue | undefined) => items.filter((item) => item.row_id === rowId).map((item) => item[ID_FIELD])
-  const linked = (trip: RecordFields, field: string) => (trip[field] === undefined ? {} : { [field.replace('_row', '_items')]: itemsOf(trip[field]).join(', ') })
+  const linked = (trip: RecordFields, field: string) => (trip[field] === undefined ? {} : { [field.replace('_row', '_items')]: itemsOf(trip[field]).join(' | ') })
   return {
     ...rest,
     'ledger-row': ledger.map(rowOnItemsTab),

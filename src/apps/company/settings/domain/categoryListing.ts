@@ -2,6 +2,8 @@ import { fold } from '../../../../shared/text/fold'
 import { typedOwnerShare } from '../../owner-share/domain/ownerShare'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { displayName } from '../../workbook/domain/displayName'
+import type { CategoryClass } from '../../workbook/domain/packPart'
+import { classOf, rolesBesideClass } from './categoryClasses'
 import { rolesOfText } from './categoryDrafts'
 import type { CategoryDraft } from './categoryDrafts'
 
@@ -11,13 +13,15 @@ export interface CategoryFilters {
   readonly search: string
   /** A bucket, or null for every bucket. */
   readonly bucket: string | null
-  /** A role, or null for any role or none. */
+  /** A role that carries no tax class, or null for any role or none. */
   readonly role: string | null
+  /** The role of the tax class the category counts by, or null for any class or none. */
+  readonly taxClass: string | null
   readonly withOwnerShare: boolean
   readonly unsavedOnly: boolean
 }
 
-export const NO_FILTERS: CategoryFilters = { search: '', bucket: null, role: null, withOwnerShare: false, unsavedOnly: false }
+export const NO_FILTERS: CategoryFilters = { search: '', bucket: null, role: null, taxClass: null, withOwnerShare: false, unsavedOnly: false }
 
 export type CategorySortColumn = 'category' | 'label' | 'family' | 'bucket' | 'roles' | 'vat' | 'ownerShare'
 
@@ -35,19 +39,21 @@ export interface ListedDraft {
 }
 
 export function filtersInUse(filters: CategoryFilters): boolean {
-  return fold(filters.search) !== '' || filters.bucket !== null || filters.role !== null || filters.withOwnerShare || filters.unsavedOnly
+  return fold(filters.search) !== '' || filters.bucket !== null || filters.role !== null || filters.taxClass !== null || filters.withOwnerShare || filters.unsavedOnly
 }
 
-export function matchesFilters({ draft, unsaved }: ListedDraft, filters: CategoryFilters): boolean {
+export function matchesFilters({ draft, unsaved }: ListedDraft, filters: CategoryFilters, classes: readonly CategoryClass[]): boolean {
   const words = fold(filters.search)
     .split(' ')
     .filter((word) => word !== '')
   const slug = draft.category.trim().toLowerCase()
   const searched = fold([slug, draft.label, displayName(slug, draft.label), draft.family, draft.bucket, draft.roles].join(' '))
+  const roles = rolesOfText(draft.roles)
   return (
     words.every((word) => searched.includes(word)) &&
     (filters.bucket === null || draft.bucket.trim().toLowerCase() === filters.bucket) &&
-    (filters.role === null || rolesOfText(draft.roles).includes(filters.role)) &&
+    (filters.role === null || roles.includes(filters.role)) &&
+    (filters.taxClass === null || classOf(roles, classes)?.role === filters.taxClass) &&
     (!filters.withOwnerShare || draft.ownerShare.trim() !== '') &&
     (!filters.unsavedOnly || unsaved)
   )
@@ -59,13 +65,13 @@ export function matchesFilters({ draft, unsaved }: ListedDraft, filters: Categor
  * of view. A row added in the editor stays at the foot in the order it was added, where Save puts
  * it. The others follow the sort, a blank value last either way and a tie in the tab's order.
  */
-export function categoryListing(drafts: readonly ListedDraft[], filters: CategoryFilters, sort: CategorySort | null): number[] {
-  const shown = drafts.flatMap((listed, position) => (listed.unsaved || listed.inError || matchesFilters(listed, filters) ? [position] : []))
+export function categoryListing(drafts: readonly ListedDraft[], filters: CategoryFilters, sort: CategorySort | null, classes: readonly CategoryClass[]): number[] {
+  const shown = drafts.flatMap((listed, position) => (listed.unsaved || listed.inError || matchesFilters(listed, filters, classes) ? [position] : []))
   const added = shown.filter((position) => drafts[position]!.draft.saved === null)
   const saved = shown.filter((position) => drafts[position]!.draft.saved !== null)
   if (sort !== null) {
     const direction = sort.descending ? -1 : 1
-    const values = new Map(saved.map((position) => [position, sortValue(drafts[position]!.draft, sort.column)]))
+    const values = new Map(saved.map((position) => [position, sortValue(drafts[position]!.draft, sort.column, classes)]))
     saved.sort((left, right) => compareValues(values.get(left)!, values.get(right)!, direction) || left - right)
   }
   return [...saved, ...added]
@@ -73,8 +79,8 @@ export function categoryListing(drafts: readonly ListedDraft[], filters: Categor
 
 type SortValue = string | number | null
 
-/** What a column sorts by. Buckets sort in the order of the profit and loss, and an owner share as a number. */
-function sortValue(draft: CategoryDraft, column: CategorySortColumn): SortValue {
+/** What a column sorts by. Buckets sort in the order of the profit and loss, roles by those beside the tax class as the column shows them, and an owner share as a number. */
+function sortValue(draft: CategoryDraft, column: CategorySortColumn, classes: readonly CategoryClass[]): SortValue {
   const slug = draft.category.trim().toLowerCase()
   switch (column) {
     case 'category':
@@ -89,7 +95,7 @@ function sortValue(draft: CategoryDraft, column: CategorySortColumn): SortValue 
       return bucket === '' ? null : place === -1 ? BUCKETS.length : place
     }
     case 'roles':
-      return blankAsNull(rolesOfText(draft.roles).join(', '))
+      return blankAsNull(rolesBesideClass(rolesOfText(draft.roles), classes).join(', '))
     case 'vat':
       return blankAsNull(draft.vat.trim().toLowerCase())
     case 'ownerShare':

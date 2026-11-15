@@ -150,6 +150,13 @@ describe('a trip linked to its bank rows', () => {
     expect(fileOf({ ...SPLIT_TRIP, dismissed_rows: 'a, b' }).trip.dismissedRows).toEqual(['a', 'b'])
   })
 
+  it('reads the items a trip lists separated by commas, as older books keep them, or by |, and writes them back separated by |', () => {
+    const items = [recordIdOf(ITEM_RECORDS, 'k1'), recordIdOf(ITEM_RECORDS, 'k2')]
+    const older = fileOf({ ...SPLIT_TRIP, advance_items: 'k1, k2', payout_items: 'k1 | k2', dismissed_items: 'k1,k2' }).trip
+    expect([older.advanceItems, older.payoutItems, older.dismissedItems]).toEqual([items, items, items])
+    expect(TRIP_CODECS.trip.fieldsOf(older)).toMatchObject({ advance_items: 'k1 | k2', payout_items: 'k1 | k2', dismissed_items: 'k1 | k2' })
+  })
+
   it('refuses a row no debit carries, an advance row on an order without an advance, and a row another trip links', () => {
     const file = fileOf()
     const transactions = rows()

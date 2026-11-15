@@ -101,6 +101,7 @@ function relist(): void {
     drafts.value.map((draft, position) => ({ draft, unsaved: unsaved(draft), inError: errors.value.has(position) })),
     filters.value,
     sort.value,
+    props.classes,
   )
 }
 
@@ -126,7 +127,7 @@ const rows = computed(() =>
 )
 
 /** The rows on screen that no longer match the filters, shown for their unsaved change or error. */
-const kept = computed(() => rows.value.filter(({ draft }) => !matchesFilters({ draft, unsaved: unsaved(draft), inError: false }, filters.value)).length)
+const kept = computed(() => rows.value.filter(({ draft }) => !matchesFilters({ draft, unsaved: unsaved(draft), inError: false }, filters.value, props.classes)).length)
 
 function directionOf(column: CategorySortColumn): SortDirection | null {
   return sort.value?.column !== column ? null : sort.value.descending ? 'descending' : 'ascending'
@@ -137,6 +138,7 @@ function sortBy(column: CategorySortColumn, direction: SortDirection | null): vo
 }
 
 const modifiers = computed(() => rolesBesideClass(props.roles, props.classes))
+const classChoices = computed(() => props.classes.map((taxClass) => ({ role: taxClass.role, name: props.classHelp(taxClass.role)?.name ?? taxClass.role })))
 
 /** The draft's value as one of the choices, a value the choices lack, such as a contradiction the file holds, offered too so the field shows it. */
 function withValue(choices: readonly string[], value: string): string[] {
@@ -247,7 +249,7 @@ function save(): void {
 </script>
 
 <template>
-  <CategoryFilterBar v-model="filters" :roles="roles" :shares="shares" :shown="rows.length" :total="drafts.length" :kept="kept" />
+  <CategoryFilterBar v-model="filters" :roles="modifiers" :tax-classes="classChoices" :shares="shares" :shown="rows.length" :total="drafts.length" :kept="kept" />
   <div class="table-frame relative mx-1 my-2 sm:mx-2" data-testid="categories-frame">
     <table class="data-table editor-table w-full text-sm" data-testid="categories-editor">
       <thead>
@@ -347,6 +349,7 @@ function save(): void {
               :aria-label="words.categories.columns.taxClass"
               size="sm"
               class="w-60"
+              :ui="{ value: 'text-clip whitespace-normal text-start', itemLabel: 'text-clip whitespace-normal' }"
               data-testid="category-class"
               @update:model-value="pickClass(index, String($event))"
             />

@@ -17,9 +17,14 @@ const packagesFolder = dirname(dirname(dirname(createRequire(import.meta.url).re
 
 // Project site: https://ipazanin.github.io/kuna/
 // The leading and trailing slashes are both required, or every asset 404s once deployed.
-export default defineConfig({
+export default defineConfig(({ command, isPreview }) => ({
   base: '/kuna/',
-  server: { fs: { allow: [searchForWorkspaceRoot(process.cwd()), packagesFolder] } },
+  server: {
+    fs: { allow: [searchForWorkspaceRoot(process.cwd()), packagesFolder] },
+    // The DZS refuses a page on localhost by CORS, so the dev server asks it for the house price index in the page's place.
+    // A preview serves a production build, which asks the DZS itself.
+    proxy: command === 'serve' && isPreview !== true ? { '/dzs': { target: 'https://web.dzs.hr', changeOrigin: true, rewrite: (path) => path.replace(/^\/dzs/, '') } } : {},
+  },
   plugins: [
     vue(),
     ui({
@@ -74,4 +79,4 @@ export default defineConfig({
     devRealBooks(),
     offlineApp(),
   ],
-})
+}))

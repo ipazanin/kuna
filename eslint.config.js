@@ -264,6 +264,35 @@ const noteLines = {
   },
 }
 
+/** The value an attribute of a template element is given, written plain or bound to a string, or undefined for one it lacks or binds otherwise. */
+function attributeValue(element, name) {
+  for (const attribute of element.startTag.attributes) {
+    if (!attribute.directive && attribute.key.rawName === name) return attribute.value?.value ?? ''
+    if (attribute.directive && attribute.key.name.name === 'bind' && attribute.key.argument?.rawName === name) {
+      const expression = attribute.value?.expression
+      return expression?.type === 'Literal' && typeof expression.value === 'string' ? expression.value : null
+    }
+  }
+  return undefined
+}
+
+/** A link UButton with an arrow, which is a card's All link and stays neutral beside the card's words. */
+const allLinks = {
+  meta: { type: 'problem', schema: [] },
+  create(context) {
+    const visitors = {
+      VElement(element) {
+        if (!/^(?:UButton|u-button)$/.test(element.rawName) || attributeValue(element, 'variant') !== 'link') return
+        const arrowed = ['icon', 'trailing-icon', 'trailingIcon', 'leading-icon', 'leadingIcon'].some((name) => attributeValue(element, name) === 'i-lucide-arrow-right')
+        if (arrowed && attributeValue(element, 'color') !== 'neutral') {
+          context.report({ node: element, message: 'A link with an arrow, such as a card\'s All link, is color="neutral", so it reads as a way on rather than an action in the accent.' })
+        }
+      },
+    }
+    return context.sourceCode.parserServices.defineTemplateBodyVisitor?.(visitors, {}) ?? {}
+  },
+}
+
 const kunaPlugin = {
   rules: {
     'shoot-at': shootAt,
@@ -318,10 +347,12 @@ const kunaPlugin = {
       'A choice kept on this device goes through src/shared/device/deviceChoice.ts, which gives the default where a private window denies the storage.',
     ),
     'note-lines': noteLines,
+    'all-links': allLinks,
     'link-rows': refusedSyntax(
       [
         `${linkIcon} > VStartTag > VAttribute[directive=false][key.name='name'][value.value='i-lucide-chevron-right']`,
         `${linkIcon} > VStartTag > VAttribute[directive=true][key.argument.name='name'] > VExpressionContainer > Literal[value='i-lucide-chevron-right']`,
+        "VElement[name='li'] > VElement[rawName=/^(?:RouterLink|router-link)$/]",
       ],
       "A row of a list that opens a page is a ProposalRow with to, which draws its arrow on the title's line.",
     ),
@@ -447,6 +478,7 @@ export function kunaConfig(exempt) {
     { name: 'kuna/choice-buttons', files: ['src/apps/**/*.vue'], rules: { 'kuna/choice-buttons': 'error' } },
     { name: 'kuna/day-fields', files: ['src/**/*.vue'], rules: { 'kuna/day-fields': 'error', 'kuna/day-field-labels': 'error' } },
     { name: 'kuna/link-rows', files: ['src/apps/**/*.vue'], rules: { 'kuna/link-rows': 'error' } },
+    { name: 'kuna/all-links', files: ['src/**/*.vue'], rules: { 'kuna/all-links': 'error' } },
     { name: 'kuna/note-lines', files: ['src/**/*.vue'], ignores: ['src/shared/ui/NoteLine.vue'], rules: { 'kuna/note-lines': 'error' } },
     { name: 'kuna/money-tone-colours', files: ['src/**/*.vue'], rules: { 'kuna/money-tone-colours': 'error' } },
     { name: 'kuna/shoot-at', files: ['scripts/**/*.mjs'], rules: { 'kuna/shoot-at': 'error' } },

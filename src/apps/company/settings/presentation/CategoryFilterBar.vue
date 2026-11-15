@@ -16,8 +16,10 @@ import { words } from './words'
 
 /** The search and quick filters of the categories table. A phone keeps the search in view and the rest in a sheet. */
 const props = defineProps<{
-  /** The roles core and the pack pick categories by. */
+  /** The roles core and the pack pick categories by, other than those that carry a tax class. */
   roles: readonly string[]
+  /** The pack's tax classes, by the role each carries and its name. None hides their filter. */
+  taxClasses: readonly { readonly role: string; readonly name: string }[]
   /** Whether the owner share shows, so it can be filtered on. */
   shares: boolean
   shown: number
@@ -28,7 +30,7 @@ const props = defineProps<{
 
 const filters = defineModel<CategoryFilters>({ required: true })
 
-// A select item cannot carry an empty value, so every bucket and any role travel as this.
+// A select item cannot carry an empty value, so every bucket, any role and any tax class travel as this.
 const ANY = '*'
 
 const bucketItems = [{ value: ANY, label: words.categories.everyBucket }, ...BUCKETS.map((bucket) => ({ value: bucket, label: words.categories.bucketChoice(bucket) }))]
@@ -41,10 +43,22 @@ const bucket = computed({
   },
 })
 
+const taxClassItems = computed(() => [{ value: ANY, label: words.categories.anyTaxClass }, ...props.taxClasses.map((taxClass) => ({ value: taxClass.role, label: taxClass.name }))])
+
+/** A tax class's name can be long, so it wraps in the menu rather than being cut. */
+const TAX_CLASS_UI = { itemLabel: 'text-clip whitespace-normal' }
+
 const role = computed({
   get: () => filters.value.role ?? ANY,
   set: (chosen: string) => {
     filters.value = { ...filters.value, role: chosen === ANY ? null : chosen }
+  },
+})
+
+const taxClass = computed({
+  get: () => filters.value.taxClass ?? ANY,
+  set: (chosen: string) => {
+    filters.value = { ...filters.value, taxClass: chosen === ANY ? null : chosen }
   },
 })
 
@@ -58,7 +72,9 @@ function set<Field extends keyof CategoryFilters>(field: Field, chosen: Category
 const narrowed = computed(() => filtersInUse(filters.value))
 
 /** The filters in the sheet that are on, which its button counts. */
-const sheetCount = computed(() => [filters.value.bucket !== null, filters.value.role !== null, filters.value.withOwnerShare, filters.value.unsavedOnly].filter(Boolean).length)
+const sheetCount = computed(
+  () => [filters.value.bucket !== null, filters.value.role !== null, filters.value.taxClass !== null, filters.value.withOwnerShare, filters.value.unsavedOnly].filter(Boolean).length,
+)
 
 const count = computed(() => (narrowed.value ? words.categories.shownOf(props.shown, props.total) : plural(words.categories.count(props.total), props.total)))
 
@@ -93,6 +109,15 @@ const sheetOpen = ref(false)
         <template #body>
           <div class="flex flex-col gap-4">
             <USelect v-model="bucket" :items="bucketItems" :aria-label="words.categories.byBucket" class="w-full" data-testid="category-bucket-filter" />
+            <USelect
+              v-if="taxClasses.length > 0"
+              v-model="taxClass"
+              :items="taxClassItems"
+              :ui="TAX_CLASS_UI"
+              :aria-label="words.categories.byTaxClass"
+              class="w-full"
+              data-testid="category-class-filter"
+            />
             <USelect v-model="role" :items="roleItems" :ui="roleUi" :aria-label="words.categories.byRole" class="w-full" data-testid="category-role-filter" />
             <UCheckbox v-if="shares" :model-value="filters.withOwnerShare" :label="words.categories.withShare" @update:model-value="set('withOwnerShare', $event === true)" />
             <UCheckbox :model-value="filters.unsavedOnly" :label="words.categories.unsaved" data-testid="category-unsaved-filter" @update:model-value="set('unsavedOnly', $event === true)" />
@@ -104,6 +129,16 @@ const sheetOpen = ref(false)
       </USlideover>
       <template v-else>
         <USelect v-model="bucket" :items="bucketItems" :aria-label="words.categories.byBucket" size="sm" class="w-40" data-testid="category-bucket-filter" />
+        <USelect
+          v-if="taxClasses.length > 0"
+          v-model="taxClass"
+          :items="taxClassItems"
+          :ui="TAX_CLASS_UI"
+          :aria-label="words.categories.byTaxClass"
+          size="sm"
+          class="w-60"
+          data-testid="category-class-filter"
+        />
         <USelect v-model="role" :items="roleItems" :ui="roleUi" :aria-label="words.categories.byRole" size="sm" class="w-52" data-testid="category-role-filter" />
         <UCheckbox v-if="shares" :model-value="filters.withOwnerShare" :label="words.categories.withShare" size="sm" @update:model-value="set('withOwnerShare', $event === true)" />
         <UCheckbox :model-value="filters.unsavedOnly" :label="words.categories.unsaved" size="sm" data-testid="category-unsaved-filter" @update:model-value="set('unsavedOnly', $event === true)" />

@@ -16,7 +16,8 @@
  * collapses and expands one card. The total and the label in the middle of every donut must sit
  * inside the ring's hole with 2 px to spare. In a titled card a table's first cell that shows starts its text where the
  * title does, a card's header actions sit under its title on a phone, a tab's one card of words and fields keeps to 42rem,
- * a DrillLink wears the colour of the text class it is given, and a row that opens a page has its arrow on its title's first line.
+ * a DrillLink wears the colour of the text class it is given, a row that opens a page has its arrow on its title's first line, and
+ * a list where only some rows open a page ends every amount at one edge.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
  * no label may be cut to under half its width with no ellipsis, and no placeholder may be cut short, other than what `support/textOverlap.mjs` allows by name.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
@@ -5073,6 +5074,7 @@ function readPage(page) {
       wideLoneCards: wideLoneCards(),
       drillLinksOffColour: drillLinksOffColour(),
       misplacedRowArrows: misplacedRowArrows(),
+      raggedRowAmounts: raggedRowAmounts(),
     }
 
     const titleOf = (card) => (card.querySelector(':scope > header :is(h1, h2, h3)')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 48)
@@ -5161,6 +5163,30 @@ function readPage(page) {
         const placed = arrow.getBoundingClientRect()
         const apart = placed.top + placed.height / 2 - (firstLine.top + firstLine.height / 2)
         if (Math.abs(apart) > 2) found.push(`the arrow of the row "${title.textContent.trim().slice(0, 32)}" sits ${Math.round(apart)} px off its title's first line`)
+      }
+      return found
+    }
+
+    /** A list where some ProposalRows open a page and others do not ends every amount at one edge, as besideLinks keeps it. */
+    function raggedRowAmounts() {
+      const found = []
+      for (const list of document.querySelectorAll('ul')) {
+        const rows = [...list.children].flatMap((item) => {
+          const lines = item.querySelector('.proposal-row-lines')
+          const amount = lines?.querySelector(':scope > .proposal-row-amount > :first-child')
+          if (lines === null || lines.closest('ul') !== list || amount === null || amount === undefined || amount.getClientRects().length === 0) return []
+          return [
+            {
+              title: lines.querySelector('.proposal-row-title')?.textContent.trim().slice(0, 32) ?? '',
+              opens: item.querySelector('[data-row-arrow]') !== null,
+              end: amount.getBoundingClientRect().right,
+            },
+          ]
+        })
+        if (!rows.some((row) => row.opens) || rows.every((row) => row.opens)) continue
+        const edge = rows.find((row) => row.opens).end
+        for (const row of rows.filter((other) => Math.abs(other.end - edge) > 1))
+          found.push(`the amount of the row "${row.title}" ends ${Math.round(row.end - edge)} px from the other amounts of its list`)
       }
       return found
     }
@@ -9041,7 +9067,8 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     if (viewport.alignedCards) for (const row of report.raggedRows) fail(scope, `ragged card row: ${row}`)
     for (const row of report.unevenFieldRows) fail(scope, `uneven form row: ${row}`)
     for (const donut of report.crowdedDonuts) fail(scope, donut)
-    for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows]) fail(scope, problem)
+    for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows, ...report.raggedRowAmounts])
+      fail(scope, problem)
     if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
     if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
       for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)
@@ -9145,6 +9172,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
             ...report.wideLoneCards,
             ...report.drillLinksOffColour,
             ...report.misplacedRowArrows,
+            ...report.raggedRowAmounts,
           ]
           for (const problem of lingering.filter((text) => !toldOnce.has(text))) {
             toldOnce.add(problem)

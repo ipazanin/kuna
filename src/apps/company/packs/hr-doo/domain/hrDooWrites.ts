@@ -5,7 +5,7 @@ import { storedFieldsOf } from '../../../../../shared/storage/domain/recordsRead
 import { counted, countedBy, slugChangeRefusals, usesOf } from '../../../workbook/domain/slug'
 import { words } from './words'
 import type { SlugEdit } from '../../../workbook/domain/slug'
-import { slugOf, textOf, wholeNumberOf } from '../../../../../shared/storage/domain/storedFields'
+import { idsOf, idsText, slugOf, textOf, wholeNumberOf } from '../../../../../shared/storage/domain/storedFields'
 import type { StoredField, StoredFields } from '../../../../../shared/storage/domain/storedFields'
 import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
@@ -348,7 +348,10 @@ const ITEM_FIELDS: Readonly<Record<TripRowLink, string>> = { advance: 'advance_i
 
 /** A link the write sets or changes holds against the ledger and the other trips' links. */
 function linkRefusals(change: KindChange<Trip>, after: FreshRecords): string[] {
-  const named = (edit: RecordEdit<Trip>, link: TripRowLink, stored: 'before' | 'after') => [ROW_FIELDS[link], ITEM_FIELDS[link]].map((field) => textOf(edit[stored]?.fields[field])).join(' ')
+  const named = (edit: RecordEdit<Trip>, link: TripRowLink, stored: 'before' | 'after') => {
+    const fields = edit[stored]?.fields
+    return `${textOf(fields?.[ROW_FIELDS[link]])} ${idsText(idsOf(fields?.[ITEM_FIELDS[link]], ITEM_RECORDS), ITEM_RECORDS)}`
+  }
   const linked = (edit: RecordEdit<Trip>, link: TripRowLink) => named(edit, link, 'after').trim() !== '' && named(edit, link, 'after') !== named(edit, link, 'before')
   const set = change.edits.flatMap((edit) => {
     const changed = edit.after

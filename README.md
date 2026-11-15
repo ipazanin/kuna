@@ -2115,8 +2115,9 @@ npm run check:touch -- --only billing,split --widths 430
 
 `--only` takes screen and flow names for the visual check, such as `invoicing`, `settings-categories`
 or `split`, and step names for the touch check, such as `billing-edit-delete` or `split-drive`. A
-name also picks every name that starts with it and a hyphen, so `invoicing` takes `invoicing-plan-2025`
-and `invoicing-clients-browser` too. A touch step that carries on from the page of an earlier one runs that one as
+name picks only what is called exactly that, so `invoicing` leaves out `invoicing-plan-2025`. A name
+ending in `*` picks every name that starts with the rest, so `'invoicing*'`, quoted for the shell, takes
+`invoicing`, `invoicing-plan-2025` and `invoicing-clients-browser`. A touch step that carries on from the page of an earlier one runs that one as
 well. `--widths` takes widths the check already has. A name nothing is called fails with the names
 there are, and a run that would check nothing fails too. A limited run keeps the screenshots it does not
 take and says on its last line that it was limited. Only the full run, without options, is the check
@@ -2129,6 +2130,8 @@ this browser from the folder `KUNA_REAL_BOOKS_DIR` names: `kuna-company.json`, `
 `kuna-rates.json`, each kept in this browser, so the sidebar shows export controls where the owner's
 device shows Drive's sync. The server only reads those names and never writes. Point
 it at a scratch copy, never at the Drive folder. A file the folder lacks leaves its app on its first run.
+The DZS refuses the house price index to a page on localhost, so the dev server asks for it under `/dzs`
+in the page's place. A preview and the deployed site ask the DZS themselves.
 `npm run shots:real` then shoots screens of that server at 360, 640, 1024 and 1440 px, in English and
 Croatian, light and dark, with the frames of chart animations and of what `--press <screen>=<selector>` opens, such as a dialog
 or a toast:

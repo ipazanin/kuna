@@ -15,15 +15,18 @@ type RowProps = {
       /** The element, `li` when left out. A button is for a row that opens or expands as a whole, which then takes no actions underneath. */
       as?: 'li' | 'div' | 'button'
       to?: never
+      /** Whether the row sits among rows that open a page, so it leaves their arrow's column empty and its amount ends where theirs do. */
+      besideLinks?: boolean
     }
   | {
       as?: never
       /** The page the whole row opens, which then takes no actions underneath. */
       to: RouteLocationRaw
+      besideLinks?: never
     }
 )
 
-withDefaults(defineProps<RowProps>(), { caption: '', quiet: false, flush: false })
+withDefaults(defineProps<RowProps>(), { caption: '', quiet: false, flush: false, besideLinks: false })
 defineSlots<{ caption?: () => unknown; details?: () => unknown; amount?: () => unknown; default?: () => unknown }>()
 </script>
 
@@ -37,7 +40,8 @@ defineSlots<{ caption?: () => unknown; details?: () => unknown; amount?: () => u
       { 'px-4 sm:px-5': !flush, 'w-full text-start': as === 'button', 'transition-colors hover:bg-elevated focus-visible:-outline-offset-2': as === 'button' || to !== undefined },
     ]"
   >
-    <span class="proposal-row-lines" :class="{ 'min-w-0 flex-1': to !== undefined }">
+    <!-- A row beside links ends where their lines do, before the arrow's size-4 and the gap-3 before it. -->
+    <span class="proposal-row-lines" :class="{ 'min-w-0 flex-1': to !== undefined, 'me-7': besideLinks }">
       <span class="proposal-row-title break-words text-sm" :class="quiet ? 'text-muted' : 'text-highlighted'">{{ title }}</span>
       <span v-if="$slots.amount" class="proposal-row-amount text-sm">
         <slot name="amount" />

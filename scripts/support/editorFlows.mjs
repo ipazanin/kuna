@@ -760,15 +760,15 @@ async function categoryCountShows(page, words, shown, total) {
     })
 }
 
-/** Picks a bucket in the categories filters, from the sheet behind the Filters button on a phone. */
-async function filterCategoriesByBucket(page, press, words, bucket) {
+/** Picks a choice of one of the categories filters, such as `category-bucket-filter`, from the sheet behind the Filters button on a phone. */
+async function filterCategories(page, press, words, filter, choice) {
   const sheet = await page.$('[data-testid="open-category-filters"]')
   if (sheet !== null) {
     await press(sheet)
-    await page.waitForSelector('[role="dialog"] [data-testid="category-bucket-filter"]', { visible: true, timeout: 5_000 })
+    await page.waitForSelector(`[role="dialog"] [data-testid="${filter}"]`, { visible: true, timeout: 5_000 })
     await delay(400)
   }
-  await choose(page, press, await page.$('[data-testid="category-bucket-filter"]'), bucket)
+  await choose(page, press, await page.$(`[data-testid="${filter}"]`), choice)
   if (sheet !== null) {
     const close = await page.waitForFunction(
       (label) => [...document.querySelectorAll('[role="dialog"] button')].find((button) => button.textContent?.trim() === label) ?? null,
@@ -786,7 +786,7 @@ async function sortDirection(page, sortLabel) {
 }
 
 /**
- * Categories, found and sorted: a search with its count, the taxes bucket sorted by name with a
+ * Categories, found and sorted: a search with its count, the categories of one tax class picked by its name, the taxes bucket sorted by name with a
  * press and then the keyboard, and an edit while filtered and sorted by family. The row stays in
  * place while it is typed in, stays in view with its error once its new bucket leaves the filter,
  * leaves the list once saved and comes back with Undo.
@@ -807,7 +807,17 @@ export function categoryFiltersFlowIn(language) {
     await pressSelector(page, press, `[data-testid="category-filters"] button[aria-label="${said.clearSearch}"]`)
     await categoryCountSays(page, all)
 
-    await filterCategoriesByBucket(page, press, words, words.settings.categories.bucketChoice('taxes'))
+    await filterCategories(page, press, words, 'category-class-filter', words.classes.revenue)
+    const classesShown = await page.$$eval('[data-testid="category-row"] [data-testid="category-class"]', (selects) => selects.map((select) => select.textContent?.trim() ?? ''))
+    if (classesShown.length === 0 || classesShown.length === 33 || classesShown.some((name) => name !== words.classes.revenue)) {
+      throw new Error(`the tax class filter for "${words.classes.revenue}" shows the classes ${classesShown.join(', ')}`)
+    }
+    await categoryCountShows(page, words, classesShown.length, 33)
+    await shoot('categories-tax-class')
+    await pressSelector(page, press, '[data-testid="clear-category-filters"]')
+    await categoryCountSays(page, all)
+
+    await filterCategories(page, press, words, 'category-bucket-filter', words.settings.categories.bucketChoice('taxes'))
     await categoriesShow(page, ['tax-refund', 'payroll-contributions', 'payroll-tax', 'corporate-income-tax', 'dividend-tax'], 'the taxes bucket in the tab order')
     await categoryCountShows(page, words, 5, 33)
     await pressSelector(page, press, `button[aria-label="${byCategory}"]`)

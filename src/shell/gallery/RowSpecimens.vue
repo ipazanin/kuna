@@ -15,7 +15,7 @@ import GallerySection from './GallerySection.vue'
   <GallerySection
     id="proposal-row"
     title="ProposalRow"
-    description="A row of a list: its title beside its amount and the lines under it running on under the amount. A row that asks something of a person has its actions underneath, and as a button it expands as a whole. With a link it opens a page and ends with an arrow on the title's line, and a caption-sized figure beside the title shares its baseline. It spans a card with the card's gutter, or sits flush inside padding of its own."
+    description="A row of a list: its title beside its amount and the lines under it running on under the amount. A row that asks something of a person has its actions underneath, and as a button it expands as a whole. With a link it opens a page and ends with an arrow on the title's line, and a caption-sized figure beside the title shares its baseline. A row that opens nothing among rows that do keeps their arrow's column empty, so the amounts end at one edge. It spans a card with the card's gutter, or sits flush inside padding of its own."
   >
     <DashboardGrid>
       <AppCard title="Spanning a card">
@@ -100,6 +100,11 @@ import GallerySection from './GallerySection.vue'
           <li class="border-t border-default first:border-t-0">
             <ProposalRow to="/gallery" title="Savings for the long summer holiday by the sea with the whole family" caption="Savings · Main Bank · EUR">
               <template #amount><MoneyText :cents="moneyFromCents(560_000)" class="text-highlighted" /></template>
+            </ProposalRow>
+          </li>
+          <li class="border-t border-default first:border-t-0">
+            <ProposalRow as="div" title="Cash at the broker" caption="Opens nothing, and its amount ends where the others do" beside-links>
+              <template #amount><MoneyText :cents="moneyFromCents(31_250)" class="text-highlighted" /></template>
             </ProposalRow>
           </li>
           <li class="border-t border-default first:border-t-0">

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
@@ -13,6 +13,7 @@ import { fold } from '../../../../../../shared/text/fold'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import InfoPopover from '../../../../../../shared/ui/InfoPopover.vue'
+import ProposalRow from '../../../../../../shared/ui/ProposalRow.vue'
 import { useSettings } from '../../../../settings/application/useSettings'
 import { amountLocaleOf } from '../../../../settings/domain/settings'
 import { useBookedWorkbook } from '../../../../transactions/application/useBookedWorkbook'
@@ -177,25 +178,27 @@ watch(
         </h3>
         <p class="area-description text-xs text-muted">{{ section.description }}</p>
         <ul>
-          <li v-for="rule in section.rules" :key="rule.id">
-            <RouterLink
+          <li v-for="rule in section.rules" :key="rule.id" class="border-t border-default first:border-t-0">
+            <ProposalRow
               :id="`rule-${rule.id}`"
               :to="ruleLink(rule.id as RuleId)"
+              :title="rule.title"
               class="rule-row"
               :aria-current="rule.id === linkedRule ? 'true' : undefined"
               :data-rule="rule.id"
               data-testid="rule-row"
             >
-              <span class="rule-name">
-                <span class="text-sm text-highlighted">{{ rule.title }}</span>
-                <span class="identifier block text-xs text-muted" data-testid="rule-id">{{ rule.id }}</span>
-              </span>
-              <span v-if="rule.inForce.headline" class="rule-value figure text-sm text-default">
-                <span v-if="rule.inForce.headline.label" class="me-1.5 text-xs text-muted">{{ rule.inForce.headline.label }}</span
-                >{{ rule.inForce.headline.wording }}
-              </span>
-              <ConfidenceBadge :confidence="rule.inForce.confidence" class="rule-mark" />
-            </RouterLink>
+              <template #caption>
+                <span class="identifier" data-testid="rule-id">{{ rule.id }}</span>
+              </template>
+              <template v-if="rule.inForce.headline" #amount>
+                <span class="figure text-default">{{ rule.inForce.headline.wording }}</span>
+                <span v-if="rule.inForce.headline.label" class="type-caption">{{ rule.inForce.headline.label }}</span>
+              </template>
+              <template #details>
+                <ConfidenceBadge :confidence="rule.inForce.confidence" class="mt-1 self-start" />
+              </template>
+            </ProposalRow>
           </li>
         </ul>
       </section>
@@ -268,38 +271,6 @@ watch(
 
 .rule-row {
   scroll-margin-top: calc(var(--sticky-band) + 3rem);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    'name name'
-    'value mark';
-  align-items: center;
-  gap: 0.25rem 0.75rem;
-  min-height: 3.25rem;
-  padding: 0.5rem 1rem;
-  transition: background-color 120ms ease;
-}
-
-li + li > .rule-row {
-  border-top: 1px solid var(--border-default);
-}
-
-.rule-name {
-  grid-area: name;
-  min-width: 0;
-}
-
-.rule-value {
-  grid-area: value;
-}
-
-.rule-mark {
-  grid-area: mark;
-  justify-self: end;
-}
-
-.rule-row:hover {
-  background: var(--surface-elevated);
 }
 
 .rule-row[aria-current='true'] {
@@ -307,25 +278,10 @@ li + li > .rule-row {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-.rule-row:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
 @media (min-width: 640px) {
   .area-heading,
-  .area-description,
-  .rule-row {
+  .area-description {
     padding-inline: 1.25rem;
-  }
-
-  .rule-row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 14rem) 12rem;
-    grid-template-areas: 'name value mark';
-  }
-
-  .rule-value {
-    text-align: end;
   }
 }
 </style>

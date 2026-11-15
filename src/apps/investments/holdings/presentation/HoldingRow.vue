@@ -18,7 +18,7 @@ const noPriceWord = useNoPriceWord()
 </script>
 
 <template>
-  <ProposalRow v-if="line.kind === 'cash'" as="div" :title="line.account" data-testid="holding-row">
+  <ProposalRow v-if="line.kind === 'cash'" as="div" :title="line.account" beside-links data-testid="holding-row">
     <template v-if="line.balance.value !== null" #amount>
       <MoneyText :cents="line.balance.value" class="font-medium text-highlighted" />
       <span v-if="line.balance.currency !== EURO" class="figure type-caption">{{ formatCurrencyAmount(line.balance.balance, line.balance.currency) }}</span>

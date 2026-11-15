@@ -3,7 +3,7 @@ import type { HouseIndex, Quarter, RegionIndex } from '../domain/houseIndex'
 import { stepsOfNumber } from '../../../../shared/money/numberRounding'
 
 /** Tabela 1.4 of the DZS, Indeksi cijena stambenih objekata, po tromjesečjima. */
-const TABLE_URL = 'https://web.dzs.hr/PXWeb/api/v1/hr/Cijene/Indeksi%20cijena%20stambenih%20objekata/ME_PS14.px'
+const TABLE_PATH = '/PXWeb/api/v1/hr/Cijene/Indeksi%20cijena%20stambenih%20objekata/ME_PS14.px'
 
 const REGION_CATEGORIES: Readonly<Record<HouseRegion, string>> = { zagreb: '3', adriatic: '4', rest: '5' }
 
@@ -20,7 +20,9 @@ const QUERY = {
 
 /** Asks the DZS for the index of the three regions in every quarter it has. The question holds only the table's query. */
 export async function dzsHouseIndex(): Promise<HouseIndex> {
-  const response = await window.fetch(TABLE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(QUERY), signal: AbortSignal.timeout(10_000) })
+  // The DZS sends no CORS headers for localhost, so the dev server passes the question on through the proxy in vite.config.ts.
+  const host = import.meta.env.DEV ? '/dzs' : 'https://web.dzs.hr'
+  const response = await window.fetch(`${host}${TABLE_PATH}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(QUERY), signal: AbortSignal.timeout(10_000) })
   if (!response.ok) {
     throw new Error(`The DZS answered ${response.status}.`)
   }
