@@ -183,7 +183,7 @@ describe('a receipt from the chat', () => {
     )
     const [card] = desk.cards
     expect(card!.groups.flatMap((group) => group.notes).map((shown) => shown.text)).toEqual([`${words.receipts.replacesSplit('Rent −€40.00 and Groceries −€20.00')}.`])
-    expect(card!.groups.find((group) => group.verb === 'remove')?.lines.map((shown) => shown.label)).toEqual(['Rent', 'Groceries'])
+    expect(card!.groups.find((group) => group.verb === 'remove')?.lines.map((shown) => shown.label)).toEqual(['Hardware store · Rent', 'Hardware store · Groceries'])
     const result = await desk.accept()
 
     expect(

@@ -11,6 +11,7 @@ import { moneyFromAmount } from '../src/shared/money/money'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RowLink } from '../src/apps/spending/workbook/domain/rowLink'
+import { BY_DAYS } from '../src/apps/spending/workbook/domain/event'
 import { ACCOUNTS, CATEGORIES, OTP, category, row, wholeItems } from './fixtures/spending'
 
 const groceries = category('Food/Groceries')
@@ -27,6 +28,7 @@ function part(key: string, of: { readonly id: TransactionItem['transaction'] }, 
     category: category(path).id,
     link: null,
     labels: [],
+    event: BY_DAYS,
     splitByLink: false,
   }
 }
@@ -67,7 +69,19 @@ describe('a row of a file from before items', () => {
   it('reads as one item under its own category, with its note and link, and the row id as its key', () => {
     const bakery = row(OTP, '2026-10-12', -6.5, 'Food/Groceries', { note: 'Sunday', link: flat })
     expect(itemsOfStoredRow(bakery, [])).toEqual([
-      { id: wholeRowItemId(bakery), transaction: bakery.id, receipt: null, printed: '', note: 'Sunday', amount: bakery.amount, category: groceries.id, link: flat, labels: [], splitByLink: false },
+      {
+        id: wholeRowItemId(bakery),
+        transaction: bakery.id,
+        receipt: null,
+        printed: '',
+        note: 'Sunday',
+        amount: bakery.amount,
+        category: groceries.id,
+        link: flat,
+        labels: [],
+        event: BY_DAYS,
+        splitByLink: false,
+      },
     ])
   })
 

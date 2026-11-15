@@ -20,6 +20,7 @@ import { bankLinkOffered } from '../workbook/domain/account'
 import type { Account } from '../workbook/domain/account'
 import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
+import type { SpendingEvent } from '../workbook/domain/event'
 import type { Label } from '../workbook/domain/label'
 import type { SpendingBook } from '../workbook/domain/readSpendingBook'
 import type { Receipt } from '../workbook/domain/receipt'
@@ -31,6 +32,7 @@ import {
   CATEGORY_RECORDS,
   HELD_ROW_RECORDS,
   ITEM_RECORDS,
+  EVENT_RECORDS,
   LABEL_RECORDS,
   RECEIPT_RECORDS,
   RULE_RECORDS,
@@ -132,6 +134,12 @@ const ACCOUNT_FIELDS: FieldDocs<Account> = {
 const LABEL_FIELDS: FieldDocs<Label> = {
   id: { exposure: 'ref', to: LABEL_RECORDS.name, meaning: 'The label.' },
   name: { exposure: 'plain', meaning: 'The name the owner gave it, such as a trip or a renovation.' },
+}
+
+const EVENT_FIELDS: FieldDocs<SpendingEvent> = {
+  id: { exposure: 'ref', to: EVENT_RECORDS.name, meaning: 'The event.' },
+  name: { exposure: 'plain', meaning: 'The name the owner gave it, such as a trip. Two events may share a name, and their days tell them apart.' },
+  days: { exposure: 'plain', meaning: 'Its first and last day, both counted, such as 2027-07-10 to 2027-07-14.', read: (event) => `${event.days.from} to ${event.days.to}` },
 }
 
 const CATEGORY_FIELDS: FieldDocs<Category> = {
@@ -237,6 +245,7 @@ const itemFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<TransactionI
     read: (item) => linkRead(item, loans()),
   },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries, beside its category, such as a trip. A label changes no figure of its category.' },
+  event: { exposure: 'never', meaning: 'Whether this money joins an event by its day, was put in one by hand, or was taken out of every event.' },
   splitByLink: { exposure: 'plain', meaning: "yes when linking the entry to a loan's instalment split this part off, no for a part split by hand, a receipt's line or a whole entry." },
 })
 
@@ -448,6 +457,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       }),
       readableKind({ kind: CATEGORY_RECORDS, about: words.reads.category, fields: CATEGORY_FIELDS, dated: null, rows: () => rows((book) => book.categories), currencyOf: () => EURO }),
       readableKind({ kind: LABEL_RECORDS, about: words.reads.label, fields: LABEL_FIELDS, dated: null, rows: () => rows((book) => book.labels), currencyOf: () => EURO }),
+      readableKind({ kind: EVENT_RECORDS, about: words.reads.event, fields: EVENT_FIELDS, dated: null, rows: () => rows((book) => book.events), currencyOf: () => EURO }),
       readableKind({ kind: BUDGET_RECORDS, about: words.reads.budget, fields: BUDGET_FIELDS, dated: 'from', rows: () => rows((book) => book.budgets), currencyOf: () => EURO }),
       readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: RULE_FIELDS, dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),
       readableKind<Receipt>({

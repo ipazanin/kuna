@@ -1,6 +1,7 @@
 import { ACCOUNT_CODEC } from '../domain/accountReading'
 import { BUDGET_CODEC } from '../domain/budgetReading'
 import { CATEGORY_CODEC } from '../domain/categoryReading'
+import { EVENT_CODEC } from '../domain/eventReading'
 import { LABEL_CODEC } from '../domain/labelReading'
 import { ITEM_CODEC, LINE_CODEC } from '../domain/transactionItemReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
@@ -48,6 +49,7 @@ const SPENDING_CODECS = [
   ACCOUNT_CODEC,
   CATEGORY_CODEC,
   LABEL_CODEC,
+  EVENT_CODEC,
   TRANSACTION_CODEC,
   BUDGET_CODEC,
   RULE_CODEC,

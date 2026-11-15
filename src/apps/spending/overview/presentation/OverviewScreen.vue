@@ -26,6 +26,7 @@ import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import AccountsCard from './AccountsCard.vue'
+import EventCards from './EventCards.vue'
 import LatestEntriesCard from './LatestEntriesCard.vue'
 import LimitsCard from './LimitsCard.vue'
 import { SPENDING_BUDGETS_ROUTE, SPENDING_OVERVIEW_ROUTE, categoryIdNamed, transactionsLink } from './spendingLinks'
@@ -195,6 +196,7 @@ function openGroupMonth(selection: ChartPointSelection): void {
         </DashboardGrid>
         <p v-if="unratedLine !== null" class="type-caption" data-testid="spending-unrated">{{ unratedLine }}</p>
         <LatestEntriesCard :book="state.workbook" :rates="everydayRates(rates)" :day="day" />
+        <EventCards :book="state.workbook" :rates="everydayRates(rates)" :rated="!waiting" :day="day" />
         <DashboardGrid data-testid="spending-cards">
           <DonutCard
             v-if="ring.parts.length > 0"

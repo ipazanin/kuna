@@ -16,8 +16,6 @@ export const en = {
   entries: (count: number): EnglishForms => ({ one: '1 entry', other: `${count} entries` }),
   newest: (day: string) => `newest ${day}`,
   noEntries: 'No entries yet',
-  received: (amount: string) => `Received ${amount}`,
-  savedAmount: (amount: string) => `Saved ${amount}`,
   change: (name: string) => `Change the label ${name}`,
   dialog: {
     addTitle: 'Add a label',
@@ -48,8 +46,6 @@ export const hr: Translation<typeof en> = {
   entries: (count): CroatianForms => ({ one: `${count} unos`, few: `${count} unosa`, other: `${count} unosa` }),
   newest: (day) => `zadnji ${day}`,
   noEntries: 'Još nema unosa',
-  received: (amount) => `Primljeno ${amount}`,
-  savedAmount: (amount) => `Ušteđeno ${amount}`,
   change: (name) => `Promijeni oznaku ${name}`,
   dialog: {
     addTitle: 'Dodaj oznaku',

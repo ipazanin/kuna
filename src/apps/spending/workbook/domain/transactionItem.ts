@@ -1,5 +1,6 @@
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { EventChoice } from './event'
 import type { RowLink } from './rowLink'
 
 /** An item of a transaction: all of its money, or a part a receipt or a person split it into. The items of a transaction add up to its amount, and every figure counts them. */
@@ -21,6 +22,8 @@ export interface TransactionItem {
   readonly link: RowLink | null
   /** The labels this money carries, in the order they were put on it. A label sits beside the category and changes no figure of it. */
   readonly labels: readonly RecordId[]
+  /** Whether the money joins an event by its row's day, was put in one by hand, or was taken out of every event. An event changes no figure of the category. */
+  readonly event: EventChoice
   /** Whether linking the entry to a loan's instalment split this part off, as against a part you made or a receipt's line. */
   readonly splitByLink: boolean
 }

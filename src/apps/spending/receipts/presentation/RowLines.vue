@@ -7,7 +7,7 @@ import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 
-/** The parts a receipt or you split an entry into, each with its category's colour and its amount, and under each what the `line` slot holds, such as its labels in the entry dialog. Built of spans, so it fits inside a row's button. */
+/** The parts a receipt or you split an entry into, each with its category's colour and its amount, and under each what the `line` slot holds, such as its labels in the entry dialog, which then sits nearer its own part than the next. Built of spans, so it fits inside a row's button. */
 const props = defineProps<{
   lines: readonly TransactionItem[]
   categories: readonly Category[]
@@ -28,7 +28,7 @@ const shown = computed(() =>
 </script>
 
 <template>
-  <span class="flex flex-col gap-0.5 pt-1" data-testid="spending-row-lines">
+  <span class="flex flex-col pt-1" :class="$slots.line === undefined ? 'gap-0.5' : 'gap-3'" data-testid="spending-row-lines">
     <span v-for="{ line, name, colour } in shown" :key="line.id" class="flex flex-col gap-1">
       <span class="flex items-center gap-2 type-caption" data-testid="spending-row-line">
         <span class="size-1.5 shrink-0 rounded-full" :style="{ background: colour }" aria-hidden="true" />

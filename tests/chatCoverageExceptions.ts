@@ -14,6 +14,14 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
     paths: ['src/apps/spending/links/application/linkWithRecord.ts#addMovementAndLink'],
   },
   {
+    reason: 'Adding, changing and deleting an event. The chat reads events, and they are made and changed on the Events screen until the chat has operations of its own for them.',
+    paths: [
+      'src/apps/spending/events/application/eventWrites.ts#addEvent',
+      'src/apps/spending/events/application/eventWrites.ts#changeEvent',
+      'src/apps/spending/events/application/eventWrites.ts#deleteEvent',
+    ],
+  },
+  {
     reason: "Not now on To review's card of past instalments. It only stops that card offering what the person saw on it, and the chat does not show the card.",
     paths: ['src/apps/spending/links/application/instalmentReview.ts#putOffPastInstalments'],
   },

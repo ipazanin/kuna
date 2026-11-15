@@ -151,6 +151,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['assets: Valuation.asset', 'loans: RatePeriod.loan', 'loans: ExtraPayment.loan', 'loans: LateInstalment.loan', 'loans: Movement.loan'],
   },
   {
+    reason: "Which event a part of an entry is in. New money joins an event by its day, and putting a part in an event or taking it out of every event waits for the chat's event operations.",
+    fields: ['spending: TransactionItem.event'],
+  },
+  {
     reason: "Flagging a payee as a person. The chat flags the payee of a row it names, and only a person takes a flag off, on the row's dialog.",
     fields: [
       'company: treatPayeeAsPerson.payee',

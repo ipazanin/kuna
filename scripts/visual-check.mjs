@@ -74,7 +74,7 @@
  * flat and undo it, and add a valuation to the car and delete it and undo that, in English and Croatian.
  *
  * The Spending app renders its first run, its empty Overview and its Settings (`?spending=drive`), its Settings for a
- * file kept in this browser, the sample's Overview, Transactions, Limits, Accounts, the dollar account with its ECB rate
+ * file kept in this browser, the sample's Overview with the event that runs, Transactions, Limits, Events, Accounts, the dollar account with its ECB rate
  * line and Settings with the categories (`?spending=sample`), Limits with two overspent (`?spending=over`), Accounts
  * while the ECB rates fail (`?rates=failed`), its Overview while its file opens and once its read fails, and Entries with a
  * row a receipt split (`?spending=receipts`), each in
@@ -340,6 +340,8 @@ import {
   spendingReviewNearFlowIn,
   spendingLimitFlowIn,
   spendingLabelsFlowIn,
+  spendingEventsFlowIn,
+  spendingEntryFiltersFlowIn,
   spendingSelectLabelFlowIn,
   spendingEntryLabelsFlowIn,
   spendingReviewFlowIn,
@@ -3227,6 +3229,8 @@ const SOURCE_SCREENS = [
       'Latest entries',
       SPENDING.newest.payee,
       SPENDING.newest.amount,
+      'Prague',
+      'Spent so far',
     ],
     cards: false,
   },
@@ -3247,6 +3251,8 @@ const SOURCE_SCREENS = [
       SPENDING.held.croatian,
       'Zadnji unosi',
       SPENDING.newest.payee,
+      'Prag',
+      'Dosad potrošeno',
     ],
     cards: false,
   },
@@ -3256,7 +3262,7 @@ const SOURCE_SCREENS = [
     hash: '#/spending/transactions',
     title: 'Entries',
     charts: 0,
-    shows: [...SPENDING.payees, 'All accounts', 'All categories'],
+    shows: SPENDING.payees,
     cards: false,
   },
   {
@@ -3265,7 +3271,7 @@ const SOURCE_SCREENS = [
     hash: '#/spending/transactions',
     title: 'Unosi',
     charts: 0,
-    shows: [...SPENDING.payees, 'Svi računi', 'Sve kategorije'],
+    shows: SPENDING.payees,
     cards: false,
   },
   {
@@ -3463,6 +3469,27 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   { name: 'spending-labels-empty', query: 'spending=drive', hash: '#/spending/labels', title: 'Labels', charts: 0, shows: ['No labels yet', 'Add a label'], cards: false },
+  { name: 'spending-events', query: 'spending=sample', hash: '#/spending/events', title: 'Events', charts: 0, shows: ['Prague', 'Autumn holidays', 'Travel'], cards: false },
+  { name: 'spending-events-croatian', query: 'spending=sample&lang=hr', hash: '#/spending/events', title: 'Događaji', charts: 0, shows: ['Prag', 'Jesenski odmor', 'Putovanja'], cards: false },
+  { name: 'spending-events-empty', query: 'spending=drive', hash: '#/spending/events', title: 'Events', charts: 0, shows: ['No events yet', 'Add an event'], cards: false },
+  {
+    name: 'spending-transactions-event',
+    query: 'spending=sample',
+    hash: '#/spending/transactions?month=all&event=fa4e3000-0000-4000-8000-000000002101',
+    title: 'Entries',
+    charts: 0,
+    shows: ['All months', 'Prague', 'Hotel Old Town', 'Airline'],
+    cards: false,
+  },
+  {
+    name: 'spending-transactions-event-croatian',
+    query: 'spending=sample&lang=hr',
+    hash: '#/spending/transactions?month=all&event=fa4e3000-0000-4000-8000-000000002101',
+    title: 'Unosi',
+    charts: 0,
+    shows: ['Svi mjeseci', 'Prag', 'Hotel Old Town', 'Airline'],
+    cards: false,
+  },
   {
     name: 'spending-transactions-label',
     query: 'spending=sample',
@@ -8308,6 +8335,42 @@ const FLOWS = [
     hash: '#/spending/labels',
     title: 'Oznake',
     run: spendingLabelsFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-events-editor',
+    hash: '#/spending/events',
+    title: 'Events',
+    run: spendingEventsFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' },
+  },
+  {
+    name: 'spending-events-editor-croatian',
+    hash: '#/spending/events',
+    title: 'Događaji',
+    run: spendingEventsFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-entry-filters',
+    hash: '#/spending/transactions',
+    title: 'Entries',
+    run: spendingEntryFiltersFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample', browser: '&fake=browser&spending=sample' },
+  },
+  {
+    name: 'spending-entry-filters-croatian',
+    hash: '#/spending/transactions',
+    title: 'Unosi',
+    run: spendingEntryFiltersFlowIn('hr'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=sample&lang=hr', browser: '&fake=browser&spending=sample&lang=hr' },

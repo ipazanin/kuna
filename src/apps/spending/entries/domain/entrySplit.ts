@@ -1,4 +1,5 @@
 import { isTransferCategory } from '../../workbook/domain/category'
+import { BY_DAYS } from '../../workbook/domain/event'
 import type { Category } from '../../workbook/domain/category'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -66,7 +67,7 @@ export function entrySplit(
   if ('refused' in placed) return placed
   const whole = isSplit(held) || drafts.some((draft) => draft.id === held[0]?.id) ? null : (held[0] ?? null)
   const link = linkOfItems(held)
-  const labelsById = new Map(held.map((item) => [item.id, item.labels]))
+  const heldById = new Map(held.map((item) => [item.id, item]))
   const parts = drafts.map((draft, place): TransactionItem => {
     const id = draft.id ?? (whole !== null && place === 0 ? whole.id : recordIdOf(ITEM_RECORDS, newKey()))
     return {
@@ -78,7 +79,8 @@ export function entrySplit(
       amount: placed.parts[place]!,
       category: draft.category,
       link,
-      labels: labelsById.get(id) ?? [],
+      labels: heldById.get(id)?.labels ?? [],
+      event: heldById.get(id)?.event ?? BY_DAYS,
       splitByLink: false,
     }
   })
@@ -112,6 +114,7 @@ export function differenceItem(
         category: like.category,
         link: like.link,
         labels: [],
+        event: BY_DAYS,
         splitByLink: false,
       }
 }

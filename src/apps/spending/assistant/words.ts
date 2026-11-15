@@ -102,6 +102,8 @@ export const en = {
     account: 'Your own accounts, one per currency.',
     category: 'Groups and their categories.',
     label: 'Names that group money across categories and months, such as a trip or a renovation. A part of an entry carries the labels put on it.',
+    event:
+      'Stretches of days, such as a trip, from the first day to the last. Money out on spending categories on those days joins the shortest event over its day, unless a part was put in an event or taken out of every event by hand.',
     budget: 'Monthly limits on spending categories.',
     rule: 'What files a bank row by itself.',
     receipt: "Fiscal receipts and the entry each split. A receipt for a card payment the bank has not brought yet has no entry and waits on its account until the bank's row comes.",
@@ -286,6 +288,8 @@ export const hr: Translation<typeof en> = {
     account: 'Vaši računi, po jedan za svaku valutu.',
     category: 'Skupine i njihove kategorije.',
     label: 'Nazivi koji grupiraju novac preko kategorija i mjeseci, kao putovanje ili obnova. Dio unosa nosi oznake koje su mu stavljene.',
+    event:
+      'Razdoblja dana, kao putovanje, od prvog do zadnjeg dana. Novac potrošen na kategorije potrošnje tih dana pridružuje se najkraćem događaju preko svog dana, osim ako je dio ručno stavljen u događaj ili izvađen iz svih događaja.',
     budget: 'Mjesečna ograničenja na kategorije potrošnje.',
     rule: 'Ono što sâmo razvrstava bankovni redak.',
     receipt: 'Fiskalni računi i unos koji je svaki podijelio. Fiskalni račun za plaćanje karticom koje banka još nije donijela nema unos i čeka na svom računu dok ne stigne redak iz banke.',

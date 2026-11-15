@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import UBadge from '@nuxt/ui/components/Badge.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { words } from './words'
 import type { Label } from '../../workbook/domain/label'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** The labels a part of an entry carries, picked from the file's labels, with a new label typed into its search added by the caller. */
+/** The labels a part of an entry carries, picked from the file's labels and each shown as a badge, with a new label typed into its search added by the caller. */
 const props = defineProps<{
   labels: readonly Label[]
   /** What a screen reader calls it, such as the part it labels. */
@@ -24,7 +25,7 @@ const chosen = computed({
     picked.value = props.labels.filter((label) => ids.includes(label.id)).map((label) => label.id)
   },
 })
-const shown = computed(() => props.labels.filter((label) => picked.value.includes(label.id)).map((label) => label.name))
+const shown = computed(() => props.labels.filter((label) => picked.value.includes(label.id)))
 </script>
 
 <template>
@@ -43,7 +44,9 @@ const shown = computed(() => props.labels.filter((label) => picked.value.include
   >
     <template #default>
       <span v-if="shown.length === 0" class="text-muted">{{ words.select.none }}</span>
-      <span v-else class="min-w-0 truncate">{{ shown.join(', ') }}</span>
+      <span v-else class="flex min-w-0 flex-wrap gap-1">
+        <UBadge v-for="label in shown" :key="label.id" :label="label.name" color="neutral" variant="subtle" size="xs" class="max-w-full" data-testid="spending-labels-pick" />
+      </span>
     </template>
   </USelectMenu>
 </template>

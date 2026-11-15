@@ -2,6 +2,8 @@ import { ITEM_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import type { Transaction } from './transaction'
 import type { TransactionItem } from './transactionItem'
 import type { RowLink } from './rowLink'
+import { BY_DAYS } from './event'
+import type { EventChoice } from './event'
 import { isTransferCategory } from './category'
 import type { Category } from './category'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -29,11 +31,13 @@ export interface WholeFiling {
   readonly note: string
   readonly link: RowLink | null
   readonly labels: readonly RecordId[]
+  /** Left out, the money joins an event by its row's day. */
+  readonly event?: EventChoice
 }
 
 /** The one item of a row not split, with all of its money, which no link split off. */
-export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels }: WholeFiling): TransactionItem {
-  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link, labels, splitByLink: false }
+export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels, event = BY_DAYS }: WholeFiling): TransactionItem {
+  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link, labels, event, splitByLink: false }
 }
 
 /** The items of any row, the ones the items given name it in, in their order. */

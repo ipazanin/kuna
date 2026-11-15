@@ -1,4 +1,5 @@
 import { words } from './words'
+import { BY_DAYS } from '../../workbook/domain/event'
 import { differenceItem } from '../../entries/domain/entrySplit'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { takesRowsByHand } from '../../workbook/domain/account'
@@ -96,6 +97,7 @@ export function receiptSplit(draft: ReceiptDraft, place: ReceiptPlace, parts: re
     category: lineCategory,
     link,
     labels: [],
+    event: BY_DAYS,
     splitByLink: false,
   }))
   const difference = differenceItem(row?.amount ?? amount, lines, { transaction, receipt: receipt.id, category, link }, words.difference, newKey)

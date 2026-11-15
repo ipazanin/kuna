@@ -59,6 +59,10 @@ export const en = {
     title: 'Income, spending and saved to investments',
     subtitle: 'Each month, with the share of income not spent.',
   },
+  event: {
+    spent: 'Spent so far',
+    allEntries: 'All entries of the event',
+  },
   latest: {
     title: 'Latest entries',
     subtitle: 'The five newest, by day',
@@ -132,6 +136,10 @@ export const hr: Translation<typeof en> = {
   flow: {
     title: 'Prihodi, potrošnja i prijenos u ulaganja',
     subtitle: 'Za svaki mjesec, s udjelom prihoda koji nije potrošen.',
+  },
+  event: {
+    spent: 'Dosad potrošeno',
+    allEntries: 'Svi unosi događaja',
   },
   latest: {
     title: 'Zadnji unosi',

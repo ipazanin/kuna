@@ -6,6 +6,7 @@ import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { ITEM_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { BY_DAYS } from '../src/apps/spending/workbook/domain/event'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { NO_RATES } from '../src/shared/money/rateBook'
@@ -29,6 +30,7 @@ function linesOf(transaction: Transaction, parts: readonly (readonly [number, st
     category: category(path).id,
     link: null,
     labels: [],
+    event: BY_DAYS,
     splitByLink: false,
   }))
 }

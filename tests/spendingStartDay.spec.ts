@@ -16,6 +16,7 @@ import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendin
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, HELD_ROW_RECORDS, ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { plainLineOf } from '../src/apps/spending/workbook/domain/beforeItems'
 import type { Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import { BY_DAYS } from '../src/apps/spending/workbook/domain/event'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -75,6 +76,7 @@ function part(place: number, of: Transaction, amount: number, path: string, rece
     category: category(path).id,
     link: null,
     labels: [],
+    event: BY_DAYS,
     splitByLink: false,
   }
 }

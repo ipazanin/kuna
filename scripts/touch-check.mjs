@@ -182,6 +182,8 @@ import {
   spendingFoodLimitFlow,
   spendingSelectLabelFlowIn,
   spendingLabelsFlowIn,
+  spendingEventsFlowIn,
+  spendingEntryFiltersFlowIn,
   spendingEntryLabelsFlowIn,
   spendingBankSyncFlowIn,
   spendingBankSyncSetupFlowIn,
@@ -1187,7 +1189,7 @@ async function checkWidth(width) {
     await expect(
       page.evaluate(() => {
         const button = document.querySelector('[data-testid="page-tab-actions"] [data-testid="open-filters"]')
-        const word = button?.querySelector('.filters-label')?.getBoundingClientRect()
+        const word = button?.querySelector('[data-testid="filters-word"]')?.getBoundingClientRect()
         return button !== null && word !== undefined && word.width <= 1
       }),
       (onTabRow) => onTabRow,
@@ -3223,6 +3225,8 @@ async function checkWidth(width) {
     ['spending-limit', 'drive&spending=sample', spendingFoodLimitFlow, '#/spending/budgets', 'Limits'],
     ['spending-select-label', 'drive&spending=sample', spendingSelectLabelFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-labels', 'drive&spending=sample', spendingLabelsFlowIn('en'), '#/spending/labels', 'Labels'],
+    ['spending-events', 'drive&spending=sample', spendingEventsFlowIn('en'), '#/spending/events', 'Events'],
+    ['spending-entry-filters', 'drive&spending=sample', spendingEntryFiltersFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-entry-labels', 'drive&spending=receipts', spendingEntryLabelsFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-credit-transfer', 'drive&spending=sample', spendingCreditToTransferFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-delete-note', 'drive&spending=statements', spendingDeleteNoteFlowIn('en'), '#/spending/transactions', 'Entries'],

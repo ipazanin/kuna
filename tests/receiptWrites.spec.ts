@@ -27,6 +27,7 @@ import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domai
 import { plainLineOf } from '../src/apps/spending/workbook/domain/beforeItems'
 import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { readSpendingBook } from '../src/apps/spending/workbook/domain/readSpendingBook'
+import { BY_DAYS } from '../src/apps/spending/workbook/domain/event'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { NO_RATES } from '../src/shared/money/rateBook'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
@@ -414,7 +415,7 @@ describe('the lines of a receipt in place of what a row held', () => {
           before: split,
           after: split,
           items: [
-            { ...first!, labels: [] },
+            { ...first!, labels: [], event: BY_DAYS },
             { ...second!, labels: [trip, flat.id] },
           ],
         },
@@ -480,6 +481,7 @@ describe('reading receipts and lines', () => {
       accounts: read(ACCOUNTS),
       categories: read(CATEGORIES),
       labels: read([]),
+      events: read([]),
       transactions: read([storedRowOf(one.row!, { category: GROCERIES.id, note: '', link: null })]),
       budgets: read([]),
       rules: read([]),

@@ -83,6 +83,7 @@ import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '.
 import { en as spendingBankSyncReadingEnglish, hr as spendingBankSyncReadingCroatian } from '../../src/apps/spending/bankSync/domain/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
 import { en as spendingLabelsEnglish, hr as spendingLabelsCroatian } from '../../src/apps/spending/labels/presentation/words.ts'
+import { en as spendingEventsEnglish, hr as spendingEventsCroatian } from '../../src/apps/spending/events/presentation/words.ts'
 import { en as spendingCategoriesEnglish, hr as spendingCategoriesCroatian } from '../../src/apps/spending/categories/presentation/words.ts'
 import { en as spendingHomeEnglish, hr as spendingHomeCroatian } from '../../src/apps/spending/home/presentation/words.ts'
 import { en as spendingOverviewEnglish, hr as spendingOverviewCroatian } from '../../src/apps/spending/overview/presentation/words.ts'
@@ -229,6 +230,7 @@ const SCREEN_WORDS = {
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
     spendingBudgets: spendingBudgetsEnglish,
     spendingLabels: spendingLabelsEnglish,
+    spendingEvents: spendingEventsEnglish,
     spendingCategories: spendingCategoriesEnglish,
     spendingHome: spendingHomeEnglish,
     spendingOverview: spendingOverviewEnglish,
@@ -317,6 +319,7 @@ const SCREEN_WORDS = {
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
     spendingBudgets: spendingBudgetsCroatian,
     spendingLabels: spendingLabelsCroatian,
+    spendingEvents: spendingEventsCroatian,
     spendingCategories: spendingCategoriesCroatian,
     spendingHome: spendingHomeCroatian,
     spendingOverview: spendingOverviewCroatian,
@@ -12076,6 +12079,122 @@ export function spendingLabelsFlowIn(language) {
     if (shown.some((line) => !line.includes(trip))) throw new Error(`Entries filtered by ${trip} shows rows without it: ${shown.join(' | ')}`)
     await inspect?.('Entries filtered by a label')
     await shoot('spending-entries-by-label')
+  }
+}
+
+/**
+ * On the sample Spending file's Events: a blank name is refused, an event ahead is added and says when it starts, then renamed
+ * with new days, Prague's dialog says Delete puts its hand-picked parts back on their days, Delete is undone, and Prague's row
+ * opens its entries of every month with its total and split by group above them.
+ */
+export function spendingEventsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const events = words.spendingEvents
+  const added = language === 'en' ? 'Ski week' : 'Skijanje'
+  const renamed = language === 'en' ? 'Ski fortnight' : 'Dva tjedna skijanja'
+  const prague = language === 'en' ? 'Prague' : 'Prag'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const says = async (wanted, problem) => {
+      await page
+        .waitForFunction((text) => document.body.textContent?.includes(text), { timeout: 5_000 }, wanted)
+        .catch(() => {
+          throw new Error(problem)
+        })
+    }
+    await page.waitForSelector('[data-testid="spending-events"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-event-add"]')
+    await page.waitForSelector('[data-testid="spending-event-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-event-save"]')
+    await says(events.dialog.blank, 'the event dialog takes a blank name')
+    await fill(page, 'spending-event-name', added)
+    await fill(page, 'spending-event-from', '2027-02-10')
+    await fill(page, 'spending-event-to', '2027-02-16')
+    await delay(300)
+    await inspect?.('the event dialog')
+    await shoot('spending-event-dialog')
+    await pressSelector(page, press, '[data-testid="spending-event-save"]')
+    await toast(page, events.added)
+    await dismissToasts(page)
+    await says(events.starts('').trim(), 'Events does not say when an event ahead starts')
+    await pressSelector(page, press, `[data-testid="spending-event-change"][aria-label="${events.change(added)}"]`)
+    await page.waitForSelector('[data-testid="spending-event-dialog"]', { visible: true, timeout: 10_000 })
+    await fill(page, 'spending-event-name', renamed)
+    await fill(page, 'spending-event-to', '2027-02-23')
+    await pressSelector(page, press, '[data-testid="spending-event-save"]')
+    await toast(page, events.saved)
+    await dismissToasts(page)
+    await says(renamed, 'Events does not show the renamed event')
+    await pressSelector(page, press, `[data-testid="spending-event-change"][aria-label="${events.change(prague)}"]`)
+    await page.waitForSelector('[data-testid="spending-event-dialog"]', { visible: true, timeout: 10_000 })
+    await says(events.dialog.deleteHelp(events.dialog.parts(1).one), 'the dialog of an event with a part put in by hand does not say Delete puts it back on its day')
+    await inspect?.('the dialog of an event with a part put in by hand')
+    await shoot('spending-event-dialog-change')
+    await pressSelector(page, press, '[data-testid="spending-event-delete"]')
+    await toast(page, events.deleted)
+    await undoIn(page, press, words)
+    await says(prague, 'Undo did not bring the deleted event back')
+    await dismissToasts(page)
+    await inspect?.('Events after Undo')
+    await shoot('spending-events-after-undo')
+
+    const links = await page.$$('[data-testid="spending-event-open"]')
+    const named = await Promise.all(links.map((link) => link.evaluate((element) => element.textContent ?? '')))
+    const pragueRow = links[named.findIndex((text) => text.includes(prague))]
+    if (pragueRow === undefined) throw new Error(`Events lists no ${prague}`)
+    await press(pragueRow)
+    await page
+      .waitForFunction(() => window.location.hash.includes('event=') && window.location.hash.includes('month=all'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error("the event's row did not open its entries of every month")
+      })
+    await page.waitForSelector('[data-testid="spending-filter-total"]', { visible: true, timeout: 10_000 })
+    const total = await page.$eval('[data-testid="spending-filter-total"]', (row) => row.textContent ?? '')
+    if (!total.includes(prague)) throw new Error(`Entries filtered by ${prague} sums up another: ${total}`)
+    await inspect?.('Entries filtered by an event')
+    await shoot('spending-entries-by-event')
+  }
+}
+
+/**
+ * On the sample Spending file's Entries: a label picked shows its total above the list. At a phone's width the first entry
+ * starts on the first screen, the filters sit in a sheet behind a Filters button, and the picked label's chip takes it off.
+ */
+export function spendingEntryFiltersFlowIn(language) {
+  const entries = SCREEN_WORDS[language].spendingEntries
+  const trip = language === 'en' ? 'Boston trip' : 'Put u Boston'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-transactions"]', { visible: true, timeout: 10_000 })
+    const phone = (await page.$('[data-testid="open-filters"]')) !== null
+    if (phone) {
+      const firstRow = await page.$eval('[data-testid="spending-row"]', (row) => row.getBoundingClientRect().top + window.scrollY)
+      const height = await page.evaluate(() => window.innerHeight)
+      if (firstRow > height) throw new Error(`the first entry starts at ${Math.round(firstRow)} px, below a phone's first screen of ${height} px`)
+      await pressSelector(page, press, '[data-testid="open-filters"]')
+      await page.waitForSelector('[data-testid="spending-filter-sheet"]', { visible: true, timeout: 10_000 })
+      await chooseStartingWith(page, press, '[data-testid="spending-filter-sheet"] [data-testid="spending-filter-label"]', trip)
+      await inspect?.('the filter sheet with a label picked')
+      await shoot('spending-filter-sheet')
+      await pressSelector(page, press, '[data-testid="filters-show"]')
+      await page.waitForFunction(() => !document.querySelector('[data-testid="spending-filter-sheet"]'), { timeout: 5_000 })
+    } else {
+      await chooseStartingWith(page, press, '[data-testid="spending-filter-label"]', trip)
+    }
+    await page.waitForSelector('[data-testid="spending-filter-total"]', { visible: true, timeout: 10_000 })
+    const total = await page.$eval('[data-testid="spending-filter-total"]', (row) => row.textContent ?? '')
+    if (!total.includes(trip)) throw new Error(`Entries filtered by ${trip} sums up another: ${total}`)
+    await inspect?.('Entries filtered by a label')
+    await shoot('spending-entries-label-total')
+    if (!phone) return
+    const chips = await page.$$eval('[data-testid="spending-filter-chip"]', (found) => found.map((chip) => chip.textContent?.trim() ?? ''))
+    if (!chips.includes(trip) || !chips.includes(entries.filters.allMonths)) throw new Error(`the chips name ${chips.join(', ')}, not ${trip} and ${entries.filters.allMonths}`)
+    await pressSelector(page, press, `[data-testid="spending-filter-chip"][aria-label="${entries.filters.remove(trip)}"]`)
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="spending-filter-total"]'), { timeout: 5_000 })
+      .catch(() => {
+        throw new Error("the label's chip did not take the label off")
+      })
   }
 }
 

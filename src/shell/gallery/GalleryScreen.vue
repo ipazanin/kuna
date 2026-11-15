@@ -32,6 +32,7 @@ import FactGrid from '../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../shared/ui/FactGrid.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FileDrop from '../../shared/ui/FileDrop.vue'
+import FiltersSheet from '../../shared/ui/FiltersSheet.vue'
 import AskChatButton from '../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../shared/ai/presentation/chatDock'
 import { assistKeyKept } from '../../shared/ai/presentation/aiProvider'
@@ -894,7 +895,11 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
       </div>
     </GallerySection>
 
-    <GallerySection id="controls" title="Small controls" description="InfoPopover, ChoiceButtons, MenuButton, RemovableChip, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark.">
+    <GallerySection
+      id="controls"
+      title="Small controls"
+      description="InfoPopover, ChoiceButtons, MenuButton, RemovableChip, FiltersSheet, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark."
+    >
       <DashboardGrid>
         <AppCard title="InfoPopover" subtitle="A definition, or richer content such as a legend.">
           <div class="flex items-center gap-2 px-4 pt-3 pb-4 type-body sm:px-5">
@@ -934,6 +939,21 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
             <RemovableChip label="statement.pdf" remove-label="Remove statement.pdf" icon="i-lucide-file-text" />
             <RemovableChip label="scan.pdf" remove-label="Remove scan.pdf" icon="i-lucide-file" loading />
             <UButton v-if="galleryChips.length < GALLERY_CHIPS.length" label="Put them back" color="neutral" variant="link" size="xs" @click="galleryChips = GALLERY_CHIPS" />
+          </div>
+        </AppCard>
+        <AppCard
+          title="FiltersSheet"
+          subtitle="A phone's Filters button, with the count of filters on, opening a sheet of the filters. Inside a page's tabs it moves to the tab row. Press one to see the sheet open."
+        >
+          <div class="flex flex-wrap items-center gap-3 px-4 pt-3 pb-4 sm:px-5">
+            <FiltersSheet :active-count="0" show-label="Show results">
+              <p class="type-body">No filter is on.</p>
+            </FiltersSheet>
+            <FiltersSheet :active-count="galleryChips.length" show-label="Show results">
+              <div class="flex flex-wrap gap-1.5">
+                <RemovableChip v-for="chip in galleryChips" :key="chip" :label="chip" :remove-label="`Remove ${chip}`" @remove="galleryChips = galleryChips.filter((shown) => shown !== chip)" />
+              </div>
+            </FiltersSheet>
           </div>
         </AppCard>
         <AppCard title="ColourSwatchPicker" subtitle="Named swatches with a blank choice first.">

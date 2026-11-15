@@ -7,6 +7,8 @@ import { receiptCategories, receiptDraft, withR1Answer } from '../src/apps/spend
 import type { AnsweredLine, DraftContext, ReceiptAnswer } from '../src/apps/spending/receipts/domain/receiptDraft'
 import type { FiscalQr } from '../src/apps/spending/receipts/domain/fiscalQr'
 import { ITEM_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
+import { BY_DAYS } from '../src/apps/spending/workbook/domain/event'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { civil, euros } from './fixtures/ledger'
@@ -248,7 +250,7 @@ describe('a line remembered from a confirmed receipt', () => {
     latitude: '',
     longitude: '',
   })
-  const held = (key: string, receiptKey: string, printed: string, path: string) => ({
+  const held = (key: string, receiptKey: string, printed: string, path: string): TransactionItem => ({
     id: recordIdOf(ITEM_RECORDS, key),
     transaction: recordIdOf(RECEIPT_RECORDS, receiptKey),
     receipt: recordIdOf(RECEIPT_RECORDS, receiptKey),
@@ -258,6 +260,7 @@ describe('a line remembered from a confirmed receipt', () => {
     category: category(path).id,
     link: null,
     labels: [],
+    event: BY_DAYS,
     splitByLink: false,
   })
   const OLD = '5e000000-0000-4000-8000-000000008001'

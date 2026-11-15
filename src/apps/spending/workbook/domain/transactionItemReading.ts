@@ -1,15 +1,17 @@
 import type { StoredLine } from './beforeItems'
 import type { TransactionItem } from './transactionItem'
+import { BY_DAYS, OUT_OF_EVENTS, eventPutIn } from './event'
+import type { EventChoice } from './event'
 import { flagOf, requiredAccountMoney } from './fieldReading'
 import { optionalReference, requiredReference } from './recordReference'
 import { rowLinkOf, rowLinkText } from './rowLink'
 import type { RowLink } from './rowLink'
-import { CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import { CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import { words } from './words'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
-import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
+import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { idsOf, idsText, ownId, refuse, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
@@ -40,6 +42,19 @@ export function linkOf(fields: StoredFields): RowLink | null {
   return rowLinkOf(text) ?? refuse(words.notALink(text))
 }
 
+/** An item's `event` field: blank while it joins an event by its day, `out` when taken out of every event, or the key of the event it was put in. */
+function eventChoiceOf(fields: StoredFields): EventChoice {
+  const key = textOf(fields.event).trim()
+  if (key === '') return BY_DAYS
+  return key === OUT_OF_EVENTS ? OUT_OF_EVENTS : recordIdOf(EVENT_RECORDS, key)
+}
+
+function eventChoiceText(choice: EventChoice): string | null {
+  if (choice === BY_DAYS) return null
+  const event = eventPutIn(choice)
+  return event === null ? OUT_OF_EVENTS : keyOfRecordId(EVENT_RECORDS, event)
+}
+
 export function transactionItemOf(fields: StoredFields, id: RecordId | null): TransactionItem {
   const { transaction, receipt, printed, amount, category } = partOf(fields, id, () => optionalReference(fields, 'category', CATEGORY_RECORDS))
   return {
@@ -52,6 +67,7 @@ export function transactionItemOf(fields: StoredFields, id: RecordId | null): Tr
     category,
     link: linkOf(fields),
     labels: idsOf(fields.labels, LABEL_RECORDS),
+    event: eventChoiceOf(fields),
     splitByLink: flagOf(fields, 'split_by_link'),
   }
 }
@@ -64,6 +80,7 @@ export const ITEM_CODEC: RecordCodec<TransactionItem> = withIdField(ITEM_RECORDS
     category: item.category === null ? null : keyOfRecordId(CATEGORY_RECORDS, item.category),
     link: item.link === null ? null : rowLinkText(item.link),
     labels: idsText(item.labels, LABEL_RECORDS),
+    event: eventChoiceText(item.event),
     split_by_link: item.splitByLink ? true : null,
   }),
 )

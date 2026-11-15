@@ -2,8 +2,9 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
+import type { SpendingEvent } from '../../workbook/domain/event'
 import type { Label } from '../../workbook/domain/label'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -18,7 +19,8 @@ export const SPENDING_REVIEW_TAB = 'review'
 export const SPENDING_REVIEW_LINK = `${SPENDING_TRANSACTIONS_ROUTE}?tab=${SPENDING_REVIEW_TAB}`
 export const SPENDING_BUDGETS_ROUTE = '/spending/budgets'
 export const SPENDING_LABELS_ROUTE = '/spending/labels'
-/** The value of `?month=` that shows every month at once, as a label's entries do. */
+export const SPENDING_EVENTS_ROUTE = '/spending/events'
+/** The value of `?month=` that shows every month at once, as a label's and an event's entries do. */
 export const ALL_MONTHS = 'all'
 export const SPENDING_ACCOUNTS_ROUTE = '/spending/accounts'
 export const SPENDING_ACCOUNT_ROUTE = '/spending/account'
@@ -61,4 +63,14 @@ export function labelLink(label: Label): RouteLocationRaw {
 /** The label the page's `?label=` names, or null when the file has none by that id. */
 export function labelNamed(labels: readonly Label[], key: unknown): Label | null {
   return typeof key === 'string' && key !== '' ? (labels.find((label) => label.id === recordIdOf(LABEL_RECORDS, key)) ?? null) : null
+}
+
+/** Entries of every month with a part in the event, named by its bare UUID in `?event=`, since a flight bought months before can be put in a trip. */
+export function eventLink(event: SpendingEvent): RouteLocationRaw {
+  return { path: SPENDING_TRANSACTIONS_ROUTE, query: { month: ALL_MONTHS, event: keyOfRecordId(EVENT_RECORDS, event.id) } }
+}
+
+/** The event the page's `?event=` names, or null when the file has none by that id. */
+export function eventNamed(events: readonly SpendingEvent[], key: unknown): SpendingEvent | null {
+  return typeof key === 'string' && key !== '' ? (events.find((event) => event.id === recordIdOf(EVENT_RECORDS, key)) ?? null) : null
 }

@@ -23,6 +23,10 @@ export const en = {
     running: (month: string) => `${month} is still filling.`,
     monthHeading: 'Month',
   },
+  lines: {
+    received: (amount: string) => `Received ${amount}`,
+    saved: (amount: string) => `Saved ${amount}`,
+  },
 }
 
 export const hr: Translation<typeof en> = {
@@ -43,6 +47,10 @@ export const hr: Translation<typeof en> = {
     noRate: 'Bez prihoda nema stope štednje.',
     running: (month) => `Mjesec ${month} još traje.`,
     monthHeading: 'Mjesec',
+  },
+  lines: {
+    received: (amount) => `Primljeno ${amount}`,
+    saved: (amount) => `Ušteđeno ${amount}`,
   },
 }
 

@@ -9,11 +9,14 @@ import { isBeforeItems, itemOfWaitingLine, itemsOfStoredRow } from './beforeItem
 import type { StoredLine } from './beforeItems'
 import type { HeldBankRow } from './heldBankRow'
 import type { Label } from './label'
+import { eventPutIn } from './event'
+import type { SpendingEvent } from './event'
 import type { Receipt } from './receipt'
 import {
   ACCOUNT_RECORDS,
   BUDGET_RECORDS,
   CATEGORY_RECORDS,
+  EVENT_RECORDS,
   HELD_ROW_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
@@ -44,6 +47,7 @@ import { rowKey } from './transaction'
 import type { StoredRow, Transaction } from './transaction'
 import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
+import { eventProblem } from '../../events/domain/events'
 import { labelNameProblem } from '../../labels/domain/labels'
 import { accountMoneyOfEuros, negateAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
@@ -84,6 +88,7 @@ export interface SpendingRecords {
   readonly accounts: RecordsRead<Account>
   readonly categories: RecordsRead<Category>
   readonly labels: RecordsRead<Label>
+  readonly events: RecordsRead<SpendingEvent>
   readonly transactions: RecordsRead<StoredRow>
   readonly budgets: RecordsRead<Budget>
   readonly rules: RecordsRead<SpendingRule>
@@ -101,6 +106,7 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   accounts: ACCOUNT_RECORDS,
   categories: CATEGORY_RECORDS,
   labels: LABEL_RECORDS,
+  events: EVENT_RECORDS,
   transactions: TRANSACTION_RECORDS,
   budgets: BUDGET_RECORDS,
   rules: RULE_RECORDS,
@@ -117,6 +123,7 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     accounts: of(SPENDING_PARTS.accounts),
     categories: of(SPENDING_PARTS.categories),
     labels: of(SPENDING_PARTS.labels),
+    events: of(SPENDING_PARTS.events),
     transactions: of(SPENDING_PARTS.transactions),
     budgets: of(SPENDING_PARTS.budgets),
     rules: of(SPENDING_PARTS.rules),
@@ -143,6 +150,8 @@ export interface SpendingBook {
   readonly categories: readonly Category[]
   /** In the order of the file. */
   readonly labels: readonly Label[]
+  /** In the order of the file. */
+  readonly events: readonly SpendingEvent[]
   /** Oldest first, and in the order of the file within a day. */
   readonly transactions: readonly Transaction[]
   readonly budgets: readonly Budget[]
@@ -211,11 +220,25 @@ function readLabels(read: RecordsRead<Label>): Reading<Label> {
   )
 }
 
-/** Items that count keep counting when they name a label the file lacks, doubted for it, and the screens show them under no label. */
-function withKnownLabels(reading: Reading<TransactionItem>, read: RecordsRead<TransactionItem>, labels: ReadonlySet<RecordId>): Reading<TransactionItem> {
+/**
+ * Items that count keep counting when they name a label or an event the file lacks, doubted for it. The screens show them under
+ * no label, and in the event their day falls in.
+ */
+function withKnownNames(reading: Reading<TransactionItem>, read: RecordsRead<TransactionItem>, labels: ReadonlySet<RecordId>, events: ReadonlySet<RecordId>): Reading<TransactionItem> {
   return doubted(reading, read, (item) => {
     const unknown = item.labels.find((label) => !labels.has(label))
-    return unknown === undefined ? null : words.noLabel(keyOfRecordId(LABEL_RECORDS, unknown))
+    if (unknown !== undefined) return words.noLabel(keyOfRecordId(LABEL_RECORDS, unknown))
+    const event = eventPutIn(item.event)
+    return event === null || events.has(event) ? null : words.noEvent(keyOfRecordId(EVENT_RECORDS, event))
+  })
+}
+
+/** Events count when their name is not blank and their last day is not before their first. Names may repeat. */
+function readEvents(read: RecordsRead<SpendingEvent>): Reading<SpendingEvent> {
+  return readEach(read, ({ record: event }) => {
+    const problem = eventProblem(event.name, event.days)
+    if (problem === null) return []
+    return [problem === 'blank' ? words.eventNameBlank : words.eventEndsBefore]
   })
 }
 
@@ -402,7 +425,7 @@ function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, 
  * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. A line of a waiting receipt names that receipt and no entry. The parts of an entry add up to its amount, and the lines of a waiting receipt to minus its total, and count all or none. Only the one item of an entry waiting on To review has no category, and a transfer's leg has one item.
  * A file from before items keeps an entry's category, note and link on the entry while it is not split, which then names a category that counts, and its
  * parts as lines, and is read as the items they make. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, a second category of a fixed
- * kind, a label named as another is once folded and an item that names a label the file lacks count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
+ * kind, a label named as another is once folded and an item that names a label or an event the file lacks count but are doubted. Two entries of an account with one import key are refused, and so is a bank row on hold that
  * `readHeld` refuses.
  */
 export function readSpendingBook(records: SpendingRecords): SpendingBook {
@@ -417,15 +440,22 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const receipts = readReceipts(records.receipts, new Set(rows.facts.map((row) => row.id)), accountsById)
   const lines = beforeItems ? readParts(records.lines, rows.facts, receipts.facts, categoryIds, true) : readEach(records.lines, () => [words.lineAfterMove])
   const labels = readLabels(records.labels)
-  const items = withKnownLabels(readParts(records.items, rows.facts, receipts.facts, categoryIds, beforeItems), records.items, new Set(labels.facts.map((label) => label.id)))
+  const events = readEvents(records.events)
+  const items = withKnownNames(
+    readParts(records.items, rows.facts, receipts.facts, categoryIds, beforeItems),
+    records.items,
+    new Set(labels.facts.map((label) => label.id)),
+    new Set(events.facts.map((event) => event.id)),
+  )
   const transactions = beforeItems ? rows : withItems(rows, records.transactions, items, records.items)
   const held = readHeld(records.held, accountsById, transactions.facts)
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-  const readings: SpendingReadings = { accounts, categories, labels, transactions, budgets, rules, receipts, lines, items, held, settings }
+  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, receipts, lines, items, held, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
     labels: labels.facts,
+    events: events.facts,
     transactions: transactions.facts,
     budgets: budgets.facts,
     rules: rules.facts,

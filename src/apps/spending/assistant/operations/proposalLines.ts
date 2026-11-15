@@ -1,4 +1,5 @@
 import { deletesRecords } from '../../accounts/domain/startDayMove'
+import { BY_DAYS } from '../../workbook/domain/event'
 import type { StartDayMove } from '../../accounts/domain/startDayMove'
 import { cutoverWords } from '../../accounts/presentation/startDayMoveWords'
 import { words as accountWords } from '../../accounts/presentation/words'
@@ -11,7 +12,7 @@ import { linkText } from '../../links/presentation/words'
 import { NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { NEW_CATEGORY_DEFAULTS } from '../../workbook/domain/category'
-import type { Transaction } from '../../workbook/domain/transaction'
+import type { StoredRow, Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -110,13 +111,27 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
   return namesOf.get(value) ?? String(value)
 }
 
-/** What the record is called on screen: an entry by its payee or else its first item's category, a rule by the payee or IBAN it files, a limit by its category, a part of an entry by its words or else its category, and an account, a category and a label by its name. */
-function labelOf(kind: RecordKind<unknown>, record: ProposedRecord, fallback: string, namesOf: ReadonlyMap<unknown, string>, categoryOf: (row: RecordId) => RecordId | null): string {
+/**
+ * What the record is called on screen: an entry by its payee or else its first item's category, a rule by the payee or IBAN it
+ * files, a limit by its category, a part of an entry by its entry's payee and then its words or else its category, such as
+ * `Landlord · Rent`, and an account, a category and a label by its name.
+ */
+function labelOf(
+  kind: RecordKind<unknown>,
+  record: ProposedRecord,
+  fallback: string,
+  namesOf: ReadonlyMap<unknown, string>,
+  categoryOf: (row: RecordId) => RecordId | null,
+  payeeOf: (row: RecordId | null) => string,
+): string {
   if (isKind(kind, TRANSACTION_RECORDS, record)) return record.payee !== '' ? record.payee : (namesOf.get(record.category ?? categoryOf(record.id)) ?? fallback)
   if (isKind(kind, RULE_RECORDS, record)) return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment
   if (isKind(kind, BUDGET_RECORDS, record)) return namesOf.get(record.category) ?? fallback
   if (isKind(kind, RECEIPT_RECORDS, record)) return record.merchant !== '' ? record.merchant : fallback
-  if (isKind(kind, ITEM_RECORDS, record)) return record.note !== '' ? record.note : record.printed !== '' ? record.printed : (namesOf.get(record.category) ?? fallback)
+  if (isKind(kind, ITEM_RECORDS, record)) {
+    const part = record.note !== '' ? record.note : record.printed !== '' ? record.printed : (namesOf.get(record.category) ?? fallback)
+    return [payeeOf(record.transaction), part].filter((words) => words !== '').join(' · ')
+  }
   if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record) || isKind(kind, LABEL_RECORDS, record)) return record.name
   return fallback
 }
@@ -196,7 +211,7 @@ function startDayNote(move: StartDayMove, book: SpendingBook): ProposalNote | nu
 
 /** What a new category, account or part of an entry holds unless a person sets it, which a card leaves off its add. */
 export function defaultsOnAdd(kind: RecordKind<unknown>): ProposedRecord {
-  if (kind.name === ITEM_RECORDS.name) return { labels: [], splitByLink: false }
+  if (kind.name === ITEM_RECORDS.name) return { labels: [], event: BY_DAYS, splitByLink: false }
   return kind.name === CATEGORY_RECORDS.name ? NEW_CATEGORY_DEFAULTS : kind.name === ACCOUNT_RECORDS.name ? NEW_ACCOUNT_DEFAULTS : {}
 }
 
@@ -213,11 +228,14 @@ export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, lo
   const written = checked.changes.flatMap(({ change }) => ((change.verb === 'add' || change.verb === 'change') && change.kind.name === ITEM_RECORDS.name ? [change.after as TransactionItem] : []))
   const itemsOf = rowItemsOf({ items: [...written, ...book.items] })
   const categoryOf = (row: RecordId): RecordId | null => itemsOf({ id: row })[0]?.category ?? null
+  const writtenRows = checked.changes.flatMap(({ change }) => ((change.verb === 'add' || change.verb === 'change') && change.kind.name === TRANSACTION_RECORDS.name ? [change.after as StoredRow] : []))
+  const payees = new Map([...book.transactions, ...writtenRows].map((row) => [row.id, row.payee.trim()]))
+  const payeeOf = (row: RecordId | null): string => (row === null ? '' : (payees.get(row) ?? ''))
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
     shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, loans),
-    label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf, categoryOf),
+    label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf, categoryOf, payeeOf),
     defaultsOf: defaultsOnAdd,
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),
   }

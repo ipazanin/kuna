@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed, inject, ref, useTemplateRef } from 'vue'
-import UBadge from '@nuxt/ui/components/Badge.vue'
-import UButton from '@nuxt/ui/components/Button.vue'
-import USlideover from '@nuxt/ui/components/Slideover.vue'
+import { computed, inject, useTemplateRef } from 'vue'
 
 import { useStickyBandPart } from '../../../../shared/layout/stickyBand'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
+import FiltersSheet from '../../../../shared/ui/FiltersSheet.vue'
 import { PAGE_TAB_ACTIONS } from '../../../../shared/ui/PageTabs.vue'
 
 import type { LedgerWindow } from '../../../../shared/calendar/ledgerWindow'
@@ -64,10 +62,9 @@ const accounts = computed({
 })
 
 const phone = usePhoneLayout()
-/** Inside a page's tabs, a phone shows the Filters button at the right end of the tab row. */
+/** Inside a page's tabs the Filters button sits on the tab row, so a phone's row with no period to show stays hidden. */
 const tabActions = inject(PAGE_TAB_ACTIONS, null)
 useStickyBandPart(useTemplateRef<HTMLElement>('bar'))
-const sheetOpen = ref(false)
 
 /** Narrowings beyond the period: the accounts, counted once, and every chip. */
 const activeCount = computed(() => chips.value.length + (accounts.value.length > 0 ? 1 : 0))
@@ -83,26 +80,14 @@ const clearChips = (): void => void setFilters(withoutChips(filters.value))
 
 <template>
   <div v-if="phone" class="flex items-center gap-3" :class="{ hidden: tabActions !== null && !showPeriod }">
-    <Teleport :to="tabActions" :disabled="tabActions === null" defer>
-      <USlideover v-model:open="sheetOpen" side="bottom" :title="words.filters" :ui="{ content: 'phone-sheet' }">
-        <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" :class="{ 'ms-2': tabActions !== null }" data-testid="open-filters">
-          <span class="filters-label">{{ words.filters }}</span>
-          <UBadge v-if="activeCount > 0" :label="String(activeCount)" size="sm" class="rounded-full" data-testid="filter-count" />
-          <span class="sr-only">{{ words.active(activeCount) }}</span>
-        </UButton>
-        <template #body>
-          <div class="flex flex-col gap-4">
-            <PeriodBar v-if="showPeriod" v-model:period="period" :window="window" stacked v-bind="presets === undefined ? {} : { presets }" />
-            <AccountPicker v-model="accounts" :options="accountOptions" class="w-full" />
-            <AddFilterMenu v-model="choices" :workbook="workbook" />
-            <FilterChipRow v-if="chips.length" :chips="chips" @remove="removeChip" @clear="clearChips" />
-          </div>
-        </template>
-        <template #footer>
-          <UButton :label="words.showResults" block size="lg" @click="sheetOpen = false" />
-        </template>
-      </USlideover>
-    </Teleport>
+    <FiltersSheet :active-count="activeCount" :show-label="words.showResults">
+      <div class="flex flex-col gap-4">
+        <PeriodBar v-if="showPeriod" v-model:period="period" :window="window" stacked v-bind="presets === undefined ? {} : { presets }" />
+        <AccountPicker v-model="accounts" :options="accountOptions" class="w-full" />
+        <AddFilterMenu v-model="choices" :workbook="workbook" />
+        <FilterChipRow v-if="chips.length" :chips="chips" @remove="removeChip" @clear="clearChips" />
+      </div>
+    </FiltersSheet>
     <p v-if="showPeriod" class="figure min-w-0 truncate text-sm text-muted" data-testid="period-range">{{ periodInWords(period, window) }}</p>
   </div>
   <div v-else ref="bar" class="filter-bar" data-testid="filter-bar">

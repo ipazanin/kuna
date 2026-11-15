@@ -179,6 +179,7 @@ import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/f
 import { rowLinksOf } from '../src/apps/spending/facts.ts'
 import { accountOnDay, euroRows } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals.ts'
+import { eventTotals } from '../src/apps/spending/events/domain/eventTotals.ts'
 import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatch.ts'
 import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
@@ -760,6 +761,8 @@ async function spendingGroups(addGroup, loansBook) {
   add('spending.rules', workbook.rules)
   // A file with no label keeps this digest without the group.
   if (workbook.labels.length > 0) add('spending.labels', () => labelTotals(euroRows(workbook, rates.everyday), workbook.categories, workbook.labels))
+  // A file with no event keeps this digest without the group.
+  if (workbook.events.length > 0) add('spending.events', () => eventTotals(euroRows(workbook, rates.everyday), workbook.categories, workbook.events))
   if (options['fake-spending'] === 'statements') {
     const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook)
     add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))

@@ -1,3 +1,4 @@
+import { BY_DAYS } from './event'
 import { ITEM_RECORDS, LINE_RECORDS } from './spendingKinds'
 import { isSplit, largestItem, linkOfItems, rowItemsOf, wholeItemOf, wholeRowItemId } from './rowItems'
 import type { SpendingBook } from './readSpendingBook'
@@ -10,8 +11,8 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { sameRecord, storedOf } from '../../../../shared/storage/domain/recordsRead'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 
-/** A part of an entry as a file from before items keeps it: a `line` with its words in `text`, its entry's link on the entry, no labels and no mark of a part a link split off. */
-export interface StoredLine extends Omit<TransactionItem, 'note' | 'link' | 'labels' | 'splitByLink'> {
+/** A part of an entry as a file from before items keeps it: a `line` with its words in `text`, its entry's link on the entry, no labels, no event chosen by hand and no mark of a part a link split off. */
+export interface StoredLine extends Omit<TransactionItem, 'note' | 'link' | 'labels' | 'event' | 'splitByLink'> {
   readonly text: string
 }
 
@@ -45,7 +46,7 @@ function joinedNote(rowNote: string, text: string): string {
 
 function itemOfLine(line: StoredLine, note: string, link: TransactionItem['link']): TransactionItem {
   const { id, transaction, receipt, printed, amount, category } = line
-  return { id: itemIdOfLine(id), transaction, receipt, printed, note, amount, category, link, labels: [], splitByLink: false }
+  return { id: itemIdOfLine(id), transaction, receipt, printed, note, amount, category, link, labels: [], event: BY_DAYS, splitByLink: false }
 }
 
 function lineOfItem(item: TransactionItem, text: string): StoredLine {
@@ -56,7 +57,7 @@ function lineOfItem(item: TransactionItem, text: string): StoredLine {
 /**
  * A row's items as a file from before items holds them: its lines, with the row's note in front of the words of the largest and
  * the row's link on each, or while it has none the one item with all of its money under the row's own category, note and link.
- * A file from before items keeps no labels.
+ * A file from before items keeps no labels, and its parts join events by their days.
  */
 export function itemsOfStoredRow(row: StoredRow, lines: readonly StoredLine[]): readonly TransactionItem[] {
   if (lines.length === 0) return [wholeItemOf(row, { category: row.category, note: row.note, link: row.link, labels: [] })]

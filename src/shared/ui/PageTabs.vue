@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { InjectionKey } from 'vue'
+import type { InjectionKey, Ref } from 'vue'
 
 export interface PageTab {
   readonly value: string
@@ -10,11 +10,16 @@ export interface PageTab {
   readonly count?: number
 }
 
-/**
- * The selector of the cell at the right end of the tab row, which a page's Filters button moves
- * into on a phone. Null outside a tab strip.
- */
-export const PAGE_TAB_ACTIONS: InjectionKey<string> = Symbol('page tab actions')
+/** The cell at the right end of a tab row, which a page's Filters button moves into on a phone. */
+export interface PageTabActions {
+  /** The cell's selector. */
+  readonly to: string
+  /** Whether the tab labels leave the button no room for its word. */
+  readonly crowded: Readonly<Ref<boolean>>
+}
+
+/** The tab row's actions cell. Null outside a tab strip. */
+export const PAGE_TAB_ACTIONS: InjectionKey<PageTabActions> = Symbol('page tab actions')
 </script>
 
 <script setup lang="ts">
@@ -86,7 +91,7 @@ const strip = shallowRef<HTMLElement | null>(null)
 useStickyBandPart(strip)
 
 const actionsId = useId()
-provide(PAGE_TAB_ACTIONS, `#${actionsId}`)
+provide(PAGE_TAB_ACTIONS, { to: `#${actionsId}`, crowded })
 
 /** Which ends of a strip wider than the page have tabs beyond them, so those edges fade. */
 const overflow = ref({ start: false, end: false })
@@ -146,7 +151,7 @@ watch(
 </script>
 
 <template>
-  <div ref="frame" class="page-tabs-frame" :class="{ 'has-above': $slots.above, crowded }">
+  <div ref="frame" class="page-tabs-frame" :class="{ 'has-above': $slots.above }">
     <slot name="above" />
     <!-- First in the page's order, so on a phone focus meets the Filters button just before the tabs it sits beside. -->
     <div :id="actionsId" class="page-tab-actions" data-testid="page-tab-actions" />
@@ -282,21 +287,6 @@ watch(
   .page-tabs-frame.has-above :deep(.page-tabs-list),
   .page-tabs-frame.has-above .page-tab-actions {
     grid-row: 2;
-  }
-}
-
-/*
- * Long tab labels leave no room for the word on a phone, so the Filters button keeps its icon and
- * count, and the word stays for a screen reader.
- */
-@media (max-width: 639px) {
-  .page-tabs-frame.crowded .page-tab-actions :deep(.filters-label) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 }
 

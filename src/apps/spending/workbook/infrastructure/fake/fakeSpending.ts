@@ -4,6 +4,8 @@ import { codecOfSpendingKind } from '../../application/spendingCodecs'
 import type { Account, RowsFrom } from '../../domain/account'
 import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
+import { BY_DAYS, OUT_OF_EVENTS } from '../../domain/event'
+import type { EventChoice, SpendingEvent } from '../../domain/event'
 import type { Label } from '../../domain/label'
 import type { Receipt } from '../../domain/receipt'
 import type { TransactionItem } from '../../domain/transactionItem'
@@ -11,6 +13,7 @@ import {
   ACCOUNT_RECORDS,
   BUDGET_RECORDS,
   CATEGORY_RECORDS,
+  EVENT_RECORDS,
   ITEM_RECORDS,
   LABEL_RECORDS,
   LINE_RECORDS,
@@ -61,7 +64,9 @@ import { language } from '../../../../../shared/text/language'
  * and no cash leg, two dollar cash accounts and a pound account at Revolut, and `receipts` the sample with the payments the
  * sample receipt photos match and a row a receipt split, and with the bank sync set up two receipts that wait for the bank's row on OTP, one of which two kiosk payments may be.
  * Every set holds three labels: a trip last month with its dollar dinner and its top-up between own accounts, a new flat whose rent and
- * bills run across three months with one line of the split receipt, and a garden label nothing carries yet. Each figure is made up.
+ * bills run across three months with one line of the split receipt, and a garden label nothing carries yet. Every set but `foreign`
+ * holds two events: a trip to Prague of five days that runs over the day, with its rows, a flight bought last month put in it and a
+ * subscription on its days taken out, and longer autumn holidays over Prague's days and a fuel row before them. Each figure is made up.
  */
 export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people'
 
@@ -111,6 +116,7 @@ interface Row {
   readonly category: string
   readonly link?: RowLink
   readonly labels?: readonly RecordId[]
+  readonly event?: EventChoice
 }
 
 /** The home loan's instalment of the month, or one on a day its plan has none, which reads as gone. */
@@ -137,6 +143,32 @@ function fakeLabels(): readonly Label[] {
     { id: BOSTON_TRIP, name: language === 'hr' ? 'Put u Boston' : 'Boston trip' },
     { id: NEW_FLAT, name: language === 'hr' ? 'Novi stan' : 'New flat' },
     { id: GARDEN, name: language === 'hr' ? 'Vrt' : 'Garden' },
+  ]
+}
+
+const PRAGUE = fixedId(EVENT_RECORDS, 2101)
+const AUTUMN_HOLIDAYS = fixedId(EVENT_RECORDS, 2102)
+
+/** Prague from three days before the day to the day after, and autumn holidays from ten days before to four after, so Overview shows Prague while it runs. */
+function fakeEvents(day: CivilDate): readonly SpendingEvent[] {
+  return [
+    { id: PRAGUE, name: language === 'hr' ? 'Prag' : 'Prague', days: { from: addDays(day, -3), to: addDays(day, 1) } },
+    { id: AUTUMN_HOLIDAYS, name: language === 'hr' ? 'Jesenski odmor' : 'Autumn holidays', days: { from: addDays(day, -10), to: addDays(day, 4) } },
+  ]
+}
+
+/**
+ * The rows of the events: Prague's hotel and dinner on its days, last month's flight put in it by hand, a subscription on its days
+ * taken out of every event, and a fuel row before Prague that only the autumn holidays cover.
+ */
+function eventRows(day: CivilDate, lastMonth: MonthKey): Row[] {
+  const back = (days: number): CivilDate => addDays(day, -days)
+  return [
+    { account: OTP, date: dayIn(lastMonth, 20, day), amount: -180, payee: 'Airline', category: 'Travel/Tickets', event: PRAGUE },
+    { account: REVOLUT_EUR, date: back(6), amount: -55, payee: 'Fuel station', category: 'Transport/Fuel' },
+    { account: OTP, date: back(2), amount: -240, payee: 'Hotel Old Town', category: 'Travel/Accommodation' },
+    { account: OTP, date: back(2), amount: -13.99, payee: 'Streaming service', category: 'Leisure/Subscriptions', event: OUT_OF_EVENTS },
+    { account: OTP, date: back(1), amount: -38.6, payee: 'Beer hall', category: 'Food/Restaurants' },
   ]
 }
 
@@ -218,6 +250,7 @@ function statementRow(place: number, account: RecordId, date: CivilDate, amount:
     pair: null,
     link: null,
     labels: [],
+    event: BY_DAYS,
     description: payee,
     importKey: `earlier-${place}`,
     statement: 'earlier-statement.csv',
@@ -249,6 +282,7 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
     pair: null,
     link: null,
     labels: [],
+    event: BY_DAYS,
     categorisedBy: 'person',
   })
   return [
@@ -353,6 +387,7 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
       pair: null,
       link: null,
       labels: [],
+      event: BY_DAYS,
       categorisedBy: 'person',
     },
     statementRow(SPLIT_ROW_PLACE, OTP, day, -61.2, 'Corner market', { category: idOf('Food/Groceries'), categorisedBy: 'person' }),
@@ -373,6 +408,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
     category: idOf(category),
     link: null,
     labels,
+    event: BY_DAYS,
     splitByLink: false,
   })
   return {
@@ -501,7 +537,8 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
     ...(set === 'cash' ? cashSetAccounts(openedOn, rowsFrom) : []),
   ]
   const shown = set === 'foreign' ? accounts.filter((account) => account.id === REVOLUT_USD) : accounts
-  const rows: Row[] = set === 'foreign' ? dollarRows(oneBack, day) : [...monthRows(twoBack, 2, day), ...monthRows(oneBack, 1, day), ...monthSoFar(month), ...dollarRows(oneBack, day)]
+  const rows: Row[] =
+    set === 'foreign' ? dollarRows(oneBack, day) : [...monthRows(twoBack, 2, day), ...monthRows(oneBack, 1, day), ...monthSoFar(month), ...dollarRows(oneBack, day), ...eventRows(day, oneBack)]
   let place = 1100
   const transactions: FakeRow[] = rows.map((row) => ({
     id: fixedId(TRANSACTION_RECORDS, (place += 1)),
@@ -515,6 +552,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
     pair: null,
     link: row.link ?? null,
     labels: row.labels ?? [],
+    event: row.event ?? BY_DAYS,
     ...NO_BANK_FACTS,
     categorisedBy: null,
   }))
@@ -542,6 +580,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
         pair: into,
         link: null,
         labels: [BOSTON_TRIP],
+        event: BY_DAYS,
         categorisedBy: null,
       },
       {
@@ -557,6 +596,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
         pair: out,
         link: null,
         labels: [BOSTON_TRIP],
+        event: BY_DAYS,
         categorisedBy: null,
       },
     )
@@ -580,6 +620,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...stored(ACCOUNT_RECORDS, opened),
       ...stored(CATEGORY_RECORDS, categories),
       ...stored(LABEL_RECORDS, fakeLabels()),
+      ...stored(EVENT_RECORDS, set === 'foreign' ? [] : fakeEvents(day)),
       ...stored(BUDGET_RECORDS, budgets),
       ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
       ...stored(RECEIPT_RECORDS, receipts.receipts),
@@ -667,6 +708,7 @@ export function fakeBeforeItemsDocument(savedAt: string, day: CivilDate = today(
     category: leg!.category,
     link: null,
     labels: [],
+    event: BY_DAYS,
     splitByLink: false,
   })
   const splitLeg = splitTransfer && leg !== undefined ? [legParts(1971, -150), legParts(1972, -50)] : []
@@ -712,6 +754,7 @@ function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): Retu
     category: idOf('Food/Groceries'),
     link: null,
     labels: [],
+    event: BY_DAYS,
     splitByLink: false,
   })
   return {

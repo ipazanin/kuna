@@ -1,6 +1,6 @@
 import type { InstalmentTarget, LinkTarget } from './linkTarget'
 import { fixedCategoryIn, loanInterestCategory, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
-import { labelsOf } from '../../labels/domain/labels'
+import { eventOfLargest, labelsOf } from '../../workbook/domain/carriedChoices'
 import type { Category } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
@@ -123,6 +123,7 @@ export function splitByInstalment(
 ): ItemizedRow {
   const firstId = entry.items[0]?.id ?? wholeRowItemId(entry.row)
   const labels = labelsOf(entry.items)
+  const event = eventOfLargest(entry.items)
   const parts: readonly (readonly [AccountMoney, RecordId, string])[] = [
     [split.interest, split.category, notes.interest],
     [split.principal, principal, ''],
@@ -140,6 +141,7 @@ export function splitByInstalment(
       category,
       link,
       labels,
+      event,
       splitByLink: true,
     }))
   return { row: { ...entry.row, categorisedBy: 'person' }, items }

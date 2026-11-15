@@ -5,10 +5,9 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { labelTotals } from '../domain/labelTotals'
 import LabelDialog from './LabelDialog.vue'
 import { words } from './words'
-import { categoryColours } from '../../categories/presentation/categoryColours'
+import TotalsLines from '../../analytics/presentation/TotalsLines.vue'
 import { labelLink } from '../../overview/presentation/spendingLinks'
 import { euroRows } from '../../rates/domain/euroRows'
-import { unratedNote } from '../../rates/presentation/unratedNote'
 import { waitsForRates } from '../../rates/presentation/waitsForRates'
 import { words as rateWords } from '../../rates/presentation/words'
 import { words as screenWords } from '../../screenWords'
@@ -17,7 +16,6 @@ import type { Label } from '../../workbook/domain/label'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import ItemsMoveNotice from '../../workbook/presentation/ItemsMoveNotice.vue'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { plural } from '../../../../shared/text/translation'
@@ -35,22 +33,14 @@ const rates = useRates()
 const loading = computed(() => state.workbook === null && state.status !== 'error')
 const waiting = computed(() => waitsForRates(state.workbook?.accounts ?? [], rates.value))
 const categories = computed(() => state.workbook?.categories ?? [])
-const colourOf = computed(() => categoryColours(categories.value))
 const beforeItems = computed(() => state.workbook !== null && isBeforeItems(state.workbook.stored))
 
 const lines = computed(() => {
   const book = state.workbook
   if (book === null) return []
-  const byId = new Map(book.categories.map((category) => [category.id, category]))
   return labelTotals(euroRows(book, everydayRates(rates.value)), book.categories, book.labels).map((totals) => ({
     totals,
     caption: totals.latest === null ? words.noEntries : `${plural(words.entries(totals.rows), totals.rows)} · ${words.newest(dayLabel(totals.latest))}`,
-    groups: totals.groups.flatMap(({ group, spent }) => {
-      const category = byId.get(group)
-      return category === undefined ? [] : [{ id: group, name: category.name, spent: formatMoney(spent), colour: `var(${colourOf.value(category)})` }]
-    }),
-    others: [...(totals.income === 0 ? [] : [words.received(formatMoney(totals.income))]), ...(totals.saved === 0 ? [] : [words.savedAmount(formatMoney(totals.saved))])],
-    unrated: waiting.value ? null : unratedNote(totals.unrated),
   }))
 })
 
@@ -91,14 +81,8 @@ function openDialog(label: Label | null): void {
               <template v-if="line.totals.rows > 0" #amount>
                 <MoneyText :cents="line.totals.spent" :data-spent="line.totals.spent" />
               </template>
-              <template v-if="line.groups.length > 0 || line.others.length > 0 || line.unrated !== null" #details>
-                <span v-for="group in line.groups" :key="group.id" class="flex items-center gap-2 type-caption" data-testid="spending-label-group">
-                  <span class="size-1.5 shrink-0 rounded-full" :style="{ background: group.colour }" aria-hidden="true" />
-                  <span class="min-w-0 flex-1 break-words">{{ group.name }}</span>
-                  <span class="figure shrink-0">{{ group.spent }}</span>
-                </span>
-                <span v-for="other in line.others" :key="other" class="type-caption">{{ other }}</span>
-                <span v-if="line.unrated !== null" class="type-caption">{{ line.unrated }}</span>
+              <template v-if="line.totals.rows > 0" #details>
+                <TotalsLines :totals="line.totals" :categories="categories" :rated="!waiting" />
               </template>
             </ProposalRow>
             <UButton

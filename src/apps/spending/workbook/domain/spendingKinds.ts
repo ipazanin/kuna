@@ -2,6 +2,7 @@ import type { Account } from './account'
 import type { Budget } from './budget'
 import type { Category } from './category'
 import type { Label } from './label'
+import type { SpendingEvent } from './event'
 import type { TransactionItem } from './transactionItem'
 import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
@@ -22,6 +23,10 @@ export const CATEGORY_RECORDS = recordKind<Category>('category', {
 export const LABEL_RECORDS = recordKind<Label>('label', {
   en: { one: 'label', many: 'labels', article: 'a' },
   hr: { one: 'oznaka', of: 'oznake', few: 'oznake', other: 'oznaka', gender: 'feminine' },
+})
+export const EVENT_RECORDS = recordKind<SpendingEvent>('event', {
+  en: { one: 'event', many: 'events', article: 'an' },
+  hr: { one: 'događaj', of: 'događaja', few: 'događaja', other: 'događaja', gender: 'masculine' },
 })
 export const TRANSACTION_RECORDS = recordKind<StoredRow>('transaction', {
   en: { one: 'entry', many: 'entries', article: 'an' },

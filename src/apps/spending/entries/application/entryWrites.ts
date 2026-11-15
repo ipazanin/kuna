@@ -1,6 +1,6 @@
 import type { EntrySplit } from '../domain/entrySplit'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
-import { labelsOf } from '../../labels/domain/labels'
+import { eventOfLargest, labelsOf } from '../../workbook/domain/carriedChoices'
 import { linkedEntry } from '../../links/domain/instalmentSplit'
 import type { LinkPlace, LinkedEntry } from '../../links/domain/instalmentSplit'
 import type { LinkTarget } from '../../links/domain/linkTarget'
@@ -58,7 +58,8 @@ export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedR
 /** A transfer's leg typed over a row, which keeps the row's labels, since a transfer is labelled by selecting it on Entries. */
 function legOver(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
   const labels = labelsOf(before.items)
-  return retypedEntry(before, { ...typed, items: typed.items.map((item) => ({ ...item, labels })) })
+  const event = eventOfLargest(before.items)
+  return retypedEntry(before, { ...typed, items: typed.items.map((item) => ({ ...item, labels, event })) })
 }
 
 /**
@@ -163,9 +164,9 @@ export function writeEntrySplit(unit: UnitOfWork, records: EntryRecords, { row, 
   writeRows(unit, records, [{ before: before.row, after: row, items: parts }])
 }
 
-/** The one item a split row stands for again: all of its money under the category most of it was in, with the note of its largest part, its link and every label of its parts. */
+/** The one item a split row stands for again: all of its money under the category most of it was in, with the note and event choice of its largest part, its link and every label of its parts. */
 export function unsplitItem(row: Pick<Transaction, 'id' | 'amount'>, held: readonly TransactionItem[]): TransactionItem {
-  return wholeItemOf(row, { category: mainCategoryOf(held), note: largestItem(held)?.note ?? '', link: linkOfItems(held), labels: labelsOf(held) })
+  return wholeItemOf(row, { category: mainCategoryOf(held), note: largestItem(held)?.note ?? '', link: linkOfItems(held), labels: labelsOf(held), event: eventOfLargest(held) })
 }
 
 /**

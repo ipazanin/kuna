@@ -35,6 +35,7 @@ import type { RowLink } from '../../src/apps/spending/workbook/domain/rowLink'
 import type { StoredRow } from '../../src/apps/spending/workbook/domain/transaction'
 import type { LinkTarget } from '../../src/apps/spending/links/domain/linkTarget'
 import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../src/apps/spending/workbook/domain/transaction'
+import { BY_DAYS } from '../../src/apps/spending/workbook/domain/event'
 import { spendingDocumentOf } from '../../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { ChatReads } from '../../src/shared/ai/application/chatReads'
 import type { ChatAttachment } from '../../src/shared/ai/domain/chatAttachments'
@@ -157,6 +158,7 @@ function handPart(key: string, amount: number, category: Category, labels: reado
     category: category.id,
     link: null,
     labels: labels.map((label) => label.id),
+    event: BY_DAYS,
     splitByLink: false,
   }
 }
@@ -205,6 +207,7 @@ const WAITING_LINE: TransactionItem = {
   category: GROCERIES.id,
   link: null,
   labels: [],
+  event: BY_DAYS,
   splitByLink: false,
 }
 
