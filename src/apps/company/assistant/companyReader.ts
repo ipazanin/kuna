@@ -134,6 +134,7 @@ interface SplitPartView {
   readonly bucket: string
   readonly note: string
   readonly ownerShare: string
+  readonly invoice: string
 }
 
 interface CategoryView {
@@ -230,6 +231,7 @@ const SPLIT_PART_FIELDS: FieldDocs<SplitPartView> = {
   bucket: { exposure: 'plain', meaning: 'Where profit and loss counts it.' },
   note: { exposure: 'free-text', meaning: "The person's note on the part, or empty, as it always is on the one part of a row not split." },
   ownerShare: { exposure: 'plain', meaning: "The owner's private share of it in percent, or empty for none." },
+  invoice: { exposure: 'ref', to: INVOICE_RECORDS.name, meaning: 'The invoice a revenue part pays, in books that store it, or empty for none.' },
 }
 
 const CATEGORY_FIELDS: FieldDocs<CategoryView> = {
@@ -361,7 +363,7 @@ function ledgerRowOf(row: Workbook['transactions'][number]): LedgerRowView {
   }
 }
 
-function splitPartOf(row: Transaction, part: SplitPart): SplitPartView {
+function splitPartOf(row: Transaction, part: SplitPart, paidInvoices: Workbook['paidInvoices']): SplitPartView {
   return {
     id: part.id,
     row: row.id,
@@ -371,6 +373,7 @@ function splitPartOf(row: Transaction, part: SplitPart): SplitPartView {
     bucket: part.bucket,
     note: part.note,
     ownerShare: ownerShareText(part.ownerShare) ?? '',
+    invoice: paidInvoices?.get(part.id) ?? '',
   }
 }
 
@@ -546,7 +549,7 @@ export function companyReader(reading: CompanyReading, pack: PackReader | null):
         rows: () =>
           rows((workbook) => {
             const itemsOf = rowItemsOf(workbook.splits)
-            return workbook.transactions.flatMap((row) => itemsOf(row).map((part) => splitPartOf(row, part)))
+            return workbook.transactions.flatMap((row) => itemsOf(row).map((part) => splitPartOf(row, part, workbook.paidInvoices)))
           }),
         currencyOf: currency,
       }),

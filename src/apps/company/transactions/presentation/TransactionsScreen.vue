@@ -41,7 +41,8 @@ import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { useCollapsedGroups } from '../application/collapsedGroups'
 import { transactionsCsv } from '../application/transactionsCsv'
 import { useFilteredLedger } from '../application/useFilteredLedger'
-import { categoryChangeOf } from '../domain/categoryChange'
+import { categoryChangeOf, filedInOneCategory } from '../domain/categoryChange'
+import { rowFiledAs, rowItemsOf } from '../../workbook/domain/splits'
 import { ownerShareChangeOf } from '../domain/ownerShareChange'
 import { advancesLeftOutByBankFilters, scopeTransactions } from '../domain/filterTransactions'
 import { ownerPartOrigin } from '../../owner-share/domain/ownerParts'
@@ -170,13 +171,20 @@ const changeOpen = ref(false)
 
 /**
  * A part of a split row opens the split editor on the row as booked, since its category lives on the
- * splits tab. A part of a shared row changes the row it comes from.
+ * splits tab, unless every part is in one category, which Change category then changes for all of them.
+ * A part of a shared row changes the row it comes from.
  */
 function changeCategory(row: ListedBankRow): void {
   const change = categoryChangeOf(row)
   if (change === 'split') {
-    const whole = state.workbook?.transactions.find((transaction) => transaction.id === row.id)
-    if (whole !== undefined) openSplit(whole)
+    const workbook = state.workbook
+    const whole = workbook?.transactions.find((transaction) => transaction.id === row.id)
+    if (whole === undefined || workbook === undefined || workbook === null) return
+    const parts = rowItemsOf(workbook.splits)(whole)
+    if (filedInOneCategory(parts)) {
+      changing.value = rowFiledAs(whole, parts)
+      changeOpen.value = true
+    } else openSplit(whole)
   } else if (change === 'ledger') {
     changing.value = row.ownerPart?.whole ?? row
     changeOpen.value = true

@@ -1,7 +1,8 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { changeInvoice, removeInvoice } from '../src/apps/company/receivables/application/invoiceWrites'
+import { writeInvoice } from '../src/apps/company/receivables/application/invoicePaymentWrites'
+import { removeInvoice } from '../src/apps/company/receivables/application/invoiceWrites'
 import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching'
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { invoiceIdOf } from '../src/apps/company/workbook/domain/invoicesReading'
@@ -46,7 +47,7 @@ describe('an invoice its payments are placed on', () => {
     const owed = owedOn(store, invoice.id)
     const renumbered = { ...invoice, number: '99-1-26', id: invoiceIdOf({ client: invoice.client, number: '99-1-26' }) }
 
-    await store.write('Saved', (unit) => changeInvoice(unit, store.state.records!.items, invoice, renumbered))
+    await store.write('Saved', (unit) => writeInvoice(unit, { records: store.state.records!, workbook: store.state.workbook! }, invoice, renumbered, null))
 
     expect(itemsPaying(store, renumbered.id)).toEqual(paying)
     expect(itemsPaying(store, invoice.id)).toEqual([])

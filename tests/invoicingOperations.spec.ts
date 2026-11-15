@@ -13,6 +13,7 @@ import { fakeWorkbookRecords } from '../src/apps/company/workbook/infrastructure
 import type { CompanyBooks } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import { filledFields } from '../src/shared/storage/domain/recordFields'
+import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { companyChat, deskPorts } from './fixtures/companyDesk'
 import type { CompanyChat } from './fixtures/companyDesk'
@@ -92,7 +93,7 @@ describe('the invoices register', () => {
   it('refuses a due day before the issue day and a work period with one end, as the invoice dialog does', async () => {
     const company = await desk()
     const client = company.ref('client', 'northwind')
-    const invoice = { number: '99-1-26', client, item: 'Consulting', amount: 100, issued: '2026-10-31', due: null, periodFrom: null, periodTo: null }
+    const invoice = { number: '99-1-26', client, item: 'Consulting', amount: 100, issued: '2026-10-31', due: null, periodFrom: null, periodTo: null, paidBy: [] }
 
     const late = await company.propose([{ op: 'add-invoice', input: { ...invoice, due: '2026-10-01' } }])
     const oneEnd = await company.propose([{ op: 'add-invoice', input: { ...invoice, periodFrom: '2026-10-01' } }])
@@ -141,6 +142,53 @@ describe('the invoices register', () => {
     const answer = await company.propose([stepOf(INVOICING_OPERATIONS.operations, 'delete-client', { client: company.ref('client', 'lumen') })])
 
     expect(answer.isError).toBe(true)
+  })
+})
+
+describe('the payments that pay an invoice', () => {
+  /** An invoice the fake books hold a payment on, with the items that pay it. */
+  function paidInvoice(company: Desk) {
+    const { store } = company
+    const items = recordsOf(store.state.records!.items)
+    const invoice = bookOf(company).invoices.find((held) => items.some((item) => item.invoice === held.id))!
+    return { invoice, paying: items.filter((item) => item.invoice === invoice.id) }
+  }
+
+  it('takes the payments off an invoice on a card that names the invoice each item comes off, and places them again', async () => {
+    const company = await desk()
+    const { invoice, paying } = paidInvoice(company)
+    const change = (paidBy: readonly { item: string }[]) => stepOf(INVOICING_OPERATIONS.operations, 'change-invoice', { invoice: company.ref('invoice', invoice.id), paid: 'set', paidBy })
+
+    const answer = await company.propose([change([])])
+
+    expect(answer.isError, answer.text).toBe(false)
+    const fields = company.cards[0]!.groups.flatMap((group) => group.lines.flatMap((line) => line.fields)).filter((field) => field.name === companyWords.fields.invoice)
+    expect(fields.map((field) => [field.before, field.after])).toEqual(paying.map(() => [invoice.number, null]))
+    expect((await company.accept()).kind).toBe('done')
+    expect(recordsOf(company.store.state.records!.items).filter((item) => item.invoice === invoice.id)).toEqual([])
+
+    const again = await company.propose([change(paying.map((item) => ({ item: company.ref('item', item.id) })))])
+
+    expect(again.isError, again.text).toBe(false)
+    expect((await company.accept()).kind).toBe('done')
+    expect(
+      recordsOf(company.store.state.records!.items)
+        .filter((item) => item.invoice === invoice.id)
+        .map((item) => item.amount),
+    ).toEqual(paying.map((item) => item.amount))
+  })
+
+  it('refuses a payment the invoice dialog would not offer, such as a cost', async () => {
+    const company = await desk()
+    const { invoice } = paidInvoice(company)
+    const cost = recordsOf(company.store.state.records!.items).find((item) => item.amount < 0)!
+
+    const answer = await company.propose([
+      stepOf(INVOICING_OPERATIONS.operations, 'change-invoice', { invoice: company.ref('invoice', invoice.id), paid: 'set', paidBy: [{ item: company.ref('item', cost.id) }] }),
+    ])
+
+    expect(answer.isError).toBe(true)
+    expect(answer.text).toContain('Each paidBy item is a revenue credit')
   })
 })
 

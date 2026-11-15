@@ -1,4 +1,4 @@
-import { absMoney, addMoney } from '../../../../shared/money/money'
+import { ZERO, absMoney, addMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
 import { partReplacements } from '../../../../shared/categorising/domain/partReplacements'
@@ -7,7 +7,7 @@ import { installedPack } from '../../packs/packContribution'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, SPLIT_PART_RECORDS } from '../../workbook/domain/coreKinds'
 import { definedCategories } from '../../workbook/domain/categoriesReading'
-import { readItems } from '../../workbook/domain/splitsReading'
+import { newItemRecord, readItems } from '../../workbook/domain/splitsReading'
 import type { ItemRecord } from '../../workbook/domain/splitsReading'
 import { readLedger } from '../../workbook/domain/ledgerReading'
 import type { LedgerEntry } from '../../workbook/domain/ledgerReading'
@@ -196,19 +196,25 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
   refuseOn(refusal === null ? [] : [refusal])
   const written = placed.map((item): ItemRecord => {
     const { id } = item
-    const wanted: ItemRecord = { row: rowId, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: item.invoice, id }
     const record = held.find((candidate) => candidate.id === id)
     if (record === undefined) {
-      unit.of(ITEM_WRITES).add(wanted)
-    } else if (record.amount !== wanted.amount || record.category !== wanted.category || record.note !== wanted.note || record.ownerShare !== wanted.ownerShare || record.invoice !== wanted.invoice) {
-      repository.change(record, wanted)
+      const added = newItemRecord(rowId, id, item)
+      unit.of(ITEM_WRITES).add(added)
+      return added
     }
+    const wanted: ItemRecord = { ...record, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: item.invoice }
+    if (itemChanged(record, wanted)) repository.change(record, wanted)
     return wanted
   })
   for (const record of held.filter((candidate) => !written.some((kept) => kept.id === candidate.id))) {
     repository.remove(record)
   }
   return written
+}
+
+/** Whether a write leaves the item otherwise than the tab holds it, in what a person or the books set on it. */
+export function itemChanged(held: ItemRecord, written: ItemRecord): boolean {
+  return held.amount !== written.amount || held.category !== written.category || held.note !== written.note || held.ownerShare !== written.ownerShare || held.invoice !== written.invoice
 }
 
 /** An item a write leaves on the items tab, with its id and the invoice it pays. */
@@ -246,6 +252,17 @@ function itemsOnTab(records: WorkbookRecords, row: ItemsRow, items: readonly Ite
  */
 export function placedMoneyRefusal(records: WorkbookRecords, row: ItemsRow, items: readonly ItemDraft[]): string | null {
   return !storesItems(records) || row.rowId === null ? null : movedMoneyRefusal(records, row, itemsOnTab(records, row, items))
+}
+
+/** The numbers of the invoices the row would pay less of once it holds these items, since a part leaves revenue, in the order the books list them. */
+export function invoicesFreed(records: WorkbookRecords, row: ItemsRow, items: readonly ItemDraft[]): readonly string[] {
+  if (!storesItems(records) || row.rowId === null) return []
+  const { held, placed } = itemsOnTab(records, row, items)
+  const before = invoiceTotals(held)
+  const after = invoiceTotals(placed)
+  return recordsOf(records.invoices)
+    .filter((invoice) => absMoney(after.get(invoice.id) ?? ZERO) < absMoney(before.get(invoice.id) ?? ZERO))
+    .map((invoice) => invoice.number)
 }
 
 function movedMoneyRefusal(records: WorkbookRecords, row: ItemsRow, { held, kept, revenue }: ItemsOnTab): string | null {
@@ -299,7 +316,7 @@ export function replaceLedgerRows(unit: UnitOfWork, records: WorkbookRecords, re
     if (held.length === 0) {
       const rowId = entry.rowId
       const paid = payments.find((payment) => payment.row === rowId)?.items ?? [{ id: wholeItemId(entry), amount: entry.amount, note: '', of: null }]
-      paid.forEach((item) => items.add({ row: rowId, amount: item.amount, category: entry.category, note: item.note, ownerShare: entry.ownerShare, invoice: invoiceOf(item.of), id: item.id }))
+      paid.forEach((item) => items.add(newItemRecord(rowId, item.id, { amount: item.amount, category: entry.category, note: item.note, ownerShare: entry.ownerShare, invoice: invoiceOf(item.of) })))
       continue
     }
     const gap = restOfWhole(

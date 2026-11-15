@@ -1145,6 +1145,44 @@ export function invoiceFlowIn(language) {
 
 export const invoiceFlow = invoiceFlowIn('en')
 
+/**
+ * A client payment no invoice holds, in a language: Place opens the invoice the import's rule picks with the payment ticked under
+ * Paid by, whose menu lists the payments on offer, Save places it, so the card of payments to place goes, and Undo brings it back.
+ */
+export function placePaymentFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const dialog = words.receivables.dialog
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await shootAt(page, shoot, '[data-testid="unplaced-place"]', 'unplaced-place')
+    await pressSelector(page, press, '[data-testid="unplaced-place"]')
+    await page.waitForSelector('[data-testid="invoice-paid-by"]')
+    await delay(400)
+    await shootAt(page, shoot, '[data-testid="invoice-paid-by"]', 'invoice-paid-by', { inspected: () => inspect?.('place a payment') })
+    await pressSelector(page, press, '[data-testid="invoice-paid-by"]')
+    await page.waitForSelector('[role="listbox"] [role="option"]')
+    await delay(300)
+    await inspect?.('the payments Paid by offers')
+    await shoot('invoice-paid-by-menu')
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await delay(300)
+    if ((await page.$('[data-testid="invoice-form"]')) === null) throw new Error('Escape on the Paid by menu closed the invoice dialog')
+    await pressSelector(page, press, '[data-testid="invoice-save"]')
+    await toast(page, dialog.saved)
+    await dialogClosed(page)
+    await page
+      .waitForFunction(() => document.querySelector('[data-testid="unplaced-payments"]') === null, { timeout: 10_000 })
+      .catch(() => {
+        throw new Error('the payment still waits to be placed after Save')
+      })
+    await shoot('unplaced-placed')
+    await undoIn(page, press, words)
+    await page.waitForSelector('[data-testid="unplaced-place"]', { timeout: 10_000 })
+    await dismissToasts(page)
+  }
+}
+
 async function waitForRunStage(page, selector) {
   await page.waitForSelector(selector, { visible: true, timeout: 20_000 }).catch(async () => {
     const said = await page.evaluate(() => document.querySelector('[data-testid="invoice-run"]')?.textContent?.replace(/\s+/g, ' ').slice(0, 400))
@@ -1644,6 +1682,31 @@ export function placedSplitFlowIn(language) {
 }
 
 /**
+ * The same client payment, whose two parts are both revenue: a part's Change category opens on the whole payment, which a refile
+ * takes off both invoices, rather than the split editor.
+ */
+export function placedRefileFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="edit-split"]', { timeout: 10_000 })
+    // The payment's parts come after the day's other Northwind row, so its part's Change category is the last one shown.
+    const shown = async () => {
+      const buttons = await page.$$('[data-testid="change-category-row"]')
+      const visible = await Promise.all(buttons.map((button) => button.evaluate((element) => element.getBoundingClientRect().width > 0)))
+      return buttons.filter((_, index) => visible[index])
+    }
+    if ((await shown()).length === 0) await press(await page.$('[data-testid="transaction-card"].part .card-summary'))
+    await press((await shown()).at(-1))
+    await page.waitForSelector('[data-testid="change-category"]')
+    await elementSays(page, '[data-testid="change-category"]', [language === 'en' ? '6,834.43' : '6.834,43'], 'Change category does not open on the whole payment')
+    if ((await page.$('[data-testid="split-form"]')) !== null) throw new Error('a part of a payment in one category opened the split editor')
+    await delay(400)
+    await inspect?.('Change category on a payment placed on two invoices')
+    await shoot('change-category-placed')
+  }
+}
+
+/**
  * Books from before every ledger row had an id (`?fake=no-row-ids`): Overview's Waiting for you counts the rows, its link opens Settings, Books
  * file, whose prompt gives them all an id in one write. Undo takes the ids back and the prompt returns. Given again, the ids link the
  * split parts to their rows, and a split row on Transactions still shows its parts.
@@ -1748,7 +1811,7 @@ export function changeCategoryFlowIn(language) {
     await dismissToasts(page)
 
     await page.evaluate(() => {
-      window.location.hash = '#/company/transactions?p=all&q=PAPER'
+      window.location.hash = '#/company/transactions?p=all&q=INK%20STORE'
     })
     await waitForSplit(page, true)
     await openChangeOfRow(page, press, words)

@@ -212,6 +212,14 @@ export interface ItemRecord {
   readonly id: RecordId
 }
 
+/**
+ * A new item of a row, paying the invoice given or none. A write that adds an item builds it here, and one that changes an item
+ * spreads the one held, so no writer drops a field it does not set.
+ */
+export function newItemRecord(row: string, id: RecordId, filed: Pick<ItemRecord, 'amount' | 'category' | 'note' | 'ownerShare'> & { readonly invoice?: RecordId | null }): ItemRecord {
+  return { row, amount: filed.amount, category: filed.category, note: filed.note, ownerShare: filed.ownerShare, invoice: filed.invoice ?? null, id }
+}
+
 function itemOf(fields: StoredFields, id: RecordId | null): ItemRecord {
   const row = textOf(fields.row_id)
   if (row === '') refuse(words.items.noRowId)

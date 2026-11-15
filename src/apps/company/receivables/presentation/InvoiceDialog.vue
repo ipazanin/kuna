@@ -1,14 +1,33 @@
+<script lang="ts">
+import type { Money } from '../../../../shared/money/money'
+
+/** What the dialog starts on for a payment Place opens it with: the payment ticked, and for a new invoice its client and amount. */
+export interface InvoicePrefill {
+  readonly client: string
+  /** The amount a new invoice starts on, read positive. */
+  readonly amount: Money
+  /** The payment's choice among Paid by's. */
+  readonly payment: string
+}
+</script>
+
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
+import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
+import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
+import { useBookedWorkbook } from '../../transactions/application/useBookedWorkbook'
+import { placedShares } from '../../workbook/domain/rowPayments'
+import { storesItems } from '../../workbook/domain/rowItems'
 import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { NO_RECORDS, recordWithId } from '../../../../shared/storage/domain/recordsRead'
@@ -19,7 +38,9 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
-import { INVOICE_WRITES, changeInvoice, removeInvoice } from '../application/invoiceWrites'
+import { removeInvoice } from '../application/invoiceWrites'
+import { writeInvoice } from '../application/invoicePaymentWrites'
+import { paymentChoices } from '../domain/invoicePayments'
 import { invoiceDatesProblems } from '../domain/invoiceGuards'
 import { newInvoiceDates } from '../../invoicing/domain/invoiceDates'
 import { words } from './words'
@@ -31,24 +52,33 @@ const emit = defineEmits<{
   reexport: [id: RecordId]
 }>()
 
-const props = defineProps<{
-  /** The invoice to edit, or null to add one. */
-  id: RecordId | null
-  clients: readonly { readonly slug: string; readonly name: string }[]
-  /** Where a new invoice starts: the newest booking. */
-  defaultIssued: CivilDate
-  /** The number of the newest invoice, shown as a hint for the next one. */
-  latestNumber: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** The invoice to edit, or null to add one. */
+    id: RecordId | null
+    clients: readonly { readonly slug: string; readonly name: string }[]
+    /** Where a new invoice starts: the newest booking. */
+    defaultIssued: CivilDate
+    /** The number of the newest invoice, shown as a hint for the next one. */
+    latestNumber: string
+    /** A payment to place, which the form starts ticked. */
+    prefill?: InvoicePrefill | null
+  }>(),
+  { prefill: null },
+)
 
 type Field = 'number' | 'client' | 'item' | 'amount' | 'issued' | 'due' | 'period_from' | 'period_to'
 
 const store = useWorkbook()
+const booked = useBookedWorkbook()
 const writes = useRecordWrites(store)
 
 const fields = ref<Record<Field, string>>(blankFields())
 const opened = ref<Record<Field, string>>(blankFields())
 const tried = ref(false)
+/** The payments ticked under Paid by, by their choice's key, and those the invoice held when the dialog opened. */
+const paidBy = ref<string[]>([])
+const openedPaidBy = ref<string[]>([])
 
 function blankFields(): Record<Field, string> {
   return { number: '', client: '', item: '', amount: '', issued: '', due: '', period_from: '', period_to: '' }
@@ -80,12 +110,15 @@ watch(open, (opening) => {
   const read = stored.value
   if (read === null) {
     const dates = newInvoiceDates(props.defaultIssued)
-    const client = props.clients.length === 1 ? props.clients[0]!.slug : ''
-    fields.value = { ...blankFields(), client, issued: props.defaultIssued, due: dates.due, period_from: dates.periodFrom, period_to: dates.periodTo }
+    const client = props.prefill?.client ?? (props.clients.length === 1 ? props.clients[0]!.slug : '')
+    const amount = props.prefill === null ? '' : amountForTyping(props.prefill.amount)
+    fields.value = { ...blankFields(), client, amount, issued: props.defaultIssued, due: dates.due, period_from: dates.periodFrom, period_to: dates.periodTo }
   } else {
     fields.value = fieldsOf(read.fields)
   }
   opened.value = { ...fields.value }
+  openedPaidBy.value = choices.value.filter((choice) => choice.named).map((choice) => choice.key)
+  paidBy.value = [...openedPaidBy.value, ...(props.prefill === null ? [] : [props.prefill.payment])]
   tried.value = false
 })
 
@@ -112,8 +145,44 @@ const errors = computed(() => {
     amount: parsedAmount.value === null ? words.dialog.amountError : null,
     issued: issued === null ? words.dialog.issuedError : null,
     due: due === undefined ? words.dialog.dueError : dates.due === 'before-issue' ? words.dialog.dueBeforeIssue : null,
+    paidBy: notNeeded.value === null ? null : words.dialog.notNeeded(dayLabel(notNeeded.value.payment.date)),
     period: from === undefined || to === undefined ? words.dialog.periodError : dates.period === 'one-end' ? words.dialog.periodBoth : dates.period === 'order' ? words.dialog.periodOrder : null,
   }
+})
+
+/** The client payments the invoice may take, on books with an items tab: those it holds, and those no invoice holds from its client or from an account no client names. */
+const choices = computed(() => {
+  const workbook = booked.value
+  const records = store.state.records
+  const client = fields.value.client
+  return workbook === null || records === null || records === undefined || !storesItems(records) || client === '' ? [] : paymentChoices(workbook, props.id, client)
+})
+
+const paymentItems = computed(() =>
+  choices.value.map((choice) => ({
+    label: words.dialog.payment(dayLabel(choice.payment.date), formatMoney(choice.amount), choice.payment.counterparty || choice.payment.description || words.dialog.paymentFrom),
+    value: choice.key,
+  })),
+)
+
+/** The payments ticked, in the order they were paid, among those on offer for the client chosen. */
+const chosen = computed(() => choices.value.filter((choice) => paidBy.value.includes(choice.key)))
+
+/** The ticked payments' labels, one line each, so a second payment is not cut off behind the first. */
+const chosenLabels = computed(() => paymentItems.value.filter((payment) => paidBy.value.includes(payment.value)).map((payment) => payment.label))
+
+/** The first ticked payment the invoice is paid in full before, or null. */
+const notNeeded = computed(() => {
+  if (parsedAmount.value === null) return null
+  const applied = placedShares(parsedAmount.value, chosen.value)
+  return chosen.value.find((_, index) => applied[index]! <= 0) ?? null
+})
+
+/** The payments the save places, or null when they are the ones the invoice held when the dialog opened. */
+const placement = computed(() => {
+  const ticked = chosen.value.map((choice) => choice.key)
+  const same = ticked.length === openedPaidBy.value.length && ticked.every((key) => openedPaidBy.value.includes(key))
+  return same ? null : chosen.value
 })
 
 const valid = computed(() => Object.values(errors.value).every((error) => error === null))
@@ -137,8 +206,11 @@ async function save(): Promise<void> {
     id: invoiceIdOf({ client, number }),
   }
   const before = stored.value?.record ?? null
+  const { records, workbook } = store.state
+  if (records === null || records === undefined || workbook === null || workbook === undefined) return
+  const books = { records, workbook }
   if (props.id === null || before === null) {
-    if (await writes.write(words.dialog.added, (unit) => unit.of(INVOICE_WRITES).add(typed), { failedTitle: words.dialog.notAdded })) open.value = false
+    if (await writes.write(words.dialog.added, (unit) => writeInvoice(unit, books, null, typed, placement.value), { failedTitle: words.dialog.notAdded })) open.value = false
     return
   }
   const changed = (field: Field): boolean => fields.value[field] !== opened.value[field]
@@ -155,7 +227,7 @@ async function save(): Promise<void> {
     deliveryPeriod: changed('period_from') || changed('period_to') ? typed.deliveryPeriod : before.deliveryPeriod,
     id: invoiceIdOf(kept),
   }
-  if (await writes.write(words.dialog.saved, (unit) => changeInvoice(unit, store.state.records?.items ?? NO_RECORDS, before, after), { failedTitle: words.dialog.notSaved })) open.value = false
+  if (await writes.write(words.dialog.saved, (unit) => writeInvoice(unit, books, before, after, placement.value), { failedTitle: words.dialog.notSaved })) open.value = false
 }
 
 async function remove(): Promise<void> {
@@ -199,6 +271,25 @@ async function remove(): Promise<void> {
         <DayField v-model="fields.period_to" class="w-full" />
       </UFormField>
       <p class="-mt-2 text-xs text-muted">{{ words.dialog.periodHelp }}</p>
+      <UFormField v-if="paymentItems.length > 0" :label="words.dialog.paidBy" :help="words.dialog.paidByHelp" :error="(tried && errors.paidBy) || false" class="sm:col-span-2">
+        <USelectMenu
+          v-model="paidBy"
+          data-testid="invoice-paid-by"
+          :items="paymentItems"
+          value-key="value"
+          multiple
+          :placeholder="words.dialog.notPaid"
+          :search-input="{ placeholder: words.dialog.searchPayments }"
+          class="w-full"
+        >
+          <template #default>
+            <span v-if="chosenLabels.length === 0" class="text-muted">{{ words.dialog.notPaid }}</span>
+            <span v-else class="flex min-w-0 flex-col text-start">
+              <span v-for="label in chosenLabels" :key="label" class="truncate">{{ label }}</span>
+            </span>
+          </template>
+        </USelectMenu>
+      </UFormField>
     </FormGrid>
     <template #start>
       <UButton

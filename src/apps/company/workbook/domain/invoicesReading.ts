@@ -2,7 +2,7 @@ import { INVOICE_RECORDS } from './coreKinds'
 import { labelWords } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
-import { recordIdOf } from '../../../../shared/storage/domain/recordId'
+import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { problemOf, refusedProblems } from '../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../shared/storage/domain/recordsRead'
@@ -19,6 +19,12 @@ export function invoiceKeyOf(invoice: Pick<Invoice, 'client' | 'number'>): strin
 
 export function invoiceIdOf(invoice: Pick<Invoice, 'client' | 'number'>): RecordId {
   return recordIdOf(INVOICE_RECORDS, invoiceKeyOf(invoice))
+}
+
+/** The number an invoice's id keeps it by, as for an invoice a write gives a new number. */
+export function invoiceNumberOf(id: RecordId): string {
+  const key: unknown = JSON.parse(keyOfRecordId(INVOICE_RECORDS, id))
+  return Array.isArray(key) && typeof key[1] === 'string' ? key[1] : keyOfRecordId(INVOICE_RECORDS, id)
 }
 
 /** An invoice needs its number, client, amount and issue date. A delivery period that cannot be read leaves the issue date standing for it. */

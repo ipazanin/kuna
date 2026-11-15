@@ -5,7 +5,8 @@ import { writeImport } from '../src/apps/company/imports/application/importState
 import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { ImportDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import { ownerAdvanceOfDraft, writeOwnerAdvance } from '../src/apps/company/packs/hr-doo/application/ownerAdvanceWrites'
-import { proposedRepayments, repaidMoreThanPaid, repaymentChoices, repaymentsPlaced } from '../src/apps/company/packs/hr-doo/domain/advanceRepayments'
+import { proposedRepayments, repaidMoreThanPaid, repaymentChoices } from '../src/apps/company/packs/hr-doo/domain/advanceRepayments'
+import { placedShares } from '../src/apps/company/workbook/domain/rowPayments'
 import { OWNER_ADVANCE_RECORDS } from '../src/apps/company/packs/hr-doo/domain/hrDooKinds'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
 import { OWNER_ADVANCE_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
@@ -138,15 +139,15 @@ describe('owner advances paid back by items', () => {
 
   it('pays back only what is still open of a cost, so a payment it no longer needs pays back nothing', () => {
     const choice = (amount: number, named: boolean) => ({ item: recordIdOf(ITEM_RECORDS, String(amount)), amount: euros(amount), named }) as never
-    expect(repaymentsPlaced(euros(50), [choice(30, true), choice(40, false), choice(10, false)])).toEqual([euros(30), euros(20), euros(0)])
+    expect(placedShares(euros(50), [choice(30, true), choice(40, false), choice(10, false)])).toEqual([euros(30), euros(20), euros(0)])
   })
 
   it('says what the payments add up to when an advance is lowered below the payments it names', () => {
     const choice = (amount: number, named: boolean) => ({ item: recordIdOf(ITEM_RECORDS, String(amount)), amount: euros(amount), named }) as never
     const chosen = [choice(30, true), choice(40, true), choice(10, false)]
 
-    expect(repaidMoreThanPaid(euros(50), repaymentsPlaced(euros(50), chosen))).toBe(euros(70))
-    expect(repaidMoreThanPaid(euros(70), repaymentsPlaced(euros(70), chosen))).toBeNull()
+    expect(repaidMoreThanPaid(euros(50), placedShares(euros(50), chosen))).toBe(euros(70))
+    expect(repaidMoreThanPaid(euros(70), placedShares(euros(70), chosen))).toBeNull()
   })
 
   it('refuses an advance that names an item no payment to the owner holds, or a hand change to an item an advance names', async () => {

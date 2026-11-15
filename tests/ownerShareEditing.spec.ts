@@ -176,7 +176,7 @@ describe('what a save of the categories may fill', () => {
     { counterparty: 'Chair', category: 'equipment', ownerShare: share(0) },
     { counterparty: 'Split', category: 'equipment', ownerShare: null },
     { counterparty: 'Seats', category: 'ai-services', ownerShare: null },
-  ].map((row, index) => ({ ...row, id: `ledger-row:${index}` }))
+  ].map((row, index) => ({ ...row, date: '2026-10-01', account: 'main', id: `ledger-row:${index}` }))
   const workbook = {
     categories: [
       { slug: 'equipment', ownerShare: null },

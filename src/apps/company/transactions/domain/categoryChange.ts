@@ -1,5 +1,6 @@
 import { needsReview } from '../../workbook/domain/needsReview'
 import type { ListedRow } from './listedRows'
+import type { SplitPart } from '../../workbook/domain/splits'
 
 /**
  * Where Transactions changes a listed row's category: on its ledger row, or for a part of a split
@@ -17,4 +18,9 @@ export function categoryChangeOf(row: ListedRow): CategoryChange {
     return 'split'
   }
   return needsReview(row.ownerPart?.whole ?? row) ? null : 'ledger'
+}
+
+/** Whether a split row's parts are all in one category, as a payment placed on several invoices is, so changing its category refiles every part. */
+export function filedInOneCategory(parts: readonly Pick<SplitPart, 'category'>[]): boolean {
+  return parts.length > 0 && parts.every((part) => part.category === parts[0]!.category)
 }

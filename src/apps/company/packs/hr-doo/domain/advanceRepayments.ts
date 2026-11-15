@@ -1,4 +1,4 @@
-import { ZERO, absMoney, minMoney, subtractMoney, sumMoney } from '../../../../../shared/money/money'
+import { absMoney, subtractMoney, sumMoney } from '../../../../../shared/money/money'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import type { Money } from '../../../../../shared/money/money'
 import { newRecordId, recordIdOf } from '../../../../../shared/storage/domain/recordId'
@@ -117,15 +117,4 @@ export function repaymentChoices(
     .unaccounted.filter((line) => line.payment.date >= paidOn)
     .map((line): RepaymentChoice => ({ item: itemIdOfRow(line.payment), payment: line.payment, amount: line.amount, named: false }))
   return [...own, ...free].sort((earlier, later) => earlier.payment.date.localeCompare(later.payment.date) || earlier.payment.sequence - later.payment.sequence)
-}
-
-/** What of each chosen payment pays the advance back: all of each it names already, then of each new one what is still open, up to what no advance accounts for. Zero for one the cost no longer needs. */
-export function repaymentsPlaced(amount: Money, chosen: readonly RepaymentChoice[]): Money[] {
-  let open = subtractMoney(amount, sumMoney(chosen.filter((choice) => choice.named).map((choice) => choice.amount)))
-  return chosen.map((choice) => {
-    if (choice.named) return choice.amount
-    const applied = minMoney(choice.amount, open > 0 ? open : ZERO)
-    open = subtractMoney(open, applied)
-    return applied
-  })
 }

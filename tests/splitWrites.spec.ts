@@ -135,7 +135,7 @@ describe.each([
         [-12, 'ai-services'],
         [-6, 'owner-loan-out'],
       ]),
-    ).rejects.toThrow('the parts add up to -18.00 and the row is -20.00')
+    ).rejects.toThrow('the parts add up to −€18.00 and the row is −€20.00')
     await expect(
       writeSplit(store, rowOf(store, 'Desk Co'), [
         [-80, 'equipment'],

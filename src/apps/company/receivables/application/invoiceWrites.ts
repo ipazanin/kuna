@@ -1,5 +1,4 @@
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
-import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 import { ITEM_WRITES } from '../../transactions/application/itemWrites'
 import { definedClientSlugs } from '../../workbook/domain/clientsReading'
@@ -30,21 +29,10 @@ export const INVOICE_WRITES: WriteRules<Invoice> = {
     ),
 }
 
-/** Changes the invoice, and when its client or number gives it a new id, the payments placed on it follow it in the same write. */
-export function changeInvoice(unit: UnitOfWork, items: RecordsRead<ItemRecord>, before: Invoice, after: Invoice): void {
-  unit.of(INVOICE_WRITES).change(before, after)
-  placePaymentsOn(unit, items, before.id, after.id)
-}
-
 /** Deletes the invoice, and the payments placed on it wait to be placed again. */
 export function removeInvoice(unit: UnitOfWork, items: RecordsRead<ItemRecord>, invoice: Invoice): void {
   unit.of(INVOICE_WRITES).remove(invoice)
-  placePaymentsOn(unit, items, invoice.id, null)
-}
-
-function placePaymentsOn(unit: UnitOfWork, items: RecordsRead<ItemRecord>, from: RecordId, to: RecordId | null): void {
-  if (from === to) return
   for (const { record } of items.records) {
-    if (record.invoice === from) unit.of(ITEM_WRITES).change(record, { ...record, invoice: to })
+    if (record.invoice === invoice.id) unit.of(ITEM_WRITES).change(record, { ...record, invoice: null })
   }
 }

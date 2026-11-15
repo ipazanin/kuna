@@ -146,8 +146,8 @@ describe('readSplits', () => {
 
     expect(reading.splits).toEqual([])
     expect(reasons(reading)).toEqual([
-      'office-supplies, -45, 2026-03-09: the ledger holds no main row of 2026-03-09 with the amount -60.00 and the balance 900.00, so the ledger row counts whole',
-      'travel, -15, 2026-03-09: the ledger holds no main row of 2026-03-09 with the amount -60.00 and the balance 900.00, so the ledger row counts whole',
+      'office-supplies, -45, 2026-03-09: the ledger holds no main row of 9 Mar 2026 with the amount −€60.00 and the balance €900.00, so the ledger row counts whole',
+      'travel, -15, 2026-03-09: the ledger holds no main row of 9 Mar 2026 with the amount −€60.00 and the balance €900.00, so the ledger row counts whole',
     ])
   })
 
@@ -156,7 +156,7 @@ describe('readSplits', () => {
     const reading = readSplits(recordsOfRows(CORE_TABS.splits, sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']]))), rows, CATEGORIES)
 
     expect(reading.splits).toEqual([])
-    expect(reading.problems[0]?.reason).toBe('the main row of 2026-03-09 with the amount -60.00 and the balance 940.00 shares its key with another ledger row, so the ledger row counts whole')
+    expect(reading.problems[0]?.reason).toBe('the main row of 9 Mar 2026 with the amount −€60.00 and the balance €940.00 shares its key with another ledger row, so the ledger row counts whole')
   })
 
   it('refuses a key that finds two ledger rows', () => {
@@ -169,7 +169,7 @@ describe('readSplits', () => {
     const reading = readSplits(recordsOfRows(CORE_TABS.splits, sheetRowsFromValues(withIds('split', [SPLIT_HEADER, [...KEY, -45, 'office-supplies'], [...KEY, -15, 'travel']]))), twins, CATEGORIES)
 
     expect(reading.splits).toEqual([])
-    expect(reading.problems[0]?.reason).toBe('2 ledger rows are the main row of 2026-03-09 with the amount -60.00 and the balance 940.00, so the ledger row counts whole')
+    expect(reading.problems[0]?.reason).toBe('2 ledger rows are the main row of 9 Mar 2026 with the amount −€60.00 and the balance €940.00, so the ledger row counts whole')
   })
 
   it('finds a part’s row by the row id it holds, even after the row’s amount and balance are corrected', () => {
@@ -211,7 +211,7 @@ describe('readSplits', () => {
 
     expect(reading.splits).toEqual([])
     expect(reading.problems[0]?.reason).toBe(
-      'the ledger holds no row with the id row-gone, which was the main row of 2026-03-09 with the amount -60.00 and the balance 940.00, so the ledger row counts whole',
+      'the ledger holds no row with the id row-gone, which was the main row of 9 Mar 2026 with the amount −€60.00 and the balance €940.00, so the ledger row counts whole',
     )
   })
 
@@ -246,8 +246,8 @@ describe('readSplits', () => {
 
   it('refuses parts that do not add up to the row', () => {
     expect(reasons(read([...KEY, -45, 'office-supplies'], [...KEY, -10, 'travel']))).toEqual([
-      'office-supplies, -45, 2026-03-09: the parts add up to -55.00 and the row is -60.00, so the ledger row counts whole',
-      'travel, -10, 2026-03-09: the parts add up to -55.00 and the row is -60.00, so the ledger row counts whole',
+      'office-supplies, -45, 2026-03-09: the parts add up to −€55.00 and the row is −€60.00, so the ledger row counts whole',
+      'travel, -10, 2026-03-09: the parts add up to −€55.00 and the row is −€60.00, so the ledger row counts whole',
     ])
   })
 
@@ -329,13 +329,13 @@ describe('countedSplits', () => {
         tab: 'splits',
         id: recordIdOf(SPLIT_PART_RECORDS, 'split-2'),
         label: 'office-supplies, -45, 2026-03-09',
-        reason: 'the main row of 2026-03-09 stays whole, since the asset "Shredder" claims it as payment',
+        reason: 'the main row of 9 Mar 2026 stays whole, since the asset "Shredder" claims it as payment',
       },
       {
         tab: 'splits',
         id: recordIdOf(SPLIT_PART_RECORDS, 'split-3'),
         label: 'travel, -15, 2026-03-09',
-        reason: 'the main row of 2026-03-09 stays whole, since the asset "Shredder" claims it as payment',
+        reason: 'the main row of 9 Mar 2026 stays whole, since the asset "Shredder" claims it as payment',
       },
     ])
     expect(presentedWorkbook(workbook).transactions.map((row) => row.amount)).toEqual([euros(-25), euros(-60), euros(1000)])
@@ -362,8 +362,8 @@ describe('countedSplits', () => {
         .problems.filter((problem) => problem.tab === 'splits')
         .map((problem) => problem.reason),
     ).toEqual([
-      'the main row of 2026-03-09 stays whole, since the assets "Shredder" and "Bin" claim it as payment',
-      'the main row of 2026-03-09 stays whole, since the assets "Shredder" and "Bin" claim it as payment',
+      'the main row of 9 Mar 2026 stays whole, since the assets "Shredder" and "Bin" claim it as payment',
+      'the main row of 9 Mar 2026 stays whole, since the assets "Shredder" and "Bin" claim it as payment',
     ])
   })
 })

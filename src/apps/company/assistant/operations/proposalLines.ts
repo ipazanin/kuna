@@ -17,6 +17,7 @@ import { ACCOUNT_RECORDS, CATEGORY_RECORDS, DISMISSAL_RECORDS, ITEM_RECORDS, LED
 import { displayName, displayNamesOf } from '../../workbook/domain/displayName'
 import type { DisplayNames } from '../../workbook/domain/displayName'
 import { isHumanConfirmed } from '../../workbook/domain/needsReview'
+import { invoiceNumberOf } from '../../workbook/domain/invoicesReading'
 import { moneyFormatOf } from '../../settings/domain/settings'
 import { isDefinedBucket } from '../../workbook/domain/bucket'
 import type { Workbook } from '../../workbook/domain/workbook'
@@ -77,6 +78,8 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
     const share = ownerShareText(record.ownerShare)
     return share === null ? null : `${share} %`
   }
+  if (isKind(kind, ITEM_RECORDS, record) && field === 'invoice')
+    return record.invoice === null ? null : (workbook.invoices.find((invoice) => invoice.id === record.invoice)?.number ?? invoiceNumberOf(record.invoice))
   if (field === 'category' && !isKind(kind, CATEGORY_RECORDS, record)) return names.category(String(value))
   if (field === 'account' && !isKind(kind, ACCOUNT_RECORDS, record)) return names.account(String(value))
   if (isKind(kind, CATEGORY_RECORDS, record) && field === 'colour') return record.colour.swatch?.name ?? words.bucketColour

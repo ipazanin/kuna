@@ -1,6 +1,5 @@
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { plainAmount } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { dayText, labelWords, labelled, numberText } from '../../../../shared/storage/domain/recordCodec'
@@ -102,6 +101,11 @@ export function moneyInWords(field: StoredField | undefined): string {
   return money === null ? textOf(field) : formatMoney(money)
 }
 
+/** The ledger row a split is kept by, as English names it. */
+function englishRow(account: string, date: CivilDate, amount: Money, balance: Money): string {
+  return `${account} row of ${dayLabel(date)} with the amount ${formatMoney(amount)} and the balance ${formatMoney(balance)}`
+}
+
 /** The ledger row a split is kept by, as Croatian names it. */
 function croatianRow(account: string, date: CivilDate, amount: Money, balance: Money): string {
   return `stavka računa ${account} od ${dayLabel(date)} s iznosom ${formatMoney(amount)} i saldom ${formatMoney(balance)}`
@@ -134,28 +138,25 @@ export const en = {
   },
   splits: {
     noAccount: 'no account',
-    noRow: (account: string, date: CivilDate, amount: Money, balance: Money) =>
-      `the ledger holds no ${account} row of ${date} with the amount ${plainAmount(amount)} and the balance ${plainAmount(balance)}`,
-    severalRows: (count: number, account: string, date: CivilDate, amount: Money, balance: Money) =>
-      `${count} ledger rows are the ${account} row of ${date} with the amount ${plainAmount(amount)} and the balance ${plainAmount(balance)}`,
+    noRow: (account: string, date: CivilDate, amount: Money, balance: Money) => `the ledger holds no ${englishRow(account, date, amount, balance)}`,
+    severalRows: (count: number, account: string, date: CivilDate, amount: Money, balance: Money) => `${count} ledger rows are the ${englishRow(account, date, amount, balance)}`,
     noRowWithId: (rowId: string, account: string, date: CivilDate, amount: Money, balance: Money) =>
-      `the ledger holds no row with the id ${rowId}, which was the ${account} row of ${date} with the amount ${plainAmount(amount)} and the balance ${plainAmount(balance)}`,
+      `the ledger holds no row with the id ${rowId}, which was the ${englishRow(account, date, amount, balance)}`,
     severalRowsWithId: (count: number, rowId: string) => `${count} ledger rows carry the id ${rowId}`,
-    sharesKey: (account: string, date: CivilDate, amount: Money, balance: Money) =>
-      `the ${account} row of ${date} with the amount ${plainAmount(amount)} and the balance ${plainAmount(balance)} shares its key with another ledger row`,
+    sharesKey: (account: string, date: CivilDate, amount: Money, balance: Money) => `the ${englishRow(account, date, amount, balance)} shares its key with another ledger row`,
     unreadableParts: (count: number): EnglishForms => ({ one: 'a part of this split cannot be read', other: `${count} parts of this split cannot be read` }),
     onePart: 'a split has at least two parts, and this one has one',
     partZero: (label: string) => `the part "${label}" is zero`,
     partOtherSign: (label: string) => `the part "${label}" has the other sign to the row`,
     partNoCategory: (label: string) => `the part "${label}" has no category`,
     partNotOnTab: (category: string, label: string) => `"${category}" of the part "${label}" is not on the categories tab`,
-    partsAddUp: (total: Money, row: Money) => `the parts add up to ${plainAmount(total)} and the row is ${plainAmount(row)}`,
+    partsAddUp: (total: Money, row: Money) => `the parts add up to ${formatMoney(total)} and the row is ${formatMoney(row)}`,
     countsWhole: (reasons: string) => `${reasons}, so the ledger row counts whole`,
-    keptWhole: (account: string, date: CivilDate, why: string) => `the ${account} row of ${date} stays whole, since ${why}`,
+    keptWhole: (account: string, date: CivilDate, why: string) => `the ${account} row of ${dayLabel(date)} stays whole, since ${why}`,
     refusedKeptWhole: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} stays whole, since ${why}.`,
     refusedItemNamed: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} stays as ${why}.`,
     refusedPlacedMoney: (account: string, date: CivilDate, amount: Money, invoices: readonly string[]) =>
-      `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} pays ${invoices.length === 1 ? 'invoice' : 'invoices'} ${numbersInWords(invoices)}, so what it puts on ${invoices.length === 1 ? 'it' : 'each'} stays as it is.`,
+      `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} pays ${invoices.length === 1 ? 'invoice' : 'invoices'} ${numbersInWords(invoices)}. Change what it puts on ${invoices.length === 1 ? 'it' : 'each'} in the invoice dialog.`,
   },
   items: {
     noRowId: 'no row_id',
@@ -257,7 +258,7 @@ export const hr: Translation<typeof en> = {
     refusedKeptWhole: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje cijela jer ${why}.`,
     refusedItemNamed: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje kako ${why}.`,
     refusedPlacedMoney: (account, date, amount, invoices) =>
-      `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} plaća ${invoices.length === 1 ? 'račun' : 'račune'} ${numbersInWords(invoices)}, pa iznos ${invoices.length === 1 ? 'na njemu' : 'na svakome'} ostaje isti.`,
+      `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} plaća ${invoices.length === 1 ? 'račun' : 'račune'} ${numbersInWords(invoices)}. Iznos ${invoices.length === 1 ? 'na njemu' : 'na svakome'} promijenite u prozoru računa.`,
   },
   items: {
     noRowId: 'polje row_id je prazno',

@@ -2,7 +2,11 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { startPlacingPayments } from '../src/apps/company/receivables/application/invoicePaymentWrites'
+import { startPlacingPayments, writeInvoice } from '../src/apps/company/receivables/application/invoicePaymentWrites'
+import { invoiceToPlace, paymentChoices } from '../src/apps/company/receivables/domain/invoicePayments'
+import type { PaymentChoice } from '../src/apps/company/receivables/domain/invoicePayments'
+import { invoiceIdOf } from '../src/apps/company/workbook/domain/invoicesReading'
+import type { Invoice } from '../src/apps/company/workbook/domain/workbook'
 import { removeSplit, splitRefusal, writeSplit } from '../src/apps/company/transactions/application/splitWrites'
 import type { SplitPartDraft } from '../src/apps/company/transactions/application/splitWrites'
 import { storedSplitsOf } from '../src/apps/company/workbook/domain/storedSplits'
@@ -15,7 +19,8 @@ import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMat
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems, itemOfLedgerRow, withPaymentsMatched } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
-import { addMoney, moneyFromCents, subtractMoney } from '../src/shared/money/money'
+import { addMoney, minMoney, moneyFromCents, subtractMoney, sumMoney } from '../src/shared/money/money'
+import type { Money } from '../src/shared/money/money'
 import type { RecordFields } from '../src/shared/storage/domain/recordFields'
 import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { browserHarness, forgetCaches } from './fixtures/writeBack'
@@ -106,7 +111,7 @@ describe('money placed on an invoice', () => {
     const moved = [{ ...first!, amount: subtractMoney(first!.amount, cent) }, { ...second!, amount: addMoney(second!.amount, cent) }, ...kept.slice(2)]
     const refusal = splitRefusal(booksOf(store), row, stored, moved)
 
-    expect(refusal).toMatch(/pays invoices? .*, so what it puts on (it|each) stays as it is\.$/)
+    expect(refusal).toMatch(/pays invoices? .*\. Change what it puts on (it|each) in the invoice dialog\.$/)
     await expect(store.write('Split', (unit) => writeSplit(unit, store.state.records!, row, stored, moved, store.state.workbook!.categories))).rejects.toThrow(refusal!)
     expect(splitRefusal(booksOf(store), row, stored, null)).toBe(refusal)
     await expect(store.write('Taken off', (unit) => removeSplit(unit, booksOf(store), row, stored))).rejects.toThrow(refusal!)
@@ -236,5 +241,179 @@ describe('an import of a client payment', () => {
     const { store } = await browserHarness(used, fakeWorkbookDocumentBeforeItems(SAVED, 'browser'))
 
     expect(sampleRun(store).payments).toEqual([])
+  })
+})
+
+describe('Paid by on an invoice', () => {
+  function choicesOf(store: Store, invoice: Invoice | null, client: string): PaymentChoice[] {
+    return paymentChoices(presentedWorkbook(store.state.workbook!), invoice?.id ?? null, client)
+  }
+
+  function matchedOf(workbook: Workbook, invoice: Invoice) {
+    return receivablesOf(presentedWorkbook(workbook))
+      .clients.flatMap((client) => client.invoices)
+      .find((matched) => matched.invoice.id === invoice.id)!
+  }
+
+  function unplacedOf(workbook: Workbook) {
+    return receivablesOf(presentedWorkbook(workbook)).clients.flatMap((client) => client.unplaced ?? [])
+  }
+
+  /** An invoice that one client payment of one item pays exactly, on books that place payments. */
+  async function paidInFull() {
+    const { store } = await browserHarness(used, fakeWorkbookDocument(SAVED, 'browser'))
+    const items = recordsOf(store.state.records!.items)
+    const paying = items.find((item) => {
+      const invoice = store.state.workbook!.invoices.find((held) => held.id === item.invoice)
+      return invoice?.amount === item.amount && items.filter((other) => other.row === item.row || other.invoice === item.invoice).length === 1
+    })!
+    const invoice = store.state.workbook!.invoices.find((held) => held.id === paying.invoice)!
+    return { store, invoice, paying }
+  }
+
+  it('takes a payment off, which then waits to be placed, and places it again where Place opens, as the books held it', async () => {
+    const { store, invoice, paying } = await paidInFull()
+    const itemsBefore = recordsOf(store.state.records!.items)
+    const owedBefore = owed(store.state.workbook!)
+    const held = choicesOf(store, invoice, invoice.client)
+    expect(held.filter((choice) => choice.named).map((choice) => choice.item)).toContain(paying.id)
+
+    await store.write('Saved', (unit) =>
+      writeInvoice(
+        unit,
+        booksOf(store),
+        invoice,
+        invoice,
+        held.filter((choice) => choice.named && choice.item !== paying.id),
+      ),
+    )
+
+    const freed = store.state.workbook!
+    expect(matchedOf(freed, invoice).status).not.toBe('paid')
+    const [waiting] = unplacedOf(freed)
+    expect(waiting?.transaction.amount).toBe(paying.amount)
+    expect(invoiceToPlace(presentedWorkbook(freed), invoice.client, waiting!.transaction)?.id).toBe(invoice.id)
+    const offered = choicesOf(store, invoice, invoice.client)
+    const freedChoice = offered.find((choice) => !choice.named && choice.item === paying.id)
+    expect(freedChoice?.amount).toBe(paying.amount)
+
+    await store.write('Saved', (unit) =>
+      writeInvoice(
+        unit,
+        booksOf(store),
+        invoice,
+        invoice,
+        offered.filter((choice) => choice.named || choice === freedChoice),
+      ),
+    )
+
+    const itemsAfter = recordsOf(store.state.records!.items)
+    expect(itemsAfter.filter((item) => !itemsBefore.some((held) => JSON.stringify(held) === JSON.stringify(item)))).toEqual([])
+    expect(itemsAfter).toEqual(itemsBefore)
+    expect(owed(store.state.workbook!)).toEqual(owedBefore)
+    expect(store.state.workbook!.problems).toEqual([])
+    await store.undo(store.state.writes[0]!)
+    expect(unplacedOf(store.state.workbook!)).toHaveLength(1)
+  })
+
+  it('records a new invoice paid by part of a payment no invoice holds, in the same write, the rest staying on the row', async () => {
+    const { store, invoice, paying } = await paidInFull()
+    await store.write('Saved', (unit) => writeInvoice(unit, booksOf(store), invoice, invoice, []))
+    const added: Invoice = { ...invoice, number: 'NEW-1', amount: subtractMoney(paying.amount, euros(1)), id: invoiceIdOf({ client: invoice.client, number: 'NEW-1' }) }
+    const free = choicesOf(store, null, invoice.client).filter((choice) => choice.item === paying.id)
+    expect(free.map((choice) => choice.named)).toEqual([false])
+
+    await store.write('Added', (unit) => writeInvoice(unit, booksOf(store), null, added, free))
+
+    expect(matchedOf(store.state.workbook!, added).status).toBe('paid')
+    const row = recordsOf(store.state.records!.items).filter((item) => item.row === paying.row)
+    expect(row.map((item) => [item.id === paying.id, item.amount, item.invoice])).toEqual([
+      [true, euros(1), null],
+      [false, added.amount, added.id],
+    ])
+    expect(unplacedOf(store.state.workbook!)).toEqual([])
+    expect(store.state.workbook!.problems).toEqual([])
+  })
+
+  it('joins a payment taken off with the rest of its row, and places only what is open of one larger than the invoice', async () => {
+    const { store } = await browserHarness(used, fakeWorkbookDocument(SAVED, 'browser'))
+    const invoice = store.state.workbook!.invoices.find((held) => held.number === '10-1-26')!
+    const other = store.state.workbook!.invoices.find((held) => held.number === '9-1-26')!
+    const itemsBefore = recordsOf(store.state.records!.items)
+    const [part] = choicesOf(store, invoice, invoice.client).filter((choice) => choice.named)
+    const row = itemsBefore.find((item) => item.id === part!.item)!.row
+    const rowItems = (store: Store) =>
+      recordsOf(store.state.records!.items)
+        .filter((item) => item.row === row)
+        .map((item) => [item.amount, item.invoice])
+        .sort(([left], [right]) => Number(left) - Number(right))
+    const split = rowItems(store)
+    expect(split).toHaveLength(2)
+    expect(split.filter(([, paid]) => paid === invoice.id)).toEqual([[part!.amount, invoice.id]])
+    expect(split.filter(([, paid]) => paid === other.id)).toHaveLength(1)
+    const total = addMoney(split[0]![0] as Money, split[1]![0] as Money)
+
+    await store.write('Saved', (unit) => writeInvoice(unit, booksOf(store), invoice, invoice, []))
+    await store.write('Saved', (unit) => writeInvoice(unit, booksOf(store), other, other, []))
+
+    const joined = recordsOf(store.state.records!.items).filter((item) => item.row === row)
+    expect(joined.map((item) => [item.amount, item.invoice])).toEqual([[total, null]])
+    const offered = choicesOf(store, other, other.client)
+    const whole = offered.find((choice) => choice.item === joined[0]!.id)!
+    expect(whole.amount).toBe(total)
+
+    await store.write('Saved', (unit) =>
+      writeInvoice(
+        unit,
+        booksOf(store),
+        other,
+        other,
+        offered.filter((choice) => choice.named || choice === whole),
+      ),
+    )
+
+    const open = subtractMoney(other.amount, sumMoney(offered.filter((choice) => choice.named).map((choice) => choice.amount)))
+    const placedOn = minMoney(total, open)
+    expect(rowItems(store)).toEqual(
+      [
+        [subtractMoney(total, placedOn), null],
+        [placedOn, other.id],
+      ]
+        .filter(([amount]) => amount !== 0)
+        .sort(([left], [right]) => Number(left) - Number(right)),
+    )
+    expect(store.state.workbook!.problems).toEqual([])
+  })
+
+  it('starts placing on books that match their payments, in the same write as the placement, and Undo puts the books back', async () => {
+    const { store } = await browserHarness(used, withPaymentsMatched(fakeWorkbookDocument(SAVED, 'browser')))
+    const matched = store.state.workbook!
+    const itemsBefore = recordsOf(store.state.records!.items)
+    const invoice = matched.invoices.find((held) => matchedOf(matched, held).allocations.length > 0)!
+    const held = choicesOf(store, invoice, invoice.client).filter((choice) => choice.named)
+    expect(held.length).toBeGreaterThan(0)
+    const [first, ...rest] = held
+
+    await store.write('Saved', (unit) => writeInvoice(unit, booksOf(store), invoice, invoice, rest))
+
+    const placed = store.state.workbook!
+    expect(placed.settings.clientPaymentsPlaced).toBe(true)
+    expect(matchedOf(placed, invoice).remaining).toBe(addMoney(matchedOf(matched, invoice).remaining, first!.amount))
+    expect(owed(placed).filter(([slug]) => slug !== invoice.client)).toEqual(owed(matched).filter(([slug]) => slug !== invoice.client))
+    expect(placed.problems).toEqual([])
+    await store.undo(store.state.writes[0]!)
+    expect(store.state.workbook!.settings.clientPaymentsPlaced).toBe(false)
+    expect(recordsOf(store.state.records!.items)).toEqual(itemsBefore)
+  })
+
+  it('leaves the payments and the setting alone when nothing is chosen anew', async () => {
+    const { store } = await browserHarness(used, withPaymentsMatched(fakeWorkbookDocument(SAVED, 'browser')))
+    const invoice = store.state.workbook!.invoices[0]!
+    const itemsBefore = recordsOf(store.state.records!.items)
+
+    await store.write('Saved', (unit) => writeInvoice(unit, booksOf(store), invoice, { ...invoice, item: 'Renamed' }, null))
+
+    expect(store.state.workbook!.settings.clientPaymentsPlaced).toBe(false)
+    expect(recordsOf(store.state.records!.items)).toEqual(itemsBefore)
   })
 })

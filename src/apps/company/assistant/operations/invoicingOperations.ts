@@ -2,14 +2,22 @@ import { fieldsOf } from './companyCard'
 import type { CompanyCard, CompanyOperationSet } from './companyCard'
 import { BILLING_WRITES, newBillingItem } from '../../billingPlan/application/billingWrites'
 import { fillRestOfYear } from '../../billingPlan/domain/fillRestOfYear'
-import { INVOICE_WRITES, changeInvoice, removeInvoice } from '../../receivables/application/invoiceWrites'
+import { removeInvoice } from '../../receivables/application/invoiceWrites'
+import { writeInvoice } from '../../receivables/application/invoicePaymentWrites'
+import { paymentChoices } from '../../receivables/domain/invoicePayments'
+import type { PaymentChoice } from '../../receivables/domain/invoicePayments'
+import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
+import { placedShares } from '../../workbook/domain/rowPayments'
+import { storesItems } from '../../workbook/domain/rowItems'
 import { invoiceDatesProblems } from '../../receivables/domain/invoiceGuards'
 import { CLIENT_WRITES } from '../../settings/application/namedRecordWrites'
-import { CLIENT_RECORDS, BILLING_RECORDS, INVOICE_RECORDS } from '../../workbook/domain/coreKinds'
+import { CLIENT_RECORDS, BILLING_RECORDS, INVOICE_RECORDS, ITEM_RECORDS } from '../../workbook/domain/coreKinds'
 import { clientOfFields } from '../../workbook/domain/clientsReading'
 import type { ClientRecord } from '../../workbook/domain/clientsReading'
 import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
 import type { Invoice } from '../../workbook/domain/workbook'
+import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { newestBookingOf } from '../../workbook/domain/workbook'
 import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import type { AssistantOperation, ProposalStep } from '../../../../shared/app/assistantOperations'
@@ -26,20 +34,26 @@ const DAY_OR_NULL: StrictSchema = { type: ['string', 'null'], description: 'A da
 const MAKE_ON_SCREEN =
   'An invoice made on the Invoices tab is drawn as a PDF, filed on Drive and saved as a Gmail draft while switch-mail-drafts has drafts on. Only the person makes it there: link /company/invoicing?tab=invoices with make set to the client, or reexport set to the invoice, and say what to check.'
 
+/** What the invoice operations say of the payments that pay an invoice. */
+const PAID_BY =
+  'paidBy lists the items of revenue credits that pay it, in books that keep items: one the invoice holds already, or one no invoice holds from its client or from an account no client names. One larger than what is still owed gives the part the invoice needs to an item of its own. Books from before items take an empty list, since they match client payments by themselves.'
+
+const PAID_BY_ITEMS = { type: 'array', items: inputOf({ item: TEXT }) } as const satisfies StrictSchema
+
 /** Every change the chat can propose to the invoices register, the billing plan and the clients. Making an invoice is a link, never a card. */
 const OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-invoice',
-    about: `Adds a row to the invoices register for an invoice made elsewhere. The amount is the total, above zero. ${MAKE_ON_SCREEN}`,
-    input: inputOf({ number: TEXT, client: TEXT, item: TEXT, amount: NUMBER, issued: TEXT, due: DAY_OR_NULL, periodFrom: DAY_OR_NULL, periodTo: DAY_OR_NULL }),
-    refs: { client: CLIENT_RECORDS.name },
+    about: `Adds a row to the invoices register for an invoice made elsewhere. The amount is the total, above zero. ${PAID_BY} ${MAKE_ON_SCREEN}`,
+    input: inputOf({ number: TEXT, client: TEXT, item: TEXT, amount: NUMBER, issued: TEXT, due: DAY_OR_NULL, periodFrom: DAY_OR_NULL, periodTo: DAY_OR_NULL, paidBy: PAID_BY_ITEMS }),
+    refs: { client: CLIENT_RECORDS.name, 'paidBy.item': ITEM_RECORDS.name },
     creates: null,
     alone: false,
-    example: { number: '99-1-26', client: 'client', item: 'Consulting', amount: 1200, issued: '2026-10-31', due: '2026-11-15', periodFrom: '2026-10-01', periodTo: '2026-10-31' },
+    example: { number: '99-1-26', client: 'client', item: 'Consulting', amount: 1200, issued: '2026-10-31', due: '2026-11-15', periodFrom: '2026-10-01', periodTo: '2026-10-31', paidBy: [] },
   },
   {
     name: 'change-invoice',
-    about: `Fixes a row of the invoices register. Null leaves a field as it is, and "" clears a due day or the work period. Its PDF on Drive stays as it was. ${MAKE_ON_SCREEN}`,
+    about: `Fixes a row of the invoices register. Null leaves a field as it is, and "" clears a due day or the work period. Its PDF on Drive stays as it was. ${PAID_BY} paid keep leaves the payments that pay it as they are and takes an empty paidBy, and set puts paidBy in their place. ${MAKE_ON_SCREEN}`,
     input: inputOf({
       invoice: TEXT,
       number: TEXT_OR_NULL,
@@ -50,11 +64,13 @@ const OPERATIONS: readonly AssistantOperation[] = [
       due: DAY_OR_NULL,
       periodFrom: DAY_OR_NULL,
       periodTo: DAY_OR_NULL,
+      paid: { type: 'string', enum: ['keep', 'set'] },
+      paidBy: PAID_BY_ITEMS,
     }),
-    refs: { invoice: INVOICE_RECORDS.name, client: CLIENT_RECORDS.name },
+    refs: { invoice: INVOICE_RECORDS.name, client: CLIENT_RECORDS.name, 'paidBy.item': ITEM_RECORDS.name },
     creates: null,
     alone: false,
-    example: { invoice: 'invoice', number: null, client: null, item: 'Consulting, corrected', amount: null, issued: null, due: null, periodFrom: null, periodTo: null },
+    example: { invoice: 'invoice', number: null, client: null, item: 'Consulting, corrected', amount: null, issued: null, due: null, periodFrom: null, periodTo: null, paid: 'keep', paidBy: [] },
   },
   {
     name: 'delete-invoice',
@@ -179,6 +195,34 @@ function periodOf(from: string | null, to: string | null, kept: Invoice['deliver
   return first === null || last === null ? null : { from: first, to: last }
 }
 
+/**
+ * The payments a step names as what pays the invoice, each one a person could tick under Paid by in the invoice dialog, all of an
+ * item's money on offer for each item named, or null to leave them as they are, as a step that names none on a new invoice does.
+ * Refused when one is not on offer or when the invoice is paid in full before one of them.
+ */
+function chosenPayments(
+  books: CompanyBooks,
+  held: RecordId | null,
+  invoice: Invoice,
+  named: readonly { readonly item: string }[] | null,
+  idOf: (value: unknown) => string,
+): readonly PaymentChoice[] | null {
+  if (named === null || (held === null && named.length === 0)) return null
+  if (named.length > 0 && !storesItems(books.records)) throw new StepRefused('These books are from before items and match client payments to invoices by themselves, so paidBy is an empty list.')
+  const choices = paymentChoices(presentedWorkbook(books.workbook), held, invoice.client)
+  const items = new Set(
+    named.map(({ item }) => {
+      const id = idOf(item)
+      if (!choices.some((choice) => choice.item === id))
+        throw new StepRefused('Each paidBy item is a revenue credit that this invoice holds already, or that no invoice holds from its client or from an account no client names.')
+      return id
+    }),
+  )
+  const chosen = choices.filter((choice) => items.has(choice.item))
+  if (placedShares(invoice.amount, chosen).some((share) => share <= 0)) throw new StepRefused('The invoice is paid in full before the last payment paidBy names, so leave that one out.')
+  return chosen
+}
+
 /** The client's fields as the clients editor writes them: a blank field is absent, and reverse charge is true or absent. */
 const CLIENT_FIELDS: Readonly<Record<string, string>> = {
   shortName: 'client',
@@ -226,6 +270,7 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
   const field = fieldsOf(step)
   const records = card.records()
   const { unit, idOf, workbook } = card
+  const books = (): CompanyBooks => ({ records, workbook })
   const invoiceOf = (value: unknown) => heldRecord(records.invoices, (stored) => stored.id === idOf(value), 'That invoice is no longer in the register.')
   const billingOf = (value: unknown) => heldRecord(records['outgoing-plan'], (stored) => stored.id === idOf(value), 'That plan row is no longer in the billing plan.')
   const clientOf = (value: unknown) => heldRecord(records.clients, (stored) => stored.record.slug === idOf(value), 'That client is no longer on the clients tab.')
@@ -244,7 +289,8 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
         deliveryPeriod: periodOf(field['periodFrom'], field['periodTo'], null),
         id: invoiceIdOf({ client, number }),
       }
-      unit.of(INVOICE_WRITES).add(checkedInvoice(invoice))
+      const checked = checkedInvoice(invoice)
+      writeInvoice(unit, books(), null, checked, chosenPayments(books(), null, checked, field['paidBy'], idOf))
       return
     }
     case 'change-invoice': {
@@ -261,7 +307,8 @@ function planStep(card: CompanyCard, step: ProposalStep): void {
         deliveryPeriod: periodOf(field['periodFrom'], field['periodTo'], before.deliveryPeriod),
         id: invoiceIdOf({ client, number }),
       }
-      changeInvoice(unit, records.items, before, checkedInvoice(after))
+      const checked = checkedInvoice(after)
+      writeInvoice(unit, books(), before, checked, chosenPayments(books(), before.id, checked, field['paid'] === 'keep' ? null : field['paidBy'], idOf))
       return
     }
     case 'delete-invoice':

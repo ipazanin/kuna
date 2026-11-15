@@ -20,7 +20,7 @@ import { packRecordsOf } from '../../workbook/domain/packPart'
 import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { refuseOn } from '../../../../shared/storage/application/workbookWriteRefused'
 import type { CompanyBooks, WorkbookRecords } from '../../workbook/domain/readWorkbook'
-import { placedMoneyRefusal, storedItemIdOf, writeRowItems } from './itemWrites'
+import { invoicesFreed, placedMoneyRefusal, storedItemIdOf, writeRowItems } from './itemWrites'
 import type { ItemDraft } from './itemWrites'
 import type { FreshRecords, WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { words } from '../../workbook/domain/words'
@@ -71,6 +71,11 @@ function splitItems(row: Pick<Transaction, 'id' | 'rowId'>, stored: StoredSplit,
 export function splitRefusal(books: CompanyBooks, row: Transaction, stored: StoredSplit, drafts: readonly SplitPartDraft[] | null): string | null {
   if (drafts === null) return splitKeptRefusal(books, row) ?? placedMoneyRefusal(books.records, row, [oneItemOf(row, stored)])
   return drafts.length === 0 ? null : placedMoneyRefusal(books.records, row, splitItems(row, stored, drafts, books.workbook.categories))
+}
+
+/** The numbers of the invoices saving the split with these parts takes the row's money off, since a part leaves revenue. */
+export function invoicesSplitOff(books: CompanyBooks, row: Transaction, stored: StoredSplit, drafts: readonly SplitPartDraft[]): readonly string[] {
+  return invoicesFreed(books.records, row, splitItems(row, stored, drafts, books.workbook.categories))
 }
 
 /** The one item a row stands for while it is not split, by the id the books store its first part under, or none for a row with no row id yet. */

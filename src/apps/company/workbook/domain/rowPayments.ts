@@ -1,4 +1,4 @@
-import { absMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, absMoney, minMoney, negateMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -47,4 +47,18 @@ export function paymentParts(
 /** The id the move gives an item's later part: the item's own key with the part's place after it, so a move writes the same ids every time. */
 export function movedPartId(item: RecordId, place: number): RecordId {
   return recordIdOf(ITEM_RECORDS, `${keyOfRecordId(ITEM_RECORDS, item)}-${place}`)
+}
+
+/**
+ * What of each chosen payment goes on a record of this amount, such as an invoice or a cost the owner paid: all of each it holds
+ * already, then of each new one what is still open, up to what the payment has free. Zero for one the record no longer needs.
+ */
+export function placedShares(amount: Money, chosen: readonly { readonly named: boolean; readonly amount: Money }[]): Money[] {
+  let open = subtractMoney(amount, sumMoney(chosen.filter((choice) => choice.named).map((choice) => choice.amount)))
+  return chosen.map((choice) => {
+    if (choice.named) return choice.amount
+    const applied = minMoney(choice.amount, open > 0 ? open : ZERO)
+    open = subtractMoney(open, applied)
+    return applied
+  })
 }

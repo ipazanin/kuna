@@ -34,17 +34,19 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { plural } from '../../../../shared/text/translation'
-import { listedRowKey } from '../../workbook/domain/splits'
+import { itemIdOfRow, listedRowKey } from '../../workbook/domain/splits'
 import { counterpartyIdentity } from '../../workbook/domain/counterpartyIdentity'
 import { invoiceOrder, newestBookingOf } from '../../workbook/domain/workbook'
 import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { ageingOf, amountsOwed, daysPastDue } from '../domain/ageing'
 import { daysToPaid } from '../domain/daysToPaid'
 import { RECEIVABLE_ROLES, receivablesOf } from '../domain/invoiceMatching'
+import { invoiceToPlace, paymentChoiceKey } from '../domain/invoicePayments'
 import type { ClientReceivables, PaymentRow } from '../domain/invoiceMatching'
 import DaysToPaidStrip from './DaysToPaidStrip.vue'
 import type { DaysToPaidRow } from './DaysToPaidStrip.vue'
 import InvoiceDialog from './InvoiceDialog.vue'
+import type { InvoicePrefill } from './InvoiceDialog.vue'
 import InvoiceList from './InvoiceList.vue'
 import type { InvoiceLine, InvoicePaymentLine } from './InvoiceList.vue'
 import { ageingChart, ageingLegend } from './receivablesCharts'
@@ -67,9 +69,12 @@ const { state } = useWorkbook()
 /** The invoice the dialog edits, or null to add one. */
 const editing = ref<RecordId | null>(null)
 const dialogOpen = ref(false)
+/** The payment Place opens the dialog with, or null. */
+const prefill = ref<InvoicePrefill | null>(null)
 
-function openInvoice(id: RecordId | null): void {
+function openInvoice(id: RecordId | null, placing: InvoicePrefill | null = null): void {
   editing.value = id
+  prefill.value = placing
   dialogOpen.value = true
 }
 
@@ -203,12 +208,14 @@ const view = computed(() => {
   ]
 
   const unplaced = inView.flatMap((entry) =>
-    (entry.unplaced ?? []).map((payment) => ({
-      key: listedRowKey(payment.transaction),
+    (entry.unplaced ?? []).map(({ transaction, drill }) => ({
+      key: listedRowKey(transaction),
       client: clientName(entry),
-      date: dayLabel(payment.transaction.date),
-      amount: payment.transaction.amount,
-      to: drillLocation(payment.drill),
+      date: dayLabel(transaction.date),
+      amount: transaction.amount,
+      to: drillLocation(drill),
+      invoice: invoiceToPlace(workbook, entry.client.slug, transaction)?.id ?? null,
+      prefill: { client: entry.client.slug, amount: transaction.amount, payment: paymentChoiceKey(itemIdOfRow(transaction), false) },
     })),
   )
 
@@ -332,6 +339,17 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                         <MoneyText :cents="payment.amount" class="font-medium text-highlighted" />
                       </DrillLink>
                     </template>
+                    <UButton
+                      class="self-start"
+                      :label="words.panel.place"
+                      :aria-label="words.panel.placeLabel(payment.date, payment.client)"
+                      icon="i-lucide-link"
+                      color="neutral"
+                      variant="outline"
+                      size="sm"
+                      data-testid="unplaced-place"
+                      @click="openInvoice(payment.invoice, payment.prefill)"
+                    />
                   </ProposalRow>
                 </ul>
               </AppCard>
@@ -394,6 +412,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
       :clients="invoiceDialog.clients"
       :default-issued="invoiceDialog.defaultIssued"
       :latest-number="invoiceDialog.latestNumber"
+      :prefill="prefill"
       @reexport="reexport"
     />
   </div>

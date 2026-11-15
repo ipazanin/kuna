@@ -28,7 +28,8 @@ import type { DateRange } from '../../../../../shared/calendar/dateRange'
 import { amountForTyping, typedAmount } from '../../../../../shared/money/typedAmount'
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import { ownerAdvanceOfDraft, writeOwnerAdvance } from '../application/ownerAdvanceWrites'
-import { repaidMoreThanPaid, repaymentChoices, repaymentsPlaced } from '../domain/advanceRepayments'
+import { repaidMoreThanPaid, repaymentChoices } from '../domain/advanceRepayments'
+import { placedShares } from '../../../workbook/domain/rowPayments'
 import { hrDooWorkbook } from '../domain/hrDooPart'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
 import { useBookedWorkbook } from '../../../transactions/application/useBookedWorkbook'
@@ -122,7 +123,7 @@ const chosen = computed(() => choices.value.filter((choice) => paidBackBy.value.
 const chosenLabels = computed(() => paymentItems.value.filter((payment) => paidBackBy.value.includes(payment.value)).map((payment) => payment.label))
 
 /** What of each chosen payment pays the cost back, or null while the amount is not a valid one. */
-const applied = computed(() => (parsedAmount.value === null ? null : repaymentsPlaced(parsedAmount.value, chosen.value)))
+const applied = computed(() => (parsedAmount.value === null ? null : placedShares(parsedAmount.value, chosen.value)))
 
 /** What the payments the advance names already add up to when the amount is lowered below them, or null. */
 const repaidMore = computed(() => (parsedAmount.value === null || applied.value === null ? null : repaidMoreThanPaid(parsedAmount.value, applied.value)))

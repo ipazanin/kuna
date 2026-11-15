@@ -15,8 +15,8 @@ import { ITEM_RECORDS } from '../../../workbook/domain/coreKinds'
 import type { Transaction } from '../../../workbook/domain/workbook'
 import { writeRowItems } from '../../../transactions/application/itemWrites'
 import type { ItemDraft } from '../../../transactions/application/itemWrites'
-import { paymentParts } from '../../../workbook/domain/rowPayments'
-import { advancePaid, repaymentsPlaced } from '../domain/advanceRepayments'
+import { paymentParts, placedShares } from '../../../workbook/domain/rowPayments'
+import { advancePaid } from '../domain/advanceRepayments'
 import type { RepaymentChoice } from '../domain/advanceRepayments'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
 import { OWNER_ADVANCE_RECORDS } from '../domain/hrDooKinds'
@@ -60,7 +60,7 @@ export function linkRepayments(unit: UnitOfWork, records: WorkbookRecords, repay
 
 /**
  * Adds or changes an advance, in books that keep items with the payments chosen as what paid it back. A payment it names already
- * stays as it is. A new one pays back what is still open of the cost, as `repaymentsPlaced` says: an item that pays back all of
+ * stays as it is. A new one pays back what is still open of the cost, as `placedShares` says: an item that pays back all of
  * it takes the advance's description as its note, and one that pays back part of it gives that part to an item of its own with
  * that note, while the rest keeps the item's id. A payment that pays back nothing is left out. Books from before items keep the
  * advance as they always did, matched to the payments on every read.
@@ -75,7 +75,7 @@ export function writeOwnerAdvance(unit: UnitOfWork, records: WorkbookRecords, be
 
 /** The items that pay the advance back once the chosen payments are placed on it, in the order chosen, each row's items written once. */
 function placeRepayments(unit: UnitOfWork, records: WorkbookRecords, advance: OwnerAdvanceEntry, chosen: readonly RepaymentChoice[]): RecordId[] {
-  const applied = repaymentsPlaced(advance.amount, chosen)
+  const applied = placedShares(advance.amount, chosen)
   const itemOf = new Map<RecordId, RecordId>()
   const rows = new Map<RecordId, Transaction>()
   chosen.forEach((choice, index) => {

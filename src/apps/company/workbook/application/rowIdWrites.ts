@@ -18,6 +18,7 @@ import { ITEM_WRITES } from '../../transactions/application/itemWrites'
 import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { ITEM_RECORDS, SPLIT_PART_RECORDS } from '../domain/coreKinds'
+import { newItemRecord } from '../domain/splitsReading'
 import type { ItemRecord } from '../domain/splitsReading'
 import { storesItems } from '../domain/rowItems'
 
@@ -95,14 +96,9 @@ export function moveToItems(unit: UnitOfWork, books: CompanyBooks, newId: () => 
       ledger.change(entry, { ...entry, rowId, category: '', ownerShare: null })
       const row: Transaction | undefined = rowOf.get(entry.id)
       if (row !== undefined && counted.has(row.id)) {
-        return [
-          entry.id,
-          parts
-            .filter((part) => rowsOfSplitKey([row], part.key).length === 1)
-            .map((part) => ({ row: rowId, amount: part.amount, category: part.category, note: part.note, ownerShare: part.ownerShare, invoice: null, id: itemIdOfPart(part.id) })),
-        ]
+        return [entry.id, parts.filter((part) => rowsOfSplitKey([row], part.key).length === 1).map((part) => newItemRecord(rowId, itemIdOfPart(part.id), part))]
       }
-      return [entry.id, [{ row: rowId, amount: entry.amount, category: entry.category, note: '', ownerShare: entry.ownerShare, invoice: null, id: recordIdOf(ITEM_RECORDS, rowId) }]]
+      return [entry.id, [newItemRecord(rowId, recordIdOf(ITEM_RECORDS, rowId), { ...entry, note: '' })]]
     }),
   )
   const splitParts = unit.of(SPLIT_WRITES)

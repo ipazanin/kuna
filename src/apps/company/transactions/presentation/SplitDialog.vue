@@ -22,7 +22,7 @@ import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { useBookedWorkbook } from '../application/useBookedWorkbook'
-import { removeSplit, splitRefusal, writeSplit } from '../application/splitWrites'
+import { invoicesSplitOff, removeSplit, splitRefusal, writeSplit } from '../application/splitWrites'
 import type { SplitPartDraft } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
 import { words } from './words'
@@ -124,15 +124,14 @@ async function save(): Promise<void> {
   tried.value = true
   const given = drafts.value
   const records = store.state.records
-  if (given === null || refusal.value !== null || records === null || records === undefined) return
-  const saved = await writes.write(
-    split.value === null ? plural(words.splitInParts(given.length), given.length) : words.splitDialog.saved,
-    (unit) => writeSplit(unit, records, props.row, stored.value, given, props.categories),
-    {
-      description: [words.splitDialog.paymentOf(props.row.counterparty, props.row.amount), ...(stored.value.refused ? [words.splitDialog.noUndo] : [])].join(' '),
-      failedTitle: words.splitDialog.notSaved,
-    },
-  )
+  const workbook = store.state.workbook
+  if (given === null || refusal.value !== null || records === null || records === undefined || workbook === null || workbook === undefined) return
+  const title = split.value === null ? plural(words.splitInParts(given.length), given.length) : words.splitDialog.saved
+  const freed = invoicesSplitOff({ records, workbook }, props.row, stored.value, given)
+  const saved = await writes.write(freed.length === 0 ? title : words.splitDialog.takenOff(title, freed), (unit) => writeSplit(unit, records, props.row, stored.value, given, props.categories), {
+    description: [words.splitDialog.paymentOf(props.row.counterparty, props.row.amount), ...(stored.value.refused ? [words.splitDialog.noUndo] : [])].join(' '),
+    failedTitle: words.splitDialog.notSaved,
+  })
   if (saved) open.value = false
 }
 

@@ -9,7 +9,8 @@ import type { EditorColumn } from '../../../../settings/presentation/factTabColu
 import { typedOwnerShare } from '../../../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../../../owner-share/domain/ownerShare'
 import { ownerAdvanceOfDraft, writeOwnerAdvance } from '../../application/ownerAdvanceWrites'
-import { repaidMoreThanPaid, repaymentChoices, repaymentsPlaced } from '../../domain/advanceRepayments'
+import { repaidMoreThanPaid, repaymentChoices } from '../../domain/advanceRepayments'
+import { placedShares } from '../../../../workbook/domain/rowPayments'
 import type { RepaymentChoice } from '../../domain/advanceRepayments'
 import type { OwnerAdvanceEntry } from '../../domain/ownerAdvancesReading'
 import { presentedWorkbook } from '../../../../transactions/domain/presentedWorkbook'
@@ -560,7 +561,7 @@ function chosenRepayments(
             throw new StepRefused('Each paidBackBy item is a payment to the owner on a reimbursement category, paid on or after the cost, that this advance names already or no advance accounts for.')
           return choice
         })
-  const applied = repaymentsPlaced(advance.amount, chosen)
+  const applied = placedShares(advance.amount, chosen)
   if (repaidMoreThanPaid(advance.amount, applied) !== null)
     throw new StepRefused('The payments the advance names already add up to more than this amount, so raise the amount or set paidBackBy without one of them.')
   if (applied.some((share) => share <= 0)) throw new StepRefused('The cost is paid back in full before the last payment paidBackBy names, so leave that one out.')
