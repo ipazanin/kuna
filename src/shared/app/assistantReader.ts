@@ -12,7 +12,8 @@ import type { RecordKind, RecordNoun } from '../storage/domain/recordKind'
 /** One field of a record, handed to the chat as its exposure says. A field that never leaves is not among them. */
 export type ReadableField =
   | { readonly name: string; readonly exposure: 'plain' | 'identifier' | 'party' | 'free-text'; readonly value: StoredValue }
-  | { readonly name: string; readonly exposure: 'ref'; readonly to: string; readonly id: string | null }
+  /** The ids a ref field holds, none for an empty field, and whether it is a list or a field of one record. */
+  | { readonly name: string; readonly exposure: 'ref'; readonly to: string; readonly ids: readonly string[]; readonly list: boolean }
   | { readonly name: string; readonly exposure: 'plain'; readonly of: 'account' | 'app'; readonly cents: number; readonly currency: string }
   /** A decimal amount, which leaves as its text, such as `12.5 USD`, and compares as the decimal. */
   | { readonly name: string; readonly exposure: 'plain'; readonly value: string; readonly decimal: Decimal }
@@ -33,7 +34,7 @@ export interface ReadableSet {
 /** A field of a kind as its page lists it, with the sign of an amount and null for any other field, and the kind a ref field points at. */
 export type ReadableFieldDoc =
   | { readonly name: string; readonly meaning: string; readonly exposure: Exclude<Exposure, 'ref'>; readonly amount: AmountSign | null }
-  | { readonly name: string; readonly meaning: string; readonly exposure: 'ref'; readonly amount: null; readonly to: string }
+  | { readonly name: string; readonly meaning: string; readonly exposure: 'ref'; readonly amount: null; readonly to: string; readonly list: boolean }
 
 /** A kind of record the chat can read: what its fields mean, which needs no books, and its rows, which do. */
 export interface ReadableKind {
@@ -67,7 +68,9 @@ function readableFields<R extends { readonly id: string }>(kind: ReadableKindOf<
       return []
     }
     if (doc.exposure === 'ref') {
-      return [{ name, exposure: 'ref', to: doc.to, id: record[name] as string | null }]
+      const held = record[name] as readonly string[] | string | null | undefined
+      const ids = typeof held === 'string' ? [held] : (held ?? [])
+      return [{ name, exposure: 'ref', to: doc.to, ids: ids.filter((id) => id !== ''), list: doc.list === true }]
     }
     if ('amount' in doc) {
       const cents = record[name] as number | null
@@ -89,7 +92,7 @@ export function readableKind<R extends { readonly id: string }>(kind: ReadableKi
     about: kind.about,
     fields: Object.entries<FieldDoc<R>>(kind.fields).map(([name, doc]): ReadableFieldDoc =>
       doc.exposure === 'ref'
-        ? { name, meaning: doc.meaning, exposure: 'ref', amount: null, to: doc.to }
+        ? { name, meaning: doc.meaning, exposure: 'ref', amount: null, to: doc.to, list: doc.list === true }
         : { name, meaning: doc.meaning, exposure: doc.exposure, amount: 'sign' in doc ? doc.sign : null },
     ),
     dated: kind.dated,

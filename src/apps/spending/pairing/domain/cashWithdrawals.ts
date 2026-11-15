@@ -45,7 +45,7 @@ export function withCashLeg(debit: ItemizedRow, cash: Pick<Account, 'id'>, trans
     pair: null,
     categorisedBy: null,
   }
-  return legsOfPair(debit, { row: leg, items: [wholeItemOf(leg, { category: transfer, note: '', link: null })] }, transfer)
+  return legsOfPair(debit, { row: leg, items: [wholeItemOf(leg, { category: transfer, note: '', link: null, labels: [] })] }, transfer)
 }
 
 /** Whether a row is a cash leg Kuna made for a withdrawal, which no bank brought and no person typed. */

@@ -22,7 +22,7 @@ export function newTransfer(from: TransferLeg, to: TransferLeg, entry: Pick<Tran
   const outId = recordIdOf(TRANSACTION_RECORDS, newRecordId())
   const inId = recordIdOf(TRANSACTION_RECORDS, newRecordId())
   const shared = { ...NO_BANK_FACTS, date: entry.date, payee: '', source: 'typed' as const, categorisedBy: 'person' as const }
-  const legOf = (row: Transaction): ItemizedRow => ({ row, items: [wholeItemOf(row, { category: entry.category, note: entry.note.trim(), link: null })] })
+  const legOf = (row: Transaction): ItemizedRow => ({ row, items: [wholeItemOf(row, { category: entry.category, note: entry.note.trim(), link: null, labels: [] })] })
   return [
     legOf({ ...shared, id: outId, account: from.account, amount: negateAccountMoney(absAccountMoney(from.amount)), pair: inId }),
     legOf({ ...shared, id: inId, account: to.account, amount: absAccountMoney(to.amount), pair: outId }),

@@ -201,7 +201,7 @@ const CLASS_RULES: Readonly<Record<FieldClass, string>> = {
   plain: 'at-least and at-most take a number, or a day or month such as 2026-10',
   words: 'on the text as it arrives, so a person by their alias',
   identifier: 'with a token a read gave you, such as HR•• ••••0160',
-  ref: 'with refs Kuna handed out',
+  ref: 'with refs Kuna handed out, and a list of refs matches when any of its refs does',
 }
 
 function classLine(fieldClass: FieldClass): string {
@@ -211,7 +211,7 @@ function classLine(fieldClass: FieldClass): string {
 
 /** How a field arrives, as its line on a kind's page says it: an amount with its sign, and a ref with the kind it points at. */
 function fieldClassText(field: ReadableFieldDoc): string {
-  if (field.exposure === 'ref') return `ref to ${field.to}`
+  if (field.exposure === 'ref') return field.list ? `list of refs to ${field.to}` : `ref to ${field.to}`
   return field.amount === null ? field.exposure : `amount, ${field.amount === 'either' ? 'either sign' : 'zero or more'}`
 }
 

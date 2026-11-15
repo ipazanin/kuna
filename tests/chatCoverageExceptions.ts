@@ -9,6 +9,14 @@ export interface ChatException {
 
 export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   {
+    reason: "Spending's labels. A person adds, renames and deletes them on Labels and the chat reads labels without changing them.",
+    paths: [
+      'src/apps/spending/labels/application/labelWrites.ts#addLabel',
+      'src/apps/spending/labels/application/labelWrites.ts#renameLabel',
+      'src/apps/spending/labels/application/labelWrites.ts#deleteLabel',
+    ],
+  },
+  {
     reason: "Giving the ledger's rows their ids. The app's own prompt on Settings, Books file does it in one write, and no agent fills an id.",
     paths: ['src/apps/company/workbook/application/rowIdWrites.ts#giveRowsIds'],
   },

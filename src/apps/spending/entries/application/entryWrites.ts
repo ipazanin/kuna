@@ -1,6 +1,7 @@
 import type { EntrySplit } from '../domain/entrySplit'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
 import { fixedCategoryIn } from '../../categories/domain/starterCategories'
+import { labelsOf } from '../../labels/domain/labels'
 import { linkFiling, splitByInstalment } from '../../links/domain/instalmentSplit'
 import type { PartNotes } from '../../links/domain/instalmentSplit'
 import type { LinkTarget } from '../../links/domain/linkTarget'
@@ -16,8 +17,6 @@ import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
-import { partReplacements } from '../../../../shared/categorising/domain/partReplacements'
-import type { PartReplacement } from '../../../../shared/categorising/domain/partReplacements'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
@@ -38,7 +37,7 @@ export interface TypedFiling {
 export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee'> & TypedFiling): ItemizedRow {
   const { category, note, ...typed } = entry
   const row: Transaction = { ...typed, ...NO_BANK_FACTS, payee: entry.payee.trim(), source: 'typed', pair: null, categorisedBy: 'person', id: recordIdOf(TRANSACTION_RECORDS, newRecordId()) }
-  return { row, items: [wholeItemOf(row, { category, note: note.trim(), link: null })] }
+  return { row, items: [wholeItemOf(row, { category, note: note.trim(), link: null, labels: [] })] }
 }
 
 /**
@@ -161,28 +160,24 @@ export function removeEntry(unit: UnitOfWork, records: EntryRecords, entry: Tran
 
 /**
  * The entry with the parts you split it into, in one write. A part with the id of one the entry holds changes in place, the
- * others are added, and a held part no new part names goes. Gives what each part replaces.
+ * others are added, and a held part no new part names goes.
  */
-export function writeEntrySplit(unit: UnitOfWork, records: EntryRecords, { before, row, parts }: EntrySplit): readonly PartReplacement<RecordId>[] {
+export function writeEntrySplit(unit: UnitOfWork, records: EntryRecords, { row, before, parts }: EntrySplit): void {
   writeRows(unit, records, [{ before: before.row, after: row, items: parts }])
-  return partReplacements(before.items, parts)
 }
 
-/** The one item a split row stands for again: all of its money under the category most of it was in, with the note of its largest part and its link. */
+/** The one item a split row stands for again: all of its money under the category most of it was in, with the note of its largest part, its link and every label of its parts. */
 export function unsplitItem(row: Pick<Transaction, 'id' | 'amount'>, held: readonly TransactionItem[]): TransactionItem {
-  return wholeItemOf(row, { category: mainCategoryOf(held), note: largestItem(held)?.note ?? '', link: linkOfItems(held) })
+  return wholeItemOf(row, { category: mainCategoryOf(held), note: largestItem(held)?.note ?? '', link: linkOfItems(held), labels: labelsOf(held) })
 }
 
 /**
  * Takes the row's parts out, with the receipt that split it when one did, which leaves one item under its main category. A photo
- * kept on Drive stays there. Gives what that one item replaces.
+ * kept on Drive stays there.
  */
-export function removeSplitOf(unit: UnitOfWork, records: EntryRecords, row: Transaction): readonly PartReplacement<RecordId>[] {
-  const held = heldItemsOf(records)(row)
-  const whole = unsplitItem(row, held)
-  writeRows(unit, records, [{ before: row, after: row, items: [whole] }])
+export function removeSplitOf(unit: UnitOfWork, records: EntryRecords, row: Transaction): void {
+  writeRows(unit, records, [{ before: row, after: row, items: [unsplitItem(row, heldItemsOf(records)(row))] }])
   removeReceiptsOf(unit, records, [row])
-  return partReplacements(held, [whole])
 }
 
 function removeReceiptsOf(unit: UnitOfWork, records: Pick<SpendingRecords, 'receipts'>, rows: readonly Pick<Transaction, 'id'>[]): void {

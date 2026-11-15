@@ -311,7 +311,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
           statement: statement.label,
           categorisedBy: byRule === null ? null : 'rule',
         }
-        return [row, { row: added, items: [wholeItemOf(added, { category: category ?? byBank ?? byRule, note: '', link: null })] }]
+        return [row, { row: added, items: [wholeItemOf(added, { category: category ?? byBank ?? byRule, note: '', link: null, labels: [] })] }]
       }),
   )
   const newItemsOf = new Map([...newRowOf.values()].map(({ row, items }) => [row.id, items]))

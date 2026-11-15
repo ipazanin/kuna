@@ -58,8 +58,8 @@ export function sorts(fieldClass: FieldClass): boolean {
 /** One field of one record as a filter or a sort reads it. Words and plain values are as they leave the device, and identifiers are normalised. */
 export type ComparedField =
   | { readonly class: 'amount'; readonly amount: Decimal | null }
-  /** The record a ref field points at, as its kind and id. */
-  | { readonly class: 'ref'; readonly id: string | null }
+  /** The records a ref field points at, each as its kind and id, none for an empty field. */
+  | { readonly class: 'ref'; readonly ids: readonly string[] }
   | { readonly class: 'identifier'; readonly identifiers: readonly string[] }
   | { readonly class: 'words' | 'plain'; readonly value: StoredValue }
 
@@ -79,7 +79,7 @@ function isEmpty(field: ComparedField): boolean {
     case 'amount':
       return field.amount === null
     case 'ref':
-      return field.id === null || field.id === ''
+      return field.ids.length === 0
     case 'identifier':
       return field.identifiers.every((identifier) => identifier === '')
     default:
@@ -190,7 +190,7 @@ function equals(field: ComparedField, wanted: readonly string[], amounts: readon
     case 'amount':
       return field.amount !== null && amounts.includes(field.amount)
     case 'ref':
-      return field.id !== null && wanted.includes(field.id)
+      return field.ids.some((id) => wanted.includes(id))
     case 'identifier':
       return field.identifiers.some((identifier) => wanted.includes(identifier))
     default:

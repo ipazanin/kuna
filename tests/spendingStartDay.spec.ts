@@ -74,6 +74,7 @@ function part(place: number, of: Transaction, amount: number, path: string, rece
     amount: accountMoneyFromAmount(amount),
     category: category(path).id,
     link: null,
+    labels: [],
   }
 }
 

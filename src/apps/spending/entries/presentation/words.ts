@@ -1,7 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { language } from '../../../../shared/text/language'
-import type { Translation } from '../../../../shared/text/translation'
+import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 import { en as sharedEnglish, hr as sharedCroatian } from '../../../../shared/ui/words'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -22,6 +22,24 @@ export const en = {
     category: 'Category',
     allAccounts: 'All accounts',
     allCategories: 'All categories',
+    label: 'Label',
+    allLabels: 'All labels',
+    allMonths: 'All months',
+  },
+  labelling: {
+    select: 'Select',
+    selectHelp: 'Select entries to label',
+    picked: (count: number): EnglishForms => ({ one: '1 picked', other: `${count} picked` }),
+    label: 'Label',
+    cancel: 'Cancel',
+    title: (entries: string) => `Label ${entries}`,
+    description: 'A label sits beside the category and changes no figure of it. It goes on every part of each entry.',
+    putOn: 'Put on',
+    takeOff: 'Take off',
+    newLabel: 'New label',
+    addAndPut: 'Add',
+    put: (label: string, entries: string) => `${label} put on ${entries}`,
+    takenOff: (label: string, entries: string) => `${label} taken off ${entries}`,
   },
   dialog: {
     addTitle: 'Add an entry',
@@ -100,6 +118,24 @@ export const hr: Translation<typeof en> = {
     category: 'Kategorija',
     allAccounts: 'Svi računi',
     allCategories: 'Sve kategorije',
+    label: 'Oznaka',
+    allLabels: 'Sve oznake',
+    allMonths: 'Svi mjeseci',
+  },
+  labelling: {
+    select: 'Odaberi',
+    selectHelp: 'Odaberi unose za oznaku',
+    picked: (count): CroatianForms => ({ one: `${count} odabran`, few: `${count} odabrana`, other: `${count} odabranih` }),
+    label: 'Označi',
+    cancel: 'Odustani',
+    title: (entries) => `Označi: ${entries}`,
+    description: 'Oznaka stoji uz kategoriju i ne mijenja nijedan njezin iznos. Stavlja se na svaki dio svakog unosa.',
+    putOn: 'Stavi',
+    takeOff: 'Skini',
+    newLabel: 'Nova oznaka',
+    addAndPut: 'Dodaj',
+    put: (label, entries) => `Oznaka ${label} stavljena: ${entries}`,
+    takenOff: (label, entries) => `Oznaka ${label} skinuta: ${entries}`,
   },
   dialog: {
     addTitle: 'Dodaj unos',

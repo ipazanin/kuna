@@ -3,7 +3,7 @@ import { DEFAULT_FILTERS } from '../../../filters/domain/filterState'
 import { ownerShareText } from '../../../owner-share/domain/ownerShare'
 import { countedLedger } from '../../../transactions/domain/countedLedger'
 import { vatOnPrivateShare } from '../domain/vat/vatSplit'
-import { CATEGORY_RECORDS, LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
+import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../../workbook/domain/displayName'
 import { recordsOfKindIn } from '../../../workbook/domain/readWorkbook'
 import { bookingOfAdvance } from '../../../workbook/domain/workbook'
@@ -132,10 +132,7 @@ const OWNER_ADVANCE_FIELDS: FieldDocs<OwnerAdvanceEntry> = {
   description: { exposure: 'free-text', meaning: 'What it was for.' },
   category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The cost category it counts in.' },
   ownerShare: { exposure: 'plain', meaning: "The owner's private share of it in percent, or empty for none.", read: (advance) => ownerShareText(advance.ownerShare) ?? '' },
-  repaidBy: {
-    exposure: 'never',
-    meaning: 'The items of the payments to the owner that paid it back. Each such item notes what the advance was for, which is how the items read it.',
-  },
+  repaidBy: { exposure: 'ref', to: ITEM_RECORDS.name, list: true, meaning: 'The parts of the payments to the owner that paid it back, none while it is open.' },
   ownerPart: { exposure: 'never', meaning: 'Set only on a part the screens make.' },
 }
 

@@ -45,8 +45,6 @@ export interface PlacedReceipt {
   readonly receipt: { readonly before: Receipt; readonly after: Receipt }
   /** The receipt's lines naming the row, and a Difference line when the bank booked another amount, as with a tip. */
   readonly items: readonly TransactionItem[]
-  /** The row's items the lines replace. */
-  readonly replaced: readonly TransactionItem[]
 }
 
 /** The receipts waiting for the bank's row, oldest first, each with the rows on its account it may be. */
@@ -94,7 +92,6 @@ export function receiptOnRow(
     row: rowFiledBy(row, receipt.merchant),
     receipt: { before: receipt, after: { ...receipt, transaction: row.id, account: null, merchant: receipt.merchant === '' ? row.payee : receipt.merchant } },
     items: difference === null ? placed : [...placed, difference],
-    replaced: held,
   }
 }
 

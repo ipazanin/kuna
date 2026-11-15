@@ -653,7 +653,7 @@ function plannedSteps(
           payee: (field['payee'] as string | null) ?? before.row.payee,
           pair: plain ? null : before.row.pair,
         }
-        const filing = { category: filedUnder?.id ?? whole?.category ?? null, note: (field['note'] as string | null) ?? whole?.note ?? '', link: whole?.link ?? null }
+        const filing = { category: filedUnder?.id ?? whole?.category ?? null, note: (field['note'] as string | null) ?? whole?.note ?? '', link: whole?.link ?? null, labels: whole?.labels ?? [] }
         const onAccount = accountOf(before.row.account)
         if (fixedByBank(before.row, onAccount) && (typed.date !== before.row.date || typed.amount !== before.row.amount))
           throw new StepRefused(`The bank booked that row on ${onAccount.name}, so its date and amount stay. Its category, payee, note and split can change.`)

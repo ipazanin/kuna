@@ -148,6 +148,7 @@ function handPart(key: string, amount: number, category: Category): TransactionI
     amount: accountMoneyFromAmount(amount),
     category: category.id,
     link: null,
+    labels: [],
   }
 }
 
@@ -194,6 +195,7 @@ const WAITING_LINE: TransactionItem = {
   amount: accountMoneyFromAmount(-18),
   category: GROCERIES.id,
   link: null,
+  labels: [],
 }
 
 const RULE: SpendingRule = { id: recordIdOf(RULE_RECORDS, 'rule-corner'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner' }, category: GROCERIES.id, withdrawal: null }
@@ -316,7 +318,7 @@ export type DeskShape = 'items' | 'before-items'
 function storedEntries(shape: DeskShape): WorkbookDocument['records'] {
   if (shape === 'before-items') return { ...stored(TRANSACTION_RECORDS, ROWS), ...stored(LINE_RECORDS, [...HAND_PARTS, WAITING_LINE].map(plainLineOf)) }
   const partsOf = rowItemsOf({ items: HAND_PARTS })
-  const items = [...ROWS.flatMap((stored) => (partsOf(stored).length > 0 ? partsOf(stored) : [wholeItemOf(stored, stored)])), WAITING_LINE]
+  const items = [...ROWS.flatMap((stored) => (partsOf(stored).length > 0 ? partsOf(stored) : [wholeItemOf(stored, { ...stored, labels: [] })])), WAITING_LINE]
   return {
     ...stored(
       TRANSACTION_RECORDS,

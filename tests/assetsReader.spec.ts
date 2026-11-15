@@ -52,7 +52,7 @@ describe('what the chat reads of Assets', () => {
       region: { value: 'zagreb' },
     })
     expect(fieldsOf(reader, 'asset', EXAMPLE_RECORDS['asset-boat']!)['loan']).toMatchObject({ value: null })
-    expect(fieldsOf(reader, 'valuation', EXAMPLE_RECORDS['valuation']!)).toMatchObject({ value: { cents: 1_550_000 }, asset: { exposure: 'ref', id: EXAMPLE_RECORDS['asset-boat'] } })
+    expect(fieldsOf(reader, 'valuation', EXAMPLE_RECORDS['valuation']!)).toMatchObject({ value: { cents: 1_550_000 }, asset: { exposure: 'ref', ids: [EXAMPLE_RECORDS['asset-boat']] } })
   })
 
   it('finds an asset with no price, leaving the price out', async () => {

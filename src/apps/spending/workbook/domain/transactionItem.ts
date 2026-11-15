@@ -19,4 +19,6 @@ export interface TransactionItem {
   readonly category: RecordId | null
   /** The record in another app this money is, such as the loan instalment it pays, or null. A link changes no figure. */
   readonly link: RowLink | null
+  /** The labels this money carries, in the order they were put on it. A label sits beside the category and changes no figure of it. */
+  readonly labels: readonly RecordId[]
 }

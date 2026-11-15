@@ -71,10 +71,10 @@ describe('what the chat reads of Loans', () => {
   it('gives an offer its terms as lines and a saved try the loan it starts from', async () => {
     const { reader } = await readerOfDesk()
     const offer = fieldsOf(reader, 'loan-scenario', EXAMPLE_RECORDS['loan-scenario']!)
-    expect(offer['loan']).toMatchObject({ exposure: 'ref', id: null })
+    expect(offer['loan']).toMatchObject({ exposure: 'ref', ids: [] })
     expect(offer['offer']).toMatchObject({ value: expect.arrayContaining(['amount borrowed 100000.00 EUR', 'instalments 240']) })
     const tried = fieldsOf(reader, 'loan-scenario', EXAMPLE_RECORDS['loan-scenario-try']!)
-    expect(tried['loan']).toMatchObject({ exposure: 'ref', id: EXAMPLE_RECORDS['bank-loan'] })
+    expect(tried['loan']).toMatchObject({ exposure: 'ref', ids: [EXAMPLE_RECORDS['bank-loan']] })
     const changes = reader.kinds.find((kind) => kind.name === 'scenario-change')!.rows()
     expect(changes.map((row) => row.fields.find((field) => field.name === 'on'))).toEqual(
       expect.arrayContaining([expect.objectContaining({ value: '2027-01-01' }), expect.objectContaining({ value: '2026-09-01' })]),

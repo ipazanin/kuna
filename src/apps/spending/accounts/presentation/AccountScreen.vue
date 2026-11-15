@@ -121,6 +121,7 @@ function openEntry(picked: Transaction): void {
           <EntryList
             :rows="listed"
             :categories="state.workbook?.categories ?? []"
+            :labels="state.workbook?.labels ?? []"
             :show-account="false"
             heading="h3"
             :takes-receipt="takesReceipt"

@@ -6,6 +6,7 @@ import {
   SPENDING_ACCOUNT_ROUTE,
   SPENDING_ACCOUNTS_ROUTE,
   SPENDING_BUDGETS_ROUTE,
+  SPENDING_LABELS_ROUTE,
   SPENDING_OVERVIEW_ROUTE,
   SPENDING_REVIEW_LINK,
   SPENDING_SETTINGS_ROUTE,
@@ -41,6 +42,7 @@ import { autoSyncOn } from '../../shared/sync/infrastructure/autoSyncSwitch'
 const OVERVIEW: AppScreen = { path: SPENDING_OVERVIEW_ROUTE, title: screenWords.overview, icon: 'i-lucide-layout-dashboard', component: () => import('./overview/presentation/OverviewScreen.vue') }
 const TRANSACTIONS: AppScreen = { path: SPENDING_TRANSACTIONS_ROUTE, title: screenWords.entries, icon: 'i-lucide-list', component: () => import('./entries/presentation/TransactionsScreen.vue') }
 const BUDGETS: AppScreen = { path: SPENDING_BUDGETS_ROUTE, title: screenWords.limits, icon: 'i-lucide-gauge', component: () => import('./budgets/presentation/BudgetsScreen.vue') }
+const LABELS: AppScreen = { path: SPENDING_LABELS_ROUTE, title: screenWords.labels, icon: 'i-lucide-tag', component: () => import('./labels/presentation/LabelsScreen.vue') }
 const ACCOUNTS: AppScreen = { path: SPENDING_ACCOUNTS_ROUTE, title: screenWords.accounts, icon: 'i-lucide-landmark', component: () => import('./accounts/presentation/AccountsScreen.vue') }
 const SETTINGS: AppScreen = { path: SPENDING_SETTINGS_ROUTE, title: screenWords.settings, icon: 'i-lucide-settings', component: () => import('./settings/presentation/SettingsScreen.vue') }
 
@@ -75,6 +77,7 @@ export const spendingApp: AppContribution = {
     OVERVIEW,
     TRANSACTIONS,
     BUDGETS,
+    LABELS,
     ACCOUNTS,
     {
       path: SPENDING_ACCOUNT_ROUTE,
@@ -87,7 +90,7 @@ export const spendingApp: AppContribution = {
     SETTINGS,
     { path: SPENDING_START_ROUTE, title: words.start, icon: 'i-lucide-door-open', component: () => import('./onboarding/presentation/StartScreen.vue'), bare: true },
   ],
-  menu: () => [OVERVIEW, TRANSACTIONS, BUDGETS, ACCOUNTS],
+  menu: () => [OVERVIEW, TRANSACTIONS, BUDGETS, LABELS, ACCOUNTS],
   settings: SETTINGS,
   menuCount: (screen) => {
     const count = screen.path === SPENDING_TRANSACTIONS_ROUTE && state.workbook !== null ? reviewCount(state.workbook) : 0

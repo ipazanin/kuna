@@ -16,6 +16,7 @@ import { parseMonthKey } from '../src/shared/calendar/monthKey'
 import { readableKind } from '../src/shared/app/assistantReader'
 import type { AppReader } from '../src/shared/app/assistantReader'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { CHAT_BOOK, CHAT_PERSONS, CHAT_READING, HOSTILE_TEXT, IBAN_OF_ANA } from './fixtures/chatBook'
 
 function readsOf(overrides: Partial<ChatReads> = {}): ChatReads {
@@ -376,7 +377,7 @@ describe('a page of long records', () => {
 
 describe('a search kept to a set', () => {
   const waiting = { ...CHAT_BOOK.transactions[1]!, id: recordIdOf(spendingKinds.TRANSACTION_RECORDS, 'transaction-9') }
-  const book = { ...CHAT_BOOK, transactions: [...CHAT_BOOK.transactions, waiting], items: [...CHAT_BOOK.items, wholeItemOf(waiting, { category: null, note: '', link: null })] }
+  const book = { ...CHAT_BOOK, transactions: [...CHAT_BOOK.transactions, waiting], items: [...CHAT_BOOK.items, wholeItemOf(waiting, { category: null, note: '', link: null, labels: [] })] }
   const reading = { ...CHAT_READING, book: () => book }
   const reads = () => readsOf({ readers: new Map([['spending', { name: 'Spending', reader: spendingReader(reading) }]]) })
 
@@ -441,5 +442,52 @@ describe('a field that holds a list', () => {
   it('sends names as stored with Anonymise off, and each IBAN of the list under its token', async () => {
     const { records } = await found({ kind: 'holder' }, listReads({ anonymising: () => false }))
     expect(records[0]).toMatchObject({ ibans: ['HR•• ••••0160', 'HR•• ••••0001'], names: ['Ana Horvat', 'Corner market'] })
+  })
+})
+
+interface Bundle {
+  readonly id: string
+  readonly parts: readonly RecordId[]
+  readonly lead: RecordId | null
+}
+
+describe('a field that holds a list of refs', () => {
+  const part = (key: string) => recordIdOf(spendingKinds.ITEM_RECORDS, key)
+  const bundles: Bundle[] = [
+    { id: 'bundle:1', parts: [part('p1'), part('p2')], lead: part('p1') },
+    { id: 'bundle:2', parts: [], lead: null },
+  ]
+  const kind = readableKind<Bundle>({
+    kind: { name: 'bundle', noun: spendingKinds.TRANSACTION_RECORDS.noun },
+    about: 'Bundles.',
+    fields: {
+      id: { exposure: 'ref', to: 'bundle', meaning: 'The bundle.' },
+      parts: { exposure: 'ref', to: 'item', list: true, meaning: 'Its parts.' },
+      lead: { exposure: 'ref', to: 'item', meaning: 'Its first part.' },
+    },
+    dated: null,
+    rows: () => bundles,
+    currencyOf: () => 'EUR',
+  })
+  const reader: AppReader = { status: () => 'open', kinds: [kind], reports: [] }
+  const listReads = () => readsOf({ readers: new Map([['spending', { name: 'Spending', reader }]]) })
+
+  it('sends a list as a ref for each id, an empty list as nothing, and a single ref as one', async () => {
+    const { records } = await found({ kind: 'bundle' }, listReads())
+    const parts = records[0]!['parts'] as unknown as readonly string[]
+    expect(parts).toHaveLength(2)
+    expect(records[0]!['lead']).toBe(parts[0])
+    expect(records[1]).not.toHaveProperty('parts')
+    expect(records[1]).not.toHaveProperty('lead')
+  })
+
+  it('finds the records whose list names a ref, by filter and by refs, and by whether the list is empty', async () => {
+    const reads = listReads()
+    const { records } = await found({ kind: 'bundle' }, reads)
+    const second = (records[0]!['parts'] as unknown as readonly string[])[1]!
+    expect((await found({ kind: 'bundle', filters: [{ field: 'parts', op: 'is', values: [second] }] }, reads)).total).toBe(1)
+    expect((await found({ kind: 'bundle', filters: [{ field: 'parts', op: 'not', values: [second] }] }, reads)).total).toBe(1)
+    expect((await found({ kind: 'bundle', filters: [{ field: 'parts', op: 'empty', values: [] }] }, reads)).total).toBe(1)
+    expect((await found({ kind: 'bundle', refs: [second] }, reads)).total).toBe(1)
   })
 })

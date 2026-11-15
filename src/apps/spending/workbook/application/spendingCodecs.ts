@@ -1,6 +1,7 @@
 import { ACCOUNT_CODEC } from '../domain/accountReading'
 import { BUDGET_CODEC } from '../domain/budgetReading'
 import { CATEGORY_CODEC } from '../domain/categoryReading'
+import { LABEL_CODEC } from '../domain/labelReading'
 import { ITEM_CODEC, LINE_CODEC } from '../domain/transactionItemReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
 import { RULE_CODEC } from '../domain/ruleReading'
@@ -36,6 +37,7 @@ const SETTING_CODEC = settingCodec(SETTING_RECORDS, settingLabel)
 const SPENDING_CODECS = [
   ACCOUNT_CODEC,
   CATEGORY_CODEC,
+  LABEL_CODEC,
   TRANSACTION_CODEC,
   BUDGET_CODEC,
   RULE_CODEC,

@@ -16,6 +16,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['spending: Transaction.payee'],
   },
   {
+    reason: "A label on an entry's parts. A person labels rows by selecting them on Entries, and the chat reads labels without changing them.",
+    fields: ['spending: TransactionItem.labels'],
+  },
+  {
     reason: "Ids Kuna makes. A person never types a record's id, and an operation names the record it changes by a ref.",
     fields: [
       'assets: Asset.id',
@@ -222,6 +226,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/company/rules/application/dismissalWrites.ts#DISMISSAL_WRITES.add',
       'src/apps/company/owner-share/application/ownerShareWrites.ts#fillShares',
       'src/apps/spending/categories/application/categoryWrites.ts#deleteInto',
+      'src/apps/spending/labels/application/labelWrites.ts#labelRows',
       'src/apps/spending/statements/application/statementWrites.ts#fileRow',
       'src/apps/spending/statements/application/statementWrites.ts#joinWithTyped',
       'src/apps/spending/statements/application/statementWrites.ts#notAPair',

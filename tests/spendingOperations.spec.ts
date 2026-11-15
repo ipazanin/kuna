@@ -700,7 +700,7 @@ describe('bank account set-up', () => {
     const fieldOf = (at: number, name: string) => lines[at]!.fields.find((field) => field.name === name)
     expect(lines.map((line) => line.id)).toEqual([EXAMPLE_RECORDS['bank-account-missing'], EXAMPLE_RECORDS['bank-account-update'], EXAMPLE_RECORDS['bank-account-left-out']])
     expect([0, 1, 2].map((at) => fieldOf(at, 'offers'))).toMatchObject([{ value: ['add', 'leave-out'] }, { value: ['update', 'keep-mine'] }, { value: ['bring-back'] }])
-    expect(fieldOf(1, 'account')).toMatchObject({ exposure: 'ref', id: DESK_ACCOUNTS.CURRENT.id })
+    expect(fieldOf(1, 'account')).toMatchObject({ exposure: 'ref', ids: [DESK_ACCOUNTS.CURRENT.id] })
     expect(fieldOf(1, 'takesRowsFrom')).toMatchObject({ value: 'bank-link' })
     expect(fieldOf(1, 'fixedOpening')).toMatchObject({ cents: 90000, currency: 'EUR' })
   })

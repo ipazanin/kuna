@@ -55,7 +55,7 @@ function row(place: number, date: string, amount: number, payee: string, categor
     categorisedBy: 'rule',
     ...fields,
   }
-  return { row: entry, items: [wholeItemOf(entry, { category: category.id, note, link: null })] }
+  return { row: entry, items: [wholeItemOf(entry, { category: category.id, note, link: null, labels: [] })] }
 }
 
 const ROWS: readonly ItemizedRow[] = [

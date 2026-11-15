@@ -7,7 +7,7 @@ import { deleteInto } from '../src/apps/spending/categories/application/category
 import { removeEntry, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
-import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
+import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
 import { RECEIPT_WRITES } from '../src/apps/spending/receipts/application/receiptRecords'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
@@ -371,19 +371,29 @@ describe('the lines of a receipt in place of what a row held', () => {
     { printed: 'VINO', note: 'Wine', amount: accountMoneyFromAmount(-8.49), category: GROCERIES.id },
   ]
 
-  it('lets every line replace the one part a row not split stands for', async () => {
+  async function labelled(store: Awaited<ReturnType<typeof spendingStore>>, rows: readonly Transaction[], name: string): Promise<RecordId> {
+    let id: RecordId | null = null
+    await store.write('Labelled', (unit) => {
+      id = addLabel(unit, name).id
+      labelRows(unit, store.state.records!, rows, id, true)
+    })
+    return id!
+  }
+
+  it('gives every line the labels of the one part a row not split stands for', async () => {
     const store = await spendingStore()
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Groceries'))
+    const trip = await labelled(store, [card], 'Prague')
 
-    let replaced: ReturnType<typeof writeReceiptSplit> = []
-    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, rowPlace(card, store.state.workbook!.items), LINES))))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, rowPlace(card, store.state.workbook!.items), LINES)))
 
-    const lines = store.state.workbook!.items.map((line) => line.id)
-    expect(lines).toHaveLength(2)
-    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: [wholeRowItemId(card)] })))
+    expect(store.state.workbook!.items.map((line) => [line.receipt !== null, line.labels])).toEqual([
+      [true, [trip]],
+      [true, [trip]],
+    ])
   })
 
-  it('lets every line replace every part of a split by hand, since no line says which part it was', async () => {
+  it('gives every line the labels of every part of a split by hand, since no line says which part it was', async () => {
     const store = await spendingStore()
     const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Groceries'))
     const hand = entrySplit(store.state.workbook!, card, [
@@ -393,21 +403,38 @@ describe('the lines of a receipt in place of what a row held', () => {
     if ('refused' in hand) throw new Error(hand.refused)
     await store.write('Split', (unit) => writeEntrySplit(unit, store.state.records!, hand))
     const split = store.state.workbook!.transactions[0]!
+    const trip = await labelled(store, [split], 'Prague')
+    const [first, second] = store.state.workbook!.items
+    let flat: RecordId | null = null
+    await store.write('Relabelled', (unit) => {
+      flat = addLabel(unit, 'New flat').id
+      writeRows(unit, store.state.records!, [
+        {
+          before: split,
+          after: split,
+          items: [
+            { ...first!, labels: [] },
+            { ...second!, labels: [trip, flat] },
+          ],
+        },
+      ])
+    })
     const handParts = store.state.workbook!.items.map((part) => part.id)
 
-    let replaced: ReturnType<typeof writeReceiptSplit> = []
-    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, rowPlace(split, store.state.workbook!.items), LINES))))
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, rowPlace(split, store.state.workbook!.items), LINES)))
 
-    const lines = store.state.workbook!.items.map((line) => line.id)
-    expect(lines.some((line) => handParts.includes(line))).toBe(false)
-    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: handParts })))
+    const lines = store.state.workbook!.items
+    expect(lines.some((line) => handParts.includes(line.id))).toBe(false)
+    expect(lines.map((line) => line.labels)).toEqual([
+      [trip, flat],
+      [trip, flat],
+    ])
   })
 
-  it('makes a new row with nothing to replace', async () => {
+  it('makes a new row whose lines carry no label', async () => {
     const store = await spendingStore()
-    let replaced: ReturnType<typeof writeReceiptSplit> | null = null
-    await store.write('Saved', (unit) => (replaced = writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, { account: OTP }, LINES))))
-    expect(replaced).toEqual([])
+    await store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, receiptSplit(DRAFT, { account: OTP }, LINES)))
+    expect(store.state.workbook!.items.map((line) => line.labels)).toEqual([[], []])
   })
 })
 
@@ -451,6 +478,7 @@ describe('reading receipts and lines', () => {
     const book = readSpendingBook({
       accounts: read(ACCOUNTS),
       categories: read(CATEGORIES),
+      labels: read([]),
       transactions: read([storedRowOf(one.row!, { category: GROCERIES.id, note: '', link: null })]),
       budgets: read([]),
       rules: read([]),

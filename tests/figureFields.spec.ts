@@ -117,9 +117,12 @@ describe("the figure digest's fields", () => {
 
   it('leaves no field or stored cell that is not a figure in a Spending group, in Investments accounts or in Company ledger records, however deep', () => {
     const queue = reviewQueue(spending.workbook, DAY)
+    // The file's labels are a part named as an item's labels are, and hold no field left out, so the walk below leaves the part's own key aside.
+    const { labels: _labels, ...records } = spending.records
     const group = {
       queue,
-      records: spending.records,
+      records,
+      labelRecords: _labels,
       byAccount: new Map(spending.workbook.accounts.map((held) => [held, spending.workbook.transactions])),
       rows: new Set(spending.workbook.transactions),
     }

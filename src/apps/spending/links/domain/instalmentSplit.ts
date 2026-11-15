@@ -1,4 +1,5 @@
 import type { InstalmentTarget, LinkTarget } from './linkTarget'
+import { labelsOf } from '../../labels/domain/labels'
 import type { Category } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
@@ -95,10 +96,11 @@ export interface PartNotes {
 /**
  * The entry in the instalment's parts, in place of the items it had, each linked: the interest, the principal under
  * `principal`, then the difference, leaving out a part of nothing. The first part keeps the id of the entry's first item, and
- * the entry is filed by you.
+ * the entry is filed by you. Every part carries every label of the entry.
  */
 export function splitByInstalment(entry: ItemizedRow, link: RowLink, split: InstalmentSplit, principal: RecordId, notes: PartNotes, newKey: () => string = newRecordId): ItemizedRow {
   const firstId = entry.items[0]?.id ?? wholeRowItemId(entry.row)
+  const labels = labelsOf(entry.items)
   const parts: readonly (readonly [AccountMoney, RecordId, string])[] = [
     [split.interest, split.category, notes.interest],
     [split.principal, principal, ''],
@@ -115,6 +117,7 @@ export function splitByInstalment(entry: ItemizedRow, link: RowLink, split: Inst
       amount,
       category,
       link,
+      labels,
     }))
   return { row: { ...entry.row, categorisedBy: 'person' }, items }
 }

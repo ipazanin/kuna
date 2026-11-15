@@ -82,6 +82,7 @@ import { en as spendingAccountsEnglish, hr as spendingAccountsCroatian } from '.
 import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '../../src/apps/spending/bankSync/presentation/words.ts'
 import { en as spendingBankSyncReadingEnglish, hr as spendingBankSyncReadingCroatian } from '../../src/apps/spending/bankSync/domain/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
+import { en as spendingLabelsEnglish, hr as spendingLabelsCroatian } from '../../src/apps/spending/labels/presentation/words.ts'
 import { en as spendingCategoriesEnglish, hr as spendingCategoriesCroatian } from '../../src/apps/spending/categories/presentation/words.ts'
 import { en as spendingHomeEnglish, hr as spendingHomeCroatian } from '../../src/apps/spending/home/presentation/words.ts'
 import { en as spendingOverviewEnglish, hr as spendingOverviewCroatian } from '../../src/apps/spending/overview/presentation/words.ts'
@@ -227,6 +228,7 @@ const SCREEN_WORDS = {
     spendingBankSync: spendingBankSyncEnglish,
     spendingBankSyncReading: spendingBankSyncReadingEnglish,
     spendingBudgets: spendingBudgetsEnglish,
+    spendingLabels: spendingLabelsEnglish,
     spendingCategories: spendingCategoriesEnglish,
     spendingHome: spendingHomeEnglish,
     spendingOverview: spendingOverviewEnglish,
@@ -314,6 +316,7 @@ const SCREEN_WORDS = {
     spendingBankSync: spendingBankSyncCroatian,
     spendingBankSyncReading: spendingBankSyncReadingCroatian,
     spendingBudgets: spendingBudgetsCroatian,
+    spendingLabels: spendingLabelsCroatian,
     spendingCategories: spendingCategoriesCroatian,
     spendingHome: spendingHomeCroatian,
     spendingOverview: spendingOverviewCroatian,
@@ -11661,3 +11664,133 @@ export function spendingFirstAccountFlowIn(language) {
 }
 
 export const spendingFirstAccountFlow = spendingFirstAccountFlowIn('en')
+
+/**
+ * On the sample Spending file's Labels: a label added, renamed and deleted with Undo, then the trip's row opening its entries of
+ * every month on Entries, filtered by the label.
+ */
+export function spendingLabelsFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const labels = words.spendingLabels
+  const added = language === 'en' ? 'Summer house' : 'Vikendica'
+  const renamed = language === 'en' ? 'Summer cottage' : 'Kuća za odmor'
+  const trip = language === 'en' ? 'Boston trip' : 'Put u Boston'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const says = async (wanted, problem) => {
+      await page
+        .waitForFunction((text) => document.body.textContent?.includes(text), { timeout: 5_000 }, wanted)
+        .catch(() => {
+          throw new Error(problem)
+        })
+    }
+    await page.waitForSelector('[data-testid="spending-labels"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-label-add"]')
+    await page.waitForSelector('[data-testid="spending-label-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-label-save"]')
+    await says(labels.dialog.blank, 'the label dialog takes a blank name')
+    await fill(page, 'spending-label-name', trip.toUpperCase())
+    await pressSelector(page, press, '[data-testid="spending-label-save"]')
+    await says(labels.dialog.taken, 'the label dialog takes the name of another label')
+    await fill(page, 'spending-label-name', added)
+    await delay(300)
+    await inspect?.('the label dialog')
+    await shoot('spending-label-dialog')
+    await pressSelector(page, press, '[data-testid="spending-label-save"]')
+    await toast(page, labels.added)
+    await dismissToasts(page)
+    await pressSelector(page, press, `[data-testid="spending-label-change"][aria-label="${labels.change(added)}"]`)
+    await page.waitForSelector('[data-testid="spending-label-dialog"]', { visible: true, timeout: 10_000 })
+    await fill(page, 'spending-label-name', renamed)
+    await pressSelector(page, press, '[data-testid="spending-label-save"]')
+    await toast(page, labels.saved)
+    await dismissToasts(page)
+    await pressSelector(page, press, `[data-testid="spending-label-change"][aria-label="${labels.change(renamed)}"]`)
+    await page.waitForSelector('[data-testid="spending-label-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-label-delete"]')
+    await toast(page, labels.deleted)
+    await undoIn(page, press, words)
+    await says(renamed, 'Undo did not bring the deleted label back')
+    await dismissToasts(page)
+    await inspect?.('Labels after Undo')
+    await shoot('spending-labels-after-undo')
+
+    const links = await page.$$('[data-testid="spending-label-open"]')
+    const named = await Promise.all(links.map((link) => link.evaluate((element) => element.textContent ?? '')))
+    const tripRow = links[named.findIndex((text) => text.includes(trip))]
+    if (tripRow === undefined) throw new Error(`Labels lists no ${trip}`)
+    await press(tripRow)
+    await page
+      .waitForFunction(() => window.location.hash.includes('label=') && window.location.hash.includes('month=all'), { timeout: 10_000 })
+      .catch(() => {
+        throw new Error("the label's row did not open its entries of every month")
+      })
+    await page.waitForSelector('[data-testid="spending-row-labels"]', { visible: true, timeout: 10_000 })
+    const shown = await page.$$eval('[data-testid="spending-row-labels"]', (lines) => lines.map((line) => line.textContent ?? ''))
+    if (shown.some((line) => !line.includes(trip))) throw new Error(`Entries filtered by ${trip} shows rows without it: ${shown.join(' | ')}`)
+    await inspect?.('Entries filtered by a label')
+    await shoot('spending-entries-by-label')
+  }
+}
+
+/** On the sample Spending file's Entries: three rows selected and labelled Garden in one write, which one Undo takes back. */
+export function spendingSelectLabelFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const garden = language === 'en' ? 'Garden' : 'Vrt'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const carrying = () => page.$$eval('[data-testid="spending-row-labels"]', (lines, wanted) => lines.filter((line) => line.textContent?.includes(wanted)).length, garden)
+    await pressSelector(page, press, '[data-testid="spending-select"]')
+    await page.waitForSelector('[data-testid="selection-bar"]', { visible: true, timeout: 10_000 })
+    await inspect?.('Entries with nothing picked')
+    await shoot('spending-select-none')
+    const rows = await page.$$('[data-testid="spending-row"]')
+    for (const row of rows.slice(0, 3)) await press(row)
+    await page
+      .waitForFunction(() => document.querySelectorAll('[data-testid="spending-row"][aria-checked="true"]').length === 3, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('three taps did not pick three rows')
+      })
+    await inspect?.('Entries with three rows picked')
+    await shoot('spending-select-three')
+    // Room under the short sample month, so the page scrolls far enough for the tab row and the bar to stick.
+    await page.evaluate(() => {
+      document.body.style.paddingBottom = '150vh'
+      window.scrollTo(0, document.querySelector('[data-testid="spending-transactions"]').getBoundingClientRect().top + window.scrollY)
+    })
+    await delay(300)
+    const stuck = await page.evaluate(() => {
+      const bar = document.querySelector('[data-testid="selection-bar"]')?.getBoundingClientRect()
+      const tabs = document.querySelector('.page-tabs-list')?.getBoundingClientRect()
+      return bar === undefined || tabs === undefined ? null : { overlap: tabs.bottom - bar.top, barTop: bar.top }
+    })
+    if (stuck === null) throw new Error('Entries shows no selection bar or tab row once scrolled')
+    if (stuck.overlap > 1) throw new Error(`the stuck selection bar sits ${Math.round(stuck.overlap)} px under the tab row`)
+    await inspect?.('Entries scrolled with three rows picked')
+    await shoot('spending-select-scrolled')
+    await page.evaluate(() => {
+      document.body.style.paddingBottom = ''
+      window.scrollTo(0, 0)
+    })
+    await delay(300)
+    await pressSelector(page, press, '[data-testid="spending-selection-label"]')
+    await page.waitForSelector('[data-testid="spending-label-picker"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('the label picker')
+    await shoot('spending-label-picker')
+    const choices = await page.$$('[data-testid="spending-label-choice"]')
+    const named = await Promise.all(choices.map((choice) => choice.evaluate((element) => element.textContent ?? '')))
+    const choice = choices[named.findIndex((text) => text.includes(garden))]
+    if (choice === undefined) throw new Error(`the label picker offers no ${garden}`)
+    await press(await choice.$('[data-testid="spending-label-apply"]'))
+    await toastMatching(page, new RegExp(garden))
+    if ((await page.$('[data-testid="selection-bar"]')) !== null) throw new Error('the selection stays after labelling')
+    const labelled = await carrying()
+    if (labelled !== 3) throw new Error(`${labelled} rows carry ${garden} after labelling three`)
+    await inspect?.('Entries after labelling')
+    await shoot('spending-select-labelled')
+    await undoIn(page, press, words)
+    if ((await carrying()) !== 0) throw new Error(`Undo left ${garden} on rows`)
+    await dismissToasts(page)
+  }
+}

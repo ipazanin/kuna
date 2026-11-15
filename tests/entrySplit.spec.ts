@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
+import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
+import type { Label } from '../src/apps/spending/workbook/domain/label'
 import { plainLineOf } from '../src/apps/spending/workbook/domain/beforeItems'
 import { differenceItem, entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
@@ -255,22 +257,17 @@ describe.each<Shape>(['items', 'before-items'])('which part keeps its id in a fi
     const store = await storeWith([spend], [], shape)
     const records = () => store.state.records!
     const book = () => store.state.workbook!
-    const write = (drafts: readonly ItemDraft[]) => {
-      let replaced: ReturnType<typeof writeEntrySplit> = []
-      return store.write('Split', (unit) => (replaced = writeEntrySplit(unit, records(), splitOf(book().transactions[0]!, drafts, book())))).then(() => replaced)
-    }
+    const write = (drafts: readonly ItemDraft[]) => store.write('Split', (unit) => writeEntrySplit(unit, records(), splitOf(book().transactions[0]!, drafts, book())))
     return { store, records, book, write }
   }
 
-  it('gives the first part of an entry not yet split the id of the part the entry stood for, and the others replace it', async () => {
+  it('gives the first part of an entry not yet split the id of the part the entry stood for', async () => {
     const { book, write } = await splitOnFile()
 
-    const replaced = await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
+    await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
 
-    const [first, second] = book().items
-    expect(first!.id).toBe(whole)
+    expect(book().items[0]!.id).toBe(whole)
     expect(whole).toBe(recordIdOf(ITEM_RECORDS, spend.id.slice(`${TRANSACTION_RECORDS.name}:`.length)))
-    expect(replaced).toEqual([{ part: second!.id, replaces: [whole] }])
   })
 
   it('keeps the id of a part opened from the entry, even when its amount, category and words change, and the order of the parts with it', async () => {
@@ -278,38 +275,78 @@ describe.each<Shape>(['items', 'before-items'])('which part keeps its id in a fi
     await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
     const [big, small] = book().items
 
-    const replaced = await write([part('rest', COMPANY, 'Paper', small!.id), part(-30, RESTAURANTS, '', big!.id)])
+    await write([part('rest', COMPANY, 'Paper', small!.id), part(-30, RESTAURANTS, '', big!.id)])
 
     expect(book().items.map((held) => [held.id, held.amount, held.category, held.note])).toEqual([
       [big!.id, accountMoneyFromAmount(-30), RESTAURANTS.id, ''],
       [small!.id, accountMoneyFromAmount(-70), COMPANY.id, 'Paper'],
     ])
-    expect(replaced).toEqual([{ part: small!.id, replaces: [big!.id] }])
     expect(book().problems).toEqual([])
   })
 
-  it('lets a new part replace the parts the write removed or made smaller, and a kept part that did not grow replaces nothing', async () => {
-    const { book, write } = await splitOnFile()
-    await write([part(-50, RESTAURANTS), part(-30, COMPANY), part('rest', GROCERIES)])
-    const [restaurant, company, groceries] = book().items
-
-    const replaced = await write([part(-40, RESTAURANTS, '', restaurant!.id), part(-20, GROCERIES, '', groceries!.id), part('rest', SALARY)])
-
-    const added = book().items.find((held) => held.category === SALARY.id)!
-    expect(book().items.map((held) => held.id)).toEqual([restaurant!.id, groceries!.id, added.id])
-    expect(replaced).toEqual([{ part: added.id, replaces: [restaurant!.id, company!.id] }])
-  })
-
-  it('leaves the entry as the one part it stands for when the split comes off, which replaces every part it had', async () => {
+  it('leaves the entry as the one part it stands for when the split comes off', async () => {
     const { store, records, book, write } = await splitOnFile()
     await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
-    const [first, second] = book().items
 
-    let replaced: ReturnType<typeof removeSplitOf> = []
-    await store.write('Removed', (unit) => (replaced = removeSplitOf(unit, records(), book().transactions[0]!)))
+    await store.write('Removed', (unit) => removeSplitOf(unit, records(), book().transactions[0]!))
 
     expect(book().items.map((held) => held.id)).toEqual([whole])
-    expect(first!.id).toBe(whole)
-    expect(replaced).toEqual([{ part: whole, replaces: [second!.id] }])
+  })
+})
+
+describe('the labels of a split', () => {
+  const spend = row(OTP, '2026-11-04', -100, 'Food/Groceries')
+
+  async function labelledOnFile() {
+    const store = await storeWith([spend], [], 'items')
+    const records = () => store.state.records!
+    const book = () => store.state.workbook!
+    let trip: Label | null = null
+    let flat: Label | null = null
+    await store.write('Labelled', (unit) => {
+      trip = addLabel(unit, 'Prague')
+      flat = addLabel(unit, 'New flat')
+      labelRows(unit, records(), [spend], trip.id, true)
+    })
+    const write = (drafts: readonly ItemDraft[]) => store.write('Split', (unit) => writeEntrySplit(unit, records(), splitOf(book().transactions[0]!, drafts, book())))
+    return { store, records, book, write, trip: trip!, flat: flat! }
+  }
+  const labelsOf = (items: readonly TransactionItem[]) => items.map((held) => held.labels)
+
+  it('gives every part split off the labels of the part it took money from', async () => {
+    const { book, write, trip } = await labelledOnFile()
+
+    await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
+
+    expect(labelsOf(book().items)).toEqual([[trip.id], [trip.id]])
+    expect(book().problems).toEqual([])
+  })
+
+  it('lets a part that kept its id and did not grow keep its own labels, and a part that grew take the labels of the parts it replaces', async () => {
+    const { store, records, book, write, trip, flat } = await labelledOnFile()
+    await write([part(-50, RESTAURANTS), part(-30, COMPANY), part('rest', GROCERIES)])
+    const [restaurant, company, groceries] = book().items
+    await store.write('Relabelled', (unit) =>
+      writeRows(unit, records(), [{ before: book().transactions[0]!, after: book().transactions[0]!, items: [restaurant!, { ...company!, labels: [flat.id] }, { ...groceries!, labels: [] }] }]),
+    )
+
+    await write([part(-40, RESTAURANTS, '', restaurant!.id), part(-20, GROCERIES, '', groceries!.id), part('rest', SALARY)])
+
+    expect(book().items.map((held) => [held.id, held.labels])).toEqual([
+      [restaurant!.id, [trip.id]],
+      [groceries!.id, []],
+      [expect.any(String), [trip.id, flat.id]],
+    ])
+  })
+
+  it('gives the one part left when the split comes off every label of its parts', async () => {
+    const { store, records, book, write, trip, flat } = await labelledOnFile()
+    await write([part(-60, RESTAURANTS), part('rest', GROCERIES)])
+    const [first, second] = book().items
+    await store.write('Relabelled', (unit) => writeRows(unit, records(), [{ before: book().transactions[0]!, after: book().transactions[0]!, items: [first!, { ...second!, labels: [flat.id] }] }]))
+
+    await store.write('Removed', (unit) => removeSplitOf(unit, records(), book().transactions[0]!))
+
+    expect(labelsOf(book().items)).toEqual([[trip.id, flat.id]])
   })
 })

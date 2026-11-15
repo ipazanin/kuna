@@ -177,7 +177,8 @@ function shownRow(app: string, kind: ReadableKind, row: ReadableRow, reads: Chat
   for (const field of row.fields) {
     if (field.name === 'id' || (only !== null && !only.has(field.name))) continue
     if (field.exposure === 'ref') {
-      if (field.id !== null && field.id !== '') shown[field.name] = reads.refs.recordRef({ app, kind: field.to, id: field.id })
+      const refs = field.ids.map((id) => reads.refs.recordRef({ app, kind: field.to, id }))
+      if (refs.length > 0) shown[field.name] = field.list ? refs : refs[0]
     } else if ('cents' in field) {
       const amount = amountOf(field)
       shown[field.name] =
@@ -217,7 +218,7 @@ function dateOf(row: ReadableRow, kind: ReadableKind): string {
 
 /** Whether the record is one of the records, or points at one, each named by its kind and id. */
 function isOrPointsAt(row: ReadableRow, kind: ReadableKind, records: ReadonlySet<string>): boolean {
-  return records.has(`${kind.name}/${row.id}`) || row.fields.some((field) => field.exposure === 'ref' && field.id !== null && records.has(`${field.to}/${field.id}`))
+  return records.has(`${kind.name}/${row.id}`) || row.fields.some((field) => field.exposure === 'ref' && field.ids.some((id) => records.has(`${field.to}/${id}`)))
 }
 
 /** The fields a filter, a sort or a list of fields may name: every field the kind reads, by its class. */
@@ -242,7 +243,7 @@ function comparedField(fieldClass: FieldClass, field: ReadableField | undefined,
       if ('decimal' in field) return { class: 'amount', amount: field.decimal }
       return { class: 'amount', amount: field.of === 'account' ? decimalOfAccountMoney(accountMoneyFromCents(field.cents)) : decimalOfMoney(moneyFromCents(field.cents)) }
     case 'ref':
-      return { class: 'ref', id: field?.exposure === 'ref' && field.id !== null && field.id !== '' ? `${field.to}/${field.id}` : null }
+      return { class: 'ref', ids: field?.exposure === 'ref' ? field.ids.map((id) => `${field.to}/${id}`) : [] }
     case 'identifier':
       return { class: 'identifier', identifiers: field !== undefined && hasValue(field) ? textsOf(field.value).map(normaliseIban) : [] }
     default:

@@ -130,7 +130,7 @@ function cellsOf(entry: Transaction): RowCells {
 
 /** The one item of each row, with all of its money under the row's category, note and link, as the book reads a row not split. */
 export function wholeItems(rows: readonly Transaction[]): readonly TransactionItem[] {
-  return rows.map((entry) => wholeItemOf(entry, cellsOf(entry)))
+  return rows.map((entry) => wholeItemOf(entry, { ...cellsOf(entry), labels: [] }))
 }
 
 /** The items of rows a file from before items holds: the lines given for a split row, and one item for every other row. */
@@ -155,7 +155,7 @@ export function addEntries(unit: UnitOfWork, records: Pick<SpendingRecords, 'tra
 
 /** A row on the file written over with what the stored row says it is filed as, in the shape the file holds. */
 export function refileEntry(unit: UnitOfWork, records: Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>, before: Transaction, after: StoredRow): void {
-  writeRows(unit, records, [{ before, after, items: [wholeItemOf(after, after)] }])
+  writeRows(unit, records, [{ before, after, items: [wholeItemOf(after, { ...after, labels: [] })] }])
 }
 
 function readOf<R extends { readonly id: RecordId }>(records: readonly R[]): RecordsRead<R> {
@@ -173,7 +173,7 @@ function storedWithItems(rows: readonly Transaction[], items: readonly Transacti
 }
 
 /** The parts of a Spending book a test may give, with its setting rows in place of the settings they make. */
-type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'budgets' | 'rules' | 'receipts' | 'items' | 'held' | 'stored'> & { readonly settingRows: readonly SettingRow[] }
+type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'receipts' | 'items' | 'held' | 'stored'> & { readonly settingRows: readonly SettingRow[] }
 
 /**
  * A Spending book over these rows in which every record counts. Unless given, it has the worked example's accounts and
@@ -185,6 +185,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
   const book = {
     accounts: ACCOUNTS,
     categories: CATEGORIES,
+    labels: [],
     budgets: [],
     rules: [],
     receipts: [],
@@ -202,6 +203,7 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
     readings: {
       accounts: counting(book.accounts),
       categories: counting(book.categories),
+      labels: counting(book.labels),
       transactions: counting(storedOf(book.stored.transactions)),
       budgets: counting(book.budgets),
       rules: counting(book.rules),
@@ -243,7 +245,7 @@ export function filedChanges(
 
 /** The change that refiles a row not split as the stored row after says, with its one item. */
 export function refiled(before: StoredRow, after: StoredRow): { readonly before: StoredRow; readonly after: StoredRow; readonly items: readonly TransactionItem[] } {
-  return { before, after, items: [wholeItemOf(after, after)] }
+  return { before, after, items: [wholeItemOf(after, { ...after, labels: [] })] }
 }
 
 /** The dry run of a statement, its rows as `filedRun` gives them. */

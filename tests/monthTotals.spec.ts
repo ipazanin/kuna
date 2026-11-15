@@ -28,6 +28,7 @@ function linesOf(transaction: Transaction, parts: readonly (readonly [number, st
     amount: accountMoneyFromAmount(amount),
     category: category(path).id,
     link: null,
+    labels: [],
   }))
 }
 

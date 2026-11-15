@@ -3,7 +3,9 @@ import type { CivilDate } from '../../calendar/civilDate'
 import type { DateRange } from '../../calendar/dateRange'
 import { moneyFromAmount } from '../../money/money'
 import type { Money } from '../../money/money'
+import { keyOfRecordId, recordIdOf } from './recordId'
 import type { RecordId } from './recordId'
+import type { RecordKind } from './recordKind'
 import type { FieldValue, RecordFields } from './recordFields'
 import { words } from './words'
 
@@ -90,6 +92,12 @@ export function textOf(field: StoredField | undefined): string {
   return field?.text ?? ''
 }
 
+/** A field's text, refused when the field is blank. */
+export function requiredText(fields: StoredFields, name: string): string {
+  const text = textOf(fields[name])
+  return text === '' ? refuse(words.reasons.none(name, '')) : text
+}
+
 export function slugOf(field: StoredField | undefined): string {
   return textOf(field).toLowerCase()
 }
@@ -100,6 +108,20 @@ export function slugListOf(field: StoredField | undefined): string[] {
     .split(',')
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry !== '')
+}
+
+/** The records of a kind a field names by their keys, separated by `|`, such as `k1 | k2`. */
+export function idsOf(field: StoredField | undefined, kind: RecordKind): RecordId[] {
+  return textOf(field)
+    .split('|')
+    .map((key) => key.trim())
+    .filter((key) => key !== '')
+    .map((key) => recordIdOf(kind, key))
+}
+
+/** The keys of records of a kind as a field stores them, which `idsOf` reads back. */
+export function idsText(ids: readonly RecordId[], kind: RecordKind): string {
+  return ids.map((id) => keyOfRecordId(kind, id)).join(' | ')
 }
 
 /** A whole number, from a number or from text such as `7`. */

@@ -120,14 +120,23 @@ describe('each op on a field', () => {
     const empty = testOf('plain', 'empty', [])
     expect([plain(null), plain(''), plain([])].map(empty)).toEqual([true, true, true])
     expect([plain(false), plain(0)].map(empty)).toEqual([false, false])
-    expect(testOf('ref', 'not-empty', [])({ class: 'ref', id: null })).toBe(false)
+    expect(testOf('ref', 'not-empty', [])({ class: 'ref', ids: [] })).toBe(false)
     expect(testOf('amount', 'empty', [])(amount(null))).toBe(true)
   })
 
   it('is on a ref or an identifier: the resolved values Kuna handed out, whole', () => {
-    expect(testOf('ref', 'is', ['category/c1'])({ class: 'ref', id: 'category/c1' })).toBe(true)
+    expect(testOf('ref', 'is', ['category/c1'])({ class: 'ref', ids: ['category/c1'] })).toBe(true)
     expect(testOf('identifier', 'one-of', ['HR1210010051863000160'])({ class: 'identifier', identifiers: ['HR1210010051863000160'] })).toBe(true)
     expect(testOf('identifier', 'is', ['HR12'])({ class: 'identifier', identifiers: ['HR1210010051863000160'] })).toBe(false)
+  })
+
+  it('a list of refs matches when any of its refs does, and not when none does', () => {
+    const labels = { class: 'ref', ids: ['label/prague', 'label/renovation'] } as const
+    expect(testOf('ref', 'is', ['label/renovation'])(labels)).toBe(true)
+    expect(testOf('ref', 'one-of', ['label/garden', 'label/prague'])(labels)).toBe(true)
+    expect(testOf('ref', 'not', ['label/prague'])(labels)).toBe(false)
+    expect(testOf('ref', 'not', ['label/garden'])(labels)).toBe(true)
+    expect(testOf('ref', 'not-empty', [])(labels)).toBe(true)
   })
 })
 

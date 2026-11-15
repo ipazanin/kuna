@@ -219,7 +219,9 @@ describe('the catalogue', () => {
     expect(page).toContain('- amount (amount, either sign):')
     expect(page.split('## Never read')[1]).toContain('- importKey')
     expect(page).toContain('- identifier: is, one-of, with a token a read gave you')
-    expect(page).toContain('- ref: is, one-of, not, empty, not-empty, with refs Kuna handed out. Never sorts.')
+    expect(page).toContain('- ref: is, one-of, not, empty, not-empty, with refs Kuna handed out, and a list of refs matches when any of its refs does. Never sorts.')
+    expect(catalogue.pages.get('company/kind/hr-doo.owner-advance')).toContain('- repaidBy (list of refs to item):')
+    expect(catalogue.pages.get('company/kind/hr-doo.trip')).toContain('- advanceItems (list of refs to item):')
     expect(catalogue.pages.get('loans/kind/movement')).toContain('- amount (amount, zero or more):')
     // An operation's example is written in the code, and may share a made-up payee with the books of this test.
     const whole = [catalogue.system, ...[...catalogue.pages].flatMap(([path, page]) => (path.includes('/op/') ? [] : [page]))].join('\n')

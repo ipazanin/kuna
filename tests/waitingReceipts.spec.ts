@@ -3,12 +3,13 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
-import { rowItemsOf, waitsOnReview, wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
+import { rowItemsOf, waitsOnReview } from '../src/apps/spending/workbook/domain/rowItems'
 import { placeWaitingReceipt, removeWaitingReceipt, writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { receiptOnRow, receiptsArriving, waitingReceipts } from '../src/apps/spending/receipts/domain/waitingReceipts'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
+import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
 import { reviewCount } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import type { StatementRow } from '../src/apps/spending/statements/domain/statementRows'
@@ -24,6 +25,7 @@ import { NO_RATES } from '../src/shared/money/rateBook'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 import { civil, month } from './fixtures/ledger'
 import { ACCOUNTS, CATEGORIES, OTP, category, row, addEntries, filedRows, itemized } from './fixtures/spending'
@@ -189,23 +191,26 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
     expect(book.items.at(-1)).toMatchObject({ amount: accountMoneyFromAmount(-1.51), note: 'Difference', category: GROCERIES.id })
   })
 
-  it('keeps the ids of its lines on the row the person picks, and lets them and the Difference line replace the one part the row stood for', async () => {
+  it('keeps the ids of its lines on the row the person picks, and gives them and the Difference line the labels of the part the row stood for', async () => {
     const store = await spendingStore()
     await waiting(store)
     await store.write('Synced', (unit) => writeDryRun(unit, store.state.records!, statementDryRun(store.state.workbook!, synced(bankRow('bank-1', '2026-11-03', -25, 'CORNER MARKET')), DAY)))
     const [asking] = waitingReceipts(store.state.workbook!)
     const [tipped] = asking!.matches.kind === 'pick' ? asking!.matches.candidates : []
+    let trip: RecordId | null = null
+    await store.write('Labelled', (unit) => {
+      trip = addLabel(unit, 'Prague').id
+      labelRows(unit, store.state.records!, [tipped!.row], trip, true)
+    })
 
-    let replaced: ReturnType<typeof placeWaitingReceipt> = []
-    await store.write(
-      'Placed',
-      (unit) => (replaced = placeWaitingReceipt(unit, store.state.records!, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(tipped!.row, store.state.workbook!.items), 'Difference'))),
+    await store.write('Placed', (unit) =>
+      placeWaitingReceipt(unit, store.state.records!, receiptOnRow(asking!.receipt, asking!.lines, rowPlace(tipped!.row, store.state.workbook!.items), 'Difference')),
     )
 
-    const lines = store.state.workbook!.items.map((line) => line.id)
-    expect(lines.slice(0, asking!.lines.length)).toEqual(asking!.lines.map((line) => line.id))
+    const lines = store.state.workbook!.items.filter((line) => line.transaction === tipped!.row.id)
+    expect(lines.slice(0, asking!.lines.length).map((line) => line.id)).toEqual(asking!.lines.map((line) => line.id))
     expect(lines).toHaveLength(asking!.lines.length + 1)
-    expect(replaced).toEqual(lines.map((line) => ({ part: line, replaces: [wholeRowItemId(tipped!.row)] })))
+    expect(lines.map((line) => line.labels)).toEqual(lines.map(() => [trip]))
   })
 
   it('keeps waiting while no row it may be arrives', async () => {

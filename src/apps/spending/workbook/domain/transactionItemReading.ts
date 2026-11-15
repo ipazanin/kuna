@@ -4,14 +4,14 @@ import { requiredAccountMoney } from './fieldReading'
 import { optionalReference, requiredReference } from './recordReference'
 import { rowLinkOf, rowLinkText } from './rowLink'
 import type { RowLink } from './rowLink'
-import { CATEGORY_RECORDS, ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
+import { CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from './spendingKinds'
 import { words } from './words'
 import { withIdField } from '../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { amountText, filledFields } from '../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { ownId, refuse, textOf } from '../../../../shared/storage/domain/storedFields'
+import { idsOf, idsText, ownId, refuse, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import type { RecordFields } from '../../../../shared/storage/domain/recordFields'
 
@@ -42,7 +42,7 @@ export function linkOf(fields: StoredFields): RowLink | null {
 
 export function transactionItemOf(fields: StoredFields, id: RecordId | null): TransactionItem {
   const { transaction, receipt, printed, amount, category } = partOf(fields, id, () => optionalReference(fields, 'category', CATEGORY_RECORDS))
-  return { id: ownId(id), transaction, receipt, printed, note: textOf(fields.note), amount, category, link: linkOf(fields) }
+  return { id: ownId(id), transaction, receipt, printed, note: textOf(fields.note), amount, category, link: linkOf(fields), labels: idsOf(fields.labels, LABEL_RECORDS) }
 }
 
 export const ITEM_CODEC: RecordCodec<TransactionItem> = withIdField(ITEM_RECORDS, words.partLabel, transactionItemOf, (item): RecordFields =>
@@ -52,6 +52,7 @@ export const ITEM_CODEC: RecordCodec<TransactionItem> = withIdField(ITEM_RECORDS
     amount: amountText(item.amount),
     category: item.category === null ? null : keyOfRecordId(CATEGORY_RECORDS, item.category),
     link: item.link === null ? null : rowLinkText(item.link),
+    labels: idsText(item.labels, LABEL_RECORDS),
   }),
 )
 

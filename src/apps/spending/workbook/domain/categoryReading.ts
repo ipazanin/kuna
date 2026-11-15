@@ -9,13 +9,11 @@ import type { RecordCodec } from '../../../../shared/storage/domain/recordCodec'
 import { filledFields } from '../../../../shared/storage/domain/recordFields'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { ownId, refuse, requiredChoice, textOf } from '../../../../shared/storage/domain/storedFields'
+import { ownId, refuse, requiredChoice, requiredText, textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
-import { words as storedWords } from '../../../../shared/storage/domain/words'
 
 export function categoryOf(fields: StoredFields, id: RecordId | null): Category {
-  const name = textOf(fields.name)
-  if (name === '') refuse(storedWords.reasons.none('name', ''))
+  const name = requiredText(fields, 'name')
   const kind = requiredChoice(fields, 'kind', CATEGORY_KINDS, 'kind of category')
   const parent = optionalReference(fields, 'parent', CATEGORY_RECORDS)
   if (parent !== null && isFixedKind(kind)) refuse(words.fixedWithParent)

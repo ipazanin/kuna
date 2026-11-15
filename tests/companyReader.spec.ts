@@ -72,7 +72,7 @@ describe("what the chat reads of the company's books", () => {
 
   it('reads every part of every row by its id, with the row it is part of, so an operation can name the part it keeps', () => {
     const parts = kind(coreKinds.ITEM_RECORDS.name).rows()
-    const rowOf = (fields: (typeof parts)[number]['fields']) => fields.flatMap((field) => (field.name === 'row' && field.exposure === 'ref' ? [field.id] : []))[0]
+    const rowOf = (fields: (typeof parts)[number]['fields']) => fields.flatMap((field) => (field.name === 'row' && field.exposure === 'ref' ? field.ids : []))[0]
     const read = parts.map((row) => [row.id, rowOf(row.fields)])
     const split = BOOKS.workbook.splits.flatMap((held) => held.parts.map((part) => [part.id, held.row.id]))
     expect(split.length).toBeGreaterThan(0)
@@ -176,7 +176,7 @@ describe("what the chat reads of the company's books", () => {
       .rows()
       .flatMap((row) => row.fields.filter((field) => field.name === 'category'))
     expect(filed.every((field) => field.exposure === 'ref' && field.to === coreKinds.CATEGORY_RECORDS.name)).toBe(true)
-    expect(new Set(filed.map((field) => ('id' in field ? field.id : null)))).toEqual(new Set(BOOKS.workbook.transactions.map((row) => row.category)))
+    expect(new Set(filed.flatMap((field) => ('ids' in field ? field.ids : [])))).toEqual(new Set(BOOKS.workbook.transactions.map((row) => row.category)))
     expect(
       kind(coreKinds.ACCOUNT_RECORDS.name)
         .rows()

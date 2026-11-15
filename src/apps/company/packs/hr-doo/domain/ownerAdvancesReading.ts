@@ -3,13 +3,13 @@ import { withIdField } from '../../../../../shared/storage/domain/recordCodec'
 import type { RecordCodec } from '../../../../../shared/storage/domain/recordCodec'
 import { plainAmount } from '../../../../../shared/money/money'
 import { amountText, filledFields } from '../../../../../shared/storage/domain/recordFields'
-import { keyOfRecordId, recordIdOf } from '../../../../../shared/storage/domain/recordId'
+import { keyOfRecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import { ITEM_RECORDS } from '../../../workbook/domain/coreKinds'
 import { SHARED_ID_REASON, idSharing, problemOf, recordWithId, refusedProblems } from '../../../../../shared/storage/domain/recordsRead'
 import type { Reading, RecordProblem, RecordsRead } from '../../../../../shared/storage/domain/recordsRead'
-import { ownId, refuse, slugOf, textOf } from '../../../../../shared/storage/domain/storedFields'
-import type { StoredField, StoredFields } from '../../../../../shared/storage/domain/storedFields'
+import { idsOf, idsText, ownId, refuse, slugOf, textOf } from '../../../../../shared/storage/domain/storedFields'
+import type { StoredFields } from '../../../../../shared/storage/domain/storedFields'
 import { ADVANCE_BUCKETS } from '../../../workbook/domain/workbook'
 import type { OwnerAdvance, Workbook } from '../../../workbook/domain/workbook'
 import { advanceItemProblems } from './advanceRepayments'
@@ -51,17 +51,8 @@ export function ownerAdvanceOf(fields: StoredFields, id: RecordId | null): Owner
   if (category === '') {
     refuse(words.reading.noCategory)
   }
-  const repaidBy = itemsOf(fields.items)
+  const repaidBy = idsOf(fields.items, ITEM_RECORDS)
   return { date, amount, description: textOf(fields.description), category, ownerShare: storedOwnerShare(fields.owner_share), id: ownId(id), ...(repaidBy.length === 0 ? {} : { repaidBy }) }
-}
-
-/** The items a cell names by their keys, separated by `|`. */
-function itemsOf(field: StoredField | undefined): RecordId[] {
-  return textOf(field)
-    .split('|')
-    .map((key) => key.trim())
-    .filter((key) => key !== '')
-    .map((key) => recordIdOf(ITEM_RECORDS, key))
 }
 
 export const OWNER_ADVANCE_CODEC: RecordCodec<OwnerAdvanceEntry> = withIdField(OWNER_ADVANCE_RECORDS, words.labels.ownerAdvance, ownerAdvanceOf, (advance) =>
@@ -71,7 +62,7 @@ export const OWNER_ADVANCE_CODEC: RecordCodec<OwnerAdvanceEntry> = withIdField(O
     description: advance.description,
     category: advance.category,
     owner_share: ownerShareText(advance.ownerShare),
-    items: (advance.repaidBy ?? []).map((item) => keyOfRecordId(ITEM_RECORDS, item)).join(' | '),
+    items: idsText(advance.repaidBy ?? [], ITEM_RECORDS),
   }),
 )
 

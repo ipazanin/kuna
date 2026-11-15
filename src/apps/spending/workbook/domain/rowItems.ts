@@ -28,11 +28,12 @@ export interface WholeFiling {
   readonly category: RecordId | null
   readonly note: string
   readonly link: RowLink | null
+  readonly labels: readonly RecordId[]
 }
 
 /** The one item of a row not split, with all of its money. */
-export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link }: WholeFiling): TransactionItem {
-  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link }
+export function wholeItemOf(row: Pick<Transaction, 'id' | 'amount'>, { category, note, link, labels }: WholeFiling): TransactionItem {
+  return { id: wholeRowItemId(row), transaction: row.id, receipt: null, printed: '', note, amount: row.amount, category, link, labels }
 }
 
 /** The items of any row, the ones the items given name it in, in their order. */

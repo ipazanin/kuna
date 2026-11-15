@@ -19,6 +19,7 @@ import { bankLinkOffered } from '../workbook/domain/account'
 import type { Account } from '../workbook/domain/account'
 import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
+import type { Label } from '../workbook/domain/label'
 import type { SpendingBook } from '../workbook/domain/readSpendingBook'
 import type { Receipt } from '../workbook/domain/receipt'
 import type { TransactionItem } from '../workbook/domain/transactionItem'
@@ -29,6 +30,7 @@ import {
   CATEGORY_RECORDS,
   HELD_ROW_RECORDS,
   ITEM_RECORDS,
+  LABEL_RECORDS,
   RECEIPT_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
@@ -126,6 +128,11 @@ const ACCOUNT_FIELDS: FieldDocs<Account> = {
   closed: { exposure: 'plain', meaning: 'Closed by the owner.' },
 }
 
+const LABEL_FIELDS: FieldDocs<Label> = {
+  id: { exposure: 'ref', to: LABEL_RECORDS.name, meaning: 'The label.' },
+  name: { exposure: 'plain', meaning: 'The name the owner gave it, such as a trip or a renovation.' },
+}
+
 const CATEGORY_FIELDS: FieldDocs<Category> = {
   id: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category.' },
   name: { exposure: 'plain', meaning: 'The name the owner gave it.' },
@@ -219,6 +226,7 @@ const itemFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<TransactionI
     meaning: 'The record in another app this money is, such as the loan instalment it pays, or empty. It changes no figure: the part counts by its category.',
     read: (item) => linkRead(item, loans()),
   },
+  labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries, beside its category, such as a trip. A label changes no figure of its category.' },
 })
 
 function monthOfPeriod(period: string | null): MonthKey {
@@ -412,6 +420,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
         page: SPENDING_ACCOUNT_ROUTE,
       }),
       readableKind({ kind: CATEGORY_RECORDS, about: words.reads.category, fields: CATEGORY_FIELDS, dated: null, rows: () => rows((book) => book.categories), currencyOf: () => EURO }),
+      readableKind({ kind: LABEL_RECORDS, about: words.reads.label, fields: LABEL_FIELDS, dated: null, rows: () => rows((book) => book.labels), currencyOf: () => EURO }),
       readableKind({ kind: BUDGET_RECORDS, about: words.reads.budget, fields: BUDGET_FIELDS, dated: 'from', rows: () => rows((book) => book.budgets), currencyOf: () => EURO }),
       readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: RULE_FIELDS, dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),
       readableKind<Receipt>({

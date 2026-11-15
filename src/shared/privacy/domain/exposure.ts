@@ -1,9 +1,10 @@
 import type { Decimal } from '../../money/decimal'
+import type { RecordId } from '../../storage/domain/recordId'
 
 /**
  * How a stored field leaves the device.
  * - `plain`: as written, such as a date, a flag, an amount or a name the owner gave a category.
- * - `ref`: the id of a record, as a ref that lasts one conversation.
+ * - `ref`: the id of a record, or a list of them, each as a ref that lasts one conversation.
  * - `identifier`: an IBAN or an OIB, as a token shaped like its mask while Anonymise is on.
  * - `party`: who was paid or who paid, as written, or under an alias for a person Kuna knows.
  * - `free-text`: what someone wrote, as untrusted text with identifiers and known persons replaced.
@@ -30,16 +31,42 @@ export interface DecimalAmount {
   readonly currency: string
 }
 
+/** A field that holds the id of one record. */
+interface RefField {
+  readonly meaning: string
+  readonly exposure: 'ref'
+  readonly to: string
+  readonly list?: false
+}
+
+/** A field that holds the ids of several records of one kind, such as the labels of an item. */
+interface RefListField {
+  readonly meaning: string
+  readonly exposure: 'ref'
+  readonly to: string
+  readonly list: true
+}
+
 /**
  * What a field means and how it leaves the device. An amount goes as written, with its currency: in cents of an
  * account's own or of the app's currency, or as a decimal in a currency the record names.
  */
 export type FieldDoc<R> =
   | ValueField<R>
-  | { readonly meaning: string; readonly exposure: 'ref'; readonly to: string }
+  | RefField
+  | RefListField
   | { readonly meaning: string; readonly exposure: 'plain'; readonly amount: 'account' | 'app'; readonly sign: AmountSign }
   | { readonly meaning: string; readonly exposure: 'plain'; readonly decimal: (record: R) => DecimalAmount | null; readonly sign: AmountSign }
   | { readonly meaning: string; readonly exposure: 'never' }
 
-/** Every stored field of a record type, with no default, so a new field fails the typecheck until someone classes it. */
-export type FieldDocs<R> = { readonly [Field in keyof R]-?: FieldDoc<R> }
+/**
+ * Every stored field of a record type, with no default, so a new field fails the typecheck until someone classes it. A field
+ * that holds a list of record ids leaves as a list of refs, so the chat can follow it, and only a list field is a list of refs.
+ */
+export type FieldDocs<R> = {
+  readonly [Field in keyof R]-?: NonNullable<R[Field]> extends readonly RecordId[]
+    ? RefListField
+    : NonNullable<R[Field]> extends readonly unknown[]
+      ? ValueField<R> | { readonly meaning: string; readonly exposure: 'never' }
+      : Exclude<FieldDoc<R>, RefListField>
+}

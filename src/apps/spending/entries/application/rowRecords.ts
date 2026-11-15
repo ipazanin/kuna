@@ -1,4 +1,5 @@
 import { refusedOnAccount } from '../domain/bankRows'
+import { carriedLabels } from '../../labels/domain/labels'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isBeforeItems, itemOfWaitingLine, itemsOfStoredRow, storedBeforeItems, plainLineOf } from '../../workbook/domain/beforeItems'
 import type { StoredLine } from '../../workbook/domain/beforeItems'
@@ -155,7 +156,7 @@ function writeParts<P extends Part>(records: Repository<P>, stored: StoredParts<
 
 /**
  * Writes rows with their items in the shape the file holds them, the one place that knows both. A file moved to items gets
- * item records and rows without a category, note or link. A file from before items keeps those on a row not split and lines
+ * item records and rows without a category, note or link, and an item that takes money from others takes their labels too. A file from before items keeps those on a row not split and lines
  * for a split one, as `storedBeforeItems` says, and stays in that shape until the person moves it.
  */
 export function writeRows(unit: UnitOfWork, records: StoredEntries, rows: readonly RowWrite[], waiting: readonly WaitingLines[] = []): void {
@@ -181,16 +182,17 @@ export function writeRows(unit: UnitOfWork, records: StoredEntries, rows: readon
     return
   }
   const found: TransactionItem[] = waiting.flatMap(({ receipt }) => index.items.ofWaiting(receipt))
-  const left: TransactionItem[] = waiting.flatMap(({ lines }) => lines)
+  const left: TransactionItem[] = waiting.flatMap(({ receipt, lines }) => carriedLabels(index.items.ofWaiting(receipt), lines))
   for (const { before, after, items } of rows) {
-    if (before !== null && (after === null || items !== undefined)) found.push(...index.items.ofRow(before.id))
+    const held = before === null ? [] : index.items.ofRow(before.id)
+    if (before !== null && (after === null || items !== undefined)) found.push(...held)
     if (after === null) {
       if (before !== null) entries.remove(storedRowFor(before))
       continue
     }
     if (before === null) entries.add(storedRowOf(after, BLANK_CELLS))
     else entries.change(storedRowFor(before), storedRowOf(after, BLANK_CELLS))
-    left.push(...(items ?? []))
+    left.push(...carriedLabels(held, items ?? []))
   }
   writeParts(unit.of(ITEM_WRITES), index.items, found, left)
 }

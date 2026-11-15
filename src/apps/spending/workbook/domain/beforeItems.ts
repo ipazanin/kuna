@@ -11,7 +11,7 @@ import { sameRecord, storedOf } from '../../../../shared/storage/domain/recordsR
 import type { RecordsRead } from '../../../../shared/storage/domain/recordsRead'
 
 /** A part of an entry as a file from before items keeps it: a `line` with its words in `text`, its entry's link on the entry. */
-export interface StoredLine extends Omit<TransactionItem, 'note' | 'link'> {
+export interface StoredLine extends Omit<TransactionItem, 'note' | 'link' | 'labels'> {
   readonly text: string
 }
 
@@ -45,7 +45,7 @@ function joinedNote(rowNote: string, text: string): string {
 
 function itemOfLine(line: StoredLine, note: string, link: TransactionItem['link']): TransactionItem {
   const { id, transaction, receipt, printed, amount, category } = line
-  return { id: itemIdOfLine(id), transaction, receipt, printed, note, amount, category, link }
+  return { id: itemIdOfLine(id), transaction, receipt, printed, note, amount, category, link, labels: [] }
 }
 
 function lineOfItem(item: TransactionItem, text: string): StoredLine {
@@ -56,9 +56,10 @@ function lineOfItem(item: TransactionItem, text: string): StoredLine {
 /**
  * A row's items as a file from before items holds them: its lines, with the row's note in front of the words of the largest and
  * the row's link on each, or while it has none the one item with all of its money under the row's own category, note and link.
+ * A file from before items keeps no labels.
  */
 export function itemsOfStoredRow(row: StoredRow, lines: readonly StoredLine[]): readonly TransactionItem[] {
-  if (lines.length === 0) return [wholeItemOf(row, row)]
+  if (lines.length === 0) return [wholeItemOf(row, { category: row.category, note: row.note, link: row.link, labels: [] })]
   const carrier = largestItem(lines)
   return lines.map((line) => itemOfLine(line, line === carrier ? joinedNote(row.note, line.text) : line.text, row.link))
 }

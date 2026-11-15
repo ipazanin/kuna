@@ -2,7 +2,8 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../../workbook/domain/spendingKinds'
+import type { Label } from '../../workbook/domain/label'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -16,6 +17,9 @@ export const SPENDING_REVIEW_TAB = 'review'
 /** The rows that wait for you, on the To review tab of Entries. */
 export const SPENDING_REVIEW_LINK = `${SPENDING_TRANSACTIONS_ROUTE}?tab=${SPENDING_REVIEW_TAB}`
 export const SPENDING_BUDGETS_ROUTE = '/spending/budgets'
+export const SPENDING_LABELS_ROUTE = '/spending/labels'
+/** The value of `?month=` that shows every month at once, as a label's entries do. */
+export const ALL_MONTHS = 'all'
 export const SPENDING_ACCOUNTS_ROUTE = '/spending/accounts'
 export const SPENDING_ACCOUNT_ROUTE = '/spending/account'
 export const SPENDING_SETTINGS_ROUTE = '/spending/settings'
@@ -47,4 +51,14 @@ export function overviewGroupLink(group: Category): RouteLocationRaw {
 /** The category a page's `?category=` names by its bare UUID, or null. */
 export function categoryIdNamed(key: unknown): RecordId | null {
   return typeof key === 'string' && key !== '' ? recordIdOf(CATEGORY_RECORDS, key) : null
+}
+
+/** Entries of every month that carry the label, named by its bare UUID in `?label=`. */
+export function labelLink(label: Label): RouteLocationRaw {
+  return { path: SPENDING_TRANSACTIONS_ROUTE, query: { month: ALL_MONTHS, label: keyOfRecordId(LABEL_RECORDS, label.id) } }
+}
+
+/** The label the page's `?label=` names, or null when the file has none by that id. */
+export function labelNamed(labels: readonly Label[], key: unknown): Label | null {
+  return typeof key === 'string' && key !== '' ? (labels.find((label) => label.id === recordIdOf(LABEL_RECORDS, key)) ?? null) : null
 }

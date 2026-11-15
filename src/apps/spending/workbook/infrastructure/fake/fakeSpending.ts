@@ -4,9 +4,21 @@ import { codecOfSpendingKind } from '../../application/spendingCodecs'
 import type { Account, RowsFrom } from '../../domain/account'
 import type { Budget } from '../../domain/budget'
 import type { Category } from '../../domain/category'
+import type { Label } from '../../domain/label'
 import type { Receipt } from '../../domain/receipt'
 import type { TransactionItem } from '../../domain/transactionItem'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, SETTING_RECORDS, TRANSACTION_RECORDS } from '../../domain/spendingKinds'
+import {
+  ACCOUNT_RECORDS,
+  BUDGET_RECORDS,
+  CATEGORY_RECORDS,
+  ITEM_RECORDS,
+  LABEL_RECORDS,
+  LINE_RECORDS,
+  RECEIPT_RECORDS,
+  RULE_RECORDS,
+  SETTING_RECORDS,
+  TRANSACTION_RECORDS,
+} from '../../domain/spendingKinds'
 import { plainLineOf } from '../../domain/beforeItems'
 import { rowItemsOf, wholeItemOf } from '../../domain/rowItems'
 import type { WholeFiling } from '../../domain/rowItems'
@@ -46,7 +58,8 @@ import { language } from '../../../../../shared/text/language'
  * brought that the export's Corner market looks like, `cash` the statements set with cash withdrawals already on the file
  * and no cash leg, two dollar cash accounts and a pound account at Revolut, and `receipts` the sample with the payments the
  * sample receipt photos match and a row a receipt split, and with the bank sync set up two receipts that wait for the bank's row on OTP, one of which two kiosk payments may be.
- * Each figure is made up.
+ * Every set holds three labels: a trip last month with its dollar dinner and its top-up between own accounts, a new flat whose rent and
+ * bills run across three months with one line of the split receipt, and a garden label nothing carries yet. Each figure is made up.
  */
 export type FakeSpendingSet = 'sample' | 'foreign' | 'over' | 'statements' | 'copied' | 'synced' | 'cash' | 'receipts' | 'people'
 
@@ -95,6 +108,7 @@ interface Row {
   readonly payee: string
   readonly category: string
   readonly link?: RowLink
+  readonly labels?: readonly RecordId[]
 }
 
 /** The key of the home loan in the fake Loans file, which pays its instalments on the 20th. */
@@ -114,6 +128,19 @@ const HOME_DOLLARS = fixedId(ACCOUNT_RECORDS, 1006)
 const TRAVEL_DOLLARS = fixedId(ACCOUNT_RECORDS, 1007)
 const REVOLUT_GBP = fixedId(ACCOUNT_RECORDS, 1008)
 
+const BOSTON_TRIP = fixedId(LABEL_RECORDS, 2001)
+const NEW_FLAT = fixedId(LABEL_RECORDS, 2002)
+const GARDEN = fixedId(LABEL_RECORDS, 2003)
+
+/** The labels of every set: a trip last month, a move that runs across three months and a label nothing carries yet. */
+function fakeLabels(): readonly Label[] {
+  return [
+    { id: BOSTON_TRIP, name: language === 'hr' ? 'Put u Boston' : 'Boston trip' },
+    { id: NEW_FLAT, name: language === 'hr' ? 'Novi stan' : 'New flat' },
+    { id: GARDEN, name: language === 'hr' ? 'Vrt' : 'Garden' },
+  ]
+}
+
 /** What each account holds on the day, as the worked example has it. */
 const BALANCES: Readonly<Record<string, number>> = {
   [OTP]: 1_850,
@@ -131,11 +158,11 @@ function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
   const on = (dayOfTheMonth: number): CivilDate => dayIn(month, dayOfTheMonth, day)
   const food = back === 2 ? { groceries: -220, restaurants: -90, coffee: -40, delivery: 0 } : { groceries: -260, restaurants: -150, coffee: -40, delivery: -30 }
   return [
-    { account: OTP, date: on(1), amount: -600, payee: 'Landlord', category: 'Home/Rent' },
-    { account: OTP, date: on(5), amount: -118.4, payee: 'City utilities', category: 'Home/Utilities' },
+    { account: OTP, date: on(1), amount: -600, payee: 'Landlord', category: 'Home/Rent', labels: [NEW_FLAT] },
+    { account: OTP, date: on(5), amount: -118.4, payee: 'City utilities', category: 'Home/Utilities', labels: [NEW_FLAT] },
     { account: OTP, date: on(10), amount: 2_400, payee: 'Example Studio d.o.o.', category: 'Income/Salary' },
     { account: OTP, date: on(12), amount: food.groceries, payee: 'Corner market', category: 'Food/Groceries' },
-    { account: REVOLUT_EUR, date: on(14), amount: food.restaurants, payee: 'Harbour bistro', category: 'Food/Restaurants' },
+    { account: REVOLUT_EUR, date: on(14), amount: food.restaurants, payee: 'Harbour bistro', category: 'Food/Restaurants', ...(back === 1 ? { labels: [BOSTON_TRIP] } : {}) },
     { account: CASH, date: on(16), amount: food.coffee, payee: 'Café on the square', category: 'Food/Coffee' },
     ...(food.delivery === 0 ? [] : [{ account: REVOLUT_EUR, date: on(18), amount: food.delivery, payee: 'Food delivery', category: 'Food/Delivery' }]),
     { account: REVOLUT_EUR, date: on(20), amount: -80, payee: 'Fuel station', category: 'Transport/Fuel' },
@@ -150,7 +177,7 @@ function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
 function monthSoFar(month: MonthKey): Row[] {
   const first = firstDayOf(month)
   return [
-    { account: OTP, date: first, amount: -600, payee: 'Landlord', category: 'Home/Rent' },
+    { account: OTP, date: first, amount: -600, payee: 'Landlord', category: 'Home/Rent', labels: [NEW_FLAT] },
     { account: OTP, date: first, amount: -45.3, payee: 'Corner market', category: 'Food/Groceries' },
     { account: CASH, date: first, amount: -3.5, payee: 'Café on the square', category: 'Food/Coffee' },
   ]
@@ -158,7 +185,7 @@ function monthSoFar(month: MonthKey): Row[] {
 
 /** The made-up dollar row of the worked example, spent abroad last month. */
 function dollarRows(month: MonthKey, day: CivilDate): Row[] {
-  return [{ account: REVOLUT_USD, date: dayIn(month, 10, day), amount: -30, payee: 'Diner in Boston', category: 'Travel/On the trip' }]
+  return [{ account: REVOLUT_USD, date: dayIn(month, 10, day), amount: -30, payee: 'Diner in Boston', category: 'Travel/On the trip', labels: [BOSTON_TRIP] }]
 }
 
 const REVOLUT_IBAN = 'LT000000000000000001'
@@ -191,6 +218,7 @@ function statementRow(place: number, account: RecordId, date: CivilDate, amount:
     source: 'statement',
     pair: null,
     link: null,
+    labels: [],
     description: payee,
     importKey: `earlier-${place}`,
     statement: 'earlier-statement.csv',
@@ -221,6 +249,7 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
     source: 'typed',
     pair: null,
     link: null,
+    labels: [],
     categorisedBy: 'person',
   })
   return [
@@ -310,6 +339,7 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
       source: 'typed',
       pair: null,
       link: null,
+      labels: [],
       categorisedBy: 'person',
     },
     statementRow(SPLIT_ROW_PLACE, OTP, day, -61.2, 'Corner market', { category: idOf('Food/Groceries'), categorisedBy: 'person' }),
@@ -320,7 +350,7 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
 function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { readonly receipts: readonly Receipt[]; readonly lines: readonly TransactionItem[] } {
   const row = fixedId(TRANSACTION_RECORDS, SPLIT_ROW_PLACE)
   const receipt = fixedId(RECEIPT_RECORDS, 1951)
-  const line = (place: number, amount: number, category: string): TransactionItem => ({
+  const line = (place: number, amount: number, category: string, labels: readonly RecordId[] = []): TransactionItem => ({
     id: fixedId(ITEM_RECORDS, place),
     transaction: row,
     receipt,
@@ -329,6 +359,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
     amount: accountMoneyFromAmount(amount),
     category: idOf(category),
     link: null,
+    labels,
   })
   return {
     receipts: [
@@ -350,7 +381,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
         longitude: '16.440200',
       },
     ],
-    lines: [line(1952, -48.7, 'Food/Groceries'), line(1953, -12.5, 'Home/Household goods')],
+    lines: [line(1952, -48.7, 'Food/Groceries'), line(1953, -12.5, 'Home/Household goods', [NEW_FLAT])],
   }
 }
 
@@ -469,6 +500,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
     source: 'typed',
     pair: null,
     link: row.link ?? null,
+    labels: row.labels ?? [],
     ...NO_BANK_FACTS,
     categorisedBy: null,
   }))
@@ -495,6 +527,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
         source: 'typed',
         pair: into,
         link: null,
+        labels: [BOSTON_TRIP],
         categorisedBy: null,
       },
       {
@@ -509,6 +542,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
         source: 'typed',
         pair: out,
         link: null,
+        labels: [BOSTON_TRIP],
         categorisedBy: null,
       },
     )
@@ -529,6 +563,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
     records: {
       ...stored(ACCOUNT_RECORDS, opened),
       ...stored(CATEGORY_RECORDS, categories),
+      ...stored(LABEL_RECORDS, fakeLabels()),
       ...stored(BUDGET_RECORDS, budgets),
       ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
       ...stored(RECEIPT_RECORDS, receipts.receipts),
@@ -573,6 +608,7 @@ export function fakeBeforeItemsDocument(savedAt: string, day: CivilDate = today(
     amount: accountMoneyFromAmount(amount),
     category: leg!.category,
     link: null,
+    labels: [],
   })
   const splitLeg = splitTransfer && leg !== undefined ? [legParts(1971, -150), legParts(1972, -50)] : []
   return spendingDocumentOf(savedAt, { ...records, ...stored(TRANSACTION_RECORDS, noted), ...stored(LINE_RECORDS, [...lines, ...splitLeg].map(plainLineOf)) })
@@ -616,6 +652,7 @@ function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): Retu
     amount: accountMoneyFromAmount(amount),
     category: idOf('Food/Groceries'),
     link: null,
+    labels: [],
   })
   return {
     receipts: [waiting(1961, 'Bakery on the corner', '08:05', 7.4, '3c4d5e6f-0000-4000-8000-1234567890ab'), waiting(1966, 'Tisak', '07:40', 9.8, '4d5e6f70-0000-4000-8000-1234567890ab')],

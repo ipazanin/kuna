@@ -66,16 +66,11 @@ export function entrySplit(
   if ('refused' in placed) return placed
   const whole = isSplit(held) || drafts.some((draft) => draft.id === held[0]?.id) ? null : (held[0] ?? null)
   const link = linkOfItems(held)
-  const parts = drafts.map((draft, place): TransactionItem => ({
-    id: draft.id ?? (whole !== null && place === 0 ? whole.id : recordIdOf(ITEM_RECORDS, newKey())),
-    transaction: row.id,
-    receipt: null,
-    printed: '',
-    note: draft.note.trim(),
-    amount: placed.parts[place]!,
-    category: draft.category,
-    link,
-  }))
+  const labelsById = new Map(held.map((item) => [item.id, item.labels]))
+  const parts = drafts.map((draft, place): TransactionItem => {
+    const id = draft.id ?? (whole !== null && place === 0 ? whole.id : recordIdOf(ITEM_RECORDS, newKey()))
+    return { id, transaction: row.id, receipt: null, printed: '', note: draft.note.trim(), amount: placed.parts[place]!, category: draft.category, link, labels: labelsById.get(id) ?? [] }
+  })
   return { before: { row, items: held }, row: { ...row, categorisedBy: 'person' }, parts }
 }
 
@@ -94,5 +89,7 @@ export function differenceItem(
     whole,
     parts.map((part) => part.amount),
   )
-  return rest === 0 ? null : { id: recordIdOf(ITEM_RECORDS, newKey()), transaction: like.transaction, receipt: like.receipt, printed: '', note, amount: rest, category: like.category, link: like.link }
+  return rest === 0
+    ? null
+    : { id: recordIdOf(ITEM_RECORDS, newKey()), transaction: like.transaction, receipt: like.receipt, printed: '', note, amount: rest, category: like.category, link: like.link, labels: [] }
 }

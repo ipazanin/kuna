@@ -10,7 +10,8 @@ import { hrDooWorkbook } from '../domain/hrDooPart'
 import type { HrDooWorkbook } from '../domain/hrDooPart'
 import { linkedPayment, tripRowSuggestions } from '../domain/trips/tripBankRows'
 import type { TripRowLink } from '../domain/trips/tripBankRows'
-import { LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
+import { ITEM_RECORDS, LEDGER_RECORDS } from '../../../workbook/domain/coreKinds'
+import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { TripCost, TripLeg } from '../domain/trips/trip'
 import { tripMomentText } from '../domain/trips/tripMoment'
 import type { TripFile } from '../domain/trips/tripReading'
@@ -52,6 +53,9 @@ interface TripView {
   readonly waitsFor: string
   readonly advanceRow: string
   readonly payoutRow: string
+  readonly advanceItems: readonly RecordId[]
+  readonly payoutItems: readonly RecordId[]
+  readonly dismissedItems: readonly RecordId[]
   readonly suggestedAdvanceRow: string
   readonly suggestedPayoutRow: string
 }
@@ -101,6 +105,9 @@ const TRIP_FIELDS: FieldDocs<TripView> = {
   waitsFor: { exposure: 'plain', meaning: 'What the settlement still needs: times, borders, odometer or rate, or empty.' },
   advanceRow: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row linked as the one that paid the advance, or empty.' },
   payoutRow: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: 'The ledger row linked as the one that paid out the settlement, or empty.' },
+  advanceItems: { exposure: 'ref', to: ITEM_RECORDS.name, list: true, meaning: 'The parts of the payment that paid the advance, as a person linked them or the settlement filed them.' },
+  payoutItems: { exposure: 'ref', to: ITEM_RECORDS.name, list: true, meaning: 'The parts of the payment that paid out the settlement, as a person linked them or the settlement filed them.' },
+  dismissedItems: { exposure: 'ref', to: ITEM_RECORDS.name, list: true, meaning: "Parts of payments Kuna offered for a link that a person said are not this trip's." },
   suggestedAdvanceRow: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: "A payment of the advance to the traveller's IBAN that Kuna offers to link, for the person to confirm, or empty." },
   suggestedPayoutRow: { exposure: 'ref', to: LEDGER_RECORDS.name, meaning: "A payment of the payout to the traveller's IBAN that Kuna offers to link, for the person to confirm, or empty." },
 }
@@ -171,6 +178,9 @@ function tripViewOf(file: TripFile, travellerName: string, workbook: HrDooWorkbo
     waitsFor: settlement.kind === 'waiting' ? settlement.gaps.join(', ') : '',
     advanceRow: linkedPayment(trip, 'advance', workbook)?.row.id ?? '',
     payoutRow: linkedPayment(trip, 'payout', workbook)?.row.id ?? '',
+    advanceItems: trip.advanceItems,
+    payoutItems: trip.payoutItems,
+    dismissedItems: trip.dismissedItems,
     suggestedAdvanceRow: suggested('advance'),
     suggestedPayoutRow: suggested('payout'),
   }
