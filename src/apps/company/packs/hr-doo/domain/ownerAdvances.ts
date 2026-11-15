@@ -104,6 +104,7 @@ export function placeRepayments<Row extends ReimbursementRow>(advances: readonly
     advances.map((advance) => advance.open),
     payments.map((payment) => payment.amount),
     (payment, row) => advances[row]!.advance.date <= payments[payment]!.payment.date,
+    () => true,
   )
   return payments.map((payment, index) => ({ ...payment, shares: placed[index]!.map(({ index: row, applied }) => ({ advance: advances[row]!.advance, applied })) }))
 }

@@ -33,8 +33,8 @@ export interface DryRunRow extends ImportedRow {
   readonly copiedTwin?: Transaction
   /** The row the AI copied that this entry takes the place of, whose category, share and row id it keeps. */
   readonly replaces?: Transaction
-  /** The items a new entry's money becomes since part of it pays back what a pack keeps, as the import proposes it. */
-  readonly repays?: readonly PaymentItem[]
+  /** The items a new entry's money becomes since part of it pays an invoice or pays back what a pack keeps, as the import proposes it. */
+  readonly pays?: readonly PaymentItem[]
 }
 
 /** An entry of a file Kuna read that looks like a row the AI copied, and what the person said of it, null until they say. */
@@ -103,8 +103,8 @@ export interface ImportDryRun {
   readonly removed: readonly Transaction[]
   /** The accounts confirming would add before those entries. */
   readonly accounts: readonly AddedAccount[]
-  /** The new entries whose money pays back what a pack keeps, each as the items it becomes, which confirming writes. */
-  readonly repayments: readonly RowPayments[]
+  /** The new entries whose money pays invoices or pays back what a pack keeps, each as the items it becomes, which confirming writes. */
+  readonly payments: readonly RowPayments[]
   readonly newRows: number
   readonly inLedger: number
 }
@@ -133,8 +133,8 @@ export interface DryRunInputs {
   readonly named: ReadonlyMap<string, string>
   /** What the person said of the entries that look like rows the AI copied, by `copiedTwinKey`. */
   readonly twinAnswers: ReadonlyMap<string, TwinAnswer>
-  /** What the new entries pay back of the records a pack keeps, each entry as the items it becomes. */
-  repaymentsOf(added: readonly LedgerEntry[]): readonly RowPayments[]
+  /** What the new entries pay of the invoices and of the records a pack keeps, each entry as the items it becomes. */
+  paymentsOf(added: readonly LedgerEntry[]): readonly RowPayments[]
 }
 
 /**
@@ -215,29 +215,29 @@ export function importDryRun(readings: readonly StatementReading[], inputs: DryR
     if (planned.statement.refusal === null) accounts.set(slug, { slug, iban: newAccount.iban, currency: newAccount.currency })
   }
   const rows = statements.flatMap((statement) => statement.rows)
-  const repayments = inputs.repaymentsOf(added.filter((entry) => !removed.some((copied) => copied.rowId !== null && copied.rowId === entry.rowId)))
+  const payments = inputs.paymentsOf(added.filter((entry) => !removed.some((copied) => copied.rowId !== null && copied.rowId === entry.rowId)))
   return {
-    statements: withRepayments(statements, added, repayments),
+    statements: withPayments(statements, added, payments),
     added,
     removed,
     accounts: [...accounts.values()],
-    repayments,
+    payments,
     newRows: added.length,
     inLedger: rows.filter((row) => row.inLedger).length,
   }
 }
 
-/** Each new entry of the statements with the items its money becomes when it pays back what a pack keeps, found by its account and reference. */
-function withRepayments(statements: readonly DryRunStatement[], added: readonly LedgerEntry[], repayments: readonly RowPayments[]): DryRunStatement[] {
-  if (repayments.length === 0) return [...statements]
-  const itemsOf = new Map(repayments.map((repayment) => [repayment.row, repayment.items]))
+/** Each new entry of the statements with the items its money becomes when it pays an invoice or pays back what a pack keeps, found by its account and reference. */
+function withPayments(statements: readonly DryRunStatement[], added: readonly LedgerEntry[], payments: readonly RowPayments[]): DryRunStatement[] {
+  if (payments.length === 0) return [...statements]
+  const itemsOf = new Map(payments.map((payment) => [payment.row, payment.items]))
   const entryOf = new Map(added.map((entry) => [`${entry.account} ${entry.reference}`, entry]))
   return statements.map((statement) => ({
     ...statement,
     rows: statement.rows.map((row) => {
       const rowId = row.inLedger ? null : entryOf.get(`${statement.account} ${row.reference}`)?.rowId
-      const repays = rowId === null || rowId === undefined ? undefined : itemsOf.get(rowId)
-      return repays === undefined ? row : { ...row, repays }
+      const pays = rowId === null || rowId === undefined ? undefined : itemsOf.get(rowId)
+      return pays === undefined ? row : { ...row, pays }
     }),
   }))
 }

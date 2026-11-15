@@ -16,7 +16,7 @@ import { categoriesOfDrafts, categoryDraftErrors, categoryDraftsOf, rolesOfText 
 import type { CategoryDraft } from '../../settings/domain/categoryDrafts'
 import { knownRoles } from '../../settings/domain/categoryGuards'
 import type { MadeDraft } from '../../settings/domain/recordDrafts'
-import { PERSON_PAYEES_KEY, SETTING_DEFINITIONS, readSettingsTab, settingsErrors, unreadSettingKeys } from '../../settings/domain/settings'
+import { CLIENT_PAYMENTS_PLACED_KEY, PERSON_PAYEES_KEY, SETTING_DEFINITIONS, readSettingsTab, settingsErrors, unreadSettingKeys } from '../../settings/domain/settings'
 import { IMPORT_PROFILE_PREFIX } from '../../imports/domain/importProfile'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import { displayNamesOf } from '../../workbook/domain/displayName'
@@ -43,7 +43,16 @@ const ACCOUNT = ACCOUNT_RECORDS.name
  * own guard. The invoice folder needs Google's picker. The statements folder and the bank's mail address need Google's consent,
  * so the chat links their screen. The subject of the bank's mail and the day mail is read from need none, so a card sets them.
  */
-const NEVER_PROPOSED: ReadonlySet<string> = new Set(['template_version', 'review_label', PERSON_PAYEES_KEY, 'invoice_folder_id', 'statements_folder', 'statements_sync', 'statements_mail_from'])
+const NEVER_PROPOSED: ReadonlySet<string> = new Set([
+  'template_version',
+  CLIENT_PAYMENTS_PLACED_KEY,
+  'review_label',
+  PERSON_PAYEES_KEY,
+  'invoice_folder_id',
+  'statements_folder',
+  'statements_sync',
+  'statements_mail_from',
+])
 
 /** The keys whose value says where money or mail goes, or where an invoice is filed, which a card warns on. */
 export const WARNED_SETTING_KEYS: ReadonlySet<string> = new Set([

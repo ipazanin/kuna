@@ -1,6 +1,7 @@
 import { readRules } from '../../rules/domain/readRules'
 import type { RuleTabRow } from '../../rules/domain/readRules'
 import { readSettingsTab } from '../../settings/domain/settings'
+import type { Settings } from '../../settings/domain/settings'
 import type { SettingRow } from '../../../../shared/storage/domain/settingRows'
 import type { AccountRecord } from './accountsReading'
 import { readAccounts } from './accountsReading'
@@ -167,6 +168,12 @@ export function ledgerOfRecords(records: ItemRecords, categories: readonly Categ
   return { transactions, splits: splitsOf(transactions, itemsByRow), categories }
 }
 
+/** The books a store holds on screen, or null until it has read them. */
+export function companyBooksOf(state: { readonly records: WorkbookRecords | null; readonly workbook: Workbook | null }): CompanyBooks | null {
+  const { records, workbook } = state
+  return records === null || workbook === null ? null : { records, workbook }
+}
+
 /** Which workbook the records are of. */
 export type WorkbookIdentity = Pick<Workbook, 'id' | 'source' | 'title' | 'syncedAt'>
 
@@ -220,7 +227,7 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
     settings,
     packParts: {},
     problems,
-    ...(placesPayments(records) ? { paidInvoices: paidInvoicesOf(records.items, items.itemsByRow, invoices, problems) } : {}),
+    ...(placesPayments(records, settings) ? { paidInvoices: paidInvoicesOf(records.items, items.itemsByRow, invoices, problems) } : {}),
   }
   if (pack === null) {
     return core
@@ -236,12 +243,11 @@ export function readWorkbook(identity: WorkbookIdentity, records: WorkbookRecord
 }
 
 /**
- * Whether the books store which invoice each payment pays, which they do once an item names one. Books with an items tab that name
- * none, as those started on the items tab before payments were placed, match the payments to the invoices on every read, as books
- * from before items do.
+ * Whether the books store which invoice each client payment pays, which books with an items tab do once Kuna starts placing them
+ * and records it in the settings. Other books match the payments to the invoices on every read.
  */
-function placesPayments(records: ItemRecords): boolean {
-  return storesItems(records) && records.items.records.some(({ record }) => record.invoice !== null)
+function placesPayments(records: ItemRecords, settings: Pick<Settings, 'clientPaymentsPlaced'>): boolean {
+  return storesItems(records) && settings.clientPaymentsPlaced
 }
 
 /** The invoice each counted item pays, by the item's id, with a problem on the items tab for each item that names an invoice the books lack. */

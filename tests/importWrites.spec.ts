@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import type { DocumentCopy } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { LEDGER_WRITES } from '../src/apps/company/imports/application/ledgerWrites'
 import { dryRunFor, importTitle, newAccountNameProblem, statementReadings, writeImport } from '../src/apps/company/imports/application/importStatements'
+import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { ImportDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import type { ImportProfile } from '../src/apps/company/imports/domain/importProfile'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
@@ -59,7 +60,7 @@ function camtFile(xml: string, fileName = 'statement.xml') {
 
 function dryRun(store: WorkbookStore<CompanyBooks>, xml: string, starts: ReadonlyMap<string, Money> = new Map()): ImportDryRun {
   const workbook = store.state.workbook!
-  return dryRunFor(statementReadings(camtFile(xml), workbook, null), workbook, starts)
+  return dryRunFor(statementReadings(camtFile(xml), workbook, null), companyBooksOf(store.state)!, starts)
 }
 
 /** The ledger rows confirming would write, as the tab holds them. */
@@ -288,7 +289,7 @@ describe('a tabular import through its profile', () => {
     ]
     const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), grid }
     const workbook = store.state.workbook!
-    const run = dryRunFor(statementReadings(file, workbook, profile), workbook, new Map())
+    const run = dryRunFor(statementReadings(file, workbook, profile), companyBooksOf(store.state)!, new Map())
 
     expect(run.statements[0]?.notes).toEqual([])
     expect(run.statements[0]?.facts).toEqual(['The file gives no balances, so they are worked out from €1,000.00, where the ledger leaves main on 5 Oct 2026.'])
@@ -296,7 +297,9 @@ describe('a tabular import through its profile', () => {
       [46312, -3.4, 8146.6, 'promet (ffffffff)'],
       [46311, 7150, 8150, 'promet (ffffffff)'],
     ])
-    expect(dryRunFor(statementReadings(file, workbook, { ...profile, account: 'nowhere' }), workbook, new Map()).statements[0]?.refusal).toMatch(/is for nowhere, which is not on the accounts tab/)
+    expect(dryRunFor(statementReadings(file, workbook, { ...profile, account: 'nowhere' }), companyBooksOf(store.state)!, new Map()).statements[0]?.refusal).toMatch(
+      /is for nowhere, which is not on the accounts tab/,
+    )
   })
 
   it('finds a file it imported on the ledger, and refuses it once a changed profile gives its rows other keys', async () => {
@@ -320,7 +323,7 @@ describe('a tabular import through its profile', () => {
       ['16.10.2026', 'Northwind Analytics Ltd', 'Invoice 9-1-26', '7.150,00'],
     ]
     const file = { kind: 'table' as const, fileName: 'promet.csv', fileHash: 'f'.repeat(64), grid }
-    const runOf = (read: ImportProfile) => dryRunFor(statementReadings(file, store.state.workbook!, read), store.state.workbook!, new Map())
+    const runOf = (read: ImportProfile) => dryRunFor(statementReadings(file, store.state.workbook!, read), companyBooksOf(store.state)!, new Map())
     await importRows(store, runOf(profile).added)
 
     expect(runOf(profile)).toMatchObject({ newRows: 0, inLedger: 2 })
@@ -351,18 +354,18 @@ describe('an account from a camt file', () => {
     const { store } = await driveHarness(used, grids())
     const workbook = store.state.workbook!
     const readings = statementReadings(camtFile(newAccountStatement()), workbook, null)
-    const run = dryRunFor(readings, workbook, new Map(), new Map([[NEW_IBAN, 'business']]))
+    const run = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]))
 
     expect(run.accounts).toEqual([{ slug: 'business', iban: NEW_IBAN, currency: 'EUR' }])
     expect(run.added.map((entry) => entry.account)).toEqual(['business'])
     expect(run.statements[0]).toMatchObject({ account: 'business', refusal: null, newAccount: { iban: NEW_IBAN } })
     expect(importTitle(run)).toBe('Added business and imported 1 row')
 
-    await store.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records!))
+    await store.write(importTitle(run), (unit) => writeImport(unit, run, companyBooksOf(store.state)))
 
     expect(store.state.workbook!.accounts.find((account) => account.slug === 'business')).toMatchObject({ iban: NEW_IBAN, currency: 'EUR' })
     expect(store.state.workbook!.transactions.filter((row) => row.account === 'business').map((row) => row.balance)).toEqual([moneyFromCents(117_315)])
-    const again = dryRunFor(readings, store.state.workbook!, new Map(), new Map([[NEW_IBAN, 'business']]))
+    const again = dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, 'business']]))
     expect(again).toMatchObject({ newRows: 0, accounts: [] })
     expect(again.statements[0]).toMatchObject({ account: 'business', newAccount: null })
   })
@@ -373,7 +376,7 @@ describe('an account from a camt file', () => {
     const readings = statementReadings(camtFile(newAccountStatement()), workbook, null)
 
     for (const name of ['savings', 'Main Account', '']) {
-      expect(dryRunFor(readings, workbook, new Map(), new Map([[NEW_IBAN, name]]))).toMatchObject({ newRows: 0, accounts: [] })
+      expect(dryRunFor(readings, companyBooksOf(store.state)!, new Map(), new Map([[NEW_IBAN, name]]))).toMatchObject({ newRows: 0, accounts: [] })
     }
     expect(newAccountNameProblem('savings', new Set(['main', 'savings']))).toBe('savings is already an account')
     expect(newAccountNameProblem('Main Account', new Set())).toMatch(/is not an account name the app can use/)

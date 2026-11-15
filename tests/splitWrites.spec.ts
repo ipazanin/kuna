@@ -141,7 +141,7 @@ describe.each([
         [-80, 'equipment'],
         [-20, 'ai-services'],
       ]),
-    ).rejects.toThrow('The main row of 2026-10-03 for -100.00 stays whole, since the asset "Desk" claims it as payment.')
+    ).rejects.toThrow('The main row of 3 Oct 2026 for −€100.00 stays whole, since the asset "Desk" claims it as payment.')
     await expect(
       writeSplit(store, rowOf(store, 'MODEL API INC'), [
         [-12, 'ai-services'],

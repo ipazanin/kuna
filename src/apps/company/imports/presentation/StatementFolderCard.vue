@@ -13,6 +13,7 @@ import { needsReview } from '../../workbook/domain/needsReview'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import { writeImport } from '../application/importStatements'
+import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import { filedTitle, stillHeld } from '../application/statementSync'
 import DryRunStatementCard from './DryRunStatementCard.vue'
 import { useDryRun } from './useDryRun'
@@ -56,7 +57,7 @@ async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
   const filing = run.statements.filter((statement) => statement.rows.some((row) => row.verdict !== null))
-  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run, store.state.records), { failedTitle: words.folder.notFiled })
+  await writes.write(filedTitle(filing, run.newRows), (unit) => writeImport(unit, run, companyBooksOf(store.state)), { failedTitle: words.folder.notFiled })
 }
 </script>
 

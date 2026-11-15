@@ -1610,6 +1610,27 @@ export function refusedSplitFlowIn(language, kind) {
 }
 
 /**
+ * A client payment the books place on two invoices: Split says its split stays, with Delete off, and a change that moves money
+ * between its parts is refused on Save, naming both invoices, with nothing written.
+ */
+export function placedSplitFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const words = SCREEN_WORDS[language]
+    await pressSelector(page, press, '[data-testid="edit-split"]')
+    await page.waitForSelector('[data-testid="split-form"]')
+    await elementSays(page, '[data-testid="split-delete-refused"]', ['3\u20111\u201126', '4\u20111\u201126'], 'Split does not say the payment pays two invoices')
+    if (!(await page.$eval('[data-testid="split-delete"]', (button) => button.disabled))) throw new Error('Delete stays on for a split that pays two invoices')
+    await shootAt(page, shoot, '[data-testid="split-delete-refused"]', 'split-placed', { inspected: () => inspect?.('a split that pays two invoices') })
+    await setPart(page, 0, typedIn(words, '2000.00'))
+    await pressSelector(page, press, '[data-testid="split-save"]')
+    await elementSays(page, '[data-testid="split-refusal"]', ['3\u20111\u201126', '4\u20111\u201126'], 'Save does not refuse a split that moves money between two invoices')
+    await shootAt(page, shoot, '[data-testid="split-refusal"]', 'split-placed-refused')
+    if ((await page.$('[data-testid="split-form"]')) === null) throw new Error('the refused split closed its dialog')
+  }
+}
+
+/**
  * Books from before every ledger row had an id (`?fake=no-row-ids`): Overview's Waiting for you counts the rows, its link opens Settings, Books
  * file, whose prompt gives them all an id in one write. Undo takes the ids back and the prompt returns. Given again, the ids link the
  * split parts to their rows, and a split row on Transactions still shows its parts.
@@ -1957,8 +1978,10 @@ export function importCamtFlowIn(language, path) {
     await dropFile(page, path)
     await dryRunSays(page, addsFour)
     if ((await page.$$('[data-testid="dry-run-row"]')).length !== 4) throw new Error('the dry run does not list the four entries')
+    await elementSays(page, '[data-testid="dry-run-pays-invoice"]', ['10\u20111\u201126'], 'the dry run does not say which invoice the client payment pays')
     await inspect?.('the camt dry run')
     await shoot('import-camt-dry-run')
+    await shootAt(page, shoot, '[data-testid="dry-run-pays-invoice"]', 'import-camt-pays-invoice')
     await pressSelector(page, press, '[data-testid="import-confirm"]')
     await toastCounted(page, (count) => words.importWrites.imported([], count))
     await dryRunSays(page, panel.writesNothing)

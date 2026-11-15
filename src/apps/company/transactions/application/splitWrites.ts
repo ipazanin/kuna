@@ -20,7 +20,7 @@ import { packRecordsOf } from '../../workbook/domain/packPart'
 import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
 import { refuseOn } from '../../../../shared/storage/application/workbookWriteRefused'
 import type { CompanyBooks, WorkbookRecords } from '../../workbook/domain/readWorkbook'
-import { storedItemIdOf, writeRowItems } from './itemWrites'
+import { placedMoneyRefusal, storedItemIdOf, writeRowItems } from './itemWrites'
 import type { ItemDraft } from './itemWrites'
 import type { FreshRecords, WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { words } from '../../workbook/domain/words'
@@ -50,14 +50,27 @@ export function writeSplit(
   categories: readonly ShareDefault[],
 ): readonly PartReplacement<RecordId>[] {
   if (drafts.length === 0) return writeOneItem(unit, records, row, stored, { category: row.category, ownerShare: row.ownerShare }, null)
+  return partReplacements(stored.parts.length > 0 ? stored.parts : wholeOf(records, row), writeRowItems(unit, records, row, stored, splitItems(row, stored, drafts, categories)))
+}
+
+/** The items the parts become, as `writeSplit` describes. */
+function splitItems(row: Pick<Transaction, 'id' | 'rowId'>, stored: StoredSplit, drafts: readonly SplitPartDraft[], categories: readonly ShareDefault[]): ItemDraft[] {
   const nothingStored = stored.parts.length === 0 && stored.unreadable === 0
-  const items = drafts.map((draft, index): ItemDraft => {
+  return drafts.map((draft, index): ItemDraft => {
     const filed = movedTo(draft.opened ?? { category: '', ownerShare: null }, draft.category, categories)
     const kept = stored.parts.find((candidate) => candidate.id === draft.opened?.id)
     const id = kept?.id ?? (index === 0 && nothingStored && row.rowId !== null ? wholeItemId(row) : null)
     return { id, amount: draft.amount, category: filed.category, note: draft.note.trim(), ownerShare: filed.ownerShare }
   })
-  return partReplacements(stored.parts.length > 0 ? stored.parts : wholeOf(records, row), writeRowItems(unit, records, row, stored, items))
+}
+
+/**
+ * Why the row's split cannot be saved with these parts, or taken off when there are none, in a sentence, or null when it can: a
+ * record of the pack files its items, as `splitKeptRefusal` says, or the change would move money a person placed on an invoice.
+ */
+export function splitRefusal(books: CompanyBooks, row: Transaction, stored: StoredSplit, drafts: readonly SplitPartDraft[] | null): string | null {
+  if (drafts === null) return splitKeptRefusal(books, row) ?? placedMoneyRefusal(books.records, row, [oneItemOf(row, stored)])
+  return drafts.length === 0 ? null : placedMoneyRefusal(books.records, row, splitItems(row, stored, drafts, books.workbook.categories))
 }
 
 /** The one item a row stands for while it is not split, by the id the books store its first part under, or none for a row with no row id yet. */
@@ -80,7 +93,7 @@ function writeOneItem(
 }
 
 /** Why a person cannot take the row's split off, since a record of the pack files its items, in a sentence, or null when they can. */
-export function splitKeptRefusal(books: CompanyBooks, row: Transaction): string | null {
+function splitKeptRefusal(books: CompanyBooks, row: Transaction): string | null {
   const pack = installedPack().workbook
   if (pack === null) return null
   const kept = pack.itemsKept(books.records.pack, books.workbook)
@@ -100,10 +113,16 @@ export function removeSplit(unit: UnitOfWork, books: CompanyBooks, row: Transact
   const refusal = splitKeptRefusal(books, row)
   refuseOn(refusal === null ? [] : [refusal])
   const entry = recordWithId(books.records.ledger, row.id)?.record
-  const mainCategory = stored.refused || stored.parts.length === 0 ? null : mainCategoryOf(stored.parts)
-  const main = stored.parts.find((part) => part.category === mainCategory) ?? { category: row.category, ownerShare: row.ownerShare }
+  const main = oneItemOf(row, stored)
   const refiled = entry !== undefined && (main.category !== entry.category || main.ownerShare !== entry.ownerShare)
   return writeOneItem(unit, books.records, row, stored, main, refiled ? books.workbook.settings.reviewLabel : null)
+}
+
+/** The one item a row stands for once its split is taken off, as `removeSplit` files it. */
+function oneItemOf(row: Transaction, stored: StoredSplit): ItemDraft {
+  const mainCategory = stored.refused || stored.parts.length === 0 ? null : mainCategoryOf(stored.parts)
+  const main = stored.parts.find((part) => part.category === mainCategory) ?? { category: row.category, ownerShare: row.ownerShare }
+  return { id: wholeItemId(row), amount: row.amount, category: main.category, note: '', ownerShare: main.ownerShare }
 }
 
 function ledgerOfRecords(fresh: FreshRecords): { readonly transactions: readonly Transaction[]; readonly categories: readonly Category[] } {

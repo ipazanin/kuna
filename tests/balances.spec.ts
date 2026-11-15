@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { balanceSeries, latestBalances } from '../src/apps/company/cash/domain/balances'
 import { euros, ledger, windowOf } from './fixtures/ledger'
+import { splitLedger } from '../src/apps/company/workbook/domain/splits'
+import { ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
+import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
 const rows = ledger([
   { date: '2026-06-10', account: 'legacy', amount: 5000, category: 'share-capital' },
@@ -38,6 +41,23 @@ describe('latestBalances', () => {
       ['main', false],
       ['savings', false],
     ])
+  })
+
+  it('counts a bank row of several items once', () => {
+    const payment = rows.find((row) => row.account === 'main' && row.amount === euros(200))!
+    const parts = [euros(150), euros(50)].map((amount, index) => ({
+      amount,
+      category: 'revenue',
+      family: payment.family,
+      bucket: payment.bucket,
+      note: '',
+      ownerShare: null,
+      id: recordIdOf(ITEM_RECORDS, `part-${index}`),
+    }))
+    const split = splitLedger(rows, [{ row: payment, parts }])
+
+    expect(split).toHaveLength(rows.length + 1)
+    expect(latestBalances(split).accounts.map((account) => account.transactionCount)).toEqual([3, 4, 1])
   })
 
   it('reads the closing row by sequence, not by the order rows arrive in', () => {

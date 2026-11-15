@@ -97,7 +97,7 @@ interface CreditPlace {
  */
 export function receivablesOf(books: ReceivableBooks): Receivables {
   const { transactions, categories, invoices, clients, paidInvoices } = books
-  const revenue = categoriesWithRole(categories, RECEIVABLE_ROLES.revenue)
+  const revenue = revenueCategories(categories)
   const refunds = categoriesWithRole(categories, RECEIVABLE_ROLES.clientRefund)
   const clientOfIban = new Map(clients.flatMap((client) => client.ibans.map((iban) => [iban, client.slug] as const)))
   const credits = transactions.filter((transaction) => revenue.has(transaction.category) && transaction.amount > 0)
@@ -293,7 +293,12 @@ function overlap(fromA: Money, toA: Money, fromB: Money, toB: Money): Money {
   return maxMoney(ZERO, subtractMoney(minMoney(toA, toB), maxMoney(fromA, fromB)))
 }
 
-function categoriesWithRole(categories: readonly Category[], role: string): ReadonlySet<string> {
+/** The categories of revenue, whose credits pay invoices, by slug. */
+export function revenueCategories(categories: readonly Pick<Category, 'slug' | 'roles'>[]): ReadonlySet<string> {
+  return categoriesWithRole(categories, RECEIVABLE_ROLES.revenue)
+}
+
+function categoriesWithRole(categories: readonly Pick<Category, 'slug' | 'roles'>[], role: string): ReadonlySet<string> {
   return new Set(categories.filter((category) => category.roles.includes(role)).map((category) => category.slug))
 }
 

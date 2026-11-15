@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { writeImport } from '../src/apps/company/imports/application/importStatements'
+import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { ImportDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import { writeOwnerShare } from '../src/apps/company/owner-share/application/ownerShareWrites'
 import { ownerShareOf } from '../src/apps/company/owner-share/domain/ownerShare'
@@ -42,11 +43,11 @@ function grids() {
   return {
     ...workbookGrids(),
     categories: [
-      ['category', 'family', 'bucket', 'owner_share'],
-      ['equipment', 'operating', 'operating', ''],
-      ['ai-services', 'operating', 'operating', '50'],
-      ['office', 'operating', 'operating', ''],
-      ['revenue', 'income', 'income', ''],
+      ['category', 'family', 'bucket', 'owner_share', 'roles'],
+      ['equipment', 'operating', 'operating', '', ''],
+      ['ai-services', 'operating', 'operating', '50', ''],
+      ['office', 'operating', 'operating', '', ''],
+      ['revenue', 'income', 'income', '', 'revenue'],
     ],
   }
 }
@@ -191,9 +192,9 @@ describe.each([
       rowId: 'printed-row',
     }
     const entry: LedgerEntry = { ...fields, id: ledgerIdOf(fields) }
-    const run = { accounts: [], removed: [], added: [entry], repayments: [], newRows: 1, statements: [] } as unknown as ImportDryRun
+    const run = { accounts: [], removed: [], added: [entry], payments: [], newRows: 1, statements: [] } as unknown as ImportDryRun
 
-    await store.write('Imported', (unit) => writeImport(unit, run, store.state.records!))
+    await store.write('Imported', (unit) => writeImport(unit, run, companyBooksOf(store.state)))
 
     expect(filed(store, 'PRINT SHOP')).toEqual(['office', null, 'rule'])
     expect(recordsOf(store.state.records!.items).filter((item) => item.row === 'printed-row')).toEqual(
@@ -230,7 +231,7 @@ describe('the items tab', () => {
     expect(read(documentOfTabs(COMPANY_APP, tabs, document.savedAt).records['item'])).toEqual(read(document.records['item']))
   })
 
-  it('keeps the invoice an item pays through a new category and a hand split, and reports an invoice the books lack', async () => {
+  it('keeps the invoice an item pays through a hand split, takes it off once the row leaves revenue, and reports an invoice the books lack', async () => {
     const store = await storeOf(true)
     const deposit = rowOf(store, 'Cash deposit')
     const invoice = recordIdOf(INVOICE_RECORDS, JSON.stringify(['north', '1-3-26']))
@@ -243,16 +244,38 @@ describe('the items tab', () => {
     expect(store.state.workbook!.problems.map((problem) => [problem.tab, problem.reason])).toEqual([['items', 'the invoices tab holds no invoice ["north","1-3-26"], so this item pays none']])
     expect(store.state.workbook!.paidInvoices).toEqual(new Map())
 
-    await store.write('Filed', (unit) => fileRows(unit, books(store), [recategorisation(rowOf(store, 'Cash deposit'), 'equipment', store.state.workbook!.settings)], store.state.workbook!.categories))
-    expect(invoiceOf()).toEqual([[euros(500), 'equipment', invoice]])
     await split(store, 'Cash deposit', [
       [300, 'revenue', ''],
       [200, 'revenue', ''],
     ])
-
     expect(invoiceOf()).toEqual([
       [euros(300), 'revenue', invoice],
       [euros(200), 'revenue', invoice],
     ])
+
+    await split(store, 'Cash deposit', [
+      [300, 'revenue', ''],
+      [200, 'equipment', ''],
+    ])
+    expect(invoiceOf()).toEqual([
+      [euros(300), 'revenue', invoice],
+      [euros(200), 'equipment', null],
+    ])
+  })
+
+  it('takes a row of one item off its invoice once it is filed out of revenue', async () => {
+    const store = await storeOf(true)
+    const deposit = rowOf(store, 'Cash deposit')
+    const invoice = recordIdOf(INVOICE_RECORDS, JSON.stringify(['north', '1-3-26']))
+    const [item] = recordsOf(store.state.records!.items).filter((held) => held.row === deposit.rowId)
+    await store.write('Placed', (unit) => unit.of(ITEM_WRITES).change(item!, { ...item!, invoice }))
+
+    await store.write('Filed', (unit) => fileRows(unit, books(store), [recategorisation(rowOf(store, 'Cash deposit'), 'equipment', store.state.workbook!.settings)], store.state.workbook!.categories))
+
+    expect(
+      recordsOf(store.state.records!.items)
+        .filter((held) => held.row === deposit.rowId)
+        .map((held) => [held.category, held.invoice]),
+    ).toEqual([['equipment', null]])
   })
 })

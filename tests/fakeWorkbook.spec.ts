@@ -14,7 +14,7 @@ import { ledgerWindowOf, newestBookingOf } from '../src/apps/company/workbook/do
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching'
 import { addMoney } from '../src/shared/money/money'
-import { fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems, fakeWorkbookRecords } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
+import { fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems, fakeWorkbookRecords, withPaymentsMatched } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { categorise } from '../src/shared/categorising/domain/categorise'
 import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
@@ -77,7 +77,7 @@ describe('fake workbook', () => {
     expect(owed(workbook)).toEqual(owed(before).map(([outstanding, overpaid, noInvoice, , invoices]) => [outstanding, overpaid, noInvoice, [], invoices]))
   })
 
-  it('matches the payments to the invoices on every read on books with an items tab whose items name no invoice', () => {
+  it('matches the payments to the invoices on every read on books with an items tab whose settings do not say they place them', () => {
     const owed = (books: Workbook) =>
       receivablesOf(presentedWorkbook(books)).clients.map((client) => [
         client.outstanding,
@@ -85,9 +85,7 @@ describe('fake workbook', () => {
         addMoney(client.overpaid, client.creditsWithNoInvoice),
         client.invoices.map((matched) => [matched.remaining, matched.received]),
       ])
-    const document = fakeWorkbookDocument(SYNCED, 'drive')
-    const items = (document.records.item ?? []).map((item) => Object.fromEntries(Object.entries(item).filter(([field]) => field !== 'invoice_id')))
-    const unplaced = readDocument({ id: 'unplaced', source: 'drive', title: 'unplaced', syncedAt: SYNCED }, { ...document, records: { ...document.records, item: items } }).workbook
+    const unplaced = readDocument({ id: 'unplaced', source: 'drive', title: 'unplaced', syncedAt: SYNCED }, withPaymentsMatched(fakeWorkbookDocument(SYNCED, 'drive'))).workbook
 
     expect(unplaced.paidInvoices).toBeUndefined()
     expect(receivablesOf(presentedWorkbook(unplaced)).clients.every((client) => client.unplaced === undefined)).toBe(true)

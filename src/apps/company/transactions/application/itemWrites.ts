@@ -22,7 +22,10 @@ import type { Transaction, Workbook } from '../../workbook/domain/workbook'
 import { words } from '../../workbook/domain/words'
 import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
+import { recordWithId, recordsOf } from '../../../../shared/storage/domain/recordsRead'
+import { refuseOn } from '../../../../shared/storage/application/workbookWriteRefused'
+import { revenueCategories } from '../../receivables/domain/invoiceMatching'
+import { invoiceTotals, invoicesMoved, paidWhileRevenue } from '../../receivables/domain/invoicePayments'
 import type { FreshRecords, KindChange, WriteRules } from '../../../../shared/storage/domain/writeRules'
 import { LEDGER_WRITES } from '../../imports/application/ledgerWrites'
 import { REFUSED_SPLIT_WRITES, SPLIT_WRITES } from './splitWrites'
@@ -187,13 +190,13 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
   if (row.rowId === null) throw new Error('A row on the items tab has a row id.')
   const rowId = row.rowId
   const repository = unit.of(stored.refused ? REFUSED_ITEM_WRITES : ITEM_WRITES)
-  const held = storedItemsOfRow(records.items, row)
-  const whole = items.length === 1 ? wholeItemId(row) : null
-  const placed = items.map((item) => ({ ...item, id: whole ?? item.id ?? newItemId() }))
-  const invoiceOf = paidInvoices(held, placed)
+  const onTab = itemsOnTab(records, row, items)
+  const { held, placed } = onTab
+  const refusal = movedMoneyRefusal(records, row, onTab)
+  refuseOn(refusal === null ? [] : [refusal])
   const written = placed.map((item): ItemRecord => {
     const { id } = item
-    const wanted: ItemRecord = { row: rowId, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: invoiceOf(id), id }
+    const wanted: ItemRecord = { row: rowId, amount: item.amount, category: item.category, note: item.note, ownerShare: item.ownerShare, invoice: item.invoice, id }
     const record = held.find((candidate) => candidate.id === id)
     if (record === undefined) {
       unit.of(ITEM_WRITES).add(wanted)
@@ -206,6 +209,52 @@ function writeItemsTab(unit: UnitOfWork, records: WorkbookRecords, row: ItemsRow
     repository.remove(record)
   }
   return written
+}
+
+/** An item a write leaves on the items tab, with its id and the invoice it pays. */
+interface PlacedItem extends ItemDraft {
+  readonly id: RecordId
+  readonly invoice: RecordId | null
+}
+
+/** A row's items as the tab holds them now, and as a write would leave them. */
+interface ItemsOnTab {
+  readonly held: readonly ItemRecord[]
+  readonly placed: readonly PlacedItem[]
+  /** The items with the invoice each paid before a refile out of revenue takes it off. */
+  readonly kept: readonly PlacedItem[]
+  readonly revenue: ReadonlySet<string>
+}
+
+/**
+ * The row's items as the items tab would hold them: a row's one item under the row's own item id, and each item paying the invoice
+ * `paidInvoices` gives it while it stays in revenue.
+ */
+function itemsOnTab(records: WorkbookRecords, row: ItemsRow, items: readonly ItemDraft[]): ItemsOnTab {
+  const held = storedItemsOfRow(records.items, row)
+  const whole = items.length === 1 ? wholeItemId(row) : null
+  const ided = items.map((item) => ({ ...item, id: whole ?? item.id ?? newItemId() }))
+  const invoiceOf = paidInvoices(held, ided)
+  const revenue = revenueCategories(definedCategories(records.categories))
+  const kept = ided.map((item) => ({ ...item, invoice: invoiceOf(item.id) }))
+  return { held, kept, revenue, placed: kept.map((item) => ({ ...item, invoice: paidWhileRevenue(item.invoice, item.category, revenue) })) }
+}
+
+/**
+ * Why the row may not hold these items, since that would move money a person placed on an invoice, as `invoicesMoved` says, in a
+ * sentence, or null when it may. Books from before items place no payment.
+ */
+export function placedMoneyRefusal(records: WorkbookRecords, row: ItemsRow, items: readonly ItemDraft[]): string | null {
+  return !storesItems(records) || row.rowId === null ? null : movedMoneyRefusal(records, row, itemsOnTab(records, row, items))
+}
+
+function movedMoneyRefusal(records: WorkbookRecords, row: ItemsRow, { held, kept, revenue }: ItemsOnTab): string | null {
+  if (invoicesMoved(held, kept, revenue).length === 0) return null
+  const paid = new Set(invoiceTotals(held).keys())
+  const numbers = recordsOf(records.invoices)
+    .filter((invoice) => paid.has(invoice.id))
+    .map((invoice) => invoice.number)
+  return words.splits.refusedPlacedMoney(row.account, row.date, row.amount, numbers)
 }
 
 /**
@@ -230,7 +279,8 @@ function storedEntry(records: WorkbookRecords, entry: LedgerEntry): LedgerEntry 
 
 /**
  * Takes the replaced rows out and adds the new ones, each with the category and share its entry names. Books with an items tab
- * give a new row one item under them, or when it pays back what a pack keeps the items `payments` give it. A new row that takes
+ * give a new row one item under them, or when it pays an invoice or pays back what a pack keeps the items `payments` give it, each
+ * that pays an invoice naming it. A new row that takes
  * the place of one taken out keeps that row's items, and when its amount differs the largest of them takes up the difference, so
  * they still add up to it. Items of a row taken out that nothing takes the place of go with it.
  */
@@ -241,13 +291,15 @@ export function replaceLedgerRows(unit: UnitOfWork, records: WorkbookRecords, re
   if (!storesItems(records)) return
   const items = unit.of(ITEM_WRITES)
   const heldBy = (rowId: string | null) => (rowId === null ? [] : storedItemsOfRow(records.items, { rowId }))
+  const invoices = new Set(recordsOf(records.invoices).map((invoice) => invoice.id))
+  const invoiceOf = (paid: RecordId | null) => (paid !== null && invoices.has(paid) ? paid : null)
   for (const entry of added) {
     const held = heldBy(entry.rowId)
     if (entry.rowId === null) throw new Error('A new ledger row has a row id.')
     if (held.length === 0) {
       const rowId = entry.rowId
-      const paid = payments.find((payment) => payment.row === rowId)?.items ?? [{ id: wholeItemId(entry), amount: entry.amount, note: '' }]
-      paid.forEach((item) => items.add({ row: rowId, amount: item.amount, category: entry.category, note: item.note, ownerShare: entry.ownerShare, invoice: null, id: item.id }))
+      const paid = payments.find((payment) => payment.row === rowId)?.items ?? [{ id: wholeItemId(entry), amount: entry.amount, note: '', of: null }]
+      paid.forEach((item) => items.add({ row: rowId, amount: item.amount, category: entry.category, note: item.note, ownerShare: entry.ownerShare, invoice: invoiceOf(item.of), id: item.id }))
       continue
     }
     const gap = restOfWhole(

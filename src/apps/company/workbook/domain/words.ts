@@ -8,6 +8,7 @@ import { textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredField, StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { capitalised } from '../../../../shared/text/capitalised'
 import { language } from '../../../../shared/text/language'
+import { numbersInWords } from '../../../../shared/text/numbersInWords'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 import { slugInWords } from './slugInWords'
@@ -151,8 +152,10 @@ export const en = {
     partsAddUp: (total: Money, row: Money) => `the parts add up to ${plainAmount(total)} and the row is ${plainAmount(row)}`,
     countsWhole: (reasons: string) => `${reasons}, so the ledger row counts whole`,
     keptWhole: (account: string, date: CivilDate, why: string) => `the ${account} row of ${date} stays whole, since ${why}`,
-    refusedKeptWhole: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${date} for ${plainAmount(amount)} stays whole, since ${why}.`,
-    refusedItemNamed: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${date} for ${plainAmount(amount)} stays as ${why}.`,
+    refusedKeptWhole: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} stays whole, since ${why}.`,
+    refusedItemNamed: (account: string, date: CivilDate, amount: Money, why: string) => `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} stays as ${why}.`,
+    refusedPlacedMoney: (account: string, date: CivilDate, amount: Money, invoices: readonly string[]) =>
+      `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} pays ${invoices.length === 1 ? 'invoice' : 'invoices'} ${numbersInWords(invoices)}, so what it puts on ${invoices.length === 1 ? 'it' : 'each'} stays as it is.`,
   },
   items: {
     noRowId: 'no row_id',
@@ -162,7 +165,7 @@ export const en = {
     waitsOnReview: (reasons: string) => `${reasons}, so the ledger row counts whole and waits on To review`,
     noInvoice: (invoice: string) => `the invoices tab holds no invoice ${invoice}, so this item pays none`,
     fileTheSplit: (account: string, date: CivilDate, amount: Money) =>
-      `The ${account} row of ${date} for ${plainAmount(amount)} is split in parts, each in its own category. Change its split to file it otherwise.`,
+      `The ${account} row of ${dayLabel(date)} for ${formatMoney(amount)} is split in parts, each in its own category. Change its split to file it otherwise.`,
   },
   accounts: {
     noName: 'no account name',
@@ -253,6 +256,8 @@ export const hr: Translation<typeof en> = {
     keptWhole: (account, date, why) => `stavka računa „${account}” od ${dayLabel(date)} ostaje cijela jer ${why}`,
     refusedKeptWhole: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje cijela jer ${why}.`,
     refusedItemNamed: (account, date, amount, why) => `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} ostaje kako ${why}.`,
+    refusedPlacedMoney: (account, date, amount, invoices) =>
+      `Stavka računa „${account}” od ${dayLabel(date)} na ${formatMoney(amount)} plaća ${invoices.length === 1 ? 'račun' : 'račune'} ${numbersInWords(invoices)}, pa iznos ${invoices.length === 1 ? 'na njemu' : 'na svakome'} ostaje isti.`,
   },
   items: {
     noRowId: 'polje row_id je prazno',

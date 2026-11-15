@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { gettingSetUp } from '../src/apps/company/onboarding/presentation/gettingSetUp'
 import type { WorkbookDocument } from '../src/shared/storage/infrastructure/documentFormat'
 import { readDocument } from '../src/apps/company/workbook/infrastructure/companyDocument'
-import { newBooksDocument } from '../src/apps/company/workbook/presentation/workbookFiles'
+import { newBooksDocument, newCompanyBooks } from '../src/apps/company/workbook/presentation/workbookFiles'
 import { STATEMENTS_BY_HAND } from '../src/apps/company/onboarding/domain/statementsChoice'
 import { COMPANY_FACT_SETTINGS } from '../src/apps/company/packs/hr-doo/domain/companyFacts'
 import { STARTING_CATEGORIES } from '../src/apps/company/packs/hr-doo/preset/domain/startingCategories'
@@ -49,6 +49,13 @@ describe('new books', () => {
     expect(workbook.accounts).toEqual([])
     expect(workbook.transactions).toEqual([])
     expect(workbook.problems).toEqual([])
+  })
+})
+
+describe('placing client payments', () => {
+  it('starts on new books, which have no earlier payment to place, and not on the template, which a person fills in by hand', () => {
+    expect(read(newCompanyBooks().contents).workbook.paidInvoices).toEqual(new Map())
+    expect(read(newBooksDocument({}, SAVED)).workbook.paidInvoices).toBeUndefined()
   })
 })
 

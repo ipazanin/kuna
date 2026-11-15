@@ -114,7 +114,7 @@ describe('the template', () => {
     expect(ledgerHeader?.slice(0, 9)).toEqual(['date', 'account', 'statement', 'counterparty', 'counterparty_iban', 'description', 'amount', 'balance', 'flagged_by'])
     expect(book.Sheets.ledger?.A1?.c?.[0]?.t).toMatch(/booking date/)
     expect(book.Sheets.categories?.C1?.c?.[0]?.t).toMatch(/owner-pay module/)
-    expect(book.Sheets.settings?.A3?.c?.[0]?.t).toMatch(/exported file/)
+    expect(book.Sheets.settings?.A4?.c?.[0]?.t).toMatch(/exported file/)
 
     const workbook = workbookOf(tabs)
     expect(workbook.problems).toEqual([])

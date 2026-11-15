@@ -13,6 +13,7 @@ import type { Money } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
+import { useWorkbook } from '../../workbook/application/workbookStore'
 import { reviewReasonLabel } from '../domain/camtStatement'
 import type { CopiedTwinQuestion, DryRunRow, DryRunStatement } from '../domain/importDryRun'
 import { absMoney } from '../../../../shared/money/money'
@@ -46,6 +47,7 @@ const emit = defineEmits<{
 }>()
 
 const names = useDisplayNames()
+const store = useWorkbook()
 
 /** A row as a person tells it from others: its counterparty, amount and day. */
 function rowParts(row: Pick<Transaction, 'counterparty' | 'description' | 'amount' | 'date'>): string[] {
@@ -93,12 +95,24 @@ const subtitle = computed(() => {
   return opening === null || closing === null ? where : words.statement.range(where, formatMoney(opening), formatMoney(closing))
 })
 
-/** What a new entry pays back of the records the pack keeps, one line per item, each with what it pays back and how much. */
-function repaid(row: DryRunRow): readonly { readonly id: string; readonly text: string }[] {
-  return (row.repays ?? []).flatMap((item) => {
+/** One line of what a new entry pays, and whether an invoice is what it pays. */
+interface PaidLine {
+  readonly id: string
+  readonly text: string
+  readonly invoice: boolean
+}
+
+/** The number of each invoice in the books, by its id. */
+const invoiceNumbers = computed(() => new Map((store.state.workbook?.invoices ?? []).map((invoice) => [invoice.id, invoice.number])))
+
+/** What a new entry pays of the invoices and of the records the pack keeps, one line per item, each with what it pays and how much. */
+function paid(row: DryRunRow): readonly PaidLine[] {
+  return (row.pays ?? []).flatMap((item): PaidLine[] => {
     if (item.of === null) return []
     const amount = formatMoney(absMoney(item.amount))
-    return [{ id: item.id, text: item.note === '' ? words.statement.paysBackPart(amount) : words.statement.paysBack(item.note, amount) }]
+    const number = invoiceNumbers.value.get(item.of)
+    if (number !== undefined) return [{ id: item.id, text: words.statement.paysInvoice(number, amount), invoice: true }]
+    return [{ id: item.id, text: item.note === '' ? words.statement.paysBackPart(amount) : words.statement.paysBack(item.note, amount), invoice: false }]
   })
 }
 
@@ -166,7 +180,7 @@ function grouped(iban: string): string {
         >
           <template #details>
             <span v-if="row.counterparty && row.description" class="break-words type-caption">{{ row.description }}</span>
-            <span v-for="item in repaid(row)" :key="item.id" class="break-words type-caption" data-testid="dry-run-pays-back">{{ item.text }}</span>
+            <span v-for="item in paid(row)" :key="item.id" class="break-words type-caption" :data-testid="item.invoice ? 'dry-run-pays-invoice' : 'dry-run-pays-back'">{{ item.text }}</span>
             <span class="mt-1 flex flex-wrap gap-1">
               <UBadge v-if="row.inLedger && waitingRefs.has(row.reference)" :label="words.statement.waitsForAnswer" color="info" variant="subtle" size="sm" />
               <UBadge v-else-if="row.inLedger" :label="words.statement.onLedger" color="neutral" variant="subtle" size="sm" />

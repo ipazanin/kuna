@@ -42,6 +42,8 @@ export const TEMPLATE_VERSION = 1
  */
 export interface Settings {
   readonly templateVersion: number
+  /** Whether the books store which invoice each client payment pays. Kuna turns it on when it starts placing them, and books without it match the payments to the invoices on every read. */
+  readonly clientPaymentsPlaced: boolean
   /** Blank when unnamed. The app then uses the file's name. */
   readonly companyName: string
   /** An ISO 4217 code with at most two decimals, such as `EUR`. */
@@ -154,6 +156,7 @@ export const DEFAULT_BUCKET_LABELS: Readonly<Record<DefinedBucket, string>> = wo
 
 export const DEFAULT_SETTINGS: Settings = {
   templateVersion: TEMPLATE_VERSION,
+  clientPaymentsPlaced: false,
   companyName: '',
   currency: 'EUR',
   numberLocale: '',
@@ -423,6 +426,9 @@ const INVOICING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
 /** Keys core no longer reads that older books may still hold. They read silently, and a save leaves their rows alone. */
 export const COMPANY_RETIRED_SETTING_KEYS: ReadonlySet<string> = new Set(['invoice_vat_id'])
 
+/** The key that says the books store which invoice each client payment pays. Only Kuna sets it. */
+export const CLIENT_PAYMENTS_PLACED_KEY = 'client_payments_placed'
+
 /** The key of the counterparties the owner flagged as people. Only a person sets it, from a row in To review. */
 export const PERSON_PAYEES_KEY = 'person_payees'
 
@@ -448,6 +454,17 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition<Settings>[] = [
         return words.settings.newerVersion(version, TEMPLATE_VERSION)
       }
       return { ...settings, templateVersion: version }
+    },
+  },
+  {
+    key: CLIENT_PAYMENTS_PLACED_KEY,
+    label: words.settingLabels.clientPaymentsPlaced,
+    note: 'TRUE once Kuna stores which invoice each client payment pays. Leave it as Kuna wrote it.',
+    type: 'flag',
+    valueOf: (settings) => flagText(settings.clientPaymentsPlaced),
+    apply: (settings, value) => {
+      const placed = booleanOf(value)
+      return placed === null ? words.settings.notAFlag(value) : { ...settings, clientPaymentsPlaced: placed }
     },
   },
   {

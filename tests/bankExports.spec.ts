@@ -34,7 +34,8 @@ const ACCOUNT_IBAN = 'HR4599999991000000017'
 const PAYER_IBAN = 'HR2399999991000000025'
 const TELECOM_IBAN = 'HR9899999991000000033'
 
-const workbook = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')).workbook
+const FAKE_BOOKS = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
+const workbook = FAKE_BOOKS.workbook
 
 function bytesOf(name: string): Uint8Array<ArrayBuffer> {
   return new Uint8Array(readFileSync(join(EXPORTS, name)))
@@ -79,7 +80,7 @@ describe("a camt.053.001.02 statement in the Croatian banks' shape", () => {
 
     expect(readings).toHaveLength(1)
     expect(readings[0]).toMatchObject({ newAccount: { iban: ACCOUNT_IBAN, currency: 'EUR' } })
-    const run = dryRunFor(readings, workbook, new Map(), new Map([[ACCOUNT_IBAN, 'primjer']]))
+    const run = dryRunFor(readings, FAKE_BOOKS, new Map(), new Map([[ACCOUNT_IBAN, 'primjer']]))
     const [statement] = run.statements
     expect(statement?.refusal).toBeNull()
     expect(statement?.notes).toEqual(['1 entry the bank has not booked yet, such as a pending one, is left out, since it has not moved the balance.'])
@@ -204,7 +205,7 @@ describe.each([
     expect(reading.statement.opening).toBe(moneyFromCents(100_000))
 
     const withoutMain = { ...workbook, transactions: workbook.transactions.filter((row) => row.account !== 'main') }
-    const run = dryRunFor([reading], withoutMain, new Map([['main', moneyFromCents(100_000)]]))
+    const run = dryRunFor([reading], { ...FAKE_BOOKS, workbook: withoutMain }, new Map([['main', moneyFromCents(100_000)]]))
     expect(run.statements[0]?.refusal).toBeNull()
     expect(run.newRows).toBe(3)
   })

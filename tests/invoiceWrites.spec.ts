@@ -69,4 +69,15 @@ describe('an invoice its payments are placed on', () => {
     await store.undo(store.state.writes[0]!)
     expect(itemsPaying(store, invoice.id)).toEqual(paying)
   })
+
+  it('keeps the books placing payments once the last invoice a payment is placed on is deleted', async () => {
+    const { store } = await browserHarness(used, fakeWorkbookDocument('2026-10-16T09:00:00.000Z', 'browser'))
+    const paid = new Set(store.state.workbook!.paidInvoices!.values())
+    const invoices = recordsOf(store.state.records!.invoices).filter((held) => paid.has(held.id))
+
+    await store.write('Deleted', (unit) => invoices.forEach((invoice) => removeInvoice(unit, store.state.records!.items, invoice)))
+
+    expect(itemsPaying(store, null).length).toBeGreaterThan(0)
+    expect(store.state.workbook!.paidInvoices).toEqual(new Map())
+  })
 })

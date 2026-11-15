@@ -19,6 +19,7 @@ import {
   fakeWorkbookDocumentBeforeItems,
   itemOfLedgerRow,
   withOlderInterestCategory,
+  withPaymentsMatched,
   withoutRegistrationDay,
 } from './fakeWorkbook'
 import { sampleCopiedLedgerRow, sampleOpenAdvanceRecords } from '../../../imports/infrastructure/fake/sampleImportFiles'
@@ -93,7 +94,8 @@ const LEFT_OUT: readonly (readonly [suffix: string, kind: string])[] = [
  * so the module and its fixture never reach a production chunk. `?start=drive` or `?start=browser` is a person who already answered the home welcome, and `?backups` puts backups beside a file on the fake Drive.
  * A variant that ends in `copied` adds a ledger row the AI copied that the sample camt statement's client payment looks like, one that ends
  * in `open-advance` adds a cost the owner paid that the sample refund to the owner pays back, with the rule that files that refund, one that ends
- * in `unplaced` leaves a client payment on no invoice, so it waits to be placed, and one that
+ * in `unplaced` leaves a client payment on no invoice, so it waits to be placed, one that ends in `matching` holds books on the items
+ * tab from before Kuna placed client payments, which match them to the invoices on every read, and one that
  * ends in `category-move` adds plan rows a category's move joins or cannot change. One that ends in `donations` adds a donation above its cap and a
  * sponsorship to a listed club, each in a category of its class. The books keep every row's money on the items tab, but for a variant
  * that ends in `no-row-ids`, which holds books from before items and from before every ledger row had an id, and one that ends in
@@ -111,7 +113,15 @@ export async function seedFakeWorkbook(variant: string | null, staffOf: (variant
   const beforeItems = variant?.endsWith('no-row-ids') === true || variant?.endsWith('refused-splits') === true
   const made = (beforeItems ? fakeWorkbookDocumentBeforeItems : fakeWorkbookDocument)(savedAt, source, staffOf(variant), variant?.endsWith('donations') ?? false)
   const seeded = variant === 'unregistered' ? withoutRegistrationDay(made) : variant?.endsWith('older-interest') === true ? withOlderInterestCategory(made) : made
-  const full = variant?.endsWith('copied') ? withCopiedRow(seeded) : variant?.endsWith('open-advance') ? withOpenAdvance(seeded) : variant?.endsWith('unplaced') ? withUnplacedPayment(seeded) : seeded
+  const full = variant?.endsWith('copied')
+    ? withCopiedRow(seeded)
+    : variant?.endsWith('open-advance')
+      ? withOpenAdvance(seeded)
+      : variant?.endsWith('unplaced')
+        ? withUnplacedPayment(seeded)
+        : variant?.endsWith('matching')
+          ? withPaymentsMatched(seeded)
+          : seeded
   const missing = LEFT_OUT.find(([suffix]) => variant?.endsWith(suffix))?.[1] ?? null
   const planned = variant?.endsWith('category-move') ? { ...full, records: { ...full.records, 'hr-doo.plan-line': [...(full.records['hr-doo.plan-line'] ?? []), ...categoryMovePlanRecords()] } } : full
   const unlinked = variant?.endsWith('no-row-ids') ? withoutRowIds(planned) : variant?.endsWith('refused-splits') ? withRefusedSplits(planned) : planned

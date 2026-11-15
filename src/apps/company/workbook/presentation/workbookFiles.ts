@@ -105,9 +105,12 @@ export function newBooksDocument(choices: Partial<Settings>, savedAt: string): W
   return documentOfTabs(COMPANY_APP, emptyWorkbookTabs(localDayAt(Date.parse(savedAt)), { ...DEFAULT_SETTINGS, ...choices }), savedAt)
 }
 
-/** The books a new company starts with, from the first run or the chat. Statements come in by hand until the person says how they arrive. */
+/**
+ * The books a new company starts with, from the first run or the chat. Statements come in by hand until the person says how they
+ * arrive, and each client payment is placed on the invoices it pays from the first import, since no earlier payment waits to be placed.
+ */
 export function newCompanyBooks(): { readonly contents: WorkbookDocument; readonly title: string } {
-  return { contents: newBooksDocument(STATEMENTS_BY_HAND, new Date().toISOString()), title: NEW_BOOKS_TITLE }
+  return { contents: newBooksDocument({ ...STATEMENTS_BY_HAND, clientPaymentsPlaced: true }, new Date().toISOString()), title: NEW_BOOKS_TITLE }
 }
 
 /** Whether the categories are the ones new books start with, none added, removed or renamed. */
@@ -131,7 +134,10 @@ export async function exportWorkbook(store: WorkbookStore<CompanyBooks, Document
 
 const TEMPLATE_FILE_NAME = 'kuna-template.xlsx'
 
-/** Hands the browser new books as an xlsx file in the template format, every tab with its headers, to fill in and open again. */
+/**
+ * Hands the browser new books as an xlsx file in the template format, every tab with its headers, to fill in and open again. Its
+ * client payments are matched to the invoices on every read until a first confirmed import starts placing them.
+ */
 export async function downloadTemplate(): Promise<void> {
   const document = newBooksDocument({}, new Date().toISOString())
   const { workbook } = readDocument(previewIdentity(TEMPLATE_FILE_NAME), document)

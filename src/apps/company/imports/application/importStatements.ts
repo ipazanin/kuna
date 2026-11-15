@@ -5,10 +5,14 @@ import { ACCOUNT_WRITES } from '../../settings/application/namedRecordWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { accountOfFields } from '../../workbook/domain/accountsReading'
 import { slugProblem } from '../../workbook/domain/slug'
-import { recordWithId } from '../../../../shared/storage/domain/recordsRead'
+import { recordWithId, recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { storedFieldOfValue } from '../../../../shared/storage/domain/storedFields'
-import type { WorkbookRecords } from '../../workbook/domain/readWorkbook'
+import type { CompanyBooks } from '../../workbook/domain/readWorkbook'
 import type { Workbook } from '../../workbook/domain/workbook'
+import { storesItems } from '../../workbook/domain/rowItems'
+import { proposedInvoicePayments } from '../../receivables/domain/invoicePayments'
+import { startPlacingPayments } from '../../receivables/application/invoicePaymentWrites'
+import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
 import { installedPack } from '../../packs/packContribution'
 import { readCamtDocument } from '../domain/camtStatement'
 import { importDryRun } from '../domain/importDryRun'
@@ -55,18 +59,23 @@ export function newAccountNameProblem(name: string, taken: ReadonlySet<string>):
 }
 
 /**
- * What importing would do to the workbook on screen, with the openings the person gave accounts that
+ * What importing would do to the books on screen, with the openings the person gave accounts that
  * have no rows yet, the names typed for new accounts, by IBAN, and what the person said of entries
  * that look like rows the AI copied. A statement read before its IBAN was added to the accounts tab
- * is filed under that account, and a name that cannot be used names no account.
+ * is filed under that account, and a name that cannot be used names no account. The new rows pay
+ * the invoices `proposedInvoicePayments` places them on, on books that place client payments, and
+ * on books with an items tab that do not yet when `startsPlacing`, since confirming starts it.
  */
 export function dryRunFor(
   readings: readonly StatementReading[],
-  workbook: Workbook,
+  books: CompanyBooks,
   starts: ReadonlyMap<string, Money>,
   names: ReadonlyMap<string, string> = new Map(),
   twinAnswers: ReadonlyMap<string, TwinAnswer> = new Map(),
+  startsPlacing = true,
 ): ImportDryRun {
+  const { records, workbook } = books
+  const placesInvoices = storesItems(records) && (workbook.paidInvoices !== undefined || startsPlacing)
   const known = accountsByIban(workbook)
   const current = readings.map((reading): StatementReading => {
     const slug = 'newAccount' in reading ? known.get(reading.newAccount.iban) : undefined
@@ -88,23 +97,30 @@ export function dryRunFor(
     starts,
     named,
     twinAnswers,
-    repaymentsOf: (added) => installedPack().repaymentsOf(workbook, added),
+    paymentsOf: (added) => [...(placesInvoices ? proposedInvoicePayments(presentedWorkbook(workbook), added) : []), ...installedPack().repaymentsOf(workbook, added)],
   })
 }
 
 /**
  * The write of an import: the accounts it adds, the copied rows its entries take the place of, as the app read them, then its
- * ledger entries with their items, in the shape the books keep, and what of them pays back the records the pack keeps. A copied
- * row the records on screen no longer hold stays, and the ledger then refuses entries that do not run on.
+ * ledger entries with their items, in the shape the books keep, and what of them pays back the records the pack keeps. A first
+ * payment placed on an invoice starts placing the books' client payments. A copied row's items go to the bank's row that takes
+ * its place, still paying the invoices they paid, since the two agree on the amount. A copied row the records on screen no longer
+ * hold stays, and the ledger then refuses entries that do not run on.
  */
-export function writeImport(unit: UnitOfWork, run: ImportDryRun, records: WorkbookRecords | null | undefined): void {
-  if (records === null || records === undefined) throw new Error('The books are not read yet, so nothing is imported.')
+export function writeImport(unit: UnitOfWork, run: ImportDryRun, books: CompanyBooks | null): void {
+  if (books === null) throw new Error('The books are not read yet, so nothing is imported.')
+  const { records } = books
+  const invoices = new Set(recordsOf(records.invoices).map((invoice) => invoice.id))
+  if (run.payments.some((payment) => payment.items.some((item) => item.of !== null && invoices.has(item.of)))) {
+    startPlacingPayments(unit, books)
+  }
   for (const account of run.accounts) {
     unit.of(ACCOUNT_WRITES).add(accountOfFields({ account: storedFieldOfValue(account.slug), iban: storedFieldOfValue(account.iban), currency: storedFieldOfValue(account.currency) }))
   }
   const removed = run.removed.flatMap((copied) => recordWithId(records.ledger, copied.id)?.record ?? [])
-  replaceLedgerRows(unit, records, removed, run.added, run.repayments)
-  installedPack().linkRepayments(unit, records, run.repayments)
+  replaceLedgerRows(unit, records, removed, run.added, run.payments)
+  installedPack().linkRepayments(unit, records, run.payments)
 }
 
 /** "Imported 4 rows", or "Added main and imported 4 rows" when the import adds accounts. */

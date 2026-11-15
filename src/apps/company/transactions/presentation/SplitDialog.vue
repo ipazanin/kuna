@@ -22,7 +22,8 @@ import type { Category, Transaction } from '../../workbook/domain/workbook'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import { useBookedWorkbook } from '../application/useBookedWorkbook'
-import { removeSplit, writeSplit } from '../application/splitWrites'
+import { removeSplit, splitRefusal, writeSplit } from '../application/splitWrites'
+import type { SplitPartDraft } from '../application/splitWrites'
 import CategoryPicker from './CategoryPicker.vue'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
@@ -88,7 +89,30 @@ const outcome = computed(() => {
   return given === null || parts.value.some((part) => categoryError(part) !== null) ? null : partsOfWhole(whole.value, given)
 })
 
-const refusal = computed(() => (outcome.value !== null && 'refused' in outcome.value ? splitWords.split.refusals[outcome.value.refused] : null))
+/** The parts as the write takes them, signed as the row, or null while they cannot be placed. */
+const drafts = computed((): SplitPartDraft[] | null => {
+  const placed = outcome.value
+  if (placed === null || 'refused' in placed) return null
+  const signed = (amount: Money): Money => (props.row.amount < 0 ? negateMoney(amount) : amount)
+  return parts.value.map((part, index) => ({ amount: signed(placed.parts[index]!), category: part.category, note: part.note, opened: part.held }))
+})
+
+/** Why the books refuse the split as given, or its removal with none, or null, so the dialog says so before Save. */
+function booksRefusal(given: readonly SplitPartDraft[] | null): string | null {
+  const { records, workbook } = store.state
+  return records === null || records === undefined || workbook === null || workbook === undefined ? null : splitRefusal({ records, workbook }, props.row, stored.value, given)
+}
+
+const refusal = computed(() => {
+  if (outcome.value !== null && 'refused' in outcome.value) return splitWords.split.refusals[outcome.value.refused]
+  return drafts.value === null ? null : booksRefusal(drafts.value)
+})
+
+/** Why the split cannot be taken off, or null. */
+const deleteRefusal = computed(() => (stored.value.parts.length === 0 ? null : booksRefusal(null)))
+
+/** Why Delete split is off, unless the refusal under the parts already says the same once Save was tried. */
+const deleteReason = computed(() => (tried.value && refusal.value === deleteRefusal.value ? null : deleteRefusal.value))
 
 /** Whether a stored part cannot be read, which keeps any split of the row from counting until it is fixed in the workbook, so the dialog offers no split. */
 const unreadable = computed(() => keptWhole.value === null && stored.value.unreadable > 0)
@@ -98,15 +122,12 @@ const refusedParts = computed(() => (stored.value.refused ? stored.value.parts.l
 
 async function save(): Promise<void> {
   tried.value = true
-  const placed = outcome.value
+  const given = drafts.value
   const records = store.state.records
-  if (placed === null || 'refused' in placed || records === null || records === undefined) return
-  const amounts = placed.parts
-  const signed = (amount: Money): Money => (props.row.amount < 0 ? negateMoney(amount) : amount)
-  const drafts = parts.value.map((part, index) => ({ amount: signed(amounts[index]!), category: part.category, note: part.note, opened: part.held }))
+  if (given === null || refusal.value !== null || records === null || records === undefined) return
   const saved = await writes.write(
-    split.value === null ? plural(words.splitInParts(drafts.length), drafts.length) : words.splitDialog.saved,
-    (unit) => writeSplit(unit, records, props.row, stored.value, drafts, props.categories),
+    split.value === null ? plural(words.splitInParts(given.length), given.length) : words.splitDialog.saved,
+    (unit) => writeSplit(unit, records, props.row, stored.value, given, props.categories),
     {
       description: [words.splitDialog.paymentOf(props.row.counterparty, props.row.amount), ...(stored.value.refused ? [words.splitDialog.noUndo] : [])].join(' '),
       failedTitle: words.splitDialog.notSaved,
@@ -116,7 +137,7 @@ async function save(): Promise<void> {
 }
 
 async function remove(): Promise<void> {
-  if (stored.value.parts.length === 0) return
+  if (stored.value.parts.length === 0 || deleteRefusal.value !== null) return
   const { records, workbook } = store.state
   if (records === null || records === undefined || workbook === null || workbook === undefined) return
   const deleted = await writes.write(words.splitDialog.deleted, (unit) => removeSplit(unit, { records, workbook }, props.row, stored.value), {
@@ -155,6 +176,15 @@ async function remove(): Promise<void> {
         :title="plural(words.splitDialog.replacesRefused(refusedParts), refusedParts)"
         data-testid="split-replaces-refused"
       />
+      <UAlert
+        v-if="deleteRefusal !== null"
+        icon="i-lucide-info"
+        color="neutral"
+        variant="subtle"
+        :title="words.splitDialog.deleteOff"
+        :description="deleteReason ?? ''"
+        data-testid="split-delete-refused"
+      />
       <SplitEditor
         v-if="!unreadable"
         v-model="parts"
@@ -185,7 +215,7 @@ async function remove(): Promise<void> {
         color="error"
         variant="ghost"
         :loading="writes.saving('delete')"
-        :disabled="writes.busy.value || writes.refused.value"
+        :disabled="writes.busy.value || writes.refused.value || deleteRefusal !== null"
         data-testid="split-delete"
         @click="remove"
       />

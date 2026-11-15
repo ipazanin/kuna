@@ -12,7 +12,8 @@ import { loadImportFile } from '../src/apps/company/imports/infrastructure/impor
 import { fakeWorkbookSnapshot } from './fixtures/fakeBooks'
 import { readSnapshot } from '../src/apps/company/workbook/infrastructure/spreadsheetTab'
 
-const workbook = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z')).workbook
+const FAKE_BOOKS = readSnapshot(fakeWorkbookSnapshot('2026-10-16T08:00:00.000Z'))
+const workbook = FAKE_BOOKS.workbook
 const camt = { kind: 'camt' as const, fileName: SAMPLE_CAMT_FILE_NAME, document: new DOMParser().parseFromString(sampleCamtXml(), 'application/xml') }
 const grid = sampleTableGrid()
 const guess = fileShapeOf(grid)!.guess
@@ -21,8 +22,8 @@ const table = { kind: 'table' as const, fileName: SAMPLE_TABLE_FILE_NAME, fileHa
 
 describe('the fake build’s sample statement files', () => {
   it('carry the main account on with four new rows each, categorised by the fake rules', () => {
-    const fromCamt = dryRunFor(statementReadings(camt, workbook, null), workbook, new Map())
-    const fromTable = dryRunFor(statementReadings(table, workbook, profile), workbook, new Map())
+    const fromCamt = dryRunFor(statementReadings(camt, workbook, null), FAKE_BOOKS, new Map())
+    const fromTable = dryRunFor(statementReadings(table, workbook, profile), FAKE_BOOKS, new Map())
 
     expect(fromCamt.newRows).toBe(4)
     expect(fromCamt.statements[0]?.rows.map((row) => [row.counterparty, row.verdict?.category, row.reviewReasons])).toEqual([
@@ -37,7 +38,7 @@ describe('the fake build’s sample statement files', () => {
   })
 
   it('start from the same balance, so only one of them can follow the ledger', () => {
-    const run = dryRunFor([...statementReadings(camt, workbook, null), ...statementReadings(table, workbook, profile)], workbook, new Map())
+    const run = dryRunFor([...statementReadings(camt, workbook, null), ...statementReadings(table, workbook, profile)], FAKE_BOOKS, new Map())
 
     expect(run.statements.map((statement) => [statement.fileName, statement.refusal])).toEqual([
       [SAMPLE_TABLE_FILE_NAME, null],
@@ -57,7 +58,7 @@ describe('the fake build’s statements folder', () => {
     expect(listing.files.length).toBeGreaterThan(100)
     expect(toRead.map((file) => file.name)).toEqual([`${sampleCamtLabel()}-main.xml`])
     const loaded = await loadImportFile(toRead[0]!.name, await folder.download(toRead[0]!))
-    const run = dryRunFor(statementReadings(loaded, workbook, null), workbook, new Map())
+    const run = dryRunFor(statementReadings(loaded, workbook, null), FAKE_BOOKS, new Map())
     expect(run.statements.map((statement) => [statement.label, statement.account, statement.refusal])).toEqual([[sampleCamtLabel(), 'main', null]])
     expect(run.newRows).toBe(4)
   })

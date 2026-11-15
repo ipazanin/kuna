@@ -123,6 +123,7 @@ export const en = {
   /** Each setting by the label its screen shows, which a change to it and any sentence naming it read. */
   settingLabels: {
     templateVersion: 'Workbook format',
+    clientPaymentsPlaced: 'Client payments placed on invoices',
     companyName: 'Company name',
     currency: 'Currency',
     numberLocale: 'Number style',
@@ -250,6 +251,7 @@ export const hr: Translation<typeof en> = {
   },
   settingLabels: {
     templateVersion: 'Format radne knjige',
+    clientPaymentsPlaced: 'Uplate klijenata povezane s računima',
     companyName: 'Naziv tvrtke',
     currency: 'Valuta',
     numberLocale: 'Zapis brojeva',

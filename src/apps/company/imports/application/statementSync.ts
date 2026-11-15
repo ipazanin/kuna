@@ -9,6 +9,7 @@ import type { StatementReading } from '../domain/importedStatement'
 import { statementFilesToRead } from '../domain/statementFiles'
 import type { StatementFile } from '../domain/statementFiles'
 import { dryRunFor, statementReadings, writeImport } from './importStatements'
+import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import type { LoadedImportFile } from './importStatements'
 import type { StatementFolder } from './statementFolder'
 import { words } from './words'
@@ -91,7 +92,8 @@ async function readingsOf(file: StatementFile, ports: StatementSyncPorts, workbo
  */
 async function fileReadings(readings: readonly StatementReading[], ports: StatementSyncPorts, mayRetry: boolean): Promise<StatementSyncOutcome> {
   const { store } = ports
-  const run = dryRunFor(readings, store.state.workbook!, new Map())
+  const books = companyBooksOf(store.state)!
+  const run = dryRunFor(readings, books, new Map(), new Map(), new Map(), false)
   const filed = run.statements.filter(isFiled)
   const kept = new Set(run.statements.filter(waitsForPerson).map(statementKey))
   const held = readings.filter((reading) => kept.has(readingKey(reading)))
@@ -100,7 +102,7 @@ async function fileReadings(readings: readonly StatementReading[], ports: Statem
   }
   ports.step({ kind: 'filing', rows: run.newRows })
   try {
-    const receipt = await store.write(filedTitle(filed, run.newRows), (unit) => writeImport(unit, run, store.state.records))
+    const receipt = await store.write(filedTitle(filed, run.newRows), (unit) => writeImport(unit, run, companyBooksOf(store.state)))
     return { problem: null, held, filed: receipt === null ? [] : filed, receipt }
   } catch (failure) {
     if (!(failure instanceof WorkbookWriteRefused) || !mayRetry) {

@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { dryRunFor, writeImport } from '../src/apps/company/imports/application/importStatements'
+import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import { importDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import type { DryRunInputs } from '../src/apps/company/imports/domain/importDryRun'
 import type { ImportedStatement } from '../src/apps/company/imports/domain/importedStatement'
@@ -41,7 +42,7 @@ function inputsOf(transactions: readonly Transaction[], twinAnswers: DryRunInput
     starts: new Map(),
     named: new Map(),
     twinAnswers,
-    repaymentsOf: () => [],
+    paymentsOf: () => [],
   }
 }
 
@@ -249,16 +250,16 @@ describe('a file over a row the AI copied, on the Import screen', () => {
 
   /** The import with the person's answer that the file's entry takes the copied kiosk payment's place. */
   function replacingRun(desk: CompanyDesk, copiedKiosk: Transaction, statement: ImportedStatement) {
-    return dryRunFor([{ statement }], desk.store.state.workbook!, new Map(), new Map(), new Map([['main CAMT-K', { booked: copiedKiosk.id, keep: 'file' as const }]]))
+    return dryRunFor([{ statement }], companyBooksOf(desk.store.state)!, new Map(), new Map(), new Map([['main CAMT-K', { booked: copiedKiosk.id, keep: 'file' as const }]]))
   }
 
   it("writes the file's entry in the copied row's place in one write, and one Undo puts the copied row back", async () => {
     const { desk, copiedKiosk, statement } = await copiedKioskAndFile()
-    const asked = dryRunFor([{ statement }], desk.store.state.workbook!, new Map())
+    const asked = dryRunFor([{ statement }], companyBooksOf(desk.store.state)!, new Map())
     expect(asked.statements[0]!.questions.map((question) => question.copied.id)).toEqual([copiedKiosk.id])
     const run = replacingRun(desk, copiedKiosk, statement)
     expect(run.removed).toHaveLength(1)
-    const receipt = await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!))
+    const receipt = await desk.store.write('Imported', (unit) => writeImport(unit, run, companyBooksOf(desk.store.state)))
     const kioskRows = () => desk.store.state.workbook!.transactions.filter((row) => row.account === 'main' && row.amount === moneyFromAmount(-12.5)).map((row) => row.reference)
     expect(kioskRows()).toEqual(['CAMT-K'])
     await desk.store.undo(desk.store.state.writes.find((write) => write.receipt === receipt)!)
@@ -277,7 +278,7 @@ describe('a file over a row the AI copied, on the Import screen', () => {
     await desk.store.write('Split', (unit) => writeSplit(unit, desk.store.state.records!, copiedKiosk, stored, drafts, desk.store.state.workbook!.categories))
 
     const run = replacingRun(desk, copiedKiosk, statement)
-    await desk.store.write('Imported', (unit) => writeImport(unit, run, desk.store.state.records!))
+    await desk.store.write('Imported', (unit) => writeImport(unit, run, companyBooksOf(desk.store.state)))
 
     const { transactions, splits } = desk.store.state.workbook!
     const split = splits.find((candidate) => candidate.row.reference === 'CAMT-K')

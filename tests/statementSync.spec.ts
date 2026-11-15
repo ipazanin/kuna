@@ -6,6 +6,7 @@ import type { DocumentCopy } from '../src/shared/storage/infrastructure/document
 import { decodeDocument, encodeDocument } from '../src/shared/storage/infrastructure/documentFormat'
 
 import { dryRunFor, statementReadings } from '../src/apps/company/imports/application/importStatements'
+import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import { LEDGER_WRITES } from '../src/apps/company/imports/application/ledgerWrites'
 import type { StatementFolder } from '../src/apps/company/imports/application/statementFolder'
 import { NOTHING_FILED, fileNewStatements, filedTitle } from '../src/apps/company/imports/application/statementSync'
@@ -171,7 +172,7 @@ describe.each([
 
     expect(outcome.filed.map((statement) => statement.label)).toEqual(['2026-10-06-statement-002'])
     expect(outcome.held.map((reading) => ('statement' in reading ? reading.statement.label : reading.label))).toEqual(['2026-10-06-statement-003', '2026-10-07-statement-004'])
-    const held = dryRunFor(outcome.held, store.state.workbook!, new Map()).statements
+    const held = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map()).statements
     expect(held.map((statement) => statement.refusal)).toEqual([
       "The ledger ends main at €1,000.00 on 5 Oct 2026, but this statement's first new entry starts from €900.00, so a statement between the two is missing. Import that one first.",
       "The ledger ends main at €1,000.00 on 5 Oct 2026, but this statement's first new entry starts from €1,100.00, so a statement between the two is missing. Import that one first.",
@@ -209,11 +210,11 @@ describe.each([
     expect(outcome.filed).toEqual([])
     expect(outcome.receipt).toBeNull()
     expect(store.state.writes).toEqual([])
-    const waiting = dryRunFor(outcome.held, store.state.workbook!, new Map())
+    const waiting = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map())
     expect(waiting.statements[0]).toMatchObject({ refusal: null, start: { account: 'reserve', opening: moneyFromCents(5_000), date: '2026-10-06' } })
     expect(waiting.newRows).toBe(0)
 
-    const started = dryRunFor(outcome.held, store.state.workbook!, new Map([['reserve', moneyFromCents(5_000)]]))
+    const started = dryRunFor(outcome.held, companyBooksOf(store.state)!, new Map([['reserve', moneyFromCents(5_000)]]))
     await store.write('Filed', (unit) => started.added.forEach((entry) => unit.of(LEDGER_WRITES).add(entry)))
     expect(ledgerOf(store, 'reserve')).toEqual(['2026-10-06 R1-1 7000'])
   })
@@ -252,7 +253,11 @@ describe("the statements step against another device's sync", () => {
     const harness = await driveHarness(used, grids())
     const { store, drive } = harness
     const workbook = store.state.workbook!
-    const run = dryRunFor(statementReadings({ kind: 'camt', fileName: 'x.xml', document: new DOMParser().parseFromString(MAIN_003, 'application/xml') }, workbook, null), workbook, new Map())
+    const run = dryRunFor(
+      statementReadings({ kind: 'camt', fileName: 'x.xml', document: new DOMParser().parseFromString(MAIN_003, 'application/xml') }, workbook, null),
+      companyBooksOf(store.state)!,
+      new Map(),
+    )
     const filedElsewhere = {
       date: '2026-10-06',
       account: 'main',

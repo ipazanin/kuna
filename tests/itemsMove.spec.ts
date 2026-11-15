@@ -91,6 +91,7 @@ describe('moving books from before items to the items tab', () => {
         ]),
       ])
     expect(moved.paidInvoices).toBeDefined()
+    expect(moved.settings.clientPaymentsPlaced).toBe(true)
     expect(owed(moved)).toEqual(owed(read))
 
     await store.undo(store.state.writes[0]!)

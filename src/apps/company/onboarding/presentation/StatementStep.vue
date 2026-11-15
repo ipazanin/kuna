@@ -6,6 +6,7 @@ import UFileUpload from '@nuxt/ui/components/FileUpload.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { importTitle, statementReadings, writeImport } from '../../imports/application/importStatements'
+import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import type { LoadedImportFile } from '../../imports/application/importStatements'
 import { loadImportFile } from '../../imports/infrastructure/importFiles'
 import DryRunStatementCard from '../../imports/presentation/DryRunStatementCard.vue'
@@ -68,7 +69,7 @@ async function importNow(): Promise<void> {
   let imported = false
   try {
     imported = await withGoogleAccess(inBrowser.value ? [] : ['drive.file'], () =>
-      writes.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records), { failedTitle: words.statement.notImported }),
+      writes.write(importTitle(run), (unit) => writeImport(unit, run, companyBooksOf(store.state)), { failedTitle: words.statement.notImported }),
     )
   } catch (refused) {
     loadFailure.value = refused instanceof Error ? refused.message : String(refused)

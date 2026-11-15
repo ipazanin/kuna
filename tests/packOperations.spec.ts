@@ -524,7 +524,7 @@ describe("filing a trip's rows from its screen", () => {
     expect([itemsOfPayout(), tripHeld()]).toEqual([itemsBefore, tripBefore])
   })
 
-  it('keeps the invoice each item of the payout pays', async () => {
+  it('takes the payout off the invoice its items name, since only revenue pays one', async () => {
     const desk = await packDesk(fakeWorkbookDocument)
     const books = () => desk.store.state as CompanyBooks
     const tripHeld = () => recordsOf(recordsOfKindIn(desk.store.state.records!, TRIP_RECORDS))[0]!
@@ -551,7 +551,7 @@ describe("filing a trip's rows from its screen", () => {
     await desk.store.write('Filed', (unit) => fileTripRows(unit, { records: books().records, workbook: booked }, file.trip, split.rows, booked.settings.reviewLabel))
 
     expect(itemsOfPayout()).not.toEqual(itemsBefore)
-    expect(new Set(itemsOfPayout().map((item) => item.invoice))).toEqual(new Set([invoice]))
+    expect(new Set(itemsOfPayout().map((item) => item.invoice))).toEqual(new Set([null]))
   })
 })
 

@@ -29,6 +29,7 @@ import LedgerGate from '../../workbook/presentation/LedgerGate.vue'
 import { fileRows } from '../application/fileRows'
 import { useFilteredLedger } from '../application/useFilteredLedger'
 import { confirmation, recategorisation } from '../domain/verdictChanges'
+import { invoicesRefiledOff } from '../../receivables/domain/invoicePayments'
 import type { RowVerdict } from '../domain/verdictChanges'
 import ReviewQueueItem from './ReviewQueueItem.vue'
 import SessionChanges from './SessionChanges.vue'
@@ -85,7 +86,8 @@ async function confirm(transaction: Transaction): Promise<void> {
 async function recategorise(transaction: Transaction, category: string): Promise<void> {
   const workbook = ledger.value?.workbook
   if (workbook === undefined) return
-  await file(words.review.filedAs(names.value.category(category)), recategorisation(transaction, category, workbook.settings), {
+  const offInvoices = invoicesRefiledOff(workbook, transaction, category).map((invoice) => invoice.number)
+  await file(words.review.filedAs(names.value.category(category), offInvoices), recategorisation(transaction, category, workbook.settings), {
     key: `recategorise-${transaction.id}`,
     description: transaction.counterparty || words.review.noCounterpartyRow,
     follow: { label: words.review.makeRule, icon: 'i-lucide-list-plus', run: () => makeRule({ ...transaction, category }) },

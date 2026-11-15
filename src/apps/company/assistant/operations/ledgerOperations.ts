@@ -20,10 +20,11 @@ import type { RulesTabChange } from '../../rules/domain/rulesTabChange'
 import { treatPayeeAsPerson } from '../../settings/application/settingWrites'
 import { fileRows } from '../../transactions/application/fileRows'
 import { words as transactionWords } from '../../transactions/presentation/words'
-import { removeSplit, splitKeptRefusal, writeSplit } from '../../transactions/application/splitWrites'
+import { removeSplit, splitRefusal, writeSplit } from '../../transactions/application/splitWrites'
 import type { SplitPartDraft } from '../../transactions/application/splitWrites'
 import { fitsPairSide, pairSidesWith } from '../../transactions/domain/pairSides'
 import { confirmation, confirmedRowsRefiledBy, recategorisation } from '../../transactions/domain/verdictChanges'
+import { invoicesRefiledOff } from '../../receivables/domain/invoicePayments'
 import type { RowVerdict } from '../../transactions/domain/verdictChanges'
 import { CATEGORY_RECORDS, ITEM_RECORDS, LEDGER_RECORDS, RULE_RECORDS } from '../../workbook/domain/coreKinds'
 import { displayNamesOf } from '../../workbook/domain/displayName'
@@ -217,6 +218,14 @@ function fileRow(card: CompanyCard, step: ProposalStep): void {
       const warning = `${transactionWords.changeDialog.ruleAgainst.before} ${against.ruleId} ${transactionWords.changeDialog.ruleAgainst.after(names.category(against.category), names.category(category.slug))}`
       card.note({ noun: LEDGER_RECORDS.noun, note: { label: row.counterparty || names.category(row.category), text: warning, tone: 'warning' } })
     }
+    const offInvoices = invoicesRefiledOff(card.workbook, row, category.slug).map((invoice) => invoice.number)
+    if (offInvoices.length > 0) {
+      const names = displayNamesOf(card.workbook)
+      card.note({
+        noun: LEDGER_RECORDS.noun,
+        note: { label: row.counterparty || names.category(row.category), text: transactionWords.changeDialog.filedAs(names.category(category.slug), offInvoices), tone: 'warning' },
+      })
+    }
   }
   fileRows(card.unit, { records: card.records(), workbook: card.workbook }, [verdict], card.workbook.categories)
 }
@@ -409,6 +418,8 @@ function splitRow(card: CompanyCard, step: ProposalStep): void {
   const drafts = parts.map((part, at): SplitPartDraft => ({ amount: amounts[at]!, category: categoryOf(card, part.category).slug, note: part.note, opened: openedOf(part.part) }))
   const kept = drafts.flatMap((draft) => (draft.opened === null ? [] : [draft.opened.id]))
   if (new Set(kept).size < kept.length) throw new StepRefused("Each of the row's split parts is kept by one part at most.")
+  const refusal = splitRefusal({ records: card.records(), workbook: card.workbook }, row, stored, drafts)
+  if (refusal !== null) throw new StepRefused(refusal)
   writeSplit(card.unit, card.records(), row, stored, drafts, card.workbook.categories)
 }
 
@@ -417,7 +428,7 @@ function deleteSplit(card: CompanyCard, step: ProposalStep): void {
   const stored = storedSplitsOf(card.records())(row)
   if (stored.parts.length === 0) throw new StepRefused('That row is not split.')
   const books = { records: card.records(), workbook: card.workbook }
-  const refusal = splitKeptRefusal(books, row)
+  const refusal = splitRefusal(books, row, stored, null)
   if (refusal !== null) throw new StepRefused(refusal)
   removeSplit(card.unit, books, row, stored)
 }

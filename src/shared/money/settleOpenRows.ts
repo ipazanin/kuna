@@ -66,10 +66,15 @@ export function settleOpenRows(open: readonly Money[], amount: Money, mayMatch: 
 /**
  * Where each of several payments, given oldest first, goes among rows given oldest first. Each
  * payment in turn first closes the rows it equals exactly, as `closedExactly` finds them. The
- * payments left then go in turn as `settleOpenRows` places them, reaching any open row. So a
- * payment that only part fills rows never takes a row that a later payment equals exactly.
+ * payments left then go in turn as `settleOpenRows` places them, reaching the open rows `mayReach`
+ * lets them. So a payment that only part fills rows never takes a row that a later payment equals exactly.
  */
-export function settlePayments(rows: readonly Money[], payments: readonly Money[], mayMatch: (payment: number, row: number) => boolean): RowShare[][] {
+export function settlePayments(
+  rows: readonly Money[],
+  payments: readonly Money[],
+  mayMatch: (payment: number, row: number) => boolean,
+  mayReach: (payment: number, row: number) => boolean,
+): RowShare[][] {
   const open = [...rows]
   const take = (shares: RowShare[]) => {
     for (const { index, applied } of shares) {
@@ -87,7 +92,7 @@ export function settlePayments(rows: readonly Money[], payments: readonly Money[
             open,
             amount,
             (row) => mayMatch(payment, row),
-            () => true,
+            (row) => mayReach(payment, row),
           ),
         )
   })

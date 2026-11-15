@@ -14,6 +14,7 @@ export interface AccountBalance {
   readonly balance: Figure
   readonly asOf: CivilDate
   readonly firstSeen: CivilDate
+  /** The bank rows, each once however many items or owner parts it counts as. */
   readonly transactionCount: number
   /** Emptied, and silent through the month the ledger's newest row falls in. */
   readonly closed: boolean
@@ -56,7 +57,7 @@ export function latestBalances(accountTransactions: readonly Transaction[]): Lat
       balance: { amount: closing.balance, drill: drillToTransactions({ period: { preset: 'all' }, accounts: [account] }) },
       asOf: closing.date,
       firstSeen: rows[0].date,
-      transactionCount: rows.length,
+      transactionCount: new Set(rows.map((row) => row.split?.whole.id ?? row.id)).size,
       closed: closing.balance === 0 && monthOf(closing.date) !== newestMonth,
     }
   })

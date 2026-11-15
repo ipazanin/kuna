@@ -87,6 +87,7 @@ export function ownerLoans(transactions: readonly Transaction[], categories: rea
     lent.map((entry) => entry.amount),
     repayments.map((repayment) => repayment.amount),
     (payment, row) => lent[row]!.lentOn <= repayments[payment]!.payment.date,
+    () => true,
   )
   const open = lent.map((entry) => entry.amount)
   const shares: LoanRepaymentShare[][] = lent.map(() => [])

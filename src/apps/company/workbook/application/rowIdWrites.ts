@@ -7,10 +7,13 @@ import { definedCategories } from '../domain/categoriesReading'
 import { readLedger } from '../domain/ledgerReading'
 import type { CompanyBooks, WorkbookRecords } from '../domain/readWorkbook'
 import { rowsOfSplitKey } from '../domain/splits'
-import type { Transaction, Workbook } from '../domain/workbook'
-import { invoiceSharesOf, receivablesOf } from '../../receivables/domain/invoiceMatching'
+import type { Transaction } from '../domain/workbook'
+import { receivablesOf } from '../../receivables/domain/invoiceMatching'
+import { matchedInvoiceItems } from '../../receivables/domain/invoicePayments'
+import { setSettings } from '../../settings/application/settingWrites'
+import { CLIENT_PAYMENTS_PLACED_KEY, flagText } from '../../settings/domain/settings'
 import { presentedWorkbook } from '../../transactions/domain/presentedWorkbook'
-import { movedPartId, paymentParts } from '../domain/rowPayments'
+import { movedPartId } from '../domain/rowPayments'
 import { ITEM_WRITES } from '../../transactions/application/itemWrites'
 import { keyOfRecordId, newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -73,33 +76,10 @@ function itemIdOfPart(id: RecordId): RecordId {
 }
 
 /**
- * Splits each client payment's item by what today's matching puts on each invoice: what pays no invoice keeps the item, and each
- * invoice the payment pays gets an item of its own that names it, with the item's note. A payment that pays one invoice in full
- * stays one item that names it.
- */
-function placeInvoicePayments(workbook: Workbook, items: readonly ItemRecord[], itemOf: (row: Transaction) => ItemRecord | undefined): readonly ItemRecord[] {
-  const placed = new Map<RecordId, readonly ItemRecord[]>()
-  for (const [row, shares] of invoiceSharesOf(receivablesOf(presentedWorkbook(workbook)))) {
-    const item = itemOf(row)
-    if (item === undefined) continue
-    const parts = paymentParts(
-      item,
-      shares.map((share) => ({ paid: { id: share.invoice, note: item.note }, applied: share.applied })),
-      (place) => movedPartId(item.id, place),
-    )
-    placed.set(
-      item.id,
-      parts.map((part): ItemRecord => ({ ...item, id: part.id, amount: part.amount, note: part.note, invoice: part.of })),
-    )
-  }
-  return items.flatMap((item) => placed.get(item.id) ?? [item])
-}
-
-/**
  * Moves books from before items to the items tab in one write. Every ledger row gets a row id if it has none, and gives up its
  * category and share to its items: a row not split one item under its own id with them, and a split row its parts, each under the
  * key it was stored by, in the order the splits tab holds them. Each client payment's item is split by the invoices it pays today,
- * as `placeInvoicePayments` says. The splits tab is emptied, and the pack splits the items by what
+ * as `matchedInvoiceItems` says, and the settings record that the books store it from now on. The splits tab is emptied, and the pack splits the items by what
  * its records count them as today and has its records that name a row name its items. Gives the items the move wrote, in the
  * order of the ledger.
  */
@@ -131,8 +111,10 @@ export function moveToItems(unit: UnitOfWork, books: CompanyBooks, newId: () => 
     const held = byEntry.get(split?.whole.id ?? id) ?? []
     return split === undefined ? held[0] : held.find((item) => item.id === itemIdOfPart(split.id))
   }
-  const items = installedPack().linkToItems(unit, books, { items: placeInvoicePayments(workbook, [...byEntry.values()].flat(), itemOf), itemOf })
+  const placed = matchedInvoiceItems(receivablesOf(presentedWorkbook(workbook)), [...byEntry.values()].flat(), itemOf, movedPartId)
+  const items = installedPack().linkToItems(unit, books, { items: placed, itemOf })
   const itemWrites = unit.of(ITEM_WRITES)
   items.forEach((item) => itemWrites.add(item))
+  setSettings(unit, records.settings, [{ key: CLIENT_PAYMENTS_PLACED_KEY, value: flagText(true) }])
   return items
 }

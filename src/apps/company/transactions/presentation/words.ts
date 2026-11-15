@@ -3,6 +3,7 @@ import type { RecordNoun } from '../../../../shared/storage/domain/recordKind'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
+import { numbersInWords } from '../../../../shared/text/numbersInWords'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -32,7 +33,8 @@ export const en = {
     /** What Suggest categories sends the chat by itself. */
     suggestCategoriesTask: 'Sort the rows waiting on To review. Propose the changes that file them, with a new category or a rule where one is needed.',
     confirmed: (category: string) => `Confirmed ${category}`,
-    filedAs: (category: string) => `Filed as ${category}`,
+    filedAs: (category: string, offInvoices: readonly string[] = []) =>
+      offInvoices.length === 0 ? `Filed as ${category}` : `Filed as ${category} and taken off ${offInvoices.length === 1 ? 'invoice' : 'invoices'} ${numbersInWords(offInvoices)}`,
     noCounterpartyRow: 'A row with no counterparty',
     makeRule: 'Make a rule',
     makeRuleFromRow: 'Make a rule from this row',
@@ -159,6 +161,7 @@ export const en = {
     chooseCategory: 'Choose a category',
     sign: "Each part takes the row's sign and counts in its own category, with that category's timing, on every figure.",
     delete: 'Delete split',
+    deleteOff: 'Delete split is off for this payment',
     cancel: 'Cancel',
     split: 'Split',
     save: 'Save split',
@@ -182,7 +185,8 @@ export const en = {
         `files rows like this one as ${ruleCategory}. Once this row says ${picked}, Settings lists it on its Category rules tab among the rows the rule files differently.`,
     },
     writes: { before: 'Writes the new category and', after: (label: string) => `${label} on the row, with Undo in the toast.` },
-    filedAs: (category: string) => `Filed as ${category}`,
+    filedAs: (category: string, offInvoices: readonly string[] = []) =>
+      offInvoices.length === 0 ? `Filed as ${category}` : `Filed as ${category} and taken off ${offInvoices.length === 1 ? 'invoice' : 'invoices'} ${numbersInWords(offInvoices)}`,
     notWritten: 'Not written',
     noCounterpartyRow: 'A row with no counterparty',
     openRule: 'Open the rule',
@@ -207,7 +211,7 @@ export const hr: Translation<typeof en> = {
     suggestCategories: 'Predloži kategorije',
     suggestCategoriesTask: 'Razvrstaj retke koji čekaju na kartici Za provjeru. Predloži promjene koje ih razvrstavaju, s novom kategorijom ili pravilom gdje treba.',
     confirmed: (category) => `Potvrđeno: ${category}`,
-    filedAs: (category) => `Razvrstano: ${category}`,
+    filedAs: (category, offInvoices = []) => (offInvoices.length === 0 ? `Razvrstano: ${category}` : `Razvrstano: ${category}, uplata skinuta s računa br. ${numbersInWords(offInvoices)}`),
     noCounterpartyRow: 'Stavka bez partnera',
     makeRule: 'Napravi pravilo',
     makeRuleFromRow: 'Napravi pravilo iz ove stavke',
@@ -355,6 +359,7 @@ export const hr: Translation<typeof en> = {
     chooseCategory: 'Odaberi kategoriju',
     sign: 'Svaki dio preuzima predznak stavke i u svim se izračunima broji u svojoj kategoriji, s vremenom knjiženja te kategorije.',
     delete: 'Obriši podjelu',
+    deleteOff: 'Podjelu ovog plaćanja nije moguće obrisati',
     cancel: 'Odustani',
     split: 'Podijeli',
     save: 'Spremi podjelu',
@@ -377,7 +382,7 @@ export const hr: Translation<typeof en> = {
         `razvrstava ovakve stavke kao „${ruleCategory}”. Kad ova stavka bude u kategoriji „${picked}”, Postavke će je na kartici Pravila kategorija navesti među stavkama koje pravilo razvrstava drukčije.`,
     },
     writes: { before: 'Upisuje novu kategoriju i', after: (label) => `„${label}” u stavku, a obavijest nudi poništavanje.` },
-    filedAs: (category) => `Razvrstano: ${category}`,
+    filedAs: (category, offInvoices = []) => (offInvoices.length === 0 ? `Razvrstano: ${category}` : `Razvrstano: ${category}, uplata skinuta s računa br. ${numbersInWords(offInvoices)}`),
     notWritten: 'Nije upisano',
     noCounterpartyRow: 'Stavka bez partnera',
     openRule: 'Otvori pravilo',

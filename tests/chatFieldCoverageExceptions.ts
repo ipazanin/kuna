@@ -170,8 +170,8 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     fields: ['company: Setting.invoice_folder_id'],
   },
   {
-    reason: "Kuna's own settings: the file's format version, which Kuna writes, and the review label, which the owner keeps out of what the chat reads.",
-    fields: ['company: Setting.template_version', 'company: Setting.review_label'],
+    reason: "Kuna's own settings: the file's format version and whether the books place client payments, which Kuna writes, and the review label, which the owner keeps out of what the chat reads.",
+    fields: ['company: Setting.template_version', 'company: Setting.client_payments_placed', 'company: Setting.review_label'],
   },
   {
     reason: "Where the files live. The first-run screen asks it, since keeping files on Drive needs Google's consent.",

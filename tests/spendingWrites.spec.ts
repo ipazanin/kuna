@@ -334,17 +334,20 @@ describe('a statement in the Spending file', () => {
     expect(statementDryRun(store.state.workbook!, statement, civil('2026-10-30'))).toMatchObject({ newRows: 1, alreadyIn: 0 })
   })
 
-  it('undoes a first import of thousands of rows in seconds, not minutes', async () => {
+  it('undoes a first import of thousands of rows in about the time the import took, not minutes', async () => {
     const store = await spendingStore()
     const rows = Array.from({ length: 4_300 }, (_, place) => ({ ...rowOf(`Shop ${place}`, -1 - place / 100, `2026-10-${String((place % 28) + 1).padStart(2, '0')}`) }))
     const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows, notes: [] }, civil('2026-10-30'))
+    const importing = performance.now()
     const receipt = await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
-    const started = performance.now()
+    const undoing = performance.now()
 
     await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
 
     expect(store.state.workbook!.transactions).toEqual([])
-    expect(performance.now() - started).toBeLessThan(15_000)
+    // The import of the same rows is the baseline, so a loaded machine slows both alike. Undo takes about five times as long, and
+    // finding each record by scanning every other one, as it once did, made it take minutes.
+    expect(performance.now() - undoing).toBeLessThan(20 * (undoing - importing))
   }, 120_000)
 
   it('keeps what the bank said on a row you retype, so a later statement still skips it, and marks a changed category as yours', () => {

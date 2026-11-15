@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { writeImport } from '../src/apps/company/imports/application/importStatements'
+import { companyBooksOf } from '../src/apps/company/workbook/domain/readWorkbook'
 import type { ImportDryRun } from '../src/apps/company/imports/domain/importDryRun'
 import { ownerAdvanceOfDraft, writeOwnerAdvance } from '../src/apps/company/packs/hr-doo/application/ownerAdvanceWrites'
 import { proposedRepayments, repaidMoreThanPaid, repaymentChoices, repaymentsPlaced } from '../src/apps/company/packs/hr-doo/domain/advanceRepayments'
@@ -109,7 +110,7 @@ describe('owner advances paid back by items', () => {
     expect(itemsOf(store, PARKING)).toEqual([parkingItem])
   })
 
-  it('keeps the invoice a payment pays on both items when a cost placed on it gives part of it an item of its own', async () => {
+  it('takes a payment to the owner off the invoice it names, since only revenue pays one, when a cost placed on it gives part of it an item of its own', async () => {
     const store = await storeOf(true)
     const parkingItem = itemsOf(store, PARKING)[0]!
     const invoice = store.state.workbook!.invoices[0]!.id
@@ -118,8 +119,8 @@ describe('owner advances paid back by items', () => {
     await addAdvance(store, 20, 'Parking at the client', [PARKING])
 
     expect(itemsOf(store, PARKING).map((item) => [item.amount, item.invoice])).toEqual([
-      [euros(-18.5), invoice],
-      [euros(-20), invoice],
+      [euros(-18.5), null],
+      [euros(-20), null],
     ])
   })
 
@@ -207,9 +208,9 @@ describe('an import that pays back the costs the owner paid', () => {
       [euros(-50), 'Taxi', false],
     ])
     expect(repayments[0]!.items[0]!.id).toBe(recordIdOf(ITEM_RECORDS, 'refund-row'))
-    const run = { accounts: [], removed: [], added: [entry], repayments, newRows: 1, statements: [] } as unknown as ImportDryRun
+    const run = { accounts: [], removed: [], added: [entry], payments: repayments, newRows: 1, statements: [] } as unknown as ImportDryRun
 
-    await store.write('Imported', (unit) => writeImport(unit, run, store.state.records!))
+    await store.write('Imported', (unit) => writeImport(unit, run, companyBooksOf(store.state)))
 
     expect(itemsOf(store, 'Refund').map((item) => [item.amount, item.note])).toEqual([
       [euros(-10), ''],

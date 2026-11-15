@@ -8,6 +8,7 @@ import type { Money } from '../../../../shared/money/money'
 import { typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { dryRunFor, newAccountNameProblem } from '../application/importStatements'
+import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import type { CopiedTwinQuestion, ImportDryRun } from '../domain/importDryRun'
 import type { StatementReading } from '../domain/importedStatement'
 
@@ -75,11 +76,11 @@ export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>):
   })
 
   const dryRun = computed(() => {
-    const workbook = store.state.workbook
-    if (workbook === null || readings.value.length === 0) return null
+    const books = companyBooksOf(store.state)
+    if (books === null || readings.value.length === 0) return null
     const names = new Map(Object.entries(accountNames.value))
     const answers = new Map(Object.entries(twinAnswers.value))
-    const waiting = dryRunFor(readings.value, workbook, new Map(), names, answers)
+    const waiting = dryRunFor(readings.value, books, new Map(), names, answers)
     const starts = new Map<string, Money>()
     for (const statement of waiting.statements) {
       const start = statement.start
@@ -87,7 +88,7 @@ export function useDryRun(readings: Readonly<Ref<readonly StatementReading[]>>):
       const opening = start.opening === null ? openingOf(typedOpenings.value[start.account] ?? '') : started.value[start.account] ? start.opening : null
       if (opening !== null) starts.set(start.account, opening)
     }
-    return starts.size === 0 ? waiting : dryRunFor(readings.value, workbook, starts, names, answers)
+    return starts.size === 0 ? waiting : dryRunFor(readings.value, books, starts, names, answers)
   })
 
   return {

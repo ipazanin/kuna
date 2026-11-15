@@ -1,5 +1,6 @@
 import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
+import { numbersInWords } from '../../../../shared/text/numbersInWords'
 import { plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -81,6 +82,7 @@ export const en = {
     onLedger: 'On the ledger',
     waitsForAnswer: 'Waits for your answer',
     replacesCopied: "Takes the copied row's place",
+    paysInvoice: (number: string, amount: string) => `Pays invoice ${numbersInWords([number])}, ${amount}`,
     paysBack: (what: string, amount: string) => `Pays back ${what}, ${amount}`,
     paysBackPart: (amount: string) => `Pays back ${amount} of a cost`,
     waitsForReview: 'Waits for review',
@@ -230,6 +232,7 @@ export const hr: Translation<typeof en> = {
     onLedger: 'U evidenciji',
     waitsForAnswer: 'Čeka vaš odgovor',
     replacesCopied: 'Zamjenjuje prepisani redak',
+    paysInvoice: (number, amount) => `Plaća račun ${numbersInWords([number])}, ${amount}`,
     paysBack: (what, amount) => `Vraća trošak „${what}”, ${amount}`,
     paysBackPart: (amount) => `Vraća ${amount} troška`,
     waitsForReview: 'Čeka provjeru',

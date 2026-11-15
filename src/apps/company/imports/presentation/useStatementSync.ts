@@ -10,6 +10,7 @@ import { useWorkbook } from '../../workbook/application/workbookStore'
 import type { Workbook } from '../../workbook/domain/workbook'
 import { needsReview } from '../../workbook/domain/needsReview'
 import { dryRunFor } from '../application/importStatements'
+import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import { fileNewStatements, stillHeld } from '../application/statementSync'
 import type { StatementSyncOutcome, StatementSyncStep } from '../application/statementSync'
 import type { StatementFolder } from '../application/statementFolder'
@@ -68,10 +69,10 @@ export function useStatementSync(): StatementSync {
   const store = useWorkbook()
 
   const held = computed(() => {
-    const workbook = store.state.workbook
+    const books = companyBooksOf(store.state)
     const readings = state.outcome?.held ?? []
-    if (workbook === null || readings.length === 0) return null
-    return dryRunFor(readings, workbook, new Map()).statements.filter(stillHeld)
+    if (books === null || readings.length === 0) return null
+    return dryRunFor(readings, books, new Map()).statements.filter(stillHeld)
   })
 
   /** What the step did, in one line: what it filed with the rows that wait for review, the notes of each statement, and how many it held. */

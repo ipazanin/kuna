@@ -8,6 +8,7 @@ import { SPENDING_RETIRED_SETTING_KEYS, SPENDING_SETTING_CHECKS } from '../src/a
 const KEYS_EVER_READ: Readonly<Record<string, readonly string[]>> = {
   company: [
     'template_version',
+    'client_payments_placed',
     'company_name',
     'currency',
     'number_locale',

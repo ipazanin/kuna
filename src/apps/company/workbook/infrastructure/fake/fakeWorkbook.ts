@@ -1,4 +1,5 @@
-import { moneyFromAmount } from '../../../../../shared/money/money'
+import { ZERO, addMoney, moneyFromAmount } from '../../../../../shared/money/money'
+import type { Money } from '../../../../../shared/money/money'
 import { language } from '../../../../../shared/text/language'
 import { RULE_COLUMNS } from '../../../rules/domain/readRules'
 import { ID_FIELD } from '../../../../../shared/storage/domain/recordCodec'
@@ -8,6 +9,7 @@ import type { WorkbookSource } from '../../../../../shared/storage/domain/record
 import type { DocumentRecord, WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../../../../../shared/storage/infrastructure/documentRecordStorage'
 import { COMPANY_APP } from '../../domain/companyApp'
+import { CLIENT_PAYMENTS_PLACED_KEY } from '../../../settings/domain/settings'
 import { installedSchema, readDocument } from '../companyDocument'
 import { invoiceSharesOf, receivablesOf } from '../../../receivables/domain/invoiceMatching'
 import { presentedWorkbook } from '../../../transactions/domain/presentedWorkbook'
@@ -278,6 +280,9 @@ const MONTHS = [
 /** The month with no client payment and a large purchase, so its net is negative. */
 const LOSS_MONTH = '2025-11'
 
+/** The settings row books on the items tab hold once they store which invoice each client payment pays. */
+const PAYMENTS_PLACED = [CLIENT_PAYMENTS_PLACED_KEY, true] as const
+
 /**
  * The made-up company's records, by kind. As a Drive file its settings hold a blank
  * `card_settlement_ibans`, the invoice details and the registration day, so every other default applies
@@ -285,12 +290,12 @@ const LOSS_MONTH = '2025-11'
  * kept in this browser they also name the company, the way a new user would, and its director is on
  * the employees tab. Rows the rules do not
  * reproduce are flagged as a person's, so the Category rules tab has coverage gaps to show. The records of the
- * kinds without a business key, and every ledger row, carry a fixed id.
+ * kinds without a business key, and every ledger row, carry a fixed id. The books store which invoice each client payment pays.
  */
 export function fakeWorkbookRecords(source: WorkbookSource = 'drive', staff: FakeStaff | null = null, giving = false): Readonly<Record<string, readonly RecordFields[]>> {
   const before = fakeWorkbookRecordsBeforeItems(source, staff, giving)
   const records = onItemsTab(before)
-  return { ...records, item: withInvoicePayments(before, records.item ?? []) }
+  return { ...records, setting: [...(records.setting ?? []), recordFields(setting(PAYMENTS_PLACED))], item: withInvoicePayments(before, records.item ?? []) }
 }
 
 /**
@@ -490,6 +495,26 @@ const REGISTERED = ['hr_company_registered', '2025-05-12'] as const
 export function withoutRegistrationDay(document: WorkbookDocument): WorkbookDocument {
   const [key] = REGISTERED
   return { ...document, records: { ...document.records, setting: (document.records['setting'] ?? []).filter((fields) => fields['key'] !== key) } }
+}
+
+/**
+ * The books as they stood on the items tab before Kuna placed client payments: each client payment the invoices split is one item
+ * again under the row's own id, no item names an invoice, and the settings do not say the books place them.
+ */
+export function withPaymentsMatched(document: WorkbookDocument): WorkbookDocument {
+  const [key] = PAYMENTS_PLACED
+  const { records } = document
+  const held = records.item ?? []
+  const paying = new Set(held.flatMap((item) => (item.invoice_id === undefined ? [] : [item.row_id])))
+  const totals = new Map<unknown, Money>()
+  for (const item of held.filter((candidate) => paying.has(candidate.row_id))) {
+    totals.set(item.row_id, addMoney(totals.get(item.row_id) ?? ZERO, moneyFromAmount(Number(item.amount))))
+  }
+  const items = held.flatMap(({ invoice_id: _invoice, ...item }) => {
+    if (!paying.has(item.row_id)) return [item]
+    return item[ID_FIELD] === item.row_id ? [{ ...item, amount: amountText(totals.get(item.row_id)!) }] : []
+  })
+  return { ...document, records: { ...records, setting: (records.setting ?? []).filter((fields) => fields['key'] !== key), item: items } }
 }
 
 /** The books with bank interest in its starting category on the other income class, as books started before interest counted on financial income keep it. */

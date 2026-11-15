@@ -21,6 +21,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
 import { fittingProfiles, importTitle, statementReadings, writeImport } from '../application/importStatements'
+import { companyBooksOf } from '../../workbook/domain/readWorkbook'
 import { profileDraftProblem, profileKey, profileValue } from '../domain/importProfile'
 import type { ImportProfile } from '../domain/importProfile'
 import { accountNamedIn, fileShapeOf } from '../domain/profileGuess'
@@ -170,7 +171,7 @@ const waitingName = computed(() => dryRun.value?.statements.filter((statement) =
 async function confirm(): Promise<void> {
   const run = dryRun.value
   if (run === null || run.newRows === 0) return
-  const written = await writes.write(importTitle(run), (unit) => writeImport(unit, run, store.state.records), {
+  const written = await writes.write(importTitle(run), (unit) => writeImport(unit, run, companyBooksOf(store.state)), {
     failedTitle: words.panel.notImported,
     key: 'import',
   })

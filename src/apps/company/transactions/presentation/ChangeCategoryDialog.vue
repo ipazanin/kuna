@@ -7,6 +7,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { fileRows } from '../application/fileRows'
 import { recategorisation } from '../domain/verdictChanges'
+import { invoicesRefiledOff } from '../../receivables/domain/invoicePayments'
 import { ruleAgainst } from '../../rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../../rules/domain/categorisationContext'
 import { categoryRuleLink } from '../../rules/presentation/ruleLinks'
@@ -57,7 +58,8 @@ async function change(): Promise<void> {
   if (workbook === null || workbook === undefined || records === null || records === undefined || category === undefined || !changed.value) return
   const contradicting = against.value
   const verdict = recategorisation(props.row, category, workbook.settings)
-  const written = await writes.write(words.changeDialog.filedAs(names.value.category(category)), (unit) => fileRows(unit, { records, workbook }, [verdict], workbook.categories), {
+  const offInvoices = invoicesRefiledOff(workbook, props.row, category).map((invoice) => invoice.number)
+  const written = await writes.write(words.changeDialog.filedAs(names.value.category(category), offInvoices), (unit) => fileRows(unit, { records, workbook }, [verdict], workbook.categories), {
     failedTitle: words.changeDialog.notWritten,
     description: props.row.counterparty || words.changeDialog.noCounterpartyRow,
     ...(contradicting === null

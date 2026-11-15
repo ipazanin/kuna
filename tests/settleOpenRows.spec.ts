@@ -85,10 +85,36 @@ describe('settlePayments', () => {
     const rows = [euros(500), euros(1500)]
     const payments = [euros(1000), euros(500), euros(500)]
 
-    expect(settlePayments(rows, payments, () => true)).toEqual([[{ index: 1, applied: euros(1000) }], [{ index: 0, applied: euros(500) }], [{ index: 1, applied: euros(500) }]])
+    expect(
+      settlePayments(
+        rows,
+        payments,
+        () => true,
+        () => true,
+      ),
+    ).toEqual([[{ index: 1, applied: euros(1000) }], [{ index: 0, applied: euros(500) }], [{ index: 1, applied: euros(500) }]])
   })
 
   it('matches each payment exactly only among the rows it may match', () => {
-    expect(settlePayments([euros(300), euros(300)], [euros(300), euros(300)], (payment, row) => row <= payment)).toEqual([[{ index: 0, applied: euros(300) }], [{ index: 1, applied: euros(300) }]])
+    expect(
+      settlePayments(
+        [euros(300), euros(300)],
+        [euros(300), euros(300)],
+        (payment, row) => row <= payment,
+        () => true,
+      ),
+    ).toEqual([[{ index: 0, applied: euros(300) }], [{ index: 1, applied: euros(300) }]])
+  })
+
+  it('fills only the rows a payment may reach once no set equals it', () => {
+    // The first row is out of reach, so 400.00 fills the second row's 300.00 and keeps 100.00 nowhere.
+    expect(
+      settlePayments(
+        [euros(500), euros(300)],
+        [euros(400)],
+        () => true,
+        (_payment, row) => row > 0,
+      ),
+    ).toEqual([[{ index: 1, applied: euros(300) }]])
   })
 })

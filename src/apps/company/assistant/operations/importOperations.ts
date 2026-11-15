@@ -197,7 +197,8 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   if (offers.length > 1) throw new StepRefused('The file names several IBANs the books lack. Import it on Import, which names each account.')
   if (offers.length === 1 && newAccount === null) throw new StepRefused("The statement's IBAN names no account in the books. Give newAccount a short name for it.")
   const names = new Map(offers.map((iban) => [iban, newAccount!.trim().toLowerCase()]))
-  const waiting = dryRunFor(readings, workbook, new Map(), names)
+  const books = { records: card.records(), workbook }
+  const waiting = dryRunFor(readings, books, new Map(), names)
   const starts = new Map<string, Money>()
   const startedAtZero = new Set<string>()
   for (const statement of waiting.statements) {
@@ -213,7 +214,7 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
       )
     starts.set(statement.start.account, statement.start.opening)
   }
-  const run = starts.size === 0 ? waiting : dryRunFor(readings, workbook, starts, names)
+  const run = starts.size === 0 ? waiting : dryRunFor(readings, books, starts, names)
   const refused = run.statements.filter((statement) => statement.refusal !== null)
   if (refused.length > 0) throw new StepRefused(refused.map((statement) => `${statement.label}: ${statement.refusal}`).join(' '))
   if (run.statements.some((statement) => statement.newAccount !== null && statement.account === '')) throw new StepRefused(`${newAccount} cannot be an account's short name.`)
@@ -221,7 +222,7 @@ function writeStatements(card: CompanyCard, readings: readonly StatementReading[
   const lookAlikeRows = lookAlikes.map(({ number }) => number)
   if (run.newRows === 0 && lookAlikes.length > 0) throw new StepRefused(lookAlikesForTheModel(lookAlikeRows, true))
   if (run.newRows === 0) throw new StepRefused('Every row of the statement is on the ledger already.')
-  writeImport(card.unit, run, card.records())
+  writeImport(card.unit, run, books)
   const parts = (row: Pick<Transaction, 'counterparty' | 'description' | 'amount' | 'date'>): string[] =>
     [row.counterparty || row.description, formatMoney(row.amount), dayLabel(row.date)].filter((part) => part !== '')
   const started = [...starts.keys()]
