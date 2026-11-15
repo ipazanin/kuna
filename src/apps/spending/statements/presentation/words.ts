@@ -18,6 +18,11 @@ export const en = {
     summary: (added: number, alreadyIn: number, filled: number) => `${added} new, ${alreadyIn} already in, ${filled} paired with what you typed`,
     confirm: (count: number): EnglishForms => ({ one: 'Import 1 change', other: `Import ${count} changes` }),
     nothing: 'Nothing here is new.',
+    /** Why no new row is linked to an instalment, while Loans cannot be read. */
+    loansUnread: {
+      opening: 'Loans is still opening, so no row is linked to an instalment yet. A row that pays one waits on To review.',
+      failed: 'Loans did not open, so no row is linked to an instalment. A row that pays one waits on To review.',
+    },
     imported: 'Statement imported',
     notImported: 'Not imported',
     addAccount: 'Add this account',
@@ -158,6 +163,10 @@ export const hr: Translation<typeof en> = {
     summary: (added, alreadyIn, filled) => `Novih: ${added}, već unesenih: ${alreadyIn}, spojenih s vašim unosima: ${filled}`,
     confirm: (count): CroatianForms => ({ one: `Uvezi ${count} promjenu`, few: `Uvezi ${count} promjene`, other: `Uvezi ${count} promjena` }),
     nothing: 'Ovdje nema ničega novog.',
+    loansUnread: {
+      opening: 'Krediti se još otvaraju, pa još nijedan redak nije povezan s ratom. Redak koji plaća ratu čeka pod Za pregled.',
+      failed: 'Krediti se nisu otvorili, pa nijedan redak nije povezan s ratom. Redak koji plaća ratu čeka pod Za pregled.',
+    },
     imported: 'Izvod je uvezen',
     notImported: 'Nije uvezeno',
     addAccount: 'Dodaj ovaj račun',

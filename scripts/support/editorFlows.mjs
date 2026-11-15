@@ -6864,6 +6864,32 @@ export function spendingImportFlowIn(language, paths) {
   }
 }
 
+/**
+ * On Spending's Import with the statements set and the sample Loans file: the sample loan export's one row pays the home loan's
+ * latest instalment, so the dry run names that instalment under the row with its interest and principal, as Entries shows a split
+ * link. Imported, it is in, and one Undo brings the dry run back.
+ */
+export function spendingImportInstalmentFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  const panel = words.spendingStatements.import
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const before = panel.summary(1, 0, 0)
+    await dropSpendingFile(page, paths.loan)
+    await spendingDryRunSays(page, before)
+    await elementSays(page, '[data-testid="spending-dry-run-link"]', ['Home loan'], 'the dry run does not name the instalment the row pays')
+    await countOf(page, '[data-testid="spending-dry-run"] [data-testid="spending-row-line"]', 2, "the dry run does not show the instalment's interest and principal")
+    await inspect?.('the dry run of a row that pays an instalment')
+    await shootAt(page, shoot, '[data-testid="spending-dry-run"]', 'spending-import-instalment', { block: 'start' })
+    await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
+    await toast(page, panel.imported)
+    await spendingDryRunSays(page, panel.summary(0, 1, 0))
+    await undoIn(page, press, words)
+    await spendingDryRunSays(page, before)
+    await dismissToasts(page)
+  }
+}
+
 const SPENDING_RECEIPT_FORM = '[data-testid="spending-receipt-form"]'
 
 /** The choice of Entries' Add a receipt menu, which shows only with a key kept. */

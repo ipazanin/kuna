@@ -14,6 +14,8 @@ import type { RowQuestion } from './rowParts'
 import MissingAccountsOffer from './MissingAccountsOffer.vue'
 import { words } from './words'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import { loanTargets } from '../../links/application/loanTargets'
+import { words as linkWords } from '../../links/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import type { DateRange } from '../../../../shared/calendar/dateRange'
@@ -23,6 +25,7 @@ import { TWIN_CHOICES, twinWords } from '../../../../shared/ai/presentation/copi
 import type { TwinChoice } from '../../../../shared/ai/presentation/copiedRowsWords'
 import type { TwinAnswer } from '../../../../shared/money/lookAlikeBookings'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
+import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
@@ -102,10 +105,15 @@ watch([typedFrom, typedTo, gap, fileDays], () => {
   else if (from <= to) days.value = { from, to }
 })
 
+/** The Loans file's records, so a new row that pays an instalment comes in linked to it. While Loans opens, failed or is not set up, none is linked. */
+const loans = computed(() => loanTargets())
+/** Why the import links no row to an instalment while Loans is set up, or null when it reads Loans. */
+const loansUnread = computed(() => (typeof loans.value === 'string' && (dryRun.value?.newRows ?? 0) > 0 ? words.import.loansUnread[loans.value] : null))
 const dryRun = computed(() => {
   const book = store.state.workbook
   if (book === null || statement.value === null) return null
-  return statementDryRun(book, { ...statement.value, twinAnswers: new Map(Object.entries(twinAnswers.value)), days: days.value }, today())
+  const targets = loans.value === null || typeof loans.value === 'string' ? [] : loans.value
+  return statementDryRun(book, { ...statement.value, twinAnswers: new Map(Object.entries(twinAnswers.value)), days: days.value }, today(), { targets, language, notes: linkWords.notes })
 })
 
 const twinItems = computed(() => {
@@ -167,8 +175,9 @@ async function confirm(): Promise<void> {
           </FormGrid>
         </section>
         <p class="text-sm text-highlighted" data-testid="spending-dry-run-summary">{{ words.import.summary(dryRun.newRows, dryRun.alreadyIn, dryRun.filled) }}</p>
-        <ul v-if="dryRun.notes.length > 0" class="flex flex-col gap-1 text-sm text-muted" data-testid="spending-dry-run-notes">
+        <ul v-if="dryRun.notes.length > 0 || loansUnread !== null" class="flex flex-col gap-1 text-sm text-muted" data-testid="spending-dry-run-notes">
           <li v-for="note in dryRun.notes" :key="note">{{ note }}</li>
+          <li v-if="loansUnread !== null" data-testid="spending-dry-run-loans-unread">{{ loansUnread }}</li>
         </ul>
         <MissingAccountsOffer v-if="missing.length > 0" :title="addRevolutAccounts(missing, 'savings')" :missing="missing" />
         <QuestionList
@@ -184,7 +193,7 @@ async function confirm(): Promise<void> {
             <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
           </template>
         </QuestionList>
-        <DryRunLines :lines="dryRun.lines" :below-questions="twinItems.length > 0" />
+        <DryRunLines :lines="dryRun.lines" :added="dryRun.categories" :below-questions="twinItems.length > 0" />
         <UButton
           v-if="changes > 0"
           class="self-start"

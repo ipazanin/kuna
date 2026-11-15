@@ -6,6 +6,10 @@ import { words } from './words'
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
 import { cashAccountsFor, isWithdrawal, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
+import { instalmentOffers } from '../../links/domain/instalmentOffers'
+import { linkedEntry } from '../../links/domain/instalmentSplit'
+import type { LinkPlace, LinkedEntry } from '../../links/domain/instalmentSplit'
+import type { InstalmentTarget, LinkTarget } from '../../links/domain/linkTarget'
 import { receiptsArriving } from '../../receipts/domain/waitingReceipts'
 import type { PlacedReceipt } from '../../receipts/domain/waitingReceipts'
 import { words as receiptWords } from '../../receipts/domain/words'
@@ -13,6 +17,7 @@ import { isPairable, legsOfPair, transferPairs } from '../../pairing/domain/tran
 import { beforeStartDay } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { transferCategoryOf } from '../../workbook/domain/category'
+import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
 import { HELD_ROW_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -30,6 +35,7 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { bookedTwins } from '../../../../shared/money/lookAlikeBookings'
 import type { BookedTwin, Booking, TwinAnswer } from '../../../../shared/money/lookAlikeBookings'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { EURO } from '../../../../shared/money/currencyCode'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { normaliseIban } from '../../../../shared/text/fold'
@@ -56,9 +62,12 @@ export type DryRunLine =
   | {
       readonly row: StatementRow
       readonly outcome: 'new'
+      /** The category it ends up with, null while it waits on review, and for a row an instalment splits the one its interest goes under. */
       readonly category: RecordId | null
       /** For cash taken out, its leg on the cash account, or null while it waits on To review for the account. Null for any other row. */
       readonly withdrawal: { readonly cashLeg: Transaction | null } | null
+      /** The instalment in Loans the row pays, which the import links it to, and the parts the row comes in as. Absent on a row that pays none. */
+      readonly pays?: { readonly target: InstalmentTarget; readonly parts: readonly TransactionItem[] }
     }
   | {
       readonly row: StatementRow
@@ -96,6 +105,8 @@ export interface StatementDryRun {
   readonly items: readonly TransactionItem[]
   /** The receipts that waited for the bank's row and go on one of the rows added, which they file. */
   readonly receipts: readonly PlacedReceipt[]
+  /** The categories the links to Loans need that the file lacks, added in the same write. Absent when they need none. */
+  readonly categories?: readonly Category[]
   /** The sync's rows that look like rows Kuna has, put on hold on To review until the person answers. */
   readonly held: readonly HeldBankRow[]
   /** The rows on the file that change: typed rows a bank row filled, and rows that became a transfer's leg. */
@@ -125,6 +136,9 @@ export function filledByBank(
     cashWithdrawal: bank.cashWithdrawal,
   }
 }
+
+/** The instalments in Loans a statement's new rows may pay, with the language and notes of the parts and categories a link adds. */
+export type InstalmentLinks = Pick<LinkPlace, 'language' | 'notes'> & { readonly targets: readonly LinkTarget[] }
 
 /** Where an account's files end and its bank sync begins: the last day a file brought a row, and the first day the sync did. */
 interface SourceDays {
@@ -224,7 +238,9 @@ function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<Recor
  * that files it says, goes under Between my accounts and comes in paired with its leg on the cash account its rule names or
  * the one cash account of its currency. With no such account, or several, it waits on To review for the person to say which.
  * A receipt that waited for the bank's row goes on a new row it clearly is, as `receiptsArriving` says, and files it.
- * `newKey` makes each new row's bare UUID.
+ * A new row Kuna suggests pays one of the instalments `links` names, as `instalmentOffers` has it, is linked to it and split
+ * by it as a link from To review would be. With no `links`, as for the bank sync, nothing is linked, and such a row is offered
+ * on To review. `newKey` makes each new row's bare UUID.
  *
  * A statement that names the days it brings, such as a file for a gap the sync left, is taken for those days alone. On them no
  * day belongs to a source, so its rows are matched against the rows of the other sources as above, and each row the sync
@@ -234,7 +250,7 @@ function otherSourceNotes(rows: readonly StatementRow[], days: ReadonlyMap<Recor
  * another source instead, and no day belongs to a source for them. A row of the same day, amount and counterparty as one is
  * already in. A row that only looks like one waits, unless the person said to import it.
  */
-export function statementDryRun(book: SpendingBook, statement: StatementRows, day: CivilDate, newKey: () => string = newRecordId): StatementDryRun {
+export function statementDryRun(book: SpendingBook, statement: StatementRows, day: CivilDate, links: InstalmentLinks | null = null, newKey: () => string = newRecordId): StatementDryRun {
   const accounts = new Map(book.accounts.map((account) => [account.id, account]))
   const onFile = new Set(book.transactions.filter((row) => row.importKey !== '').map(rowKey))
   const beforeOpening = (row: StatementRow): boolean => {
@@ -350,7 +366,7 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
   const arriving = comingIn.flatMap((itemized) => cashLegs.get(itemized) ?? [itemized])
   const receipts = receiptsArriving(book, arriving, receiptWords.difference, newKey)
   const filedByReceipt = new Map(receipts.map((placed): [Transaction, ItemizedRow] => [placed.before, { row: placed.row, items: placed.items }]))
-  const added = arriving.map((itemized) => filedByReceipt.get(itemized.row) ?? itemized)
+  const filed = arriving.map((itemized) => filedByReceipt.get(itemized.row) ?? itemized)
   const replacedRows: RowChange[] = [...replacedOf].map(([before, replaced]) => {
     const paired = asTransfers.get(replaced)
     return paired === undefined ? { before, after: replaced } : { before, after: paired.row, items: paired.items }
@@ -360,6 +376,9 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     const after = asTransfers.get(before)
     return after === undefined || replacements.has(before) ? [] : [{ before, after: after.row, items: after.items }]
   })
+  const changed = [...filledRows, ...replacedRows, ...pairedOnFile]
+  const linked = links === null ? null : linkedToInstalments(book, { added: filed, changed, receipts }, links, day, newKey)
+  const added = filed.map((itemized) => linked?.rows.get(itemized.row.id)?.entry ?? itemized)
   const categoryOf = (items: readonly TransactionItem[]): RecordId | null => (items.length === 0 ? null : mainCategoryOf(items))
 
   const fileLines = statement.rows.map((row): DryRunLine => {
@@ -378,8 +397,15 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     if (typed !== undefined) return { row, outcome: 'filled', category: categoryOf(itemsOf(typed)) }
     const fresh = newRowOf.get(row)!
     const after = asTransfers.get(fresh.row) ?? fresh
-    const filed = filedByReceipt.get(after.row) ?? after
-    return { row, outcome: 'new', category: categoryOf(filed.items), withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1].row ?? null } : null }
+    const byReceipt = filedByReceipt.get(after.row) ?? after
+    const paying = linked?.rows.get(byReceipt.row.id)
+    return {
+      row,
+      outcome: 'new',
+      category: paying === undefined ? categoryOf(byReceipt.items) : (paying.interest ?? categoryOf(paying.entry.items)),
+      withdrawal: withdrawals.includes(after) ? { cashLeg: cashLegs.get(after)?.[1].row ?? null } : null,
+      ...(paying === undefined ? {} : { pays: { target: paying.target, parts: paying.entry.items } }),
+    }
   })
   const held = fileLines.flatMap((line): HeldBankRow[] =>
     line.outcome === 'look-alike' && isBankSyncKey(line.row.importKey) && !heldKeys.has(rowKey(line.row))
@@ -412,8 +438,9 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
     added: added.map(({ row }) => row),
     items: added.flatMap(({ items }) => items),
     receipts,
+    ...(linked === null || linked.categories.length === 0 ? {} : { categories: linked.categories }),
     held,
-    changed: [...filledRows, ...replacedRows, ...pairedOnFile],
+    changed,
     newRows: comingIn.length,
     alreadyIn: lines.filter((line) => line.outcome === 'already-in').length,
     filled: filledRows.length,
@@ -426,6 +453,42 @@ export function statementDryRun(book: SpendingBook, statement: StatementRows, da
       ...otherSourceNotes([...otherSource], sourceDays, accounts),
     ],
   }
+}
+
+/** A new row linked to the instalment it pays. */
+type LinkedNewRow = Omit<LinkedEntry, 'added'> & { readonly target: InstalmentTarget }
+
+/**
+ * Each new row Kuna suggests pays an instalment, as `instalmentOffers` reads the file once the dry run is written, linked to it
+ * by its id, and the categories the links add, a category the first needs added once.
+ */
+function linkedToInstalments(
+  book: SpendingBook,
+  run: { readonly added: readonly ItemizedRow[]; readonly changed: readonly RowChange[]; readonly receipts: readonly PlacedReceipt[] },
+  { targets, language, notes }: InstalmentLinks,
+  day: CivilDate,
+  newKey: () => string,
+): { readonly rows: ReadonlyMap<RecordId, LinkedNewRow>; readonly categories: readonly Category[] } {
+  const comingIn = new Map(run.added.map((itemized) => [itemized.row.id, itemized]))
+  const changedItems = new Map(run.changed.flatMap(({ before, items }) => (items === undefined ? [] : [[before.id, items] as const])))
+  const after = {
+    ...book,
+    transactions: rowsAfterDryRun(book.transactions, { added: run.added.map(({ row }) => row), changed: run.changed }),
+    items: [...book.items.filter((item) => item.transaction === null || !changedItems.has(item.transaction)), ...[...changedItems.values()].flat(), ...run.added.flatMap(({ items }) => items)],
+    receipts: [...book.receipts, ...run.receipts.map(({ receipt }) => receipt.after)],
+  }
+  const currencies = new Map(book.accounts.map((account) => [account.id, account.currency]))
+  let categories = book.categories
+  const rows = new Map<RecordId, LinkedNewRow>()
+  for (const { row, target, suggested } of instalmentOffers(after, targets, day)) {
+    const entry = comingIn.get(row.id)
+    if (!suggested || entry === undefined) continue
+    // `instalmentOffers` leaves out a row a receipt is on, so no row linked here has one.
+    const { added, ...linked } = linkedEntry(entry, target, { currency: currencies.get(row.account) ?? EURO, categories, language, notes, receipt: false }, newKey)
+    categories = [...categories, ...added]
+    rows.set(row.id, { ...linked, target })
+  }
+  return { rows, categories: categories.slice(book.categories.length) }
 }
 
 /** The file's rows as they stand once the dry run is written. */

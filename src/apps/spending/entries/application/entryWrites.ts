@@ -1,11 +1,9 @@
 import type { EntrySplit } from '../domain/entrySplit'
 import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
-import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { labelsOf } from '../../labels/domain/labels'
-import { linkFiling, splitByInstalment } from '../../links/domain/instalmentSplit'
-import type { PartNotes } from '../../links/domain/instalmentSplit'
+import { linkedEntry } from '../../links/domain/instalmentSplit'
+import type { LinkPlace, LinkedEntry } from '../../links/domain/instalmentSplit'
 import type { LinkTarget } from '../../links/domain/linkTarget'
-import type { Category } from '../../workbook/domain/category'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { heldItemsOf, writeRows } from './rowRecords'
 import type { RowWrite } from './rowRecords'
@@ -22,7 +20,6 @@ import type { UnitOfWork } from '../../../../shared/storage/application/reposito
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
-import type { Language } from '../../../../shared/text/language'
 
 /** The rows and items an entry write reads of the file. */
 type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts'>
@@ -98,34 +95,16 @@ export function writeTransfer(unit: UnitOfWork, records: EntryRecords, before: I
   }
 }
 
-/** What linking an entry reads beside the file's rows: its account's currency, the file's categories, and the language and notes of the parts a split adds. */
-export interface LinkPlace {
-  readonly currency: CurrencyCode
-  readonly categories: readonly Category[]
-  readonly language: Language
-  readonly notes: PartNotes
-}
-
-/** An entry as a link left it, with the categories the same write added to a file made before them: Loan principal, and Loan interest for an entry with no category. */
-export interface LinkedEntry {
-  readonly entry: ItemizedRow
-  readonly added: readonly Category[]
-}
-
 /**
- * The entry linked to the record in Loans it is, in one write. An instalment splits it as `linkFiling` says, and any other
- * link leaves each item as it is with the link on it.
+ * The entry linked to the record in Loans it is, in one write, with the categories it needs added in the same write. An
+ * instalment splits it as `linkFiling` says, and any other link leaves each item as it is with the link on it.
  */
 export function linkEntry(unit: UnitOfWork, records: EntryRecords, row: Transaction, target: LinkTarget, place: LinkPlace, newKey: () => string = newRecordId): LinkedEntry {
-  const entry = { row, items: heldItemsOf(records)(row) }
   const receipt = recordsOf(records.receipts).some((held) => held.transaction === row.id)
-  const filing = linkFiling(entry, target, { currency: place.currency, receipt, categories: place.categories })
-  if (!filing.split) return writeLinked(unit, records, row, { row, items: linkedItems(entry.items, target.link) }, [])
-  const principal = fixedCategoryIn(place.categories, 'repayment', place.language, newKey)
-  const interest = filing.category === null ? loanInterestCategoryIn(place.categories, place.language, newKey) : { category: { id: filing.category }, added: [] }
-  const added = [...(principal.added ? [principal.category] : []), ...interest.added]
-  added.forEach((category) => unit.of(CATEGORY_WRITES).add(category))
-  return writeLinked(unit, records, row, splitByInstalment(entry, target.link, { ...filing, category: interest.category.id }, principal.category.id, place.notes, newKey), added)
+  const linked = linkedEntry({ row, items: heldItemsOf(records)(row) }, target, { ...place, receipt }, newKey)
+  linked.added.forEach((category) => unit.of(CATEGORY_WRITES).add(category))
+  writeRows(unit, records, [{ before: row, after: linked.entry.row, items: linked.entry.items }])
+  return linked
 }
 
 /** Each entry linked to its record in Loans as `linkEntry` links it, in one write, so one Undo takes them all back. A category the first needs is added once. */
@@ -138,11 +117,6 @@ export function linkEntries(
 ): void {
   let categories = place.categories
   for (const { row, target, currency } of links) categories = [...categories, ...linkEntry(unit, records, row, target, { ...place, currency, categories }, newKey).added]
-}
-
-function writeLinked(unit: UnitOfWork, records: EntryRecords, before: Transaction, linked: ItemizedRow, added: readonly Category[]): LinkedEntry {
-  writeRows(unit, records, [{ before, after: linked.row, items: linked.items }])
-  return { entry: linked, added }
 }
 
 /** Takes the link off every item of the entry. Its parts stay as they are, so principal an instalment split off stays principal. */

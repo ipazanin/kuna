@@ -29,6 +29,7 @@ import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastru
 import type { Transaction } from '../../domain/transaction'
 import type { RowLink } from '../../domain/rowLink'
 import { spendingDocumentOf } from '../spendingDocument'
+import { FAKE_HOME_LOAN, fakeHomeLoanShare } from './fakeHomeLoan'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { revolutStatement } from '../../../statements/domain/revolutStatement'
 import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampleRevolutFiles'
@@ -110,9 +111,6 @@ interface Row {
   readonly link?: RowLink
   readonly labels?: readonly RecordId[]
 }
-
-/** The key of the home loan in the fake Loans file, which pays its instalments on the 20th. */
-const FAKE_HOME_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
 
 /** The home loan's instalment of the month, or one on a day its plan has none, which reads as gone. */
 function homeLoanInstalment(month: MonthKey, dayOfTheMonth: number): RowLink {
@@ -271,12 +269,16 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
   ]
 }
 
-/** The home loan's instalment of 612.20 as the bank booked it: last month's three days after its due date and waiting for a category, and three months back's filed by hand. Neither is linked yet, so To review offers both. */
+/** The home loan's instalment at your share of its plan as the bank booked it: last month's three days after its due date and waiting for a category, and three months back's filed by hand. Neither is linked yet, so To review offers both. */
 function homeLoanRows(day: CivilDate, idOf: (path: string) => RecordId): readonly FakeRow[] {
-  const bookedIn = (back: number, dayOfTheMonth: number): CivilDate => dayIn(addMonths(monthOf(day), -back), dayOfTheMonth, day)
+  const [lastMonth, threeBack] = [addMonths(monthOf(day), -1), addMonths(monthOf(day), -3)]
   return [
-    statementRow(1730, OTP, bookedIn(1, 23), -612.2, 'Example Bank', { description: 'Example Bank instalment' }),
-    statementRow(1731, OTP, bookedIn(3, 20), -612.2, 'Example Bank', { description: 'Example Bank instalment', category: idOf('Money and fees/Loan interest'), categorisedBy: 'person' }),
+    statementRow(1730, OTP, dayIn(lastMonth, 23, day), -fakeHomeLoanShare(lastMonth), 'Example Bank', { description: 'Example Bank instalment' }),
+    statementRow(1731, OTP, dayIn(threeBack, 20, day), -fakeHomeLoanShare(threeBack), 'Example Bank', {
+      description: 'Example Bank instalment',
+      category: idOf('Money and fees/Loan interest'),
+      categorisedBy: 'person',
+    }),
   ]
 }
 

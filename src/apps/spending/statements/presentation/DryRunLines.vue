@@ -7,9 +7,14 @@ import type { DryRunLine } from '../domain/statementDryRun'
 import { isBankSyncKey } from '../domain/statementRows'
 import { rowCaption, rowTitle } from './rowParts'
 import { words } from './words'
+import { targetLineOf } from '../../links/presentation/linkLine'
+import RowLines from '../../receipts/presentation/RowLines.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import type { Category } from '../../workbook/domain/category'
+import { isSplit } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -18,25 +23,34 @@ import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 /** Each row of a statement and what importing it would do. */
 const props = defineProps<{
   lines: readonly DryRunLine[]
+  /** The categories the import adds to the file, which its links need. */
+  added?: readonly Category[] | undefined
   /** Whether questions about rows sit above the list, which a line then parts it from. */
   belowQuestions: boolean
 }>()
 
 const { state } = useSpendingBooks()
 
+const categories = computed(() => [...(state.workbook?.categories ?? []), ...(props.added ?? [])])
+
 /** A first import has thousands of rows, which a phone cannot lay out at once. */
 const allShown = ref(false)
 
 const shown = computed(() => {
-  const categories = new Map((state.workbook?.categories ?? []).map((category) => [category.id, category.name]))
+  const names = new Map(categories.value.map((category) => [category.id, category.name]))
   const accounts = new Map((state.workbook?.accounts ?? []).map((account) => [account.id, account]))
   return (allShown.value ? props.lines : props.lines.slice(0, FIRST_SHOWN)).map((line) => {
-    const named = line.category === null ? words.import.outcome.waits : (categories.get(line.category) ?? words.import.outcome.waits)
+    const named = line.category === null ? words.import.outcome.waits : (names.get(line.category) ?? words.import.outcome.waits)
     const outcome = outcomeOf(line, named)
+    const account = accounts.get(line.row.account)
+    const currency = account?.currency ?? EURO
+    const pays = line.outcome === 'new' && line.pays !== undefined ? line.pays : null
     return {
       line,
       outcome,
-      account: accounts.get(line.row.account),
+      account,
+      currency,
+      paid: pays === null ? null : { text: targetLineOf(pays.target, { amount: line.row.amount, currency }), parts: isSplit(pays.parts) ? pays.parts : [] },
       skipped: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'outside-days' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
     }
   })
@@ -82,7 +96,7 @@ function cashOutcomeOf(cashLeg: Transaction | null): { readonly label: string; r
 <template>
   <ul class="flex flex-col divide-y divide-default" :class="{ 'border-t border-default': belowQuestions }" data-testid="spending-dry-run-rows">
     <ProposalRow
-      v-for="({ line, outcome, account, skipped }, place) in shown"
+      v-for="({ line, outcome, account, currency, paid, skipped }, place) in shown"
       :key="place"
       :title="rowTitle(line.row)"
       :caption="rowCaption(line.row, account)"
@@ -92,9 +106,13 @@ function cashOutcomeOf(cashLeg: Transaction | null): { readonly label: string; r
     >
       <template #details>
         <UBadge :label="outcome.label" :color="outcome.color" variant="subtle" size="sm" class="mt-1 self-start" data-testid="spending-dry-run-outcome" />
+        <template v-if="paid !== null">
+          <NoteLine as="span" icon="i-lucide-link" data-testid="spending-dry-run-link">{{ paid.text }}</NoteLine>
+          <RowLines v-if="paid.parts.length > 0" :lines="paid.parts" :categories="categories" :currency="currency" />
+        </template>
       </template>
       <template #amount>
-        <AccountMoneyText :cents="line.row.amount" :currency="account?.currency ?? EURO" sign="always" :tone="skipped ? undefined : 'flow'" :class="{ 'text-muted': skipped }" />
+        <AccountMoneyText :cents="line.row.amount" :currency="currency" sign="always" :tone="skipped ? undefined : 'flow'" :class="{ 'text-muted': skipped }" />
       </template>
     </ProposalRow>
   </ul>

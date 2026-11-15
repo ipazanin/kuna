@@ -191,7 +191,7 @@ import { startDays, startedAccount } from '../src/apps/spending/bankSync/domain/
 import { balanceDifferences } from '../src/apps/spending/bankSync/domain/bankBalance.ts'
 import { fakeBankSync } from '../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync.ts'
 import { rowsAfterDryRun, statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun.ts'
-import { SAMPLE_REVOLUT_FILE_NAME, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
+import { SAMPLE_LOAN_FILE_NAME, SAMPLE_REVOLUT_FILE_NAME, sampleLoanCsv, sampleRevolutCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
 import { readFirstSheet } from '../src/shared/xlsx/sheetGrids.ts'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow.ts'
@@ -762,6 +762,15 @@ async function spendingGroups(addGroup, loansBook) {
   if (options['fake-spending'] === 'statements') {
     const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook)
     add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))
+    // The sample export that pays the fake home loan's latest instalment, linked and split as the import writes it.
+    if (offeredLoans !== null) {
+      const paying = revolutStatement(await readFirstSheet(sampleLoanCsv(today)), SAMPLE_LOAN_FILE_NAME, workbook)
+      const links = { targets: loanTargetsFrom(loanTargetsOf(offeredLoans)), language: 'en', notes: { interest: 'Interest', difference: 'Difference from the plan' } }
+      add('spending.import.instalment', () => {
+        let place = 0
+        return 'statement' in paying ? statementDryRun(workbook, paying.statement, today, links, () => `fa4e3400-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`) : paying
+      })
+    }
     // The bank sync reads only accounts the bank fills, which the fake file's are once the sync is set up. `pocket` adds a savings account to the file, so each variant reads the file it is built against.
     const linkedBook = (variant) =>
       SPENDING_DOCUMENT.read({ meta: { id: 'figures', source: 'browser', title: 'figures', syncedAt: AT }, document: fakeSpendingDocument(AT, 'statements', today, variant) }).workbook
@@ -776,7 +785,7 @@ async function spendingGroups(addGroup, loansBook) {
       const bankRead = await readBanks(fakeBankSync(variant, today), book, today)
       add(group, () => {
         let place = 0
-        return statementDryRun(book, bankRead.statement, today, () => `fa4e3000-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)
+        return statementDryRun(book, bankRead.statement, today, null, () => `fa4e3000-0000-4000-8000-${String((place += 1)).padStart(12, '0')}`)
       })
     }
     // The accounts a link drafts, each starting on the day of the fetch and on the earliest day its bank's rows reach, with the opening its bank's rows and balance give then, and the opening a differing balance offers.
@@ -787,7 +796,7 @@ async function spendingGroups(addGroup, loansBook) {
     )
     const offBy = await readBanks(fakeBankSync('opening-off', today), linked, today)
     let row = 0
-    const offByRun = statementDryRun(linked, offBy.statement, today, () => `fa4e3200-0000-4000-8000-${String((row += 1)).padStart(12, '0')}`)
+    const offByRun = statementDryRun(linked, offBy.statement, today, null, () => `fa4e3200-0000-4000-8000-${String((row += 1)).padStart(12, '0')}`)
     add('spending.import.bank-sync.opening-off', () => balanceDifferences(offBy.stated, rowsAfterDryRun(linked.transactions, offByRun), today))
   }
   if (options['fake-spending'] === 'cash') {

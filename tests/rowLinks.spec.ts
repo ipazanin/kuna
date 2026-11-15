@@ -3,8 +3,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
 import { linkEntries, linkEntry, unlinkEntry } from '../src/apps/spending/entries/application/entryWrites'
-import type { LinkPlace } from '../src/apps/spending/entries/application/entryWrites'
+import type { LinkPlace } from '../src/apps/spending/links/domain/instalmentSplit'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets'
+import { linkLineOf, targetLineOf } from '../src/apps/spending/links/presentation/linkLine'
 import { beyondPlan, linkFiling, splitByInstalment } from '../src/apps/spending/links/domain/instalmentSplit'
 import type { InstalmentSplit } from '../src/apps/spending/links/domain/instalmentSplit'
 import { linkStateOf, targetsFor } from '../src/apps/spending/links/domain/linkTarget'
@@ -30,7 +31,13 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { rowLinksOf } from '../src/apps/spending/facts'
 import { DESK_LOAN_TARGETS } from './fixtures/spendingDesk'
-import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, category, row, wholeItems } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, REVOLUT_USD, category, row, spendingBook, wholeItems } from './fixtures/spending'
+import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
+import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
+import { receiptSplit } from '../src/apps/spending/receipts/domain/receiptSplit'
+import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
+import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
+import type { StatementRow } from '../src/apps/spending/statements/domain/statementRows'
 
 const on = (date: string) => parseCivilDate(date)!
 const LOAN = '3f6c1e2a-0000-4000-8000-000000000001'
@@ -139,9 +146,54 @@ const INSTALMENT: InstalmentTarget = {
 const INFORMAL: LinkTarget = { kind: 'informal-loan', link: { app: 'loans', kind: 'informal-loan', key: 'b', due: null }, name: 'From Marko', counterparty: 'Marko', direction: 'you-owe' }
 
 const filed = (stored: StoredRow) => ({ row: stored, items: wholeItems([stored]) })
+
+/** A receipt for the instalment of 20 November, waiting on OTP for the bank's row. */
+const RECEIPT: ReceiptDraft = {
+  merchant: 'Example Bank',
+  merchantOib: '',
+  buyerOib: '',
+  issuedOn: on('2026-11-20'),
+  issuedTime: '09:00',
+  total: moneyFromAmount(650),
+  jir: '',
+  zki: '',
+  readBy: '',
+  photo: '',
+  latitude: '',
+  longitude: '',
+}
+
+/** A statement's row out of OTP. */
+function paying(date: string, amount: number, payee: string, fields: Partial<StatementRow> = {}): StatementRow {
+  return {
+    account: OTP.id,
+    date: on(date),
+    amount: accountMoneyFromAmount(amount),
+    payee,
+    category: null,
+    description: payee,
+    counterpartyIban: '',
+    importKey: `key-${payee}-${date}`,
+    movedAt: '',
+    pocket: false,
+    cashWithdrawal: false,
+    ...fields,
+  }
+}
 const ON_OTP = { currency: EURO, receipt: false, categories: CATEGORIES }
 
 describe('a row linked to a loan instalment', () => {
+  it("reads as its instalment with what it paid above or below the plan, on Import as on Entries, and as the instalment alone when it paid the plan's share", () => {
+    const shown = [{ ...INSTALMENT, to: '/loans' }]
+    const lines = [-652.4, -650, -640].map((amount) => {
+      const paid = { amount: accountMoneyFromAmount(amount), currency: EURO }
+      return [targetLineOf(INSTALMENT, paid), linkLineOf(INSTALMENT.link, shown, paid).text]
+    })
+
+    expect(lines.map(([onImport, onEntries]) => onImport === onEntries)).toEqual([true, true, true])
+    expect(lines.map(([onImport]) => onImport!.split(', ').slice(3))).toEqual([['€2.40 above the plan'], [], ['€10.00 below the plan']])
+  })
+
   it("splits into the plan's interest under its category and principal under Loan principal, the difference above or below the plan a part of its own", () => {
     const split = (amount: number) => linkFiling(filed(row(OTP, '2026-11-20', amount, 'Money and fees/Loan interest')), INSTALMENT, ON_OTP)
     const parts = (interest: number, principal: number, difference: number): InstalmentSplit => ({
@@ -359,6 +411,62 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     expect(book().items).toEqual(wholeItems(rows))
   })
 
+  it('imports a new row that pays an instalment linked and split, with Loan interest and Loan principal added to a file without them, in one write one Undo takes back', async () => {
+    const store = await fileWith(
+      [],
+      CATEGORIES.filter((held) => held.kind !== 'repayment' && held.id !== LOAN_INTEREST.id),
+    )
+    const book = () => store.state.workbook!
+    const statement = { label: 'export.csv', rows: [paying('2026-11-21', -650, 'EXAMPLE BANK')], notes: [] }
+    const run = statementDryRun(book(), statement, on('2026-11-25'), { targets: [INSTALMENT], language: 'en', notes: NOTES })
+
+    expect(run.lines.map((line) => line.outcome === 'new' && line.pays?.target)).toEqual([INSTALMENT])
+    expect(run.lines.map((line) => line.outcome === 'new' && line.pays?.parts.map((part) => part.amount))).toEqual([[accountMoneyFromAmount(-250), accountMoneyFromAmount(-400)]])
+    expect(run.categories?.map((held) => held.name)).toEqual(['Loan principal', 'Loan interest'])
+    expect(run.lines.map((line) => line.category)).toEqual([run.categories?.[1]?.id])
+    await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
+
+    const interest = book().categories.find((held) => held.name === 'Loan interest')!
+    const principal = book().categories.find((held) => held.kind === 'repayment')!
+    expect(book().problems).toEqual([])
+    expect(book().items.map((part) => [part.amount, part.category, part.note, part.link])).toEqual([
+      [accountMoneyFromAmount(-250), interest.id, 'Interest', INSTALMENT.link],
+      [accountMoneyFromAmount(-400), principal.id, '', INSTALMENT.link],
+    ])
+    expect(waitsOnReview(book().items)).toBe(false)
+    expect(store.state.writes).toHaveLength(1)
+
+    await store.undo(store.state.writes[0]!)
+    expect([book().transactions, book().categories.filter((held) => held.kind === 'repayment' || held.name === 'Loan interest')]).toEqual([[], []])
+  })
+
+  it("leaves unlinked a new row a waiting receipt files in the same import, with the receipt's lines, as To review offers no row a receipt is on", async () => {
+    const store = await fileWith([])
+    await store.write('Saved', (unit) =>
+      writeReceiptSplit(
+        unit,
+        store.state.records!,
+        receiptSplit(RECEIPT, { account: OTP }, [
+          { printed: 'RATA', note: 'rata', amount: accountMoneyFromAmount(-600), category: LOAN_INTEREST.id },
+          { printed: 'NAKNADA', note: 'naknada', amount: accountMoneyFromAmount(-50), category: GROCERIES.id },
+        ]),
+      ),
+    )
+    const book = () => store.state.workbook!
+    const statement = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'EXAMPLE BANK ZAGREB')], notes: [] }
+    const run = statementDryRun(book(), statement, on('2026-11-25'), { targets: [INSTALMENT], language: 'en', notes: NOTES })
+
+    expect(run.receipts).toHaveLength(1)
+    expect(run.lines.map((line) => line.outcome === 'new' && [line.category, line.pays])).toEqual([[LOAN_INTEREST.id, undefined]])
+    expect(run.categories).toBeUndefined()
+    expect(run.items.map((part) => [part.amount, part.category, part.receipt, part.link])).toEqual([
+      [accountMoneyFromAmount(-600), LOAN_INTEREST.id, run.receipts[0]!.receipt.after.id, null],
+      [accountMoneyFromAmount(-50), GROCERIES.id, run.receipts[0]!.receipt.after.id, null],
+    ])
+    await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
+    expect(book().problems).toEqual([])
+  })
+
   it('takes the link off every part and leaves the parts as they are', async () => {
     const paid = row(OTP, '2026-11-20', -650, 'Money and fees/Loan interest')
     const store = await fileWith([paid])
@@ -369,5 +477,19 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     await store.write('Unlinked', (unit) => unlinkEntry(unit, store.state.records!, book().transactions[0]!))
 
     expect(book().items).toEqual(split.map((part) => ({ ...part, link: null })))
+  })
+})
+
+describe('importing a statement against the instalments in Loans', () => {
+  it("files an imported row's interest under the category its rule gives, and leaves a row only near the plan, and every row of a sync, unlinked for To review", () => {
+    const book = spendingBook([], { categories: CATEGORIES })
+    const ruled = { label: 'export.csv', rows: [paying('2026-11-20', -650, 'Example Bank', { category: GROCERIES.id })], notes: [] }
+    const near = { label: 'export.csv', rows: [paying('2026-11-20', -700, 'Card payment')], notes: [] }
+    const links = { targets: [INSTALMENT], language: 'en' as const, notes: NOTES }
+
+    expect(statementDryRun(book, ruled, on('2026-11-25'), links).items.map((part) => part.category)).toEqual([GROCERIES.id, PRINCIPAL.id])
+    const nearRun = statementDryRun(book, near, on('2026-11-25'), links)
+    expect([nearRun.lines[0]?.outcome === 'new' && nearRun.lines[0].pays, nearRun.items.map((part) => part.link)]).toEqual([undefined, [null]])
+    expect(statementDryRun(book, ruled, on('2026-11-25')).items.map((part) => part.link)).toEqual([null])
   })
 })

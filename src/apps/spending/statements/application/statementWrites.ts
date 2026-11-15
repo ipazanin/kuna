@@ -1,3 +1,4 @@
+import { CATEGORY_WRITES } from '../../categories/application/categoryWrites'
 import { heldItemsOf, writeRows } from '../../entries/application/rowRecords'
 import type { RowWrite } from '../../entries/application/rowRecords'
 import { differenceItem } from '../../entries/domain/entrySplit'
@@ -50,9 +51,10 @@ export const HELD_ROW_WRITES: WriteRules<HeldBankRow> = {
 /** The rows and items a statement write reads of the file. */
 type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
 
-/** Everything the import does in one write, with the waiting receipts that go on its rows, so one Undo takes it all back. */
-export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<StatementDryRun, 'added' | 'items' | 'changed' | 'held' | 'receipts'>): void {
+/** Everything the import does in one write, with the waiting receipts that go on its rows and the categories its links need, so one Undo takes it all back. */
+export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<StatementDryRun, 'added' | 'items' | 'changed' | 'held' | 'receipts' | 'categories'>): void {
   const itemsOf = rowItemsOf(run)
+  run.categories?.forEach((category) => unit.of(CATEGORY_WRITES).add(category))
   writeRows(unit, records, [...run.added.map((row): RowWrite => ({ before: null, after: row, items: itemsOf(row) })), ...run.changed])
   run.held.forEach((held) => unit.of(HELD_ROW_WRITES).add(held))
   run.receipts.forEach(({ receipt }) => unit.of(RECEIPT_WRITES).change(receipt.before, receipt.after))

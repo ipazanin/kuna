@@ -1,11 +1,14 @@
-import { addDays } from '../../../../../shared/calendar/civilDate'
+import { fakeHomeLoanShare, latestFakeHomeLoanDue } from '../../../workbook/infrastructure/fake/fakeHomeLoan'
+import { addDays, daysBetween } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
+import { monthOf } from '../../../../../shared/calendar/monthKey'
 
 const HEADER = ['Type', 'Product', 'Started Date', 'Completed Date', 'Description', 'Amount', 'Fee', 'Currency', 'State', 'Balance']
 
 export const SAMPLE_REVOLUT_FILE_NAME = 'account-statement-sample.csv'
 export const SAMPLE_REFUSED_FILE_NAME = 'account-statement-no-fee.csv'
 export const SAMPLE_MISSING_FILE_NAME = 'account-statement-gbp-chf.csv'
+export const SAMPLE_LOAN_FILE_NAME = 'account-statement-loan.csv'
 
 /** One row of the made-up export, `back` days before the day. */
 function row(day: CivilDate, back: number, type: string, description: string, amount: string, fee: string, currency: string, state: string, product = 'Current'): string[] {
@@ -45,6 +48,12 @@ function csvOf(rows: readonly (readonly string[])[]): string {
 
 export function sampleRevolutCsv(day: CivilDate): string {
   return csvOf(sampleRevolutRows(day))
+}
+
+/** A made-up export of one row: the fake home loan's latest instalment paid from Revolut on its due date, at your share of its plan. */
+export function sampleLoanCsv(day: CivilDate): string {
+  const due = latestFakeHomeLoanDue(day)
+  return csvOf([HEADER, row(day, daysBetween(due, day), 'TRANSFER', 'Example Bank', String(-fakeHomeLoanShare(monthOf(due))), '0.00', 'EUR', 'COMPLETED')])
 }
 
 /** The same export with no Fee column, which the reader refuses. */

@@ -37,7 +37,7 @@ function bookOf(document: WorkbookDocument) {
 const SETS: readonly FakeSpendingSet[] = ['sample', 'foreign', 'over', 'statements', 'receipts']
 
 describe("the fake build's Spending sets", () => {
-  it.each(SETS.flatMap((set) => ['2026-11-04', '2026-12-01', '2027-03-31'].map((day) => [set, day] as const)))('read the %s set on %s with no problems', (set, day) => {
+  it.each(SETS.flatMap((set) => ['2026-11-04', '2026-12-01', '2027-03-31', '2027-06-01'].map((day) => [set, day] as const)))('read the %s set on %s with no problems', (set, day) => {
     expect(bookOf(fakeSpendingDocument(SAVED_AT, set, civil(day))).problems).toEqual([])
   })
 
@@ -86,7 +86,7 @@ describe("the fake build's Spending sets", () => {
     ).toEqual([true, true])
   })
 
-  it.each(['2026-11-04', '2026-12-01', '2027-03-31'])('wait in the statements set with six rows, a pair, two lone legs and offers on %s', (day) => {
+  it.each(['2026-11-04', '2026-12-01', '2027-03-31', '2027-06-01'])('wait in the statements set with six rows, a pair, two lone legs and offers on %s', (day) => {
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day)))
     const queue = reviewQueue(book, civil(day))
 
@@ -112,7 +112,7 @@ describe("the fake build's Spending sets", () => {
     expect([fakeSpendingDay(null), fakeSpendingDay('2026-02-30'), fakeSpendingDay('soon')]).toEqual([today(), today(), today()])
   })
 
-  it.each(['2026-11-04', '2026-12-01', '2027-03-31'])("read the sample Revolut export through the csv path as the statements set's dry run on %s", async (day) => {
+  it.each(['2026-11-04', '2026-12-01', '2027-03-31', '2027-06-01'])("read the sample Revolut export through the csv path as the statements set's dry run on %s", async (day) => {
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day)))
     const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(civil(day))), SAMPLE_REVOLUT_FILE_NAME, book)
     if (!('statement' in reading)) throw new Error(reading.refusal)

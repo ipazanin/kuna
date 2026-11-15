@@ -250,7 +250,7 @@ export function refiled(before: StoredRow, after: StoredRow): { readonly before:
 
 /** The dry run of a statement, its rows as `filedRun` gives them. */
 export function filedDryRun(book: SpendingBook, statement: StatementRows, day: CivilDate, newKey?: () => string): ReturnType<typeof filedRun<StatementDryRun>> {
-  return filedRun(statementDryRun(book, statement, day, newKey), book)
+  return filedRun(statementDryRun(book, statement, day, null, newKey), book)
 }
 
 export function transactionId(place: number): RecordId {

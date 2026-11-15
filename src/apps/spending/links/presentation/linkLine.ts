@@ -6,7 +6,7 @@ import { loanTargets } from '../application/loanTargets'
 import type { ShownTarget } from '../application/loanTargets'
 import { beyondPlan } from '../domain/instalmentSplit'
 import { linkStateOf } from '../domain/linkTarget'
-import type { AppTargets, LinkState } from '../domain/linkTarget'
+import type { AppTargets, LinkState, LinkTarget } from '../domain/linkTarget'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { linkText, words } from './words'
@@ -40,12 +40,17 @@ export interface LinkedRow {
   readonly currency: CurrencyCode
 }
 
+/** The record a row is linked to in words, with what the row paid above or below an instalment's plan. */
+export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
+  const beyond = beyondPlan(target, row, row.currency)
+  const differs = beyond === null || beyond === 0 ? [] : [(beyond > 0 ? words.above : words.below)(formatAccountMoney(absAccountMoney(beyond), row.currency))]
+  return [linkText({ state: 'there', target }), ...differs].join(', ')
+}
+
 /** The line a link reads as against Loans' records, with what the row paid above or below an instalment's plan. */
 export function linkLineOf(link: RowLink, loans: AppTargets<ShownTarget>, row: LinkedRow): LinkLine {
   const read = linkStateOf(link, loans)
-  const beyond = read.state === 'there' ? beyondPlan(read.target, row, row.currency) : null
-  const differs = beyond === null || beyond === 0 ? [] : [(beyond > 0 ? words.above : words.below)(formatAccountMoney(absAccountMoney(beyond), row.currency))]
-  return { text: [linkText(read), ...differs].join(', '), ...LOOKS[read.state], to: read.state === 'there' ? read.target.to : null }
+  return { text: read.state === 'there' ? targetLineOf(read.target, row) : linkText(read), ...LOOKS[read.state], to: read.state === 'there' ? read.target.to : null }
 }
 
 /** The tone of a link's line by its look: muted while Loans waits, a warning while its record is missing. */

@@ -1,10 +1,10 @@
 import type { InstalmentTarget, LinkTarget } from './linkTarget'
-import { loanInterestCategory } from '../../categories/domain/starterCategories'
+import { fixedCategoryIn, loanInterestCategory, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { labelsOf } from '../../labels/domain/labels'
 import type { Category } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
-import { filedAsTransfer, wholeRowItemId } from '../../workbook/domain/rowItems'
+import { filedAsTransfer, linkedItems, wholeRowItemId } from '../../workbook/domain/rowItems'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
@@ -17,6 +17,7 @@ import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
+import type { Language } from '../../../../shared/text/language'
 
 /**
  * Why a link leaves an entry's money as it is: it names an informal loan, the instalment is all interest, the entry is money in,
@@ -130,4 +131,36 @@ export function splitByInstalment(
       labels,
     }))
   return { row: { ...entry.row, categorisedBy: 'person' }, items }
+}
+
+/** What linking an entry reads beside the file's rows: its account's currency, the file's categories, and the language and notes of the parts a split adds. */
+export interface LinkPlace {
+  readonly currency: CurrencyCode
+  readonly categories: readonly Category[]
+  readonly language: Language
+  readonly notes: PartNotes
+}
+
+/** An entry as a link left it, with the categories it needs that a file made before them lacks: Loan principal, and Loan interest for an entry with no category. */
+export interface LinkedEntry {
+  readonly entry: ItemizedRow
+  /** The category the instalment's interest went under, or null when the link left the entry whole. */
+  readonly interest: RecordId | null
+  readonly added: readonly Category[]
+}
+
+/**
+ * The entry linked to the record in Loans it is. An instalment splits it as `linkFiling` says, and any other link leaves each
+ * item as it is with the link on it.
+ */
+export function linkedEntry(entry: ItemizedRow, target: LinkTarget, place: LinkPlace & Pick<LinkedOn, 'receipt'>, newKey: () => string = newRecordId): LinkedEntry {
+  const filing = linkFiling(entry, target, place)
+  if (!filing.split) return { entry: { row: entry.row, items: linkedItems(entry.items, target.link) }, interest: null, added: [] }
+  const principal = fixedCategoryIn(place.categories, 'repayment', place.language, newKey)
+  const interest = filing.category === null ? loanInterestCategoryIn(place.categories, place.language, newKey) : { category: { id: filing.category }, added: [] }
+  return {
+    entry: splitByInstalment(entry, target.link, { ...filing, category: interest.category.id }, principal.category.id, place.notes, newKey),
+    interest: interest.category.id,
+    added: [...(principal.added ? [principal.category] : []), ...interest.added],
+  }
 }

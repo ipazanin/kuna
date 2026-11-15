@@ -9,6 +9,12 @@ import type { InstalmentTarget } from '../src/apps/spending/links/domain/linkTar
 import { instalmentPutOffOf, instalmentsPutOffText, spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
+import { FAKE_HOME_LOAN, fakeHomeLoanShare, latestFakeHomeLoanDue } from '../src/apps/spending/workbook/infrastructure/fake/fakeHomeLoan'
+import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
+import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
+import { SAMPLE_LOAN_FILE_NAME, sampleLoanCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
+import { monthOf } from '../src/shared/calendar/monthKey'
+import { readFirstSheet } from '../src/shared/xlsx/sheetGrids'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
@@ -122,7 +128,7 @@ describe("a loan's past instalments on To review", () => {
 })
 
 describe('the fake books', () => {
-  it.each(['2026-11-04', '2027-03-31'])("offer the statements set's waiting row and a filed row as the home loan's instalments on %s", (date) => {
+  it.each(['2026-11-04', '2027-03-31', '2027-06-01', '2028-06-01'])("offer the statements set's waiting row and a filed row as the home loan's instalments on %s", (date) => {
     const day = civil(date)
     const meta = { id: 'offers', source: 'browser' as const, title: 'offers', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
     const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'statements', day) }).workbook
@@ -134,5 +140,34 @@ describe('the fake books', () => {
       ['Example Bank', 'Home loan', true],
     ])
     expect(pastInstalments(spending, offers, []).map((card) => card.offers.length)).toEqual([1])
+  })
+
+  it("give Spending's fake rows your share of the home loan's plan in every month", () => {
+    const meta = { id: 'shares', source: 'browser' as const, title: 'shares', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
+    const loans = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(meta.syncedAt) }).workbook
+    const instalments = loanTargetsOf(loans).instalments.filter(
+      (instalment) => instalment.loan === FAKE_HOME_LOAN && instalment.kind === 'instalment' && instalment.due >= civil('2025-06-01') && instalment.due < civil('2031-01-01'),
+    )
+
+    expect(instalments).toHaveLength(67)
+    for (const { due, yourShare } of instalments) expect([due, moneyFromAmount(fakeHomeLoanShare(monthOf(due)))]).toEqual([due, yourShare])
+  })
+
+  it.each(['2026-11-04', '2026-11-25', '2027-06-01', '2028-06-01'])("bring the sample loan export in on %s linked to the home loan's latest instalment and split by it", async (date) => {
+    const day = civil(date)
+    const meta = { id: 'import', source: 'browser' as const, title: 'import', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
+    const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'statements', day) }).workbook
+    const loans = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(meta.syncedAt) }).workbook
+    const reading = revolutStatement(await readFirstSheet(sampleLoanCsv(day)), SAMPLE_LOAN_FILE_NAME, spending)
+    if (!('statement' in reading)) throw new Error(reading.refusal)
+
+    const run = statementDryRun(spending, reading.statement, day, {
+      targets: loanTargetsFrom(loanTargetsOf(loans)),
+      language: 'en',
+      notes: { interest: 'Interest', difference: 'Difference from the plan' },
+    })
+
+    expect(run.lines.map((line) => (line.outcome === 'new' ? line.pays?.target.due : line.outcome))).toEqual([latestFakeHomeLoanDue(day)])
+    expect(run.items.map((part) => part.note)).toEqual(['Interest', ''])
   })
 })

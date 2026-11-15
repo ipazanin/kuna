@@ -15,9 +15,11 @@ import {
   sampleTableFile,
 } from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
 import {
+  SAMPLE_LOAN_FILE_NAME,
   SAMPLE_MISSING_FILE_NAME,
   SAMPLE_REFUSED_FILE_NAME,
   SAMPLE_REVOLUT_FILE_NAME,
+  sampleLoanCsv,
   sampleMissingAccountsCsv,
   sampleRefusedCsv,
   sampleRevolutCsv,
@@ -49,7 +51,7 @@ export function writeFlexReportSamples(folder) {
   return { flexReport, misfit }
 }
 
-/** Writes the made-up Revolut exports of the day: one the fake Spending statements set pairs with, one the reader refuses, and one in currencies no account keeps. */
+/** Writes the made-up Revolut exports of the day: one the fake Spending statements set pairs with, one the reader refuses, one in currencies no account keeps, and one that pays the fake home loan's latest instalment. */
 export function writeSpendingImportSamples(folder) {
   const revolut = join(folder, SAMPLE_REVOLUT_FILE_NAME)
   const refused = join(folder, SAMPLE_REFUSED_FILE_NAME)
@@ -57,7 +59,9 @@ export function writeSpendingImportSamples(folder) {
   const missing = join(folder, SAMPLE_MISSING_FILE_NAME)
   writeFileSync(refused, sampleRefusedCsv(SAMPLE_DAY))
   writeFileSync(missing, sampleMissingAccountsCsv(SAMPLE_DAY))
-  return { revolut, refused, missing }
+  const loan = join(folder, SAMPLE_LOAN_FILE_NAME)
+  writeFileSync(loan, sampleLoanCsv(SAMPLE_DAY))
+  return { revolut, refused, missing, loan }
 }
 
 /** Writes the made-up receipt photos of the day, each with a real QR code for the fake receipts set's payments, and one with no code. */
