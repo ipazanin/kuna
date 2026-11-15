@@ -6,7 +6,7 @@ import { uncapitalised } from '../../../../../../shared/text/capitalised'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // The ruleset's tab is Porezna pravila and each of its rules an odredba, so it never collides with the rules that file rows (Pravila kategorija).
-// The rules' notes and terms are legal research written in English, and stay so. Their titles are labels, which ruleTitles.ts names in Croatian. A Croatian date and year end in their own full stop.
+// The rules' notes are legal research written in English, and stay so. Their titles and term labels are labels, which ruleTitles.ts and termLabels.ts name in Croatian. A Croatian date and year end in their own full stop.
 
 export const en = {
   tab: 'Tax rules',

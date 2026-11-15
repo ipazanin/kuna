@@ -29,7 +29,8 @@ import { amountForTyping, typedAmount } from '../../../../../shared/money/typedA
 import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import { ownerAdvanceOfDraft, writeOwnerAdvance } from '../application/ownerAdvanceWrites'
 import { repaidMoreThanPaid, repaymentChoices } from '../domain/advanceRepayments'
-import { placedShares } from '../../../workbook/domain/rowPayments'
+import { inPickingOrder, placedShares } from '../../../workbook/domain/rowPayments'
+import PaymentsSelect from '../../../workbook/presentation/PaymentsSelect.vue'
 import { hrDooWorkbook } from '../domain/hrDooPart'
 import { OWNER_ADVANCE_WRITES } from '../domain/hrDooWrites'
 import { useBookedWorkbook } from '../../../transactions/application/useBookedWorkbook'
@@ -75,7 +76,7 @@ const date = ref<string>(props.defaultDate)
 const amount = ref('')
 const description = ref('')
 const category = ref('')
-const paidBackBy = ref<RecordId[]>([])
+const paidBackBy = ref<string[]>([])
 const tried = ref(false)
 
 watch(open, (opened) => {
@@ -110,7 +111,7 @@ const choices = computed(() => {
 })
 
 const paymentItems = computed(() =>
-  choices.value.map((choice) => ({
+  inPickingOrder(choices.value).map((choice) => ({
     label: words.advanceDialog.payment(dayLabel(choice.payment.date), formatMoney(choice.amount), choice.payment.description || choice.payment.counterparty || words.advanceDialog.paymentToOwner),
     value: choice.item,
   })),
@@ -119,16 +120,13 @@ const paymentItems = computed(() =>
 /** The payments chosen, in the order they were paid, among those on offer for the day typed. */
 const chosen = computed(() => choices.value.filter((choice) => paidBackBy.value.includes(choice.item)))
 
-/** The chosen payments' labels, one line each, so a second payment is not cut off behind the first. */
-const chosenLabels = computed(() => paymentItems.value.filter((payment) => paidBackBy.value.includes(payment.value)).map((payment) => payment.label))
-
 /** What of each chosen payment pays the cost back, or null while the amount is not a valid one. */
 const applied = computed(() => (parsedAmount.value === null ? null : placedShares(parsedAmount.value, chosen.value)))
 
 /** What the payments the advance names already add up to when the amount is lowered below them, or null. */
 const repaidMore = computed(() => (parsedAmount.value === null || applied.value === null ? null : repaidMoreThanPaid(parsedAmount.value, applied.value)))
 
-/** The first chosen payment the cost is paid back before, or null. */
+/** The first chosen payment the cost is paid back in full without, or null. */
 const notNeeded = computed(() => {
   const placed = applied.value
   return placed === null ? null : (chosen.value.find((_, index) => placed[index]! <= 0) ?? null)
@@ -216,23 +214,7 @@ async function remove(): Promise<void> {
         <UInput v-model="description" :placeholder="words.advanceDialog.forWhatPlaceholder" class="w-full" />
       </UFormField>
       <UFormField v-if="paymentItems.length > 0" :label="words.advanceDialog.paidBackBy" :help="words.advanceDialog.paidBackHelp" :error="(tried && errors.paidBackBy) || false" class="sm:col-span-2">
-        <USelectMenu
-          v-model="paidBackBy"
-          data-testid="advance-paid-back-by"
-          :items="paymentItems"
-          value-key="value"
-          multiple
-          :placeholder="words.advanceDialog.notPaidBack"
-          :search-input="{ placeholder: words.advanceDialog.searchPayments }"
-          class="w-full"
-        >
-          <template #default>
-            <span v-if="chosenLabels.length === 0" class="text-muted">{{ words.advanceDialog.notPaidBack }}</span>
-            <span v-else class="flex min-w-0 flex-col text-start">
-              <span v-for="label in chosenLabels" :key="label" class="truncate">{{ label }}</span>
-            </span>
-          </template>
-        </USelectMenu>
+        <PaymentsSelect v-model="paidBackBy" data-testid="advance-paid-back-by" :payments="paymentItems" :none="words.advanceDialog.notPaidBack" :search="words.advanceDialog.searchPayments" />
       </UFormField>
       <p class="text-xs text-muted">{{ words.advanceDialog.splitInstead }}</p>
     </FormGrid>

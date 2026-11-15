@@ -141,12 +141,12 @@ export interface Placement {
 }
 
 /**
- * The accountant's split of a group of lines whose total agrees with ours, such as the cost lines
- * or the liabilities. Profit and the total stay as they are. A group whose total differs is left
+ * The accountant's split of a group of lines whose total agrees with ours, such as the cost lines,
+ * the income lines or the liabilities. Profit and the total stay as they are. A group whose total differs is left
  * alone, so its lines show what is unexplained.
  */
 export function placementJudgement(
-  id: Extract<AdjustmentId, 'cost-placement' | 'liability-placement' | 'receivable-placement'>,
+  id: Extract<AdjustmentId, 'cost-placement' | 'income-placement' | 'liability-placement' | 'receivable-placement'>,
   label: string,
   statement: YearEndLineRef['statement'],
   ours: ReadonlyMap<string, Money>,
@@ -184,6 +184,11 @@ export function placementJudgement(
     },
     moves,
   }
+}
+
+/** The step a placement adds to one line. */
+export function asPlaced(move: Money): TracedFigure {
+  return tracedFigure(words.year.asPlaced, move, 'accountant', [])
 }
 
 /**

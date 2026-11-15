@@ -45,12 +45,12 @@ const lines = computed(() =>
 
 <template>
   <AppCard v-if="lines.length > 0" :title="words.latest.title" :subtitle="words.latest.subtitle" data-testid="company-latest">
-    <ul class="flex flex-col py-2">
+    <ul class="row-list flex flex-col py-2">
       <li v-for="line in lines" :key="line.row.id" class="border-t border-default first:border-t-0">
         <ProposalRow v-if="line.to !== null" :to="line.to" :title="line.title" :caption="line.caption" data-testid="company-latest-row">
           <template #amount><MoneyText :cents="line.row.amount" sign="always" tone="flow" /></template>
         </ProposalRow>
-        <ProposalRow v-else as="div" :title="line.title" :caption="line.caption" beside-links data-testid="company-latest-row">
+        <ProposalRow v-else as="div" :title="line.title" :caption="line.caption" data-testid="company-latest-row">
           <template #amount><MoneyText :cents="line.row.amount" sign="always" tone="flow" /></template>
         </ProposalRow>
       </li>

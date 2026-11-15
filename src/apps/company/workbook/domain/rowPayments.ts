@@ -62,3 +62,10 @@ export function placedShares(amount: Money, chosen: readonly { readonly named: b
     return applied
   })
 }
+
+/** The payments a record may take as a picker lists them: those it holds first, then the others newest first, since the latest money is the likeliest. */
+export function inPickingOrder<Choice extends { readonly named: boolean; readonly payment: { readonly date: string; readonly sequence: number } }>(choices: readonly Choice[]): Choice[] {
+  return [...choices].sort(
+    (one, other) => Number(other.named) - Number(one.named) || (one.named ? 0 : other.payment.date.localeCompare(one.payment.date) || other.payment.sequence - one.payment.sequence),
+  )
+}

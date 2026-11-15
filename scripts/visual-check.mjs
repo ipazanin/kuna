@@ -1167,6 +1167,22 @@ const SCREENS = [
     shows: ['Za brojke treba postavka „Tvrtka registrirana”', 'Scenariji za 2027.'],
   },
   { name: 'year-accountant-croatian', query: 'lang=hr', hash: '#/company/year?year=2025', title: 'Godina', charts: 1, shows: ['Pozicije na prvi pogled', 'Od neto novca do dobiti, 2025.'] },
+  {
+    name: 'year-accountant-older-interest',
+    query: 'fake=older-interest',
+    hash: '#/company/year?year=2025',
+    title: 'Year',
+    charts: 1,
+    shows: ['Lines at a glance', 'Income split over the lines as the accountant splits it'],
+  },
+  {
+    name: 'year-accountant-older-interest-croatian',
+    query: 'fake=older-interest&lang=hr',
+    hash: '#/company/year?year=2025',
+    title: 'Godina',
+    charts: 1,
+    shows: ['Pozicije na prvi pogled', 'Prihodi raspoređeni po pozicijama kako ih raspoređuje knjigovođa'],
+  },
   { name: 'year-statements-croatian', query: 'lang=hr', hash: '#/company/year?tab=statements', title: 'Godina', charts: 0, shows: ['Račun dobiti i gubitka', 'Konta', 'Knjigovođine pozicije'] },
   { name: 'year-assets-croatian', query: 'lang=hr', hash: '#/company/year?tab=assets', title: 'Godina', charts: 0, shows: ['Workstation', 'Retci sredstava', 'Retci potpora'] },
   { name: 'year-assets-doubled', hash: '#/company/year?tab=assets&rates=doubled', title: 'Year', charts: 0, shows: 'What doubled rates would change' },
@@ -1320,7 +1336,7 @@ const SCREENS = [
     hash: '#/',
     title: 'Početna',
     charts: 0,
-    shows: ['Tvrtka', 'Novac na računima', 'Krediti', 'Ulaganja', 'Imovina', 'Potrošnja', 'Postavi'],
+    shows: ['Tvrtka', 'Novac na računima', '2 stavke za provjeru', 'Krediti', 'Ulaganja', 'Imovina', 'Potrošnja', 'Postavi'],
     cards: false,
   },
   {
@@ -1484,7 +1500,7 @@ const SCREENS = [
     hash: '#/company/settings',
     title: 'Settings',
     charts: 0,
-    shows: ['Categories to sort', 'Interest income', 'It carries "Other income", and new books give it "Interest, financial income".', 'Dismiss'],
+    shows: ['Categories to sort', 'To sort', 'Interest income', 'It carries "Other income", and new books give it "Interest, financial income".', 'Dismiss'],
   },
   {
     name: 'company-settings-older-interest-croatian',
@@ -1492,7 +1508,7 @@ const SCREENS = [
     hash: '#/company/settings',
     title: 'Postavke',
     charts: 0,
-    shows: ['Kategorije za razvrstavanje', 'Ima porezni tretman „Ostali prihodi”, a nova datoteka ovoj kategoriji daje „Kamate, financijski prihod”.', 'Odbaci'],
+    shows: ['Kategorije za razvrstavanje', 'Za razvrstavanje', 'Ima porezni tretman „Ostali prihodi”, a nova datoteka ovoj kategoriji daje „Kamate, financijski prihod”.', 'Odbaci'],
   },
   {
     name: 'company-settings-croatian',
@@ -5172,26 +5188,35 @@ function readPage(page) {
       return found
     }
 
-    /** A list where some ProposalRows open a page and others do not ends every amount at one edge, as besideLinks keeps it. */
+    /**
+     * A list where some ProposalRows open a page and others do not sits in a `row-list`, and a `row-list` with a row that opens a
+     * page ends every amount, and every figure it marks `row-list-edge`, at one edge.
+     */
     function raggedRowAmounts() {
       const found = []
+      const shown = (element) => element !== null && element !== undefined && element.getClientRects().length > 0
+      const opens = (lines) => lines.parentElement.querySelector(':scope > [data-row-arrow]') !== null
+      const titleOf = (lines) => lines.querySelector('.proposal-row-title')?.textContent.trim().slice(0, 32) ?? ''
       for (const list of document.querySelectorAll('ul')) {
         const rows = [...list.children].flatMap((item) => {
           const lines = item.querySelector('.proposal-row-lines')
-          const amount = lines?.querySelector(':scope > .proposal-row-amount > :first-child')
-          if (lines === null || lines.closest('ul') !== list || amount === null || amount === undefined || amount.getClientRects().length === 0) return []
-          return [
-            {
-              title: lines.querySelector('.proposal-row-title')?.textContent.trim().slice(0, 32) ?? '',
-              opens: item.querySelector('[data-row-arrow]') !== null,
-              end: amount.getBoundingClientRect().right,
-            },
-          ]
+          return lines === null || lines.closest('ul') !== list || !shown(lines) ? [] : [lines]
         })
-        if (!rows.some((row) => row.opens) || rows.every((row) => row.opens)) continue
-        const edge = rows.find((row) => row.opens).end
-        for (const row of rows.filter((other) => Math.abs(other.end - edge) > 1))
-          found.push(`the amount of the row "${row.title}" ends ${Math.round(row.end - edge)} px from the other amounts of its list`)
+        if (rows.some(opens) && !rows.every(opens) && list.closest('.row-list') === null)
+          found.push(`the list with the row "${titleOf(rows[0])}" mixes rows that open a page with rows that do not outside a row-list`)
+      }
+      for (const list of document.querySelectorAll('.row-list')) {
+        const rows = [...list.querySelectorAll('.proposal-row-lines')].flatMap((lines) => {
+          const amount = lines.querySelector(':scope > .proposal-row-amount > :first-child')
+          return shown(amount) ? [{ what: `the amount of the row "${titleOf(lines)}"`, opens: opens(lines), end: amount.getBoundingClientRect().right }] : []
+        })
+        const edge = rows.find((row) => row.opens)?.end
+        if (edge === undefined) continue
+        const figures = [...list.querySelectorAll('.row-list-edge')]
+          .filter(shown)
+          .map((figure) => ({ what: `the figure "${figure.textContent.trim().replace(/\s+/g, ' ').slice(0, 32)}"`, end: figure.getBoundingClientRect().right }))
+        for (const other of [...rows, ...figures].filter((candidate) => Math.abs(candidate.end - edge) > 1))
+          found.push(`${other.what} ends ${Math.round(other.end - edge)} px from the other amounts of its list`)
       }
       return found
     }

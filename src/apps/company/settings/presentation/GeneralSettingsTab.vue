@@ -124,6 +124,7 @@ function removeKey(key: string): void {
     <AppCard v-if="toSort.length > 0" :title="words.categoriesToSort.title" :subtitle="words.categoriesToSort.help" collapse-id="settings.categories-to-sort" data-testid="categories-to-sort">
       <div class="px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
         <ProblemList :problems="toSort">
+          <template #tag="{ problem }">{{ problem.dismissal === undefined ? words.categoriesToSort.toSort : words.categoriesToSort.dismissedTag }}</template>
           <template #action="{ problem }">
             <UButton
               v-if="problem.newerClassOf !== undefined"

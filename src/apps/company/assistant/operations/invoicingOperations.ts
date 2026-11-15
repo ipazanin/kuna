@@ -198,7 +198,7 @@ function periodOf(from: string | null, to: string | null, kept: Invoice['deliver
 /**
  * The payments a step names as what pays the invoice, each one a person could tick under Paid by in the invoice dialog, all of an
  * item's money on offer for each item named, or null to leave them as they are, as a step that names none on a new invoice does.
- * Refused when one is not on offer or when the invoice is paid in full before one of them.
+ * Refused when one is not on offer or when the invoice is paid in full without one of them.
  */
 function chosenPayments(
   books: CompanyBooks,
@@ -219,7 +219,7 @@ function chosenPayments(
     }),
   )
   const chosen = choices.filter((choice) => items.has(choice.item))
-  if (placedShares(invoice.amount, chosen).some((share) => share <= 0)) throw new StepRefused('The invoice is paid in full before the last payment paidBy names, so leave that one out.')
+  if (placedShares(invoice.amount, chosen).some((share) => share <= 0)) throw new StepRefused('The invoice is paid in full without a payment paidBy names, so leave that one out.')
   return chosen
 }
 

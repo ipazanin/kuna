@@ -12,6 +12,8 @@ import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart
 import { OWNER_ADVANCE_WRITES } from '../src/apps/company/packs/hr-doo/domain/hrDooWrites'
 import { ownerAdvances } from '../src/apps/company/packs/hr-doo/domain/ownerAdvances'
 import { ITEM_WRITES } from '../src/apps/company/transactions/application/itemWrites'
+import { fileRows } from '../src/apps/company/transactions/application/fileRows'
+import { recategorisation } from '../src/apps/company/transactions/domain/verdictChanges'
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { ITEM_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { ledgerIdOf } from '../src/apps/company/workbook/domain/ledgerReading'
@@ -109,6 +111,18 @@ describe('owner advances paid back by items', () => {
     await store.undo(store.state.writes[0]!)
 
     expect(itemsOf(store, PARKING)).toEqual([parkingItem])
+  })
+
+  it('refuses to file in another category a payment split by the cost it pays back, naming the advance', async () => {
+    const store = await storeOf(true)
+    await addAdvance(store, 20, 'Parking at the client', [PARKING])
+    const row = store.state.workbook!.transactions.find((candidate) => candidate.description === PARKING)!
+    const before = itemsOf(store, PARKING)
+
+    await expect(
+      store.write('Filed', (unit) => fileRows(unit, companyBooksOf(store.state)!, [recategorisation(row, 'office', store.state.workbook!.settings)], store.state.workbook!.categories)),
+    ).rejects.toThrow('the owner advance "Parking at the client" names it as paid back')
+    expect(itemsOf(store, PARKING)).toEqual(before)
   })
 
   it('takes a payment to the owner off the invoice it names, since only revenue pays one, when a cost placed on it gives part of it an item of its own', async () => {

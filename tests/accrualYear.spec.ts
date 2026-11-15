@@ -213,6 +213,25 @@ describe('accrualYear, the line each category counts on', () => {
     expect(lineAmount(result, 'pl', 'other-operating-income')).toBe(euros(5000))
   })
 
+  it('places income on the accountant’s lines when the totals agree, and leaves profit alone', () => {
+    const result = placed([yearEndLine(2025, 'pl', 'other-operating-income', 5000), yearEndLine(2025, 'pl', 'financial-income', 412.34)])
+
+    expect(step(result, 'income-placement')).toMatchObject({ kind: 'judgement', effect: 'placement' })
+    expect(lineAmount(result, 'pl', 'financial-income')).toBe(euros(412.34))
+    expect(lineAmount(result, 'pl', 'other-operating-income')).toBe(euros(5000))
+    expect(accrualLine(result, 'pl', 'financial-income')?.judgements).toEqual(['income-placement'])
+    expect(accrualLine(result, 'pl', 'other-operating-income')?.judgements).toEqual(['income-placement'])
+    expect(lineAmount(result, 'pl', 'profit-before-tax')).toBe(euros(9294.04))
+  })
+
+  it('leaves the income lines as ours when the accountant’s income total differs', () => {
+    const result = placed([yearEndLine(2025, 'pl', 'other-operating-income', 5000), yearEndLine(2025, 'pl', 'financial-income', 400)])
+
+    expect(step(result, 'income-placement')).toBeUndefined()
+    expect(lineAmount(result, 'pl', 'financial-income')).toBe(euros(12.34))
+    expect(lineAmount(result, 'pl', 'other-operating-income')).toBe(euros(5400))
+  })
+
   it('counts a cost the chart keeps in group 46 on other costs, whatever its class names, unless a konto line names it', () => {
     const travel: Category = { ...STUDIO_CATEGORIES.find((category) => category.slug === 'software')!, slug: 'travel', roles: ['deductible-cost', 'other-costs-line'] }
 

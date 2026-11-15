@@ -28,7 +28,7 @@ import { bookingFigure, hasVat, isCounted } from './accrualBookings'
 import type { AccrualBooking, CapitalisedBooking, CountedBooking } from './accrualBookings'
 import { moneyLine } from './accrualLines'
 import type { MoneyLine } from './accrualLines'
-import { placementJudgement } from './closedYear'
+import { asPlaced, placementJudgement } from './closedYear'
 import { revenueByDelivery } from './revenueByDelivery'
 import { words } from './words'
 
@@ -189,7 +189,7 @@ export function balanceSheetLines(context: BalanceSheetContext): BalanceSheet {
     for (const [line, move] of placement.moves) {
       const entry = ours.get(line)
       if (entry !== undefined) {
-        const placed = summed(entry.figure.label, [entry.figure, tracedFigure(words.year.asPlaced, move, 'accountant', [])], entry.figure.basis)
+        const placed = summed(entry.figure.label, [entry.figure, asPlaced(move)], entry.figure.basis)
         put(line, placed, [...entry.judgements, placement.adjustment.id])
       }
     }

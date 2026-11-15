@@ -564,7 +564,7 @@ function chosenRepayments(
   const applied = placedShares(advance.amount, chosen)
   if (repaidMoreThanPaid(advance.amount, applied) !== null)
     throw new StepRefused('The payments the advance names already add up to more than this amount, so raise the amount or set paidBackBy without one of them.')
-  if (applied.some((share) => share <= 0)) throw new StepRefused('The cost is paid back in full before the last payment paidBackBy names, so leave that one out.')
+  if (applied.some((share) => share <= 0)) throw new StepRefused('The cost is paid back in full without a payment paidBackBy names, so leave that one out.')
   return chosen
 }
 

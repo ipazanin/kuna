@@ -425,6 +425,15 @@ section + section > .group-row:not(tr) {
     'details details';
 }
 
+/*
+ * A list of ProposalRows. Where one of its rows opens a page, the rows that open nothing and the figures marked
+ * `row-list-edge`, such as a group's heading or the total, leave the arrow's size-4 and the gap-3 before it empty,
+ * so every amount of the list ends at one edge.
+ */
+.row-list:has([data-row-arrow]) :is(.proposal-row-lines:not(a > *), .row-list-edge) {
+  margin-inline-end: 1.75rem;
+}
+
 .proposal-row-title {
   grid-area: title;
   align-self: baseline;

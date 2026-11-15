@@ -34,7 +34,7 @@ import { accrualBookings, bookingFigure, hasVat, isCounted } from './accrualBook
 import type { AccrualBooking, CapitalisedBooking, CountedBooking, TakenOutTreatment } from './accrualBookings'
 import { moneyLine } from './accrualLines'
 import type { AccrualLine, MoneyLine } from './accrualLines'
-import { amountOnLine, arrearsCutOff, bookingsAfterCutOff, grantScheduleJudgement, placementJudgement, privateVatAsBooked, representationAsBooked } from './closedYear'
+import { amountOnLine, arrearsCutOff, asPlaced, bookingsAfterCutOff, grantScheduleJudgement, placementJudgement, privateVatAsBooked, representationAsBooked } from './closedYear'
 import { vatKeptForPrivateShare } from '../vat/vatSplit'
 import { moneyParts } from '../../../../../../shared/money/decimal'
 import { COST_LINES, costLineOf, incomeLineOf } from './categoryLines'
@@ -247,7 +247,6 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
     takenOut('profit-distributions', 'profit-distribution', words.year.profitDistributions, ['hr.ztd.distributable-profit']),
   ].filter((step) => isShown(step.figure))
 
-  // The lines, from the same bookings, each category on one line.
   const counted = bookings.filter(isCounted)
   const amountInYear = (entry: CountedBooking) => sumMoney(entry.shares.filter((share) => yearOfMonth(share.month) === year).map((share) => share.amount))
   const contributing = counted.filter((entry) => entry.shares.some((share) => yearOfMonth(share.month) === year))
@@ -262,8 +261,26 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   const grantIncome = grantJudgement === null ? released : summed(words.year.grantRelease, [released, grantJudgement.figure], 'assets')
   const incomeOn = (line: IncomeLine) =>
     categoryTotals.filter((entry) => entry.category.bucket === 'income' && incomeLineOf(entry.category, year, workbook.yearEndLines) === line).map((entry) => entry.figure)
-  const otherOperatingIncome = summed(words.year.otherIncome, [grantIncome, ...incomeOn('other-operating-income')], 'ledger')
-  const financialIncome = summed(words.year.financialIncome, incomeOn('financial-income'), 'ledger')
+  const ourOtherIncome = summed(words.year.otherIncome, [grantIncome, ...incomeOn('other-operating-income')], 'ledger')
+  const ourFinancialIncome = summed(words.year.financialIncome, incomeOn('financial-income'), 'ledger')
+  const incomePlacement = placementJudgement(
+    'income-placement',
+    words.year.incomePlacement,
+    'pl',
+    new Map<IncomeLine, Money>([
+      ['other-operating-income', ourOtherIncome.amount],
+      ['financial-income', ourFinancialIncome.amount],
+    ]),
+    year,
+    workbook.yearEndLines,
+  )
+  const placedIncome = (line: IncomeLine, ours: TracedFigure): TracedFigure => {
+    const move = incomePlacement?.moves.get(line)
+    return move === undefined ? ours : summed(ours.label, [ours, asPlaced(move)], 'ledger')
+  }
+  const otherOperatingIncome = placedIncome('other-operating-income', ourOtherIncome)
+  const financialIncome = placedIncome('financial-income', ourFinancialIncome)
+  const incomeJudgements = (line: IncomeLine): AdjustmentId[] => (incomePlacement?.moves.has(line) === true ? ['income-placement'] : [])
 
   const costSteps = new Map<CostLine, TracedFigure[]>(COST_LINES.map((line) => [line, []]))
   const costJudgements = new Map<CostLine, AdjustmentId[]>(COST_LINES.map((line) => [line, []]))
@@ -323,10 +340,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
     const ours = ourCosts.get(line) ?? summed(words.costLines[line], [], 'ledger')
     const move = placement?.moves.get(line)
     const asBookedVat = asBookedOn(line)
-    const steps = [
-      ...(asBookedVat === 0 ? [] : [tracedFigure(words.year.privateVatAsBooked, asBookedVat, 'accountant', [])]),
-      ...(move === undefined ? [] : [tracedFigure(words.year.asPlaced, move, 'accountant', [])]),
-    ]
+    const steps = [...(asBookedVat === 0 ? [] : [tracedFigure(words.year.privateVatAsBooked, asBookedVat, 'accountant', [])]), ...(move === undefined ? [] : [asPlaced(move)])]
     const judgements = [...(costJudgements.get(line) ?? []), ...(asBookedVat === 0 ? [] : (['private-vat-as-booked'] as const)), ...(move === undefined ? [] : (['cost-placement'] as const))]
     return steps.length === 0 ? moneyLine('pl', line, ours, judgements) : moneyLine('pl', line, summed(ours.label, [ours, ...steps], 'ledger'), judgements)
   })
@@ -425,8 +439,8 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
   const lines: AccrualLine[] = [
     moneyLine('pl', 'sales', sales),
     moneyLine('pl', 'own-use', ownUse),
-    moneyLine('pl', 'other-operating-income', otherOperatingIncome, grantJudgements),
-    moneyLine('pl', 'financial-income', financialIncome),
+    moneyLine('pl', 'other-operating-income', otherOperatingIncome, [...grantJudgements, ...incomeJudgements('other-operating-income')]),
+    moneyLine('pl', 'financial-income', financialIncome, incomeJudgements('financial-income')),
     ...costLines,
     moneyLine('pl', 'profit-before-tax', profitBeforeTax, profitJudgements),
     moneyLine('pl', 'corporate-income-tax', liability.liability, taxJudgements),
@@ -472,6 +486,7 @@ export function accrualYear(workbook: HrDooWorkbook, year: number, inputs: Accru
       corporateIncomeTax,
       ...(representationJudgement === null ? [] : [representationJudgement]),
       ...(placement === null ? [] : [placement.adjustment]),
+      ...(incomePlacement === null ? [] : [incomePlacement.adjustment]),
       ...balance.placements,
     ],
     bridge: {

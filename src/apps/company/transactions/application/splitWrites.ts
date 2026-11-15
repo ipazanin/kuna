@@ -66,10 +66,10 @@ function splitItems(row: Pick<Transaction, 'id' | 'rowId'>, stored: StoredSplit,
 
 /**
  * Why the row's split cannot be saved with these parts, or taken off when there are none, in a sentence, or null when it can: a
- * record of the pack files its items, as `splitKeptRefusal` says, or the change would move money a person placed on an invoice.
+ * record of the pack files its items, as `itemsKeptRefusal` says, or the change would move money a person placed on an invoice.
  */
 export function splitRefusal(books: CompanyBooks, row: Transaction, stored: StoredSplit, drafts: readonly SplitPartDraft[] | null): string | null {
-  if (drafts === null) return splitKeptRefusal(books, row) ?? placedMoneyRefusal(books.records, row, [oneItemOf(row, stored)])
+  if (drafts === null) return itemsKeptRefusal(books, row) ?? placedMoneyRefusal(books.records, row, [oneItemOf(row, stored)])
   return drafts.length === 0 ? null : placedMoneyRefusal(books.records, row, splitItems(row, stored, drafts, books.workbook.categories))
 }
 
@@ -97,8 +97,8 @@ function writeOneItem(
   return partReplacements(stored.parts.length > 0 ? stored.parts : whole, whole)
 }
 
-/** Why a person cannot take the row's split off, since a record of the pack files its items, in a sentence, or null when they can. */
-function splitKeptRefusal(books: CompanyBooks, row: Transaction): string | null {
+/** Why a person cannot take the row's split off or file its items in another category, since a record of the pack files them, in a sentence, or null when they can. */
+export function itemsKeptRefusal(books: CompanyBooks, row: Transaction): string | null {
   const pack = installedPack().workbook
   if (pack === null) return null
   const kept = pack.itemsKept(books.records.pack, books.workbook)
@@ -111,11 +111,11 @@ function splitKeptRefusal(books: CompanyBooks, row: Transaction): string | null 
 /**
  * Takes the split off the row, which then counts as one item in the category most of its money was in, with that part's owner
  * share. When that files the row otherwise than the books hold it, the person files it. A split the guards refused never counted,
- * so the row keeps the category it counted in. A split a record of the pack files stays, as `splitKeptRefusal` says. Gives what
+ * so the row keeps the category it counted in. A split a record of the pack files stays, as `itemsKeptRefusal` says. Gives what
  * the one item the row stands for again replaces.
  */
 export function removeSplit(unit: UnitOfWork, books: CompanyBooks, row: Transaction, stored: StoredSplit): readonly PartReplacement<RecordId>[] {
-  const refusal = splitKeptRefusal(books, row)
+  const refusal = itemsKeptRefusal(books, row)
   refuseOn(refusal === null ? [] : [refusal])
   const entry = recordWithId(books.records.ledger, row.id)?.record
   const main = oneItemOf(row, stored)

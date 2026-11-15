@@ -45,7 +45,7 @@ export interface YearEndOpenItem {
 
 type JudgementId = Extract<
   AdjustmentId,
-  'grant-schedule' | 'arrears-cut-off' | 'representation-as-booked' | 'private-vat-as-booked' | 'cost-placement' | 'receivable-placement' | 'liability-placement'
+  'grant-schedule' | 'arrears-cut-off' | 'representation-as-booked' | 'private-vat-as-booked' | 'cost-placement' | 'income-placement' | 'receivable-placement' | 'liability-placement'
 >
 
 const JUDGEMENTS: Readonly<Record<JudgementId, { readonly settledBy: string; readonly rules: readonly RuleId[] }>> = {
@@ -69,6 +69,10 @@ const JUDGEMENTS: Readonly<Record<JudgementId, { readonly settledBy: string; rea
     settledBy: words.judgements['cost-placement'],
     rules: [],
   },
+  'income-placement': {
+    settledBy: words.judgements['income-placement'],
+    rules: [],
+  },
   'receivable-placement': {
     settledBy: words.judgements['receivable-placement'],
     rules: [],
@@ -88,12 +92,16 @@ export function yearEndOpenItems(workbook: HrDooWorkbook, accrual: AccrualYear, 
   return [...judgementItems(accrual), ...unexplainedItems(accrual), ...completenessItems(accrual), ...complianceItems(workbook, accrual, rules)]
 }
 
+function isJudgementId(id: AdjustmentId): id is JudgementId {
+  return Object.hasOwn(JUDGEMENTS, id)
+}
+
 function judgementItems(accrual: AccrualYear): YearEndOpenItem[] {
   return accrual.adjustments.flatMap((adjustment): YearEndOpenItem[] => {
-    if (adjustment.kind !== 'judgement' || !(adjustment.id in JUDGEMENTS)) {
+    if (adjustment.kind !== 'judgement' || !isJudgementId(adjustment.id)) {
       return []
     }
-    const wording = JUDGEMENTS[adjustment.id as JudgementId]
+    const wording = JUDGEMENTS[adjustment.id]
     // A placement moves amounts between lines and adds up to nothing, so it has no figure of its own.
     const figure = adjustment.effect === 'placement' ? null : adjustment.figure
     return [{ key: adjustment.id, group: 'judgement', title: adjustment.figure.label, on: adjustment.figure.on, settledBy: wording.settledBy, figure, rules: wording.rules, settled: false }]

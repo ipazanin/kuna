@@ -10,6 +10,8 @@ import type { RuleId } from '../ruleset'
 import type { AppliesBy, Confidence, GeneralRule, LegalSource, OpenItem, RuleArea, RuleTerms, RuleVersion, ScalarTerm, TableTerm, Term } from '../schema'
 import { words } from './words'
 import { ruleTitle } from './ruleTitles'
+import { CROATIAN_TERM_LABELS } from './termLabels'
+import { language } from '../../../../../../shared/text/language'
 
 export interface ConfidenceWording {
   readonly label: string
@@ -104,8 +106,10 @@ const ACRONYMS: Readonly<Record<string, string>> = {
   ecb: 'ECB',
 }
 
-/** `limitPerItemWithoutVat` reads "Limit per item without VAT". */
+/** `limitPerItemWithoutVat` reads "Limit per item without VAT", and on a Croatian screen "Granica po stavci bez PDV-a". */
 export function termLabel(key: string): string {
+  const croatian = language === 'hr' ? CROATIAN_TERM_LABELS[key] : undefined
+  if (croatian !== undefined) return croatian
   const words = key
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .split(' ')

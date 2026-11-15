@@ -14,7 +14,13 @@ import { ledgerWindowOf, newestBookingOf } from '../src/apps/company/workbook/do
 import type { Workbook } from '../src/apps/company/workbook/domain/workbook'
 import { receivablesOf } from '../src/apps/company/receivables/domain/invoiceMatching'
 import { addMoney } from '../src/shared/money/money'
-import { fakeWorkbookDocument, fakeWorkbookDocumentBeforeItems, fakeWorkbookRecords, withPaymentsMatched } from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
+import {
+  fakeWorkbookDocument,
+  fakeWorkbookDocumentBeforeItems,
+  fakeWorkbookRecords,
+  withOlderInterestCategory,
+  withPaymentsMatched,
+} from '../src/apps/company/workbook/infrastructure/fake/fakeWorkbook'
 import { presentedWorkbook } from '../src/apps/company/transactions/domain/presentedWorkbook'
 import { categorise } from '../src/shared/categorising/domain/categorise'
 import { forecastYear } from '../src/apps/company/packs/hr-doo/domain/forecast/forecastYear'
@@ -22,6 +28,8 @@ import { planAgainstActual } from '../src/apps/company/packs/hr-doo/domain/forec
 import { ruleCoverage } from '../src/apps/company/rules/domain/ruleCoverage'
 import { categorisationContextOf } from '../src/apps/company/rules/domain/categorisationContext'
 import { hrDooWorkbook } from '../src/apps/company/packs/hr-doo/domain/hrDooPart'
+import { accrualYear } from '../src/apps/company/packs/hr-doo/domain/accrual/accrualYear'
+import { compareYearEnd } from '../src/apps/company/packs/hr-doo/domain/yearEnd/yearEndComparison'
 import { rowsOfOneItem } from '../src/apps/company/workbook/domain/splits'
 
 const SYNCED = '2026-10-16T08:00:00.000Z'
@@ -172,6 +180,16 @@ describe('fake workbook', () => {
     expect(workbook.planLines.some((line) => line.kind === 'owner-pay-scenario')).toBe(true)
     expect(workbook.payScenarios.map((scenario) => scenario.slug)).toEqual(['floor-salary', 'floor-extras', 'floor-then-board', 'early-exit'])
     expect(workbook.invoices.filter((invoice) => invoice.deliveryPeriod !== null).length).toBeGreaterThan(10)
+  })
+
+  it('closes 2025 with no profit and loss line open on the books that keep bank interest on the other income class', () => {
+    const older = hrDooWorkbook(
+      presentedWorkbook(readDocument({ id: 'fake', source: 'drive', title: 'Fake workbook', syncedAt: SYNCED }, withOlderInterestCategory(fakeWorkbookDocument(SYNCED, 'drive'))).workbook),
+    )
+    const comparison = compareYearEnd(older, accrualYear(older, 2025, { depreciation: older.companyFacts, citAdvancesPaid: null }))
+
+    expect(comparison.lines.filter((line) => line.statement === 'pl' && line.status === 'open').map((line) => line.line)).toEqual([])
+    expect(comparison.lines.find((line) => line.line === 'financial-income')?.explainedBy.map((adjustment) => adjustment.id)).toContain('income-placement')
   })
 
   it('holds a billing plan that Northwind’s invoices bill in full up to October, and none for Lumen’s invoices', () => {

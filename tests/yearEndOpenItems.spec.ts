@@ -28,6 +28,15 @@ describe('yearEndOpenItems', () => {
     expect(grant?.settledBy).not.toBe('')
   })
 
+  it('lists the accountant’s split of the income lines with no figure of its own', () => {
+    const items = openItems(exampleStudio({ yearEndLines: [yearEndLine(2025, 'pl', 'other-operating-income', 4900), yearEndLine(2025, 'pl', 'financial-income', 100)] }))
+    const placement = items.find((item) => item.key === 'income-placement')
+
+    expect(keys(items, 'judgement')).toEqual(['income-placement'])
+    expect(placement).toMatchObject({ figure: null, rules: [], settled: false })
+    expect(placement?.settledBy).not.toBe('')
+  })
+
   it('lists the gap to the accountant’s profit that nothing explains', () => {
     const items = openItems(exampleStudio({ yearEndLines: [yearEndLine(2025, 'pl', 'profit-before-tax', 9000)] }))
 

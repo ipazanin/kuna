@@ -82,7 +82,7 @@ import GallerySection from './GallerySection.vue'
         </ul>
       </AppCard>
       <AppCard title="Rows that open a page">
-        <ul class="flex flex-col py-2">
+        <ul class="row-list flex flex-col py-2">
           <li class="border-t border-default first:border-t-0">
             <ProposalRow to="/gallery" title="Current account" caption="Bank · Main Bank · EUR">
               <template #amount><MoneyText :cents="moneyFromCents(1_204_470)" class="text-highlighted" /></template>
@@ -103,7 +103,7 @@ import GallerySection from './GallerySection.vue'
             </ProposalRow>
           </li>
           <li class="border-t border-default first:border-t-0">
-            <ProposalRow as="div" title="Cash at the broker" caption="Opens nothing, and its amount ends where the others do" beside-links>
+            <ProposalRow as="div" title="Cash at the broker" caption="Opens nothing, and its amount ends where the others do">
               <template #amount><MoneyText :cents="moneyFromCents(31_250)" class="text-highlighted" /></template>
             </ProposalRow>
           </li>

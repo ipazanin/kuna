@@ -128,7 +128,7 @@ const sheetOpen = ref(false)
         </template>
       </USlideover>
       <template v-else>
-        <USelect v-model="bucket" :items="bucketItems" :aria-label="words.categories.byBucket" size="sm" class="w-40" data-testid="category-bucket-filter" />
+        <USelect v-model="bucket" :items="bucketItems" :aria-label="words.categories.byBucket" size="sm" class="w-36" data-testid="category-bucket-filter" />
         <USelect
           v-if="taxClasses.length > 0"
           v-model="taxClass"
@@ -136,12 +136,14 @@ const sheetOpen = ref(false)
           :ui="TAX_CLASS_UI"
           :aria-label="words.categories.byTaxClass"
           size="sm"
-          class="w-60"
+          class="w-48"
           data-testid="category-class-filter"
         />
-        <USelect v-model="role" :items="roleItems" :ui="roleUi" :aria-label="words.categories.byRole" size="sm" class="w-52" data-testid="category-role-filter" />
-        <UCheckbox v-if="shares" :model-value="filters.withOwnerShare" :label="words.categories.withShare" size="sm" @update:model-value="set('withOwnerShare', $event === true)" />
-        <UCheckbox :model-value="filters.unsavedOnly" :label="words.categories.unsaved" size="sm" data-testid="category-unsaved-filter" @update:model-value="set('unsavedOnly', $event === true)" />
+        <USelect v-model="role" :items="roleItems" :ui="roleUi" :aria-label="words.categories.byRole" size="sm" class="w-44" data-testid="category-role-filter" />
+        <span class="flex items-center gap-x-4">
+          <UCheckbox v-if="shares" :model-value="filters.withOwnerShare" :label="words.categories.withShare" size="sm" @update:model-value="set('withOwnerShare', $event === true)" />
+          <UCheckbox :model-value="filters.unsavedOnly" :label="words.categories.unsaved" size="sm" data-testid="category-unsaved-filter" @update:model-value="set('unsavedOnly', $event === true)" />
+        </span>
       </template>
     </div>
     <p class="flex flex-wrap items-center gap-x-3 text-xs text-muted">

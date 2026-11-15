@@ -185,11 +185,11 @@ const description = computed(() => {
         </div>
         <p v-if="list.groups.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="holdings-none">{{ find === '' ? words.nothingHeld : words.noMatch(find) }}</p>
         <HoldingsTable v-else-if="wide" v-model:sort="sort" :list="list" />
-        <div v-else class="pb-2" data-testid="holdings-rows">
+        <div v-else class="row-list pb-2" data-testid="holdings-rows">
           <section v-for="group in list.groups" :key="group.key">
-            <h2 v-if="group.key !== 'all'" class="group-row flex items-baseline justify-between gap-3 px-4 py-2.5 type-body">
+            <h2 v-if="group.key !== 'all'" class="group-row flex items-baseline justify-between gap-3 px-4 py-2.5 type-body sm:px-5">
               <span class="min-w-0"><HoldingsGroupName :group="group" /></span>
-              <span class="shrink-0 text-end">
+              <span class="row-list-edge shrink-0 text-end">
                 <MoneyText :cents="group.value" />
                 <span v-if="group.weight !== null" class="block type-caption font-normal">{{ words.ofValue(formatShare(group.weight)) }}</span>
               </span>
@@ -204,12 +204,12 @@ const description = computed(() => {
               </li>
             </ul>
           </section>
-          <div class="flex flex-col gap-0.5 border-t border-accented px-4 pt-2.5" data-testid="holdings-total">
-            <span class="flex items-baseline justify-between gap-3 type-body font-medium text-highlighted">
+          <div class="flex flex-col gap-0.5 border-t border-accented px-4 pt-2.5 sm:px-5" data-testid="holdings-total">
+            <span class="row-list-edge flex items-baseline justify-between gap-3 type-body font-medium text-highlighted">
               <span>{{ words.total }}</span>
               <MoneyText :cents="list.total.value" />
             </span>
-            <span class="flex items-baseline justify-between gap-3 type-caption">
+            <span class="row-list-edge flex items-baseline justify-between gap-3 type-caption">
               <span>{{ words.columns.cost }} <MoneyText :cents="list.total.cost" /></span>
               <span v-if="list.total.gain !== null">
                 <MoneyText :cents="list.total.gain" sign="always" tone="outcome" /><template v-if="list.total.gainShare !== null"> · {{ formatPercent(list.total.gainShare, 'always') }}</template>

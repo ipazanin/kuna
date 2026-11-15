@@ -43,6 +43,16 @@ describe('compareYearEnd', () => {
     expect(released?.explainedBy.map((adjustment) => adjustment.id)).toEqual(['grant-release', 'grant-schedule'])
   })
 
+  it('marks the income lines a judgement when the accountant splits the same income over them differently', () => {
+    // Ours is 5,000.00 of grant release on other operating income and nothing on financial income.
+    const comparison = compared([yearEndLine(2025, 'pl', 'other-operating-income', 4900), yearEndLine(2025, 'pl', 'financial-income', 100)])
+
+    for (const income of ['other-operating-income', 'financial-income']) {
+      expect(line(comparison, 'pl', income)).toMatchObject({ residual: euros(0), status: 'judgement' })
+      expect(line(comparison, 'pl', income)?.explainedBy.map((adjustment) => adjustment.id)).toContain('income-placement')
+    }
+  })
+
   it('leaves a line open with its residual, or when a count differs', () => {
     const comparison = compared([yearEndLine(2025, 'pl', 'profit-before-tax', 9000), yearEndLine(2025, 'tax', 'months-of-operation', { kind: 'count', count: 12 })])
 

@@ -58,6 +58,8 @@ export const en = {
   categoriesToSort: {
     title: 'Categories to sort',
     help: 'Each line names a category that may not count the way you mean, and what to change.',
+    toSort: 'To sort',
+    dismissedTag: 'Dismissed',
     dismiss: 'Dismiss',
     dismissNamed: (name: string) => `Dismiss the suggested tax class for ${name}`,
     dismissedToast: (name: string) => `Suggested tax class for ${name} dismissed`,
@@ -285,6 +287,8 @@ export const hr: Translation<typeof en> = {
   categoriesToSort: {
     title: 'Kategorije za razvrstavanje',
     help: 'Svaki redak navodi kategoriju koja se možda ne broji kako želite i što u njoj promijeniti.',
+    toSort: 'Za razvrstavanje',
+    dismissedTag: 'Odbačeno',
     dismiss: 'Odbaci',
     dismissNamed: (name) => `Odbaci predloženi porezni tretman za ${name}`,
     dismissedToast: (name) => `Predloženi porezni tretman za ${name} je odbačen`,

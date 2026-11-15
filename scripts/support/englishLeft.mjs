@@ -25,7 +25,7 @@ import { FAKE_BOOKS_FOLDER } from '../../src/shared/storage/infrastructure/fake/
 import { fakeStaffOf } from '../../src/apps/company/packs/hr-doo/infrastructure/fake/fakeStaff.ts'
 import { en as scenariosEnglish } from '../../src/apps/company/packs/hr-doo/domain/scenarios/words.ts'
 import { OPEN_ITEMS, RULES } from '../../src/apps/company/packs/hr-doo/ruleset/ruleset.ts'
-import { termLabel } from '../../src/apps/company/packs/hr-doo/ruleset/presentation/ruleWording.ts'
+import { CROATIAN_TERM_LABELS } from '../../src/apps/company/packs/hr-doo/ruleset/presentation/termLabels.ts'
 import { fakeLoansDocument } from '../../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { fakeAssetsDocument } from '../../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
@@ -195,6 +195,9 @@ const HALVES = sourcesUnder(SOURCE, (path) => path.endsWith('/words.ts')).map((s
 /** The rule titles Croatian screens show, which sit beside the rules rather than in a words file. */
 const CROATIAN_RULE_TITLES = stringLiterals(readFileSync(join(SOURCE, 'apps/company/packs/hr-doo/ruleset/presentation/ruleTitles.ts'), 'utf8'))
 
+/** The labels Croatian screens give the rules' terms, which sit beside the rules rather than in a words file. */
+const CROATIAN_TERM_LABEL_TEXTS = Object.values(CROATIAN_TERM_LABELS)
+
 /** The names Spending's starter categories take in Croatian, which sit beside the categories rather than in a words file. */
 const CROATIAN_STARTER_CATEGORIES = starterCategories('hr').map((category) => category.name)
 
@@ -207,7 +210,7 @@ function namedAsStored(text) {
 }
 
 const CROATIAN_WORDS = new Set(
-  [...HALVES.flatMap((half) => half.croatian), ...CROATIAN_RULE_TITLES, ...CROATIAN_STARTER_CATEGORIES]
+  [...HALVES.flatMap((half) => half.croatian), ...CROATIAN_RULE_TITLES, ...CROATIAN_TERM_LABEL_TEXTS, ...CROATIAN_STARTER_CATEGORIES]
     .map(namedAsStored)
     .flatMap(wordsAsWritten)
     .filter((word) => word !== word.toLowerCase() || !FILE_FIELDS.has(word) || CROATIAN_HOMOGRAPHS.has(word))
@@ -278,14 +281,6 @@ function unseededCategoryLabels() {
       .filter((slug) => typeof slug === 'string' && slug !== ''),
   )
   return [...slugs].filter((slug) => companyBooksCroatian.unlabelled(slug) === companyBooksEnglish.unlabelled(slug)).map((slug) => companyBooksEnglish.unlabelled(slug))
-}
-
-/** The label of every term of every rule, and of every column of a table term. */
-function ruleTermLabels() {
-  const keys = RULES.flatMap((rule) =>
-    rule.versions.flatMap((version) => Object.entries(version.value).flatMap(([key, term]) => [key, ...(term.kind === 'table' ? term.rows.flatMap((row) => Object.keys(row)) : [])])),
-  )
-  return [...new Set(keys)].map(termLabel)
 }
 
 /** The default subject of the invoice mail as a pattern, its placeholders filled in English as the client's mail language asks. */
@@ -439,11 +434,6 @@ export const ENGLISH_ALLOWED = [
     name: 'ruleset research notes',
     reason: 'The notes of the rules and the open items are legal research prose, which the language plan keeps English.',
     texts: ruleNotes(),
-  },
-  {
-    name: 'ruleset term labels',
-    reason: 'The one open exception: the labels termLabel builds from the ruleset term keys stay English.',
-    texts: ruleTermLabels(),
   },
 ]
 

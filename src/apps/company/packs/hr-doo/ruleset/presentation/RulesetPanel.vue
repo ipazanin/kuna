@@ -188,14 +188,12 @@ watch(
               :data-rule="rule.id"
               data-testid="rule-row"
             >
-              <template #caption>
-                <span class="identifier" data-testid="rule-id">{{ rule.id }}</span>
-              </template>
               <template v-if="rule.inForce.headline" #amount>
                 <span class="figure text-default">{{ rule.inForce.headline.wording }}</span>
-                <span v-if="rule.inForce.headline.label" class="type-caption">{{ rule.inForce.headline.label }}</span>
               </template>
+              <template v-if="rule.inForce.headline?.label" #caption>{{ rule.inForce.headline.label }}</template>
               <template #details>
+                <span class="identifier text-muted" data-testid="rule-id">{{ rule.id }}</span>
                 <ConfidenceBadge :confidence="rule.inForce.confidence" class="mt-1 self-start" />
               </template>
             </ProposalRow>

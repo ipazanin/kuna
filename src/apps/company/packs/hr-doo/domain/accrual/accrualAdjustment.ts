@@ -35,6 +35,7 @@ export type AdjustmentId =
   | 'private-vat-as-booked'
   | 'corporate-income-tax'
   | 'cost-placement'
+  | 'income-placement'
   | 'liability-placement'
   | 'receivable-placement'
   | 'unexplained-before-tax'

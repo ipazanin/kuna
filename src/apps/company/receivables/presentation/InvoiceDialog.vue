@@ -17,7 +17,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
-import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import { parseCivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
@@ -26,7 +25,8 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { useBookedWorkbook } from '../../transactions/application/useBookedWorkbook'
-import { placedShares } from '../../workbook/domain/rowPayments'
+import { inPickingOrder, placedShares } from '../../workbook/domain/rowPayments'
+import PaymentsSelect from '../../workbook/presentation/PaymentsSelect.vue'
 import { storesItems } from '../../workbook/domain/rowItems'
 import { invoiceIdOf } from '../../workbook/domain/invoicesReading'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -159,7 +159,7 @@ const choices = computed(() => {
 })
 
 const paymentItems = computed(() =>
-  choices.value.map((choice) => ({
+  inPickingOrder(choices.value).map((choice) => ({
     label: words.dialog.payment(dayLabel(choice.payment.date), formatMoney(choice.amount), choice.payment.counterparty || choice.payment.description || words.dialog.paymentFrom),
     value: choice.key,
   })),
@@ -168,10 +168,7 @@ const paymentItems = computed(() =>
 /** The payments ticked, in the order they were paid, among those on offer for the client chosen. */
 const chosen = computed(() => choices.value.filter((choice) => paidBy.value.includes(choice.key)))
 
-/** The ticked payments' labels, one line each, so a second payment is not cut off behind the first. */
-const chosenLabels = computed(() => paymentItems.value.filter((payment) => paidBy.value.includes(payment.value)).map((payment) => payment.label))
-
-/** The first ticked payment the invoice is paid in full before, or null. */
+/** The first ticked payment the invoice is paid in full without, or null. */
 const notNeeded = computed(() => {
   if (parsedAmount.value === null) return null
   const applied = placedShares(parsedAmount.value, chosen.value)
@@ -272,23 +269,7 @@ async function remove(): Promise<void> {
       </UFormField>
       <p class="-mt-2 text-xs text-muted">{{ words.dialog.periodHelp }}</p>
       <UFormField v-if="paymentItems.length > 0" :label="words.dialog.paidBy" :help="words.dialog.paidByHelp" :error="(tried && errors.paidBy) || false" class="sm:col-span-2">
-        <USelectMenu
-          v-model="paidBy"
-          data-testid="invoice-paid-by"
-          :items="paymentItems"
-          value-key="value"
-          multiple
-          :placeholder="words.dialog.notPaid"
-          :search-input="{ placeholder: words.dialog.searchPayments }"
-          class="w-full"
-        >
-          <template #default>
-            <span v-if="chosenLabels.length === 0" class="text-muted">{{ words.dialog.notPaid }}</span>
-            <span v-else class="flex min-w-0 flex-col text-start">
-              <span v-for="label in chosenLabels" :key="label" class="truncate">{{ label }}</span>
-            </span>
-          </template>
-        </USelectMenu>
+        <PaymentsSelect v-model="paidBy" data-testid="invoice-paid-by" :payments="paymentItems" :none="words.dialog.notPaid" :search="words.dialog.searchPayments" />
       </UFormField>
     </FormGrid>
     <template #start>
