@@ -1,6 +1,7 @@
 import { BANK_SYNC_LABEL } from '../domain/bankSyncRows'
 import { writeRows } from '../../entries/application/rowRecords'
-import { HELD_ROW_WRITES, writeDryRun } from '../../statements/application/statementWrites'
+import { HELD_ROW_WRITES } from '../../statements/application/ruleRecords'
+import { writeDryRun } from '../../statements/application/statementWrites'
 import { statementDryRun } from '../../statements/domain/statementDryRun'
 import { rowOfHeld } from '../../workbook/domain/heldBankRow'
 import type { HeldBankRow } from '../../workbook/domain/heldBankRow'

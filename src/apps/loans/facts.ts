@@ -1,14 +1,20 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 import { homeCardFigures } from '../../shared/app/homeCardFigures'
+import type { PublishedLinkTarget } from '../../shared/app/rowLinks'
 import type { CivilDate } from '../../shared/calendar/civilDate'
 import type { Money } from '../../shared/money/money'
-import { keyOfRecordId } from '../../shared/storage/domain/recordId'
+import { keyOfRecordId, recordIdOf } from '../../shared/storage/domain/recordId'
+import type { RecordId } from '../../shared/storage/domain/recordId'
+import type { RecordKind } from '../../shared/storage/domain/recordKind'
 import { bankLoanFigures } from './bankLoans/domain/bankLoanFigures'
 import { splitOf } from './bankLoans/domain/loanFigures'
 import { bankLoanLink, informalLoanLink } from './overview/presentation/loanLinks'
+import { MOVEMENT_WRITES, newMovement } from './informalLoans/application/informalLoanWrites'
 import { useLoansBooks } from './workbook/application/loansStore'
-import { BANK_LOAN_RECORDS, INFORMAL_LOAN_RECORDS } from './workbook/domain/loanKinds'
+import { sessionWrite } from '../../shared/storage/application/sessionWrite'
+import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS, INFORMAL_LOAN_RECORDS, MOVEMENT_RECORDS } from './workbook/domain/loanKinds'
+import { LOANS_APP } from './workbook/domain/loansApp'
 import type { LoanBook } from './workbook/domain/readLoanBook'
 
 /** A bank loan as another app reads it: what it is called and what you owe on it on the day. */
@@ -56,26 +62,58 @@ export interface PublishedInstalment {
   readonly yourShare: Money
   readonly interest: Money
   readonly principal: Money
+  /** What a row that pays it names. */
+  readonly link: PublishedLinkTarget
   readonly to: RouteLocationRaw
 }
 
-/** Money owed between people, as another app reads it: who it is with and which way it runs. */
+/** What happened on an informal loan: money borrowed or repaid, in money or by paying something of the other's, or let go. */
+export type PublishedMovementKind = 'borrowed' | 'borrowed-in-kind' | 'repaid' | 'repaid-in-kind' | 'forgiven'
+
+/** One dated change to what an informal loan owes, as another app reads it. */
+export interface PublishedMovement {
+  readonly day: CivilDate
+  readonly kind: PublishedMovementKind
+  /** Above zero. The kind gives its direction. */
+  readonly amount: Money
+  readonly note: string
+  readonly link: PublishedLinkTarget
+}
+
+/** Money owed between people, as another app reads it: who it is with, which way it runs and its movements. */
 export interface PublishedInformalLoan {
   /** The loan's bare UUID. */
   readonly key: string
   readonly name: string
   readonly counterparty: string
   readonly direction: 'you-owe' | 'owed-to-you'
+  readonly movements: readonly PublishedMovement[]
+  readonly link: PublishedLinkTarget
   readonly to: RouteLocationRaw
 }
 
-/** What a payment in another app may name in Loans: each instalment and interim interest of a bank loan whose plan can be worked out, and each informal loan. */
+/** Principal paid back early on a bank loan, as another app reads it. */
+export interface PublishedExtraPayment {
+  readonly loanName: string
+  readonly day: CivilDate
+  readonly amount: Money
+  readonly link: PublishedLinkTarget
+  readonly to: RouteLocationRaw
+}
+
+/** What a payment in another app may name in Loans: each instalment and interim interest of a bank loan whose plan can be worked out, each extra payment, and each informal loan with its movements. */
 export interface PublishedLoanTargets {
   readonly instalments: readonly PublishedInstalment[]
+  readonly extraPayments: readonly PublishedExtraPayment[]
   readonly informalLoans: readonly PublishedInformalLoan[]
 }
 
-/** The instalments and informal loans of the book, for a reader that has the book in hand. */
+/** The record as a row of another app names it, with Loans' own id and the record's kind. */
+function linkOf(kind: RecordKind, id: RecordId, due: CivilDate | null = null): PublishedLinkTarget {
+  return { app: LOANS_APP, kind: kind.name, key: keyOfRecordId(kind, id), due }
+}
+
+/** The instalments, extra payments and informal loans of the book, for a reader that has the book in hand. */
 export function loanTargetsOf(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'>): PublishedLoanTargets {
   return {
     instalments: book.bankLoans.flatMap(({ loan, plan }) => {
@@ -95,22 +133,56 @@ export function loanTargetsOf(book: Pick<LoanBook, 'bankLoans' | 'informalLoans'
             yourShare: row.yourShare,
             interest,
             principal,
+            link: linkOf(BANK_LOAN_RECORDS, loan.id, row.date),
             to: bankLoanLink(loan),
           },
         ]
       })
     }),
-    informalLoans: book.informalLoans.map(({ loan }) => ({
+    extraPayments: book.bankLoans.flatMap(({ loan, extraPayments }) =>
+      extraPayments.map((payment) => ({ loanName: loan.name, day: payment.date, amount: payment.amount, link: linkOf(EXTRA_PAYMENT_RECORDS, payment.id), to: bankLoanLink(loan) })),
+    ),
+    informalLoans: book.informalLoans.map(({ loan, movements }) => ({
       key: keyOfRecordId(INFORMAL_LOAN_RECORDS, loan.id),
       name: loan.name,
       counterparty: loan.counterparty,
       direction: loan.direction,
+      movements: movements.map((movement) => ({ day: movement.date, kind: movement.kind, amount: movement.amount, note: movement.note, link: linkOf(MOVEMENT_RECORDS, movement.id) })),
+      link: linkOf(INFORMAL_LOAN_RECORDS, loan.id),
       to: informalLoanLink(loan),
     })),
   }
 }
 
-/** The instalments and informal loans of the file on screen, a wait while it opens, a failure, or null while Loans is not set up. */
+/** A movement another app adds to one of the informal loans Loans publishes. */
+export interface MovementToAdd {
+  /** The informal loan's bare UUID. */
+  readonly loan: string
+  readonly day: CivilDate
+  readonly kind: PublishedMovementKind
+  /** Above zero. */
+  readonly amount: Money
+  readonly note: string
+}
+
+/** A record another app added in Loans: the link that names it, and Undo, which Loans refuses once the record changed. */
+export interface AddedInLoans {
+  readonly link: PublishedLinkTarget
+  undo(): Promise<void>
+}
+
+/**
+ * Adds the movement to the Loans file on screen in a write of its own, under the title the adding app gives, as the movement
+ * dialog adds one. Throws with the reason when Loans is not open or refuses it.
+ */
+export async function addMovement(movement: MovementToAdd, title: string): Promise<AddedInLoans> {
+  const store = useLoansBooks()
+  const added = newMovement({ loan: recordIdOf(INFORMAL_LOAN_RECORDS, movement.loan), date: movement.day, kind: movement.kind, amount: movement.amount, note: movement.note })
+  const written = await sessionWrite(store, title, (unit) => unit.of(MOVEMENT_WRITES).add(added), 'add-movement-from-another-app')
+  return { link: linkOf(MOVEMENT_RECORDS, added.id), undo: async () => (written === null ? undefined : store.undo(written)) }
+}
+
+/** The instalments, extra payments and informal loans of the file on screen, a wait while it opens, a failure, or null while Loans is not set up. */
 export function publishedLoanTargets(): PublishedLoanTargets | 'opening' | 'failed' | null {
   return homeCardFigures(state, loanTargetsOf)
 }

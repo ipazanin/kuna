@@ -308,8 +308,12 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'link-entry',
     about:
-      "Links an entry to the record in Loans it is, in place of any link it had: a bank loan's instalment or interim interest by the loan's name as Loans lists it and its due date, or an informal loan by its name with due null. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. Any other link changes no figure.",
-    input: inputOf({ entry: TEXT, loan: TEXT, due: { type: ['string', 'null'], description: "The instalment's due date as yyyy-mm-dd, or null for an informal loan." } }),
+      "Links an entry to the record in Loans it is, in place of any link it had, by the loan's name as Loans lists it and a day: a bank loan's instalment or interim interest by its due date, an extra payment or an informal loan's movement by its day, or an informal loan as a whole with due null. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. Any other link files the whole entry under Loan principal.",
+    input: inputOf({
+      entry: TEXT,
+      loan: TEXT,
+      due: { type: ['string', 'null'], description: "The instalment's due date or the movement's or extra payment's day as yyyy-mm-dd, or null for an informal loan as a whole." },
+    }),
     refs: { entry: TRANSACTION_RECORDS.name },
     creates: null,
     alone: false,
@@ -350,17 +354,29 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   SET_STARTING_ACCOUNT,
 ]
 
-/** The record in Loans a step names: an instalment by its loan's name and due date, or an informal loan by its name. */
+/** The record in Loans a step names by its loan's name: an instalment by its due date, a movement or an extra payment by its day, or an informal loan as a whole. */
 function linkedTarget(loans: AppTargets<LinkTarget>, name: string, due: CivilDate | null): LinkTarget {
   if (loans === null) throw new StepRefused('Loans is not set up on this device, so nothing in it can be linked.')
   if (loans === 'opening') throw new StepRefused('Loans is still opening. Propose the link again once it is open.')
   if (loans === 'failed') throw new StepRefused('Loans did not open, so nothing in it can be linked.')
-  const named = loans.filter((target) => (due === null ? target.kind === 'informal-loan' && target.name === name : target.kind === 'instalment' && target.loanName === name && target.due === due))
-  if (named.length > 1) throw new StepRefused(`More than one loan in Loans is called ${name}. Rename one in Loans first.`)
+  const named = loans.filter((target) => {
+    switch (target.kind) {
+      case 'informal-loan':
+        return due === null && target.name === name
+      case 'instalment':
+        return target.loanName === name && target.due === due
+      case 'movement':
+      case 'extra-payment':
+        return target.loanName === name && target.day === due
+    }
+  })
+  if (named.length > 1) throw new StepRefused(`More than one record of a loan called ${name} falls on that day. Rename one in Loans, or link it on the entry's dialog.`)
   const [target] = named
   if (target !== undefined) return target
   throw new StepRefused(
-    due === null ? `${name} is not an informal loan Loans lists. A bank loan's instalment needs its due date.` : `${name} is not a bank loan Loans lists with an instalment due ${due}.`,
+    due === null
+      ? `${name} is not an informal loan Loans lists. A bank loan's instalment needs its due date.`
+      : `${name} is not a loan Loans lists with an instalment, a movement or an extra payment on ${due}.`,
   )
 }
 
@@ -822,7 +838,7 @@ function plannedSteps(
     }
   }
   if (imported !== null) {
-    const run = importWithRules(unit, book, edits, imported.statement, today())
+    const run = importWithRules(unit, book, edits, imported.statement, today(), { targets: loans === null || typeof loans === 'string' ? [] : loans, language, notes: linkWords.notes })
     const leftOut = statementLeftOut(imported, run)
     const lookAlikes = leftOut.lookAlikes.map(({ number }) => number)
     if (lookAlikes.length > 0 && run.added.length + run.changed.length === 0) throw new StepRefused(lookAlikesForTheModel(lookAlikes, true))

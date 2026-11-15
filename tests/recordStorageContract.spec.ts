@@ -27,7 +27,7 @@ import { ACCOUNT_WRITES as SPENDING_ACCOUNT_WRITES } from '../src/apps/spending/
 import { BUDGET_WRITES } from '../src/apps/spending/budgets/application/budgetWrites'
 import { CATEGORY_WRITES as SPENDING_CATEGORY_WRITES } from '../src/apps/spending/categories/application/categoryWrites'
 import { TRANSACTION_WRITES } from '../src/apps/spending/entries/application/rowRecords'
-import { HELD_ROW_WRITES, RULE_WRITES as SPENDING_RULE_WRITES } from '../src/apps/spending/statements/application/statementWrites'
+import { HELD_ROW_WRITES, RULE_WRITES as SPENDING_RULE_WRITES } from '../src/apps/spending/statements/application/ruleRecords'
 import { BANK_LOAN_WRITES, EXTRA_PAYMENT_WRITES, LATE_INSTALMENT_WRITES, RATE_PERIOD_WRITES, removeBankLoan } from '../src/apps/loans/bankLoans/application/bankLoanWrites'
 import { INFORMAL_LOAN_WRITES, MOVEMENT_WRITES } from '../src/apps/loans/informalLoans/application/informalLoanWrites'
 import { LOAN_SCENARIO_WRITES, SCENARIO_CHANGE_WRITES } from '../src/apps/loans/scenarios/application/scenarioWrites'

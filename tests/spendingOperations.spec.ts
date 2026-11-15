@@ -644,8 +644,10 @@ describe('an entry’s link to Loans', () => {
   it('links an informal loan by its name, and refuses a loan Loans does not list, an instalment on a day the plan has none, and a link off an entry with none', async () => {
     const desk = await spendingDesk(used)
     const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
-    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Car loan', due: '2026-11-15' })])).text).toContain('not a bank loan Loans lists')
-    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Housing loan', due: '2026-11-16' })])).text).toContain('instalment due 2026-11-16')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Car loan', due: '2026-11-15' })])).text).toContain('not a loan Loans lists')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Housing loan', due: '2026-11-16' })])).text).toContain(
+      'an instalment, a movement or an extra payment on 2026-11-16',
+    )
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Housing loan' })])).text).toContain('needs its due date')
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'unlink-entry', { entry })])).text).toContain('no link')
     await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'From Marko' })])

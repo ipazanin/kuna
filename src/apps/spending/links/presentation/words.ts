@@ -1,7 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { WholeReason } from '../domain/instalmentSplit'
-import type { InstalmentTarget, LinkState, LinkTarget } from '../domain/linkTarget'
+import type { InstalmentTarget, LinkState, LinkTarget, MovementKind } from '../domain/linkTarget'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -13,8 +13,14 @@ export const en = {
   choice: (loan: string, due: CivilDate) => `${loan}, ${dayLabel(due)}`,
   interimShare: (amount: string) => `${amount} of interim interest`,
   informalLoan: (name: string) => `${name}, informal loan`,
+  movement: (loan: string, kind: string, day: CivilDate) => `${loan}, ${kind} ${dayLabel(day)}`,
+  extraPayment: (loan: string, day: CivilDate) => `${loan}, extra payment ${dayLabel(day)}`,
+  /** What happened on an informal loan, as Loans names it, inside a sentence. */
+  movementKinds: { borrowed: 'borrowed', 'borrowed-in-kind': 'borrowed in kind', repaid: 'repaid', 'repaid-in-kind': 'repaid in kind', forgiven: 'forgiven' } satisfies Record<MovementKind, string>,
   above: (amount: string) => `${amount} above the plan`,
   below: (amount: string) => `${amount} below the plan`,
+  moreThanLoans: (amount: string) => `${amount} more than in Loans`,
+  lessThanLoans: (amount: string) => `${amount} less than in Loans`,
   gone: 'No longer in Loans',
   opening: 'Linked to Loans, which is still opening',
   failed: 'Linked to Loans, which did not open',
@@ -24,7 +30,7 @@ export const en = {
   remove: 'Remove link',
   removed: 'Link removed',
   pickLabel: 'Link to Loans',
-  pick: 'Pick an instalment or a loan',
+  pick: 'Pick a record in Loans',
   link: 'Link',
   linked: 'Entry linked',
   saveFirst: 'Save your changes before linking.',
@@ -32,13 +38,14 @@ export const en = {
   paidMore: (amount: string, category: string) => `You paid ${amount} more than the plan. The difference stays under ${category}.`,
   paidLess: (amount: string, category: string) => `You paid ${amount} less than the plan. The difference goes under ${category} as money in, which lowers its spending.`,
   replacesParts: 'This replaces the parts the entry has now.',
+  asPrincipal: (category: string) => `Files the whole entry under ${category}, which counts as no spending.`,
   splitNote: "The link split this entry into the plan's interest and principal, so its amount and account stay as they are. Removing the link leaves the parts.",
   /** Why an entry links whole, where a person can link it. */
   whole: {
     'not-euro': 'Links the whole entry, since the plan is in euros and the account is not.',
     receipt: 'Links the whole entry, since a receipt split it.',
     'no-principal': 'It is all interest, so the entry stays whole.',
-    'informal-loan': '',
+    principal: '',
     'money-in': '',
     'transfer-leg': '',
   } satisfies Record<WholeReason, string>,
@@ -49,6 +56,26 @@ export const en = {
     pays: (instalment: string) => `Pays ${instalment}?`,
     mayPay: (instalment: string, difference: string) => `May pay ${instalment}, ${difference}?`,
     mayPayAnotherDay: (instalment: string) => `May pay ${instalment}?`,
+  },
+  /** The form that adds a movement in Loans from an entry and links the entry to it. */
+  add: {
+    open: 'Add a movement to an informal loan',
+    help: 'Adds the movement to the informal loan in Loans, then links this entry to it under Loan principal. One Undo takes back both.',
+    loan: 'Informal loan',
+    pickLoan: 'Pick a loan',
+    kind: 'What happened',
+    kinds: { borrowed: 'Borrowed', 'borrowed-in-kind': 'Borrowed in kind', repaid: 'Repaid', 'repaid-in-kind': 'Repaid in kind', forgiven: 'Forgiven' } satisfies Record<MovementKind, string>,
+    amount: 'Amount in EUR',
+    anAmount: 'An amount above zero',
+    save: 'Add and link',
+    inLoans: 'Movement added from Spending',
+    done: 'Added in Loans and linked',
+    notAdded: 'Not added to Loans',
+    notLinked: 'Added in Loans, not linked',
+    staysInLoans: (reason: string) => `The movement stays in Loans, where you can see and delete it. ${reason}`,
+    undone: 'The link and the movement are taken back.',
+    keptInLoans: (reason: string) => `The link is off, and the movement stays in Loans. ${reason}`,
+    notUndone: 'Not undone',
   },
   /** The card of rows filed already that look like a loan's instalments. */
   past: {
@@ -68,8 +95,13 @@ export const hr: Translation<typeof en> = {
   choice: (loan, due) => `${loan}, ${dayLabel(due)}`,
   interimShare: (amount) => `interkalarna kamata od ${amount}`,
   informalLoan: (name) => `${name}, pozajmica`,
+  movement: (loan, kind, day) => `${loan}, ${kind} ${dayLabel(day)}`,
+  extraPayment: (loan, day) => `${loan}, prijevremena otplata ${dayLabel(day)}`,
+  movementKinds: { borrowed: 'posuđeno', 'borrowed-in-kind': 'posuđeno u naravi', repaid: 'vraćeno', 'repaid-in-kind': 'vraćeno u naravi', forgiven: 'oprošteno' },
   above: (amount) => `${amount} iznad plana`,
   below: (amount) => `${amount} ispod plana`,
+  moreThanLoans: (amount) => `${amount} više nego u Kreditima`,
+  lessThanLoans: (amount) => `${amount} manje nego u Kreditima`,
   gone: 'Više nije u Kreditima',
   opening: 'Povezano s Kreditima, koji se još otvaraju',
   failed: 'Povezano s Kreditima, koji se nisu otvorili',
@@ -79,7 +111,7 @@ export const hr: Translation<typeof en> = {
   remove: 'Ukloni poveznicu',
   removed: 'Poveznica uklonjena',
   pickLabel: 'Poveznica s Kreditima',
-  pick: 'Odaberi ratu ili pozajmicu',
+  pick: 'Odaberi zapis u Kreditima',
   link: 'Poveži',
   linked: 'Unos povezan',
   saveFirst: 'Spremite promjene prije povezivanja.',
@@ -87,12 +119,13 @@ export const hr: Translation<typeof en> = {
   paidMore: (amount, category) => `Platili ste ${amount} više od plana. Razlika ostaje pod kategorijom „${category}”.`,
   paidLess: (amount, category) => `Platili ste ${amount} manje od plana. Razlika ide pod kategoriju „${category}” kao uplata i smanjuje njezinu potrošnju.`,
   replacesParts: 'Ovo zamjenjuje dijelove koje unos sada ima.',
+  asPrincipal: (category) => `Cijeli unos ide pod kategoriju „${category}”, koja se ne računa u potrošnju.`,
   splitNote: 'Poveznica je podijelila unos na kamate i glavnicu iz plana, pa iznos i račun ostaju kakvi jesu. Kad uklonite poveznicu, dijelovi ostaju.',
   whole: {
     'not-euro': 'Povezuje se cijeli unos jer je plan u eurima, a račun nije.',
     receipt: 'Povezuje se cijeli unos jer ga je podijelio fiskalni račun.',
     'no-principal': 'Sve je kamata, pa unos ostaje cijeli.',
-    'informal-loan': '',
+    principal: '',
     'money-in': '',
     'transfer-leg': '',
   },
@@ -101,6 +134,25 @@ export const hr: Translation<typeof en> = {
     pays: (instalment) => `Je li ovo ${instalment}?`,
     mayPay: (instalment, difference) => `Je li ovo možda ${instalment}, ${difference}?`,
     mayPayAnotherDay: (instalment) => `Je li ovo možda ${instalment}?`,
+  },
+  add: {
+    open: 'Dodaj promjenu pozajmici',
+    help: 'Dodaje promjenu pozajmici u Kreditima, a zatim ovaj unos povezuje s njom pod glavnicom kredita. Jedno poništavanje vraća oboje.',
+    loan: 'Pozajmica',
+    pickLoan: 'Odaberi pozajmicu',
+    kind: 'Što se dogodilo',
+    kinds: { borrowed: 'Posuđeno', 'borrowed-in-kind': 'Posuđeno u naravi', repaid: 'Vraćeno', 'repaid-in-kind': 'Vraćeno u naravi', forgiven: 'Oprošteno' },
+    amount: 'Iznos u EUR',
+    anAmount: 'Iznos veći od nule',
+    save: 'Dodaj i poveži',
+    inLoans: 'Promjena dodana iz Potrošnje',
+    done: 'Dodano u Kredite i povezano',
+    notAdded: 'Nije dodano u Kredite',
+    notLinked: 'Dodano u Kredite, nije povezano',
+    staysInLoans: (reason) => `Promjena ostaje u Kreditima, gdje je možete vidjeti i obrisati. ${reason}`,
+    undone: 'Poveznica i promjena su vraćene.',
+    keptInLoans: (reason) => `Poveznica je uklonjena, a promjena ostaje u Kreditima. ${reason}`,
+    notUndone: 'Nije poništeno',
   },
   past: {
     title: (loan) => `Prošle rate kredita ${loan}`,
@@ -119,9 +171,18 @@ export const hr: Translation<typeof en> = {
 
 export const words = language === 'hr' ? hr : en
 
-/** A record as the Link to Loans picker lists it: an instalment by its loan and due date, which tell two instalments apart on a phone. */
+/** A record as the Link to Loans picker lists it: an instalment by its loan and due date, which tell two instalments apart on a phone, a movement or an extra payment by its loan, what happened and its day. */
 export function choiceText(target: LinkTarget): string {
-  return target.kind === 'informal-loan' ? words.informalLoan(target.name) : words.choice(target.loanName, target.due)
+  switch (target.kind) {
+    case 'instalment':
+      return words.choice(target.loanName, target.due)
+    case 'informal-loan':
+      return words.informalLoan(target.name)
+    case 'movement':
+      return words.movement(target.loanName, words.movementKinds[target.movement], target.day)
+    case 'extra-payment':
+      return words.extraPayment(target.loanName, target.day)
+  }
 }
 
 /** An instalment by its loan, its number in the plan and its due date, or interim interest by its loan and due date. */
@@ -133,7 +194,7 @@ export function instalmentText(target: InstalmentTarget): string {
 export function linkText(read: LinkState<LinkTarget>): string {
   if (read.state === 'there') {
     const { target } = read
-    return target.kind === 'informal-loan' ? words.informalLoan(target.name) : instalmentText(target)
+    return target.kind === 'instalment' ? instalmentText(target) : choiceText(target)
   }
   return { opening: words.opening, failed: words.failed, 'not-set-up': words.notSetUp, gone: words.gone }[read.state]
 }

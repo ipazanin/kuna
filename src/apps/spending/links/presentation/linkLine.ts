@@ -4,15 +4,16 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import { loanTargets } from '../application/loanTargets'
 import type { ShownTarget } from '../application/loanTargets'
-import { beyondPlan } from '../domain/instalmentSplit'
+import { beyondPlan, beyondRecord } from '../domain/instalmentSplit'
 import { linkStateOf } from '../domain/linkTarget'
 import type { AppTargets, LinkState, LinkTarget } from '../domain/linkTarget'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { linkText, words } from './words'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
-import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
+import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 
 /** How a link shows: its record is there, Loans is still opening or not set up here, or Loans failed or no longer has the record. */
 export type LinkLook = 'there' | 'waiting' | 'missing'
@@ -40,11 +41,20 @@ export interface LinkedRow {
   readonly currency: CurrencyCode
 }
 
-/** The record a row is linked to in words, with what the row paid above or below an instalment's plan. */
+/**
+ * The record a row is linked to in words, with what the row paid above or below an instalment's plan, or a movement's or extra
+ * payment's amount and how much more or less the row moved. Entries and the import's dry run both say it this way.
+ */
 export function targetLineOf(target: LinkTarget, row: LinkedRow): string {
-  const beyond = beyondPlan(target, row, row.currency)
-  const differs = beyond === null || beyond === 0 ? [] : [(beyond > 0 ? words.above : words.below)(formatAccountMoney(absAccountMoney(beyond), row.currency))]
-  return [linkText({ state: 'there', target }), ...differs].join(', ')
+  const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), row.currency)
+  const plan = beyondPlan(target, row, row.currency)
+  const record = beyondRecord(target, row, row.currency)
+  const amount = target.kind === 'movement' || target.kind === 'extra-payment' ? [formatMoney(target.amount)] : []
+  const differs = [
+    ...(plan === null || plan === 0 ? [] : [(plan > 0 ? words.above : words.below)(money(plan))]),
+    ...(record === null || record === 0 ? [] : [(record > 0 ? words.moreThanLoans : words.lessThanLoans)(money(record))]),
+  ]
+  return [linkText({ state: 'there', target }), ...amount, ...differs].join(', ')
 }
 
 /** The line a link reads as against Loans' records, with what the row paid above or below an instalment's plan. */

@@ -1,11 +1,11 @@
 import { paidOut } from './instalmentSplit'
-import { LOANS_APP } from './linkTarget'
 import type { InstalmentTarget, LinkTarget } from './linkTarget'
 import { inWindow, isNear, nearestTo } from '../../pairing/domain/sameMoney'
 import type { DatedMoney } from '../../pairing/domain/sameMoney'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { filedAsTransfer, linkOfItems, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
 import { rowLinkText } from '../../workbook/domain/rowLink'
+import type { RowLink } from '../../workbook/domain/rowLink'
 import type { InstalmentPutOff } from '../../workbook/domain/spendingSettings'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -35,14 +35,19 @@ function expectedOf(target: InstalmentTarget): DatedMoney {
   return { date: target.due, amount: paidOut(target.yourShare) }
 }
 
-/** The IBANs the rows linked to each loan were paid to, by the loan's key. */
+/** The loan a link to one of its instalments names, the same for every instalment of the loan. */
+function loanOf(link: RowLink): string {
+  return [link.app, link.kind, link.key].join('/')
+}
+
+/** The IBANs the rows linked to each loan's instalments were paid to, by the loan as `loanOf` names it. */
 function learnedIbans(book: OffersBook): ReadonlyMap<string, ReadonlySet<string>> {
   const itemsOf = rowItemsOf(book)
   const ibans = new Map<string, Set<string>>()
   for (const row of book.transactions) {
     const link = linkOfItems(itemsOf(row))
-    if (link === null || link.app !== LOANS_APP || link.kind !== 'bank-loan' || row.counterpartyIban === '') continue
-    ibans.set(link.key, (ibans.get(link.key) ?? new Set()).add(normaliseIban(row.counterpartyIban)))
+    if (link === null || link.due === null || row.counterpartyIban === '') continue
+    ibans.set(loanOf(link), (ibans.get(loanOf(link)) ?? new Set()).add(normaliseIban(row.counterpartyIban)))
   }
   return ibans
 }
@@ -69,7 +74,7 @@ export function instalmentOffers<Target extends LinkTarget>(book: OffersBook, ta
   const knownPayee = (row: Transaction, target: InstalmentTarget): boolean => {
     const lender = fold(target.lender)
     const iban = normaliseIban(row.counterpartyIban)
-    return (lender !== '' && fold(row.payee).includes(lender)) || (iban !== '' && (ibans.get(target.link.key)?.has(iban) ?? false))
+    return (lender !== '' && fold(row.payee).includes(lender)) || (iban !== '' && (ibans.get(loanOf(target.link))?.has(iban) ?? false))
   }
 
   const taken = new Set<Transaction>()

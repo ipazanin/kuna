@@ -6743,6 +6743,63 @@ export function spendingLinkFlowIn(language, goneMonth) {
 }
 
 /**
+ * The sample's standing order below the home loan's instalment, split by hand: its parts, the open Link to Loans picker and what
+ * linking it to the instalment would do, then the dialog switches to adding a movement to an informal loan, which says it replaces
+ * the parts, adds a repayment to the loan from Marko and links the row in one write each, and one Undo takes both back. Last, the row from `movementMonth` linked to a movement of that loan.
+ */
+export function spendingAddToLoansFlowIn(language, movementMonth) {
+  const words = SCREEN_WORDS[language]
+  const links = words.spendingLinks
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Standing order', -60000)
+    await shootAt(page, shoot, '[data-testid="spending-entry-lines"]', 'spending-entry-hand-split')
+    const picker = await page.waitForSelector('[data-testid="spending-entry-link-target"]', { visible: true })
+    await picker.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(picker)
+    const nearest = await page.waitForSelector('[role="option"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await shoot('spending-entry-link-picker-open')
+    const offered = await nearest.evaluate((option) => option.textContent ?? '')
+    if (!offered.startsWith('Home loan')) throw new Error(`the nearest record offered is not the home loan's instalment: ${offered}`)
+    await press(nearest)
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await waitForTextIn(page, '[data-testid="spending-entry-link-note"]', links.replacesParts)
+    await shootAt(page, shoot, '[data-testid="spending-entry-link-pick"]', 'spending-entry-link-below-plan')
+
+    await press(await page.waitForSelector('[data-testid="spending-entry-add-to-loans"]:not([disabled])', { visible: true }))
+    const loan = await page.waitForSelector('[data-testid="spending-add-to-loans-loan"]', { visible: true })
+    await loan.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(loan)
+    const marko = await page
+      .waitForFunction(() => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.trim().startsWith('From Marko')) ?? null, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('adding a movement offers no loan from Marko')
+      })
+    await press(marko.asElement())
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await page.waitForSelector('[data-testid="spending-add-to-loans-kind"]', { visible: true })
+    await waitForTextIn(page, '[data-testid="spending-add-to-loans-replaces"]', links.replacesParts)
+    if (await page.$('[data-testid="spending-entry-save"]')) throw new Error('the entry dialog still offers its own Save while it adds a movement')
+    await shootAt(page, shoot, '[data-testid="spending-add-to-loans"]', 'spending-entry-add-to-loans')
+    await press(await page.waitForSelector('[data-testid="spending-add-to-loans-save"]:not([disabled])', { visible: true }))
+    await toast(page, links.add.done)
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+    await waitForTextIn(page, '[data-testid="spending-row-link"]', 'From Marko')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+    await page.waitForFunction(() => ![...document.querySelectorAll('[data-testid="spending-row-link"]')].some((element) => element.textContent?.includes('From Marko')), { timeout: 10_000 })
+
+    await page.evaluate((month) => (location.hash = `#/spending/transactions?month=${month}`), movementMonth)
+    await openSpendingRow(page, press, 'Marko', -150000)
+    await waitForTextIn(page, '[data-testid="spending-entry-link"]', 'From Marko')
+    await shootAt(page, shoot, '[data-testid="spending-entry-link"]', 'spending-entry-link-movement')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+/**
  * To review with the sample Loans file: the waiting row that pays the home loan's last instalment links with Link and comes back with Undo,
  * and the card of the row filed already that looks like an older instalment goes with Not now and with Link all, each undone.
  */
@@ -6968,6 +7025,7 @@ export function spendingImportInstalmentFlowIn(language, paths) {
     await spendingDryRunSays(page, before)
     await elementSays(page, '[data-testid="spending-dry-run-link"]', ['Home loan'], 'the dry run does not name the instalment the row pays')
     await countOf(page, '[data-testid="spending-dry-run"] [data-testid="spending-row-line"]', 2, "the dry run does not show the instalment's interest and principal")
+    await elementSays(page, '[data-testid="spending-dry-run-outcome"]', [panel.outcome.linked], 'the dry run files the linked row whole under its interest category')
     await inspect?.('the dry run of a row that pays an instalment')
     await shootAt(page, shoot, '[data-testid="spending-dry-run"]', 'spending-import-instalment', { block: 'start' })
     await pressSelector(page, press, '[data-testid="spending-import-confirm"]')

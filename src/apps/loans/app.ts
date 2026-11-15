@@ -19,7 +19,7 @@ import { words as settingsWords } from './settings/presentation/words'
 import { loansSyncGroup } from './sync/presentation/loansSyncGroup'
 import { words } from './words'
 import { useLoansBooks } from './workbook/application/loansStore'
-import { LOANS_APP } from './workbook/infrastructure/loansDocument'
+import { LOANS_APP } from './workbook/domain/loansApp'
 import { resumeFileLookup } from '../../shared/storage/presentation/resumeFileLookup'
 import { words as fileWords } from './workbook/presentation/words'
 

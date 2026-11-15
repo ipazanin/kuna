@@ -148,10 +148,19 @@ const CATEGORY_FIELDS: FieldDocs<Category> = {
 function linkRead(item: TransactionItem, loans: AppTargets<LinkTarget>): string | null {
   if (item.link === null) return null
   const read = linkStateOf(item.link, loans)
-  if (read.state === 'there')
-    return read.target.kind === 'instalment'
-      ? (read.target.interim ? words.reads.linkInterim : words.reads.linkInstalment)(read.target.loanName, read.target.due)
-      : words.reads.linkInformalLoan(read.target.name)
+  if (read.state === 'there') {
+    const { target } = read
+    switch (target.kind) {
+      case 'instalment':
+        return (target.interim ? words.reads.linkInterim : words.reads.linkInstalment)(target.loanName, target.due)
+      case 'informal-loan':
+        return words.reads.linkInformalLoan(target.name)
+      case 'movement':
+        return words.reads.linkMovement(target.loanName, target.movement, target.day)
+      case 'extra-payment':
+        return words.reads.linkExtraPayment(target.loanName, target.day)
+    }
+  }
   return { gone: words.reads.linkGone, opening: words.reads.linkUnknown, failed: words.reads.linkUnknown, 'not-set-up': words.reads.linkNotSetUp }[read.state]
 }
 

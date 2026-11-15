@@ -26,6 +26,7 @@ import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
 import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
+import { FAKE_CAR_LOAN, FAKE_HOME_LOAN } from '../../../../../shared/storage/infrastructure/fake/fakeLoanKeys'
 
 function day(text: string): CivilDate {
   const parsed = parseCivilDate(text)
@@ -52,7 +53,7 @@ function rate(text: string): RatePeriod['rate'] {
  * instalment paid late.
  */
 const HOME_LOAN: BankLoan = {
-  id: fixedId(BANK_LOAN_RECORDS, 1),
+  id: recordIdOf(BANK_LOAN_RECORDS, FAKE_HOME_LOAN),
   name: 'Home loan',
   lender: 'Example Bank',
   principal: euros(180_000),
@@ -235,7 +236,7 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]): WorkbookDocument
 
 /** A made-up car loan over five years at a fixed rate, which ends long before the home loan. */
 const CAR_LOAN: BankLoan = {
-  id: fixedId(BANK_LOAN_RECORDS, 30),
+  id: recordIdOf(BANK_LOAN_RECORDS, FAKE_CAR_LOAN),
   name: 'Car loan',
   lender: 'Example Bank',
   principal: euros(24_000),

@@ -2,7 +2,7 @@ import { pageAppData } from '../../../../shared/storage/presentation/pageAppData
 import { exportAppFile } from '../../../../shared/storage/presentation/exportAppFile'
 import { words as appWords } from '../../words'
 import { useLoansBooks } from '../application/loansStore'
-import { LOANS_APP } from '../infrastructure/loansDocument'
+import { LOANS_APP } from '../domain/loansApp'
 import { words as fileWords } from './words'
 
 const store = useLoansBooks()

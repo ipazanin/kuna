@@ -3,9 +3,6 @@ import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthKey, monthOf } from '../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
 
-/** The key of the home loan in the fake Loans file. */
-export const FAKE_HOME_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
-
 /** The day of the month the fake home loan's instalments fall due. */
 const DUE_DAY = 20
 

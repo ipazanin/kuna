@@ -13,7 +13,7 @@ import { words } from './words'
 import { failedOnDrive, writeFailureInWords } from './writeFailureInWords'
 
 /** How long a toast with Undo stays, so there is time to reach the button. */
-const UNDO_TOAST_DURATION = 10_000
+export const UNDO_TOAST_DURATION = 10_000
 
 export interface RecordWriteOptions {
   /** What the toast says under its title. Defaults to the records written, by their labels. */

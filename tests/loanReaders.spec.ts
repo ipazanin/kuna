@@ -11,7 +11,8 @@ import {
   RATE_PERIOD_RECORDS,
   SCENARIO_CHANGE_RECORDS,
 } from '../src/apps/loans/workbook/domain/loanKinds'
-import { LOANS_APP, LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
+import { LOANS_APP } from '../src/apps/loans/workbook/domain/loansApp'
+import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
 import type { DocumentRecord } from '../src/shared/storage/infrastructure/documentFormat'
 import { newDocument } from '../src/shared/storage/infrastructure/documentRecordStorage'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'

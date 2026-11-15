@@ -3,24 +3,23 @@ import { heldItemsOf, writeRows } from '../../entries/application/rowRecords'
 import type { RowWrite } from '../../entries/application/rowRecords'
 import { differenceItem } from '../../entries/domain/entrySplit'
 import { filledByBank, statementDryRun } from '../domain/statementDryRun'
-import type { StatementDryRun } from '../domain/statementDryRun'
+import type { InstalmentLinks, StatementDryRun } from '../domain/statementDryRun'
 import { rulesRerun } from '../domain/spendingCategorisation'
 import type { RowChange } from '../domain/spendingCategorisation'
 import type { StatementRows } from '../domain/statementRows'
 import { isMadeCashLeg, withCashLeg } from '../../pairing/domain/cashWithdrawals'
 import { legsOfPair } from '../../pairing/domain/transferPairs'
 import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
+import { HELD_ROW_WRITES, RULE_WRITES } from './ruleRecords'
 import { words as receiptWords } from '../../receipts/domain/words'
 import type { TransferPair } from '../../pairing/domain/transferPairs'
-import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import type { Account } from '../../workbook/domain/account'
 import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import { isSplit, refiledItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
-import type { HeldBankRow } from '../../workbook/domain/heldBankRow'
-import { HELD_ROW_RECORDS, RULE_RECORDS } from '../../workbook/domain/spendingKinds'
+import { RULE_RECORDS } from '../../workbook/domain/spendingKinds'
 import { sameCondition } from '../../workbook/domain/spendingRule'
 import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -28,25 +27,6 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import type { WriteRules } from '../../../../shared/storage/domain/writeRules'
-
-/** A rule names a category that counts. */
-export const RULE_WRITES: WriteRules<SpendingRule> = {
-  kind: RULE_RECORDS,
-  reads: SPENDING_KINDS,
-  undoable: true,
-  read: (read, records) => bookWith(RULE_RECORDS, read, records).readings.rules,
-  refusals: (_change, fresh, after) => dependentRefusals(['rules'], fresh, after),
-}
-
-/** A bank row on hold reads as `readHeld` says. */
-export const HELD_ROW_WRITES: WriteRules<HeldBankRow> = {
-  kind: HELD_ROW_RECORDS,
-  reads: SPENDING_KINDS,
-  undoable: true,
-  read: (read, records) => bookWith(HELD_ROW_RECORDS, read, records).readings.held,
-  refusals: (_change, fresh, after) => dependentRefusals(['held'], fresh, after),
-}
 
 /** The rows and items a statement write reads of the file. */
 type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items'>
@@ -194,9 +174,10 @@ export function writeRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdit
 
 /**
  * A statement imported with the rules that come with it, in one write with one Undo. The rules file the statement's new
- * rows in its dry run and re-file the rows on the file as `writeRules` does, and a row both change is written once. Gives the dry run.
+ * rows in its dry run and re-file the rows on the file as `writeRules` does, and a row both change is written once. A new row
+ * that pays one of the instalments `links` names is linked as the Import screen links it. Gives the dry run.
  */
-export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, statement: StatementRows, day: CivilDate): StatementDryRun {
+export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: RuleEdits, statement: StatementRows, day: CivilDate, links: InstalmentLinks): StatementDryRun {
   const editing = (edits.filing?.length ?? 0) + (edits.fixing?.length ?? 0) + (edits.deleting?.length ?? 0) > 0
   const rules = editing ? editRules(unit, book.rules, edits) : book.rules
   const refiled = editing ? rulesRerun(book, rules) : []
@@ -204,7 +185,7 @@ export function importWithRules(unit: UnitOfWork, book: SpendingBook, edits: Rul
   const refiledFrom = new Map(refiled.map((change) => [change.after, change]))
   const refiledItems = new Map(refiled.flatMap(({ before, items }) => (items === undefined ? [] : [[before.id, items] as const])))
   const items = [...book.items.filter((item) => item.transaction === null || !refiledItems.has(item.transaction)), ...[...refiledItems.values()].flat()]
-  const run = statementDryRun({ ...book, rules, transactions: book.transactions.map((row) => refiledTo.get(row) ?? row), items }, statement, day)
+  const run = statementDryRun({ ...book, rules, transactions: book.transactions.map((row) => refiledTo.get(row) ?? row), items }, statement, day, links)
   const changedByRun = run.changed.map(({ before, after, items: runItems }): RowChange => {
     const refiledBy = refiledFrom.get(before)
     const items = runItems ?? refiledBy?.items

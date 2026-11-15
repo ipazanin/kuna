@@ -5,6 +5,7 @@
  */
 
 import { en as appEnglish, hr as appCroatian } from '../../src/shared/app/words.ts'
+import { FAKE_HOME_LOAN } from '../../src/shared/storage/infrastructure/fake/fakeLoanKeys.ts'
 import { CHAT_MIN_WIDTH } from '../../src/shared/ai/presentation/chatDock.ts'
 import { PAGE_LEAST_WIDTH, PHONE_BELOW } from '../../src/shared/layout/viewport.ts'
 import { layoutOf, roomEffectOf, SIDEBAR_WIDTH } from '../../src/shell/ui/sidebarLayout.ts'
@@ -419,7 +420,7 @@ export function shellSqueezeFlow() {
 
 const DETAIL_SCREENS = [
   { hash: '#/investments/holding?instrument=fa4e1000-0000-4000-8000-000000000012', under: '/investments/holdings' },
-  { hash: '#/loans/bank-loan?loan=fa4e0000-0000-4000-8000-000000000001', under: '/loans' },
+  { hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, under: '/loans' },
   { hash: '#/loans/informal-loan?loan=fa4e0000-0000-4000-8000-000000000006', under: '/loans' },
   { hash: '#/assets/asset?asset=fa4e2000-0000-4000-8000-000000000001', under: '/assets' },
   { hash: '#/spending/account?account=fa4e3000-0000-4000-8000-000000001003', under: '/spending/accounts' },

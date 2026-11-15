@@ -1,7 +1,7 @@
 import { useFileExport } from '../../../../shared/storage/presentation/useFileExport'
 import type { FileExport } from '../../../../shared/storage/presentation/useFileExport'
 import { useLoansBooks } from '../application/loansStore'
-import { LOANS_APP } from '../infrastructure/loansDocument'
+import { LOANS_APP } from '../domain/loansApp'
 import { words } from './words'
 
 /** One export button's behaviour, shared by the top bar and the Loans Settings. */

@@ -17,10 +17,14 @@ import { linkEntry, newEntry, otherLegOf, deleteComesBack, removeEntry, removeSp
 import { addLabel } from '../../labels/application/labelWrites'
 import { labelCalled, labelNameProblem, newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../labels/presentation/LabelsSelect.vue'
+import { words as labelWords } from '../../labels/presentation/words'
 import { loanTargets } from '../../links/application/loanTargets'
+import type { ShownTarget } from '../../links/application/loanTargets'
 import { beyondPlan, linkFiling } from '../../links/domain/instalmentSplit'
-import { loanInterestCategoryIn } from '../../categories/domain/starterCategories'
+import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { targetsFor } from '../../links/domain/linkTarget'
+import type { InformalLoanTarget } from '../../links/domain/linkTarget'
+import AddToLoansForm from '../../links/presentation/AddToLoansForm.vue'
 import { LINK_TONE, useLinkLines } from '../../links/presentation/linkLine'
 import { choiceText, words as linkWords } from '../../links/presentation/words'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
@@ -56,6 +60,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
+import { words as uiWords } from '../../../../shared/ui/words'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { language } from '../../../../shared/text/language'
 
@@ -141,19 +146,23 @@ const splitNote = computed(() => {
 })
 
 const loans = computed(() => loanTargets())
-/** The records in Loans a saved entry with no link can be linked to, none for a transfer's leg. */
-const linkTargets = computed(() => {
+/** The records of Loans a saved entry with no link can be linked to, none for a transfer's leg or while Loans is not open. */
+const openTargets = computed((): readonly ShownTarget[] => {
   const held = loans.value
-  if (props.entry === null || legs.value !== null || heldLink.value !== null || held === null || typeof held === 'string') return []
-  return targetsFor(props.entry, held)
+  return props.entry === null || legs.value !== null || heldLink.value !== null || held === null || typeof held === 'string' ? [] : held
 })
-const linkItems = computed(() =>
-  linkTargets.value.map((target) => ({
-    label: choiceText(target),
-    value: rowLinkText(target.link),
-    description: target.kind === 'informal-loan' ? target.counterparty : target.interim ? linkWords.interimShare(formatMoney(target.yourShare)) : formatMoney(target.yourShare),
-  })),
-)
+const linkTargets = computed(() => (props.entry === null ? [] : targetsFor(props.entry, entryCurrency.value, openTargets.value)))
+/** The informal loans a movement can be added to from the entry. */
+const informalLoans = computed(() => openTargets.value.filter((target): target is ShownTarget & InformalLoanTarget => target.kind === 'informal-loan'))
+/** While true, the dialog adds a movement to an informal loan from the saved entry, and its footer goes back or adds and links. */
+const addingToLoans = ref(false)
+const addingSaving = ref(false)
+/** What the picker says under each record: an instalment's share, or a movement's or extra payment's amount. */
+function choiceDetail(target: (typeof linkTargets.value)[number]): string {
+  if (target.kind === 'instalment') return target.interim ? linkWords.interimShare(formatMoney(target.yourShare)) : formatMoney(target.yourShare)
+  return target.kind === 'informal-loan' ? target.counterparty : formatMoney(target.amount)
+}
+const linkItems = computed(() => linkTargets.value.map((target) => ({ label: choiceText(target), value: rowLinkText(target.link), description: choiceDetail(target) })))
 const pickedLink = ref('')
 const pickedTarget = computed(() => linkTargets.value.find((target) => rowLinkText(target.link) === pickedLink.value) ?? null)
 
@@ -163,6 +172,8 @@ const linkNote = computed(() => {
   if (target === null || props.entry === null) return ''
   if (edited.value) return linkWords.saveFirst
   const filing = linkFiling({ row: props.entry, items: entryLines.value }, target, { currency: entryCurrency.value, receipt: receipt.value !== null, categories: categories.value })
+  if (!filing.split && filing.why === 'principal')
+    return [linkWords.asPrincipal(fixedCategoryIn(categories.value, 'repayment', language).category.name), ...(split.value ? [linkWords.replacesParts] : [])].join(' ')
   if (!filing.split) return linkWords.whole[filing.why]
   const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), entryCurrency.value)
   const category = categories.value.find((candidate) => candidate.id === filing.category)?.name ?? loanInterestCategoryIn(categories.value, language).category.name
@@ -224,8 +235,10 @@ watch(open, (opened) => {
   labels.value = wholeItem.value?.labels ?? []
   partLabels.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.labels]))
   created.value = []
+  labelRefused.value = null
   tried.value = false
   pickedLink.value = ''
+  addingToLoans.value = false
   openedAs.value = formNow.value
 })
 
@@ -270,11 +283,16 @@ const labelChoices = computed(() => [...(store.state.workbook?.labels ?? []), ..
 /** Labels go on the parts of a file moved to items, and not on a transfer here, whose legs are labelled by selecting them on Entries. */
 const labelling = computed(() => store.state.workbook !== null && !isBeforeItems(store.state.workbook.stored) && kind.value !== 'transfer')
 
-/** The labels with the one a typed name names: a label the file or the dialog has under it, or a new one, none for a blank name. */
-function withTyped(picked: readonly RecordId[], name: string): readonly RecordId[] {
+/** Why the last name typed into a labels field made no label, and the part it was typed for, null for the entry's own field. */
+const labelRefused = ref<{ readonly part: RecordId | null; readonly text: string } | null>(null)
+
+/** The labels with the one a typed name names: a label the file or the dialog has under it, or a new one. A name that cannot be a label's adds none and says why. */
+function withTyped(picked: readonly RecordId[], name: string, part: RecordId | null = null): readonly RecordId[] {
   const held = labelCalled(name, labelChoices.value)
+  const problem = held === null ? labelNameProblem(name, labelChoices.value, null) : null
+  labelRefused.value = problem === null ? null : { part, text: labelWords.dialog[problem] }
   if (held !== null) return picked.includes(held.id) ? picked : [...picked, held.id]
-  if (labelNameProblem(name, labelChoices.value, null) !== null) return picked
+  if (problem !== null) return picked
   const label = newLabel(name)
   created.value = [...created.value, label]
   return [...picked, label.id]
@@ -405,8 +423,24 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <AppDialog v-model:open="open" changes :title="entry === null ? words.dialog.addTitle : words.dialog.changeTitle" :description="words.dialog.description">
-    <FormGrid id="spending-entry" as="form" data-testid="spending-entry-dialog" @submit.prevent="save">
+  <AppDialog
+    v-model:open="open"
+    changes
+    :title="addingToLoans ? linkWords.add.open : entry === null ? words.dialog.addTitle : words.dialog.changeTitle"
+    :description="addingToLoans ? linkWords.add.help : words.dialog.description"
+  >
+    <AddToLoansForm
+      v-if="addingToLoans && entry !== null"
+      id="spending-add-to-loans-form"
+      v-model:saving="addingSaving"
+      :entry="entry"
+      :split="split"
+      :currency="entryCurrency"
+      :loans="informalLoans"
+      :categories="categories"
+      @linked="open = false"
+    />
+    <FormGrid v-else id="spending-entry" as="form" data-testid="spending-entry-dialog" @submit.prevent="save">
       <UFormField v-if="!split" :label="words.dialog.kind" class="sm:col-span-2">
         <ChoiceButtons v-model="kind" :options="kindOptions" :label="words.dialog.kind" data-testid="spending-entry-kind" />
       </UFormField>
@@ -453,7 +487,7 @@ async function remove(): Promise<void> {
       <UFormField v-if="!split" :label="spendingWords.form.note" :class="twoCurrencies ? '' : 'sm:col-span-2'">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />
       </UFormField>
-      <UFormField v-if="labelling && !split" :label="words.dialog.labels" class="sm:col-span-2">
+      <UFormField v-if="labelling && !split" :label="words.dialog.labels" :error="labelRefused?.part === null ? labelRefused.text : false" class="sm:col-span-2">
         <LabelsSelect v-model="labels" :labels="labelChoices" :name="words.dialog.labels" class="w-full" @create="labels = withTyped(labels, $event)" />
       </UFormField>
       <UFormField v-if="entryLink !== null" :label="linkWords.label" class="sm:col-span-2" data-testid="spending-entry-link">
@@ -474,19 +508,32 @@ async function remove(): Promise<void> {
           </div>
         </div>
       </UFormField>
-      <UFormField v-else-if="linkItems.length > 0 && kind !== 'transfer'" :label="linkWords.pickLabel" class="sm:col-span-2" data-testid="spending-entry-link-pick">
+      <UFormField v-else-if="(linkItems.length > 0 || informalLoans.length > 0) && kind !== 'transfer'" :label="linkWords.pickLabel" class="sm:col-span-2" data-testid="spending-entry-link-pick">
         <div class="flex flex-col items-start gap-2">
-          <USelectMenu v-model="pickedLink" :items="linkItems" value-key="value" :placeholder="linkWords.pick" class="w-full" data-testid="spending-entry-link-target" />
-          <UButton
-            :label="linkWords.link"
-            icon="i-lucide-link"
-            color="neutral"
-            variant="outline"
-            :loading="writes.saving('link')"
-            :disabled="pickedTarget === null || edited || writes.busy.value || writes.refused.value"
-            data-testid="spending-entry-link-add"
-            @click="addLink"
-          />
+          <USelectMenu v-if="linkItems.length > 0" v-model="pickedLink" :items="linkItems" value-key="value" :placeholder="linkWords.pick" class="w-full" data-testid="spending-entry-link-target" />
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              v-if="linkItems.length > 0"
+              :label="linkWords.link"
+              icon="i-lucide-link"
+              color="neutral"
+              variant="outline"
+              :loading="writes.saving('link')"
+              :disabled="pickedTarget === null || edited || writes.busy.value || writes.refused.value"
+              data-testid="spending-entry-link-add"
+              @click="addLink"
+            />
+            <UButton
+              v-if="informalLoans.length > 0"
+              :label="linkWords.add.open"
+              icon="i-lucide-plus"
+              color="neutral"
+              variant="ghost"
+              :disabled="edited || writes.refused.value"
+              data-testid="spending-entry-add-to-loans"
+              @click="addingToLoans = true"
+            />
+          </div>
           <p v-if="linkNote !== ''" class="type-caption" data-testid="spending-entry-link-note">{{ linkNote }}</p>
         </div>
       </UFormField>
@@ -502,8 +549,9 @@ async function remove(): Promise<void> {
               class="w-full"
               data-testid="spending-entry-part-labels"
               @update:model-value="labelPart(line.id, $event)"
-              @create="labelPart(line.id, withTyped(partLabels[line.id] ?? [], $event))"
+              @create="labelPart(line.id, withTyped(partLabels[line.id] ?? [], $event, line.id))"
             />
+            <NoteLine v-if="labelRefused !== null && labelRefused.part === line.id" tone="error" data-testid="spending-entry-part-label-refused">{{ labelRefused.text }}</NoteLine>
           </template>
         </RowLines>
         <p v-if="receiptPlace !== null" class="flex flex-col items-start text-sm" data-testid="spending-entry-place">
@@ -555,7 +603,7 @@ async function remove(): Promise<void> {
     <EntrySplitDialog v-if="entry !== null" v-model:open="splitOpen" :entry="entry" :currency="from?.currency ?? EURO" @saved="open = false" />
     <template #start>
       <UButton
-        v-if="entry !== null"
+        v-if="entry !== null && !addingToLoans"
         :label="words.dialog.delete"
         icon="i-lucide-trash-2"
         color="error"
@@ -566,7 +614,19 @@ async function remove(): Promise<void> {
         @click="remove"
       />
     </template>
-    <template #end>
+    <template v-if="addingToLoans" #end>
+      <UButton :label="uiWords.back" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :disabled="addingSaving" data-testid="spending-add-to-loans-back" @click="addingToLoans = false" />
+      <UButton
+        type="submit"
+        form="spending-add-to-loans-form"
+        :label="linkWords.add.save"
+        icon="i-lucide-link"
+        :loading="addingSaving"
+        :disabled="addingSaving || writes.refused.value"
+        data-testid="spending-add-to-loans-save"
+      />
+    </template>
+    <template v-else #end>
       <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" @click="open = false" />
       <UButton
         type="submit"

@@ -49,6 +49,7 @@ export const en = {
       waits: 'Waits on review',
       refiled: (category: string) => `Already on file, now ${category}`,
       asksCash: 'Cash taken out, pick its cash account on To review',
+      linked: 'Linked to Loans',
     },
   },
   review: {
@@ -193,6 +194,7 @@ export const hr: Translation<typeof en> = {
       waits: 'Čeka pregled',
       refiled: (category) => `Već u datoteci, sada ${category}`,
       asksCash: 'Podignuta gotovina, račun gotovine birate pod Za pregled',
+      linked: 'Povezano s Kreditima',
     },
   },
   review: {

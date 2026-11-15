@@ -1,12 +1,10 @@
 import { codecOfLoansKind } from '../application/loansCodecs'
+import { LOANS_APP } from '../domain/loansApp'
 import type { LoansBooks } from '../domain/loansBooks'
 import { loansRecordsOf, readLoanBook } from '../domain/readLoanBook'
 import type { WorkbookDocument } from '../../../../shared/storage/infrastructure/documentFormat'
 import { newDocument, recordsOfDocument } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import type { AppDocument } from '../../../../shared/storage/infrastructure/documentStorePorts'
-
-/** The app of the hub whose file this store keeps. */
-export const LOANS_APP = 'loans'
 
 const LOANS_SCHEMA: WorkbookDocument['schema'] = { loans: 1 }
 

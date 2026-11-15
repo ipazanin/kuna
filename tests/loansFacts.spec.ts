@@ -2,7 +2,7 @@ import { reactive } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { bankLoansOf, publishedBankLoans } from '../src/apps/loans/facts'
+import { bankLoansOf, loanTargetsOf, publishedBankLoans } from '../src/apps/loans/facts'
 import { owedOnDay } from '../src/apps/loans/overview/domain/owedTotals'
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { BankLoanBook } from '../src/apps/loans/workbook/domain/readLoanBook'
@@ -66,5 +66,33 @@ describe('the bank loans Loans publishes', () => {
     expect(publishedBankLoans(DAY)).toBeNull()
     loans.state.workbook = reactive(sample())
     expect(publishedBankLoans(DAY)).toHaveLength(sample().bankLoans.length)
+  })
+})
+
+describe('the records Loans publishes for rows to link to', () => {
+  it('names each by its own kind and key, an instalment with its due date, and gives an informal loan its movements', () => {
+    const book = sample()
+    const targets = loanTargetsOf(book)
+    const home = book.bankLoans.find((entry) => entry.loan.name === 'Home loan')!
+    const marko = book.informalLoans.find((entry) => entry.loan.name === 'From Marko')!
+
+    expect(targets.instalments.find((instalment) => instalment.kind === 'instalment')?.link).toEqual({
+      app: 'loans',
+      kind: 'bank-loan',
+      key: 'fa4e0000-0000-4000-8000-000000000001',
+      due: civil('2023-04-20'),
+    })
+    expect(targets.extraPayments).toEqual([
+      {
+        loanName: 'Home loan',
+        day: home.extraPayments[0]!.date,
+        amount: home.extraPayments[0]!.amount,
+        link: { app: 'loans', kind: 'extra-payment', key: 'fa4e0000-0000-4000-8000-000000000004', due: null },
+        to: expect.anything(),
+      },
+    ])
+    const published = targets.informalLoans.find((loan) => loan.name === 'From Marko')!
+    expect(published.link).toEqual({ app: 'loans', kind: 'informal-loan', key: 'fa4e0000-0000-4000-8000-000000000006', due: null })
+    expect(published.movements.map((movement) => [movement.day, movement.kind, movement.link.kind])).toEqual(marko.movements.map((movement) => [movement.date, movement.kind, 'movement']))
   })
 })

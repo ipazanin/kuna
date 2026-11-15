@@ -29,12 +29,13 @@ import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastru
 import type { Transaction } from '../../domain/transaction'
 import type { RowLink } from '../../domain/rowLink'
 import { spendingDocumentOf } from '../spendingDocument'
-import { FAKE_HOME_LOAN, fakeHomeLoanShare } from './fakeHomeLoan'
+import { fakeHomeLoanShare } from './fakeHomeLoan'
 import { SAMPLE_RECEIPT_TOTALS } from '../../../receipts/infrastructure/fake/sampleReceiptPhoto'
 import { revolutStatement } from '../../../statements/domain/revolutStatement'
 import { sampleRevolutRows } from '../../../statements/infrastructure/fake/sampleRevolutFiles'
 import { BANK_SYNC_KEY_PREFIX, transcribedImportKeys } from '../../../statements/domain/statementRows'
 import { BANK_SYNC_LABEL } from '../../../bankSync/domain/bankSyncRows'
+import { FAKE_HOME_LOAN, FAKE_MARKO_REPAID } from '../../../../../shared/storage/infrastructure/fake/fakeLoanKeys'
 import { addDays, parseCivilDate, today } from '../../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthOf } from '../../../../../shared/calendar/monthKey'
@@ -560,6 +561,8 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       },
     )
   }
+  const loanEntries = set === 'foreign' ? { rows: [], lines: [] } : loanRows(twoBack, oneBack, day, idOf)
+  transactions.push(...loanEntries.rows)
   // Each account opens with what makes its balance on the day the worked example's.
   const opened = shown.map((account) => ({ ...account, opening: subtractAccountMoney(accountMoneyFromAmount(BALANCES[account.id]!), accountBalance(account, transactions, day)) }))
   const budgets: Budget[] =
@@ -583,7 +586,49 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
     },
     rows: transactions,
-    lines: receipts.lines,
+    lines: [...receipts.lines, ...loanEntries.lines],
+  }
+}
+
+/**
+ * What every set but the foreign one adds for Loans: a repayment to Marko linked to the sample's last movement of his loan, filed
+ * under Loan principal, and a standing order of an earlier statement below the home loan's instalment, which you split by hand
+ * and have not linked.
+ */
+function loanRows(twoBack: MonthKey, oneBack: MonthKey, day: CivilDate, idOf: (path: string) => RecordId): { readonly rows: readonly FakeRow[]; readonly lines: readonly TransactionItem[] } {
+  const [repaid, standing] = [fixedId(TRANSACTION_RECORDS, 1521), fixedId(TRANSACTION_RECORDS, 1522)]
+  const typed = (id: RecordId, date: CivilDate, amount: number, payee: string, filing: Pick<FakeRow, 'category' | 'link'>): FakeRow => ({
+    ...NO_BANK_FACTS,
+    id,
+    account: OTP,
+    date,
+    amount: accountMoneyFromAmount(amount),
+    payee,
+    note: '',
+    source: 'typed',
+    pair: null,
+    labels: [],
+    categorisedBy: 'person',
+    ...filing,
+  })
+  const part = (place: number, amount: number, category: string): TransactionItem => ({
+    id: fixedId(ITEM_RECORDS, place),
+    transaction: standing,
+    receipt: null,
+    printed: '',
+    note: '',
+    amount: accountMoneyFromAmount(amount),
+    category: idOf(category),
+    link: null,
+    labels: [],
+    splitByLink: false,
+  })
+  return {
+    rows: [
+      typed(repaid, dayIn(twoBack, 28, day), -1500, 'Marko', { category: idOf('Loan principal'), link: { app: 'loans', kind: 'movement', key: FAKE_MARKO_REPAID, due: null } }),
+      statementRow(1522, OTP, dayIn(oneBack, 21, day), -600, 'Standing order', { category: idOf('Money and fees/Loan interest'), categorisedBy: 'person' }),
+    ],
+    lines: [part(1523, -520, 'Money and fees/Loan interest'), part(1524, -80, 'Money and fees/Bank fees')],
   }
 }
 

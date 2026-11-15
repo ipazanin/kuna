@@ -4,12 +4,14 @@ import { loanTargetsOf } from '../src/apps/loans/facts'
 import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans'
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets'
+import { linkStateOf } from '../src/apps/spending/links/domain/linkTarget'
 import { instalmentOffers, pastInstalments } from '../src/apps/spending/links/domain/instalmentOffers'
 import type { InstalmentTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { instalmentPutOffOf, instalmentsPutOffText, spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
-import { FAKE_HOME_LOAN, fakeHomeLoanShare, latestFakeHomeLoanDue } from '../src/apps/spending/workbook/infrastructure/fake/fakeHomeLoan'
+import { fakeHomeLoanShare, latestFakeHomeLoanDue } from '../src/apps/spending/workbook/infrastructure/fake/fakeHomeLoan'
+import { FAKE_HOME_LOAN } from '../src/shared/storage/infrastructure/fake/fakeLoanKeys'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { SAMPLE_LOAN_FILE_NAME, sampleLoanCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
@@ -140,6 +142,21 @@ describe('the fake books', () => {
       ['Example Bank', 'Home loan', true],
     ])
     expect(pastInstalments(spending, offers, []).map((card) => card.offers.length)).toEqual([1])
+  })
+
+  it("link Spending's sample rows to records the fake Loans file has, but for last month's instalment, which Loans does not have", () => {
+    const day = civil('2026-11-15')
+    const meta = { id: 'links', source: 'browser' as const, title: 'links', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
+    const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'sample', day) }).workbook
+    const loans = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(meta.syncedAt) }).workbook
+    const targets = loanTargetsFrom(loanTargetsOf(loans))
+    const links = spending.items.flatMap((item) => (item.link === null ? [] : [item.link]))
+
+    expect(links.map((link) => [link.kind, linkStateOf(link, targets).state])).toEqual([
+      ['bank-loan', 'there'],
+      ['bank-loan', 'gone'],
+      ['movement', 'there'],
+    ])
   })
 
   it("give Spending's fake rows your share of the home loan's plan in every month", () => {

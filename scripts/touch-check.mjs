@@ -205,6 +205,7 @@ import {
   spendingPayeePickFlow,
   spendingReviewFlowIn,
   spendingInstalmentOffersFlowIn,
+  spendingAddToLoansFlowIn,
   spendingRuleFlowIn,
   spendingRulesAddFlowIn,
   spendingTransferFlow,
@@ -299,10 +300,12 @@ import { textOverlapsOn } from './support/textOverlap.mjs'
 import { settleCharts } from './support/settleCharts.mjs'
 import { screenshotWholePage } from './support/wholePage.mjs'
 import { delay, typeDay } from './support/pressing.mjs'
+import { FAKE_HOME_LOAN } from '../src/shared/storage/infrastructure/fake/fakeLoanKeys.ts'
+import { today } from '../src/shared/calendar/civilDate.ts'
+import { addMonths, monthOf } from '../src/shared/calendar/monthKey.ts'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-/** The ids of the sample Loans file's bank loan, its informal loan you owe and its informal loan owed to you whose borrower is behind on the plan, `?loans=sample`. */
-const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
+/** The ids of the sample Loans file's informal loan you owe and its informal loan owed to you whose borrower is behind on the plan, `?loans=sample`. */
 const SAMPLE_INFORMAL_LOAN = 'fa4e0000-0000-4000-8000-000000000006'
 const SAMPLE_PLANNED_LOAN = 'fa4e0000-0000-4000-8000-000000000040'
 /** Example Tech of the sample Investments file, `?investments=sample`, bought three times in September 2026. */
@@ -2381,7 +2384,7 @@ async function checkWidth(width) {
   // The sample Loans file, ?loans=sample: its Overview with Completed opened and closed again, and both loan pages with a card collapsed on each, each card forgotten after, the payments chart as a table, then an extra payment entered and undone.
   for (const [name, hash, title, ready] of [
     ['loans-overview', '#/loans', 'Overview', '[data-testid="loan-cards"]'],
-    ['loans-bank-loan', `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, 'Home loan', '[data-testid="loan-plan"]'],
+    ['loans-bank-loan', `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, 'Home loan', '[data-testid="loan-plan"]'],
     ['loans-informal-loan', `#/loans/informal-loan?loan=${SAMPLE_INFORMAL_LOAN}`, 'From Marko', '[data-testid="movement-list"]'],
   ]) {
     await step(name, async () => {
@@ -2409,7 +2412,7 @@ async function checkWidth(width) {
   }
 
   await step('loans-payments-table', async () => {
-    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Home loan')
     const toggle = await page.waitForSelector('[data-testid="loan-payments-chart"] [data-testid="chart-table-toggle"]', { visible: true })
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
@@ -2421,7 +2424,7 @@ async function checkWidth(width) {
   })
 
   await step('loans-plan-row', async () => {
-    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Home loan')
     const toggle = await page.waitForSelector('[data-testid="plan-row-toggle"]', { visible: true })
     await toggle.evaluate((element) => element.scrollIntoView({ block: 'center' }))
@@ -2434,7 +2437,7 @@ async function checkWidth(width) {
 
   // Puppeteer types a k whatever the inputmode, so this step cannot show that a phone's decimal keypad has no k.
   await step('loans-money-input', async () => {
-    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Home loan')
     const field = await page.waitForSelector('[data-testid="what-if-amount"]', { visible: true })
     await field.evaluate((element) => element.scrollIntoView({ block: 'center' }))
@@ -2461,7 +2464,7 @@ async function checkWidth(width) {
   })
 
   await step('loans-extra-payment-undo', async () => {
-    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Home loan')
     const payments = () => page.evaluate(() => document.querySelectorAll('[data-testid="extra-payments"] [data-testid="change-line"]').length)
     const before = await payments()
@@ -2512,7 +2515,7 @@ async function checkWidth(width) {
   // The Home loan's two charts share one span: 1Y on Owed over time keeps its last 13 month ends, drops the dashed plan from its
   // subtitle, presses 1Y on Where the payments go too and goes into the address, and All takes it out again with the plan.
   await step('loans-chart-range', async () => {
-    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, { waitUntil: 'networkidle0' })
+    await page.goto(`${BASE}?theme=dark&loans=sample&load=${Date.now()}#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, { waitUntil: 'networkidle0' })
     await waitForTitle(page, 'Home loan')
     const pressed = (card) => page.$eval(`[data-testid="${card}"] [data-testid="chart-range"] [aria-pressed="true"]`, (button) => button.textContent?.trim() ?? '')
     const rangeButton = (label) => waitForText(page, '[data-testid="loan-balance-chart"] [data-testid="chart-range"] button', label)
@@ -3349,6 +3352,13 @@ async function checkWidth(width) {
     ['spending-review-near', 'drive&spending=statements', spendingReviewNearFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-instalment-offers', 'drive&spending=statements&loans=sample', spendingInstalmentOffersFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
+    [
+      'spending-add-to-loans',
+      'drive&spending=sample&loans=sample',
+      spendingAddToLoansFlowIn('en', addMonths(monthOf(today()), -2)),
+      `#/spending/transactions?month=${addMonths(monthOf(today()), -1)}`,
+      'Entries',
+    ],
     // The same saves and Undo once the page's Google token has lapsed, as on a phone after an hour: each asks Google and goes again.
     ['spending-review-lapsed', 'drive&spending=statements&google=expired', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-rule', 'drive&spending=statements', spendingRuleFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
@@ -3430,7 +3440,7 @@ async function checkWidth(width) {
     ['investments-mail-typed', 'drive&investments=mail-typed&prices=sample', investmentsMailFlowIn('en', 'typed'), '#/investments', 'Overview'],
     ['loans-scenarios', 'drive&loans=sample', loansScenariosFlow, '#/loans/scenarios', 'Scenarios'],
     ['loans-scenario-editor', 'drive&loans=sample', loansScenarioEditorFlow, '#/loans/scenarios', 'Scenarios'],
-    ['loans-saved-tries', 'drive&loans=sample', loansSavedTriesFlow, `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, 'Home loan'],
+    ['loans-saved-tries', 'drive&loans=sample', loansSavedTriesFlow, `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, 'Home loan'],
     ['move-browser', 'browser', moveFromBrowserFlow, '#/company/settings?tab=books', 'Settings'],
     ['race', 'race', raceFlow, '#/company/transactions?tab=review', 'Transactions'],
     ['delete-data-drive', 'drive&investments=sample&keys=other-browser', deleteDataDriveFlowIn('en'), '#/investments/settings', 'Settings'],

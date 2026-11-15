@@ -266,6 +266,7 @@ import { en as netWorthEnglish } from '../src/shell/netWorth/words.ts'
 import { addMonths, monthOf } from '../src/shared/calendar/monthKey.ts'
 import { EURO } from '../src/shared/money/currencyCode.ts'
 import { fakeRatesState } from '../src/shared/rates/infrastructure/fake/fakeRatesState.ts'
+import { FAKE_HOME_LOAN } from '../src/shared/storage/infrastructure/fake/fakeLoanKeys.ts'
 import { personalNet } from '../src/shared/app/personalNet.ts'
 import { today } from '../src/shared/calendar/civilDate.ts'
 import { dayLabel, shortDayLabel, weekdayDayLabel } from '../src/shared/calendar/dayLabel.ts'
@@ -304,6 +305,7 @@ import {
   spendingEntryDialogFlowIn,
   spendingBankRowFlowIn,
   spendingLinkFlowIn,
+  spendingAddToLoansFlowIn,
   spendingInstalmentOffersFlowIn,
   spendingCreditToTransferFlowIn,
   spendingDeleteNoteFlowIn,
@@ -594,8 +596,7 @@ const CARD_SELECTOR = '.rounded-card'
  * screen points at, which has to open. `collapsedBefore` names the cards this device
  * remembers as collapsed, and `expandedBefore` those it remembers as open. `stored` is what this device keeps in localStorage before the page loads, such as made-up price vendor keys. `lacks` is text the screen must not show. `cards: false` marks a screen with no collapsible card.
  */
-/** The ids of the sample Loans file's bank loan, its informal loan you owe and its informal loan owed to you whose borrower is behind on the plan, `?loans=sample`. */
-const SAMPLE_BANK_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
+/** The ids of the sample Loans file's informal loan you owe, its informal loan owed to you whose borrower is behind on the plan and its settled one, `?loans=sample`. */
 const SAMPLE_INFORMAL_LOAN = 'fa4e0000-0000-4000-8000-000000000006'
 const SAMPLE_PLANNED_LOAN = 'fa4e0000-0000-4000-8000-000000000040'
 const SAMPLE_SETTLED_LOAN = 'fa4e0000-0000-4000-8000-000000000050'
@@ -2621,7 +2622,7 @@ const SOURCE_SCREENS = [
   {
     name: 'loans-bank-loan-opening',
     query: 'loans=opening',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: null,
     charts: 0,
     ready: '[data-testid="screen-skeleton"]',
@@ -2630,7 +2631,7 @@ const SOURCE_SCREENS = [
   {
     name: 'loans-bank-loan-opening-croatian',
     query: 'loans=opening&lang=hr',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: null,
     charts: 0,
     ready: '[data-testid="screen-skeleton"]',
@@ -2657,7 +2658,7 @@ const SOURCE_SCREENS = [
   {
     name: 'loans-bank-loan',
     query: 'loans=sample',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     charts: 2,
     shows: [
@@ -2680,7 +2681,7 @@ const SOURCE_SCREENS = [
   {
     name: 'loans-bank-loan-croatian',
     query: 'loans=sample&lang=hr',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     charts: 2,
     shows: [
@@ -2703,7 +2704,7 @@ const SOURCE_SCREENS = [
   {
     name: 'loans-bank-loan-statements',
     query: 'loans=sample&spending=sample',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     charts: 2,
     shows: ['unless it is here or your statement shows another day', 'not seen'],
@@ -2711,7 +2712,7 @@ const SOURCE_SCREENS = [
   {
     name: 'loans-bank-loan-statements-croatian',
     query: 'loans=sample&spending=sample&lang=hr',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     charts: 2,
     shows: ['osim ako je ovdje ili vaš izvod pokazuje drugi dan', 'nije na izvodu'],
@@ -2719,7 +2720,7 @@ const SOURCE_SCREENS = [
   {
     name: 'loans-bank-loan-unchecked',
     query: 'loans=sample&spending=failed',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     charts: 2,
     shows: ['Not checked against your statements, as Spending did not open.'],
@@ -7380,6 +7381,24 @@ const FLOWS = [
     queries: { drive: '&spending=sample&loans=sample&lang=hr' },
   },
   {
+    name: 'spending-add-to-loans',
+    hash: `#/spending/transactions?month=${addMonths(monthOf(today()), -1)}`,
+    title: 'Entries',
+    run: spendingAddToLoansFlowIn('en', addMonths(monthOf(today()), -2)),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&loans=sample' },
+  },
+  {
+    name: 'spending-add-to-loans-croatian',
+    hash: `#/spending/transactions?month=${addMonths(monthOf(today()), -1)}`,
+    title: 'Unosi',
+    run: spendingAddToLoansFlowIn('hr', addMonths(monthOf(today()), -2)),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&loans=sample&lang=hr' },
+  },
+  {
     name: 'spending-instalment-offers',
     hash: '#/spending/transactions?tab=review',
     title: 'Entries',
@@ -8359,14 +8378,14 @@ const FLOWS = [
     name: 'loans-scenarios-flow-croatian',
     hash: '#/loans/scenarios',
     title: 'Scenariji',
-    run: loansScenariosFlowIn('hr', SAMPLE_BANK_LOAN),
+    run: loansScenariosFlowIn('hr', FAKE_HOME_LOAN),
     modes: ['drive'],
     queries: { drive: '&loans=sample&lang=hr' },
   },
-  { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
+  { name: 'loans-what-if', hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, title: 'Home loan', run: loansWhatIfFlow, modes: ['drive'], queries: { drive: '&loans=sample&investments=sample' } },
   {
     name: 'loans-what-if-croatian',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     run: loansWhatIfFlowIn('hr'),
     viewports: EVERY_VIEWPORT,
@@ -8393,7 +8412,7 @@ const FLOWS = [
   },
   {
     name: 'loans-saved-tries',
-    hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`,
+    hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`,
     title: 'Home loan',
     run: loansSavedTriesFlow,
     modes: ['drive'],
@@ -8775,7 +8794,7 @@ const FLOWS = [
     name: 'menus-loans',
     hash: '#/loans',
     title: 'Overview',
-    run: screenMenusFlow([{ hash: `#/loans/bank-loan?loan=${SAMPLE_BANK_LOAN}`, shows: '[data-testid="loan-subsidy"]' }]),
+    run: screenMenusFlow([{ hash: `#/loans/bank-loan?loan=${FAKE_HOME_LOAN}`, shows: '[data-testid="loan-subsidy"]' }]),
     viewports: MENU_VIEWPORTS,
     modes: ['drive'],
     queries: { drive: '&loans=sample' },

@@ -10,6 +10,7 @@ import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
 import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
+import { FAKE_CAR_LOAN, FAKE_HOME_LOAN } from '../../../../../shared/storage/infrastructure/fake/fakeLoanKeys'
 
 function day(text: string): CivilDate {
   const parsed = parseCivilDate(text)
@@ -22,9 +23,6 @@ function fixedId(kind: RecordKind, place: number): RecordId {
   return recordIdOf(kind, `fa4e2000-0000-4000-8000-${String(place).padStart(12, '0')}`)
 }
 
-/** The fake Loans file's Home loan and Car loan, by their bare UUIDs, since a fake seed of Assets may not import Loans. */
-const FAKE_HOME_LOAN = 'fa4e0000-0000-4000-8000-000000000001'
-const FAKE_CAR_LOAN = 'fa4e0000-0000-4000-8000-000000000030'
 /** A loan no fake Loans file holds. */
 const GONE_LOAN = 'fa4e0000-0000-4000-8000-000000000999'
 

@@ -3,7 +3,8 @@ import type { WorkbookDocument } from '../../../../shared/storage/infrastructure
 import type { DocumentCopy } from '../../../../shared/storage/infrastructure/documentRecordStorage'
 import { pageWorkbookStore } from '../../../../shared/storage/infrastructure/pageWorkbookStore'
 import type { LoansBooks } from '../domain/loansBooks'
-import { LOANS_APP, LOANS_DOCUMENT } from '../infrastructure/loansDocument'
+import { LOANS_APP } from '../domain/loansApp'
+import { LOANS_DOCUMENT } from '../infrastructure/loansDocument'
 import { words } from '../../words'
 
 const loansStore = pageWorkbookStore(LOANS_APP, LOANS_DOCUMENT, words.pickFile)

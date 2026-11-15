@@ -7,10 +7,10 @@ import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import type { LinkPlace } from '../src/apps/spending/links/domain/instalmentSplit'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets'
 import { linkLineOf, targetLineOf } from '../src/apps/spending/links/presentation/linkLine'
-import { beyondPlan, linkFiling, splitByInstalment } from '../src/apps/spending/links/domain/instalmentSplit'
+import { beyondPlan, linkFiling, linkedEntry, splitByInstalment } from '../src/apps/spending/links/domain/instalmentSplit'
 import type { InstalmentSplit } from '../src/apps/spending/links/domain/instalmentSplit'
-import { linkStateOf, targetsFor } from '../src/apps/spending/links/domain/linkTarget'
-import type { InstalmentTarget, LinkTarget } from '../src/apps/spending/links/domain/linkTarget'
+import { linkStateOf, movementKindsFor, targetsFor } from '../src/apps/spending/links/domain/linkTarget'
+import type { InstalmentTarget, LinkTarget, LoanDirection, MovementKind } from '../src/apps/spending/links/domain/linkTarget'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import { waitsOnReview } from '../src/apps/spending/workbook/domain/rowItems'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
@@ -27,7 +27,7 @@ import { rowLinkOf, rowLinkText } from '../src/apps/spending/workbook/domain/row
 import { parseCivilDate } from '../src/shared/calendar/civilDate'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { rowLinksOf } from '../src/apps/spending/facts'
@@ -77,8 +77,9 @@ describe("a Spending row's link", () => {
     expect(linkStateOf({ ...october, app: 'company' }, DESK_LOAN_TARGETS).state).toBe('gone')
   })
 
-  it("names an instalment and interim interest by its loan's key and due date, and an informal loan by its key, as Loans publishes them", () => {
+  it('names each record by the link Loans publishes with it, an informal loan followed by its movements', () => {
     const to = { path: '/loans' }
+    const linkTo = (kind: string, key: string, due: string | null = null) => ({ app: 'loans', kind, key, due: due === null ? null : on(due) })
     const targets = loanTargetsFrom({
       instalments: [
         {
@@ -92,6 +93,7 @@ describe("a Spending row's link", () => {
           yourShare: moneyFromAmount(80),
           interest: moneyFromAmount(80),
           principal: moneyFromAmount(0),
+          link: linkTo('bank-loan', LOAN, '2026-10-31'),
           to,
         },
         {
@@ -105,13 +107,32 @@ describe("a Spending row's link", () => {
           yourShare: moneyFromAmount(650),
           interest: moneyFromAmount(250),
           principal: moneyFromAmount(400),
+          link: linkTo('bank-loan', LOAN, '2026-11-20'),
           to,
         },
       ],
-      informalLoans: [{ key: 'b', name: 'From Marko', counterparty: 'Marko', direction: 'you-owe', to }],
+      extraPayments: [{ loanName: 'Home loan', day: on('2026-09-01'), amount: moneyFromAmount(2000), link: linkTo('extra-payment', 'e'), to }],
+      informalLoans: [
+        {
+          key: 'b',
+          name: 'From Marko',
+          counterparty: 'Marko',
+          direction: 'you-owe',
+          movements: [{ day: on('2026-11-03'), kind: 'repaid', amount: moneyFromAmount(300), note: '', link: linkTo('movement', 'm') }],
+          link: linkTo('informal-loan', 'b'),
+          to,
+        },
+      ],
     })
-    expect(targets.map((target) => rowLinkText(target.link))).toEqual([`loans/bank-loan/${LOAN}/2026-10-31`, `loans/bank-loan/${LOAN}/2026-11-20`, 'loans/informal-loan/b'])
-    expect(targets.map((target) => target.kind === 'instalment' && target.interim)).toEqual([true, false, false])
+    expect(targets.map((target) => rowLinkText(target.link))).toEqual([
+      `loans/bank-loan/${LOAN}/2026-10-31`,
+      `loans/bank-loan/${LOAN}/2026-11-20`,
+      'loans/extra-payment/e',
+      'loans/informal-loan/b',
+      'loans/movement/m',
+    ])
+    expect(targets.map((target) => target.kind)).toEqual(['instalment', 'instalment', 'extra-payment', 'informal-loan', 'movement'])
+    expect(targets[4]).toMatchObject({ loan: linkTo('informal-loan', 'b'), loanName: 'From Marko', direction: 'you-owe', movement: 'repaid', amount: moneyFromAmount(300) })
   })
 
   it('publishes each linked row with its account, day, amount in its own currency and the record it names, and no row without a link', () => {
@@ -210,7 +231,7 @@ describe('a row linked to a loan instalment', () => {
     expect(split(-640)).toEqual(parts(-250, -400, 10))
   })
 
-  it("links whole an informal loan, interim interest, money in, an account not in euros, a transfer's leg and a receipt's row", () => {
+  it("links whole under Loan principal an informal loan, and as it is interim interest, money in, an account not in euros, a transfer's leg and a receipt's row", () => {
     const paid = row(OTP, '2026-11-20', -650, 'Money and fees/Loan interest')
     const why = (target: LinkTarget, entry: StoredRow = paid, on = ON_OTP) => {
       const filing = linkFiling(filed(entry), target, on)
@@ -224,7 +245,7 @@ describe('a row linked to a loan instalment', () => {
       why(INSTALMENT, row(REVOLUT_USD, '2026-11-20', -650, 'Money and fees/Loan interest'), { ...ON_OTP, currency: REVOLUT_USD.currency }),
       why(INSTALMENT, { ...paid, pair: row(OTP, '2026-11-20', 650, null).id }),
       why(INSTALMENT, paid, { ...ON_OTP, receipt: true }),
-    ]).toEqual(['informal-loan', 'no-principal', 'money-in', 'not-euro', 'transfer-leg', 'receipt'])
+    ]).toEqual(['principal', 'no-principal', 'money-in', 'not-euro', 'transfer-leg', 'receipt'])
   })
 
   it('keeps the interest of a row with no category under Loan interest, and leaves the category to the write in a file that has none', () => {
@@ -258,6 +279,27 @@ describe('a row linked to a loan instalment', () => {
     expect(linked.row.categorisedBy).toBe('person')
   })
 
+  it('joins the parts of an entry split by hand into one under Loan principal that keeps every label, when it links to a movement', () => {
+    const paid = row(OTP, '2026-11-20', -300, null)
+    const label = recordIdOf(LABEL_RECORDS, 'made-up-label')
+    const [whole] = wholeItems([paid])
+    const parts = [
+      { ...whole!, amount: accountMoneyFromAmount(-200), category: GROCERIES.id },
+      { ...whole!, id: recordIdOf(ITEM_RECORDS, 'made-up-part'), amount: accountMoneyFromAmount(-100), category: LOAN_INTEREST.id, labels: [label] },
+    ]
+    const movement: LinkTarget = {
+      kind: 'extra-payment',
+      link: { app: 'loans', kind: 'extra-payment', key: 'e', due: null },
+      loanName: 'Home loan',
+      day: on('2026-11-20'),
+      amount: moneyFromAmount(300),
+    }
+    const { entry, added } = linkedEntry({ row: paid, items: parts }, movement, { currency: EURO, categories: CATEGORIES, language: 'en', notes: NOTES, receipt: false })
+
+    expect(added).toEqual([])
+    expect(entry.items.map((part) => [part.id, part.amount, part.category, part.link, part.labels])).toEqual([[parts[0]!.id, paid.amount, PRINCIPAL.id, movement.link, [label]]])
+  })
+
   it('says what a row on a euro account paid above or below the plan, and nothing for an account in another currency or an informal loan', () => {
     const beyond = (amount: number, currency = EURO, target: LinkTarget = INSTALMENT) => beyondPlan(target, { amount: accountMoneyFromAmount(amount) }, currency)
     expect([beyond(-652.4), beyond(-640), beyond(-650), beyond(-652.4, REVOLUT_USD.currency), beyond(-652.4, EURO, INFORMAL)]).toEqual([
@@ -269,13 +311,38 @@ describe('a row linked to a loan instalment', () => {
     ])
   })
 
-  it('offers for money out the instalments due within half a month of its day, nearest first, and the informal loans, and for money in the informal loans only', () => {
+  it('offers for money out the instalments, the movements it can be and the extra payments within half a month of its day, nearest first, and for money in the movements alone', () => {
     const due = (date: string): LinkTarget => ({ ...INSTALMENT, due: on(date), link: { ...INSTALMENT.link, due: on(date) } })
-    const targets = [due('2026-10-20'), INFORMAL, due('2026-12-05'), due('2026-11-20')]
-    const offered = (amount: number) =>
-      targetsFor({ date: on('2026-11-22'), amount: accountMoneyFromAmount(amount) }, targets).map((target) => (target.kind === 'instalment' ? target.due : target.name))
-    expect(offered(-650)).toEqual(['2026-11-20', '2026-12-05', 'From Marko'])
-    expect(offered(650)).toEqual(['From Marko'])
+    const moved = (date: string, movement: MovementKind, direction: LoanDirection = 'you-owe'): LinkTarget => ({
+      kind: 'movement',
+      link: { app: 'loans', kind: 'movement', key: `${date}-${movement}-${direction}`, due: null },
+      loan: INFORMAL.link,
+      loanName: 'From Marko',
+      counterparty: 'Marko',
+      direction,
+      day: on(date),
+      movement,
+      amount: moneyFromAmount(300),
+    })
+    const extra: LinkTarget = { kind: 'extra-payment', link: { app: 'loans', kind: 'extra-payment', key: 'e', due: null }, loanName: 'Home loan', day: on('2026-11-21'), amount: moneyFromAmount(2000) }
+    const targets = [due('2026-10-20'), INFORMAL, moved('2026-11-01', 'repaid'), moved('2026-11-24', 'borrowed'), extra, due('2026-12-05'), due('2026-11-20'), moved('2026-11-23', 'repaid')]
+    const offered = (amount: number, currency = EURO) =>
+      targetsFor({ date: on('2026-11-22'), amount: accountMoneyFromAmount(amount) }, currency, targets).map((target) =>
+        target.kind === 'instalment' ? target.due : target.kind === 'movement' ? `${target.movement} ${target.day}` : target.kind,
+      )
+    expect(offered(-650)).toEqual(['2026-11-20', '2026-12-05', 'repaid 2026-11-23', 'extra-payment'])
+    expect(offered(-650, REVOLUT_USD.currency)).toEqual(['2026-11-20', '2026-12-05', 'repaid 2026-11-23'])
+    expect(offered(650)).toEqual(['borrowed 2026-11-24'])
+  })
+
+  it('matches money out and in to the movements of each direction that move one of your accounts', () => {
+    const kinds = (amount: number, direction: LoanDirection) => movementKindsFor(accountMoneyFromAmount(amount), direction)
+    expect([kinds(-300, 'owed-to-you'), kinds(300, 'owed-to-you'), kinds(-300, 'you-owe'), kinds(300, 'you-owe')]).toEqual([
+      ['borrowed', 'borrowed-in-kind'],
+      ['repaid'],
+      ['repaid', 'repaid-in-kind'],
+      ['borrowed'],
+    ])
   })
 })
 
@@ -353,6 +420,33 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     await store.undo(earlier!)
     expect(book().categories.some((held) => held.kind === 'repayment')).toBe(false)
     expect(book().items.filter((part) => part.transaction === paid.id)).toEqual(wholeItems([paid]))
+  })
+
+  it('files a row linked to a movement whole under Loan principal, added once, so the month counts none of it, and Undo takes both back', async () => {
+    const lent = row(OTP, '2026-11-20', -300, 'Food/Groceries')
+    const store = await fileWith([lent])
+    const book = () => store.state.workbook!
+    const movement: LinkTarget = {
+      kind: 'movement',
+      link: { app: 'loans', kind: 'movement', key: 'made-up-movement', due: null },
+      loan: INFORMAL.link,
+      loanName: 'To Marko',
+      counterparty: 'Marko',
+      direction: 'owed-to-you',
+      day: on('2026-11-20'),
+      movement: 'borrowed',
+      amount: moneyFromAmount(300),
+    }
+    await store.write('Linked', (unit) => linkEntry(unit, store.state.records!, book().transactions[0]!, movement, { ...english, categories: book().categories }))
+
+    const principal = book().categories.find((held) => held.kind === 'repayment')!
+    expect(book().problems).toEqual([])
+    expect(book().items.map((part) => [part.amount, part.category, part.link])).toEqual([[accountMoneyFromAmount(-300), principal.id, movement.link]])
+    expect(spendingFigures(book(), NO_RATES).totalsOf(month('2026-11')).spent).toEqual(moneyFromAmount(0))
+
+    await store.undo(store.state.writes[0]!)
+    expect(book().categories.some((held) => held.kind === 'repayment')).toBe(false)
+    expect(book().items).toEqual(wholeItems([lent]))
   })
 
   it('files the interest of a row with no category under Loan interest, adding it under Money and fees to a file without it, so the row leaves To review', async () => {

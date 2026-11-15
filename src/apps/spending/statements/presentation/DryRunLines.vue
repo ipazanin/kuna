@@ -79,6 +79,7 @@ function outcomeOf(line: DryRunLine, named: string): { readonly label: string; r
       return { label: words.import.outcome.refiled(named), color: 'info' }
     case 'new':
       if (line.withdrawal !== null) return cashOutcomeOf(line.withdrawal.cashLeg)
+      if (line.pays !== undefined && isSplit(line.pays.parts)) return { label: words.import.outcome.linked, color: 'success' }
       return wantsSavingsAccount(line.row, state.workbook?.accounts ?? [])
         ? { label: words.review.wantsSavings, color: 'warning' }
         : { label: named, color: line.category === null ? 'warning' : 'success' }

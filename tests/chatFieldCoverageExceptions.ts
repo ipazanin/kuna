@@ -12,6 +12,18 @@ export interface NoFieldPaths {
 
 export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   {
+    reason: "The record in Loans an entry links to, which link-entry names by its loan's name and a day and reads from what Loans publishes, so nobody types its fields in Spending.",
+    fields: [
+      'spending: LinkTarget.loan.app',
+      'spending: LinkTarget.loan.kind',
+      'spending: LinkTarget.loan.key',
+      'spending: LinkTarget.loan.due',
+      'spending: LinkTarget.day',
+      'spending: LinkTarget.movement',
+      'spending: LinkTarget.amount',
+    ],
+  },
+  {
     reason: "A transfer moves money between your own accounts, so its legs write no payee. A plain entry's payee goes through add-entry and change-entry.",
     fields: ['spending: Transaction.payee'],
   },

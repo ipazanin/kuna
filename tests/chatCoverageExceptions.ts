@@ -9,6 +9,11 @@ export interface ChatException {
 
 export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   {
+    reason:
+      "Adding a movement to an informal loan from an entry's dialog, which writes a movement in Loans and then links the entry, two files under one Undo. The chat writes one app's file per card, so it links an entry to a movement already in Loans through link-entry.",
+    paths: ['src/apps/spending/links/application/linkWithRecord.ts#addMovementAndLink'],
+  },
+  {
     reason: "Not now on To review's card of past instalments. It only stops that card offering what the person saw on it, and the chat does not show the card.",
     paths: ['src/apps/spending/links/application/instalmentReview.ts#putOffPastInstalments'],
   },

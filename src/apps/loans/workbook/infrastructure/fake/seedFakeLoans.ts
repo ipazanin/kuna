@@ -4,7 +4,8 @@ import { createDriveDocument, documentName } from '../../../../../shared/storage
 import { fakeBooksFolder, fakeDriveSession, holdReadsOf } from '../../../../../shared/storage/infrastructure/fake/fakeDriveSession'
 import { keepChosenCopy } from '../../../../../shared/storage/infrastructure/chosenCopy'
 import { saveWorkbookChoice } from '../../../../../shared/storage/infrastructure/workbookChoice'
-import { LOANS_APP, emptyLoansDocument } from '../loansDocument'
+import { LOANS_APP } from '../../domain/loansApp'
+import { emptyLoansDocument } from '../loansDocument'
 import { fakeLoansDocument } from './fakeLoans'
 
 /**

@@ -1,6 +1,6 @@
 import { BUDGET_WRITES } from '../../budgets/application/budgetWrites'
 import { heldItemsOf, waitingItemsOf, writeRows } from '../../entries/application/rowRecords'
-import { RULE_WRITES } from '../../statements/application/statementWrites'
+import { RULE_WRITES } from '../../statements/application/ruleRecords'
 import { SPENDING_KINDS, bookWith, dependentRefusals } from '../../workbook/application/spendingWriteGuards'
 import { isFixedKind } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
