@@ -5,7 +5,7 @@ import { accountBalance } from '../src/apps/spending/accounts/domain/accountBala
 import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { rowItemsOf, waitsOnReview } from '../src/apps/spending/workbook/domain/rowItems'
 import { placeWaitingReceipt, removeWaitingReceipt, writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
-import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
+import { receiptSplit, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { receiptOnRow, receiptsArriving, waitingReceipts } from '../src/apps/spending/receipts/domain/waitingReceipts'
 import { writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
@@ -29,7 +29,7 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import { storedFieldOf } from '../src/shared/storage/domain/storedFields'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, CATEGORIES, OTP, category, row, addEntries, filedRows, itemized } from './fixtures/spending'
+import { ACCOUNTS, CATEGORIES, OTP, category, row, addEntries, filedRows, itemized, wholeReceiptLines } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const used = new Set<string>()
@@ -243,8 +243,8 @@ describe('a receipt for a card payment the bank has not brought yet', () => {
 
   it('takes each arriving row once, oldest receipt first', () => {
     const book = { accounts: ACCOUNTS, categories: CATEGORIES, transactions: [], lines: [] }
-    const one = receiptSplit(DRAFT, { account: OTP }, wholeReceipt(DRAFT.total, GROCERIES.id))
-    const two = receiptSplit({ ...DRAFT, issuedOn: civil('2026-11-04') }, { account: OTP }, wholeReceipt(DRAFT.total, GROCERIES.id))
+    const one = receiptSplit(DRAFT, { account: OTP }, wholeReceiptLines(DRAFT.total, GROCERIES.id))
+    const two = receiptSplit({ ...DRAFT, issuedOn: civil('2026-11-04') }, { account: OTP }, wholeReceiptLines(DRAFT.total, GROCERIES.id))
     const arriving = [itemized(row(OTP, '2026-11-04', -23.49, null, { source: 'statement', importKey: 'bank-1', payee: 'CORNER MARKET' }))]
     const placed = receiptsArriving({ ...book, receipts: [two.receipt, one.receipt], items: [...one.lines, ...two.lines] }, arriving, 'Difference')
     expect(placed.map((receipt) => receipt.receipt.before.id)).toEqual([one.receipt.id])

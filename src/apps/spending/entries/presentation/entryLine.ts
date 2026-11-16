@@ -1,6 +1,6 @@
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { Category } from '../../workbook/domain/category'
-import { isSplit } from '../../workbook/domain/rowItems'
+import { hasParts } from '../../workbook/domain/rowItems'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { words } from './words'
@@ -13,13 +13,13 @@ export interface EntryLine {
   readonly category: Category | null
 }
 
-/** A split entry leaves its category and note to its parts. */
+/** An entry of several parts leaves its category and note to them. One part, a receipt's line too, reads as the entry. */
 export function entryLine(row: EuroRow, categories: ReadonlyMap<RecordId, Category>, showAccount: boolean): EntryLine {
   const { transaction, account } = row
   const shown = mainCategoryOf(row.items)
   const category = shown === null ? null : (categories.get(shown) ?? null)
   const categoryName = category?.name ?? words.waitsOnReview
-  const split = isSplit(row.items)
+  const split = hasParts(row.items)
   return {
     title: transaction.payee === '' ? categoryName : transaction.payee,
     details: [transaction.payee === '' || split ? '' : categoryName, showAccount ? account.name : '', split ? '' : (row.items[0]?.note ?? '')].filter((part) => part !== '').join(' · '),

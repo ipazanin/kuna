@@ -45,18 +45,23 @@ export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' 
  * What you typed over a row on the file. It keeps its id, its source and what the bank said, so a later statement still skips
  * it. A row not split keeps its one item's id and link and takes the typed amount, category, note, labels and event, and a
  * category you changed is yours from then on. A split row keeps its items, each with the labels and event of the typed part of
- * its id.
+ * its id, and a receipt's line takes that part's category and note too, while its amount stays the receipt's.
  */
 export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
   const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source } = before.row
   const [held] = before.items
   const [filing] = typed.items
   const whole = held !== undefined && filing !== undefined && !isSplit(before.items)
-  const filedAnew = whole && held.category !== filing.category
+  const typedParts = new Map(typed.items.map((part) => [part.id, part]))
+  const parts = before.items.map((part) => {
+    const typedPart = typedParts.get(part.id)
+    const refiled = part.receipt === null || typedPart === undefined ? {} : { category: typedPart.category ?? part.category, note: typedPart.note }
+    return { ...part, labels: typedPart?.labels ?? part.labels, event: typedPart?.event ?? part.event, ...refiled }
+  })
+  const filedAnew = whole ? held.category !== filing.category : parts.some((part, place) => part.category !== before.items[place]?.category)
   const row: Transaction = { ...typed.row, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: filedAnew ? 'person' : before.row.categorisedBy }
   if (whole) return { row, items: [{ ...held, amount: row.amount, category: filing.category, note: filing.note, labels: filing.labels, event: filing.event }] }
-  const typedParts = new Map(typed.items.map((part) => [part.id, part]))
-  return { row, items: before.items.map((part) => ({ ...part, labels: typedParts.get(part.id)?.labels ?? part.labels, event: typedParts.get(part.id)?.event ?? part.event })) }
+  return { row, items: parts }
 }
 
 /** A transfer's leg typed over a row, which keeps the row's labels, since a transfer is labelled by selecting it on Entries. */

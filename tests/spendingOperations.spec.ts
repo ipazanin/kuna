@@ -22,7 +22,7 @@ import { SETTING_WRITES } from '../src/apps/spending/workbook/application/settin
 import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/spendingSettings'
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
-import { ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { CATEGORY_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
@@ -440,7 +440,7 @@ describe('categories and accounts', () => {
     expect(notes).toEqual([
       {
         label: 'Current',
-        text: "Moving the opening balance day to 29 Oct 2026 deletes what came before it: 6 entries and 1 receipt. The other leg of 1 transfer stays on Savings as a lone row under Between my accounts. The opening balance becomes €573.70, so today's balance stays. You can change it.",
+        text: "Moving the opening balance day to 29 Oct 2026 deletes what came before it: 6 entries, 1 receipt and 1 split part. The other leg of 1 transfer stays on Savings as a lone row under Between my accounts. The opening balance becomes €573.70, so today's balance stays. You can change it.",
         tone: 'warning',
       },
     ])
@@ -615,6 +615,30 @@ describe('an entry’s receipt and payee', () => {
     expect((await desk.accept()).kind).toBe('done')
     expect(bookOf(desk).receipts.map((receipt) => receipt.id)).toEqual([EXAMPLE_RECORDS['receipt-waiting']])
     expect(rowOf(desk, EXAMPLE_RECORDS['transaction-receipt']!)).toBeDefined()
+  })
+
+  it("refiles a receipt's line under another category with new words, keeps its amount and the entry's account, and one Undo puts it back", async () => {
+    const desk = await spendingDesk(used)
+    const entry = EXAMPLE_RECORDS['transaction-receipt']!
+    const line = EXAMPLE_RECORDS['item-receipt-line']!
+    const refile = (fields: Readonly<Record<string, unknown>>, on = entry) =>
+      stepOf(SPENDING_OPERATIONS, 'refile-receipt', { entry: desk.ref('transaction', on), lines: [{ line: desk.ref('item', line), category: null, note: null, ...fields }] })
+    expect((await desk.propose([refile({}, EXAMPLE_RECORDS['transaction']!)])).text).toContain('no receipt')
+    expect(
+      (await desk.propose([refile({ category: desk.ref('category', EXAMPLE_RECORDS['category-other']!) }), refile({ line: desk.ref('item', recordIdOf(ITEM_RECORDS, 'line-hardware-rent')) })])).text,
+    ).toContain('receipt lines')
+    expect((await desk.propose([refile({ category: desk.ref('category', recordIdOf(CATEGORY_RECORDS, 'category-food')) })])).text).toContain('inside the group')
+
+    await desk.propose([refile({ category: desk.ref('category', EXAMPLE_RECORDS['category-child']!), note: ' Bread for the trip ' })])
+    const result = await desk.accept()
+
+    expect(result.kind).toBe('done')
+    expect(bookOf(desk).items.filter((part) => part.transaction === entry)).toMatchObject([
+      { id: line, category: EXAMPLE_RECORDS['category-child'], note: 'Bread for the trip', amount: accountMoneyFromAmount(-20) },
+    ])
+    expect(rowOf(desk, entry)).toMatchObject({ account: DESK_ACCOUNTS.CURRENT.id, amount: accountMoneyFromAmount(-20) })
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).items.filter((part) => part.transaction === entry)).toMatchObject([{ id: line, category: EXAMPLE_RECORDS['category-other'], note: '' }])
   })
 
   it('flags a payee as a person, and a second flag changes nothing', async () => {

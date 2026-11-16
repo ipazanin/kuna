@@ -32,6 +32,7 @@ import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
 import { fixedByBank } from '../../entries/domain/bankRows'
 import { entrySplit } from '../../entries/domain/entrySplit'
 import type { ItemDraft } from '../../entries/domain/entrySplit'
+import { refiledReceiptLines } from '../../receipts/domain/receiptLines'
 import { en as entriesEnglish } from '../../entries/presentation/words'
 import { words as linkWords } from '../../links/presentation/words'
 import { fileRow, importWithRules, writeRules } from '../../statements/application/statementWrites'
@@ -318,6 +319,21 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     creates: null,
     alone: false,
     example: { entry: 'transaction-receipt' },
+  },
+  {
+    name: 'refile-receipt',
+    about: [
+      "Files lines of the receipt on an entry anew, as the entry dialog does. Each line names one of the receipt's lines by its ref, and takes a category as a part of split-entry does, never a group with categories under it or Between my accounts.",
+      "note is the owner's words on the line, or null to keep them, and category null keeps its category. A line's amount, the entry's amount and its account stay the receipt's, and a line not named stays as it is.",
+    ].join(' '),
+    input: inputOf({
+      entry: TEXT,
+      lines: { type: 'array', items: inputOf({ line: TEXT, category: TEXT_OR_NULL, note: TEXT_OR_NULL }) },
+    }),
+    refs: { entry: TRANSACTION_RECORDS.name, 'lines.line': ITEM_RECORDS.name, 'lines.category': CATEGORY_RECORDS.name },
+    creates: null,
+    alone: false,
+    example: { entry: 'transaction-receipt', lines: [{ line: 'item-receipt-line', category: 'category-child', note: 'Bread for the trip' }] },
   },
   ADD_RECEIPT,
   {
@@ -829,6 +845,22 @@ function plannedSteps(
         const row = rowOf(field['entry'])
         if (!book.receipts.some((receipt) => receipt.transaction === row.id)) throw new StepRefused('That entry has no receipt.')
         removeSplitOf(unit, records(), row)
+        break
+      }
+      case 'refile-receipt': {
+        const before = itemizedRow(book, rowOf(field['entry']))
+        if (!book.receipts.some((receipt) => receipt.transaction === before.row.id)) throw new StepRefused('That entry has no receipt.')
+        const given = field['lines'] as readonly { readonly line: string; readonly category: string | null; readonly note: string | null }[]
+        const refiles = given.map((line) => {
+          const held = before.items.find((item) => item.id === idOf(line.line))
+          const category = line.category === null ? held?.category : categoryOf(line.category).id
+          if (held === undefined || category === null || category === undefined) throw new StepRefused("A line names one of the entry's own receipt lines.")
+          return { line: held.id, category, note: line.note ?? held.note }
+        })
+        const lines = refiledReceiptLines(book.categories, before.items, refiles)
+        if ('refused' in lines) throw new StepRefused(lines.refused === 'not-a-receipt-line' ? "A line names one of the entry's own receipt lines." : entriesEnglish.split.refusals[lines.refused])
+        writeEntry(unit, records(), before, { row: before.row, items: lines }, null)
+        book = { ...book, items: [...book.items.filter((part) => part.transaction !== before.row.id), ...lines] }
         break
       }
       case 'add-receipt': {

@@ -656,3 +656,52 @@ function templateNames(module: Module): { readonly local: string; readonly at: s
     return index === -1 ? [] : [{ local, at: `${module.file}:${module.template!.firstLine + index}` }]
   })
 }
+
+/** What the screens reach through the paths they write through: every declaration those name, and each record kind's verbs. */
+interface ScreenReach {
+  readonly symbols: ReadonlySet<SymbolKey>
+  readonly verbs: ReadonlyMap<SymbolKey, ReadonlySet<string>>
+}
+
+function screenReach(graph: WriteGraph): ScreenReach {
+  const symbols = new Set<SymbolKey>()
+  const verbs = new Map<SymbolKey, Set<string>>()
+  const addVerb = (kind: SymbolKey, verb: string) => verbs.set(kind, new Set([...(verbs.get(kind) ?? []), verb]))
+  const pending = [...screenWrites(graph).keys()].map((path) => /^[a-z-]+: (.*)$/.exec(path)?.[1] ?? path)
+  while (pending.length > 0) {
+    const path = pending.pop()!
+    const verb = /^(.*#[A-Z_]+)\.(add|change|remove)$/.exec(path)
+    if (verb !== null) addVerb(verb[1]!, verb[2]!)
+    else if (graph.isWriteRules(path)) addVerb(path, '*')
+    else if (!symbols.has(path) && !path.startsWith('store.') && graph.modules.has(path.split('#')[0]!)) {
+      symbols.add(path)
+      for (const symbol of graph.named(path).symbols) {
+        if (graph.isWriteRules(symbol.key)) addVerb(symbol.key, symbol.verb ?? '*')
+        else pending.push(symbol.key)
+      }
+    }
+  }
+  return { symbols, verbs }
+}
+
+/**
+ * Each write the chat makes that no screen reaches, as `app: path`: an exported write function outside the screens and the
+ * operations files, or a record kind's verb. A kind the chat hands on whole counts as reached when a screen writes it at all,
+ * and a declaration reached only by running the page's sync is left out, as the chat runs the sync as a whole.
+ */
+export function chatOnlyWrites(graph: WriteGraph, reaches: ReadonlyMap<string, ChatReach>): readonly string[] {
+  const screens = screenReach(graph)
+  const found: string[] = []
+  for (const [app, reach] of reaches) {
+    for (const key of reach.symbols) {
+      const file = key.split('#')[0]!
+      const ownWrite = !isOperationsFile(file) && !isScreenFile(file) && !reach.ranBySync.has(key) && !graph.isWriteRules(key) && graph.writes(key) && isExported(graph, key)
+      if (ownWrite && !screens.symbols.has(key)) found.push(`${app}: ${key}`)
+    }
+    for (const [kind, verbs] of reach.verbs) {
+      const written = screens.verbs.get(kind)
+      for (const verb of verbs) if (written === undefined || !(verb === '*' || written.has(verb) || written.has('*'))) found.push(`${app}: ${kind}.${verb}`)
+    }
+  }
+  return found.sort()
+}

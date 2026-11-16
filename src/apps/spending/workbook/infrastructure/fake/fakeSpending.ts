@@ -378,6 +378,8 @@ function syncedRow(day: CivilDate): FakeRow {
 }
 
 const SPLIT_ROW_PLACE = 1906
+/** The row a receipt of one line split, which reads as a typed entry with the receipt's mark. */
+const ONE_LINE_ROW_PLACE = 1907
 
 /**
  * What the receipts set adds to the sample: a card payment one photo matches, two equal payments another must pick from, a card
@@ -409,10 +411,11 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
       categorisedBy: 'person',
     },
     statementRow(SPLIT_ROW_PLACE, OTP, day, -61.2, 'Corner market', { category: idOf('Food/Groceries'), categorisedBy: 'person' }),
+    statementRow(ONE_LINE_ROW_PLACE, OTP, day, -4.6, 'Espresso bar', { category: idOf('Food/Eating out'), categorisedBy: 'person' }),
   ]
 }
 
-/** The receipt of the row a receipt split, with a line on each of two categories. */
+/** The receipts of the rows a receipt split: one with a line on each of two categories, and one of a single line. */
 function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { readonly receipts: readonly Receipt[]; readonly lines: readonly TransactionItem[] } {
   const row = fixedId(TRANSACTION_RECORDS, SPLIT_ROW_PLACE)
   const receipt = fixedId(RECEIPT_RECORDS, 1951)
@@ -448,8 +451,29 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
         latitude: '43.508100',
         longitude: '16.440200',
       },
+      {
+        id: fixedId(RECEIPT_RECORDS, 1956),
+        transaction: fixedId(TRANSACTION_RECORDS, ONE_LINE_ROW_PLACE),
+        account: null,
+        merchant: 'Espresso bar',
+        merchantOib: '',
+        buyerOib: '',
+        issuedOn: day,
+        issuedTime: '08:15',
+        total: moneyFromAmount(4.6),
+        jir: '5e6f7081-0000-4000-8000-1234567890ab',
+        zki: '',
+        readBy: '',
+        photo: '',
+        latitude: '',
+        longitude: '',
+      },
     ],
-    lines: [line(1952, -48.7, 'Food/Groceries'), line(1953, -12.5, 'Home/Furniture and household goods', [NEW_FLAT])],
+    lines: [
+      line(1952, -48.7, 'Food/Groceries'),
+      line(1953, -12.5, 'Home/Furniture and household goods', [NEW_FLAT]),
+      { ...line(1957, -4.6, 'Food/Eating out'), transaction: fixedId(TRANSACTION_RECORDS, ONE_LINE_ROW_PLACE), receipt: fixedId(RECEIPT_RECORDS, 1956), printed: '2X ESPRESSO', note: 'Two espressos' },
+    ],
   }
 }
 

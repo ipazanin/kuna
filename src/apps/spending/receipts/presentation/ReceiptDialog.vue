@@ -17,11 +17,12 @@ import { words } from './words'
 import { writeReceiptSplit } from '../application/receiptWrites'
 import { NEW_ENTRY, heldReceiptOf, placeOf, receiptAccounts, receiptMatches } from '../domain/receiptMatch'
 import type { ReceiptCandidate } from '../domain/receiptMatch'
-import { receiptSplit, rowPlace, wholeReceipt } from '../domain/receiptSplit'
+import { receiptSplit, rowPlace, typedReceiptLines } from '../domain/receiptSplit'
 import type { ReceiptPlace } from '../domain/receiptSplit'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
 import { lastUsedAccount, rememberLastAccount } from '../../entries/infrastructure/lastAccount'
 import { words as entryWords } from '../../entries/presentation/words'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
@@ -31,15 +32,19 @@ import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/ci
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import { typedAmount } from '../../../../shared/money/typedAmount'
+import { accountMoneyOfEuros, typedAccountAmount } from '../../../../shared/money/accountMoney'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FileDrop from '../../../../shared/ui/FileDrop.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
+import SplitEditor from '../../../../shared/ui/SplitEditor.vue'
+import { givenParts, splitField } from '../../../../shared/ui/splitFields'
+import type { SplitField } from '../../../../shared/ui/splitFields'
 import { EURO } from '../../../../shared/money/currencyCode'
 
-/** A receipt photo to the payment it splits: the QR code's date and total, or typed ones, with one category for the whole receipt. Closing the dialog drops the photo. Reading its lines is asked of the chat from Entries. */
+/** A receipt photo to the payment it splits: the QR code's date and total, or typed ones, with one category for the whole receipt or lines typed by hand, each with its category. Closing the dialog drops the photo. Reading its lines is asked of the chat from Entries. */
 const open = defineModel<boolean>('open', { required: true })
 
 const store = useSpendingBooks()
@@ -55,6 +60,8 @@ const typedDate = ref('')
 const merchant = ref('')
 const pickedPlace = ref<string | null>(null)
 const pickedCategory = ref('')
+/** The lines typed by hand, one of them the rest of the total, or null while one category takes the whole receipt. */
+const lines = ref<SplitField[] | null>(null)
 const account = ref('')
 const keepPhoto = ref(false)
 const tried = ref(false)
@@ -80,6 +87,7 @@ watch(open, (opened) => {
   merchant.value = ''
   pickedPlace.value = null
   pickedCategory.value = ''
+  lines.value = null
   keepPhoto.value = false
   tried.value = false
   failure.value = null
@@ -144,6 +152,31 @@ const category = computed<string>({
   },
 })
 
+/** Starts the lines with the category picked so far on the first, and the second taking the rest of the total. */
+function typeLines(): void {
+  lines.value = [splitField('', category.value, '', false), splitField('', '', '', true)]
+}
+
+const lineItems = computed(() => entryCategoryChoices(categories.value, 'out', null))
+const linePickable = computed(() => new Set(lineItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
+const lineCategoryError = (field: SplitField): string | null => (linePickable.value.has(field.category) ? null : words.pickCategory)
+const totalInAccount = computed(() => (total.value === null ? null : accountMoneyOfEuros(total.value)))
+
+/** The receipt's lines as Save writes them: the whole total under one category, or the typed lines. Null while an amount or a category is missing. */
+const typedLines = computed(() => {
+  const sum = total.value
+  const fields = lines.value
+  const given = fields === null ? ['rest' as const] : givenParts(fields, typedAccountAmount)
+  const picked = (fields === null ? [category.value] : fields.map((field) => field.category)).map((id) => categories.value.find((candidate) => candidate.id === id))
+  if (sum === null || given === null || picked.some((found) => found === undefined)) return null
+  return typedReceiptLines(
+    categories.value,
+    sum,
+    given.map((amount, place) => ({ amount, category: picked[place]!.id, note: fields?.[place]?.note ?? '' })),
+  )
+})
+const linesRefusal = computed(() => (typedLines.value !== null && 'refused' in typedLines.value ? entryWords.split.refusals[typedLines.value.refused] : null))
+
 const onDrive = computed(() => store.state.choice?.source === 'drive')
 const keepReason = computed(() => (!onDrive.value ? words.keepOnlyDrive : keepAllowed.value ? null : words.keepNeedsAccess))
 
@@ -169,7 +202,7 @@ const errors = computed(() => ({
         : beforeStartDay(newAccount.value, issuedOn.value)
           ? entryWords.dialog.beforeOpened(newAccount.value.openedOn)
           : null,
-  category: !pickable.value.has(category.value) ? words.pickCategory : null,
+  category: lines.value === null ? (!pickable.value.has(category.value) ? words.pickCategory : null) : lines.value.some((field) => lineCategoryError(field) !== null) ? words.pickCategory : null,
 }))
 
 async function save(): Promise<void> {
@@ -180,10 +213,10 @@ async function save(): Promise<void> {
   const sum = total.value
   const row = chosenRow.value
   const chosenAccount = newAccount.value
-  const filed = categories.value.find((candidate) => candidate.id === category.value)
+  const typed = typedLines.value
   const where: ReceiptPlace | null = row !== null ? rowPlace(row, book.value?.items ?? []) : chosenAccount === null ? null : { account: chosenAccount }
   const records = store.state.records
-  if (Object.values(errors.value).some((error) => error !== null) || file === null || day === null || sum === null || where === null || filed === undefined || records === null) return
+  if (Object.values(errors.value).some((error) => error !== null) || file === null || day === null || sum === null || where === null || typed === null || 'refused' in typed || records === null) return
   const draft = {
     merchant: merchant.value,
     merchantOib: '',
@@ -198,7 +231,7 @@ async function save(): Promise<void> {
     longitude: photoPlace.value?.longitude ?? '',
   }
   const outcome = await saves.save(keepPhoto.value && keepReason.value === null ? { file, issuedOn: day } : null, (photoId) =>
-    writes.write(words.saved, (unit) => writeReceiptSplit(unit, records, receiptSplit({ ...draft, photo: photoId }, where, wholeReceipt(sum, filed.id))), { failedTitle: words.notSaved }),
+    writes.write(words.saved, (unit) => writeReceiptSplit(unit, records, receiptSplit({ ...draft, photo: photoId }, where, typed.parts)), { failedTitle: words.notSaved }),
   )
   if (outcome.kind === 'photo-failed') failure.value = `${words.notKept}: ${outcome.reason}`
   if (outcome.kind !== 'saved') return
@@ -213,7 +246,7 @@ function closeAsked(wanted: boolean): void {
 </script>
 
 <template>
-  <AppDialog changes :open="open" :title="words.add" :description="words.description" @update:open="closeAsked">
+  <AppDialog changes v-bind="lines === null ? {} : { width: 'xl' as const }" :open="open" :title="words.add" :description="words.description" @update:open="closeAsked">
     <div v-if="photo === null" class="grid gap-3 sm:grid-cols-2" data-testid="spending-receipt-take">
       <div data-testid="spending-receipt-camera">
         <FileDrop v-model="picked" accept="image/*" capture="environment" icon="i-lucide-camera" :label="words.take" :description="words.takeHelp" />
@@ -248,12 +281,40 @@ function closeAsked(wanted: boolean): void {
           <DayField v-model="typedDate" class="w-full" data-testid="spending-receipt-date" />
         </UFormField>
       </template>
-      <UFormField :label="words.merchant" :help="words.merchantHelp">
+      <UFormField :label="words.merchant" :help="words.merchantHelp" :class="{ 'sm:col-span-2': lines !== null }">
         <UInput v-model="merchant" class="w-full" data-testid="spending-receipt-merchant" />
       </UFormField>
-      <UFormField :label="words.category" :error="(tried && errors.category) || false">
+      <UFormField v-if="lines === null" :label="words.category" :error="(tried && errors.category) || false">
         <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.pickCategory" class="w-full" data-testid="spending-receipt-category" />
       </UFormField>
+      <div v-if="lines === null" class="sm:col-span-2">
+        <UButton :label="words.typeLines" icon="i-lucide-list-plus" color="neutral" variant="outline" data-testid="spending-receipt-type-lines" @click="typeLines" />
+      </div>
+      <div v-else class="flex flex-col items-start gap-3 sm:col-span-2" data-testid="spending-receipt-typed-lines">
+        <SplitEditor
+          v-if="totalInAccount !== null"
+          v-model="lines"
+          :whole-label="words.total"
+          :whole="totalInAccount"
+          :typed="typedAccountAmount"
+          :tried="tried"
+          :category-error="lineCategoryError"
+          :refusal="linesRefusal"
+          class="w-full"
+        >
+          <template #whole>
+            <AccountMoneyText :cents="totalInAccount" :currency="EURO" />
+          </template>
+          <template #category="{ field }">
+            <USelectMenu v-model="field.category" :items="lineItems" value-key="value" :placeholder="words.pickCategory" class="w-full" data-testid="spending-receipt-line-category" />
+          </template>
+          <template #rest="{ cents }">
+            <AccountMoneyText :cents="cents" :currency="EURO" />
+          </template>
+        </SplitEditor>
+        <p v-else class="type-caption" data-testid="spending-receipt-total-first">{{ words.linesNeedTotal }}</p>
+        <UButton :label="words.oneCategory" icon="i-lucide-tag" color="neutral" variant="ghost" data-testid="spending-receipt-one-category" @click="lines = null" />
+      </div>
       <URadioGroup
         v-if="candidates.length > 0"
         :model-value="place"

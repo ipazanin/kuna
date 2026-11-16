@@ -341,6 +341,11 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     type: 'src/apps/spending/entries/domain/entrySplit.ts#ItemDraft',
     operations: [{ name: 'split-entry', prefix: 'parts.', renames: { id: 'parts.part' } }],
   },
+  {
+    path: 'src/apps/spending/entries/application/entryWrites.ts#writeEntry',
+    type: 'src/apps/spending/receipts/domain/receiptLines.ts#LineRefile',
+    operations: [{ name: 'refile-receipt', prefix: 'lines.' }],
+  },
   { path: 'src/apps/spending/labels/application/labelWrites.ts#addLabel', type: 'src/apps/spending/workbook/domain/label.ts#Label', operations: ['add-label'] },
   { path: 'src/apps/spending/labels/application/labelWrites.ts#renameLabel', from: ['name'], operations: ['rename-label'] },
   {

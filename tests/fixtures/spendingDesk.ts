@@ -149,7 +149,7 @@ function row(key: string, date: string, amount: number, payee: string, fields: P
 /** All made up: a typed row, a bank row with a receipt, a bank row near a typed one, two rows that may be one transfer, a transfer a statement paired, a typed row split by hand, cash taken out with no cash leg yet, and a Revolut payment a waiting receipt may be. */
 const ROWS: readonly StoredRow[] = [
   row('transaction-typed', '2026-10-12', -45.3, 'Corner market', { source: 'typed', category: GROCERIES.id, categorisedBy: 'person' }),
-  row('transaction-receipt', '2026-10-14', -20, 'Bakery', { category: GROCERIES.id, categorisedBy: 'rule', importKey: 'made-up-2' }),
+  row('transaction-receipt', '2026-10-14', -20, 'Bakery', { category: GROCERIES.id, categorisedBy: 'person', importKey: 'made-up-2' }),
   row('transaction-pharmacy-typed', '2026-10-20', -30, 'Pharmacy', { source: 'typed', category: RENT.id, categorisedBy: 'person', link: HOUSING_LOAN_OCTOBER }),
   row('transaction-pharmacy-bank', '2026-10-21', -31, 'PHARMACY 22', { importKey: 'made-up-4' }),
   row('transaction-out', '2026-10-25', -200, '', { importKey: 'made-up-5' }),
@@ -184,6 +184,21 @@ function handPart(key: string, amount: number, category: Category, labels: reado
 }
 
 const HAND_PARTS: readonly TransactionItem[] = [handPart('line-hardware-rent', -40, RENT, [RENOVATION]), handPart('line-hardware-groceries', -20, GROCERIES, [], TRIP.id)]
+
+/** The bakery receipt's one line, which holds all of its row's money. */
+const RECEIPT_LINE: TransactionItem = {
+  id: recordIdOf(ITEM_RECORDS, 'line-bakery-bread'),
+  transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-receipt'),
+  receipt: recordIdOf(RECEIPT_RECORDS, 'receipt-bakery'),
+  printed: 'KRUH',
+  note: '',
+  amount: accountMoneyFromAmount(-20),
+  category: GROCERIES.id,
+  link: null,
+  labels: [],
+  event: BY_DAYS,
+  splitByLink: false,
+}
 
 const RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-bakery'),
@@ -318,6 +333,7 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'transaction-withdrawal': recordIdOf(TRANSACTION_RECORDS, 'transaction-withdrawal'),
   'transaction-waiting-match': recordIdOf(TRANSACTION_RECORDS, 'transaction-waiting-match'),
   'transaction-linked': recordIdOf(TRANSACTION_RECORDS, 'transaction-pharmacy-typed'),
+  'item-receipt-line': RECEIPT_LINE.id,
   'receipt-waiting': WAITING_RECEIPT.id,
   account: CURRENT.id,
   'account-other': SAVINGS.id,
@@ -382,8 +398,8 @@ export type DeskShape = 'items' | 'before-items'
 
 /** The desk's rows and their parts as a file of the shape stores them. */
 function storedEntries(shape: DeskShape): WorkbookDocument['records'] {
-  if (shape === 'before-items') return { ...stored(TRANSACTION_RECORDS, ROWS), ...stored(LINE_RECORDS, [...HAND_PARTS, WAITING_LINE].map(plainLineOf)) }
-  const partsOf = rowItemsOf({ items: HAND_PARTS })
+  if (shape === 'before-items') return { ...stored(TRANSACTION_RECORDS, ROWS), ...stored(LINE_RECORDS, [...HAND_PARTS, RECEIPT_LINE, WAITING_LINE].map(plainLineOf)) }
+  const partsOf = rowItemsOf({ items: [...HAND_PARTS, RECEIPT_LINE] })
   const items = [...ROWS.flatMap((stored) => (partsOf(stored).length > 0 ? partsOf(stored) : [wholeItemOf(stored, { ...stored, labels: [] })])), WAITING_LINE]
   return {
     ...stored(

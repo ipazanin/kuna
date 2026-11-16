@@ -1,6 +1,8 @@
 import { words } from './words'
 import { BY_DAYS } from '../../workbook/domain/event'
-import { differenceItem } from '../../entries/domain/entrySplit'
+import { differenceItem, partCategoryRefusal } from '../../entries/domain/entrySplit'
+import type { PartCategoryRefusal } from '../../entries/domain/entrySplit'
+import type { Category } from '../../workbook/domain/category'
 import { mainCategoryOf } from '../../../../shared/categorising/domain/mainCategory'
 import { takesRowsByHand } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
@@ -11,6 +13,9 @@ import { NO_BANK_FACTS } from '../../workbook/domain/transaction'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
 import { accountMoneyOfEuros, negateAccountMoney } from '../../../../shared/money/accountMoney'
+import type { AccountMoney } from '../../../../shared/money/accountMoney'
+import { partsOfWhole } from '../../../../shared/money/partsOfWhole'
+import type { PartsRefusal } from '../../../../shared/money/partsOfWhole'
 import type { Money } from '../../../../shared/money/money'
 import { newRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -21,9 +26,31 @@ export type ReceiptDraft = Omit<Receipt, 'id' | 'transaction' | 'account'>
 /** A line the owner confirmed, its amount signed as the row is. */
 export type ReceiptPart = Pick<TransactionItem, 'printed' | 'note' | 'amount'> & { readonly category: RecordId }
 
-/** The one line of a receipt filed whole under one category. */
-export function wholeReceipt(total: Money, category: RecordId): readonly ReceiptPart[] {
-  return [{ printed: '', note: '', amount: negateAccountMoney(accountMoneyOfEuros(total)), category }]
+/** A line of a receipt as you type it: its amount above zero, or the rest of the total, its category and your words. */
+export interface TypedLine {
+  readonly amount: AccountMoney | 'rest'
+  readonly category: RecordId
+  readonly note: string
+}
+
+/**
+ * The lines you typed for a receipt, each money out, the rest worked out so they add up to its total. A line takes a category
+ * as a part of a split does, so never a group with children or Between my accounts.
+ */
+export function typedReceiptLines(
+  categories: readonly Category[],
+  total: Money,
+  lines: readonly TypedLine[],
+): { readonly parts: readonly ReceiptPart[] } | { readonly refused: PartsRefusal | PartCategoryRefusal } {
+  const byId = new Map(categories.map((category) => [category.id, category]))
+  const wrongCategory = lines.map((line) => partCategoryRefusal(byId.get(line.category), categories)).find((refusal) => refusal !== null) ?? null
+  if (wrongCategory !== null) return { refused: wrongCategory }
+  const placed = partsOfWhole(
+    negateAccountMoney(accountMoneyOfEuros(total)),
+    lines.map((line) => (line.amount === 'rest' ? 'rest' : negateAccountMoney(line.amount))),
+  )
+  if ('refused' in placed) return placed
+  return { parts: lines.map((line, place) => ({ printed: '', note: line.note.trim(), amount: placed.parts[place]!, category: line.category })) }
 }
 
 /**

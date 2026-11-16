@@ -71,7 +71,17 @@ export function linkOfItems(items: readonly Pick<TransactionItem, 'link'>[]): Ro
 
 /** Whether a receipt or a person split the row: it has more than one item, or a receipt's line. */
 export function isSplit(items: readonly Pick<TransactionItem, 'receipt'>[]): boolean {
-  return items.length > 1 || items.some((item) => item.receipt !== null)
+  return items.length > 1 || holdsReceipt(items)
+}
+
+/** Whether the row shows its parts, which it does from two, since a row of one part reads as that part, receipt line or not. */
+export function hasParts(items: readonly unknown[]): boolean {
+  return items.length > 1
+}
+
+/** Whether a receipt's line is among the row's items, so a receipt is attached to it. */
+export function holdsReceipt(items: readonly Pick<TransactionItem, 'receipt'>[]): boolean {
+  return items.some((item) => item.receipt !== null)
 }
 
 /** Whether the row waits on To review: its one item has no category yet. */

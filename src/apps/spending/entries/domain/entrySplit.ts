@@ -26,7 +26,7 @@ export interface ItemDraft {
  * Why an entry cannot be split as given, beside why its parts cannot be placed: it is a transfer's leg, a receipt split it,
  * it has fewer than two parts, or a part names a category that is not in the file, a group with children, or Between my accounts.
  */
-export type SplitRefusal = PartsRefusal | 'transfer-leg' | 'receipt' | 'too-few' | 'unknown-category' | 'group-with-children' | 'between-accounts'
+export type SplitRefusal = PartsRefusal | 'transfer-leg' | 'receipt' | 'too-few' | PartCategoryRefusal
 
 /** An entry split by hand: the row with its items as the file holds them, the row filed by you, and its parts. */
 export interface EntrySplit {
@@ -35,7 +35,10 @@ export interface EntrySplit {
   readonly parts: readonly TransactionItem[]
 }
 
-function categoryRefusal(category: Category | undefined, categories: readonly Category[]): SplitRefusal | null {
+/** Why a part cannot go under a category: it is not in the file, it is Between my accounts, or it is a group with children. */
+export type PartCategoryRefusal = 'unknown-category' | 'between-accounts' | 'group-with-children'
+
+export function partCategoryRefusal(category: Category | undefined, categories: readonly Category[]): PartCategoryRefusal | null {
   if (category === undefined) return 'unknown-category'
   if (isTransferCategory(category)) return 'between-accounts'
   return categories.some((child) => child.parent === category.id) ? 'group-with-children' : null
@@ -58,7 +61,7 @@ export function entrySplit(
   if (row.pair !== null || filedAsTransfer(book.categories)(held)) return { refused: 'transfer-leg' }
   if (book.receipts.some((receipt) => receipt.transaction === row.id)) return { refused: 'receipt' }
   if (drafts.length < 2) return { refused: 'too-few' }
-  const wrongCategory = drafts.map((draft) => categoryRefusal(categories.get(draft.category), book.categories)).find((refusal) => refusal !== null) ?? null
+  const wrongCategory = drafts.map((draft) => partCategoryRefusal(categories.get(draft.category), book.categories)).find((refusal) => refusal !== null) ?? null
   if (wrongCategory !== null) return { refused: wrongCategory }
   const placed = partsOfWhole(
     row.amount,

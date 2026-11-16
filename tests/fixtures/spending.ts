@@ -1,4 +1,6 @@
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories'
+import { typedReceiptLines } from '../../src/apps/spending/receipts/domain/receiptSplit'
+import type { ReceiptPart } from '../../src/apps/spending/receipts/domain/receiptSplit'
 import { rateBookOfDatedRates } from '../../src/shared/money/rateBook'
 import type { Account } from '../../src/apps/spending/workbook/domain/account'
 import type { Budget } from '../../src/apps/spending/workbook/domain/budget'
@@ -26,6 +28,7 @@ import type { CivilDate } from '../../src/shared/calendar/civilDate'
 import type { UnitOfWork } from '../../src/shared/storage/application/repository'
 import type { TransactionItem } from '../../src/apps/spending/workbook/domain/transactionItem'
 import { accountMoneyFromAmount } from '../../src/shared/money/accountMoney'
+import type { Money } from '../../src/shared/money/money'
 import { EURO, currencyCodeOf } from '../../src/shared/money/currencyCode'
 import { recordIdOf } from '../../src/shared/storage/domain/recordId'
 import type { RecordId } from '../../src/shared/storage/domain/recordId'
@@ -305,4 +308,11 @@ export const RATES = rateBookOfDatedRates(
 
 export function budget(place: number, path: string, from: string, amount: number): Budget {
   return { id: recordIdOf(BUDGET_RECORDS, keyOf(4000 + place)), category: category(path).id, from: month(from), amount: euros(amount) }
+}
+
+/** A receipt's one line filed whole under one category, as the receipt dialog types it. */
+export function wholeReceiptLines(total: Money, under: RecordId): readonly ReceiptPart[] {
+  const typed = typedReceiptLines(CATEGORIES, total, [{ amount: 'rest', category: under, note: '' }])
+  if ('refused' in typed) throw new Error(`A whole receipt cannot go under that category: ${typed.refused}.`)
+  return typed.parts
 }

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
+import { entryLine } from '../src/apps/spending/entries/presentation/entryLine'
 import { rowSide } from '../src/apps/spending/categories/domain/rowSide'
 import { euroRows } from '../src/apps/spending/rates/domain/euroRows'
 import { itemsOfStoredRow, plainLineOf, storedBeforeItems } from '../src/apps/spending/workbook/domain/beforeItems'
-import { isSplit, largestItem, rowItemsOf, waitsOnReview, wholeItemOf, wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
-import { ITEM_RECORDS, LINE_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { hasParts, holdsReceipt, isSplit, largestItem, rowItemsOf, waitsOnReview, wholeItemOf, wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
+import { ITEM_RECORDS, LINE_RECORDS, RECEIPT_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
@@ -45,6 +46,21 @@ describe("a Spending row's items", () => {
     expect(isSplit(itemsOf(waiting))).toBe(false)
     expect(waitsOnReview(itemsOf(waiting))).toBe(true)
     expect(waitsOnReview(itemsOf(market))).toBe(false)
+  })
+
+  it('shows parts from two, so a receipt of one line reads as the row, while it still counts as split for every write', () => {
+    const cafe = row(OTP, '2026-10-12', -3.2, 'Food/Groceries')
+    const line = { ...part('line', cafe, -3.2, 'Food/Groceries', 'Espresso'), receipt: recordIdOf(RECEIPT_RECORDS, 'cafe-receipt') }
+    const market = row(OTP, '2026-10-12', -30, 'Food/Groceries')
+    const parts = [part('part-a', market, -20, 'Food/Groceries'), part('part-b', market, -10, 'Personal')]
+
+    const [receiptRow] = euroRows({ accounts: ACCOUNTS, transactions: [{ ...cafe, payee: 'Cafe' }], items: [line] }, NO_RATES)
+    const byId = new Map(CATEGORIES.map((held) => [held.id, held]))
+
+    expect(entryLine(receiptRow!, byId, true).details).toBe(`${groceries.name} · ${OTP.name} · Espresso`)
+    expect([hasParts([line]), holdsReceipt([line]), isSplit([line])]).toEqual([false, true, true])
+    expect([hasParts(parts), holdsReceipt(parts), isSplit(parts)]).toEqual([true, false, true])
+    expect([hasParts(wholeItems([cafe])), holdsReceipt(wholeItems([cafe])), isSplit(wholeItems([cafe]))]).toEqual([false, false, false])
   })
 
   it('names the largest item by its money, signs aside, and the first of them on a tie', () => {

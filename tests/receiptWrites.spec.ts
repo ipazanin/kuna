@@ -11,7 +11,7 @@ import { newLabel } from '../src/apps/spending/labels/domain/labels'
 import { addLabel, labelRows } from '../src/apps/spending/labels/application/labelWrites'
 import { RECEIPT_WRITES } from '../src/apps/spending/receipts/application/receiptRecords'
 import { writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
-import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'
+import { receiptSplit, rowPlace } from '../src/apps/spending/receipts/domain/receiptSplit'
 import type { ReceiptDraft } from '../src/apps/spending/receipts/domain/receiptSplit'
 import { joinWithTyped, writeDryRun } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
@@ -38,7 +38,7 @@ import { recordsOf } from '../src/shared/storage/domain/recordsRead'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { moneyFromAmount } from '../src/shared/money/money'
 import { civil, month } from './fixtures/ledger'
-import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, addEntries, category, filedRows, row } from './fixtures/spending'
+import { ACCOUNTS, ACCOUNTS_BY_HAND, CASH, CATEGORIES, addEntries, category, filedRows, row, wholeReceiptLines } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 /** The fixture's accounts kept by hand, since these checks type rows, which an account the bank fills refuses. */
@@ -76,7 +76,7 @@ const DRAFT: ReceiptDraft = {
   longitude: '',
 }
 const GROCERIES = category('Food/Groceries')
-const WHOLE = wholeReceipt(moneyFromAmount(23.49), GROCERIES.id)
+const WHOLE = wholeReceiptLines(moneyFromAmount(23.49), GROCERIES.id)
 
 async function withRow(store: WorkbookStore<SpendingBooks>, added: StoredRow): Promise<Transaction> {
   await store.write('Added', (unit) => addEntries(unit, store.state.records!, [added]))

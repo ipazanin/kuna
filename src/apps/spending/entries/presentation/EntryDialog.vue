@@ -26,7 +26,10 @@ import type { InformalLoanTarget } from '../../links/domain/linkTarget'
 import AddToLoansForm from '../../links/presentation/AddToLoansForm.vue'
 import EntryLinkField from '../../links/presentation/EntryLinkField.vue'
 import { words as linkWords } from '../../links/presentation/words'
-import { mapLinkOf } from '../../receipts/domain/photoPlace'
+import { lineRefilesOf, refiledReceiptLines } from '../../receipts/domain/receiptLines'
+import type { LineFiling } from '../../receipts/domain/receiptLines'
+import EntryReceipt from '../../receipts/presentation/EntryReceipt.vue'
+import ReceiptLineFiling from '../../receipts/presentation/ReceiptLineFiling.vue'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
 import { shortcutOffer } from '../../shortcuts/presentation/shortcutOffer'
@@ -96,6 +99,11 @@ const partLabels = ref<Readonly<Record<string, readonly RecordId[]>>>({})
 /** The event choice of an entry not split, and of each part of a split one by the part's id. */
 const event = ref<EventChoice>(BY_DAYS)
 const partEvents = ref<Record<string, EventChoice>>({})
+/** The category and note of each receipt line by its id, which its heading follows and Save files the line under. */
+const lineFilings = ref<Record<string, LineFiling>>({})
+const lineRefiles = computed(() => lineRefilesOf(categories.value, entryLines.value, lineFilings.value))
+/** Why Save cannot file a changed receipt line under its category, by the line's id. */
+const lineRefusals = computed(() => new Map([...lineRefiles.value.refused].map(([line, refusal]) => [line, words.split.refusals[refusal]])))
 /** Labels typed into a labels field, which Save adds with the entry while a part carries them. */
 const created = ref<readonly Label[]>([])
 const tried = ref(false)
@@ -116,6 +124,7 @@ const formNow = computed(() =>
     partLabels.value,
     event.value,
     partEvents.value,
+    lineFilings.value,
   ]),
 )
 const openedAs = ref('')
@@ -137,12 +146,6 @@ const split = computed(() => isSplit(entryLines.value))
 /** The one item of an entry not split, whose category and note the form edits. */
 const wholeItem = computed(() => (split.value ? null : (entryLines.value[0] ?? null)))
 const receipt = computed(() => (store.state.workbook?.receipts ?? []).find((held) => held.transaction === props.entry?.id) ?? null)
-/** Where the entry's receipt was photographed, when its photo held a position. */
-const receiptPlace = computed(() => {
-  const held = receipt.value
-  const link = held === null ? null : mapLinkOf(held)
-  return held === null || link === null ? null : { text: receiptWords.place(held.latitude, held.longitude), link }
-})
 const splitOpen = ref(false)
 
 /** The currency of the account the saved entry is on, which its link compares with Loans' plan in. */
@@ -212,6 +215,7 @@ watch(open, (opened) => {
   partLabels.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.labels]))
   event.value = wholeItem.value?.event ?? BY_DAYS
   partEvents.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.event]))
+  lineFilings.value = Object.fromEntries(entryLines.value.flatMap((line) => (line.receipt === null ? [] : [[line.id, { category: line.category ?? '', note: line.note }]])))
   created.value = []
   labelRefused.value = null
   tried.value = false
@@ -314,6 +318,7 @@ const errors = computed(() => ({
   category: kind.value !== 'transfer' && !split.value && !pickable.value.has(category.value) ? words.dialog.pickCategory : null,
   account: from.value === null ? words.dialog.pickAccount : null,
   toAccount: kind.value === 'transfer' && (to.value === null || to.value.id === from.value?.id) ? words.dialog.otherAccount : null,
+  lines: [...lineRefusals.value.values()][0] ?? null,
   date: day.value === null ? spendingWords.form.aDate(civilDate(2026, 3, 15)) : (openedAfter(day.value, from.value) ?? (kind.value === 'transfer' ? openedAfter(day.value, to.value) : null)),
 }))
 
@@ -341,7 +346,9 @@ function entryWrite(fromAccount: Account, amount: AccountMoney, on: CivilDate): 
   const records = store.state.records
   if ((filed === undefined && !split.value) || records === null) return null
   const entry = newEntry({ account: fromAccount.id, date: on, amount, payee: payee.value, category: filed?.id ?? null, note: note.value, labels: split.value ? [] : labels.value, event: event.value })
-  const parts = split.value ? entryLines.value.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels, event: partEvents.value[part.id] ?? part.event })) : entry.items
+  const lines = refiledReceiptLines(categories.value, entryLines.value, lineRefiles.value.refiles)
+  if ('refused' in lines) return null
+  const parts = split.value ? lines.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels, event: partEvents.value[part.id] ?? part.event })) : entry.items
   const before = props.entry === null ? null : { row: props.entry, items: entryLines.value }
   const other = legs.value?.find((leg) => leg.id !== before?.row.id) ?? null
   const carried = new Set(parts.flatMap((part) => part.labels))
@@ -384,13 +391,12 @@ async function treatPayee(): Promise<void> {
   })
 }
 
-/** Takes the receipt and its lines off, or the parts you split the entry into, and closes the dialog. */
+/** Takes off the parts you split the entry into, and closes the dialog. */
 async function removeSplit(): Promise<void> {
   const entry = props.entry
   const records = store.state.records
   if (entry === null || records === null) return
-  const [title, key] = receipt.value === null ? [words.split.removed, 'remove-split'] : [receiptWords.removed, 'remove-receipt']
-  if (await writes.write(title, (unit) => removeSplitOf(unit, records, entry), { key, failedTitle: spendingWords.form.notSaved })) open.value = false
+  if (await writes.write(words.split.removed, (unit) => removeSplitOf(unit, records, entry), { key: 'remove-split', failedTitle: spendingWords.form.notSaved })) open.value = false
 }
 
 async function remove(): Promise<void> {
@@ -486,10 +492,13 @@ async function remove(): Promise<void> {
       />
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ splitNote }}</p>
-        <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full">
-          <template v-if="labelling" #line="{ line, title }">
+        <RowLines :lines="lineRefiles.lines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full">
+          <template v-if="labelling || receipt !== null" #line="{ line, title }">
             <span class="flex min-w-0 flex-1 flex-col gap-1.5">
+              <ReceiptLineFiling v-if="lineFilings[line.id] !== undefined" v-model="lineFilings[line.id]!" :categories="categories" :title="title" />
+              <NoteLine v-if="tried && lineRefusals.has(line.id)" tone="error" data-testid="spending-entry-line-refused">{{ lineRefusals.get(line.id) }}</NoteLine>
               <LabelsSelect
+                v-if="labelling"
                 :model-value="partLabels[line.id] ?? []"
                 :labels="labelChoices"
                 :name="words.dialog.partLabels(title)"
@@ -501,7 +510,7 @@ async function remove(): Promise<void> {
               />
               <NoteLine v-if="labelRefused !== null && labelRefused.part === line.id" tone="error" data-testid="spending-entry-part-label-refused">{{ labelRefused.text }}</NoteLine>
               <USelect
-                v-if="events.length > 0"
+                v-if="labelling && events.length > 0"
                 v-model="partEvents[line.id]"
                 :items="eventItems(line.category)"
                 :aria-label="words.dialog.partEvent(title)"
@@ -512,21 +521,7 @@ async function remove(): Promise<void> {
             </span>
           </template>
         </RowLines>
-        <p v-if="receiptPlace !== null" class="flex flex-col items-start text-sm" data-testid="spending-entry-place">
-          <span>{{ receiptPlace.text }}</span>
-          <a :href="receiptPlace.link" target="_blank" rel="noopener noreferrer" class="quiet-link" data-testid="spending-entry-place-link">{{ receiptWords.openMap }}</a>
-        </p>
-        <UButton
-          v-if="receipt !== null"
-          :label="receiptWords.remove"
-          icon="i-lucide-receipt"
-          color="neutral"
-          variant="outline"
-          :loading="writes.saving('remove-receipt')"
-          :disabled="writes.busy.value || writes.refused.value"
-          data-testid="spending-entry-remove-receipt"
-          @click="removeSplit"
-        />
+        <EntryReceipt v-if="receipt !== null && entry !== null" :entry="entry" :receipt="receipt" @removed="open = false" />
         <div v-else class="flex flex-wrap gap-2">
           <UButton :label="words.split.change" icon="i-lucide-split" color="neutral" variant="outline" data-testid="spending-entry-change-split" @click="splitOpen = true" />
           <UButton

@@ -95,3 +95,40 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
  * browser and removes only that file again.
  */
 export const NARROW_CHAT_ACTIONS: ReadonlySet<string> = new Set(['replaceLocalWorkbook', 'dropWorkbook'])
+
+/** The writes the chat makes that no screen reaches, each group with its reason. A write is named `app: path`, as `chatOnlyWrites` in `tests/support/writePaths.ts` names it. */
+export interface ChatOnlyException {
+  readonly reason: string
+  readonly writes: readonly string[]
+}
+
+export const CHAT_ONLY_EXCEPTIONS: readonly ChatOnlyException[] = [
+  {
+    reason: "The chat's own card: it checks a step's writes and writes them on Accept, and every operation goes through it. A screen writes through its own form.",
+    writes: [
+      'assets: src/shared/app/proposedWrites.ts#proposedWrites',
+      'company: src/shared/app/proposedWrites.ts#proposedWrites',
+      'investments: src/shared/app/proposedWrites.ts#proposedWrites',
+      'loans: src/shared/app/proposedWrites.ts#proposedWrites',
+      'spending: src/shared/app/proposedWrites.ts#proposedWrites',
+    ],
+  },
+  {
+    reason: "Making an app's file in this browser from a card, which the chat offers before the app is set up. The app's start screen makes its file through the store.",
+    writes: [
+      'assets: src/shared/app/browserFileCards.ts#browserFileOf',
+      'company: src/shared/app/browserFileCards.ts#browserFileOf',
+      'investments: src/shared/app/browserFileCards.ts#browserFileOf',
+      'loans: src/shared/app/browserFileCards.ts#browserFileOf',
+      'spending: src/shared/app/browserFileCards.ts#browserFileOf',
+    ],
+  },
+  {
+    reason: "The noun of an imported transaction's record kind, which the import card names. Reading it writes nothing.",
+    writes: ['investments: src/apps/investments/transactions/application/transactionWrites.ts#transactionRecordKind'],
+  },
+  {
+    reason: 'A statement imported with the rules that come with it, in one write. The Import screen imports a statement and changes rules as two writes.',
+    writes: ['spending: src/apps/spending/statements/application/statementWrites.ts#importWithRules'],
+  },
+]

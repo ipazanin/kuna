@@ -7187,6 +7187,25 @@ export async function spendingReceiptNoEuroFlow(page, { inspect }) {
   await inspect?.('Entries with no euro account')
 }
 
+/** Waits until the row of this payee and amount on Entries shows the receipt mark in its camera's box, or until it no longer does. */
+async function rowMarksReceipt(page, title, cents, held) {
+  await page
+    .waitForFunction(
+      (selector, wanted, amount, expected) =>
+        [...document.querySelectorAll(selector)].some(
+          (row) => row.dataset.amount === String(amount) && row.textContent?.includes(wanted) && (row.parentElement?.querySelector('[data-testid="spending-row-receipt-held"]') !== null) === expected,
+        ),
+      { timeout: 10_000 },
+      SPENDING_ROW,
+      title,
+      cents,
+      held,
+    )
+    .catch(() => {
+      throw new Error(held ? `the "${title}" row of ${cents} cents shows no receipt mark` : `the "${title}" row of ${cents} cents still shows a receipt mark`)
+    })
+}
+
 /** How many lines the row of this payee and amount shows on Entries. */
 async function rowLinesAre(page, title, cents, count) {
   await page
@@ -7237,7 +7256,7 @@ export function spendingReceiptFlowIn(language, photos) {
     await inspect?.('the receipt matched to its payment')
     await shoot('spending-receipt-matched')
     await saveReceipt(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 1)
+    await rowMarksReceipt(page, 'Corner market', -2349, true)
     await inspect?.('the split row on Entries')
     await dismissToasts(page)
 
@@ -7257,9 +7276,9 @@ export function spendingReceiptFlowIn(language, photos) {
     await inspect?.('a split row in the entry dialog')
     await pressSelector(page, press, '[data-testid="spending-entry-remove-receipt"]')
     await toast(page, receipt.removed)
-    await rowLinesAre(page, 'Corner market', -2349, 0)
+    await rowMarksReceipt(page, 'Corner market', -2349, false)
     await undoIn(page, press, words)
-    await rowLinesAre(page, 'Corner market', -2349, 1)
+    await rowMarksReceipt(page, 'Corner market', -2349, true)
     await dismissToasts(page)
   }
 }
@@ -7313,7 +7332,7 @@ export function spendingReceiptPickFlowIn(language, photos) {
     await dialogGone(page, SPENDING_RECEIPT_FORM)
     const made = await page.$$eval(SPENDING_ROW, (rows, payee) => rows.filter((row) => row.textContent?.includes(payee)).length, SPENDING_PAYEE)
     if (made !== 1) throw new Error(`two taps on Save made ${made} rows`)
-    await rowLinesAre(page, SPENDING_PAYEE, -1700, 1)
+    await rowMarksReceipt(page, SPENDING_PAYEE, -1700, true)
     await undoIn(page, press, words)
     await spendingRowShown(page, SPENDING_PAYEE, -1700, false)
     await dismissToasts(page)
@@ -12721,5 +12740,97 @@ export function spendingShortcutDialogFlowIn(language) {
     if ((await parts()) !== 3) throw new Error('Add a part added no part')
     await pressSelector(page, press, '[data-testid="spending-shortcut-part"]:last-child [data-testid="spending-shortcut-remove-part"]')
     if ((await parts()) !== 2) throw new Error('Remove did not take the part off')
+  }
+}
+
+/**
+ * On the receipts set's Entries: a receipt of one line reads as a typed entry, its category and words under the payee with one
+ * amount and the receipt's mark in the camera's box, which every row keeps so the amounts stay in one column. The Corner market receipt's first line is then filed under Eating out with
+ * words of its own in the entry dialog, its amount staying the receipt's, the row's lines show it, and one Undo puts it back.
+ */
+export function spendingReceiptRefileFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const starter = words.spendingStarter
+  const note = language === 'en' ? 'Dinner shopping' : 'Kupnja za večeru'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await rowMarksReceipt(page, 'Espresso bar', -460, true)
+    const oneLine = await page.$$eval(SPENDING_ROW, (rows) => {
+      const row = rows.find((candidate) => candidate.dataset.amount === '-460')
+      return { text: row?.textContent ?? '', lines: row?.querySelectorAll('[data-testid="spending-row-line"]').length ?? -1 }
+    })
+    if (oneLine.lines !== 0) throw new Error(`the receipt of one line shows ${oneLine.lines} lines under its row, not none`)
+    if (!oneLine.text.includes(starter['Eating out']) || !oneLine.text.includes('Two espressos')) throw new Error(`the receipt of one line reads "${oneLine.text.trim()}", not its category and words`)
+    const amountEdges = await page.$$eval(SPENDING_ROW, (rows) => [...new Set(rows.map((row) => Math.round(row.lastElementChild?.getBoundingClientRect().right ?? -1)))])
+    if (amountEdges.length !== 1) throw new Error(`the amounts on Entries end at ${amountEdges.join(', ')} px, not in one column beside the receipt marks`)
+    await inspect?.('a receipt of one line on Entries, read as a typed entry with the receipt mark')
+    await shoot('spending-receipt-one-line')
+
+    await openSpendingRow(page, press, 'Corner market', -6120)
+    const filings = await page.$$('[data-testid="spending-entry-line-filing"]')
+    if (filings.length !== 2) throw new Error(`the receipt's entry dialog files ${filings.length} lines, not its two`)
+    await choose(page, press, await filings[0].$('[data-testid="spending-entry-line-category"]'), starter['Eating out'])
+    const noteField = await filings[0].$('[data-testid="spending-entry-line-note"]')
+    await noteField.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(noteField)
+    await page.keyboard.type(note)
+    await delay(300)
+    await inspect?.("a receipt's line filed anew in the entry dialog")
+    await shoot('spending-entry-receipt-refile')
+    await pressSelector(page, press, '[data-testid="spending-entry-save"]')
+    await toast(page, words.spendingEntries.dialog.saved)
+    await rowLinesAre(page, 'Corner market', -6120, 2)
+    await page
+      .waitForFunction(
+        (selector, wanted) => [...document.querySelectorAll(selector)].some((row) => row.dataset.amount === '-6120' && row.textContent?.includes(wanted)),
+        { timeout: 10_000 },
+        SPENDING_ROW,
+        note,
+      )
+      .catch(() => {
+        throw new Error(`the Corner market row does not show its line's new words "${note}"`)
+      })
+    await inspect?.("the row with its receipt's line filed anew")
+    await shoot('spending-receipt-refiled')
+    await undoIn(page, press, words)
+    const back = await page.$$eval(SPENDING_ROW, (rows, wanted) => rows.some((row) => row.dataset.amount === '-6120' && row.textContent?.includes(wanted)), note)
+    if (back) throw new Error("Undo left the line's new words on the Corner market row")
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On the receipts set's Entries: a photo whose QR code matches the Corner market payment takes its lines typed by hand, the first
+ * of 20 under Groceries and the rest under Furniture and household goods. The row shows both lines, and one Undo takes them off.
+ */
+export function spendingReceiptLinesFlowIn(language, photos) {
+  const words = SCREEN_WORDS[language]
+  const starter = words.spendingStarter
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await uploadReceiptPhoto(page, press, photos.oneMatch)
+    await page.waitForSelector('[data-testid="spending-receipt-place"][data-match="ready"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('the receipt is not offered its one payment ready')
+    })
+    await pickReceiptCategory(page, press, words, 'Groceries')
+    await pressSelector(page, press, '[data-testid="spending-receipt-type-lines"]')
+    await page.waitForSelector('[data-testid="spending-receipt-typed-lines"] [data-testid="split-part"]', { visible: true, timeout: 10_000 }).catch(() => {
+      throw new Error('Type its lines shows no lines')
+    })
+    const [first, second] = await page.$$('[data-testid="spending-receipt-typed-lines"] [data-testid="split-part"]')
+    const amount = await first.$('[data-testid="split-part-amount"]')
+    await amount.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(amount)
+    await amount.evaluate((element) => element.select())
+    await page.keyboard.type('20')
+    await choose(page, press, await second.$('[data-testid="spending-receipt-line-category"]'), starter['Furniture and household goods'])
+    await delay(300)
+    await inspect?.("a receipt's lines typed by hand, each with its category")
+    await shoot('spending-receipt-lines')
+    await saveReceipt(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 2)
+    await undoIn(page, press, words)
+    await rowLinesAre(page, 'Corner market', -2349, 0)
+    await dismissToasts(page)
   }
 }

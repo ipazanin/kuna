@@ -9,7 +9,7 @@ import type { Category } from '../../workbook/domain/category'
 import type { Label } from '../../workbook/domain/label'
 import { labelsOf } from '../../workbook/domain/carriedChoices'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { linkOfItems } from '../../workbook/domain/rowItems'
+import { holdsReceipt, linkOfItems } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import EntryRow from './EntryRow.vue'
 import { entryLine } from './entryLine'
@@ -41,6 +41,7 @@ const props = withDefaults(
 const emit = defineEmits<{ open: [entry: Transaction]; pick: [entry: Transaction]; receipt: [entry: AskedElement] }>()
 
 const colours = computed(() => categoryColours(props.categories))
+const receiptBoxes = computed(() => props.rows.some((row) => holdsReceipt(row.items)))
 const linkLineOf = useLinkLines()
 const byId = computed(() => new Map(props.categories.map((category) => [category.id, category])))
 const labelNames = computed(() => new Map(props.labels.map((label) => [label.id, label.name])))
@@ -99,6 +100,7 @@ const days = computed(() => {
           :labels="line.labels"
           :picked="picked === null ? null : picked.has(line.row.transaction.id)"
           :takes-receipt="takesReceipt(line.row.transaction)"
+          :receipt-boxes="receiptBoxes"
           @open="picked === null ? emit('open', $event) : emit('pick', $event)"
           @receipt="emit('receipt', $event)"
         />
