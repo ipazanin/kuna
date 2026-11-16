@@ -24,8 +24,10 @@ useStickyBandPart(useTemplateRef<HTMLElement>('bar'))
     :aria-label="summary"
     data-testid="selection-bar"
   >
-    <p class="min-w-0 flex-1 type-body text-highlighted" aria-live="polite" data-testid="selection-bar-count">{{ summary }}</p>
-    <slot />
-    <UButton :label="cancelLabel" color="neutral" variant="ghost" data-testid="selection-bar-cancel" @click="emit('cancel')" />
+    <p class="flex-1 type-body whitespace-nowrap text-highlighted" aria-live="polite" data-testid="selection-bar-count">{{ summary }}</p>
+    <div class="ms-auto flex gap-2">
+      <slot />
+      <UButton :label="cancelLabel" color="neutral" variant="ghost" data-testid="selection-bar-cancel" @click="emit('cancel')" />
+    </div>
   </div>
 </template>

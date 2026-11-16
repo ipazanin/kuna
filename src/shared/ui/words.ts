@@ -19,6 +19,12 @@ export const en = {
   pickDay: 'Pick a day',
   filters: 'Filters',
   activeFilters: (count: number) => `, ${count} active`,
+  chips: {
+    group: 'Active filters',
+    remove: (label: string) => `Remove filter ${label}`,
+    more: (count: number) => `+${count} more`,
+    clear: 'Clear',
+  },
   warning: 'Warning',
   chart: {
     emptyTitle: 'Nothing to show for this period',
@@ -76,6 +82,12 @@ export const hr: Translation<typeof en> = {
   pickDay: 'Odaberi dan',
   filters: 'Filtri',
   activeFilters: (count) => `, aktivnih: ${count}`,
+  chips: {
+    group: 'Aktivni filtri',
+    remove: (label) => `Ukloni filtar „${label}”`,
+    more: (count) => `još ${count}`,
+    clear: 'Očisti',
+  },
   warning: 'Upozorenje',
   chart: {
     emptyTitle: 'Za ovo razdoblje nema ništa za prikaz',

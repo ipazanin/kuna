@@ -10,6 +10,7 @@ import { useEntryFilters } from './useEntryFilters'
 import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
 import { ALL_MONTHS, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
+import EventPicker from './EventPicker.vue'
 import LabelPicker from './LabelPicker.vue'
 import SelectionBar from './SelectionBar.vue'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
@@ -42,7 +43,7 @@ import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 
-/** The entries of a month or of every month by day, newest first, found by account, category, label and event, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat, or picked to be labelled while rows are being selected, with the rows to review and the statement import on tabs of their own. */
+/** The entries of a month or of every month by day, newest first, found by account, category, label and event, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat, or picked to be labelled or put in an event while rows are being selected, with the rows to review and the statement import on tabs of their own. */
 const { state } = useSpendingBooks()
 const rates = useRates()
 const filters = useEntryFilters(() => state.workbook)
@@ -59,11 +60,13 @@ const rows = computed(() => {
   return entriesNewestFirst(book, everydayRates(rates.value)).filter((row) => shows(row))
 })
 
-/** The entries picked to be labelled, or null while a tap opens an entry. A file from before items keeps no labels, so it offers its move instead. */
+/** The entries picked to be labelled or put in an event, or null while a tap opens an entry. A file from before items keeps neither, so it offers its move instead. */
 const picked = ref<ReadonlySet<RecordId> | null>(null)
 const canLabel = computed(() => state.workbook !== null && !isBeforeItems(state.workbook.stored))
 const pickedRows = computed(() => (picked.value === null ? [] : transactions.value.filter((row) => picked.value!.has(row.id))))
 const pickerOpen = ref(false)
+const eventPickerOpen = ref(false)
+const hasEvents = computed(() => (state.workbook?.events.length ?? 0) > 0)
 
 /** Every month at once shows its newest entries first and the rest behind Show all, since a few years of entries make a long list. */
 const allShown = ref(false)
@@ -152,6 +155,16 @@ function openEntry(entry: Transaction | null): void {
           :cancel-label="words.labelling.cancel"
           @cancel="picked = null"
         >
+          <UButton
+            v-if="hasEvents"
+            :label="words.inEvent.action"
+            icon="i-lucide-calendar-range"
+            color="neutral"
+            variant="outline"
+            :disabled="picked.size === 0"
+            data-testid="spending-selection-event"
+            @click="eventPickerOpen = true"
+          />
           <UButton :label="words.labelling.label" icon="i-lucide-tag" :disabled="picked.size === 0" data-testid="spending-selection-label" @click="pickerOpen = true" />
         </SelectionBar>
         <AppCard v-if="transactions.length > 0" data-testid="spending-transactions">
@@ -197,6 +210,7 @@ function openEntry(entry: Transaction | null): void {
     <EntryDialog v-if="state.workbook !== null" v-model:open="dialogOpen" :entry="editing" />
     <ReceiptDialog v-if="state.workbook !== null" v-model:open="receiptOpen" />
     <LabelPicker v-if="state.workbook !== null" v-model:open="pickerOpen" :rows="pickedRows" @done="picked = null" />
+    <EventPicker v-if="state.workbook !== null && hasEvents" v-model:open="eventPickerOpen" :rows="pickedRows" @done="picked = null" />
     <ReceiptPhotoPicker v-if="assistKeyKept" ref="receiptPicker" />
   </section>
 </template>

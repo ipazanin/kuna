@@ -2,6 +2,7 @@ import { FLAG_OR_NULL, NUMBER, NUMBER_OR_NULL, PART_AMOUNT, TEXT, TEXT_OR_NULL, 
 import { acceptingBrowserFileCards, withBrowserFileCards } from '../../../../shared/app/browserFileCards'
 import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { BANK_SETUP_OPERATIONS, isBankSetupStep, planBankSetup } from './bankSetupOperations'
+import { EVENT_OPERATIONS, isEventStep, writeEventStep } from './eventOperations'
 import { LABEL_OPERATIONS, isLabelStep, writeLabelStep } from './labelOperations'
 import { NO_WARNINGS, proposalGroupsOf, statementLeftOut } from './proposalLines'
 import type { CardWarnings, StatementLeftOut } from './proposalLines'
@@ -348,6 +349,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
     example: {},
   },
   ...LABEL_OPERATIONS,
+  ...EVENT_OPERATIONS,
   ...REVIEW_OPERATIONS,
   ...WAITING_RECEIPT_OPERATIONS,
   IMPORT_STATEMENT,
@@ -517,6 +519,14 @@ function plannedSteps(
       const added = writeLabelStep(unit, book, records(), operation, field, idOf)
       if (added !== null) {
         book = { ...book, labels: [...book.labels, added] }
+        if (as !== null) made.set(as, added.id)
+      }
+      continue
+    }
+    if (isEventStep(operation)) {
+      const added = writeEventStep(unit, book, records(), operation, field, idOf)
+      if (added !== null) {
+        book = { ...book, events: [...book.events, added] }
         if (as !== null) made.set(as, added.id)
       }
       continue

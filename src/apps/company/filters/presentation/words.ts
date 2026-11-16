@@ -18,10 +18,6 @@ export const en = {
   addFilter: 'Add filter',
   groups: { buckets: 'Buckets', categories: 'Categories', counterparties: 'Counterparties' },
   searchChoices: 'Search bucket, category, counterparty',
-  activeFilters: 'Active filters',
-  removeFilter: (label: string) => `Remove filter ${label}`,
-  more: (count: number) => `+${count} more`,
-  clear: 'Clear',
   viewRows: 'View rows',
 }
 
@@ -39,10 +35,6 @@ export const hr: Translation<typeof en> = {
   addFilter: 'Dodaj filtar',
   groups: { buckets: 'Skupine', categories: 'Kategorije', counterparties: 'Partneri' },
   searchChoices: 'Pretraži skupine, kategorije, partnere',
-  activeFilters: 'Aktivni filtri',
-  removeFilter: (label) => `Ukloni filtar „${label}”`,
-  more: (count) => `još ${count}`,
-  clear: 'Očisti',
   viewRows: 'Prikaži stavke',
 }
 

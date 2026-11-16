@@ -7,7 +7,7 @@ import type { HeldBack, Performance } from '../domain/portfolioPerformance'
 import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { listInWords } from '../../../../shared/text/listInWords'
-import { plural } from '../../../../shared/text/translation'
+import { listed } from '../../../../shared/text/translation'
 
 /**
  * What the period's figures could not use as they are: a benchmark with no close, a late one or none for the period's
@@ -39,7 +39,7 @@ const problems = computed(() => {
 
 const lateCloses = computed(() => {
   const late = figures.value?.lateCloses ?? []
-  return late.length === 0 ? [] : [plural(words.notice.lateCloses(late.length, listInWords(late.map((instrument) => instrument.name))), late.length)]
+  return late.length === 0 ? [] : [listed(words.notice.lateCloses(late.length, listInWords(late.map((instrument) => instrument.name))), late.length)]
 })
 </script>
 

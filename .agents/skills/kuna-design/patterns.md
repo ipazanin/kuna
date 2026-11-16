@@ -29,7 +29,7 @@ What Kuna already does. Follow these before inventing a new way. Components are 
 ## Tabs
 
 - A screen's inner tabs are `PageTabs`, kept in `?tab=`. The first tab is the default and stays out of the address. A count shows where something waits.
-- On a phone a page's filters sit in a `FiltersSheet`, whose Filters button moves into the tab row. What the filters pick shows as `RemovableChip`s over the list.
+- On a phone a page's filters sit in a `FiltersSheet`, whose Filters button moves into the tab row. What the filters pick shows over the list in one `FilterChipRow`, whose chips that do not fit fold into +N more, with Clear after them.
 - A tab that holds one card of words and fields, such as each app's Assistant tab, keeps it to 42rem, the welcome's measure, so its lines stay readable. `PageTabs` sets it, and the visual check fails a lone card wider. A card with a table or a chart takes the tab's width.
 
 ## Charts

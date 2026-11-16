@@ -6,7 +6,7 @@ import { words } from './words'
 import { categoriesOfRow, rowSide } from '../../categories/domain/rowSide'
 import { partsInEvent } from '../../events/domain/eventMembership'
 import { eventsNewestFirst } from '../../events/domain/events'
-import { eventDays } from '../../events/presentation/eventDays'
+import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { ALL_MONTHS, accountNamed, categoryIdNamed, eventNamed, labelNamed } from '../../overview/presentation/spendingLinks'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -30,9 +30,9 @@ export interface ActiveFilter {
 
 /**
  * Entries' filters, kept in `?month=`, `?account=`, `?category=`, `?label=` and `?event=`. This month stays out of the address.
- * Picking a label or an event shows its entries of every month, since a flight bought in March can be put in a July trip, and
- * taking it off leaves every month showing until you pick one. The screen keeps one and hands it to its parts, which change a
- * filter through its pick function.
+ * Picking a label or an event shows its entries of every month, since a flight bought in March can be put in a July trip, so
+ * every month is part of that filter rather than one of its own, and taking the last of them off goes back to this month. The
+ * screen keeps one and hands it to its parts, which change a filter through its pick function.
  */
 export function useEntryFilters(book: () => SpendingBook | null) {
   const route = useRoute()
@@ -44,22 +44,27 @@ export function useEntryFilters(book: () => SpendingBook | null) {
   const labels = computed(() => book()?.labels ?? [])
   const events = computed(() => eventsNewestFirst(book()?.events ?? []))
 
-  function replaceQuery(key: string, value: string | null, also: Readonly<Record<string, string>> = {}): void {
-    const { [key]: _left, ...others } = route.query
-    void router.replace({ query: value === null ? others : { ...others, ...also, [key]: value } })
+  /** Sets each key of the address, or takes it out when null, in one change, since a second change would start from the old address. */
+  function changeQuery(changes: Readonly<Record<string, string | null>>): void {
+    const kept = Object.entries(route.query).filter(([key]) => !(key in changes))
+    const set = Object.entries(changes).filter((change): change is [string, string] => change[1] !== null)
+    void router.replace({ query: Object.fromEntries([...kept, ...set]) })
   }
 
   const month = computed<MonthKey | typeof ALL_MONTHS>({
     get: () => (route.query.month === ALL_MONTHS ? ALL_MONTHS : ((typeof route.query.month === 'string' ? parseMonthKey(route.query.month) : null) ?? thisMonth)),
-    set: (picked) => replaceQuery('month', picked === thisMonth ? null : picked),
+    set: (picked) => changeQuery({ month: picked === thisMonth ? null : picked }),
   })
+
+  /** Every month goes with the last label or event taken off, back to this month, and a month picked by hand stays. */
+  const monthLeft = (last: boolean): Readonly<Record<string, null>> => (last && month.value === ALL_MONTHS ? { month: null } : {})
 
   const pickedAccount = computed(() => accountNamed(accounts.value, route.query.account))
   const account = computed<string>({
     get: () => pickedAccount.value?.id ?? ALL,
     set: (id) => {
       const found = accounts.value.find((candidate) => candidate.id === id)
-      replaceQuery('account', found === undefined ? null : keyOfRecordId(ACCOUNT_RECORDS, found.id))
+      changeQuery({ account: found === undefined ? null : keyOfRecordId(ACCOUNT_RECORDS, found.id) })
     },
   })
 
@@ -71,7 +76,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     get: () => pickedCategory.value?.id ?? ALL,
     set: (id) => {
       const found = categories.value.find((candidate) => candidate.id === id)
-      replaceQuery('category', found === undefined ? null : keyOfRecordId(CATEGORY_RECORDS, found.id))
+      changeQuery({ category: found === undefined ? null : keyOfRecordId(CATEGORY_RECORDS, found.id) })
     },
   })
 
@@ -80,7 +85,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     get: () => pickedLabel.value?.id ?? ALL,
     set: (id) => {
       const found = labels.value.find((candidate) => candidate.id === id)
-      replaceQuery('label', found === undefined ? null : keyOfRecordId(LABEL_RECORDS, found.id), { month: ALL_MONTHS })
+      changeQuery(found === undefined ? { label: null, ...monthLeft(pickedEvent.value === null) } : { label: keyOfRecordId(LABEL_RECORDS, found.id), month: ALL_MONTHS })
     },
   })
 
@@ -89,7 +94,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     get: () => pickedEvent.value?.id ?? ALL,
     set: (id) => {
       const found = events.value.find((candidate) => candidate.id === id)
-      replaceQuery('event', found === undefined ? null : keyOfRecordId(EVENT_RECORDS, found.id), { month: ALL_MONTHS })
+      changeQuery(found === undefined ? { event: null, ...monthLeft(pickedLabel.value === null) } : { event: keyOfRecordId(EVENT_RECORDS, found.id), month: ALL_MONTHS })
     },
   })
 
@@ -112,7 +117,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
   const eventItems = computed(() => [
     { label: words.filters.allEvents, value: ALL },
     ...events.value.map((candidate) => ({
-      label: events.value.some((other) => other !== candidate && other.name === candidate.name) ? `${candidate.name} · ${eventDays(candidate)}` : candidate.name,
+      label: events.value.some((other) => other !== candidate && other.name === candidate.name) ? `${candidate.name} · ${dayRangeLabel(candidate.days)}` : candidate.name,
       value: candidate.id as string,
     })),
   ])
@@ -135,9 +140,12 @@ export function useEntryFilters(book: () => SpendingBook | null) {
       (inEvent === null || rowSide(row, byId).some((part, place) => inEvent(row, part, place)))
   })
 
-  /** The filters that narrow the list, each as a chip names it. This month is where the list starts, so it is no filter. */
+  /** The filters that narrow the list, each as a chip names it. This month is where the list starts, and every month goes with a label or an event, so neither is a filter. */
+  const groupPicked = computed(() => pickedLabel.value !== null || pickedEvent.value !== null)
   const active = computed((): readonly ActiveFilter[] => [
-    ...(month.value === thisMonth ? [] : [{ key: 'month', label: month.value === ALL_MONTHS ? words.filters.allMonths : monthLabel(month.value), remove: () => (month.value = thisMonth) }]),
+    ...(month.value === thisMonth || (month.value === ALL_MONTHS && groupPicked.value)
+      ? []
+      : [{ key: 'month', label: month.value === ALL_MONTHS ? words.filters.allMonths : monthLabel(month.value), remove: () => (month.value = thisMonth) }]),
     ...(pickedAccount.value === null ? [] : [{ key: 'account', label: pickedAccount.value.name, remove: () => (account.value = ALL) }]),
     ...(pickedCategory.value === null ? [] : [{ key: 'category', label: pickedCategory.value.name, remove: () => (category.value = ALL) }]),
     ...(pickedLabel.value === null ? [] : [{ key: 'label', label: pickedLabel.value.name, remove: () => (label.value = ALL) }]),
@@ -155,6 +163,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     pickCategory: (id: string) => void (category.value = id),
     pickLabel: (id: string) => void (label.value = id),
     pickEvent: (id: string) => void (event.value = id),
+    clear: () => changeQuery({ month: null, account: null, category: null, label: null, event: null }),
     pickedLabel,
     pickedEvent,
     monthItems,

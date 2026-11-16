@@ -21,6 +21,7 @@ import {
   ACCOUNT_RECORDS,
   CATEGORY_RECORDS,
   ITEM_RECORDS,
+  EVENT_RECORDS,
   LABEL_RECORDS,
   LINE_RECORDS,
   RECEIPT_RECORDS,
@@ -36,6 +37,7 @@ import type { StoredRow } from '../../src/apps/spending/workbook/domain/transact
 import type { LinkTarget } from '../../src/apps/spending/links/domain/linkTarget'
 import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../src/apps/spending/workbook/domain/transaction'
 import { BY_DAYS } from '../../src/apps/spending/workbook/domain/event'
+import type { EventChoice, SpendingEvent } from '../../src/apps/spending/workbook/domain/event'
 import { spendingDocumentOf } from '../../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { ChatReads } from '../../src/shared/ai/application/chatReads'
 import type { ChatAttachment } from '../../src/shared/ai/domain/chatAttachments'
@@ -147,7 +149,10 @@ const ROWS: readonly StoredRow[] = [
 /** A label the hand split's rent part carries. */
 const RENOVATION: Label = { id: recordIdOf(LABEL_RECORDS, 'label-renovation'), name: 'Renovation' }
 
-function handPart(key: string, amount: number, category: Category, labels: readonly Label[] = []): TransactionItem {
+/** A trip over the last days of October, which the hand split's groceries part was put in by hand. */
+const TRIP: SpendingEvent = { id: recordIdOf(EVENT_RECORDS, 'event-trip'), name: 'Trip', days: { from: on('2026-10-24'), to: on('2026-10-31') } }
+
+function handPart(key: string, amount: number, category: Category, labels: readonly Label[] = [], event: EventChoice = BY_DAYS): TransactionItem {
   return {
     id: recordIdOf(ITEM_RECORDS, key),
     transaction: recordIdOf(TRANSACTION_RECORDS, 'transaction-split'),
@@ -158,12 +163,12 @@ function handPart(key: string, amount: number, category: Category, labels: reado
     category: category.id,
     link: null,
     labels: labels.map((label) => label.id),
-    event: BY_DAYS,
+    event,
     splitByLink: false,
   }
 }
 
-const HAND_PARTS: readonly TransactionItem[] = [handPart('line-hardware-rent', -40, RENT, [RENOVATION]), handPart('line-hardware-groceries', -20, GROCERIES)]
+const HAND_PARTS: readonly TransactionItem[] = [handPart('line-hardware-rent', -40, RENT, [RENOVATION]), handPart('line-hardware-groceries', -20, GROCERIES, [], TRIP.id)]
 
 const RECEIPT: Receipt = {
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-bakery'),
@@ -184,7 +189,7 @@ const RECEIPT: Receipt = {
 }
 
 /** A receipt for a card payment on Revolut that waits for the bank's row, with its one line. */
-const WAITING_RECEIPT: Receipt = {
+export const WAITING_RECEIPT: Receipt = {
   ...RECEIPT,
   id: recordIdOf(RECEIPT_RECORDS, 'receipt-waiting'),
   transaction: null,
@@ -197,7 +202,8 @@ const WAITING_RECEIPT: Receipt = {
   zki: '',
 }
 
-const WAITING_LINE: TransactionItem = {
+/** The waiting receipt's one line, which joins events and carries labels as a row's part does. */
+export const WAITING_LINE: TransactionItem = {
   id: recordIdOf(ITEM_RECORDS, 'line-kiosk'),
   transaction: null,
   receipt: WAITING_RECEIPT.id,
@@ -274,6 +280,7 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'account-empty': WALLET.id,
   rule: RULE.id,
   label: RENOVATION.id,
+  event: TRIP.id,
   'bank-account-missing': 'uid-pounds GBP',
   'bank-account-update': 'uid-current EUR',
   'bank-account-left-out': 'uid-left-out EUR',
@@ -349,6 +356,7 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...storedEntries(shape),
     ...stored(RULE_RECORDS, [RULE]),
     ...stored(LABEL_RECORDS, [RENOVATION]),
+    ...stored(EVENT_RECORDS, [TRIP]),
     ...stored(RECEIPT_RECORDS, [RECEIPT, WAITING_RECEIPT]),
     ...stored(SETTING_RECORDS, [settingRow(SETTING_RECORDS, BANK_ACCOUNTS_NOT_IN_KUNA_KEY, `${LEFT_OUT_IBAN} EUR`)]),
   })

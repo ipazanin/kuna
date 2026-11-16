@@ -5,12 +5,14 @@ import type { CroatianForms, EnglishForms, Translation } from '../../../../share
 // A label is oznaka, which is feminine, and an entry unos, which is masculine.
 
 export const en = {
-  description: 'A name that groups money across categories and months, such as a trip or a renovation. A label counts as Spending counts its months, and changes no category.',
+  description:
+    'A name that groups money across categories and months, such as a renovation or a new car. A stretch of days, such as a trip, is an event. A label counts as Spending counts its months, and changes no category.',
   add: 'Add a label',
   empty: {
     title: 'No labels yet',
-    description: 'Add a label such as Prague or Renovation, then select its entries on Entries and put it on them.',
-    beforeItems: 'Add a label such as Prague or Renovation. Once the file is updated above, select its entries on Entries and put it on them.',
+    description: 'Add a label such as Renovation or New car, then select its entries on Entries and put it on them. A trip or another stretch of days is an event, on Events.',
+    beforeItems:
+      'Add a label such as Renovation or New car. Once the file is updated above, select its entries on Entries and put it on them. A trip or another stretch of days is an event, on Events.',
   },
   list: 'What each label counts',
   entries: (count: number): EnglishForms => ({ one: '1 entry', other: `${count} entries` }),
@@ -35,12 +37,14 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  description: 'Naziv koji grupira novac preko kategorija i mjeseci, kao putovanje ili obnova. Oznaka se broji kao što Potrošnja broji svoje mjesece i ne mijenja kategoriju.',
+  description:
+    'Naziv koji grupira novac preko kategorija i mjeseci, kao obnova ili novi auto. Razdoblje dana, kao putovanje, događaj je. Oznaka se broji kao što Potrošnja broji svoje mjesece i ne mijenja kategoriju.',
   add: 'Dodaj oznaku',
   empty: {
     title: 'Još nema oznaka',
-    description: 'Dodajte oznaku kao Prag ili Obnova, pa na Unosima odaberite njezine unose i stavite je na njih.',
-    beforeItems: 'Dodajte oznaku kao Prag ili Obnova. Kad ažurirate datoteku gore, na Unosima odaberite njezine unose i stavite je na njih.',
+    description: 'Dodajte oznaku kao Obnova ili Novi auto, pa na Unosima odaberite njezine unose i stavite je na njih. Putovanje ili drugo razdoblje dana događaj je, na Događajima.',
+    beforeItems:
+      'Dodajte oznaku kao Obnova ili Novi auto. Kad ažurirate datoteku gore, na Unosima odaberite njezine unose i stavite je na njih. Putovanje ili drugo razdoblje dana događaj je, na Događajima.',
   },
   list: 'Što broji svaka oznaka',
   entries: (count): CroatianForms => ({ one: `${count} unos`, few: `${count} unosa`, other: `${count} unosa` }),

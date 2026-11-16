@@ -31,7 +31,8 @@ const byId = <R extends { readonly id: string }>(records: readonly R[]): R[] => 
 
 /** What the book says, the same in either shape: each row as its items file it, every item, and the receipts. A file from before items keeps no labels and no mark of the parts a link split off. */
 function seen(book: SpendingBook) {
-  const items = book.items.map(({ splitByLink: _splitByLink, labels: _labels, ...item }) => item)
+  // A file from before items keeps no labels and no event chosen by hand, so neither is compared.
+  const items = book.items.map(({ splitByLink: _splitByLink, labels: _labels, event: _event, ...item }) => item)
   return { rows: byId(filedRows(book)), items: byId(items), receipts: byId(book.receipts), problems: book.problems }
 }
 

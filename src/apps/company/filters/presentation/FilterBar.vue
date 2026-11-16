@@ -3,6 +3,7 @@ import { computed, inject, useTemplateRef } from 'vue'
 
 import { useStickyBandPart } from '../../../../shared/layout/stickyBand'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
+import FilterChipRow from '../../../../shared/ui/FilterChipRow.vue'
 import FiltersSheet from '../../../../shared/ui/FiltersSheet.vue'
 import { PAGE_TAB_ACTIONS } from '../../../../shared/ui/PageTabs.vue'
 
@@ -19,7 +20,6 @@ import { periodInWords } from '../domain/periodInWords'
 import type { PeriodPreset } from '../domain/periodPresets'
 import AccountPicker from './AccountPicker.vue'
 import AddFilterMenu from './AddFilterMenu.vue'
-import FilterChipRow from './FilterChipRow.vue'
 import PeriodBar from './PeriodBar.vue'
 import { words } from './words'
 

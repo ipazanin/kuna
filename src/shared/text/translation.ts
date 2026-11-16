@@ -34,3 +34,8 @@ export function plural(forms: EnglishForms | CroatianForms, count: number): stri
   const byCategory: Readonly<Partial<Record<Intl.LDMLPluralRule, string>>> = forms
   return byCategory[PLURAL_RULES.select(count)] ?? forms.other
 }
+
+/** The form a list of `count` names takes: one alone and the other for any longer list, since Croatian counts 21 names as many. */
+export function listed(forms: EnglishForms | CroatianForms, count: number): string {
+  return count === 1 ? forms.one : forms.other
+}

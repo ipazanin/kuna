@@ -1,5 +1,8 @@
 import { deletesRecords } from '../../accounts/domain/startDayMove'
-import { BY_DAYS } from '../../workbook/domain/event'
+import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
+import type { SpendingEvent } from '../../workbook/domain/event'
+import { sideOf } from '../../categories/domain/rowSide'
+import { eventMembership } from '../../events/domain/eventMembership'
 import type { StartDayMove } from '../../accounts/domain/startDayMove'
 import { cutoverWords } from '../../accounts/presentation/startDayMoveWords'
 import { words as accountWords } from '../../accounts/presentation/words'
@@ -16,13 +19,13 @@ import type { StoredRow, Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
 import { rowItemsOf } from '../../workbook/domain/rowItems'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
-import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, BUDGET_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import { words } from '../words'
 import type { CardStatement, CopiedRows } from './statementImport'
 import type { CardNote, ProposalGroup, ProposalNote } from '../../../../shared/app/assistantOperations'
 import { proposalGroups, withNotes } from '../../../../shared/app/proposalGroups'
 import type { ProposalDescriber, ProposedRecord } from '../../../../shared/app/proposalGroups'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { swatchOf } from '../../../../shared/charts/swatches'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -70,15 +73,26 @@ function currencyOf(record: ProposedRecord, book: SpendingBook): Account['curren
 
 /**
  * A value as a person reads it on screen: an account's amount in its own currency, a limit in euros, a day and a month in
- * words, a name for a record it points at, a category's swatch, an account's type, bank and where its rows come from, and a rule's words and where
+ * words, a name for a record it points at, a part on its days with the event they give it, a category's swatch, an account's type, bank and where its rows come from, and a rule's words and where
  * its cash goes. A place among siblings reads as its number. Where a rule stands in the order rules are tried means nothing to
  * a person, so it stays off. A link reads as the record in Loans it names, as Entries shows it.
  */
-function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRecord, book: SpendingBook, namesOf: ReadonlyMap<unknown, string>, loans: AppTargets<LinkTarget>): string | null {
+function shownValue(
+  kind: RecordKind<unknown>,
+  field: string,
+  record: ProposedRecord,
+  book: SpendingBook,
+  namesOf: ReadonlyMap<unknown, string>,
+  loans: AppTargets<LinkTarget>,
+  byDaysOf: (part: TransactionItem) => string | null,
+): string | null {
   const value = record[field]
   if (value === null || value === undefined || value === '') return null
   if ((isKind(kind, TRANSACTION_RECORDS, record) || isKind(kind, ITEM_RECORDS, record)) && field === 'link') return record.link === null ? null : linkText(linkStateOf(record.link, loans))
   if (isKind(kind, ITEM_RECORDS, record) && field === 'labels') return record.labels.length === 0 ? null : record.labels.map((label) => namesOf.get(label) ?? label).join(', ')
+  if (isKind(kind, ITEM_RECORDS, record) && field === 'event')
+    return record.event === BY_DAYS ? words.proposals.byDays(byDaysOf(record)) : record.event === OUT_OF_EVENTS ? words.proposals.noEvent : (namesOf.get(record.event) ?? record.event)
+  if (isKind(kind, EVENT_RECORDS, record) && field === 'days') return dayRangeLabel(record.days)
   if (isKind(kind, RULE_RECORDS, record) && field === 'order') return null
   if (isKind(kind, RULE_RECORDS, record) && field === 'withdrawal') {
     const named = record.withdrawal?.cashAccount == null ? undefined : namesOf.get(record.withdrawal.cashAccount)
@@ -114,7 +128,7 @@ function shownValue(kind: RecordKind<unknown>, field: string, record: ProposedRe
 /**
  * What the record is called on screen: an entry by its payee or else its first item's category, a rule by the payee or IBAN it
  * files, a limit by its category, a part of an entry by its entry's payee and then its words or else its category, such as
- * `Landlord · Rent`, and an account, a category and a label by its name.
+ * `Landlord · Rent`, an account, a category and a label by its name, and an event by its name and days.
  */
 function labelOf(
   kind: RecordKind<unknown>,
@@ -133,6 +147,7 @@ function labelOf(
     return [payeeOf(record.transaction), part].filter((words) => words !== '').join(' · ')
   }
   if (isKind(kind, ACCOUNT_RECORDS, record) || isKind(kind, CATEGORY_RECORDS, record) || isKind(kind, LABEL_RECORDS, record)) return record.name
+  if (isKind(kind, EVENT_RECORDS, record)) return `${record.name} · ${dayRangeLabel(record.days)}`
   return fallback
 }
 
@@ -220,7 +235,7 @@ export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, lo
   // An entry on an account the same card adds, such as a bank account's held rows, shows its amount in that account's currency.
   const added = checked.changes.flatMap(({ change }) => (change.verb === 'add' && change.kind.name === ACCOUNT_RECORDS.name ? [change.after as Account] : []))
   const book = { ...before, accounts: [...before.accounts, ...added] }
-  const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts, ...book.labels].map((record) => [record.id, record.name]))
+  const namesOf = new Map<unknown, string>([...book.categories, ...book.accounts, ...book.labels, ...book.events].map((record) => [record.id, record.name]))
   checked.changes.forEach(({ change }) => {
     if (change.verb === 'add' && 'name' in (change.after as object) && 'id' in (change.after as object)) namesOf.set((change.after as { id: string }).id, (change.after as { name: string }).name)
   })
@@ -231,10 +246,23 @@ export function proposalGroupsOf(checked: CheckedWrite, before: SpendingBook, lo
   const writtenRows = checked.changes.flatMap(({ change }) => ((change.verb === 'add' || change.verb === 'change') && change.kind.name === TRANSACTION_RECORDS.name ? [change.after as StoredRow] : []))
   const payees = new Map([...book.transactions, ...writtenRows].map((row) => [row.id, row.payee.trim()]))
   const payeeOf = (row: RecordId | null): string => (row === null ? '' : (payees.get(row) ?? ''))
+  const daysOf = new Map([...book.transactions, ...writtenRows].map((row) => [row.id, row.date]))
+  // A part on its days reads with the event they give it once the card is written, so an event the card adds, moves or deletes counts as it will be.
+  const eventsAfter = checked.changes.reduce<readonly SpendingEvent[]>((events, { change }) => {
+    if (change.kind.name !== EVENT_RECORDS.name || (change.verb !== 'add' && change.verb !== 'change' && change.verb !== 'remove')) return events
+    const kept = change.verb === 'add' ? events : events.filter((event) => event.id !== (change.before as SpendingEvent).id)
+    return change.verb === 'remove' ? kept : [...kept, change.after as SpendingEvent]
+  }, book.events)
+  const eventOf = eventMembership(eventsAfter)
+  const byDaysOf = (part: TransactionItem): string | null => {
+    const day = part.transaction === null ? undefined : daysOf.get(part.transaction)
+    const event = day === undefined ? null : eventOf(part, day, sideOf(book.categories.find((category) => category.id === part.category) ?? null))
+    return event === null ? null : (namesOf.get(event) ?? null)
+  }
   const describer: ProposalDescriber = {
     keptByKuna: KEPT_BY_KUNA,
     fieldName,
-    shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, loans),
+    shown: (kind, field, record) => shownValue(kind, field, record, book, namesOf, loans, byDaysOf),
     label: (kind, record, fallback) => labelOf(kind, record, fallback, namesOf, categoryOf, payeeOf),
     defaultsOf: defaultsOnAdd,
     warns: (kind, field, after) => WARNS.has(field) || (field === 'condition' && after !== null && isKind(kind, RULE_RECORDS, after) && after.condition.column === 'counterparty_iban'),

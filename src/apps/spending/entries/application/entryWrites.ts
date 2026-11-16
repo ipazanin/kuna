@@ -8,6 +8,7 @@ import { RECEIPT_WRITES } from '../../receipts/application/receiptRecords'
 import { heldItemsOf, writeRows } from './rowRecords'
 import type { RowWrite } from './rowRecords'
 import type { SpendingRecords } from '../../workbook/domain/readSpendingBook'
+import type { EventChoice } from '../../workbook/domain/event'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { isSplit, largestItem, linkOfItems, linkedItems, wholeItemOf } from '../../workbook/domain/rowItems'
 import { TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
@@ -24,24 +25,27 @@ import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 /** The rows and items an entry write reads of the file. */
 type EntryRecords = Pick<SpendingRecords, 'transactions' | 'lines' | 'items' | 'receipts'>
 
-/** What you type for an entry not split: its category, or none while it waits on review, its note and its labels. */
+/** What you type for an entry not split: its category, or none while it waits on review, its note, its labels and its event. */
 export interface TypedFiling {
   readonly category: RecordId | null
   readonly note: string
   readonly labels: readonly RecordId[]
+  /** Left out, the money joins an event by its row's day. */
+  readonly event?: EventChoice
 }
 
 /** A new typed entry, its text trimmed, with an id of its own and one item with all of its money. */
 export function newEntry(entry: Pick<Transaction, 'account' | 'date' | 'amount' | 'payee'> & TypedFiling): ItemizedRow {
-  const { category, note, labels, ...typed } = entry
+  const { category, note, labels, event, ...typed } = entry
   const row: Transaction = { ...typed, ...NO_BANK_FACTS, payee: entry.payee.trim(), source: 'typed', pair: null, categorisedBy: 'person', id: recordIdOf(TRANSACTION_RECORDS, newRecordId()) }
-  return { row, items: [wholeItemOf(row, { category, note: note.trim(), link: null, labels })] }
+  return { row, items: [wholeItemOf(row, { category, note: note.trim(), link: null, labels, ...(event === undefined ? {} : { event }) })] }
 }
 
 /**
  * What you typed over a row on the file. It keeps its id, its source and what the bank said, so a later statement still skips
- * it. A row not split keeps its one item's id and link and takes the typed amount, category, note and labels, and a category you
- * changed is yours from then on. A split row keeps its items, each with the labels of the typed part of its id.
+ * it. A row not split keeps its one item's id and link and takes the typed amount, category, note, labels and event, and a
+ * category you changed is yours from then on. A split row keeps its items, each with the labels and event of the typed part of
+ * its id.
  */
 export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedRow {
   const { description, counterpartyIban, importKey, statement, movedAt, pocket, id, source } = before.row
@@ -50,9 +54,9 @@ export function retypedEntry(before: ItemizedRow, typed: ItemizedRow): ItemizedR
   const whole = held !== undefined && filing !== undefined && !isSplit(before.items)
   const filedAnew = whole && held.category !== filing.category
   const row: Transaction = { ...typed.row, description, counterpartyIban, importKey, statement, movedAt, pocket, id, source, categorisedBy: filedAnew ? 'person' : before.row.categorisedBy }
-  if (whole) return { row, items: [{ ...held, amount: row.amount, category: filing.category, note: filing.note, labels: filing.labels }] }
-  const typedLabels = new Map(typed.items.map((part) => [part.id, part.labels]))
-  return { row, items: before.items.map((part) => ({ ...part, labels: typedLabels.get(part.id) ?? part.labels })) }
+  if (whole) return { row, items: [{ ...held, amount: row.amount, category: filing.category, note: filing.note, labels: filing.labels, event: filing.event }] }
+  const typedParts = new Map(typed.items.map((part) => [part.id, part]))
+  return { row, items: before.items.map((part) => ({ ...part, labels: typedParts.get(part.id)?.labels ?? part.labels, event: typedParts.get(part.id)?.event ?? part.event })) }
 }
 
 /** A transfer's leg typed over a row, which keeps the row's labels, since a transfer is labelled by selecting it on Entries. */

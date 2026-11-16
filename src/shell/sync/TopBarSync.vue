@@ -9,7 +9,7 @@ import { words as storageWords } from '../../shared/storage/presentation/words'
 import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import { listInWords } from '../../shared/text/listInWords'
-import { plural } from '../../shared/text/translation'
+import { listed } from '../../shared/text/translation'
 import { words } from '../ui/words'
 
 /**
@@ -34,7 +34,7 @@ const onDrive = computed(() => sync.groups.some((group) => group.store.state.cho
 const inBrowser = computed(() => sync.groups.filter((group) => group.store.state.choice?.source === 'browser'))
 const exportReminder = computed(() => {
   const due = inBrowser.value.filter((group) => exportReminderDue(group.store.state.snapshot?.meta.unexportedSince ?? null, new Date()))
-  return due.length === 0 ? null : plural(words.unexported(due.length, listInWords(due.map((group) => group.name))), due.length)
+  return due.length === 0 ? null : listed(words.unexported(due.length, listInWords(due.map((group) => group.name))), due.length)
 })
 </script>
 

@@ -9,9 +9,10 @@ import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/s
 import { ITEM_CODEC } from '../src/apps/spending/workbook/domain/transactionItemReading'
 import type { Label } from '../src/apps/spending/workbook/domain/label'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, LABEL_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
+import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { spendingDocumentOf } from '../src/apps/spending/workbook/infrastructure/spendingDocument'
 import type { WorkbookStore } from '../src/shared/storage/application/createWorkbookStore'
@@ -19,6 +20,7 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordId } from '../src/shared/storage/domain/recordId'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
+import { DESK_ACCOUNTS, WAITING_LINE, WAITING_RECEIPT } from './fixtures/spendingDesk'
 import { ACCOUNTS_BY_HAND, CATEGORIES, category, row, wholeItems } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
@@ -36,16 +38,18 @@ const dinner = row(OTP!, '2026-10-12', -40, 'Food/Restaurants')
 const hotel = row(OTP!, '2026-10-13', -300, 'Travel/Accommodation')
 const PRAGUE: Label = { id: recordIdOf(LABEL_RECORDS, 'prague'), name: 'Prague' }
 
-async function storeWith(rows: readonly StoredRow[], labels: readonly Label[] = [], items = wholeItems(rows)): Promise<WorkbookStore<SpendingBooks>> {
+/** A file of the rows and labels, with the items, and with the desk's waiting receipt when a line of it is given. */
+async function storeWith(rows: readonly StoredRow[], labels: readonly Label[] = [], items = wholeItems(rows), waiting: readonly TransactionItem[] = []): Promise<WorkbookStore<SpendingBooks>> {
   const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', {
-    ...stored(ACCOUNT_RECORDS, ACCOUNTS_BY_HAND),
+    ...stored(ACCOUNT_RECORDS, [...ACCOUNTS_BY_HAND, DESK_ACCOUNTS.REVOLUT]),
+    ...stored(RECEIPT_RECORDS, waiting.length === 0 ? [] : [WAITING_RECEIPT]),
     ...stored(CATEGORY_RECORDS, CATEGORIES),
     ...stored(LABEL_RECORDS, labels),
     ...stored(
       TRANSACTION_RECORDS,
       rows.map((held) => storedRowOf(held, BLANK_CELLS)),
     ),
-    ...stored(ITEM_RECORDS, items),
+    ...stored(ITEM_RECORDS, [...items, ...waiting]),
   })
   const { store } = await browserHarness(used, document, SPENDING)
   return store
@@ -117,6 +121,19 @@ describe('writing labels', () => {
     await store.undo(store.state.writes.find((write) => write.receipt === written)!)
     expect(store.state.workbook!.labels).toEqual([PRAGUE])
     expect(labelsOfItems(store)).toEqual([[PRAGUE.id], []])
+  })
+
+  it("deletes a label and takes it off a waiting receipt's line, and one Undo puts both back", async () => {
+    const store = await storeWith([dinner], [PRAGUE], wholeItems([dinner]), [{ ...WAITING_LINE, category: category('Food/Groceries').id, labels: [PRAGUE.id] }])
+    const lineLabels = () => store.state.workbook!.items.find((item) => item.id === WAITING_LINE.id)?.labels
+
+    const written = await store.write('Deleted', (unit) => deleteLabel(unit, store.state.records!, PRAGUE))
+    expect(store.state.workbook!.labels).toEqual([])
+    expect(lineLabels()).toEqual([])
+
+    await store.undo(store.state.writes.find((write) => write.receipt === written)!)
+    expect(store.state.workbook!.labels).toEqual([PRAGUE])
+    expect(lineLabels()).toEqual([PRAGUE.id])
   })
 
   it('keeps an item that names a label the file lacks, doubted, and shows it under no label', async () => {

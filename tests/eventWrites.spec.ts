@@ -12,7 +12,7 @@ import type { SpendingEvent } from '../src/apps/spending/workbook/domain/event'
 import { EVENT_CODEC } from '../src/apps/spending/workbook/domain/eventReading'
 import { ITEM_CODEC } from '../src/apps/spending/workbook/domain/transactionItemReading'
 import type { SpendingBooks } from '../src/apps/spending/workbook/domain/spendingBooks'
-import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, ITEM_RECORDS, RECEIPT_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
 import { BLANK_CELLS, storedRowOf } from '../src/apps/spending/workbook/domain/transaction'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
 import type { TransactionItem } from '../src/apps/spending/workbook/domain/transactionItem'
@@ -23,7 +23,8 @@ import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import type { RecordKind } from '../src/shared/storage/domain/recordKind'
 import { storedFieldsOfValues } from '../src/shared/storage/domain/storedFields'
 import { civil } from './fixtures/ledger'
-import { ACCOUNTS_BY_HAND, CATEGORIES, row, wholeItems } from './fixtures/spending'
+import { DESK_ACCOUNTS, WAITING_LINE, WAITING_RECEIPT } from './fixtures/spendingDesk'
+import { ACCOUNTS_BY_HAND, CATEGORIES, category, row, wholeItems } from './fixtures/spending'
 import { SPENDING, browserHarness, forgetCaches } from './fixtures/writeBack'
 
 const [OTP] = ACCOUNTS_BY_HAND
@@ -40,16 +41,18 @@ const dinner = row(OTP!, '2026-10-12', -40, 'Food/Restaurants')
 const hotel = row(OTP!, '2026-10-13', -300, 'Travel/Accommodation')
 const PRAGUE: SpendingEvent = { id: recordIdOf(EVENT_RECORDS, 'prague'), name: 'Prague', days: { from: civil('2026-10-10'), to: civil('2026-10-14') } }
 
-async function storeWith(rows: readonly StoredRow[], events: readonly SpendingEvent[] = [], items = wholeItems(rows)): Promise<WorkbookStore<SpendingBooks>> {
+/** A file of the rows and events, with the items, and with the desk's waiting receipt when a line of it is given. */
+async function storeWith(rows: readonly StoredRow[], events: readonly SpendingEvent[] = [], items = wholeItems(rows), waiting: readonly TransactionItem[] = []): Promise<WorkbookStore<SpendingBooks>> {
   const document = spendingDocumentOf('2026-11-04T09:00:00.000Z', {
-    ...stored(ACCOUNT_RECORDS, ACCOUNTS_BY_HAND),
+    ...stored(ACCOUNT_RECORDS, [...ACCOUNTS_BY_HAND, DESK_ACCOUNTS.REVOLUT]),
+    ...stored(RECEIPT_RECORDS, waiting.length === 0 ? [] : [WAITING_RECEIPT]),
     ...stored(CATEGORY_RECORDS, CATEGORIES),
     ...stored(EVENT_RECORDS, events),
     ...stored(
       TRANSACTION_RECORDS,
       rows.map((held) => storedRowOf(held, BLANK_CELLS)),
     ),
-    ...stored(ITEM_RECORDS, items),
+    ...stored(ITEM_RECORDS, [...items, ...waiting]),
   })
   const { store } = await browserHarness(used, document, SPENDING)
   return store
@@ -112,6 +115,25 @@ describe('writing events', () => {
     expect(choicesOf(store)).toEqual([PRAGUE.id, BY_DAYS])
   })
 
+  it('takes back each choice of two rows, in, out and back on their days, with one Undo', async () => {
+    const store = await storeWith([dinner, hotel], [PRAGUE])
+    const undoLast = async (written: Awaited<ReturnType<typeof store.write>>) => store.undo(store.state.writes.find((write) => write.receipt === written)!)
+
+    const putIn = await store.write('In', (unit) => chooseEvent(unit, store.state.records!, [dinner, hotel], PRAGUE.id))
+    expect(choicesOf(store)).toEqual([PRAGUE.id, PRAGUE.id])
+    const takenOut = await store.write('Out', (unit) => chooseEvent(unit, store.state.records!, [hotel], OUT_OF_EVENTS))
+    expect(choicesOf(store)).toEqual([PRAGUE.id, OUT_OF_EVENTS])
+    const back = await store.write('Back', (unit) => chooseEvent(unit, store.state.records!, [hotel], BY_DAYS))
+    expect(choicesOf(store)).toEqual([PRAGUE.id, BY_DAYS])
+
+    await undoLast(back)
+    expect(choicesOf(store)).toEqual([PRAGUE.id, OUT_OF_EVENTS])
+    await undoLast(takenOut)
+    expect(choicesOf(store)).toEqual([PRAGUE.id, PRAGUE.id])
+    await undoLast(putIn)
+    expect(choicesOf(store)).toEqual([BY_DAYS, BY_DAYS])
+  })
+
   it('deletes an event and puts every part it held by hand back on its day, and one Undo puts both back', async () => {
     const store = await storeWith([dinner, hotel], [PRAGUE], [{ ...wholeItems([dinner])[0]!, event: PRAGUE.id }, ...wholeItems([hotel])])
 
@@ -122,6 +144,19 @@ describe('writing events', () => {
     await store.undo(store.state.writes.find((write) => write.receipt === written)!)
     expect(store.state.workbook!.events).toEqual([PRAGUE])
     expect(choicesOf(store)).toEqual([PRAGUE.id, BY_DAYS])
+  })
+
+  it("deletes an event and puts a waiting receipt's line put in it by hand back on its day, and one Undo puts both back", async () => {
+    const store = await storeWith([dinner], [PRAGUE], wholeItems([dinner]), [{ ...WAITING_LINE, category: category('Food/Groceries').id, event: PRAGUE.id }])
+    const lineChoice = () => store.state.workbook!.items.find((item) => item.id === WAITING_LINE.id)?.event
+
+    const written = await store.write('Deleted', (unit) => deleteEvent(unit, store.state.records!, PRAGUE))
+    expect(store.state.workbook!.events).toEqual([])
+    expect(lineChoice()).toBe(BY_DAYS)
+
+    await store.undo(store.state.writes.find((write) => write.receipt === written)!)
+    expect(store.state.workbook!.events).toEqual([PRAGUE])
+    expect(lineChoice()).toBe(PRAGUE.id)
   })
 
   it('keeps an item that names an event the file lacks, doubted, and lets it join an event by its day', async () => {

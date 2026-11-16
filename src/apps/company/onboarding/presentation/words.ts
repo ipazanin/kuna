@@ -1,6 +1,6 @@
 import { en as settingsEn, hr as settingsHr } from '../../settings/domain/words'
 import { language } from '../../../../shared/text/language'
-import { plural } from '../../../../shared/text/translation'
+import { listed, plural } from '../../../../shared/text/translation'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons and choices take the short imperative: Nastavi, Odaberi, Kreni ispočetka.
@@ -303,7 +303,7 @@ export const hr: Translation<typeof en> = {
     folder: 'Iz mape na mom Driveu',
     folderNote: 'Aplikacija čita vaš Drive da pronađe nove izvode. Google će tražiti dopuštenje za pregled i preuzimanje svih datoteka s vašeg Google Drivea.',
     bank: 'Vaša banka',
-    bankMail: (senders, subject) => `Pošta ${plural({ one: 's adrese', few: 's adresa', other: 's adresa' }, senders.length)} ${senders.join(', ')} s riječima „${subject}” u predmetu.`,
+    bankMail: (senders, subject) => `Pošta ${listed({ one: 's adrese', other: 's adresa' }, senders.length)} ${senders.join(', ')} s riječima „${subject}” u predmetu.`,
     typeBelow: 'Upišite njezinu adresu i riječi u predmetu ispod.',
     anotherBank: 'Druga banka',
     since: settingsHr.settingLabels.mailSince,

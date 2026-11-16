@@ -180,6 +180,7 @@ const SCREEN_WORDS = {
     swatches: chartsEnglish.swatches,
     sortBy: uiEnglish.sortBy,
     splitEditor: uiEnglish.split,
+    filterChips: uiEnglish.chips,
     imports: importEnglish,
     mail: mailEnglish,
     mailPlan: mailPlanEnglish.plan,
@@ -269,6 +270,7 @@ const SCREEN_WORDS = {
     swatches: chartsCroatian.swatches,
     sortBy: uiCroatian.sortBy,
     splitEditor: uiCroatian.split,
+    filterChips: uiCroatian.chips,
     imports: importCroatian,
     mail: mailCroatian,
     mailPlan: mailPlanCroatian.plan,
@@ -12158,10 +12160,11 @@ export function spendingEventsFlowIn(language) {
 
 /**
  * On the sample Spending file's Entries: a label picked shows its total above the list. At a phone's width the first entry
- * starts on the first screen, the filters sit in a sheet behind a Filters button, and the picked label's chip takes it off.
+ * starts on the first screen, the filters sit in a sheet behind a Filters button, and the picked label's chip, the only one
+ * since every month goes with it, takes it off and goes back to this month.
  */
 export function spendingEntryFiltersFlowIn(language) {
-  const entries = SCREEN_WORDS[language].spendingEntries
+  const { filterChips } = SCREEN_WORDS[language]
   const trip = language === 'en' ? 'Boston trip' : 'Put u Boston'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
@@ -12187,14 +12190,17 @@ export function spendingEntryFiltersFlowIn(language) {
     await inspect?.('Entries filtered by a label')
     await shoot('spending-entries-label-total')
     if (!phone) return
-    const chips = await page.$$eval('[data-testid="spending-filter-chip"]', (found) => found.map((chip) => chip.textContent?.trim() ?? ''))
-    if (!chips.includes(trip) || !chips.includes(entries.filters.allMonths)) throw new Error(`the chips name ${chips.join(', ')}, not ${trip} and ${entries.filters.allMonths}`)
-    await pressSelector(page, press, `[data-testid="spending-filter-chip"][aria-label="${entries.filters.remove(trip)}"]`)
+    const chipsShown = () => page.$$eval('[data-testid="spending-filter-chips"] [data-testid="filter-chip"]', (found) => found.map((chip) => chip.textContent?.trim() ?? ''))
+    const chips = await chipsShown()
+    if (chips.join() !== trip) throw new Error(`the chips name ${chips.join(', ')}, not ${trip} alone`)
+    await pressSelector(page, press, `[data-testid="spending-filter-chips"] [data-testid="filter-chip"][aria-label="${filterChips.remove(trip)}"]`)
     await page
       .waitForFunction(() => !document.querySelector('[data-testid="spending-filter-total"]'), { timeout: 5_000 })
       .catch(() => {
         throw new Error("the label's chip did not take the label off")
       })
+    const left = await chipsShown()
+    if (left.length > 0) throw new Error(`taking the label off left ${left.join(', ')}, not this month`)
   }
 }
 
@@ -12257,5 +12263,108 @@ export function spendingSelectLabelFlowIn(language) {
     await undoIn(page, press, words)
     if ((await carrying()) !== 0) throw new Error(`Undo left ${garden} on rows`)
     await dismissToasts(page)
+  }
+}
+
+/**
+ * On the sample Spending file's Entries: two rows selected and put in Prague in one write, which one Undo takes back. The picker
+ * lists the file's events with their days, and offers Take out of events beside them.
+ */
+export function spendingSelectEventFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const prague = language === 'en' ? 'Prague' : 'Prag'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, '[data-testid="spending-select"]')
+    await page.waitForSelector('[data-testid="selection-bar"]', { visible: true, timeout: 10_000 })
+    const rows = await page.$$('[data-testid="spending-row"]')
+    for (const row of rows.slice(0, 2)) await press(row)
+    await page
+      .waitForFunction(() => document.querySelectorAll('[data-testid="spending-row"][aria-checked="true"]').length === 2, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('two taps did not pick two rows')
+      })
+    await inspect?.('Entries with two rows picked and Event beside Label')
+    await shoot('spending-select-event-bar')
+    await pressSelector(page, press, '[data-testid="spending-selection-event"]')
+    await page.waitForSelector('[data-testid="spending-event-picker"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    await inspect?.('the event picker')
+    await shoot('spending-event-picker')
+    const choices = await page.$$('[data-testid="spending-event-choice"]')
+    const named = await Promise.all(choices.map((choice) => choice.evaluate((element) => element.textContent ?? '')))
+    const choice = choices[named.findIndex((text) => text.includes(prague))]
+    if (choice === undefined) throw new Error(`the event picker offers no ${prague}, only ${named.join(', ')}`)
+    if ((await page.$('[data-testid="spending-event-take-out"]')) === null) throw new Error('the event picker offers no Take out of events')
+    await press(await choice.$('[data-testid="spending-event-put-in"]'))
+    await toastMatching(page, new RegExp(prague))
+    if ((await page.$('[data-testid="selection-bar"]')) !== null) throw new Error('the selection stays after putting rows in an event')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On the sample Spending file's Entries: the streaming subscription, taken out of every event by hand, opens with its Event
+ * field on In no event, and By its days, which names Prague, puts it back on its days with Save, which one Undo takes back.
+ */
+export function spendingEntryEventFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { dialog } = words.spendingEntries
+  const prague = language === 'en' ? 'Prague' : 'Prag'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Streaming service', -1399)
+    const field = await page.waitForSelector('[data-testid="spending-entry-event"]', { visible: true, timeout: 10_000 })
+    const shown = await field.evaluate((element) => element.textContent?.trim() ?? '')
+    if (shown !== dialog.noEvent) throw new Error(`the streaming subscription's Event field shows "${shown}", not ${dialog.noEvent}`)
+    await inspect?.("the entry dialog's Event field on a part taken out of every event")
+    await shoot('spending-entry-event')
+    await chooseStartingWith(page, press, '[data-testid="spending-entry-event"]', dialog.byDays(prague))
+    await pressSelector(page, press, '[data-testid="spending-entry-save"]')
+    await toast(page, dialog.saved)
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On the sample Spending file with a made-up key kept: asked to put the streaming subscription back on its days, the chat
+ * proposes a card that does and names Prague, the event those days give it, which Accept writes and Undo takes back.
+ */
+export function chatBackOnDaysFlowIn(language) {
+  const words = ASSIST_WORDS[language]
+  const request = language === 'en' ? 'Put the streaming subscription back on its days' : 'Vrati pretplatu na streaming na njezine dane'
+  const byDays = language === 'en' ? 'By its days: Prague' : 'Po danima: Prag'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    try {
+      await keepAiKey(page)
+      await openChat(page, press)
+      await sendInChat(page, press, request)
+      await allowIfAsked(page, press)
+      const card = await newestCard(page, 1, 'the chat proposed no event card')
+      await page.waitForSelector('[data-testid="chat-answer"]', { visible: true, timeout: 15_000 })
+      await delay(300)
+      await acceptLooksReady(page)
+      const said = await card.evaluate((element) => element.textContent ?? '')
+      if (!said.includes(byDays)) throw new Error(`the back-on-days card does not say "${byDays}"`)
+      await inspect?.('the card that puts an entry back on its days')
+      await shoot('chat-back-on-days-card')
+      await press(await card.$('[data-testid="chat-proposal-accept"]'))
+      await card.waitForSelector('[data-testid="chat-proposal-done"]', { visible: true, timeout: 15_000 }).catch(async () => {
+        const refused = await page.evaluate(() => document.querySelector('[data-testid="chat-proposal-refused"]')?.textContent)
+        throw new Error(`Accept did not land: ${refused}`)
+      })
+      await press(await card.$('[data-testid="chat-proposal-undo"]'))
+      await page
+        .waitForFunction((held, text) => held.textContent?.includes(text) ?? false, { timeout: 10_000 }, card, words.proposal.undone)
+        .catch(() => {
+          throw new Error('Undo did not say it was undone')
+        })
+    } finally {
+      await newChat(page, press)
+      await forgetAssist(page)
+    }
   }
 }

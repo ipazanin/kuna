@@ -12,7 +12,7 @@ import { usePhoneLayout } from '../../layout/viewport'
 import { listInWords } from '../../text/listInWords'
 import { SCOPE_WORDS } from '../application/syncRun'
 import type { SyncControl, SyncRun } from '../application/syncRun'
-import { plural } from '../../text/translation'
+import { listed, plural } from '../../text/translation'
 import SyncStepList from './SyncStepList.vue'
 import { words as appWords } from '../../app/words'
 import { words } from './words'
@@ -84,7 +84,7 @@ const accessWords = computed(() => {
   const { control } = props
   if (control.kind !== 'allow-access') return ''
   const scopes = listInWords(control.scopes.map((scope) => SCOPE_WORDS[scope]))
-  return plural(words.needs(control.labels.length, listInWords([...control.labels]), scopes), control.labels.length)
+  return listed(words.needs(control.labels.length, listInWords([...control.labels]), scopes), control.labels.length)
 })
 
 /** Why the last ask to Google gave no token, and that a tap asks again, or null. */
@@ -155,7 +155,7 @@ const statusLine = computed(() => {
     case 'allow-access':
       return failureWords.value ?? accessWords.value
     case 'problems':
-      return plural(words.lookAt(control.labels.length, listInWords([...control.labels])), control.labels.length)
+      return listed(words.lookAt(control.labels.length, listInWords([...control.labels])), control.labels.length)
     case 'ready':
       return asOfText.value
   }

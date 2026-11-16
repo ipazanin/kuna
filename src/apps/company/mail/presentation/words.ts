@@ -1,7 +1,7 @@
 import { en as settingsEn, hr as settingsHr } from '../../settings/domain/words'
 import { withFullStop } from '../../../../shared/text/withFullStop'
 import { language } from '../../../../shared/text/language'
-import { plural } from '../../../../shared/text/translation'
+import { listed } from '../../../../shared/text/translation'
 import type { Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
@@ -48,7 +48,7 @@ export const hr: Translation<typeof en> = {
     title: 'Pošta',
     subtitle: 'Gdje svaka sinkronizacija u Gmailu traži izvode banke, koje sprema u mapu izvoda.',
     notRead: 'Pošta banke se ne čita.',
-    readFrom: (senders, since) => `Pošta banke ${plural({ one: 's adrese', few: 's adresa', other: 's adresa' }, senders.length)} ${senders.join(', ')}, od ${withFullStop(since)}`,
+    readFrom: (senders, since) => `Pošta banke ${listed({ one: 's adrese', other: 's adresa' }, senders.length)} ${senders.join(', ')}, od ${withFullStop(since)}`,
     startOfLastYear: 'početka prošle godine',
     searchedFrom: { newest: 'tjedan dana prije najnovije datoteke u mapi', since: `dana iz postavke ${settingsHr.settingLabels.mailSince}` },
     senders: settingsHr.settingLabels.statementsMailFrom,

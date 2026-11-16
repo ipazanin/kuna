@@ -1,9 +1,12 @@
 import { dateFormat } from './dateFormat'
 import { yearOf } from './civilDate'
 import type { CivilDate } from './civilDate'
+import type { DateRange } from './dateRange'
+import { monthOf } from './monthKey'
 
 const LONG = dateFormat({ day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const SHORT = dateFormat({ day: 'numeric', month: 'short', timeZone: 'UTC' })
+const DAY = dateFormat({ day: 'numeric', timeZone: 'UTC' })
 const WITH_WEEKDAY = dateFormat({ weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
 
 /** "20 Nov 2026". */
@@ -24,4 +27,12 @@ export function recentDayLabel(day: CivilDate, today: CivilDate): string {
 /** "Friday 20 Nov", for a recent day such as the close the figures are at. */
 export function weekdayDayLabel(day: CivilDate): string {
   return WITH_WEEKDAY(new Date(day))
+}
+
+/** A run of days in one line, its year once within a year: "13–17 Nov 2026", "28 Oct – 3 Nov 2026" and "30 Dec 2026 – 2 Jan 2027". */
+export function dayRangeLabel(range: DateRange): string {
+  const { from, to } = range
+  if (from === to) return dayLabel(from)
+  if (monthOf(from) === monthOf(to)) return `${DAY(new Date(from))}–${dayLabel(to)}`
+  return `${yearOf(from) === yearOf(to) ? shortDayLabel(from) : dayLabel(from)} – ${dayLabel(to)}`
 }

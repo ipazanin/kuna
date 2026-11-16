@@ -6,7 +6,7 @@ import { words } from './words'
 import { partTotals } from '../../analytics/domain/partTotals'
 import TotalsLines from '../../analytics/presentation/TotalsLines.vue'
 import { partsInEvent } from '../../events/domain/eventMembership'
-import { eventDays } from '../../events/presentation/eventDays'
+import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { labelTotals } from '../../labels/domain/labelTotals'
 import { euroRows } from '../../rates/domain/euroRows'
 import { waitsForRates } from '../../rates/presentation/waitsForRates'
@@ -41,7 +41,7 @@ const lines = computed(() => {
   return [
     ...(event === null
       ? []
-      : [partTotals(rows, byId, partsInEvent(book.events, event.id))].map((totals) => ({ key: event.id, heading: `${event.name} · ${eventDays(event)} · ${entries(totals.rows)}`, totals }))),
+      : [partTotals(rows, byId, partsInEvent(book.events, event.id))].map((totals) => ({ key: event.id, heading: `${event.name} · ${dayRangeLabel(event.days)} · ${entries(totals.rows)}`, totals }))),
     ...(label === null ? [] : labelTotals(rows, book.categories, [label]).map((totals) => ({ key: label.id, heading: `${label.name} · ${entries(totals.rows)}`, totals }))),
   ]
 })

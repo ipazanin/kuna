@@ -90,8 +90,15 @@ const LINK_TARGET_RENAMES = Object.fromEntries(
     .map((field) => [field, 'loan'])
     .concat([['link.due', 'due']]),
 )
-/** An entry keeps the link and the labels it has when it is retyped, and link-entry and label-entries set them. */
-const LINK_ENTRY_RENAMES = { 'link.app': 'link-entry:loan', 'link.kind': 'link-entry:loan', 'link.key': 'link-entry:loan', 'link.due': 'link-entry:due', labels: 'label-entries:label' }
+/** An entry keeps the link, the labels and the event it has when it is retyped, and link-entry, label-entries and put-in-event set them. */
+const LINK_ENTRY_RENAMES = {
+  'link.app': 'link-entry:loan',
+  'link.kind': 'link-entry:loan',
+  'link.key': 'link-entry:loan',
+  'link.due': 'link-entry:due',
+  labels: 'label-entries:label',
+  event: 'put-in-event:event',
+}
 
 const FIELD_SOURCES: readonly FieldSource[] = [
   { path: 'src/apps/assets/asset/application/assetWrites.ts#ASSET_WRITES.add', operations: ['add-asset'] },
@@ -336,6 +343,12 @@ const FIELD_SOURCES: readonly FieldSource[] = [
   },
   { path: 'src/apps/spending/labels/application/labelWrites.ts#addLabel', type: 'src/apps/spending/workbook/domain/label.ts#Label', operations: ['add-label'] },
   { path: 'src/apps/spending/labels/application/labelWrites.ts#renameLabel', from: ['name'], operations: ['rename-label'] },
+  {
+    path: 'src/apps/spending/events/application/eventWrites.ts#addEvent',
+    type: 'src/apps/spending/workbook/domain/event.ts#SpendingEvent',
+    operations: [{ name: 'add-event', renames: { 'days.from': 'from', 'days.to': 'to' } }],
+  },
+  { path: 'src/apps/spending/events/application/eventWrites.ts#changeEvent', from: ['changed'], operations: [{ name: 'change-event', renames: { 'days.from': 'from', 'days.to': 'to' } }] },
   { path: 'src/apps/spending/workbook/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
   {
     path: 'src/apps/spending/receipts/application/receiptWrites.ts#writeReceiptSplit',

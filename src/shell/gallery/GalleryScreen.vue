@@ -32,6 +32,7 @@ import FactGrid from '../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../shared/ui/FactGrid.vue'
 import FigureTable from '../../shared/ui/FigureTable.vue'
 import FileDrop from '../../shared/ui/FileDrop.vue'
+import FilterChipRow from '../../shared/ui/FilterChipRow.vue'
 import FiltersSheet from '../../shared/ui/FiltersSheet.vue'
 import AskChatButton from '../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../shared/ai/presentation/chatDock'
@@ -260,6 +261,7 @@ const GALLERY_RANGES: readonly ChartRange[] = ['1y', '3y', 'next-5y', 'all']
 const galleryRange = ref<ChartRange>('all')
 const GALLERY_CHIPS = ['EXQ', 'Category: Software subscriptions', 'Counterparty: A supplier whose name runs far past the width of a chip']
 const galleryChips = ref<readonly string[]>(GALLERY_CHIPS)
+const galleryFilterChips = computed(() => galleryChips.value.map((chip) => ({ id: chip, label: chip })))
 const SWATCHES = [1, 2, 3, 4, 5].map((slot) => ({ value: `series-${slot}`, name: `Slot ${slot}`, token: `--series-${slot}` }))
 
 /** A long list for Show all, of made-up payees. */
@@ -898,7 +900,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
     <GallerySection
       id="controls"
       title="Small controls"
-      description="InfoPopover, ChoiceButtons, MenuButton, RemovableChip, FiltersSheet, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark."
+      description="InfoPopover, ChoiceButtons, MenuButton, RemovableChip, FilterChipRow, FiltersSheet, ShowAllButton, ColourSwatchPicker, HomeLink, AppBrand and AppMark."
     >
       <DashboardGrid>
         <AppCard title="InfoPopover" subtitle="A definition, or richer content such as a legend.">
@@ -939,6 +941,13 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
             <RemovableChip label="statement.pdf" remove-label="Remove statement.pdf" icon="i-lucide-file-text" />
             <RemovableChip label="scan.pdf" remove-label="Remove scan.pdf" icon="i-lucide-file" loading />
             <UButton v-if="galleryChips.length < GALLERY_CHIPS.length" label="Put them back" color="neutral" variant="link" size="xs" @click="galleryChips = GALLERY_CHIPS" />
+          </div>
+        </AppCard>
+        <AppCard title="FilterChipRow" subtitle="The filters on as chips with Clear. In one line, the chips that do not fit fold into +N more, as the narrow first row shows.">
+          <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
+            <FilterChipRow :chips="galleryFilterChips" one-line class="max-w-64" @remove="galleryChips = galleryChips.filter((shown) => shown !== $event)" @clear="galleryChips = []" />
+            <FilterChipRow :chips="galleryFilterChips" @remove="galleryChips = galleryChips.filter((shown) => shown !== $event)" @clear="galleryChips = []" />
+            <UButton v-if="galleryChips.length < GALLERY_CHIPS.length" label="Put them back" color="neutral" variant="link" size="xs" class="self-start" @click="galleryChips = GALLERY_CHIPS" />
           </div>
         </AppCard>
         <AppCard

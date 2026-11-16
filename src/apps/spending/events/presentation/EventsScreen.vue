@@ -5,7 +5,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { eventTotals } from '../domain/eventTotals'
 import { eventStage } from '../domain/eventsShown'
 import EventDialog from './EventDialog.vue'
-import { eventDays } from './eventDays'
 import { words } from './words'
 import TotalsLines from '../../analytics/presentation/TotalsLines.vue'
 import { eventLink } from '../../overview/presentation/spendingLinks'
@@ -17,7 +16,7 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { SpendingEvent } from '../../workbook/domain/event'
 import ItemsMoveNotice from '../../workbook/presentation/ItemsMoveNotice.vue'
 import { today } from '../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
+import { dayLabel, dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { plural } from '../../../../shared/text/translation'
@@ -44,7 +43,7 @@ const lines = computed(() => {
     const stage = eventStage(totals.event, day)
     const when = stage.kind === 'ahead' ? words.starts(dayLabel(totals.event.days.from)) : stage.kind === 'running' ? words.dayOf(stage.day, stage.days) : null
     const count = totals.rows === 0 ? words.noEntries : plural(words.entries(totals.rows), totals.rows)
-    return { totals, caption: [eventDays(totals.event), when, count].filter((part) => part !== null).join(' · ') }
+    return { totals, caption: [dayRangeLabel(totals.event.days), when, count].filter((part) => part !== null).join(' · ') }
   })
 })
 

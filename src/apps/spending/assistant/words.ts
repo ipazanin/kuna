@@ -35,6 +35,8 @@ export const en = {
     ibanRule: (iban: string) => `Files every row from this IBAN: ${iban}`,
     withdrawalTo: (account: string) => `Cash taken out, into ${account}`,
     withdrawalByCurrency: 'Cash taken out, into the cash account in the same currency',
+    byDays: (event: string | null) => (event === null ? 'By its days' : `By its days: ${event}`),
+    noEvent: 'In no event',
     rowsLeftOut: (count: number): EnglishForms => ({ one: '1 row of the statement is left out.', other: `${count} rows of the statement are left out.` }),
     fields: {
       name: 'Name',
@@ -53,6 +55,8 @@ export const en = {
       category: 'Category',
       note: 'Note',
       labels: 'Labels',
+      event: 'Event',
+      days: 'Days',
       link: linkEn.label,
       from: 'From',
       condition: 'Looks for',
@@ -131,6 +135,11 @@ export const en = {
       title: 'what each label counts',
       about:
         "What each label counted up to the end of a day, as Spending counts its months: spent, by group, received and saved, with how many entries carry it. A transfer between the owner's accounts lists under a label and counts nowhere.",
+    },
+    events: {
+      title: 'what each event counts',
+      about:
+        'What each event counted over the parts in it up to the end of a day, as Spending counts its months: spent, by group, received and saved, with how many entries have a part in it. An event changes no month total or limit.',
     },
   },
   guides: {
@@ -217,6 +226,8 @@ export const hr: Translation<typeof en> = {
     ibanRule: (iban) => `Razvrstava svaki redak s ovog IBAN-a: ${iban}`,
     withdrawalTo: (account) => `Podignuta gotovina, na račun ${account}`,
     withdrawalByCurrency: 'Podignuta gotovina, na račun gotovine u istoj valuti',
+    byDays: (event) => (event === null ? 'Po danima' : `Po danima: ${event}`),
+    noEvent: 'Ni u jednom događaju',
     rowsLeftOut: (count): CroatianForms => ({
       one: `Izostavljen je ${count} redak izvoda.`,
       few: `Izostavljena su ${count} retka izvoda.`,
@@ -239,6 +250,8 @@ export const hr: Translation<typeof en> = {
       category: 'Kategorija',
       note: 'Bilješka',
       labels: 'Oznake',
+      event: 'Događaj',
+      days: 'Dani',
       link: linkHr.label,
       from: 'Od',
       condition: 'Uvjet',
@@ -317,6 +330,11 @@ export const hr: Translation<typeof en> = {
       title: 'što broji svaka oznaka',
       about:
         'Koliko je svaka oznaka brojala do kraja dana, kao što Potrošnja broji svoje mjesece: potrošeno, po skupinama, primljeno i ušteđeno, te koliko je unosa nosi. Prijenos između vlasnikovih računa navodi se pod oznakom i ne broji se nigdje.',
+    },
+    events: {
+      title: 'što broji svaki događaj',
+      about:
+        'Što je svaki događaj brojao preko dijelova u njemu do kraja dana, kao što Potrošnja broji svoje mjesece: potrošeno, po skupinama, primljeno i ušteđeno, s brojem unosa koji imaju dio u njemu. Događaj ne mijenja zbroj mjeseca ni ograničenje.',
     },
   },
   guides: {

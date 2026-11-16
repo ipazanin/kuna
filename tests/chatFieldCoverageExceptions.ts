@@ -67,6 +67,7 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'spending: Account.id',
       'spending: Category.id',
       'spending: Label.id',
+      'spending: SpendingEvent.id',
       'spending: Receipt.id',
       'spending: TransactionItem.id',
       'spending: Transaction.id',
@@ -149,10 +150,6 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   {
     reason: 'A record stays under the loan or asset it was added to. The screen edits it there and never moves it to another one.',
     fields: ['assets: Valuation.asset', 'loans: RatePeriod.loan', 'loans: ExtraPayment.loan', 'loans: LateInstalment.loan', 'loans: Movement.loan'],
-  },
-  {
-    reason: "Which event a part of an entry is in. New money joins an event by its day, and putting a part in an event or taking it out of every event waits for the chat's event operations.",
-    fields: ['spending: TransactionItem.event'],
   },
   {
     reason: "Flagging a payee as a person. The chat flags the payee of a row it names, and only a person takes a flag off, on the row's dialog.",
@@ -241,6 +238,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/company/transactions/application/splitWrites.ts#removeSplit',
       'src/apps/spending/receipts/application/receiptWrites.ts#removeWaitingReceipt',
       'src/apps/spending/labels/application/labelWrites.ts#deleteLabel',
+      'src/apps/spending/events/application/eventWrites.ts#deleteEvent',
       'src/apps/spending/statements/application/statementWrites.ts#deleteRule',
     ],
   },
@@ -251,6 +249,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/company/owner-share/application/ownerShareWrites.ts#fillShares',
       'src/apps/spending/categories/application/categoryWrites.ts#deleteInto',
       'src/apps/spending/labels/application/labelWrites.ts#labelRows',
+      'src/apps/spending/events/application/eventWrites.ts#chooseEvent',
       'src/apps/spending/statements/application/statementWrites.ts#fileRow',
       'src/apps/spending/statements/application/statementWrites.ts#joinWithTyped',
       'src/apps/spending/statements/application/statementWrites.ts#notAPair',

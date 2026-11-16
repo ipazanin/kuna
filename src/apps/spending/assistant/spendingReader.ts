@@ -3,6 +3,7 @@ import { monthFlow } from '../analytics/domain/monthFlow'
 import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'
 import { countedAccounts, euroRows } from '../rates/domain/euroRows'
+import { eventTotals } from '../events/domain/eventTotals'
 import { labelTotals } from '../labels/domain/labelTotals'
 import { reviewCount } from '../statements/domain/reviewQueue'
 import { bookingOf } from '../statements/domain/statementDryRun'
@@ -20,6 +21,7 @@ import { bankLinkOffered } from '../workbook/domain/account'
 import type { Account } from '../workbook/domain/account'
 import type { Budget } from '../workbook/domain/budget'
 import type { Category } from '../workbook/domain/category'
+import { BY_DAYS, OUT_OF_EVENTS } from '../workbook/domain/event'
 import type { SpendingEvent } from '../workbook/domain/event'
 import type { Label } from '../workbook/domain/label'
 import type { SpendingBook } from '../workbook/domain/readSpendingBook'
@@ -231,7 +233,7 @@ const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   longitude: { exposure: 'never', meaning: 'Where the photo was taken.' },
 }
 
-const itemFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<TransactionItem> => ({
+const itemFields = (loans: () => AppTargets<LinkTarget>, events: () => readonly SpendingEvent[]): FieldDocs<TransactionItem> => ({
   id: { exposure: 'ref', to: ITEM_RECORDS.name, meaning: 'The part.' },
   transaction: { exposure: 'ref', to: TRANSACTION_RECORDS.name, meaning: "The entry it is part of, or null for a line of a receipt that waits for the bank's row." },
   receipt: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt whose line it is, or null for a part split by hand and for the one part of a whole entry.' },
@@ -245,9 +247,25 @@ const itemFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<TransactionI
     read: (item) => linkRead(item, loans()),
   },
   labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries, beside its category, such as a trip. A label changes no figure of its category.' },
-  event: { exposure: 'never', meaning: 'Whether this money joins an event by its day, was put in one by hand, or was taken out of every event.' },
+  event: {
+    exposure: 'plain',
+    meaning: 'by-days when this money joins the event its day falls in, out when it was taken out of every event by hand, or the event it was put in by hand, as its name and days.',
+    read: (item) => eventRead(item.event, events()),
+  },
   splitByLink: { exposure: 'plain', meaning: "yes when linking the entry to a loan's instalment split this part off, no for a part split by hand, a receipt's line or a whole entry." },
 })
+
+/** An event as the chat reads it, by name and days, so two events of one name stay apart. */
+function eventNamed(event: SpendingEvent): string {
+  return `${event.name} (${event.days.from} to ${event.days.to})`
+}
+
+function eventRead(choice: TransactionItem['event'], events: readonly SpendingEvent[]): string {
+  if (choice === BY_DAYS) return 'by-days'
+  if (choice === OUT_OF_EVENTS) return 'out'
+  const picked = events.find((event) => event.id === choice)
+  return picked === undefined ? 'by-days' : eventNamed(picked)
+}
 
 function monthOfPeriod(period: string | null): MonthKey {
   if (period === null) return monthOf(today())
@@ -325,6 +343,25 @@ function labelsReport(book: SpendingBook, rates: RateBook, period: string | null
     { label: `${label.name}: entries`, count: carried },
     ...(unrated === 0 ? [] : [{ label: `${label.name}: entries left out because no exchange rate reaches them yet`, count: unrated }]),
   ])
+}
+
+/** What each event counts over its parts up to the day, as the Events screen counts it, which is as Spending counts its months. Two events of one name read apart by their days. */
+function eventsReport(book: SpendingBook, rates: RateBook, period: string | null): readonly ReportFigure[] {
+  const day = period === null ? today() : parseCivilDate(period)
+  if (day === null) throw new RangeError('Not a day.')
+  const names = new Map(book.categories.map((category) => [category.id, category.name]))
+  const rows = euroRows(book, rates).filter((row) => row.transaction.date <= day)
+  return eventTotals(rows, book.categories, book.events).flatMap(({ event, spent, income, saved, groups, rows: counted, unrated }): readonly ReportFigure[] => {
+    const named = eventNamed(event)
+    return [
+      euros(`${named}: spent`, spent),
+      ...groups.map(({ group, spent: groupSpent }) => euros(`${named} / ${names.get(group) ?? ''}: spent`, groupSpent)),
+      ...(income === 0 ? [] : [euros(`${named}: received`, income)]),
+      ...(saved === 0 ? [] : [euros(`${named}: saved to investments`, saved)]),
+      { label: `${named}: entries`, count: counted },
+      ...(unrated === 0 ? [] : [{ label: `${named}: entries left out because no exchange rate reaches them yet`, count: unrated }]),
+    ]
+  })
 }
 
 const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
@@ -472,7 +509,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({
         kind: ITEM_RECORDS,
         about: words.reads.line,
-        fields: itemFields(reading.linkTargets),
+        fields: itemFields(reading.linkTargets, () => reading.book()?.events ?? []),
         dated: null,
         rows: () => rows((book) => [...book.transactions.flatMap((row) => itemsOf(book, row)), ...book.items.filter((line) => line.transaction === null)]),
         currencyOf: (line) => accountCurrency(rows((book) => book.transactions).find((row) => row.id === line.transaction)?.account ?? ''),
@@ -503,6 +540,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       { id: 'limits', title: words.reports.limits.title, about: words.reports.limits.about, period: 'month', figures: report(limitsReport) },
       { id: 'balances', title: words.reports.balances.title, about: words.reports.balances.about, period: 'day', figures: report(balancesReport) },
       { id: 'labels', title: words.reports.labels.title, about: words.reports.labels.about, period: 'day', figures: report(labelsReport) },
+      { id: 'events', title: words.reports.events.title, about: words.reports.events.about, period: 'day', figures: report(eventsReport) },
     ],
     bookings: {
       kind: TRANSACTION_RECORDS.name,

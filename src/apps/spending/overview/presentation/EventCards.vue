@@ -7,7 +7,7 @@ import { words } from './words'
 import TotalsLines from '../../analytics/presentation/TotalsLines.vue'
 import { eventTotals } from '../../events/domain/eventTotals'
 import { eventStage, eventsShown } from '../../events/domain/eventsShown'
-import { eventDays } from '../../events/presentation/eventDays'
+import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { words as eventWords } from '../../events/presentation/words'
 import { euroRows } from '../../rates/domain/euroRows'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -43,7 +43,7 @@ const cards = computed(() => {
           : stage.daysSince === 1
             ? eventWords.endedYesterday
             : plural(eventWords.ended(stage.daysSince), stage.daysSince)
-    return [{ totals: counted, subtitle: [eventDays(event), when].filter((part) => part !== null).join(' · ') }]
+    return [{ totals: counted, subtitle: [dayRangeLabel(event.days), when].filter((part) => part !== null).join(' · ') }]
   })
 })
 </script>

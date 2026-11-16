@@ -1,29 +1,35 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
 import type { EntryFilters } from './useEntryFilters'
 import { words } from './words'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
+import FilterChipRow from '../../../../shared/ui/FilterChipRow.vue'
 import FiltersSheet from '../../../../shared/ui/FiltersSheet.vue'
-import RemovableChip from '../../../../shared/ui/RemovableChip.vue'
 
 /**
  * Entries' month, account, category, label and event selects, in a row from 640 px. On a phone they sit in a sheet behind a
- * Filters button in the tab row, and the filters picked show as chips over the list. The default slot holds the list's own
- * action, such as Select.
+ * Filters button in the tab row, and the filters picked show as chips over the list in one line, with Clear. The default slot
+ * holds the list's own action, such as Select.
  */
-defineProps<{
+const props = defineProps<{
   filters: EntryFilters
 }>()
 
 defineSlots<{ default?: () => unknown }>()
 
 const phone = usePhoneLayout()
+const chips = computed(() => props.filters.active.map((filter) => ({ id: filter.key, label: filter.label })))
+
+function remove(key: string): void {
+  props.filters.active.find((filter) => filter.key === key)?.remove()
+}
 </script>
 
 <template>
-  <div v-if="phone" class="flex flex-wrap items-center gap-2 px-4 pt-4 pb-3 empty:hidden" data-testid="spending-filter-chips">
+  <div v-if="phone" class="flex items-center gap-2 px-4 pt-4 pb-3" data-testid="spending-filter-chips">
     <FiltersSheet :active-count="filters.active.length" :show-label="words.filters.show">
       <div class="flex flex-col gap-3" data-testid="spending-filter-sheet">
         <USelect
@@ -72,14 +78,7 @@ const phone = usePhoneLayout()
         />
       </div>
     </FiltersSheet>
-    <RemovableChip
-      v-for="filter in filters.active"
-      :key="filter.key"
-      :label="filter.label"
-      :remove-label="words.filters.remove(filter.label)"
-      data-testid="spending-filter-chip"
-      @remove="filter.remove()"
-    />
+    <FilterChipRow :chips="chips" one-line @remove="remove" @clear="filters.clear()" />
     <slot />
   </div>
   <div v-else class="flex flex-wrap items-center gap-2 px-4 pt-4 pb-3 sm:px-5">

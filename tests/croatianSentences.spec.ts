@@ -211,6 +211,17 @@ describe('every words file in Croatian', () => {
     expect(hidden).toEqual([])
   })
 
+  it('counts 21 with the words it counts 1 with, since Croatian writes 21, 31 and so on in the one form', async () => {
+    const loaders = import.meta.glob<Readonly<Record<string, unknown>>>(['../src/**/*.ts', '!../src/**/*.d.ts'])
+    const translations = Object.keys(loaders).flatMap((path) => translationsIn(path).map(({ name }) => [path, name] as const))
+    const dictionaries = await inCroatian(() => Promise.all(translations.map(async ([path, name]) => [path, (await loaders[path]!())[name]] as const)))
+    const misread = dictionaries.flatMap(([path, croatian]) =>
+      oneFormsOf(croatian).flatMap(({ key, atOne, atTwentyOne }) => (atTwentyOne.includes('21') ? [] : [`${path}: ${key}: „${atOne}” at 1 and „${atTwentyOne}” at 21`])),
+    )
+
+    expect(misread).toEqual([])
+  })
+
   it('ends a sentence on a date with the date’s own full stop', async () => {
     const doubled = (await croatianSentences()).filter(([, sentence]) => /(?<!\.)\.\.(?!\.)/.test(sentence)).map(([path, sentence]) => `${path}: ${sentence}`)
 
@@ -809,4 +820,26 @@ function parameterNames(builder: (...args: unknown[]) => unknown): string[] {
     .map((parameter) => parameter.trim().split(/[\s=]/)[0] ?? '')
     .filter((name) => name !== '')
   return names.length === 0 ? [''] : names
+}
+
+/** The one form of each counted phrase of a words module at 1 and at 21, with the count in every place, since some take it worded as well. */
+function oneFormsOf(words: unknown, key = '', depth = 0): { readonly key: string; readonly atOne: string; readonly atTwentyOne: string }[] {
+  if (depth > 6 || words === null || (typeof words !== 'object' && typeof words !== 'function')) {
+    return []
+  }
+  if (typeof words !== 'function') {
+    return Object.entries(words).flatMap(([name, part]) => oneFormsOf(part, key === '' ? name : `${key}.${name}`, depth + 1))
+  }
+  const builder = words as (...args: unknown[]) => unknown
+  const places = parameterNames(builder)
+  try {
+    const [atOne, atTwentyOne] = [1, 21].map((count) => builder(...places.map(() => count)))
+    return isCroatianForms(atOne) && isCroatianForms(atTwentyOne) ? [{ key, atOne: atOne.one, atTwentyOne: atTwentyOne.one }] : []
+  } catch {
+    return []
+  }
+}
+
+function isCroatianForms(words: unknown): words is { readonly one: string; readonly few: string; readonly other: string } {
+  return typeof words === 'object' && words !== null && ['one', 'few', 'other'].every((form) => typeof (words as Record<string, unknown>)[form] === 'string')
 }

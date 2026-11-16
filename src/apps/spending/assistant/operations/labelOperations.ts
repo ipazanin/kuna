@@ -1,29 +1,22 @@
 import { TEXT, found, inputOf } from '../../../../shared/app/operationInput'
+import { ENTRIES, picked } from './pickedParts'
 import { addLabel, deleteLabel, labelRows, renameLabel } from '../../labels/application/labelWrites'
 import { labelNameProblem, newLabel } from '../../labels/domain/labels'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import type { Label } from '../../workbook/domain/label'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
-import { rowItemsOf } from '../../workbook/domain/rowItems'
 import { ITEM_RECORDS, LABEL_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
-import type { Transaction } from '../../workbook/domain/transaction'
 import type { AssistantOperation } from '../../../../shared/app/assistantOperations'
-import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 import { StepRefused } from '../../../../shared/app/proposedWrites'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-
-const ENTRIES: StrictSchema = {
-  type: 'array',
-  items: inputOf({ entry: TEXT, part: { type: ['string', 'null'], description: "One of the entry's parts to change alone, such as one line of a receipt, or null for all of its parts." } }),
-}
 
 /** What Labels and the selection on Entries do: add, rename and delete a label, and put one on entries or one of their parts, or take it off. */
 export const LABEL_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-label',
     about:
-      'A new label, a name that groups money across categories and months, such as a trip or a renovation. No other label has the name once case and accents are set aside. A label-entries step on the same card puts it on entries by its $ name.',
+      'A new label, a name that groups money across categories and months with no days of its own, such as a renovation. A trip or another stretch of days is an event, which add-event makes. No other label has the name once case and accents are set aside. A label-entries step on the same card puts it on entries by its $ name.',
     input: inputOf({ name: TEXT }),
     refs: {},
     creates: LABEL_RECORDS.name,
@@ -80,26 +73,6 @@ function refuseName(name: string, labels: readonly Label[], own: RecordId | null
   const problem = labelNameProblem(name, labels, own)
   if (problem === 'blank') throw new StepRefused('A label needs a name.')
   if (problem === 'taken') throw new StepRefused(`Another label is called ${name.trim()} once case and accents are set aside, so use that one.`)
-}
-
-/** The rows a step names and the parts it names alone, each part refused unless it is one of its entry's own. */
-function picked(
-  book: SpendingBook,
-  given: readonly { readonly entry: string; readonly part: string | null }[],
-  idOf: (value: unknown) => string,
-): { readonly rows: readonly Transaction[]; readonly parts: ReadonlySet<RecordId> } {
-  const itemsOf = rowItemsOf(book)
-  const rows = new Map<RecordId, Transaction>()
-  const parts = new Set<RecordId>()
-  for (const { entry, part } of given) {
-    const row = found(book.transactions, idOf(entry), 'entry')
-    rows.set(row.id, row)
-    if (part === null) continue
-    const named = itemsOf(row).find((item) => item.id === idOf(part))
-    if (named === undefined) throw new StepRefused("A part is one of its entry's own parts, as get_record of the entry lists them.")
-    parts.add(named.id)
-  }
-  return { rows: [...rows.values()], parts }
 }
 
 /**

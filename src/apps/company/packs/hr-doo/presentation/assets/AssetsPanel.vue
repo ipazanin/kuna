@@ -52,7 +52,7 @@ import type { DepreciationYearLine } from './DepreciationYears.vue'
 import DoubledRatesChanges from './DoubledRatesChanges.vue'
 import GrantPanel from './GrantPanel.vue'
 import type { GrantComparisonLine, GrantLine } from './GrantPanel.vue'
-import { plural } from '../../../../../../shared/text/translation'
+import { listed, plural } from '../../../../../../shared/text/translation'
 import { words } from './words'
 import { sumMoney, ZERO } from '../../../../../../shared/money/money'
 
@@ -374,7 +374,7 @@ function employmentState(until: CivilDate | null): string | null {
           </div>
           <div v-if="view.lostLinks.length > 0" class="flex items-start gap-2 text-sm text-toned" data-testid="asset-link-gone">
             <UIcon name="i-lucide-unlink" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />
-            <p>{{ plural(words.panel.linkGone(view.lostLinks.length, view.lostLinks.join(', ')), view.lostLinks.length) }}</p>
+            <p>{{ listed(words.panel.linkGone(view.lostLinks.length, view.lostLinks.join(', ')), view.lostLinks.length) }}</p>
           </div>
           <div v-if="view.unmatchedPurchases.length > 0" class="flex items-start gap-2 text-sm text-toned">
             <UIcon name="i-lucide-package-search" class="mt-0.5 size-4 shrink-0 text-warning" aria-hidden="true" />

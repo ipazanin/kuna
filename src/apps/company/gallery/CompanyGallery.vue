@@ -7,13 +7,11 @@ import type { MailPlan, PlanEntry, PlannedMail } from '../../../shared/mail-fili
 import MailPlanList from '../../../shared/mail-filing/presentation/MailPlanList.vue'
 import { words as mailWords } from '../mail/presentation/words'
 import AppCard from '../../../shared/ui/AppCard.vue'
-import type { FilterChip } from '../filters/domain/filterChips'
 import type { Period } from '../filters/domain/filterState'
 import AccountPicker from '../filters/presentation/AccountPicker.vue'
-import FilterChipRow from '../filters/presentation/FilterChipRow.vue'
 import PeriodBar from '../filters/presentation/PeriodBar.vue'
 
-/** The company's own specimens in the gallery: the period bar, the account picker, the filter chips and the mail list. Only development and fake builds load it. */
+/** The company's own specimens in the gallery: the period bar, the account picker and the mail list. Only development and fake builds load it. */
 const sampleWindow = anchorWindow(civilDate(2024, 3, 1), civilDate(2026, 10, 14))
 const period = ref<Period>({ preset: 'l12' })
 const accounts = ref<readonly string[]>([])
@@ -22,14 +20,6 @@ const ACCOUNTS = [
   { value: 'card', label: 'Card account' },
   { value: 'savings', label: 'Savings' },
 ]
-const chips = ref<FilterChip[]>([
-  { id: 'bucket', label: 'Bucket: operating' },
-  { id: 'category', label: 'Category: software-subscriptions' },
-  { id: 'counterparty', label: 'Counterparty: Cloud hosting' },
-])
-function removeChip(id: string): void {
-  chips.value = chips.value.filter((chip) => chip.id !== id)
-}
 
 const STATEMENTS_FOLDER = ['finance', 'statements', '2026-statements']
 
@@ -82,7 +72,6 @@ const STOPPED = 'Gmail asked us to slow down. Sync again in a minute.'
     <h3 class="type-label">Period and filters</h3>
     <PeriodBar v-model:period="period" :window="sampleWindow" />
     <AccountPicker v-model="accounts" :options="ACCOUNTS" class="w-fit" />
-    <FilterChipRow :chips="chips" one-line @remove="removeChip" @clear="chips = []" />
     <p class="figure type-caption" aria-live="polite">Selected: {{ JSON.stringify(period) }}, {{ accounts.length ? accounts.join(' and ') : 'all accounts' }}</p>
     <h3 class="type-label">Mail list</h3>
     <AppCard data-testid="gallery-mail-plan">

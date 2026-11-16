@@ -21,7 +21,10 @@ import { words as labelWords } from '../../labels/presentation/words'
 import { loanTargets } from '../../links/application/loanTargets'
 import type { ShownTarget } from '../../links/application/loanTargets'
 import { beyondPlan, linkFiling } from '../../links/domain/instalmentSplit'
+import { sideOf } from '../../categories/domain/rowSide'
 import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
+import { eventMembership } from '../../events/domain/eventMembership'
+import { eventsNewestFirst } from '../../events/domain/events'
 import { targetsFor } from '../../links/domain/linkTarget'
 import type { InformalLoanTarget } from '../../links/domain/linkTarget'
 import AddToLoansForm from '../../links/presentation/AddToLoansForm.vue'
@@ -36,6 +39,8 @@ import { fixedByBank } from '../domain/bankRows'
 import { beforeStartDay, takesRowsByHand } from '../../workbook/domain/account'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import type { Account } from '../../workbook/domain/account'
+import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
+import type { EventChoice } from '../../workbook/domain/event'
 import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Label } from '../../workbook/domain/label'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -43,6 +48,7 @@ import { isSplit, itemizedRow, linkOfItems, rowItemsOf } from '../../workbook/do
 import { rowLinkText } from '../../workbook/domain/rowLink'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
+import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { flaggedAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
@@ -93,13 +99,30 @@ const note = ref('')
 /** The labels of an entry not split, and of each part of a split one by the part's id. */
 const labels = ref<readonly RecordId[]>([])
 const partLabels = ref<Readonly<Record<string, readonly RecordId[]>>>({})
+/** The event choice of an entry not split, and of each part of a split one by the part's id. */
+const event = ref<EventChoice>(BY_DAYS)
+const partEvents = ref<Record<string, EventChoice>>({})
 /** Labels typed into a labels field, which Save adds with the entry while a part carries them. */
 const created = ref<readonly Label[]>([])
 const tried = ref(false)
 
 /** The form's fields as one text, to tell whether the person changed any since the dialog opened. */
 const formNow = computed(() =>
-  JSON.stringify([kind.value, amount.value, toAmount.value, category.value, account.value, toAccount.value, date.value, payee.value, note.value, labels.value, partLabels.value]),
+  JSON.stringify([
+    kind.value,
+    amount.value,
+    toAmount.value,
+    category.value,
+    account.value,
+    toAccount.value,
+    date.value,
+    payee.value,
+    note.value,
+    labels.value,
+    partLabels.value,
+    event.value,
+    partEvents.value,
+  ]),
 )
 const openedAs = ref('')
 /** Whether the form holds changes not saved yet, which leaving for Loans would lose. */
@@ -234,6 +257,8 @@ watch(open, (opened) => {
   note.value = wholeItem.value?.note ?? ''
   labels.value = wholeItem.value?.labels ?? []
   partLabels.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.labels]))
+  event.value = wholeItem.value?.event ?? BY_DAYS
+  partEvents.value = Object.fromEntries(entryLines.value.map((line) => [line.id, line.event]))
   created.value = []
   labelRefused.value = null
   tried.value = false
@@ -302,6 +327,24 @@ function labelPart(part: RecordId, picked: readonly RecordId[]): void {
   partLabels.value = { ...partLabels.value, [part]: picked }
 }
 
+const events = computed(() => eventsNewestFirst(store.state.workbook?.events ?? []))
+/**
+ * The choices of a part's event under its category: first the event its day gives it, which follows the date typed above, then
+ * each event, newest first, and no event. Two events of one name read apart by their days.
+ */
+function eventItems(filedUnder: string | null): { label: string; value: EventChoice }[] {
+  const on = day.value
+  const side = sideOf(categories.value.find((candidate) => candidate.id === filedUnder) ?? null)
+  const byDays = on === null ? null : eventMembership(events.value)({ event: BY_DAYS }, on, side)
+  const named = events.value.find((candidate) => candidate.id === byDays)
+  const twin = (name: string): boolean => events.value.filter((candidate) => candidate.name === name).length > 1
+  return [
+    { label: named === undefined ? words.dialog.byDaysNone : words.dialog.byDays(named.name), value: BY_DAYS },
+    ...events.value.map((candidate) => ({ label: twin(candidate.name) ? `${candidate.name} · ${dayRangeLabel(candidate.days)}` : candidate.name, value: candidate.id })),
+    { label: words.dialog.noEvent, value: OUT_OF_EVENTS },
+  ]
+}
+
 /** An amount above zero, or null. */
 function positive(text: string): AccountMoney | null {
   const typed = typedAccountAmount(text)
@@ -343,8 +386,8 @@ function entryWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate): (
   const records = store.state.records
   if ((filed === undefined && !split.value) || records === null) return null
   const amount = kind.value === 'out' ? negateAccountMoney(typed) : typed
-  const entry = newEntry({ account: fromAccount.id, date: on, amount, payee: payee.value, category: filed?.id ?? null, note: note.value, labels: split.value ? [] : labels.value })
-  const parts = split.value ? entryLines.value.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels })) : entry.items
+  const entry = newEntry({ account: fromAccount.id, date: on, amount, payee: payee.value, category: filed?.id ?? null, note: note.value, labels: split.value ? [] : labels.value, event: event.value })
+  const parts = split.value ? entryLines.value.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels, event: partEvents.value[part.id] ?? part.event })) : entry.items
   const before = props.entry === null ? null : { row: props.entry, items: entryLines.value }
   const other = legs.value?.find((leg) => leg.id !== before?.row.id) ?? null
   const carried = new Set(parts.flatMap((part) => part.labels))
@@ -490,6 +533,9 @@ async function remove(): Promise<void> {
       <UFormField v-if="labelling && !split" :label="words.dialog.labels" :error="labelRefused?.part === null ? labelRefused.text : false" class="sm:col-span-2">
         <LabelsSelect v-model="labels" :labels="labelChoices" :name="words.dialog.labels" class="w-full" @create="labels = withTyped(labels, $event)" />
       </UFormField>
+      <UFormField v-if="labelling && !split && events.length > 0" :label="words.dialog.event">
+        <USelect v-model="event" :items="eventItems(category)" class="w-full" data-testid="spending-entry-event" />
+      </UFormField>
       <UFormField v-if="entryLink !== null" :label="linkWords.label" class="sm:col-span-2" data-testid="spending-entry-link">
         <div class="flex flex-col items-start gap-1">
           <NoteLine as="span" size="body" :tone="LINK_TONE[entryLink.look]" :icon="entryLink.icon">{{ entryLink.text }}</NoteLine>
@@ -541,17 +587,28 @@ async function remove(): Promise<void> {
         <p class="type-caption">{{ splitNote }}</p>
         <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full">
           <template v-if="labelling" #line="{ line, title }">
-            <LabelsSelect
-              :model-value="partLabels[line.id] ?? []"
-              :labels="labelChoices"
-              :name="words.dialog.partLabels(title)"
-              size="sm"
-              class="w-full"
-              data-testid="spending-entry-part-labels"
-              @update:model-value="labelPart(line.id, $event)"
-              @create="labelPart(line.id, withTyped(partLabels[line.id] ?? [], $event, line.id))"
-            />
-            <NoteLine v-if="labelRefused !== null && labelRefused.part === line.id" tone="error" data-testid="spending-entry-part-label-refused">{{ labelRefused.text }}</NoteLine>
+            <span class="flex min-w-0 flex-1 flex-col gap-1.5">
+              <LabelsSelect
+                :model-value="partLabels[line.id] ?? []"
+                :labels="labelChoices"
+                :name="words.dialog.partLabels(title)"
+                size="sm"
+                class="w-full"
+                data-testid="spending-entry-part-labels"
+                @update:model-value="labelPart(line.id, $event)"
+                @create="labelPart(line.id, withTyped(partLabels[line.id] ?? [], $event, line.id))"
+              />
+              <NoteLine v-if="labelRefused !== null && labelRefused.part === line.id" tone="error" data-testid="spending-entry-part-label-refused">{{ labelRefused.text }}</NoteLine>
+              <USelect
+                v-if="events.length > 0"
+                v-model="partEvents[line.id]"
+                :items="eventItems(line.category)"
+                :aria-label="words.dialog.partEvent(title)"
+                size="sm"
+                class="w-full"
+                data-testid="spending-entry-part-event"
+              />
+            </span>
           </template>
         </RowLines>
         <p v-if="receiptPlace !== null" class="flex flex-col items-start text-sm" data-testid="spending-entry-place">

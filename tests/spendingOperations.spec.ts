@@ -23,6 +23,7 @@ import { BANK_SYNC_DEPLOYMENT_KEY } from '../src/apps/spending/workbook/domain/s
 import { setSetting } from '../src/shared/storage/application/settingWrites'
 import { ACCOUNT_WRITES } from '../src/apps/spending/accounts/application/accountWrites'
 import { ITEM_RECORDS, TRANSACTION_RECORDS } from '../src/apps/spending/workbook/domain/spendingKinds'
+import { BY_DAYS, OUT_OF_EVENTS } from '../src/apps/spending/workbook/domain/event'
 import { wholeRowItemId } from '../src/apps/spending/workbook/domain/rowItems'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { expectCountsOfChanges } from './fixtures/cardCounts'
@@ -857,5 +858,102 @@ describe('labels through the chat', () => {
       { label: 'Renovation: spent', of: 'app', cents: 0, currency: 'EUR' },
       { label: 'Renovation: entries', count: 0 },
     ])
+  })
+})
+
+describe('events through the chat', () => {
+  const RENT_PART = recordIdOf(ITEM_RECORDS, 'line-hardware-rent')
+  const GROCERIES_PART = recordIdOf(ITEM_RECORDS, 'line-hardware-groceries')
+  const choiceOn = (desk: SpendingDesk, item: RecordId) => bookOf(desk).items.find((held) => held.id === item)?.event
+  const eventFieldsOn = (desk: SpendingDesk) =>
+    desk.cards
+      .at(-1)!
+      .groups.flatMap((group) => group.lines)
+      .flatMap((line) => line.fields.filter((field) => field.name === 'Event').map(({ before, after }) => ({ before, after })))
+
+  it('adds an event and puts an entry in it by its $ name on one card, which one Undo takes back', async () => {
+    const desk = await spendingDesk(used)
+    const typed = wholeRowItemId({ id: EXAMPLE_RECORDS['transaction'] as RecordId })
+
+    const answer = await desk.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-event', { name: ' Prague ', from: '2027-07-10', to: '2027-07-14' }, '$prague'),
+      stepOf(SPENDING_OPERATIONS, 'put-in-event', { event: '$prague', entries: [{ entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction']!), part: null }] }),
+    ])
+    expect(answer.isError, answer.text).toBe(false)
+    const result = await desk.accept()
+
+    const prague = bookOf(desk).events.find((event) => event.name === 'Prague')!
+    expect(prague.days).toEqual({ from: '2027-07-10', to: '2027-07-14' })
+    expect(choiceOn(desk, typed)).toBe(prague.id)
+    if (result.kind === 'done') expect((await result.undo!()).kind).toBe('undone')
+    expect(bookOf(desk).events.map((event) => event.name)).toEqual(['Trip'])
+    expect(choiceOn(desk, typed)).toBe(BY_DAYS)
+  })
+
+  it('takes one part out of every event, puts the other back on its days, and deleting the event puts its hand-held parts back', async () => {
+    const desk = await spendingDesk(used)
+    const split = desk.ref('transaction', EXAMPLE_RECORDS['transaction-split']!)
+    const event = desk.ref('event', EXAMPLE_RECORDS['event']!)
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'take-out-of-events', { entries: [{ entry: split, part: desk.ref('item', RENT_PART) }] })])
+    await desk.accept()
+    expect([choiceOn(desk, RENT_PART), choiceOn(desk, GROCERIES_PART)]).toEqual([OUT_OF_EVENTS, EXAMPLE_RECORDS['event']])
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'back-on-days', { entries: [{ entry: split, part: desk.ref('item', RENT_PART) }] })])
+    expect(eventFieldsOn(desk)).toEqual([{ before: 'In no event', after: 'By its days: Trip' }])
+    await desk.accept()
+    expect(choiceOn(desk, RENT_PART)).toBe(BY_DAYS)
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-event', { event, name: 'Autumn trip', from: null, to: null })])
+    await desk.accept()
+    expect(bookOf(desk).events.map((held) => held.name)).toEqual(['Autumn trip'])
+
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'delete-event', { event })])
+    expect(eventFieldsOn(desk)).toEqual([{ before: 'Autumn trip', after: 'By its days' }])
+    await desk.accept()
+    expect(bookOf(desk).events).toEqual([])
+    expect(choiceOn(desk, GROCERIES_PART)).toBe(BY_DAYS)
+  })
+
+  it("reads what each event counts up to a day, and each part's event as by-days, out or the event it was put in", async () => {
+    const desk = await spendingDesk(used)
+    const reader = spendingReader({ status: () => 'open', book: () => bookOf(desk), rates: () => NO_RATES, bankSetup: deskBankSetup, qrTextOn: async () => null, linkTargets: () => DESK_LOAN_TARGETS })
+    const events = reader.reports.find((report) => report.id === 'events')!
+
+    // The split's rent part on its day, its groceries part put in by hand, and the kiosk row on the 27th: 40 + 20 + 18.
+    expect(events.figures('2026-10-31')).toEqual([
+      { label: 'Trip (2026-10-24 to 2026-10-31): spent', of: 'app', cents: 7800, currency: 'EUR' },
+      { label: 'Trip (2026-10-24 to 2026-10-31) / Food: spent', of: 'app', cents: 3800, currency: 'EUR' },
+      { label: 'Trip (2026-10-24 to 2026-10-31) / Rent: spent', of: 'app', cents: 4000, currency: 'EUR' },
+      { label: 'Trip (2026-10-24 to 2026-10-31): entries', count: 2 },
+    ])
+    expect(events.figures('2026-10-26')).toEqual([
+      { label: 'Trip (2026-10-24 to 2026-10-31): spent', of: 'app', cents: 0, currency: 'EUR' },
+      { label: 'Trip (2026-10-24 to 2026-10-31): entries', count: 0 },
+    ])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'take-out-of-events', { entries: [{ entry: desk.ref('transaction', EXAMPLE_RECORDS['transaction-split']!), part: desk.ref('item', RENT_PART) }] })])
+    await desk.accept()
+    const parts = reader.kinds.find((kind) => kind.name === ITEM_RECORDS.name)!.rows()
+    const read = (item: RecordId) =>
+      parts.find((part) => part.fields.some((field) => field.name === 'id' && 'ids' in field && field.ids.includes(item)))?.fields.find((field) => field.name === 'event')
+    expect([read(RENT_PART), read(GROCERIES_PART), read(wholeRowItemId({ id: EXAMPLE_RECORDS['transaction'] as RecordId }))]).toEqual([
+      { name: 'event', exposure: 'plain', value: 'out' },
+      { name: 'event', exposure: 'plain', value: 'Trip (2026-10-24 to 2026-10-31)' },
+      { name: 'event', exposure: 'plain', value: 'by-days' },
+    ])
+  })
+
+  it('refuses a part of another entry, a last day before the first, and a hand choice on a file from before items', async () => {
+    const desk = await spendingDesk(used)
+    const event = desk.ref('event', EXAMPLE_RECORDS['event']!)
+    const typed = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'put-in-event', { event, entries: [{ entry: typed, part: desk.ref('item', GROCERIES_PART) }] })])).text).toContain("its entry's own parts")
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'change-event', { event, name: null, from: '2026-11-02', to: null })])).text).toContain('cannot be before its first')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'add-event', { name: ' ', from: '2026-11-02', to: '2026-11-03' })])).text).toContain('An event needs a name')
+
+    const older = await spendingDesk(used, deskPorts(), 'before-items')
+    const olderRow = older.ref('transaction', EXAMPLE_RECORDS['transaction']!)
+    expect((await older.propose([stepOf(SPENDING_OPERATIONS, 'take-out-of-events', { entries: [{ entry: olderRow, part: null }] })])).text).toContain('move-to-items')
   })
 })
