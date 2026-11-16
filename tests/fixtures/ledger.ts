@@ -51,6 +51,8 @@ export interface RowSpec {
   readonly counterparty?: string
   readonly iban?: string
   readonly description?: string
+  /** Defaults to one of the row's own, by its place. */
+  readonly reference?: string
   /** Euros. Defaults to the account's running balance. */
   readonly balance?: number
   readonly flaggedBy?: string
@@ -72,6 +74,7 @@ export function ledger(rows: readonly RowSpec[]): Transaction[] {
       running.set(account, balance)
       const category = row.category ?? 'ai-services'
       const seeded = SEED[category]
+      const reference = row.reference ?? `REF-${position + 1}`
       return {
         account,
         date: civil(row.date),
@@ -86,11 +89,11 @@ export function ledger(rows: readonly RowSpec[]): Transaction[] {
         family: seeded?.family ?? 'unclassified',
         bucket: seeded?.bucket ?? 'unclassified',
         flaggedBy: row.flaggedBy ?? 'rule',
-        reference: `REF-${position + 1}`,
+        reference,
         signals: NO_SIGNALS,
         reviewReasons: row.reviewReasons ?? [],
         ownerShare: null,
-        id: recordIdOf(LEDGER_RECORDS, `REF-${position + 1}`),
+        id: recordIdOf(LEDGER_RECORDS, reference),
         rowId: null,
       }
     })

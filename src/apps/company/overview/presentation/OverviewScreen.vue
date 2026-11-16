@@ -52,7 +52,7 @@ import { capitalised } from '../../../../shared/text/capitalised'
 import { plural } from '../../../../shared/text/translation'
 import type { CroatianForms, EnglishForms } from '../../../../shared/text/translation'
 import { words } from './words'
-import { subtractMoney } from '../../../../shared/money/money'
+import { negateMoney, subtractMoney } from '../../../../shared/money/money'
 
 const ledger = useFilteredLedger()
 const { state } = useWorkbook()
@@ -121,7 +121,7 @@ const overview = computed(() => {
       recentChange: recentChange(averages.last3.lines[line].perMonth, averages.last12.lines[line].perMonth),
     }))
 
-  const costChange = subtractMoney(averages.last3.lines.cost.perMonth, averages.last12.lines.cost.perMonth)
+  const costChange = subtractMoney(averages.last12.lines.cost.perMonth, averages.last3.lines.cost.perMonth)
   const said = headline(months)
   const lastTwelveTotals = bucketTotals(transactionsInPeriod(profitAndLossRows, LAST_12_MONTHS, window))
   const averagedMonths = `${monthLabel(averages.last12.span.from)} – ${monthLabel(averages.last12.span.to)}`
@@ -135,12 +135,13 @@ const overview = computed(() => {
             month: capitalised(monthInYear(said.month, new Date().getFullYear())),
             cameIn: { amount: said.cameIn.amount, to: drillLocation(said.cameIn.drill) },
             wentOut: { amount: said.wentOut.amount, to: drillLocation(said.wentOut.drill) },
-            loss: said.loss,
+            net: said.net < 0 ? said.net : null,
           },
     tiles: [
       {
         label: words.tiles.cashOnHand,
         value: formatMoney(balances.cashOnHand.amount),
+        amount: { cents: balances.cashOnHand.amount, tone: 'balance' as const },
         to: drillLocation(balances.cashOnHand.drill),
         trend: cashMonths.slice(-12).map((month) => month.total.amount),
         ...(cashChange === null || lastMonthEnd === null ? {} : { delta: { change: cashChange, text: formatMoney(cashChange, 'always'), comparison: words.tiles.sinceMonthEnd(lastMonthEnd.month) } }),
@@ -148,7 +149,8 @@ const overview = computed(() => {
       },
       {
         label: words.tiles.net,
-        value: formatMoney(lastTwelveTotals.net),
+        value: formatMoney(lastTwelveTotals.net, 'always'),
+        amount: { cents: lastTwelveTotals.net, tone: 'outcome' as const },
         to: drillLocation(drillToTransactions({ period: LAST_12_MONTHS, buckets: LINE_BUCKETS.net })),
         trend: lastTwelve.map((month) => month.lines.net.amount),
         caption: words.tiles.perMonth(formatMoney(averages.last12.lines.net.perMonth), averagedMonths),
@@ -156,10 +158,10 @@ const overview = computed(() => {
       },
       {
         label: words.tiles.monthlyCosts,
-        value: formatMoney(recentRunway.monthlyCost.amount),
+        value: formatMoney(negateMoney(recentRunway.monthlyCost.amount), 'always'),
+        amount: { cents: negateMoney(recentRunway.monthlyCost.amount), tone: 'flow' as const },
         to: drillLocation(recentRunway.monthlyCost.drill),
-        trend: lastTwelve.map((month) => month.lines.cost.amount),
-        higherIsBetter: false,
+        trend: lastTwelve.map((month) => negateMoney(month.lines.cost.amount)),
         delta: { change: costChange, text: formatMoney(costChange, 'always'), comparison: words.tiles.against12Months },
         definition: words.tiles.costsDefinition(costs),
       },
@@ -220,9 +222,10 @@ const overview = computed(() => {
 
         <p v-if="overview.headline" class="type-body" data-testid="headline">
           {{ overview.headline.month }}{{ words.headline.opening
-          }}<DrillLink :to="overview.headline.cameIn.to" in-prose class="font-semibold text-highlighted"><MoneyText :cents="overview.headline.cameIn.amount" /></DrillLink>{{ words.headline.between
-          }}<DrillLink :to="overview.headline.wentOut.to" in-prose class="font-semibold text-highlighted"><MoneyText :cents="overview.headline.wentOut.amount" /></DrillLink>{{ words.headline.closing
-          }}<template v-if="overview.headline.loss !== null">{{ words.headline.loss }}<MoneyText :cents="overview.headline.loss" class="text-error" /></template>.
+          }}<DrillLink :to="overview.headline.cameIn.to" in-prose class="font-semibold text-highlighted"><MoneyText :cents="overview.headline.cameIn.amount" tone="flow" /></DrillLink
+          >{{ words.headline.between
+          }}<DrillLink :to="overview.headline.wentOut.to" in-prose class="font-semibold text-highlighted"><MoneyText :cents="negateMoney(overview.headline.wentOut.amount)" tone="flow" /></DrillLink
+          ><template v-if="overview.headline.net !== null">{{ words.headline.net }}<MoneyText :cents="overview.headline.net" tone="outcome" /></template>.
         </p>
 
         <AppCard v-if="waiting.length" :title="words.waiting.title" :subtitle="words.waiting.subtitle" data-testid="waiting-for-you">
@@ -238,7 +241,9 @@ const overview = computed(() => {
         </AppCard>
 
         <DashboardGrid layout="tiles">
-          <KpiTile v-for="tile in overview.tiles" :key="tile.label" v-bind="tile" />
+          <KpiTile v-for="{ amount, ...tile } in overview.tiles" :key="tile.label" v-bind="tile">
+            <template v-if="amount" #value><MoneyText v-bind="amount" /></template>
+          </KpiTile>
         </DashboardGrid>
 
         <DashboardGrid v-if="booked.length > 0">
@@ -292,7 +297,8 @@ const overview = computed(() => {
               <li v-for="account in overview.accounts" :key="account.account" class="border-t border-default first:border-t-0">
                 <ProposalRow v-bind="account.to === null ? { as: 'div' as const } : { to: account.to }" :title="account.name" :quiet="account.closed">
                   <template #amount>
-                    <MoneyText :cents="account.balance" class="font-semibold" :class="account.closed ? 'text-muted' : 'text-highlighted'" />
+                    <MoneyText v-if="account.closed" :cents="account.balance" class="font-semibold text-muted" />
+                    <MoneyText v-else :cents="account.balance" tone="balance" class="font-semibold" />
                   </template>
                   <template #caption> <span class="swatch swatch-bar me-1.5 align-middle" :style="{ '--swatch': account.colour }" aria-hidden="true" />{{ account.note }} </template>
                 </ProposalRow>

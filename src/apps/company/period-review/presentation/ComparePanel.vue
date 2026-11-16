@@ -14,7 +14,6 @@ import { useFilters } from '../../filters/application/filterStore'
 import { useSettings } from '../../settings/application/useSettings'
 import { lineLabel, lineShown } from '../../settings/domain/profitAndLossLabels'
 import { useFilteredLedger } from '../../transactions/application/useFilteredLedger'
-import type { ProfitAndLossLine } from '../../workbook/domain/bucketTotals'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { displayName } from '../../workbook/domain/displayName'
 import { categoryChanges } from '../domain/categoryChanges'
@@ -30,9 +29,6 @@ const ledger = useFilteredLedger()
 const settings = useSettings()
 const { drillLocation } = useFilters()
 const names = useDisplayNames()
-
-/** Costs read positive, so a fall in one of them is the good direction. */
-const COST_LINES: readonly ProfitAndLossLine[] = ['operating', 'taxes', 'ownerPay', 'cost']
 
 /** "Jan – Sep 2026" within a year, "Jun 2025 – Feb 2026" across one. */
 function monthSpan(months: { readonly from: MonthKey; readonly to: MonthKey }): string {
@@ -76,7 +72,7 @@ const review = computed(() => {
   const shown = settings.value
   const currentLabel = periodLabel(result.current.period)
   const priorLabel = result.prior === null ? null : periodLabel(result.prior.period)
-  const rowOf = (row: CategoryChange, section: 'income' | 'cost' | 'outside') => ({
+  const rowOf = (row: CategoryChange) => ({
     key: row.category,
     category: names.value.category(row.category),
     family: displayName(row.family),
@@ -85,14 +81,12 @@ const review = computed(() => {
     prior: row.prior?.amount ?? null,
     priorTo: row.prior === null ? null : drillLocation(row.prior.drill),
     change: row.change,
-    // A cost that rose, or income that fell, is the bad direction. Outside profit and loss has none.
-    changeSign: row.change === null || section === 'outside' ? 0 : section === 'cost' ? -row.change : row.change,
   })
   const sectionTitles = { income: shown.bucketLabels.income, cost: words.costs, outside: words.outside }
   const sections = categoryChanges(profitAndLossRows, result.current.range, result.prior, window).map((section) => ({
     key: section.key,
     title: sectionTitles[section.key],
-    rows: section.rows.map((row) => rowOf(row, section.key)),
+    rows: section.rows.map(rowOf),
   }))
   const categoryCount = sections.reduce((count, section) => count + section.rows.length, 0)
   return {
@@ -110,7 +104,6 @@ const review = computed(() => {
         prior: line.prior?.amount ?? null,
         priorTo: line.prior === null ? null : drillLocation(line.prior.drill),
         change: line.change,
-        changeSign: line.change === null ? 0 : COST_LINES.includes(line.line) ? -line.change : line.change,
       })),
     sections,
     categoryCount,
@@ -155,27 +148,23 @@ const shownSections = computed(() => {
             <tr v-for="line in review.lines" :key="line.line">
               <th scope="row" class="cell-wraps text-start" :class="line.emphasised ? 'font-medium text-highlighted' : 'font-normal text-toned'">
                 {{ line.label }}
-                <MoneyText
-                  v-if="line.change !== null"
-                  :cents="line.change"
-                  sign="always"
-                  class="block text-xs font-normal @sm:hidden"
-                  :class="line.changeSign > 0 ? 'text-success' : line.changeSign < 0 ? 'text-error' : 'text-muted'"
-                />
+                <MoneyText v-if="line.change !== null" :cents="line.change" sign="always" class="block text-xs font-normal @sm:hidden" />
               </th>
               <td class="text-end">
                 <DrillLink :to="line.currentTo" :label="words.openRows(line.label, review.currentLabel)">
-                  <MoneyText :cents="line.current" />
+                  <MoneyText v-if="line.emphasised" :cents="line.current" tone="outcome" />
+                  <MoneyText v-else :cents="line.current" />
                 </DrillLink>
               </td>
               <td class="text-end">
                 <DrillLink v-if="line.prior !== null" :to="line.priorTo" :label="words.openRows(line.label, review.priorLabel ?? '')">
-                  <MoneyText :cents="line.prior" class="text-muted" />
+                  <MoneyText v-if="line.emphasised" :cents="line.prior" tone="outcome" />
+                  <MoneyText v-else :cents="line.prior" class="text-muted" />
                 </DrillLink>
                 <span v-else class="text-muted">{{ words.noData }}</span>
               </td>
               <td class="hidden text-end @sm:table-cell">
-                <MoneyText v-if="line.change !== null" :cents="line.change" sign="always" :class="line.changeSign > 0 ? 'text-success' : line.changeSign < 0 ? 'text-error' : 'text-muted'" />
+                <MoneyText v-if="line.change !== null" :cents="line.change" sign="always" />
                 <span v-else class="text-muted">–</span>
               </td>
             </tr>
@@ -200,13 +189,7 @@ const shownSections = computed(() => {
               <tr v-for="row in section.rows" :key="row.key">
                 <th scope="row" class="cell-wraps text-start font-normal text-highlighted">
                   {{ row.category }}
-                  <MoneyText
-                    v-if="row.change !== null"
-                    :cents="row.change"
-                    sign="always"
-                    class="block text-xs @md:hidden"
-                    :class="row.changeSign > 0 ? 'text-success' : row.changeSign < 0 ? 'text-error' : 'text-muted'"
-                  />
+                  <MoneyText v-if="row.change !== null" :cents="row.change" sign="always" class="block text-xs @md:hidden" />
                 </th>
                 <td class="hidden text-muted @2xl:table-cell">{{ row.family }}</td>
                 <td class="text-end">
@@ -222,7 +205,7 @@ const shownSections = computed(() => {
                   <span v-else class="text-muted">–</span>
                 </td>
                 <td class="hidden text-end @md:table-cell">
-                  <MoneyText v-if="row.change !== null" :cents="row.change" sign="always" :class="row.changeSign > 0 ? 'text-success' : row.changeSign < 0 ? 'text-error' : 'text-muted'" />
+                  <MoneyText v-if="row.change !== null" :cents="row.change" sign="always" />
                   <span v-else class="text-muted">–</span>
                 </td>
               </tr>

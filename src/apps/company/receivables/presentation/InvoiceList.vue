@@ -92,13 +92,13 @@ const STATUS = {
         <li v-for="payment in invoice.payments" :key="payment.key">
           <DrillLink :to="payment.to" :label="words.list.openPayment(payment.date, invoice.number)" class="payment-share">
             <span class="text-muted">{{ payment.date }}</span>
-            <MoneyText :cents="payment.amount" class="text-toned" />
+            <MoneyText :cents="payment.amount" tone="flow" />
           </DrillLink>
         </li>
         <li v-for="overpayment in invoice.overpayments" :key="`over-${overpayment.key}`">
           <DrillLink :to="overpayment.to" :label="words.list.openOverpayment(overpayment.date)" class="payment-share overpaid">
             <span class="text-muted">{{ words.list.overpaidOn(overpayment.date) }}</span>
-            <MoneyText :cents="overpayment.amount" sign="always" class="text-toned" />
+            <MoneyText :cents="overpayment.amount" tone="flow" />
           </DrillLink>
         </li>
       </ol>

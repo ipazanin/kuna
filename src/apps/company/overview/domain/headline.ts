@@ -1,5 +1,5 @@
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
-import { negateMoney, roundHalfAwayFromZero } from '../../../../shared/money/money'
+import { roundHalfAwayFromZero } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import type { Figure } from '../../filters/domain/drillTarget'
 import { plural } from '../../../../shared/text/translation'
@@ -11,8 +11,8 @@ export interface Headline {
   readonly month: MonthKey
   readonly cameIn: Figure
   readonly wentOut: Figure
-  /** What the month lost, read positive. Null when it did not lose money. */
-  readonly loss: Money | null
+  /** What came in less what went out. */
+  readonly net: Money
 }
 
 /** The headline of the newest complete month, or null while the ledger has none. */
@@ -21,12 +21,11 @@ export function headline(months: readonly MonthOfProfitAndLoss[]): Headline | nu
   if (newest === undefined) {
     return null
   }
-  const net = newest.lines.net.amount
   return {
     month: newest.month,
     cameIn: newest.lines.income,
     wentOut: newest.lines.cost,
-    loss: net < 0 ? negateMoney(net) : null,
+    net: newest.lines.net.amount,
   }
 }
 

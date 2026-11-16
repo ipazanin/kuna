@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
+import { negateMoney } from '../../../../shared/money/money'
 import { formatPercent } from '../../../../shared/money/moneyFormat'
 import { pointsOfShare } from '../../../../shared/money/percent'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -91,11 +92,11 @@ const groupName = computed(() => {
       <template v-if="group.kind === 'month'">
         <span class="figure-pair">
           <span class="meta">{{ bucketLabels.income }}</span>
-          <MoneyText :cents="group.income" class="text-toned" />
+          <MoneyText :cents="group.income" tone="flow" />
         </span>
         <span class="figure-pair">
           <span class="meta">{{ words.group.costs }}</span>
-          <MoneyText :cents="group.cost" class="text-toned" />
+          <MoneyText :cents="negateMoney(group.cost)" tone="flow" />
         </span>
         <span class="figure-pair">
           <span class="meta">{{ words.group.net }}</span>

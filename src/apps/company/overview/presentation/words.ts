@@ -15,7 +15,7 @@ export const en = {
   title: 'Overview',
   description: 'How the company is doing, and what waits for you.',
   /** The newest complete month in one sentence, around its figures. */
-  headline: { opening: ': ', between: ' came in and ', closing: ' went out', loss: ', a loss of ' },
+  headline: { opening: ': in ', between: ', out ', net: ', net ' },
   waiting: {
     title: 'Waiting for you',
     subtitle: 'Across the whole workbook, whatever the filters.',
@@ -54,7 +54,7 @@ export const en = {
     runwayDefinition: 'Cash on hand divided by the monthly costs: how long the company runs if no more income arrives. The figure takes the last three complete months, the caption the last twelve.',
   },
   typicalMonth: {
-    title: 'A typical month, three ways',
+    title: 'A typical month',
     subtitle: 'Each window ends with the last complete month. A wide spread means recent months are not like the rest.',
     last3: 'Last 3 months',
     last12: 'Last 12 months',
@@ -103,7 +103,7 @@ export const en = {
 export const hr: Translation<typeof en> = {
   title: 'Pregled',
   description: 'Kako tvrtka posluje i što vas čeka.',
-  headline: { opening: ': ušlo je ', between: ', a izašlo ', closing: '', loss: ', uz gubitak od ' },
+  headline: { opening: ': ulaz ', between: ', izlaz ', net: ', neto ' },
   waiting: {
     title: 'Čeka vas',
     subtitle: 'U cijeloj datoteci, bez obzira na filtre.',
@@ -148,7 +148,7 @@ export const hr: Translation<typeof en> = {
       'Novac na računima podijeljen s mjesečnim troškovima: koliko dugo tvrtka može raditi ako ne stigne novi prihod. Brojka uzima zadnja tri cijela mjeseca, a natpis ispod zadnjih dvanaest.',
   },
   typicalMonth: {
-    title: 'Tipičan mjesec, na tri načina',
+    title: 'Tipičan mjesec',
     subtitle: 'Svako razdoblje završava zadnjim cijelim mjesecom. Velika razlika znači da se nedavni mjeseci razlikuju od ostalih.',
     last3: 'Zadnja 3 mjeseca',
     last12: 'Zadnjih 12 mjeseci',

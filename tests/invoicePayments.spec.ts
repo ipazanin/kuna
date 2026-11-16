@@ -31,8 +31,12 @@ function entries(rows: readonly RowSpec[]): LedgerEntry[] {
   return ledger(rows).map((row, index) => ({ ...row, rowId: `new-${rows.length - index}` }))
 }
 
-function credit(date: string, amount: number, iban = NORTH, category = 'fees'): RowSpec {
-  return { date, amount, category, iban, counterparty: 'North Ltd' }
+function credit(date: string, amount: number, iban = NORTH, category = 'fees', description = ''): RowSpec {
+  return { date, amount, category, iban, counterparty: 'North Ltd', description }
+}
+
+function described(date: string, amount: number, description: string): RowSpec {
+  return credit(date, amount, NORTH, 'fees', description)
 }
 
 /** What each new row pays, by its row id: each item's amount and the number of the invoice it pays, or null. */
@@ -94,6 +98,40 @@ describe('which invoices the new rows of an import pay', () => {
     const booked = ledger([credit('2026-01-20', 800)])
 
     expect(proposed(booked, [credit('2026-04-01', 500)])).toEqual([['new-1', [[euros(500), '1-2-26']]]])
+  })
+
+  it.each([
+    ['the invoice it names, over the one its amount equals', described('2026-04-01', 500, 'Invoice 1-1-26'), [[euros(500), '1-1-26']]],
+    [
+      'each invoice it names, over the one their sum equals',
+      described('2026-04-01', 800, 'Invoices 1-2-26 and 1-3-26'),
+      [
+        [euros(500), '1-2-26'],
+        [euros(300), '1-3-26'],
+      ],
+    ],
+    [
+      'the invoice it names first, the rest by the amount rule',
+      described('2026-04-01', 500, 'Invoice 1-3-26'),
+      [
+        [euros(200), '1-1-26'],
+        [euros(300), '1-3-26'],
+      ],
+    ],
+    ['the invoice it names in Croatian, with a full stop after the number', described('2026-04-01', 500, 'Plaćanje po računu br. 1-1-26.'), [[euros(500), '1-1-26']]],
+    ['an invoice it names that is issued after its day, since a client may pay ahead', described('2026-02-01', 300, 'Invoice 1-3-26'), [[euros(300), '1-3-26']]],
+    ['by its amount when the number it names is part of a longer one', described('2026-04-01', 500, 'Invoice 11-1-26'), [[euros(500), '1-2-26']]],
+    ['by its amount when the number it names is part of a longer one with a dash', described('2026-04-01', 500, 'Invoice 2-1-1-26'), [[euros(500), '1-2-26']]],
+    ['by its amount when it names no invoice', described('2026-04-01', 500, 'Monthly fee'), [[euros(500), '1-2-26']]],
+    ['the invoice its payment reference names', { ...credit('2026-04-01', 500), reference: 'HR00 1-1-26' }, [[euros(500), '1-1-26']]],
+  ] as const)('a credit whose description or reference names an invoice pays %s', (_case, added, items) => {
+    expect(proposed([], [added])).toEqual([['new-1', items]])
+  })
+
+  it('puts a credit by its amount when the invoice it names is paid already', () => {
+    const booked = ledger([credit('2026-01-20', 800)])
+
+    expect(proposed(booked, [described('2026-04-01', 500, 'Invoice 1-1-26')])).toEqual([['new-1', [[euros(500), '1-2-26']]]])
   })
 
   it('keeps the row’s own item id on its first item', () => {

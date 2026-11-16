@@ -1014,7 +1014,7 @@ const SCREENS = [
     hash: '#/company',
     title: 'Pregled',
     charts: 2,
-    shows: ['Čeka vas', 'Tipičan mjesec, na tri načina', 'Kamo ide prihod', 'Stanje na kraju mjeseca', 'Novca dostaje za', 'Zadnje stavke', 'Sve stavke'],
+    shows: ['Čeka vas', 'Tipičan mjesec', 'Kamo ide prihod', 'Stanje na kraju mjeseca', 'Novca dostaje za', 'Zadnje stavke', 'Sve stavke'],
   },
   { name: 'transactions', hash: '#/company/transactions', title: 'Transactions', charts: 0, shows: 'Northwind Analytics', cards: false },
   { name: 'transactions-owner-part', hash: '#/company/transactions?p=all&cat=equipment', title: 'Transactions', charts: 0, shows: ['30% to owner, from Equipment', 'Laptop Store'], cards: false },
@@ -9199,6 +9199,7 @@ const FLOWS = [
     modes: ['drive'],
     queries: { drive: '&lang=hr' },
   },
+  { name: 'dialogs-rows', hash: '#/company/transactions?p=all&q=GADGET', title: 'Transactions', run: rowsDialogsFlowIn('en'), viewports: DESIGN_REVIEW_VIEWPORTS },
   {
     name: 'dialogs-rows-croatian',
     hash: '#/company/transactions?p=all&q=GADGET',

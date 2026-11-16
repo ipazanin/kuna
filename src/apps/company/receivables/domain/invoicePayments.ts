@@ -1,4 +1,4 @@
-import { ZERO, absMoney, addMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
+import { ZERO, absMoney, addMoney, minMoney, subtractMoney, sumMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { settlePayments } from '../../../../shared/money/settleOpenRows'
 import type { RowShare } from '../../../../shared/money/settleOpenRows'
@@ -97,9 +97,8 @@ export function invoicesRefiledOff(workbook: Pick<Workbook, 'splits' | 'categori
 
 /**
  * Which invoices the new rows of an import pay, on books that keep items: each new revenue credit from an IBAN a client names,
- * oldest first, against what each of that client's invoices still has open, as the receivables of the booked rows give it. A
- * credit first closes the fewest invoices it equals exactly, and failing that fills the oldest open ones, each reaching only the
- * invoices issued by its day. Each such row becomes its items: what pays no invoice under the row's own item id, then each
+ * oldest first, against what each of that client's invoices still has open, as the receivables of the booked rows give it, by
+ * the rule `settledOnInvoices` states. Each such row becomes its items: what pays no invoice under the row's own item id, then each
  * invoice's part under the id the move would give its place. A credit no invoice takes is left out.
  */
 export function proposedInvoicePayments(books: ReceivableBooks, added: readonly LedgerEntry[]): RowPayments[] {
@@ -124,29 +123,60 @@ export function proposedInvoicePayments(books: ReceivableBooks, added: readonly 
 }
 
 /**
- * Where credits of a client, given oldest first, go among its open invoices, oldest first: each first closes the fewest invoices
- * it equals exactly, and failing that fills the oldest open ones, each reaching only the invoices issued by its day.
+ * Where credits of a client, given oldest first, go among its open invoices, oldest first. A credit first fills the open invoices
+ * whose numbers its description or reference names, since the payer said what it pays. The rest of it then closes the fewest invoices it
+ * equals exactly, and failing that fills the oldest open ones, each reaching only the invoices issued by its day.
  */
-function settledOnInvoices(client: ClientReceivables, credits: readonly Pick<Transaction, 'date' | 'amount'>[]): { readonly open: readonly MatchedInvoice[]; readonly placed: RowShare[][] } {
+function settledOnInvoices(
+  client: ClientReceivables,
+  credits: readonly Pick<Transaction, 'date' | 'amount' | 'description' | 'reference'>[],
+): { readonly open: readonly MatchedInvoice[]; readonly placed: RowShare[][] } {
   const open = client.invoices.filter((matched) => matched.remaining > 0).sort((earlier, later) => invoiceOrder(earlier.invoice, later.invoice))
   if (credits.length === 0 || open.length === 0) return { open, placed: [] }
+  const left = open.map((matched) => matched.remaining)
+  const named = credits.map((credit) => {
+    const shares: RowShare[] = []
+    let unplaced = credit.amount
+    open.forEach((matched, index) => {
+      if (unplaced <= 0 || left[index]! <= 0 || !namesInvoice(credit, matched.invoice.number)) return
+      const applied = minMoney(unplaced, left[index]!)
+      shares.push({ index, applied })
+      left[index] = subtractMoney(left[index]!, applied)
+      unplaced = subtractMoney(unplaced, applied)
+    })
+    return shares
+  })
   const issuedBy = (payment: number, row: number) => open[row]!.invoice.issued <= credits[payment]!.date
-  return {
-    open,
-    placed: settlePayments(
-      open.map((matched) => matched.remaining),
-      credits.map((credit) => credit.amount),
-      issuedBy,
-      issuedBy,
-    ),
-  }
+  const settled = settlePayments(
+    left,
+    credits.map((credit, payment) => subtractMoney(credit.amount, sumMoney(named[payment]!.map((share) => share.applied)))),
+    issuedBy,
+    issuedBy,
+  )
+  return { open, placed: named.map((shares, payment) => [...shares, ...settled[payment]!].sort((earlier, later) => earlier.index - later.index)) }
+}
+
+/** A character that continues an invoice number, so a match beside it is part of a longer one. */
+const NUMBER_PART = /[\p{L}\p{N}/-]/u
+
+/** Whether a payment's description or reference names an invoice's number as a whole word, so `11-1-26` does not name `1-1-26`. */
+function namesInvoice(payment: Pick<Transaction, 'description' | 'reference'>, number: string): boolean {
+  if (number === '') return false
+  return [payment.description, payment.reference].some((text) => {
+    for (let at = text.indexOf(number); at >= 0; at = text.indexOf(number, at + 1)) {
+      const before = text[at - 1] ?? ' '
+      const after = text[at + number.length] ?? ' '
+      if (!NUMBER_PART.test(before) && !NUMBER_PART.test(after)) return true
+    }
+    return false
+  })
 }
 
 /**
  * The invoice of the client a payment no invoice holds is placed on first: the one the import's rule gives it, as
  * `settledOnInvoices` says, or else the client's oldest open invoice, since a client may pay ahead. Null when none is open.
  */
-export function invoiceToPlace(books: ReceivableBooks, client: string, payment: Pick<Transaction, 'date' | 'amount'>): Invoice | null {
+export function invoiceToPlace(books: ReceivableBooks, client: string, payment: Pick<Transaction, 'date' | 'amount' | 'description' | 'reference'>): Invoice | null {
   const held = receivablesOf(books).clients.find((entry) => entry.client.slug === client)
   if (held === undefined) return null
   const { open, placed } = settledOnInvoices(held, [payment])

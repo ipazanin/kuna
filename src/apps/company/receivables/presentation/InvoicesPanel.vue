@@ -336,7 +336,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                   <ProposalRow v-for="payment in view.unplaced" :key="payment.key" :title="payment.client" :caption="words.panel.unplacedCaption(payment.date)" data-testid="unplaced-payment">
                     <template #amount>
                       <DrillLink :to="payment.to" :label="words.panel.openCredit(payment.date, payment.client)">
-                        <MoneyText :cents="payment.amount" class="font-medium text-highlighted" />
+                        <MoneyText :cents="payment.amount" tone="flow" class="font-medium" />
                       </DrillLink>
                     </template>
                     <UButton
@@ -395,7 +395,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
                     <span class="figure text-xs text-muted">{{ credit.date }}</span>
                     <span class="min-w-0 truncate text-sm text-toned">{{ credit.counterparty }}</span>
                     <DrillLink :to="credit.to" :label="words.panel.openCredit(credit.date, credit.counterparty)" class="justify-self-end">
-                      <MoneyText :cents="credit.amount" class="text-sm font-medium text-highlighted" />
+                      <MoneyText :cents="credit.amount" tone="flow" class="text-sm font-medium" />
                     </DrillLink>
                   </li>
                 </ul>

@@ -14,6 +14,6 @@ export const COMPANY_HOME_CARD: AppHomeCard = {
   figures: () =>
     homeCardFigures(state, (workbook) => {
       const { cashOnHand, toReview } = companyHomeFigures(workbook.transactions)
-      return { amounts: [{ label: words.cashOnHand, cents: cashOnHand }], waiting: toReview === 0 ? null : plural(words.toReview(toReview), toReview) }
+      return { amounts: [{ label: words.cashOnHand, cents: cashOnHand, tone: 'balance' }], waiting: toReview === 0 ? null : plural(words.toReview(toReview), toReview) }
     }),
 }

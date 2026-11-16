@@ -10,7 +10,7 @@ export interface WindowRow {
   readonly cells: readonly WindowCell[]
   /** The last 3 months against the last 12, as a fraction. Null when the 12-month figure is zero. */
   readonly recentChange: Share | null
-  /** Net and owner earns read better against the costs above them when set apart. */
+  /** Net and owner earns, the month's result, set apart from the lines above them and shown as a gain or a loss. */
   readonly emphasised?: boolean
 }
 </script>
@@ -45,7 +45,7 @@ function barStyle(change: number): Record<string, string> {
     <thead>
       <tr>
         <th scope="col" class="text-start">{{ words.typicalMonth.perMonth }}</th>
-        <th v-for="column in columns" :key="column" scope="col" class="text-end">{{ column }}</th>
+        <th v-for="(column, index) in columns" :key="column" scope="col" class="text-end" :class="{ 'hidden @md:table-cell': index >= 2 }">{{ column }}</th>
         <th scope="col" class="hidden text-end @md:table-cell">{{ words.typicalMonth.last3Against12 }}</th>
         <th scope="col" class="hidden w-32 @2xl:table-cell">
           <span class="sr-only">{{ words.typicalMonth.scale }}</span>
@@ -60,9 +60,10 @@ function barStyle(change: number): Record<string, string> {
             {{ words.typicalMonth.changeAgainst12(formatPercent(row.recentChange, 'always')) }}
           </span>
         </th>
-        <td v-for="(cell, index) in row.cells" :key="index" class="text-end">
+        <td v-for="(cell, index) in row.cells" :key="index" class="text-end" :class="{ 'hidden @md:table-cell': index >= 2 }">
           <DrillLink :to="cell.to" :label="words.typicalMonth.openRows(row.label, columns[index] ?? '')">
-            <MoneyText :cents="cell.perMonth" :class="row.emphasised ? 'font-medium text-highlighted' : ''" />
+            <MoneyText v-if="row.emphasised" :cents="cell.perMonth" tone="outcome" class="font-medium" />
+            <MoneyText v-else :cents="cell.perMonth" />
           </DrillLink>
         </td>
         <td class="figure hidden text-end text-toned @md:table-cell">

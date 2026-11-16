@@ -239,6 +239,7 @@ function ownerPartNote(row: ListedRow): string | null {
 <style scoped>
 /* The page scrolls under the bars that stay at the top, the top bar and the tab row, so a heading sticks just below them. */
 .group-heading {
+  container-type: inline-size;
   position: sticky;
   top: var(--sticky-band);
   z-index: 1;

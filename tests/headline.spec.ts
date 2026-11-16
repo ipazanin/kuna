@@ -18,11 +18,11 @@ describe('headline', () => {
       month: '2026-09',
       cameIn: { amount: euros(7126) },
       wentOut: { amount: euros(2817) },
-      loss: null,
+      net: euros(4309),
     })
   })
 
-  it('says a loss plainly', () => {
+  it('gives a loss as a net below zero', () => {
     const rows = ledger([
       { date: '2026-09-04', amount: 1000, category: 'revenue' },
       { date: '2026-09-12', amount: -2500, category: 'travel' },
@@ -30,7 +30,7 @@ describe('headline', () => {
     ])
     const months = monthlyProfitAndLoss(rows, windowOf('2026-09-01', '2026-10-02'))
 
-    expect(headline(months)?.loss).toBe(euros(1500))
+    expect(headline(months)?.net).toBe(euros(-1500))
   })
 
   it('has nothing to say before the first complete month', () => {
