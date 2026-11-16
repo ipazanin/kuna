@@ -11,6 +11,15 @@ const SURFACES = ['--surface-page', '--surface-raised', '--surface-elevated']
 const INKS = ['--ink-strong', '--ink', '--ink-secondary', '--ink-muted']
 /** The tones Nuxt UI paints as success, error, warning and info. */
 const TONES = ['--tone-positive', '--tone-negative', '--tone-warning', '--tone-info']
+/** Money coming in and going out, each the soft depth of the full tone beside it. */
+const SOFT_TONES = [
+  { soft: '--tone-positive-soft', full: '--tone-positive' },
+  { soft: '--tone-negative-soft', full: '--tone-negative' },
+] as const
+/** How far a soft tone may sit from its full tone's OKLCH lightness, and from 60% of its chroma, after rounding to #rrggbb. */
+const SOFT_LIGHTNESS_MARGIN = 0.005
+const SOFT_CHROMA = 0.6
+const SOFT_CHROMA_MARGIN = 0.02
 /** The accent, which Nuxt UI paints as primary. */
 const ACCENT = '--accent'
 /**
@@ -84,7 +93,7 @@ function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
     minimum,
   })
   return [
-    ...[...INKS, ...TONES, ACCENT].flatMap((ink) => SURFACES.map((surface) => pair(ink, surface))),
+    ...[...INKS, ...TONES, ...SOFT_TONES.map(({ soft }) => soft), ACCENT].flatMap((ink) => SURFACES.map((surface) => pair(ink, surface))),
     ...TONES.flatMap((tone) => WASHED_SURFACES.map((surface) => pair(tone, `its wash on ${surface}`, TEXT, over(colour(tone), colour(surface), 0.1)))),
     pair(ACCENT, 'its wash on --surface-raised', TEXT, over(colour(ACCENT), colour('--surface-raised'), 0.1)),
     ...['--ink-strong', '--ink', '--accent-strong'].flatMap((ink) => WASHED_SURFACES.map((surface) => pair(ink, `--accent-wash on ${surface}`, TEXT, over(colour('--accent-wash'), colour(surface))))),
@@ -190,8 +199,20 @@ const DOTTED_CHARTS = [
 const COMMON_DOTS = ['--invest-buy', '--loan-lowers']
 /** Every class colour on the class ring, which the common dot must not be mistaken for. */
 const CLASS_RING = ['--invest-stocks', '--invest-bonds', '--invest-money-market', '--invest-cash', '--invest-gold', '--invest-crypto']
-/** The colours of an open list's mix, the colours `MoneyText` paints money coming in, going out and below zero, and the accent. */
-const MIX_MONEY_FLOW_AND_ACCENT = ['--series-1', '--series-2', '--series-3', '--series-4', '--chart-deemphasis', '--tone-positive', '--tone-negative', '--ink', ACCENT]
+/** The colours of an open list's mix, the colours `MoneyText` paints a gain, a loss, money coming in and going out, and the accent. */
+const MIX_MONEY_FLOW_AND_ACCENT = [
+  '--series-1',
+  '--series-2',
+  '--series-3',
+  '--series-4',
+  '--chart-deemphasis',
+  '--tone-positive',
+  '--tone-negative',
+  '--tone-positive-soft',
+  '--tone-negative-soft',
+  '--ink',
+  ACCENT,
+]
 
 describe('the dot colours', () => {
   for (const [theme, tokens] of [
@@ -217,6 +238,31 @@ describe('the dot colours', () => {
           return normal >= DOT_APART ? [] : [`${dot} and ${other}: ${normal.toFixed(1)}`]
         }),
       )
+      expect(failing).toEqual([])
+    })
+  }
+})
+
+/** A colour written as #rrggbb as OKLCH lightness and chroma. */
+function lightnessAndChromaOf(hex: string): { readonly lightness: number; readonly chroma: number } {
+  const [lightness = 0, a = 0, b = 0] = oklabOf(hex)
+  return { lightness, chroma: Math.hypot(a, b) }
+}
+
+describe('the soft tones', () => {
+  for (const [theme, tokens] of [
+    ['light', LIGHT_TOKENS],
+    ['dark', DARK_TOKENS],
+  ] as const) {
+    it(`keep their full tone's lightness at 60% of its chroma in the ${theme} theme`, () => {
+      const failing = SOFT_TONES.flatMap(({ soft, full }) => {
+        const softLook = lightnessAndChromaOf(colourOf(tokens, soft))
+        const fullLook = lightnessAndChromaOf(colourOf(tokens, full))
+        const chromaShare = softLook.chroma / fullLook.chroma
+        const keepsLightness = Math.abs(softLook.lightness - fullLook.lightness) <= SOFT_LIGHTNESS_MARGIN
+        const softens = Math.abs(chromaShare - SOFT_CHROMA) <= SOFT_CHROMA_MARGIN
+        return keepsLightness && softens ? [] : [`${soft}: lightness ${softLook.lightness.toFixed(3)} against ${fullLook.lightness.toFixed(3)}, chroma at ${chromaShare.toFixed(3)} of ${full}`]
+      })
       expect(failing).toEqual([])
     })
   }

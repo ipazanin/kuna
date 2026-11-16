@@ -77,7 +77,7 @@ function span(position: ClosedPosition): string {
           <td class="text-end"><MoneyText :cents="position.cost" /></td>
           <td class="text-end"><MoneyText :cents="position.proceeds" /></td>
           <td class="text-end">
-            <MoneyText :cents="position.realised" sign="always" tone="outcome" />
+            <MoneyText :cents="position.realised" tone="outcome" />
             <span v-if="position.realisedShare !== null" class="block type-caption">{{ formatPercent(position.realisedShare, 'always') }}</span>
           </td>
           <td class="text-end"><MoneyText :cents="position.income" /></td>
@@ -96,7 +96,7 @@ function span(position: ClosedPosition): string {
           data-testid="closed-row"
         >
           <template #amount>
-            <MoneyText :cents="position.realised" sign="always" tone="outcome" class="font-medium" />
+            <MoneyText :cents="position.realised" tone="outcome" class="font-medium" />
             <span v-if="position.realisedShare !== null" class="figure type-caption">{{ formatPercent(position.realisedShare, 'always') }}</span>
           </template>
         </ProposalRow>

@@ -48,7 +48,7 @@ function change(entry: TransactionRecord): void {
       <li v-for="line in lines" :key="line.entry.record.id" class="border-t border-default first:border-t-0">
         <ProposalRow as="button" :title="line.kind" :caption="line.caption" data-testid="investments-latest-row" @click="change(line.entry)">
           <template #amount>
-            <MoneyText v-if="line.euros !== null" :cents="line.euros" :sign="line.flows ? 'always' : 'magnitude'" :tone="line.flows ? 'flow' : undefined" />
+            <MoneyText v-if="line.euros !== null" :cents="line.euros" v-bind="line.flows ? { tone: 'flow' } : { sign: 'magnitude' }" />
             <span v-else class="figure text-muted">{{ line.moved }}</span>
             <span v-if="line.euros !== null && line.moved !== ''" class="figure type-caption">{{ line.moved }}</span>
           </template>

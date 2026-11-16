@@ -241,7 +241,9 @@ const overview = computed(() => {
           <KpiTile v-for="tile in overview.tiles" :key="tile.label" v-bind="tile" />
         </DashboardGrid>
 
-        <LatestRowsCard :booked="booked" :counted="ledger.workbook.transactions" :names="names" />
+        <DashboardGrid v-if="booked.length > 0">
+          <LatestRowsCard :booked="booked" :counted="ledger.workbook.transactions" :names="names" />
+        </DashboardGrid>
 
         <DashboardGrid>
           <AppCard :title="words.typicalMonth.title" :subtitle="words.typicalMonth.subtitle" class="@4xl:col-span-2 @8xl:col-span-1">

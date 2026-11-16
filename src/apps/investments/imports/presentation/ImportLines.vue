@@ -30,7 +30,7 @@ const shown = computed(() => (expanded.value ? props.lines : props.lines.slice(0
           <span v-else-if="line.note !== ''" class="break-words type-caption">{{ line.note }}</span>
         </template>
         <template v-if="line.euros !== null || line.figure !== ''" #amount>
-          <MoneyText v-if="line.euros !== null" :cents="line.euros" :sign="line.flows ? 'always' : 'magnitude'" :tone="line.flows ? 'flow' : undefined" />
+          <MoneyText v-if="line.euros !== null" :cents="line.euros" v-bind="line.flows ? { tone: 'flow' } : { sign: 'magnitude' }" />
           <span v-if="line.figure !== ''" class="figure" :class="line.euros === null ? 'text-muted' : 'type-caption'">{{ line.figure }}</span>
         </template>
       </ProposalRow>

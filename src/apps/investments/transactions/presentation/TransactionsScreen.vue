@@ -156,7 +156,7 @@ function change(entry: ListedTransaction): void {
             </td>
             <td class="cell-wraps text-start align-top text-toned">{{ row.account }}</td>
             <td class="cell-wraps text-end align-top">
-              <MoneyText v-if="row.euros !== null" :cents="row.euros" :sign="row.flows ? 'always' : 'magnitude'" :tone="row.flows ? 'flow' : undefined" />
+              <MoneyText v-if="row.euros !== null" :cents="row.euros" v-bind="row.flows ? { tone: 'flow' } : { sign: 'magnitude' }" />
               <span v-else class="figure text-muted">{{ row.moved }}</span>
               <span v-if="row.euros !== null && row.moved !== ''" class="block type-caption">{{ row.moved }}</span>
               <span v-if="row.foreign !== ''" class="block type-caption">{{ row.foreign }}</span>
@@ -184,7 +184,7 @@ function change(entry: ListedTransaction): void {
               <span class="flex min-w-0 flex-1 flex-col gap-0.5 py-2.5">
                 <span class="flex items-baseline justify-between gap-3 type-body">
                   <span class="min-w-0 break-words text-highlighted">{{ row.kind }} · {{ row.subject }}</span>
-                  <MoneyText v-if="row.euros !== null" :cents="row.euros" :sign="row.flows ? 'always' : 'magnitude'" :tone="row.flows ? 'flow' : undefined" class="shrink-0" />
+                  <MoneyText v-if="row.euros !== null" :cents="row.euros" v-bind="row.flows ? { tone: 'flow' } : { sign: 'magnitude' }" class="shrink-0" />
                   <span v-else class="figure shrink-0 text-muted">{{ row.moved }}</span>
                 </span>
                 <span class="flex items-baseline justify-between gap-3 type-caption">

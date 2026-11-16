@@ -49,14 +49,14 @@ const to = computed(() => entryPath(props.app))
       <p v-else-if="figures === 'failed'" class="type-body" data-testid="home-card-failed">{{ words.failed }}</p>
       <template v-else-if="figures !== null">
         <dl class="flex flex-wrap gap-x-8 gap-y-3">
-          <div v-for="(amount, index) in figures.amounts" :key="amount.label" class="flex flex-col gap-1">
-            <dt class="type-label">{{ amount.label }}</dt>
+          <div v-for="({ label, tint, ...figure }, index) in figures.amounts" :key="label" class="flex flex-col gap-1">
+            <dt class="type-label">{{ label }}</dt>
             <dd
-              :class="[index === 0 ? 'type-figure' : 'type-figure-secondary', { '-mx-2 w-fit rounded-control px-2': amount.tint !== undefined }]"
-              :style="amount.tint === undefined ? undefined : { backgroundColor: `var(${amount.tint})` }"
-              :data-tint="amount.tint"
+              :class="[index === 0 ? 'type-figure' : 'type-figure-secondary', { '-mx-2 w-fit rounded-control px-2': tint !== undefined }]"
+              :style="tint === undefined ? undefined : { backgroundColor: `var(${tint})` }"
+              :data-tint="tint"
             >
-              <MoneyText :cents="amount.cents" :sign="amount.sign" :tone="amount.tone" :format="app.moneyFormat()" />
+              <MoneyText v-bind="figure" :format="app.moneyFormat()" />
             </dd>
           </div>
         </dl>

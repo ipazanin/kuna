@@ -212,7 +212,7 @@ const description = computed(() => {
             <span class="row-list-edge flex items-baseline justify-between gap-3 type-caption">
               <span>{{ words.columns.cost }} <MoneyText :cents="list.total.cost" /></span>
               <span v-if="list.total.gain !== null">
-                <MoneyText :cents="list.total.gain" sign="always" tone="outcome" /><template v-if="list.total.gainShare !== null"> · {{ formatPercent(list.total.gainShare, 'always') }}</template>
+                <MoneyText :cents="list.total.gain" tone="outcome" /><template v-if="list.total.gainShare !== null"> · {{ formatPercent(list.total.gainShare, 'always') }}</template>
               </span>
             </span>
           </div>

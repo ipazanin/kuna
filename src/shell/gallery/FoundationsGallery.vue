@@ -60,7 +60,7 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
     ],
   },
   {
-    title: 'Accent and tones, as text-primary, text-error, text-success, text-warning and text-info',
+    title: 'Accent and tones, as text-primary, text-error, text-success, text-warning and text-info. Full green and red on an amount are for a real gain or loss',
     measure: 'as-text',
     swatches: [
       { name: 'Accent', token: '--accent' },
@@ -68,6 +68,14 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
       { name: 'Success', token: '--tone-positive' },
       { name: 'Warning', token: '--tone-warning' },
       { name: 'Info', token: '--tone-info' },
+    ],
+  },
+  {
+    title: 'Money in and out, the soft depth of the two tones at their lightness, as text-positive-soft and text-negative-soft through MoneyText',
+    measure: 'as-text',
+    swatches: [
+      { name: 'Money in', token: '--tone-positive-soft' },
+      { name: 'Money out', token: '--tone-negative-soft' },
     ],
   },
   {

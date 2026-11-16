@@ -93,29 +93,31 @@ const adding = ref(false)
         <KpiTile v-if="owed !== null" :label="homeWords.overdrawn" :value="formatMoney(owed.cents)" :to="null" icon="i-lucide-triangle-alert" icon-tone="warning" data-testid="spending-overdrawn" />
       </DashboardGrid>
       <p v-if="unconverted > 0" class="type-caption" data-testid="spending-not-converted">{{ plural(homeWords.notConverted(unconverted), unconverted) }}</p>
-      <AppCard v-for="section in sections" :key="section.key" :title="section.title" :data-testid="section.testid">
-        <ul class="flex flex-col py-2">
-          <li v-for="row in section.rows" :key="row.account.id" class="border-t border-default first:border-t-0">
-            <ProposalRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
-              <template #amount>
-                <span class="figure text-highlighted" data-testid="spending-account-balance">{{ row.balance }}</span>
-                <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-xs text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
-              </template>
-              <template #caption>
-                <span data-testid="spending-account-kind">
-                  <template v-for="(part, place) in kindParts(row.account)" :key="place">
-                    <template v-if="place > 0"> · </template>
-                    <span class="whitespace-nowrap">{{ part }}</span>
-                  </template>
-                </span>
-              </template>
-              <template v-if="row.euro !== null && row.euro.caption !== ''" #details>
-                <span class="text-end type-caption">{{ row.euro.caption }}</span>
-              </template>
-            </ProposalRow>
-          </li>
-        </ul>
-      </AppCard>
+      <DashboardGrid>
+        <AppCard v-for="section in sections" :key="section.key" :title="section.title" :data-testid="section.testid">
+          <ul class="flex flex-col py-2">
+            <li v-for="row in section.rows" :key="row.account.id" class="border-t border-default first:border-t-0">
+              <ProposalRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
+                <template #amount>
+                  <span class="figure text-highlighted" data-testid="spending-account-balance">{{ row.balance }}</span>
+                  <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-xs text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
+                </template>
+                <template #caption>
+                  <span data-testid="spending-account-kind">
+                    <template v-for="(part, place) in kindParts(row.account)" :key="place">
+                      <template v-if="place > 0"> · </template>
+                      <span class="whitespace-nowrap">{{ part }}</span>
+                    </template>
+                  </span>
+                </template>
+                <template v-if="row.euro !== null && row.euro.caption !== ''" #details>
+                  <span class="text-end type-caption">{{ row.euro.caption }}</span>
+                </template>
+              </ProposalRow>
+            </li>
+          </ul>
+        </AppCard>
+      </DashboardGrid>
     </template>
     <AccountDialog v-if="state.workbook !== null" v-model:open="adding" :account="null" />
   </section>

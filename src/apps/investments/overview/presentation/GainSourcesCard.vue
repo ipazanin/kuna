@@ -23,13 +23,13 @@ const sources = computed(() => gainSources(props.figures))
       <tbody>
         <tr v-for="part in sources.parts" :key="part.source" :data-source="part.source">
           <th scope="row" class="cell-wraps text-start font-normal text-highlighted">{{ words.gain.sources[part.source] }}</th>
-          <td class="text-end"><MoneyText :cents="part.amount" sign="always" tone="outcome" /></td>
+          <td class="text-end"><MoneyText :cents="part.amount" tone="outcome" /></td>
         </tr>
       </tbody>
       <tfoot>
         <tr>
           <th scope="row" class="text-start">{{ words.gain.total }}</th>
-          <td class="text-end"><MoneyText :cents="sources.total" sign="always" tone="outcome" /></td>
+          <td class="text-end"><MoneyText :cents="sources.total" tone="outcome" /></td>
         </tr>
       </tfoot>
     </FigureTable>

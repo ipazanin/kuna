@@ -81,7 +81,7 @@ const incomeDelta = computed((): KpiDelta => ({ change: income.value.change, tex
       :to="null"
       data-testid="investments-total-gain"
     >
-      <template #value><MoneyText :cents="figures.totalGain" sign="always" tone="outcome" /></template>
+      <template #value><MoneyText :cents="figures.totalGain" tone="outcome" /></template>
     </KpiTile>
     <KpiTile :label="words.tiles.yearlyReturn" :value="yearly.value" :caption="yearly.caption" :definition="words.tiles.yearlyReturnDefinition" :to="null" data-testid="investments-yearly-return" />
     <KpiTile

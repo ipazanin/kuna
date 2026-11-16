@@ -36,7 +36,7 @@ export const INVESTMENTS_HOME_CARD: AppHomeCard = {
       return {
         amounts: [
           { label: words.value, cents: figures.value },
-          { label: words.totalGain, cents: figures.totalGain, sign: 'always', tone: 'outcome' },
+          { label: words.totalGain, cents: figures.totalGain, tone: 'outcome' },
         ],
         waiting: tax !== null ? reminderText(tax) : age?.late === true ? words.pricesFrom(shortDayLabel(age.newest)) : null,
       }

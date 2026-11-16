@@ -2,7 +2,7 @@ import type { Component } from 'vue'
 import type { RouteComponent, RouteLocationRaw, Router } from 'vue-router'
 
 import type { RedirectReturn } from '../google/googleRedirect'
-import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
+import type { MoneyFormat, MoneyLook } from '../money/moneyFormat'
 import type { AppData } from '../storage/application/appData'
 import type { RatesDemand } from '../rates/domain/ratesDemand'
 import type { AppLinkedRows, AppRowLinks } from './rowLinks'
@@ -36,17 +36,13 @@ export interface MenuCount {
   readonly opens?: string
 }
 
-/** A figure on the app's card on the Kuna home, such as cash on hand. */
-export interface HomeAmount {
+/** A figure on the app's card on the Kuna home, such as cash on hand, with its tone and sign as on `MoneyText`. */
+export type HomeAmount = {
   readonly label: string
   readonly cents: Money
-  /** As on `MoneyText`, such as `always` for a gain that shows its plus. */
-  readonly sign?: SignDisplay
-  /** As on `MoneyText`, such as `outcome` for a gain that is green and a loss that is red. */
-  readonly tone?: MoneyTone
   /** The custom property of a light tint the figure sits on in ink, such as `--loan-you-owe-tint` for a position that says which way it runs. */
   readonly tint?: `--${string}`
-}
+} & MoneyLook
 
 /** What the app's card on the Kuna home shows while the app's books are on screen. */
 export interface HomeFigures {

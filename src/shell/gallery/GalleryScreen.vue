@@ -1020,7 +1020,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
               @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
             >
               <template #amount="{ item }">
-                <MoneyText :cents="item.amount" sign="always" tone="flow" />
+                <MoneyText :cents="item.amount" tone="flow" />
               </template>
             </QuestionList>
           </div>

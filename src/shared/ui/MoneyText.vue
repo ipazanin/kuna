@@ -3,29 +3,29 @@ import { computed } from 'vue'
 
 import type { Money } from '../money/money'
 import { formatCompactMoney, formatMoney } from '../money/moneyFormat'
-import type { MoneyFormat, MoneyTone, SignDisplay } from '../money/moneyFormat'
-import { moneyToneClass } from './moneyTone'
+import type { MoneyFormat, MoneyLook } from '../money/moneyFormat'
+import { moneySign, moneyToneClass } from './moneyTone'
 
+/**
+ * `tone` says what kind of figure the amount is and decides its colour and sign. An amount in ink takes `sign`
+ * instead, such as `magnitude` for a cost that reads positive.
+ */
 const props = withDefaults(
-  defineProps<{
-    cents: Money
-    /** `magnitude` drops the sign, for costs that read positive. `always` adds a plus, for changes. */
-    sign?: SignDisplay | undefined
-    precision?: 'cents' | 'compact'
-    /**
-     * `flow` colours money coming in and leaves money going out in the normal ink, since a cost is
-     * not bad news. `outcome` is for a result such as a net, where a negative one is a loss.
-     */
-    tone?: MoneyTone | undefined
-    /** The app's currency and number locale, for a figure shown outside its app, as on the home. Left out, the page's. */
-    format?: MoneyFormat
-  }>(),
-  { sign: 'negative', precision: 'cents' },
+  defineProps<
+    {
+      cents: Money
+      precision?: 'cents' | 'compact'
+      /** The app's currency and number locale, for a figure shown outside its app, as on the home. Left out, the page's. */
+      format?: MoneyFormat
+    } & MoneyLook
+  >(),
+  { precision: 'cents' },
 )
 
 const formatted = computed(() => {
-  if (props.precision === 'compact') return formatCompactMoney(props.cents, props.sign, props.format)
-  return formatMoney(props.cents, props.sign, props.format)
+  const sign = moneySign(props.tone, props.sign)
+  if (props.precision === 'compact') return formatCompactMoney(props.cents, sign, props.format)
+  return formatMoney(props.cents, sign, props.format)
 })
 </script>
 

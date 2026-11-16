@@ -102,7 +102,7 @@ async function download(): Promise<void> {
                   {{ rateLine(sale) }}
                 </span>
               </span>
-              <MoneyText v-if="sale.gain !== null" :cents="sale.gain" sign="always" tone="outcome" class="shrink-0" />
+              <MoneyText v-if="sale.gain !== null" :cents="sale.gain" tone="outcome" class="shrink-0" />
             </span>
             <NoteLine v-if="sale.settlesNextYear" as="span" tone="warning" class="font-normal" data-testid="tax-sale-next-year">{{ text.nextYear }}</NoteLine>
           </th>
@@ -129,7 +129,7 @@ async function download(): Promise<void> {
           <td class="figure hidden text-end @3xl:table-cell">{{ formatCurrencyAmount(line.realised.feesInCurrency, sale.instrument.currency) }}</td>
           <td class="figure hidden text-end @lg:table-cell">{{ formatCurrencyAmount(line.gainInCurrency, sale.instrument.currency) }}</td>
           <td class="cell-wraps text-end">
-            <MoneyText v-if="line.gain !== null" :cents="line.gain" sign="always" tone="outcome" />
+            <MoneyText v-if="line.gain !== null" :cents="line.gain" tone="outcome" />
             <span class="block type-caption @lg:hidden">{{ formatCurrencyAmount(line.gainInCurrency, sale.instrument.currency) }}</span>
           </td>
           <td class="cell-wraps text-end type-caption" data-testid="tax-line-status">{{ text.statuses[line.status] }}</td>

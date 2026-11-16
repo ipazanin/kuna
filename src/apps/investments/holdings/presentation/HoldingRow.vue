@@ -33,7 +33,7 @@ const noPriceWord = useNoPriceWord()
       <MoneyText v-if="line.holding.valuation !== null" :cents="line.holding.valuation.value" class="font-medium text-highlighted" />
       <span v-else class="type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
       <span v-if="line.holding.unrealised !== null" class="type-caption">
-        <MoneyText :cents="line.holding.unrealised" sign="always" tone="outcome" /><template v-if="line.gainShare !== null"> · {{ formatPercent(line.gainShare, 'always') }}</template>
+        <MoneyText :cents="line.holding.unrealised" tone="outcome" /><template v-if="line.gainShare !== null"> · {{ formatPercent(line.gainShare, 'always') }}</template>
       </span>
     </template>
     <template #caption>

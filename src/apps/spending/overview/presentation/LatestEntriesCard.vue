@@ -58,7 +58,7 @@ function openEntry(picked: Transaction): void {
       <li v-for="line in lines" :key="line.row.transaction.id" class="border-t border-default first:border-t-0">
         <ProposalRow as="button" :title="line.title" :caption="line.caption" data-testid="spending-latest-row" @click="openEntry(line.row.transaction)">
           <template #amount>
-            <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" sign="always" tone="flow" />
+            <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" tone="flow" />
             <span v-if="line.euros !== ''" class="figure type-caption">{{ line.euros }}</span>
           </template>
         </ProposalRow>

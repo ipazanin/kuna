@@ -100,7 +100,7 @@ const shown = computed(() => (showAll.value ? lines.value : lines.value.slice(0,
             <span v-for="detail in line.details" :key="detail" class="block type-caption">{{ detail }}</span>
           </td>
           <td class="cell-wraps text-end align-top">
-            <MoneyText v-if="line.euros !== null" :cents="line.euros" sign="always" tone="flow" />
+            <MoneyText v-if="line.euros !== null" :cents="line.euros" tone="flow" />
             <span v-for="part in line.foreign" :key="part" class="block type-caption">{{ part }}</span>
           </td>
         </tr>

@@ -152,7 +152,7 @@ const facts = computed((): Fact[] => {
           </div>
         </div>
         <p v-if="returns.total !== null" class="flex flex-wrap items-baseline gap-x-2" data-testid="holding-return">
-          <MoneyText :cents="returns.total" sign="always" tone="outcome" class="text-figure-lg font-semibold" />
+          <MoneyText :cents="returns.total" tone="outcome" class="text-figure-lg font-semibold" />
           <span v-if="returns.share !== null" class="figure text-sm font-medium text-toned">{{ formatPercent(returns.share, 'always') }}</span>
         </p>
         <p v-else class="text-figure-lg font-semibold text-highlighted">{{ words.hero.waitsForPrice }}</p>
@@ -162,7 +162,7 @@ const facts = computed((): Fact[] => {
               {{ part.label }}
               <span v-if="part.caption !== ''" class="block type-caption">{{ part.caption }}</span>
             </dt>
-            <dd><MoneyText :cents="part.amount" sign="always" tone="outcome" class="text-sm font-medium" /></dd>
+            <dd><MoneyText :cents="part.amount" tone="outcome" class="text-sm font-medium" /></dd>
           </div>
         </dl>
       </div>

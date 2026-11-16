@@ -4,21 +4,18 @@ import { computed } from 'vue'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
-import type { MoneyTone, SignDisplay } from '../../../../shared/money/moneyFormat'
-import { moneyToneClass } from '../../../../shared/ui/moneyTone'
+import type { MoneyLook } from '../../../../shared/money/moneyFormat'
+import { moneySign, moneyToneClass } from '../../../../shared/ui/moneyTone'
 
 /** An amount in an account's own currency, as `MoneyText` shows euros. */
-const props = withDefaults(
-  defineProps<{
+const props = defineProps<
+  {
     cents: AccountMoney
     currency: CurrencyCode
-    sign?: SignDisplay | undefined
-    tone?: MoneyTone | undefined
-  }>(),
-  { sign: 'negative' },
-)
+  } & MoneyLook
+>()
 
-const formatted = computed(() => formatAccountMoney(props.cents, props.currency, props.sign))
+const formatted = computed(() => formatAccountMoney(props.cents, props.currency, moneySign(props.tone, props.sign)))
 </script>
 
 <template>

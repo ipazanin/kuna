@@ -41,9 +41,13 @@ const FORMATTED = [
 
 const MONEY_TEXTS = [
   { label: 'Plain', cents: moneyFromCents(1234567), props: {} },
+  { label: 'Money in, as a flow', cents: moneyFromCents(120000), props: { tone: 'flow' } },
   { label: 'Money out, as a flow', cents: moneyFromCents(-98765), props: { tone: 'flow' } },
-  { label: 'Change, sign always', cents: moneyFromCents(31000), props: { sign: 'always', tone: 'flow' } },
+  { label: 'A gain, as an outcome', cents: moneyFromCents(31000), props: { tone: 'outcome' } },
   { label: 'A loss, as an outcome', cents: moneyFromCents(-31000), props: { tone: 'outcome' } },
+  { label: 'A balance', cents: moneyFromCents(254300), props: { tone: 'balance' } },
+  { label: 'A balance below zero', cents: moneyFromCents(-18250), props: { tone: 'balance' } },
+  { label: 'A change in ink, sign always', cents: moneyFromCents(30000), props: { sign: 'always' } },
   { label: 'Cost as magnitude', cents: moneyFromCents(-412050), props: { sign: 'magnitude' } },
   { label: 'Compact', cents: moneyFromCents(4821049), props: { precision: 'compact' } },
 ] as const
@@ -68,7 +72,11 @@ const MONEY_TEXTS = [
     </AppCard>
   </GallerySection>
 
-  <GallerySection id="money" title="MoneyText and DrillLink" description="Cents in, the sign and the tone by what the amount is. Every figure that has rows behind it opens them.">
+  <GallerySection
+    id="money"
+    title="MoneyText and DrillLink"
+    description="Cents in, and the tone by the kind of figure, never its size: full green or red for a gain or a loss, the soft depth for money in and out, ink for an amount with no direction, and a balance in ink that turns full red below zero. A tone shows the sign. Every figure that has rows behind it opens them."
+  >
     <AppCard as="div" class="p-5">
       <div class="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
         <p v-for="entry in MONEY_TEXTS" :key="entry.label" class="flex justify-between gap-4">

@@ -24,7 +24,7 @@ A component starts in the app that needs it and moves to `src/shared/ui` when a 
 
 - Colours come from `tokens.css`. No Tailwind palette colour, `white`, `black`, literal, palette variable or `dark:` in a class. Every token already has a dark value.
 - An app's identity colour is its `--app-*` token, passed to `AppMark` by the app's registration. It tiles the app's icon on the home card, in its menu, in the phone top bar and beside each of its figures on Net worth, and nothing else. Buttons, links, focus and the selected menu item keep the accent.
-- Tones are Nuxt UI's: `text-success`, `text-error`, `text-warning`, `text-info`. Money in and out is not a tone. See `MoneyText` in [components.md](components.md).
+- Tones are Nuxt UI's: `text-success`, `text-error`, `text-warning`, `text-info`. An amount takes its colour from `MoneyText`'s `tone`, never from a class. See Amounts below.
 - Text roles are `type-page-title`, `type-card-title`, `type-body`, `type-label`, `type-caption`, `type-figure`, `type-figure-secondary` and `type-wordmark`. Figures that lead a hero use `text-figure-lg` or `text-figure-xl`.
 - Stack with `z-control` and `z-top-bar`, and fade with `duration-fade`. No numeric `z-*` or `duration-*`.
 - Colour is never the only cue. A status also has an icon or a word.
@@ -36,14 +36,30 @@ A component starts in the app that needs it and moves to `src/shared/ui` when a 
 - A new token has a light and a dark value, and a text pair passes 4.5:1. A mark passes 3:1. A tint under a figure in ink passes 4.5:1 with that ink instead, and where its shape matters, as on a treemap tile, a border that passes 3:1 draws its edge.
 - Never work around lint. Inline disables have no effect (`noInlineConfig`). Change the design, not the rule.
 
+## Amounts
+
+Every amount takes one of three looks by the kind of figure it is.
+
+| Look                     | Kind of figure                  | `tone`    | Examples                                                                             |
+| ------------------------ | ------------------------------- | --------- | ------------------------------------------------------------------------------------ |
+| Full red or green        | A real gain or loss of money    | `outcome` | A net, a year's profit or loss, a return and a gain on investments, a sale at a loss |
+| Soft red or green        | Money coming in or going out    | `flow`    | Rows on Entries and Transactions, loan instalments, salary, refunds                  |
+| Ink                      | An amount with no direction     | none      | An asset's value, You owe in all, Owed to you                                        |
+| Ink, full red below zero | A standing, red only below zero | `balance` | An account's balance, an account below zero, a limit gone over                       |
+
+- Two depths only. The depth follows the kind of figure, never its size. Tiles and cells that step by size, such as the holdings map and the monthly returns, keep their own scale.
+- The soft depth is the full tone at its OKLCH lightness with 60% of its chroma, so both depths pass 4.5:1 on the card in both themes. `tests/tokenContrast.spec.ts` checks the contrast and the lightness.
+- One token per depth and direction in each theme: `--tone-positive` and `--tone-negative` for the full depth, `--tone-positive-soft` and `--tone-negative-soft` for the soft one. `moneyToneClass` in `src/shared/ui/moneyTone.ts` is the only place that colours an amount.
+- A toned amount always shows its sign, so colour is never the only cue. A balance shows a minus below zero.
+
 ## Token file map
 
 Read values in these files. Never copy one into a component, a screen or a doc.
 
-| File in `src/shared/styles/` | Holds                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tokens.css`                 | Every colour, in `:root` and `.dark`. Surfaces, borders, ink steps, accent, the four tones, elevations, chart values, `--series-*`, `--bucket-*`, `--pay-*`, `--loan-*` with the two `--loan-*-tint` tints under a net position, `--ageing-*`, `--gain-*`, `--loss-*`, `--invest-*`. Also the `@theme` scales: figure sizes, radii, widths, the `8xl` container, `z-control`, `z-top-bar`, `duration-fade`. Also the Nuxt UI colour mapping |
-| `app.css`                    | Type roles as `@utility`, base body and focus styles, `.data-table`, `.group-row`, `.total-row`, the 44 px phone rule, `.phone-sheet`, `.phone-drawer`, the `ProposalRow` grid `.proposal-row-*`, `.top-bar-action`, `.write-progress`, the first-run page `.first-run` with its stepper `.first-run-steps` and `.first-run-step*`, `.quiet-link`, `.company-logo` and reduced motion                                                       |
+| File in `src/shared/styles/` | Holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tokens.css`                 | Every colour, in `:root` and `.dark`. Surfaces, borders, ink steps, accent, the four tones and the soft depth of the positive and negative ones, elevations, chart values, `--series-*`, `--bucket-*`, `--pay-*`, `--loan-*` with the two `--loan-*-tint` tints under a net position, `--ageing-*`, `--gain-*`, `--loss-*`, `--invest-*`. Also the `@theme` scales: figure sizes, radii, widths, the `8xl` container, `z-control`, `z-top-bar`, `duration-fade`. Also the Nuxt UI colour mapping |
+| `app.css`                    | Type roles as `@utility`, base body and focus styles, `.data-table`, `.group-row`, `.total-row`, the 44 px phone rule, `.phone-sheet`, `.phone-drawer`, the `ProposalRow` grid `.proposal-row-*`, `.top-bar-action`, `.write-progress`, the first-run page `.first-run` with its stepper `.first-run-steps` and `.first-run-step*`, `.quiet-link`, `.company-logo` and reduced motion                                                                                                            |
 
 Chart values stay plain hex or rgba, because a canvas cannot resolve `var()`. `src/shared/charts/chartTokens.ts` reads them with `getComputedStyle`.
 

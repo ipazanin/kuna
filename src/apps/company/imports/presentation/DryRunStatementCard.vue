@@ -164,7 +164,7 @@ function grouped(iban: string): string {
 
       <QuestionList v-if="twinItems.length > 0" :items="twinItems" :options="TWIN_CHOICES.file" :label="twinWords.choice" :heading="twinWords.title" :intro="twinWords.intro.file" @answer="answerTwin">
         <template #amount="{ item }">
-          <MoneyText :cents="item.amount" sign="always" tone="flow" />
+          <MoneyText :cents="item.amount" tone="flow" />
         </template>
       </QuestionList>
 

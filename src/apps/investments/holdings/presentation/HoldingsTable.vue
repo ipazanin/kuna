@@ -63,7 +63,7 @@ function heldLine(holding: HoldingFigures): string {
         <td class="text-end"><MoneyText v-if="group.cost !== 0" :cents="group.cost" /></td>
         <td class="text-end"><MoneyText :cents="group.value" /></td>
         <td class="text-end">
-          <MoneyText v-if="group.gain !== null" :cents="group.gain" sign="always" tone="outcome" />
+          <MoneyText v-if="group.gain !== null" :cents="group.gain" tone="outcome" />
           <span v-if="group.gainShare !== null" class="block type-caption font-normal">{{ formatPercent(group.gainShare, 'always') }}</span>
         </td>
         <td class="figure text-end">{{ group.weight === null ? '' : formatShare(group.weight) }}</td>
@@ -107,7 +107,7 @@ function heldLine(holding: HoldingFigures): string {
           </td>
           <td class="text-end">
             <template v-if="line.holding.unrealised !== null">
-              <MoneyText :cents="line.holding.unrealised" sign="always" tone="outcome" />
+              <MoneyText :cents="line.holding.unrealised" tone="outcome" />
               <span v-if="line.gainShare !== null" class="block type-caption">{{ formatPercent(line.gainShare, 'always') }}</span>
             </template>
           </td>
@@ -124,7 +124,7 @@ function heldLine(holding: HoldingFigures): string {
         <td class="text-end"><MoneyText :cents="list.total.cost" /></td>
         <td class="text-end"><MoneyText :cents="list.total.value" /></td>
         <td class="text-end">
-          <MoneyText v-if="list.total.gain !== null" :cents="list.total.gain" sign="always" tone="outcome" />
+          <MoneyText v-if="list.total.gain !== null" :cents="list.total.gain" tone="outcome" />
           <span v-if="list.total.gainShare !== null" class="block type-caption font-normal">{{ formatPercent(list.total.gainShare, 'always') }}</span>
         </td>
         <td class="figure text-end">{{ list.total.weight === null ? '' : formatShare(list.total.weight) }}</td>

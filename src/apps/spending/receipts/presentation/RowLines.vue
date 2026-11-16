@@ -33,7 +33,7 @@ const shown = computed(() =>
       <span class="flex items-center gap-2 type-caption" data-testid="spending-row-line">
         <span class="size-1.5 shrink-0 rounded-full" :style="{ background: colour }" aria-hidden="true" />
         <span class="min-w-0 flex-1 break-words">{{ name }}</span>
-        <AccountMoneyText :cents="line.amount" :currency="currency" sign="always" tone="flow" class="shrink-0" />
+        <AccountMoneyText :cents="line.amount" :currency="currency" tone="flow" class="shrink-0" />
       </span>
       <span v-if="$slots.line !== undefined" class="flex ps-3.5"><slot name="line" :line="line" :title="name" /></span>
     </span>

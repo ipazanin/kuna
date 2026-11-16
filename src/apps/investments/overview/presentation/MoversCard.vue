@@ -48,7 +48,7 @@ const lastDay = computed(() => props.figures.lastDay)
               <span class="sr-only">{{ row.rose ? words.movers.up : words.movers.down }}</span>
             </span>
           </td>
-          <td class="text-end"><MoneyText :cents="row.holding.lastDay?.change ?? ZERO" sign="always" tone="outcome" /></td>
+          <td class="text-end"><MoneyText :cents="row.holding.lastDay?.change ?? ZERO" tone="outcome" /></td>
         </tr>
       </tbody>
     </FigureTable>

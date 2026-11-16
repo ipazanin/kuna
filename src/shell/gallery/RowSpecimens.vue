@@ -21,7 +21,7 @@ import GallerySection from './GallerySection.vue'
       <AppCard title="Spanning a card">
         <ul class="divide-y divide-default">
           <ProposalRow title="Corner Market" caption="3 Mar 2026 · Current account">
-            <template #amount><MoneyText :cents="moneyFromCents(-4_530)" sign="always" tone="flow" /></template>
+            <template #amount><MoneyText :cents="moneyFromCents(-4_530)" tone="flow" /></template>
             <UButton class="self-start" label="Not cash" color="neutral" variant="outline" size="sm" />
           </ProposalRow>
           <ProposalRow title="Advance" caption="Not found among the bank rows">
@@ -32,7 +32,7 @@ import GallerySection from './GallerySection.vue'
               <UBadge label="Waits for the other row" color="neutral" variant="subtle" size="sm" class="self-start" />
               <NoteLine tone="warning">The other row is a day later than this one.</NoteLine>
             </template>
-            <template #amount><MoneyText :cents="moneyFromCents(120_000)" sign="always" tone="flow" /></template>
+            <template #amount><MoneyText :cents="moneyFromCents(120_000)" tone="flow" /></template>
             <div class="flex flex-wrap gap-2">
               <UButton label="Link" icon="i-lucide-link" color="neutral" variant="outline" size="sm" />
               <UButton label="Not this one" color="neutral" variant="outline" size="sm" />

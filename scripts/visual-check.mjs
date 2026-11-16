@@ -18,6 +18,7 @@
  * title does, a card's header actions sit under its title on a phone, a tab's one card of words and fields keeps to 42rem,
  * a DrillLink wears the colour of the text class it is given, a row that opens a page has its arrow on its title's first line, and
  * a list where only some rows open a page ends every amount at one edge.
+ * On Company's Overview and Spending's Accounts up to 1440 px, every row's figure starts within 40rem of its name.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
  * no label may be cut to under half its width with no ellipsis, and no placeholder may be cut short, other than what `support/textOverlap.mjs` allows by name.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
@@ -5084,6 +5085,13 @@ const SIDEWAYS_SCROLL_ALLOWED = [
   },
 ]
 
+/**
+ * The screens whose list cards keep each row's figure near its name up to a laptop's 1440 px. Spending's and Investments' overviews
+ * still run their latest rows across the page, and from 1920 px two cards side by side are wide enough to spread again.
+ */
+const NEAR_FIGURE_SCREENS = ['overview', 'overview-croatian', 'spending-accounts', 'spending-accounts-croatian']
+const NEAR_FIGURE_WIDEST = 1440
+
 /** The screens whose cards may sit side by side in a grid of their own, each with why. */
 const HAND_BUILT_GRIDS_ALLOWED = [{ screen: 'gallery', reason: 'The gallery sets specimens side by side to compare their states.' }]
 
@@ -5174,6 +5182,7 @@ function readPage(page) {
       drillLinksOffColour: drillLinksOffColour(),
       misplacedRowArrows: misplacedRowArrows(),
       raggedRowAmounts: raggedRowAmounts(),
+      farRowFigures: farRowFigures(),
     }
 
     const titleOf = (card) => (card.querySelector(':scope > header :is(h1, h2, h3)')?.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 48)
@@ -5262,6 +5271,20 @@ function readPage(page) {
         const placed = arrow.getBoundingClientRect()
         const apart = placed.top + placed.height / 2 - (firstLine.top + firstLine.height / 2)
         if (Math.abs(apart) > 2) found.push(`the arrow of the row "${title.textContent.trim().slice(0, 32)}" sits ${Math.round(apart)} px off its title's first line`)
+      }
+      return found
+    }
+
+    /** Rows whose amount starts more than 40rem from where their title starts, so the eye loses the line between the name and the figure. */
+    function farRowFigures() {
+      const most = 40 * parseFloat(getComputedStyle(document.documentElement).fontSize)
+      const found = []
+      for (const lines of document.querySelectorAll('.proposal-row-lines')) {
+        const title = lines.querySelector('.proposal-row-title')
+        const amount = lines.querySelector(':scope > .proposal-row-amount > :first-child')
+        if (title === null || amount === null || amount.getClientRects().length === 0) continue
+        const apart = amount.getBoundingClientRect().left - title.getBoundingClientRect().left
+        if (apart > most) found.push(`the amount of the row "${title.textContent.trim().slice(0, 32)}" starts ${Math.round(apart)} px from its title`)
       }
       return found
     }
@@ -9311,6 +9334,7 @@ for (const viewport of VIEWPORTS.filter((candidate) => selection.takesWidth(cand
     for (const donut of report.crowdedDonuts) fail(scope, donut)
     for (const problem of [...report.offsetTables, ...report.phoneHeaderActions, ...report.wideLoneCards, ...report.drillLinksOffColour, ...report.misplacedRowArrows, ...report.raggedRowAmounts])
       fail(scope, problem)
+    if (NEAR_FIGURE_SCREENS.includes(visit.name) && viewport.width <= NEAR_FIGURE_WIDEST) for (const far of report.farRowFigures) fail(scope, far)
     if (REFLOW_WIDTHS.includes(viewport.width) && !viewport.chatDocked) dashboardGridsSeen.set(`${visit.name} ${viewport.width}`, { grids: report.dashboardGrids, steps: report.containerSteps })
     if (!HAND_BUILT_GRIDS_ALLOWED.some((entry) => visit.name.startsWith(entry.screen))) {
       for (const grid of report.handBuiltGrids) fail(scope, `the grid "${grid}" sets cards side by side without DashboardGrid`)

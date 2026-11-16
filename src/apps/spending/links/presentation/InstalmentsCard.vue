@@ -65,7 +65,7 @@ async function notNow(): Promise<void> {
         <li v-for="{ row, target } in shown" :key="row.id">
           <ProposalRow as="button" :title="rowTitle(row)" :caption="rowCaption(row, accountOf(row))" data-testid="spending-review-instalments-row" @click="emit('open', row)">
             <template #amount>
-              <AccountMoneyText :cents="row.amount" :currency="EURO" sign="always" tone="flow" />
+              <AccountMoneyText :cents="row.amount" :currency="EURO" tone="flow" />
             </template>
             <template #details>
               <span class="break-words type-caption">{{ instalmentText(target) }}</span>

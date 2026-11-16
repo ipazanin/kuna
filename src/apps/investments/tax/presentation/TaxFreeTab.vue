@@ -76,7 +76,7 @@ const shown = computed(() => {
             <span class="block type-caption @lg:hidden">{{ text.costOf(formatMoney(entry.lot.cost)) }}</span>
           </td>
           <td class="cell-wraps text-end">
-            <MoneyText v-if="entry.gain !== null" :cents="entry.gain" sign="always" tone="outcome" />
+            <MoneyText v-if="entry.gain !== null" :cents="entry.gain" tone="outcome" />
             <span v-if="isAtALoss(entry)" class="flex items-center justify-end gap-1 type-caption text-error" data-testid="tax-free-at-a-loss">
               <UIcon name="i-lucide-trending-down" class="size-3.5 shrink-0" aria-hidden="true" />
               {{ text.atALoss }}

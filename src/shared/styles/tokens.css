@@ -43,6 +43,8 @@
   --color-page: var(--surface-page);
   --color-raised: var(--surface-raised);
   --color-on-fill: var(--chart-on-fill);
+  --color-positive-soft: var(--tone-positive-soft);
+  --color-negative-soft: var(--tone-negative-soft);
   --color-gain-1: var(--gain-1);
   --color-gain-2: var(--gain-2);
   --color-gain-3: var(--gain-3);
@@ -86,6 +88,13 @@
   --tone-negative: #b4372d;
   --tone-warning: #8d5900;
   --tone-info: #2a63b6;
+
+  /*
+   * Money coming in and going out, the soft depth of the positive and negative tones: the same OKLCH lightness at 60% of
+   * the chroma, so each keeps its full tone's contrast. The full tones are for real gains and losses only.
+   */
+  --tone-positive-soft: #3f6c52;
+  --tone-negative-soft: #9a5148;
 
   --elevation-raised: 0 1px 0 rgba(12, 22, 34, 0.04), 0 1px 3px rgba(12, 22, 34, 0.06);
   --elevation-overlay: 0 8px 28px rgba(12, 22, 34, 0.14), 0 1px 3px rgba(12, 22, 34, 0.08);
@@ -187,6 +196,9 @@
   --tone-negative: #f0857c;
   --tone-warning: #f0b14a;
   --tone-info: #6fa6ee;
+
+  --tone-positive-soft: #7cb999;
+  --tone-negative-soft: #d6958e;
 
   --elevation-raised: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 1px 2px rgba(0, 0, 0, 0.3);
   --elevation-overlay: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
