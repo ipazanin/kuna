@@ -1,7 +1,8 @@
 export const meta = {
   name: 'build-wave',
   description: 'Build, review and fix up to four Kuna lanes, each in a worktree the lead made at the pushed main',
-  whenToUse: 'Step 3 of the drive-feature skill. Pass args { scratch, base, books, lanes: [{ key, issue, worktree, port, brief }] }, where books is a read-only scratch copy of the real books.',
+  whenToUse:
+    'Step 3 of the drive-feature skill. Pass args { scratch, base, books, lanes: [{ key, issue, worktree, port, brief, model? }] }, where books is a read-only scratch copy of the real books and model, when set, picks a lighter builder for mechanical lanes.',
   phases: [
     { title: 'Build', detail: 'one builder per lane in its own worktree' },
     { title: 'Review', detail: 'design-reviewer for visible lanes, correctness review always' },
@@ -40,7 +41,7 @@ const checks = (lane) =>
 const build = (lane, blockers) =>
   agent(
     `${common(lane)}\n\nYour lane: ${lane.brief}\n${blockers ? `\nThe review blocked the push. Fix every blocker and should-fix item:\n${blockers}\n` : ''}\n${checks(lane)}\n\nReturn the commit subject in Kuna's plain-sentence style ending with (#${lane.issue}).`,
-    { label: `${blockers ? 'fix' : 'build'} ${lane.key}`, phase: blockers ? 'Fix' : 'Build', schema: BUILD },
+    { label: `${blockers ? 'fix' : 'build'} ${lane.key}`, phase: blockers ? 'Fix' : 'Build', schema: BUILD, model: lane.model },
   )
 
 const review = (lane, built) =>
