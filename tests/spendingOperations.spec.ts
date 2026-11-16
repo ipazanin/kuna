@@ -390,13 +390,14 @@ describe('categories and accounts', () => {
     expect(categoryNamed(desk, 'Rent').order).toBeLessThan(categoryNamed(desk, 'Food').order)
   })
 
-  it('refuses a group for a group, more than a name for a fixed category, and a move past the end', async () => {
+  it('refuses a group for a group, more than a name for a fixed category, a colour too pale for the light theme, and a move past the end, and takes an own colour', async () => {
     const desk = await spendingDesk(used)
     const ref = (name: string) => desk.ref('category', categoryNamed(desk, name).id)
     const change = (category: string, fields: Record<string, unknown>) => ({ op: 'change-category', input: { category, name: null, group: null, colour: null, hidden: null, ...fields } })
     expect((await desk.propose([change(ref('Rent'), { group: ref('Food') })])).isError).toBe(true)
     expect((await desk.propose([change(ref('Between my accounts'), { hidden: 'yes' })])).isError).toBe(true)
-    expect((await desk.propose([change(ref('Groceries'), { colour: '#000000' })])).isError).toBe(true)
+    expect((await desk.propose([change(ref('Groceries'), { colour: '#ffd27a' })])).isError).toBe(true)
+    expect((await desk.propose([change(ref('Groceries'), { colour: '#7A3E12' })])).isError).toBe(false)
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'move-category', { category: ref('Food'), direction: 'up' })])).isError).toBe(true)
   })
 

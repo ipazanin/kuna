@@ -15,14 +15,15 @@ import USwitch from '@nuxt/ui/components/Switch.vue'
 
 import { CATEGORY_WRITES, deleteInto, newCategory } from '../application/categoryWrites'
 import { categoryTree } from '../domain/categoryTree'
-import { categoryColours } from './categoryColours'
+import { categoryColours, groupSwatches } from './categoryColours'
 import { lastOrder, siblingsUnder } from '../domain/categoryPlaces'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isSplit, rowItemsOf } from '../../workbook/domain/rowItems'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind } from '../../workbook/domain/category'
 import { words as spendingWords } from '../../words'
 import { words } from './words'
-import { SWATCHES, swatchToken } from '../../../../shared/charts/swatches'
+import { looksAlike, swatchOf } from '../../../../shared/charts/swatches'
+import { listInWords } from '../../../../shared/text/listInWords'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { recordsOf } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -40,8 +41,6 @@ const props = defineProps<{
 
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
-
-const SWATCH_CHOICES = SWATCHES.map((swatch) => ({ value: swatch.hex, name: swatch.name, token: swatchToken(swatch) }))
 
 const categories = computed(() => store.state.workbook?.categories ?? [])
 const before = computed(() => (props.editing.mode === 'edit' ? props.editing.category : null))
@@ -95,6 +94,19 @@ const blankColour = computed(() => {
   const blank = { ...typed.value, colour: '' }
   const token = categoryColours([...categories.value.filter((category) => category.id !== blank.id), blank])(blank)
   return { name: blank.parent === null ? words.dialog.nextFreeColour : words.dialog.groupColour, token }
+})
+
+/** The other groups whose colour a chart's reader would take for the one picked, named so a repeat is a choice. Blank takes a free slot, which no group wears. */
+const lookalikes = computed(() => {
+  const own = swatchOf(colour.value)
+  if (own === null) return undefined
+  const worn = groupSwatches(categories.value)
+  const others = categories.value.filter((group) => group.parent === null && group.id !== start.value.id && group.id !== typed.value.parent)
+  const alike = others.filter((group) => {
+    const swatch = worn.get(group.id)
+    return swatch !== null && swatch !== undefined && looksAlike(swatch.hex, own.hex)
+  })
+  return alike.length === 0 ? undefined : words.dialog.looksLike(listInWords(alike.map((group) => group.name)))
 })
 
 const errors = computed(() => ({
@@ -190,7 +202,7 @@ function startDeleting(): void {
             <USelect v-model="parent" :items="groupItems" class="w-full" data-testid="spending-category-group" />
           </UFormField>
           <UFormField :label="words.dialog.colour">
-            <ColourSwatchPicker v-model="colour" :title="words.dialog.colourOf(typed.name)" :blank="blankColour" :swatches="SWATCH_CHOICES" />
+            <ColourSwatchPicker v-model="colour" :title="words.dialog.colourOf(typed.name)" :blank="blankColour" :warning="lookalikes" />
           </UFormField>
           <USwitch v-model="hidden" :label="words.dialog.hide" :description="words.dialog.hideHelp" data-testid="spending-category-hidden" />
           <p v-if="kept !== null" class="text-sm text-muted" data-testid="spending-category-kept">{{ kept }}</p>

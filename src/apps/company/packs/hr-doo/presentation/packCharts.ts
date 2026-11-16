@@ -1,7 +1,11 @@
 import { monthAxisLabel, monthLabel } from '../../../../../shared/calendar/monthLabel'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
 import { BAR_END_DOWN, BAR_END_UP, incompleteBand, markIncomplete, moneyAxisLabel, stackGap } from '../../../../../shared/charts/chartTheme'
+import { tokenColour } from '../../../../../shared/charts/chartTokens'
 import type { ChartTokens } from '../../../../../shared/charts/chartTokens'
+import { paintToken } from '../../../../../shared/charts/ownColours'
+import { CHART_SLOTS, slotsTakenBy } from '../../../../../shared/charts/swatches'
+import type { Swatch } from '../../../../../shared/charts/swatches'
 import { axisTooltip } from '../../../../../shared/charts/chartTooltip'
 import type { BarSeries, ChartOption, LineSeries } from '../../../../../shared/charts/echarts'
 import { negateMoney, sumMoney } from '../../../../../shared/money/money'
@@ -18,9 +22,6 @@ import type { OwnerBenefits } from '../domain/ownerBenefits'
 import type { LoanMonth } from '../domain/ownerLoans'
 import type { OwnerTake, OwnerTakeMonth } from '../domain/ownerTake'
 import { words } from './words'
-
-/** The categorical slots a chart may use before the rest fold into one series. */
-const SLOTS = 8
 
 /**
  * One series of a chart by category: a category, or the categories past the free slots together.
@@ -47,21 +48,27 @@ function slotAt(index: number, tokens: ChartTokens): Paint {
   return colour === undefined ? greyOf(tokens) : { colour, token: `--series-${index + 1}` }
 }
 
+/** An own colour, read from the page as any token is, since it has no slot. */
+function ownPaint(swatch: Swatch): Paint {
+  const token = paintToken(swatch)
+  return { colour: tokenColour(token), token }
+}
+
 /**
  * The colour of each listed category: the swatch it was given, else the next chart slot no listed
- * category was given, in the order of the list. So a category with nothing in the period never
+ * category was given or looks like, in the order of the list. So a category with nothing in the period never
  * repaints the others. A category past the free slots gets null, and `spare` holds the free slots
  * after the categories, in order.
  */
 function listedPaints(listed: readonly Category[], tokens: ChartTokens): { readonly paints: ReadonlyMap<string, Paint | null>; readonly spare: readonly Paint[] } {
-  const given = new Set(listed.map((category) => category.colour.swatch?.slot))
-  const free = Array.from({ length: SLOTS }, (_, index) => index).filter((index) => !given.has(index + 1))
+  const given = new Set(listed.flatMap((category) => (category.colour.swatch === null ? [] : slotsTakenBy(category.colour.swatch))))
+  const free = Array.from({ length: CHART_SLOTS }, (_, index) => index).filter((index) => !given.has(index + 1))
   const paints = new Map<string, Paint | null>()
   let used = 0
   for (const category of listed) {
     const { swatch } = category.colour
     if (swatch !== null) {
-      paints.set(category.slug, swatch.slot === null ? greyOf(tokens) : slotAt(swatch.slot - 1, tokens))
+      paints.set(category.slug, swatch.own ? ownPaint(swatch) : swatch.slot === null ? greyOf(tokens) : slotAt(swatch.slot - 1, tokens))
       continue
     }
     const index = free[used]

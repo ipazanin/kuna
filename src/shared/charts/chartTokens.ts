@@ -1,4 +1,5 @@
 import { activeTheme } from '../theme/theme'
+import { CHART_SLOTS } from './swatches'
 import type { Theme } from '../theme/theme'
 
 /**
@@ -23,10 +24,14 @@ export interface ChartTokens {
   readonly tooltip: string
   readonly tooltipBorder: string
   readonly onFill: string
+  /** A real gain and a real loss, the full depth of the two tones. */
   readonly positive: string
   readonly negative: string
+  /** Money coming in and going out, the soft depth of the two tones. */
+  readonly positiveSoft: string
+  readonly negativeSoft: string
   readonly accent: string
-  /** The eight categorical slots in their validated order. Assign them in sequence, never cycled. */
+  /** The twelve categorical slots in their validated order. Assign them in sequence, never cycled. */
   readonly series: readonly string[]
   readonly buckets: Readonly<Record<BucketTone, string>>
   /** One hue from the first step to the fifth, for an ordered scale such as how late money owed is. */
@@ -71,8 +76,10 @@ function readChartTokens(style: CSSStyleDeclaration): ChartTokens {
     onFill: read('--chart-on-fill'),
     positive: read('--tone-positive'),
     negative: read('--tone-negative'),
+    positiveSoft: read('--tone-positive-soft'),
+    negativeSoft: read('--tone-negative-soft'),
     accent: read('--accent'),
-    series: [1, 2, 3, 4, 5, 6, 7, 8].map((slot) => read(`--series-${slot}`)),
+    series: Array.from({ length: CHART_SLOTS }, (_, place) => read(`--series-${place + 1}`)),
     buckets: Object.fromEntries(BUCKET_TONES.map((tone) => [tone, read(`--bucket-${tone}`)])) as Record<BucketTone, string>,
     ageing: [1, 2, 3, 4, 5].map((step) => read(`--ageing-${step}`)),
     gain: [1, 2, 3].map((step) => read(`--gain-${step}`)),

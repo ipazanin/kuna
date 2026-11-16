@@ -42,6 +42,7 @@ export function gainBridgeChart(gains: PeriodGains, tokens: ChartTokens): GainBr
     bars,
     tokens,
     {
+      steps: 'outcome',
       raises: words.bridge.gain,
       lowers: words.bridge.loss,
       residual: words.bridge.costs,

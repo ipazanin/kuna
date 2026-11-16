@@ -14,7 +14,7 @@ import type { CategoryClassHelp } from '../../packs/packContribution'
 import { BUCKETS } from '../../workbook/domain/bucket'
 import type { DefinedBucket } from '../../workbook/domain/bucket'
 import type { CategoryClass } from '../../workbook/domain/packPart'
-import { SWATCHES, swatchOf, swatchToken } from '../../../../shared/charts/swatches'
+import { looksAlike, swatchOf } from '../../../../shared/charts/swatches'
 import type { SlugUses } from '../../workbook/domain/slug'
 import { VAT_TREATMENTS, vatCell } from '../../workbook/domain/vatTreatment'
 import type { VatTreatment } from '../../workbook/domain/vatTreatment'
@@ -186,21 +186,38 @@ function update(index: number, field: keyof Omit<CategoryDraft, 'saved' | 'saved
   drafts.value = drafts.value.map((draft, position) => (position === index ? { ...draft, [field]: text } : draft))
 }
 
-const swatchChoices = SWATCHES.map((swatch) => ({ value: swatch.hex, name: swatch.name, token: swatchToken(swatch) }))
-
 function shownName(draft: CategoryDraft): string {
   return displayName(draft.category.trim().toLowerCase(), draft.label)
 }
 
-/** The other categories of the row's bucket that wear the colour it now has, named so a repeat is a choice. */
-function colourNote(index: number): string {
+/**
+ * The other categories of the row's bucket whose colour a chart's reader would take for the row's. A blank category is
+ * left out, since it wears its bucket's colour, and a chart by category gives it a slot clear of every own colour.
+ */
+function lookalikesOf(index: number): readonly string[] {
   const draft = drafts.value[index]!
   const swatch = swatchOf(draft.colour)
-  if (swatch === null) {
-    return words.categories.bucketsColour(draft.bucket)
-  }
-  const others = drafts.value.filter((other, position) => position !== index && other.bucket === draft.bucket && swatchOf(other.colour) === swatch).map(shownName)
-  return others.length === 0 ? words.categories.colourAlone(swatch.name, draft.bucket) : words.categories.colourShared(swatch.name, listInWords(others))
+  if (swatch === null) return []
+  return drafts.value
+    .filter((other, position) => {
+      const worn = swatchOf(other.colour)
+      return position !== index && other.bucket === draft.bucket && worn !== null && looksAlike(worn.hex, swatch.hex)
+    })
+    .map(shownName)
+}
+
+/** The colour the row wears in words and that no other category of its bucket looks like it, or nothing while the warning names those that do. */
+function colourNote(index: number): string | undefined {
+  const draft = drafts.value[index]!
+  const swatch = swatchOf(draft.colour)
+  if (swatch === null) return words.categories.bucketsColour(draft.bucket)
+  return lookalikesOf(index).length === 0 ? words.categories.colourAlone(swatch.name, draft.bucket) : undefined
+}
+
+/** A warning naming the categories of the row's bucket that look like its colour, so a repeat is a choice. */
+function colourWarning(index: number): string | undefined {
+  const others = lookalikesOf(index)
+  return others.length === 0 ? undefined : words.categories.colourLooksLike(listInWords(others))
 }
 
 function locked(draft: CategoryDraft): boolean {
@@ -334,8 +351,8 @@ function save(): void {
               :model-value="draft.colour"
               :title="words.categories.colourOf(shownName(draft))"
               :blank="{ name: words.categories.bucketColour, token: `--bucket-${bucketTone(draft.bucket)}` }"
-              :swatches="swatchChoices"
               :note="colourNote(index)"
+              :warning="colourWarning(index)"
               @update:model-value="update(index, 'colour', pickedColour(draft, $event, stored))"
             />
           </td>

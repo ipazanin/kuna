@@ -26,6 +26,13 @@ export const en = {
     clear: 'Clear',
   },
   warning: 'Warning',
+  swatchPicker: {
+    otherColour: 'Other colour…',
+    code: 'Colour code',
+    codePlaceholder: '#RRGGBB',
+    tooPale: (code: string) => `${code} is too pale to see in the light theme.`,
+    useInstead: (code: string) => `Use ${code}`,
+  },
   chart: {
     emptyTitle: 'Nothing to show for this period',
     emptyDescription: 'Pick a longer period or clear a filter.',
@@ -89,6 +96,13 @@ export const hr: Translation<typeof en> = {
     clear: 'Očisti',
   },
   warning: 'Upozorenje',
+  swatchPicker: {
+    otherColour: 'Druga boja…',
+    code: 'Kod boje',
+    codePlaceholder: '#RRGGBB',
+    tooPale: (code) => `${code} je preblijeda da se vidi u svijetloj temi.`,
+    useInstead: (code) => `Uzmi ${code}`,
+  },
   chart: {
     emptyTitle: 'Za ovo razdoblje nema ništa za prikaz',
     emptyDescription: 'Odaberite dulje razdoblje ili uklonite filtar.',

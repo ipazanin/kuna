@@ -1,29 +1,33 @@
 import { categoryTree, groupOf } from '../domain/categoryTree'
 import { CATEGORY_KINDS } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
-import { swatchOf, swatchToken } from '../../../../shared/charts/swatches'
+import { SWATCHES, slotsTakenBy, swatchOf } from '../../../../shared/charts/swatches'
+import type { Swatch } from '../../../../shared/charts/swatches'
+import { paintToken } from '../../../../shared/charts/ownColours'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** The eight chart slots, which groups without a swatch of their own take in their order. */
-const SLOTS = 8
-
 /**
- * The colour token each category is drawn in: its own swatch, else its group's. A group without a swatch takes the next
- * chart slot no group's swatch took, in the order of the groups, so a month without a group's rows never repaints the
- * others, and once the slots run out it wears the recessive grey.
+ * The swatch each group wears: its own, else the next chart slot no group's swatch took or looks like, in the order of
+ * the groups, so a month without a group's rows never repaints the others. Once the slots run out a group wears none and is grey.
  */
+export function groupSwatches(categories: readonly Category[]): ReadonlyMap<RecordId, Swatch | null> {
+  const groups = categoryTree(categories, CATEGORY_KINDS).map((entry) => entry.group)
+  const taken = new Set(
+    groups.flatMap((group) => {
+      const swatch = swatchOf(group.colour)
+      return swatch === null ? [] : slotsTakenBy(swatch)
+    }),
+  )
+  const free = SWATCHES.filter((swatch) => swatch.slot !== null && !taken.has(swatch.slot))
+  return new Map(groups.map((group) => [group.id, swatchOf(group.colour) ?? free.shift() ?? null]))
+}
+
+/** The colour token each category is drawn in: its own swatch, else its group's, else the recessive grey. */
 export function categoryColours(categories: readonly Category[]): (category: Category) => string {
   const byId = new Map(categories.map((category) => [category.id, category]))
-  const groups = categoryTree(categories, CATEGORY_KINDS).map((entry) => entry.group)
-  const taken = new Set(groups.flatMap((group) => swatchOf(group.colour)?.slot ?? []))
-  const free = Array.from({ length: SLOTS }, (_, place) => place + 1).filter((slot) => !taken.has(slot))
-  const groupTokens = new Map<RecordId, string>()
-  for (const group of groups) {
-    const swatch = swatchOf(group.colour)
-    groupTokens.set(group.id, swatch === null ? (free.length > 0 ? `--series-${free.shift()}` : '--chart-deemphasis') : swatchToken(swatch))
-  }
+  const groups = groupSwatches(categories)
   return (category) => {
-    const own = swatchOf(category.colour)
-    return own === null ? (groupTokens.get(groupOf(category, byId).id) ?? '--chart-deemphasis') : swatchToken(own)
+    const swatch = swatchOf(category.colour) ?? groups.get(groupOf(category, byId).id) ?? null
+    return swatch === null ? '--chart-deemphasis' : paintToken(swatch)
   }
 }

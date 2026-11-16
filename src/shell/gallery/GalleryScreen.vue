@@ -232,6 +232,8 @@ const GALLERY_TABS = [
 ]
 
 const swatchColour = ref('')
+const ownSwatchColour = ref('#7a3e12')
+const alikeSwatchColour = ref('#2a78d6')
 const GALLERY_PERIODS = [
   { value: '1y', label: '1Y' },
   { value: '3y', label: '3Y' },
@@ -287,7 +289,6 @@ const galleryRange = ref<ChartRange>('all')
 const GALLERY_CHIPS = ['EXQ', 'Category: Software subscriptions', 'Counterparty: A supplier whose name runs far past the width of a chip']
 const galleryChips = ref<readonly string[]>(GALLERY_CHIPS)
 const galleryFilterChips = computed(() => galleryChips.value.map((chip) => ({ id: chip, label: chip })))
-const SWATCHES = [1, 2, 3, 4, 5].map((slot) => ({ value: `series-${slot}`, name: `Slot ${slot}`, token: `--series-${slot}` }))
 
 /** A long list for Show all, of made-up payees. */
 const PAYEES = Array.from({ length: 14 }, (_, index) => ({ name: `Supplier ${index + 1}`, cents: moneyFromCents(-(140_000 - index * 8_500)) }))
@@ -1003,10 +1004,25 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
             </FiltersSheet>
           </div>
         </AppCard>
-        <AppCard title="ColourSwatchPicker" subtitle="Named swatches with a blank choice first.">
-          <div class="flex items-center gap-3 px-4 pt-3 pb-4 type-body sm:px-5">
-            <ColourSwatchPicker v-model="swatchColour" title="Colour of Software" :blank="{ name: 'The bucket colour', token: '--bucket-operating' }" :swatches="SWATCHES" />
-            <span class="identifier">{{ swatchColour || 'blank' }}</span>
+        <AppCard title="ColourSwatchPicker" subtitle="The palette with a blank choice first, and Other colour below, which refuses a code too pale for the light theme.">
+          <div class="flex flex-col gap-3 px-4 pt-3 pb-4 type-body sm:px-5">
+            <div class="flex items-center gap-3">
+              <ColourSwatchPicker v-model="swatchColour" title="Colour of Software" :blank="{ name: 'The bucket colour', token: '--bucket-operating' }" />
+              <span class="identifier">{{ swatchColour || 'blank' }}</span>
+            </div>
+            <div class="flex items-center gap-3" data-testid="gallery-own-colour">
+              <ColourSwatchPicker v-model="ownSwatchColour" title="Colour of Hardware" :blank="{ name: 'The bucket colour', token: '--bucket-operating' }" note="An own colour." />
+              <span class="identifier">{{ ownSwatchColour || 'blank' }}</span>
+            </div>
+            <div class="flex items-center gap-3" data-testid="gallery-alike-colour">
+              <ColourSwatchPicker
+                v-model="alikeSwatchColour"
+                title="Colour of Travel"
+                :blank="{ name: 'The bucket colour', token: '--bucket-operating' }"
+                warning="Hard to tell apart from Software subscriptions on a chart."
+              />
+              <span class="identifier">{{ alikeSwatchColour || 'blank' }}</span>
+            </div>
           </div>
         </AppCard>
         <AppCard title="ShowAllButton" subtitle="A long list shows its first ten entries." class="@4xl:col-span-2 @8xl:col-span-1">

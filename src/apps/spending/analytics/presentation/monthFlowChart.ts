@@ -38,7 +38,7 @@ interface Measure {
  */
 export function monthFlowChart(months: readonly MonthFlow[], current: MonthKey, tokens: ChartTokens): MonthFlowChart {
   const measures: readonly Measure[] = [
-    { name: words.income, colour: tokens.positive, legendColour: 'var(--tone-positive)', amountOf: (month) => month.income },
+    { name: words.income, colour: tokens.positiveSoft, legendColour: 'var(--tone-positive-soft)', amountOf: (month) => month.income },
     { name: words.spent, colour: tokens.inkMuted, legendColour: 'var(--chart-ink-muted)', amountOf: (month) => month.spent },
     { name: words.saved, colour: tokens.accent, legendColour: 'var(--accent)', amountOf: (month) => month.saved },
   ]

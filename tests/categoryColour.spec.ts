@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { CATEGORY_WRITES } from '../src/apps/company/settings/application/namedRecordWrites'
 import { categoriesOfDrafts, categoryDraftsOf, pickedColour } from '../src/apps/company/settings/domain/categoryDrafts'
 import { categoryColourRefusals } from '../src/apps/company/settings/domain/categoryGuards'
-import { categoryColourOf, isPaletteColour } from '../src/apps/company/workbook/domain/categoryColour'
+import { categoryColourOf, isCategoryColour } from '../src/apps/company/workbook/domain/categoryColour'
 import { readCategories } from '../src/apps/company/workbook/domain/categoriesReading'
 import { CATEGORY_RECORDS } from '../src/apps/company/workbook/domain/coreKinds'
 import { storedOf } from '../src/shared/storage/domain/recordsRead'
@@ -38,17 +38,18 @@ function withColours(): Record<string, CellValue[][]> {
 }
 
 describe('CategoryColour', () => {
-  it('reads a swatch by its light hex in any case, and anything else as the bucket colour, keeping it as stored', () => {
-    expect(categoryColourOf('#2A78D6')).toEqual({ swatch: { name: 'Blue', hex: '#2a78d6', slot: 3 }, stored: '#2A78D6' })
-    expect(categoryColourOf('#a3adb9').swatch).toEqual({ name: 'Grey', hex: '#a3adb9', slot: null })
+  it('reads a swatch or an own colour by its light hex in any case, and anything else as the bucket colour, keeping it as stored', () => {
+    expect(categoryColourOf('#2A78D6')).toEqual({ swatch: { name: 'Blue', hex: '#2a78d6', slot: 3, own: false }, stored: '#2A78D6' })
+    expect(categoryColourOf('#a3adb9').swatch).toEqual({ name: 'Grey', hex: '#a3adb9', slot: null, own: false })
+    expect(categoryColourOf('#7A3E12').swatch).toEqual({ name: 'Own colour #7A3E12', hex: '#7a3e12', slot: null, own: true })
     expect(categoryColourOf('#dce9f9')).toEqual({ swatch: null, stored: '#dce9f9' })
     expect(categoryColourOf('blue')).toEqual({ swatch: null, stored: 'blue' })
     expect(categoryColourOf('')).toEqual({ swatch: null, stored: '' })
   })
 
-  it('lets a save write a swatch or a blank, and nothing else', () => {
-    expect(['', '#008300', '#E34948'].map(isPaletteColour)).toEqual([true, true, true])
-    expect(['#dce9f9', 'blue', '#12345'].map(isPaletteColour)).toEqual([false, false, false])
+  it('lets a save write a swatch, an own colour that shows in the light theme or a blank, and nothing else', () => {
+    expect(['', '#008300', '#E34948', '#7a3e12'].map(isCategoryColour)).toEqual([true, true, true, true])
+    expect(['#dce9f9', 'blue', '#12345'].map(isCategoryColour)).toEqual([false, false, false])
   })
 
   it('reads a category with a colour outside the palette with no problem', () => {
@@ -57,7 +58,7 @@ describe('CategoryColour', () => {
     expect(readCategories(read)).toMatchObject({ facts: [{ slug: 'equipment', colour: { swatch: null, stored: '#dce9f9' } }], problems: [] })
   })
 
-  it('refuses a colour a change gives outside the palette, and leaves one the change keeps alone', () => {
+  it('refuses a colour a change gives that is no swatch, and leaves one the change keeps alone', () => {
     const cells = (colour: string) => ({ slug: 'equipment', bucket: 'operating', colour })
 
     expect(
@@ -66,8 +67,8 @@ describe('CategoryColour', () => {
         { before: null, after: { ...cells('blue'), slug: 'paper' } },
       ]),
     ).toEqual([
-      `"equipment" takes one of the nine colours of the palette, ${CODES}, or none for its bucket's colour, not "#12345".`,
-      `"paper" takes one of the nine colours of the palette, ${CODES}, or none for its bucket's colour, not "blue".`,
+      `"equipment" takes one of the 13 colours of the palette, ${CODES}, an own colour as #rrggbb that keeps 3:1 in the light theme, or none for its bucket's colour, not "#12345".`,
+      `"paper" takes one of the 13 colours of the palette, ${CODES}, an own colour as #rrggbb that keeps 3:1 in the light theme, or none for its bucket's colour, not "blue".`,
     ])
     expect(
       categoryColourRefusals([
@@ -122,12 +123,12 @@ describe.each([
     expect(harness.store.state.workbook?.problems).toEqual([])
   })
 
-  it('refuses a colour outside the palette, on a change and on a new category', async () => {
+  it('refuses a colour that is no swatch, on a change and on a new category', async () => {
     const harness = await harnessOf(used, withColours())
 
-    await expect(edit(harness.store, CATEGORY_WRITES, 3, { colour: '#12345' })).rejects.toThrow('"ai-services" takes one of the nine colours of the palette')
+    await expect(edit(harness.store, CATEGORY_WRITES, 3, { colour: '#12345' })).rejects.toThrow('"ai-services" takes one of the 13 colours of the palette')
     await expect(add(harness.store, CATEGORY_WRITES, { category: 'paper', family: 'operating', bucket: 'operating', colour: 'blue' })).rejects.toThrow(
-      '"paper" takes one of the nine colours of the palette',
+      '"paper" takes one of the 13 colours of the palette',
     )
     expect(colourCells(harness)).toEqual(['#DCE9F9', '', ''])
   })

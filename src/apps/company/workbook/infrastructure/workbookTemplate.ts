@@ -92,7 +92,9 @@ const TEMPLATE_COLUMNS: Readonly<Record<CoreTab, readonly TemplateColumn[]>> = {
     },
     {
       name: 'colour',
-      note: 'The colour the app paints the category with, one of the nine swatches on Settings, Categories, such as #2a78d6 for Blue. ' + 'Blank, or any other colour, paints it in its bucket colour.',
+      note:
+        'The colour the app paints the category with, one of the swatches on Settings, Categories, such as #2a78d6 for Blue, or an own colour as #rrggbb that keeps 3:1 on a white card. ' +
+        'Blank, or any other value, paints it in its bucket colour.',
     },
     { name: 'roles', note: 'Optional, comma separated, such as revenue or watched, for features that pick categories by role.' },
     { name: 'label', note: 'What the screens call the category, such as Software. Optional. Blank shows the category with spaces for hyphens.' },

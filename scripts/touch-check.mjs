@@ -138,6 +138,7 @@ import {
   categoryFiltersFlowIn,
   categoryFlow,
   categoryFlowIn,
+  spendingCategoryColourFlowIn,
   changeCategoryFlow,
   changeCategoryFlowIn,
   clientIbansFlow,
@@ -1554,6 +1555,8 @@ async function checkWidth(width) {
     for (const [name, hash, title, run, variant] of [
       ['categories', '#/company/settings?tab=categories', 'Settings', categoryFlow],
       ['categories-filters', '#/company/settings?tab=categories', 'Settings', categoryFiltersFlow],
+      ['spending-category-colour', '#/spending/settings', 'Settings', spendingCategoryColourFlowIn('en'), `${query}&spending=sample`],
+      ['spending-category-colour-croatian', '#/spending/settings', 'Postavke', spendingCategoryColourFlowIn('hr'), `${query}&spending=sample&lang=hr`],
       ['settings-statements-folder', '#/company/settings', 'Settings', statementsFolderFlow],
       ['settings-card-ibans', '#/company/settings', 'Settings', cardSettlementIbansFlow],
       ['clients-ibans', '#/company/invoicing?tab=clients', 'Invoicing', clientIbansFlow],

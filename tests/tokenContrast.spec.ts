@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { contrastRatio } from '../src/shell/gallery/contrast'
+import { contrastRatio } from '../src/shared/charts/colour'
 import { DARK_TOKENS, LIGHT_TOKENS, SHARED_TOKENS } from './fixtures/tokens'
 
 /** WCAG 2's minimum for body text, and for large text, icons and other marks. */
@@ -39,7 +39,8 @@ const CLASS_MARKS = ['--invest-gold', '--invest-crypto']
 const DOT_MARKS = ['--invest-buy', '--invest-sale', '--loan-lowers', '--loan-raises', '--loan-interest']
 /** The edge of a checkbox or a radio and of a switch that is off, a mark on the surfaces a control sits on. */
 const CONTROL_EDGE = '--control-edge'
-const SERIES = ['--series-1', '--series-2', '--series-3', '--series-4', '--series-5', '--series-6', '--series-7', '--series-8']
+/** The twelve categorical slots, which a category may wear as its swatch beside its name on the page, a card and a popover. */
+const SERIES = Array.from({ length: 12 }, (_, place) => `--series-${place + 1}`)
 
 interface Pair {
   readonly name: string
@@ -82,7 +83,7 @@ function colourOf(tokens: ReadonlyMap<string, string>, name: string): string {
  * The pairs that carry text in one theme: every ink and tone on the page, a card and a popover, each
  * tone on the 10% wash of itself that Nuxt UI's subtle badges and alerts lie on, ink on the accent
  * wash of a picked row or tab, each app's colour on the surfaces as text and on its own tile as a mark, the label of a primary button, the chart's ink, and the ink inside a
- * filled chart mark, which carries icons and large text only, ink on each gain and loss step and on each net position's tint, and each class colour, each dot colour and the edge of a checkbox, a radio or an off switch as a mark.
+ * filled chart mark, which carries icons and large text only, each categorical slot as a mark on the page, a card and a popover, ink on each gain and loss step and on each net position's tint, and each class colour, each dot colour and the edge of a checkbox, a radio or an off switch as a mark.
  */
 function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
   const colour = (name: string): string => colourOf(tokens, name)
@@ -102,6 +103,7 @@ function pairsOf(tokens: ReadonlyMap<string, string>): readonly Pair[] {
     pair('--accent-ink', '--accent'),
     ...CHART_INKS.flatMap((ink) => ['--chart-surface', '--chart-tooltip'].map((surface) => pair(ink, surface))),
     ...SERIES.map((series) => pair('--chart-on-fill', series, MARK)),
+    ...SERIES.flatMap((series) => SURFACES.map((surface) => pair(series, surface, MARK))),
     ...SURFACES.map((surface) => pair(CONTROL_EDGE, surface, MARK)),
     ...[...CLASS_MARKS, ...DOT_MARKS].flatMap((mark) => ['--surface-raised', '--chart-surface'].map((surface) => pair(mark, surface, MARK))),
     ...STEPS.flatMap((step) => ['--ink', '--ink-strong', '--chart-ink'].map((ink) => pair(ink, step))),
@@ -236,6 +238,33 @@ describe('the dot colours', () => {
         [...CLASS_RING, ...MIX_MONEY_FLOW_AND_ACCENT].flatMap((other) => {
           const { normal } = distancesOf(colourOf(tokens, dot), colourOf(tokens, other))
           return normal >= DOT_APART ? [] : [`${dot} and ${other}: ${normal.toFixed(1)}`]
+        }),
+      )
+      expect(failing).toEqual([])
+    })
+  }
+})
+
+/** The cost buckets, which Overview and Analysis stack edge to edge in every month's bar. */
+const COST_BUCKETS = ['--bucket-operating', '--bucket-taxes', '--bucket-owner-pay', '--bucket-financing']
+/** The least OKLab distance, times 100, between two cost buckets in normal vision and with protanopia or deuteranopia, the floor the palette validator allows beside a name. */
+const BUCKETS_APART = 10
+const BUCKETS_APART_RED_GREEN = 6
+
+describe('the cost buckets', () => {
+  for (const [theme, tokens] of [
+    ['light', LIGHT_TOKENS],
+    ['dark', DARK_TOKENS],
+  ] as const) {
+    it(`keep every pair apart in normal vision and with red-green colour blindness in the ${theme} theme`, () => {
+      const failing = COST_BUCKETS.flatMap((bucket, index) =>
+        COST_BUCKETS.slice(index + 1).flatMap((other) => {
+          const one = colourOf(tokens, bucket)
+          const two = colourOf(tokens, other)
+          const apart = (seen?: readonly (readonly number[])[]): number => 100 * Math.hypot(...oklabOf(one, seen).map((part, place) => part - (oklabOf(two, seen)[place] ?? 0)))
+          const normal = apart()
+          const redGreen = Math.min(apart(COLOUR_BLINDNESS['protanopia']), apart(COLOUR_BLINDNESS['deuteranopia']))
+          return normal >= BUCKETS_APART && redGreen >= BUCKETS_APART_RED_GREEN ? [] : [`${bucket} and ${other}: ${normal.toFixed(1)}, red-green ${redGreen.toFixed(1)}`]
         }),
       )
       expect(failing).toEqual([])

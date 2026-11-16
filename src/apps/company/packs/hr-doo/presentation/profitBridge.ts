@@ -3,8 +3,12 @@ import { formatMoney } from '../../../../../shared/money/moneyFormat'
 import type { DrillTarget } from '../../../filters/domain/drillTarget'
 import { words } from './words'
 
-/** The pack's bridges read from their first bar, one bar per step, and a step raises or lowers profit unless a caller names what it moves. */
+/**
+ * The pack's bridges read from their first bar, one bar per step, and a step raises or lowers profit unless a caller names
+ * what it moves. A step is money in or out, such as revenue or a cost, and the total is the profit.
+ */
 export const PROFIT_BRIDGE: BridgeWording<DrillTarget> = {
+  steps: 'flow',
   raises: words.bridge.raises,
   lowers: words.bridge.lowers,
   total: words.bridge.total,

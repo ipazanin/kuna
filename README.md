@@ -617,11 +617,17 @@ and a capital first letter, so `ai-services` reads "AI services". Links and filt
 A category wears its `colour` wherever one category is drawn: its chip and dot on Transactions and
 its To review tab, the category picker, the Add filter menu, the bars of Cost by category and the payee strip on
 Analysis, and the charts by category on Year, Taxes and Owner, Taken, in light and dark. The palette
-is the eight chart slots and the recessive grey of `tokens.css`, each with its own dark step, named
-Green, Orange, Blue, Amber, Pink, Dark green, Violet, Red and Grey. A blank colour, or any other
-colour, reads as the bucket colour with no problem and stays in the tab as it is until a save picks
-a swatch. A chart by category gives such a category the next chart slot that no category of its
-bucket was given, in the order of the tab, so a category with nothing in the period never repaints
+is the twelve chart slots and the recessive grey of `tokens.css`, each with its own dark step, named
+Green, Orange, Blue, Ochre, Pink, Dark green, Violet, Red, Teal, Plum, Olive, Petrol and Grey. Every
+slot keeps 3:1 on the page, a card and a popover in both themes, and neighbours pass the dataviz palette
+check. An own colour is any `#rrggbb` that keeps 3:1 on the light page, card and popover, as a slot does, since its
+swatch sits beside the category's name on all three. Its dark step keeps its OKLCH hue
+and chroma and lightens until it passes 3:1 on the dark surfaces, and `paintToken` in
+`src/shared/charts/ownColours.ts` sets both steps on the page as a token of its own. Files that still
+hold the earlier steps of Green, Orange, Ochre, Pink and Red read as those slots. A blank colour, or
+any other value, such as a pale tint from a cell, reads as the bucket colour with no problem and stays
+in the tab as it is until a save picks a colour. A chart by category gives such a category the next chart slot that no category of its
+bucket was given, nor looks like an own colour one was given, in the order of the tab, so a category with nothing in the period never repaints
 the others. Charts of whole buckets, such as Overview's ring and the profit and loss, keep the
 bucket colours. `SWATCHES` in `src/shared/charts/swatches.ts` lists the palette,
 and `tests/categoryPalette.spec.ts` fails when it and `tokens.css` disagree.
@@ -1855,10 +1861,14 @@ a deleted row is taken out. "Discard changes" goes back to what the workbook hol
 could not read, or deletes one, keeps no Undo, since nothing could store that row as it was.
 
 On Categories the colour is a swatch button that opens a pop-up, `ColourSwatchPicker` in
-`src/shared/ui/`: Bucket colour first, then the nine swatches, each a 44 px target named for a
-screen reader, which the arrow keys move through. A line under them names the other categories of
-the bucket that wear the chosen swatch, since a repeat is allowed. A colour outside the palette
-shows as Bucket colour. Roles are a
+`src/shared/ui/`: Bucket colour first, then the thirteen swatches, each a 44 px target named for a
+screen reader, which the arrow keys move through. Other colour below them opens Nuxt UI's colour
+picker and a field for the code, and the swatches step aside while it is open so the pop-up fits the window. A code
+too pale for the light theme is not taken, and the nearest one that passes, the same hue darker, is offered in its
+place. A warning under them names the other categories of the bucket whose colour looks the same, since a repeat is
+allowed. Two colours look the same within 10 of the palette check's measure, or within 3 for a reader with
+protanopia or deuteranopia, so Green and Teal warn and so do Orange and Dark green. Spending's category dialog warns
+the same way about other groups. A value that is no colour shows as Bucket colour. Roles are a
 menu of the roles core and the pack pick categories by, shown as chips. A role the app does not
 know, such as `revenu` typed in a file, shows as a red chip with the error under it and blocks the
 save until it is taken off.

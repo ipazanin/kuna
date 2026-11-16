@@ -17,7 +17,7 @@ import { periodMonths } from '../src/apps/company/filters/domain/periodPresets'
 import { PACK_CATEGORIES, withPackBuckets } from './fixtures/hrDooCategories'
 import { civil, euros, ledger, windowOf } from './fixtures/ledger'
 
-const TOKENS = { series: ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'], deemphasis: 'grey' } as unknown as ChartTokens
+const TOKENS = { series: Array.from({ length: 12 }, (_, place) => `s${place + 1}`), deemphasis: 'grey' } as unknown as ChartTokens
 const TAXES = PACK_CATEGORIES.filter((category) => category.bucket === 'taxes')
 const name = (slug: string) => slug
 
@@ -74,14 +74,15 @@ describe('categorySeries', () => {
     expect(paints([taxed('payroll-contributions', '#f9dcdc')], ['payroll-contributions'])).toEqual([['payroll-contributions', '--series-1', 's1']])
   })
 
-  it('folds the categories past the eight free slots into one grey series of those that moved', () => {
-    const listed = Array.from({ length: 10 }, (_, index) => ({ ...TAXES[0]!, slug: `tax-${index + 1}` }))
+  it('folds the categories past the twelve free slots into one grey series of those that moved', () => {
+    const listed = Array.from({ length: 14 }, (_, index) => ({ ...TAXES[0]!, slug: `tax-${index + 1}` }))
 
-    expect(paints(listed, ['tax-2', 'tax-9'])).toEqual([
+    expect(paints(listed, ['tax-2', 'tax-12', 'tax-13'])).toEqual([
       ['tax-2', '--series-2', 's2'],
+      ['tax-12', '--series-12', 's12'],
       ['Other categories', '--chart-deemphasis', 'grey'],
     ])
-    expect(categorySeries(listed, ['tax-2', 'tax-9'], TOKENS, name).at(-1)?.categories).toEqual(['tax-9'])
+    expect(categorySeries(listed, ['tax-2', 'tax-13'], TOKENS, name).at(-1)?.categories).toEqual(['tax-13'])
     expect(paints(listed, ['tax-2']).map(([slug]) => slug)).toEqual(['tax-2'])
   })
 })

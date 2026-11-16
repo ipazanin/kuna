@@ -3,7 +3,7 @@ import { listInWords } from '../../../../shared/text/listInWords'
 import { OWNER_SHARE_ROLES } from '../../owner-share/domain/ownerShare'
 import type { OwnerShare } from '../../owner-share/domain/ownerShare'
 import { RECEIVABLE_ROLES } from '../../receivables/domain/invoiceMatching'
-import { isPaletteColour } from '../../workbook/domain/categoryColour'
+import { isCategoryColour } from '../../workbook/domain/categoryColour'
 import { slugChangeRefusals } from '../../workbook/domain/slug'
 import type { SlugUses } from '../../workbook/domain/slug'
 import type { CategoryClass } from '../../workbook/domain/packPart'
@@ -49,18 +49,19 @@ export function categoryChangeRefusals(
 }
 
 /**
- * A colour a change gives a category is a swatch of the palette, or blank for the bucket's colour,
- * so the app can draw it in both themes. A colour the change leaves alone stays as stored.
+ * A colour a change gives a category is a swatch of the palette, an own colour that shows in the light theme, or blank for the
+ * bucket's colour, so the app can draw it in both themes. A colour the change leaves alone stays as stored.
  */
 export function categoryColourRefusals(edits: readonly CategoryEdit<{ readonly slug: string; readonly colour: string }>[]): string[] {
   return edits.flatMap((edit) =>
-    edit.after === null || edit.after.colour === edit.before?.colour || isPaletteColour(edit.after.colour)
+    edit.after === null || edit.after.colour === edit.before?.colour || isCategoryColour(edit.after.colour)
       ? []
       : [
           words.refusals.colour(
             edit.after.slug,
             edit.after.colour,
             SWATCHES.map((swatch) => swatch.hex),
+            SWATCHES.length,
           ),
         ],
   )

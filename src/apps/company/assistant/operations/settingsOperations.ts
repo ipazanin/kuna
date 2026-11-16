@@ -76,11 +76,11 @@ function proposedKeys(): readonly string[] {
 const SHARE_OR_NULL = { type: ['string', 'null'], description: 'A whole number from 0 to 100, "" for none, or null to leave it.' } as const
 const COLOUR_OR_NULL: StrictSchema = {
   type: ['string', 'null'],
-  description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, or "" for its bucket's colour, or null to leave it.`,
+  description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, an own colour as #rrggbb that keeps 3:1 in the light theme, or "" for its bucket's colour, or null to leave it.`,
 }
 const COLOUR_OR_BUCKET: StrictSchema = {
   ...COLOUR_OR_NULL,
-  description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, or null for its bucket's colour.`,
+  description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, an own colour as #rrggbb that keeps 3:1 in the light theme, or null for its bucket's colour.`,
 }
 const BUCKET: StrictSchema = { type: 'string', enum: [...BUCKETS] }
 const BUCKET_OR_NULL: StrictSchema = { type: ['string', 'null'], enum: [...BUCKETS, null], description: 'Null leaves it.' }

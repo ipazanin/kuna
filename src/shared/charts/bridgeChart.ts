@@ -9,7 +9,7 @@ import type { Money } from '../money/money'
 
 /**
  * One bar of the bridge. A total starts at zero and the other kinds start where the bar before them ended. A step takes
- * the tone of its sign, a transfer the caller's colour and a residual grey.
+ * the tone of its sign at the depth the bridge names, a transfer the caller's colour and a residual grey.
  */
 export interface BridgeBar<Target> {
   readonly label: string
@@ -20,6 +20,8 @@ export interface BridgeBar<Target> {
 
 /** What the legend calls each kind of bar, what the tooltip calls the amounts, and the chart in words for a screen reader. */
 export interface BridgeWording<Target> {
+  /** What a step is: a real gain or loss in the full tones, or money in or out in the soft ones, as `MoneyText`'s tones name them. */
+  readonly steps: 'outcome' | 'flow'
   readonly raises: string
   readonly lowers: string
   readonly total: string
@@ -74,8 +76,8 @@ export function bridgeChart<Target>(
     }
   }
   const colours: Readonly<Record<string, string>> = {
-    [wording.raises]: tokens.positive,
-    [wording.lowers]: tokens.negative,
+    [wording.raises]: wording.steps === 'outcome' ? tokens.positive : tokens.positiveSoft,
+    [wording.lowers]: wording.steps === 'outcome' ? tokens.negative : tokens.negativeSoft,
     ...(wording.total === undefined ? {} : { [wording.total]: tokens.inkSecondary }),
     ...(transfer === null ? {} : { [transfer.label]: transfer.colour }),
     [wording.residual]: tokens.deemphasis,

@@ -17,6 +17,7 @@ vi.stubGlobal('document', { documentElement: {} })
 vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: (token: string) => token }))
 
 const WORDING: BridgeWording<string> = {
+  steps: 'outcome',
   raises: 'Raises',
   lowers: 'Lowers',
   total: 'Total',

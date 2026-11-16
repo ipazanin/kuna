@@ -553,9 +553,9 @@ export function categoryFlowIn(language) {
     await dismissToasts(page)
 
     await pickCategoryColour(page, press, await rowNamed(page, '[data-testid="category-row"]', 'stationery'), words, words.swatches.blue)
-    const note = await page.$eval('[data-testid="colour-swatch-note"]', (element) => element.textContent?.trim() ?? '')
+    const warning = await page.$eval('[data-testid="colour-swatch-warning"]', (element) => element.textContent?.trim() ?? '')
     const others = new Intl.ListFormat(words.locale, { type: 'conjunction' }).format([words.categoryName('travel'), words.categoryName('software-subscriptions')])
-    if (note !== said.colourShared(words.swatches.blue, others)) throw new Error(`the colour pop-up says "${note}"`)
+    if (warning !== said.colourLooksLike(others)) throw new Error(`the colour pop-up warns "${warning}"`)
     await shoot('categories-colour')
     await page.keyboard.press('Escape')
     await page.waitForFunction(() => !document.querySelector('[data-testid="colour-swatch-picker"]'), { timeout: 5_000 })
@@ -8237,6 +8237,82 @@ export function spendingCategoryFlowIn(language) {
 }
 
 export const spendingCategoryFlow = spendingCategoryFlowIn('en')
+
+/**
+ * On the sample Spending file's Settings: Coffee's colour pop-up opens Other colour, refuses a code too pale for the light theme and offers a darker one,
+ * takes it, warns on a code that looks like Home's orange, and the dialog shows the own colour on its swatch button. Nothing is saved.
+ */
+export function spendingCategoryColourFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const categories = words.spendingCategories
+  const starter = words.spendingStarter
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await pressSelector(page, press, `[data-testid="spending-category-edit"][aria-label="${categories.edit(starter.Coffee)}"]`)
+    await page.waitForSelector('[data-testid="spending-category-dialog"]', { visible: true, timeout: 10_000 })
+    await pressSelector(page, press, '[data-testid="spending-category-dialog"] [data-testid="colour-swatch-button"]')
+    await page.waitForSelector('[data-testid="colour-swatch-picker"]', { visible: true })
+    await pressSelector(page, press, '[data-testid="colour-swatch-other"]')
+    await page.waitForSelector('[data-testid="colour-swatch-own"]', { visible: true })
+    await fill(page, 'colour-swatch-code', '#ffd27a')
+    await page.waitForSelector('[data-testid="colour-swatch-refused"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error('a code too pale for the light theme was not refused')
+    })
+    await shootAt(page, shoot, '[data-testid="colour-swatch-refused"]', 'spending-category-colour-refused', {
+      block: 'nearest',
+      inspected: () => inspect?.('the colour pop-up refusing a pale colour'),
+    })
+    await pressSelector(page, press, '[data-testid="colour-swatch-offered"]')
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="colour-swatch-refused"]'), { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('the offered colour was not taken')
+      })
+    await fill(page, 'colour-swatch-code', '#de601c')
+    await page.waitForSelector('[data-testid="colour-swatch-warning"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error("a colour that looks like another group's gave no warning")
+    })
+    await shootAt(page, shoot, '[data-testid="colour-swatch-warning"]', 'spending-category-colour-alike', {
+      block: 'nearest',
+      inspected: () => inspect?.("the colour pop-up warning of another group's colour"),
+    })
+    await page.keyboard.press('Escape')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="colour-swatch-picker"]'), { timeout: 5_000 })
+    const label = await page.$eval('[data-testid="spending-category-dialog"] [data-testid="colour-swatch-button"]', (element) => element.getAttribute('aria-label') ?? '')
+    if (!label.endsWith('#DE601C')) throw new Error(`the colour button reads "${label}"`)
+    await delay(300)
+    await shoot('spending-category-colour-own')
+  }
+}
+
+/**
+ * The colour picker specimens in the gallery: an own colour's pop-up with Other colour open, refusing a code too pale for the light theme
+ * and offering a darker one, then the pop-up whose warning names a lookalike. A screen reaches the refusal only by typing. The gallery is English only.
+ */
+export async function colourPickerSpecimenFlow(page, { press, shoot, inspect }) {
+  const picker = '[data-testid="colour-swatch-picker"]'
+  await page.waitForSelector('[data-testid="gallery-own-colour"]', { visible: true, timeout: 10_000 }).catch(() => {
+    throw new Error('the gallery has no own colour specimen')
+  })
+  await pressSelector(page, press, '[data-testid="gallery-own-colour"] [data-testid="colour-swatch-button"]')
+  await page.waitForSelector(picker, { visible: true })
+  await pressSelector(page, press, '[data-testid="colour-swatch-other"]')
+  await page.waitForSelector('[data-testid="colour-swatch-own"]', { visible: true })
+  if (await page.$(`${picker} [data-testid="colour-swatch"]`).then((swatch) => swatch?.isVisible() ?? false)) throw new Error('the swatches stay in view while Other colour is open')
+  await fill(page, 'colour-swatch-code', '#ffd27a')
+  await page.waitForSelector('[data-testid="colour-swatch-refused"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('the specimen did not refuse a code too pale for the light theme')
+  })
+  await shootAt(page, shoot, picker, 'colour-picker-specimen-refused', { block: 'nearest', inspected: () => inspect?.('the colour picker specimen refusing a pale colour') })
+  await page.keyboard.press('Escape')
+  await page.waitForFunction((css) => !document.querySelector(css), { timeout: 5_000 }, picker)
+  await pressSelector(page, press, '[data-testid="gallery-alike-colour"] [data-testid="colour-swatch-button"]')
+  await page.waitForSelector('[data-testid="colour-swatch-warning"]', { visible: true, timeout: 5_000 }).catch(() => {
+    throw new Error('the lookalike specimen shows no warning')
+  })
+  await shootAt(page, shoot, picker, 'colour-picker-specimen-alike', { block: 'nearest', inspected: () => inspect?.('the colour picker specimen warning of a lookalike') })
+  await page.keyboard.press('Escape')
+}
 
 /** The row of Spending's Limits whose category reads `name`, or null. */
 function spendingLimitRow(page, name) {

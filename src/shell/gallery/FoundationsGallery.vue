@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { tokenColour } from '../../shared/charts/chartTokens'
 import { formatPercent } from '../../shared/money/moneyFormat'
 import AppCard from '../../shared/ui/AppCard.vue'
-import { contrastRatio } from './contrast'
+import { contrastRatio } from '../../shared/charts/colour'
 import GallerySection from './GallerySection.vue'
 import { shareFromRatio } from '../../shared/money/percent'
 
@@ -85,11 +85,15 @@ const COLOUR_GROUPS: readonly { readonly title: string; readonly measure: Measur
       { name: '1 Income', token: '--series-1' },
       { name: '2 Operating', token: '--series-2' },
       { name: '3 Taxes', token: '--series-3' },
-      { name: '4 Owner pay', token: '--series-4' },
+      { name: '4', token: '--series-4' },
       { name: '5 Financing', token: '--series-5' },
       { name: '6', token: '--series-6' },
       { name: '7', token: '--series-7' },
       { name: '8', token: '--series-8' },
+      { name: '9', token: '--series-9' },
+      { name: '10 Owner pay', token: '--series-10' },
+      { name: '11', token: '--series-11' },
+      { name: '12', token: '--series-12' },
       { name: 'Neutral', token: '--bucket-neutral' },
     ],
   },

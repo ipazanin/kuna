@@ -73,7 +73,7 @@ import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 
 const COLOUR_OR_NULL: StrictSchema = {
   type: ['string', 'null'],
-  description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, or "" for its group's colour, or null to leave it.`,
+  description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, an own colour as #rrggbb that keeps 3:1 in the light theme, or "" for its group's colour, or null to leave it.`,
 }
 
 const ROWS_FROM_ABOUT =
@@ -419,12 +419,12 @@ function signedAs(row: Transaction, amount: AccountMoney): AccountMoney {
   return row.amount < 0 ? negateAccountMoney(amount) : amount
 }
 
-/** The swatch a step names, blank for the group's colour, or the colour kept. */
+/** The swatch or own colour a step names, blank for the group's colour, or the colour kept. */
 function colourOf(text: string | null, kept: string): string {
   if (text === null) return kept
   if (text.trim() === '') return ''
   const swatch = swatchOf(text)
-  if (swatch === null) throw new StepRefused(`colour is a swatch code, ${SWATCHES.map((choice) => choice.hex).join(', ')}, or "".`)
+  if (swatch === null) throw new StepRefused(`colour is a swatch code, ${SWATCHES.map((choice) => choice.hex).join(', ')}, an own colour as #rrggbb that keeps 3:1 in the light theme, or "".`)
   return swatch.hex
 }
 
