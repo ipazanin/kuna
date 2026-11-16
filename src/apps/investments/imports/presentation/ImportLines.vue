@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import type { ImportLine } from './dryRunLines'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 
 /** A group of the dry run, a line per record or row, the first ten until Show all. */
@@ -23,7 +23,7 @@ const shown = computed(() => (expanded.value ? props.lines : props.lines.slice(0
 <template>
   <div class="flex flex-col gap-2">
     <ul class="flex flex-col divide-y divide-default">
-      <ProposalRow v-for="line in shown" :key="line.key" :title="line.title" flush data-testid="import-line">
+      <ListRow v-for="line in shown" :key="line.key" :title="line.title" flush data-testid="import-line">
         <template #details>
           <span v-if="line.caption !== ''" class="break-words type-caption" :class="{ identifier: verbatim }">{{ line.caption }}</span>
           <NoteLine v-if="line.note !== '' && warns" as="span" tone="warning">{{ line.note }}</NoteLine>
@@ -33,7 +33,7 @@ const shown = computed(() => (expanded.value ? props.lines : props.lines.slice(0
           <MoneyText v-if="line.euros !== null" :cents="line.euros" v-bind="line.flows ? { tone: 'flow' } : { sign: 'magnitude' }" />
           <span v-if="line.figure !== ''" class="figure" :class="line.euros === null ? 'text-muted' : 'type-caption'">{{ line.figure }}</span>
         </template>
-      </ProposalRow>
+      </ListRow>
     </ul>
     <ShowAllButton v-if="lines.length > FIRST_SHOWN" v-model:expanded="expanded" :total="lines.length" />
   </div>

@@ -44,7 +44,7 @@ import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
@@ -220,7 +220,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
     <ExtraPaymentsCard v-if="instalments.extraPayments.length > 0" :offers="instalments.extraPayments" />
     <AppCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :title="words.review.pairs" :subtitle="words.review.pairsSubtitle" data-testid="spending-pairs">
       <ul class="divide-y divide-default pt-1 pb-1">
-        <ProposalRow
+        <ListRow
           v-for="legs in queue.pairs"
           :key="legs.debit.id"
           :title="`${accountOf(legs.debit)?.name ?? ''} → ${accountOf(legs.credit)?.name ?? ''}`"
@@ -228,7 +228,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
           data-testid="spending-pair"
         >
           <template #amount>
-            <AccountMoneyText :cents="legs.debit.amount" :currency="currencyOf(legs.debit)" tone="flow" />
+            <AccountMoneyText :cents="legs.debit.amount" :currency="currencyOf(legs.debit)" tone="move" />
           </template>
           <UButton
             class="self-start"
@@ -239,10 +239,10 @@ async function undoPair(legs: TransferPair): Promise<void> {
             data-testid="spending-not-a-pair"
             @click="undoPair(legs)"
           />
-        </ProposalRow>
-        <ProposalRow v-for="leg in queue.loneLegs" :key="leg.id" :title="leg.payee" :caption="`${dayLabel(leg.date)} · ${accountOf(leg)?.name ?? ''}`" data-testid="spending-lone-leg">
+        </ListRow>
+        <ListRow v-for="leg in queue.loneLegs" :key="leg.id" :title="leg.payee" :caption="`${dayLabel(leg.date)} · ${accountOf(leg)?.name ?? ''}`" data-testid="spending-lone-leg">
           <template #amount>
-            <AccountMoneyText :cents="leg.amount" :currency="currencyOf(leg)" tone="flow" />
+            <AccountMoneyText :cents="leg.amount" :currency="currencyOf(leg)" tone="move" />
           </template>
           <template #details>
             <UBadge
@@ -254,7 +254,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
               data-testid="spending-lone-leg-state"
             />
           </template>
-        </ProposalRow>
+        </ListRow>
       </ul>
     </AppCard>
     <WaitingReceiptsCard v-if="receipts.length > 0 && !receiptsAsk" ref="receiptsBelow" :waiting="receipts" />

@@ -185,7 +185,7 @@ const moneyToneColours = {
           if (classes.some((names) => toneColour.test(names))) {
             context.report({
               node: attribute,
-              message: "An amount takes red or green from MoneyText's tone by the kind of figure it is, never from a class: outcome, flow or balance.",
+              message: "An amount takes red or green from MoneyText's tone by the kind of figure it is, never from a class: outcome, flow, balance or move.",
             })
           } else if (toned && classes.some((names) => textColour.test(names))) {
             context.report({ node: attribute, message: 'A figure with a tone takes its colour from the tone. Drop the text colour, or drop the tone and say why the figure has no tone.' })
@@ -383,7 +383,7 @@ const kunaPlugin = {
         `${linkIcon} > VStartTag > VAttribute[directive=true][key.argument.name='name'] > VExpressionContainer > Literal[value='i-lucide-chevron-right']`,
         "VElement[name='li'] > VElement[rawName=/^(?:RouterLink|router-link)$/]",
       ],
-      "A row of a list that opens a page is a ProposalRow with to, which draws its arrow on the title's line.",
+      "A row of a list that opens a page is a ListRow with to, which draws its arrow on the title's line.",
     ),
     'card-reasons': refusedSyntax(
       ["Property[key.name='reason'] > Literal.value[value=/[A-Za-z]/]", "Property[key.name='reason'] > TemplateLiteral.value > TemplateElement[value.raw=/[A-Za-z]/]"],

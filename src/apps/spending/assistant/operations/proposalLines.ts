@@ -12,7 +12,7 @@ import type { DryRunLine, StatementDryRun } from '../../statements/domain/statem
 import { linkStateOf } from '../../links/domain/linkTarget'
 import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
 import { linkText } from '../../links/presentation/words'
-import { NEW_ACCOUNT_DEFAULTS } from '../../workbook/domain/account'
+import { NEW_ACCOUNT_DEFAULTS, cardsText } from '../../workbook/domain/account'
 import type { Account } from '../../workbook/domain/account'
 import { NEW_CATEGORY_DEFAULTS } from '../../workbook/domain/category'
 import type { StoredRow, Transaction } from '../../workbook/domain/transaction'
@@ -103,6 +103,7 @@ function shownValue(
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'kind') return accountWords.kinds[record.kind]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'bank') return record.bank === null ? null : accountWords.banks[record.bank]
   if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'rowsFrom') return accountWords.rowsFrom[record.rowsFrom]
+  if (isKind(kind, ACCOUNT_RECORDS, record) && field === 'cards') return record.cards.length === 0 ? null : cardsText(record.cards)
   if (typeof value === 'boolean') return value ? cardWords.yes : cardWords.no
   if (isKind(kind, RULE_RECORDS, record) && field === 'condition') {
     return record.condition.column === 'counterparty_iban' ? words.proposals.ibanRule(record.condition.iban) : record.condition.fragment

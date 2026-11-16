@@ -23,7 +23,7 @@ import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 
@@ -132,7 +132,7 @@ async function answer(key: string, choice: string): Promise<void> {
     <div class="flex flex-col gap-4 pt-1 pb-4">
       <template v-if="proposed.length > 0">
         <ul class="divide-y divide-default">
-          <ProposalRow v-for="{ row, cash } in shownProposed" :key="row.id" :title="rowTitle(row)" :caption="captionOf(row)" data-testid="spending-review-cash-row">
+          <ListRow v-for="{ row, cash } in shownProposed" :key="row.id" :title="rowTitle(row)" :caption="captionOf(row)" data-testid="spending-review-cash-row">
             <template #amount>
               <AccountMoneyText :cents="row.amount" :currency="accountOf(row)?.currency ?? EURO" tone="flow" />
             </template>
@@ -151,7 +151,7 @@ async function answer(key: string, choice: string): Promise<void> {
               data-testid="spending-review-cash-not-cash"
               @click="leaveFiled(row)"
             />
-          </ProposalRow>
+          </ListRow>
         </ul>
         <div v-if="proposed.length > FIRST_SHOWN" class="px-4 sm:px-5">
           <ShowAllButton v-model:expanded="allShown" :total="proposed.length" />
@@ -183,7 +183,7 @@ async function answer(key: string, choice: string): Promise<void> {
           data-testid="spending-review-cash-add-account"
         />
         <ul class="divide-y divide-default">
-          <ProposalRow v-for="row in rows" :key="row.id" :title="rowTitle(row)" :caption="captionOf(row)" data-testid="spending-review-cash-wanting-row">
+          <ListRow v-for="row in rows" :key="row.id" :title="rowTitle(row)" :caption="captionOf(row)" data-testid="spending-review-cash-wanting-row">
             <template #amount>
               <AccountMoneyText :cents="row.amount" :currency="currency" tone="flow" />
             </template>
@@ -197,7 +197,7 @@ async function answer(key: string, choice: string): Promise<void> {
               data-testid="spending-review-cash-not-cash"
               @click="leaveFiled(row)"
             />
-          </ProposalRow>
+          </ListRow>
         </ul>
       </section>
     </div>

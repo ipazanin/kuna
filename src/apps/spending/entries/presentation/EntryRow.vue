@@ -5,6 +5,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { entryAsked } from './entryAsked'
 import ReceiptCameraButton from '../../receipts/presentation/ReceiptCameraButton.vue'
 import RowLines from '../../receipts/presentation/RowLines.vue'
+import { rowTone } from '../../categories/presentation/amountTone'
 import { LINK_TONE } from '../../links/presentation/linkLine'
 import type { LinkLine } from '../../links/presentation/linkLine'
 import type { EuroRow } from '../../rates/domain/euroRows'
@@ -59,7 +60,7 @@ const { marked } = useChatElement(asked, 'row')
         <RowLines v-if="isSplit(row.items)" :lines="row.items" :categories="categories" :currency="row.account.currency" />
       </span>
       <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
-        <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" tone="flow" />
+        <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" :tone="rowTone(row.items, categories)" />
         <span v-if="euros !== ''" class="figure type-caption">{{ euros }}</span>
       </span>
     </button>

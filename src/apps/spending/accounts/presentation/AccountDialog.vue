@@ -14,7 +14,7 @@ import { cutoverWords } from './startDayMoveWords'
 import { deletesRecords, startDayMove } from '../domain/startDayMove'
 import { SPENDING_ACCOUNTS_ROUTE } from '../../overview/presentation/spendingLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, bankLinkOffered, rowsFromRefusal } from '../../workbook/domain/account'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, bankLinkOffered, cardsOfText, cardsText, rowsFromRefusal } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind, RowsFrom } from '../../workbook/domain/account'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -32,7 +32,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
 import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 
-/** One of your accounts in one currency: its name, kind, bank, how its rows come in, what it held on the day you start counting from, and its IBAN. One with entries is closed rather than deleted. */
+/** One of your accounts in one currency: its name, kind, bank, how its rows come in, what it held on the day you start counting from, its IBAN and the cards that pay from it. One with entries is closed rather than deleted. */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -68,6 +68,7 @@ const opening = ref('')
 const overdrawn = ref(false)
 const openedOn = ref('')
 const iban = ref('')
+const cards = ref('')
 const rowsFrom = ref<RowsFrom>('by-hand')
 const tried = ref(false)
 
@@ -95,6 +96,7 @@ watch(open, (opened) => {
   }
   openedOn.value = account?.openedOn ?? props.openingDay ?? today()
   iban.value = account?.iban ?? ''
+  cards.value = cardsText(account?.cards ?? NEW_ACCOUNT_DEFAULTS.cards)
   rowsFrom.value = account?.rowsFrom ?? props.startingRowsFrom ?? 'by-hand'
   tried.value = false
 })
@@ -130,12 +132,16 @@ const offersBankLink = computed(() => bankLinkOffered(kind.value, props.account,
 /** By hand wherever the choice is not offered, as on cash. */
 const pickedRowsFrom = computed<RowsFrom>(() => (offersBankLink.value ? rowsFrom.value : 'by-hand'))
 
+/** None on cash, which no card pays from. */
+const typedCards = computed(() => (kind.value === 'cash' ? NEW_ACCOUNT_DEFAULTS.cards : cardsOfText(cards.value)))
+
 const pickedCurrency = computed(() => CURRENCY_CODES.find((code) => code === currency.value) ?? null)
 
 const errors = computed(() => ({
   name: name.value.trim() === '' ? words.dialog.nameError : null,
   opening: openingAmount.value === null ? words.dialog.anAmount : null,
   openedOn: openedDay.value === null ? spendingWords.form.aDate(civilDate(2026, 1, 1)) : null,
+  cards: typedCards.value === null ? words.dialog.cardsError : null,
   iban: rowsFromRefusal({ kind: kind.value, iban: iban.value, rowsFrom: pickedRowsFrom.value }, props.account, settings.value) === null ? null : words.rowsFromChoice.ibanNeeded,
 }))
 
@@ -144,7 +150,8 @@ async function save(): Promise<void> {
   const amount = openingAmount.value
   const day = openedDay.value
   const code = pickedCurrency.value
-  if (Object.values(errors.value).some((error) => error !== null) || amount === null || day === null || code === null) return
+  const typedCardList = typedCards.value
+  if (Object.values(errors.value).some((error) => error !== null) || amount === null || day === null || code === null || typedCardList === null) return
   const typed = newAccount({
     name: name.value,
     kind: kind.value,
@@ -153,6 +160,7 @@ async function save(): Promise<void> {
     opening: amount,
     openedOn: day,
     iban: iban.value,
+    cards: typedCardList,
     rowsFrom: pickedRowsFrom.value,
     closed: props.account?.closed ?? NEW_ACCOUNT_DEFAULTS.closed,
   })
@@ -202,6 +210,9 @@ async function remove(): Promise<void> {
       </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.iban" :error="(tried && errors.iban) || false" class="sm:col-span-2">
         <UInput v-model="iban" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-iban" />
+      </UFormField>
+      <UFormField v-if="kind !== 'cash'" :label="words.dialog.cards" :help="words.dialog.cardsHelp" :error="(tried && errors.cards) || false" class="sm:col-span-2">
+        <UInput v-model="cards" autocomplete="off" spellcheck="false" class="w-full" data-testid="spending-account-cards" />
       </UFormField>
       <UFormField v-if="kind !== 'cash'" :label="words.dialog.bank">
         <USelect v-model="bank" :items="BANK_ITEMS" class="w-full" data-testid="spending-account-bank" />

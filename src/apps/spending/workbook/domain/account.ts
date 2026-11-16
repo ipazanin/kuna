@@ -36,11 +36,24 @@ export interface Account {
   readonly rowsFrom: RowsFrom
   /** Blank on cash. */
   readonly iban: string
+  /** The last four digits of each card that pays from the account, which a top-up on another account may name in place of an IBAN. Empty on cash. */
+  readonly cards: readonly string[]
   readonly closed: boolean
 }
 
-/** What a new account holds unless a person sets it: open. */
-export const NEW_ACCOUNT_DEFAULTS: Pick<Account, 'closed'> = { closed: false }
+/** What a new account holds unless a person sets it: open, with no card. */
+export const NEW_ACCOUNT_DEFAULTS: Pick<Account, 'closed' | 'cards'> = { closed: false, cards: [] }
+
+/** The cards typed or stored as a list, such as `3670, 1234`, each once in the order given, or null when an entry is not four digits. Blank text is no card. */
+export function cardsOfText(text: string): readonly string[] | null {
+  const entries = text.split(/[\s,;]+/).filter((entry) => entry !== '')
+  return entries.every((entry) => /^\d{4}$/.test(entry)) ? [...new Set(entries)] : null
+}
+
+/** The cards as a field holds them and `cardsOfText` reads them back. */
+export function cardsText(cards: readonly string[]): string {
+  return cards.join(', ')
+}
 
 /** How an account reads that does not say how its rows come in: by its bank when it is not cash and has an IBAN, since the bank sync finds an account by its IBAN, and by hand otherwise. A write keeps an account by hand whenever this says so. */
 export function rowsFromOfDetails(account: Pick<Account, 'kind' | 'iban'>): RowsFrom {

@@ -732,6 +732,12 @@ async function spendingGroups(addGroup, loansBook) {
     'spending.read.sources',
     accounts.records.map(({ record }) => record.rowsFrom),
   )
+  // A file whose accounts hold no card keeps this digest without the group.
+  if (accounts.records.some(({ record }) => record.cards.length > 0))
+    add(
+      'spending.read.cards',
+      accounts.records.map(({ record }) => record.cards),
+    )
   add('spending.read.problems', workbook.problems)
   add('spending.published.links', () => rowLinksOf(workbook))
   const rates = await ratesOfInput(ratesNeeded(workbook), options['fake-spending'] !== undefined)

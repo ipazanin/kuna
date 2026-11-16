@@ -11,7 +11,7 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import type { Money } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import { useDisplayNames } from '../../workbook/application/useDisplayNames'
 import { useWorkbook } from '../../workbook/application/workbookStore'
 import { reviewReasonLabel } from '../domain/camtStatement'
@@ -169,7 +169,7 @@ function grouped(iban: string): string {
       </QuestionList>
 
       <ul v-if="statement.rows.length" class="flex flex-col divide-y divide-default" :class="{ 'border-t border-default': twinItems.length > 0 }" data-testid="dry-run-rows">
-        <ProposalRow
+        <ListRow
           v-for="(row, index) in statement.rows"
           :key="`${row.reference}-${index}`"
           :title="row.counterparty || row.description || words.statement.noCounterparty"
@@ -194,7 +194,7 @@ function grouped(iban: string): string {
             <MoneyText :cents="row.amount" v-bind="row.inLedger ? { sign: 'always' } : { tone: 'flow' }" :class="{ 'text-muted': row.inLedger }" />
             <MoneyText v-if="row.balance !== null" :cents="row.balance" tone="balance" class="type-caption" />
           </template>
-        </ProposalRow>
+        </ListRow>
       </ul>
     </div>
   </AppCard>

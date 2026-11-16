@@ -24,7 +24,7 @@ import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /**
  * Spending's rules under the category each files into, each with Change and Delete and where a withdrawal's cash goes or the
@@ -133,7 +133,7 @@ async function remove(rule: SpendingRule): Promise<void> {
         <UButton :label="words.rules.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="spending-rules-add" @click="openDialog(null, null)" />
       </template>
       <ul v-if="offers.length > 0" class="divide-y divide-default" data-testid="spending-rule-offers">
-        <ProposalRow v-for="{ offer, key, title, caption } in offers" :key="key" :title="title" :caption="caption" data-testid="spending-rule-offer">
+        <ListRow v-for="{ offer, key, title, caption } in offers" :key="key" :title="title" :caption="caption" data-testid="spending-rule-offer">
           <UButton
             class="self-start"
             :label="words.rules.makeRule"
@@ -143,7 +143,7 @@ async function remove(rule: SpendingRule): Promise<void> {
             data-testid="spending-rule-offer-make"
             @click="makeRule(key, offer)"
           />
-        </ProposalRow>
+        </ListRow>
       </ul>
       <div v-if="groups.length > 0" class="flex flex-col pt-3 pb-2">
         <section v-for="group in groups" :key="group.category.id" data-testid="spending-rule-group">

@@ -9,16 +9,18 @@ import { rowCaption, rowTitle } from './rowParts'
 import { words } from './words'
 import { targetLineOf } from '../../links/presentation/linkLine'
 import RowLines from '../../receipts/presentation/RowLines.vue'
+import { partTone } from '../../categories/presentation/amountTone'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Category } from '../../workbook/domain/category'
 import { isSplit } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
+import type { MoneyTone } from '../../../../shared/money/moneyFormat'
 
 /** Each row of a statement and what importing it would do. */
 const props = defineProps<{
@@ -37,14 +39,17 @@ const categories = computed(() => [...(state.workbook?.categories ?? []), ...(pr
 const allShown = ref(false)
 
 const shown = computed(() => {
-  const names = new Map(categories.value.map((category) => [category.id, category.name]))
+  const byId = new Map(categories.value.map((category) => [category.id, category]))
   const accounts = new Map((state.workbook?.accounts ?? []).map((account) => [account.id, account]))
   return (allShown.value ? props.lines : props.lines.slice(0, FIRST_SHOWN)).map((line) => {
-    const named = line.category === null ? words.import.outcome.waits : (names.get(line.category) ?? words.import.outcome.waits)
+    const category = line.category === null ? undefined : byId.get(line.category)
+    const named = category?.name ?? words.import.outcome.waits
     const outcome = outcomeOf(line, named)
     const account = accounts.get(line.row.account)
     const currency = account?.currency ?? EURO
     const pays = line.outcome === 'new' && line.pays !== undefined ? line.pays : null
+    const asksCash = line.outcome === 'new' && line.withdrawal !== null && line.withdrawal.cashLeg === null
+    const tone: MoneyTone = asksCash ? 'flow' : partTone(category)
     return {
       line,
       outcome,
@@ -52,6 +57,7 @@ const shown = computed(() => {
       currency,
       paid: pays === null ? null : { text: targetLineOf(pays.target, { amount: line.row.amount, currency }), parts: isSplit(pays.parts) ? pays.parts : [] },
       skipped: line.outcome === 'already-in' || line.outcome === 'other-source' || line.outcome === 'outside-days' || line.outcome === 'before-opening' || line.outcome === 'look-alike',
+      tone,
     }
   })
 })
@@ -96,8 +102,8 @@ function cashOutcomeOf(cashLeg: Transaction | null): { readonly label: string; r
 
 <template>
   <ul class="flex flex-col divide-y divide-default" :class="{ 'border-t border-default': belowQuestions }" data-testid="spending-dry-run-rows">
-    <ProposalRow
-      v-for="({ line, outcome, account, currency, paid, skipped }, place) in shown"
+    <ListRow
+      v-for="({ line, outcome, account, currency, paid, skipped, tone }, place) in shown"
       :key="place"
       :title="rowTitle(line.row)"
       :caption="rowCaption(line.row, account)"
@@ -113,9 +119,9 @@ function cashOutcomeOf(cashLeg: Transaction | null): { readonly label: string; r
         </template>
       </template>
       <template #amount>
-        <AccountMoneyText :cents="line.row.amount" :currency="currency" v-bind="skipped ? { sign: 'always' } : { tone: 'flow' }" :class="{ 'text-muted': skipped }" />
+        <AccountMoneyText :cents="line.row.amount" :currency="currency" v-bind="skipped ? { sign: 'always' } : { tone }" :class="{ 'text-muted': skipped }" />
       </template>
-    </ProposalRow>
+    </ListRow>
   </ul>
   <ShowAllButton v-if="lines.length > FIRST_SHOWN" v-model:expanded="allShown" :total="lines.length" class="self-start" />
 </template>

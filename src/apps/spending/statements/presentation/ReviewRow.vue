@@ -24,7 +24,7 @@ import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { absAccountMoney } from '../../../../shared/money/accountMoney'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 
 /** One row waiting for a category: picking one files it, the chat can be asked about it or given its receipt beside the picker, and what the file offers for it sits underneath. */
@@ -87,7 +87,7 @@ function picked(id: string | undefined): void {
 </script>
 
 <template>
-  <ProposalRow :title="rowTitle(waiting.row)" :caption="rowCaption(waiting.row, account)" v-bind="marked" data-testid="spending-review-row">
+  <ListRow :title="rowTitle(waiting.row)" :caption="rowCaption(waiting.row, account)" v-bind="marked" data-testid="spending-review-row">
     <template #amount>
       <AccountMoneyText :cents="waiting.row.amount" :currency="currency" tone="flow" />
     </template>
@@ -120,5 +120,5 @@ function picked(id: string | undefined): void {
       <span class="min-w-0 flex-1 basis-48 text-sm text-muted" data-testid="spending-review-maybe-transfer">{{ transferLine }}</span>
       <UButton color="neutral" variant="outline" :label="words.review.pair" :loading="saving('pair')" data-testid="spending-review-pair" @click="emit('pair')" />
     </div>
-  </ProposalRow>
+  </ListRow>
 </template>

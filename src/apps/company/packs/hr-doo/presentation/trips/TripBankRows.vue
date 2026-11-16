@@ -11,7 +11,7 @@ import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
 import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
-import ProposalRow from '../../../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../../../shared/ui/ListRow.vue'
 import { useFilters } from '../../../../filters/application/filterStore'
 import { rowDrill } from '../../../../filters/domain/drillTarget'
 import { useBookedWorkbook } from '../../../../transactions/application/useBookedWorkbook'
@@ -189,7 +189,7 @@ async function fileRows(): Promise<void> {
 <template>
   <AppCard v-if="lines.length > 0" :title="said.title" :subtitle="said.subtitle" data-testid="trip-bank-rows">
     <ul class="divide-y divide-default">
-      <ProposalRow v-for="line in lines" :key="line.link" :title="line.label" :caption="line.linked || line.found ? '' : line.empty" :data-link="line.link" data-testid="trip-bank-row">
+      <ListRow v-for="line in lines" :key="line.link" :title="line.label" :caption="line.linked || line.found ? '' : line.empty" :data-link="line.link" data-testid="trip-bank-row">
         <template #details>
           <span v-if="line.linked" class="type-caption">
             <DrillLink :to="rowLink(line.linked)">{{ said.paidOn(shortDayLabel(line.linked.date), line.linked.counterparty || name) }}</DrillLink>
@@ -243,7 +243,7 @@ async function fileRows(): Promise<void> {
             @click="dismiss(line, line.found)"
           />
         </div>
-      </ProposalRow>
+      </ListRow>
     </ul>
 
     <div v-if="refusal || splitRows.length > 0" class="border-t border-default py-3" data-testid="trip-bank-split">

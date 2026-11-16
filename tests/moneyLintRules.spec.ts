@@ -48,6 +48,7 @@ describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => 
     ['green picked by a condition on a figure with no tone', SCREEN, '<template><MoneyText :cents="a" :class="a > 0 ? \'text-success\' : \'\'" /></template>', 'kuna/money-tone-colours'],
     ['amber as a key of a bound class', SCREEN, '<template><AccountMoneyText :cents="a" currency="EUR" :class="{ \'text-warning\': late }" /></template>', 'kuna/money-tone-colours'],
     ['a soft depth in a bound class', SCREEN, '<template><MoneyText :cents="a" :class="[size, \'text-negative-soft\']" /></template>', 'kuna/money-tone-colours'],
+    ['muted ink on a move, which takes it from its tone', SCREEN, '<template><AccountMoneyText :cents="a" currency="EUR" tone="move" class="text-muted" /></template>', 'kuna/money-tone-colours'],
     ['muted ink in a bound class on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" :class="{ \'text-muted\': old }" /></template>', 'kuna/money-tone-colours'],
     ['a soft depth on a span', SCREEN, '<template><span class="text-positive-soft">1</span></template>', 'better-tailwindcss/no-restricted-classes'],
     ['a soft depth as a background', SCREEN, '<template><div class="bg-negative-soft" /></template>', 'better-tailwindcss/no-restricted-classes'],

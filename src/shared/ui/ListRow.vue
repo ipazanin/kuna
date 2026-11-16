@@ -37,15 +37,15 @@ defineSlots<{ caption?: () => unknown; details?: () => unknown; amount?: () => u
       { 'px-4 sm:px-5': !flush, 'w-full text-start': as === 'button', 'transition-colors hover:bg-elevated focus-visible:-outline-offset-2': as === 'button' || to !== undefined },
     ]"
   >
-    <span class="proposal-row-lines" :class="{ 'min-w-0 flex-1': to !== undefined }">
-      <span class="proposal-row-title break-words text-sm" :class="quiet ? 'text-muted' : 'text-highlighted'">{{ title }}</span>
-      <span v-if="$slots.amount" class="proposal-row-amount text-sm">
+    <span class="list-row-lines" :class="{ 'min-w-0 flex-1': to !== undefined }">
+      <span class="list-row-title break-words text-sm" :class="quiet ? 'text-muted' : 'text-highlighted'">{{ title }}</span>
+      <span v-if="$slots.amount" class="list-row-amount text-sm">
         <slot name="amount" />
       </span>
-      <span v-if="caption !== '' || $slots.caption" class="proposal-row-caption break-words type-caption">
+      <span v-if="caption !== '' || $slots.caption" class="list-row-caption break-words type-caption">
         <slot name="caption">{{ caption }}</slot>
       </span>
-      <span v-if="$slots.details" class="proposal-row-details flex flex-col gap-0.5">
+      <span v-if="$slots.details" class="list-row-details flex flex-col gap-0.5">
         <slot name="details" />
       </span>
     </span>

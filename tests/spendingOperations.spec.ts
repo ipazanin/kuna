@@ -300,6 +300,22 @@ describe('where an account takes its rows from', () => {
   })
 })
 
+describe("an account's cards", () => {
+  it("sets an account's cards, reads them back, refuses one that is not four digits and clears them", async () => {
+    const desk = await spendingDesk(used)
+    const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
+    const cardsOf = () => bookOf(desk).accounts.find((account) => account.name === 'Current')?.cards
+    const change = (cards: string) => stepOf(SPENDING_OPERATIONS, 'change-account', { account: current, cards })
+    expect((await desk.propose([change('*3670')])).isError).toBe(true)
+    await desk.propose([change('3670, 1234')])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(cardsOf()).toEqual(['3670', '1234'])
+    await desk.propose([change('')])
+    expect((await desk.accept()).kind).toBe('done')
+    expect(cardsOf()).toEqual([])
+  })
+})
+
 describe('To review', () => {
   it('joins, pairs and unpairs only what To review offers', async () => {
     const desk = await spendingDesk(used)
@@ -401,18 +417,18 @@ describe('categories and accounts', () => {
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'move-category', { category: ref('Food'), direction: 'up' })])).isError).toBe(true)
   })
 
-  it('keeps the currency of an account with entries, deletes only an empty one, and takes a bank and IBAN off cash', async () => {
+  it('keeps the currency of an account with entries, deletes only an empty one, and takes a bank, an IBAN and cards off cash', async () => {
     const desk = await spendingDesk(used)
     const current = desk.ref('account', DESK_ACCOUNTS.CURRENT.id)
     const change = (fields: Record<string, unknown>) => ({
       op: 'change-account',
-      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, rowsFrom: null, closed: null, ...fields },
+      input: { account: current, name: null, kind: null, bank: null, currency: null, opening: null, openedOn: null, iban: null, cards: null, rowsFrom: null, closed: null, ...fields },
     })
     expect((await desk.propose([change({ currency: 'USD' })])).isError).toBe(true)
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'delete-account', { account: current })])).isError).toBe(true)
-    await desk.propose([change({ kind: 'cash' })])
+    await desk.propose([change({ kind: 'cash', cards: '3670' })])
     expect((await desk.accept()).kind).toBe('done')
-    expect(bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)).toMatchObject({ kind: 'cash', bank: null, iban: '' })
+    expect(bookOf(desk).accounts.find((account) => account.id === DESK_ACCOUNTS.CURRENT.id)).toMatchObject({ kind: 'cash', bank: null, iban: '', cards: [] })
   })
 
   const moveStart = (desk: SpendingDesk, openedOn: string) => stepOf(SPENDING_OPERATIONS, 'change-account', { account: desk.ref('account', DESK_ACCOUNTS.CURRENT.id), openedOn })

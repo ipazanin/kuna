@@ -345,6 +345,7 @@ import {
   spendingSplitFlowIn,
   spendingAccountDialogFlowIn,
   spendingAccountStartDayFlowIn,
+  spendingAccountCardsFlowIn,
   spendingReceiptPickFlowIn,
   spendingReceiptPlaceFlowIn,
   spendingReceiptWaitsFlowIn,
@@ -3747,6 +3748,24 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   {
+    name: 'spending-account-transfers',
+    query: 'spending=statements',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    charts: 0,
+    shows: ['Balance today', 'Transfer to Revolut'],
+    cards: false,
+  },
+  {
+    name: 'spending-account-transfers-croatian',
+    query: 'spending=statements&lang=hr',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    charts: 0,
+    shows: ['Transfer to Revolut'],
+    cards: false,
+  },
+  {
     name: 'spending-account-usd',
     query: 'spending=sample',
     hash: `#/spending/account?account=${SAMPLE_USD_ACCOUNT}`,
@@ -5446,11 +5465,11 @@ function readPage(page) {
       return found
     }
 
-    /** A ProposalRow that opens a page has its arrow on its title's first line, whatever the number of lines under it. */
+    /** A ListRow that opens a page has its arrow on its title's first line, whatever the number of lines under it. */
     function misplacedRowArrows() {
       const found = []
       for (const arrow of document.querySelectorAll('[data-row-arrow]')) {
-        const title = arrow.parentElement.querySelector('.proposal-row-title')
+        const title = arrow.parentElement.querySelector('.list-row-title')
         if (title === null || arrow.getClientRects().length === 0) continue
         const range = document.createRange()
         range.selectNodeContents(title)
@@ -5470,9 +5489,9 @@ function readPage(page) {
     function farRowFigures() {
       const most = 40 * parseFloat(getComputedStyle(document.documentElement).fontSize)
       const found = []
-      for (const lines of document.querySelectorAll('.proposal-row-lines')) {
-        const title = lines.querySelector('.proposal-row-title')
-        const amount = lines.querySelector(':scope > .proposal-row-amount > :first-child')
+      for (const lines of document.querySelectorAll('.list-row-lines')) {
+        const title = lines.querySelector('.list-row-title')
+        const amount = lines.querySelector(':scope > .list-row-amount > :first-child')
         if (title === null || amount === null || amount.getClientRects().length === 0) continue
         const apart = amount.getBoundingClientRect().left - title.getBoundingClientRect().left
         if (apart > most) found.push(`the amount of the row "${title.textContent.trim().slice(0, 32)}" starts ${Math.round(apart)} px from its title`)
@@ -5481,25 +5500,25 @@ function readPage(page) {
     }
 
     /**
-     * A list where some ProposalRows open a page and others do not sits in a `row-list`, and a `row-list` with a row that opens a
+     * A list where some ListRows open a page and others do not sits in a `row-list`, and a `row-list` with a row that opens a
      * page ends every amount, and every figure it marks `row-list-edge`, at one edge.
      */
     function raggedRowAmounts() {
       const found = []
       const shown = (element) => element !== null && element !== undefined && element.getClientRects().length > 0
       const opens = (lines) => lines.parentElement.querySelector(':scope > [data-row-arrow]') !== null
-      const titleOf = (lines) => lines.querySelector('.proposal-row-title')?.textContent.trim().slice(0, 32) ?? ''
+      const titleOf = (lines) => lines.querySelector('.list-row-title')?.textContent.trim().slice(0, 32) ?? ''
       for (const list of document.querySelectorAll('ul')) {
         const rows = [...list.children].flatMap((item) => {
-          const lines = item.querySelector('.proposal-row-lines')
+          const lines = item.querySelector('.list-row-lines')
           return lines === null || lines.closest('ul') !== list || !shown(lines) ? [] : [lines]
         })
         if (rows.some(opens) && !rows.every(opens) && list.closest('.row-list') === null)
           found.push(`the list with the row "${titleOf(rows[0])}" mixes rows that open a page with rows that do not outside a row-list`)
       }
       for (const list of document.querySelectorAll('.row-list')) {
-        const rows = [...list.querySelectorAll('.proposal-row-lines')].flatMap((lines) => {
-          const amount = lines.querySelector(':scope > .proposal-row-amount > :first-child')
+        const rows = [...list.querySelectorAll('.list-row-lines')].flatMap((lines) => {
+          const amount = lines.querySelector(':scope > .list-row-amount > :first-child')
           return shown(amount) ? [{ what: `the amount of the row "${titleOf(lines)}"`, opens: opens(lines), end: amount.getBoundingClientRect().right }] : []
         })
         const edge = rows.find((row) => row.opens)?.end
@@ -6250,6 +6269,24 @@ const FLOWS = [
     hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
     title: 'OTP current',
     run: spendingAccountDialogFlowIn('hr'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample&lang=hr' },
+  },
+  {
+    name: 'spending-account-cards',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    run: spendingAccountCardsFlowIn('en'),
+    modes: ['drive'],
+    viewports: DESIGN_REVIEW_VIEWPORTS,
+    queries: { drive: '&spending=sample' },
+  },
+  {
+    name: 'spending-account-cards-croatian',
+    hash: `#/spending/account?account=${SAMPLE_OTP_ACCOUNT}`,
+    title: 'OTP current',
+    run: spendingAccountCardsFlowIn('hr'),
     modes: ['drive'],
     viewports: DESIGN_REVIEW_VIEWPORTS,
     queries: { drive: '&spending=sample&lang=hr' },

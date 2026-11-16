@@ -131,6 +131,28 @@ describe('the dry run of a statement', () => {
     expect(run.changed).toEqual([refiled(lone, { ...lone, pair: run.added[0]!.id, categorisedBy: null })])
   })
 
+  it('pairs a top-up that names an OTP card with the OTP debit waiting on the file, and files a lone one as a transfer', () => {
+    const accounts = [{ ...OTP, cards: ['3670'] }, REVOLUT_EUR, REVOLUT_USD]
+    const between = category('Between my accounts').id
+    const waiting = onFile(OTP, '2026-10-20', -50, { payee: 'Revolut' })
+    const topUp = statementRow(REVOLUT_EUR, '2026-10-21', 50, 'Top-Up by *3670')
+    const run = filedDryRun(spendingBook([waiting], { accounts }), statementOf(topUp), DAY, counting())
+
+    expect(run.added).toMatchObject([{ category: between, pair: waiting.id }])
+    expect(filedDryRun(spendingBook([], { accounts }), statementOf(topUp), DAY).added).toMatchObject([{ category: between, pair: null }])
+  })
+
+  it('offers on To review two waiting rows that would pair by a card, as a card typed in after they came in', () => {
+    const debit = onFile(OTP, '2026-10-20', -50, { payee: 'Revolut' })
+    const credit = onFile(REVOLUT_EUR, '2026-10-21', 50, { payee: 'Top-Up by *3670' })
+    const book = spendingBook([debit, credit], { accounts: [{ ...OTP, cards: ['3670'] }, REVOLUT_EUR, REVOLUT_USD] })
+
+    expect(reviewQueue(book, DAY).waiting.map((waiting) => waiting.maybeTransfer)).toEqual([
+      { debit, credit },
+      { debit, credit },
+    ])
+  })
+
   it('does not touch a lone leg more than 30 days before today and before the oldest new row', () => {
     const old = onFile(OTP, '2026-09-20', -75, { category: category('Between my accounts').id, counterpartyIban: REVOLUT_EUR.iban })
 

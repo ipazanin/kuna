@@ -14,6 +14,9 @@ describe('moneyToneClass', () => {
     ['balance', -100, 'text-error'],
     ['balance', 0, ''],
     ['balance', 100, ''],
+    ['move', -100, 'text-muted'],
+    ['move', 0, ''],
+    ['move', 100, 'text-muted'],
     [undefined, -100, ''],
     [undefined, 0, ''],
     [undefined, 100, ''],
@@ -23,8 +26,9 @@ describe('moneyToneClass', () => {
 })
 
 describe('moneySign', () => {
-  it('always shows the sign of a flow and an outcome', () => {
+  it('always shows the sign of a flow, an outcome and a move', () => {
     expect(moneySign('flow', undefined)).toBe('always')
+    expect(moneySign('move', undefined)).toBe('always')
     expect(moneySign('outcome', undefined)).toBe('always')
   })
 

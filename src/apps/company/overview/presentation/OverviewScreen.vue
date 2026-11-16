@@ -14,7 +14,7 @@ import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { balanceSeries, latestBalances } from '../../cash/domain/balances'
@@ -231,11 +231,11 @@ const overview = computed(() => {
         <AppCard v-if="waiting.length" :title="words.waiting.title" :subtitle="words.waiting.subtitle" data-testid="waiting-for-you">
           <ul class="flex flex-col py-2">
             <li v-for="job in waiting" :key="job.key" class="border-t border-default first:border-t-0" :data-job="job.key">
-              <ProposalRow :to="job.link.to" :title="job.text">
+              <ListRow :to="job.link.to" :title="job.text">
                 <template #caption>
                   <NoteLine inline as="span" :tone="job.tone">{{ job.link.label }}</NoteLine>
                 </template>
-              </ProposalRow>
+              </ListRow>
             </li>
           </ul>
         </AppCard>
@@ -295,13 +295,13 @@ const overview = computed(() => {
           >
             <ul class="mt-3 flex flex-col border-t border-default">
               <li v-for="account in overview.accounts" :key="account.account" class="border-t border-default first:border-t-0">
-                <ProposalRow v-bind="account.to === null ? { as: 'div' as const } : { to: account.to }" :title="account.name" :quiet="account.closed">
+                <ListRow v-bind="account.to === null ? { as: 'div' as const } : { to: account.to }" :title="account.name" :quiet="account.closed">
                   <template #amount>
                     <MoneyText v-if="account.closed" :cents="account.balance" class="font-semibold text-muted" />
                     <MoneyText v-else :cents="account.balance" tone="balance" class="font-semibold" />
                   </template>
                   <template #caption> <span class="swatch swatch-bar me-1.5 align-middle" :style="{ '--swatch': account.colour }" aria-hidden="true" />{{ account.note }} </template>
-                </ProposalRow>
+                </ListRow>
               </li>
             </ul>
           </AppCard>

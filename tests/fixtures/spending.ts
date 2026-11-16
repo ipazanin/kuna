@@ -55,8 +55,9 @@ export function category(path: string): Category {
   return found
 }
 
-export function account(place: number, fields: Omit<Account, 'id'>): Account {
-  return { ...fields, id: recordIdOf(ACCOUNT_RECORDS, keyOf(1000 + place)) }
+/** An account with no card unless the test names its cards. */
+export function account(place: number, fields: Omit<Account, 'id' | 'cards'> & Partial<Pick<Account, 'cards'>>): Account {
+  return { cards: [], ...fields, id: recordIdOf(ACCOUNT_RECORDS, keyOf(1000 + place)) }
 }
 
 const OPENED_ON = civil('2026-09-01')

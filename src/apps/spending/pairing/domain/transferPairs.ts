@@ -1,3 +1,4 @@
+import { cardsNamedBy, namesCardOf } from './cardMentions'
 import { nearestTo } from './sameMoney'
 import type { Account } from '../../workbook/domain/account'
 import { refiledItems, waitsOnReview } from '../../workbook/domain/rowItems'
@@ -17,9 +18,9 @@ export interface TransferPair<Leg = Transaction> {
 }
 
 export interface TransferPairs {
-  /** One names the other's IBAN at an equal amount within 3 days, or they are the two legs of an exchange or a pocket move. */
+  /** One names the other's IBAN or one of its cards at an equal amount within 3 days, or they are the two legs of an exchange or a pocket move. */
   readonly pairs: readonly TransferPair[]
-  /** A debit to an own IBAN, or a leg of an exchange or a pocket move, whose other leg is not in yet. Such a row counts as a transfer and waits. */
+  /** A debit to an own IBAN, a row that names a card of another of your accounts, or a leg of an exchange or a pocket move, whose other leg is not in yet. Such a row counts as a transfer and waits. */
   readonly waiting: readonly Transaction[]
   /** Equal amounts within 3 days and nothing else, such as a card top-up. Only ever offered on review. */
   readonly offered: readonly TransferPair[]
@@ -52,6 +53,12 @@ export function transferPairs(rows: readonly Transaction[], accounts: readonly A
   const debits = inDateOrder.filter((row) => row.amount < 0)
   const credits = inDateOrder.filter((row) => row.amount > 0)
   const paired = new Set<Transaction>()
+  const namedCards = new Map(rows.map((row) => [row, cardsNamedBy(row)]))
+  const namesCardOfAccount = (row: Transaction, account: RecordId): boolean => {
+    const other = accountById.get(account)
+    return other !== undefined && namesCardOf(namedCards.get(row)!, accountById.get(row.account), other)
+  }
+  const namesOwnCard = (row: Transaction): boolean => accounts.some((account) => namesCardOfAccount(row, account.id))
 
   const onTwoAccounts = (debit: Transaction, credit: Transaction): boolean => debit.account !== credit.account
   const sameMoneyMoved = (debit: Transaction, credit: Transaction): boolean =>
@@ -61,7 +68,9 @@ export function transferPairs(rows: readonly Transaction[], accounts: readonly A
     Math.abs(daysBetween(debit.date, credit.date)) <= TRANSFER_DAYS
   const namesTheOther = (debit: Transaction, credit: Transaction): boolean =>
     (debit.counterpartyIban !== '' && debit.counterpartyIban === accountById.get(credit.account)?.iban) ||
-    (credit.counterpartyIban !== '' && credit.counterpartyIban === accountById.get(debit.account)?.iban)
+    (credit.counterpartyIban !== '' && credit.counterpartyIban === accountById.get(debit.account)?.iban) ||
+    namesCardOfAccount(debit, credit.account) ||
+    namesCardOfAccount(credit, debit.account)
   const movedTogether = (debit: Transaction, credit: Transaction): boolean =>
     onTwoAccounts(debit, credit) && debit.movedAt !== '' && debit.movedAt === credit.movedAt && debit.pocket === credit.pocket && (!debit.pocket || debit.amount === -credit.amount)
 
@@ -78,7 +87,7 @@ export function transferPairs(rows: readonly Transaction[], accounts: readonly A
     })
 
   const pairs = [...pairWhere(movedTogether), ...pairWhere((debit, credit) => sameMoneyMoved(debit, credit) && namesTheOther(debit, credit))]
-  const waiting = inDateOrder.filter((row) => !paired.has(row) && (row.movedAt !== '' || (row.amount < 0 && ownIbans.has(row.counterpartyIban))))
+  const waiting = inDateOrder.filter((row) => !paired.has(row) && (row.movedAt !== '' || (row.amount < 0 && ownIbans.has(row.counterpartyIban)) || namesOwnCard(row)))
   waiting.forEach((row) => paired.add(row))
   const offered = pairWhere(
     (debit, credit) => waitsOnReview(itemsOf(debit)) && waitsOnReview(itemsOf(credit)) && sameMoneyMoved(debit, credit) && namesNoStranger(debit, ownIbans) && namesNoStranger(credit, ownIbans),

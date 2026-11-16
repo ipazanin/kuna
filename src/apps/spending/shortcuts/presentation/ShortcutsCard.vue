@@ -15,7 +15,7 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /** Settings' quick adds in the order their buttons show on Entries, each opening its dialog and moving up or down, with Add. */
 const store = useSpendingBooks()
@@ -76,14 +76,14 @@ async function move(shortcut: Shortcut, step: -1 | 1): Promise<void> {
         class="flex items-start gap-2 border-b border-default px-4 last:border-b-0 sm:px-5"
         data-testid="spending-shortcut"
       >
-        <ProposalRow as="div" flush :title="name" :caption="caption" class="min-w-0 flex-1">
+        <ListRow as="div" flush :title="name" :caption="caption" class="min-w-0 flex-1">
           <template #amount>
             <AccountMoneyText :cents="amount" :currency="currency" tone="flow" />
           </template>
           <template v-if="hidden" #details>
             <span class="break-words type-caption" data-testid="spending-shortcut-hidden">{{ words.card.hidden }}</span>
           </template>
-        </ProposalRow>
+        </ListRow>
         <div class="flex shrink-0 items-center">
           <UButton
             icon="i-lucide-arrow-up"

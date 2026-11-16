@@ -407,8 +407,8 @@ section + section > .group-row:not(tr) {
   padding-inline-start: env(safe-area-inset-left);
 }
 
-/* The words and amount of a ProposalRow, in reading order: its title beside its amount, its caption under the title running on under the amount, or beside the amount's second line where it has one, and its details under both. */
-.proposal-row-lines {
+/* The words and amount of a ListRow, in reading order: its title beside its amount, its caption under the title running on under the amount, or beside the amount's second line where it has one, and its details under both. */
+.list-row-lines {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
@@ -419,7 +419,7 @@ section + section > .group-row:not(tr) {
   row-gap: 0.125rem;
 }
 
-.proposal-row-lines:has(> .proposal-row-amount > :nth-child(2)) {
+.list-row-lines:has(> .list-row-amount > :nth-child(2)) {
   grid-template-areas:
     'title amount'
     'caption second'
@@ -427,47 +427,47 @@ section + section > .group-row:not(tr) {
 }
 
 /*
- * A list of ProposalRows. Where one of its rows opens a page, the rows that open nothing and the figures marked
+ * A list of ListRows. Where one of its rows opens a page, the rows that open nothing and the figures marked
  * `row-list-edge`, such as a group's heading or the total, leave the arrow's size-4 and the gap-3 before it empty,
  * so every amount of the list ends at one edge.
  */
-.row-list:has([data-row-arrow]) :is(.proposal-row-lines:not(a > *), .row-list-edge) {
+.row-list:has([data-row-arrow]) :is(.list-row-lines:not(a > *), .row-list-edge) {
   margin-inline-end: 1.75rem;
 }
 
-/* A list of ProposalRows in a card that may run across the page, such as a screen's newest entries, keeps each amount within 40rem of its title, so the eye does not lose the line between the name and the figure. */
-.near-figures .proposal-row-lines {
+/* A list of ListRows in a card that may run across the page, such as a screen's newest entries, keeps each amount within 40rem of its title, so the eye does not lose the line between the name and the figure. */
+.near-figures .list-row-lines {
   max-inline-size: 40rem;
 }
 
-.proposal-row-title {
+.list-row-title {
   grid-area: title;
   align-self: baseline;
 }
 
-.proposal-row-caption {
+.list-row-caption {
   grid-area: caption;
 }
 
-.proposal-row-details {
+.list-row-details {
   grid-area: details;
 }
 
-.proposal-row-amount {
+.list-row-amount {
   display: contents;
 }
 
-.proposal-row-amount > * {
+.list-row-amount > * {
   justify-self: end;
   text-align: end;
 }
 
-.proposal-row-amount > :first-child {
+.list-row-amount > :first-child {
   grid-area: amount;
   align-self: baseline;
 }
 
-.proposal-row-amount > :nth-child(2) {
+.list-row-amount > :nth-child(2) {
   grid-area: second;
 }
 

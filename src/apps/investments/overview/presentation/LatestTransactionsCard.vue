@@ -15,7 +15,7 @@ import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /**
  * The five newest records of every kind, each opening its record's dialog in place, with a link to all of them. The card spans its row,
@@ -80,13 +80,13 @@ function change(entry: TransactionRecord): void {
     </FigureTable>
     <ul v-else class="near-figures flex flex-col py-2">
       <li v-for="line in lines" :key="line.entry.record.id" class="border-t border-default first:border-t-0">
-        <ProposalRow as="button" :title="line.kind" :caption="line.caption" data-testid="investments-latest-row" @click="change(line.entry)">
+        <ListRow as="button" :title="line.kind" :caption="line.caption" data-testid="investments-latest-row" @click="change(line.entry)">
           <template #amount>
             <MoneyText v-if="line.euros !== null" :cents="line.euros" v-bind="line.flows ? { tone: 'flow' } : { sign: 'magnitude' }" />
             <span v-else class="figure text-muted">{{ line.moved }}</span>
             <span v-if="line.euros !== null && line.moved !== ''" class="figure type-caption">{{ line.moved }}</span>
           </template>
-        </ProposalRow>
+        </ListRow>
       </li>
     </ul>
     <div class="px-4 pb-4 sm:px-5">

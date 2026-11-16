@@ -37,7 +37,7 @@ import { words as linkWords } from '../../links/presentation/words'
 import { fileRow, importWithRules, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
-import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, rowsFromRefusal } from '../../workbook/domain/account'
+import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, cardsOfText, rowsFromRefusal } from '../../workbook/domain/account'
 import type { Account, AccountBank, AccountKind, RowsFrom, RowsFromRefusal } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import { isSplit, itemizedRow, largestItem, linkOfItems, wholeItemOf } from '../../workbook/domain/rowItems'
@@ -75,6 +75,12 @@ import type { StrictSchema } from '../../../../shared/ai/domain/strictSchema'
 const COLOUR_OR_NULL: StrictSchema = {
   type: ['string', 'null'],
   description: `A swatch by its code, ${SWATCHES.map((swatch) => `${swatch.hex} ${swatch.name}`).join(', ')}, an own colour as #rrggbb that keeps 3:1 in the light theme, or "" for its group's colour, or null to leave it.`,
+}
+
+const CARDS_INPUT: StrictSchema = {
+  type: ['string', 'null'],
+  description:
+    'The last four digits of each card that pays from it, separated by commas, such as 3670, 1234. A row on another account that names one, such as Top-Up by *3670, pairs as a transfer. "" for no card, or null to leave them.',
 }
 
 const ROWS_FROM_ABOUT =
@@ -175,17 +181,18 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
       opening: NUMBER,
       openedOn: TEXT,
       iban: TEXT_OR_NULL,
+      cards: CARDS_INPUT,
       rowsFrom: { type: 'string', enum: [...ROWS_FROM] },
     }),
     refs: {},
     creates: ACCOUNT_RECORDS.name,
     alone: false,
-    example: { name: 'Savings', kind: 'savings', bank: null, currency: 'EUR', opening: 100, openedOn: '2026-11-01', iban: null, rowsFrom: 'by-hand' },
+    example: { name: 'Savings', kind: 'savings', bank: null, currency: 'EUR', opening: 100, openedOn: '2026-11-01', iban: null, cards: null, rowsFrom: 'by-hand' },
   },
   {
     name: 'change-account',
     about:
-      "A new name, type, bank, currency, opening balance, opening day, IBAN or way its rows come in, or closed or open again. rowsFrom by-hand stops the bank sync reading it, as when its bank link ended. An account with entries keeps its currency. Null leaves a field as it is. A later openedOn deletes the account's entries, receipts and bank rows on hold before it, leaves each transfer's other leg unpaired, and with opening null works out the opening that keeps today's balance. The card shows what goes. An earlier openedOn deletes nothing, and the bank sync reaches back only about 90 days, so older rows come from a statement file.",
+      "A new name, type, bank, currency, opening balance, opening day, IBAN, cards or way its rows come in, or closed or open again. rowsFrom by-hand stops the bank sync reading it, as when its bank link ended. An account with entries keeps its currency. Null leaves a field as it is. A later openedOn deletes the account's entries, receipts and bank rows on hold before it, leaves each transfer's other leg unpaired, and with opening null works out the opening that keeps today's balance. The card shows what goes. An earlier openedOn deletes nothing, and the bank sync reaches back only about 90 days, so older rows come from a statement file.",
     input: inputOf({
       account: TEXT,
       name: TEXT_OR_NULL,
@@ -195,13 +202,14 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
       opening: NUMBER_OR_NULL,
       openedOn: TEXT_OR_NULL,
       iban: TEXT_OR_NULL,
+      cards: CARDS_INPUT,
       rowsFrom: { type: ['string', 'null'], description: `${ROWS_FROM.join(', ')}, or null to leave it.` },
       closed: FLAG_OR_NULL,
     }),
     refs: { account: ACCOUNT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { account: 'account', name: 'Renamed', kind: null, bank: null, currency: null, opening: 250, openedOn: null, iban: null, rowsFrom: null, closed: 'yes' },
+    example: { account: 'account', name: 'Renamed', kind: null, bank: null, currency: null, opening: 250, openedOn: null, iban: null, cards: '3670', rowsFrom: null, closed: 'yes' },
   },
   {
     name: 'delete-account',
@@ -407,6 +415,14 @@ function conditionOf(fragment: string | null, iban: string | null, kept: Spendin
   if (iban !== null && iban.trim() !== '') return { column: 'counterparty_iban', iban: iban.replace(/\s+/g, '').toUpperCase() }
   if (fragment !== null && fragment.trim() !== '') return { column: 'counterparty_contains', fragment: fragment.trim() }
   return kept
+}
+
+/** The cards a step types, or the ones kept on null. */
+function typedCards(text: string | null, kept: readonly string[]): readonly string[] {
+  if (text === null) return kept
+  const cards = cardsOfText(text)
+  if (cards === null) throw new StepRefused('Each card is its last four digits, separated by commas, such as 3670, 1234.')
+  return cards
 }
 
 /** An amount above zero, as a transfer's legs are typed. */
@@ -640,6 +656,7 @@ function plannedSteps(
           iban: (field['iban'] as string | null) ?? '',
           rowsFrom: field['rowsFrom'] as RowsFrom,
           ...NEW_ACCOUNT_DEFAULTS,
+          cards: typedCards(field['cards'], NEW_ACCOUNT_DEFAULTS.cards),
         }
         refuseRowsFrom(rowsFromRefusal(typed, null, book.settings))
         const account = newAccount(typed)
@@ -665,6 +682,7 @@ function plannedSteps(
           opening: field['opening'] === null ? (move?.opening ?? before.opening) : accountMoneyFromAmount(field['opening']),
           openedOn: move?.startsOn ?? before.openedOn,
           iban: (field['iban'] as string | null) ?? before.iban,
+          cards: typedCards(field['cards'], before.cards),
           rowsFrom: choiceOf(ROWS_FROM, field['rowsFrom'], 'rowsFrom') ?? (kind === 'cash' ? 'by-hand' : before.rowsFrom),
           closed: flagOf(field['closed'], before.closed),
         }

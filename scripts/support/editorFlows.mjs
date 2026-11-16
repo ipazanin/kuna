@@ -6518,6 +6518,44 @@ export function spendingAccountDialogFlowIn(language) {
 }
 
 /**
+ * The sample OTP account's cards: the dialog shows its card 3670, refuses a card that is not four digits with its reason under
+ * the field, saves a second card, shows both once opened again, and clears them.
+ */
+export function spendingAccountCardsFlowIn(language) {
+  const dialog = SCREEN_WORDS[language].spendingAccounts.dialog
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const cards = () => page.$eval('[data-testid="spending-account-cards"]', (input) => input.value)
+    await openAccountDialog(page, press)
+    if ((await cards()) !== '3670') throw new Error(`the cards field reads "${await cards()}" over the sample OTP card 3670`)
+    await fill(page, 'spending-account-cards', '3670, 12')
+    await pressSelector(page, press, '[data-testid="spending-account-save"]')
+    await page
+      .waitForFunction((selector, wanted) => document.querySelector(selector)?.textContent?.includes(wanted) ?? false, { timeout: 5_000 }, SPENDING_ACCOUNT_DIALOG, dialog.cardsError)
+      .catch(() => {
+        throw new Error('a card of two digits is not refused under the field')
+      })
+    await delay(300)
+    await inspect?.('the account dialog refusing a card that is not four digits')
+    await shoot('spending-account-cards-refused')
+    await fill(page, 'spending-account-cards', '3670, 1234')
+    await pressSelector(page, press, '[data-testid="spending-account-save"]')
+    await toast(page, dialog.saved)
+    await dialogGone(page, SPENDING_ACCOUNT_DIALOG)
+    // The toast lies over the dialog's Save on a phone.
+    await dismissToasts(page)
+    await openAccountDialog(page, press)
+    if ((await cards()) !== '3670, 1234') throw new Error(`the cards field reads "${await cards()}" once saved with 3670, 1234`)
+    await inspect?.('the account dialog with two cards')
+    await shoot('spending-account-cards')
+    await fill(page, 'spending-account-cards', '')
+    await pressSelector(page, press, '[data-testid="spending-account-save"]')
+    await toast(page, dialog.saved)
+    await dialogGone(page, SPENDING_ACCOUNT_DIALOG)
+  }
+}
+
+/**
  * The sample OTP account's start day moved 30 days back from today: the dialog lists what goes and fills in the opening that
  * keeps today's balance, Delete and save writes it, and Undo puts the rows back. Then a start day moved a year earlier says
  * the bank sync reaches back only about 90 days.

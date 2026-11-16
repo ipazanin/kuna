@@ -8,7 +8,7 @@ import { EURO } from '../../../../shared/money/currencyCode'
 import { formatCurrencyAmount, formatPercent, formatQuantity, percentAsShown } from '../../../../shared/money/moneyFormat'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { moneyToneClass } from '../../../../shared/ui/moneyTone'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /** A holding or a balance on a phone, in two lines: the name and the value, then the symbol and units with the gain. A holding's row opens its page. A foreign balance with no euro value shows its own amount under the account. */
 defineProps<{
@@ -19,7 +19,7 @@ const noPriceWord = useNoPriceWord()
 </script>
 
 <template>
-  <ProposalRow v-if="line.kind === 'cash'" as="div" :title="line.account" data-testid="holding-row">
+  <ListRow v-if="line.kind === 'cash'" as="div" :title="line.account" data-testid="holding-row">
     <template v-if="line.balance.value !== null" #amount>
       <MoneyText :cents="line.balance.value" class="font-medium text-highlighted" />
       <span v-if="line.balance.currency !== EURO" class="figure type-caption">{{ formatCurrencyAmount(line.balance.balance, line.balance.currency) }}</span>
@@ -28,8 +28,8 @@ const noPriceWord = useNoPriceWord()
       {{ words.cashIn(line.balance.currency)
       }}<template v-if="line.balance.value === null && line.balance.currency !== EURO"> · {{ formatCurrencyAmount(line.balance.balance, line.balance.currency) }}</template>
     </template>
-  </ProposalRow>
-  <ProposalRow v-else :to="holdingLink(line.holding.instrument)" :title="line.holding.instrument.name" data-testid="holding-row">
+  </ListRow>
+  <ListRow v-else :to="holdingLink(line.holding.instrument)" :title="line.holding.instrument.name" data-testid="holding-row">
     <template #amount>
       <MoneyText v-if="line.holding.valuation !== null" :cents="line.holding.valuation.value" class="font-medium text-highlighted" />
       <span v-else class="type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
@@ -45,5 +45,5 @@ const noPriceWord = useNoPriceWord()
         <PriceMarkNote :holding="line.holding" bare />
       </span>
     </template>
-  </ProposalRow>
+  </ListRow>
 </template>

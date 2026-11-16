@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { isPairable, transferPairs } from '../src/apps/spending/pairing/domain/transferPairs'
 import type { StoredRow, Transaction } from '../src/apps/spending/workbook/domain/transaction'
-import { ACCOUNTS, category, OTP, REVOLUT_EUR, REVOLUT_USD, row, wholeItems } from './fixtures/spending'
+import { ACCOUNTS, CASH, category, OTP, REVOLUT_EUR, REVOLUT_USD, row, wholeItems } from './fixtures/spending'
 
 /** Each row of these checks, made by the fixture with its category, as its one item. */
 const ITEMS_OF = (entry: Transaction) => wholeItems([entry as StoredRow])
@@ -90,5 +90,51 @@ describe('transfer pairs', () => {
     expect(isPairable(bank(OTP, '2026-10-10', -60, { categorisedBy: 'person' }))).toBe(false)
     expect(isPairable(bank(OTP, '2026-10-10', -60, { pair: bank(REVOLUT_EUR, '2026-10-10', 60).id }))).toBe(false)
     expect(isPairable(row(OTP, '2026-10-10', -60, null))).toBe(false)
+  })
+})
+
+describe('transfer pairs by a card', () => {
+  /** OTP's card 3670, and a Revolut card 9999 that pays from both its euro and its dollar account. */
+  const WITH_CARDS = [{ ...OTP, cards: ['3670'] }, { ...REVOLUT_EUR, cards: ['9999'] }, { ...REVOLUT_USD, cards: ['9999'] }, CASH]
+
+  it('pairs a Revolut top-up that names an OTP card with the OTP debit a day before', () => {
+    const debit = bank(OTP, '2026-10-10', -50, { payee: 'Revolut' })
+    const credit = bank(REVOLUT_EUR, '2026-10-11', 50, { payee: 'Top-Up by *3670' })
+
+    expect(transferPairs([debit, credit], WITH_CARDS, ITEMS_OF)).toEqual({ pairs: [{ debit, credit }], waiting: [], offered: [] })
+  })
+
+  it('pairs a debit whose description names a card of the account the money goes to', () => {
+    const debit = bank(OTP, '2026-10-10', -50, { payee: 'Card load', description: 'To card XXXX9999' })
+    const credit = bank(REVOLUT_EUR, '2026-10-10', 50)
+
+    expect(transferPairs([debit, credit], WITH_CARDS, ITEMS_OF).pairs).toEqual([{ debit, credit }])
+  })
+
+  it('leaves a top-up that names a card waiting as a transfer while its other leg is not in yet', () => {
+    const credit = bank(REVOLUT_EUR, '2026-10-11', 50, { payee: 'Top-Up by *3670' })
+
+    expect(transferPairs([credit], WITH_CARDS, ITEMS_OF)).toEqual({ pairs: [], waiting: [credit], offered: [] })
+  })
+
+  it('leaves as they are legs of other amounts, and legs 4 days apart', () => {
+    const credit = bank(REVOLUT_EUR, '2026-10-11', 50, { payee: 'Top-Up by *3670' })
+
+    expect(transferPairs([bank(OTP, '2026-10-10', -49), credit], WITH_CARDS, ITEMS_OF).pairs).toEqual([])
+    expect(transferPairs([bank(OTP, '2026-10-07', -50), credit], WITH_CARDS, ITEMS_OF).pairs).toEqual([])
+  })
+
+  it("reads nothing into a row that names its own account's card, or a card two accounts share", () => {
+    const shopping = bank(OTP, '2026-10-10', -50, { payee: 'Corner market', description: 'Card *3670' })
+    const onBoth = bank(REVOLUT_USD, '2026-10-10', -20, { payee: 'Diner', description: 'Card **9999' })
+
+    expect(transferPairs([shopping, onBoth], WITH_CARDS, ITEMS_OF)).toEqual({ pairs: [], waiting: [], offered: [] })
+  })
+
+  it('reads no card into an account that lists none', () => {
+    const debit = bank(OTP, '2026-10-10', -50)
+    const credit = bank(REVOLUT_EUR, '2026-10-11', 50, { payee: 'Top-Up by *3670' })
+
+    expect(transferPairs([debit, credit], ACCOUNTS, ITEMS_OF)).toEqual({ pairs: [], waiting: [], offered: [{ debit, credit }] })
   })
 })

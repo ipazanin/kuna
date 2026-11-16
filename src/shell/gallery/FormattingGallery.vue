@@ -47,6 +47,7 @@ const MONEY_TEXTS = [
   { label: 'A loss, as an outcome', cents: moneyFromCents(-31000), props: { tone: 'outcome' } },
   { label: 'A balance', cents: moneyFromCents(254300), props: { tone: 'balance' } },
   { label: 'A balance below zero', cents: moneyFromCents(-18250), props: { tone: 'balance' } },
+  { label: 'A move between your own accounts', cents: moneyFromCents(50000), props: { tone: 'move' } },
   { label: 'A change in ink, sign always', cents: moneyFromCents(30000), props: { sign: 'always' } },
   { label: 'Cost as magnitude', cents: moneyFromCents(-412050), props: { sign: 'magnitude' } },
   { label: 'Compact', cents: moneyFromCents(4821049), props: { precision: 'compact' } },

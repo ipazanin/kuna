@@ -16,7 +16,7 @@ import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import { moneyToneClass } from '../../../../shared/ui/moneyTone'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import SortableHeader from '../../../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../../../shared/ui/SortableHeader.vue'
@@ -92,7 +92,7 @@ function span(position: ClosedPosition): string {
     </FigureTable>
     <ul v-else class="pb-2" data-testid="closed-rows">
       <li v-for="position in shown" :key="position.instrument.id" class="border-t border-default first:border-t-0">
-        <ProposalRow
+        <ListRow
           :to="holdingLink(position.instrument)"
           :title="position.instrument.name"
           :caption="`${words.units(formatQuantity(position.units, QUANTITY_PLACES))} · ${days(position)}`"
@@ -104,7 +104,7 @@ function span(position: ClosedPosition): string {
               formatPercent(position.realisedShare, 'always')
             }}</span>
           </template>
-        </ProposalRow>
+        </ListRow>
       </li>
     </ul>
     <ShowAllButton v-if="positions.length > FIRST_SHOWN" v-model:expanded="expanded" :total="positions.length" class="px-4 pb-4 sm:px-5" />

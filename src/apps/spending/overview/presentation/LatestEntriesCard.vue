@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
+import { rowTone } from '../../categories/presentation/amountTone'
 import EntryDialog from '../../entries/presentation/EntryDialog.vue'
 import { entryLine } from '../../entries/presentation/entryLine'
 import { entriesNewestFirst } from '../../rates/domain/euroRows'
@@ -90,7 +91,7 @@ function openEntry(picked: Transaction): void {
           <td class="cell-wraps align-top text-toned">{{ line.category }}</td>
           <td class="cell-wraps align-top text-toned">{{ line.row.account.name }}</td>
           <td class="text-end align-top">
-            <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" tone="flow" />
+            <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" :tone="rowTone(line.row.items, book.categories)" />
             <span v-if="line.euros !== ''" class="block figure type-caption">{{ line.euros }}</span>
           </td>
         </tr>
@@ -100,7 +101,7 @@ function openEntry(picked: Transaction): void {
       <li v-for="line in lines" :key="line.row.transaction.id" class="border-t border-default first:border-t-0">
         <ProposalRow as="button" :title="line.title" :caption="line.caption" data-testid="spending-latest-row" @click="openEntry(line.row.transaction)">
           <template #amount>
-            <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" tone="flow" />
+            <AccountMoneyText :cents="line.row.transaction.amount" :currency="line.row.account.currency" :tone="rowTone(line.row.items, book.categories)" />
             <span v-if="line.euros !== ''" class="figure type-caption">{{ line.euros }}</span>
           </template>
         </ProposalRow>

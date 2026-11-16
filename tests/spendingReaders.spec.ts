@@ -144,6 +144,23 @@ describe("where a Spending account's rows come from", () => {
     ])
   })
 
+  it("reads an account's cards, writes them back as they read, and refuses one that is not four digits or a card on cash", () => {
+    expect(bookOf({ account: [{ ...ACCOUNTS[0]!, cards: '3670, 1234' }] }).accounts[0]?.cards).toEqual(['3670', '1234'])
+    expect(roundTrip(ACCOUNT_RECORDS, { ...ACCOUNTS[0]!, cards: '3670,1234' })).toMatchObject({ cards: '3670, 1234' })
+    expect(roundTrip(ACCOUNT_RECORDS, ACCOUNTS[0]!)).not.toHaveProperty('cards')
+    expect(
+      problemsOf({
+        account: [
+          { ...ACCOUNTS[0]!, cards: '*3670' },
+          { ...ACCOUNTS[3]!, cards: '3670' },
+        ],
+      }),
+    ).toEqual([
+      ['account', 'OTP current', 'cards "*3670" is not a list of four digits each, such as 3670, 1234'],
+      ['account', 'Cash', 'cards is for a bank or savings account, not cash'],
+    ])
+  })
+
   it('reads what an account says over what its IBAN would give', () => {
     const book = bookOf({
       account: [

@@ -244,6 +244,7 @@ describe('a drafted account', () => {
       openedOn: DAY,
       rowsFrom: 'bank-link',
       iban: 'LT001',
+      cards: [],
       closed: false,
     })
   })

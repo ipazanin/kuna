@@ -94,8 +94,9 @@ export function reviewQueue(book: SpendingBook, day: CivilDate): ReviewQueue {
     waitingRows.filter((row) => row.source === 'statement'),
   )
   const maybeTyped = new Map<Transaction, NearMatch<Transaction, Transaction>>([...matches.map((match) => ({ ...match, difference: ZERO_ACCOUNT_MONEY })), ...near].map((match) => [match.bank, match]))
-  const { offered } = transferPairs(waitingRows.filter(isPairable), book.accounts, itemsOf)
-  const maybeTransfer = new Map<Transaction, TransferPair>(offered.flatMap((pair) => [[pair.debit, pair] as const, [pair.credit, pair] as const]))
+  // Two waiting rows that would pair by themselves, such as a top-up naming a card typed in after it came in, are offered too.
+  const { pairs: pairing, offered } = transferPairs(waitingRows.filter(isPairable), book.accounts, itemsOf)
+  const maybeTransfer = new Map<Transaction, TransferPair>([...pairing, ...offered].flatMap((pair) => [[pair.debit, pair] as const, [pair.credit, pair] as const]))
 
   const byId = new Map(book.transactions.map((row) => [row.id, row]))
   const recent = book.transactions.filter((row) => row.date >= since && row.source === 'statement').reverse()

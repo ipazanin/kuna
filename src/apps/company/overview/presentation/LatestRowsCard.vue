@@ -17,7 +17,7 @@ import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /**
  * The five rows the bank booked last on the accounts in view, each opening its row on Transactions, with a link to all of them. The card
@@ -79,12 +79,12 @@ const lines = computed(() =>
     </FigureTable>
     <ul v-else class="row-list flex flex-col py-2">
       <li v-for="line in lines" :key="line.row.id" class="border-t border-default first:border-t-0">
-        <ProposalRow v-if="line.to !== null" :to="line.to" :title="line.title" :caption="line.caption" data-testid="company-latest-row">
+        <ListRow v-if="line.to !== null" :to="line.to" :title="line.title" :caption="line.caption" data-testid="company-latest-row">
           <template #amount><MoneyText :cents="line.row.amount" tone="flow" /></template>
-        </ProposalRow>
-        <ProposalRow v-else as="div" :title="line.title" :caption="line.caption" data-testid="company-latest-row">
+        </ListRow>
+        <ListRow v-else as="div" :title="line.title" :caption="line.caption" data-testid="company-latest-row">
           <template #amount><MoneyText :cents="line.row.amount" tone="flow" /></template>
-        </ProposalRow>
+        </ListRow>
       </li>
     </ul>
     <div class="px-4 pb-4 sm:px-5">

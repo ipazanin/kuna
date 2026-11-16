@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { kunaConfig } from '../eslint.config.js'
 import baseline from '../scripts/lint-baseline.json'
 
-describe('the lint rules that keep a row that opens a page on ProposalRow and a link with an arrow neutral', { timeout: 120_000 }, () => {
+describe('the lint rules that keep a row that opens a page on ListRow and a link with an arrow neutral', { timeout: 120_000 }, () => {
   const root = join(import.meta.dirname, '..')
   const eslint = new ESLint({ cwd: root, overrideConfigFile: true, overrideConfig: kunaConfig(baseline) })
   const rulesBroken = async (template: string) => {
@@ -21,7 +21,7 @@ describe('the lint rules that keep a row that opens a page on ProposalRow and a 
   it('refuses a link that is the whole row of a list, built by hand', async () => {
     expect(await rulesBroken('<ul><li><RouterLink to="/a">A</RouterLink></li></ul>')).toContain('kuna/link-rows')
     expect(await rulesBroken('<ul><li><router-link to="/a">A</router-link></li></ul>')).toContain('kuna/link-rows')
-    expect(await rulesBroken('<ul><li><ProposalRow to="/a" title="A" /></li></ul>')).not.toContain('kuna/link-rows')
+    expect(await rulesBroken('<ul><li><ListRow to="/a" title="A" /></li></ul>')).not.toContain('kuna/link-rows')
     expect(await rulesBroken('<ul><li><p>A <RouterLink to="/a">link</RouterLink></p></li></ul>')).not.toContain('kuna/link-rows')
   })
 
@@ -32,8 +32,8 @@ describe('the lint rules that keep a row that opens a page on ProposalRow and a 
     expect(await rulesBroken('<UButton label="Continue" trailing-icon="i-lucide-arrow-right" />')).not.toContain('kuna/all-links')
   })
 
-  it('leaves a disclosure chevron in a button and a ProposalRow that opens a page alone', async () => {
+  it('leaves a disclosure chevron in a button and a ListRow that opens a page alone', async () => {
     expect(await rulesBroken('<button type="button"><UIcon name="i-lucide-chevron-right" /></button>')).not.toContain('kuna/link-rows')
-    expect(await rulesBroken('<ProposalRow to="/a" title="A" />')).not.toContain('kuna/link-rows')
+    expect(await rulesBroken('<ListRow to="/a" title="A" />')).not.toContain('kuna/link-rows')
   })
 })

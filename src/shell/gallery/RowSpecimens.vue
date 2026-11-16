@@ -7,27 +7,27 @@ import AppCard from '../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import NoteLine from '../../shared/ui/NoteLine.vue'
-import ProposalRow from '../../shared/ui/ProposalRow.vue'
+import ListRow from '../../shared/ui/ListRow.vue'
 import GallerySection from './GallerySection.vue'
 </script>
 
 <template>
   <GallerySection
-    id="proposal-row"
-    title="ProposalRow"
+    id="list-row"
+    title="ListRow"
     description="A row of a list: its title beside its amount and the lines under it running on under the amount. A row that asks something of a person has its actions underneath, and as a button it expands as a whole. With a link it opens a page and ends with an arrow on the title's line, and a caption-sized figure beside the title shares its baseline. A row that opens nothing among rows that do keeps their arrow's column empty, so the amounts end at one edge. It spans a card with the card's gutter, or sits flush inside padding of its own."
   >
     <DashboardGrid>
       <AppCard title="Spanning a card">
         <ul class="divide-y divide-default">
-          <ProposalRow title="Corner Market" caption="3 Mar 2026 · Current account">
+          <ListRow title="Corner Market" caption="3 Mar 2026 · Current account">
             <template #amount><MoneyText :cents="moneyFromCents(-4_530)" tone="flow" /></template>
             <UButton class="self-start" label="Not cash" color="neutral" variant="outline" size="sm" />
-          </ProposalRow>
-          <ProposalRow title="Advance" caption="Not found among the bank rows">
+          </ListRow>
+          <ListRow title="Advance" caption="Not found among the bank rows">
             <template #amount><MoneyText :cents="moneyFromCents(30_000)" sign="magnitude" class="text-muted" /></template>
-          </ProposalRow>
-          <ProposalRow title="Savings → Current account" caption="5 Mar 2026">
+          </ListRow>
+          <ListRow title="Savings → Current account" caption="5 Mar 2026">
             <template #details>
               <UBadge label="Waits for the other row" color="neutral" variant="subtle" size="sm" class="self-start" />
               <NoteLine tone="warning">The other row is a day later than this one.</NoteLine>
@@ -37,27 +37,27 @@ import GallerySection from './GallerySection.vue'
               <UButton label="Link" icon="i-lucide-link" color="neutral" variant="outline" size="sm" />
               <UButton label="Not this one" color="neutral" variant="outline" size="sm" />
             </div>
-          </ProposalRow>
+          </ListRow>
         </ul>
       </AppCard>
       <AppCard title="Flush inside a card's body">
         <ul class="flex flex-col divide-y divide-default px-4 pb-1 sm:px-5">
-          <ProposalRow title="Corner Market" caption="3 Mar 2026 · Groceries" flush>
+          <ListRow title="Corner Market" caption="3 Mar 2026 · Groceries" flush>
             <template #amount>
               <MoneyText :cents="moneyFromCents(-4_530)" tone="flow" />
               <MoneyText :cents="moneyFromCents(1_204_470)" class="type-caption" />
             </template>
-          </ProposalRow>
-          <ProposalRow title="Rent" caption="1 Mar 2026 · Already in the books" quiet flush>
+          </ListRow>
+          <ListRow title="Rent" caption="1 Mar 2026 · Already in the books" quiet flush>
             <template #amount><MoneyText :cents="moneyFromCents(-65_000)" class="text-muted" /></template>
-          </ProposalRow>
-          <ProposalRow title="Row 14" caption="The type in column B is not one Kuna knows" flush />
+          </ListRow>
+          <ListRow title="Row 14" caption="The type in column B is not one Kuna knows" flush />
         </ul>
       </AppCard>
       <AppCard title="A row that expands as a whole">
         <ul class="divide-y divide-default">
           <li>
-            <ProposalRow as="button" title="SNACK KIOSK" :aria-expanded="false">
+            <ListRow as="button" title="SNACK KIOSK" :aria-expanded="false">
               <template #details>
                 <span class="mt-1 flex flex-wrap gap-1.5"><UBadge label="No rule" color="info" variant="subtle" size="sm" /></span>
               </template>
@@ -65,10 +65,10 @@ import GallerySection from './GallerySection.vue'
                 <MoneyText :cents="moneyFromCents(-640)" tone="flow" />
                 <span class="figure type-caption">8 Oct 2026, Main</span>
               </template>
-            </ProposalRow>
+            </ListRow>
           </li>
           <li>
-            <ProposalRow as="button" title="GADGET CORNER" class="bg-elevated" :aria-expanded="true">
+            <ListRow as="button" title="GADGET CORNER" class="bg-elevated" :aria-expanded="true">
               <template #details>
                 <span class="mt-1 flex flex-wrap gap-1.5"><UBadge label="No rule" color="info" variant="subtle" size="sm" /></span>
               </template>
@@ -76,7 +76,7 @@ import GallerySection from './GallerySection.vue'
                 <MoneyText :cents="moneyFromCents(-3_890)" tone="flow" />
                 <span class="figure type-caption">8 Aug 2026, Main</span>
               </template>
-            </ProposalRow>
+            </ListRow>
             <p class="bg-elevated px-4 pb-4 type-body sm:px-5">What opens under it. Tab to a row to see its ring inside its edge.</p>
           </li>
         </ul>
@@ -84,34 +84,34 @@ import GallerySection from './GallerySection.vue'
       <AppCard title="Rows that open a page">
         <ul class="row-list flex flex-col py-2">
           <li class="border-t border-default first:border-t-0">
-            <ProposalRow to="/gallery" title="Current account" caption="Bank · Main Bank · EUR">
+            <ListRow to="/gallery" title="Current account" caption="Bank · Main Bank · EUR">
               <template #amount><MoneyText :cents="moneyFromCents(1_204_470)" class="text-highlighted" /></template>
-            </ProposalRow>
+            </ListRow>
           </li>
           <li class="border-t border-default first:border-t-0">
-            <ProposalRow to="/gallery" title="Travel card" caption="Bank · Card Bank · USD">
+            <ListRow to="/gallery" title="Travel card" caption="Bank · Card Bank · USD">
               <template #amount>
                 <span class="figure text-highlighted">$1,234.56</span>
                 <span class="figure text-xs text-toned">€1,140.20</span>
               </template>
               <template #details><span class="text-end type-caption">At the ECB rate of 13 Nov</span></template>
-            </ProposalRow>
+            </ListRow>
           </li>
           <li class="border-t border-default first:border-t-0">
-            <ProposalRow to="/gallery" title="Savings for the long summer holiday by the sea with the whole family" caption="Savings · Main Bank · EUR">
+            <ListRow to="/gallery" title="Savings for the long summer holiday by the sea with the whole family" caption="Savings · Main Bank · EUR">
               <template #amount><MoneyText :cents="moneyFromCents(560_000)" class="text-highlighted" /></template>
-            </ProposalRow>
+            </ListRow>
           </li>
           <li class="border-t border-default first:border-t-0">
-            <ProposalRow as="div" title="Cash at the broker" caption="Opens nothing, and its amount ends where the others do">
+            <ListRow as="div" title="Cash at the broker" caption="Opens nothing, and its amount ends where the others do">
               <template #amount><MoneyText :cents="moneyFromCents(31_250)" class="text-highlighted" /></template>
-            </ProposalRow>
+            </ListRow>
           </li>
           <li class="border-t border-default first:border-t-0">
-            <ProposalRow to="/gallery" title="Car loan">
+            <ListRow to="/gallery" title="Car loan">
               <template #caption>Bank loan · <span class="text-toned">Main Bank</span></template>
               <template #amount><span class="type-caption">Settled on 3 Mar 2026</span></template>
-            </ProposalRow>
+            </ListRow>
           </li>
         </ul>
       </AppCard>

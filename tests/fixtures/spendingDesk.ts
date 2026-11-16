@@ -72,6 +72,7 @@ function account(key: string, name: string, fields: Partial<Account> = {}): Acco
     openedOn: on('2026-01-01'),
     rowsFrom: 'by-hand',
     iban: '',
+    cards: [],
     closed: false,
     ...fields,
   }

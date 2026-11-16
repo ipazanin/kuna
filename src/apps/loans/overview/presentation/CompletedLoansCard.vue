@@ -3,7 +3,7 @@ import type { CompletedLoan } from './loansOverview'
 import { words } from './words'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /** The loans at zero, below the open ones and collapsed until opened, each a row that opens its page. */
 defineProps<{
@@ -22,11 +22,11 @@ defineProps<{
   >
     <ul class="flex flex-col pt-2 pb-2">
       <li v-for="loan in loans" :key="loan.key" class="border-t border-default first:border-t-0">
-        <ProposalRow :to="loan.to" :title="loan.name" :caption="[loan.look.label, loan.with].filter((part) => part !== '').join(' · ')" data-testid="completed-loan">
+        <ListRow :to="loan.to" :title="loan.name" :caption="[loan.look.label, loan.with].filter((part) => part !== '').join(' · ')" data-testid="completed-loan">
           <template #amount
             ><span class="type-caption">{{ loan.closed }}</span></template
           >
-        </ProposalRow>
+        </ListRow>
       </li>
     </ul>
   </AppCard>

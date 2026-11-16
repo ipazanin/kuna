@@ -15,7 +15,7 @@ import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /**
  * Puts the picked entries in an event by hand, takes them out of every event, or puts them back on their days, each in one
@@ -66,7 +66,7 @@ function done(): void {
   <AppDialog v-model:open="open" changes :title="words.inEvent.title(entries)" :description="words.inEvent.description">
     <div class="flex flex-col gap-4" data-testid="spending-event-picker">
       <ul class="flex flex-col">
-        <ProposalRow
+        <ListRow
           v-for="choice in events"
           :key="choice.event.id"
           :title="choice.event.name"
@@ -88,7 +88,7 @@ function done(): void {
               @click="choose(choice.event.id, words.inEvent.put(choice.event.name, entries))"
             />
           </div>
-        </ProposalRow>
+        </ListRow>
       </ul>
       <div class="flex flex-col gap-3 border-t border-default pt-4">
         <div v-if="byHand" class="flex flex-col items-start gap-1.5">

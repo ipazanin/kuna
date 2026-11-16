@@ -13,7 +13,7 @@ import { fold } from '../../../../../../shared/text/fold'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChoiceButtons from '../../../../../../shared/ui/ChoiceButtons.vue'
 import InfoPopover from '../../../../../../shared/ui/InfoPopover.vue'
-import ProposalRow from '../../../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../../../shared/ui/ListRow.vue'
 import { useSettings } from '../../../../settings/application/useSettings'
 import { amountLocaleOf } from '../../../../settings/domain/settings'
 import { useBookedWorkbook } from '../../../../transactions/application/useBookedWorkbook'
@@ -179,7 +179,7 @@ watch(
         <p class="area-description text-xs text-muted">{{ section.description }}</p>
         <ul>
           <li v-for="rule in section.rules" :key="rule.id" class="border-t border-default first:border-t-0">
-            <ProposalRow
+            <ListRow
               :id="`rule-${rule.id}`"
               :to="ruleLink(rule.id as RuleId)"
               :title="rule.title"
@@ -196,7 +196,7 @@ watch(
                 <span class="identifier text-muted" data-testid="rule-id">{{ rule.id }}</span>
                 <ConfidenceBadge :confidence="rule.inForce.confidence" class="mt-1 self-start" />
               </template>
-            </ProposalRow>
+            </ListRow>
           </li>
         </ul>
       </section>

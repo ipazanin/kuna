@@ -25,7 +25,7 @@ import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import { negateMoney } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
 /** Every event with its days, what it counts and its split by group, newest first. Each opens its entries of every month on Entries. */
@@ -75,14 +75,14 @@ function openDialog(event: SpendingEvent | null): void {
       <AppCard v-else :title="words.list" :subtitle="waiting ? rateWords.loading : undefined" data-testid="spending-events">
         <ul class="flex flex-col py-2">
           <li v-for="line in lines" :key="line.totals.event.id" class="flex items-start border-t border-default first:border-t-0" data-testid="spending-event-row">
-            <ProposalRow :to="eventLink(line.totals.event)" :title="line.totals.event.name" :caption="line.caption" class="min-w-0 flex-1" data-testid="spending-event-open">
+            <ListRow :to="eventLink(line.totals.event)" :title="line.totals.event.name" :caption="line.caption" class="min-w-0 flex-1" data-testid="spending-event-open">
               <template v-if="line.totals.rows > 0" #amount>
                 <MoneyText :cents="negateMoney(line.totals.spent)" tone="flow" :data-spent="line.totals.spent" />
               </template>
               <template v-if="line.totals.rows > 0" #details>
                 <TotalsLines :totals="line.totals" :categories="categories" :rated="!waiting" />
               </template>
-            </ProposalRow>
+            </ListRow>
             <UButton
               icon="i-lucide-pencil"
               color="neutral"

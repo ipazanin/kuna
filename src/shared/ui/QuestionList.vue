@@ -14,7 +14,7 @@ export interface QuestionItem<Value extends string> {
 
 <script setup lang="ts" generic="Value extends string, Item extends QuestionItem<Value>">
 import ChoiceButtons from './ChoiceButtons.vue'
-import ProposalRow from './ProposalRow.vue'
+import ListRow from './ListRow.vue'
 
 /**
  * A list of rows that each ask for one of a few choices, under an optional heading and an intro, with an optional figure in a column beside each row's words.
@@ -40,7 +40,7 @@ defineSlots<{ amount?: (props: { item: Item }) => unknown; details?: (props: { i
     <h3 v-if="heading" class="type-card-title">{{ heading }}</h3>
     <p class="type-caption">{{ intro }}</p>
     <ul class="flex flex-col divide-y divide-default">
-      <ProposalRow v-for="item in items" :key="item.key" :title="item.row" :caption="item.caption" flush data-testid="question">
+      <ListRow v-for="item in items" :key="item.key" :title="item.row" :caption="item.caption" flush data-testid="question">
         <template v-if="item.note || $slots.details" #details>
           <slot name="details" :item="item">
             <span class="break-words type-caption" data-testid="question-note">{{ item.note }}</span>
@@ -57,7 +57,7 @@ defineSlots<{ amount?: (props: { item: Item }) => unknown; details?: (props: { i
           data-testid="question-choice"
           @update:model-value="emit('answer', item.key, $event)"
         />
-      </ProposalRow>
+      </ListRow>
     </ul>
   </section>
 </template>

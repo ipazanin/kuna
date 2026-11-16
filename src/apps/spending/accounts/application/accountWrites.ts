@@ -35,10 +35,17 @@ export const ACCOUNT_WRITES: WriteRules<Account> = {
   },
 }
 
-/** An account as the file keeps it: its text trimmed, and cash by hand with no bank and no IBAN. */
+/** An account as the file keeps it: its text trimmed, and cash by hand with no bank, no IBAN and no card. */
 export function keptAccount(account: Account): Account {
   const cash = account.kind === 'cash'
-  return { ...account, name: account.name.trim(), bank: cash ? null : account.bank, iban: cash ? '' : account.iban.trim(), rowsFrom: cash ? 'by-hand' : account.rowsFrom }
+  return {
+    ...account,
+    name: account.name.trim(),
+    bank: cash ? null : account.bank,
+    iban: cash ? '' : account.iban.trim(),
+    cards: cash ? [] : account.cards,
+    rowsFrom: cash ? 'by-hand' : account.rowsFrom,
+  }
 }
 
 /** A new account as the file keeps it, with an id of its own. */

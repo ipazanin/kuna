@@ -15,7 +15,7 @@ import { words as spendingWords } from '../../words'
 import { EURO } from '../../../../shared/money/currencyCode'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 
@@ -42,7 +42,7 @@ function record(offer: ExtraPaymentOffer<ShownInstalment>): void {
   <AppCard :title="words.extra.title" :subtitle="words.extra.subtitle" data-testid="spending-review-extra-payments">
     <div class="flex flex-col gap-4 pt-1 pb-4">
       <ul class="divide-y divide-default">
-        <ProposalRow v-for="offer in shown" :key="offer.row.id" :title="rowTitle(offer.row)" :caption="rowCaption(offer.row, accountOf(offer.row))" data-testid="spending-review-extra-payment">
+        <ListRow v-for="offer in shown" :key="offer.row.id" :title="rowTitle(offer.row)" :caption="rowCaption(offer.row, accountOf(offer.row))" data-testid="spending-review-extra-payment">
           <template #amount>
             <AccountMoneyText :cents="offer.row.amount" :currency="EURO" tone="flow" />
           </template>
@@ -50,7 +50,7 @@ function record(offer: ExtraPaymentOffer<ShownInstalment>): void {
             <span class="break-words type-caption">{{ words.extra.caption(instalmentText(offer.instalment)) }}</span>
           </template>
           <UButton class="self-start" :label="words.extra.record" icon="i-lucide-banknote" data-testid="spending-review-extra-payment-record" @click="record(offer)" />
-        </ProposalRow>
+        </ListRow>
       </ul>
       <div v-if="offers.length > FIRST_SHOWN" class="px-4 sm:px-5">
         <ShowAllButton v-model:expanded="allShown" :total="offers.length" />

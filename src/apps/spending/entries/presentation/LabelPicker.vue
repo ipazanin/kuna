@@ -18,7 +18,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { plural } from '../../../../shared/text/translation'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 
 /** Puts a label on the picked entries, or takes off one every picked entry carries, in one write with Undo. A new label is added and put on in the same write. */
 const open = defineModel<boolean>('open', { required: true })
@@ -85,7 +85,7 @@ function done(): void {
   <AppDialog v-model:open="open" changes :title="words.labelling.title(entries)" :description="words.labelling.description">
     <div class="flex flex-col gap-4" data-testid="spending-label-picker">
       <ul v-if="choices.length > 0" class="flex flex-col">
-        <ProposalRow v-for="choice in choices" :key="choice.label.id" :title="choice.label.name" flush class="border-t border-default first:border-t-0" data-testid="spending-label-choice">
+        <ListRow v-for="choice in choices" :key="choice.label.id" :title="choice.label.name" flush class="border-t border-default first:border-t-0" data-testid="spending-label-choice">
           <div class="flex">
             <UButton
               :label="choice.onAll ? words.labelling.takeOff : words.labelling.putOn"
@@ -99,7 +99,7 @@ function done(): void {
               @click="apply(choice.label, !choice.onAll)"
             />
           </div>
-        </ProposalRow>
+        </ListRow>
       </ul>
       <FormGrid id="spending-label-new" as="form" @submit.prevent="addAndApply">
         <UFormField :label="words.labelling.newLabel" :error="(tried && error) || false" class="sm:col-span-2">

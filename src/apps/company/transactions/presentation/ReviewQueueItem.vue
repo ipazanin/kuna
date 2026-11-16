@@ -12,7 +12,7 @@ import { capitalised } from '../../../../shared/text/capitalised'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import { reviewReasonLabel } from '../../imports/domain/camtStatement'
 import type { Verdict } from '../../../../shared/categorising/domain/categorise'
 import CategoryChip from './CategoryChip.vue'
@@ -102,7 +102,7 @@ function recategorise(category: string | undefined): void {
 
 <template>
   <li v-bind="marked" data-testid="review-row">
-    <ProposalRow as="button" :title="transaction.counterparty || words.noCounterparty" :class="{ 'bg-elevated': expanded }" :aria-expanded="expanded" @click="emit('toggle')">
+    <ListRow as="button" :title="transaction.counterparty || words.noCounterparty" :class="{ 'bg-elevated': expanded }" :aria-expanded="expanded" @click="emit('toggle')">
       <template #details>
         <span class="mt-1 flex flex-wrap items-center gap-1.5">
           <UIcon v-if="rowSaving" name="i-lucide-loader-circle" class="size-3.5 shrink-0 animate-spin text-muted" data-testid="review-row-saving" />
@@ -114,7 +114,7 @@ function recategorise(category: string | undefined): void {
         <MoneyText :cents="transaction.amount" tone="flow" />
         <span class="figure type-caption">{{ rowName }}</span>
       </template>
-    </ProposalRow>
+    </ListRow>
 
     <div v-if="expanded" class="flex flex-col gap-3 bg-elevated px-4 pb-4 sm:px-5" data-testid="review-details">
       <p v-if="transaction.description" class="text-sm text-toned">{{ transaction.description }}</p>

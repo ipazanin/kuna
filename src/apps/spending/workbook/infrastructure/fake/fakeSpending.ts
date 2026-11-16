@@ -353,9 +353,9 @@ function withdrawalRows(day: CivilDate, idOf: (path: string) => RecordId): reado
 /** The accounts the cash set adds: two dollar cash accounts and a pound account at Revolut, whose rows come in as `rowsFrom` says. */
 function cashSetAccounts(openedOn: CivilDate, rowsFrom: RowsFrom): readonly Account[] {
   return [
-    { id: HOME_DOLLARS, name: 'Dollars at home', kind: 'cash', bank: null, currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', iban: '', closed: false },
-    { id: TRAVEL_DOLLARS, name: 'Travel wallet', kind: 'cash', bank: null, currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', iban: '', closed: false },
-    { id: REVOLUT_GBP, name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: GBP, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'LT000000000000000001', closed: false },
+    { id: HOME_DOLLARS, name: 'Dollars at home', kind: 'cash', bank: null, currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', iban: '', cards: [], closed: false },
+    { id: TRAVEL_DOLLARS, name: 'Travel wallet', kind: 'cash', bank: null, currency: USD, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', iban: '', cards: [], closed: false },
+    { id: REVOLUT_GBP, name: 'Revolut GBP', kind: 'bank', bank: 'revolut', currency: GBP, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'LT000000000000000001', cards: [], closed: false },
   ]
 }
 
@@ -520,8 +520,8 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
   // The bank accounts take their rows from the bank once `?banksync=` sets the sync up, and are kept by hand otherwise, as their rows are typed.
   const rowsFrom: RowsFrom = bankSync === null ? 'by-hand' : 'bank-link'
   const accounts: readonly Account[] = [
-    { id: OTP, name: 'OTP current', kind: 'bank', bank: 'otp', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'HR0000000000000000001', closed: false },
-    { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'LT000000000000000001', closed: false },
+    { id: OTP, name: 'OTP current', kind: 'bank', bank: 'otp', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'HR0000000000000000001', cards: ['3670'], closed: false },
+    { id: REVOLUT_EUR, name: 'Revolut EUR', kind: 'bank', bank: 'revolut', currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom, iban: 'LT000000000000000001', cards: [], closed: false },
     // `iban-blank` keeps it as typed by hand without its IBAN, which the bank sync then offers to fill, and `by-hand` and `by-hand-savings` keep its IBAN with its rows typed by hand.
     {
       id: REVOLUT_USD,
@@ -533,9 +533,10 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       openedOn,
       rowsFrom: bankSync === 'iban-blank' || bankSync === 'by-hand' || bankSync === 'by-hand-savings' ? 'by-hand' : rowsFrom,
       iban: bankSync === 'iban-blank' ? '' : 'LT000000000000000001',
+      cards: [],
       closed: false,
     },
-    { id: CASH, name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', iban: '', closed: false },
+    { id: CASH, name: 'Cash', kind: 'cash', bank: null, currency: EURO, opening: ZERO_ACCOUNT_MONEY, openedOn, rowsFrom: 'by-hand', iban: '', cards: [], closed: false },
     ...(bankSync === 'pocket'
       ? [
           {
@@ -548,6 +549,7 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
             openedOn,
             rowsFrom: 'bank-link' as const,
             iban: FAKE_POCKET_IBAN,
+            cards: [],
             closed: false,
           },
         ]

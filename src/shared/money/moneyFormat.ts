@@ -22,16 +22,19 @@ export type SignDisplay = 'negative' | 'always' | 'magnitude'
 /**
  * What kind of figure an amount is, which picks its colour and its sign. `outcome` is a real gain or loss in full
  * green or red, `flow` is money coming in or going out in the soft depth of each, and `balance` is a standing that
- * shows in ink above zero and in full red below it. An amount with no direction takes no tone.
+ * shows in ink above zero and in full red below it, and `move` is money moved between two places of the owner's own, in muted
+ * ink with its sign. An amount with no direction takes no tone.
  */
-export type MoneyTone = 'flow' | 'outcome' | 'balance'
+export type MoneyTone = 'flow' | 'outcome' | 'balance' | 'move'
 
 /**
  * How an amount shows its sign and colour. A tone decides the sign, so only an amount in ink states one. A gain or a
  * flow always shows its sign, so colour is never the only cue.
  */
 export type MoneyLook =
-  { readonly tone?: undefined; readonly sign?: SignDisplay | undefined } | { readonly tone: 'flow' | 'outcome'; readonly sign?: undefined } | { readonly tone: 'balance'; readonly sign?: undefined }
+  | { readonly tone?: undefined; readonly sign?: SignDisplay | undefined }
+  | { readonly tone: 'flow' | 'outcome' | 'move'; readonly sign?: undefined }
+  | { readonly tone: 'balance'; readonly sign?: undefined }
 
 /** An amount with how it shows its sign and colour, as `MoneyText` draws it. */
 export type ShownAmount = { readonly cents: Money } & MoneyLook

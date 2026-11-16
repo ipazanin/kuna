@@ -17,7 +17,7 @@ import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { formatAccountMoney } from '../../../../shared/money/moneyFormat'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import QuestionList from '../../../../shared/ui/QuestionList.vue'
 import type { QuestionItem } from '../../../../shared/ui/QuestionList.vue'
 
@@ -115,7 +115,7 @@ async function answer(key: string, choice: string): Promise<void> {
         </QuestionList>
       </div>
       <ul v-if="quiet.length > 0" :class="['divide-y divide-default', asking.length > 0 ? 'border-t border-default' : 'pt-1']">
-        <ProposalRow v-for="item in quiet" :key="item.receipt.id" :title="titleOf(item)" :caption="captionOf(item)" data-testid="spending-review-receipt">
+        <ListRow v-for="item in quiet" :key="item.receipt.id" :title="titleOf(item)" :caption="captionOf(item)" data-testid="spending-review-receipt">
           <template #amount>
             <AccountMoneyText :cents="item.amount" :currency="EURO" tone="flow" />
           </template>
@@ -129,7 +129,7 @@ async function answer(key: string, choice: string): Promise<void> {
             data-testid="spending-review-receipt-remove"
             @click="remove(item)"
           />
-        </ProposalRow>
+        </ListRow>
       </ul>
     </div>
   </AppCard>

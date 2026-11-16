@@ -210,6 +210,7 @@ import {
   spendingReceiptFlowIn,
   spendingSplitFlowIn,
   spendingAccountStartDayFlowIn,
+  spendingAccountCardsFlowIn,
   spendingReceiptNoEuroFlow,
   spendingReceiptPickFlowIn,
   spendingReceiptPlaceFlowIn,
@@ -817,7 +818,7 @@ async function checkWidth(width) {
   await step('link-rows', async () => {
     await open(page, `&spending=sample&load=${Date.now()}#/spending/accounts`, 'Accounts')
     const account = await page.waitForSelector('[data-testid="spending-account-row"]', { visible: true })
-    const name = await account.evaluate((element) => element.querySelector('.proposal-row-title')?.textContent?.trim() ?? '')
+    const name = await account.evaluate((element) => element.querySelector('.list-row-title')?.textContent?.trim() ?? '')
     await account.tap()
     await waitForTitle(page, name)
     await shoot('spending-account-from-list')
@@ -885,7 +886,7 @@ async function checkWidth(width) {
       await open(page, `${words.query}#/company`, words.overview.title)
       await page.waitForSelector('[data-testid="waiting-for-you"]')
       await shoot(`overview-waiting${suffix}`)
-      await waitForText(page, '[data-testid="waiting-for-you"] [data-job="review"] a .proposal-row-caption', words.overview.waiting.links.review)
+      await waitForText(page, '[data-testid="waiting-for-you"] [data-job="review"] a .list-row-caption', words.overview.waiting.links.review)
       const reviewLink = await page.waitForSelector('[data-testid="waiting-for-you"] [data-job="review"] a')
       await reviewLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
       await delay(200)
@@ -897,7 +898,7 @@ async function checkWidth(width) {
 
   await step('waiting-corporate-tax', async () => {
     await openFreshBrowser(page, '#/company', 'Overview')
-    await waitForText(page, '[data-testid="waiting-for-you"] [data-job="corporate-tax"] a .proposal-row-caption', 'Year, Taxes')
+    await waitForText(page, '[data-testid="waiting-for-you"] [data-job="corporate-tax"] a .list-row-caption', 'Year, Taxes')
     const taxLink = await page.waitForSelector('[data-testid="waiting-for-you"] [data-job="corporate-tax"] a')
     await taxLink.evaluate((element) => element.scrollIntoView({ block: 'center' }))
     await delay(200)
@@ -3414,6 +3415,7 @@ async function checkWidth(width) {
     ['spending-receipt-waits', 'drive&spending=receipts&banksync=saved', spendingReceiptWaitsFlowIn('en', SPENDING_RECEIPT_SAMPLES), '#/spending/transactions', 'Entries'],
     ['spending-split', 'drive&spending=sample', spendingSplitFlowIn('en'), '#/spending/transactions', 'Entries'],
     ['spending-account-start-day', 'drive&spending=sample', spendingAccountStartDayFlowIn('en'), '#/spending/account?account=fa4e3000-0000-4000-8000-000000001001', 'OTP current'],
+    ['spending-account-cards', 'drive&spending=sample', spendingAccountCardsFlowIn('en'), '#/spending/account?account=fa4e3000-0000-4000-8000-000000001001', 'OTP current'],
     ['spending-review-near', 'drive&spending=statements', spendingReviewNearFlowIn('en', SPENDING_IMPORT_SAMPLES), '#/spending/transactions?tab=import', 'Entries'],
     ['spending-review', 'drive&spending=statements', spendingReviewFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],
     ['spending-instalment-offers', 'drive&spending=statements&loans=sample', spendingInstalmentOffersFlowIn('en'), '#/spending/transactions?tab=review', 'Entries'],

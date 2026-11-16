@@ -20,7 +20,7 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { language } from '../../../../shared/text/language'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
-import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
+import ListRow from '../../../../shared/ui/ListRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 
 /** A loan's rows filed already that look like its instalments: each opens its entry, Link all links them in one write, and Not now stops offering them. */
@@ -63,14 +63,14 @@ async function notNow(): Promise<void> {
     <div class="flex flex-col gap-4 pt-1 pb-4">
       <ul class="divide-y divide-default">
         <li v-for="{ row, target } in shown" :key="row.id">
-          <ProposalRow as="button" :title="rowTitle(row)" :caption="rowCaption(row, accountOf(row))" data-testid="spending-review-instalments-row" @click="emit('open', row)">
+          <ListRow as="button" :title="rowTitle(row)" :caption="rowCaption(row, accountOf(row))" data-testid="spending-review-instalments-row" @click="emit('open', row)">
             <template #amount>
               <AccountMoneyText :cents="row.amount" :currency="EURO" tone="flow" />
             </template>
             <template #details>
               <span class="break-words type-caption">{{ instalmentText(target) }}</span>
             </template>
-          </ProposalRow>
+          </ListRow>
         </li>
       </ul>
       <div v-if="count > FIRST_SHOWN" class="px-4 sm:px-5">

@@ -180,6 +180,7 @@ describe("Revolut's export", () => {
           opening: accountMoneyFromAmount(100),
           openedOn: civil('2026-10-02'),
           rowsFrom: 'bank-link',
+          cards: [],
           closed: false,
         },
         {
@@ -191,6 +192,7 @@ describe("Revolut's export", () => {
           opening: accountMoneyFromAmount(0),
           openedOn: civil('2026-10-02'),
           rowsFrom: 'bank-link',
+          cards: [],
           closed: false,
         },
         {
@@ -202,6 +204,7 @@ describe("Revolut's export", () => {
           opening: accountMoneyFromAmount(0),
           openedOn: civil('2026-10-04'),
           rowsFrom: 'by-hand',
+          cards: [],
           closed: false,
         },
       ],
@@ -223,6 +226,7 @@ describe("Revolut's export", () => {
           opening: accountMoneyFromAmount(0),
           openedOn: civil('2026-10-01'),
           rowsFrom: 'bank-link',
+          cards: [],
           closed: false,
         },
       ],
@@ -269,6 +273,7 @@ describe("Revolut's export", () => {
         opening: accountMoneyFromAmount(0),
         openedOn: civil('2026-10-01'),
         rowsFrom: 'by-hand',
+        cards: [],
         closed: false,
       },
     ])
