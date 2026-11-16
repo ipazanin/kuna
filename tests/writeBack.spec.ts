@@ -89,6 +89,40 @@ describe.each([
     expect(row(store, 'GADGET CORNER')).toMatchObject({ category: 'unknown', flaggedBy: 'ai', bucket: 'unclassified' })
   })
 
+  it('files several picked rows in one write, which one Undo puts back whole', async () => {
+    const { store } = await harnessOf(used)
+    const picked = [row(store, 'GADGET CORNER'), row(store, 'MODEL API INC')]
+    const receipt = await setVerdicts(
+      store,
+      picked.map((transaction) => recategorisation(transaction, 'equipment', settings(store))),
+    )
+
+    expect([row(store, 'GADGET CORNER'), row(store, 'MODEL API INC')]).toMatchObject([
+      { category: 'equipment', flaggedBy: 'ivan' },
+      { category: 'equipment', flaggedBy: 'ivan' },
+    ])
+
+    await undo(store, receipt)
+
+    expect([row(store, 'GADGET CORNER'), row(store, 'MODEL API INC')]).toMatchObject([
+      { category: 'unknown', flaggedBy: 'ai' },
+      { category: 'ai-services', flaggedBy: picked[1]!.flaggedBy },
+    ])
+  })
+
+  it('confirms several picked rows in one write, each keeping its own category', async () => {
+    const { store } = await harnessOf(used)
+    const verdicts = [row(store, 'GADGET CORNER'), row(store, 'MODEL API INC')].flatMap((transaction) => confirmation(transaction, settings(store)) ?? [])
+
+    await setVerdicts(store, verdicts)
+
+    expect(verdicts).toHaveLength(1)
+    expect([row(store, 'GADGET CORNER'), row(store, 'MODEL API INC')]).toMatchObject([
+      { category: 'unknown', flaggedBy: 'ai' },
+      { category: 'ai-services', flaggedBy: 'ivan' },
+    ])
+  })
+
   it('lists every write of the session newest first, an undo beside the write it undid, and nothing for a refused one', async () => {
     const { store } = await harnessOf(used)
     const receipt = await setVerdicts(store, [recategorisation(row(store, 'GADGET CORNER'), 'equipment', settings(store))])

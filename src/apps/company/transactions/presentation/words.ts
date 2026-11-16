@@ -5,7 +5,7 @@ import { language } from '../../../../shared/text/language'
 import { listInWords } from '../../../../shared/text/listInWords'
 import { numbersInWords } from '../../../../shared/text/numbersInWords'
 import { plural } from '../../../../shared/text/translation'
-import type { EnglishForms, Translation } from '../../../../shared/text/translation'
+import type { CroatianForms, EnglishForms, Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 // A ledger row is stavka, a counterparty partner, a bank account račun u banci and an owner advance predujam vlasnika, as the record nouns say.
@@ -36,6 +36,15 @@ export const en = {
     filedAs: (category: string, offInvoices: readonly string[] = []) =>
       offInvoices.length === 0 ? `Filed as ${category}` : `Filed as ${category} and taken off ${offInvoices.length === 1 ? 'invoice' : 'invoices'} ${numbersInWords(offInvoices)}`,
     noCounterpartyRow: 'A row with no counterparty',
+    select: 'Select',
+    selectHelp: 'Select rows to file or confirm several at once',
+    fileUnder: 'File as',
+    filedRowsAs: (count: number, category: string, offInvoices: readonly string[]): EnglishForms => {
+      const off = offInvoices.length === 0 ? '' : ` and taken off ${offInvoices.length === 1 ? 'invoice' : 'invoices'} ${numbersInWords(offInvoices)}`
+      return { one: `1 row filed as ${category}${off}`, other: `${count} rows filed as ${category}${off}` }
+    },
+    confirmAsFiled: (count: number): EnglishForms => ({ one: 'Confirm 1 as filed', other: `Confirm ${count} as filed` }),
+    confirmedRows: (count: number): EnglishForms => ({ one: '1 row confirmed as filed', other: `${count} rows confirmed as filed` }),
     makeRule: 'Make a rule',
     makeRuleFromRow: 'Make a rule from this row',
     notWritten: 'Not written',
@@ -58,6 +67,7 @@ export const en = {
       statementAsks: 'Why the statement asks',
       notConfirmable: 'Its category is not on the categories tab, so it cannot be confirmed as it is. Recategorise it, and the toast offers to make a rule from it.',
       confirm: (category: string) => `Confirm ${category}`,
+      splitNotPicked: 'Split into parts, so each part is filed on its own',
       recategorise: 'Recategorise',
       makeThisARule: 'Make this a rule',
       editSplit: 'Edit the split',
@@ -214,6 +224,15 @@ export const hr: Translation<typeof en> = {
     confirmed: (category) => `Potvrđeno: ${category}`,
     filedAs: (category, offInvoices = []) => (offInvoices.length === 0 ? `Razvrstano: ${category}` : `Razvrstano: ${category}, uplata skinuta s računa br. ${numbersInWords(offInvoices)}`),
     noCounterpartyRow: 'Stavka bez partnera',
+    select: 'Odaberi',
+    selectHelp: 'Odaberi stavke za razvrstavanje ili potvrdu odjednom',
+    fileUnder: 'Razvrstaj kao',
+    filedRowsAs: (count, category, offInvoices): CroatianForms => {
+      const off = offInvoices.length === 0 ? '' : `, uplate skinute s računa br. ${numbersInWords(offInvoices)}`
+      return { one: `Razvrstana je ${count} stavka: ${category}${off}`, few: `Razvrstane su ${count} stavke: ${category}${off}`, other: `Razvrstano je ${count} stavki: ${category}${off}` }
+    },
+    confirmAsFiled: (count): CroatianForms => ({ one: `Potvrdi ${count} kako je razvrstana`, few: `Potvrdi ${count} kako su razvrstane`, other: `Potvrdi ${count} kako su razvrstane` }),
+    confirmedRows: (count): CroatianForms => ({ one: `Potvrđena je ${count} stavka`, few: `Potvrđene su ${count} stavke`, other: `Potvrđeno je ${count} stavki` }),
     makeRule: 'Napravi pravilo',
     makeRuleFromRow: 'Napravi pravilo iz ove stavke',
     notWritten: 'Nije upisano',
@@ -236,6 +255,7 @@ export const hr: Translation<typeof en> = {
       statementAsks: 'Zašto izvod traži provjeru',
       notConfirmable: 'Njezina kategorija nije među kategorijama, pa je ne možete potvrditi takvu kakva je. Promijenite joj kategoriju, a obavijest će ponuditi da iz nje izradite pravilo.',
       confirm: (category) => `Potvrdi: ${category}`,
+      splitNotPicked: 'Podijeljena je na dijelove, pa se svaki dio razvrstava zasebno',
       recategorise: 'Promijeni kategoriju',
       makeThisARule: 'Napravi pravilo',
       editSplit: 'Uredi podjelu',

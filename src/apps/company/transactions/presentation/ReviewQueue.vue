@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import UButton from '@nuxt/ui/components/Button.vue'
 
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import SelectionBar from '../../../../shared/ui/SelectionBar.vue'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { NO_RECORDS } from '../../../../shared/storage/domain/recordsRead'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
@@ -31,13 +33,14 @@ import { useFilteredLedger } from '../application/useFilteredLedger'
 import { confirmation, recategorisation } from '../domain/verdictChanges'
 import { invoicesRefiledOff } from '../../receivables/domain/invoicePayments'
 import type { RowVerdict } from '../domain/verdictChanges'
+import CategoryPicker from './CategoryPicker.vue'
 import ReviewQueueItem from './ReviewQueueItem.vue'
 import SessionChanges from './SessionChanges.vue'
 import SplitDialog from './SplitDialog.vue'
 import { REVIEW_LINK } from './transactionsLinks'
 import { words } from './words'
 
-/** The To review tab: the rows that wait for a person, the pack's cards about them, and this page's changes with Undo. Suggest categories asks the chat about the queue. */
+/** The To review tab: the rows that wait for a person, opened one by one or picked to be filed or confirmed together, the pack's cards about them, and this page's changes with Undo. Suggest categories asks the chat about the queue. */
 const props = defineProps<{
   /** The rows that wait, each with what the rules would file it as today. */
   queue: readonly { readonly transaction: Transaction; readonly verdict: Verdict }[]
@@ -70,28 +73,94 @@ const { ask: askAboutQueue, marked: queueMarked } = useChatElement(
   words.review.suggestCategoriesTask,
 )
 
-function file(title: string, verdict: RowVerdict, options: RecordWriteOptions): Promise<boolean> {
+function file(title: string, verdicts: readonly RowVerdict[], options: RecordWriteOptions): Promise<boolean> {
   const { records, workbook } = state
-  if (records === null || records === undefined || workbook === null || workbook === undefined) return Promise.resolve(false)
-  return writes.write(title, (unit) => fileRows(unit, { records, workbook }, [verdict], workbook.categories), { failedTitle: words.review.notWritten, ...options })
+  if (records === null || records === undefined || workbook === null || workbook === undefined || verdicts.length === 0) return Promise.resolve(false)
+  return writes.write(title, (unit) => fileRows(unit, { records, workbook }, verdicts, workbook.categories), { failedTitle: words.review.notWritten, ...options })
 }
 
 async function confirm(transaction: Transaction): Promise<void> {
   const workbook = ledger.value?.workbook
   const verdict = workbook === undefined ? null : confirmation(transaction, workbook.settings)
   if (verdict === null) return
-  await file(words.review.confirmed(names.value.category(transaction.category)), verdict, { key: `confirm-${transaction.id}`, description: transaction.counterparty || words.review.noCounterpartyRow })
+  await file(words.review.confirmed(names.value.category(transaction.category)), [verdict], {
+    key: `confirm-${transaction.id}`,
+    description: transaction.counterparty || words.review.noCounterpartyRow,
+  })
 }
 
 async function recategorise(transaction: Transaction, category: string): Promise<void> {
   const workbook = ledger.value?.workbook
   if (workbook === undefined) return
   const offInvoices = invoicesRefiledOff(workbook, transaction, category).map((invoice) => invoice.number)
-  await file(words.review.filedAs(names.value.category(category), offInvoices), recategorisation(transaction, category, workbook.settings), {
+  await file(words.review.filedAs(names.value.category(category), offInvoices), [recategorisation(transaction, category, workbook.settings)], {
     key: `recategorise-${transaction.id}`,
     description: transaction.counterparty || words.review.noCounterpartyRow,
     follow: { label: words.review.makeRule, icon: 'i-lucide-list-plus', run: () => makeRule({ ...transaction, category }) },
   })
+}
+
+/** The rows picked to be filed or confirmed together, or null while a tap opens a row. A split row files its parts, so it cannot be picked. */
+const picked = ref<ReadonlySet<RecordId> | null>(null)
+const pickable = computed(() => props.queue.flatMap(({ transaction }) => (splitOf(transaction) === null ? [transaction] : [])))
+const pickedRows = computed(() => pickable.value.filter((transaction) => picked.value?.has(transaction.id) === true))
+const allPicked = computed(() => pickable.value.every((transaction) => picked.value?.has(transaction.id) === true))
+/** The picked rows that can be confirmed as filed, leaving out those whose category is not on the categories tab. */
+const confirmations = computed(() => {
+  const workbook = ledger.value?.workbook
+  return workbook === undefined ? [] : pickedRows.value.flatMap((transaction) => confirmation(transaction, workbook.settings) ?? [])
+})
+const pickedCategory = ref<string | undefined>(undefined)
+
+// A row a filter hides or a write files leaves the queue, and its pick goes with it, so only rows in sight are written.
+watch(pickable, (rows) => {
+  const current = picked.value
+  if (current === null) return
+  const inSight = new Set(rows.map((transaction) => transaction.id))
+  if ([...current].some((id) => !inSight.has(id))) picked.value = new Set([...current].filter((id) => inSight.has(id)))
+})
+
+function startPicking(): void {
+  expandedRow.value = null
+  picked.value = new Set()
+}
+
+function pick(id: RecordId): void {
+  const current = new Set(picked.value ?? [])
+  if (current.has(id)) current.delete(id)
+  else current.add(id)
+  picked.value = current
+}
+
+function pickAll(): void {
+  picked.value = new Set(pickable.value.map((transaction) => transaction.id))
+}
+
+/** Files the picked rows under one category in one write, offering a rule while they share one counterparty, and ends the picking once written. */
+async function filePicked(category: string | undefined): Promise<void> {
+  pickedCategory.value = undefined
+  const workbook = ledger.value?.workbook
+  const rows = pickedRows.value
+  const [first] = rows
+  if (workbook === undefined || category === undefined || category === '' || first === undefined) return
+  const offInvoices = rows.flatMap((transaction) => invoicesRefiledOff(workbook, transaction, category).map((invoice) => invoice.number))
+  const counterparty = first.counterparty.trim()
+  const oneCounterparty = counterparty !== '' && rows.every((transaction) => transaction.counterparty.trim() === counterparty)
+  const filed = await file(
+    plural(words.review.filedRowsAs(rows.length, names.value.category(category), offInvoices), rows.length),
+    rows.map((transaction) => recategorisation(transaction, category, workbook.settings)),
+    {
+      key: 'file-picked',
+      ...(oneCounterparty ? { follow: { label: words.review.makeRule, icon: 'i-lucide-list-plus', run: () => makeRule({ ...first, category }) } } : {}),
+    },
+  )
+  if (filed) picked.value = null
+}
+
+/** Confirms each picked row under its own category in one write, and ends the picking once written. */
+async function confirmPicked(): Promise<void> {
+  const verdicts = confirmations.value
+  if (await file(plural(words.review.confirmedRows(verdicts.length), verdicts.length), verdicts, { key: 'confirm-picked' })) picked.value = null
 }
 
 const editorOpen = ref(false)
@@ -141,6 +210,28 @@ function openSplit(row: Transaction): void {
         <FilterBar :workbook="ledger.workbook" :window="ledger.window" :show-period="false" />
 
         <EmptyState v-if="nothingWaits" icon="i-lucide-check-check" :title="words.review.nothingWaits" :description="words.review.nothingWaitsDescription" />
+        <SelectionBar v-if="picked !== null && queue.length > 0" :count="picked.size" :all-picked="allPicked" @pick-all="pickAll" @cancel="picked = null">
+          <UButton
+            :label="plural(words.review.confirmAsFiled(confirmations.length), confirmations.length)"
+            icon="i-lucide-check"
+            color="neutral"
+            variant="outline"
+            :disabled="confirmations.length === 0"
+            :loading="writes.saving('confirm-picked')"
+            data-testid="review-confirm-picked"
+            @click="confirmPicked"
+          />
+          <CategoryPicker
+            v-model="pickedCategory"
+            :categories="ledger.workbook.categories"
+            :placeholder="words.review.fileUnder"
+            :disabled="picked.size === 0"
+            :loading="writes.saving('file-picked')"
+            class="w-full sm:w-56"
+            data-testid="review-file-picked"
+            @update:model-value="filePicked"
+          />
+        </SelectionBar>
         <AppCard
           v-if="queue.length > 0"
           class="overflow-clip"
@@ -152,6 +243,17 @@ function openSplit(row: Transaction): void {
           v-bind="queueMarked"
         >
           <template #actions>
+            <UButton
+              v-if="picked === null"
+              :label="words.review.select"
+              :aria-label="words.review.selectHelp"
+              icon="i-lucide-list-checks"
+              size="sm"
+              color="neutral"
+              variant="outline"
+              data-testid="review-select"
+              @click="startPicking"
+            />
             <AskChatButton :text="words.review.suggestCategories" data-testid="review-queue-ask" @ask="askAboutQueue" />
           </template>
           <ul class="mt-3 divide-y divide-default border-t border-default">
@@ -165,12 +267,14 @@ function openSplit(row: Transaction): void {
               :split="splitOf(entry.transaction) !== null"
               :saving="writes.saving"
               :person-counterparty="flaggedAsPerson(settings.personPayees, entry.transaction.counterparty)"
+              :picked="picked === null ? null : picked.has(entry.transaction.id)"
               @toggle="toggle(entry.transaction.id)"
               @confirm="confirm(entry.transaction)"
               @recategorise="recategorise(entry.transaction, $event)"
               @make-rule="makeRule(entry.transaction)"
               @split="openSplit(entry.transaction)"
               @treat-counterparty="treatCounterparty(entry.transaction)"
+              @pick="pick(entry.transaction.id)"
             />
           </ul>
         </AppCard>

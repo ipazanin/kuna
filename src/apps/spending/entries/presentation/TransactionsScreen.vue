@@ -12,10 +12,9 @@ import { words as accountWords } from '../../accounts/presentation/words'
 import { ALL_MONTHS, LAST_12_MONTHS, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
 import EventPicker from './EventPicker.vue'
 import LabelPicker from './LabelPicker.vue'
-import SelectionBar from './SelectionBar.vue'
+import SelectionBar from '../../../../shared/ui/SelectionBar.vue'
 import QuickAddCard from '../../shortcuts/presentation/QuickAddCard.vue'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
-import { plural } from '../../../../shared/text/translation'
 import { takesNewRowsByHand } from '../../workbook/domain/account'
 import { entriesNewestFirst } from '../../rates/domain/euroRows'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
@@ -154,12 +153,7 @@ function openEntry(entry: Transaction | null): void {
               <UButton v-else :label="accountWords.add" icon="i-lucide-landmark" :to="SPENDING_ACCOUNTS_ROUTE" data-testid="spending-go-to-accounts" />
             </template>
           </EmptyState>
-          <SelectionBar
-            v-if="picked !== null && transactions.length > 0"
-            :summary="plural(words.labelling.picked(picked.size), picked.size)"
-            :cancel-label="words.labelling.cancel"
-            @cancel="picked = null"
-          >
+          <SelectionBar v-if="picked !== null && transactions.length > 0" :count="picked.size" @cancel="picked = null">
             <UButton
               v-if="hasEvents"
               :label="words.inEvent.action"

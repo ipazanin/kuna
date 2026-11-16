@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from 'vue'
-import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
-import { fileRow, joinWithTyped, notAPair, pairRows, rowsRuleWouldFile, writeRulesInto } from '../application/statementWrites'
+import { fileRows, joinWithTyped, pairRows, rowsRuleWouldFile, writeRulesInto } from '../application/statementWrites'
 import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
 import CashWithdrawalsCard from './CashWithdrawalsCard.vue'
+import TransfersCard from './TransfersCard.vue'
 import WaitingReceiptsCard from '../../receipts/presentation/WaitingReceiptsCard.vue'
 import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingReceipts'
 import ReviewRow from './ReviewRow.vue'
@@ -25,31 +26,31 @@ import { twinWords } from '../../../../shared/ai/presentation/copiedRowsWords'
 import { REVIEW_ASKED } from './reviewAsks'
 import { ruleTestOf } from './ruleTest'
 import { words } from './words'
-import type { TransferPair } from '../../pairing/domain/transferPairs'
-import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
+import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
+import { payeeKey, samePayee } from '../../payees/domain/payeeKey'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
-import { payeeCondition } from '../../workbook/domain/spendingRule'
+import { payeeCondition, sameCondition } from '../../workbook/domain/spendingRule'
 import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
 import { today } from '../../../../shared/calendar/civilDate'
-import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import AskChatButton from '../../../../shared/ai/presentation/AskChatButton.vue'
 import { useChatElement } from '../../../../shared/ai/presentation/chatDock'
 import type { AskedElement } from '../../../../shared/ai/presentation/chatDock'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { useRecordWrites } from '../../../../shared/storage/presentation/useRecordWrites'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
-import ListRow from '../../../../shared/ui/ListRow.vue'
+import SelectionBar from '../../../../shared/ui/SelectionBar.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import { EURO } from '../../../../shared/money/currencyCode'
 
-/** The rows waiting for a category, the withdrawals waiting for their cash leg, the receipts waiting for the bank's row, the transfers the pairing made and the lone legs waiting for their other side. */
+/** The rows waiting for a category, filed one by one or picked and filed under one category at once, the withdrawals waiting for their cash leg, the receipts waiting for the bank's row, the transfers the pairing made and the lone legs waiting for their other side. */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
 
@@ -91,6 +92,50 @@ const transfer = computed(() => transferCategoryOf(categories.value))
 const allShown = ref(false)
 const shownWaiting = computed(() => (allShown.value ? (queue.value?.waiting ?? []) : (queue.value?.waiting ?? []).slice(0, FIRST_SHOWN)))
 
+/** The rows picked to be filed under one category, or null while each row's own controls file it. */
+const picked = ref<ReadonlySet<RecordId> | null>(null)
+const pickedRows = computed(() => (queue.value?.waiting ?? []).flatMap(({ row }) => (picked.value?.has(row.id) === true ? [row] : [])))
+const allPicked = computed(() => (queue.value?.waiting ?? []).every(({ row }) => picked.value?.has(row.id) === true))
+const pickedCategories = computed(() => entryCategoryChoices(categories.value, pickedRows.value.some((row) => row.amount < 0) ? 'out' : 'in', null, true))
+/** The category the bulk menu shows, blank so it shows its placeholder again after each choice. */
+const pickedCategory = ref('')
+
+// Folding Show all back drops the picks it hides, and a row filed meanwhile drops out too, so only rows in sight are filed.
+watch(shownWaiting, (shown) => {
+  const current = picked.value
+  if (current === null) return
+  const inSight = new Set(shown.map(({ row }) => row.id))
+  if ([...current].some((id) => !inSight.has(id))) picked.value = new Set([...current].filter((id) => inSight.has(id)))
+})
+
+function pick(row: Transaction): void {
+  const current = new Set(picked.value ?? [])
+  if (current.has(row.id)) current.delete(row.id)
+  else current.add(row.id)
+  picked.value = current
+}
+
+/** Picks every waiting row, showing all so none is picked out of sight. */
+function pickAll(): void {
+  allShown.value = true
+  picked.value = new Set((queue.value?.waiting ?? []).map(({ row }) => row.id))
+}
+
+/** Every waiting row of the one payee the picked rows share, by the payee identity Payees groups by, or none while they share none. */
+const samePayeeRows = computed(() => {
+  const [first, ...rest] = pickedRows.value
+  if (first === undefined || payeeKey(first.payee) === '' || rest.some((row) => !samePayee(row.payee, first.payee))) return []
+  return (queue.value?.waiting ?? []).flatMap(({ row }) => (samePayee(row.payee, first.payee) ? [row] : []))
+})
+
+/** Picks the payee's other waiting rows, showing all when one of them is out of sight. */
+function pickSamePayee(): void {
+  const rows = samePayeeRows.value
+  const shown = new Set(shownWaiting.value.map(({ row }) => row.id))
+  if (rows.some((row) => !shown.has(row.id))) allShown.value = true
+  picked.value = new Set(rows.map((row) => row.id))
+}
+
 const accountOf = (row: Transaction) => accounts.value.find((account) => account.id === row.account)
 const currencyOf = (row: Transaction) => accountOf(row)?.currency ?? EURO
 
@@ -123,15 +168,36 @@ function reviewKey(action: ReviewAction, row: Transaction): string {
   return `${action}-${row.id}`
 }
 
-async function file(row: Transaction, category: Category): Promise<void> {
-  const condition = payeeCondition(row)
+/** The rule condition every row gives the same way, which Always for this payee then offers, or null while they give none or several. */
+function sharedCondition(rows: readonly Transaction[]): SpendingRuleCondition | null {
+  const [first, ...rest] = rows.map(payeeCondition)
+  if (first === undefined || first === null) return null
+  return rest.every((other) => other !== null && sameCondition(first, other)) ? first : null
+}
+
+/** Files the rows under the category in one write with one Undo. Resolves to whether it went through. */
+function fileUnder(rows: readonly Transaction[], category: Category, title: string, key: string): Promise<boolean> {
+  const condition = sharedCondition(rows)
   const records = store.state.records
-  if (records === null) return
-  await writes.write(words.review.filed, (unit) => fileRow(unit, records, row, category), {
-    key: reviewKey('file', row),
+  if (records === null || rows.length === 0) return Promise.resolve(false)
+  return writes.write(title, (unit) => fileRows(unit, records, rows, category), {
+    key,
     failedTitle: words.review.notWritten,
     ...(condition === null ? {} : { follow: { label: words.review.always, icon: 'i-lucide-list-plus', run: () => askRule(condition, category) } }),
   })
+}
+
+async function file(row: Transaction, category: Category): Promise<void> {
+  await fileUnder([row], category, words.review.filed, reviewKey('file', row))
+}
+
+/** Files the picked rows under one category, which ends the picking once written and keeps the picks when it is not. */
+async function filePicked(id: string | undefined): Promise<void> {
+  pickedCategory.value = ''
+  const category = categories.value.find((candidate) => candidate.id === id)
+  const rows = pickedRows.value
+  if (category === undefined) return
+  if (await fileUnder(rows, category, plural(words.review.filedUnder(rows.length, category.name), rows.length), 'file-picked')) picked.value = null
 }
 
 /** Links the waiting row to the instalment it may pay, which files it and takes it off To review. */
@@ -154,11 +220,6 @@ async function pair({ row, maybeTransfer }: WaitingRow): Promise<void> {
   const records = store.state.records
   if (maybeTransfer !== null && category !== null && records !== null)
     await writes.write(words.review.paired, (unit) => pairRows(unit, records, maybeTransfer, category.id), { key: reviewKey('pair', row), failedTitle: words.review.notWritten })
-}
-
-async function undoPair(legs: TransferPair): Promise<void> {
-  const records = store.state.records
-  if (records !== null) await writes.write(words.review.pairUndone, (unit) => notAPair(unit, records, legs), { key: `not-a-pair-${legs.debit.id}`, failedTitle: words.review.notWritten })
 }
 </script>
 
@@ -190,73 +251,73 @@ async function undoPair(legs: TransferPair): Promise<void> {
       :description="words.review.emptyDescription"
       data-testid="spending-review-empty"
     />
-    <AppCard v-else-if="queue.waiting.length > 0" :title="words.review.title" :subtitle="words.review.subtitle" v-bind="queueMarked" data-testid="spending-review">
-      <template #actions>
-        <AskChatButton :text="words.review.suggestCategories" data-testid="spending-review-ask" @ask="askAboutQueue" />
-      </template>
-      <ul class="divide-y divide-default pt-1 pb-1">
-        <ReviewRow
-          v-for="waiting in shownWaiting"
-          :key="waiting.row.id"
-          :waiting="waiting"
-          :categories="categories"
-          :accounts="accounts"
-          :takes-receipt="takesReceipt(waiting.row)"
-          :rule-category="waiting.maybeTyped === null ? null : (categories.find((category) => category.id === ruleSays?.(waiting.row)) ?? null)"
-          :offer="offerOf(waiting.row)"
-          :saving="(action: ReviewAction) => writes.saving(reviewKey(action, waiting.row))"
-          @file="file(waiting.row, $event)"
-          @link="link(waiting.row)"
-          @join="join(waiting)"
-          @pair="pair(waiting)"
-          @receipt="emit('receipt', $event)"
+    <template v-else-if="queue.waiting.length > 0">
+      <SelectionBar v-if="picked !== null" :count="picked.size" :all-picked="allPicked" @pick-all="pickAll" @cancel="picked = null">
+        <UButton
+          v-if="samePayeeRows.length > pickedRows.length"
+          :label="words.review.pickSamePayee"
+          icon="i-lucide-user-round-check"
+          color="neutral"
+          variant="outline"
+          data-testid="spending-review-same-payee"
+          @click="pickSamePayee"
         />
-      </ul>
-      <div v-if="queue.waiting.length > FIRST_SHOWN" class="px-4 pb-3 sm:px-5">
-        <ShowAllButton v-model:expanded="allShown" :total="queue.waiting.length" />
-      </div>
-    </AppCard>
-    <InstalmentsCard v-for="card in instalments.past" :key="card.loan" :card="card" @open="emit('open', $event)" />
-    <ExtraPaymentsCard v-if="instalments.extraPayments.length > 0" :offers="instalments.extraPayments" />
-    <AppCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :title="words.review.pairs" :subtitle="words.review.pairsSubtitle" data-testid="spending-pairs">
-      <ul class="divide-y divide-default pt-1 pb-1">
-        <ListRow
-          v-for="legs in queue.pairs"
-          :key="legs.debit.id"
-          :title="`${accountOf(legs.debit)?.name ?? ''} → ${accountOf(legs.credit)?.name ?? ''}`"
-          :caption="dayLabel(legs.debit.date)"
-          data-testid="spending-pair"
-        >
-          <template #amount>
-            <AccountMoneyText :cents="legs.debit.amount" :currency="currencyOf(legs.debit)" tone="move" />
-          </template>
+        <USelectMenu
+          v-model="pickedCategory"
+          :items="pickedCategories"
+          value-key="value"
+          :placeholder="words.review.fileUnder"
+          :aria-label="words.review.pickCategory"
+          :disabled="picked.size === 0"
+          :loading="writes.saving('file-picked')"
+          class="w-full sm:w-56"
+          data-testid="spending-review-file-picked"
+          @update:model-value="filePicked"
+        />
+      </SelectionBar>
+      <AppCard :title="words.review.title" :subtitle="words.review.subtitle" v-bind="queueMarked" data-testid="spending-review">
+        <template #actions>
           <UButton
-            class="self-start"
+            v-if="picked === null"
+            :label="words.review.select"
+            :aria-label="words.review.selectHelp"
+            icon="i-lucide-list-checks"
+            size="sm"
             color="neutral"
             variant="outline"
-            :label="words.review.notAPair"
-            :loading="writes.saving(`not-a-pair-${legs.debit.id}`)"
-            data-testid="spending-not-a-pair"
-            @click="undoPair(legs)"
+            data-testid="spending-review-select"
+            @click="picked = new Set()"
           />
-        </ListRow>
-        <ListRow v-for="leg in queue.loneLegs" :key="leg.id" :title="leg.payee" :caption="`${dayLabel(leg.date)} · ${accountOf(leg)?.name ?? ''}`" data-testid="spending-lone-leg">
-          <template #amount>
-            <AccountMoneyText :cents="leg.amount" :currency="currencyOf(leg)" tone="move" />
-          </template>
-          <template #details>
-            <UBadge
-              :label="wantsSavingsAccount(leg, accounts) ? words.review.wantsSavings : words.review.waitingForOther"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-              class="self-start"
-              data-testid="spending-lone-leg-state"
-            />
-          </template>
-        </ListRow>
-      </ul>
-    </AppCard>
+          <AskChatButton :text="words.review.suggestCategories" data-testid="spending-review-ask" @ask="askAboutQueue" />
+        </template>
+        <ul class="divide-y divide-default pt-1 pb-1">
+          <ReviewRow
+            v-for="waiting in shownWaiting"
+            :key="waiting.row.id"
+            :waiting="waiting"
+            :categories="categories"
+            :accounts="accounts"
+            :takes-receipt="takesReceipt(waiting.row)"
+            :rule-category="waiting.maybeTyped === null ? null : (categories.find((category) => category.id === ruleSays?.(waiting.row)) ?? null)"
+            :offer="offerOf(waiting.row)"
+            :picked="picked === null ? null : picked.has(waiting.row.id)"
+            :saving="(action: ReviewAction) => writes.saving(reviewKey(action, waiting.row))"
+            @file="file(waiting.row, $event)"
+            @link="link(waiting.row)"
+            @join="join(waiting)"
+            @pair="pair(waiting)"
+            @receipt="emit('receipt', $event)"
+            @pick="pick(waiting.row)"
+          />
+        </ul>
+        <div v-if="queue.waiting.length > FIRST_SHOWN" class="px-4 pb-3 sm:px-5">
+          <ShowAllButton v-model:expanded="allShown" :total="queue.waiting.length" />
+        </div>
+      </AppCard>
+    </template>
+    <InstalmentsCard v-for="card in instalments.past" :key="card.loan" :card="card" @open="emit('open', $event)" />
+    <ExtraPaymentsCard v-if="instalments.extraPayments.length > 0" :offers="instalments.extraPayments" />
+    <TransfersCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :pairs="queue.pairs" :lone-legs="queue.loneLegs" />
     <WaitingReceiptsCard v-if="receipts.length > 0 && !receiptsAsk" ref="receiptsBelow" :waiting="receipts" />
     <AppDialog v-model:open="ruleDialogOpen" changes :title="words.review.always" :description="askedRule === null ? undefined : `${ruleTestOf(askedRule.condition)} → ${askedRule.category.name}`">
       <p class="text-sm text-highlighted" data-testid="spending-rule-files">{{ plural(words.rules.files(rowsFiled), rowsFiled) }}</p>

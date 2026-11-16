@@ -42,9 +42,15 @@ export function writeDryRun(unit: UnitOfWork, records: EntryRecords, run: Pick<S
   run.receipts.forEach(({ receipt }) => unit.of(RECEIPT_WRITES).change(receipt.before, receipt.after))
 }
 
-/** The row's one item under the category you picked, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it. */
-export function fileRow(unit: UnitOfWork, records: EntryRecords, row: Transaction, category: Category): void {
-  writeRows(unit, records, [{ before: row, after: { ...row, categorisedBy: isTransferCategory(category) ? null : 'person' }, items: refiledItems(heldItemsOf(records)(row), category.id) }])
+/** Each row's items under the category you picked, in one write, which a rule change then leaves alone. A row under Between my accounts stays a lone leg, so a later statement can still pair it. */
+export function fileRows(unit: UnitOfWork, records: EntryRecords, rows: readonly Transaction[], category: Category): void {
+  const itemsOf = heldItemsOf(records)
+  const categorisedBy = isTransferCategory(category) ? null : 'person'
+  writeRows(
+    unit,
+    records,
+    rows.map((row): RowWrite => ({ before: row, after: { ...row, categorisedBy }, items: refiledItems(itemsOf(row), category.id) })),
+  )
 }
 
 /**

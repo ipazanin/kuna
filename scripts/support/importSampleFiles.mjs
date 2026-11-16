@@ -16,10 +16,12 @@ import {
 } from '../../src/apps/company/imports/infrastructure/fake/sampleImportFiles.ts'
 import {
   SAMPLE_LOAN_FILE_NAME,
+  SAMPLE_MANY_SHOPS_FILE_NAME,
   SAMPLE_MISSING_FILE_NAME,
   SAMPLE_REFUSED_FILE_NAME,
   SAMPLE_REVOLUT_FILE_NAME,
   sampleLoanCsv,
+  sampleManyShopsCsv,
   sampleMissingAccountsCsv,
   sampleRefusedCsv,
   sampleRevolutCsv,
@@ -61,7 +63,9 @@ export function writeSpendingImportSamples(folder) {
   writeFileSync(missing, sampleMissingAccountsCsv(SAMPLE_DAY))
   const loan = join(folder, SAMPLE_LOAN_FILE_NAME)
   writeFileSync(loan, sampleLoanCsv(SAMPLE_DAY))
-  return { revolut, refused, missing, loan }
+  const manyShops = join(folder, SAMPLE_MANY_SHOPS_FILE_NAME)
+  writeFileSync(manyShops, sampleManyShopsCsv(SAMPLE_DAY))
+  return { revolut, refused, missing, loan, manyShops }
 }
 
 /** Writes the made-up receipt photos of the day, each with a real QR code for the fake receipts set's payments, and one with no code. */

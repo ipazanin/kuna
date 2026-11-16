@@ -27,7 +27,7 @@ import { absAccountMoney } from '../../../../shared/money/accountMoney'
 import ListRow from '../../../../shared/ui/ListRow.vue'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 
-/** One row waiting for a category: picking one files it, the chat can be asked about it or given its receipt beside the picker, and what the file offers for it sits underneath. */
+/** One row waiting for a category: picking one files it, or a tap picks the row while rows are being selected, the chat can be asked about it or given its receipt beside the picker, and what the file offers for it sits underneath. */
 const props = defineProps<{
   waiting: WaitingRow
   categories: readonly Category[]
@@ -37,6 +37,8 @@ const props = defineProps<{
   /** An instalment in Loans this row may pay, which Link links it to. */
   offer: InstalmentOffer | null
   takesReceipt: boolean
+  /** Whether it is picked while rows are being selected, or null while its own controls file it. */
+  picked: boolean | null
   /** Whether the row's write of that kind is saving, so the button that started it spins. */
   saving: (action: ReviewAction) => boolean
 }>()
@@ -47,6 +49,7 @@ const emit = defineEmits<{
   pair: []
   link: []
   receipt: [entry: AskedElement]
+  pick: []
 }>()
 
 const accountOf = (id: string): Account | undefined => props.accounts.find((account) => account.id === id)
@@ -80,14 +83,14 @@ const transferLine = computed(() => {
   return words.review.maybeTransfer(accountOf(other.account)?.name ?? '')
 })
 
-function picked(id: string | undefined): void {
+function chose(id: string | undefined): void {
   const category = props.categories.find((candidate) => candidate.id === id)
   if (category !== undefined) emit('file', category)
 }
 </script>
 
 <template>
-  <ListRow :title="rowTitle(waiting.row)" :caption="rowCaption(waiting.row, account)" v-bind="marked" data-testid="spending-review-row">
+  <ListRow :title="rowTitle(waiting.row)" :caption="rowCaption(waiting.row, account)" :picked="picked" v-bind="marked" data-testid="spending-review-row" @pick="emit('pick')">
     <template #amount>
       <AccountMoneyText :cents="waiting.row.amount" :currency="currency" tone="flow" />
     </template>
@@ -99,7 +102,7 @@ function picked(id: string | undefined): void {
         :aria-label="words.review.pickCategory"
         class="min-w-0 flex-1 sm:w-72 sm:flex-none"
         data-testid="spending-review-category"
-        @update:model-value="picked"
+        @update:model-value="chose"
       />
       <AskChatButton :label="asked.label" icon-only class="shrink-0" data-testid="spending-review-row-ask" @ask="ask" />
       <ReceiptCameraButton :label="asked.label" :available="takesReceipt" testid="spending-review-row-receipt" class="shrink-0" @take="emit('receipt', asked)" />

@@ -9,6 +9,7 @@ export const SAMPLE_REVOLUT_FILE_NAME = 'account-statement-sample.csv'
 export const SAMPLE_REFUSED_FILE_NAME = 'account-statement-no-fee.csv'
 export const SAMPLE_MISSING_FILE_NAME = 'account-statement-gbp-chf.csv'
 export const SAMPLE_LOAN_FILE_NAME = 'account-statement-loan.csv'
+export const SAMPLE_MANY_SHOPS_FILE_NAME = 'account-statement-many-shops.csv'
 
 /** One row of the made-up export, `back` days before the day. */
 function row(day: CivilDate, back: number, type: string, description: string, amount: string, fee: string, currency: string, state: string, product = 'Current'): string[] {
@@ -40,6 +41,16 @@ export function sampleRevolutRows(day: CivilDate): string[][] {
     row(day, 0, 'CARD_PAYMENT', 'Waiting bakery', '-3.10', '0.00', 'EUR', 'PENDING'),
     row(day, 0, 'CARD_PAYMENT', 'Returned scarf', '-15.00', '0.00', 'EUR', 'REVERTED'),
   ]
+}
+
+/** A made-up export of twelve card payments at shops no rule or typed row knows, so all of them wait on review at once. */
+export function sampleManyShopsRows(day: CivilDate): string[][] {
+  const shops = ['Bike repair', 'Flower stall', 'Key cutter', 'Shoe mender', 'Toy shop', 'Paint shop', 'Garden centre', 'Tea house', 'Print shop', 'Music shop', 'Frame maker', 'Map shop']
+  return [HEADER, ...shops.map((shop, place) => row(day, 4, 'CARD_PAYMENT', shop, `-${place + 11}.40`, '0.00', 'EUR', 'COMPLETED'))]
+}
+
+export function sampleManyShopsCsv(day: CivilDate): string {
+  return csvOf(sampleManyShopsRows(day))
 }
 
 function csvOf(rows: readonly (readonly string[])[]): string {

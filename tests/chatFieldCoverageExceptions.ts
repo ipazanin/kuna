@@ -266,7 +266,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/labels/application/labelWrites.ts#labelRows',
       'src/apps/spending/events/application/eventWrites.ts#chooseEvent',
       'src/apps/spending/shortcuts/application/shortcutWrites.ts#moveShortcut',
-      'src/apps/spending/statements/application/statementWrites.ts#fileRow',
+      'src/apps/spending/statements/application/statementWrites.ts#fileRows',
       'src/apps/spending/statements/application/statementWrites.ts#joinWithTyped',
       'src/apps/spending/statements/application/statementWrites.ts#notAPair',
       'src/apps/spending/statements/application/statementWrites.ts#pairRows',

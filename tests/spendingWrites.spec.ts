@@ -11,7 +11,7 @@ import { newEntry, deleteComesBack, removeEntry, retypedEntry, transferOver, wri
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { answerHeldRow } from '../src/apps/spending/bankSync/application/heldRowWrites'
-import { fileRow, joinWithTyped, notAPair, pairRows, writeDryRun, writeRulesInto } from '../src/apps/spending/statements/application/statementWrites'
+import { fileRows, joinWithTyped, notAPair, pairRows, writeDryRun, writeRulesInto } from '../src/apps/spending/statements/application/statementWrites'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { codecOfSpendingKind } from '../src/apps/spending/workbook/application/spendingCodecs'
@@ -315,9 +315,25 @@ describe('a statement in the Spending file', () => {
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
     const [row] = store.state.workbook!.transactions
 
-    await store.write('Filed', (unit) => fileRow(unit, store.state.records!, row!, category('Personal/Clothes and shoes')))
+    await store.write('Filed', (unit) => fileRows(unit, store.state.records!, [row!], category('Personal/Clothes and shoes')))
 
     expect(filedRows(store.state.workbook!)).toMatchObject([{ amount: accountMoneyFromAmount(40), category: category('Personal/Clothes and shoes').id, categorisedBy: 'person' }])
+  })
+
+  it('files several waiting rows under one category in one write, which one Undo puts back whole', async () => {
+    const store = await spendingStore()
+    const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('City pharmacy', -12), rowOf('Shoe shop', -8)], notes: [] }, civil('2026-10-30'))
+    await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
+    const waiting = store.state.workbook!.transactions
+
+    const receipt = await store.write('Filed', (unit) => fileRows(unit, store.state.records!, waiting, category('Personal/Clothes and shoes')))
+
+    expect(filedRows(store.state.workbook!)).toMatchObject([
+      { category: category('Personal/Clothes and shoes').id, categorisedBy: 'person' },
+      { category: category('Personal/Clothes and shoes').id, categorisedBy: 'person' },
+    ])
+    await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
+    expect(filedRows(store.state.workbook!)).toMatchObject([{ category: null }, { category: null }])
   })
 
   it('says a deleted statement row comes back, and it does on the next overlapping export, while a typed row does not', async () => {

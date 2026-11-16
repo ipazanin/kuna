@@ -27,7 +27,7 @@ import type { TransactionSignals } from '../../../../shared/categorising/domain/
 import type { WriteSaving } from '../../../../shared/storage/presentation/useRecordWrites'
 import { words } from './words'
 
-/** One row waiting for review: what it is, what the rules say about it now, and what a person can do. */
+/** One row waiting for review: what it is, what the rules say about it now, and what a person can do, or a row to pick while rows are being selected, which a split row cannot be. */
 const props = defineProps<{
   transaction: Transaction
   /** What the rules on the tab would file it as today. */
@@ -39,6 +39,8 @@ const props = defineProps<{
   saving: WriteSaving
   /** True when the owner flagged the row's counterparty as a person. */
   personCounterparty: boolean
+  /** Whether it is picked while rows are being selected, or null while a tap opens it. */
+  picked: boolean | null
 }>()
 
 const emit = defineEmits<{
@@ -48,9 +50,12 @@ const emit = defineEmits<{
   makeRule: []
   split: []
   treatCounterparty: []
+  pick: []
 }>()
 
 const names = useDisplayNames()
+/** A button that opens the row, or a row to pick while rows are being selected. */
+const shape = computed(() => (props.picked === null ? { as: 'button' as const } : { as: 'div' as const, picked: props.picked, unpickable: props.split }))
 const rowSaving = computed(() => props.saving(`confirm-${props.transaction.id}`) || props.saving(`recategorise-${props.transaction.id}`))
 
 const SIGNAL_LABELS: Readonly<Record<keyof TransactionSignals, string>> = words.review.item.signals
@@ -79,7 +84,7 @@ function bucketOf(category: string): Bucket {
 
 const confirmable = computed(() => props.transaction.bucket !== UNCLASSIFIED)
 
-const picked = ref<string | undefined>(undefined)
+const chosenCategory = ref<string | undefined>(undefined)
 
 /** The row by its day and account, as its summary line reads, never by its counterparty or amount, so the chat tag names no payee. */
 const rowName = computed(() => `${dayLabel(props.transaction.date)}, ${names.value.account(props.transaction.account)}`)
@@ -96,13 +101,21 @@ function recategorise(category: string | undefined): void {
   if (category !== undefined && category !== '') {
     emit('recategorise', category)
   }
-  picked.value = undefined
+  chosenCategory.value = undefined
 }
 </script>
 
 <template>
   <li v-bind="marked" data-testid="review-row">
-    <ListRow as="button" :title="transaction.counterparty || words.noCounterparty" :class="{ 'bg-elevated': expanded }" :aria-expanded="expanded" @click="emit('toggle')">
+    <ListRow
+      v-bind="shape"
+      :title="transaction.counterparty || words.noCounterparty"
+      :caption="picked !== null && split ? words.review.item.splitNotPicked : ''"
+      :class="{ 'bg-elevated': expanded && picked === null }"
+      :aria-expanded="picked === null ? expanded : undefined"
+      @click="picked === null && emit('toggle')"
+      @pick="emit('pick')"
+    >
       <template #details>
         <span class="mt-1 flex flex-wrap items-center gap-1.5">
           <UIcon v-if="rowSaving" name="i-lucide-loader-circle" class="size-3.5 shrink-0 animate-spin text-muted" data-testid="review-row-saving" />
@@ -116,7 +129,7 @@ function recategorise(category: string | undefined): void {
       </template>
     </ListRow>
 
-    <div v-if="expanded" class="flex flex-col gap-3 bg-elevated px-4 pb-4 sm:px-5" data-testid="review-details">
+    <div v-if="expanded && picked === null" class="flex flex-col gap-3 bg-elevated px-4 pb-4 sm:px-5" data-testid="review-details">
       <p v-if="transaction.description" class="text-sm text-toned">{{ transaction.description }}</p>
 
       <FactGrid :facts="facts">
@@ -146,7 +159,7 @@ function recategorise(category: string | undefined): void {
           @click="emit('confirm')"
         />
         <CategoryPicker
-          v-model="picked"
+          v-model="chosenCategory"
           :categories="categories"
           :placeholder="words.review.item.recategorise"
           :loading="saving(`recategorise-${transaction.id}`)"

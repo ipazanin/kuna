@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
@@ -8,7 +9,17 @@ import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import MoneyText from '../../shared/ui/MoneyText.vue'
 import NoteLine from '../../shared/ui/NoteLine.vue'
 import ListRow from '../../shared/ui/ListRow.vue'
+import SelectionBar from '../../shared/ui/SelectionBar.vue'
 import GallerySection from './GallerySection.vue'
+
+const picked = ref<ReadonlySet<string>>(new Set(['pharmacy']))
+
+function pick(key: string): void {
+  const current = new Set(picked.value)
+  if (current.has(key)) current.delete(key)
+  else current.add(key)
+  picked.value = current
+}
 </script>
 
 <template>
@@ -81,6 +92,20 @@ import GallerySection from './GallerySection.vue'
           </li>
         </ul>
       </AppCard>
+      <AppCard title="Rows being picked">
+        <ul class="divide-y divide-default">
+          <ListRow title="City pharmacy" caption="3 Mar 2026 · Current account" :picked="picked.has('pharmacy')" @pick="pick('pharmacy')">
+            <template #amount><MoneyText :cents="moneyFromCents(-1_280)" tone="flow" /></template>
+            <UButton class="self-start" label="Hidden while picking" color="neutral" variant="outline" size="sm" />
+          </ListRow>
+          <ListRow title="Corner Market" caption="4 Mar 2026 · Current account" :picked="picked.has('market')" @pick="pick('market')">
+            <template #amount><MoneyText :cents="moneyFromCents(-4_530)" tone="flow" /></template>
+          </ListRow>
+          <ListRow title="Hardware store" caption="Split into parts, so each part is filed on its own" :picked="false" unpickable>
+            <template #amount><MoneyText :cents="moneyFromCents(-12_000)" tone="flow" /></template>
+          </ListRow>
+        </ul>
+      </AppCard>
       <AppCard title="Rows that open a page">
         <ul class="row-list flex flex-col py-2">
           <li class="border-t border-default first:border-t-0">
@@ -116,6 +141,25 @@ import GallerySection from './GallerySection.vue'
         </ul>
       </AppCard>
     </DashboardGrid>
+  </GallerySection>
+
+  <GallerySection
+    id="selection-bar"
+    title="SelectionBar"
+    description="The bar that stays in reach while rows are being picked: how many are picked, Pick all where the list offers it, the actions on the picked rows, and Cancel. It sticks under the top bar and the tab row, and on a phone Cancel is a cross so Pick all shares the count's line, while the other buttons wrap under it."
+  >
+    <AppCard as="div" class="flex flex-col">
+      <SelectionBar :count="picked.size" :all-picked="picked.size === 2" @pick-all="picked = new Set(['pharmacy', 'market'])" @cancel="picked = new Set()">
+        <UButton label="File under" color="neutral" variant="outline" trailing-icon="i-lucide-chevron-down" :disabled="picked.size === 0" />
+      </SelectionBar>
+      <p class="px-4 py-3 type-body sm:px-5">The rows above share these picks.</p>
+    </AppCard>
+    <AppCard as="div" class="flex flex-col">
+      <SelectionBar :count="1" @cancel="() => {}">
+        <UButton label="Label" color="neutral" variant="outline" />
+      </SelectionBar>
+      <p class="px-4 py-3 type-body sm:px-5">A list that offers no Pick all, as Entries.</p>
+    </AppCard>
   </GallerySection>
 
   <GallerySection

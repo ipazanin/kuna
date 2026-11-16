@@ -34,9 +34,7 @@ export const en = {
   labelling: {
     select: 'Select',
     selectHelp: 'Select entries to label or put in an event',
-    picked: (count: number): EnglishForms => ({ one: '1 picked', other: `${count} picked` }),
     label: 'Label',
-    cancel: 'Cancel',
     title: (entries: string) => `Label ${entries}`,
     description: 'A label sits beside the category and changes no figure of it. It goes on every part of each entry.',
     putOn: 'Put on',
@@ -156,9 +154,7 @@ export const hr: Translation<typeof en> = {
   labelling: {
     select: 'Odaberi',
     selectHelp: 'Odaberi unose za oznaku ili događaj',
-    picked: (count): CroatianForms => ({ one: `${count} odabran`, few: `${count} odabrana`, other: `${count} odabranih` }),
     label: 'Označi',
-    cancel: 'Odustani',
     title: (entries) => `Označi: ${entries}`,
     description: 'Oznaka stoji uz kategoriju i ne mijenja nijedan njezin iznos. Stavlja se na svaki dio svakog unosa.',
     putOn: 'Stavi',

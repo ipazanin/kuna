@@ -29,7 +29,7 @@ import { CROATIAN_TERM_LABELS } from '../../src/apps/company/packs/hr-doo/rulese
 import { fakeLoansDocument } from '../../src/apps/loans/workbook/infrastructure/fake/fakeLoans.ts'
 import { fakeAssetsDocument } from '../../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { starterCategories } from '../../src/apps/spending/categories/domain/starterCategories.ts'
-import { sampleMissingAccountsRows, sampleRevolutRows } from '../../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
+import { sampleManyShopsRows, sampleMissingAccountsRows, sampleRevolutRows } from '../../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles.ts'
 import { fakeBeforeItemsDocument, fakeSpendingDocument } from '../../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { fakeInvestmentsDocument } from '../../src/apps/investments/workbook/infrastructure/fake/fakeInvestments.ts'
 import { fakePricesFile } from '../../src/apps/investments/prices/infrastructure/fake/fakePrices.ts'
@@ -258,6 +258,7 @@ async function typedInFakeFiles() {
     ...sampleWorkbookGrid().flat().map(String),
     ...sampleRevolutRows(civilDate(2026, 10, 16)).flat(),
     ...sampleMissingAccountsRows(civilDate(2026, 10, 16)).flat(),
+    ...sampleManyShopsRows(civilDate(2026, 10, 16)).flat(),
   ]
     .map((text) => text.trim())
     .filter((text) => !SEEDED_IN_ENGLISH.has(text) && !/^\p{Ll}+$/u.test(text) && wordsOf(text).some((word) => ENGLISH_WORDS.has(word)))

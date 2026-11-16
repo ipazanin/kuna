@@ -35,7 +35,7 @@ import type { ItemDraft } from '../../entries/domain/entrySplit'
 import { refiledReceiptLines } from '../../receipts/domain/receiptLines'
 import { en as entriesEnglish } from '../../entries/presentation/words'
 import { words as linkWords } from '../../links/presentation/words'
-import { fileRow, importWithRules, writeRules } from '../../statements/application/statementWrites'
+import { fileRows, importWithRules, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, cardsOfText, rowsFromRefusal } from '../../workbook/domain/account'
@@ -736,7 +736,7 @@ function plannedSteps(
         if (isSplit(before.items) && (filedUnder !== null || field['note'] !== null))
           throw new StepRefused('That entry is split, so each part keeps its own category and note. split-entry changes them.')
         if (onlyFiled && filedUnder !== null && legs === null) {
-          fileRow(unit, records(), before.row, filedUnder)
+          fileRows(unit, records(), [before.row], filedUnder)
           break
         }
         const amount = field['amount'] === null ? before.row.amount : accountMoneyFromAmount(field['amount'])

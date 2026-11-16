@@ -12947,3 +12947,185 @@ export function spendingPayeeMemoryFlowIn(language) {
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
   }
 }
+
+/** Presses a pick box on the list row that names the text, while rows are being picked. */
+async function pickRowNamed(page, press, rows, text) {
+  const handle = await page.evaluateHandle(
+    (selector, wanted) => [...document.querySelectorAll(selector)].find((row) => row.textContent?.includes(wanted))?.querySelector('[data-testid="list-row-pick"]') ?? null,
+    rows,
+    text,
+  )
+  const box = handle.asElement()
+  if (box === null) throw new Error(`no row of ${text} to pick`)
+  await box.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await delay(150)
+  await press(box)
+}
+
+/** Opens the select under the selector, searches it for the text and presses the option that holds it, as a long list on a phone needs. */
+async function chooseBySearch(page, press, selector, text) {
+  await pressSelector(page, press, selector)
+  await page.waitForSelector('[role="listbox"]', { visible: true, timeout: 5_000 })
+  await page.keyboard.type(text)
+  await delay(300)
+  const option = await page
+    .waitForFunction((wanted) => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.includes(wanted)) ?? null, { timeout: 5_000 }, text)
+    .catch(() => {
+      throw new Error(`searching the select for ${text} offers nothing`)
+    })
+  await press(option.asElement())
+  await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+  await delay(200)
+}
+
+async function pickedCountIs(page, wanted, what) {
+  await page
+    .waitForFunction((count) => document.querySelectorAll('[data-testid="list-row-pick"][aria-checked="true"]').length === count, { timeout: 5_000 }, wanted)
+    .catch(() => {
+      throw new Error(`${what}: not ${wanted} rows picked`)
+    })
+}
+
+/**
+ * On To review with the statements set after twelve payments at unknown shops are imported: more rows wait than To review first shows,
+ * so Pick all opens Show all and picks every waiting row, not only the first ones in sight.
+ */
+export function spendingReviewPickAllFlowIn(language, paths) {
+  const words = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const ROW = '[data-testid="spending-review-row"]'
+    await dropSpendingFile(page, paths.manyShops)
+    await pressSelector(page, press, '[data-testid="spending-import-confirm"]')
+    await toast(page, words.spendingStatements.import.imported)
+    await dismissToasts(page)
+    await page.evaluate(() => {
+      window.location.hash = '#/spending/transactions?tab=review'
+    })
+    await page.waitForSelector('[data-testid="spending-review"] [data-testid="show-all"]', { visible: true, timeout: 10_000 }).catch(async () => {
+      throw new Error(`To review shows its ${await page.$$eval(ROW, (rows) => rows.length)} rows at once, so Pick all has nothing out of sight to pick`)
+    })
+    const firstShown = await page.$$eval(ROW, (rows) => rows.length)
+    await pressSelector(page, press, '[data-testid="spending-review-select"]')
+    await pressSelector(page, press, '[data-testid="selection-bar-pick-all"]')
+    await page
+      .waitForFunction(
+        (rows, before) => {
+          const shown = document.querySelectorAll(rows).length
+          return shown > before && document.querySelectorAll('[data-testid="list-row-pick"][aria-checked="true"]').length === shown
+        },
+        { timeout: 5_000 },
+        ROW,
+        firstShown,
+      )
+      .catch(() => {
+        throw new Error(`Pick all did not show and pick every waiting row beyond the first ${firstShown}`)
+      })
+    if (!(await page.$eval('[data-testid="selection-bar-pick-all"]', (button) => button.disabled))) throw new Error('Pick all stays on with every waiting row picked')
+    await inspect?.('To review with every waiting row picked')
+    await shoot('spending-review-select-all-many')
+    await pressSelector(page, press, '[data-testid="selection-bar-cancel"]')
+  }
+}
+
+/**
+ * On To review with the statements set: Select picks rows, Pick all picks every waiting row, and one City pharmacy row with
+ * Pick the same payee picks the other. Both are filed under Pharmacy in one write, and one Undo brings them back.
+ */
+export function spendingReviewSelectFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { review } = words.spendingStatements
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const ROW = '[data-testid="spending-review-row"]'
+    const pharmacyRows = () => page.$$eval(ROW, (rows) => rows.filter((row) => row.textContent?.includes('City pharmacy')).length)
+    await countOf(page, ROW, 6, 'the set should wait with six rows')
+    await pressSelector(page, press, '[data-testid="spending-review-select"]')
+    await page.waitForSelector('[data-testid="selection-bar"]', { visible: true, timeout: 10_000 })
+    await inspect?.('To review with nothing picked')
+    await shoot('spending-review-select-none')
+    await pressSelector(page, press, '[data-testid="selection-bar-pick-all"]')
+    await pickedCountIs(page, 6, 'Pick all')
+    await inspect?.('To review with every row picked')
+    await shoot('spending-review-select-all')
+    await pressSelector(page, press, '[data-testid="selection-bar-cancel"]')
+    await page.waitForFunction(() => !document.querySelector('[data-testid="selection-bar"]'), { timeout: 5_000 })
+    await pressSelector(page, press, '[data-testid="spending-review-select"]')
+    await pickRowNamed(page, press, ROW, 'City pharmacy')
+    await pickedCountIs(page, 1, 'one tap')
+    await page.waitForSelector('[data-testid="spending-review-same-payee"]', { visible: true, timeout: 5_000 }).catch(() => {
+      throw new Error(`a City pharmacy row picked does not offer ${review.pickSamePayee}`)
+    })
+    await inspect?.('To review with one City pharmacy row picked')
+    await shoot('spending-review-select-one')
+    await pressSelector(page, press, '[data-testid="spending-review-same-payee"]')
+    await pickedCountIs(page, 2, review.pickSamePayee)
+    await shoot('spending-review-select-payee')
+    await chooseBySearch(page, press, '[data-testid="spending-review-file-picked"]', words.spendingStarter.Pharmacy)
+    await toast(page, countedIn(words, review.filedUnder(2, words.spendingStarter.Pharmacy), 2))
+    if ((await page.$('[data-testid="selection-bar"]')) !== null) throw new Error('the selection stays after filing')
+    await countOf(page, ROW, 4, 'filing two rows should take them off review')
+    await inspect?.('To review after filing two rows')
+    await shoot('spending-review-select-filed')
+    await undoIn(page, press, words)
+    await countOf(page, ROW, 6, 'Undo should bring both rows back')
+    if ((await pharmacyRows()) !== 2) throw new Error('Undo did not bring both City pharmacy rows back')
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * On Company's To review: Select picks two queue rows, which file under one category in one write that SessionChanges lists with
+ * one Undo, then Pick all and Confirm as filed confirm every confirmable row in one write, which Undo takes back too.
+ */
+export function companyReviewSelectFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { review } = words.transactions
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const ROW = '[data-testid="review-row"]'
+    const queued = () => page.$$eval(ROW, (rows) => rows.length)
+    const before = await queued()
+    await pressSelector(page, press, '[data-testid="review-select"]')
+    await page.waitForSelector('[data-testid="selection-bar"]', { visible: true, timeout: 10_000 })
+    await inspect?.("Company's To review with nothing picked")
+    await shoot('company-review-select-none')
+    await pickRowNamed(page, press, ROW, 'GADGET CORNER')
+    await pickRowNamed(page, press, ROW, 'SNACK KIOSK')
+    await pickedCountIs(page, 2, 'two taps')
+    await inspect?.("Company's To review with two rows picked")
+    await shoot('company-review-select-two')
+    await chooseBySearch(page, press, '[data-testid="review-file-picked"]', 'equipment')
+    await toastMatching(page, /2/)
+    if ((await page.$('[data-testid="selection-bar"]')) !== null) throw new Error('the selection stays after filing')
+    await page
+      .waitForFunction((count) => document.querySelectorAll('[data-testid="review-row"]').length === count, { timeout: 10_000 }, before - 2)
+      .catch(() => {
+        throw new Error('filing two rows did not take them off the queue')
+      })
+    await inspect?.("Company's To review after filing two rows")
+    await shoot('company-review-select-filed')
+    await undoIn(page, press, words)
+    await page
+      .waitForFunction((count) => document.querySelectorAll('[data-testid="review-row"]').length === count, { timeout: 10_000 }, before)
+      .catch(() => {
+        throw new Error('Undo did not bring both rows back to the queue')
+      })
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="review-select"]')
+    await pressSelector(page, press, '[data-testid="selection-bar-pick-all"]')
+    const pickable = await page.$$eval('[data-testid="list-row-pick"]:not([disabled])', (boxes) => boxes.length)
+    await pickedCountIs(page, pickable, 'Pick all')
+    await inspect?.("Company's To review with every row picked")
+    await shoot('company-review-select-all')
+    const confirm = await page.$('[data-testid="review-confirm-picked"]')
+    if (await confirm.evaluate((button) => button.disabled)) throw new Error(`${review.confirmAsFiled(0).other} is off with every row picked`)
+    await press(confirm)
+    await toastMatching(page, /./)
+    if ((await page.$('[data-testid="selection-bar"]')) !== null) throw new Error('the selection stays after confirming')
+    await inspect?.("Company's To review after confirming every confirmable row")
+    await shoot('company-review-select-confirmed')
+    await undoIn(page, press, words)
+    await dismissToasts(page)
+  }
+}

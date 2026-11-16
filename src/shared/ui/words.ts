@@ -1,5 +1,5 @@
 import { language } from '../text/language'
-import type { Translation } from '../text/translation'
+import type { CroatianForms, EnglishForms, Translation } from '../text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. Buttons take the short imperative: Spremi, Poništi, Obriši.
 
@@ -11,6 +11,11 @@ export const en = {
     title: 'Getting set up',
     subtitle: 'What is still missing. Each line goes once it is done.',
     open: (line: string, link: string) => `${line}, open ${link}`,
+  },
+  selection: {
+    picked: (count: number): EnglishForms => ({ one: '1 picked', other: `${count} picked` }),
+    pickAll: 'Pick all',
+    cancel: 'Cancel',
   },
   showFewer: 'Show fewer',
   showAll: (total: number) => `Show all ${total}`,
@@ -81,6 +86,11 @@ export const hr: Translation<typeof en> = {
     title: 'Postavljanje',
     subtitle: 'Što još nedostaje. Svaki redak nestaje kad se obavi.',
     open: (line, link) => `${line}, otvorite: ${link}`,
+  },
+  selection: {
+    picked: (count): CroatianForms => ({ one: `${count} odabran`, few: `${count} odabrana`, other: `${count} odabranih` }),
+    pickAll: 'Odaberi sve',
+    cancel: 'Odustani',
   },
   showFewer: 'Prikaži manje',
   showAll: (total) => `Prikaži sve (${total})`,

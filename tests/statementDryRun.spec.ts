@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { changeRule, fileRow, rowsRuleWouldFile, writeDryRun, writeRulesInto, deleteRule } from '../src/apps/spending/statements/application/statementWrites'
+import { changeRule, fileRows, rowsRuleWouldFile, writeDryRun, writeRulesInto, deleteRule } from '../src/apps/spending/statements/application/statementWrites'
 import { payeeCondition } from '../src/apps/spending/workbook/domain/spendingRule'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { rulesRerun, spendingCategorisationContext } from '../src/apps/spending/statements/domain/spendingCategorisation'
@@ -553,7 +553,7 @@ describe('what To review and the import write', () => {
     const waiting = onFile(OTP, '2026-10-20', -1)
     const { unit, changed } = noting()
 
-    fileRow(unit, storedBeforeItems([waiting]), waiting, category('Food/Eating out'))
+    fileRows(unit, storedBeforeItems([waiting]), [waiting], category('Food/Eating out'))
 
     expect(changed).toEqual([[waiting, { ...waiting, category: category('Food/Eating out').id, categorisedBy: 'person' }]])
   })
@@ -562,7 +562,7 @@ describe('what To review and the import write', () => {
     const topUp = onFile(REVOLUT_EUR, '2026-10-20', 75, { categorisedBy: 'person' })
     const { unit, changed } = noting()
 
-    fileRow(unit, storedBeforeItems([topUp]), topUp, category('Between my accounts'))
+    fileRows(unit, storedBeforeItems([topUp]), [topUp], category('Between my accounts'))
     const filed = changed[0]![1] as StoredRow
     const run = filedDryRun(spendingBook([filed]), statementOf(statementRow(OTP, '2026-10-21', -75, 'To Revolut', { counterpartyIban: REVOLUT_EUR.iban })), DAY)
 
