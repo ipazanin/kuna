@@ -196,7 +196,9 @@ Mark: `confirmed-consolidated`.
 
 ## Owner benefit
 
-Kuna counts this as the owner's private share of company costs, in the owner-pay bucket. ZPDoh Art. 66(1) taxes a member's private use of the company's assets and services as capital income. ZPD Art. 7(1)(13) adds private costs back to the profit tax base, unless income tax was paid on them (Art. 7(2)).
+Kuna counts this as the owner's private share of company costs, in the owner-pay bucket. ZPDoh Art. 66(1) taxes a member's private use of the company's assets and services as capital income. ZPD Art. 7(1)(13) adds private costs back to the profit tax base, unless income tax was paid on them (Art. 7(2)). A cost a tax audit finds is added back even then (Art. 7(1)(12)).
+
+The tax is 36% of the value grossed up for the tax itself. PravPDoh Art. 70(12) says of capital income in kind that "vrijednost primitka u naravi (koji uključuje i možebitni porez na dodanu vrijednost) uvećava se za porez na dohodak". So the base is the value with VAT divided by 0.64, and the tax is 56.25% of that value: a private share of 100.00 with VAT carries 56.25 of tax. An Informator article of 14 November 2024 works an audit example with the same factor of 1.5625. Text read on 16 November 2026 in the Porezna uprava consolidation of the Pravilnik through NN 157/25. NN 16/25 and NN 157/25 do not touch Art. 70, and an NN title search of 16 November 2026 found no 2026 amendment through NN 131/26. `hr.pit.hidden-distribution` holds it as `confirmed-consolidated`.
 
 Mark: `reading`. Kuna adds nothing back for the private share and counts no tax on it. Whether that holds depends on the income tax being paid, so it is on the [watch list](../sources/watch-list.md#company-classes).
 
@@ -236,6 +238,8 @@ Mark: `confirmed-consolidated` for the split of goods and services. The reverse 
 ## Owner loan out
 
 Kuna counts this as a loan to the owner. The interest has to reach the related-party rate (ZPD Art. 14(3)), a rate below 2% is a benefit in kind (ZPDoh Art. 21(3)), and a sole member's deal with the company needs a written record (ZTD Art. 426(8)). Settings' loan switch shows loans in owner-pay or financing, so both are allowed.
+
+The benefit is the interest at 2% a year less the interest agreed (PravPDoh Art. 22(3) point 6). Like every benefit in kind of an employee, it is grossed up for the contributions and the income tax before the tax is worked out (Art. 22(4) and 23(3)): "vrijednost primitaka u naravi uvećava se za doprinose za obvezna osiguranja iz primitka, porez na dohodak". Kuna values the benefit and does not work out its tax. Text read on 16 November 2026 in the Porezna uprava consolidation of the Pravilnik through NN 157/25. NN 16/25 and NN 157/25 do not touch Art. 22 or 23. `hr.pit.loan-benefit` holds it as `confirmed-consolidated`.
 
 Mark: `confirmed-nn`.
 
@@ -321,6 +325,9 @@ Made-up figures, on the rules of 2026:
 - Porezna uprava, opinion on personal transport, 27 March 2018, https://porezna-uprava.gov.hr/Misljenja/Detaljno/2334, and opinion on benefits in kind and Fiskalizacija 1.0, 17 April 2026, https://porezna-uprava.gov.hr/Misljenja/Detaljno/2705, both loaded on 13 November 2026. Guidance, not law.
 - Zakon o porezu na dohodak (ZPDoh): Art. 9(1)(9), 19, 21(3), 24(3), 57(1), 62(1), 66(1), 69 and 70. https://www.zakon.hr/z/85/zakon-o-porezu-na-dohodak
 - Pravilnik o izmjenama i dopunama Pravilnika o porezu na dohodak, NN 16/25, Art. 2 replacing Art. 7(2). https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_148.html
+- Pravilnik o porezu na dohodak (PravPDoh), the Porezna uprava consolidation, NN 10/17 to 157/25: Art. 22(3) point 6, 22(4), 23(3) and 70(12). https://porezna-uprava.gov.hr/Propisi/GetBasicData/4, loaded on 16 November 2026. NN 16/25 (https://narodne-novine.nn.hr/clanci/sluzbeni/2025_01_16_148.html) and NN 157/25 (https://narodne-novine.nn.hr/clanci/sluzbeni/2025_12_157_2365.html) were read in NN and touch none of these articles.
+- Zakon o porezu na dobit (ZPD), consolidated, the database "ažurirana 08.11.2026. zaključno sa NN 128/26": Art. 7(1)(12), 7(1)(13) and 7(2). Reloaded on 16 November 2026.
+- Informator, "Izuzimanja ili skrivene isplate dobiti s poreznog gledišta", 14 November 2024, example 3. https://www.informator.hr/strucni-clanci/izuzimanja-ili-skrivene-isplate-dobiti-s-poreznog-gledista, loaded on 16 November 2026. Secondary.
 - Zakon o doprinosima (ZDop): Art. 13(1) and 14(1)(1), as the ruleset cites them.
 - Zakon o trgovačkim društvima (ZTD): Art. 406(1) and 426(8), as the ruleset cites them.
 - Zakon o računovodstvu (ZoR) Art. 15, and the HSFI as the ruleset cites them.

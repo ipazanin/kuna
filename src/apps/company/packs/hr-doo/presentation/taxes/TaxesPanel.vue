@@ -9,7 +9,7 @@ import { dayLabel } from '../../../../../../shared/calendar/dayLabel'
 import type { LedgerWindow } from '../../../../../../shared/calendar/ledgerWindow'
 import { monthLabel } from '../../../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../../../shared/charts/chartTokens'
-import { sumMoney } from '../../../../../../shared/money/money'
+import { negateMoney, sumMoney } from '../../../../../../shared/money/money'
 import { formatMoney } from '../../../../../../shared/money/moneyFormat'
 import AppCard from '../../../../../../shared/ui/AppCard.vue'
 import ChartLegend from '../../../../../../shared/ui/ChartLegend.vue'
@@ -175,7 +175,7 @@ const corporateTax = computed(() => {
     return {
       state: 'ready' as const,
       overdue: { count: overdue.length, outstanding: sumMoney(overdue.map((entry) => entry.outstanding)) },
-      unmatched: cit.unmatched.map((figure, index) => ({ key: `${index}`, label: figureLabel(figure), cents: figure.amount, to: linkOf(figure) })),
+      unmatched: cit.unmatched.map((figure, index) => ({ key: `${index}`, label: figureLabel(figure), cents: negateMoney(figure.amount), to: linkOf(figure) })),
       years: taxYears.map((taxYear) => {
         const entries = cit.history.filter((entry) => entry.obligation.taxYear === taxYear)
         return {
@@ -247,7 +247,7 @@ const overdue = computed(() => corporateTax.value.state === 'ready' && corporate
               <ul class="flex flex-col">
                 <li v-for="payment in corporateTax.unmatched" :key="payment.key" class="flex items-baseline justify-between gap-3">
                   <DrillLink :to="payment.to" :label="words.corporate.openRow(payment.label)" class="min-w-0 truncate">{{ payment.label }}</DrillLink>
-                  <MoneyText :cents="payment.cents" sign="always" />
+                  <MoneyText :cents="payment.cents" tone="flow" />
                 </li>
               </ul>
             </div>

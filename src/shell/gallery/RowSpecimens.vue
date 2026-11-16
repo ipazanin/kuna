@@ -121,7 +121,7 @@ import GallerySection from './GallerySection.vue'
   <GallerySection
     id="note-line"
     title="NoteLine"
-    description="An icon and a short line of words in a tone that picks its icon. A caption takes the tone in its words too, and body size only in its icon. Inline, it flows on inside a sentence or a cell. A tone icon before words is always one."
+    description="An icon and a short line of words in a tone that picks its icon. A caption takes the tone in its words too, and body size only in its icon. In inherit size it keeps the size and ink of where it sits, as a figure beside other figures. Inline, it flows on inside a sentence or a cell. A tone icon before words is always one."
   >
     <AppCard as="div" class="flex flex-col gap-2 p-4 sm:p-5">
       <NoteLine tone="warning">This settles in the next tax year.</NoteLine>
@@ -134,6 +134,10 @@ import GallerySection from './GallerySection.vue'
         >A long note wraps under its own first word rather than under the icon, so a reason that runs over several lines on a phone still reads as one line with its mark.</NoteLine
       >
       <NoteLine size="body" tone="warning">The tax is an estimate until every rate of the year is known. In body size the words keep body ink and only the icon takes the tone.</NoteLine>
+      <p class="flex gap-4 text-sm">
+        <MoneyText :cents="moneyFromCents(412_000)" />
+        <NoteLine as="span" size="inherit" inline tone="warning"><MoneyText :cents="moneyFromCents(-1_250)" sign="always" /></NoteLine>
+      </p>
       <p class="type-caption">
         A sentence with a flag in it
         <NoteLine as="span" tone="warning" inline class="ms-1 font-medium">differs</NoteLine>

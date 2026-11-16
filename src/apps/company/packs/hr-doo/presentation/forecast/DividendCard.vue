@@ -74,7 +74,8 @@ const payoutChoices = computed(() => props.payouts.map((entry) => ({ value: entr
             <dt>{{ figure.label }}</dt>
             <dd>
               <DrillLink :to="figure.to" :label="packWords.figure.openRows(figure.label)">
-                <MoneyText :cents="figure.cents" :class="{ 'text-error': figure.key === 'cash-left' && figure.cents < 0 }" />
+                <MoneyText v-if="figure.key === 'cash-left'" :cents="figure.cents" tone="balance" />
+                <MoneyText v-else :cents="figure.cents" />
               </DrillLink>
             </dd>
           </div>

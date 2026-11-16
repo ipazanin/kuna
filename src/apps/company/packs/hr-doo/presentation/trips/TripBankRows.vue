@@ -203,8 +203,8 @@ async function fileRows(): Promise<void> {
           }}</span>
         </template>
         <template v-if="line.linked || line.found || line.amount !== null" #amount>
-          <MoneyText v-if="line.linked" :cents="line.linked.amount" sign="magnitude" />
-          <MoneyText v-else-if="line.found" :cents="line.found.amount" sign="magnitude" class="text-muted" />
+          <MoneyText v-if="line.linked" :cents="line.linked.amount" tone="flow" />
+          <MoneyText v-else-if="line.found" :cents="line.found.amount" tone="flow" />
           <MoneyText v-else-if="line.amount !== null" :cents="line.amount" sign="magnitude" class="text-muted" />
         </template>
         <UButton
@@ -267,15 +267,15 @@ async function fileRows(): Promise<void> {
                 {{ row.label }}
                 <NoteLine v-if="row.filed" as="span" tone="success" inline class="ms-2 font-normal">{{ said.filedRow }}</NoteLine>
               </th>
-              <td class="text-end"><MoneyText :cents="row.row.amount" sign="magnitude" class="text-muted" /></td>
+              <td class="text-end"><MoneyText :cents="row.row.amount" tone="flow" /></td>
             </tr>
             <tr v-for="part in row.parts" :key="part.category">
               <th scope="row" class="cell-wraps text-start font-normal text-toned">{{ part.name }}</th>
-              <td class="text-end"><MoneyText :cents="part.amount" sign="magnitude" /></td>
+              <td class="text-end"><MoneyText :cents="part.amount" tone="flow" /></td>
             </tr>
             <tr v-for="part in row.outside" :key="part.key" data-testid="trip-bank-outside">
               <th scope="row" class="cell-wraps text-start font-normal text-toned">{{ part.name }}</th>
-              <td class="text-end"><MoneyText :cents="part.amount" sign="magnitude" /></td>
+              <td class="text-end"><MoneyText :cents="part.amount" tone="flow" /></td>
             </tr>
           </tbody>
         </FigureTable>

@@ -37,6 +37,7 @@ export interface GrantComparisonLine {
 
 <script setup lang="ts">
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
@@ -114,7 +115,9 @@ defineProps<{
             </div>
             <div>
               <dt>{{ words.grants.residual }}</dt>
-              <dd :class="line.residual === 0 ? 'text-success' : 'text-warning'"><MoneyText :cents="line.residual" sign="always" /></dd>
+              <dd>
+                <NoteLine as="span" size="inherit" inline :tone="line.residual === 0 ? 'success' : 'warning'"><MoneyText :cents="line.residual" sign="always" /></NoteLine>
+              </dd>
             </div>
           </dl>
         </li>

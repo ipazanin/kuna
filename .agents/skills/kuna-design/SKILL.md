@@ -48,6 +48,7 @@ Every amount takes one of three looks by the kind of figure it is.
 | Ink, full red below zero | A standing, red only below zero | `balance` | An account's balance, an account below zero, a limit gone over                       |
 
 - Two depths only. The depth follows the kind of figure, never its size. Tiles and cells that step by size, such as the holdings map and the monthly returns, keep their own scale.
+- A change between two cases stays in ink with `sign="always"`, as the profit lines of Company's doubled rates do. A lower profit tax there is a saving, not a loss, so a tone would read it the wrong way.
 - The soft depth is the full tone at its OKLCH lightness with 60% of its chroma, so both depths pass 4.5:1 on the card in both themes. `tests/tokenContrast.spec.ts` checks the contrast and the lightness.
 - One token per depth and direction in each theme: `--tone-positive` and `--tone-negative` for the full depth, `--tone-positive-soft` and `--tone-negative-soft` for the soft one. `moneyToneClass` in `src/shared/ui/moneyTone.ts` is the only place that colours an amount.
 - A toned amount always shows its sign, so colour is never the only cue. A balance shows a minus below zero.

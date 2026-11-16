@@ -36,6 +36,7 @@ import UIcon from '@nuxt/ui/components/Icon.vue'
 import { roomAtLeast } from '../../../../../../shared/layout/pageRoom'
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 import LineBuildUp from './LineBuildUp.vue'
 import StatusBadge from './StatusBadge.vue'
 import { words as packWords } from '../words'
@@ -114,8 +115,9 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
         </div>
         <div>
           <dt>{{ words.comparison.residual }}</dt>
-          <dd :class="row.residual === 0 ? 'text-success' : row.residual === null ? '' : 'text-warning'">
-            <MoneyText v-if="row.residual !== null" :cents="row.residual" sign="always" /><span v-else class="text-muted">–</span>
+          <dd>
+            <NoteLine v-if="row.residual !== null" as="span" size="inherit" inline :tone="row.residual === 0 ? 'success' : 'warning'"><MoneyText :cents="row.residual" sign="always" /></NoteLine
+            ><span v-else class="text-muted">–</span>
           </dd>
         </div>
       </dl>
@@ -199,8 +201,9 @@ function isMoney(value: ShownValue): value is { readonly cents: Money } {
               </ul>
               <span v-else class="text-muted">–</span>
             </td>
-            <td class="text-end" :class="row.residual === 0 ? 'text-success' : row.residual === null ? '' : 'text-warning'">
-              <MoneyText v-if="row.residual !== null" :cents="row.residual" sign="always" /><span v-else class="text-muted">–</span>
+            <td class="text-end">
+              <NoteLine v-if="row.residual !== null" as="span" size="inherit" inline :tone="row.residual === 0 ? 'success' : 'warning'"><MoneyText :cents="row.residual" sign="always" /></NoteLine
+              ><span v-else class="text-muted">–</span>
             </td>
             <td><StatusBadge :status="row.status" /></td>
           </tr>

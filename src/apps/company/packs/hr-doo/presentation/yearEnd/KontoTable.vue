@@ -14,6 +14,7 @@ export interface KontoGroupView {
 <script setup lang="ts">
 import DrillLink from '../../../../../../shared/ui/DrillLink.vue'
 import MoneyText from '../../../../../../shared/ui/MoneyText.vue'
+import NoteLine from '../../../../../../shared/ui/NoteLine.vue'
 import { words as packWords } from '../words'
 import { words } from './words'
 import type { Money } from '../../../../../../shared/money/money'
@@ -52,9 +53,9 @@ defineProps<{
           <dd><MoneyText :cents="category.cents" /></dd>
         </div>
       </dl>
-      <p class="konto-difference" :class="group.difference === 0 ? 'text-success' : 'text-warning'">
+      <p class="konto-difference">
         <span class="text-xs text-muted sm:hidden">{{ words.konto.differenceLabel }}</span
-        ><MoneyText :cents="group.difference" sign="always" />
+        ><NoteLine as="span" size="inherit" inline :tone="group.difference === 0 ? 'success' : 'warning'"><MoneyText :cents="group.difference" sign="always" /></NoteLine>
       </p>
     </li>
     <li v-if="unnamed.length > 0" class="konto-group">

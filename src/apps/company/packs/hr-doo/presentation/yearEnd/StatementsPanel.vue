@@ -72,7 +72,7 @@ const newLine = () => ({ year: String(props.year), statement: 'pl' })
               <div class="recorded-check">
                 <StatusBadge :status="view.distribution.residual === 0 ? 'matched' : 'open'" />
                 <span class="text-xs text-muted">
-                  {{ words.statements.ourProfit }}<MoneyText :cents="view.distribution.profitAfterTax" /><template v-if="view.distribution.residual !== 0"
+                  {{ words.statements.ourProfit }}<MoneyText :cents="view.distribution.profitAfterTax" tone="outcome" /><template v-if="view.distribution.residual !== 0"
                     >{{ words.statements.residualOf }}<MoneyText :cents="view.distribution.residual" sign="always"
                   /></template>
                 </span>

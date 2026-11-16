@@ -43,8 +43,8 @@ const rules: readonly GeneralRule[] = RULES
 const RULE_ID_PATTERN = /^hr\.[a-z]+(\.[a-z0-9]+(-[a-z0-9]+)*)?$/
 const NN_ISSUE_PATTERN = /^(\d{1,3})\/(\d{2})$/
 
-/** An income tax or contribution rule may cite ZPD only for the corporate tax rate or the add-back of private costs. */
-const ZPD_CROSS_REFERENCES = new Set(['28', '7(1)(13)'])
+/** An income tax or contribution rule may cite ZPD only for the corporate tax rate, the add-back of private costs, or the exception that drops that add-back once the income tax on them is paid. */
+const ZPD_CROSS_REFERENCES = new Set(['28', '7(1)(13)', '7(2)'])
 
 const exampleSource: LegalSource = {
   act: 'ZPD',
@@ -534,6 +534,14 @@ describe('the values derived from other values', () => {
     expect([codes.value.model.text, codes.value.vatCode.text, codes.value.profitTaxCode.text, codes.value.pensionPillarOneCode.text]).toEqual(['HR68', '1201', '1651', '8168'])
     expect(ruleValue('hr.state.revenue-codes', day('2027-06-01')).version).toBe(codes.version)
     expect(() => ruleValue('hr.state.revenue-codes', day('2025-12-31'))).toThrow(RangeError)
+  })
+
+  it('keeps a hidden distribution deductible when its income tax is paid, as the profit tax add-back says, on every day', () => {
+    const days = [day('2025-01-01'), day('2026-06-30'), day('2027-06-01')]
+
+    expect(days.map((on) => ruleValue('hr.pit.hidden-distribution', on).value.deductibleWhenTaxPaid.holds)).toEqual(
+      days.map((on) => ruleValue('hr.cit.private-cost-add-back', on).value.noAddBackWhenIncomeTaxPaid.holds),
+    )
   })
 
   it('names the depreciation groups the way the assets tab does', () => {

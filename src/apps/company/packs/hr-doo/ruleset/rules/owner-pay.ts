@@ -169,7 +169,8 @@ export interface OwnerPayValues {
   'hr.pit.hidden-distribution': {
     readonly withholdingRate: RateTerm
     readonly withheldBy: TextTerm
-    readonly costDeductibleForCompany: FlagTerm
+    /** The company keeps the cost as a deduction when the income tax on it is paid, unless a tax audit finds it. */
+    readonly deductibleWhenTaxPaid: FlagTerm
   }
   'hr.minwage': {
     readonly monthlyGrossAmount: MoneyTerm
@@ -324,10 +325,12 @@ const localRates2026 = localRatesVersionData('2026-01-01')
 
 const PRAVPDOH_PROPISI_URL = 'https://porezna-uprava.gov.hr/Propisi/GetBasicData/4'
 
-/** The chain of the Porezna uprava consolidation the trip paragraphs were read in. */
+/** The chain of the Porezna uprava consolidation the trip and benefit in kind paragraphs were read in. */
 const PRAVPDOH_CONSOLIDATED_NN = ['10/17', '128/17', '106/18', '1/19', '80/19', '1/20', '74/20', '1/21', '102/22', '112/22', '156/22', '1/23', '56/23', '143/23', '16/25', '157/25']
 
 const TRIP_LAW_LOADED_ON = day('2026-11-10')
+
+const BENEFIT_LAW_LOADED_ON = day('2026-11-16')
 
 function tripParagraphSource(article: string, quote: string): LegalSource {
   return { act: 'PravPDoh', nn: PRAVPDOH_CONSOLIDATED_NN, article, url: PRAVPDOH_PROPISI_URL, loadedOn: TRIP_LAW_LOADED_ON, quote }
@@ -1040,9 +1043,25 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
             loadedOn: LOADED_ON,
             quote: 'Primitkom po osnovi povoljnijih kamata smatra se razlika između ugovorene niže i stope kamate od 2% godišnje',
           },
+          {
+            act: 'PravPDoh',
+            nn: PRAVPDOH_CONSOLIDATED_NN,
+            article: '22(3)(6)',
+            url: PRAVPDOH_PROPISI_URL,
+            loadedOn: BENEFIT_LAW_LOADED_ON,
+            quote: 'na razliku između kamata obračunanih primjenom stope kamate od 2% godišnje i ugovorenih nižih kamata',
+          },
+          {
+            act: 'PravPDoh',
+            nn: PRAVPDOH_CONSOLIDATED_NN,
+            article: '22(4), 23(3)',
+            url: PRAVPDOH_PROPISI_URL,
+            loadedOn: BENEFIT_LAW_LOADED_ON,
+            quote: 'vrijednost primitaka u naravi uvećava se za doprinose za obvezna osiguranja iz primitka, porez na dohodak',
+          },
         ],
         confidence: 'confirmed-consolidated',
-        note: 'A loan to an employee at less than 2% a year gives a benefit in kind equal to the difference to 2%. Whether the benefit is grossed up is unconfirmed. 2027 is assumed, with no enacted change found through NN 109/26.',
+        note: 'A loan to an employee at less than 2% a year gives a benefit in kind equal to the interest at 2% less the interest agreed. Like every benefit in kind, it is grossed up for the contributions and the income tax before the tax is worked out. Kuna values the benefit and does not yet work out its tax. 2027 is assumed, with no enacted change found through NN 131/26.',
       },
     ],
   },
@@ -1103,15 +1122,31 @@ export const ownerPayRules: readonly RuleIn<OwnerPayValues>[] = [
         value: {
           withholdingRate: basisPoints(3600),
           withheldBy: text('profit-tax-return-filing-date'),
-          costDeductibleForCompany: flag(false),
+          deductibleWhenTaxPaid: flag(true),
         },
         sources: [
           zpdohSource('66(1)'),
           { act: 'ZPDoh', nn: ['115/16', '114/23'], article: '70(2), 70(3)', url: ZPDOH_URL, loadedOn: LOADED_ON },
-          { act: 'ZPD', nn: ACTS.ZPD.nn, article: '7(1)(13)', url: ZPD_URL, loadedOn: LOADED_ON },
+          {
+            act: 'PravPDoh',
+            nn: PRAVPDOH_CONSOLIDATED_NN,
+            article: '70(12)',
+            url: PRAVPDOH_PROPISI_URL,
+            loadedOn: BENEFIT_LAW_LOADED_ON,
+            quote: 'vrijednost primitka u naravi (koji uključuje i možebitni porez na dodanu vrijednost) uvećava se za porez na dohodak',
+          },
+          { act: 'ZPD', nn: ACTS.ZPD.nn, article: '7(1)(13)', url: ZPD_URL, loadedOn: BENEFIT_LAW_LOADED_ON },
+          {
+            act: 'ZPD',
+            nn: ACTS.ZPD.nn,
+            article: '7(2)',
+            url: ZPD_URL,
+            loadedOn: BENEFIT_LAW_LOADED_ON,
+            quote: 'osim za rashode iz točke 9. i 12. toga stavka, ne povećava se porezna osnovica kada se sukladno Zakonu o porezu na dohodak obračunava i plaća porez na dohodak',
+          },
         ],
         confidence: 'confirmed-consolidated',
-        note: 'Private use of company assets or services by a member is capital income taxed at 36%, withheld by the time the profit tax return is filed. The cost is not deductible for the company. Whether the 36% is withheld from the value or paid on top is unconfirmed. 2027 is assumed, with no enacted change found through NN 109/26.',
+        note: 'Private use of company assets or services by a member is capital income taxed at 36%, withheld by the time the profit tax return is filed. The value, VAT included, is increased by the tax, so the tax is 36% of the value divided by 0.64, which is 56.25% of the value. The cost stays deductible for the company when the tax is paid, unless a tax audit finds it, as hr.cit.private-cost-add-back says. 2027 is assumed, with no enacted change found through NN 131/26.',
       },
     ],
   },
