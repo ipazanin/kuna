@@ -257,6 +257,24 @@ const GALLERY_LAYOUTS = [
   { value: 'hidden', label: 'Hidden', icon: 'i-lucide-panel-left-dashed' },
 ] as const
 const galleryLayout = ref<(typeof GALLERY_LAYOUTS)[number]['value']>('expanded')
+const GALLERY_SHADES = [
+  { value: 'pale', label: 'Pale', icon: 'i-lucide-sun' },
+  { value: 'deep', label: 'Deep', icon: 'i-lucide-moon' },
+] as const
+const GALLERY_SIZES = [
+  { value: 'small', label: 'Small' },
+  { value: 'large', label: 'Large', description: 'Loads the page again' },
+] as const
+const galleryShade = ref<(typeof GALLERY_SHADES)[number]['value']>('pale')
+const gallerySize = ref<(typeof GALLERY_SIZES)[number]['value']>('small')
+const galleryGroups = computed(() => [
+  { label: 'Shade', choices: GALLERY_SHADES, picked: galleryShade.value },
+  { label: 'Size', choices: GALLERY_SIZES, picked: gallerySize.value },
+])
+function pickGalleryLook(value: (typeof GALLERY_SHADES)[number]['value'] | (typeof GALLERY_SIZES)[number]['value']): void {
+  if (value === 'pale' || value === 'deep') galleryShade.value = value
+  else gallerySize.value = value
+}
 const GALLERY_RANGES: readonly ChartRange[] = ['1y', '3y', 'next-5y', 'all']
 const galleryRange = ref<ChartRange>('all')
 const GALLERY_CHIPS = ['EXQ', 'Category: Software subscriptions', 'Counterparty: A supplier whose name runs far past the width of a chip']
@@ -918,7 +936,10 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
             <span class="identifier">{{ galleryPeriod }}</span>
           </div>
         </AppCard>
-        <AppCard title="MenuButton" subtitle="One button for a few ways to do one thing, or for a setting with one choice in force, which the menu checks. The icon look names itself in a tooltip.">
+        <AppCard
+          title="MenuButton"
+          subtitle="One button for a few ways to do one thing, or for a setting with one choice in force, which the menu checks. Groups put several settings in one menu, each under its label with one checked. The icon look names itself in a tooltip."
+        >
           <div class="flex flex-wrap items-center gap-3 px-4 pt-3 pb-4 sm:px-5">
             <MenuButton label="Add a receipt" icon="i-lucide-receipt" :choices="GALLERY_RECEIPT_WAYS" data-testid="gallery-menu-button" @pick="galleryReceiptWay = $event" />
             <span class="identifier">{{ galleryReceiptWay ?? 'Nothing picked yet' }}</span>
@@ -932,6 +953,15 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
               @pick="galleryLayout = $event"
             />
             <span class="identifier">{{ galleryLayout }}</span>
+            <MenuButton
+              :label="`Look: ${galleryShade}, ${gallerySize}`"
+              :icon="galleryShade === 'pale' ? 'i-lucide-sun' : 'i-lucide-moon'"
+              look="icon"
+              :groups="galleryGroups"
+              data-testid="gallery-menu-button-groups"
+              @pick="pickGalleryLook"
+            />
+            <span class="identifier">{{ galleryShade }}, {{ gallerySize }}</span>
           </div>
         </AppCard>
         <AppCard title="RemovableChip" subtitle="Names something picked, such as a filter or a ticker to compare with. A press anywhere on it removes it.">

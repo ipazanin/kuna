@@ -19,6 +19,8 @@ export const en = {
     one: `1 row of ${account} left out, since its day or amount cannot be read.`,
     other: `${count} rows of ${account} left out, since their day or amount cannot be read.`,
   }),
+  /** A linked account Kuna does not keep, by its bank, its currency where it has one, and the end of its number, never the whole IBAN. */
+  linkedAccount: (bank: string, currency: string, ending: string) => [bank, currency, ending === '' ? '' : `ending ${ending}`].filter((part) => part !== '').join(' '),
   balanceNotRead: (accounts: string, reason: string) => `The balance of ${accounts} was not checked, since the bank did not give it: ${reason}`,
   sameAccountTwice: (bank: string, account: string) => `${bank} has more than one account that fits ${account}, so none of them was read.`,
   didNotAnswer: (reason: string) => `The bank sync script did not answer: ${reason}`,
@@ -53,6 +55,7 @@ export const hr: Translation<typeof en> = {
     few: `Izostavljeno redaka računa ${account} kojima se ne mogu pročitati dan ili iznos: ${count}.`,
     other: `Izostavljeno redaka računa ${account} kojima se ne mogu pročitati dan ili iznos: ${count}.`,
   }),
+  linkedAccount: (bank, currency, ending) => [bank, currency, ending === '' ? '' : `koji završava na ${ending}`].filter((part) => part !== '').join(' '),
   balanceNotRead: (accounts, reason) => `Stanje računa ${accounts} nije provjereno jer ga banka nije dala: ${reason}`,
   sameAccountTwice: (bank, account) => `${bank} ima više računa koji odgovaraju računu ${account}, pa nijedan nije pročitan.`,
   didNotAnswer: (reason) => `Skripta za sinkronizaciju s bankom nije odgovorila: ${reason}`,

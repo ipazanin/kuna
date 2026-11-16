@@ -373,7 +373,7 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     from: ['condition', 'category', 'withdrawal'],
     operations: [{ name: 'change-rule', renames: { cashAccount: 'cash_account' } }],
   },
-  { path: 'kuna: src/shared/text/language.ts#chooseLanguage', from: ['choice'], operations: [{ name: 'set-language', renames: { choice: 'language' } }] },
+  { path: 'src/shell/ui/switchLanguage.ts#switchLanguage', from: ['choice'], operations: [{ name: 'set-language', renames: { choice: 'language' } }] },
   { path: 'kuna: src/shared/theme/theme.ts#chooseTheme', from: ['choice'], operations: [{ name: 'set-theme', renames: { choice: 'theme' } }] },
   { path: 'kuna: src/shared/sync/infrastructure/autoSyncSwitch.ts#switchAutoSync', from: ['on'], operations: [{ name: 'switch-auto-sync', renames: { on: 'auto' } }] },
   { path: 'kuna: src/shared/ai/presentation/chatDock.ts#resizeChat', from: ['px'], operations: [{ name: 'set-chat-width', renames: { px: 'width' } }] },

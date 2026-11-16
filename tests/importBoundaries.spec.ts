@@ -544,7 +544,6 @@ describe('import boundaries', () => {
       ).toEqual([])
       const handedIn = [
         'src/shared/ai/presentation/chatDock.ts',
-        'src/shared/ai/presentation/chatSession.ts',
         'src/shared/app/kunaStart.ts',
         'src/shared/layout/viewport.ts',
         'src/shared/sync/infrastructure/autoSyncSwitch.ts',
@@ -554,6 +553,7 @@ describe('import boundaries', () => {
         'src/shared/ui/cardCollapse.ts',
         'src/shell/routing/appRegistry.ts',
         'src/shell/ui/sidebarLayout.ts',
+        'src/shell/ui/switchLanguage.ts',
         'src/shell/assistant/kunaOperations.ts',
         'src/shell/assistant/words.ts',
       ]

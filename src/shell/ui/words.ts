@@ -26,6 +26,16 @@ export const en = {
       'chat-beside-page': 'The chat moves beside the page',
     },
   },
+  themeAndLanguage: {
+    name: (theme: string, language: string) => `Theme and language: ${theme}, ${language}`,
+    theme: 'Theme',
+    language: 'Language',
+    themes: { system: 'System', light: 'Light', dark: 'Dark' },
+    /** Each language is named in itself, so it reads the same whichever language is on screen. */
+    languages: { browser: 'Browser language', en: 'English', hr: 'Hrvatski' },
+    followsDevice: "Follows this device's setting",
+    reloads: 'A new language loads Kuna again',
+  },
   quickJump: {
     title: 'Jump to a page',
     placeholder: 'Search pages',
@@ -66,6 +76,15 @@ export const hr: Translation<typeof en> = {
       'chat-takes-page': 'Razgovor prelazi na mjesto stranice',
       'chat-beside-page': 'Razgovor prelazi uz stranicu',
     },
+  },
+  themeAndLanguage: {
+    name: (theme, language) => `Tema i jezik: ${theme}, ${language}`,
+    theme: 'Tema',
+    language: 'Jezik',
+    themes: { system: 'Sustav', light: 'Svijetla', dark: 'Tamna' },
+    languages: { browser: 'Jezik preglednika', en: 'English', hr: 'Hrvatski' },
+    followsDevice: 'Prati postavku ovog uređaja',
+    reloads: 'Novi jezik ponovno učita Kunu',
   },
   quickJump: {
     title: 'Idi na stranicu',

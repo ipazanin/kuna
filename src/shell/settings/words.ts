@@ -6,22 +6,11 @@ import type { Translation } from '../../shared/text/translation'
 export const en = {
   menu: 'Kuna settings',
   description:
-    "Sync, the assistant with its Always allow and Anonymise switches for each AI company, look and language on this device, for every app. Where an app keeps its books is on that app's Settings.",
-  language: {
-    legend: 'Language',
-    browser: 'Browser language',
-    note: "Browser language follows this browser's first language. Changing it loads the app again.",
-  },
-  appearance: {
-    title: 'Appearance and privacy',
-    theme: 'Theme',
-    system: 'System',
-    light: 'Light',
-    dark: 'Dark',
-    themeNote: "System follows this device's setting as it changes. Light or Dark is remembered on this device.",
-    privacy:
-      "There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices, to the price vendors for Investments, and to the AI company of your key, when you use the assistant.",
-    privacyLink: 'Read the privacy notes',
+    "Sync, the assistant with its Always allow and Anonymise switches for each AI company, and deleting data, for every app on this device. Theme and language are in their menu at the top of the sidebar or of the navigation. Where an app keeps its books is on that app's Settings.",
+  privacy: {
+    title: 'Privacy',
+    note: "There is no server. Nothing leaves this browser except calls to Google's APIs for the books on Drive, your statements and your invoices, to the price vendors for Investments, and to the AI company of your key, when you use the assistant.",
+    link: 'Read the privacy notes',
   },
   filesHome: {
     title: 'Where new files go',
@@ -86,22 +75,11 @@ export const en = {
 export const hr: Translation<typeof en> = {
   menu: 'Postavke Kune',
   description:
-    'Sinkronizacija, asistent s prekidačima Uvijek dopusti i Anonimiziraj za svaku AI tvrtku, izgled i jezik na ovom uređaju, za sve aplikacije. Gdje aplikacija čuva svoju datoteku, piše u postavkama te aplikacije.',
-  language: {
-    legend: 'Jezik',
-    browser: 'Jezik preglednika',
-    note: 'Jezik preglednika slijedi prvi jezik ovog preglednika. Kad promijenite jezik, aplikacija se ponovno učita.',
-  },
-  appearance: {
-    title: 'Izgled i privatnost',
-    theme: 'Tema',
-    system: 'Sustav',
-    light: 'Svijetla',
-    dark: 'Tamna',
-    themeNote: 'Sustav prati postavku ovog uređaja kad se promijeni. Svijetla ili Tamna pamti se na ovom uređaju.',
-    privacy:
-      'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune, izvorima cijena za Ulaganja i AI tvrtki vašeg ključa kad koristite asistenta.',
-    privacyLink: 'Pročitaj napomene o privatnosti',
+    'Sinkronizacija, asistent s prekidačima Uvijek dopusti i Anonimiziraj za svaku AI tvrtku i brisanje podataka, za sve aplikacije na ovom uređaju. Temu i jezik birate u njihovu izborniku pri vrhu bočne trake ili navigacije. Gdje aplikacija čuva svoju datoteku, piše u postavkama te aplikacije.',
+  privacy: {
+    title: 'Privatnost',
+    note: 'Nema poslužitelja. Iz ovog preglednika ništa ne odlazi osim poziva Googleovim sučeljima za datoteke na Driveu, vaše izvode i vaše račune, izvorima cijena za Ulaganja i AI tvrtki vašeg ključa kad koristite asistenta.',
+    link: 'Pročitaj napomene o privatnosti',
   },
   filesHome: {
     title: 'Gdje idu nove datoteke',

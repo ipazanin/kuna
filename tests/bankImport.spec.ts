@@ -363,17 +363,27 @@ describe('what the step says', () => {
     })
   })
 
-  it('waits and names a linked account Kuna does not keep with its currency, with a way to Settings', () => {
-    const result = bankStepResult({ ...noWrite, linked: [other] }, bookNow(), null, 3)
-    expect(result).toMatchObject({ kind: 'waits', link: { to: '/spending/settings?tab=bank-sync' } })
-    expect('line' in result && result.line).toContain('OTP has an account in EUR that Kuna does not keep (HR0000000000000000077).')
+  it('is done and notes a linked account Kuna does not keep by its bank, currency and the end of its number, with a way to Settings', () => {
+    const result = bankStepResult({ ...noWrite, linked: [other] }, bookNow(), null, 0)
+    expect(result).toMatchObject({ kind: 'done', link: { to: '/spending/settings?tab=bank-sync' } })
+    expect('line' in result && result.line).toContain('Kuna does not keep the account OTP EUR ending 0077. Bank sync can add it or leave it out.')
+    expect('line' in result && result.line).not.toContain('HR0000000000000000077')
+  })
+
+  it('keeps the link to review over the note of an account Kuna does not keep', () => {
+    expect(bankStepResult({ ...noWrite, linked: [other] }, bookNow(), null, 3)).toMatchObject({ kind: 'done', link: { to: '/spending/transactions?tab=review' } })
+  })
+
+  it('waits on a balance that differs, which you act on', () => {
+    const difference = { account: OTP, stated: accountMoneyFromCents(100), worked: accountMoneyFromCents(50), pending: null, explained: false, fixedOpening: null }
+    expect(bankStepResult({ ...noWrite, differences: [difference] }, bookNow(), null, 0)).toMatchObject({ kind: 'waits', link: { to: '/spending/settings?tab=bank-sync' } })
   })
 
   it('names a multi-currency account by the currency the fetch drafted', () => {
     const all = linked('all', 'LT000000000000000009', 'XXX')
     const gbp = proposeAccount(all, 'revolut', 'GBP' as never, [], [], 'account:gbp' as never, DAY, ACCOUNTS)
     const result = bankStepResult({ ...noWrite, linked: [{ bank: 'revolut', account: all }], proposals: [gbp] }, bookNow(), null, 0)
-    expect('line' in result && result.line).toContain('Revolut has an account in GBP that Kuna does not keep (LT000000000000000009).')
+    expect('line' in result && result.line).toContain('Kuna does not keep the account Revolut GBP ending 0009.')
   })
 
   it('says an account that fits one without its IBAN needs updating, not that Kuna does not keep it', () => {
@@ -392,8 +402,16 @@ describe('what the step says', () => {
   it('stays quiet about an account added since the fetch', () => {
     const added = { ...OTP, id: 'account:added', iban: 'HR0000000000000000077' } as typeof OTP
     const book = { ...bookNow(), accounts: [...bookNow().accounts, added] }
-    expect(bankHeldResult([], [other], book)).toMatchObject({ kind: 'done' })
-    expect(bankHeldResult([], [other], bookNow())).toMatchObject({ kind: 'waits' })
+    expect(bankHeldResult([], [other], book)).toEqual({ kind: 'done', line: 'Asked the banks less than six hours ago, so they are left alone for now.', writeId: null, link: null })
+  })
+
+  it('holds back the next fetch done, with an account Kuna does not keep as a note', () => {
+    expect(bankHeldResult([], [other], bookNow())).toEqual({
+      kind: 'done',
+      line: 'Asked the banks less than six hours ago, so they are left alone for now. Kuna does not keep the account OTP EUR ending 0077. Bank sync can add it or leave it out.',
+      writeId: null,
+      link: { label: 'Bank sync', to: '/spending/settings?tab=bank-sync' },
+    })
   })
 
   it('waits and says which bank gave no rows, keeping the write for Undo', () => {

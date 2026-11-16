@@ -23,6 +23,7 @@ import { launch } from 'puppeteer-core'
 
 import { chromePath, ENGLISH_CHROME_ARG, ENGLISH_FIREFOX_PREFS, firefoxPath } from './support/browsers.mjs'
 import { writeFakeTemplateFile } from './support/fakeTemplateFile.mjs'
+import { en as homeEnglish } from '../src/shell/home/words.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const outputDirectory = join(root, 'dist')
@@ -241,7 +242,7 @@ try {
   const secondWindow = watch(await context.newPage())
   await secondWindow.goto(appUrl)
   await waitForWorker(secondWindow)
-  await waitForTitle(secondWindow, 'Home')
+  await waitForTitle(secondWindow, homeEnglish.title)
   const originalCaches = await probe.evaluate(() => caches.keys())
   const originalDocument = await page.evaluate(() => {
     window.pwaCheckDocument = crypto.randomUUID()

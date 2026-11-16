@@ -86,6 +86,9 @@ import { fileURLToPath } from 'node:url'
 import { launch } from 'puppeteer-core'
 
 import { en as sharedEnglish } from '../src/shared/app/words.ts'
+import { en as homeEnglish, hr as homeCroatian } from '../src/shell/home/words.ts'
+import { en as settingsEnglish, hr as settingsCroatian } from '../src/shell/settings/words.ts'
+import { en as shellEnglish, hr as shellCroatian } from '../src/shell/ui/words.ts'
 
 import { hr as analysisCroatian } from '../src/apps/company/analysis/presentation/words.ts'
 import { returnFill } from '../src/apps/investments/performance/presentation/returnFill.ts'
@@ -146,6 +149,7 @@ import {
   heldStatementFlow,
   importCamtFlow,
   importCamtLookAlikeFlowIn,
+  importRepaymentFlowIn,
   importFlowIn,
   heldStatementFlowIn,
   investmentsKeyLegacyAndNewFlow,
@@ -360,7 +364,7 @@ const SCREENS = [
   { name: 'company-settings-category-rules', hash: '#/company/settings?tab=category-rules', title: 'Settings', ready: '[data-testid="rules-tab"]' },
   { name: 'company-settings-tax-rules', hash: '#/company/settings?tab=tax-rules', title: 'Settings', ready: '[data-testid="rule-row"]' },
   { name: 'company-settings-books', hash: '#/company/settings?tab=books', title: 'Settings', ready: '[data-testid="data-source-card"]', cards: false },
-  { name: 'kuna-settings', hash: '#/settings', title: 'Kuna settings', ready: '[data-testid="sync-card"]', cards: false },
+  { name: 'kuna-settings', hash: '#/settings', title: settingsEnglish.menu, ready: '[data-testid="sync-card"]', cards: false },
 ]
 
 mkdirSync(OUTPUT_DIR, { recursive: true })
@@ -504,9 +508,9 @@ async function checkWidth(width) {
         JSON.stringify(drawer.apps) === JSON.stringify(['Company']) &&
         drawer.open === 'Company' &&
         drawer.lastPage === 'Settings' &&
-        drawer.homeEntry === 'Home' &&
+        drawer.homeEntry === homeEnglish.title &&
         drawer.netWorth === 'Net worth' &&
-        drawer.kunaSettings === 'Kuna settings' &&
+        drawer.kunaSettings === settingsEnglish.menu &&
         drawer.oneLine,
       'the drawer does not start with the link home and hold Company, the one app set up, with its pages open between Home and Net worth and Kuna settings, each name on one line',
     )
@@ -654,8 +658,8 @@ async function checkWidth(width) {
   // With one app set up the drawer lists it alone with Add an app, in both languages, and Add an app leads to the home's five cards.
   await step('drawer-one-app', async () => {
     for (const [query, title, company, netWorth, addApp, home] of [
-      ['', 'Overview', 'Company', 'Net worth', 'Add an app', 'Home'],
-      ['&lang=hr', 'Pregled', 'Tvrtka', 'Neto imovina', 'Dodaj aplikaciju', 'Početna'],
+      ['', 'Overview', 'Company', 'Net worth', 'Add an app', homeEnglish.title],
+      ['&lang=hr', 'Pregled', 'Tvrtka', 'Neto imovina', 'Dodaj aplikaciju', homeCroatian.title],
     ]) {
       await page.goto(`${BASE}?theme=dark${query}&start=drive&load=${Date.now()}#/company`, { waitUntil: 'networkidle0' })
       await waitForTitle(page, title)
@@ -691,7 +695,7 @@ async function checkWidth(width) {
     await open(page, '#/company', 'Overview')
     await openDrawer(page)
     await (await page.waitForSelector('[role="dialog"] [data-testid="home-link"]')).tap()
-    await waitForTitle(page, 'Home')
+    await waitForTitle(page, homeEnglish.title)
     await drawerClosed(page)
     await expect(
       page.evaluate(() => {
@@ -728,7 +732,7 @@ async function checkWidth(width) {
   })
 
   await step('assets-home-card', async () => {
-    await open(page, `&assets=sample&load=${Date.now()}#/`, 'Home')
+    await open(page, `&assets=sample&load=${Date.now()}#/`, homeEnglish.title)
     await (await page.waitForSelector('[data-testid="home-card"][data-app="assets"][data-state="open"]')).tap()
     await waitForTitle(page, 'Overview')
     await expect(hashOf(page), (hash) => hash === '#/assets', 'the Assets card did not open the Assets Overview')
@@ -737,7 +741,7 @@ async function checkWidth(width) {
   })
 
   await step('spending-home-card', async () => {
-    await open(page, `&spending=sample&load=${Date.now()}#/`, 'Home')
+    await open(page, `&spending=sample&load=${Date.now()}#/`, homeEnglish.title)
     await (await page.waitForSelector('[data-testid="home-card"][data-app="spending"][data-state="open"]')).tap()
     await waitForTitle(page, 'Overview')
     await expect(hashOf(page), (hash) => hash === '#/spending', 'the Spending card did not open the Spending Overview')
@@ -825,7 +829,7 @@ async function checkWidth(width) {
 
   // The company kept in this browser beside the sample Loans, Investments, Assets and Spending files.
   await step('kuna-overview', async () => {
-    await openFreshBrowser(page, '#/', 'Home', '&loans=sample&investments=sample&assets=sample&spending=sample')
+    await openFreshBrowser(page, '#/', homeEnglish.title, '&loans=sample&investments=sample&assets=sample&spending=sample')
     await openDrawer(page)
     await (await page.waitForSelector('[role="dialog"] [data-testid="nav-net-worth"]')).tap()
     await waitForTitle(page, 'Net worth')
@@ -1812,14 +1816,43 @@ async function checkWidth(width) {
     await waitForText(page, 'button', 'Import a file')
   })
 
-  await step('settings-language', async () => {
-    const shown = () => page.evaluate(() => ({ lang: document.documentElement.lang, text: document.body.innerText }))
-    const pick = (choice) => Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), page.tap(`[data-testid="language-choice"] [role="radio"][value="${choice}"]`)])
+  await step('theme-and-language', async () => {
+    const shown = () => page.evaluate(() => ({ lang: document.documentElement.lang, dark: document.documentElement.classList.contains('dark'), text: document.body.innerText }))
+    const openMenu = async () => {
+      await openDrawer(page)
+      await page.tap('[role="dialog"] [data-testid="theme-and-language"]')
+      await page.waitForSelector('[role="menuitemcheckbox"]', { visible: true })
+      await delay(300)
+    }
+    const menuRow = (label) =>
+      page.waitForFunction((wanted) => [...document.querySelectorAll('[role="menuitemcheckbox"]')].find((row) => row.textContent?.trim().startsWith(wanted)), { timeout: 5_000 }, label)
+    const pickLanguage = async (label) => Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), (await menuRow(label)).asElement().tap()])
     try {
-      await open(page, '#/settings', 'Kuna settings')
-      await expect(shown(), (screen) => screen.lang === 'en', 'the app did not open in English')
-      await pick('hr')
-      await waitForTitle(page, 'Postavke Kune')
+      await open(page, '#/settings', settingsEnglish.menu)
+      await expect(shown(), (screen) => screen.lang === 'en' && screen.dark, 'the app did not open in English and dark')
+      await openMenu()
+      const rows = await page.$$eval('[role="menuitemcheckbox"]', (items) =>
+        items.map((row) => ({ text: row.textContent?.trim() ?? '', checked: row.getAttribute('aria-checked') === 'true', height: row.getBoundingClientRect().height })),
+      )
+      if (rows.length !== 6 || rows.filter((row) => row.checked).length !== 2)
+        throw new Error(`the theme and language menu does not list six rows with one checked in each group: ${JSON.stringify(rows)}`)
+      const short = rows.filter((row) => row.height < 43.5)
+      if (short.length > 0) throw new Error(`rows of the theme and language menu under 44 px: ${JSON.stringify(short)}`)
+      await inspect(page, `${width}px theme and language menu`)
+      await shoot('theme-and-language-menu')
+      await (await menuRow(shellEnglish.themeAndLanguage.themes.light)).asElement().tap()
+      await page.waitForFunction(() => !document.querySelector('[role="menu"]'), { timeout: 5_000 })
+      await expect(shown(), (screen) => !screen.dark, 'picking Light from the menu did not switch the theme')
+      await shoot('theme-and-language-light')
+      if (await page.$('[role="dialog"]')) {
+        await page.keyboard.press('Escape')
+        await drawerClosed(page)
+      }
+      await openMenu()
+      await pickLanguage(shellEnglish.themeAndLanguage.languages.hr)
+      await waitForTitle(page, settingsCroatian.menu)
+      // The address still pins the dark theme for this visit, which wins over the Light kept on the device.
+      await expect(shown(), (screen) => screen.lang === 'hr' && screen.dark, 'picking Hrvatski did not load the app again in Croatian')
       await inspect(page, `${width}px settings in Croatian`)
       await shoot('settings-language-croatian')
       // Books file names its file's dates, which Croatian writes its own way.
@@ -1827,17 +1860,27 @@ async function checkWidth(width) {
         window.location.hash = '#/company/settings?tab=books'
       })
       await page.waitForSelector('[data-testid="data-source-card"]')
-      await expect(shown(), (screen) => screen.lang === 'hr' && /\d{1,2}\.\s\d{1,2}\.\s\d{4}\./.test(screen.text), 'picking Hrvatski did not load the app again in Croatian, with a Croatian date')
-      await page.evaluate(() => {
-        window.location.hash = '#/settings'
-      })
-      await page.waitForSelector('[data-testid="language-choice"]')
-      await pick('browser')
-      await waitForTitle(page, 'Kuna settings')
-      await expect(shown(), (screen) => screen.lang === 'en' && screen.text.includes('Browser language'), 'Browser language did not bring English back')
+      await expect(shown(), (screen) => /\d{1,2}\.\s\d{1,2}\.\s\d{4}\./.test(screen.text), "Croatian does not write the file's dates its own way")
+      await openMenu()
+      await (await menuRow(shellCroatian.themeAndLanguage.themes.light)).asElement().tap()
+      await page.waitForFunction(() => !document.querySelector('[role="menu"]'), { timeout: 5_000 })
+      await expect(shown(), (screen) => !screen.dark, 'picking Svijetla did not switch the theme')
+      if (await page.$('[role="dialog"]')) {
+        await page.keyboard.press('Escape')
+        await drawerClosed(page)
+      }
+      await openMenu()
+      await pickLanguage(shellCroatian.themeAndLanguage.languages.browser)
+      await page.waitForSelector('[data-testid="data-source-card"]')
+      await expect(shown(), (screen) => screen.lang === 'en', 'Browser language did not bring English back')
     } finally {
-      // A step that stopped half way must not leave the later steps in Croatian.
-      await page.evaluate(() => localStorage.removeItem('kuna.language')).catch(() => {})
+      // A step that stopped half way must not leave the later steps in Croatian or light.
+      await page
+        .evaluate(() => {
+          localStorage.removeItem('kuna.language')
+          localStorage.removeItem('kuna.theme')
+        })
+        .catch(() => {})
     }
   })
 
@@ -3201,6 +3244,7 @@ async function checkWidth(width) {
     ['kuna-welcome-ai-unfinished', 'empty', kunaWelcomeAiUnfinishedFlow, '#/', 'Welcome to Kuna'],
     ['kuna-welcome-ai-refused', 'empty&ai=key-refused', kunaWelcomeAiRefusedFlowIn('en'), '#/', 'Welcome to Kuna'],
     ['kuna-welcome-ai-refused-croatian', 'empty&ai=key-refused&lang=hr', kunaWelcomeAiRefusedFlowIn('hr'), '#/', 'Dobrodošli u Kunu'],
+    ['import-repayment', 'open-advance', importRepaymentFlowIn('en', IMPORT_SAMPLES.refund), '#/company/transactions?tab=import', 'Transactions'],
     ['move-into-kuna', 'drive', moveIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
     ['move-into-kuna-statements', 'mail-move', moveStatementsIntoKunaFlow, '#/company/settings?tab=books', 'Settings'],
     ['onboarding-browser', 'empty', onboardingBrowserFlow],
@@ -3214,7 +3258,7 @@ async function checkWidth(width) {
     ['loans-start-on-drive', 'drive&loans=other-device', firstRunOnDriveFlowIn('loans', 'en'), '#/loans/start?step=folder', 'Loans'],
     ['assets-start-on-drive', 'drive&assets=other-device', firstRunOnDriveFlowIn('assets', 'en'), '#/assets/start?step=folder', 'Assets'],
     ['assets-start-browser', 'drive', firstRunBrowserFlowIn('assets', 'en'), '#/assets', 'Assets'],
-    ['set-up-in-other-tab', 'drive', setUpInOtherTabFlow, '#/', 'Home'],
+    ['set-up-in-other-tab', 'drive', setUpInOtherTabFlow, '#/', homeEnglish.title],
     ['assets-flat', 'drive&assets=drive&loans=sample', assetsEditorFlow, '#/assets', 'Overview'],
     ['assets-car-valuation', 'drive&assets=sample&loans=sample', assetsValuationFlow, `#/assets/asset?asset=${SAMPLE_CAR}`, 'Family car'],
     ['spending-start-on-drive', 'drive&spending=other-device', firstRunOnDriveFlowIn('spending', 'en'), '#/spending/start?step=folder', 'Spending'],
@@ -3390,7 +3434,7 @@ async function checkWidth(width) {
     ['chat-tag', 'drive', chatTagFlowIn('en'), '#/gallery', 'Gallery'],
     ['chat-attach-refused', 'drive', chatAttachRefusedFlow(CHAT_ATTACHMENT_SAMPLES), '#/gallery', 'Gallery'],
     ['chat-consent-cells', 'drive', chatConsentCellsFlow(CHAT_ATTACHMENT_SAMPLES), '#/gallery', 'Gallery'],
-    ['chat-sign-out', 'drive', signOutClearsChatFlow(), '#/settings', 'Kuna settings'],
+    ['chat-sign-out', 'drive', signOutClearsChatFlow(), '#/settings', settingsEnglish.menu],
     ['chat-kept-in-browser', 'drive', keptInBrowserClearsChatFlow(TEMPLATE_FILE), '#/company/settings?tab=books', 'Settings'],
     ['owner-figure-ask', 'browser', figureAskFlowIn('en', 'owner'), '#/company/owner?p=all', 'Owner'],
     ['salaries-figure-ask', 'five-employees', figureAskFlowIn('en', 'salaries'), '#/company/salaries', 'Salaries'],
@@ -3425,17 +3469,17 @@ async function checkWidth(width) {
     ['investments-chat-trade', 'drive&investments=sample', appChatCardFlowIn('en', 'buy'), '#/investments', 'Overview'],
     ['investments-chat-file-copy', 'drive&investments=sample', appChatCardFlowIn('en', 'file', CHAT_ATTACHMENT_SAMPLES), '#/investments', 'Overview'],
     ['assets-chat-valuation', 'drive&assets=sample&loans=sample', appChatCardFlowIn('en', 'valuation'), '#/assets', 'Overview'],
-    ['assist-key', 'drive', assistKeyFlow, '#/settings', 'Kuna settings'],
+    ['assist-key', 'drive', assistKeyFlow, '#/settings', settingsEnglish.menu],
     ['assist-switch', 'drive', assistSwitchFlow, '#/company/settings?tab=assistant', 'Settings'],
     ['assist-tab', 'drive&spending=drive', assistTabFlowIn('en'), '#/company/settings?tab=assistant', 'Settings'],
     ['assist-tab-croatian', 'drive&spending=drive&lang=hr', assistTabFlowIn('hr'), '#/company/settings?tab=assistant', 'Postavke'],
-    ['assist-provider-switch', 'drive', assistProviderSwitchFlowIn('en'), '#/settings', 'Kuna settings'],
-    ['assist-provider-switch-croatian', 'drive&lang=hr', assistProviderSwitchFlowIn('hr'), '#/settings', 'Postavke Kune'],
-    ['assist-save-keeps-company', 'drive', assistSaveKeepsCompanyFlow, '#/settings', 'Kuna settings'],
-    ['assist-key-refused', 'drive&ai=key-refused', assistKeyRefusedFlowIn('en'), '#/settings', 'Kuna settings'],
-    ['assist-key-refused-croatian', 'drive&ai=key-refused&lang=hr', assistKeyRefusedFlowIn('hr'), '#/settings', 'Postavke Kune'],
-    ['assist-fetch-key', 'drive&investments=sample&keys=ai-key', assistFetchKeyFlow, '#/settings', 'Kuna settings'],
-    ['assist-fetch-none', 'drive', assistFetchNoneFlow, '#/settings', 'Kuna settings'],
+    ['assist-provider-switch', 'drive', assistProviderSwitchFlowIn('en'), '#/settings', settingsEnglish.menu],
+    ['assist-provider-switch-croatian', 'drive&lang=hr', assistProviderSwitchFlowIn('hr'), '#/settings', settingsCroatian.menu],
+    ['assist-save-keeps-company', 'drive', assistSaveKeepsCompanyFlow, '#/settings', settingsEnglish.menu],
+    ['assist-key-refused', 'drive&ai=key-refused', assistKeyRefusedFlowIn('en'), '#/settings', settingsEnglish.menu],
+    ['assist-key-refused-croatian', 'drive&ai=key-refused&lang=hr', assistKeyRefusedFlowIn('hr'), '#/settings', settingsCroatian.menu],
+    ['assist-fetch-key', 'drive&investments=sample&keys=ai-key', assistFetchKeyFlow, '#/settings', settingsEnglish.menu],
+    ['assist-fetch-none', 'drive', assistFetchNoneFlow, '#/settings', settingsEnglish.menu],
     ['investments-instrument-search', 'drive&investments=sample', investmentsInstrumentSearchFlow, '#/investments/settings', 'Settings'],
     [
       'investments-holding-compare',
@@ -3459,13 +3503,13 @@ async function checkWidth(width) {
     ['delete-data-copy', 'drive&investments=sample', deleteDataCopyFlow, '#/investments/settings', 'Settings'],
     ['delete-data-given', 'drive&investments=given', deleteDataGivenFlowIn('en'), '#/investments/settings', 'Settings'],
     ['delete-data-browser', 'drive&investments=browser', deleteDataBrowserFlow, '#/investments/settings', 'Settings'],
-    ['delete-kuna-fails', 'drive&investments=given', deleteKunaFailsFlowIn('en'), '#/settings', 'Kuna settings'],
-    ['delete-kuna', 'drive&investments=browser&backups', deleteKunaFlowIn('en'), '#/settings', 'Kuna settings'],
-    ['delete-kuna-croatian', 'drive&investments=browser&backups&lang=hr', deleteKunaFlowIn('hr'), '#/settings', 'Postavke Kune'],
+    ['delete-kuna-fails', 'drive&investments=given', deleteKunaFailsFlowIn('en'), '#/settings', settingsEnglish.menu],
+    ['delete-kuna', 'drive&investments=browser&backups', deleteKunaFlowIn('en'), '#/settings', settingsEnglish.menu],
+    ['delete-kuna-croatian', 'drive&investments=browser&backups&lang=hr', deleteKunaFlowIn('hr'), '#/settings', settingsCroatian.menu],
     ['investments-binned', 'drive&investments=binned', investmentsBinnedFlow, '#/investments', 'Overview'],
     // Setting an app up with the chat on a device that keeps nothing yet: the first run's button and the empty overview's, then a card that goes on.
-    ['set-up-chat-home', 'empty', onFreshDevice(setUpChatHomeFlowIn('investments', 'en'), '#/investments'), '#/settings', 'Kuna settings'],
-    ['set-up-chat-goes-on', 'empty', onFreshDevice(setUpChatGoesOnFlowIn('en'), '#/loans'), '#/settings', 'Kuna settings'],
+    ['set-up-chat-home', 'empty', onFreshDevice(setUpChatHomeFlowIn('investments', 'en'), '#/investments'), '#/settings', settingsEnglish.menu],
+    ['set-up-chat-goes-on', 'empty', onFreshDevice(setUpChatGoesOnFlowIn('en'), '#/loans'), '#/settings', settingsEnglish.menu],
   ]) {
     await step(name, async () => {
       await page.goto(`${BASE}?theme=dark&fake=${variant}&day=${SAMPLE_DAY}&load=${Date.now()}${hash}`, { waitUntil: 'networkidle0' })

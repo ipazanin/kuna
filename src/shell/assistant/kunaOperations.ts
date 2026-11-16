@@ -235,12 +235,11 @@ function isAdding(change: DeviceChange): change is Extract<DeviceChange, { reado
 }
 
 function themeName(choice: ThemeChoice): string {
-  return settingsWords.appearance[choice]
+  return shellWords.themeAndLanguage.themes[choice]
 }
 
-/** Each language named in itself, as Kuna settings names it. */
 function languageName(choice: LanguageChoice): string {
-  return choice === 'browser' ? settingsWords.language.browser : choice === 'en' ? 'English' : 'Hrvatski'
+  return shellWords.themeAndLanguage.languages[choice]
 }
 
 function sidebarName(choice: SidebarChoice): string {
@@ -260,9 +259,9 @@ function groupsOf(device: KunaDevice, changes: readonly DeviceChange[]): readonl
   const fields = changes.flatMap((change) => {
     switch (change.setting) {
       case 'theme':
-        return [{ name: settingsWords.appearance.theme, before: themeName(change.before), after: themeName(change.after), warns: false }]
+        return [{ name: shellWords.themeAndLanguage.theme, before: themeName(change.before), after: themeName(change.after), warns: false }]
       case 'language':
-        return [{ name: settingsWords.language.legend, before: languageName(change.before), after: languageName(change.after), warns: false }]
+        return [{ name: shellWords.themeAndLanguage.language, before: languageName(change.before), after: languageName(change.after), warns: false }]
       case 'autoSync':
         return [{ name: settingsWords.sync.auto, before: switchName(change.before), after: switchName(change.after), warns: false }]
       case 'start':

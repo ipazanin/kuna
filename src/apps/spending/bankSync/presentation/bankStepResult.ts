@@ -1,7 +1,7 @@
 import type { BankSyncOutcome } from '../application/bankSync'
 import type { OlderRowsMissing } from '../application/bankRead'
-import { setupLines } from '../domain/bankAccountSetup'
-import type { AccountProposal, LinkedOfBank, SetupLine } from '../domain/bankAccountSetup'
+import { linkedAccountEnding, setupLines } from '../domain/bankAccountSetup'
+import type { AccountProposal, LinkedOfBank } from '../domain/bankAccountSetup'
 import type { BalanceDifference } from '../domain/bankBalance'
 import { words } from './words'
 import { SPENDING_BANK_SYNC_LINK, SPENDING_REVIEW_LINK } from '../../overview/presentation/spendingLinks'
@@ -15,15 +15,21 @@ import { plural } from '../../../../shared/text/translation'
 
 type BookNow = Pick<SpendingBook, 'accounts' | 'transactions' | 'settings'>
 
-function waitingLine(line: SetupLine): readonly string[] {
-  if (line.kind === 'missing') return [words.unknownAccount(words.banks[line.bank], line.currency, line.linked.iban)]
-  if (line.kind === 'fits') return [words.fitsAccount(words.banks[line.bank], line.update.currency, line.account.name)]
-  return []
+/** What the linked accounts leave as the file stands now: a kept account to update with the bank's details waits for you, and an account Kuna does not keep is only a note, since never adding it is fine. */
+interface AccountLines {
+  readonly waiting: readonly string[]
+  readonly notes: readonly string[]
 }
 
-/** One line for each linked account Kuna neither keeps nor was told to leave out, as the file stands now. */
-export function waitingAccountLines(linked: readonly LinkedOfBank[], proposals: readonly AccountProposal[], book: BookNow): readonly string[] {
-  return setupLines(linked, proposals, book).flatMap(waitingLine)
+const NO_ACCOUNT_LINES: AccountLines = { waiting: [], notes: [] }
+
+function accountLines(linked: readonly LinkedOfBank[], proposals: readonly AccountProposal[], book: BookNow | null): AccountLines {
+  if (book === null) return NO_ACCOUNT_LINES
+  const lines = setupLines(linked, proposals, book)
+  return {
+    waiting: lines.flatMap((line) => (line.kind === 'fits' ? [words.fitsAccount(words.banks[line.bank], line.update.currency, line.account.name)] : [])),
+    notes: lines.flatMap((line) => (line.kind === 'missing' ? [words.unknownAccount(words.linkedAccount(words.banks[line.bank], line.currency, linkedAccountEnding(line.linked)))] : [])),
+  }
 }
 
 export function olderRowsLine({ bank, account, reached }: OlderRowsMissing): string {
@@ -53,22 +59,25 @@ export function bankProblemLines({ problems, olderRows }: Pick<BankSyncOutcome, 
   return [...problems, ...olderRows.map(olderRowsLine)]
 }
 
-function waiting(line: string, writeId: number | null): StepResult {
-  return { kind: 'waits', line, writeId, link: { label: words.step.settings, to: SPENDING_BANK_SYNC_LINK } }
-}
+const SETTINGS_LINK = { label: words.step.settings, to: SPENDING_BANK_SYNC_LINK }
 
 /** A step that left something for you waits with a link to where it shows, and stays waiting while it holds back the next fetch, leaving out an account added since. */
 export function bankHeldResult(problems: readonly string[], linked: readonly LinkedOfBank[], book: BookNow | null): StepResult {
-  const left = [...problems, ...(book === null ? [] : waitingAccountLines(linked, [], book))]
-  const line = [words.step.tooSoon, ...left].join(' ')
-  return left.length === 0 ? { kind: 'done', line, writeId: null, link: null } : waiting(line, null)
+  const accounts = accountLines(linked, [], book)
+  const left = [...problems, ...accounts.waiting]
+  const line = [words.step.tooSoon, ...left, ...accounts.notes].join(' ')
+  if (left.length > 0) return { kind: 'waits', line, writeId: null, link: SETTINGS_LINK }
+  return { kind: 'done', line, writeId: null, link: accounts.notes.length === 0 ? null : SETTINGS_LINK }
 }
 
-/** What the step says of a fetch: the summary and notes, each balance that differs, and what it left for you. A difference pending rows make up is in the notes already. */
+/** What the step says of a fetch: the summary and notes, then what it left for you, each balance that differs first, then the accounts Kuna does not keep. A difference pending rows make up is in the notes already. */
 export function bankStepResult(outcome: BankSyncOutcome, book: BookNow | null, writeId: number | null, toReview: number): StepResult {
-  const left = [...bankProblemLines(outcome), ...(book === null ? [] : waitingAccountLines(outcome.linked, outcome.proposals, book))]
+  const accounts = accountLines(outcome.linked, outcome.proposals, book)
+  const differences = outcome.differences.filter((difference) => !difference.explained).map(differenceLine)
+  const left = [...differences, ...bankProblemLines(outcome), ...accounts.waiting]
   const { newRows, alreadyIn, filled, notes } = outcome.dryRun
-  const line = [words.summary(newRows, alreadyIn, filled), ...notes, ...outcome.differences.filter((difference) => !difference.explained).map(differenceLine), ...left].join(' ')
-  if (left.length > 0) return waiting(line, writeId)
-  return { kind: 'done', line, writeId, link: toReview === 0 ? null : { label: plural(words.step.review(toReview), toReview), to: SPENDING_REVIEW_LINK } }
+  const line = [words.summary(newRows, alreadyIn, filled), ...notes, ...left, ...accounts.notes].join(' ')
+  if (left.length > 0) return { kind: 'waits', line, writeId, link: SETTINGS_LINK }
+  if (toReview > 0) return { kind: 'done', line, writeId, link: { label: plural(words.step.review(toReview), toReview), to: SPENDING_REVIEW_LINK } }
+  return { kind: 'done', line, writeId, link: accounts.notes.length === 0 ? null : SETTINGS_LINK }
 }

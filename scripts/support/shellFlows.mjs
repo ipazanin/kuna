@@ -1,6 +1,6 @@
 /**
  * The shell's own flows that the visual, touch and Firefox checks share: the three sidebar states with and without the
- * docked chat, the layout menu's notes, the chat's edge, the window squeezed from wide to a phone, the lit parent of a
+ * docked chat, the layout menu's notes, the theme and language menu, the chat's edge, the window squeezed from wide to a phone, the lit parent of a
  * detail screen, the skip link and Jump to a page. `press` clicks or taps an element handle. A failure throws with what was wrong.
  */
 
@@ -101,19 +101,43 @@ async function openTheChat(page, press) {
   await page.waitForSelector('[data-testid="chat-panel"]', { visible: true, timeout: 10_000 })
 }
 
-/** Opens the sidebar layout menu, from the drawer when the sidebar is hidden, and returns each item's name, description and whether it is checked, then closes it. */
-async function layoutMenuItems(page, press) {
-  const shown = await page.evaluate(() => [...document.querySelectorAll('[data-testid="sidebar-layout"]')].some((button) => button.getClientRects().length > 0))
+/** Opens the menu of `control`, from the drawer when the sidebar is hidden, and returns each item's name, description and whether it is checked, leaving it open. */
+async function menuItems(page, press, control) {
+  const shown = await page.evaluate((testId) => [...document.querySelectorAll(`[data-testid="${testId}"]`)].some((button) => button.getClientRects().length > 0), control)
   if (!shown) {
     await pressSelector(page, press, '[data-testid="open-navigation"]')
-    await page.waitForSelector('[role="dialog"] [data-testid="sidebar-layout"]', { visible: true, timeout: 5_000 })
+    await page.waitForSelector(`[role="dialog"] [data-testid="${control}"]`, { visible: true, timeout: 5_000 })
     await delay(300)
   }
-  await pressSelector(page, press, '[data-testid="sidebar-layout"]')
+  await pressSelector(page, press, `[data-testid="${control}"]`)
   await page.waitForSelector('[role="menuitemcheckbox"]', { visible: true, timeout: 5_000 })
   await delay(200)
   const items = await page.$$eval('[role="menuitemcheckbox"]', (rows) => rows.map((row) => ({ text: row.textContent?.trim() ?? '', checked: row.getAttribute('aria-checked') === 'true' })))
   return items
+}
+
+function layoutMenuItems(page, press) {
+  return menuItems(page, press, 'sidebar-layout')
+}
+
+/** Fails unless the theme and language menu names both settings in force and checks System under Theme and Browser language under Language, as a fresh device has them. */
+async function themeAndLanguageSaysWhatIsInForce(page, press, words) {
+  const items = await menuItems(page, press, 'theme-and-language')
+  const named = await page.evaluate(() => [...document.querySelectorAll('[data-testid="theme-and-language"]')].find((button) => button.getClientRects().length > 0)?.getAttribute('aria-label'))
+  const { themes, languages } = words.themeAndLanguage
+  if (named !== words.themeAndLanguage.name(themes.system, languages.browser)) throw new Error(`the theme and language button is named ${JSON.stringify(named)}, not the settings in force`)
+  const checked = items.filter((item) => item.checked).map((item) => item.text)
+  if (items.length !== 6 || checked.length !== 2 || !checked[0].startsWith(themes.system) || !checked[1].startsWith(languages.browser))
+    throw new Error(`the theme and language menu does not check System and Browser language alone: ${JSON.stringify(items)}`)
+  const labels = await page.$$eval('[role="menu"] [data-slot="label"]', (shown) =>
+    shown.map((label) => [label.querySelector('[data-slot="itemLabel"]')?.textContent?.trim(), label.querySelector('[data-slot="itemDescription"]')?.textContent?.trim() ?? null]),
+  )
+  const grouped = [
+    [words.themeAndLanguage.theme, null],
+    [words.themeAndLanguage.language, words.themeAndLanguage.reloads],
+  ]
+  if (JSON.stringify(labels) !== JSON.stringify(grouped))
+    throw new Error(`the theme and language menu is not grouped under its two labels, with the reload note under Language alone: ${JSON.stringify(labels)}`)
 }
 
 async function closeMenu(page) {
@@ -154,9 +178,9 @@ async function iconsSayWhatTheyAre(page, press, language, shoot) {
   if (!back) throw new Error("Escape did not give focus back to the footer's button")
 }
 
-/** The hidden sidebar: the top bar holds only the menu button, whose drawer starts with the layout menu and ends with the footer. */
+/** The hidden sidebar: the top bar holds only the menu button, whose drawer starts with the layout menu and the theme and language menu and ends with the footer. */
 async function topBarHoldsTheWayBack(page, press) {
-  for (const control of ['sidebar-layout', 'quick-jump-open']) {
+  for (const control of ['sidebar-layout', 'theme-and-language', 'quick-jump-open']) {
     if (await page.$(`header [data-testid="${control}"]`)) throw new Error(`the top bar of the hidden sidebar holds ${control}, beside the menu button`)
   }
   await pressSelector(page, press, '[data-testid="open-navigation"]')
@@ -164,11 +188,13 @@ async function topBarHoldsTheWayBack(page, press) {
     throw new Error('the drawer does not end with the footer')
   })
   const atTop = await page.evaluate(() => {
-    const layout = document.querySelector('[role="dialog"] [data-testid="sidebar-layout"]')?.getBoundingClientRect()
     const nav = document.querySelector('[role="dialog"] nav')?.getBoundingClientRect()
-    return layout !== undefined && nav !== undefined && layout.bottom <= nav.top + 1
+    return ['sidebar-layout', 'theme-and-language'].every((control) => {
+      const button = document.querySelector(`[role="dialog"] [data-testid="${control}"]`)?.getBoundingClientRect()
+      return button !== undefined && nav !== undefined && button.bottom <= nav.top + 1
+    })
   })
-  if (!atTop) throw new Error('the drawer of the hidden sidebar does not start with the layout menu')
+  if (!atTop) throw new Error('the drawer of the hidden sidebar does not start with the layout menu and the theme and language menu')
   await delay(300)
   await page.keyboard.press('Escape')
   await page.waitForFunction(() => !document.querySelector('[role="dialog"]'), { timeout: 5_000 })
@@ -176,7 +202,7 @@ async function topBarHoldsTheWayBack(page, press) {
 
 /**
  * One sidebar choice at this width, with the chat open or not, walked as a person would. The layout menu checks exactly
- * one item and says under each what picking it changes.
+ * one item and says under each what picking it changes, and the theme and language menu checks one item under each label.
  */
 export function sidebarStateFlowIn(choice, { chat = false, language = 'en' } = {}) {
   const words = SHELL_WORDS[language]
@@ -198,6 +224,9 @@ export function sidebarStateFlowIn(choice, { chat = false, language = 'en' } = {
         await shoot('menu')
         await closeMenu(page)
       }
+      await themeAndLanguageSaysWhatIsInForce(page, press, words)
+      await shoot('theme-and-language')
+      await closeMenu(page)
 
       await page.reload({ waitUntil: 'networkidle0' })
       await page.waitForSelector('[data-testid="app-shell"]', { timeout: 10_000 })

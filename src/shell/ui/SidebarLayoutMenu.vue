@@ -7,11 +7,15 @@ import { chooseSidebar, roomEffectOf, sidebarChoice } from './sidebarLayout'
 import { words } from './words'
 
 /** The one control that picks the sidebar. An item says what picking it changes, where it changes something. */
-const props = defineProps<{
-  windowWidth: number
-  /** The chat's asked width while it is open, or null. */
-  chat: number | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    windowWidth: number
+    /** The chat's asked width while it is open, or null. */
+    chat: number | null
+    tooltipSide?: 'right' | 'bottom'
+  }>(),
+  { tooltipSide: 'right' },
+)
 
 const CHOICES: readonly { readonly value: SidebarChoice; readonly label: string; readonly icon: string }[] = [
   { value: 'expanded', label: words.sidebarLayout.expanded, icon: 'i-lucide-panel-left' },
@@ -30,5 +34,14 @@ const choices = computed(() =>
 </script>
 
 <template>
-  <MenuButton :label="words.sidebarLayout.name" :icon="inForce.icon" look="icon" :choices="choices" :picked="sidebarChoice" data-testid="sidebar-layout" @pick="chooseSidebar" />
+  <MenuButton
+    :label="words.sidebarLayout.name"
+    :icon="inForce.icon"
+    look="icon"
+    :tooltip-side="props.tooltipSide"
+    :choices="choices"
+    :picked="sidebarChoice"
+    data-testid="sidebar-layout"
+    @pick="chooseSidebar"
+  />
 </template>

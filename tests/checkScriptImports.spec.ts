@@ -5,6 +5,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
+import { en as homeEnglish, hr as homeCroatian } from '../src/shell/home/words'
+import { en as settingsEnglish, hr as settingsCroatian } from '../src/shell/settings/words'
+
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SCRIPTS = join(ROOT, 'scripts')
 const SUPPORT = join(SCRIPTS, 'support')
@@ -47,7 +50,23 @@ function relativeImports(path: string): readonly NamedImport[] {
   })
 }
 
+/** The screen titles a check script reads from the words modules, so a rename reaches every check and a typo fails to compile. */
+const TITLES_FROM_WORDS = [homeEnglish.title, homeCroatian.title, settingsEnglish.menu, settingsCroatian.menu]
+
+/** Each line of a check script that spells one of those titles by hand where a screen's title goes: a `title:`, a title waited for, or the title after a hash. */
+function spelledTitles(path: string): readonly string[] {
+  const titles = TITLES_FROM_WORDS.map((title) => title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+  const spelled = new RegExp(`(title: |Title\\([^)]*|'#/[^']*', )'(${titles})'`)
+  return readFileSync(path, 'utf8')
+    .split('\n')
+    .flatMap((line, index) => (spelled.test(line) ? [`${relative(ROOT, path)}:${index + 1}`] : []))
+}
+
 describe('check scripts', () => {
+  it('read the titles of Home and Kuna settings from the words modules', () => {
+    expect(checkScripts.flatMap(spelledTitles)).toEqual([])
+  })
+
   it('import only files that exist', () => {
     const missing = checkScripts.flatMap(relativeImports).filter((imported) => !existsSync(imported.target))
     expect(missing.map((imported) => `${imported.at} imports ${relative(ROOT, imported.target)}`)).toEqual([])

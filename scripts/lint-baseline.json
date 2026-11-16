@@ -77,7 +77,6 @@
     "src/shared/ui/PageTabs.vue",
     "src/shared/ui/ProgressMeter.vue",
     "src/shared/ui/ScreenSkeleton.vue",
-    "src/shell/settings/AppearanceCard.vue",
     "src/shell/ui/UpdatePrompt.vue"
   ],
   "nativeTables": [

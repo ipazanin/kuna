@@ -4,13 +4,13 @@ import { fetchKeysFromGoogle } from '../../shared/secrets/presentation/secretsSt
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
 import PageHeader from '../../shared/ui/PageHeader.vue'
-import AppearanceCard from './AppearanceCard.vue'
 import DeleteDataCard from './DeleteDataCard.vue'
 import FilesHomeCard from './FilesHomeCard.vue'
+import PrivacyCard from './PrivacyCard.vue'
 import SyncCard from './SyncCard.vue'
 import { words } from './words'
 
-/** Kuna settings at `#/settings`, for every app on this device: the page's one sync while some app's file is on Drive, where new files go, the assistant, deleting data, then the look and the language. */
+/** Kuna settings at `#/settings`, for every app on this device: the page's one sync while some app's file is on Drive, where new files go, the assistant, deleting data, then privacy. */
 const sync = usePageSync()
 const { someOnDrive, keysSync } = sync
 
@@ -27,7 +27,7 @@ function fetchKeys(): Promise<string | null> {
       <FilesHomeCard />
       <AiAssistCard :keys-sync="keysSync" :fetch-keys="fetchKeys" />
       <DeleteDataCard />
-      <AppearanceCard />
+      <PrivacyCard />
     </DashboardGrid>
   </section>
 </template>

@@ -1,5 +1,5 @@
 import type { BankSyncPort } from './bankSync'
-import { leftOutOfKuna, proposeAccount } from '../domain/bankAccountSetup'
+import { leftOutOfKuna, linkedAccountEnding, proposeAccount } from '../domain/bankAccountSetup'
 import type { AccountProposal, LinkedOfBank } from '../domain/bankAccountSetup'
 import { NO_SINGLE_CURRENCY, namesEndedSession, sessionEnded } from '../domain/bankAnswer'
 import type { BankBalance, BankTransaction, LinkedAccount } from '../domain/bankAnswer'
@@ -162,7 +162,11 @@ export async function readBanks(
         balances = await port.balances(linked.uid)
       } catch (failure) {
         if (isUnauthorized(failure)) throw failure
-        notes.push(words.balanceNotRead((accounts.length === 0 ? [linked.iban] : accounts.map((account) => account.name)).join(', '), reasonOf(failure)))
+        const names =
+          accounts.length === 0
+            ? [words.linkedAccount(words.banks[bank], linked.currency === NO_SINGLE_CURRENCY ? '' : linked.currency, linkedAccountEnding(linked))]
+            : accounts.map((account) => account.name)
+        notes.push(words.balanceNotRead(names.join(', '), reasonOf(failure)))
       }
       for (const account of accounts) {
         const balance = statedBalance(balances, account.currency)

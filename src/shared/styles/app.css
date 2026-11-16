@@ -222,6 +222,7 @@ section + section > .group-row:not(tr) {
     [role='combobox'],
     [role='tab'],
     [role='menuitem'],
+    [role='menuitemcheckbox'],
     [role='option'],
     [data-slot='base']:has(> [data-slot='segment'])
   ),

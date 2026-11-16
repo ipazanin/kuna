@@ -80,6 +80,8 @@ import { en as spendingStatementsEnglish, hr as spendingStatementsCroatian } fro
 import { en as spendingStatementReadingEnglish, hr as spendingStatementReadingCroatian } from '../../src/apps/spending/statements/domain/words.ts'
 import { en as spendingAccountsEnglish, hr as spendingAccountsCroatian } from '../../src/apps/spending/accounts/presentation/words.ts'
 import { en as spendingBankSyncEnglish, hr as spendingBankSyncCroatian } from '../../src/apps/spending/bankSync/presentation/words.ts'
+import { linkedAccountEnding } from '../../src/apps/spending/bankSync/domain/bankAccountSetup.ts'
+import { UNKNOWN_IBAN } from '../../src/apps/spending/bankSync/infrastructure/fake/fakeBankSync.ts'
 import { en as spendingBankSyncReadingEnglish, hr as spendingBankSyncReadingCroatian } from '../../src/apps/spending/bankSync/domain/words.ts'
 import { en as spendingBudgetsEnglish, hr as spendingBudgetsCroatian } from '../../src/apps/spending/budgets/presentation/words.ts'
 import { en as spendingLabelsEnglish, hr as spendingLabelsCroatian } from '../../src/apps/spending/labels/presentation/words.ts'
@@ -7448,6 +7450,31 @@ export function spendingBankSyncRowsFlowIn(language) {
     await delay(300)
     await inspect?.('the bank sync with rows a file brought')
     await shoot('spending-import-bank-sync')
+  }
+}
+
+/**
+ * On Kuna settings, a sync within six hours of the last bank fetch with an account at OTP that Kuna does not keep: the bank step ends
+ * done with the account as a plain note, named by its bank, currency and the end of its number, never the whole IBAN, and the control counts no problem.
+ */
+export function spendingBankSyncHeldNoteFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const bank = words.spendingBankSync
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const literally = (text) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    const note = literally(bank.unknownAccount(bank.linkedAccount(bank.banks.otp, 'EUR', linkedAccountEnding({ iban: UNKNOWN_IBAN }))))
+    await openKunaSettings(page)
+    // A sync asks the banks, if none did within six hours, and the next one is held back.
+    await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)
+    await stepSays(page, SYNC_CARD, 'bank-sync', 'done', note)
+    await pressSelector(page, press, `${SYNC_CARD} [data-testid="sync-again"]`)
+    const said = await stepSays(page, SYNC_CARD, 'bank-sync', 'done', literally(bank.step.tooSoon))
+    if (!note.test(said)) throw new Error(`the held bank step does not note the account Kuna does not keep, it says: ${said}`)
+    if (said.includes(UNKNOWN_IBAN)) throw new Error(`the held bank step spells the whole IBAN: ${said}`)
+    await controlShows(page, 'ready')
+    await shootAt(page, shoot, SYNC_CARD, 'spending-bank-sync-held-note')
+    await inspect?.('the held bank step with an account Kuna does not keep')
   }
 }
 

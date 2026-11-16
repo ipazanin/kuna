@@ -19,6 +19,11 @@ import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../shared/storage/domain/recordKind'
 
+/** The last four characters of a linked account's number, which name it on screen without the whole IBAN, or nothing where the bank gave none. */
+export function linkedAccountEnding(linked: Pick<LinkedAccount, 'iban'>): string {
+  return ibanKey(linked.iban).slice(-4)
+}
+
 /** One account a session reaches, with the bank it belongs to. */
 export interface LinkedOfBank {
   readonly bank: LinkableBank

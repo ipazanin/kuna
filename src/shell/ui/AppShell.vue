@@ -19,6 +19,7 @@ import WriteProgress from '../../shared/ui/WriteProgress.vue'
 import ChatResizeHandle from './ChatResizeHandle.vue'
 import { FOOTER_FOLDS_BELOW_HEIGHT, layoutOf, PAGE_INSET, pageInsetOf, SIDEBAR_WIDTH, sidebarChoice, someSidebarFits } from './sidebarLayout'
 import SidebarLayoutMenu from './SidebarLayoutMenu.vue'
+import ThemeAndLanguageMenu from './ThemeAndLanguageMenu.vue'
 import { words } from './words'
 
 const props = withDefaults(
@@ -248,7 +249,8 @@ const screenTitle = computed(() => route.meta.title ?? props.title)
           <UTooltip :text="words.quickJump.title" :kbds="['meta', 'k']" :content="{ side: rail ? 'right' : 'bottom' }">
             <UButton icon="i-lucide-search" color="neutral" variant="ghost" class="justify-center" :aria-label="words.quickJump.title" data-testid="quick-jump-open" @click="emit('quickJump')" />
           </UTooltip>
-          <SidebarLayoutMenu :window-width="windowWidth" :chat="chatShows ? chatWidth : null" />
+          <SidebarLayoutMenu :window-width="windowWidth" :chat="chatShows ? chatWidth : null" :tooltip-side="rail ? 'right' : 'bottom'" />
+          <ThemeAndLanguageMenu :tooltip-side="rail ? 'right' : 'bottom'" />
         </div>
         <slot name="navigation" :rail="rail" :chat="chatAvailable" :drawer="false" />
         <div v-if="$slots.sync && footerFolded" class="flex items-end gap-2 border-t border-default py-4 ps-4 pe-2" data-testid="sidebar-sync">
@@ -289,8 +291,9 @@ const screenTitle = computed(() => route.meta.title ?? props.title)
         <UButton icon="i-lucide-menu" color="neutral" variant="ghost" :aria-label="words.navigation.open" data-testid="open-navigation" />
         <template #actions>
           <HomeLink :label="sharedWords.homeLink" look="standard" class="flex-1" />
-          <!-- The drawer's close button sits over the end of this row, so the layout menu stops short of it. -->
-          <SidebarLayoutMenu v-if="someSidebarFits(windowWidth)" :window-width="windowWidth" :chat="chatShows ? chatWidth : null" class="me-10" />
+          <SidebarLayoutMenu v-if="someSidebarFits(windowWidth)" :window-width="windowWidth" :chat="chatShows ? chatWidth : null" tooltip-side="bottom" />
+          <!-- The drawer's close button sits over the end of this row, so the row's last control stops short of it. -->
+          <ThemeAndLanguageMenu tooltip-side="bottom" class="me-10" />
         </template>
         <template #body>
           <div class="contents" @click="closeOnCurrentPage">

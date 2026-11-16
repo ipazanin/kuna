@@ -1,10 +1,9 @@
 import { CHAT_DEFAULT_WIDTH, CHAT_MAX_WIDTH, CHAT_MIN_WIDTH, chatOpen, chatWidth, resizeChat } from '../../shared/ai/presentation/chatDock'
-import { chatKept } from '../../shared/ai/presentation/chatSession'
 import type { AppAssistant } from '../../shared/app/appContribution'
 import { answerKunaStart, forgetKunaStart, kunaStart } from '../../shared/app/kunaStart'
 import { autoSyncOn, switchAutoSync } from '../../shared/sync/infrastructure/autoSyncSwitch'
 import { usePageSync } from '../../shared/sync/presentation/pageSync'
-import { chooseLanguage, languageChoice } from '../../shared/text/language'
+import { languageChoice } from '../../shared/text/language'
 import { chooseTheme, themeChoice } from '../../shared/theme/theme'
 import { windowWidthNow } from '../../shared/layout/viewport'
 import { foldedCards, rememberCollapse } from '../../shared/ui/cardCollapse'
@@ -12,14 +11,15 @@ import { installedApps } from '../routing/appRegistry'
 import { kunaAcceptance, kunaProposer } from './kunaOperations'
 import type { KunaDevice } from './kunaOperations'
 import { chooseSidebar, roomEffectOf, sidebarChoice } from '../ui/sidebarLayout'
+import { switchLanguage } from '../ui/switchLanguage'
 import { words } from './words'
 
 const DEVICE: KunaDevice = {
   theme: () => themeChoice.value,
   chooseTheme,
   language: () => languageChoice,
-  // The card settles once Accept returns, so the reload waits a turn for that and then for the chat's save.
-  chooseLanguage: (choice) => setTimeout(() => void chatKept().then(() => chooseLanguage(choice)), 0),
+  // The card settles once Accept returns, so the reload waits a turn for that.
+  chooseLanguage: (choice) => setTimeout(() => void switchLanguage(choice), 0),
   autoSync: () => autoSyncOn.value,
   switchAutoSync,
   start: kunaStart,

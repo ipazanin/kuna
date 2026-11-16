@@ -734,7 +734,8 @@ a save leaves their rows alone. They belong in the workbook and never in the app
 pillar II, dependants and the year of birth, are the director's row on the `employees` tab.
 
 Bucket labels must differ from each other and from the names of the derived lines (Net, All costs,
-Owner earns, Kept). The theme is a choice of this device on Kuna settings, not a workbook setting:
+Owner earns, Kept). The theme is a choice of this device in the Theme and language menu at the top of
+the sidebar or of the navigation drawer, not a workbook setting:
 System, the default, follows the device's own setting, also when it changes while the app is open.
 Light or Dark is remembered on this device, and System forgets it.
 
@@ -1834,7 +1835,7 @@ with its export and "Switch storage".
 
 Kuna settings at `#/settings` is for every app on this device. While some app's file is on Drive it
 has the Sync card with the steps of the last sync, "Sync as the app opens" and "Sign out of Google".
-Then Appearance and privacy, with the theme, the language and the privacy notes.
+Then Privacy, with the privacy notes.
 
 The tabs are `PageTabs` in `src/shared/ui/`, which any screen with inner tabs uses: the tab is
 `?tab=` in the address and the first tab stays out of it, picking a tab adds a step to the history
@@ -1908,10 +1909,12 @@ when the save renames or deletes it, with what uses it.
 
 ## Language
 
-Kuna speaks English and Croatian. Kuna settings, Appearance and privacy offers Browser language,
-English and Hrvatski. Browser language shows Croatian when the browser lists Croatian first. The
-choice is kept on this device, not in a file, and a new choice loads the app again. `?lang=hr` or
-`?lang=en` pins the language for one visit, as `?theme=` pins the theme.
+Kuna speaks English and Croatian. The Theme and language menu at the top of the sidebar, or of the
+navigation drawer where the sidebar is hidden, offers Browser language, English and Hrvatski.
+Browser language shows Croatian when the browser lists Croatian first. The choice is kept on this
+device, not in a file, and a new choice loads the app again once the chat is kept, which a note
+under the menu's Language label says before one is picked. `?lang=hr` or `?lang=en` pins the
+language for one visit, as `?theme=` pins the theme.
 
 Dates and numbers follow the language: `1.480,25 €`, `3,50 %` and `28. 10. 2026.` in Croatian,
 `€1,480.25`, `3.50%` and `28 Oct 2026` in English. A Croatian day writes its month as a number, a

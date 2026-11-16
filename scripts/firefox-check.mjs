@@ -2,7 +2,8 @@
  * The few things Chrome cannot show, run in real Firefox against the fake build: the sidebar and a
  * dialog with classic scrollbars taking room, focus shown by a call and by the keyboard, the chat, the chat's prompt keeping a new line in view past six rows, a
  * photo and a sheet picked through the chat's file input, a streamed answer read through the app's
- * own reader, Cmd+K or Ctrl+K taken from Firefox's search bar, the chat's edge by drag and keyboard, and the warning on leaving during a save.
+ * own reader, Cmd+K or Ctrl+K taken from Firefox's search bar, the chat's edge by drag and keyboard, the theme and language menu from the
+ * sidebar and the drawer, its rows inside the window, with Light and Hrvatski picked and Browser language back, and the warning on leaving during a save.
  *
  *   npm run build:fake && npm run preview:fake -- --port 4173
  *   npm run check:firefox -- http://localhost:4173/kuna/
@@ -21,6 +22,7 @@ import { keepAiKey, openChat, sendInChat } from './support/chatFlows.mjs'
 import { pressSelector } from './support/pressing.mjs'
 import { chartsFollowWidth } from './support/settleCharts.mjs'
 import { pressJumpKey } from './support/shellFlows.mjs'
+import { en as shellEnglish, hr as shellCroatian } from '../src/shell/ui/words.ts'
 
 const BASE = process.argv[2] ?? 'http://localhost:4173/kuna/'
 const VISIBLE = { visible: true, timeout: 15_000 }
@@ -281,6 +283,50 @@ await step('shell-keys', async (page) => {
   const keyed = await handle.evaluate((element) => Number(element.getAttribute('aria-valuenow')))
   if (keyed !== 400) throw new Error(`Home then Left Arrow left the chat at ${keyed}, not 400`)
   await page.evaluate(() => localStorage.clear())
+})
+
+await step('theme-and-language', async (page) => {
+  const menuRows = () =>
+    page.$$eval('[role="menuitemcheckbox"]', (rows) =>
+      rows.map((row) => {
+        const box = row.getBoundingClientRect()
+        return {
+          text: row.textContent?.trim() ?? '',
+          checked: row.getAttribute('aria-checked') === 'true',
+          inside: box.left >= 0 && box.right <= window.innerWidth && box.bottom <= window.innerHeight,
+        }
+      }),
+    )
+  const openMenu = async (within) => {
+    // The drawer slides in and takes focus as it lands, which would close a menu opened sooner.
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    await (await page.waitForSelector(`${within} [data-testid="theme-and-language"]`, VISIBLE)).click()
+    await page.waitForSelector('[role="menuitemcheckbox"]', VISIBLE)
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    const rows = await menuRows()
+    if (rows.length !== 6 || rows.filter((row) => row.checked).length !== 2 || rows.some((row) => !row.inside)) throw new Error(`the theme and language menu from ${within} is ${JSON.stringify(rows)}`)
+  }
+  const pick = async (label) => {
+    const row = await page.evaluateHandle((wanted) => [...document.querySelectorAll('[role="menuitemcheckbox"]')].find((item) => item.textContent?.trim().startsWith(wanted)), label)
+    await row.asElement().click()
+  }
+  try {
+    await open(page, 'fake=drive', '/company')
+    await openMenu('aside')
+    await pick(shellEnglish.themeAndLanguage.themes.light)
+    await page.waitForFunction(() => document.documentElement.classList.contains('light'), { timeout: 5_000 })
+    await page.setViewport({ width: 800, height: 700 })
+    await (await page.waitForSelector('[data-testid="open-navigation"]', VISIBLE)).click()
+    await openMenu('[role="dialog"]')
+    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), pick(shellEnglish.themeAndLanguage.languages.hr)])
+    await page.waitForFunction(() => document.documentElement.lang === 'hr', { timeout: 10_000 })
+    await (await page.waitForSelector('[data-testid="open-navigation"]', VISIBLE)).click()
+    await openMenu('[role="dialog"]')
+    await Promise.all([page.waitForNavigation({ waitUntil: 'load' }), pick(shellCroatian.themeAndLanguage.languages.browser)])
+    await page.waitForFunction(() => document.documentElement.lang === 'en', { timeout: 10_000 })
+  } finally {
+    await page.evaluate(() => localStorage.clear()).catch(() => {})
+  }
 })
 
 await step('save-warning', async (page) => {

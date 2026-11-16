@@ -20,7 +20,7 @@ export const FAKE_POCKET_IBAN = 'LT000000000000000002'
 export const FAKE_NEW_USD_IBAN = 'LT000000000000000003'
 
 /** A linked account the fake Spending file keeps no account for. Each IBAN here is made up. */
-const UNKNOWN_IBAN = 'HR0000000000000000077'
+export const UNKNOWN_IBAN = 'HR0000000000000000077'
 
 function linkedAccount(uid: string, iban: string, currency: string, described: Partial<LinkedAccount> = {}): LinkedAccount {
   return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null, ...described }
@@ -62,7 +62,7 @@ function revolutEuroRows(day: CivilDate, variant: string | null): readonly BankT
 function revolutDollarRows(day: CivilDate, variant: string | null): readonly BankTransaction[] {
   return [
     transaction(day, 1, 'rev-2003', '9.00', 'DBIT', 'Diner in Boston', 'BOOK', 'USD'),
-    ...(variant === 'settled' ? [transaction(day, 100, 'rev-2301', '5.00', 'CRDT', 'Diner in Boston', 'BOOK', 'USD')] : []),
+    ...(variant === 'settled' || variant === 'unknown-account' ? [transaction(day, 100, 'rev-2301', '5.00', 'CRDT', 'Diner in Boston', 'BOOK', 'USD')] : []),
     ...(variant === 'exchange' ? [transaction(day, 1, 'rev-2102', '54.25', 'CRDT', 'Exchanged from EUR', 'BOOK', 'USD')] : []),
   ]
 }
@@ -72,7 +72,8 @@ function revolutDollarRows(day: CivilDate, variant: string | null): readonly Ban
  * same day, two equal payments on one day, a row without a reference and a pending one, on Revolut's euro account a coffee
  * that fills the typed one and a row a rule files, and on its dollar account a row in dollars. `multi-currency` gives both
  * currencies on one account. `exchange` adds an exchange's two legs, `pocket` a move to a pocket that comes as an
- * account of its own, and `withdrawal` cash taken out at an OTP cash machine. The two accounts `new-accounts` adds reach further back.
+ * account of its own, and `withdrawal` cash taken out at an OTP cash machine. The two accounts `new-accounts` adds reach further back, and so does
+ * the dollar account in `settled` and in `unknown-account`, so the account Kuna does not keep is all that variant leaves.
  */
 export function fakeBankTransactions(accountUid: string, day: CivilDate, variant: string | null = null): readonly BankTransaction[] {
   if (accountUid === OTP_UID) {

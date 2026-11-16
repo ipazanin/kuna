@@ -1,9 +1,9 @@
 import { deviceText } from '../device/deviceChoice'
 
 /**
- * Settings offers Browser language, English and Hrvatski. Browser language is the default and shows
- * Croatian when the browser lists Croatian first. English or Hrvatski is remembered on this device,
- * and Browser language forgets it. `?lang=en` or `?lang=hr` pins the language for one visit, so a
+ * The Theme and language menu offers Browser language, English and Hrvatski. Browser language is
+ * the default and shows Croatian when the browser lists Croatian first. English or Hrvatski is
+ * remembered on this device, and Browser language forgets it. `?lang=en` or `?lang=hr` pins the language for one visit, so a
  * screenshot or a link can show either. The language is read once when the app loads, and a new
  * choice reloads the page.
  */
@@ -37,12 +37,12 @@ export function browserLanguage(languages: readonly string[]): Language {
   return first === 'hr' || first.startsWith('hr-') ? 'hr' : 'en'
 }
 
-/** A pin from the address wins, then the choice made on Settings, and Browser language takes the browser's. */
+/** A pin from the address wins, then the choice made in the Theme and language menu, and Browser language takes the browser's. */
 export function resolveLanguage(pin: Language | null, choice: LanguageChoice, browser: Language): Language {
   return pin ?? (choice === 'browser' ? browser : choice)
 }
 
-/** What Settings shows as picked on this device. */
+/** What the Theme and language menu shows as picked on this device. */
 export const languageChoice: LanguageChoice = languageChoiceFrom(keptLanguage.read())
 
 /**
