@@ -20,3 +20,8 @@ export function isIban(text: string): boolean {
   }
   return remainder === 1
 }
+
+/** An IBAN in groups of four, as a bank prints it. */
+export function groupedIban(iban: string): string {
+  return (normaliseIban(iban).match(/.{1,4}/g) ?? []).join(' ')
+}

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { BANK_ACCOUNT_LINES } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
-import { BANK_SYNC_LINES, UNREAD_KINDS, spendingReader } from '../src/apps/spending/assistant/spendingReader'
+import { BANK_SYNC_LINES, PAYEE_LINES, UNREAD_KINDS, spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'
 import { wholeItemOf } from '../src/apps/spending/workbook/domain/rowItems'
 import { findRecords, getRecord, readFigures } from '../src/shared/ai/application/chatReads'
@@ -239,9 +239,9 @@ describe('the figures of a read', () => {
 })
 
 describe('what Spending lets the chat read', () => {
-  it('names every kind it stores, as read or as kept out, and reads the bank set-up list and the bank sync line beside them', () => {
+  it('names every kind it stores, as read or as kept out, and reads the bank set-up list, the bank sync line and the payees beside them', () => {
     const reader = spendingReader(CHAT_READING)
-    const lines = [BANK_ACCOUNT_LINES.name, BANK_SYNC_LINES.name]
+    const lines = [BANK_ACCOUNT_LINES.name, BANK_SYNC_LINES.name, PAYEE_LINES.name]
     const stored = reader.kinds.map((kind) => kind.name).filter((name) => !lines.includes(name))
     expect(reader.kinds.map((kind) => kind.name)).toEqual(expect.arrayContaining(lines))
     expect([...stored, ...UNREAD_KINDS].sort()).toEqual(
@@ -249,6 +249,17 @@ describe('what Spending lets the chat read', () => {
         .map((kind) => kind.name)
         .sort(),
     )
+  })
+
+  it('sends each payee and the payees report with a person under their alias and IBANs as masked tokens', async () => {
+    const payees = await found({ kind: 'payee' }, readsOf())
+    expect(payees.records.map((record) => record['name'])).toEqual(['Corner market', 'Person 1', 'Person 1'])
+    expect(payees.answer.text).not.toMatch(/Horvat|HORVAT/)
+    expect(payees.answer.text).not.toContain(IBAN_OF_ANA)
+    const report = await readFigures('spending', 'payees', '2026-10-31', readsOf())
+    expect(report.isError).toBe(false)
+    expect(report.text).toContain('Person 1: paid')
+    expect(report.text).not.toMatch(/Horvat|HORVAT/)
   })
 
   it('classes an address as a place to reach nobody on a receipt, and no setting value can leave', () => {

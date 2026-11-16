@@ -127,6 +127,8 @@ export const en = {
     linkUnknown: 'a record of Loans, which cannot be read now',
     linkNotSetUp: 'a record of Loans, but Loans is not set up',
     bankSync: 'Whether the bank sync can bring a new account its rows, which needs a bank sync deployment saved on Settings, Bank sync.',
+    payee:
+      'Each payee of every entry filed under a spending or an income category, once however its case and accents differ, with the IBANs its bank rows carry and the category its entries usually go under, as the Payees tab lists them. A payee is no record of the file.',
     bankAccount:
       "Each currency of each account the linked banks gave at this page's last bank sync, against your Spending accounts, as Settings, Bank sync lists them. A new sync or a reload changes them, and after a reload no rows are held.",
   },
@@ -139,6 +141,11 @@ export const en = {
       title: 'what each label counts',
       about:
         "What each label counted up to the end of a day, as Spending counts its months: spent, by group, received and saved, with how many entries carry it. A transfer between the owner's accounts lists under a label and counts nowhere.",
+    },
+    payees: {
+      title: 'whom money went to and came from',
+      about:
+        'What each payee was paid and paid you over the twelve months up to the month of a day, as Overview counts: the twenty largest on each side and the rest as one line, with how many entries each has. Money between your accounts, savings, the company and loans leaves no figure.',
     },
     events: {
       title: 'what each event counts',
@@ -326,6 +333,8 @@ export const hr: Translation<typeof en> = {
     linkUnknown: 'zapis iz Kredita koji se sada ne može pročitati',
     linkNotSetUp: 'zapis iz Kredita, ali Krediti nisu postavljeni',
     bankSync: 'Može li sinkronizacija s bankom donositi retke novom računu, za što treba spremiti implementaciju sinkronizacije u Postavkama, na kartici Banke.',
+    payee:
+      'Svaki primatelj ili platitelj unosa pod kategorijom potrošnje ili prihoda, jednom bez obzira na velika slova i kvačice, s IBAN-ima koje nose njegovi bankovni redovi i kategorijom pod koju mu unosi obično idu, kako ih navodi kartica Primatelji i platitelji. Nije zapis datoteke.',
     bankAccount:
       'Svaka valuta svakog računa koji su povezane banke dale pri zadnjoj sinkronizaciji na ovoj stranici, uz vaše račune u Potrošnji, kako ih navodi Postavke, Sinkronizacija s bankom. Nova sinkronizacija ili ponovno učitavanje ih mijenja, a nakon ponovnog učitavanja nijedan redak nije zadržan.',
   },
@@ -338,6 +347,11 @@ export const hr: Translation<typeof en> = {
       title: 'što broji svaka oznaka',
       about:
         'Koliko je svaka oznaka brojala do kraja dana, kao što Potrošnja broji svoje mjesece: potrošeno, po skupinama, primljeno i ušteđeno, te koliko je unosa nosi. Prijenos između vlasnikovih računa navodi se pod oznakom i ne broji se nigdje.',
+    },
+    payees: {
+      title: 'kome je novac otišao i od koga je došao',
+      about:
+        'Koliko je svaki primatelj dobio i svaki platitelj platio u dvanaest mjeseci do mjeseca nekog dana, brojeno kao u Pregledu: dvadeset najvećih sa svake strane i ostali u jednom retku, s brojem unosa svakog. Novac među vašim računima, štednja, tvrtka i zajmovi se ne broje.',
     },
     events: {
       title: 'što broji svaki događaj',

@@ -276,11 +276,11 @@ describe('problems in the Spending file, listed by kind', () => {
     })
 
     expect(book.problems.filter((problem) => problem.kind === 'transaction').map((problem) => [problem.label, problem.reason])).toEqual([
-      ['2026-10-12, 0, Nothing', 'amount is zero'],
-      ['2026-10-12, -45.3, Lost account', 'names no account in the file'],
-      ['2026-10-12, -45.3, Refused account', 'names no account in the file'],
-      ['2026-10-12, -45.3, Lost category', 'names no category in the file'],
-      ['2026-10-12, -45.3, Too deep', 'names no category in the file'],
+      ['12 Oct 2026, 0.00, Nothing', 'amount is zero'],
+      ['12 Oct 2026, −45.30, Lost account', 'names no account in the file'],
+      ['12 Oct 2026, −45.30, Refused account', 'names no account in the file'],
+      ['12 Oct 2026, −45.30, Lost category', 'names no category in the file'],
+      ['12 Oct 2026, −45.30, Too deep', 'names no category in the file'],
     ])
     expect(book.transactions.map((transaction) => transaction.payee)).toEqual(['Waits on review'])
     expect(book.items.map((item) => [item.transaction, item.category])).toEqual([[book.transactions[0]!.id, null]])
@@ -304,10 +304,10 @@ describe('problems in the Spending file, listed by kind', () => {
 
     expect(book.transactions.map((transaction) => transaction.payee)).toEqual(['Top-up', 'Top-up'])
     expect(book.problems.map((problem) => [problem.label, problem.reason])).toEqual([
-      ['2026-10-12, -200, Same account', 'names as its other leg a row on the same account'],
-      ['2026-10-12, 200, Same account', 'names as its other leg a row on the same account'],
-      ['2026-10-12, -50, Not named back', 'names as its other leg a row that does not name it back'],
-      ['2026-10-12, -50, Missing leg', 'names as its other leg a row that does not name it back'],
+      ['12 Oct 2026, −200.00, Same account', 'names as its other leg a row on the same account'],
+      ['12 Oct 2026, 200.00, Same account', 'names as its other leg a row on the same account'],
+      ['12 Oct 2026, −50.00, Not named back', 'names as its other leg a row that does not name it back'],
+      ['12 Oct 2026, −50.00, Missing leg', 'names as its other leg a row that does not name it back'],
     ])
   })
 

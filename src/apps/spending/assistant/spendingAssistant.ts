@@ -6,6 +6,7 @@ import {
   SPENDING_BANK_SYNC_LINK,
   SPENDING_BUDGETS_ROUTE,
   SPENDING_OVERVIEW_ROUTE,
+  SPENDING_PAYEES_ROUTE,
   SPENDING_REVIEW_LINK,
   SPENDING_SETTINGS_ROUTE,
   SPENDING_TRANSACTIONS_ROUTE,
@@ -19,7 +20,7 @@ import { ACCOUNT_RECORDS, CATEGORY_RECORDS } from '../workbook/domain/spendingKi
 import { BANK_SYNC_DEPLOYMENT_KEY, LINKABLE_BANKS, bankLinkKey } from '../workbook/domain/spendingSettings'
 import type { AppAssistant, AssistantPlace } from '../../../shared/app/appContribution'
 import type { AppAcceptance, AppProposer } from '../../../shared/app/assistantOperations'
-import { spendingReader } from './spendingReader'
+import { PAYEE_LINES, spendingReader } from './spendingReader'
 import type { SpendingReading } from './spendingReader'
 import { words } from './words'
 import type { GuideLabels } from './words'
@@ -37,8 +38,13 @@ const PLACES: readonly AssistantPlace[] = [
   { route: RECEIPTS_LINK, title: settingsWords.tabs.receipts },
   { route: SPENDING_ASSISTANT_LINK, title: settingsWords.tabs.assistant },
   { route: SPENDING_OVERVIEW_ROUTE, title: screenWords.overview, params: { group: { kind: CATEGORY_RECORDS.name } } },
-  { route: SPENDING_TRANSACTIONS_ROUTE, title: screenWords.entries, params: { month: 'month', account: { kind: ACCOUNT_RECORDS.name }, category: { kind: CATEGORY_RECORDS.name } } },
+  {
+    route: SPENDING_TRANSACTIONS_ROUTE,
+    title: screenWords.entries,
+    params: { month: 'month', account: { kind: ACCOUNT_RECORDS.name }, category: { kind: CATEGORY_RECORDS.name }, payee: { kind: PAYEE_LINES.name } },
+  },
   { route: SPENDING_BUDGETS_ROUTE, title: screenWords.limits, params: { month: 'month' } },
+  { route: SPENDING_PAYEES_ROUTE, title: screenWords.payees },
   { route: SPENDING_ACCOUNTS_ROUTE, title: screenWords.accounts },
   { route: SPENDING_ACCOUNT_ROUTE, title: screenWords.account, params: { account: { kind: ACCOUNT_RECORDS.name } } },
   { route: SPENDING_SETTINGS_ROUTE, title: screenWords.settings },

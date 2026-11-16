@@ -1,3 +1,4 @@
+import { samePayee } from '../../payees/domain/payeeKey'
 import { takesNewRowsByHand } from '../../workbook/domain/account'
 import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
@@ -11,7 +12,6 @@ import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
-import { fold } from '../../../../shared/text/fold'
 
 /** Why a part of a shortcut does not count: its amount is zero, it goes the other way from a sibling, or its category or a label is not one a part can take. */
 export type ShortcutPartProblem = 'zero' | 'mixed-ways' | 'unknown-category' | 'between-accounts' | 'unknown-label'
@@ -74,7 +74,7 @@ export function shortcutsShown(book: Pick<SpendingBook, 'shortcuts' | 'shortcutP
 /** How many typed entries in a row make an entry worth a shortcut, inside how many days. */
 export const REPEATS = { entries: 3, days: 30 } as const
 
-/** What an entry not split is, for telling whether it repeats: its account, payee once folded, amount and category. */
+/** What an entry not split is, for telling whether it repeats: its account, payee, amount and category. */
 export interface RepeatedEntry {
   readonly account: RecordId
   readonly payee: string
@@ -83,12 +83,12 @@ export interface RepeatedEntry {
 }
 
 function sameEntry(one: RepeatedEntry, other: RepeatedEntry): boolean {
-  return one.account === other.account && fold(one.payee) === fold(other.payee) && one.amount === other.amount && one.category === other.category
+  return one.account === other.account && samePayee(one.payee, other.payee) && one.amount === other.amount && one.category === other.category
 }
 
 /**
  * Whether the entry about to be added would be the third typed one like it in 30 days up to its day, with no shortcut that
- * writes it yet. Like it means the same account, payee once folded, amount and category, on an entry not split and with no
+ * writes it yet. Like it means the same account, payee, amount and category, on an entry not split and with no
  * link. Typed entries before it on other days and the same day both count.
  */
 export function repeatsWithoutShortcut(book: Pick<SpendingBook, 'transactions' | 'items' | 'shortcuts' | 'shortcutParts'>, entry: RepeatedEntry, day: CivilDate): boolean {

@@ -5,6 +5,10 @@ import { categoryTree } from '../categories/domain/categoryTree'
 import { countedAccounts, euroRows } from '../rates/domain/euroRows'
 import { eventTotals } from '../events/domain/eventTotals'
 import { labelTotals } from '../labels/domain/labelTotals'
+import { inPeriod } from '../payees/domain/payeePeriod'
+import { payeeAmount, payeeTotals, payeesRanked } from '../payees/domain/payeeTotals'
+import type { PayeeSide } from '../payees/domain/payeeTotals'
+import { usualCategories } from '../payees/domain/usualCategory'
 import { reviewCount } from '../statements/domain/reviewQueue'
 import { bookingOf } from '../statements/domain/statementDryRun'
 import type { BankSetup } from '../bankSync/application/bankSync'
@@ -408,6 +412,76 @@ function eventsReport(book: SpendingBook, rates: RateBook, period: string | null
   })
 }
 
+/** How many payees the payees report names on each side before one line holds the rest. */
+const PAYEES_NAMED = 20
+
+/** Whom money went to and came from over the twelve months up to the day's month, as the Payees tab counts it. A person's name leaves under their alias. */
+function payeesReport(book: SpendingBook, rates: RateBook, period: string | null): readonly ReportFigure[] {
+  const day = period === null ? today() : parseCivilDate(period)
+  if (day === null) throw new RangeError('Not a day.')
+  const counted = inPeriod('year', day)
+  const totals = payeeTotals(
+    euroRows(book, rates).filter((row) => counted(row.transaction.date)),
+    book.categories,
+  )
+  const side = (shown: PayeeSide, word: string): readonly ReportFigure[] => {
+    const { top, rest } = payeesRanked(totals, shown, PAYEES_NAMED)
+    return [
+      ...top.flatMap((payee): readonly ReportFigure[] => [euros(`${payee.name}: ${word}`, payeeAmount(payee, shown)), { label: `${payee.name}: entries`, count: payee.rows }]),
+      ...(rest === null ? [] : [euros(`other payees: ${word}`, rest.sum), { label: `other payees who were ${word}: how many`, count: rest.payees }]),
+    ]
+  }
+  return [
+    ...side('paid', 'paid'),
+    ...side('received', 'received'),
+    { label: 'entries left out because no exchange rate reaches them yet', count: totals.reduce((sum, payee) => sum + payee.unrated, 0) },
+  ]
+}
+
+/** One payee as the chat reads it, derived from the entries. It is no record of the file. */
+interface PayeeLine {
+  readonly id: string
+  readonly name: string
+  readonly ibans: readonly string[]
+  readonly entries: number
+  readonly newestDay: CivilDate | null
+  readonly usualOut: RecordId | null
+  readonly usualIn: RecordId | null
+}
+
+/** The payees of the book, as the Payees tab lists them. */
+export const PAYEE_LINES: Pick<RecordKind, 'name' | 'noun'> = {
+  name: 'payee',
+  noun: {
+    en: { one: 'payee', many: 'payees', article: 'a' },
+    hr: { one: 'primatelj ili platitelj', of: 'primatelja ili platitelja', few: 'primatelja ili platitelja', other: 'primatelja ili platitelja', gender: 'masculine' },
+  },
+}
+
+const PAYEE_FIELDS: FieldDocs<PayeeLine> = {
+  id: { exposure: 'ref', to: PAYEE_LINES.name, meaning: 'The payee.' },
+  name: { exposure: 'party', meaning: 'The payee as their newest entry spells it.' },
+  ibans: { exposure: 'identifier', meaning: "The IBANs the payee's bank rows carry, newest first." },
+  entries: { exposure: 'plain', meaning: 'How many entries under a spending or an income category name the payee, of all time.' },
+  newestDay: { exposure: 'plain', meaning: 'The day of their newest such entry.' },
+  usualOut: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: "The category the payee's money out usually goes under, which the entry dialog fills in, or none." },
+  usualIn: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: "The category the payee's money in usually goes under, or none." },
+}
+
+/** Every payee of all time, with the categories their entries usually go under. */
+function payeeLines(book: SpendingBook, rates: RateBook): readonly PayeeLine[] {
+  const [usualOut, usualIn] = [usualCategories(book, 'out'), usualCategories(book, 'in')]
+  return payeeTotals(euroRows(book, rates), book.categories).map((payee) => ({
+    id: payee.key,
+    name: payee.name,
+    ibans: payee.ibans,
+    entries: payee.rows,
+    newestDay: payee.latest,
+    usualOut: usualOut.get(payee.key) ?? null,
+    usualIn: usualIn.get(payee.key) ?? null,
+  }))
+}
+
 const BANK_ACCOUNT_FIELDS: FieldDocs<BankAccountLine> = {
   id: { exposure: 'ref', to: BANK_ACCOUNT_LINES.name, meaning: 'The line, which the bank account operations take.' },
   bank: { exposure: 'plain', meaning: 'otp or revolut.' },
@@ -489,7 +563,7 @@ function bankAccountLines(setup: BankSetup, book: SpendingBook): readonly BankAc
   })
 }
 
-/** What the chat can read of Spending: seven kinds of record and the bank set-up list, with every field classified, and the figures the screens show, from the same functions. Nothing here writes. */
+/** What the chat can read of Spending: seven kinds of record, the payees and the bank set-up list, with every field classified, and the figures the screens show, from the same functions. Nothing here writes. */
 export function spendingReader(reading: SpendingReading): AppReader {
   const rows = <R>(of: (book: SpendingBook) => readonly R[]): readonly R[] => {
     const book = reading.book()
@@ -585,6 +659,14 @@ export function spendingReader(reading: SpendingReading): AppReader {
         },
         currencyOf: (line) => line.currency,
       }),
+      readableKind<PayeeLine>({
+        kind: PAYEE_LINES,
+        about: words.reads.payee,
+        fields: PAYEE_FIELDS,
+        dated: 'newestDay',
+        rows: () => rows((book) => payeeLines(book, reading.rates())),
+        currencyOf: () => EURO,
+      }),
       readableKind<BankSyncLine>({
         kind: BANK_SYNC_LINES,
         about: words.reads.bankSync,
@@ -601,6 +683,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       { id: 'balances', title: words.reports.balances.title, about: words.reports.balances.about, period: 'day', figures: report(balancesReport) },
       { id: 'labels', title: words.reports.labels.title, about: words.reports.labels.about, period: 'day', figures: report(labelsReport) },
       { id: 'events', title: words.reports.events.title, about: words.reports.events.about, period: 'day', figures: report(eventsReport) },
+      { id: 'payees', title: words.reports.payees.title, about: words.reports.payees.about, period: 'day', figures: report(payeesReport) },
     ],
     bookings: {
       kind: TRANSACTION_RECORDS.name,

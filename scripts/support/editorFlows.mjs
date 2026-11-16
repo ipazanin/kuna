@@ -71,6 +71,7 @@ import { en as spendingAssistantEnglish, hr as spendingAssistantCroatian } from 
 import { en as spendingReceiptDomainEnglish, hr as spendingReceiptDomainCroatian } from '../../src/apps/spending/receipts/domain/words.ts'
 import { en as spendingScreensEnglish, hr as spendingScreensCroatian } from '../../src/apps/spending/screenWords.ts'
 import { en as spendingEntriesEnglish, hr as spendingEntriesCroatian } from '../../src/apps/spending/entries/presentation/words.ts'
+import { en as spendingPayeesEnglish, hr as spendingPayeesCroatian } from '../../src/apps/spending/payees/presentation/words.ts'
 import { en as spendingLinksEnglish, hr as spendingLinksCroatian } from '../../src/apps/spending/links/presentation/words.ts'
 import { addDays, today } from '../../src/shared/calendar/civilDate.ts'
 import { monthOf } from '../../src/shared/calendar/monthKey.ts'
@@ -6619,10 +6620,11 @@ export function spendingEntryDialogFlowIn(language, kind) {
     await inspect?.(kind === 'transfer' ? 'the entry dialog between two currencies' : 'the entry dialog')
     await shoot(kind === 'transfer' ? 'spending-transfer' : 'spending-entry')
     if (kind === 'out') {
-      if (await page.$('[role="listbox"]')) throw new Error('the payee field lists payees for a new payee')
+      const offered = await page.$$eval('[role="listbox"] [role="option"]', (options) => options.map((option) => option.textContent?.trim() ?? ''))
+      if (offered.some((option) => option !== SPENDING_PAYEE_WORDS[language].newPayee(SPENDING_PAYEE))) throw new Error(`the payee field lists ${offered.join(', ')} for a new payee`)
       const field = await typePayee(page, press, 'ex')
       const listed = await payeeOptions(page, SPENDING_PAYEES_EX.length)
-      if (listed.join('|') !== SPENDING_PAYEES_EX.join('|')) throw new Error(`the payee field lists ${listed.join(', ')} for ex`)
+      if (listed.join('|') !== [SPENDING_PAYEE_WORDS[language].newPayee('ex'), ...SPENDING_PAYEES_EX.slice(1)].join('|')) throw new Error(`the payee field lists ${listed.join(', ')} for ex`)
       await delay(250)
       await inspect?.('the payee list')
       await shoot('spending-entry-payees')
@@ -12832,5 +12834,116 @@ export function spendingReceiptLinesFlowIn(language, photos) {
     await undoIn(page, press, words)
     await rowLinesAre(page, 'Corner market', -2349, 0)
     await dismissToasts(page)
+  }
+}
+const SPENDING_PAYEE_WORDS = { en: spendingPayeesEnglish, hr: spendingPayeesCroatian }
+
+/**
+ * On the sample Spending file's Payees: This month and All time each keep the period in the address, and Last 12 months
+ * takes it out again. The largest payee of money out opens Entries on the last twelve months filtered to it, with a chip for
+ * each and the same total as the row tapped, and the payee's chip takes the payee off.
+ */
+export function spendingPayeesFlowIn(language) {
+  const words = SPENDING_PAYEE_WORDS[language]
+  const lastTwelveMonths = SCREEN_WORDS[language].spendingEntries.filters.lastTwelveMonths
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-payees-paid"]', { visible: true, timeout: 10_000 })
+    for (const [label, period] of [
+      [words.period.month, 'month'],
+      [words.period.all, 'all'],
+      [words.period.year, null],
+    ]) {
+      await pressButton(page, press, '[data-testid="spending-payees-period"] button', label)
+      await page
+        .waitForFunction((wanted) => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('period') === wanted, { timeout: 5_000 }, period)
+        .catch(() => {
+          throw new Error(`${label} left the address at ${page.url()}`)
+        })
+    }
+    await inspect?.('the Payees tab')
+    await shoot('spending-payees')
+    const first = await page.waitForSelector('[data-testid="spending-payees-paid"] [data-testid="spending-payee-open"]', { visible: true, timeout: 5_000 })
+    const name = await first.$eval('.list-row-title', (title) => title.textContent?.trim() ?? '')
+    const paid = await first.$eval('[data-amount]', (amount) => amount.getAttribute('data-amount'))
+    await first.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(first)
+    await page.waitForSelector('[data-testid="spending-filter-total"]', { visible: true, timeout: 10_000 })
+    const months = await page.evaluate(() => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('month'))
+    if (months !== 'last-12-months') throw new Error(`Entries opened from ${name} on Last 12 months shows ${months ?? 'this month'}`)
+    const total = await page.$eval('[data-testid="spending-filter-total"]', (row) => ({ text: row.textContent ?? '', spent: row.querySelector('[data-spent]')?.getAttribute('data-spent') ?? null }))
+    if (!total.text.includes(name)) throw new Error(`Entries opened from ${name} sums up another: ${total.text}`)
+    if (total.spent !== paid) throw new Error(`Entries opened from ${name} sums ${total.spent} where Payees shows ${paid}`)
+    const phone = (await page.$('[data-testid="spending-filter-chips"]')) !== null
+    // A phone's one line of chips folds those it has no room for behind "+N more", whose pop-up lists them.
+    const more = phone ? await page.$('[data-testid="spending-filter-chips"] [data-testid="more-filters"]') : null
+    if (more !== null) {
+      await press(more)
+      await page.waitForSelector('[data-reka-popper-content-wrapper] button', { visible: true, timeout: 5_000 })
+      await delay(250)
+    }
+    const chips = phone
+      ? [...(await page.$$('[data-testid="spending-filter-chips"] [data-testid="filter-chip"]')), ...(await page.$$('[data-reka-popper-content-wrapper] button'))]
+      : [await page.$('[data-testid="spending-filter-month"]'), await page.$('[data-testid="spending-filter-payee"]')]
+    const chipTexts = await Promise.all(chips.map((chip) => chip.evaluate((element) => element.textContent?.trim() ?? '')))
+    if (chipTexts.join('|') !== `${lastTwelveMonths}|${name}`) throw new Error(`Entries opened from ${name} shows ${chipTexts.join(', ')}, not ${lastTwelveMonths} and ${name}`)
+    await inspect?.("a payee's entries")
+    await shoot('spending-entries-by-payee')
+    const chip = chips[1]
+    await press(chip)
+    await page
+      .waitForFunction(() => !document.querySelector('[data-testid="spending-filter-total"]') && !new URLSearchParams(window.location.hash.split('?')[1] ?? '').has('payee'), { timeout: 5_000 })
+      .catch(() => {
+        throw new Error("the payee's chip did not take the payee off")
+      })
+  }
+}
+
+/** On the sample Spending file's Entries: a payee the books do not hold lists only itself as a new payee, which Enter keeps as typed. */
+export function spendingPayeeNewFlowIn(language) {
+  const words = SPENDING_PAYEE_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await newSpendingEntry(page, press, SCREEN_WORDS[language], 'out')
+    const field = await typePayee(page, press, 'Bakery by the port')
+    const listed = await payeeOptions(page, 1)
+    if (listed[0] !== words.newPayee('Bakery by the port')) throw new Error(`the payee field lists ${listed.join(', ')} for a new payee`)
+    await delay(250)
+    await inspect?.('a new payee in the payee list')
+    await shoot('spending-entry-new-payee')
+    await page.keyboard.press('Enter')
+    await payeeListGone(page)
+    await payeeTyped(field, 'Bakery by the port', 'Enter on a new payee')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+/**
+ * On the sample Spending file's Entries: a known payee typed in full, in other case, is that payee and fills the empty category
+ * with the one its entries usually go under and says so, and a category picked by hand takes the line away.
+ */
+export function spendingPayeeMemoryFlowIn(language) {
+  const words = SPENDING_PAYEE_WORDS[language]
+  const screen = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await newSpendingEntry(page, press, screen, 'out')
+    const field = await typePayee(page, press, 'corner market')
+    await page.keyboard.press('Escape')
+    await payeeListGone(page)
+    await payeeTyped(field, 'corner market', 'Escape on the payee list')
+    const category = await page.$eval('[data-testid="spending-entry-category"]', (trigger) => trigger.textContent?.trim() ?? '')
+    if (category !== screen.spendingStarter.Groceries) throw new Error(`Corner market filled the category with ${category || 'nothing'}, not ${screen.spendingStarter.Groceries}`)
+    const help = () =>
+      page.$$eval('[data-testid="spending-entry-dialog"] [id$="-help"], [data-testid="spending-entry-dialog"] [data-slot="help"]', (lines) => lines.map((line) => line.textContent?.trim() ?? ''))
+    if (!(await help()).includes(words.filledFromPayee)) throw new Error('the category filled from the payee does not say so')
+    await delay(250)
+    await inspect?.('a category filled from the payee')
+    await shoot('spending-entry-payee-memory')
+    await choose(page, press, await page.$('[data-testid="spending-entry-category"]'), screen.spendingStarter['Eating out'])
+    if ((await help()).includes(words.filledFromPayee)) throw new Error('a category picked by hand still says the payee filled it')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
   }
 }

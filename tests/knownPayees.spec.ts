@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PAYEE_CHOICES, knownPayees, payeeChoices } from '../src/apps/spending/entries/domain/knownPayees'
+import { PAYEE_CHOICES, isNewPayee, knownPayees, payeeChoices } from '../src/apps/spending/payees/domain/knownPayees'
 import { OTP, REVOLUT_EUR, row, transactionId } from './fixtures/spending'
 
 describe('the payees the entry dialog offers', () => {
@@ -60,9 +60,16 @@ describe('what the payee list offers for what is typed', () => {
     expect(payeeChoices(payees, 'đuro')).toEqual(['Đuro'])
   })
 
-  it('offers nothing for blank text or a payee the books do not hold', () => {
+  it('offers nothing for blank text, and only the text as typed for a payee the books do not hold', () => {
     expect(payeeChoices(payees, '  ')).toEqual([])
-    expect(payeeChoices(payees, 'Bakery by the port')).toEqual([])
+    expect(payeeChoices(payees, 'Bakery by the port')).toEqual(['Bakery by the port'])
+  })
+
+  it('takes the text as a new payee unless it names a known one in full', () => {
+    expect(isNewPayee(payees, 'cor')).toBe(true)
+    expect(isNewPayee(payees, 'CORNER MARKET')).toBe(false)
+    expect(isNewPayee(payees, 'duro')).toBe(false)
+    expect(isNewPayee(payees, ' ')).toBe(false)
   })
 
   it(`offers at most ${PAYEE_CHOICES} known payees, most recent first`, () => {

@@ -7,14 +7,17 @@ import { categoriesOfRow, rowSide } from '../../categories/domain/rowSide'
 import { partsInEvent } from '../../events/domain/eventMembership'
 import { eventsNewestFirst } from '../../events/domain/events'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
-import { ALL_MONTHS, accountNamed, categoryIdNamed, eventNamed, labelNamed } from '../../overview/presentation/spendingLinks'
+import { ALL_MONTHS, LAST_12_MONTHS, accountNamed, categoryIdNamed, entriesMonthsNamed, eventNamed, labelNamed, payeeNamed } from '../../overview/presentation/spendingLinks'
+import type { EntriesMonths } from '../../overview/presentation/spendingLinks'
+import { payeeKey } from '../../payees/domain/payeeKey'
 import type { EuroRow } from '../../rates/domain/euroRows'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { labelsOf } from '../../workbook/domain/carriedChoices'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
 import { today } from '../../../../shared/calendar/civilDate'
-import { monthOf, monthsFrom, parseMonthKey } from '../../../../shared/calendar/monthKey'
-import type { MonthKey } from '../../../../shared/calendar/monthKey'
+import type { CivilDate } from '../../../../shared/calendar/civilDate'
+import { lastTwelveMonths, rangeContains } from '../../../../shared/calendar/dateRange'
+import { monthOf, monthsFrom } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { keyOfRecordId } from '../../../../shared/storage/domain/recordId'
 
@@ -29,10 +32,11 @@ export interface ActiveFilter {
 }
 
 /**
- * Entries' filters, kept in `?month=`, `?account=`, `?category=`, `?label=` and `?event=`. This month stays out of the address.
+ * Entries' filters, kept in `?month=`, `?account=`, `?category=`, `?label=`, `?event=` and `?payee=`. This month stays out of the address.
  * Picking a label or an event shows its entries of every month, since a flight bought in March can be put in a July trip, so
- * every month is part of that filter rather than one of its own, and taking the last of them off goes back to this month. The
- * screen keeps one and hands it to its parts, which change a filter through its pick function.
+ * every month is part of that filter rather than one of its own, and taking the last of them off goes back to this month. A
+ * payee comes only from the Payees tab, with the months that tab counted. The screen keeps one and hands it to its parts,
+ * which change a filter through its pick function.
  */
 export function useEntryFilters(book: () => SpendingBook | null) {
   const route = useRoute()
@@ -51,12 +55,23 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     void router.replace({ query: Object.fromEntries([...kept, ...set]) })
   }
 
-  const month = computed<MonthKey | typeof ALL_MONTHS>({
-    get: () => (route.query.month === ALL_MONTHS ? ALL_MONTHS : ((typeof route.query.month === 'string' ? parseMonthKey(route.query.month) : null) ?? thisMonth)),
+  const month = computed<EntriesMonths>({
+    get: () => entriesMonthsNamed(route.query.month) ?? thisMonth,
     set: (picked) => changeQuery({ month: picked === thisMonth ? null : picked }),
   })
 
-  /** Every month goes with the last label or event taken off, back to this month, and a month picked by hand stays. */
+  /** Whether a day falls in the months shown. */
+  const inMonths = computed((): ((date: CivilDate) => boolean) => {
+    const shown = month.value
+    if (shown === ALL_MONTHS) return () => true
+    if (shown === LAST_12_MONTHS) {
+      const range = lastTwelveMonths(today())
+      return (date) => rangeContains(range, date)
+    }
+    return (date) => monthOf(date) === shown
+  })
+
+  /** Every month goes with the last label, event or payee taken off, back to this month, and a month picked by hand stays. */
   const monthLeft = (last: boolean): Readonly<Record<string, null>> => (last && month.value === ALL_MONTHS ? { month: null } : {})
 
   const pickedAccount = computed(() => accountNamed(accounts.value, route.query.account))
@@ -85,7 +100,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     get: () => pickedLabel.value?.id ?? ALL,
     set: (id) => {
       const found = labels.value.find((candidate) => candidate.id === id)
-      changeQuery(found === undefined ? { label: null, ...monthLeft(pickedEvent.value === null) } : { label: keyOfRecordId(LABEL_RECORDS, found.id), month: ALL_MONTHS })
+      changeQuery(found === undefined ? { label: null, ...monthLeft(pickedEvent.value === null && pickedPayee.value === null) } : { label: keyOfRecordId(LABEL_RECORDS, found.id), month: ALL_MONTHS })
     },
   })
 
@@ -94,17 +109,21 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     get: () => pickedEvent.value?.id ?? ALL,
     set: (id) => {
       const found = events.value.find((candidate) => candidate.id === id)
-      changeQuery(found === undefined ? { event: null, ...monthLeft(pickedLabel.value === null) } : { event: keyOfRecordId(EVENT_RECORDS, found.id), month: ALL_MONTHS })
+      changeQuery(found === undefined ? { event: null, ...monthLeft(pickedLabel.value === null && pickedPayee.value === null) } : { event: keyOfRecordId(EVENT_RECORDS, found.id), month: ALL_MONTHS })
     },
   })
 
-  /** Every month, then each from the oldest entry's to this one, newest first, and the picked one when it lies outside them. */
+  const pickedPayee = computed(() => payeeNamed(book()?.transactions ?? [], route.query.payee))
+  const dropPayee = (): void => changeQuery({ payee: null, ...monthLeft(pickedLabel.value === null && pickedEvent.value === null) })
+
+  /** Every month, the last twelve, then each from the oldest entry's to this one, newest first, and the picked one when it lies outside them. */
   const monthItems = computed(() => {
     const rows = book()?.transactions ?? []
-    const picked = month.value === ALL_MONTHS ? [] : [month.value]
+    const picked = month.value === ALL_MONTHS || month.value === LAST_12_MONTHS ? [] : [month.value]
     const known = [thisMonth, ...picked, ...[rows[0], rows.at(-1)].flatMap((row) => (row === undefined ? [] : [monthOf(row.date)]))].sort()
     return [
       { label: words.filters.allMonths, value: ALL_MONTHS },
+      { label: words.filters.lastTwelveMonths, value: LAST_12_MONTHS },
       ...monthsFrom(known[0]!, known.at(-1)!)
         .reverse()
         .map((value) => ({ label: monthLabel(value), value })),
@@ -124,7 +143,7 @@ export function useEntryFilters(book: () => SpendingBook | null) {
 
   /** Whether a row shows under the filters: a group of categories takes its children, and an event any row with a part in it. */
   const shows = computed(() => {
-    const shown = month.value
+    const shown = inMonths.value
     const onAccount = pickedAccount.value
     const picked = pickedCategory.value
     const under = picked === null ? null : new Set(categories.value.filter((candidate) => candidate.id === picked.id || candidate.parent === picked.id).map((candidate) => candidate.id))
@@ -132,24 +151,25 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     const during = pickedEvent.value
     const byId = new Map(categories.value.map((candidate) => [candidate.id, candidate]))
     const inEvent = during === null ? null : partsInEvent(events.value, during.id)
+    const paid = pickedPayee.value
     return (row: EuroRow): boolean =>
-      (shown === ALL_MONTHS || monthOf(row.transaction.date) === shown) &&
+      shown(row.transaction.date) &&
       (onAccount === null || row.transaction.account === onAccount.id) &&
       (under === null || categoriesOfRow(row).some((id) => under.has(id))) &&
       (carried === null || labelsOf(row.items).includes(carried.id)) &&
-      (inEvent === null || rowSide(row, byId).some((part, place) => inEvent(row, part, place)))
+      (inEvent === null || rowSide(row, byId).some((part, place) => inEvent(row, part, place))) &&
+      (paid === null || payeeKey(row.transaction.payee) === paid.key)
   })
 
-  /** The filters that narrow the list, each as a chip names it. This month is where the list starts, and every month goes with a label or an event, so neither is a filter. */
-  const groupPicked = computed(() => pickedLabel.value !== null || pickedEvent.value !== null)
+  /** The filters that narrow the list, each as a chip names it. This month is where the list starts, and every month goes with a label, an event or a payee, so none of them is a filter. */
+  const groupPicked = computed(() => pickedLabel.value !== null || pickedEvent.value !== null || pickedPayee.value !== null)
   const active = computed((): readonly ActiveFilter[] => [
-    ...(month.value === thisMonth || (month.value === ALL_MONTHS && groupPicked.value)
-      ? []
-      : [{ key: 'month', label: month.value === ALL_MONTHS ? words.filters.allMonths : monthLabel(month.value), remove: () => (month.value = thisMonth) }]),
+    ...(month.value === thisMonth || (month.value === ALL_MONTHS && groupPicked.value) ? [] : [{ key: 'month', label: monthsLabel(month.value), remove: () => (month.value = thisMonth) }]),
     ...(pickedAccount.value === null ? [] : [{ key: 'account', label: pickedAccount.value.name, remove: () => (account.value = ALL) }]),
     ...(pickedCategory.value === null ? [] : [{ key: 'category', label: pickedCategory.value.name, remove: () => (category.value = ALL) }]),
     ...(pickedLabel.value === null ? [] : [{ key: 'label', label: pickedLabel.value.name, remove: () => (label.value = ALL) }]),
     ...(pickedEvent.value === null ? [] : [{ key: 'event', label: pickedEvent.value.name, remove: () => (event.value = ALL) }]),
+    ...(pickedPayee.value === null ? [] : [{ key: 'payee', label: pickedPayee.value.name, remove: dropPayee }]),
   ])
 
   return reactive({
@@ -158,14 +178,16 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     category: computed(() => category.value),
     label: computed(() => label.value),
     event: computed(() => event.value),
-    pickMonth: (picked: MonthKey | typeof ALL_MONTHS) => void (month.value = picked),
+    pickMonth: (picked: EntriesMonths) => void (month.value = picked),
     pickAccount: (id: string) => void (account.value = id),
     pickCategory: (id: string) => void (category.value = id),
     pickLabel: (id: string) => void (label.value = id),
     pickEvent: (id: string) => void (event.value = id),
-    clear: () => changeQuery({ month: null, account: null, category: null, label: null, event: null }),
+    clear: () => changeQuery({ month: null, account: null, category: null, label: null, event: null, payee: null }),
     pickedLabel,
     pickedEvent,
+    pickedPayee,
+    inMonths,
     monthItems,
     accountItems,
     categoryItems,
@@ -176,6 +198,11 @@ export function useEntryFilters(book: () => SpendingBook | null) {
     shows,
     active,
   })
+}
+
+function monthsLabel(months: EntriesMonths): string {
+  if (months === ALL_MONTHS) return words.filters.allMonths
+  return months === LAST_12_MONTHS ? words.filters.lastTwelveMonths : monthLabel(months)
 }
 
 export type EntryFilters = ReturnType<typeof useEntryFilters>

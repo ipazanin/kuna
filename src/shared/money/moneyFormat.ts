@@ -78,6 +78,7 @@ interface Formatters {
   readonly rate: Intl.NumberFormat
   readonly points: Intl.NumberFormat
   readonly decimal: Intl.NumberFormat
+  readonly plain: Intl.NumberFormat
   readonly days: Intl.NumberFormat
   readonly count: Intl.NumberFormat
   readonly compactCount: Intl.NumberFormat
@@ -110,6 +111,7 @@ function formatters(format: MoneyFormat = active.value): Formatters {
       rate: new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 4 }),
       points: new Intl.NumberFormat(locale, { maximumFractionDigits: 4 }),
       decimal: new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+      plain: new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       days: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
       count: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }),
       compactCount: new Intl.NumberFormat(locale, { notation: 'compact', maximumFractionDigits: 1 }),
@@ -211,6 +213,11 @@ export function formatRate(fraction: Share, format?: MoneyFormat): string {
 /** How far apart two rates are in percentage points, with up to four decimals, such as 0.47. */
 export function formatPoints(points: number): string {
   return formatters().points.format(points)
+}
+
+/** An amount with its cents and sign but no currency, such as −612.20, for text that cannot know which currency the amount is in. */
+export function formatPlainAmount(cents: number): string {
+  return withSign(cents, formatters().plain.format(Math.abs(cents) / 100), 'negative')
 }
 
 /** A plain number with one decimal, such as a runway of 7.4 months. */

@@ -180,6 +180,8 @@ import { rowLinksOf } from '../src/apps/spending/facts.ts'
 import { accountOnDay, countedAccounts, euroRows } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals.ts'
 import { eventTotals } from '../src/apps/spending/events/domain/eventTotals.ts'
+import { inPeriod } from '../src/apps/spending/payees/domain/payeePeriod.ts'
+import { payeeTotals } from '../src/apps/spending/payees/domain/payeeTotals.ts'
 import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatch.ts'
 import { SAMPLE_RECEIPT_TOTALS } from '../src/apps/spending/receipts/infrastructure/fake/sampleReceiptPhoto.ts'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement.ts'
@@ -773,6 +775,17 @@ async function spendingGroups(addGroup, loansBook) {
   if (workbook.labels.length > 0) add('spending.labels', () => labelTotals(euroRows(workbook, rates.everyday), workbook.categories, workbook.labels))
   // A file with no event keeps this digest without the group.
   if (workbook.events.length > 0) add('spending.events', () => eventTotals(euroRows(workbook, rates.everyday), workbook.categories, workbook.events))
+  // A file with no payee keeps this digest without the groups.
+  if (workbook.transactions.some((row) => row.payee.trim() !== '')) {
+    const counted = inPeriod('year', today)
+    add('spending.payees', () =>
+      payeeTotals(
+        euroRows(workbook, rates.everyday).filter((row) => counted(row.transaction.date)),
+        workbook.categories,
+      ),
+    )
+    add('spending.payees.all', () => payeeTotals(euroRows(workbook, rates.everyday), workbook.categories))
+  }
   if (options['fake-spending'] === 'statements') {
     const reading = revolutStatement(await readFirstSheet(sampleRevolutCsv(today)), SAMPLE_REVOLUT_FILE_NAME, workbook)
     add('spending.import.revolut', () => ('statement' in reading ? statementDryRun(workbook, reading.statement, today) : reading))

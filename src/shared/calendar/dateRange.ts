@@ -1,5 +1,5 @@
 import type { CivilDate } from './civilDate'
-import { firstDayOf, lastDayOf, monthOf, monthsFrom } from './monthKey'
+import { addMonths, firstDayOf, lastDayOf, monthOf, monthsFrom } from './monthKey'
 import type { MonthKey } from './monthKey'
 
 /** Every day from `from` to `to`, both included. */
@@ -10,6 +10,12 @@ export interface DateRange {
 
 export function monthRange(from: MonthKey, to: MonthKey = from): DateRange {
   return { from: firstDayOf(from), to: lastDayOf(to) }
+}
+
+/** The twelve whole months up to the month of the day, that month included, as Payees and Entries count Last 12 months. */
+export function lastTwelveMonths(day: CivilDate): DateRange {
+  const last = monthOf(day)
+  return monthRange(addMonths(last, -11), last)
 }
 
 export function rangeContains(range: DateRange, date: CivilDate): boolean {

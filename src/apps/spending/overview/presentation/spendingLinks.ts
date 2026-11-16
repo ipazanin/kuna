@@ -4,7 +4,12 @@ import type { Account } from '../../workbook/domain/account'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingEvent } from '../../workbook/domain/event'
 import type { Label } from '../../workbook/domain/label'
+import { payeeKey } from '../../payees/domain/payeeKey'
+import { OPENING_PERIOD } from '../../payees/domain/payeePeriod'
+import type { PayeePeriod } from '../../payees/domain/payeePeriod'
+import type { Transaction } from '../../workbook/domain/transaction'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, EVENT_RECORDS, LABEL_RECORDS } from '../../workbook/domain/spendingKinds'
+import { parseMonthKey } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { keyOfRecordId, recordIdOf } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -20,8 +25,13 @@ export const SPENDING_REVIEW_LINK = `${SPENDING_TRANSACTIONS_ROUTE}?tab=${SPENDI
 export const SPENDING_BUDGETS_ROUTE = '/spending/budgets'
 export const SPENDING_LABELS_ROUTE = '/spending/labels'
 export const SPENDING_EVENTS_ROUTE = '/spending/events'
+export const SPENDING_PAYEES_ROUTE = '/spending/payees'
 /** The value of `?month=` that shows every month at once, as a label's and an event's entries do. */
 export const ALL_MONTHS = 'all'
+/** The value of `?month=` that shows the twelve whole months up to this one, as the Payees tab counts them. */
+export const LAST_12_MONTHS = 'last-12-months'
+/** The months Entries shows: one month, every month, or the last twelve. */
+export type EntriesMonths = MonthKey | typeof ALL_MONTHS | typeof LAST_12_MONTHS
 export const SPENDING_ACCOUNTS_ROUTE = '/spending/accounts'
 export const SPENDING_ACCOUNT_ROUTE = '/spending/account'
 export const SPENDING_SETTINGS_ROUTE = '/spending/settings'
@@ -75,4 +85,31 @@ export function eventLink(event: SpendingEvent): RouteLocationRaw {
 /** The event the page's `?event=` names, or null when the file has none by that id. */
 export function eventNamed(events: readonly SpendingEvent[], key: unknown): SpendingEvent | null {
   return typeof key === 'string' && key !== '' ? (events.find((event) => event.id === recordIdOf(EVENT_RECORDS, key)) ?? null) : null
+}
+
+/** The Payees tab over a period, which leaves the opening one out of `?period=`. */
+export function payeesLink(period: PayeePeriod): RouteLocationRaw {
+  return { path: SPENDING_PAYEES_ROUTE, query: period === OPENING_PERIOD ? {} : { period } }
+}
+
+/** The months Entries shows for each period of the Payees tab, so a payee's entries add up to the figure tapped. This month stays out of the address. */
+const ENTRIES_MONTHS_OF_PERIOD: Readonly<Record<PayeePeriod, typeof ALL_MONTHS | typeof LAST_12_MONTHS | null>> = { month: null, year: LAST_12_MONTHS, all: ALL_MONTHS }
+
+/** Entries of one payee over the period the Payees tab shows, named by their key in `?payee=`. */
+export function payeeLink(key: string, period: PayeePeriod): RouteLocationRaw {
+  const months = ENTRIES_MONTHS_OF_PERIOD[period]
+  return { path: SPENDING_TRANSACTIONS_ROUTE, query: { ...(months === null ? {} : { month: months }), payee: key } }
+}
+
+/** The months a page's `?month=` names, or null when it names none, which Entries reads as this month. */
+export function entriesMonthsNamed(key: unknown): EntriesMonths | null {
+  if (key === ALL_MONTHS || key === LAST_12_MONTHS) return key
+  return typeof key === 'string' ? parseMonthKey(key) : null
+}
+
+/** The payee a page's `?payee=` names, spelt as their newest row spells it, or null when no row names them. */
+export function payeeNamed(rows: readonly Pick<Transaction, 'date' | 'payee'>[], key: unknown): { readonly key: string; readonly name: string } | null {
+  if (typeof key !== 'string' || key === '') return null
+  const named = rows.filter((row) => payeeKey(row.payee) === key).reduce<Pick<Transaction, 'date' | 'payee'> | null>((newest, row) => (newest === null || row.date >= newest.date ? row : newest), null)
+  return named === null ? null : { key, name: named.payee.trim() }
 }

@@ -80,7 +80,7 @@ const APPS: readonly CatalogueApp[] = [
     '/investments/settings',
   ]),
   appOf('assets', ASSETS_ASSISTANT, ['/assets', '/assets/asset', '/assets/settings']),
-  appOf('spending', SPENDING_ASSISTANT, ['/spending', '/spending/transactions', '/spending/budgets', '/spending/accounts', '/spending/account', '/spending/settings']),
+  appOf('spending', SPENDING_ASSISTANT, ['/spending', '/spending/transactions', '/spending/budgets', '/spending/payees', '/spending/accounts', '/spending/account', '/spending/settings']),
 ]
 const KUNA: CatalogueApp = { ...KUNA_CHAT, assistant: kunaAssistant() }
 

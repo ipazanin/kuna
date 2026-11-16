@@ -8,11 +8,13 @@ import { words } from './words'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import FilterChipRow from '../../../../shared/ui/FilterChipRow.vue'
 import FiltersSheet from '../../../../shared/ui/FiltersSheet.vue'
+import RemovableChip from '../../../../shared/ui/RemovableChip.vue'
+import { words as uiWords } from '../../../../shared/ui/words'
 
 /**
- * Entries' month, account, category, label and event selects, in a row from 640 px. On a phone they sit in a sheet behind a
- * Filters button in the tab row, and the filters picked show as chips over the list in one line, with Clear. The default slot
- * holds the list's own action, such as Select.
+ * Entries' month, account, category, label and event selects, in a row from 640 px, and the payee the Payees tab picked as a
+ * chip. On a phone they sit in a sheet behind a Filters button in the tab row, and the filters picked show as chips over the list
+ * in one line, with Clear. The default slot holds the list's own action, such as Select.
  */
 const props = defineProps<{
   filters: EntryFilters
@@ -22,6 +24,8 @@ defineSlots<{ default?: () => unknown }>()
 
 const phone = usePhoneLayout()
 const chips = computed(() => props.filters.active.map((filter) => ({ id: filter.key, label: filter.label })))
+/** The payee filter has no select, so from 640 px it shows as a chip beside the selects. */
+const payeeFilter = computed(() => props.filters.active.find((filter) => filter.key === 'payee'))
 
 function remove(key: string): void {
   props.filters.active.find((filter) => filter.key === key)?.remove()
@@ -130,6 +134,13 @@ function remove(key: string): void {
       class="w-44"
       data-testid="spending-filter-event"
       @update:model-value="filters.pickEvent"
+    />
+    <RemovableChip
+      v-if="payeeFilter !== undefined"
+      :label="payeeFilter.label"
+      :remove-label="uiWords.chips.remove(payeeFilter.label)"
+      data-testid="spending-filter-payee"
+      @remove="payeeFilter.remove()"
     />
     <slot />
   </div>

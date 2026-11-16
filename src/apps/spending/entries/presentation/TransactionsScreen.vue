@@ -9,7 +9,7 @@ import FilterTotals from './FilterTotals.vue'
 import { useEntryFilters } from './useEntryFilters'
 import { words } from './words'
 import { words as accountWords } from '../../accounts/presentation/words'
-import { ALL_MONTHS, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
+import { ALL_MONTHS, LAST_12_MONTHS, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../overview/presentation/spendingLinks'
 import EventPicker from './EventPicker.vue'
 import LabelPicker from './LabelPicker.vue'
 import SelectionBar from './SelectionBar.vue'
@@ -44,7 +44,7 @@ import PageTabs from '../../../../shared/ui/PageTabs.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 
-/** The entries of a month or of every month by day, newest first, found by account, category, label and event, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat, or picked to be labelled or put in an event while rows are being selected, with the rows to review and the statement import on tabs of their own. */
+/** The entries of a month or of every month by day, newest first, found by account, category, label, event and payee, each opening the entry dialog and, while a key is kept, taking a receipt photo to the chat, or picked to be labelled or put in an event while rows are being selected, with the rows to review and the statement import on tabs of their own. */
 const { state } = useSpendingBooks()
 const rates = useRates()
 const filters = useEntryFilters(() => state.workbook)
@@ -69,12 +69,13 @@ const pickerOpen = ref(false)
 const eventPickerOpen = ref(false)
 const hasEvents = computed(() => (state.workbook?.events.length ?? 0) > 0)
 
-/** Every month at once shows its newest entries first and the rest behind Show all, since a few years of entries make a long list. */
+/** Every month or the last twelve show their newest entries first and the rest behind Show all, since a year of entries makes a long list. */
 const allShown = ref(false)
-const listed = computed(() => (filters.month !== ALL_MONTHS || allShown.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))
+const manyMonths = computed(() => filters.month === ALL_MONTHS || filters.month === LAST_12_MONTHS)
+const listed = computed(() => (!manyMonths.value || allShown.value ? rows.value : rows.value.slice(0, FIRST_SHOWN)))
 
 /** A new filter starts the list short again and drops the picks, so no entry out of sight stays picked. */
-watch([() => filters.month, () => filters.account, () => filters.category, () => filters.label, () => filters.event], () => {
+watch([() => filters.month, () => filters.account, () => filters.category, () => filters.label, () => filters.event, () => filters.pickedPayee?.key], () => {
   allShown.value = false
   if (picked.value !== null) picked.value = new Set()
 })
@@ -200,7 +201,7 @@ function openEntry(entry: Transaction | null): void {
                 @pick="pick"
                 @receipt="receiptPicker?.take($event)"
               />
-              <ShowAllButton v-if="filters.month === ALL_MONTHS && rows.length > FIRST_SHOWN" v-model:expanded="allShown" :total="rows.length" class="px-4 pb-4 sm:px-5" />
+              <ShowAllButton v-if="manyMonths && rows.length > FIRST_SHOWN" v-model:expanded="allShown" :total="rows.length" class="px-4 pb-4 sm:px-5" />
             </template>
           </AppCard>
         </div>

@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 import UFormField from '@nuxt/ui/components/FormField.vue'
 import UInput from '@nuxt/ui/components/Input.vue'
-import UInputMenu from '@nuxt/ui/components/InputMenu.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import USelectMenu from '@nuxt/ui/components/SelectMenu.vue'
 
@@ -11,7 +10,6 @@ import { entryCategoryChoices } from './categoryChoices'
 import EntrySplitDialog from './EntrySplitDialog.vue'
 import { rememberLastAccount, startingAccount } from '../infrastructure/lastAccount'
 import { words } from './words'
-import { knownPayees, payeeChoices } from '../domain/knownPayees'
 import { newTransfer } from '../domain/transfer'
 import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
 import { addLabel } from '../../labels/application/labelWrites'
@@ -26,6 +24,9 @@ import type { InformalLoanTarget } from '../../links/domain/linkTarget'
 import AddToLoansForm from '../../links/presentation/AddToLoansForm.vue'
 import EntryLinkField from '../../links/presentation/EntryLinkField.vue'
 import { words as linkWords } from '../../links/presentation/words'
+import PayeeField from '../../payees/presentation/PayeeField.vue'
+import { usePayeeMemory } from '../../payees/presentation/usePayeeMemory'
+import { words as payeeWords } from '../../payees/presentation/words'
 import { lineRefilesOf, refiledReceiptLines } from '../../receipts/domain/receiptLines'
 import type { LineFiling } from '../../receipts/domain/receiptLines'
 import EntryReceipt from '../../receipts/presentation/EntryReceipt.vue'
@@ -181,13 +182,9 @@ const kindOptions = computed(() => [
   ...(transferCategory.value !== null && (choosable.value.length > 1 || legs.value !== null) ? [{ value: 'transfer' as const, label: words.dialog.kinds.transfer }] : []),
 ])
 
-const payees = computed(() => knownPayees(store.state.workbook?.transactions ?? []))
-const payeeItems = computed(() => payeeChoices(payees.value, payee.value))
-/** Whether the person has the payee list open, which shows only while a known payee matches, so a new payee brings no empty list. */
-const payeeListOpen = ref(false)
-
 const categoryItems = computed(() => (kind.value === 'transfer' ? [] : entryCategoryChoices(categories.value, kind.value, wholeItem.value?.category ?? null)))
 const pickable = computed(() => new Set(categoryItems.value.flat().flatMap((choice) => (choice.value === undefined ? [] : [choice.value]))))
+const memory = usePayeeMemory(category, () => pickable.value)
 
 function accountOf(id: string): Account | null {
   return accounts.value.find((candidate) => candidate.id === id) ?? null
@@ -220,11 +217,13 @@ watch(open, (opened) => {
   labelRefused.value = null
   tried.value = false
   loansToAddTo.value = null
+  memory.filled.value = false
   openedAs.value = formNow.value
 })
 
 /** A row stays on its own side as its kind changes: money in stays the To side of a transfer, and any row goes back to its account as a plain entry. */
 watch(kind, (picked) => {
+  if (memory.filled.value) memory.fill(payee.value, picked)
   const entry = props.entry
   if (entry === null || (picked === 'transfer' && legs.value !== null)) return
   if (picked !== 'transfer') {
@@ -448,26 +447,24 @@ async function remove(): Promise<void> {
           <MoneyInput v-model="toAmount" :placeholder="spendingWords.form.amountPlaceholder" :disabled="toBooked" class="w-full" data-testid="spending-entry-to-amount" />
         </UFormField>
       </template>
-      <UFormField v-else-if="!split" :label="words.dialog.category" :error="(tried && errors.category) || false">
-        <USelectMenu v-model="category" :items="categoryItems" value-key="value" :placeholder="words.dialog.pickCategory" class="w-full" data-testid="spending-entry-category" />
-      </UFormField>
+      <template v-else>
+        <UFormField :label="words.dialog.payee">
+          <PayeeField v-model="payee" @update:model-value="memory.fill($event, kind)" />
+        </UFormField>
+        <UFormField v-if="!split" :label="words.dialog.category" :help="memory.filled.value ? payeeWords.filledFromPayee : ''" :error="(tried && errors.category) || false">
+          <USelectMenu
+            v-model="category"
+            :items="categoryItems"
+            value-key="value"
+            :placeholder="words.dialog.pickCategory"
+            class="w-full"
+            data-testid="spending-entry-category"
+            @update:model-value="memory.pickedByHand"
+          />
+        </UFormField>
+      </template>
       <UFormField :label="words.dialog.date" :error="(tried && errors.date) || false">
         <DayField v-model="date" :disabled="fromBooked || toBooked" class="w-full" data-testid="spending-entry-date" />
-      </UFormField>
-      <UFormField v-if="kind !== 'transfer'" :label="words.dialog.payee">
-        <UInputMenu
-          v-model="payee"
-          mode="autocomplete"
-          :items="payeeItems"
-          ignore-filter
-          trailing-icon=""
-          :open="payeeListOpen && payeeItems.length > 0"
-          autocomplete="off"
-          class="w-full"
-          data-testid="spending-entry-payee"
-          @update:open="payeeListOpen = $event"
-          @focusout="payeeListOpen = false"
-        />
       </UFormField>
       <UFormField v-if="!split" :label="spendingWords.form.note" :class="twoCurrencies ? '' : 'sm:col-span-2'">
         <UInput v-model="note" class="w-full" data-testid="spending-entry-note" />

@@ -3,26 +3,29 @@ import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { parseMonthKey } from '../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../shared/calendar/monthKey'
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
-import { dayText, labelWords, numberText } from '../../../../shared/storage/domain/recordCodec'
+import { formatPlainAmount } from '../../../../shared/money/moneyFormat'
+import { labelWords, numberText } from '../../../../shared/storage/domain/recordCodec'
 import { textOf } from '../../../../shared/storage/domain/storedFields'
 import type { StoredFields } from '../../../../shared/storage/domain/storedFields'
 import { language } from '../../../../shared/text/language'
 import type { Translation } from '../../../../shared/text/translation'
 
 // Croatian addresses the reader as vi, written lowercase inside a sentence. A field keeps its name as the file stores it, such as opened_on.
-// English keeps the file's dates, and Croatian writes them its own way. An entry is unos, and a limit ograničenje.
+// An entry is unos, and a limit ograničenje.
 
-/** An entry as Croatian names it: its day, amount and payee as Croatian writes them, or the fields' text where they hold neither. */
-function croatianEntryLabel(fields: StoredFields): string {
+/**
+ * An entry as a write's message names it: its day and amount as the language writes them, and its payee, or the fields' text where
+ * they hold neither. The amount has no currency sign, since the fields do not say which currency its account holds.
+ */
+function entryLabel(fields: StoredFields): string {
   const day = fields.date?.date ?? null
   const amount = fields.amount?.money ?? null
-  return labelWords([day === null ? textOf(fields.date) : dayLabel(day), amount === null ? textOf(fields.amount) : formatMoney(amount), textOf(fields.payee)])
+  return labelWords([day === null ? textOf(fields.date) : dayLabel(day), amount === null ? textOf(fields.amount) : formatPlainAmount(amount), textOf(fields.payee)])
 }
 
 export const en = {
   /** The words that name an entry, as its stored fields read. */
-  entryLabel: (fields: StoredFields) => labelWords([dayText(fields.date), numberText(fields.amount), textOf(fields.payee)]),
+  entryLabel,
   /** The words that name a limit, as its stored fields read. */
   budgetLabel: (fields: StoredFields) => labelWords([textOf(fields.from), numberText(fields.amount)]),
   notACurrency: (text: string) => `currency "${text}" is not a currency code such as EUR or USD`,
@@ -114,7 +117,7 @@ export const en = {
 }
 
 export const hr: Translation<typeof en> = {
-  entryLabel: croatianEntryLabel,
+  entryLabel,
   budgetLabel: (fields) => labelWords([fields.from === undefined ? '' : monthLabelOf(textOf(fields.from)), numberText(fields.amount)]),
   notACurrency: (text) => `currency „${text}” nije oznaka valute kao EUR ili USD`,
   bankOnCash: 'bank vrijedi za bankovni ili štedni račun, ne za gotovinu',
