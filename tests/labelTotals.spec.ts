@@ -21,16 +21,16 @@ const labelled = (entry: Transaction, ...labels: Label[]): TransactionItem => ({
 
 // The hotel's 324 USD is 300 EUR at the 1.08 of 10 October, and the last day's 10.90 USD is 10 EUR at the 1.09 of 4 November.
 const hotel = row(REVOLUT_USD, '2026-10-10', -324, 'Travel/Accommodation')
-const dinners = row(OTP, '2026-10-12', -120, 'Food/Restaurants')
-const paidBack = row(OTP, '2026-10-14', 60, 'Food/Restaurants')
+const dinners = row(OTP, '2026-10-12', -120, 'Food/Eating out')
+const paidBack = row(OTP, '2026-10-14', 60, 'Food/Eating out')
 const toRevolut = row(OTP, '2026-10-01', -500, 'Between my accounts')
 const shop = row(OTP, '2026-10-30', -40, 'Food/Groceries')
-const lastDay = row(REVOLUT_USD, '2026-11-04', -10.9, 'Travel/On the trip')
-const paint = row(OTP, '2026-10-05', -80, 'Home/Household goods')
+const lastDay = row(REVOLUT_USD, '2026-11-04', -10.9, 'Travel/Trip activities')
+const paint = row(OTP, '2026-10-05', -80, 'Home/Furniture and household goods')
 
 const shopParts: readonly TransactionItem[] = [
   { ...wholeItems([shop])[0]!, amount: accountMoneyFromAmount(-30) },
-  { ...wholeItems([shop])[0]!, id: recordIdOf(ITEM_RECORDS, 'shop-souvenir'), amount: accountMoneyFromAmount(-10), category: category('Travel/On the trip').id, labels: [PRAGUE.id] },
+  { ...wholeItems([shop])[0]!, id: recordIdOf(ITEM_RECORDS, 'shop-souvenir'), amount: accountMoneyFromAmount(-10), category: category('Travel/Trip activities').id, labels: [PRAGUE.id] },
 ]
 
 const transactions = [toRevolut, paint, hotel, dinners, paidBack, shop, lastDay]

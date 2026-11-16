@@ -34,7 +34,7 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]) {
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
-const dinner = row(OTP!, '2026-10-12', -40, 'Food/Restaurants')
+const dinner = row(OTP!, '2026-10-12', -40, 'Food/Eating out')
 const hotel = row(OTP!, '2026-10-13', -300, 'Travel/Accommodation')
 const PRAGUE: Label = { id: recordIdOf(LABEL_RECORDS, 'prague'), name: 'Prague' }
 
@@ -148,7 +148,7 @@ describe('writing labels', () => {
 describe('labels typed in the entry dialog', () => {
   const FLAT: Label = { id: recordIdOf(LABEL_RECORDS, 'flat'), name: 'New flat' }
   const typedAs = (before: { readonly row: Transaction }, labels: readonly RecordId[]) =>
-    newEntry({ account: OTP!.id, date: before.row.date, amount: before.row.amount, payee: '', category: category('Food/Restaurants').id, note: '', labels })
+    newEntry({ account: OTP!.id, date: before.row.date, amount: before.row.amount, payee: '', category: category('Food/Eating out').id, note: '', labels })
 
   it('replace the labels of an entry not split', () => {
     const before = { row: dinner, items: [{ ...wholeItems([dinner])[0]!, labels: [PRAGUE.id] }] }

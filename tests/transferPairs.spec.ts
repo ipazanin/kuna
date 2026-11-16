@@ -75,7 +75,7 @@ describe('transfer pairs', () => {
   })
 
   it('offers no row that has a category', () => {
-    const debit = bank(OTP, '2026-10-10', -60, { category: category('Food/Coffee').id })
+    const debit = bank(OTP, '2026-10-10', -60, { category: category('Food/Eating out').id })
 
     expect(transferPairs([debit, bank(REVOLUT_EUR, '2026-10-10', 60)], ACCOUNTS, ITEMS_OF).offered).toEqual([])
   })

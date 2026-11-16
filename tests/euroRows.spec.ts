@@ -13,22 +13,22 @@ function eurosOf(rows: Parameters<typeof euroRows>[0]['transactions'], rates = R
 describe('a row in euros', () => {
   it('converts the $30.00 row of 10 Oct at that day’s 1.0800 to €27.78', () => {
     // 30.00 ÷ 1.0800 = 27.777…
-    expect(eurosOf([row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip')])).toEqual([euros(-27.78)])
+    expect(eurosOf([row(REVOLUT_USD, '2026-10-10', -30, 'Travel/Trip activities')])).toEqual([euros(-27.78)])
   })
 
   it('takes the newest earlier rate on a day the ECB has none, so a Sunday has the Friday’s', () => {
     // 30.00 ÷ 1.0850, the rate of Friday 30 Oct, = 27.649…
-    expect(eurosOf([row(REVOLUT_USD, '2026-11-01', -30, 'Travel/On the trip')])).toEqual([euros(-27.65)])
+    expect(eurosOf([row(REVOLUT_USD, '2026-11-01', -30, 'Travel/Trip activities')])).toEqual([euros(-27.65)])
   })
 
   it('leaves a row before the series starts unrated, never guessed', () => {
-    const rows = euroRows({ accounts: ACCOUNTS, transactions: [row(REVOLUT_USD, '2026-08-20', -30, 'Travel/On the trip')], items: [] }, RATES)
+    const rows = euroRows({ accounts: ACCOUNTS, transactions: [row(REVOLUT_USD, '2026-08-20', -30, 'Travel/Trip activities')], items: [] }, RATES)
 
     expect(rows).toMatchObject([{ account: { name: 'Revolut USD' }, euros: null }])
   })
 
   it('passes a row on a euro account through as it is, with no rates at all', () => {
-    expect(eurosOf([row(OTP, '2026-10-12', -350, 'Food/Groceries'), row(CASH, '2026-08-20', -3.5, 'Food/Coffee')], NO_RATES)).toEqual([euros(-350), euros(-3.5)])
+    expect(eurosOf([row(OTP, '2026-10-12', -350, 'Food/Groceries'), row(CASH, '2026-08-20', -3.5, 'Food/Eating out')], NO_RATES)).toEqual([euros(-350), euros(-3.5)])
   })
 
   it('gives every row of the worked example its account, and only the dollar row a rate', () => {
@@ -49,9 +49,9 @@ describe('the entries newest first', () => {
   it('puts the newest day first, and within a day the entry added last', () => {
     const rows = [
       row(OTP, '2026-10-10', -12, 'Food/Groceries', { payee: 'Konzum' }),
-      row(CASH, '2026-10-12', -3.5, 'Food/Coffee', { payee: 'Morning coffee' }),
+      row(CASH, '2026-10-12', -3.5, 'Food/Eating out', { payee: 'Morning coffee' }),
       row(OTP, '2026-10-12', -40, 'Food/Groceries', { payee: 'Lidl' }),
-      row(REVOLUT_USD, '2026-10-14', -30, 'Travel/On the trip', { payee: 'Diner in Boston' }),
+      row(REVOLUT_USD, '2026-10-14', -30, 'Travel/Trip activities', { payee: 'Diner in Boston' }),
     ]
 
     const newest = entriesNewestFirst({ accounts: ACCOUNTS, transactions: rows, items: [] }, RATES)
@@ -60,7 +60,7 @@ describe('the entries newest first', () => {
   })
 
   it('keeps a foreign entry’s euros at the rate of its own day', () => {
-    const newest = entriesNewestFirst({ accounts: ACCOUNTS, transactions: [row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip')], items: [] }, RATES)
+    const newest = entriesNewestFirst({ accounts: ACCOUNTS, transactions: [row(REVOLUT_USD, '2026-10-10', -30, 'Travel/Trip activities')], items: [] }, RATES)
 
     // 30.00 ÷ 1.0800 = 27.777…
     expect(newest.map((entry) => entry.euros)).toEqual([euros(-27.78)])
@@ -94,7 +94,7 @@ describe('the rates a file needs', () => {
   })
 
   it('start on the day of the oldest dollar row when it comes before the account opened', () => {
-    const early = row(REVOLUT_USD, '2026-08-20', -30, 'Travel/On the trip')
+    const early = row(REVOLUT_USD, '2026-08-20', -30, 'Travel/Trip activities')
 
     expect(ratesNeeded({ accounts: ACCOUNTS, transactions: [early, ...ROWS] })).toEqual(new Map([[USD, civil('2026-08-20')]]))
   })

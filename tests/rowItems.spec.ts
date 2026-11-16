@@ -63,8 +63,8 @@ describe("a Spending row's items", () => {
 })
 
 describe('a row of a file from before items', () => {
-  const dinner = row(OTP, '2026-10-12', -60, 'Food/Restaurants', { note: 'dinner with Ana', link: flat })
-  const lines = [part('pizza', dinner, -35, 'Food/Restaurants', 'Pizza'), part('wine', dinner, -15, 'Food/Restaurants', 'Wine'), part('water', dinner, -10, 'Food/Groceries')].map(plainLineOf)
+  const dinner = row(OTP, '2026-10-12', -60, 'Food/Eating out', { note: 'dinner with Ana', link: flat })
+  const lines = [part('pizza', dinner, -35, 'Food/Eating out', 'Pizza'), part('wine', dinner, -15, 'Food/Eating out', 'Wine'), part('water', dinner, -10, 'Food/Groceries')].map(plainLineOf)
 
   it('reads as one item under its own category, with its note and link, and the row id as its key', () => {
     const bakery = row(OTP, '2026-10-12', -6.5, 'Food/Groceries', { note: 'Sunday', link: flat })
@@ -105,17 +105,17 @@ describe('a row of a file from before items', () => {
     const [pizza, wine, water] = itemsOfStoredRow(dinner, lines)
     const changed = [{ ...pizza!, note: 'dinner with Ana · Pizza, no olives' }, { ...wine!, category: category('Food/Groceries').id }, water!]
     const stored = storedBeforeItems(dinner, changed, { row: dinner, lines })
-    expect(stored.row).toEqual({ ...dinner, category: category('Food/Restaurants').id })
+    expect(stored.row).toEqual({ ...dinner, category: category('Food/Eating out').id })
     expect(stored.lines.map((line) => [line.id, line.text, line.category])).toEqual([
-      [lines[0]!.id, 'Pizza, no olives', category('Food/Restaurants').id],
+      [lines[0]!.id, 'Pizza, no olives', category('Food/Eating out').id],
       [lines[1]!.id, 'Wine', category('Food/Groceries').id],
       [lines[2]!.id, '', category('Food/Groceries').id],
     ])
   })
 
   it("puts a row not split back on the row alone, with the row's note when the split comes off as it read", () => {
-    const whole = wholeItemOf(dinner, { category: category('Food/Restaurants').id, note: 'dinner with Ana · Pizza', link: flat, labels: [] })
-    expect(storedBeforeItems(dinner, [whole], { row: dinner, lines })).toEqual({ row: { ...dinner, category: category('Food/Restaurants').id }, lines: [] })
+    const whole = wholeItemOf(dinner, { category: category('Food/Eating out').id, note: 'dinner with Ana · Pizza', link: flat, labels: [] })
+    expect(storedBeforeItems(dinner, [whole], { row: dinner, lines })).toEqual({ row: { ...dinner, category: category('Food/Eating out').id }, lines: [] })
     const typed = { ...whole, note: 'Typed again' }
     expect(storedBeforeItems(dinner, [typed], { row: dinner, lines: [] }).row).toMatchObject({ note: 'Typed again', link: flat })
   })

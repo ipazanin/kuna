@@ -22,7 +22,7 @@ describe("Spending's card on the Kuna home", () => {
   })
 
   it('shows Overdrawn below zero beside Bank and cash while an account is, and what was spent as money out', () => {
-    const overdrawn = [...ROWS, row(CASH, '2026-11-03', -94, 'Food/Restaurants', { payee: 'Harbour bistro' })]
+    const overdrawn = [...ROWS, row(CASH, '2026-11-03', -94, 'Food/Eating out', { payee: 'Harbour bistro' })]
 
     // Cash 64.00 − 94.00 = −30.00, and the other three 1,850.00 + 320.50 + 155.96.
     expect(spendingHomeFigures(spendingBook(overdrawn), LOADED, DAY)).toMatchObject({

@@ -27,13 +27,13 @@ describe('an account balance', () => {
   })
 
   it('takes a row of the day itself, and leaves out a row before the account opened and one after the day', () => {
-    const rows = [row(CASH, '2026-08-31', -20, 'Food/Coffee'), row(CASH, '2026-11-04', -4, 'Food/Coffee'), row(CASH, '2026-11-05', -6, 'Food/Coffee')]
+    const rows = [row(CASH, '2026-08-31', -20, 'Food/Eating out'), row(CASH, '2026-11-04', -4, 'Food/Eating out'), row(CASH, '2026-11-05', -6, 'Food/Eating out')]
 
     // 100.00 opening − 4.00 on the day itself.
     expect(accountBalance(CASH, rows, DAY)).toEqual(euros(96))
   })
 
   it('can go below zero, as an overdrawn account does', () => {
-    expect(accountBalance(CASH, [row(CASH, '2026-10-01', -130, 'Food/Restaurants')], DAY)).toEqual(euros(-30))
+    expect(accountBalance(CASH, [row(CASH, '2026-10-01', -130, 'Food/Eating out')], DAY)).toEqual(euros(-30))
   })
 })

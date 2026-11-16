@@ -64,11 +64,11 @@ describe('which event a part is in', () => {
 describe("an event's totals", () => {
   // The hotel's 324 USD is 300 EUR at the 1.08 of 10 October.
   const hotel = row(REVOLUT_USD, '2026-10-10', -324, 'Travel/Accommodation')
-  const dinners = row(OTP, '2026-10-12', -120, 'Food/Restaurants')
-  const paidBack = row(OTP, '2026-10-14', 60, 'Food/Restaurants')
+  const dinners = row(OTP, '2026-10-12', -120, 'Food/Eating out')
+  const paidBack = row(OTP, '2026-10-14', 60, 'Food/Eating out')
   const salary = row(OTP, '2026-10-12', 2_400, 'Income/Salary')
-  const flight = row(OTP, '2026-09-02', -150, 'Travel/Tickets')
-  const streaming = row(OTP, '2026-10-11', -13.99, 'Leisure/Subscriptions')
+  const flight = row(OTP, '2026-09-02', -150, 'Travel/Travel tickets and car hire')
+  const streaming = row(OTP, '2026-10-11', -13.99, 'Leisure/Streaming and apps')
   const fuel = row(OTP, '2026-10-20', -50, 'Transport/Fuel')
   const transactions = [flight, hotel, streaming, dinners, salary, paidBack, fuel]
   const items = [chosen(flight, PRAGUE.id), ...wholeItems([hotel, dinners, salary, paidBack, fuel]), chosen(streaming, OUT_OF_EVENTS)]

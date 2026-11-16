@@ -8,7 +8,7 @@ import type { SpendingRule, SpendingRuleCondition } from '../src/apps/spending/w
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 
 function category(key: string, name: string, kind: Category['kind'] = 'spending', parent: Category | null = null): Category {
-  return { id: recordIdOf(CATEGORY_RECORDS, key), name, kind, parent: parent?.id ?? null, order: 1, colour: '', hidden: false }
+  return { id: recordIdOf(CATEGORY_RECORDS, key), name, kind, parent: parent?.id ?? null, order: 1, colour: '', hidden: false, role: null }
 }
 
 const TRANSPORT = category('transport', 'Transport')

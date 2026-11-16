@@ -18,18 +18,30 @@ export const en = {
   edit: (name: string) => `Edit ${name}`,
   fixedHeading: 'Outside spending and income',
   /** What each fixed category is, whatever it is named in the file. */
-  fixedKinds: { transfer: 'Between my accounts', saving: 'Saved to investments', company: 'For the company', repayment: 'Loan principal' } satisfies Record<FixedKind, string>,
+  fixedKinds: {
+    transfer: 'Between my accounts',
+    saving: 'Saved to investments',
+    company: 'For the company',
+    repayment: 'Loan principal',
+    'informal-loan': 'Loans to and from people',
+  } satisfies Record<FixedKind, string>,
   /** What money in a category of each kind counts as, where a card names the kind. */
-  kinds: { spending: 'Spending', income: 'Income', transfer: 'Between my accounts', saving: 'Saved to investments', company: 'For the company', repayment: 'Loan principal' } satisfies Record<
-    CategoryKind,
-    string
-  >,
+  kinds: {
+    spending: 'Spending',
+    income: 'Income',
+    transfer: 'Between my accounts',
+    saving: 'Saved to investments',
+    company: 'For the company',
+    repayment: 'Loan principal',
+    'informal-loan': 'Loans to and from people',
+  } satisfies Record<CategoryKind, string>,
   /** What each fixed category counts as, under its name. */
   fixedCounts: {
     transfer: 'Counted in no spending, income or limit figure',
     saving: 'Counted as saved, not as spending',
     company: 'Counted in no spending, income or limit figure',
     repayment: 'Lowers what the loan still owes, not counted as spending',
+    'informal-loan': 'Money lent to or borrowed from people, not counted as spending or income',
   } satisfies Record<FixedKind, string>,
   dialog: {
     addGroupTitle: 'Add a group',
@@ -81,13 +93,22 @@ export const hr: Translation<typeof en> = {
   moveDown: (name) => `Pomakni „${name}” dolje`,
   edit: (name) => `Uredi „${name}”`,
   fixedHeading: 'Izvan potrošnje i prihoda',
-  fixedKinds: { transfer: 'Između mojih računa', saving: 'Prijenos u ulaganja', company: 'Za tvrtku', repayment: 'Glavnica kredita' },
-  kinds: { spending: 'Potrošnja', income: 'Prihodi', transfer: 'Između mojih računa', saving: 'Prijenos u ulaganja', company: 'Za tvrtku', repayment: 'Glavnica kredita' },
+  fixedKinds: { transfer: 'Između mojih računa', saving: 'Prijenos u ulaganja', company: 'Za tvrtku', repayment: 'Glavnica kredita', 'informal-loan': 'Posudbe' },
+  kinds: {
+    spending: 'Potrošnja',
+    income: 'Prihodi',
+    transfer: 'Između mojih računa',
+    saving: 'Prijenos u ulaganja',
+    company: 'Za tvrtku',
+    repayment: 'Glavnica kredita',
+    'informal-loan': 'Posudbe',
+  },
   fixedCounts: {
     transfer: 'Ne ulazi ni u potrošnju, ni u prihode, ni u ograničenja',
     saving: 'Ulazi u ušteđeno, ne u potrošnju',
     company: 'Ne ulazi ni u potrošnju, ni u prihode, ni u ograničenja',
     repayment: 'Smanjuje preostali dug kredita, ne ulazi u potrošnju',
+    'informal-loan': 'Novac posuđen ljudima ili od njih, ne ulazi ni u potrošnju ni u prihode',
   },
   dialog: {
     addGroupTitle: 'Dodaj skupinu',

@@ -137,7 +137,7 @@ describe('a synced row against the file', () => {
   })
 
   it('fills a typed row and keeps its category and note', () => {
-    const typed = row(OTP, '2026-10-27', -6.5, 'Food/Coffee', { payee: 'Bakery', note: 'Breakfast' })
+    const typed = row(OTP, '2026-10-27', -6.5, 'Food/Eating out', { payee: 'Bakery', note: 'Breakfast' })
     const run = filedDryRun(spendingBook([typed]), syncOf([BANK]), DAY)
     expect(run.filled).toBe(1)
     expect(run.changed[0]?.after).toMatchObject({ id: typed.id, category: typed.category, note: 'Breakfast', importKey: syncOf([BANK]).rows[0]?.importKey, statement: 'Enable Banking' })

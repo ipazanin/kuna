@@ -38,7 +38,7 @@ export const en = {
   paidMore: (amount: string, category: string) => `You paid ${amount} more than the plan. The difference stays under ${category}.`,
   paidLess: (amount: string, category: string) => `You paid ${amount} less than the plan. The difference goes under ${category} as money in, which lowers its spending.`,
   replacesParts: 'This replaces the parts the entry has now.',
-  asPrincipal: (category: string) => `Files the whole entry under ${category}, which counts as no spending.`,
+  filesWhole: (category: string) => `Files the whole entry under ${category}, which counts as neither spending nor income.`,
   splitNote: "The link split this entry into the plan's interest and principal, so its amount and account stay as they are. Removing the link leaves the parts.",
   /** Why an entry links whole, where a person can link it. */
   whole: {
@@ -138,7 +138,7 @@ export const hr: Translation<typeof en> = {
   paidMore: (amount, category) => `Platili ste ${amount} više od plana. Razlika ostaje pod kategorijom „${category}”.`,
   paidLess: (amount, category) => `Platili ste ${amount} manje od plana. Razlika ide pod kategoriju „${category}” kao uplata i smanjuje njezinu potrošnju.`,
   replacesParts: 'Ovo zamjenjuje dijelove koje unos sada ima.',
-  asPrincipal: (category) => `Cijeli unos ide pod kategoriju „${category}”, koja se ne računa u potrošnju.`,
+  filesWhole: (category) => `Cijeli unos ide pod kategoriju „${category}”, koja se ne računa ni u potrošnju ni u prihode.`,
   splitNote: 'Poveznica je podijelila unos na kamate i glavnicu iz plana, pa iznos i račun ostaju kakvi jesu. Kad uklonite poveznicu, dijelovi ostaju.',
   whole: {
     'not-euro': 'Povezuje se cijeli unos jer je plan u eurima, a račun nije.',

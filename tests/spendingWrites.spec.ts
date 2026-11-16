@@ -67,7 +67,7 @@ function topUp(amount = 200, into = REVOLUT_EUR, received = amount) {
 }
 
 function coffee(date: string, amount: number) {
-  return newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: ' Café on the square ', category: category('Food/Coffee').id, note: '', labels: [] })
+  return newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: ' Café on the square ', category: category('Food/Eating out').id, note: '', labels: [] })
 }
 
 describe('Spending writes', () => {
@@ -77,7 +77,7 @@ describe('Spending writes', () => {
     await store.write('Added', (unit) => addEntries(unit, store.state.records!, [coffee('2026-10-16', -3.5)]))
 
     expect(store.state.workbook!.transactions).toMatchObject([{ payee: 'Café on the square', source: 'typed', pair: null, amount: accountMoneyFromAmount(-3.5) }])
-    expect(filedRows(store.state.workbook!)).toMatchObject([{ category: category('Food/Coffee').id, note: '' }])
+    expect(filedRows(store.state.workbook!)).toMatchObject([{ category: category('Food/Eating out').id, note: '' }])
     expect(store.state.workbook!.problems).toEqual([])
   })
 
@@ -139,7 +139,7 @@ describe('Spending writes', () => {
     expect(recordsChangeInWords(refiled!, null)).toBe('Changed the entry "-3.5"')
 
     const split = entrySplit(store.state.workbook!, entry!, [
-      { id: item!.id, amount: accountMoneyFromAmount(-1.5), category: category('Food/Coffee').id, note: '' },
+      { id: item!.id, amount: accountMoneyFromAmount(-1.5), category: category('Food/Eating out').id, note: '' },
       { id: null, amount: 'rest', category: category('Food/Groceries').id, note: 'Biscuits' },
     ])
     if ('refused' in split) throw new Error(split.refused)
@@ -384,9 +384,9 @@ describe('a statement in the Spending file', () => {
     const store = await spendingStore()
     await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null, null, null))
 
-    const receipt = await store.write('Deleted', (unit) => deleteInto(unit, store.state.records!, category('Food/Groceries'), category('Food/Restaurants')))
+    const receipt = await store.write('Deleted', (unit) => deleteInto(unit, store.state.records!, category('Food/Groceries'), category('Food/Eating out')))
 
-    expect(store.state.workbook!.rules).toMatchObject([{ category: category('Food/Restaurants').id }])
+    expect(store.state.workbook!.rules).toMatchObject([{ category: category('Food/Eating out').id }])
     await store.undo(store.state.writes.find((write) => write.receipt === receipt)!)
     expect(store.state.workbook!.rules).toMatchObject([{ category: category('Food/Groceries').id }])
   })
@@ -546,7 +546,7 @@ describe('Spending account writes', () => {
         unit,
         store.state.records!,
         null,
-        newEntry({ account: REVOLUT_USD.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-30), payee: 'Diner', category: category('Food/Restaurants').id, note: '', labels: [] }),
+        newEntry({ account: REVOLUT_USD.id, date: civil('2026-10-10'), amount: accountMoneyFromAmount(-30), payee: 'Diner', category: category('Food/Eating out').id, note: '', labels: [] }),
         null,
       ),
     )
@@ -564,7 +564,7 @@ describe('Spending account writes', () => {
 describe('Spending category writes', () => {
   it('deletes Groceries into Restaurants: its entries move, its limits end, and Restaurants keeps its own limit, all undone at once', async () => {
     const store = await spendingStore()
-    const [groceries, restaurants] = [category('Food/Groceries'), category('Food/Restaurants')]
+    const [groceries, restaurants] = [category('Food/Groceries'), category('Food/Eating out')]
     const shopping = (date: string, amount: number) =>
       newEntry({ account: OTP.id, date: civil(date), amount: accountMoneyFromAmount(amount), payee: 'Corner market', category: groceries.id, note: '', labels: [] })
     await store.write('Added', (unit) => {
@@ -591,7 +591,7 @@ describe('Spending category writes', () => {
     const store = await spendingStore()
     await store.write('Added', (unit) => addEntries(unit, store.state.records!, [coffee('2026-10-16', -3.5)]))
 
-    await expect(store.write('Deleted', (unit) => unit.of(CATEGORY_WRITES).remove(category('Food/Coffee')))).rejects.toThrow('names no category in the file')
+    await expect(store.write('Deleted', (unit) => unit.of(CATEGORY_WRITES).remove(category('Food/Eating out')))).rejects.toThrow('names no category in the file')
   })
 
   it('keeps a fixed category, which can be renamed but never deleted', async () => {
@@ -671,8 +671,8 @@ describe('an account the bank fills', () => {
       ...stored(TRANSACTION_RECORDS, [typed, row(CASH, '2026-10-10', -3, 'Food/Groceries')]),
     })
     const { store } = await browserHarness(used, document, SPENDING)
-    await store.write('Changed', (unit) => refileEntry(unit, store.state.records!, typed, { ...typed, category: category('Food/Restaurants').id, note: 'Lunch' }))
-    expect(store.state.records!.transactions.records.find(({ record }) => record.id === typed.id)?.record).toMatchObject({ category: category('Food/Restaurants').id, note: 'Lunch' })
+    await store.write('Changed', (unit) => refileEntry(unit, store.state.records!, typed, { ...typed, category: category('Food/Eating out').id, note: 'Lunch' }))
+    expect(store.state.records!.transactions.records.find(({ record }) => record.id === typed.id)?.record).toMatchObject({ category: category('Food/Eating out').id, note: 'Lunch' })
     const onCash = store.state.workbook!.transactions.find((kept) => kept.account === CASH.id)!
     await expect(store.write('Moved', (unit) => writeRows(unit, store.state.records!, [{ before: onCash, after: { ...onCash, account: bankOtp!.id } }]))).rejects.toThrow(
       'takes its rows from the bank',

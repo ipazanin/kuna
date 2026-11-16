@@ -69,7 +69,7 @@ describe('the opening a bank gives', () => {
 })
 
 describe('a balance that differs', () => {
-  const coffee = row(OTP, '2026-10-20', -6.5, 'Food/Coffee')
+  const coffee = row(OTP, '2026-10-20', -6.5, 'Food/Eating out')
   // Kuna works out the opening less 6.50.
   const worked = accountMoneyFromCents(OTP.opening - 650)
   const stated = (balance: number, pending: number | null) => [{ account: OTP, balance: accountMoneyFromCents(balance), pending: pending === null ? null : accountMoneyFromCents(pending) }]

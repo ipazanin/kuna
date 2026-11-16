@@ -30,6 +30,7 @@ const SECOND: Category = {
   order: 99,
   colour: '',
   hidden: false,
+  role: null,
 }
 const CATEGORIES_WITH_SECOND: readonly Category[] = [...CATEGORIES, SECOND]
 

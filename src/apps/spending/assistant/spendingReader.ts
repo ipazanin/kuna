@@ -147,11 +147,16 @@ const EVENT_FIELDS: FieldDocs<SpendingEvent> = {
 const CATEGORY_FIELDS: FieldDocs<Category> = {
   id: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The category.' },
   name: { exposure: 'plain', meaning: 'The name the owner gave it.' },
-  kind: { exposure: 'plain', meaning: 'spending, income, saving, transfer, company or repayment, a loan principal paid back. Only spending and income count as such in the figures.' },
+  kind: {
+    exposure: 'plain',
+    meaning:
+      'spending, income, saving, transfer, company, repayment, a bank loan principal paid back, or informal-loan, money lent to, borrowed from or paid back between you and a person. Only spending and income count as such in the figures.',
+  },
   parent: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'The group it sits in, or none for a group.' },
   order: { exposure: 'plain', meaning: 'Its place among its siblings.' },
   colour: { exposure: 'never', meaning: 'Its colour on screen.' },
   hidden: { exposure: 'plain', meaning: 'Hidden from the pickers, while its rows keep counting.' },
+  role: { exposure: 'plain', meaning: 'bank-fees where a statement files its fees, loan-interest where a linked instalment files its interest, or empty for a category Kuna does not fill.' },
 }
 
 /** What a part's link names, as the chat reads it, or null for a part with none. */

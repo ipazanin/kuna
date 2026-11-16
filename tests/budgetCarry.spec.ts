@@ -92,13 +92,14 @@ describe('what a limit counts as spent', () => {
       .find((entry) => entry.category === category(path).id)?.spent
   }
 
-  it("counts a group's children with it: October's groceries, restaurants and coffee on Food", () => {
+  it("counts a group's children with it: October's groceries, a dinner out and coffee on Food", () => {
     // 350.00 + 90.00 + 36.00.
     expect(spentOn([budget(1, 'Food', '2026-10', 400)], 'Food')).toEqual(euros(476))
   })
 
   it('counts a child alone, without its siblings', () => {
-    expect(spentOn([budget(1, 'Food/Restaurants', '2026-10', 150)], 'Food/Restaurants')).toEqual(euros(90))
+    // 90.00 + 36.00, without the groceries.
+    expect(spentOn([budget(1, 'Food/Eating out', '2026-10', 150)], 'Food/Eating out')).toEqual(euros(126))
   })
 
   it('takes a refund off what was spent', () => {

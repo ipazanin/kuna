@@ -8,13 +8,13 @@ import { HOUSEHOLD, recordsIn } from './fakeSpendingRecords'
 const ANSWERS = {
   en: {
     splitTitle: 'Split the latest spend',
-    splitProposed: 'The card below puts €5.00 of it under Household goods and leaves the rest where it was. Nothing changes until you accept it.',
+    splitProposed: 'The card below puts €5.00 of it under Furniture and household goods and leaves the rest where it was. Nothing changes until you accept it.',
     nothingToSplit: 'None of the latest rows is a spend I could split.',
     householdPart: 'Cleaning things',
   },
   hr: {
     splitTitle: 'Podijeli zadnji trošak',
-    splitProposed: 'Kartica ispod stavlja 5,00 € od njega pod Kućanske potrepštine, a ostatak ostavlja gdje je bio. Ništa se ne mijenja dok je ne prihvatite.',
+    splitProposed: 'Kartica ispod stavlja 5,00 € od njega pod Namještaj i kućanske potrepštine, a ostatak ostavlja gdje je bio. Ništa se ne mijenja dok je ne prihvatite.',
     nothingToSplit: 'Nijedan od zadnjih redaka nije trošak koji bih mogao podijeliti.',
     householdPart: 'Sredstva za čišćenje',
   },
@@ -24,7 +24,7 @@ const says = ANSWERS[language]
 
 /**
  * Reads the latest spends of 10 or more, or of Harbour bistro or Landlord when the message names one, their parts and the categories, and
- * proposes 5 of the first one not split and filed under spending to go under Household goods, the rest where it was.
+ * proposes 5 of the first one not split and filed under spending to go under Furniture and household goods, the rest where it was.
  */
 export function splitReply({ request, tokens, typed }: FakeChatTurn): ModelReply {
   const answers = answersSince(request)

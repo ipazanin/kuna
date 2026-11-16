@@ -39,7 +39,7 @@ const RECORDS: Readonly<Record<string, readonly object[]>> = {
   'spending/transaction/waiting': [{ ref: 'transaction-3', payee: 'City pharmacy' }],
   'spending/category': [
     { ref: 'category-1', name: 'Groceries', kind: 'spending' },
-    { ref: 'category-2', name: 'Household goods', kind: 'spending' },
+    { ref: 'category-2', name: 'Furniture and household goods', kind: 'spending' },
     { ref: 'category-3', name: 'Pet food', kind: 'spending' },
     { ref: 'category-4', name: 'Pharmacy', kind: 'spending' },
   ],

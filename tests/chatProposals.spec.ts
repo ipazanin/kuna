@@ -66,7 +66,7 @@ describe('a proposal', () => {
     const writesBefore = d.store.state.writes.length
     await d.propose([
       stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Corner market', category: d.ref('category', groceries.id) }),
-      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Harbour bistro', category: d.ref('category', named(d, 'Restaurants').id) }),
+      stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Harbour bistro', category: d.ref('category', named(d, 'Eating out').id) }),
     ])
     expect(bookOf(d).rules).toHaveLength(before)
     expect(d.store.state.writes).toHaveLength(writesBefore)
@@ -85,12 +85,12 @@ describe('a proposal', () => {
   it('shows the rows a rule files, in one group, in Kuna’s words', async () => {
     const d = await desk()
     const waiting = rowOf(d, 'Corner market')
-    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { row: d.ref('transaction', waiting.id), category: d.ref('category', named(d, 'Coffee').id) })])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { row: d.ref('transaction', waiting.id), category: d.ref('category', named(d, 'Delivery').id) })])
     const [card] = d.cards
     expect(card!.groups.map((group) => [group.verb, group.noun.en.one])).toContainEqual(['add', 'rule'])
     const rule = card!.groups.find((group) => group.noun.en.one === 'rule')!.lines[0]!
     expect(rule.label).toBe('Corner market')
-    expect(rule.fields).toContainEqual({ name: 'Category', before: null, after: 'Coffee', warns: false })
+    expect(rule.fields).toContainEqual({ name: 'Category', before: null, after: 'Delivery', warns: false })
   })
 
   it('labels a rule from an IBAN by what it files, warns on that field first, and shows amounts and days as the screens do', async () => {
@@ -112,7 +112,7 @@ describe('a proposal', () => {
 
   it('fixes and deletes a rule, with the rows following', async () => {
     const d = await desk()
-    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Corner market', category: d.ref('category', named(d, 'Coffee').id) })])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'add-rule', { fragment: 'Corner market', category: d.ref('category', named(d, 'Delivery').id) })])
     await accept(d)
     const rule = bookOf(d).rules.at(-1)!
     await d.propose([stepOf(SPENDING_OPERATIONS, 'change-rule', { rule: d.ref('rule', rule.id), category: d.ref('category', named(d, 'Groceries').id) })])
@@ -260,7 +260,7 @@ describe('a proposal', () => {
     const groceries = named(d, 'Groceries')
     await d.propose([stepOf(SPENDING_OPERATIONS, 'change-category', { category: d.ref('category', groceries.id), name: 'Food shop' })])
     await d.propose([stepOf(SPENDING_OPERATIONS, 'change-category', { category: d.ref('category', groceries.id), name: 'Shop' })])
-    await d.propose([stepOf(SPENDING_OPERATIONS, 'change-category', { category: d.ref('category', named(d, 'Coffee').id), name: 'Kava' })])
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'change-category', { category: d.ref('category', named(d, 'Delivery').id), name: 'Kava' })])
     expect((await accept(d, 0)).kind).toBe('done')
     const stale = await accept(d, 1)
     expect(stale.kind).toBe('refused')

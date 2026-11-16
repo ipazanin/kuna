@@ -412,7 +412,7 @@ export const ENGLISH_ALLOWED = [
   {
     name: 'typed by the checks',
     reason: 'What the flows of the visual check type, and the search a screen opens with, are data like anything a person types.',
-    texts: ['Paper and pens', 'Train tickets, changed', 'Checked in the editor.', 'purchase, laptop', '€200 a month', 'Flat by the sea', 'Dealer offer', 'Bakery by the port', 'Coffee and tea'],
+    texts: ['Paper and pens', 'Train tickets, changed', 'Checked in the editor.', 'purchase, laptop', '€200 a month', 'Flat by the sea', 'Dealer offer', 'Bakery by the port', 'Takeaway and delivery'],
   },
   {
     name: 'invoice mail in the client language',

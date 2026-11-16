@@ -65,7 +65,7 @@ const DRAFT: ReceiptDraft = {
   longitude: '',
 }
 const GROCERIES = category('Food/Groceries')
-const HOUSEHOLD = category('Home/Household goods')
+const HOUSEHOLD = category('Home/Furniture and household goods')
 /** Two lines that add up to two cents less than the total, as a misread receipt can, so the receipt keeps a Difference line. */
 const LINES = [
   { printed: 'KRUH', note: 'kruh', amount: accountMoneyFromAmount(-13.49), category: GROCERIES.id },

@@ -24,7 +24,7 @@ export function recordsIn(text: string): readonly FoundRecord[] {
 export const findAccounts = findRecordsArgs('spending', 'account', { limit: 5 })
 
 export const GROCERIES: readonly string[] = ['Groceries', 'Namirnice']
-export const HOUSEHOLD: readonly string[] = ['Household goods', 'Kućanske potrepštine']
+export const HOUSEHOLD: readonly string[] = ['Furniture and household goods', 'Namještaj i kućanske potrepštine']
 
 /** Every text the person's turns carried, context lines too, which name the files attached and the element tagged. */
 export function personTexts(request: ModelRequest): readonly string[] {

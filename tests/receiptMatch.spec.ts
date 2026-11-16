@@ -117,7 +117,7 @@ describe('which rows a receipt may split', () => {
   })
 
   it('offers a typed cash row', () => {
-    expect(matchesOf([row(CASH, '2026-11-03', -23.49, 'Food/Coffee')]).kind).toBe('ready')
+    expect(matchesOf([row(CASH, '2026-11-03', -23.49, 'Food/Eating out')]).kind).toBe('ready')
   })
 
   it('never lets a company form or a piece of a word win the match', () => {

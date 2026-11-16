@@ -2,8 +2,8 @@ import type { DraftedAccount, StatementReading, StatementRow } from './statement
 import { words } from './words'
 import { draftedAccount, revolutIban } from '../../accounts/domain/accountDraft'
 import { earliestStart, openingOn } from '../../accounts/domain/bankOpening'
-import { bankFeesCategory } from '../../categories/domain/starterCategories'
 import type { Account } from '../../workbook/domain/account'
+import { categoryWithRole } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { civilDateFromSerial, parseCivilDate } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
@@ -180,7 +180,7 @@ function readRows(grid: readonly (readonly SheetCell[])[], fileName: string, boo
   if (absent !== undefined) throw new Refused(words.noColumn(absent))
   const cellOf = (row: readonly SheetCell[], column: Column): SheetCell => row[place.get(column)!]
   const revolut = book.accounts.filter((account) => account.bank === 'revolut')
-  const feeCategory = bankFeesCategory(book.categories)?.id ?? null
+  const feeCategory = categoryWithRole(book.categories, 'bank-fees')?.id ?? null
 
   let pending = 0
   let otherStates = 0

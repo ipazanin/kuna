@@ -193,7 +193,7 @@ describe('a confirmed receipt', () => {
 })
 
 describe('a receipt read into lines', () => {
-  const HOUSEHOLD = category('Home/Household goods')
+  const HOUSEHOLD = category('Home/Furniture and household goods')
   const PARTS = [
     { printed: 'MLIJEKO', note: 'mlijeko', amount: accountMoneyFromAmount(-15), category: GROCERIES.id },
     { printed: 'DET.TEK.', note: 'deterdžent', amount: accountMoneyFromAmount(-8.49), category: HOUSEHOLD.id },
@@ -321,7 +321,7 @@ describe('a row a receipt split', () => {
 
   it('moves its lines with a category deleted into another, in one write', async () => {
     const { store } = await splitStore()
-    const target = store.state.workbook!.categories.find((candidate) => candidate.id === category('Food/Coffee').id)!
+    const target = store.state.workbook!.categories.find((candidate) => candidate.id === category('Food/Eating out').id)!
     const records = store.state.records!
     const groceries = recordsOf(records.categories).find((candidate) => candidate.id === GROCERIES.id)!
 
@@ -367,7 +367,7 @@ describe('a row a receipt split', () => {
 })
 
 describe('the lines of a receipt in place of what a row held', () => {
-  const RESTAURANTS = category('Food/Restaurants')
+  const RESTAURANTS = category('Food/Eating out')
   const LINES = [
     { printed: 'PIZZA', note: 'Pizza', amount: accountMoneyFromAmount(-15), category: RESTAURANTS.id },
     { printed: 'VINO', note: 'Wine', amount: accountMoneyFromAmount(-8.49), category: GROCERIES.id },
@@ -470,7 +470,7 @@ describe('reading receipts and lines', () => {
   })
 
   it("leaves all of a row's lines out of a file from before items when one is refused, so the row counts whole under its own category", () => {
-    const split = row(OTP, '2026-11-04', -30, 'Food/Coffee')
+    const split = row(OTP, '2026-11-04', -30, 'Food/Eating out')
     const one = receiptSplit({ ...DRAFT, total: moneyFromAmount(30) }, rowPlace(split, []), [
       { printed: '', note: '', amount: accountMoneyFromAmount(-10), category: GROCERIES.id },
       { printed: '', note: '', amount: accountMoneyFromAmount(-20), category: GROCERIES.id },
@@ -498,12 +498,12 @@ describe('reading receipts and lines', () => {
 
   it('refuses lines that do not add up and counts the row under its own category instead', async () => {
     const store = await spendingStore()
-    const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Coffee'))
+    const card = await withRow(store, row(OTP, '2026-11-04', -23.49, 'Food/Eating out'))
     const split = receiptSplit(DRAFT, rowPlace(card, store.state.workbook?.items ?? []), WHOLE)
     const broken = { ...split.lines[0]!, amount: accountMoneyFromAmount(-20) }
 
     await expect(store.write('Saved', (unit) => writeReceiptSplit(unit, store.state.records!, { ...split, lines: [broken] }))).rejects.toThrow(/add up/)
-    expect(store.state.workbook!.items).toMatchObject([{ receipt: null, category: category('Food/Coffee').id }])
+    expect(store.state.workbook!.items).toMatchObject([{ receipt: null, category: category('Food/Eating out').id }])
   })
 
   it('refuses a second receipt on a row', async () => {

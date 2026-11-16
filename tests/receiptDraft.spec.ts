@@ -180,10 +180,10 @@ describe('what the review found in a read', () => {
 
   it('puts every line under For the company on that answer, and back as read on Personal', () => {
     const company = category('For the company').id
-    const { read } = receiptDraft({ ...ANSWER, markedR1: true, lines: [line('A', 20), line('B', 3.49, { category: refOf('Food/Coffee') })] }, CONTEXT)
+    const { read } = receiptDraft({ ...ANSWER, markedR1: true, lines: [line('A', 20), line('B', 3.49, { category: refOf('Food/Eating out') })] }, CONTEXT)
 
     expect(withR1Answer(read, 'company', company).lines.map((held) => held.category)).toEqual([company, company])
-    expect(withR1Answer(read, 'personal', company).lines.map((held) => held.category)).toEqual([category('Food/Groceries').id, category('Food/Coffee').id])
+    expect(withR1Answer(read, 'personal', company).lines.map((held) => held.category)).toEqual([category('Food/Groceries').id, category('Food/Eating out').id])
   })
 
   it('reads an OIB with HR before it or in groups', () => {
@@ -268,13 +268,13 @@ describe('a line remembered from a confirmed receipt', () => {
   const book = {
     categories: CATEGORIES,
     receipts: [receipt(OLD, 'Corner market', MADE_UP_MERCHANT_OIB, '2026-09-01'), receipt(NEW, 'Corner mkt', MADE_UP_MERCHANT_OIB, '2026-10-01')],
-    items: [held('5e000000-0000-4000-8000-000000008101', OLD, 'det.tek.', 'Food/Groceries'), held('5e000000-0000-4000-8000-000000008102', NEW, 'DET.TEK.', 'Home/Household goods')],
+    items: [held('5e000000-0000-4000-8000-000000008101', OLD, 'det.tek.', 'Food/Groceries'), held('5e000000-0000-4000-8000-000000008102', NEW, 'DET.TEK.', 'Home/Furniture and household goods')],
   }
 
   it('goes before the model, the newest at the same OIB, folded', () => {
-    const { read } = receiptDraft({ ...ANSWER, lines: [line('Det.Tek.', 23.49, { category: refOf('Food/Coffee') })] }, { ...CONTEXT, book })
+    const { read } = receiptDraft({ ...ANSWER, lines: [line('Det.Tek.', 23.49, { category: refOf('Food/Eating out') })] }, { ...CONTEXT, book })
 
-    expect(read.lines[0]!.category).toBe(category('Home/Household goods').id)
+    expect(read.lines[0]!.category).toBe(category('Home/Furniture and household goods').id)
   })
 
   it('never starts a personal line under For the company because an R1 receipt filed it there', () => {
@@ -285,16 +285,19 @@ describe('a line remembered from a confirmed receipt', () => {
   })
 
   it("stays with the model's pick for a category hidden since", () => {
-    const hidden = CATEGORIES.map((entry) => (entry.id === category('Home/Household goods').id ? { ...entry, hidden: true } : entry))
-    const { read } = receiptDraft({ ...ANSWER, lines: [line('DET.TEK.', 23.49, { category: refOf('Food/Coffee') })] }, { ...CONTEXT, book: { ...book, categories: hidden } })
+    const hidden = CATEGORIES.map((entry) => (entry.id === category('Home/Furniture and household goods').id ? { ...entry, hidden: true } : entry))
+    const { read } = receiptDraft({ ...ANSWER, lines: [line('DET.TEK.', 23.49, { category: refOf('Food/Eating out') })] }, { ...CONTEXT, book: { ...book, categories: hidden } })
 
-    expect(read.lines[0]!.category).not.toBe(category('Home/Household goods').id)
+    expect(read.lines[0]!.category).not.toBe(category('Home/Furniture and household goods').id)
   })
 
   it("stays with the model's pick at another merchant", () => {
-    const { read } = receiptDraft({ ...ANSWER, merchant: { name: 'Other shop', oib: MADE_UP_BUYER_OIB }, lines: [line('DET.TEK.', 23.49, { category: refOf('Food/Coffee') })] }, { ...CONTEXT, book })
+    const { read } = receiptDraft(
+      { ...ANSWER, merchant: { name: 'Other shop', oib: MADE_UP_BUYER_OIB }, lines: [line('DET.TEK.', 23.49, { category: refOf('Food/Eating out') })] },
+      { ...CONTEXT, book },
+    )
 
-    expect(read.lines[0]!.category).toBe(category('Food/Coffee').id)
+    expect(read.lines[0]!.category).toBe(category('Food/Eating out').id)
   })
 })
 

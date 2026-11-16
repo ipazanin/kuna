@@ -52,7 +52,7 @@ const CASES: readonly { readonly name: string; readonly outcome: 'ready' | 'noth
   {
     name: 'a new category',
     outcome: 'ready',
-    work: () => (unit) => unit.of(CATEGORY_WRITES).add(newCategory({ ...category('Food/Coffee'), name: 'Pastries' })),
+    work: () => (unit) => unit.of(CATEGORY_WRITES).add(newCategory({ ...category('Food/Eating out'), name: 'Pastries' })),
   },
   {
     name: 'a setting saved',
@@ -87,7 +87,7 @@ const CASES: readonly { readonly name: string; readonly outcome: 'ready' | 'noth
           date: civil('2026-10-16'),
           amount: accountMoneyFromAmount(-3.5),
           payee: 'Corner cafe',
-          category: category('Food/Coffee').id,
+          category: category('Food/Eating out').id,
           note: '',
           labels: [],
         }),

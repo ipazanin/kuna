@@ -422,9 +422,12 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     expect(book().items.filter((part) => part.transaction === paid.id)).toEqual(wholeItems([paid]))
   })
 
-  it('files a row linked to a movement whole under Loan principal, added once, so the month counts none of it, and Undo takes both back', async () => {
+  it('files a row linked to a movement whole under Loans to and from people, added once, so the month counts none of it, and Undo takes both back', async () => {
     const lent = row(OTP, '2026-11-20', -300, 'Food/Groceries')
-    const store = await fileWith([lent])
+    const store = await fileWith(
+      [lent],
+      CATEGORIES.filter((held) => held.kind !== 'informal-loan'),
+    )
     const book = () => store.state.workbook!
     const movement: LinkTarget = {
       kind: 'movement',
@@ -439,13 +442,14 @@ describe.each(['items', 'before-items'] as const)('linking a row to an instalmen
     }
     await store.write('Linked', (unit) => linkEntry(unit, store.state.records!, book().transactions[0]!, movement, { ...english, categories: book().categories }))
 
-    const principal = book().categories.find((held) => held.kind === 'repayment')!
+    const people = book().categories.find((held) => held.kind === 'informal-loan')!
+    expect(people).toMatchObject({ name: 'Loans to and from people', parent: null })
     expect(book().problems).toEqual([])
-    expect(book().items.map((part) => [part.amount, part.category, part.link])).toEqual([[accountMoneyFromAmount(-300), principal.id, movement.link]])
+    expect(book().items.map((part) => [part.amount, part.category, part.link])).toEqual([[accountMoneyFromAmount(-300), people.id, movement.link]])
     expect(spendingFigures(book(), NO_RATES).totalsOf(month('2026-11')).spent).toEqual(moneyFromAmount(0))
 
     await store.undo(store.state.writes[0]!)
-    expect(book().categories.some((held) => held.kind === 'repayment')).toBe(false)
+    expect(book().categories.some((held) => held.kind === 'informal-loan')).toBe(false)
     expect(book().items).toEqual(wholeItems([lent]))
   })
 

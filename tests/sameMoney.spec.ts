@@ -4,7 +4,7 @@ import { sameMoney } from '../src/apps/spending/pairing/domain/sameMoney'
 import { accountMoneyFromAmount } from '../src/shared/money/accountMoney'
 import { OTP, REVOLUT_EUR, row } from './fixtures/spending'
 
-const typedOn = (date: string, amount = -10) => row(OTP, date, amount, 'Food/Coffee')
+const typedOn = (date: string, amount = -10) => row(OTP, date, amount, 'Food/Eating out')
 const bankOn = (date: string, amount = -10, on = OTP) => row(on, date, amount, null, { source: 'statement' })
 
 describe('same money', () => {

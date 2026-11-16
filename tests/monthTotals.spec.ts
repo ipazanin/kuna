@@ -44,7 +44,7 @@ describe("a split row's totals", () => {
         transactions: [split],
         items: linesOf(split, [
           [-48.7, 'Food/Groceries'],
-          [-12.5, 'Home/Household goods'],
+          [-12.5, 'Home/Furniture and household goods'],
         ]),
       },
       RATES,
@@ -56,7 +56,7 @@ describe("a split row's totals", () => {
   it('counts each line on its own category and group, and the whole row once in the month', () => {
     expect(totals.spent).toEqual(euros(61.2))
     expect(totals.byCategory.get(category('Food/Groceries').id)).toEqual(euros(48.7))
-    expect(totals.byCategory.get(category('Home/Household goods').id)).toEqual(euros(12.5))
+    expect(totals.byCategory.get(category('Home/Furniture and household goods').id)).toEqual(euros(12.5))
     expect(totals.byGroup.get(category('Food').id)).toEqual(euros(48.7))
     expect(totals.byGroup.get(category('Home').id)).toEqual(euros(12.5))
   })
@@ -95,14 +95,14 @@ describe("a split row's totals", () => {
   })
 
   it("shares a foreign row's euros between its lines so they add up to the row", () => {
-    const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip')
+    const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/Trip activities')
     const rows = euroRows(
       {
         accounts: ACCOUNTS,
         transactions: [dollars],
         items: linesOf(dollars, [
-          [-10, 'Travel/On the trip'],
-          [-10, 'Food/Coffee'],
+          [-10, 'Travel/Trip activities'],
+          [-10, 'Food/Eating out'],
           [-10, 'Food/Groceries'],
         ]),
       },
@@ -123,7 +123,7 @@ describe("a split row's totals", () => {
         transactions: [dollars],
         items: linesOf(dollars, [
           [-32, 'Food/Groceries'],
-          [2, 'Food/Coffee'],
+          [2, 'Food/Eating out'],
         ]),
       },
       RATES,
@@ -133,17 +133,17 @@ describe("a split row's totals", () => {
     // €27.78 × 32 ÷ 30 = 29.632 rounds to 29.63 on groceries, and the discount takes the 1.85 left off coffee.
     expect(october.spent).toEqual(euros(27.78))
     expect(october.byCategory.get(category('Food/Groceries').id)).toEqual(euros(29.63))
-    expect(october.byCategory.get(category('Food/Coffee').id)).toEqual(euros(-1.85))
+    expect(october.byCategory.get(category('Food/Eating out').id)).toEqual(euros(-1.85))
   })
 
   it('counts a foreign row the rates do not reach once, however many lines it has', () => {
-    const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/On the trip')
+    const dollars = row(REVOLUT_USD, '2026-10-10', -30, 'Travel/Trip activities')
     const rows = euroRows(
       {
         accounts: ACCOUNTS,
         transactions: [dollars],
         items: linesOf(dollars, [
-          [-10, 'Food/Coffee'],
+          [-10, 'Food/Eating out'],
           [-20, 'Food/Groceries'],
         ]),
       },
@@ -153,7 +153,7 @@ describe("a split row's totals", () => {
 
     expect(october.unrated).toBe(1)
     expect(october.unratedByGroup.get(category('Food').id)).toBe(1)
-    expect(october.unratedByCategory.get(category('Food/Coffee').id)).toBe(1)
+    expect(october.unratedByCategory.get(category('Food/Eating out').id)).toBe(1)
   })
 })
 
@@ -173,7 +173,7 @@ describe("a month's totals", () => {
     // 350.00 + 90.00 + 36.00.
     expect(october.byGroup.get(category('Food').id)).toEqual(euros(476))
     expect(categoryTotal(october, category('Food'))).toEqual({ counted: euros(476), unrated: 0 })
-    expect(categoryTotal(october, category('Food/Coffee'))).toEqual({ counted: euros(36), unrated: 0 })
+    expect(categoryTotal(october, category('Food/Eating out'))).toEqual({ counted: euros(126), unrated: 0 })
     expect(categoryTotal(october, category('Health'))).toEqual({ counted: euros(0), unrated: 0 })
     expect(october.byGroup.get(category('Income').id)).toEqual(euros(2_400))
     expect(october.byGroup.get(category('Saved to investments').id)).toEqual(euros(300))

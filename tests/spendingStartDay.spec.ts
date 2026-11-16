@@ -144,7 +144,7 @@ describe("an account's start day", () => {
 
   it('refuses an entry before it, which another tab could otherwise add after the day moved', async () => {
     const store = await spendingStore()
-    const entry = newEntry({ account: OTP.id, date: civil('2026-08-31'), amount: accountMoneyFromAmount(-3.5), payee: 'Café', category: category('Food/Coffee').id, note: '', labels: [] })
+    const entry = newEntry({ account: OTP.id, date: civil('2026-08-31'), amount: accountMoneyFromAmount(-3.5), payee: 'Café', category: category('Food/Eating out').id, note: '', labels: [] })
 
     await expect(store.write('Added', (unit) => addEntries(unit, store.state.records!, [entry]))).rejects.toThrow("is from before its account's start day 2026-09-01")
   })
@@ -231,7 +231,7 @@ describe("moving an account's start day later", () => {
   it('refuses the move when a row before the new day came in after the person saw what goes', async () => {
     const store = await spendingStore()
     const move = startDayMove(store.state.workbook!, OTP, CUTOVER)!
-    const meanwhile = newEntry({ account: OTP.id, date: civil('2026-10-05'), amount: accountMoneyFromAmount(-3.5), payee: 'Café', category: category('Food/Coffee').id, note: '', labels: [] })
+    const meanwhile = newEntry({ account: OTP.id, date: civil('2026-10-05'), amount: accountMoneyFromAmount(-3.5), payee: 'Café', category: category('Food/Eating out').id, note: '', labels: [] })
     await store.write('Added', (unit) => addEntries(unit, store.state.records!, [meanwhile]))
 
     await expect(store.write('Saved', (unit) => changeAccount(unit, store.state.records!, OTP, { ...OTP, openedOn: CUTOVER, opening: move.opening }, move))).rejects.toThrow(

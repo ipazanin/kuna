@@ -36,7 +36,7 @@ const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
 
 const GROCERIES = category('Food/Groceries')
-const RESTAURANTS = category('Food/Restaurants')
+const RESTAURANTS = category('Food/Eating out')
 const FOOD = category('Food')
 const COMPANY = CATEGORIES.find((held) => held.kind === 'company')!
 const TRANSFER = CATEGORIES.find((held) => held.kind === 'transfer')!

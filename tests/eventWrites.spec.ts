@@ -37,7 +37,7 @@ function stored<R>(kind: RecordKind<R>, records: readonly R[]) {
   return { [kind.name]: records.map((record) => codec.fieldsOf(record)) }
 }
 
-const dinner = row(OTP!, '2026-10-12', -40, 'Food/Restaurants')
+const dinner = row(OTP!, '2026-10-12', -40, 'Food/Eating out')
 const hotel = row(OTP!, '2026-10-13', -300, 'Travel/Accommodation')
 const PRAGUE: SpendingEvent = { id: recordIdOf(EVENT_RECORDS, 'prague'), name: 'Prague', days: { from: civil('2026-10-10'), to: civil('2026-10-14') } }
 

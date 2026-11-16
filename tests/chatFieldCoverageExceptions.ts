@@ -12,6 +12,10 @@ export interface NoFieldPaths {
 
 export const FIELD_EXCEPTIONS: readonly FieldException[] = [
   {
+    reason: 'What Kuna files in a category of its own, which the starters and a link set and a rename keeps, so nobody types it.',
+    fields: ['spending: Category.role'],
+  },
+  {
     reason: "The record in Loans an entry links to, which link-entry names by its loan's name and a day and reads from what Loans publishes, so nobody types its fields in Spending.",
     fields: [
       'spending: LinkTarget.loan.app',

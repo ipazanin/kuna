@@ -2,9 +2,10 @@ import { loanLinkOf, sameRecord } from './linkTarget'
 import type { AppTargets, InstalmentTarget, LinkTarget } from './linkTarget'
 import { inWindow, isNear, nearestTo } from '../../pairing/domain/sameMoney'
 import type { DatedMoney } from '../../pairing/domain/sameMoney'
-import { fixedCategoryIn, loanInterestCategory, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
+import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { eventOfLargest, labelsOf } from '../../workbook/domain/carriedChoices'
-import type { Category } from '../../workbook/domain/category'
+import { categoryWithRole } from '../../workbook/domain/category'
+import type { Category, FixedKind } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { filedAsTransfer, linkedItems, wholeItemOf, wholeRowItemId } from '../../workbook/domain/rowItems'
@@ -24,14 +25,15 @@ import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import type { Language } from '../../../../shared/text/language'
 
 /**
- * Why a link files an entry whole: it names money lent, borrowed or paid back early, which goes under Loan principal, or it
+ * Why a link files an entry whole: it names money lent, borrowed or paid back early, which goes under the fixed category
+ * `wholeLoanKindOf` names, or it
  * leaves the entry's money as it is, since the instalment is all interest, the entry is money in, its account is not in euros
  * as Loans' plan is, it is a transfer's leg, or a receipt split it.
  */
 export type WholeReason = 'principal' | 'no-principal' | 'money-in' | 'not-euro' | 'transfer-leg' | 'receipt'
 
 /**
- * How a link files an entry: whole, under Loan principal or as it is, or split into the instalment's interest and principal as
+ * How a link files an entry: whole, under its loan's fixed category or as it is, or split into the instalment's interest and principal as
  * the plan has them, with what the entry paid beyond the plan as a part of its own. Each amount is signed as the entry is, and the difference is zero when the
  * entry pays the plan's share, or of the other sign when it pays less.
  */
@@ -53,6 +55,11 @@ export interface LinkedOn {
   /** Whether a receipt split the entry. */
   readonly receipt: boolean
   readonly categories: readonly Category[]
+}
+
+/** The fixed category a link that files the whole entry puts it under: Loans to and from people for an informal loan's money, Loan principal for a bank loan's. */
+export function wholeLoanKindOf(target: LinkTarget): Extract<FixedKind, 'repayment' | 'informal-loan'> {
+  return target.kind === 'informal-loan' || target.kind === 'movement' ? 'informal-loan' : 'repayment'
 }
 
 /** Euros of the plan as money out of a euro account. */
@@ -94,8 +101,8 @@ export function beyondRecord(target: LinkTarget, row: Pick<Transaction, 'amount'
  * How linking the entry to the target files its money. An instalment on money out of a euro account splits into the plan's
  * interest, under the category most of the entry's money is in besides Loan principal or under Loan interest for an entry
  * with no category, and its principal, which goes under Loan principal and counts as no spending. A part the entry already
- * had gives way to them. A movement, an extra payment or an informal loan is all principal, so the whole entry goes under
- * Loan principal. A transfer's leg and a receipt's row keep their parts.
+ * had gives way to them. An extra payment is all principal, so the whole entry goes under Loan principal, and an informal
+ * loan or its movement goes whole under Loans to and from people. A transfer's leg and a receipt's row keep their parts.
  */
 export function linkFiling({ row, items }: ItemizedRow, target: LinkTarget, on: LinkedOn): LinkFiling {
   const whole = (why: WholeReason): LinkFiling => ({ split: false, why })
@@ -107,7 +114,7 @@ export function linkFiling({ row, items }: ItemizedRow, target: LinkTarget, on: 
   if (on.currency !== EURO) return whole('not-euro')
   const kinds = new Map(on.categories.map((category) => [category.id, category.kind]))
   const filed = items.filter((item): item is TransactionItem & { readonly category: RecordId } => item.category !== null && kinds.get(item.category) !== 'repayment')
-  const category = filed.length === 0 ? (loanInterestCategory(on.categories)?.id ?? null) : mainCategoryOf(filed)
+  const category = filed.length === 0 ? (categoryWithRole(on.categories, 'loan-interest')?.id ?? null) : mainCategoryOf(filed)
   return { split: true, category, ...planParts(row.amount, target) }
 }
 
@@ -164,7 +171,7 @@ export interface LinkPlace {
   readonly notes: PartNotes
 }
 
-/** An entry as a link left it, with the categories it needs that a file made before them lacks: Loan principal, and Loan interest for an entry with no category. */
+/** An entry as a link left it, with the categories it needs that a file made before them lacks: Loan principal or Loans to and from people, and Loan interest for an entry with no category. */
 export interface LinkedEntry {
   readonly entry: ItemizedRow
   /** The category the instalment's interest went under, or null when the link left the entry whole. */
@@ -173,13 +180,13 @@ export interface LinkedEntry {
 }
 
 /**
- * The entry linked to the record in Loans it is, filed as `linkFiling` says: split by an instalment, whole under Loan principal
- * and filed by you, its parts joined into one that keeps every label, or each item as it is with the link on it.
+ * The entry linked to the record in Loans it is, filed as `linkFiling` says: split by an instalment, whole under its loan's
+ * fixed category and filed by you, its parts joined into one that keeps every label, or each item as it is with the link on it.
  */
 export function linkedEntry(entry: ItemizedRow, target: LinkTarget, place: LinkPlace & Pick<LinkedOn, 'receipt'>, newKey: () => string = newRecordId): LinkedEntry {
   const filing = linkFiling(entry, target, place)
   if (!filing.split && filing.why !== 'principal') return { entry: { row: entry.row, items: linkedItems(entry.items, target.link) }, interest: null, added: [] }
-  const principal = fixedCategoryIn(place.categories, 'repayment', place.language, newKey)
+  const principal = fixedCategoryIn(place.categories, filing.split ? 'repayment' : wholeLoanKindOf(target), place.language, newKey)
   const principalAdded = principal.added ? [principal.category] : []
   if (!filing.split) {
     const first = entry.items[0] ?? wholeItemOf(entry.row, { category: null, note: '', link: null, labels: [] })

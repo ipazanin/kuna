@@ -13,7 +13,7 @@ describe('what the accounts hold and owe', () => {
   })
 
   it('owes what an overdrawn account is below zero, apart from what the others hold', () => {
-    const overdrawn = [...ROWS, row(CASH, '2026-11-03', -94, 'Food/Restaurants')]
+    const overdrawn = [...ROWS, row(CASH, '2026-11-03', -94, 'Food/Eating out')]
 
     // Cash 64.00 − 94.00 = −30.00, and the other three 1,850.00 + 320.50 + 155.96.
     expect(accountStanding(countedAccounts({ accounts: ACCOUNTS, transactions: overdrawn }, DAY, RATES))).toEqual({ held: euros(2_326.46), heldAccounts: 3, owed: euros(30), unconverted: 0 })

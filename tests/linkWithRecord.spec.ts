@@ -73,13 +73,13 @@ describe('adding a movement in Loans from a row', () => {
     return { store, place, entry: store.state.workbook!.transactions[0]! }
   }
 
-  it('adds the movement first, links the row to it under Loan principal, and one Undo takes back the link and then the movement', async () => {
+  it('adds the movement first, links the row to it under Loans to and from people, and one Undo takes back the link and then the movement', async () => {
     const { store, place, entry } = await fileWithPaid()
     const result = await addAndLink(store, entry, () => addLoansMovement(MARKO, LENT, TITLES.inLoans), place, TITLES)
 
     expect(loans.added).toEqual([{ loan: 'made-up-loan', day: LENT.day, kind: 'borrowed', amount: LENT.amount, note: '' }])
-    const principal = CATEGORIES.find((held) => held.kind === 'repayment')!
-    expect(store.state.workbook!.items.map((part) => [part.category, part.link?.kind])).toEqual([[principal.id, 'movement']])
+    const lent = CATEGORIES.find((held) => held.kind === 'informal-loan')!
+    expect(store.state.workbook!.items.map((part) => [part.category, part.link?.kind])).toEqual([[lent.id, 'movement']])
     if (result.outcome !== 'linked') throw new Error(result.outcome)
 
     expect(await result.undo()).toEqual({ kept: false })

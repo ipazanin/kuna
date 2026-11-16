@@ -6299,7 +6299,7 @@ export const assetsValuationFlow = assetsValuationFlowIn('en')
 /** The payee the Spending flows type, as anyone might. */
 const SPENDING_PAYEE = 'Bakery by the port'
 /** The name a Spending flow gives a starter category, as anyone might type it. */
-const SPENDING_RENAMED = 'Coffee and tea'
+const SPENDING_RENAMED = 'Takeaway and delivery'
 const SPENDING_ROW = '[data-testid="spending-row"]'
 const SPENDING_ENTRY_DIALOG = '[data-testid="spending-entry-dialog"]'
 
@@ -6459,7 +6459,7 @@ export function spendingSplitFlowIn(language) {
     await pressSelector(page, press, '[data-testid="spending-entry-split"]')
     await page.waitForSelector(SPENDING_SPLIT_DIALOG, { visible: true, timeout: 10_000 })
     await typePartAmount(page, press, 0, '20')
-    await choosePartCategory(page, press, 1, starter.Restaurants)
+    await choosePartCategory(page, press, 1, starter['Eating out'])
     await pressSelector(page, press, '[data-testid="split-add-part"]')
     await typePartAmount(page, press, 2, '15.3')
     await choosePartCategory(page, press, 2, starter['For the company'])
@@ -6803,6 +6803,37 @@ export function spendingAddToLoansFlowIn(language, movementMonth) {
     await openSpendingRow(page, press, 'Marko', -150000)
     await waitForTextIn(page, '[data-testid="spending-entry-link"]', 'From Marko')
     await shootAt(page, shoot, '[data-testid="spending-entry-link"]', 'spending-entry-link-movement')
+    await page.keyboard.press('Escape')
+    await dialogGone(page, SPENDING_ENTRY_DIALOG)
+  }
+}
+
+/**
+ * The sample's repayment to Marko with its link taken off, linked again from its dialog to the movement of his loan, where the
+ * note says the whole entry goes under Loans to and from people and counts as neither spending nor income.
+ */
+export function spendingLinkMovementFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const links = words.spendingLinks
+  return async (page, { press, shoot: shootAs }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await openSpendingRow(page, press, 'Marko', -150000)
+    await press(await page.waitForSelector('[data-testid="spending-entry-link-remove"]', { visible: true }))
+    await toast(page, links.removed)
+    await dismissToasts(page)
+    await openSpendingRow(page, press, 'Marko', -150000)
+    const picker = await page.waitForSelector('[data-testid="spending-entry-link-target"]', { visible: true })
+    await picker.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+    await press(picker)
+    const movement = await page
+      .waitForFunction(() => [...document.querySelectorAll('[role="option"]')].find((element) => element.textContent?.trim().startsWith('From Marko')) ?? null, { timeout: 5_000 })
+      .catch(() => {
+        throw new Error('the link picker offers no movement of the loan from Marko')
+      })
+    await press(movement.asElement())
+    await page.waitForFunction(() => !document.querySelector('[role="listbox"]'), { timeout: 5_000 })
+    await waitForTextIn(page, '[data-testid="spending-entry-link-note"]', words.spendingStarter['Loans to and from people'])
+    await shootAt(page, shoot, '[data-testid="spending-entry-link-pick"]', 'spending-entry-link-pick-movement')
     await page.keyboard.press('Escape')
     await dialogGone(page, SPENDING_ENTRY_DIALOG)
   }
@@ -7161,7 +7192,7 @@ export function spendingReceiptFlowIn(language, photos) {
     await page.waitForSelector('[data-testid="spending-receipt-place"][data-match="ready"]', { visible: true, timeout: 10_000 }).catch(() => {
       throw new Error('the receipt is not offered its one payment ready')
     })
-    await pickReceiptCategory(page, press, words, 'Household goods')
+    await pickReceiptCategory(page, press, words, 'Furniture and household goods')
     await pressSelector(page, press, '[data-testid="spending-receipt-keep"]')
     await delay(300)
     await inspect?.('the receipt matched to its payment')
@@ -8193,7 +8224,7 @@ async function spendingCategoryShown(page, name, shown) {
 }
 
 /**
- * On the sample Spending file's Settings: Coffee renamed in its dialog, moved up above Restaurants, then deleted with its
+ * On the sample Spending file's Settings: Delivery renamed in its dialog, moved up above Eating out, then deleted with its
  * entries moved to Groceries, which takes it off the card until Undo brings it back.
  */
 export function spendingCategoryFlowIn(language) {
@@ -8202,7 +8233,7 @@ export function spendingCategoryFlowIn(language) {
   const starter = words.spendingStarter
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await pressSelector(page, press, `[data-testid="spending-category-edit"][aria-label="${categories.edit(starter.Coffee)}"]`)
+    await pressSelector(page, press, `[data-testid="spending-category-edit"][aria-label="${categories.edit(starter.Delivery)}"]`)
     await page.waitForSelector('[data-testid="spending-category-dialog"]', { visible: true, timeout: 10_000 })
     await fill(page, 'spending-category-name', SPENDING_RENAMED)
     await delay(300)
@@ -8217,7 +8248,7 @@ export function spendingCategoryFlowIn(language) {
     await toast(page, categories.moved)
     await dismissToasts(page)
     const order = await spendingCategoryNames(page)
-    if (order.indexOf(SPENDING_RENAMED) !== order.indexOf(starter.Restaurants) - 1) throw new Error(`${SPENDING_RENAMED} did not move above ${starter.Restaurants}: ${order.join(', ')}`)
+    if (order.indexOf(SPENDING_RENAMED) !== order.indexOf(starter['Eating out']) - 1) throw new Error(`${SPENDING_RENAMED} did not move above ${starter['Eating out']}: ${order.join(', ')}`)
 
     await pressSelector(page, press, `[data-testid="spending-category-edit"][aria-label="${categories.edit(SPENDING_RENAMED)}"]`)
     await page.waitForSelector('[data-testid="spending-category-dialog"]', { visible: true, timeout: 10_000 })

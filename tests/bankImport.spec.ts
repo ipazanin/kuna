@@ -215,7 +215,7 @@ describe('a fetch', () => {
     })
 
     it('counts a row the fetch filled in, not twice', async () => {
-      const typed = row(OTP, '2026-10-27', -6.5, 'Food/Coffee', { payee: 'Bakery' })
+      const typed = row(OTP, '2026-10-27', -6.5, 'Food/Eating out', { payee: 'Bakery' })
       const { dryRun, differences } = await importerOver(portOf({ balances: stated(afterImport) }), storeOver(bookOf([typed])).store).run(false)
       expect(dryRun.filled).toBe(1)
       expect(differences).toEqual([])

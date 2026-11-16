@@ -18,7 +18,7 @@ describe('what Spending adds to Net worth', () => {
   })
 
   it('shows an overdrawn account as owed, apart from what the others hold', () => {
-    const overdrawn = [...ROWS, row(CASH, '2026-11-03', -94, 'Food/Restaurants')]
+    const overdrawn = [...ROWS, row(CASH, '2026-11-03', -94, 'Food/Eating out')]
 
     // Cash 64.00 − 94.00 = −30.00, and the other three 1,850.00 + 320.50 + 155.96.
     expect(spendingHubFigures({ accounts: ACCOUNTS, transactions: overdrawn }, LOADED, DAY)).toEqual({
@@ -46,7 +46,7 @@ describe('what Spending adds to Net worth', () => {
 
   it('does not wait on the rates for a file of euro accounts only, or one whose only foreign account is closed and empty', () => {
     const euroOnly = { accounts: [OTP, REVOLUT_EUR, CASH], transactions: ROWS }
-    const dollarsEmptied = { accounts: [OTP, REVOLUT_EUR, { ...REVOLUT_USD, closed: true }, CASH], transactions: [...ROWS, row(REVOLUT_USD, '2026-11-03', -170, 'Food/Restaurants')] }
+    const dollarsEmptied = { accounts: [OTP, REVOLUT_EUR, { ...REVOLUT_USD, closed: true }, CASH], transactions: [...ROWS, row(REVOLUT_USD, '2026-11-03', -170, 'Food/Eating out')] }
 
     for (const book of [euroOnly, dollarsEmptied]) {
       expect(spendingHubFigures(book, 'loading', DAY)).toEqual({
@@ -64,7 +64,7 @@ describe('what Spending adds to Net worth', () => {
   })
 
   it('leaves a closed account at zero out of the sum and the count', () => {
-    const emptied = [...ROWS, row(REVOLUT_EUR, '2026-11-03', -320.5, 'Food/Restaurants')]
+    const emptied = [...ROWS, row(REVOLUT_EUR, '2026-11-03', -320.5, 'Food/Eating out')]
     const closed = [OTP, { ...REVOLUT_EUR, closed: true }, REVOLUT_USD, CASH]
 
     // 1,850.00 + 155.96 + 64.00.

@@ -38,9 +38,9 @@ const ACCOUNT: Account = {
   closed: false,
 }
 
-const FOOD: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-food'), name: 'Food', kind: 'spending', parent: null, order: 1, colour: '#123456', hidden: false }
-const GROCERIES: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-groceries'), name: 'Groceries', kind: 'spending', parent: FOOD.id, order: 1, colour: '', hidden: false }
-const RENT: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-rent'), name: 'Rent', kind: 'spending', parent: null, order: 2, colour: '', hidden: false }
+const FOOD: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-food'), name: 'Food', kind: 'spending', parent: null, order: 1, colour: '#123456', hidden: false, role: null }
+const GROCERIES: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-groceries'), name: 'Groceries', kind: 'spending', parent: FOOD.id, order: 1, colour: '', hidden: false, role: null }
+const RENT: Category = { id: recordIdOf(CATEGORY_RECORDS, 'category-rent'), name: 'Rent', kind: 'spending', parent: null, order: 2, colour: '', hidden: false, role: null }
 
 function row(place: number, date: string, amount: number, payee: string, category: Category, fields: Partial<Transaction> = {}, note = ''): ItemizedRow {
   const entry: Transaction = {

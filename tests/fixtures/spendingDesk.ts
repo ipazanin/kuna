@@ -75,7 +75,7 @@ function account(key: string, name: string, fields: Partial<Account> = {}): Acco
 }
 
 function category(key: string, name: string, kind: Category['kind'], parent: Category | null, order: number): Category {
-  return { id: recordIdOf(CATEGORY_RECORDS, key), name, kind, parent: parent?.id ?? null, order, colour: '', hidden: false }
+  return { id: recordIdOf(CATEGORY_RECORDS, key), name, kind, parent: parent?.id ?? null, order, colour: '', hidden: false, role: null }
 }
 
 const CURRENT = account('account-current', 'Current', { iban: 'HR6523400091110000001' })

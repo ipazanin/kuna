@@ -20,7 +20,7 @@ import LabelsSelect from '../../labels/presentation/LabelsSelect.vue'
 import { words as labelWords } from '../../labels/presentation/words'
 import { loanTargets } from '../../links/application/loanTargets'
 import type { ShownTarget } from '../../links/application/loanTargets'
-import { beyondPlan, linkFiling } from '../../links/domain/instalmentSplit'
+import { beyondPlan, linkFiling, wholeLoanKindOf } from '../../links/domain/instalmentSplit'
 import { sideOf } from '../../categories/domain/rowSide'
 import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { eventMembership } from '../../events/domain/eventMembership'
@@ -196,7 +196,7 @@ const linkNote = computed(() => {
   if (edited.value) return linkWords.saveFirst
   const filing = linkFiling({ row: props.entry, items: entryLines.value }, target, { currency: entryCurrency.value, receipt: receipt.value !== null, categories: categories.value })
   if (!filing.split && filing.why === 'principal')
-    return [linkWords.asPrincipal(fixedCategoryIn(categories.value, 'repayment', language).category.name), ...(split.value ? [linkWords.replacesParts] : [])].join(' ')
+    return [linkWords.filesWhole(fixedCategoryIn(categories.value, wholeLoanKindOf(target), language).category.name), ...(split.value ? [linkWords.replacesParts] : [])].join(' ')
   if (!filing.split) return linkWords.whole[filing.why]
   const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), entryCurrency.value)
   const category = categories.value.find((candidate) => candidate.id === filing.category)?.name ?? loanInterestCategoryIn(categories.value, language).category.name

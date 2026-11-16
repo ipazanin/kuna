@@ -164,11 +164,11 @@ function fakeEvents(day: CivilDate): readonly SpendingEvent[] {
 function eventRows(day: CivilDate, lastMonth: MonthKey): Row[] {
   const back = (days: number): CivilDate => addDays(day, -days)
   return [
-    { account: OTP, date: dayIn(lastMonth, 20, day), amount: -180, payee: 'Airline', category: 'Travel/Tickets', event: PRAGUE },
+    { account: OTP, date: dayIn(lastMonth, 20, day), amount: -180, payee: 'Airline', category: 'Travel/Travel tickets and car hire', event: PRAGUE },
     { account: REVOLUT_EUR, date: back(6), amount: -55, payee: 'Fuel station', category: 'Transport/Fuel' },
     { account: OTP, date: back(2), amount: -240, payee: 'Hotel Old Town', category: 'Travel/Accommodation' },
-    { account: OTP, date: back(2), amount: -13.99, payee: 'Streaming service', category: 'Leisure/Subscriptions', event: OUT_OF_EVENTS },
-    { account: OTP, date: back(1), amount: -38.6, payee: 'Beer hall', category: 'Food/Restaurants' },
+    { account: OTP, date: back(2), amount: -13.99, payee: 'Streaming service', category: 'Leisure/Streaming and apps', event: OUT_OF_EVENTS },
+    { account: OTP, date: back(1), amount: -38.6, payee: 'Beer hall', category: 'Food/Eating out' },
   ]
 }
 
@@ -196,8 +196,8 @@ function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
     { account: OTP, date: on(5), amount: -118.4, payee: 'City utilities', category: 'Home/Utilities', labels: [NEW_FLAT] },
     { account: OTP, date: on(10), amount: 2_400, payee: 'Example Studio d.o.o.', category: 'Income/Salary' },
     { account: OTP, date: on(12), amount: food.groceries, payee: 'Corner market', category: 'Food/Groceries' },
-    { account: REVOLUT_EUR, date: on(14), amount: food.restaurants, payee: 'Harbour bistro', category: 'Food/Restaurants', ...(back === 1 ? { labels: [BOSTON_TRIP] } : {}) },
-    { account: CASH, date: on(16), amount: food.coffee, payee: 'Café on the square', category: 'Food/Coffee' },
+    { account: REVOLUT_EUR, date: on(14), amount: food.restaurants, payee: 'Harbour bistro', category: 'Food/Eating out', ...(back === 1 ? { labels: [BOSTON_TRIP] } : {}) },
+    { account: CASH, date: on(16), amount: food.coffee, payee: 'Café on the square', category: 'Food/Eating out' },
     ...(food.delivery === 0 ? [] : [{ account: REVOLUT_EUR, date: on(18), amount: food.delivery, payee: 'Food delivery', category: 'Food/Delivery' }]),
     { account: REVOLUT_EUR, date: on(20), amount: -80, payee: 'Fuel station', category: 'Transport/Fuel' },
     { account: OTP, date: on(15), amount: -650, payee: 'Example Bank', category: 'Money and fees/Loan interest', link: homeLoanInstalment(month, back === 1 ? 15 : 20) },
@@ -213,13 +213,13 @@ function monthSoFar(month: MonthKey): Row[] {
   return [
     { account: OTP, date: first, amount: -600, payee: 'Landlord', category: 'Home/Rent', labels: [NEW_FLAT] },
     { account: OTP, date: first, amount: -45.3, payee: 'Corner market', category: 'Food/Groceries' },
-    { account: CASH, date: first, amount: -3.5, payee: 'Café on the square', category: 'Food/Coffee' },
+    { account: CASH, date: first, amount: -3.5, payee: 'Café on the square', category: 'Food/Eating out' },
   ]
 }
 
 /** The made-up dollar row of the worked example, spent abroad last month. */
 function dollarRows(month: MonthKey, day: CivilDate): Row[] {
-  return [{ account: REVOLUT_USD, date: dayIn(month, 10, day), amount: -30, payee: 'Diner in Boston', category: 'Travel/On the trip', labels: [BOSTON_TRIP] }]
+  return [{ account: REVOLUT_USD, date: dayIn(month, 10, day), amount: -30, payee: 'Diner in Boston', category: 'Food/Eating out', labels: [BOSTON_TRIP] }]
 }
 
 const REVOLUT_IBAN = 'LT000000000000000001'
@@ -289,12 +289,12 @@ function earlierStatementRows(day: CivilDate, idOf: (path: string) => RecordId, 
     categorisedBy: 'person',
   })
   return [
-    typed(1701, REVOLUT_EUR, back(3), -4.2, 'Café on the square', 'Food/Coffee'),
+    typed(1701, REVOLUT_EUR, back(3), -4.2, 'Café on the square', 'Food/Eating out'),
     typed(1702, REVOLUT_EUR, back(6), -25, 'Bookshop', 'Leisure/Hobbies'),
     typed(1714, REVOLUT_EUR, back(2), -12, 'Corner market', 'Food/Groceries'),
     statementRow(1703, OTP, back(12), -150, 'Transfer to Revolut', { category: between, pair: paidIn, counterpartyIban: REVOLUT_IBAN }),
     statementRow(1704, REVOLUT_EUR, back(12), 150, 'Top-up from OTP', { category: between, pair: paidOut }),
-    statementRow(1705, REVOLUT_EUR, back(10), -32, 'Harbour bistro', { category: idOf('Food/Restaurants'), categorisedBy: 'person', importKey: bistroKey }),
+    statementRow(1705, REVOLUT_EUR, back(10), -32, 'Harbour bistro', { category: idOf('Food/Eating out'), categorisedBy: 'person', importKey: bistroKey }),
     statementRow(1706, OTP, back(14), -22.4, 'Corner market', { category: idOf('Food/Groceries'), categorisedBy: 'rule' }),
     statementRow(1707, OTP, back(9), -12, 'City pharmacy', { counterpartyIban: PHARMACY_IBAN }),
     statementRow(1708, OTP, back(8), -60, 'Card top-up'),
@@ -388,7 +388,7 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
     statementRow(1901, OTP, day, spent(oneMatch), 'Corner market'),
     statementRow(1902, OTP, back(1), spent(twoMatches), 'Fuel station', { category: idOf('Transport/Fuel'), categorisedBy: 'rule' }),
     statementRow(1903, REVOLUT_EUR, back(2), spent(twoMatches), 'Harbour bistro'),
-    statementRow(1904, REVOLUT_EUR, back(1), spent(near + 150), 'Harbour bistro', { category: idOf('Food/Restaurants'), categorisedBy: 'person' }),
+    statementRow(1904, REVOLUT_EUR, back(1), spent(near + 150), 'Harbour bistro', { category: idOf('Food/Eating out'), categorisedBy: 'person' }),
     {
       ...NO_BANK_FACTS,
       id: fixedId(TRANSACTION_RECORDS, 1905),
@@ -396,7 +396,7 @@ function receiptRows(day: CivilDate, idOf: (path: string) => RecordId): readonly
       date: day,
       amount: accountMoneyFromAmount(-8.4),
       payee: 'Café on the square',
-      category: idOf('Food/Coffee'),
+      category: idOf('Food/Eating out'),
       note: '',
       source: 'typed',
       pair: null,
@@ -446,7 +446,7 @@ function splitRowReceipt(day: CivilDate, idOf: (path: string) => RecordId): { re
         longitude: '16.440200',
       },
     ],
-    lines: [line(1952, -48.7, 'Food/Groceries'), line(1953, -12.5, 'Home/Household goods', [NEW_FLAT])],
+    lines: [line(1952, -48.7, 'Food/Groceries'), line(1953, -12.5, 'Home/Furniture and household goods', [NEW_FLAT])],
   }
 }
 
@@ -650,8 +650,9 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
 }
 
 /**
- * What every set but the foreign one adds for Loans: a repayment to Marko linked to the sample's last movement of his loan and
- * an early repayment of the home loan linked to the sample's extra payment, both filed under Loan principal, and a standing order
+ * What every set but the foreign one adds for Loans: a repayment to Marko linked to the sample's last movement of his loan,
+ * filed under Loans to and from people, an early repayment of the home loan linked to the sample's extra payment, filed under
+ * Loan principal, and a standing order
  * of an earlier statement below the home loan's instalment, which you split by hand and have not linked. The extra payment is
  * older than these books, so its row falls two months back.
  */
@@ -686,7 +687,7 @@ function loanRows(twoBack: MonthKey, oneBack: MonthKey, day: CivilDate, idOf: (p
   })
   return {
     rows: [
-      typed(repaid, dayIn(twoBack, 28, day), -1500, 'Marko', { category: idOf('Loan principal'), link: { app: 'loans', kind: 'movement', key: FAKE_MARKO_REPAID, due: null } }),
+      typed(repaid, dayIn(twoBack, 28, day), -1500, 'Marko', { category: idOf('Loans to and from people'), link: { app: 'loans', kind: 'movement', key: FAKE_MARKO_REPAID, due: null } }),
       typed(extra, dayIn(twoBack, 15, day), -8000, 'Example Bank', { category: idOf('Loan principal'), link: { app: 'loans', kind: 'extra-payment', key: FAKE_HOME_LOAN_EXTRA_PAYMENT, due: null } }),
       statementRow(1522, OTP, dayIn(oneBack, 21, day), -600, 'Standing order', { category: idOf('Money and fees/Loan interest'), categorisedBy: 'person' }),
     ],

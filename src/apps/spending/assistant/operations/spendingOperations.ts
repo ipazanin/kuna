@@ -314,7 +314,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'link-entry',
     about:
-      "Links an entry to the record in Loans it is, in place of any link it had, by the loan's name as Loans lists it and a day: a bank loan's instalment or interim interest by its due date, or an extra payment or an informal loan's movement by its day. A movement or an extra payment must be in Loans already. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. Any other link files the whole entry under Loan principal.",
+      "Links an entry to the record in Loans it is, in place of any link it had, by the loan's name as Loans lists it and a day: a bank loan's instalment or interim interest by its due date, or an extra payment or an informal loan's movement by its day. A movement or an extra payment must be in Loans already. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. An extra payment files the whole entry under Loan principal, and an informal loan or its movement under Loans to and from people.",
     input: inputOf({
       entry: TEXT,
       loan: TEXT,
@@ -550,6 +550,7 @@ function plannedSteps(
           order: lastOrder(siblingsUnder(book.categories, parent, kind)),
           colour: colourOf(field['colour'], ''),
           hidden: flagOf(field['hidden'], NEW_CATEGORY_DEFAULTS.hidden),
+          role: NEW_CATEGORY_DEFAULTS.role,
         })
         unit.of(CATEGORY_WRITES).add(category)
         book = { ...book, categories: [...book.categories, category] }

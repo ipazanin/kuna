@@ -110,10 +110,17 @@ describe("Revolut's export", () => {
     ])
   })
 
-  it('leaves the fee waiting on review once Bank fees was renamed', () => {
-    const renamed = CATEGORIES.map((other) => (other.id === category('Money and fees/Bank fees').id ? { ...other, name: 'Charges' } : other))
+  it('files the fee under Bank fees by its role once it was renamed', () => {
+    const fees = category('Money and fees/Bank fees')
+    const renamed = CATEGORIES.map((other) => (other.id === fees.id ? { ...other, name: 'Charges' } : other))
 
-    expect(read([line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Fuel station', '-40.00', '1.50')], { accounts: ACCOUNTS, categories: renamed }).rows[1]?.category).toBeNull()
+    expect(read([line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Fuel station', '-40.00', '1.50')], { accounts: ACCOUNTS, categories: renamed }).rows[1]?.category).toBe(fees.id)
+  })
+
+  it('leaves the fee waiting on review once Bank fees was deleted', () => {
+    const deleted = CATEGORIES.filter((other) => other.id !== category('Money and fees/Bank fees').id)
+
+    expect(read([line('CARD_PAYMENT', '2026-10-01 10:00:00', 'Fuel station', '-40.00', '1.50')], { accounts: ACCOUNTS, categories: deleted }).rows[1]?.category).toBeNull()
   })
 
   it("sends each row to the Revolut account of its currency, and marks an exchange's two legs with their started time", () => {
