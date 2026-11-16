@@ -43,14 +43,7 @@ const lines = computed(() =>
           </template>
         </ListRow>
       </li>
-      <ListRow
-        v-if="ranked.rest !== null"
-        as="li"
-        :title="plural(sideWords.others(ranked.rest.payees), ranked.rest.payees)"
-        quiet
-        class="border-t border-default"
-        data-testid="spending-payees-rest"
-      >
+      <ListRow v-if="ranked.rest !== null" as="li" :title="plural(sideWords.others(ranked.rest.payees), ranked.rest.payees)" quiet class="border-t border-default" data-testid="spending-payees-rest">
         <template #amount>
           <MoneyText :cents="ranked.rest.sum" />
         </template>
