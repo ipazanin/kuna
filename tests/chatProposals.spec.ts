@@ -268,7 +268,7 @@ describe('a proposal', () => {
         account: d.ref('account', cash.id),
         payee: 'A café',
         kind: 'out',
-        parts: [{ amount: 2, category: d.ref('category', named(d, 'Coffee').id), note: '' }],
+        parts: [{ amount: 2, category: d.ref('category', named(d, 'Eating out').id), note: '' }],
       }),
     ])
     expect(added.text).toContain('never one that is closed')

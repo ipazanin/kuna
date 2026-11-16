@@ -28,7 +28,7 @@ const used = new Set<string>()
 afterEach(async () => forgetCaches(used))
 
 function category(key: string, name: string, kind: Category['kind'], parent: Category | null = null): Category {
-  return { id: recordIdOf(CATEGORY_RECORDS, `5e000000-0000-4000-8000-0000000090${key}`), name, kind, parent: parent?.id ?? null, order: 1, colour: '', hidden: false }
+  return { id: recordIdOf(CATEGORY_RECORDS, `5e000000-0000-4000-8000-0000000090${key}`), name, kind, parent: parent?.id ?? null, order: 1, colour: '', hidden: false, role: null }
 }
 
 const FOOD = category('01', 'Food', 'spending')
@@ -114,7 +114,7 @@ describe('a quick add as the file stores it', () => {
 
   it('lets a category a part is on take a category under it, and keeps reading the part there', async () => {
     const store = await storeWith([COFFEE_SHORTCUT], [COFFEE_PART, TIP_PART])
-    const waiters = newCategory({ name: 'Waiters', kind: 'spending', parent: TIPS.id, order: 2, colour: '', hidden: false })
+    const waiters = newCategory({ name: 'Waiters', kind: 'spending', parent: TIPS.id, order: 2, colour: '', hidden: false, role: null })
 
     await store.write('Added', (unit) => unit.of(CATEGORY_WRITES).add(waiters))
 
