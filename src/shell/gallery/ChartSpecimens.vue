@@ -82,7 +82,7 @@ const galleryRange = ref<ChartRange>('all')
   <GallerySection
     id="dashboard-grid"
     title="DashboardGrid"
-    description="How a dashboard rearranges with the room it has, which the chat's dock takes from. Tiles go two to a row, then one row from @4xl, five or six three to a row from @3xl and one row from @8xl. Cards go two to a row from @4xl and three from @8xl. A pair sets two parts side by side from @8xl. A row of up to four cards is under ScenarioComparison."
+    description="How a dashboard rearranges with the room it has, which the chat's dock takes from. Tiles go two to a row, then one row from @4xl, five or six three to a row from @3xl and one row from @8xl. Cards go two to a row from @4xl and three from @8xl. The parts of a row share it, so a card with no partner spans its row. A pair sets two parts side by side from @8xl. A row of up to four cards is under ScenarioComparison."
   >
     <h3 class="type-label">Six tiles</h3>
     <DashboardGrid layout="tiles">
@@ -92,6 +92,16 @@ const galleryRange = ref<ChartRange>('all')
     <DashboardGrid layout="tiles">
       <KpiTile v-for="index in 3" :key="index" :label="`Tile ${index}`" :value="formatMoney(moneyFromCents(index * 51_000))" :to="null" />
     </DashboardGrid>
+    <h3 class="type-label">Five tiles, three and then two that share their row</h3>
+    <DashboardGrid layout="tiles" data-testid="gallery-grid-five-tiles">
+      <KpiTile v-for="index in 5" :key="index" :label="`Tile ${index}`" :value="formatMoney(moneyFromCents(index * 87_600))" :to="null" />
+    </DashboardGrid>
+    <h3 class="type-label">Three cards, the last one across its row while two fit to a row</h3>
+    <DashboardGrid data-testid="gallery-grid-lone-card">
+      <AppCard v-for="index in 3" :key="index" :title="`Card ${index}`" subtitle="Two to a row from @4xl and three from @8xl.">
+        <p class="px-4 pt-3 pb-4 type-body sm:px-5">A card with no partner in its row spans it.</p>
+      </AppCard>
+    </DashboardGrid>
     <h3 class="type-label">A pair: a long card beside a column of cards</h3>
     <DashboardGrid layout="pair">
       <AppCard title="A long list" subtitle="Beside the column from @8xl, above it below.">
@@ -100,8 +110,8 @@ const galleryRange = ref<ChartRange>('all')
         </ul>
       </AppCard>
       <DashboardGrid>
-        <AppCard title="A wide card" subtitle="Across both columns once two fit, one of the column once three do." class="@4xl:col-span-2 @8xl:col-span-1">
-          <p class="px-4 pt-3 pb-4 type-body sm:px-5">It says so with @4xl:col-span-2 @8xl:col-span-1.</p>
+        <AppCard title="A wide card" subtitle="Across the row once two fit, a part of the row once three do." class="@max-8xl:basis-full">
+          <p class="px-4 pt-3 pb-4 type-body sm:px-5">It says so with @max-8xl:basis-full.</p>
         </AppCard>
         <AppCard title="A card" subtitle="Half the width from @4xl.">
           <p class="px-4 pt-3 pb-4 type-body sm:px-5">Two to a row.</p>
@@ -124,7 +134,7 @@ const galleryRange = ref<ChartRange>('all')
     </p>
     <DashboardGrid>
       <ChartCard
-        class="@4xl:col-span-2"
+        class="basis-full"
         title="Income and costs by month"
         description="Made-up income and costs by month for the gallery."
         subtitle="Income above zero, costs below it by bucket. October is still running."

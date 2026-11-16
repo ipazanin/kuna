@@ -310,16 +310,10 @@ await step('theme-and-language', async (page) => {
     const row = await page.evaluateHandle((wanted) => [...document.querySelectorAll('[role="menuitemcheckbox"]')].find((item) => item.textContent?.trim().startsWith(wanted)), label)
     await row.asElement().click()
   }
-  // Right after a reload the first route can land after the drawer opens and close it again, so the drawer must stay open for a moment.
   const openDrawer = async () => {
     await page.waitForFunction(() => document.querySelector('[role="menuitemcheckbox"]') === null, { timeout: 5_000 })
-    for (const attempt of [1, 2, 3]) {
-      await (await page.waitForSelector('[data-testid="open-navigation"]', VISIBLE)).click()
-      await page.waitForSelector('[role="dialog"] [data-testid="theme-and-language"]', { ...VISIBLE, timeout: 5_000 }).catch(() => null)
-      await new Promise((resolve) => setTimeout(resolve, 600))
-      if ((await page.$('[role="dialog"] [data-testid="theme-and-language"]')) !== null) return
-      if (attempt === 3) throw new Error('the menu drawer did not stay open with its Theme and language menu')
-    }
+    await (await page.waitForSelector('[data-testid="open-navigation"]', VISIBLE)).click()
+    await page.waitForSelector('[role="dialog"] [data-testid="theme-and-language"]', VISIBLE)
   }
   try {
     await open(page, 'fake=drive', '/company')

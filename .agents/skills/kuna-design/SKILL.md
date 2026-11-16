@@ -28,6 +28,7 @@ A component starts in the app that needs it and moves to `src/shared/ui` when a 
 - Text roles are `type-page-title`, `type-card-title`, `type-body`, `type-label`, `type-caption`, `type-figure`, `type-figure-secondary` and `type-wordmark`. Figures that lead a hero use `text-figure-lg` or `text-figure-xl`.
 - Stack with `z-control` and `z-top-bar`, and fade with `duration-fade`. No numeric `z-*` or `duration-*`.
 - Colour is never the only cue. A status also has an icon or a word.
+- A card shares its row or spans it, and never leaves an empty half. `DashboardGrid` stretches a card with no partner across its row, and a list card alone in a wide row shows as a table. See Layout and width in [patterns.md](patterns.md).
 - Every control a thumb can reach is at least 44 px below 640 px. The rule is in `app.css`, so do not undo it with a height class.
 - Every visible string goes through the app's text, with Croatian beside English. Check Croatian at 360 px.
 - No new `<style>` block. A look belongs in a component, a token or `app.css`.

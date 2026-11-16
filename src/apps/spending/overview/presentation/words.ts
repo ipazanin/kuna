@@ -67,6 +67,8 @@ export const en = {
     title: 'Latest entries',
     subtitle: 'The five newest, by day',
     allEntries: 'All entries',
+    columns: { day: 'Day', payee: 'Payee', category: 'Category', account: 'Account', amount: 'Amount' },
+    splitEntry: 'Split',
   },
   accounts: {
     title: 'Accounts',
@@ -145,6 +147,8 @@ export const hr: Translation<typeof en> = {
     title: 'Zadnji unosi',
     subtitle: 'Pet najnovijih, po danu',
     allEntries: 'Svi unosi',
+    columns: { day: 'Dan', payee: 'Primatelj ili platitelj', category: 'Kategorija', account: 'Račun', amount: 'Iznos' },
+    splitEntry: 'Podijeljen',
   },
   accounts: {
     title: 'Računi',

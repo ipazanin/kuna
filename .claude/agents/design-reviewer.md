@@ -49,7 +49,7 @@ In the diff:
 12. Undo instead of a confirm where the change is cheap to reverse, through the record write toast.
 13. Tokens and colours. A new token has a light and a dark value, a text pair passes 4.5:1 and a mark 3:1. A tint under a figure in ink passes 4.5:1 with that ink instead, with a 3:1 border where its shape matters. Nothing relies on `dark:`. No palette colour, literal, numeric `z-*` or `duration-*`, or arbitrary value where a token or role exists.
 14. A scoped `<style>` block that does what a frame already does, such as spacing, columns or card surfaces.
-15. Layout rules. Form fields two to a row in `FormGrid`, dashboard tiles and cards in `DashboardGrid`, figure tables in `FigureTable`, empty and error states in `EmptyState`.
+15. Layout rules. Form fields two to a row in `FormGrid`, dashboard tiles and cards in `DashboardGrid`, figure tables in `FigureTable`, empty and error states in `EmptyState`. A card shares its row or spans it, never leaving an empty half, and a list card alone in a wide row reads as a table with its amount in a column of its own.
 16. Touch targets of at least 44 px below 640 px, and a status that colour alone carries.
 17. A new component without its gallery specimen or catalogue row, a specimen that leaves out a state, and a catalogue row that no longer matches the props.
 18. A change to `eslint.config.js` that loosens a rule or adds an exemption, or a file added to `scripts/lint-baseline.json`. The owner must approve it.

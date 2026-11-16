@@ -251,7 +251,7 @@ const overview = computed(() => {
         </DashboardGrid>
 
         <DashboardGrid>
-          <AppCard :title="words.typicalMonth.title" :subtitle="words.typicalMonth.subtitle" class="@4xl:col-span-2 @8xl:col-span-1">
+          <AppCard :title="words.typicalMonth.title" :subtitle="words.typicalMonth.subtitle" class="@max-8xl:basis-full">
             <div class="px-1 pt-2 pb-2 sm:px-2">
               <WindowComparison :columns="overview.columnLabels" :rows="overview.comparison" />
             </div>
@@ -259,7 +259,7 @@ const overview = computed(() => {
 
           <DrillChartCard
             :chart="overview.monthly"
-            class="@4xl:col-span-2"
+            class="@max-8xl:basis-full @8xl:basis-3/5"
             :title="words.monthly.title"
             :subtitle="words.monthly.subtitle"
             :definition="words.monthly.definition(overview.costs)"
@@ -274,7 +274,7 @@ const overview = computed(() => {
           </DrillChartCard>
 
           <DonutCard
-            class="@8xl:col-span-2"
+            class="@8xl:basis-3/5"
             :title="words.euro.title(overview.unit)"
             :subtitle="overview.euro.loss ? words.euro.lossSubtitle(overview.unit) : words.euro.subtitle(overview.unit)"
             :definition="words.euro.definition(overview.costs, overview.unit)"
@@ -286,7 +286,7 @@ const overview = computed(() => {
 
           <AppCard
             :title="words.accounts.title"
-            class="col-span-full"
+            class="basis-full"
             collapse-id="overview.accounts"
             :summary="overview.accountsSummary"
             start-collapsed

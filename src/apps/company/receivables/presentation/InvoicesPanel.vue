@@ -325,14 +325,14 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
             <DashboardGrid>
               <AppCard
                 v-if="view.unplaced.length > 0"
-                class="@4xl:col-span-2 @8xl:col-span-1"
+                class="@max-8xl:basis-full"
                 :title="words.panel.unplacedTitle"
                 :subtitle="words.panel.unplacedSubtitle"
                 collapse-id="invoicing.unplaced"
                 :summary="view.unplacedSummary"
                 data-testid="unplaced-payments"
               >
-                <ul class="divide-y divide-default">
+                <ul class="near-figures divide-y divide-default">
                   <ProposalRow v-for="payment in view.unplaced" :key="payment.key" :title="payment.client" :caption="words.panel.unplacedCaption(payment.date)" data-testid="unplaced-payment">
                     <template #amount>
                       <DrillLink :to="payment.to" :label="words.panel.openCredit(payment.date, payment.client)">
@@ -356,7 +356,7 @@ const noClients = computed(() => (invoiceDialog.value?.clients.length ?? 0) === 
 
               <DrillChartCard
                 id="invoices-ageing"
-                class="@4xl:col-span-2 @8xl:col-span-1"
+                class="@max-8xl:basis-full"
                 :chart="view.ageing"
                 :title="words.panel.ageingTitle"
                 :subtitle="words.panel.ageingSubtitle(view.asOf)"

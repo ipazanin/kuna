@@ -191,7 +191,7 @@ const problems = computed(() => state.workbook?.problems.filter((problem) => pro
           <DashboardGrid>
             <AppCard
               id="billing-months-card"
-              class="@4xl:col-span-2 @8xl:col-span-1"
+              class="@max-8xl:basis-full"
               :title="words.panel.monthsTitle(year)"
               :subtitle="words.panel.monthsSubtitle"
               collapse-id="invoicing.months"

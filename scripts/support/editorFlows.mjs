@@ -5921,7 +5921,7 @@ function centsIn(text, language) {
 }
 
 /**
- * The home with the books of Company, Loans, Investments, Assets and Spending open: Company's card leads with the cash on hand
+ * The home with the books of Spending, Company, Investments, Loans and Assets open, in that order: Company's card leads with the cash on hand
  * Overview shows and opens it, the Loans card with what others owe you less what you owe, in full red or green by the way it runs, which the Loans Overview's Net tile says too, the Investments card with the value, which its Overview's Value tile says too, and the total gain with its sign, the Assets card with what the assets are worth, which its Overview's tile says too, and the Spending card with Bank and cash, which its Overview's accounts total says too. Each
  * card tiles its icon in a colour of its own. From 1024 px the sidebar lists every app as their cards do, and its
  * Company row opens Overview.
@@ -5931,9 +5931,9 @@ export function homeFlowIn(language) {
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const cards = await page.evaluate(homeCards)
-    const [company, loans, investments, assets, spending] = cards
-    if (cards.length !== 5 || company.app !== 'company' || loans.app !== 'loans' || investments.app !== 'investments' || assets.app !== 'assets' || spending.app !== 'spending')
-      throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Company, Loans, Investments, Assets and Spending`)
+    const [spending, company, investments, loans, assets] = cards
+    if (cards.length !== 5 || spending.app !== 'spending' || company.app !== 'company' || investments.app !== 'investments' || loans.app !== 'loans' || assets.app !== 'assets')
+      throw new Error(`the home shows ${JSON.stringify(cards.map((card) => card.app))}, not Spending, Company, Investments, Loans and Assets`)
     if (company.state !== 'open' || !company.text.includes(words.companyHome.cashOnHand) || !/€/.test(company.figure ?? '')) throw new Error(`the Company card reads "${company.text}"`)
     if (
       loans.state !== 'open' ||

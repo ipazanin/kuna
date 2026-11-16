@@ -222,18 +222,11 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
             <li v-for="row in ['September fee', 'October fee', 'Travel to the client']" :key="row" class="border-b border-default py-2 type-body last:border-b-0">{{ row }}</li>
           </ul>
         </AppCard>
-        <AppCard as="div" class="gap-2 p-5 @4xl:col-span-2 @8xl:col-span-1">
+        <AppCard as="div" class="gap-2 p-5 @max-8xl:basis-full">
           <p class="type-card-title">The bare surface</p>
           <p class="type-body">Without a title a card has no header, as a tile has none.</p>
         </AppCard>
-        <AppCard
-          title="Collapsed from the start"
-          subtitle="A reference card a screen opens folded."
-          collapse-id="gallery.folded"
-          summary="12 rows, €8,690 a month"
-          start-collapsed
-          class="col-span-full"
-        >
+        <AppCard title="Collapsed from the start" subtitle="A reference card a screen opens folded." collapse-id="gallery.folded" summary="12 rows, €8,690 a month" start-collapsed class="basis-full">
           <p class="px-4 pt-3 pb-4 type-body sm:px-5">Its summary line stands in for the body.</p>
         </AppCard>
       </DashboardGrid>
@@ -526,7 +519,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
             </div>
           </div>
         </AppCard>
-        <AppCard title="ShowAllButton" subtitle="A long list shows its first ten entries." class="@4xl:col-span-2 @8xl:col-span-1">
+        <AppCard title="ShowAllButton" subtitle="A long list shows its first ten entries." class="@max-8xl:basis-full">
           <ul class="flex flex-col px-4 pt-2 sm:px-5">
             <li v-for="payee in shownPayees" :key="payee.name" class="flex justify-between border-b border-default py-2 type-body last:border-b-0">
               {{ payee.name }}<MoneyText :cents="payee.cents" sign="magnitude" />
@@ -537,7 +530,7 @@ const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
         <AppCard
           title="HomeLink"
           subtitle="The Kuna mark and name, which open the home. The standard look opens every menu, the quiet one every first run. Its label is the link's name for a screen reader."
-          class="@4xl:col-span-2 @8xl:col-span-1"
+          class="@max-8xl:basis-full"
         >
           <div class="flex flex-col gap-3 px-4 pt-3 pb-4 sm:px-5">
             <HomeLink label="Kuna, Home" look="standard" class="max-w-60" />

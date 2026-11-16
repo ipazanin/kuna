@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, useTemplateRef, watch, watchEffect } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { START_LOCATION, useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 import USlideover from '@nuxt/ui/components/Slideover.vue'
 import UTooltip from '@nuxt/ui/components/Tooltip.vue'
@@ -116,13 +116,13 @@ const menuOpen = ref(false)
 const route = useRoute()
 /** Set when a link in the drawer closed it, so focus stays on the new screen's heading instead of returning to the menu button. */
 let closedByNavigation = false
-watch(
-  () => route.fullPath,
-  () => {
-    closedByNavigation = menuOpen.value
-    menuOpen.value = false
-  },
-)
+const router = useRouter()
+/** The first route after a load lands from the router's start, which no link in the drawer asked for, so it leaves the drawer open. */
+watch(router.currentRoute, (_landed, left) => {
+  if (left === START_LOCATION) return
+  closedByNavigation = menuOpen.value
+  menuOpen.value = false
+})
 
 /** A link to the page already on screen changes no address, so the watch above never closes the drawer for it. */
 function closeOnCurrentPage(event: MouseEvent): void {
@@ -141,8 +141,6 @@ function keepFocusAfterNavigation(event: Event): void {
 }
 
 useStickyBandPart(useTemplateRef<HTMLElement>('topBar'))
-
-const router = useRouter()
 
 /**
  * While the chat stands in the page's place it is a step in the browser's history, so Back closes it, and any link to a

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import AccountDialog from './AccountDialog.vue'
 import AccountMoneyText from './AccountMoneyText.vue'
@@ -18,11 +19,14 @@ import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
 import { today } from '../../../../shared/calendar/civilDate'
+import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import { negateMoney } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
+import DrillLink from '../../../../shared/ui/DrillLink.vue'
+import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
@@ -30,7 +34,12 @@ import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
-/** Every account with what it holds today in its currency, and in euros beside a foreign one, under what the open ones hold and owe in all. Closed accounts come apart. */
+/**
+ * Every account with what it holds today in its currency, and in euros beside a foreign one, under what the open ones hold and owe in all.
+ * Closed accounts come apart, in a card under the open ones. Each card spans the page, so from 42rem, the room a 1024 px window leaves
+ * beside the sidebar, its accounts are a table whose columns carry each balance to its account's name. The In euros column shows only
+ * in a card that holds a foreign account.
+ */
 const { state } = useSpendingBooks()
 const rates = useRates()
 const day = today()
@@ -53,8 +62,12 @@ const sections = computed(() =>
   [
     { key: 'open', title: undefined, rows: shown.value.filter((row) => !row.account.closed), testid: 'spending-accounts-list' },
     { key: 'closed', title: words.closedAccounts, rows: shown.value.filter((row) => row.account.closed), testid: 'spending-closed-accounts' },
-  ].filter((section) => section.rows.length > 0),
+  ]
+    .filter((section) => section.rows.length > 0)
+    .map((section) => ({ ...section, foreign: section.rows.some((row) => row.euro !== null) })),
 )
+
+const table = roomAtLeast(42)
 
 const unconverted = computed(() => (state.workbook === null || rates.value === 'loading' ? 0 : unconvertedCount(countedAccounts(state.workbook, day, everydayRates(rates.value)))))
 
@@ -109,31 +122,57 @@ const adding = ref(false)
         </KpiTile>
       </DashboardGrid>
       <p v-if="unconverted > 0" class="type-caption" data-testid="spending-not-converted">{{ plural(homeWords.notConverted(unconverted), unconverted) }}</p>
-      <DashboardGrid>
-        <AppCard v-for="section in sections" :key="section.key" :title="section.title" :data-testid="section.testid">
-          <ul class="flex flex-col py-2">
-            <li v-for="row in section.rows" :key="row.account.id" class="border-t border-default first:border-t-0">
-              <ProposalRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
-                <template #amount>
-                  <span class="text-highlighted"><AccountMoneyText :cents="row.balance" :currency="row.account.currency" tone="balance" data-testid="spending-account-balance" /></span>
-                  <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-xs text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
-                </template>
-                <template #caption>
-                  <span data-testid="spending-account-kind">
-                    <template v-for="(part, place) in kindParts(row.account)" :key="place">
-                      <template v-if="place > 0"> · </template>
-                      <span class="whitespace-nowrap">{{ part }}</span>
-                    </template>
-                  </span>
-                </template>
-                <template v-if="row.euro !== null && row.euro.caption !== ''" #details>
-                  <span class="text-end type-caption">{{ row.euro.caption }}</span>
-                </template>
-              </ProposalRow>
-            </li>
-          </ul>
-        </AppCard>
-      </DashboardGrid>
+      <AppCard v-for="section in sections" :key="section.key" :title="section.title" :data-testid="section.testid">
+        <FigureTable v-if="table" class="px-1 py-2 sm:px-2" :label="section.title ?? screenWords.accounts">
+          <thead>
+            <tr>
+              <th scope="col" class="text-start">{{ words.columns.account }}</th>
+              <th scope="col" class="text-start">{{ words.columns.kind }}</th>
+              <th scope="col" class="text-end">{{ words.columns.balance }}</th>
+              <th v-if="section.foreign" scope="col" class="text-end">{{ words.columns.inEuros }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in section.rows" :key="row.account.id" data-testid="spending-account-row">
+              <th scope="row" class="cell-wraps text-start align-top font-normal">
+                <DrillLink :to="accountLink(row.account)" class="inline-flex items-center gap-1 text-highlighted">
+                  <span>{{ row.account.name }}</span
+                  ><UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" aria-hidden="true" />
+                </DrillLink>
+              </th>
+              <td class="cell-wraps align-top text-toned" data-testid="spending-account-kind">{{ kindParts(row.account).join(' · ') }}</td>
+              <td class="text-end align-top">
+                <AccountMoneyText :cents="row.balance" :currency="row.account.currency" tone="balance" data-testid="spending-account-balance" />
+              </td>
+              <td v-if="section.foreign" class="text-end align-top">
+                <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
+                <span v-if="row.euro !== null && row.euro.caption !== ''" class="block type-caption">{{ row.euro.caption }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </FigureTable>
+        <ul v-else class="flex flex-col py-2">
+          <li v-for="row in section.rows" :key="row.account.id" class="border-t border-default first:border-t-0">
+            <ProposalRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
+              <template #amount>
+                <span class="text-highlighted"><AccountMoneyText :cents="row.balance" :currency="row.account.currency" tone="balance" data-testid="spending-account-balance" /></span>
+                <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-xs text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
+              </template>
+              <template #caption>
+                <span data-testid="spending-account-kind">
+                  <template v-for="(part, place) in kindParts(row.account)" :key="place">
+                    <template v-if="place > 0"> · </template>
+                    <span class="whitespace-nowrap">{{ part }}</span>
+                  </template>
+                </span>
+              </template>
+              <template v-if="row.euro !== null && row.euro.caption !== ''" #details>
+                <span class="text-end type-caption">{{ row.euro.caption }}</span>
+              </template>
+            </ProposalRow>
+          </li>
+        </ul>
+      </AppCard>
     </template>
     <AccountDialog v-if="state.workbook !== null" v-model:open="adding" :account="null" />
   </section>

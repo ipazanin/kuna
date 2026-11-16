@@ -32,8 +32,8 @@ const facts = computed((): Fact[] => {
 </script>
 
 <template>
-  <RouterLink :to="assetLink(asset)" class="group block h-full rounded-card" data-testid="asset-card">
-    <AppCard as="article" class="h-full gap-4 p-4 transition-colors group-hover:border-accented sm:p-5">
+  <RouterLink :to="assetLink(asset)" class="group flex flex-col rounded-card" data-testid="asset-card">
+    <AppCard as="article" class="grow gap-4 p-4 transition-colors group-hover:border-accented sm:p-5">
       <div class="flex items-start gap-3">
         <span class="grid size-8 shrink-0 place-items-center rounded-control bg-elevated text-primary" aria-hidden="true"><UIcon :name="KIND_ICONS[asset.kind]" class="size-4" /></span>
         <div class="min-w-0 flex-1">

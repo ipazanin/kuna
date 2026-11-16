@@ -3,10 +3,22 @@ import type { AppLinkedRows } from '../../shared/app/rowLinks'
 
 const installed: AppContribution[] = []
 
-/** Called by main.ts for each app, before the router is made. The home lists the apps in this order. */
+/** The order every list of apps shows them in: the sidebar, the rail, the drawer, the home, Net worth, Quick jump and the chat. */
+export const APP_ORDER: readonly string[] = ['spending', 'company', 'investments', 'loans', 'assets']
+
+/** The apps in Kuna's order, whatever order they were installed in. An app the order does not name comes last. */
+export function inAppOrder<App extends { readonly id: string }>(apps: readonly App[]): App[] {
+  const placeOf = (app: App): number => {
+    const place = APP_ORDER.indexOf(app.id)
+    return place === -1 ? APP_ORDER.length : place
+  }
+  return [...apps].sort((left, right) => placeOf(left) - placeOf(right))
+}
+
+/** Called by main.ts for each app, before the router is made. */
 export async function installApp(app: AppContribution): Promise<void> {
   await app.install({ linkedRows })
-  installed.push(app)
+  installed.splice(0, installed.length, ...inAppOrder([...installed, app]))
 }
 
 export function installedApps(): readonly AppContribution[] {
