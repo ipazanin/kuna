@@ -232,8 +232,8 @@ const groupName = computed(() => {
   }
 }
 
-/* A phone has no room for one line, so the figures move under the name. */
-@media (max-width: 639px) {
+/* A phone or a small tablet has no room for a month's three figures on one line, so the figures move under the name. */
+@media (max-width: 767px) {
   .group-toggle {
     grid-template-columns: auto minmax(0, 1fr);
     row-gap: 0.375rem;
