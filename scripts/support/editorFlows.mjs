@@ -8280,7 +8280,7 @@ export function spendingCategoryColourFlowIn(language) {
   const starter = words.spendingStarter
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
-    await pressSelector(page, press, `[data-testid="spending-category-edit"][aria-label="${categories.edit(starter.Coffee)}"]`)
+    await pressSelector(page, press, `[data-testid="spending-category-edit"][aria-label="${categories.edit(starter['Eating out'])}"]`)
     await page.waitForSelector('[data-testid="spending-category-dialog"]', { visible: true, timeout: 10_000 })
     await pressSelector(page, press, '[data-testid="spending-category-dialog"] [data-testid="colour-swatch-button"]')
     await page.waitForSelector('[data-testid="colour-swatch-picker"]', { visible: true })
