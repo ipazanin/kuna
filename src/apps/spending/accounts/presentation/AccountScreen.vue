@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import AccountDialog from './AccountDialog.vue'
+import AccountMoneyText from './AccountMoneyText.vue'
 import { euroLine } from './euroLine'
 import { words } from './words'
 import { accountBalance } from '../domain/accountBalance'
@@ -102,7 +103,11 @@ function openEntry(picked: Transaction): void {
         </template>
       </PageHeader>
       <DashboardGrid layout="tiles">
-        <KpiTile :label="words.balanceToday" :value="formatAccountMoney(onDay.balance, account.currency)" :caption="balanceCaption" :to="null" data-testid="spending-account-balance-today" />
+        <KpiTile :label="words.balanceToday" :value="formatAccountMoney(onDay.balance, account.currency)" :caption="balanceCaption" :to="null" data-testid="spending-account-balance-today">
+          <template #value>
+            <AccountMoneyText :cents="onDay.balance" :currency="account.currency" tone="balance" />
+          </template>
+        </KpiTile>
       </DashboardGrid>
       <AppCard
         v-if="trend.length > 1"

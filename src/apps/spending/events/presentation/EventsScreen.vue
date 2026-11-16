@@ -22,6 +22,7 @@ import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import { negateMoney } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
@@ -76,7 +77,7 @@ function openDialog(event: SpendingEvent | null): void {
           <li v-for="line in lines" :key="line.totals.event.id" class="flex items-start border-t border-default first:border-t-0" data-testid="spending-event-row">
             <ProposalRow :to="eventLink(line.totals.event)" :title="line.totals.event.name" :caption="line.caption" class="min-w-0 flex-1" data-testid="spending-event-open">
               <template v-if="line.totals.rows > 0" #amount>
-                <MoneyText :cents="line.totals.spent" :data-spent="line.totals.spent" />
+                <MoneyText :cents="negateMoney(line.totals.spent)" tone="flow" :data-spent="line.totals.spent" />
               </template>
               <template v-if="line.totals.rows > 0" #details>
                 <TotalsLines :totals="line.totals" :categories="categories" :rated="!waiting" />

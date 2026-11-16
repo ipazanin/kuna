@@ -5,8 +5,9 @@ import { QUANTITY_PLACES, useNoPriceWord } from './holdingText'
 import PriceMarkNote from './PriceMarkNote.vue'
 import { words } from './words'
 import { EURO } from '../../../../shared/money/currencyCode'
-import { formatCurrencyAmount, formatPercent, formatQuantity } from '../../../../shared/money/moneyFormat'
+import { formatCurrencyAmount, formatPercent, formatQuantity, percentAsShown } from '../../../../shared/money/moneyFormat'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { moneyToneClass } from '../../../../shared/ui/moneyTone'
 import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 
 /** A holding or a balance on a phone, in two lines: the name and the value, then the symbol and units with the gain. A holding's row opens its page. A foreign balance with no euro value shows its own amount under the account. */
@@ -33,7 +34,9 @@ const noPriceWord = useNoPriceWord()
       <MoneyText v-if="line.holding.valuation !== null" :cents="line.holding.valuation.value" class="font-medium text-highlighted" />
       <span v-else class="type-caption">{{ noPriceWord(line.holding.instrument) }}</span>
       <span v-if="line.holding.unrealised !== null" class="type-caption">
-        <MoneyText :cents="line.holding.unrealised" tone="outcome" /><template v-if="line.gainShare !== null"> · {{ formatPercent(line.gainShare, 'always') }}</template>
+        <MoneyText :cents="line.holding.unrealised" tone="outcome" /><template v-if="line.gainShare !== null">
+          · <span class="figure" :class="moneyToneClass(percentAsShown(line.gainShare), 'outcome')">{{ formatPercent(line.gainShare, 'always') }}</span></template
+        >
       </span>
     </template>
     <template #caption>

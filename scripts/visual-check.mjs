@@ -18,7 +18,7 @@
  * title does, a card's header actions sit under its title on a phone, a tab's one card of words and fields keeps to 42rem,
  * a DrillLink wears the colour of the text class it is given, a row that opens a page has its arrow on its title's first line, and
  * a list where only some rows open a page ends every amount at one edge.
- * On Company's Overview and Spending's Accounts up to 1440 px, every row's figure starts within 40rem of its name.
+ * On Company's, Spending's and Investments' Overview and Spending's Accounts up to 1440 px, every row's figure starts within 40rem of its name.
  * On every screen, at every step of a flow and in every menu a flow opens, no text may overlap other text by more than 2 px,
  * no label may be cut to under half its width with no ellipsis, and no placeholder may be cut short, other than what `support/textOverlap.mjs` allows by name.
  * The category picker flows and the menu flows open each kind of picker at 360, 640, 1024 and 1440 px.
@@ -258,7 +258,7 @@ import { bankLoansOf } from '../src/apps/loans/facts.ts'
 import { accountsOnDay } from '../src/apps/spending/accounts/presentation/accountsOnDay.ts'
 import { entriesNewestFirst } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { euroLine } from '../src/apps/spending/accounts/presentation/euroLine.ts'
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures.ts'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures.ts'
 import { leftToSpend } from '../src/apps/spending/budgets/domain/budgetCarry.ts'
 import { en as budgetsEnglish, hr as budgetsCroatian } from '../src/apps/spending/budgets/presentation/words.ts'
 import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures.ts'
@@ -5171,10 +5171,19 @@ const SIDEWAYS_SCROLL_ALLOWED = [
 ]
 
 /**
- * The screens whose list cards keep each row's figure near its name up to a laptop's 1440 px. Spending's and Investments' overviews
- * still run their latest rows across the page, and from 1920 px two cards side by side are wide enough to spread again.
+ * The screens whose list cards keep each row's figure near its name up to a laptop's 1440 px. From 1920 px two cards side by side
+ * are wide enough to spread again.
  */
-const NEAR_FIGURE_SCREENS = ['overview', 'overview-croatian', 'spending-accounts', 'spending-accounts-croatian']
+const NEAR_FIGURE_SCREENS = [
+  'overview',
+  'overview-croatian',
+  'spending-accounts',
+  'spending-accounts-croatian',
+  'spending-overview',
+  'spending-overview-croatian',
+  'investments-overview',
+  'investments-overview-croatian',
+]
 const NEAR_FIGURE_WIDEST = 1440
 
 /** The screens whose cards may sit side by side in a grid of their own, each with why. */

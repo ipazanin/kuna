@@ -177,7 +177,7 @@ import { assetsOnDay, assetsTotal } from '../src/apps/assets/values/presentation
 import { ASSETS_DOCUMENT } from '../src/apps/assets/workbook/infrastructure/assetsDocument.ts'
 import { fakeAssetsDocument } from '../src/apps/assets/workbook/infrastructure/fake/fakeAssets.ts'
 import { rowLinksOf } from '../src/apps/spending/facts.ts'
-import { accountOnDay, euroRows } from '../src/apps/spending/rates/domain/euroRows.ts'
+import { accountOnDay, countedAccounts, euroRows } from '../src/apps/spending/rates/domain/euroRows.ts'
 import { labelTotals } from '../src/apps/spending/labels/domain/labelTotals.ts'
 import { eventTotals } from '../src/apps/spending/events/domain/eventTotals.ts'
 import { receiptMatches } from '../src/apps/spending/receipts/domain/receiptMatch.ts'
@@ -197,8 +197,8 @@ import { SAMPLE_LOAN_FILE_NAME, SAMPLE_REVOLUT_FILE_NAME, sampleLoanCsv, sampleR
 import { readFirstSheet } from '../src/shared/xlsx/sheetGrids.ts'
 import { ratesNeeded } from '../src/apps/spending/rates/domain/ratesNeeded.ts'
 import { monthFlow } from '../src/apps/spending/analytics/domain/monthFlow.ts'
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures.ts'
-import { spendingHubFigures } from '../src/apps/spending/home/presentation/spendingHubFigures.ts'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures.ts'
+import { accountStanding } from '../src/apps/spending/accounts/domain/accountStanding.ts'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending.ts'
 import { SPENDING_APP } from '../src/apps/spending/workbook/domain/spendingBooks.ts'
 import { SPENDING_DOCUMENT } from '../src/apps/spending/workbook/infrastructure/spendingDocument.ts'
@@ -751,7 +751,7 @@ async function spendingGroups(addGroup, loansBook) {
     })
     add(`spending.budgets.${month}`, () => figures.limitsIn(month))
   }
-  add('spending.hub', () => spendingHubFigures(workbook, rates, today))
+  add('spending.hub', () => (workbook.accounts.length === 0 ? null : accountStanding(countedAccounts(workbook, today, rates.everyday))))
   add('spending.review', () => reviewQueue(workbook, today))
   const offeredLoans =
     loansBook ??
@@ -827,7 +827,12 @@ async function spendingGroups(addGroup, loansBook) {
   if (options['fake-spending'] === 'receipts') {
     add('spending.receipts.matches', () => Object.values(SAMPLE_RECEIPT_TOTALS).map((total) => receiptMatches({ merchant: '', issuedOn: today, total }, workbook, null)))
   }
-  return () => spendingHubFigures(workbook, rates, today)
+  // Net worth reads each part's side and cents only, and the digest sees no words, so Spending's parts carry no label and no note.
+  return () => {
+    if (workbook.accounts.length === 0) return null
+    const standing = accountStanding(countedAccounts(workbook, today, rates.everyday))
+    return { parts: [{ side: 'has', cents: standing.held }, ...(standing.owed === null ? [] : [{ side: 'owes', cents: standing.owed }])], notes: [] }
+  }
 }
 
 const digests = new WeakMap()

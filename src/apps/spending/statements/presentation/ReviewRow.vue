@@ -89,7 +89,7 @@ function picked(id: string | undefined): void {
 <template>
   <ProposalRow :title="rowTitle(waiting.row)" :caption="rowCaption(waiting.row, account)" v-bind="marked" data-testid="spending-review-row">
     <template #amount>
-      <AccountMoneyText :cents="waiting.row.amount" :currency="currency" sign="always" tone="flow" />
+      <AccountMoneyText :cents="waiting.row.amount" :currency="currency" tone="flow" />
     </template>
     <div class="flex items-center gap-2">
       <USelectMenu

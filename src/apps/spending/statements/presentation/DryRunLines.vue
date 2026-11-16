@@ -113,7 +113,7 @@ function cashOutcomeOf(cashLeg: Transaction | null): { readonly label: string; r
         </template>
       </template>
       <template #amount>
-        <AccountMoneyText :cents="line.row.amount" :currency="currency" sign="always" :tone="skipped ? undefined : 'flow'" :class="{ 'text-muted': skipped }" />
+        <AccountMoneyText :cents="line.row.amount" :currency="currency" v-bind="skipped ? { sign: 'always' } : { tone: 'flow' }" :class="{ 'text-muted': skipped }" />
       </template>
     </ProposalRow>
   </ul>

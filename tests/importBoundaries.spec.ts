@@ -253,8 +253,6 @@ const FIGURES_IN_PRESENTATION = [
   'src/apps/loans/bankLoans/presentation/savedTries.ts',
   'src/apps/loans/informalLoans/presentation/informalLoanView.ts',
   'src/apps/loans/scenarios/presentation/scenariosView.ts',
-  'src/apps/spending/analytics/presentation/spendingFigures.ts',
-  'src/apps/spending/home/presentation/spendingHubFigures.ts',
 ]
 
 function digestImportsFromPresentation(): string[] {

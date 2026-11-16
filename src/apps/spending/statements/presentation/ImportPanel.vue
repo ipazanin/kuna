@@ -195,7 +195,7 @@ async function confirm(): Promise<void> {
           @answer="answerTwin"
         >
           <template #amount="{ item }">
-            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" tone="flow" />
           </template>
         </QuestionList>
         <DryRunLines :lines="dryRun.lines" :added="dryRun.categories" :below-questions="twinItems.length > 0" />

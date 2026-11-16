@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'

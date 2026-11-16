@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'
 import { newLabel } from '../src/apps/spending/labels/domain/labels'

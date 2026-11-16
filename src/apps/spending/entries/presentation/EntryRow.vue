@@ -59,7 +59,7 @@ const { marked } = useChatElement(asked, 'row')
         <RowLines v-if="isSplit(row.items)" :lines="row.items" :categories="categories" :currency="row.account.currency" />
       </span>
       <span class="flex shrink-0 flex-col items-end gap-0.5 type-body">
-        <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" sign="always" tone="flow" />
+        <AccountMoneyText :cents="row.transaction.amount" :currency="row.account.currency" tone="flow" />
         <span v-if="euros !== ''" class="figure type-caption">{{ euros }}</span>
       </span>
     </button>

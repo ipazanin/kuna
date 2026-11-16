@@ -98,7 +98,9 @@ const importing = ref(false)
         </GettingSetUpCard>
         <PricesNotice :book="sources.book" :figures="figures" />
         <OverviewTiles :sources="sources" :figures="figures" />
-        <LatestTransactionsCard :sources="sources" />
+        <DashboardGrid>
+          <LatestTransactionsCard :sources="sources" />
+        </DashboardGrid>
         <PortfolioChecksCard :sources="sources" :figures="figures" :facts="facts" />
         <DashboardGrid data-testid="investments-cards">
           <ValueOverTimeCard :sources="sources" class="@4xl:col-span-2" />

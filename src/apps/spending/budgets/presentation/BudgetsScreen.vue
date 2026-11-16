@@ -5,7 +5,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 
 import { leftToSpend, limitsUnrated } from '../domain/budgetCarry'
-import { spendingFigures } from '../../analytics/presentation/spendingFigures'
+import { spendingFigures } from '../../analytics/domain/spendingFigures'
 import { categoryTree } from '../../categories/domain/categoryTree'
 import { categoryColours } from '../../categories/presentation/categoryColours'
 import { waitsForRates } from '../../rates/presentation/waitsForRates'
@@ -26,6 +26,7 @@ import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
+import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
@@ -146,7 +147,7 @@ function openDialog(category: Category | null): void {
               <td class="hidden @2xl:table-cell" />
               <td />
               <td class="hidden @sm:table-cell" />
-              <td class="figure text-end" data-testid="spending-budgets-left">{{ formatMoney(leftToSpend(limits)) }}</td>
+              <td class="text-end" data-testid="spending-budgets-left"><MoneyText :cents="leftToSpend(limits)" tone="balance" /></td>
             </tr>
           </tfoot>
         </FigureTable>

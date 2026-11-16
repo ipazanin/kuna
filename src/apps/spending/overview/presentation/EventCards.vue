@@ -16,6 +16,7 @@ import type { RateBook } from '../../../../shared/money/rateBook'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
+import { negateMoney } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /** A card for each event that runs on the day or ended at most a week before, shortest first: what it spent so far, by group, with a link to its entries. */
@@ -53,7 +54,7 @@ const cards = computed(() => {
     <AppCard v-for="card in cards" :key="card.totals.event.id" :title="card.totals.event.name" :subtitle="card.subtitle" data-testid="spending-event-card">
       <div class="flex flex-col gap-3 px-4 pb-4 sm:px-5">
         <div>
-          <MoneyText :cents="card.totals.spent" class="block text-figure-lg font-semibold text-highlighted" :data-spent="card.totals.spent" />
+          <MoneyText :cents="negateMoney(card.totals.spent)" tone="flow" class="block text-figure-lg font-semibold" :data-spent="card.totals.spent" />
           <p class="type-caption">{{ words.event.spent }}</p>
         </div>
         <TotalsLines :totals="card.totals" :categories="book.categories" :rated="rated" />

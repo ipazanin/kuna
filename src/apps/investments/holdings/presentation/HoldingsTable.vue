@@ -8,10 +8,11 @@ import LastDayChange from './LastDayChange.vue'
 import PriceMarkNote from './PriceMarkNote.vue'
 import { words } from './words'
 import { EURO } from '../../../../shared/money/currencyCode'
-import { formatCurrencyAmount, formatPercent, formatQuantity, formatShare, formatUnitPrice } from '../../../../shared/money/moneyFormat'
+import { formatCurrencyAmount, formatPercent, formatQuantity, formatShare, formatUnitPrice, percentAsShown } from '../../../../shared/money/moneyFormat'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { moneyToneClass } from '../../../../shared/ui/moneyTone'
 import SortableHeader from '../../../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../../../shared/ui/SortableHeader.vue'
 
@@ -64,7 +65,9 @@ function heldLine(holding: HoldingFigures): string {
         <td class="text-end"><MoneyText :cents="group.value" /></td>
         <td class="text-end">
           <MoneyText v-if="group.gain !== null" :cents="group.gain" tone="outcome" />
-          <span v-if="group.gainShare !== null" class="block type-caption font-normal">{{ formatPercent(group.gainShare, 'always') }}</span>
+          <span v-if="group.gainShare !== null" class="block type-caption font-normal" :class="moneyToneClass(percentAsShown(group.gainShare), 'outcome')">{{
+            formatPercent(group.gainShare, 'always')
+          }}</span>
         </td>
         <td class="figure text-end">{{ group.weight === null ? '' : formatShare(group.weight) }}</td>
         <td class="text-end"><LastDayChange v-if="group.lastDay !== null" :change="group.lastDay" /></td>
@@ -108,7 +111,7 @@ function heldLine(holding: HoldingFigures): string {
           <td class="text-end">
             <template v-if="line.holding.unrealised !== null">
               <MoneyText :cents="line.holding.unrealised" tone="outcome" />
-              <span v-if="line.gainShare !== null" class="block type-caption">{{ formatPercent(line.gainShare, 'always') }}</span>
+              <span v-if="line.gainShare !== null" class="block type-caption" :class="moneyToneClass(percentAsShown(line.gainShare), 'outcome')">{{ formatPercent(line.gainShare, 'always') }}</span>
             </template>
           </td>
           <td class="figure text-end">{{ line.holding.weight === null ? '' : formatShare(line.holding.weight) }}</td>
@@ -125,7 +128,9 @@ function heldLine(holding: HoldingFigures): string {
         <td class="text-end"><MoneyText :cents="list.total.value" /></td>
         <td class="text-end">
           <MoneyText v-if="list.total.gain !== null" :cents="list.total.gain" tone="outcome" />
-          <span v-if="list.total.gainShare !== null" class="block type-caption font-normal">{{ formatPercent(list.total.gainShare, 'always') }}</span>
+          <span v-if="list.total.gainShare !== null" class="block type-caption font-normal" :class="moneyToneClass(percentAsShown(list.total.gainShare), 'outcome')">{{
+            formatPercent(list.total.gainShare, 'always')
+          }}</span>
         </td>
         <td class="figure text-end">{{ list.total.weight === null ? '' : formatShare(list.total.weight) }}</td>
         <td class="text-end"><LastDayChange v-if="list.total.lastDay !== null" :change="list.total.lastDay" /></td>

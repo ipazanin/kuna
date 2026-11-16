@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
+import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { euroLine } from '../../accounts/presentation/euroLine'
 import { spendingHubFigures } from '../../home/presentation/spendingHubFigures'
 import { words as homeWords } from '../../home/presentation/words'
@@ -11,11 +12,12 @@ import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import { SPENDING_ACCOUNTS_ROUTE, accountLink } from './spendingLinks'
 import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
-import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
+import { negateMoney } from '../../../../shared/money/money'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
+import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /** The accounts Bank and cash counts, the open ones and a closed one that still holds money, with their balances today, each in its own currency, a foreign one in euros beside it, and what they hold together. */
 const props = defineProps<{
@@ -54,7 +56,7 @@ const notConverted = computed(() => {
             <DrillLink :to="accountLink(row.account)" class="text-highlighted">{{ row.account.name }}</DrillLink>
             <span v-if="row.euro !== null && row.euro.euros !== ''" class="block type-caption" data-testid="spending-account-rate">{{ row.euro.caption }}</span>
           </th>
-          <td class="figure text-end">{{ formatAccountMoney(row.balance, row.account.currency) }}</td>
+          <td class="text-end"><AccountMoneyText :cents="row.balance" :currency="row.account.currency" tone="balance" /></td>
           <td class="figure cell-wraps text-end">
             <template v-if="row.euro !== null">
               <span v-if="rates === 'loading'" class="type-caption" data-testid="spending-account-waiting">{{ row.euro.caption }}</span>
@@ -67,7 +69,7 @@ const notConverted = computed(() => {
       <tfoot v-if="totals.length > 0">
         <tr v-for="part in totals" :key="part.label" data-testid="spending-accounts-total">
           <th scope="row" colspan="2" class="text-start">{{ part.label }}</th>
-          <td class="figure text-end">{{ formatMoney(part.cents) }}</td>
+          <td class="text-end"><MoneyText :cents="part.side === 'has' ? part.cents : negateMoney(part.cents)" tone="balance" /></td>
         </tr>
       </tfoot>
     </FigureTable>

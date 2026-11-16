@@ -44,7 +44,7 @@ function change(entry: TransactionRecord): void {
 
 <template>
   <AppCard v-if="lines.length > 0" :title="words.latest.title" :subtitle="words.latest.subtitle" data-testid="investments-latest">
-    <ul class="flex flex-col py-2">
+    <ul class="near-figures flex flex-col py-2">
       <li v-for="line in lines" :key="line.entry.record.id" class="border-t border-default first:border-t-0">
         <ProposalRow as="button" :title="line.kind" :caption="line.caption" data-testid="investments-latest-row" @click="change(line.entry)">
           <template #amount>

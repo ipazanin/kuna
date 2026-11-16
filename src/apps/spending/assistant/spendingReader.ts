@@ -1,4 +1,4 @@
-import { spendingFigures } from '../analytics/presentation/spendingFigures'
+import { spendingFigures } from '../analytics/domain/spendingFigures'
 import { monthFlow } from '../analytics/domain/monthFlow'
 import { categoryTotal } from '../analytics/domain/monthTotals'
 import { categoryTree } from '../categories/domain/categoryTree'

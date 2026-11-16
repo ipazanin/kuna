@@ -134,7 +134,7 @@ async function answer(key: string, choice: string): Promise<void> {
         <ul class="divide-y divide-default">
           <ProposalRow v-for="{ row, cash } in shownProposed" :key="row.id" :title="rowTitle(row)" :caption="captionOf(row)" data-testid="spending-review-cash-row">
             <template #amount>
-              <AccountMoneyText :cents="row.amount" :currency="accountOf(row)?.currency ?? EURO" sign="always" tone="flow" />
+              <AccountMoneyText :cents="row.amount" :currency="accountOf(row)?.currency ?? EURO" tone="flow" />
             </template>
             <template #details>
               <span class="break-words type-caption" data-testid="spending-review-cash-to">{{
@@ -168,7 +168,7 @@ async function answer(key: string, choice: string): Promise<void> {
       <div v-if="questions.length > 0" class="px-4 sm:px-5">
         <QuestionList :items="questions" :options="[]" :label="words.review.cash.which" :heading="words.review.cash.which" :intro="words.review.cash.whichIntro" :saving="saving" @answer="answer">
           <template #amount="{ item }">
-            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" tone="flow" />
           </template>
         </QuestionList>
       </div>
@@ -185,7 +185,7 @@ async function answer(key: string, choice: string): Promise<void> {
         <ul class="divide-y divide-default">
           <ProposalRow v-for="row in rows" :key="row.id" :title="rowTitle(row)" :caption="captionOf(row)" data-testid="spending-review-cash-wanting-row">
             <template #amount>
-              <AccountMoneyText :cents="row.amount" :currency="currency" sign="always" tone="flow" />
+              <AccountMoneyText :cents="row.amount" :currency="currency" tone="flow" />
             </template>
             <UButton
               class="self-start"

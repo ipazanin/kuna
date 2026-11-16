@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { budgetMonths, leftToSpend, limitRuns, limitsUnrated } from '../src/apps/spending/budgets/domain/budgetCarry'
 import type { CategoryMonth } from '../src/apps/spending/budgets/domain/budgetCarry'
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import type { Budget } from '../src/apps/spending/workbook/domain/budget'
 import type { MonthKey } from '../src/shared/calendar/monthKey'
 import { ZERO } from '../src/shared/money/money'

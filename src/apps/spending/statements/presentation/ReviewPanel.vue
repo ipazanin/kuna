@@ -169,7 +169,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
       <div class="px-4 pt-3 pb-4 sm:px-5">
         <QuestionList :items="held.items.value" :options="held.options" :label="twinWords.choice" :intro="twinWords.intro.sync" :saving="held.saving.value" @answer="held.answer">
           <template #amount="{ item }">
-            <AccountMoneyText :cents="item.amount" :currency="item.currency" sign="always" tone="flow" />
+            <AccountMoneyText :cents="item.amount" :currency="item.currency" tone="flow" />
           </template>
         </QuestionList>
       </div>
@@ -228,7 +228,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
           data-testid="spending-pair"
         >
           <template #amount>
-            <AccountMoneyText :cents="legs.debit.amount" :currency="currencyOf(legs.debit)" sign="always" tone="flow" />
+            <AccountMoneyText :cents="legs.debit.amount" :currency="currencyOf(legs.debit)" tone="flow" />
           </template>
           <UButton
             class="self-start"
@@ -242,7 +242,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
         </ProposalRow>
         <ProposalRow v-for="leg in queue.loneLegs" :key="leg.id" :title="leg.payee" :caption="`${dayLabel(leg.date)} · ${accountOf(leg)?.name ?? ''}`" data-testid="spending-lone-leg">
           <template #amount>
-            <AccountMoneyText :cents="leg.amount" :currency="currencyOf(leg)" sign="always" tone="flow" />
+            <AccountMoneyText :cents="leg.amount" :currency="currencyOf(leg)" tone="flow" />
           </template>
           <template #details>
             <UBadge

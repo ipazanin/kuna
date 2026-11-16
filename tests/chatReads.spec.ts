@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { BANK_ACCOUNT_LINES } from '../src/apps/spending/bankSync/domain/bankAccountSetup'
 import { BANK_SYNC_LINES, UNREAD_KINDS, spendingReader } from '../src/apps/spending/assistant/spendingReader'
 import * as spendingKinds from '../src/apps/spending/workbook/domain/spendingKinds'

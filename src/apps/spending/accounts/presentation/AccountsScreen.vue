@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import AccountDialog from './AccountDialog.vue'
+import AccountMoneyText from './AccountMoneyText.vue'
 import { accountsOnDay } from './accountsOnDay'
 import { euroLine } from './euroLine'
 import { words } from './words'
@@ -17,12 +18,14 @@ import { words as screenWords } from '../../screenWords'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Account } from '../../workbook/domain/account'
 import { today } from '../../../../shared/calendar/civilDate'
-import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
+import { negateMoney } from '../../../../shared/money/money'
+import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
+import MoneyText from '../../../../shared/ui/MoneyText.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
@@ -41,7 +44,7 @@ const shown = computed(() =>
     ? []
     : accountsOnDay(state.workbook, day, everydayRates(rates.value)).map((onDay) => ({
         account: onDay.account,
-        balance: formatAccountMoney(onDay.balance, onDay.account.currency),
+        balance: onDay.balance,
         euro: euroLine(onDay, rates.value, day),
       })),
 )
@@ -86,11 +89,24 @@ const adding = ref(false)
     <template v-else-if="state.workbook !== null">
       <DashboardGrid layout="tiles">
         <KpiTile :label="homeWords.bankAndCash" :value="held === null ? '' : formatMoney(held.cents)" :caption="held?.caption ?? ''" :to="null" data-testid="spending-bank-and-cash">
-          <template v-if="totals === 'opening'" #value>
-            <span class="block type-body font-normal" data-testid="spending-bank-and-cash-waiting">{{ rateWords.loading }}</span>
+          <template #value>
+            <span v-if="totals === 'opening'" class="block type-body font-normal" data-testid="spending-bank-and-cash-waiting">{{ rateWords.loading }}</span>
+            <MoneyText v-else-if="held !== null" :cents="held.cents" tone="balance" />
           </template>
         </KpiTile>
-        <KpiTile v-if="owed !== null" :label="homeWords.overdrawn" :value="formatMoney(owed.cents)" :to="null" icon="i-lucide-triangle-alert" icon-tone="warning" data-testid="spending-overdrawn" />
+        <KpiTile
+          v-if="owed !== null"
+          :label="homeWords.overdrawn"
+          :value="formatMoney(negateMoney(owed.cents))"
+          :to="null"
+          icon="i-lucide-triangle-alert"
+          icon-tone="warning"
+          data-testid="spending-overdrawn"
+        >
+          <template #value>
+            <MoneyText :cents="negateMoney(owed.cents)" tone="balance" />
+          </template>
+        </KpiTile>
       </DashboardGrid>
       <p v-if="unconverted > 0" class="type-caption" data-testid="spending-not-converted">{{ plural(homeWords.notConverted(unconverted), unconverted) }}</p>
       <DashboardGrid>
@@ -99,7 +115,7 @@ const adding = ref(false)
             <li v-for="row in section.rows" :key="row.account.id" class="border-t border-default first:border-t-0">
               <ProposalRow :to="accountLink(row.account)" :title="row.account.name" data-testid="spending-account-row">
                 <template #amount>
-                  <span class="figure text-highlighted" data-testid="spending-account-balance">{{ row.balance }}</span>
+                  <span class="text-highlighted"><AccountMoneyText :cents="row.balance" :currency="row.account.currency" tone="balance" data-testid="spending-account-balance" /></span>
                   <span v-if="row.euro !== null && row.euro.euros !== ''" class="figure text-xs text-toned" data-testid="spending-account-euros">{{ row.euro.euros }}</span>
                 </template>
                 <template #caption>

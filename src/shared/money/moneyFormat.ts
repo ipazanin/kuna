@@ -172,6 +172,16 @@ export function formatPercent(fraction: Share, sign: SignDisplay = 'negative'): 
   return withSign(signedAsShown(fraction, PERCENT_DECIMALS), formatters().percent.format(Math.abs(fraction)), sign)
 }
 
+/** The share as `formatPercent` shows it, zero when it rounds to 0.0%, so its colour follows the sign it shows. */
+export function percentAsShown(fraction: Share): number {
+  return signedAsShown(fraction, PERCENT_DECIMALS)
+}
+
+/** The change as `formatPercentChange` shows it, zero when it rounds to 0.00%, so its colour follows the sign it shows. */
+export function percentChangeAsShown(fraction: Share): number {
+  return signedAsShown(fraction, CHANGE_DECIMALS)
+}
+
 /** A change as a share with two decimals and its sign, such as +0.29%. A change that rounds to zero carries no sign. */
 export function formatPercentChange(fraction: Share): string {
   return withSign(signedAsShown(fraction, CHANGE_DECIMALS), formatters().change.format(Math.abs(fraction)), 'always')

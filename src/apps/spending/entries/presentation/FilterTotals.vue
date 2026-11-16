@@ -14,6 +14,7 @@ import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { useRates } from '../../../../shared/rates/application/pageRates'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { plural } from '../../../../shared/text/translation'
+import { negateMoney } from '../../../../shared/money/money'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
 
 /**
@@ -52,7 +53,7 @@ const lines = computed(() => {
     <div v-for="line in lines" :key="line.key" class="flex flex-col gap-1.5" data-testid="spending-filter-total">
       <div class="flex items-baseline justify-between gap-3">
         <h3 class="min-w-0 type-label break-words">{{ line.heading }}</h3>
-        <MoneyText v-if="line.totals.rows > 0" :cents="line.totals.spent" :data-spent="line.totals.spent" class="shrink-0 type-figure-secondary" />
+        <MoneyText v-if="line.totals.rows > 0" :cents="negateMoney(line.totals.spent)" tone="flow" :data-spent="line.totals.spent" class="shrink-0 type-figure-secondary" />
       </div>
       <TotalsLines v-if="line.totals.rows > 0" :totals="line.totals" :categories="categories" :rated="!waiting" />
     </div>

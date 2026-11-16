@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { rowItemsOf, waitsOnReview } from '../src/apps/spending/workbook/domain/rowItems'
 import { placeWaitingReceipt, removeWaitingReceipt, writeReceiptSplit } from '../src/apps/spending/receipts/application/receiptWrites'
 import { receiptSplit, rowPlace, wholeReceipt } from '../src/apps/spending/receipts/domain/receiptSplit'

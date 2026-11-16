@@ -35,7 +35,7 @@ import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
 import { DECIMAL_ZERO } from '../../../../shared/money/decimal'
-import { formatMoney, formatPercent, formatShare } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatPercent, formatShare, percentAsShown } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DashboardGrid from '../../../../shared/ui/DashboardGrid.vue'
@@ -43,6 +43,7 @@ import DayField from '../../../../shared/ui/DayField.vue'
 import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { moneyToneClass } from '../../../../shared/ui/moneyTone'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
@@ -212,7 +213,9 @@ const description = computed(() => {
             <span class="row-list-edge flex items-baseline justify-between gap-3 type-caption">
               <span>{{ words.columns.cost }} <MoneyText :cents="list.total.cost" /></span>
               <span v-if="list.total.gain !== null">
-                <MoneyText :cents="list.total.gain" tone="outcome" /><template v-if="list.total.gainShare !== null"> · {{ formatPercent(list.total.gainShare, 'always') }}</template>
+                <MoneyText :cents="list.total.gain" tone="outcome" /><template v-if="list.total.gainShare !== null">
+                  · <span class="figure" :class="moneyToneClass(percentAsShown(list.total.gainShare), 'outcome')">{{ formatPercent(list.total.gainShare, 'always') }}</span></template
+                >
               </span>
             </span>
           </div>

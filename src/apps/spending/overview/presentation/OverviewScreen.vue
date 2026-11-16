@@ -12,7 +12,7 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { monthFlow } from '../../analytics/domain/monthFlow'
 import { groupMonthsChart } from '../../analytics/presentation/groupMonthsChart'
 import { monthFlowChart } from '../../analytics/presentation/monthFlowChart'
-import { spendingFigures } from '../../analytics/presentation/spendingFigures'
+import { spendingFigures } from '../../analytics/domain/spendingFigures'
 import { words as figureWords } from '../../analytics/presentation/words'
 import { leftToSpend, limitsUnrated } from '../../budgets/domain/budgetCarry'
 import { categoryTree, fixedCategories } from '../../categories/domain/categoryTree'
@@ -41,7 +41,8 @@ import { addMonths, firstDayOf, monthOf, monthsFrom } from '../../../../shared/c
 import { monthLabel } from '../../../../shared/calendar/monthLabel'
 import { chartTokens } from '../../../../shared/charts/chartTokens'
 import { usePhoneLayout } from '../../../../shared/layout/viewport'
-import { formatMoney, formatShare } from '../../../../shared/money/moneyFormat'
+import { ZERO, negateMoney } from '../../../../shared/money/money'
+import { formatMoney, formatPercent, percentAsShown } from '../../../../shared/money/moneyFormat'
 import RecordProblemsAlert from '../../../../shared/storage/presentation/RecordProblemsAlert.vue'
 import { fileKeptNote } from '../../../../shared/storage/presentation/fileKeptNote'
 import { plural } from '../../../../shared/text/translation'
@@ -53,6 +54,8 @@ import DonutCard from '../../../../shared/ui/DonutCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
 import GettingSetUpCard from '../../../../shared/ui/GettingSetUpCard.vue'
 import KpiTile from '../../../../shared/ui/KpiTile.vue'
+import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { moneyToneClass } from '../../../../shared/ui/moneyTone'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import ScreenSkeleton from '../../../../shared/ui/ScreenSkeleton.vue'
 
@@ -82,6 +85,8 @@ const fileNote = computed(() => fileKeptNote(state.choice, words.empty))
 const waiting = computed(() => waitsForRates(state.workbook?.accounts ?? [], rates.value))
 const figures = computed(() => (state.workbook === null ? null : spendingFigures(state.workbook, everydayRates(rates.value))))
 const totals = computed(() => figures.value?.totalsOf(month) ?? null)
+/** What the month spent, as money out. */
+const spent = computed(() => negateMoney(totals.value?.spent ?? ZERO))
 const limits = computed(() => figures.value?.limitsIn(month) ?? [])
 const savingsRate = computed(() => (totals.value === null ? null : (monthFlow([totals.value])[0]?.savingsRate ?? null)))
 const unratedLine = computed(() => (waiting.value ? null : unratedNote(totals.value?.unrated ?? 0)))
@@ -162,40 +167,47 @@ function openGroupMonth(selection: ChartPointSelection): void {
           </template>
         </GettingSetUpCard>
         <DashboardGrid layout="tiles" data-testid="spending-tiles">
-          <KpiTile :label="figureWords.spent" :value="formatMoney(totals.spent)" :caption="monthLabel(month)" :to="transactionsLink(month)" data-testid="spending-spent">
-            <template v-if="waiting" #value>
-              <span class="block type-body font-normal">{{ rateWords.loading }}</span>
+          <KpiTile :label="figureWords.spent" :value="formatMoney(spent, 'always')" :caption="monthLabel(month)" :to="transactionsLink(month)" data-testid="spending-spent">
+            <template #value>
+              <span v-if="waiting" class="block type-body font-normal">{{ rateWords.loading }}</span>
+              <MoneyText v-else :cents="spent" tone="flow" />
             </template>
           </KpiTile>
-          <KpiTile :label="figureWords.income" :value="formatMoney(totals.income)" :caption="monthLabel(month)" :to="transactionsLink(month)" data-testid="spending-income">
-            <template v-if="waiting" #value>
-              <span class="block type-body font-normal">{{ rateWords.loading }}</span>
+          <KpiTile :label="figureWords.income" :value="formatMoney(totals.income, 'always')" :caption="monthLabel(month)" :to="transactionsLink(month)" data-testid="spending-income">
+            <template #value>
+              <span v-if="waiting" class="block type-body font-normal">{{ rateWords.loading }}</span>
+              <MoneyText v-else :cents="totals.income" tone="flow" />
             </template>
           </KpiTile>
-          <KpiTile :label="figureWords.saved" :value="formatMoney(totals.saved)" :caption="monthLabel(month)" :to="transactionsLink(month, savingCategory)" data-testid="spending-saved">
-            <template v-if="waiting" #value>
-              <span class="block type-body font-normal">{{ rateWords.loading }}</span>
+          <KpiTile :label="figureWords.saved" :value="formatMoney(totals.saved, 'always')" :caption="monthLabel(month)" :to="transactionsLink(month, savingCategory)" data-testid="spending-saved">
+            <template #value>
+              <span v-if="waiting" class="block type-body font-normal">{{ rateWords.loading }}</span>
+              <MoneyText v-else :cents="totals.saved" tone="outcome" />
             </template>
           </KpiTile>
           <KpiTile
             :label="figureWords.savingsRate"
-            :value="savingsRate === null ? words.tiles.noIncome : formatShare(savingsRate)"
+            :value="savingsRate === null ? words.tiles.noIncome : formatPercent(savingsRate, 'always')"
             :definition="words.tiles.savingsRateDefinition"
             :to="null"
             data-testid="spending-savings-rate"
           >
-            <template v-if="waiting || savingsRate === null" #value>
-              <span class="block type-body font-normal">{{ waiting ? rateWords.loading : words.tiles.noIncome }}</span>
+            <template #value>
+              <span v-if="waiting || savingsRate === null" class="block type-body font-normal">{{ waiting ? rateWords.loading : words.tiles.noIncome }}</span>
+              <span v-else class="figure" :class="moneyToneClass(percentAsShown(savingsRate), 'outcome')">{{ formatPercent(savingsRate, 'always') }}</span>
             </template>
           </KpiTile>
           <KpiTile v-if="limits.length > 0" :label="homeWords.leftThisMonth" :value="formatMoney(leftToSpend(limits))" :to="SPENDING_BUDGETS_ROUTE" data-testid="spending-left">
-            <template v-if="waiting" #value>
-              <span class="block type-body font-normal">{{ rateWords.loading }}</span>
+            <template #value>
+              <span v-if="waiting" class="block type-body font-normal">{{ rateWords.loading }}</span>
+              <MoneyText v-else :cents="leftToSpend(limits)" tone="balance" />
             </template>
           </KpiTile>
         </DashboardGrid>
         <p v-if="unratedLine !== null" class="type-caption" data-testid="spending-unrated">{{ unratedLine }}</p>
-        <LatestEntriesCard :book="state.workbook" :rates="everydayRates(rates)" :day="day" />
+        <DashboardGrid v-if="state.workbook.transactions.length > 0">
+          <LatestEntriesCard :book="state.workbook" :rates="everydayRates(rates)" :day="day" />
+        </DashboardGrid>
         <EventCards :book="state.workbook" :rates="everydayRates(rates)" :rated="!waiting" :day="day" />
         <DashboardGrid data-testid="spending-cards">
           <DonutCard

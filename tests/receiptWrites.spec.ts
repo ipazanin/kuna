@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { accountBalance } from '../src/apps/spending/accounts/domain/accountBalance'
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { deleteInto } from '../src/apps/spending/categories/application/categoryWrites'
 import { removeEntry, removeSplitOf, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { writeRows } from '../src/apps/spending/entries/application/rowRecords'

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { spendingFigures } from '../src/apps/spending/analytics/presentation/spendingFigures'
+import { spendingFigures } from '../src/apps/spending/analytics/domain/spendingFigures'
 import { linkEntries, linkEntry, unlinkEntry, writeEntrySplit } from '../src/apps/spending/entries/application/entryWrites'
 import { entrySplit } from '../src/apps/spending/entries/domain/entrySplit'
 import type { LinkPlace } from '../src/apps/spending/links/domain/instalmentSplit'

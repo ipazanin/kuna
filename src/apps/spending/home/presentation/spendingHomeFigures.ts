@@ -1,4 +1,4 @@
-import { spendingFigures } from '../../analytics/presentation/spendingFigures'
+import { spendingFigures } from '../../analytics/domain/spendingFigures'
 import { bankLinkLines } from '../../bankSync/presentation/bankLinkLines'
 import { leftToSpend } from '../../budgets/domain/budgetCarry'
 import { countedAccounts, unconvertedCount } from '../../rates/domain/euroRows'
@@ -8,6 +8,7 @@ import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
 import type { HomeFigures } from '../../../../shared/app/appContribution'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { monthOf } from '../../../../shared/calendar/monthKey'
+import { negateMoney } from '../../../../shared/money/money'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import type { RatesState } from '../../../../shared/rates/domain/ratesState'
 import { plural } from '../../../../shared/text/translation'
@@ -15,8 +16,8 @@ import { spendingHubFigures } from './spendingHubFigures'
 import { words } from './words'
 
 /**
- * The Spending card on the Kuna home: Bank and cash and Overdrawn as Net worth and the Accounts screen show them, then what this month spent and what
- * is left of its limits. The waiting line names the rows to review with what To review asks about Loans, what a figure leaves out for want of a rate and a bank link that is ending.
+ * The Spending card on the Kuna home: Bank and cash and Overdrawn as balances, Overdrawn below zero, as Net worth and the Accounts screen count them, then what this month
+ * spent as money out and what is left of its limits. The waiting line names the rows to review with what To review asks about Loans, what a figure leaves out for want of a rate and a bank link that is ending.
  */
 export function spendingHomeFigures(book: SpendingBook, rates: RatesState, day: CivilDate, loanAsks = 0): HomeFigures | 'opening' | null {
   const accounts = spendingHubFigures(book, rates, day)
@@ -31,9 +32,9 @@ export function spendingHomeFigures(book: SpendingBook, rates: RatesState, day: 
   const toReview = reviewCount(book, loanAsks)
   return {
     amounts: [
-      ...accounts.parts.map((part) => ({ label: part.label, cents: part.cents })),
-      { label: words.spentThisMonth, cents: totals.spent },
-      ...(limits.length === 0 ? [] : [{ label: words.leftThisMonth, cents: leftToSpend(limits) }]),
+      ...accounts.parts.map((part) => ({ label: part.label, cents: part.side === 'has' ? part.cents : negateMoney(part.cents), tone: 'balance' as const })),
+      { label: words.spentThisMonth, cents: negateMoney(totals.spent), tone: 'flow' as const },
+      ...(limits.length === 0 ? [] : [{ label: words.leftThisMonth, cents: leftToSpend(limits), tone: 'balance' as const }]),
     ],
     waiting:
       [

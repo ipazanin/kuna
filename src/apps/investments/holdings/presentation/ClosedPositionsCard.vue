@@ -9,12 +9,13 @@ import { words } from './words'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { roomAtLeast } from '../../../../shared/layout/pageRoom'
 import { sumMoney } from '../../../../shared/money/money'
-import { formatMoney, formatPercent, formatQuantity } from '../../../../shared/money/moneyFormat'
+import { formatMoney, formatPercent, formatQuantity, percentAsShown } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import DrillLink from '../../../../shared/ui/DrillLink.vue'
 import FigureTable from '../../../../shared/ui/FigureTable.vue'
 import MoneyText from '../../../../shared/ui/MoneyText.vue'
+import { moneyToneClass } from '../../../../shared/ui/moneyTone'
 import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 import ShowAllButton, { FIRST_SHOWN } from '../../../../shared/ui/ShowAllButton.vue'
 import SortableHeader from '../../../../shared/ui/SortableHeader.vue'
@@ -78,7 +79,9 @@ function span(position: ClosedPosition): string {
           <td class="text-end"><MoneyText :cents="position.proceeds" /></td>
           <td class="text-end">
             <MoneyText :cents="position.realised" tone="outcome" />
-            <span v-if="position.realisedShare !== null" class="block type-caption">{{ formatPercent(position.realisedShare, 'always') }}</span>
+            <span v-if="position.realisedShare !== null" class="block type-caption" :class="moneyToneClass(percentAsShown(position.realisedShare), 'outcome')">{{
+              formatPercent(position.realisedShare, 'always')
+            }}</span>
           </td>
           <td class="text-end"><MoneyText :cents="position.income" /></td>
           <td class="figure text-end">{{ days(position) }}</td>
@@ -97,7 +100,9 @@ function span(position: ClosedPosition): string {
         >
           <template #amount>
             <MoneyText :cents="position.realised" tone="outcome" class="font-medium" />
-            <span v-if="position.realisedShare !== null" class="figure type-caption">{{ formatPercent(position.realisedShare, 'always') }}</span>
+            <span v-if="position.realisedShare !== null" class="figure type-caption" :class="moneyToneClass(percentAsShown(position.realisedShare), 'outcome')">{{
+              formatPercent(position.realisedShare, 'always')
+            }}</span>
           </template>
         </ProposalRow>
       </li>

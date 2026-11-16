@@ -435,6 +435,11 @@ section + section > .group-row:not(tr) {
   margin-inline-end: 1.75rem;
 }
 
+/* A list of ProposalRows in a card that may run across the page, such as a screen's newest entries, keeps each amount within 40rem of its title, so the eye does not lose the line between the name and the figure. */
+.near-figures .proposal-row-lines {
+  max-inline-size: 40rem;
+}
+
 .proposal-row-title {
   grid-area: title;
   align-self: baseline;

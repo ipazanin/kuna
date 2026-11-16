@@ -54,7 +54,7 @@ function openEntry(picked: Transaction): void {
 
 <template>
   <AppCard v-if="lines.length > 0" :title="words.latest.title" :subtitle="words.latest.subtitle" data-testid="spending-latest">
-    <ul class="flex flex-col py-2">
+    <ul class="near-figures flex flex-col py-2">
       <li v-for="line in lines" :key="line.row.transaction.id" class="border-t border-default first:border-t-0">
         <ProposalRow as="button" :title="line.title" :caption="line.caption" data-testid="spending-latest-row" @click="openEntry(line.row.transaction)">
           <template #amount>

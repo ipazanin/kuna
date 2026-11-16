@@ -44,7 +44,7 @@ function record(offer: ExtraPaymentOffer<ShownInstalment>): void {
       <ul class="divide-y divide-default">
         <ProposalRow v-for="offer in shown" :key="offer.row.id" :title="rowTitle(offer.row)" :caption="rowCaption(offer.row, accountOf(offer.row))" data-testid="spending-review-extra-payment">
           <template #amount>
-            <AccountMoneyText :cents="offer.row.amount" :currency="EURO" sign="always" tone="flow" />
+            <AccountMoneyText :cents="offer.row.amount" :currency="EURO" tone="flow" />
           </template>
           <template #details>
             <span class="break-words type-caption">{{ words.extra.caption(instalmentText(offer.instalment)) }}</span>
