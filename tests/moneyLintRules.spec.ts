@@ -10,7 +10,7 @@ const eslint = new ESLint({ cwd: root, overrideConfigFile: true, overrideConfig:
 
 async function rulesBroken(file: string, code: string): Promise<string[]> {
   const [result] = await eslint.lintText(code, { filePath: join(root, file) })
-  return (result?.messages ?? []).flatMap((message) => (message.ruleId?.startsWith('kuna/') ? [message.ruleId] : []))
+  return (result?.messages ?? []).flatMap((message) => (message.ruleId?.startsWith('kuna/') || message.ruleId === 'better-tailwindcss/no-restricted-classes' ? [message.ruleId] : []))
 }
 
 const DOMAIN = 'src/apps/loans/planted/domain/planted.ts'
@@ -44,6 +44,13 @@ describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => 
     ['a class expression', DOMAIN, 'export const Loan = class {}', 'kuna/domain-classes'],
     ['a text colour on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" class="font-medium text-highlighted" /></template>', 'kuna/money-tone-colours'],
     ['a text colour on an account figure with a bound tone', SCREEN, '<template><AccountMoneyText :cents="a" currency="EUR" :tone="t" class="text-error" /></template>', 'kuna/money-tone-colours'],
+    ['red on a figure with no tone', SCREEN, '<template><MoneyText :cents="a" class="text-error" /></template>', 'kuna/money-tone-colours'],
+    ['green picked by a condition on a figure with no tone', SCREEN, '<template><MoneyText :cents="a" :class="a > 0 ? \'text-success\' : \'\'" /></template>', 'kuna/money-tone-colours'],
+    ['amber as a key of a bound class', SCREEN, '<template><AccountMoneyText :cents="a" currency="EUR" :class="{ \'text-warning\': late }" /></template>', 'kuna/money-tone-colours'],
+    ['a soft depth in a bound class', SCREEN, '<template><MoneyText :cents="a" :class="[size, \'text-negative-soft\']" /></template>', 'kuna/money-tone-colours'],
+    ['muted ink in a bound class on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" :class="{ \'text-muted\': old }" /></template>', 'kuna/money-tone-colours'],
+    ['a soft depth on a span', SCREEN, '<template><span class="text-positive-soft">1</span></template>', 'better-tailwindcss/no-restricted-classes'],
+    ['a soft depth as a background', SCREEN, '<template><div class="bg-negative-soft" /></template>', 'better-tailwindcss/no-restricted-classes'],
     ['a scroll then a shot', FLOWS, "export async function a(page, shoot) {\n  await page.$eval('#a', (element) => element.scrollIntoView())\n  await shoot('a')\n}", 'kuna/shoot-at'],
     [
       'a scroll, a wait, an inspection and a shot',
@@ -82,6 +89,14 @@ describe('money, domain, note and test lint rules', { timeout: 120_000 }, () => 
     ['a class on a screen', 'src/apps/loans/planted/presentation/planted.ts', 'export class Loan {}'],
     ['a text colour on a figure with no tone', SCREEN, '<template><MoneyText :cents="a" class="text-muted" /></template>'],
     ['a size on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="flow" class="text-sm font-medium" /></template>'],
+    ['a size picked by a condition on a figure with a tone', SCREEN, '<template><MoneyText :cents="a" tone="outcome" :class="hero ? \'text-figure-xl\' : \'text-sm\'" /></template>'],
+    [
+      'muted ink in a bound class on a figure whose tone a bound object drops',
+      SCREEN,
+      '<template><MoneyText :cents="a" v-bind="old ? { sign: \'always\' } : { tone: \'flow\' }" :class="{ \'text-muted\': old }" /></template>',
+    ],
+    ['a change between two cases in ink with its sign', SCREEN, '<template><MoneyText :cents="a" sign="always" class="text-highlighted" /></template>'],
+    ['red on a status word', SCREEN, '<template><span class="text-error">Late</span></template>'],
     ['a scroll before a tap and then a shot', FLOWS, "export async function a(page, shoot) {\n  await row.scrollIntoView()\n  await row.tap()\n  await shoot('a')\n}"],
     ['a worded date named for one', WORDS, 'export const en = { paidIn: (period: string, dueDay: string | null, since = "") => `${period} ${dueDay} ${since}` }'],
     ['a day number, a count and a typed date', WORDS, 'export const en = { mealsOn: (dayNumber: number, daysCount: string, bought: CivilDate) => `${dayNumber} ${daysCount} ${bought}` }'],

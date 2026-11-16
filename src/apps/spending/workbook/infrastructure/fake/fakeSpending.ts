@@ -57,7 +57,7 @@ import { language } from '../../../../../shared/text/language'
 /**
  * The fake build's Spending sets: `sample` the worked example's four accounts with three months of rows up to the day,
  * Food's limit carrying from two months back and a transfer pair, `foreign` only the dollar account, `over` the
- * sample with two limits overspent, and `statements` the sample with rows of earlier statements waiting on review, a pair,
+ * sample with two limits overspent and OTP current below zero, and `statements` the sample with rows of earlier statements waiting on review, a pair,
  * a lone leg, a rule, and typed rows the sample Revolut export pairs with, one of them near a row the rule would file, `copied` the statements
  * set with a row the AI copied that the export's Unknown shop looks like, `synced` the statements set with a row the bank sync
  * brought that the export's Corner market looks like, `cash` the statements set with cash withdrawals already on the file
@@ -183,6 +183,9 @@ const BALANCES: Readonly<Record<string, number>> = {
   [TRAVEL_DOLLARS]: 10,
   [REVOLUT_GBP]: 80,
 }
+
+/** What each account holds on the day in the over set, whose OTP current has gone 240.00 below zero as well. */
+const OVER_BALANCES: Readonly<Record<string, number>> = { ...BALANCES, [OTP]: -240 }
 
 /** The rows of a complete month `back` months before the day's: salary, rent, food, fuel, a loan instalment linked to Loans, money saved and a company cost paid back. Last month links an instalment Loans does not have, so the home loan's plan reads that month's as not seen in your statement. */
 function monthRows(month: MonthKey, back: number, day: CivilDate): Row[] {
@@ -616,7 +619,10 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
   const loanEntries = set === 'foreign' ? { rows: [], lines: [] } : loanRows(twoBack, oneBack, day, idOf)
   transactions.push(...loanEntries.rows)
   // Each account opens with what makes its balance on the day the worked example's.
-  const opened = shown.map((account) => ({ ...account, opening: subtractAccountMoney(accountMoneyFromAmount(BALANCES[account.id]!), accountBalance(account, transactions, day)) }))
+  const opened = shown.map((account) => ({
+    ...account,
+    opening: subtractAccountMoney(accountMoneyFromAmount((set === 'over' ? OVER_BALANCES : BALANCES)[account.id]!), accountBalance(account, transactions, day)),
+  }))
   const budgets: Budget[] =
     set === 'foreign'
       ? []

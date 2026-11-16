@@ -5,6 +5,8 @@ import { loansHomeFigures } from '../src/apps/loans/home/presentation/loansHomeF
 import type { BankLoan } from '../src/apps/loans/workbook/domain/bankLoan'
 import type { InformalLoan } from '../src/apps/loans/workbook/domain/informalLoan'
 import { INFORMAL_LOAN_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fake/fakeLoans'
+import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
 import { recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil, euros } from './fixtures/ledger'
 import { bankLoan, informalLoan, ratePeriod } from './fixtures/loans'
@@ -38,6 +40,19 @@ describe("Loans' card on the Kuna home", () => {
     expect(loansHomeFigures({ bankLoans: [], informalLoans: [informalBook(TO_MARKO)] }, DAY).amounts).toEqual([
       { label: 'Net', cents: euros(800), tone: 'outcome' },
       { label: 'Owed to you', cents: euros(800) },
+    ])
+  })
+
+  it("shows a net above zero on the fake build's lending set", () => {
+    const at = '2026-11-04T09:00:00.000Z'
+    const meta = { id: 'lending', source: 'browser', title: 'lending', syncedAt: at, lastExportedAt: null, unexportedSince: null } as const
+    const book = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(at, 'lending') }).workbook
+
+    // Petra owes 6,000.00 less two repayments of 500.00 and 500.00 in kind, and you owe Dora 4,000.00 less two of 250.00.
+    expect(loansHomeFigures(book, civil('2026-11-04')).amounts).toEqual([
+      { label: 'Net', cents: euros(1000), tone: 'outcome' },
+      { label: 'You owe in all', cents: euros(3500) },
+      { label: 'Owed to you', cents: euros(4500) },
     ])
   })
 

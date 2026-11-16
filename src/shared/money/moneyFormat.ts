@@ -31,7 +31,10 @@ export type MoneyTone = 'flow' | 'outcome' | 'balance'
  * flow always shows its sign, so colour is never the only cue.
  */
 export type MoneyLook =
-  { readonly tone?: undefined; readonly sign?: SignDisplay | undefined } | { readonly tone: 'flow' | 'outcome'; readonly sign?: 'always' } | { readonly tone: 'balance'; readonly sign?: undefined }
+  { readonly tone?: undefined; readonly sign?: SignDisplay | undefined } | { readonly tone: 'flow' | 'outcome'; readonly sign?: undefined } | { readonly tone: 'balance'; readonly sign?: undefined }
+
+/** An amount with how it shows its sign and colour, as `MoneyText` draws it. */
+export type ShownAmount = { readonly cents: Money } & MoneyLook
 
 export interface MoneyFormat {
   /** An ISO 4217 code such as `EUR`. */

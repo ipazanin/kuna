@@ -115,13 +115,20 @@ const FOUR_FACTS: readonly Fact[] = [
   { label: 'You pay', value: formatMoney(moneyFromCents(22_382_653)) },
 ]
 
-/** Labels that are a Croatian form's own field names, read in Croatian whatever the screen's language. */
 /** Facts whose values are keys rather than figures, drawn through the value slot. */
 const KEY_FACTS: Fact[] = [
   { label: 'Counterparty IBAN', value: 'HR1210010051863000160' },
   { label: 'Reference', value: 'HR00 2026-0314' },
 ]
 
+/** Facts that are one amount each: money out and in through an account in the soft depth, and a debt forgiven in ink with its sign. */
+const AMOUNT_FACTS: readonly Fact[] = [
+  { label: 'Next payment', amount: { cents: moneyFromCents(-81_240), tone: 'flow' }, caption: '20 Nov' },
+  { label: 'Last movement', amount: { cents: moneyFromCents(50_000), tone: 'flow' }, caption: 'Repaid on 3 Oct' },
+  { label: 'Forgiven', amount: { cents: moneyFromCents(-100_000), sign: 'always' }, caption: '24 Dec' },
+]
+
+/** Labels that are a Croatian form's own field names, read in Croatian whatever the screen's language. */
 const FORM_FACTS: readonly Fact[] = [
   { label: '11 Primitak', value: formatMoney(moneyFromCents(21_584)), caption: 'A reading', lang: 'hr' },
   { label: '14.1 Porez', value: formatMoney(moneyFromCents(1_630)), caption: 'Settled', lang: 'hr' },
@@ -507,7 +514,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
     <GallerySection
       id="progress-meter"
       title="ProgressMeter and FactGrid"
-      description="A bar split into parts, striped where someone else pays, read out as one sentence, and labelled figures two to a row or in one, with a form's own field names marked Croatian."
+      description="A bar split into parts, striped where someone else pays, read out as one sentence, and labelled figures two to a row or in one, with a form's own field names marked Croatian and an amount in the look of its kind."
     >
       <AppCard class="gap-4 p-4 sm:p-5">
         <ProgressMeter
@@ -529,6 +536,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
         <FactGrid :facts="FOUR_FACTS" />
         <FactGrid :facts="FOUR_FACTS.slice(0, 3)" class="border-t border-default pt-4" />
         <FactGrid :facts="FORM_FACTS" class="border-t border-default pt-4" />
+        <FactGrid :facts="AMOUNT_FACTS" class="border-t border-default pt-4" data-testid="gallery-amount-facts" />
         <FactGrid :facts="KEY_FACTS" class="border-t border-default pt-4">
           <template #value="{ fact }">
             <span class="identifier break-all text-sm text-default">{{ fact.value }}</span>

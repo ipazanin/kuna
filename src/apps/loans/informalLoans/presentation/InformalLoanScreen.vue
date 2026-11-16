@@ -7,7 +7,6 @@ import UButton from '@nuxt/ui/components/Button.vue'
 import { balanceChart } from '../../balances/presentation/balanceChart'
 import { DIRECTION_LOOKS } from '../../directions/presentation/loanDirection'
 import { planStanding } from '../domain/expectedPlan'
-import { yourMoneyFrom } from '../domain/informalBalance'
 import { informalLoanNamed, LOANS_OVERVIEW_ROUTE } from '../../overview/presentation/loanLinks'
 import { useLoansBooks } from '../../workbook/application/loansStore'
 import type { Movement } from '../../workbook/domain/movement'
@@ -81,10 +80,7 @@ const planFacts = computed((): Fact[] => {
     next === null ? { label: words.plan.next, value: words.plan.nothingNext } : { label: words.plan.next, value: dayLabel(next.date), caption: formatMoney(next.amount) },
   ]
 })
-const lines = computed(() => {
-  const shownBook = book.value
-  return shownBook === null ? [] : movementLines(shownBook).map((line) => ({ ...line, yours: yourMoneyFrom(shownBook.loan, line.movement) }))
-})
+const lines = computed(() => (book.value === null ? [] : movementLines(book.value)))
 const lastLine = computed(() => lines.value[0] ?? null)
 const showAll = ref(false)
 const shown = computed(() => (showAll.value ? lines.value : lines.value.slice(0, FIRST_SHOWN)))
@@ -149,14 +145,11 @@ function openMovement(movement: Movement | null): void {
       <DashboardGrid layout="tiles">
         <KpiTile
           :label="words.tiles.lastMovement"
-          :value="lastLine === null ? words.tiles.noneYet : formatMoney(lastLine.yours ?? lastLine.change, 'always')"
+          :value="lastLine === null ? words.tiles.noneYet : formatMoney(lastLine.amount.cents, 'always')"
           :caption="lastLine === null ? words.tiles.startedOn(dayLabel(book.loan.start)) : words.tiles.kindOn(lastLine.kind, dayLabel(lastLine.movement.date))"
           :to="null"
         >
-          <template v-if="lastLine !== null" #value>
-            <MoneyText v-if="lastLine.yours === null" :cents="lastLine.change" sign="always" />
-            <MoneyText v-else :cents="lastLine.yours" tone="flow" />
-          </template>
+          <template v-if="lastLine !== null" #value><MoneyText v-bind="lastLine.amount" /></template>
         </KpiTile>
         <KpiTile :label="words.tiles.since" :value="dayLabel(book.loan.start)" :caption="plural(words.tiles.movements(lines.length), lines.length)" :to="null" />
       </DashboardGrid>
@@ -190,8 +183,7 @@ function openMovement(movement: Movement | null): void {
               <div class="min-w-0 flex-1">
                 <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
                   <span class="text-highlighted">{{ line.kind }}</span>
-                  <MoneyText v-if="line.yours === null" :cents="line.change" sign="always" />
-                  <MoneyText v-else :cents="line.yours" tone="flow" />
+                  <MoneyText v-bind="line.amount" />
                 </p>
                 <p class="text-xs text-muted">{{ [dayLabel(line.movement.date), line.movement.note].filter((part) => part !== '').join(', ') }}</p>
               </div>

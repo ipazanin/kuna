@@ -76,7 +76,7 @@
  *
  * The Spending app renders its first run, its empty Overview and its Settings (`?spending=drive`), its Settings for a
  * file kept in this browser, the sample's Overview with the event that runs, Transactions, Limits, Events, Accounts, the dollar account with its ECB rate
- * line and Settings with the categories (`?spending=sample`), Limits with two overspent (`?spending=over`), Accounts
+ * line and Settings with the categories (`?spending=sample`), Limits with two overspent and Accounts and the home with an account below zero (`?spending=over`), Accounts
  * while the ECB rates fail (`?rates=failed`), its Overview while its file opens and once its read fails, and Entries with a
  * row a receipt split (`?spending=receipts`), each in
  * Croatian too, with its figures worked out from the same fake sets. Net worth renders with the sample Spending
@@ -91,7 +91,7 @@
  * onboarding's first steps on a first run (`?fake=empty`), each tab of the company's Settings and the
  * Year page's editors for a workbook kept in this browser (`?fake=browser`), Settings, Books file for
  * a file a newer app saved (`?fake=newer-file`), Spending Entries and Settings for one (`?spending=newer-file`), Spending Entries and Settings for a file from before parts of entries with its offer to update it, and Entries once updated (`?spending=before-items`), Entries for one with a split transfer, which is not offered the update (`?spending=before-items-split-transfer`), the Loans Settings, the Loans Overview with one loan
- * (`?loans=one-loan`), with a house loan, a car loan and an informal loan you owe on a plan (`?loans=house-and-car`), with one equal principal loan (`?loans=equal-principal`) and while its file opens (`?loans=opening`), Scenarios with its offers, its charts opened and with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`),
+ * (`?loans=one-loan`), with a house loan, a car loan and an informal loan you owe on a plan (`?loans=house-and-car`), with one equal principal loan (`?loans=equal-principal`), with informal loans alone that leave you owed more than you owe, on the home too (`?loans=lending`) and while its file opens (`?loans=opening`), Scenarios with its offers, its charts opened and with none, the home, Kuna settings, the Loans first run and every Loans screen in Croatian (`?lang=hr`),
  * the Investments first run, its empty Overview and its Settings on an empty file (`?investments=drive`) and its Overview while its file opens (`?investments=opening`), each in Croatian too,
  * the Investments Overview on the sample (`?investments=sample`), on the sample without a deposit so an account's cash is below zero (`?investments=cash-below-zero`) and with late prices whose last
  * fetch failed (`?prices=late-prices`), each in Croatian too and with its figures worked out from the same fake sets, the home with the Investments card's figures and its badge, the nearest tax date or else the late prices,
@@ -619,6 +619,9 @@ const FLAT_LOAN = 'fa4e0000-0000-4000-8000-000000000070'
 const INVESTMENTS_DAY = pricesDay(new Date().toISOString())
 const CROATIAN_MONEY = { currency: 'EUR', locale: 'hr-HR' }
 
+/** The net of `?loans=lending`, where Petra owes you 4,500.00 and you owe Dora 3,500.00, and Dora's last repayment of 250.00 as money out. */
+const LENDING = { net: formatMoney(100_000, 'always'), netCroatian: formatMoney(100_000, 'always', CROATIAN_MONEY), doraRepaid: formatMoney(-25_000) }
+
 /**
  * The made-up portfolio's figures on the Overview and the home card, worked out with the same domain functions the
  * screens use, as `?investments=` and `?prices=` name the fake sets. Money comes in English and in Croatian.
@@ -722,7 +725,7 @@ async function fakeSpending(set, ratesFailed = false) {
 
 /**
  * The fake Spending sets' figures, worked out with the functions its screens call: this month's spent, income and saved,
- * what is left of its limits, Food's limit with its carry, the limits `over` overspends, what the open accounts hold in
+ * what is left of its limits, Food's limit with its carry, the limits `over` overspends and what its account below zero owes, what the open accounts hold in
  * euros with the rates and while they fail, the dollar account in dollars and in euros with its rate line, and the
  * payees of this month. Money comes in English and in Croatian.
  */
@@ -740,6 +743,7 @@ async function fakeSpendingShows(sample) {
   const [heldWhileFailed] = spendingHubFigures(failed.book, failed.rates, day).parts
   const dollars = accountsOnDay(sample.book, day, sample.rates.everyday).find((entry) => entry.account.currency !== EURO)
   const [newest] = entriesNewestFirst(sample.book, sample.rates.everyday)
+  const overdrawn = spendingHubFigures(over.book, over.rates, day).parts.find((part) => part.side === 'owes')
   const overspent = spendingFigures(over.book, over.rates.everyday)
     .limitsIn(month)
     .filter((limit) => limit.left < 0)
@@ -758,6 +762,7 @@ async function fakeSpendingShows(sample) {
       english: overspent.map((limit) => budgetsEnglish.overBy(formatMoney(-limit.left))),
       croatian: overspent.map((limit) => budgetsCroatian.overBy(formatMoney(-limit.left, 'negative', CROATIAN_MONEY))),
     },
+    overdrawn: both(-overdrawn.cents),
     newest: { payee: newest.transaction.payee, amount: formatAccountMoney(newest.transaction.amount, newest.account.currency, 'always') },
     payees: [...new Set(sample.book.transactions.filter((row) => monthOf(row.date) === month).map((row) => row.payee))],
   }
@@ -1938,6 +1943,8 @@ const SOURCE_SCREENS = [
     cards: false,
   },
   { name: 'home-loans', query: 'loans=sample', hash: '#/', title: homeEnglish.title, charts: 0, shows: ['Cash on hand', 'Net', 'You owe in all', 'Owed to you'], cards: false },
+  { name: 'home-lending', query: 'loans=lending', hash: '#/', title: homeEnglish.title, charts: 0, shows: ['Net', LENDING.net, 'You owe in all', 'Owed to you'], cards: false },
+  { name: 'home-spending-over', query: 'spending=over', hash: '#/', title: homeEnglish.title, charts: 0, shows: ['Bank and cash', 'Overdrawn', SPENDING.overdrawn.english], cards: false },
   { name: 'home-one-loan', query: 'loans=one-loan', hash: '#/', title: homeEnglish.title, charts: 0, shows: ['Net', 'You owe in all'], lacks: ['Owed to you'], cards: false },
   { name: 'home-assets', query: 'assets=sample', hash: '#/', title: homeEnglish.title, charts: 0, shows: ['Assets value', ASSETS.alone.english, '1 asset without a value'], cards: false },
   {
@@ -2023,6 +2030,24 @@ const SOURCE_SCREENS = [
     title: homeCroatian.title,
     charts: 0,
     shows: ['Novac na računima', 'Neto', 'Ukupno dugujete', 'Duguje vam se'],
+    cards: false,
+  },
+  {
+    name: 'home-lending-croatian',
+    query: 'loans=lending&lang=hr',
+    hash: '#/',
+    title: homeCroatian.title,
+    charts: 0,
+    shows: ['Neto', LENDING.netCroatian, 'Ukupno dugujete', 'Duguje vam se'],
+    cards: false,
+  },
+  {
+    name: 'home-spending-over-croatian',
+    query: 'spending=over&lang=hr',
+    hash: '#/',
+    title: homeCroatian.title,
+    charts: 0,
+    shows: ['Banka i gotovina', 'U minusu', SPENDING.overdrawn.croatian],
     cards: false,
   },
   { name: 'home-one-loan-croatian', query: 'loans=one-loan&lang=hr', hash: '#/', title: homeCroatian.title, charts: 0, shows: ['Neto', 'Ukupno dugujete'], lacks: ['Duguje vam se'], cards: false },
@@ -2641,6 +2666,22 @@ const SOURCE_SCREENS = [
     charts: 0,
     expandedBefore: ['loans.completed'],
     shows: ['Završeno', 'Small loans', 'Luka', 'Podmireno'],
+  },
+  {
+    name: 'loans-lending',
+    query: 'loans=lending',
+    hash: '#/loans',
+    title: 'Overview',
+    charts: 0,
+    shows: ['To Petra', 'From Dora', 'Owed to you', 'Net', LENDING.net, 'Last movement', LENDING.doraRepaid, 'Completed'],
+  },
+  {
+    name: 'loans-lending-croatian',
+    query: 'loans=lending&lang=hr',
+    hash: '#/loans',
+    title: 'Pregled',
+    charts: 0,
+    shows: ['To Petra', 'From Dora', 'Duguje vam se', 'Neto', LENDING.netCroatian, 'Završeno'],
   },
   { name: 'loans-one-loan', query: 'loans=one-loan', hash: '#/loans', title: 'Overview', charts: 0, shows: ['Home loan', 'owed today', 'paid back', 'Subsidy ends'], cards: false },
   {
@@ -3660,6 +3701,24 @@ const SOURCE_SCREENS = [
     title: 'Računi',
     charts: 0,
     shows: ['Banka i gotovina', SPENDING.held.croatian, 'Revolut USD', SPENDING.dollars.balance.croatian, SPENDING.dollars.euros.croatian],
+    cards: false,
+  },
+  {
+    name: 'spending-accounts-over',
+    query: 'spending=over',
+    hash: '#/spending/accounts',
+    title: 'Accounts',
+    charts: 0,
+    shows: ['Overdrawn', 'OTP current', SPENDING.overdrawn.english],
+    cards: false,
+  },
+  {
+    name: 'spending-accounts-over-croatian',
+    query: 'spending=over&lang=hr',
+    hash: '#/spending/accounts',
+    title: 'Računi',
+    charts: 0,
+    shows: ['U minusu', 'OTP current', SPENDING.overdrawn.croatian],
     cards: false,
   },
   {

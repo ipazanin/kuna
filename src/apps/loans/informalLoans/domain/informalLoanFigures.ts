@@ -19,12 +19,11 @@ export function owedByYou(loan: InformalLoan, balance: Money): Money {
 export interface InformalLoanFigures {
   /** What you owe on the day, below zero when they owe you. */
   readonly owedByYou: Money
-  readonly last: Movement | null
   readonly totals: InformalTotals
 }
 
 export function informalLoanFigures(book: InformalLoanBook, day: CivilDate): InformalLoanFigures {
-  return { owedByYou: owedByYou(book.loan, informalBalanceOn(book.loan, book.movements, day)), last: lastMovement(book.movements), totals: informalTotals(book.movements, day) }
+  return { owedByYou: owedByYou(book.loan, informalBalanceOn(book.loan, book.movements, day)), totals: informalTotals(book.movements, day) }
 }
 
 /** A movement with what it changed and what you owe after it. */

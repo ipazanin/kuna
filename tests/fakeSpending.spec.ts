@@ -86,6 +86,13 @@ describe("the fake build's Spending sets", () => {
     ).toEqual([true, true])
   })
 
+  it('run OTP current 240.00 below zero in the over set, so Overdrawn shows', () => {
+    const day = civil('2026-11-04')
+    const book = bookOf(fakeSpendingDocument(SAVED_AT, 'over', day))
+
+    expect(book.accounts.map((account) => [account.name, accountBalance(account, book.transactions, day)])).toContainEqual(['OTP current', euros(-240)])
+  })
+
   it.each(['2026-11-04', '2026-12-01', '2027-03-31', '2027-06-01'])('wait in the statements set with six rows, a pair, two lone legs and offers on %s', (day) => {
     const book = bookOf(fakeSpendingDocument(SAVED_AT, 'statements', civil(day)))
     const queue = reviewQueue(book, civil(day))

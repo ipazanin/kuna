@@ -1,4 +1,4 @@
-import { raisesWhatIsOwed } from '../domain/informalBalance'
+import { raisesWhatIsOwed, yourMoneyFrom } from '../domain/informalBalance'
 import { movementSteps } from '../domain/informalLoanFigures'
 import type { MovementStep } from '../domain/informalLoanFigures'
 import type { PlanStanding } from '../domain/expectedPlan'
@@ -11,6 +11,7 @@ import { words as bookWords } from '../../workbook/domain/words'
 import { absMoney } from '../../../../shared/money/money'
 import type { Money } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
+import type { ShownAmount } from '../../../../shared/money/moneyFormat'
 import type { Tone } from '../../../../shared/ui/toneText'
 
 export const MOVEMENT_KIND_NAMES: Readonly<Record<MovementKind, string>> = bookWords.kinds
@@ -21,14 +22,21 @@ export function whoOwes(owed: Money): string {
   return owed < 0 ? words.theyOweYou : words.youOwe
 }
 
-/** A movement as the list shows it, with what you owe after it. */
+/**
+ * A movement as the list shows it, with what you owe after it and its amount: the money that went through your account
+ * in the soft depth, or the change in what is owed in ink with its sign where none did, as with a debt forgiven or a loan repaid in kind.
+ */
 export interface MovementLine extends MovementStep {
   readonly kind: string
+  readonly amount: ShownAmount
 }
 
 /** The movements as the list shows them, newest first. */
 export function movementLines(book: InformalLoanBook): MovementLine[] {
-  return movementSteps(book).map((step) => ({ ...step, kind: MOVEMENT_KIND_NAMES[step.movement.kind] }))
+  return movementSteps(book).map((step) => {
+    const yours = yourMoneyFrom(book.loan, step.movement)
+    return { ...step, kind: MOVEMENT_KIND_NAMES[step.movement.kind], amount: yours === null ? { cents: step.change, sign: 'always' } : { cents: yours, tone: 'flow' } }
+  })
 }
 
 /** What the balance chart marks on an informal loan: each movement, raising or lowering what is owed. */

@@ -47,7 +47,7 @@ function mixLines(fund: Instrument, mix: FundMixGroup['mix'], percents: readonly
 }
 
 /** Each fact as its label, its value and where it came from. */
-function factsOf(details: ReturnType<typeof holdingDetails>): (readonly [string, string, string | undefined])[] {
+function factsOf(details: ReturnType<typeof holdingDetails>): (readonly [string, string | undefined, string | undefined])[] {
   return details.facts.map((fact) => [fact.label, fact.value, fact.caption] as const)
 }
 
@@ -194,7 +194,7 @@ describe('the fetched facts a holding’s page shows', () => {
   const WORLD = instrument('world', { name: 'Example World ETF', type: 'fund', isin: 'IE00000WORLD', prices: 'alphavantage', sourceSymbol: 'XYZ.DEX' })
   const TECH = instrument('tech', { name: 'Example Tech', type: 'share', currency: USD, isin: 'XX000000ABC1', sector: 'information-technology', country: countryOf('US') })
 
-  function labelled(details: ReturnType<typeof holdingDetails>, label: string): readonly [string, string, string | undefined] | undefined {
+  function labelled(details: ReturnType<typeof holdingDetails>, label: string): readonly [string, string | undefined, string | undefined] | undefined {
     return factsOf(details).find(([found]) => found === label)
   }
 

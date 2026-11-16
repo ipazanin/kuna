@@ -21,7 +21,8 @@ const DAY = 86_400_000
  * and `browser` one kept in this browser with changes nine days past their last export, each chosen
  * on this device, `sample` a chosen file on the fake Drive holding made-up loans of both kinds,
  * `one-loan` the same with the bank loan alone, `house-and-car` the home loan beside a car loan that
- * ends earlier and an informal loan you owe on an expected plan, `equal-principal` one equal principal bank loan alone, `other-device` an empty file on the fake Drive that
+ * ends earlier and an informal loan you owe on an expected plan, `equal-principal` one equal principal bank loan alone, `lending` informal loans alone
+ * that leave you owed more than you owe, `other-device` an empty file on the fake Drive that
  * another device made, which this device has not chosen, `opening` the sample chosen on the fake
  * Drive with nothing in this browser and every read of it held, so the Loans screens stay opening, and
  * `failed` the sample chosen on the fake Drive with nothing in this browser and the file in the bin, so
@@ -35,7 +36,7 @@ export async function seedFakeLoans(variant: string | null): Promise<void> {
   const document =
     variant === 'sample' || variant === 'opening' || variant === 'failed'
       ? fakeLoansDocument(savedAt)
-      : variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal'
+      : variant === 'one-loan' || variant === 'house-and-car' || variant === 'equal-principal' || variant === 'lending'
         ? fakeLoansDocument(savedAt, variant)
         : emptyLoansDocument(savedAt)
   const text = encodeDocument(document)
@@ -45,6 +46,7 @@ export async function seedFakeLoans(variant: string | null): Promise<void> {
     variant === 'one-loan' ||
     variant === 'house-and-car' ||
     variant === 'equal-principal' ||
+    variant === 'lending' ||
     variant === 'other-device' ||
     variant === 'opening' ||
     variant === 'failed'

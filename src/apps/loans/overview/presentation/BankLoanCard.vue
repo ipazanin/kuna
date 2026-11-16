@@ -14,6 +14,7 @@ import { wordsFor } from '../../bankLoans/presentation/words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel, shortDayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
+import { negateMoney } from '../../../../shared/money/money'
 import { formatMoney } from '../../../../shared/money/moneyFormat'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
@@ -48,7 +49,7 @@ const facts = computed((): Fact[] => {
       : [
           {
             label: loanWords.value.tiles.nextPayment,
-            value: formatMoney(next.yourShare),
+            amount: { cents: negateMoney(next.yourShare), tone: 'flow' as const },
             caption: next.yourShare === next.payment ? shortDayLabel(next.date) : words.card.nextOf(shortDayLabel(next.date), formatMoney(next.payment)),
           },
         ]),

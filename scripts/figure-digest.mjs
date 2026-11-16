@@ -6,7 +6,7 @@
  *   npm run check:figures -- --fake <drive, browser, browser-donations, one-employee or five-employees> [--today yyyy-mm-dd]
  *   npm run check:figures -- --workbook <path to an xlsx export or a Kuna file> [--rates <path to a Kuna exchange rates file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --loans <path to a Kuna Loans file> [--today yyyy-mm-dd]
- *   npm run check:figures -- --fake-loans <sample, house-and-car or equal-principal> [--today yyyy-mm-dd]
+ *   npm run check:figures -- --fake-loans <sample, house-and-car, equal-principal or lending> [--today yyyy-mm-dd]
  *   npm run check:figures -- --investments <path to a Kuna Investments file> [--investments-prices <path to its prices file>] [--today yyyy-mm-dd]
  *   npm run check:figures -- --fake-investments sample [--today yyyy-mm-dd]
  *   npm run check:figures -- --assets <path to a Kuna Assets file> [--house-index <path to a saved answer of the DZS>] [--today yyyy-mm-dd]
@@ -246,14 +246,14 @@ if (
   (options.rates !== undefined && options.spending === undefined) ||
   (!companyAsked && !loansAsked && !investmentsAsked && !assetsAsked && !spendingAsked) ||
   (options.fake !== undefined && !knownFake) ||
-  (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal'].includes(options['fake-loans'])) ||
+  (options['fake-loans'] !== undefined && !['sample', 'house-and-car', 'equal-principal', 'lending'].includes(options['fake-loans'])) ||
   (options['fake-investments'] !== undefined && options['fake-investments'] !== 'sample') ||
   (options['fake-assets'] !== undefined && !['sample', 'house-and-car', 'loan-gone'].includes(options['fake-assets'])) ||
   (options['fake-spending'] !== undefined && !['sample', 'foreign', 'over', 'statements', 'cash', 'receipts'].includes(options['fake-spending'])) ||
   today === null
 ) {
   console.error(
-    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car or equal-principal>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash or receipts>] [--today yyyy-mm-dd]',
+    'Usage: npm run check:figures -- [--fake <drive, browser, browser-donations, one-employee or five-employees> | --workbook <path to .xlsx or .json>] [--loans <path to .json> | --fake-loans <sample, house-and-car, equal-principal or lending>] [--investments <path to .json> [--investments-prices <path to .json>] | --fake-investments sample] [--assets <path to .json> [--house-index <path to .json>] | --fake-assets <sample, house-and-car or loan-gone>] [--spending <path to .json> [--rates <path to kuna-rates.json>] | --fake-spending <sample, foreign, over, statements, cash or receipts>] [--today yyyy-mm-dd]',
   )
   process.exit(2)
 }

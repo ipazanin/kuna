@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import type { MoneyLook } from '../src/shared/money/moneyFormat'
 import { moneySign, moneyToneClass } from '../src/shared/ui/moneyTone'
 
 describe('moneyToneClass', () => {
@@ -34,5 +35,19 @@ describe('moneySign', () => {
   it('takes the sign an amount in ink states, or a minus below zero', () => {
     expect(moneySign(undefined, 'magnitude')).toBe('magnitude')
     expect(moneySign(undefined, undefined)).toBe('negative')
+  })
+})
+
+describe('MoneyLook', () => {
+  it('refuses a sign beside a tone, since the tone decides it, and takes one on an amount in ink', () => {
+    // @ts-expect-error a flow always shows its sign
+    const flow: MoneyLook = { tone: 'flow', sign: 'always' }
+    // @ts-expect-error an outcome always shows its sign
+    const outcome: MoneyLook = { tone: 'outcome', sign: 'magnitude' }
+    // @ts-expect-error a balance shows a minus below zero
+    const balance: MoneyLook = { tone: 'balance', sign: 'negative' }
+    const ink: MoneyLook = { sign: 'always' }
+
+    expect([flow, outcome, balance, ink].map((look) => moneySign(look.tone, look.sign))).toEqual(['always', 'always', 'negative', 'always'])
   })
 })

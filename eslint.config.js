@@ -57,6 +57,10 @@ const restrictedClasses = [
     message: '"$0": a colour comes from a token utility or a Nuxt UI tone, never an arbitrary property.',
   },
   {
+    pattern: utility(String.raw`(?:${colourUtilities})-(?:positive|negative)-soft(?:/.+)?`),
+    message: '"$0": the soft depth colours an amount of money in or out, through MoneyText\'s tone flow, never a class.',
+  },
+  {
     pattern: utility(String.raw`text-dimmed`),
     message: '"$0": dimmed ink is the same colour as muted ink, so use text-muted.',
   },
@@ -149,7 +153,22 @@ const scaleConstant = String.raw`/^10_?000n?$/`
 /** The text colours of tokens.css, which a figure with a tone takes from the tone instead. */
 const textColour = /(?:^|\s)text-(?:highlighted|toned|muted|dimmed|default|inverted|error|success|warning|info|primary)(?:\s|$)/
 
-/** A MoneyText or AccountMoneyText with a tone and a text colour in its class, where the class would override the tone. */
+/** The colours of the two depths and the warning tone, which no amount takes from a class, toned or not. */
+const toneColour = /(?:^|\s)text-(?:error|success|warning|positive-soft|negative-soft)(?:\s|$)/
+
+/** Every string a bound class names, in a literal, a template, an array or an object's keys. */
+function boundClassStrings(node) {
+  if (node === null || typeof node !== 'object') return []
+  if (node.type === 'Literal') return typeof node.value === 'string' ? [node.value] : []
+  if (node.type === 'TemplateElement') return [node.value.raw]
+  if (node.type === 'Property' && node.key.type === 'Identifier' && !node.computed) return [node.key.name, ...boundClassStrings(node.value)]
+  return Object.entries(node).flatMap(([key, child]) => (key === 'parent' ? [] : Array.isArray(child) ? child.flatMap(boundClassStrings) : boundClassStrings(child)))
+}
+
+/**
+ * A MoneyText or AccountMoneyText coloured by a class: red, green, amber or a soft depth on any of them, and any text colour
+ * on one with a tone, where the class would override the tone. It reads the plain class and the strings of a bound one.
+ */
 const moneyToneColours = {
   meta: { type: 'problem', schema: [] },
   create(context) {
@@ -158,9 +177,19 @@ const moneyToneColours = {
         if (!/^(?:Account)?MoneyText$/.test(element.rawName)) return
         const attributes = element.startTag.attributes
         const toned = attributes.some((attribute) => (attribute.directive ? attribute.key.argument?.name : attribute.key.name) === 'tone')
-        const coloured = attributes.find((attribute) => !attribute.directive && attribute.key.name === 'class' && textColour.test(attribute.value?.value ?? ''))
-        if (toned && coloured !== undefined) {
-          context.report({ node: coloured, message: 'A figure with a tone takes its colour from the tone. Drop the text colour, or drop the tone and say why the figure has no tone.' })
+        for (const attribute of attributes) {
+          const plain = !attribute.directive && attribute.key.name === 'class'
+          const bound = attribute.directive && attribute.key.name.name === 'bind' && attribute.key.argument?.name === 'class'
+          if (!plain && !bound) continue
+          const classes = plain ? [attribute.value?.value ?? ''] : boundClassStrings(attribute.value?.expression ?? null)
+          if (classes.some((names) => toneColour.test(names))) {
+            context.report({
+              node: attribute,
+              message: "An amount takes red or green from MoneyText's tone by the kind of figure it is, never from a class: outcome, flow or balance.",
+            })
+          } else if (toned && classes.some((names) => textColour.test(names))) {
+            context.report({ node: attribute, message: 'A figure with a tone takes its colour from the tone. Drop the text colour, or drop the tone and say why the figure has no tone.' })
+          }
         }
       },
     }

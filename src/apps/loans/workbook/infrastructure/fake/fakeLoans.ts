@@ -299,14 +299,21 @@ const DORA_MOVEMENTS: readonly Movement[] = movementsOf(FROM_DORA, 61, [
  * The fake build's made-up Loans files: `sample` with a bank loan and three informal loans, one you owe, one owed
  * to you whose borrower is behind on the expected plan and one owed to you and settled, `one-loan` with the bank
  * loan alone, `house-and-car` with the home loan, a car loan and an informal loan you owe and are behind on, each
- * with the same scenarios and offers, and `equal-principal` with one equal principal bank loan and nothing else.
+ * with the same scenarios and offers, `equal-principal` with one equal principal bank loan and nothing else, and `lending`
+ * with no bank loan and the informal loans to Petra, to Luka and from Dora, so you are owed more than you owe.
  */
-export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car' | 'equal-principal'
+export type FakeLoansSet = 'sample' | 'one-loan' | 'house-and-car' | 'equal-principal' | 'lending'
 
 /** The Loans file of the set, which the fake build keeps on the fake Drive. Every figure in it is made up, and its scenarios and offers are never counted as loans. */
 export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample'): WorkbookDocument {
   if (set === 'equal-principal') {
     return { ...emptyLoansDocument(savedAt), records: { ...stored(BANK_LOAN_RECORDS, [FLAT_LOAN]), ...stored(RATE_PERIOD_RECORDS, FLAT_RATE_PERIODS) } }
+  }
+  if (set === 'lending') {
+    return {
+      ...emptyLoansDocument(savedAt),
+      records: { ...stored(INFORMAL_LOAN_RECORDS, [TO_PETRA, SMALL_LOANS, FROM_DORA]), ...stored(MOVEMENT_RECORDS, [...OWED_TO_YOU_MOVEMENTS, ...DORA_MOVEMENTS]) },
+    }
   }
   const withCar = set === 'house-and-car'
   const informalLoans = set === 'sample' ? [FROM_MARKO, TO_PETRA, SMALL_LOANS] : withCar ? [FROM_DORA] : []

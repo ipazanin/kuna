@@ -191,7 +191,7 @@ function grouped(iban: string): string {
             </span>
           </template>
           <template #amount>
-            <MoneyText :cents="row.amount" sign="always" :tone="row.inLedger ? undefined : 'flow'" :class="{ 'text-muted': row.inLedger }" />
+            <MoneyText :cents="row.amount" v-bind="row.inLedger ? { sign: 'always' } : { tone: 'flow' }" :class="{ 'text-muted': row.inLedger }" />
             <MoneyText v-if="row.balance !== null" :cents="row.balance" tone="balance" class="type-caption" />
           </template>
         </ProposalRow>

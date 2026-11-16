@@ -5,7 +5,7 @@ import UBadge from '@nuxt/ui/components/Badge.vue'
 import UIcon from '@nuxt/ui/components/Icon.vue'
 
 import { informalLoanMonths } from '../../informalLoans/domain/informalLoanFigures'
-import { MOVEMENT_KIND_NAMES, standingWords } from '../../informalLoans/presentation/informalLoanView'
+import { movementLines, standingWords } from '../../informalLoans/presentation/informalLoanView'
 import { words as informalWords } from '../../informalLoans/presentation/words'
 import { informalLoanLink } from './loanLinks'
 import type { OverviewInformalLoan } from './loansOverview'
@@ -13,7 +13,6 @@ import { words } from './words'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import { monthOf } from '../../../../shared/calendar/monthKey'
-import { formatMoney } from '../../../../shared/money/moneyFormat'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import FactGrid from '../../../../shared/ui/FactGrid.vue'
 import type { Fact } from '../../../../shared/ui/FactGrid.vue'
@@ -40,8 +39,10 @@ const owedLine = computed(() => {
   return owedByYou === 0 ? words.card.settledWith(name) : owedByYou < 0 ? words.card.nameOwesYou(name) : words.card.youOweName(name)
 })
 
+const lastLine = computed(() => movementLines(book.value)[0] ?? null)
+
 const facts = computed((): Fact[] => {
-  const { last } = figures.value
+  const last = lastLine.value
   const { standing } = props.card
   return [
     ...(standing === null
@@ -55,7 +56,7 @@ const facts = computed((): Fact[] => {
         ]),
     last === null
       ? { label: words.card.lastMovement, value: words.card.noMovement }
-      : { label: words.card.lastMovement, value: words.card.movement(MOVEMENT_KIND_NAMES[last.kind], formatMoney(last.amount)), caption: dayLabel(last.date) },
+      : { label: words.card.lastMovement, amount: last.amount, caption: informalWords.tiles.kindOn(last.kind, dayLabel(last.movement.date)) },
     { label: words.card.since, value: dayLabel(book.value.loan.start), caption: book.value.loan.expected === null ? words.card.noInterest : words.card.noInterestPlanned },
   ]
 })
