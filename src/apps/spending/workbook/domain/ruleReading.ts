@@ -1,4 +1,6 @@
 import { ibanKey } from './accountReading'
+import { rowLinkOf, rowLinkText } from './rowLink'
+import type { RowLink } from './rowLink'
 import { flagOf, orderOf } from './fieldReading'
 import { optionalReference, requiredReference } from './recordReference'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, RULE_RECORDS } from './spendingKinds'
@@ -30,6 +32,14 @@ function withdrawalOf(fields: StoredFields): RuleWithdrawal | null {
   return { cashAccount }
 }
 
+/** The loan a rule's rows pay, as a link with no due date, since each row pays its own instalment. */
+function ruleLinkOf(fields: StoredFields): RowLink | null {
+  if (fields.link === undefined) return null
+  const text = textOf(fields.link)
+  const link = rowLinkOf(text)
+  return link === null || link.due !== null ? refuse(words.notARuleLink(text)) : link
+}
+
 function ruleOf(fields: StoredFields, id: RecordId | null): SpendingRule {
   return {
     id: ownId(id),
@@ -37,6 +47,7 @@ function ruleOf(fields: StoredFields, id: RecordId | null): SpendingRule {
     condition: conditionOf(fields),
     category: requiredReference(fields, 'category', CATEGORY_RECORDS),
     withdrawal: withdrawalOf(fields),
+    link: ruleLinkOf(fields),
   }
 }
 
@@ -48,5 +59,6 @@ export const RULE_CODEC: RecordCodec<SpendingRule> = withIdField(RULE_RECORDS, w
     category: keyOfRecordId(CATEGORY_RECORDS, rule.category),
     withdrawal: rule.withdrawal === null ? null : true,
     cash_account: rule.withdrawal?.cashAccount == null ? null : keyOfRecordId(ACCOUNT_RECORDS, rule.withdrawal.cashAccount),
+    link: rule.link === null ? null : rowLinkText(rule.link),
   }),
 )

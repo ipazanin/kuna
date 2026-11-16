@@ -5,13 +5,17 @@ import { fakeLoansDocument } from '../src/apps/loans/workbook/infrastructure/fak
 import { LOANS_DOCUMENT } from '../src/apps/loans/workbook/infrastructure/loansDocument'
 import { loanTargetsFrom } from '../src/apps/spending/links/application/loanTargets'
 import { linkStateOf } from '../src/apps/spending/links/domain/linkTarget'
-import { instalmentOffers, pastInstalments } from '../src/apps/spending/links/domain/instalmentOffers'
+import { extraPaymentOffers, instalmentOffers, pastInstalments } from '../src/apps/spending/links/domain/instalmentOffers'
 import type { InstalmentTarget } from '../src/apps/spending/links/domain/linkTarget'
 import { instalmentPutOffOf, instalmentsPutOffText, spendingSettingsOf } from '../src/apps/spending/workbook/domain/spendingSettings'
 import type { StoredRow } from '../src/apps/spending/workbook/domain/transaction'
 import { fakeSpendingDocument } from '../src/apps/spending/workbook/infrastructure/fake/fakeSpending'
 import { fakeHomeLoanShare, latestFakeHomeLoanDue } from '../src/apps/spending/workbook/infrastructure/fake/fakeHomeLoan'
-import { FAKE_HOME_LOAN } from '../src/shared/storage/infrastructure/fake/fakeLoanKeys'
+import { FAKE_HOME_LOAN, fakeOverruledLate } from '../src/shared/storage/infrastructure/fake/fakeLoanKeys'
+import { statementPaymentsFrom } from '../src/apps/loans/bankLoans/application/statementPayments'
+import { instalmentStandings } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
+import { rowLinksOf } from '../src/apps/spending/facts'
+import { decidingRule } from '../src/apps/spending/statements/domain/spendingCategorisation'
 import { revolutStatement } from '../src/apps/spending/statements/domain/revolutStatement'
 import { statementDryRun } from '../src/apps/spending/statements/domain/statementDryRun'
 import { SAMPLE_LOAN_FILE_NAME, sampleLoanCsv } from '../src/apps/spending/statements/infrastructure/fake/sampleRevolutFiles'
@@ -144,7 +148,7 @@ describe('the fake books', () => {
     expect(pastInstalments(spending, offers, []).map((card) => card.offers.length)).toEqual([1])
   })
 
-  it("link Spending's sample rows to records the fake Loans file has, but for last month's instalment, which Loans does not have", () => {
+  it("link Spending's sample rows to records the fake Loans file has, the extra payment among them, but for last month's instalment, which Loans does not have", () => {
     const day = civil('2026-11-15')
     const meta = { id: 'links', source: 'browser' as const, title: 'links', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
     const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'sample', day) }).workbook
@@ -156,7 +160,33 @@ describe('the fake books', () => {
       ['bank-loan', 'there'],
       ['bank-loan', 'gone'],
       ['movement', 'there'],
+      ['extra-payment', 'there'],
     ])
+  })
+
+  it("have Spending's linked row overrule the late-instalment record the fake Loans file holds for the same instalment, on the same day", () => {
+    const day = civil('2026-11-04')
+    const meta = { id: 'late', source: 'browser' as const, title: 'late', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
+    const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'sample', day) }).workbook
+    const loans = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(meta.syncedAt) }).workbook
+    const home = loans.bankLoans.find((entry) => entry.loan.name === 'Home loan')!
+    const { due } = fakeOverruledLate(day)
+
+    expect(instalmentStandings(home, statementPaymentsFrom([{ app: 'spending', links: rowLinksOf(spending) }], 'loans'), day).get(due)).toMatchObject({
+      standing: 'seen',
+      overruled: { due },
+    })
+  })
+
+  it("offer the statements set's early repayment, which the home loan's rule filed whole, as an extra payment of the home loan", () => {
+    const day = civil('2026-11-04')
+    const meta = { id: 'extra', source: 'browser' as const, title: 'extra', syncedAt: '2026-11-04T09:00:00.000Z', lastExportedAt: null, unexportedSince: null }
+    const spending = SPENDING_DOCUMENT.read({ meta, revision: '1', document: fakeSpendingDocument(meta.syncedAt, 'statements', day) }).workbook
+    const loans = LOANS_DOCUMENT.read({ meta, revision: '1', document: fakeLoansDocument(meta.syncedAt) }).workbook
+    const ruleOf = decidingRule(spending.rules, spending)
+    const offers = extraPaymentOffers(spending, loanTargetsFrom(loanTargetsOf(loans)), (row) => ruleOf(row)?.link ?? null)
+
+    expect(offers.map(({ row, instalment }) => [row.payee, row.amount, instalment.loanName])).toEqual([['Example Bank', accountMoneyFromAmount(-5000), 'Home loan']])
   })
 
   it("give Spending's fake rows your share of the home loan's plan in every month", () => {

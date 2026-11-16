@@ -10,6 +10,7 @@ import type { RecordKind } from '../../shared/storage/domain/recordKind'
 import { bankLoanFigures } from './bankLoans/domain/bankLoanFigures'
 import { splitOf } from './bankLoans/domain/loanFigures'
 import { bankLoanLink, informalLoanLink } from './overview/presentation/loanLinks'
+import { EXTRA_PAYMENT_WRITES, newExtraPayment } from './bankLoans/application/bankLoanWrites'
 import { MOVEMENT_WRITES, newMovement } from './informalLoans/application/informalLoanWrites'
 import { useLoansBooks } from './workbook/application/loansStore'
 import { sessionWrite } from '../../shared/storage/application/sessionWrite'
@@ -180,6 +181,30 @@ export async function addMovement(movement: MovementToAdd, title: string): Promi
   const added = newMovement({ loan: recordIdOf(INFORMAL_LOAN_RECORDS, movement.loan), date: movement.day, kind: movement.kind, amount: movement.amount, note: movement.note })
   const written = await sessionWrite(store, title, (unit) => unit.of(MOVEMENT_WRITES).add(added), 'add-movement-from-another-app')
   return { link: linkOf(MOVEMENT_RECORDS, added.id), undo: async () => (written === null ? undefined : store.undo(written)) }
+}
+
+/** What an extra payment does to the rest of its loan: ends it sooner, or keeps the term with a lower instalment. */
+export type PublishedExtraPaymentEffect = 'shorter-term' | 'lower-instalment'
+
+/** An extra payment another app adds to one of the bank loans Loans publishes. */
+export interface ExtraPaymentToAdd {
+  /** The bank loan's bare UUID. */
+  readonly loan: string
+  readonly day: CivilDate
+  /** Above zero. */
+  readonly amount: Money
+  readonly effect: PublishedExtraPaymentEffect
+}
+
+/**
+ * Adds the extra payment to the Loans file on screen in a write of its own, under the title the adding app gives, as the
+ * extra payment dialog adds one. Throws with the reason when Loans is not open or refuses it.
+ */
+export async function addExtraPayment(payment: ExtraPaymentToAdd, title: string): Promise<AddedInLoans> {
+  const store = useLoansBooks()
+  const added = newExtraPayment({ loan: recordIdOf(BANK_LOAN_RECORDS, payment.loan), date: payment.day, amount: payment.amount, effect: payment.effect })
+  const written = await sessionWrite(store, title, (unit) => unit.of(EXTRA_PAYMENT_WRITES).add(added), 'add-extra-payment-from-another-app')
+  return { link: linkOf(EXTRA_PAYMENT_RECORDS, added.id), undo: async () => (written === null ? undefined : store.undo(written)) }
 }
 
 /** The instalments, extra payments and informal loans of the file on screen, a wait while it opens, a failure, or null while Loans is not set up. */

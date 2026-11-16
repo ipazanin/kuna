@@ -143,8 +143,8 @@ describe("Loans' reports", () => {
     const { desk } = await readerOfDesk()
     const loan = desk.store.state.workbook!.bankLoans[0]!.loan.id
     const payments = [
-      { loan, due: civil('2026-03-05'), booked: civil('2026-03-11') },
-      { loan, due: civil('2026-04-05'), booked: civil('2026-04-03') },
+      { kind: 'instalment' as const, loan, due: civil('2026-03-05'), booked: civil('2026-03-11') },
+      { kind: 'instalment' as const, loan, due: civil('2026-04-05'), booked: civil('2026-04-03') },
     ]
     const reader = loansReader({ status: () => 'open', book: () => desk.store.state.workbook, statementPayments: () => payments })
     const named = 'bank loan from Example Bank paid out 2026-01-05'

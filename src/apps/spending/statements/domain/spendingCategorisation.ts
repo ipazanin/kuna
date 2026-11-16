@@ -1,5 +1,9 @@
 import { sameMoney, typedRowsOf } from '../../pairing/domain/sameMoney'
+import { ruleLinking } from '../../links/domain/instalmentSplit'
+import type { InstalmentLinks } from '../../links/domain/instalmentSplit'
+import type { Category } from '../../workbook/domain/category'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
+import { rowLinkText } from '../../workbook/domain/rowLink'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
 import { refiledItems, rowItemsOf, waitsOnReview } from '../../workbook/domain/rowItems'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -10,6 +14,7 @@ import type { Rule, RuleCondition } from '../../../../shared/categorising/domain
 import type { CategorisableRow, CategorisationContext, TransactionSignals } from '../../../../shared/categorising/domain/transactionFacts'
 import { EURO } from '../../../../shared/money/currencyCode'
 import { moneyFromCents } from '../../../../shared/money/money'
+import { newRecordId } from '../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { foldRuleText, normaliseIban } from '../../../../shared/text/fold'
 
@@ -86,24 +91,54 @@ export interface RowChange {
   readonly items?: readonly TransactionItem[]
 }
 
+/** What a set of rules does to the file: the rows it changes, and the categories the links of those rows need that the file lacks. */
+export interface RulesRerun {
+  readonly changes: readonly RowChange[]
+  readonly categories: readonly Category[]
+}
+
 /**
  * What a set of rules does to the file: a row of one item a rule filed follows the rules, back to waiting when none holds any
  * more, and a row waiting on review takes the first rule that holds. A row you set, or that the file reader or the pairing
- * filed, stays as it is, and so does a row To review offers as the same money as a typed row, until you answer.
+ * filed, stays as it is, and so does a row To review offers as the same money as a typed row, until you answer. A row a rule
+ * whose rows pay a loan decides is linked to the instalment it pays as `ruleLinking` says. While `links` names no records,
+ * since Loans cannot be read, such a row stays as it is, so a waiting instalment never counts whole under the rule's category.
  */
-export function rulesRerun(book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'items'>, rules: readonly SpendingRule[]): readonly RowChange[] {
-  const categoryOf = ruleVerdicts(rules, book)
+export function rulesRerun(
+  book: Pick<SpendingBook, 'accounts' | 'categories' | 'transactions' | 'items'>,
+  rules: readonly SpendingRule[],
+  links: InstalmentLinks | null = null,
+  newKey: () => string = newRecordId,
+): RulesRerun {
+  const ruleOf = decidingRule(rules, book)
   const itemsOf = rowItemsOf(book)
   const { matches, near } = sameMoney(
     typedRowsOf(book),
     book.transactions.filter((row) => row.source === 'statement' && waitsOnReview(itemsOf(row))),
   )
   const offered = new Set([...matches, ...near].map(({ bank }) => bank))
-  return book.transactions.flatMap((before) => {
+  const currencies = new Map(book.accounts.map((account) => [account.id, account.currency]))
+  const linked = new Set(book.items.flatMap((item) => (item.link === null ? [] : [rowLinkText(item.link)])))
+  let categories = book.categories
+  const changes = book.transactions.flatMap((before): RowChange[] => {
     const items = itemsOf(before)
     const waiting = waitsOnReview(items) && before.categorisedBy === null
     if ((before.categorisedBy !== 'rule' && !waiting) || offered.has(before) || items.length > 1) return []
-    const category = categoryOf(before)
-    return category === items[0]!.category ? [] : [{ before, after: { ...before, categorisedBy: category === null ? null : ('rule' as const) }, items: refiledItems(items, category) }]
+    const rule = ruleOf(before)
+    const payingLoan = rule?.link != null && items[0]!.link === null ? rule.link : null
+    if (payingLoan !== null && (links?.targets ?? null) === null) return []
+    const category = rule?.category ?? null
+    const filed = { before, after: { ...before, categorisedBy: category === null ? null : ('rule' as const) }, items: refiledItems(items, category) }
+    if (payingLoan !== null && links !== null && links.targets !== null && category !== null) {
+      const place = { currency: currencies.get(before.account) ?? EURO, categories, language: links.language, notes: links.notes }
+      const paying = ruleLinking({ row: filed.after, items: filed.items }, payingLoan, links.targets, linked, place, newKey)
+      if (paying !== null) {
+        linked.add(rowLinkText(paying.target.link))
+        categories = [...categories, ...paying.added]
+        return [{ before, after: paying.entry.row, items: paying.entry.items }]
+      }
+    }
+    return category === items[0]!.category ? [] : [filed]
   })
+  return { changes, categories: categories.slice(book.categories.length) }
 }

@@ -642,18 +642,19 @@ describe('an entry’s link to Loans', () => {
     expect([bookOf(desk).categories, bookOf(desk).items]).toEqual([before.categories, before.items])
   })
 
-  it('links an informal loan by its name, and refuses a loan Loans does not list, an instalment on a day the plan has none, and a link off an entry with none', async () => {
+  it("links a movement already in Loans by its loan's name and day, and refuses an informal loan as a whole, a loan Loans does not list, an instalment on a day the plan has none, and a link off an entry with none", async () => {
     const desk = await spendingDesk(used)
     const entry = desk.ref('transaction', EXAMPLE_RECORDS['transaction']!)
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Car loan', due: '2026-11-15' })])).text).toContain('not a loan Loans lists')
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Housing loan', due: '2026-11-16' })])).text).toContain(
       'an instalment, a movement or an extra payment on 2026-11-16',
     )
-    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'Housing loan' })])).text).toContain('needs its due date')
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'From Marko', due: null })])).isError).toBe(true)
+    expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'From Marko', due: '2026-10-13' })])).text).toContain('Add a movement or an extra payment in Loans first')
     expect((await desk.propose([stepOf(SPENDING_OPERATIONS, 'unlink-entry', { entry })])).text).toContain('no link')
-    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'From Marko' })])
+    await desk.propose([stepOf(SPENDING_OPERATIONS, 'link-entry', { entry, loan: 'From Marko', due: '2026-10-12' })])
     expect((await desk.accept()).kind).toBe('done')
-    expect(rowOf(desk, EXAMPLE_RECORDS['transaction']!)?.link).toEqual({ app: 'loans', kind: 'informal-loan', key: 'made-up-informal-loan', due: null })
+    expect(rowOf(desk, EXAMPLE_RECORDS['transaction']!)?.link).toEqual({ app: 'loans', kind: 'movement', key: 'made-up-movement', due: null })
   })
 
   it('tells the chat what a link names, or that Loans no longer has it', async () => {

@@ -26,7 +26,7 @@ import { recordIdOf } from '../../../../../shared/storage/domain/recordId'
 import type { RecordId } from '../../../../../shared/storage/domain/recordId'
 import type { RecordKind } from '../../../../../shared/storage/domain/recordKind'
 import type { WorkbookDocument } from '../../../../../shared/storage/infrastructure/documentFormat'
-import { FAKE_CAR_LOAN, FAKE_HOME_LOAN } from '../../../../../shared/storage/infrastructure/fake/fakeLoanKeys'
+import { FAKE_CAR_LOAN, FAKE_HOME_LOAN, FAKE_HOME_LOAN_EXTRA_PAYMENT, fakeOverruledLate } from '../../../../../shared/storage/infrastructure/fake/fakeLoanKeys'
 
 function day(text: string): CivilDate {
   const parsed = parseCivilDate(text)
@@ -71,9 +71,16 @@ const RATE_PERIODS: readonly RatePeriod[] = [
   { id: fixedId(RATE_PERIOD_RECORDS, 3), loan: HOME_LOAN.id, from: day('2028-04-20'), rate: rate('3.85'), rateType: 'variable', note: '6M EURIBOR + 1.20' },
 ]
 
-const EXTRA_PAYMENTS: readonly ExtraPayment[] = [{ id: fixedId(EXTRA_PAYMENT_RECORDS, 4), loan: HOME_LOAN.id, date: day('2025-06-15'), amount: euros(8000), effect: 'lower-instalment' }]
+const EXTRA_PAYMENTS: readonly ExtraPayment[] = [
+  { id: recordIdOf(EXTRA_PAYMENT_RECORDS, FAKE_HOME_LOAN_EXTRA_PAYMENT), loan: HOME_LOAN.id, date: day('2025-06-15'), amount: euros(8000), effect: 'lower-instalment' },
+]
 
 const LATE_INSTALMENTS: readonly LateInstalment[] = [{ id: fixedId(LATE_INSTALMENT_RECORDS, 5), loan: HOME_LOAN.id, due: day('2024-12-20'), paid: day('2025-01-07') }]
+
+/** A late-instalment record of the instalment the fake Spending sets pay before it falls due, nine days late, which their linked row overrules. */
+function overruledLate(savedAt: string): LateInstalment {
+  return { id: fixedId(LATE_INSTALMENT_RECORDS, 6), loan: HOME_LOAN.id, ...fakeOverruledLate(day(savedAt.slice(0, 10))) }
+}
 
 function movementsOf(loan: InformalLoan, firstPlace: number, entries: readonly (readonly [string, Movement['kind'], number, string])[]): Movement[] {
   return entries.map(([date, kind, amount, note], index) => ({ id: fixedId(MOVEMENT_RECORDS, firstPlace + index), loan: loan.id, date: day(date), kind, amount: euros(amount), note }))
@@ -310,7 +317,7 @@ export function fakeLoansDocument(savedAt: string, set: FakeLoansSet = 'sample')
       ...stored(BANK_LOAN_RECORDS, withCar ? [HOME_LOAN, CAR_LOAN] : [HOME_LOAN]),
       ...stored(RATE_PERIOD_RECORDS, withCar ? [...RATE_PERIODS, ...CAR_RATE_PERIODS] : RATE_PERIODS),
       ...stored(EXTRA_PAYMENT_RECORDS, EXTRA_PAYMENTS),
-      ...stored(LATE_INSTALMENT_RECORDS, LATE_INSTALMENTS),
+      ...stored(LATE_INSTALMENT_RECORDS, [...LATE_INSTALMENTS, overruledLate(savedAt)]),
       ...stored(INFORMAL_LOAN_RECORDS, informalLoans),
       ...stored(MOVEMENT_RECORDS, movements),
       ...stored(LOAN_SCENARIO_RECORDS, [NEXT_SPRING, EVERY_MONTH, MOVE, JADRAN, COASTAL, LIGHTHOUSE]),

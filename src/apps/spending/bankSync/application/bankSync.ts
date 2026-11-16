@@ -10,6 +10,7 @@ import { words } from '../domain/words'
 import { writeDryRun } from '../../statements/application/statementWrites'
 import { rowsAfterDryRun, statementDryRun } from '../../statements/domain/statementDryRun'
 import type { StatementDryRun } from '../../statements/domain/statementDryRun'
+import type { InstalmentLinks } from '../../links/domain/instalmentSplit'
 import { SETTING_WRITES } from '../../workbook/application/settingWrites'
 import { setSetting } from '../../../../shared/storage/application/settingWrites'
 import type { useSpendingBooks } from '../../workbook/application/spendingStore'
@@ -78,6 +79,8 @@ export interface BankImportPorts {
   /** The banks answered, with what this device keeps to repeat while the step holds back. A call that never reached them keeps nothing. */
   asked(read: BankRead): void
   day(): CivilDate
+  /** The records in Loans the sync links a new row to, as a rule whose rows pay a loan says, or null where nothing links. */
+  links(): InstalmentLinks | null
   /** Epoch milliseconds. */
   now(): number
 }
@@ -118,7 +121,7 @@ export function bankImporter(ports: BankImportPorts): BankImporter {
     }
     // The file as it stands now, not as it stood before the banks answered, which can take minutes and a file dropped meanwhile.
     const book = openBook(store)
-    const dryRun = statementDryRun(book, read.statement, day)
+    const dryRun = statementDryRun(book, read.statement, day, ports.links())
     const differences = balanceDifferences(read.stated, rowsAfterDryRun(book.transactions, dryRun), day)
     const changes = dryRun.added.length + dryRun.changed.length
     const stamp = (unit: UnitOfWork): void => read.fetched.forEach((bank) => saveFetched(unit, book, bank, answeredAt))

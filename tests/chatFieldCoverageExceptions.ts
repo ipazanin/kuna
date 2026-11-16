@@ -205,6 +205,10 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
     paths: ['src/apps/spending/entries/application/entryWrites.ts#linkEntries'],
   },
   {
+    reason: 'Linking a row to the record it just added in Loans, which links it as link-entry does and takes no field of its own. The record itself is written by the Loans write it is handed.',
+    paths: ['src/apps/spending/links/application/linkWithRecord.ts#addAndLink'],
+  },
+  {
     reason: "Moving a file from before items to items, which the person confirms on the file's offer and types nothing for. The chat's move-to-items reaches it.",
     paths: ['src/apps/spending/entries/application/rowRecords.ts#moveToItems'],
   },

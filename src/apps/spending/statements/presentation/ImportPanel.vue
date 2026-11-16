@@ -15,6 +15,7 @@ import MissingAccountsOffer from './MissingAccountsOffer.vue'
 import { words } from './words'
 import AccountMoneyText from '../../accounts/presentation/AccountMoneyText.vue'
 import { loanTargets } from '../../links/application/loanTargets'
+import { instalmentLinksOf } from '../../links/domain/instalmentSplit'
 import { words as linkWords } from '../../links/presentation/words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { parseCivilDate, today } from '../../../../shared/calendar/civilDate'
@@ -105,15 +106,19 @@ watch([typedFrom, typedTo, gap, fileDays], () => {
   else if (from <= to) days.value = { from, to }
 })
 
-/** The Loans file's records, so a new row that pays an instalment comes in linked to it. While Loans opens, failed or is not set up, none is linked. */
+/** The Loans file's records, so a new row that pays an instalment comes in linked to it. While Loans opens, failed or is not set up, none is linked, and a row a rule whose rows pay a loan decides waits. */
 const loans = computed(() => loanTargets())
 /** Why the import links no row to an instalment while Loans is set up, or null when it reads Loans. */
 const loansUnread = computed(() => (typeof loans.value === 'string' && (dryRun.value?.newRows ?? 0) > 0 ? words.import.loansUnread[loans.value] : null))
 const dryRun = computed(() => {
   const book = store.state.workbook
   if (book === null || statement.value === null) return null
-  const targets = loans.value === null || typeof loans.value === 'string' ? [] : loans.value
-  return statementDryRun(book, { ...statement.value, twinAnswers: new Map(Object.entries(twinAnswers.value)), days: days.value }, today(), { targets, language, notes: linkWords.notes })
+  return statementDryRun(
+    book,
+    { ...statement.value, twinAnswers: new Map(Object.entries(twinAnswers.value)), days: days.value },
+    today(),
+    instalmentLinksOf(loans.value, { language, notes: linkWords.notes }),
+  )
 })
 
 const twinItems = computed(() => {

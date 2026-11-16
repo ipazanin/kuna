@@ -90,7 +90,7 @@ function portOf(fields: Partial<BankSyncPort> = {}): BankSyncPort {
 }
 
 function importerOver(port: BankSyncPort, store: BankImportPorts['store'], asked: (read: BankRead) => void = () => undefined) {
-  return bankImporter({ script: async () => port, store, asked, day: () => DAY, now: () => NOW })
+  return bankImporter({ script: async () => port, store, asked, day: () => DAY, links: () => null, now: () => NOW })
 }
 
 afterEach(() => {
@@ -118,7 +118,7 @@ describe('a fetch', () => {
   it('tells the script a person is there only when a tap started the fetch', async () => {
     const fake = storeOver(bookOf([]))
     const script = vi.fn(async () => portOf())
-    const importer = bankImporter({ script, store: fake.store, asked: () => undefined, day: () => DAY, now: () => NOW })
+    const importer = bankImporter({ script, store: fake.store, asked: () => undefined, day: () => DAY, links: () => null, now: () => NOW })
 
     await importer.run(true)
     await importer.run(false)

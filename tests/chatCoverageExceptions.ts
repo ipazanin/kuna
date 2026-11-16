@@ -11,7 +11,12 @@ export const CHAT_EXCEPTIONS: readonly ChatException[] = [
   {
     reason:
       "Adding a movement to an informal loan from an entry's dialog, which writes a movement in Loans and then links the entry, two files under one Undo. The chat writes one app's file per card, so it links an entry to a movement already in Loans through link-entry.",
-    paths: ['src/apps/spending/links/application/linkWithRecord.ts#addMovementAndLink'],
+    paths: ['src/apps/spending/links/application/loanTargets.ts#addLoansMovement'],
+  },
+  {
+    reason:
+      "Recording a row as an extra payment of a bank loan from To review, which writes the extra payment in Loans and then links the row, two files under one Undo. The chat writes one app's file per card, so it links a row to an extra payment already in Loans through link-entry.",
+    paths: ['src/apps/spending/links/application/loanTargets.ts#addLoansExtraPayment'],
   },
   {
     reason: "Not now on To review's card of past instalments. It only stops that card offering what the person saw on it, and the chat does not show the card.",

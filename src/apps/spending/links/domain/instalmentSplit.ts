@@ -1,10 +1,14 @@
-import type { InstalmentTarget, LinkTarget } from './linkTarget'
+import { loanLinkOf, sameRecord } from './linkTarget'
+import type { AppTargets, InstalmentTarget, LinkTarget } from './linkTarget'
+import { inWindow, isNear, nearestTo } from '../../pairing/domain/sameMoney'
+import type { DatedMoney } from '../../pairing/domain/sameMoney'
 import { fixedCategoryIn, loanInterestCategory, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { eventOfLargest, labelsOf } from '../../workbook/domain/carriedChoices'
 import type { Category } from '../../workbook/domain/category'
 import { ITEM_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { filedAsTransfer, linkedItems, wholeItemOf, wholeRowItemId } from '../../workbook/domain/rowItems'
+import { rowLinkText } from '../../workbook/domain/rowLink'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { TransactionItem } from '../../workbook/domain/transactionItem'
@@ -54,6 +58,11 @@ export interface LinkedOn {
 /** Euros of the plan as money out of a euro account. */
 export function paidOut(euros: Money): AccountMoney {
   return negateAccountMoney(accountMoneyOfEuros(euros))
+}
+
+/** The instalment's share as the money out of a euro account that pays it, on its due date. */
+export function expectedOf(target: InstalmentTarget): DatedMoney {
+  return { date: target.due, amount: paidOut(target.yourShare) }
 }
 
 /** The instalment's interest and principal as money out of the entry, and what the entry pays besides them, signed as the entry is. */
@@ -183,4 +192,34 @@ export function linkedEntry(entry: ItemizedRow, target: LinkTarget, place: LinkP
     interest: interest.category.id,
     added: [...principalAdded, ...interest.added],
   }
+}
+
+/** The records in Loans a write may link rows to, null while Loans cannot be read, with the language and notes of the parts and categories a link adds. */
+export type InstalmentLinks = Pick<LinkPlace, 'language' | 'notes'> & { readonly targets: readonly LinkTarget[] | null }
+
+/** An entry a rule linked to the instalment it pays. */
+export type RuleLinked = LinkedEntry & { readonly target: InstalmentTarget }
+
+/**
+ * What a rule whose rows pay a loan does to an entry it filed: links it to the loan's instalment due nearest its day inside the
+ * window that no row is linked to yet, as `linked` names them, when the entry is money out of a euro account paying the share
+ * within a tenth, and splits it as `linkedEntry` does, the interest under the rule's category. Null leaves it filed whole.
+ */
+export function ruleLinking(entry: ItemizedRow, loan: RowLink, targets: readonly LinkTarget[], linked: ReadonlySet<string>, place: LinkPlace, newKey: () => string = newRecordId): RuleLinked | null {
+  if (entry.row.amount >= 0 || entry.row.pair !== null || place.currency !== EURO) return null
+  const open = targets.filter(
+    (target): target is InstalmentTarget =>
+      target.kind === 'instalment' && sameRecord(loanLinkOf(target.link), loan) && !linked.has(rowLinkText(target.link)) && inWindow(expectedOf(target), entry.row),
+  )
+  const nearest = nearestTo(
+    entry.row.date,
+    open.map((target) => ({ date: target.due, target })),
+  )?.target
+  if (nearest === undefined || !isNear(expectedOf(nearest), entry.row)) return null
+  return { ...linkedEntry(entry, nearest, { ...place, receipt: false }, newKey), target: nearest }
+}
+
+/** The records an app's targets give a write to link rows to: none while the app opens, failed or is not set up. */
+export function instalmentLinksOf(targets: AppTargets<LinkTarget>, words: Pick<LinkPlace, 'language' | 'notes'>): InstalmentLinks {
+  return { targets: targets === null || typeof targets === 'string' ? null : targets, language: words.language, notes: words.notes }
 }

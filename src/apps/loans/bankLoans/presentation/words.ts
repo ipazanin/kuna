@@ -121,6 +121,7 @@ export const en = {
   /** What a row of the plan is or how it stands: "Paid", "Due", "Paid 8 Dec, 18 days late", "Paid 20 Nov, seen in your statement" or "Extra payment". */
   status: {
     extra: 'Extra payment',
+    extraSeen: 'Extra payment, seen in your statement',
     interimPaid: 'Interim interest, paid',
     interimDue: 'Interim interest, due',
     paidLate: (count: number, day: string): EnglishForms => ({ one: `Paid ${day}, 1 day late`, other: `Paid ${day}, ${count} days late` }),
@@ -456,6 +457,7 @@ export const hr: Translation<typeof en> = {
   },
   status: {
     extra: 'Prijevremena otplata',
+    extraSeen: 'Prijevremena otplata, vidljiva na vašem izvodu',
     interimPaid: 'Interkalarna kamata, plaćena',
     interimDue: 'Interkalarna kamata, dospijeva',
     paidLate: (count, day) => ({ one: `Plaćen ${day}, ${count} dan nakon dospijeća`, few: `Plaćen ${day}, ${count} dana nakon dospijeća`, other: `Plaćen ${day}, ${count} dana nakon dospijeća` }),

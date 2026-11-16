@@ -111,6 +111,17 @@ export const DESK_LOAN_TARGETS: readonly LinkTarget[] = [
     principal: moneyFromAmount(400),
   })),
   { kind: 'informal-loan', link: { app: 'loans', kind: 'informal-loan', key: 'made-up-informal-loan', due: null }, name: 'From Marko', counterparty: 'Marko', direction: 'you-owe' },
+  {
+    kind: 'movement',
+    link: { app: 'loans', kind: 'movement', key: 'made-up-movement', due: null },
+    loan: { app: 'loans', kind: 'informal-loan', key: 'made-up-informal-loan', due: null },
+    loanName: 'From Marko',
+    counterparty: 'Marko',
+    direction: 'you-owe',
+    day: on('2026-10-12'),
+    movement: 'repaid',
+    amount: moneyFromAmount(45.3),
+  },
 ]
 
 function row(key: string, date: string, amount: number, payee: string, fields: Partial<StoredRow> = {}): StoredRow {
@@ -217,7 +228,14 @@ export const WAITING_LINE: TransactionItem = {
   splitByLink: false,
 }
 
-const RULE: SpendingRule = { id: recordIdOf(RULE_RECORDS, 'rule-corner'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Corner' }, category: GROCERIES.id, withdrawal: null }
+const RULE: SpendingRule = {
+  id: recordIdOf(RULE_RECORDS, 'rule-corner'),
+  order: 1,
+  condition: { column: 'counterparty_contains', fragment: 'Corner' },
+  category: GROCERIES.id,
+  withdrawal: null,
+  link: null,
+}
 
 function linkedAccount(uid: string, iban: string, currency: string, described: Partial<LinkedAccount> = {}): LinkedAccount {
   return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null, ...described }

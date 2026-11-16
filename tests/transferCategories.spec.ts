@@ -131,6 +131,7 @@ describe('a second transfer category', () => {
         condition: { column: 'counterparty_contains', fragment: 'Bankomat' },
         category: SECOND.id,
         withdrawal: { cashAccount: null },
+        link: null,
       }
       const run = statementDryRun(bookOf([], [bankomat]), statementOf(statementRow(OTP, -50, 'Bankomat Ilica')), DAY)
 

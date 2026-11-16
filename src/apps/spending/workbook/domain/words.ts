@@ -33,6 +33,7 @@ export const en = {
   notAFlag: (name: string, text: string) => `${name} "${text}" is neither true nor false`,
   notAWholeNumber: (name: string, text: string) => `${name} "${text}" is not a whole number`,
   notALink: (text: string) => `link "${text}" is not app/kind/key with a due date after it for an instalment, such as loans/bank-loan/<uuid>/2026-11-15`,
+  notARuleLink: (text: string) => `link "${text}" is not app/kind/key with no due date, such as loans/bank-loan/<uuid>, since each row a rule links pays its own instalment`,
   ibanShared: (accounts: string, iban: string, currency: string) =>
     `your account ${accounts} already has the IBAN ${iban} in ${currency}. A bank such as Revolut gives each currency its own account under one IBAN, so give this one the currency it holds`,
   fixedWithParent: 'a fixed category has no parent',
@@ -115,6 +116,7 @@ export const hr: Translation<typeof en> = {
   notAFlag: (name, text) => `${name} „${text}” nije ni true ni false`,
   notAWholeNumber: (name, text) => `${name} „${text}” nije cijeli broj`,
   notALink: (text) => `link „${text}” nije oblika aplikacija/vrsta/ključ, s datumom dospijeća iza njega za ratu, primjerice loans/bank-loan/<uuid>/2026-11-15`,
+  notARuleLink: (text) => `link „${text}” nije oblika aplikacija/vrsta/ključ bez datuma dospijeća, primjerice loans/bank-loan/<uuid>, jer svaki redak koji pravilo poveže plaća svoju ratu`,
   ibanShared: (accounts, iban, currency) =>
     `vaš račun ${accounts} već ima IBAN ${iban} u valuti ${currency}. Banka kao Revolut daje svakoj valuti zaseban račun pod istim IBAN-om, pa postavite valutu u kojoj se ovaj račun vodi`,
   fixedWithParent: 'stalna kategorija nema nadređenu',

@@ -1,5 +1,6 @@
-import { paidOut } from './instalmentSplit'
-import type { InstalmentTarget, LinkTarget } from './linkTarget'
+import { expectedOf } from './instalmentSplit'
+import { loanLinkOf, paidLoansIn, sameRecord } from './linkTarget'
+import type { InstalmentTarget, LinkTarget, PaidLoan } from './linkTarget'
 import { inWindow, isNear, nearestTo } from '../../pairing/domain/sameMoney'
 import type { DatedMoney } from '../../pairing/domain/sameMoney'
 import type { SpendingBook } from '../../workbook/domain/readSpendingBook'
@@ -7,11 +8,14 @@ import { filedAsTransfer, linkOfItems, rowItemsOf, waitsOnReview } from '../../w
 import { rowLinkText } from '../../workbook/domain/rowLink'
 import type { RowLink } from '../../workbook/domain/rowLink'
 import type { InstalmentPutOff } from '../../workbook/domain/spendingSettings'
+import { payeeCondition, sameCondition } from '../../workbook/domain/spendingRule'
+import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { ZERO_ACCOUNT_MONEY, subtractAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO } from '../../../../shared/money/currencyCode'
+import type { RecordId } from '../../../../shared/storage/domain/recordId'
 import { fold, normaliseIban } from '../../../../shared/text/fold'
 
 /** A row that may pay an instalment, which a person links with one tap. */
@@ -30,26 +34,69 @@ export interface InstalmentOffer<Target extends InstalmentTarget = InstalmentTar
 /** What the offers read of the file. */
 export type OffersBook = Pick<SpendingBook, 'transactions' | 'items' | 'accounts' | 'categories' | 'receipts'>
 
-/** The instalment's share as the money out of a euro account that pays it, on its due date. */
-function expectedOf(target: InstalmentTarget): DatedMoney {
-  return { date: target.due, amount: paidOut(target.yourShare) }
+/** The loan a link to one of its instalments names, as text to key a map by. */
+function loanOf(link: RowLink): string {
+  return rowLinkText(loanLinkOf(link))
 }
 
-/** The loan a link to one of its instalments names, the same for every instalment of the loan. */
-function loanOf(link: RowLink): string {
-  return [link.app, link.kind, link.key].join('/')
+/** A row linked to one of a loan's instalments: the loan its link names, what a rule for the row's payee tests, and the category its interest went under. */
+export interface LearnedPayee {
+  readonly loan: RowLink
+  readonly row: Transaction
+  /** Its IBAN, or its payee's name for a row with none. */
+  readonly condition: SpendingRuleCondition
+  /** Null when the link left no part of it outside Loan principal. */
+  readonly interest: RecordId | null
+}
+
+/** The payees of the rows linked to loans' instalments, oldest row first, the one owner of "rows to this payee pay this loan". */
+export function learnedPayees(book: Pick<SpendingBook, 'transactions' | 'items' | 'categories'>): readonly LearnedPayee[] {
+  const itemsOf = rowItemsOf(book)
+  const repayments = new Set(book.categories.filter((category) => category.kind === 'repayment').map((category) => category.id))
+  return [...book.transactions]
+    .sort((earlier, later) => earlier.date.localeCompare(later.date))
+    .flatMap((row): LearnedPayee[] => {
+      const items = itemsOf(row)
+      const link = linkOfItems(items)
+      const condition = payeeCondition(row)
+      if (link === null || link.due === null || condition === null) return []
+      const interest = items.find((item) => item.category !== null && !repayments.has(item.category))?.category ?? null
+      return [{ loan: loanLinkOf(link), row, condition, interest }]
+    })
 }
 
 /** The IBANs the rows linked to each loan's instalments were paid to, by the loan as `loanOf` names it. */
 function learnedIbans(book: OffersBook): ReadonlyMap<string, ReadonlySet<string>> {
-  const itemsOf = rowItemsOf(book)
   const ibans = new Map<string, Set<string>>()
-  for (const row of book.transactions) {
-    const link = linkOfItems(itemsOf(row))
-    if (link === null || link.due === null || row.counterpartyIban === '') continue
-    ibans.set(loanOf(link), (ibans.get(loanOf(link)) ?? new Set()).add(normaliseIban(row.counterpartyIban)))
+  for (const { loan, condition } of learnedPayees(book)) {
+    if (condition.column !== 'counterparty_iban') continue
+    ibans.set(loanOf(loan), (ibans.get(loanOf(loan)) ?? new Set()).add(normaliseIban(condition.iban)))
   }
   return ibans
+}
+
+/** A rule Kuna offers on the Rules card: rows to the payee of the first row linked to a loan pay that loan, their interest under the category its interest went under. */
+export interface LoanRuleOffer {
+  readonly loan: PaidLoan
+  readonly condition: SpendingRuleCondition
+  readonly category: RecordId
+}
+
+/**
+ * One rule per loan the targets name whose linked rows' payees no rule tests yet and that no rule names, for the payee of its
+ * first linked row. A loan whose first row left no interest outside Loan principal is not offered, since the rule would have
+ * no category.
+ */
+export function loanRuleOffers(book: Pick<SpendingBook, 'transactions' | 'items' | 'categories' | 'rules'>, targets: readonly LinkTarget[]): readonly LoanRuleOffer[] {
+  const payees = learnedPayees(book)
+  return paidLoansIn(targets).flatMap((loan): LoanRuleOffer[] => {
+    const ofLoan = payees.filter((payee) => sameRecord(payee.loan, loan.link))
+    const [first] = ofLoan
+    if (first === undefined || first.interest === null) return []
+    if (book.rules.some((rule) => rule.link !== null && sameRecord(rule.link, loan.link))) return []
+    if (ofLoan.some((payee) => book.rules.some((rule) => sameCondition(rule.condition, payee.condition)))) return []
+    return [{ loan, condition: first.condition, category: first.interest }]
+  })
 }
 
 /**
@@ -122,4 +169,40 @@ export function pastInstalments<Target extends InstalmentTarget>(
     cards.set(loan, { ...card, offers: [...card.offers, offer] })
   }
   return [...cards.values()]
+}
+
+/** A row to record in Loans as principal paid back early on the loan its instalment is of. */
+export interface ExtraPaymentOffer<Target extends InstalmentTarget = InstalmentTarget> {
+  readonly row: Transaction
+  /** The loan's instalment due nearest the row, which another row pays. */
+  readonly instalment: Target
+}
+
+/**
+ * The rows a rule whose rows pay a loan filed whole that To review offers to record as an extra payment: money out of a euro
+ * account with no link, receipt or other leg, more than a tenth above the share of the loan's instalment due nearest its day,
+ * which another row already pays, as a bank books a separate early repayment. `paidLoanOf` gives the loan the rule deciding a row names.
+ */
+export function extraPaymentOffers<Target extends LinkTarget>(
+  book: OffersBook,
+  targets: readonly Target[],
+  paidLoanOf: (row: Transaction) => RowLink | null,
+): readonly ExtraPaymentOffer<Target & InstalmentTarget>[] {
+  const itemsOf = rowItemsOf(book)
+  const linked = new Set(book.items.flatMap((item) => (item.link === null ? [] : [rowLinkText(item.link)])))
+  const euroAccounts = new Set(book.accounts.filter((account) => account.currency === EURO).map((account) => account.id))
+  const withReceipt = new Set(book.receipts.map((receipt) => receipt.transaction))
+  const instalments = targets.filter((target): target is Target & InstalmentTarget => target.kind === 'instalment')
+  return book.transactions.flatMap((row): ExtraPaymentOffer<Target & InstalmentTarget>[] => {
+    if (row.categorisedBy !== 'rule' || row.amount >= 0 || row.pair !== null || !euroAccounts.has(row.account) || withReceipt.has(row.id) || linkOfItems(itemsOf(row)) !== null) return []
+    const loan = paidLoanOf(row)
+    if (loan === null) return []
+    const nearest = nearestTo(
+      row.date,
+      instalments.filter((target) => sameRecord(loanLinkOf(target.link), loan)).map((target) => ({ date: target.due, target })),
+    )?.target
+    if (nearest === undefined || !linked.has(rowLinkText(nearest.link))) return []
+    const expected = expectedOf(nearest)
+    return row.amount < expected.amount && !isNear(expected, { date: expected.date, amount: row.amount }) ? [{ row, instalment: nearest }] : []
+  })
 }

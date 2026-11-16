@@ -5,12 +5,10 @@ import { daysBetween } from '../../../../shared/calendar/civilDate'
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
 
-/** A row of your bank statement linked to one of a bank loan's instalments, and the day the bank booked it. */
-export interface StatementPayment {
-  readonly loan: RecordId
-  readonly due: CivilDate
-  readonly booked: CivilDate
-}
+/** A row of your bank statement linked to one of a bank loan's instalments or to one of its extra payments, and the day the bank booked it. */
+export type StatementPayment =
+  | { readonly kind: 'instalment'; readonly loan: RecordId; readonly due: CivilDate; readonly booked: CivilDate }
+  | { readonly kind: 'extra-payment'; readonly payment: RecordId; readonly booked: CivilDate }
 
 /** The statement rows linked to instalments, or unchecked when the statements could not be read, so no instalment reads as not seen. */
 export type StatementPayments = readonly StatementPayment[] | 'unchecked'
@@ -39,6 +37,7 @@ export function instalmentStandings(book: Pick<BankLoanBook, 'loan' | 'plan' | '
   const planned = new Set(dues)
   const booked = new Map<CivilDate, CivilDate>()
   for (const payment of payments === 'unchecked' ? [] : payments) {
+    if (payment.kind !== 'instalment') continue
     const before = booked.get(payment.due)
     if (payment.loan === book.loan.id && planned.has(payment.due) && (before === undefined || payment.booked > before)) booked.set(payment.due, payment.booked)
   }
@@ -59,4 +58,10 @@ export function instalmentStandings(book: Pick<BankLoanBook, 'loan' | 'plan' | '
 export function lateOn(due: CivilDate, standing: InstalmentStanding | undefined): CivilDate | null {
   if (standing === undefined || (standing.standing !== 'seen' && standing.standing !== 'recorded')) return null
   return paidLate(due, standing.paid) ? standing.paid : null
+}
+
+/** The days of the loan's extra payments a statement row is linked to, so the plan marks them as seen in your statement. */
+export function seenExtraPaymentDays(book: Pick<BankLoanBook, 'extraPayments'>, payments: StatementPayments): ReadonlySet<CivilDate> {
+  const seen = new Set(payments === 'unchecked' ? [] : payments.flatMap((payment) => (payment.kind === 'extra-payment' ? [payment.payment] : [])))
+  return new Set(book.extraPayments.filter((payment) => seen.has(payment.id)).map((payment) => payment.date))
 }

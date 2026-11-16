@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { instalmentStandings } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
+import { instalmentStandings, seenExtraPaymentDays } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
 import { bankLoanFigures } from '../src/apps/loans/bankLoans/domain/bankLoanFigures'
 import { planYears } from '../src/apps/loans/bankLoans/domain/planYears'
@@ -41,13 +41,29 @@ describe("a bank loan's plan on the table", () => {
     expect(onScreen.map((year) => ({ ...year, lines: year.lines.map(({ status: _status, ...line }) => line) }))).toEqual(planYears(book, day, instalmentStandings(book, [], day)))
   })
 
+  it('words an extra payment a statement row is linked to as seen in your statement, and another as an extra payment', () => {
+    const loan = bankLoan()
+    const periods = [ratePeriod(loan, '2026-02-05', '12')]
+    const extras = [extraPayment(loan, '2026-04-10', 200, 'shorter-term'), extraPayment(loan, '2026-06-10', 100, 'shorter-term')]
+    const book = { loan, ratePeriods: periods, extraPayments: extras, lateInstalments: [], plan: loanPlan(loan, periods, extras) }
+    const day = civil('2026-07-01')
+    const payments = [{ kind: 'extra-payment' as const, payment: extras[0]!.id, booked: civil('2026-04-10') }]
+
+    const onScreen = planYearsOnScreen(book, day, instalmentStandings(book, payments, day), seenExtraPaymentDays(book, payments))
+
+    expect(onScreen[0]!.lines.filter((line) => line.kind === 'extra-payment').map((line) => [line.date, line.status])).toEqual([
+      ['2026-04-10', 'Extra payment, seen in your statement'],
+      ['2026-06-10', 'Extra payment'],
+    ])
+  })
+
   it('words each instalment by your statement from the first linked one on, the linked row winning over a late record, and marks one not seen', () => {
     const loan = bankLoan()
     const periods = [ratePeriod(loan, '2026-02-05', '12')]
     const book = { loan, ratePeriods: periods, extraPayments: [], lateInstalments: [lateInstalment(loan, '2026-04-05', '2026-04-08')], plan: loanPlan(loan, periods, []) }
     const payments = [
-      { loan: loan.id, due: civil('2026-03-05'), booked: civil('2026-03-03') },
-      { loan: loan.id, due: civil('2026-04-05'), booked: civil('2026-04-10') },
+      { kind: 'instalment' as const, loan: loan.id, due: civil('2026-03-05'), booked: civil('2026-03-03') },
+      { kind: 'instalment' as const, loan: loan.id, due: civil('2026-04-05'), booked: civil('2026-04-10') },
     ]
 
     const day = civil('2026-06-08')

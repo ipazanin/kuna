@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { changeRule, fileRow, payeeCondition, rowsRuleWouldFile, writeDryRun, writeRulesInto, deleteRule } from '../src/apps/spending/statements/application/statementWrites'
+import { changeRule, fileRow, rowsRuleWouldFile, writeDryRun, writeRulesInto, deleteRule } from '../src/apps/spending/statements/application/statementWrites'
+import { payeeCondition } from '../src/apps/spending/workbook/domain/spendingRule'
 import { reviewCount, reviewQueue } from '../src/apps/spending/statements/domain/reviewQueue'
 import { rulesRerun, spendingCategorisationContext } from '../src/apps/spending/statements/domain/spendingCategorisation'
 import type { StatementRow, StatementRows } from '../src/apps/spending/statements/domain/statementRows'
@@ -45,6 +46,7 @@ const ruleOf = (condition: SpendingRuleCondition, path: string, order = 1): Spen
   condition,
   category: category(path).id,
   withdrawal: null,
+  link: null,
 })
 const onFile = (on: typeof OTP, date: string, amount: number, fields: Partial<StoredRow> = {}) => row(on, date, amount, null, { source: 'statement', ...fields })
 
@@ -334,7 +336,7 @@ describe('a rule change', () => {
     const typedBlank = row(OTP, '2026-10-23', -4, 'Food/Coffee', { payee: 'Corner' })
 
     const book = spendingBook([yours, waiting, byOldRule, typedBlank])
-    expect(filedChanges(rulesRerun(book, [ruleOf(corner, 'Food/Groceries')]), book)).toEqual([
+    expect(filedChanges(rulesRerun(book, [ruleOf(corner, 'Food/Groceries')]).changes, book)).toEqual([
       refiled(waiting, { ...waiting, category: groceries, categorisedBy: 'rule' }),
       refiled(byOldRule, { ...byOldRule, category: groceries, categorisedBy: 'rule' }),
     ])
@@ -345,7 +347,7 @@ describe('a rule change', () => {
     const filed = onFile(OTP, '2026-10-22', -3, { payee: 'Corner', category: groceries, categorisedBy: 'rule' })
     const { unit, changed, removed } = noting()
 
-    deleteRule(unit, spendingBook([filed], { rules: [rule] }), rule)
+    deleteRule(unit, spendingBook([filed], { rules: [rule] }), rule, null)
 
     expect(removed).toEqual([rule])
     expect(changed).toEqual([[filed, { ...filed, category: null, categorisedBy: null }]])
@@ -367,14 +369,14 @@ describe('a rule change', () => {
     const purchase = onFile(OTP, '2026-10-20', -50, { payee: 'Zara' })
     const filed = onFile(OTP, '2026-10-21', -60, { payee: 'Zara', category: category('Income/Other income').id, categorisedBy: 'rule' })
 
-    expect(rulesRerun(spendingBook([purchase]), [income, spending])[0]?.items?.[0]?.category).toBe(category('Personal/Clothes and shoes').id)
-    expect(filedChanges(rulesRerun(spendingBook([filed]), [income]), spendingBook([filed]))).toEqual([refiled(filed, { ...filed, category: null, categorisedBy: null })])
+    expect(rulesRerun(spendingBook([purchase]), [income, spending]).changes[0]?.items?.[0]?.category).toBe(category('Personal/Clothes and shoes').id)
+    expect(filedChanges(rulesRerun(spendingBook([filed]), [income]).changes, spendingBook([filed]))).toEqual([refiled(filed, { ...filed, category: null, categorisedBy: null })])
   })
 
   it('leaves a spending rule on money in, where it is a refund', () => {
     const refund = onFile(OTP, '2026-10-20', 40, { payee: 'Zara' })
 
-    expect(rulesRerun(spendingBook([refund]), [ruleOf({ column: 'counterparty_contains', fragment: 'Zara' }, 'Personal/Clothes and shoes')])[0]?.items?.[0]?.category).toBe(
+    expect(rulesRerun(spendingBook([refund]), [ruleOf({ column: 'counterparty_contains', fragment: 'Zara' }, 'Personal/Clothes and shoes')]).changes[0]?.items?.[0]?.category).toBe(
       category('Personal/Clothes and shoes').id,
     )
   })
@@ -392,7 +394,7 @@ describe('a rule change', () => {
   it('leaves a row you sent back with Not a pair waiting, whatever the rules say', () => {
     const sentBack = onFile(OTP, '2026-10-22', -3, { payee: 'Corner', categorisedBy: 'person' })
 
-    expect(rulesRerun(spendingBook([sentBack]), [ruleOf(corner, 'Food/Groceries')])).toEqual([])
+    expect(rulesRerun(spendingBook([sentBack]), [ruleOf(corner, 'Food/Groceries')]).changes).toEqual([])
   })
 
   it('leaves a lone leg, a pair and a reader-filed fee where they are, even when a rule fits their payee', () => {
@@ -401,14 +403,14 @@ describe('a rule change', () => {
     const paired = onFile(OTP, '2026-10-23', -4, { payee: 'Corner', category: between, pair: transactionId(74) })
     const fee = onFile(OTP, '2026-10-24', -1, { payee: 'Corner', category: category('Money and fees/Bank fees').id })
 
-    expect(rulesRerun(spendingBook([leg, paired, fee]), [ruleOf(corner, 'Food/Groceries')])).toEqual([])
+    expect(rulesRerun(spendingBook([leg, paired, fee]), [ruleOf(corner, 'Food/Groceries')]).changes).toEqual([])
   })
 
   it('moves the rule it already has to the new category, rather than adding a second', () => {
     const rule = ruleOf(corner, 'Food/Coffee')
     const { unit, added, changed } = noting()
 
-    writeRulesInto(unit, spendingBook([], { rules: [rule] }), [corner], groceries, null)
+    writeRulesInto(unit, spendingBook([], { rules: [rule] }), [corner], groceries, null, null, null)
 
     expect(added).toEqual([])
     expect(changed).toEqual([[rule, { ...rule, category: groceries }]])
@@ -417,7 +419,7 @@ describe('a rule change', () => {
   it('adds a new rule last', () => {
     const { unit, added } = noting()
 
-    writeRulesInto(unit, spendingBook([], { rules: [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)] }), [corner], groceries, null)
+    writeRulesInto(unit, spendingBook([], { rules: [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)] }), [corner], groceries, null, null, null)
 
     expect(added).toMatchObject([{ order: 5, condition: corner, category: groceries }])
   })
@@ -426,7 +428,7 @@ describe('a rule change', () => {
     const { unit, added } = noting()
     const typed = ['Ina Split', 'Ina Pleternica', 'Ina Kozjak Sjever'].map((fragment): SpendingRuleCondition => ({ column: 'counterparty_contains', fragment }))
 
-    writeRulesInto(unit, spendingBook([], { rules: [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)] }), typed, groceries, null)
+    writeRulesInto(unit, spendingBook([], { rules: [ruleOf({ column: 'counterparty_iban', iban: 'HR1' }, 'Food/Coffee', 4)] }), typed, groceries, null, null, null)
 
     expect(added).toMatchObject(typed.map((condition, place) => ({ order: 5 + place, condition, category: groceries })))
   })
@@ -435,7 +437,7 @@ describe('a rule change', () => {
     const rule = ruleOf(corner, 'Food/Coffee', 3)
     const { unit, added, changed } = noting()
 
-    changeRule(unit, spendingBook([], { rules: [rule] }), rule, { column: 'counterparty_contains', fragment: 'Corner market' }, groceries, null)
+    changeRule(unit, spendingBook([], { rules: [rule] }), rule, { column: 'counterparty_contains', fragment: 'Corner market' }, groceries, null, null, null)
 
     expect(added).toEqual([])
     expect(changed).toEqual([[rule, { ...rule, condition: { column: 'counterparty_contains', fragment: 'Corner market' }, category: groceries }]])
@@ -549,7 +551,14 @@ describe('what To review and the import write', () => {
 
 describe('a rule-filed bank row near a typed row', () => {
   const corner = { column: 'counterparty_contains', fragment: 'KONZUM' } as const
-  const rule: SpendingRule = { id: recordIdOf(RULE_RECORDS, '5e000000-0000-4000-8000-000000009001'), order: 1, condition: corner, category: category('Food/Groceries').id, withdrawal: null }
+  const rule: SpendingRule = {
+    id: recordIdOf(RULE_RECORDS, '5e000000-0000-4000-8000-000000009001'),
+    order: 1,
+    condition: corner,
+    category: category('Food/Groceries').id,
+    withdrawal: null,
+    link: null,
+  }
   const typed = row(OTP, '2026-10-20', -23.49, 'Food/Groceries', { source: 'receipt', categorisedBy: 'person' })
 
   it('waits on review, with no category and no rule mark, so the money does not count twice', () => {
@@ -570,7 +579,7 @@ describe('a rule-filed bank row near a typed row', () => {
     const waiting = row(OTP, '2026-10-21', -25.84, null, { source: 'statement', payee: 'KONZUM', description: 'KONZUM', importKey: 'key-1' })
     const alone = row(OTP, '2026-10-21', -40, null, { source: 'statement', payee: 'KONZUM', description: 'KONZUM', importKey: 'key-2' })
 
-    expect(rulesRerun(spendingBook([typed, waiting, alone]), [rule]).map(({ before }) => before)).toEqual([alone])
+    expect(rulesRerun(spendingBook([typed, waiting, alone]), [rule]).changes.map(({ before }) => before)).toEqual([alone])
   })
 
   it('is filed by the rule when no typed row is near', () => {

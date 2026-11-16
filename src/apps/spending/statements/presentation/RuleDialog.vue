@@ -11,9 +11,14 @@ import { typedCondition, typedConditions } from '../domain/typedConditions'
 import { ruleTestOf } from './ruleTest'
 import { words } from './words'
 import { entryCategoryChoices } from '../../entries/presentation/categoryChoices'
+import { loanTargets } from '../../links/application/loanTargets'
+import { paidLoansIn } from '../../links/domain/linkTarget'
+import { loanLinks } from '../../links/presentation/loanLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { isTransferCategory } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
+import { rowLinkOf, rowLinkText } from '../../workbook/domain/rowLink'
+import type { RowLink } from '../../workbook/domain/rowLink'
 import { sameCondition } from '../../workbook/domain/spendingRule'
 import type { RuleWithdrawal, SpendingRule } from '../../workbook/domain/spendingRule'
 import { words as spendingWords } from '../../words'
@@ -21,7 +26,10 @@ import { useRecordWrites } from '../../../../shared/storage/presentation/useReco
 import { plural } from '../../../../shared/text/translation'
 import AppDialog from '../../../../shared/ui/AppDialog.vue'
 
-/** Adds the payees and IBANs typed, one rule to a line, to a category in one write, or changes one rule. A rule into Between my accounts may spot cash taken out. */
+/**
+ * Adds the payees and IBANs typed, one rule to a line, to a category in one write, or changes one rule. A rule into Between my
+ * accounts may spot cash taken out, and any other may name the bank loan in Loans its rows pay, its category then holding the interest.
+ */
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -43,6 +51,9 @@ const tried = ref(false)
 const ANOTHER_ACCOUNT = 'another'
 const CASH_BY_CURRENCY = 'cash'
 const goesTo = ref(ANOTHER_ACCOUNT)
+const NO_LOAN = 'none'
+/** The loan the rows pay as its link reads, or none. */
+const pays = ref(NO_LOAN)
 
 const book = computed(() => store.state.workbook)
 const categories = computed(() => book.value?.categories ?? [])
@@ -55,6 +66,19 @@ const goesToItems = computed(() => [
   { value: CASH_BY_CURRENCY, label: words.rules.dialog.cashByCurrency },
   ...cashAccounts.value.map((account) => ({ value: account.id, label: account.name, description: account.currency })),
 ])
+/**
+ * The bank loans Loans has a plan of, and the loan the rule names though Loans no longer has it, so changing the rule does not
+ * drop it. While Loans cannot be read the field is left out, and the rule keeps the loan it names.
+ */
+const loanItems = computed(() => {
+  const targets = loanTargets()
+  if (targets === null || typeof targets === 'string') return []
+  const loans = paidLoansIn(targets)
+  const named = props.rule?.link ?? null
+  const kept = named === null || loans.some((loan) => rowLinkText(loan.link) === rowLinkText(named)) ? [] : [{ value: rowLinkText(named), label: words.rules.paysGone }]
+  return [...loans.map((loan) => ({ value: rowLinkText(loan.link), label: loan.loanName })), ...kept]
+})
+const link = computed((): RowLink | null => (isTransfer.value || pays.value === NO_LOAN ? null : rowLinkOf(pays.value)))
 const withdrawal = computed((): RuleWithdrawal | null =>
   !isTransfer.value || goesTo.value === ANOTHER_ACCOUNT ? null : { cashAccount: cashAccounts.value.find((account) => account.id === goesTo.value)?.id ?? null },
 )
@@ -78,6 +102,7 @@ watch(open, (opened) => {
   picked.value = rule?.category ?? props.category?.id ?? ''
   typed.value = rule === null ? '' : rule.condition.column === 'counterparty_iban' ? rule.condition.iban : rule.condition.fragment
   goesTo.value = rule?.withdrawal == null ? ANOTHER_ACCOUNT : (rule.withdrawal.cashAccount ?? CASH_BY_CURRENCY)
+  pays.value = rule?.link == null ? NO_LOAN : rowLinkText(rule.link)
   tried.value = false
 })
 
@@ -114,11 +139,17 @@ async function save(): Promise<void> {
   const conditions = fresh.value
   const written =
     rule === null
-      ? await writes.write(plural(words.rules.dialog.saved(conditions.length), conditions.length), (unit) => writeRulesInto(unit, current, conditions, category.id, withdrawal.value), {
-          failedTitle: spendingWords.form.notSaved,
-        })
+      ? await writes.write(
+          plural(words.rules.dialog.saved(conditions.length), conditions.length),
+          (unit) => writeRulesInto(unit, current, conditions, category.id, withdrawal.value, link.value, loanLinks()),
+          {
+            failedTitle: spendingWords.form.notSaved,
+          },
+        )
       : condition !== null &&
-        (await writes.write(words.rules.dialog.changed, (unit) => changeRule(unit, current, rule, condition, category.id, withdrawal.value), { failedTitle: spendingWords.form.notSaved }))
+        (await writes.write(words.rules.dialog.changed, (unit) => changeRule(unit, current, rule, condition, category.id, withdrawal.value, link.value, loanLinks()), {
+          failedTitle: spendingWords.form.notSaved,
+        }))
   if (written) open.value = false
 }
 </script>
@@ -126,7 +157,7 @@ async function save(): Promise<void> {
 <template>
   <AppDialog v-model:open="open" changes :title="rule === null ? words.rules.dialog.addTitle : words.rules.dialog.editTitle" :description="rule === null ? words.rules.dialog.description : undefined">
     <form id="spending-rule-dialog" class="flex flex-col gap-4" data-testid="spending-rule-dialog" @submit.prevent="save">
-      <UFormField :label="words.rules.dialog.category" :error="(tried && errors.category) || false">
+      <UFormField :label="link === null ? words.rules.dialog.category : words.rules.dialog.interestUnder" :error="(tried && errors.category) || false">
         <USelectMenu v-model="picked" :items="categoryItems" value-key="value" :placeholder="words.rules.dialog.pickCategory" class="w-full" data-testid="spending-rule-dialog-category">
           <template v-if="pickedCategory !== null" #default>
             <span class="truncate">{{ namedWithGroup(pickedCategory) }}</span>
@@ -153,6 +184,16 @@ async function save(): Promise<void> {
           </ul>
         </div>
       </template>
+      <UFormField v-if="loanItems.length > 0 && !isTransfer" :label="words.rules.dialog.pays" :help="link === null ? '' : words.rules.dialog.paysHelp">
+        <USelectMenu
+          v-model="pays"
+          :items="[{ value: NO_LOAN, label: words.rules.dialog.noLoan }, ...loanItems]"
+          value-key="value"
+          :search-input="false"
+          class="w-full"
+          data-testid="spending-rule-dialog-pays"
+        />
+      </UFormField>
     </form>
     <template #end>
       <UButton :label="spendingWords.form.cancel" color="neutral" variant="ghost" data-testid="spending-rule-dialog-cancel" @click="open = false" />

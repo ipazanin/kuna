@@ -1,7 +1,7 @@
 import type { CivilDate } from '../../../../shared/calendar/civilDate'
 import { dayLabel } from '../../../../shared/calendar/dayLabel'
 import type { WholeReason } from '../domain/instalmentSplit'
-import type { InstalmentTarget, LinkState, LinkTarget, MovementKind } from '../domain/linkTarget'
+import type { ExtraPaymentEffect, InstalmentTarget, LinkState, LinkTarget, MovementKind } from '../domain/linkTarget'
 import { language } from '../../../../shared/text/language'
 import type { EnglishForms, Translation } from '../../../../shared/text/translation'
 
@@ -75,7 +75,26 @@ export const en = {
     staysInLoans: (reason: string) => `The movement stays in Loans, where you can see and delete it. ${reason}`,
     undone: 'The link and the movement are taken back.',
     keptInLoans: (reason: string) => `The link is off, and the movement stays in Loans. ${reason}`,
-    notUndone: 'Not undone',
+  },
+  notUndone: 'Not undone',
+  /** The card of rows a loan's rule filed whole that To review offers to record in Loans as an extra payment, and the form that does it. */
+  extra: {
+    title: 'Extra payments to record',
+    subtitle: "Rows a loan's rule filed whole, above the instalment another row already pays.",
+    caption: (instalment: string) => `Above ${instalment}, which another row pays`,
+    record: 'Record as an extra payment',
+    dialogTitle: 'Record an extra payment',
+    dialogDescription: (loan: string) => `Adds the extra payment to ${loan} in Loans, then files this row whole under Loan principal, linked to it. One Undo takes back both.`,
+    effect: 'What the bank does with it',
+    effects: { 'shorter-term': 'Shorter term', 'lower-instalment': 'Lower instalment' } satisfies Record<ExtraPaymentEffect, string>,
+    save: 'Record and link',
+    inLoans: 'Extra payment added from Spending',
+    done: 'Recorded in Loans and linked',
+    notAdded: 'Not recorded in Loans',
+    notLinked: 'Recorded in Loans, not linked',
+    staysInLoans: (reason: string) => `The extra payment stays in Loans, where you can see and delete it. ${reason}`,
+    undone: 'The link and the extra payment are taken back.',
+    keptInLoans: (reason: string) => `The link is off, and the extra payment stays in Loans. ${reason}`,
   },
   /** The card of rows filed already that look like a loan's instalments. */
   past: {
@@ -152,7 +171,25 @@ export const hr: Translation<typeof en> = {
     staysInLoans: (reason) => `Promjena ostaje u Kreditima, gdje je možete vidjeti i obrisati. ${reason}`,
     undone: 'Poveznica i promjena su vraćene.',
     keptInLoans: (reason) => `Poveznica je uklonjena, a promjena ostaje u Kreditima. ${reason}`,
-    notUndone: 'Nije poništeno',
+  },
+  notUndone: 'Nije poništeno',
+  extra: {
+    title: 'Prijevremene otplate za upis',
+    subtitle: 'Stavke koje je pravilo kredita razvrstalo cijele, iznad rate koju već plaća druga stavka.',
+    caption: (instalment) => `Iznad rate: ${instalment}, koju već plaća druga stavka`,
+    record: 'Upiši kao prijevremenu otplatu',
+    dialogTitle: 'Upiši prijevremenu otplatu',
+    dialogDescription: (loan) => `Dodaje prijevremenu otplatu kreditu ${loan} u Kreditima, a zatim ovu stavku cijelu stavlja u Glavnicu kredita, povezanu s njom. Jedno poništavanje vraća oboje.`,
+    effect: 'Što banka radi s njom',
+    effects: { 'shorter-term': 'Kraći rok otplate', 'lower-instalment': 'Isti rok, manja rata' },
+    save: 'Upiši i poveži',
+    inLoans: 'Prijevremena otplata dodana iz Potrošnje',
+    done: 'Upisano u Kredite i povezano',
+    notAdded: 'Nije upisano u Kredite',
+    notLinked: 'Upisano u Kredite, nije povezano',
+    staysInLoans: (reason) => `Prijevremena otplata ostaje u Kreditima, gdje je možete vidjeti i obrisati. ${reason}`,
+    undone: 'Poveznica i prijevremena otplata su vraćene.',
+    keptInLoans: (reason) => `Poveznica je uklonjena, a prijevremena otplata ostaje u Kreditima. ${reason}`,
   },
   past: {
     title: (loan) => `Prošle rate kredita ${loan}`,

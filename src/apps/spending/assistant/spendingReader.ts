@@ -12,7 +12,7 @@ import { BANK_ACCOUNT_LINES, setupActions, setupLineCurrency, setupLineKey, setu
 import type { SetupAction, SetupLine } from '../bankSync/domain/bankAccountSetup'
 import { currentDifferences } from '../bankSync/domain/bankBalance'
 import { fiscalQrOn } from '../receipts/domain/fiscalQr'
-import { linkStateOf } from '../links/domain/linkTarget'
+import { linkStateOf, paidLoansIn, sameRecord } from '../links/domain/linkTarget'
 import type { AppTargets, LinkTarget } from '../links/domain/linkTarget'
 import { receiptMatches } from '../receipts/domain/receiptMatch'
 import { waitsForBank } from '../receipts/domain/waitingReceipts'
@@ -199,7 +199,17 @@ const BUDGET_FIELDS: FieldDocs<Budget> = {
   amount: { exposure: 'plain', amount: 'app', sign: 'zero-or-more', meaning: 'A month in euros. Zero ends the limit.' },
 }
 
-const RULE_FIELDS: FieldDocs<SpendingRule> = {
+/** What the bank loan a rule's rows pay reads as, or null for a rule that names none. */
+function paidLoanRead(rule: SpendingRule, loans: AppTargets<LinkTarget>): string | null {
+  if (rule.link === null) return null
+  if (loans === null) return words.reads.linkNotSetUp
+  if (typeof loans === 'string') return words.reads.linkUnknown
+  const { link } = rule
+  const loan = paidLoansIn(loans).find((paid) => sameRecord(paid.link, link))
+  return loan === undefined ? words.reads.linkGone : words.reads.linkBankLoan(loan.loanName)
+}
+
+const ruleFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<SpendingRule> => ({
   id: { exposure: 'ref', to: RULE_RECORDS.name, meaning: 'The rule.' },
   order: { exposure: 'plain', meaning: 'The first rule that holds decides a row.' },
   condition: {
@@ -213,7 +223,12 @@ const RULE_FIELDS: FieldDocs<SpendingRule> = {
     meaning: 'Whether it spots cash taken out, whose other leg Kuna puts on a cash account.',
     read: (rule) => rule.withdrawal !== null,
   },
-}
+  link: {
+    exposure: 'free-text',
+    meaning: 'The bank loan its rows pay, or empty. Each row it files is linked to the instalment it pays and split into the interest under the category and the principal under Loan principal.',
+    read: (rule) => paidLoanRead(rule, loans()),
+  },
+})
 
 const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   id: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
@@ -496,7 +511,7 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({ kind: LABEL_RECORDS, about: words.reads.label, fields: LABEL_FIELDS, dated: null, rows: () => rows((book) => book.labels), currencyOf: () => EURO }),
       readableKind({ kind: EVENT_RECORDS, about: words.reads.event, fields: EVENT_FIELDS, dated: null, rows: () => rows((book) => book.events), currencyOf: () => EURO }),
       readableKind({ kind: BUDGET_RECORDS, about: words.reads.budget, fields: BUDGET_FIELDS, dated: 'from', rows: () => rows((book) => book.budgets), currencyOf: () => EURO }),
-      readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: RULE_FIELDS, dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),
+      readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: ruleFields(reading.linkTargets), dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),
       readableKind<Receipt>({
         kind: RECEIPT_RECORDS,
         about: words.reads.receipt,

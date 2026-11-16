@@ -1,23 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
 import { statementPaymentsFrom } from '../src/apps/loans/bankLoans/application/statementPayments'
-import { instalmentStandings } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
+import { instalmentStandings, seenExtraPaymentDays } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
 import type { StatementPayment } from '../src/apps/loans/bankLoans/domain/instalmentPayments'
 import { loanPlan } from '../src/apps/loans/bankLoans/domain/loanPlan'
-import { BANK_LOAN_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
+import { BANK_LOAN_RECORDS, EXTRA_PAYMENT_RECORDS } from '../src/apps/loans/workbook/domain/loanKinds'
 import type { PublishedRowLink } from '../src/shared/app/rowLinks'
 import { accountMoneyOfEuros } from '../src/shared/money/accountMoney'
 import { EURO } from '../src/shared/money/currencyCode'
-import { recordIdOf } from '../src/shared/storage/domain/recordId'
+import { keyOfRecordId, recordIdOf } from '../src/shared/storage/domain/recordId'
 import { civil, euros } from './fixtures/ledger'
-import { bankLoan, lateInstalment, LOAN_UUID, OTHER_UUID, ratePeriod } from './fixtures/loans'
+import { bankLoan, extraPayment, lateInstalment, LOAN_UUID, OTHER_UUID, ratePeriod } from './fixtures/loans'
 
 const loan = bankLoan()
 const periods = [ratePeriod(loan, '2026-02-05', '12')]
 const plan = loanPlan(loan, periods, [])
 
 function paid(due: string, booked: string, of = loan.id): StatementPayment {
-  return { loan: of, due: civil(due), booked: civil(booked) }
+  return { kind: 'instalment', loan: of, due: civil(due), booked: civil(booked) }
 }
 
 describe("how a bank loan's instalments stand against your statements", () => {
@@ -86,6 +86,19 @@ describe("the statement rows Loans reads from the shell's linked rows", () => {
         'loans',
       ),
     ).toEqual([paid('2026-03-05', '2026-03-04'), paid('2026-03-05', '2026-03-04')])
+  })
+
+  it('takes a row linked to an extra payment, which marks that extra payment of the loan on the plan as seen in your statement', () => {
+    const early = extraPayment(loan, '2026-06-10', 2000, 'shorter-term')
+    const payments = statementPaymentsFrom(
+      [{ app: 'spending', links: [linked({ app: 'loans', kind: EXTRA_PAYMENT_RECORDS.name, key: keyOfRecordId(EXTRA_PAYMENT_RECORDS, early.id), due: null })] }],
+      'loans',
+    )
+
+    expect(payments).toEqual([{ kind: 'extra-payment', payment: early.id, booked: civil('2026-03-04') }])
+    expect([...seenExtraPaymentDays({ extraPayments: [early] }, payments)]).toEqual([civil('2026-06-10')])
+    expect([...seenExtraPaymentDays({ extraPayments: [early] }, 'unchecked')]).toEqual([])
+    expect(instalmentStandings({ loan, plan, lateInstalments: [] }, payments, civil('2026-12-31')).get(civil('2026-03-05'))).toEqual({ standing: 'as-planned' })
   })
 
   it('gives no rows while Spending opens or is not set up, and leaves the instalments unchecked when it failed to open', () => {

@@ -150,6 +150,7 @@ describe('a synced row against the file', () => {
       condition: { column: 'counterparty_contains', fragment: 'Corner bakery' },
       category: category('Income').id,
       withdrawal: null,
+      link: null,
     }
     expect(filedDryRun(spendingBook([], { rules: [rule] }), syncOf([BANK]), DAY).added[0]?.category).toBeNull()
     expect(filedDryRun(spendingBook([], { rules: [rule] }), syncOf([{ ...BANK, direction: 'CRDT', creditorName: null, debtorName: 'Corner bakery' }]), DAY).added[0]?.category).toBe(rule.category)

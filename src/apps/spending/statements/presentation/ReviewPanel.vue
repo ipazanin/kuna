@@ -3,7 +3,7 @@ import { computed, ref, useTemplateRef, watch } from 'vue'
 import UBadge from '@nuxt/ui/components/Badge.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { fileRow, joinWithTyped, notAPair, pairRows, payeeCondition, rowsRuleWouldFile, writeRulesInto } from '../application/statementWrites'
+import { fileRow, joinWithTyped, notAPair, pairRows, rowsRuleWouldFile, writeRulesInto } from '../application/statementWrites'
 import { reviewQueue } from '../domain/reviewQueue'
 import { ruleVerdicts } from '../domain/spendingCategorisation'
 import type { WaitingRow } from '../domain/reviewQueue'
@@ -11,10 +11,12 @@ import CashWithdrawalsCard from './CashWithdrawalsCard.vue'
 import WaitingReceiptsCard from '../../receipts/presentation/WaitingReceiptsCard.vue'
 import { asksForPayment, waitingReceipts } from '../../receipts/domain/waitingReceipts'
 import ReviewRow from './ReviewRow.vue'
+import { loanLinks } from '../../links/presentation/loanLinks'
 import type { ReviewAction } from './ReviewRow.vue'
 import { linkEntry } from '../../entries/application/entryWrites'
 import { instalmentReview } from '../../links/application/instalmentReview'
 import InstalmentsCard from '../../links/presentation/InstalmentsCard.vue'
+import ExtraPaymentsCard from '../../links/presentation/ExtraPaymentsCard.vue'
 import { words as linkWords } from '../../links/presentation/words'
 import { language } from '../../../../shared/text/language'
 import { useHeldRows } from '../../bankSync/presentation/useHeldRows'
@@ -28,6 +30,7 @@ import { wantsSavingsAccount } from '../../pairing/domain/wantsSavingsAccount'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Category } from '../../workbook/domain/category'
+import { payeeCondition } from '../../workbook/domain/spendingRule'
 import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { words as spendingWords } from '../../words'
@@ -62,7 +65,7 @@ const held = useHeldRows()
 const { ask: askAboutQueue, marked: queueMarked } = useChatElement(REVIEW_ASKED, 'card', words.review.suggestCategoriesTask)
 const queue = computed(() => (book.value === null ? null : reviewQueue(book.value, today())))
 const receipts = computed(() => (book.value === null ? [] : waitingReceipts(book.value)))
-const instalments = computed(() => (book.value === null ? { offers: [], past: [] } : instalmentReview(book.value, today())))
+const instalments = computed(() => (book.value === null ? { offers: [], past: [], extraPayments: [] } : instalmentReview(book.value, today())))
 const offerOf = computed(() => {
   const offers = new Map(instalments.value.offers.map((offer) => [offer.row.id, offer]))
   return (row: Transaction) => offers.get(row.id) ?? null
@@ -106,7 +109,12 @@ async function makeRule(): Promise<void> {
   const current = book.value
   const asked = askedRule.value
   if (current === null || asked === null) return
-  if (await writes.write(words.rules.made, (unit) => writeRulesInto(unit, current, [asked.condition], asked.category.id, null), { key: 'make-rule', failedTitle: words.review.notWritten }))
+  if (
+    await writes.write(words.rules.made, (unit) => writeRulesInto(unit, current, [asked.condition], asked.category.id, null, null, loanLinks()), {
+      key: 'make-rule',
+      failedTitle: words.review.notWritten,
+    })
+  )
     ruleDialogOpen.value = false
 }
 
@@ -169,7 +177,14 @@ async function undoPair(legs: TransferPair): Promise<void> {
     <CashWithdrawalsCard v-if="queue.withdrawals.length > 0" :withdrawals="queue.withdrawals" />
     <WaitingReceiptsCard v-if="receiptsAsk" :waiting="receipts" />
     <EmptyState
-      v-if="queue.waiting.length === 0 && held.items.value.length === 0 && queue.withdrawals.length === 0 && receipts.length === 0 && instalments.past.length === 0"
+      v-if="
+        queue.waiting.length === 0 &&
+        held.items.value.length === 0 &&
+        queue.withdrawals.length === 0 &&
+        receipts.length === 0 &&
+        instalments.past.length === 0 &&
+        instalments.extraPayments.length === 0
+      "
       icon="i-lucide-inbox"
       :title="words.review.empty"
       :description="words.review.emptyDescription"
@@ -202,6 +217,7 @@ async function undoPair(legs: TransferPair): Promise<void> {
       </div>
     </AppCard>
     <InstalmentsCard v-for="card in instalments.past" :key="card.loan" :card="card" @open="emit('open', $event)" />
+    <ExtraPaymentsCard v-if="instalments.extraPayments.length > 0" :offers="instalments.extraPayments" />
     <AppCard v-if="queue.pairs.length > 0 || queue.loneLegs.length > 0" :title="words.review.pairs" :subtitle="words.review.pairsSubtitle" data-testid="spending-pairs">
       <ul class="divide-y divide-default pt-1 pb-1">
         <ProposalRow

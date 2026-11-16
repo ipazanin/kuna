@@ -13,7 +13,7 @@ import { words, wordsFor } from './words'
 
 /** One row of the plan as the table shows it. */
 export interface PlanLineOnScreen extends PlanLine {
-  /** "Paid", "Due", "Paid 8 Dec, 18 days late", "Paid 20 Nov, seen in your statement", "Not seen in your statement" or "Extra payment", in the language on screen. */
+  /** "Paid", "Due", "Paid 8 Dec, 18 days late", "Paid 20 Nov, seen in your statement", "Not seen in your statement", "Extra payment" or "Extra payment, seen in your statement", in the language on screen. */
   readonly status: string
   /** Set on an instalment due long enough ago that your statement should show it, and does not. */
   readonly notSeen?: true
@@ -33,20 +33,20 @@ function standingText(due: CivilDate, standing: InstalmentStanding | undefined, 
   return days > 0 ? plural(loanWords.status.seenLate(days, day), days) : loanWords.status.seen(day)
 }
 
-function statusOf(line: PlanLine, standing: InstalmentStanding | undefined, day: CivilDate, loanWords: typeof words): string {
-  if (line.kind === 'extra-payment') return loanWords.status.extra
+function statusOf(line: PlanLine, standing: InstalmentStanding | undefined, day: CivilDate, extrasSeen: ReadonlySet<CivilDate>, loanWords: typeof words): string {
+  if (line.kind === 'extra-payment') return extrasSeen.has(line.date) ? loanWords.status.extraSeen : loanWords.status.extra
   if (line.kind === 'interim-interest') return line.date <= day ? loanWords.status.interimPaid : loanWords.status.interimDue
   return standingText(line.date, standing, loanWords) ?? (line.date <= day ? loanWords.status.paid : loanWords.status.due)
 }
 
-/** The plan's years with each row's status in the loan's own words, each instalment as `standings` gives it. */
-export function planYearsOnScreen(book: BankLoanBook, day: CivilDate, standings: ReadonlyMap<CivilDate, InstalmentStanding>): PlanYearOnScreen[] {
+/** The plan's years with each row's status in the loan's own words, each instalment as `standings` gives it and each extra payment on a day of `extrasSeen` as seen in your statement. */
+export function planYearsOnScreen(book: BankLoanBook, day: CivilDate, standings: ReadonlyMap<CivilDate, InstalmentStanding>, extrasSeen: ReadonlySet<CivilDate> = new Set()): PlanYearOnScreen[] {
   const loanWords = wordsFor(book.loan.repayment)
   return planYears(book, day, standings).map((year) => ({
     ...year,
     lines: year.lines.map((line) => {
       const standing = line.kind === 'instalment' ? standings.get(line.date) : undefined
-      return { ...line, status: statusOf(line, standing, day, loanWords), ...(standing?.standing === 'not-seen' ? { notSeen: true as const } : {}) }
+      return { ...line, status: statusOf(line, standing, day, extrasSeen, loanWords), ...(standing?.standing === 'not-seen' ? { notSeen: true as const } : {}) }
     }),
   }))
 }

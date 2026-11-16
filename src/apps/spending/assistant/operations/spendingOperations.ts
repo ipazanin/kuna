@@ -25,13 +25,15 @@ import { newTransfer } from '../../entries/domain/transfer'
 import { heldItemsOf, moveToItems } from '../../entries/application/rowRecords'
 import { isBeforeItems, moveBlockers } from '../../workbook/domain/beforeItems'
 import { linkEntry, newEntry, removeEntry, removeSplitOf, unlinkEntry, writeEntry, writeEntrySplit, writeTransfer } from '../../entries/application/entryWrites'
+import { instalmentLinksOf } from '../../links/domain/instalmentSplit'
+import { paidLoansIn } from '../../links/domain/linkTarget'
 import type { AppTargets, LinkTarget } from '../../links/domain/linkTarget'
 import { fixedByBank } from '../../entries/domain/bankRows'
 import { entrySplit } from '../../entries/domain/entrySplit'
 import type { ItemDraft } from '../../entries/domain/entrySplit'
 import { en as entriesEnglish } from '../../entries/presentation/words'
 import { words as linkWords } from '../../links/presentation/words'
-import { fileRow, importWithRules, payeeCondition, writeRules } from '../../statements/application/statementWrites'
+import { fileRow, importWithRules, writeRules } from '../../statements/application/statementWrites'
 import type { RuleEdits } from '../../statements/application/statementWrites'
 import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { ACCOUNT_BANKS, ACCOUNT_KINDS, NEW_ACCOUNT_DEFAULTS, ROWS_FROM, beforeStartDay, rowsFromRefusal } from '../../workbook/domain/account'
@@ -42,7 +44,9 @@ import type { ItemizedRow } from '../../workbook/domain/rowItems'
 import { NEW_CATEGORY_DEFAULTS, isFixedKind, isTransferCategory, transferCategoryOf } from '../../workbook/domain/category'
 import type { SpendingBook, SpendingRecords } from '../../workbook/domain/readSpendingBook'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
+import { payeeCondition } from '../../workbook/domain/spendingRule'
 import type { RuleWithdrawal, SpendingRule, SpendingRuleCondition } from '../../workbook/domain/spendingRule'
+import type { RowLink } from '../../workbook/domain/rowLink'
 import { ACCOUNT_RECORDS, CATEGORY_RECORDS, ITEM_RECORDS, RULE_RECORDS, TRANSACTION_RECORDS } from '../../workbook/domain/spendingKinds'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { BY_DAYS } from '../../workbook/domain/event'
@@ -123,23 +127,23 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'add-rule',
     about:
-      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, by words in a payee's name, or by the other side's IBAN. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them. A rule never re-files a row a person filed. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency.",
-    input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT, withdrawal: FLAG_OR_NULL, cash_account: TEXT_OR_NULL }),
+      "A rule that files rows into a category: as a row's payee or IBAN, by its ref, by words in a payee's name, or by the other side's IBAN. An alias of a person as the words covers every way they were written. Rows follow at once, and the card shows them. A rule never re-files a row a person filed. withdrawal yes says the rows are cash taken out, as Bankomat at OTP: the category is then Between my accounts, the rule holds only for money out, and each row gets its other leg on the cash account cash_account names, or with none named on the one cash account of its currency. pays names a bank loan as Loans lists it: each row is then linked to the instalment it pays and split into its interest under the category and its principal under Loan principal, and a row far from the instalment stays whole under the category.",
+    input: inputOf({ row: TEXT_OR_NULL, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT, withdrawal: FLAG_OR_NULL, cash_account: TEXT_OR_NULL, pays: TEXT_OR_NULL }),
     refs: { row: TRANSACTION_RECORDS.name, category: CATEGORY_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
     spellings: ['fragment'],
     creates: null,
     alone: false,
-    example: { row: 'transaction', fragment: null, iban: null, category: 'category', withdrawal: null, cash_account: null },
+    example: { row: 'transaction', fragment: null, iban: null, category: 'category', withdrawal: null, cash_account: null, pays: null },
   },
   {
     name: 'change-rule',
     about:
-      'Fixes a rule: other words, another IBAN, another category, whether it spots cash taken out, or the cash account the cash goes to. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. Rows follow at once.',
-    input: inputOf({ rule: TEXT, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT_OR_NULL, withdrawal: FLAG_OR_NULL, cash_account: TEXT_OR_NULL }),
+      'Fixes a rule: other words, another IBAN, another category, whether it spots cash taken out, the cash account the cash goes to, or the bank loan its rows pay by its name in Loans, none for no loan. Null leaves a field as it is. A rule moved off Between my accounts needs withdrawal no. Rows follow at once.',
+    input: inputOf({ rule: TEXT, fragment: TEXT_OR_NULL, iban: TEXT_OR_NULL, category: TEXT_OR_NULL, withdrawal: FLAG_OR_NULL, cash_account: TEXT_OR_NULL, pays: TEXT_OR_NULL }),
     refs: { rule: RULE_RECORDS.name, category: CATEGORY_RECORDS.name, cash_account: ACCOUNT_RECORDS.name },
     creates: null,
     alone: false,
-    example: { rule: 'rule', fragment: 'Market', iban: null, category: null, withdrawal: null, cash_account: null },
+    example: { rule: 'rule', fragment: 'Market', iban: null, category: null, withdrawal: null, cash_account: null, pays: null },
   },
   {
     name: 'delete-rule',
@@ -310,11 +314,11 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   {
     name: 'link-entry',
     about:
-      "Links an entry to the record in Loans it is, in place of any link it had, by the loan's name as Loans lists it and a day: a bank loan's instalment or interim interest by its due date, an extra payment or an informal loan's movement by its day, or an informal loan as a whole with due null. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. Any other link files the whole entry under Loan principal.",
+      "Links an entry to the record in Loans it is, in place of any link it had, by the loan's name as Loans lists it and a day: a bank loan's instalment or interim interest by its due date, or an extra payment or an informal loan's movement by its day. A movement or an extra payment must be in Loans already. An instalment on money out of an account in euros splits a filed entry into the plan's interest under its category, principal under Loan principal, which counts as no spending, and what differs from the plan under its category. Any other link files the whole entry under Loan principal.",
     input: inputOf({
       entry: TEXT,
       loan: TEXT,
-      due: { type: ['string', 'null'], description: "The instalment's due date or the movement's or extra payment's day as yyyy-mm-dd, or null for an informal loan as a whole." },
+      due: { type: 'string', description: "The instalment's due date or the movement's or extra payment's day as yyyy-mm-dd." },
     }),
     refs: { entry: TRANSACTION_RECORDS.name },
     creates: null,
@@ -357,30 +361,33 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   SET_STARTING_ACCOUNT,
 ]
 
-/** The record in Loans a step names by its loan's name: an instalment by its due date, a movement or an extra payment by its day, or an informal loan as a whole. */
-function linkedTarget(loans: AppTargets<LinkTarget>, name: string, due: CivilDate | null): LinkTarget {
+/** The records Loans lists, or why the chat cannot name one. */
+function readLoans(loans: AppTargets<LinkTarget>): readonly LinkTarget[] {
   if (loans === null) throw new StepRefused('Loans is not set up on this device, so nothing in it can be linked.')
   if (loans === 'opening') throw new StepRefused('Loans is still opening. Propose the link again once it is open.')
   if (loans === 'failed') throw new StepRefused('Loans did not open, so nothing in it can be linked.')
-  const named = loans.filter((target) => {
-    switch (target.kind) {
-      case 'informal-loan':
-        return due === null && target.name === name
-      case 'instalment':
-        return target.loanName === name && target.due === due
-      case 'movement':
-      case 'extra-payment':
-        return target.loanName === name && target.day === due
-    }
-  })
+  return loans
+}
+
+/** The record in Loans a step names by its loan's name: an instalment by its due date, or a movement or an extra payment by its day. */
+function linkedTarget(loans: AppTargets<LinkTarget>, name: string, due: CivilDate): LinkTarget {
+  const named = readLoans(loans)
+    .filter((target) => target.kind !== 'informal-loan')
+    .filter((target) => target.loanName === name && (target.kind === 'instalment' ? target.due : target.day) === due)
   if (named.length > 1) throw new StepRefused(`More than one record of a loan called ${name} falls on that day. Rename one in Loans, or link it on the entry's dialog.`)
   const [target] = named
   if (target !== undefined) return target
-  throw new StepRefused(
-    due === null
-      ? `${name} is not an informal loan Loans lists. A bank loan's instalment needs its due date.`
-      : `${name} is not a loan Loans lists with an instalment, a movement or an extra payment on ${due}.`,
-  )
+  throw new StepRefused(`${name} is not a loan Loans lists with an instalment, a movement or an extra payment on ${due}. Add a movement or an extra payment in Loans first, or on the entry's dialog.`)
+}
+
+/** The bank loan a rule step names by its name in Loans, none on none, or the one kept on null. */
+function paidLoanOf(loans: AppTargets<LinkTarget>, name: string | null, kept: RowLink | null): RowLink | null {
+  if (name === null) return kept
+  if (name === 'none') return null
+  const named = paidLoansIn(readLoans(loans)).filter((loan) => loan.loanName === name)
+  if (named.length > 1) throw new StepRefused(`More than one bank loan is called ${name}. Rename one in Loans, or set the rule on its dialog.`)
+  if (named[0] === undefined) throw new StepRefused(`${name} is not a bank loan Loans lists with a plan.`)
+  return named[0].link
 }
 
 function flagOf(text: string | null, kept: boolean): boolean {
@@ -499,6 +506,7 @@ function plannedSteps(
   if (steps.some((step) => step.operation === ADD_RECEIPT.name) && steps.some((step) => step.operation === 'add-category'))
     throw new StepRefused('A new category goes on a card before the receipt, and the receipt card files into it once that card is accepted.')
   let book = workbook
+  const links = instalmentLinksOf(loans, { language, notes: linkWords.notes })
   const made = new Map<string, string>()
   const edits: { filing: NonNullable<RuleEdits['filing']>[number][]; fixing: NonNullable<RuleEdits['fixing']>[number][]; deleting: SpendingRule[] } = { filing: [], fixing: [], deleting: [] }
   let imported: CardStatement | null = null
@@ -576,10 +584,11 @@ function plannedSteps(
               : fragments.map((fragment) => conditionOf(fragment, null, { column: 'counterparty_contains', fragment: '' }))
         const category = categoryOf(field['category']).id
         const withdrawal = withdrawalOf(field['withdrawal'], field['cash_account'] === null ? null : accountOf(field['cash_account']), null)
+        const link = paidLoanOf(loans, field['pays'], null)
         for (const condition of conditions) {
           if (condition === null || (condition.column === 'counterparty_contains' && condition.fragment === ''))
             throw new StepRefused('A rule needs a row with a payee or an IBAN, words to look for, or an IBAN.')
-          edits.filing.push({ condition, category, withdrawal })
+          edits.filing.push({ condition, category, withdrawal, link })
         }
         break
       }
@@ -590,6 +599,7 @@ function plannedSteps(
           condition: conditionOf(field['fragment'], field['iban'], rule.condition),
           category: field['category'] === null ? rule.category : categoryOf(field['category']).id,
           withdrawal: withdrawalOf(field['withdrawal'], field['cash_account'] === null ? null : accountOf(field['cash_account']), rule.withdrawal),
+          link: paidLoanOf(loans, field['pays'], rule.link),
         })
         break
       }
@@ -802,7 +812,7 @@ function plannedSteps(
       }
       case 'link-entry': {
         const row = rowOf(field['entry'])
-        const target = linkedTarget(loans, field['loan'], field['due'] === null ? null : dayOf(field['due']))
+        const target = linkedTarget(loans, field['loan'], dayOf(field['due']))
         const place = { currency: accountOf(row.account).currency, categories: book.categories, language, notes: linkWords.notes }
         const { entry, added } = linkEntry(unit, records(), row, target, place)
         book = {
@@ -855,13 +865,13 @@ function plannedSteps(
     }
   }
   if (imported !== null) {
-    const run = importWithRules(unit, book, edits, imported.statement, today(), { targets: loans === null || typeof loans === 'string' ? [] : loans, language, notes: linkWords.notes })
+    const run = importWithRules(unit, book, edits, imported.statement, today(), links)
     const leftOut = statementLeftOut(imported, run)
     const lookAlikes = leftOut.lookAlikes.map(({ number }) => number)
     if (lookAlikes.length > 0 && run.added.length + run.changed.length === 0) throw new StepRefused(lookAlikesForTheModel(lookAlikes, true))
     return { leftOut, receipts: receiptWarnings, moves }
   }
-  if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits)
+  if (edits.filing.length + edits.fixing.length + edits.deleting.length > 0) writeRules(unit, book, edits, links)
   return { leftOut: null, receipts: receiptWarnings, moves }
 }
 

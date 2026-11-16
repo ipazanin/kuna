@@ -1,7 +1,6 @@
-import { addLoansMovement } from './loanTargets'
-import type { NewMovement, ShownTarget } from './loanTargets'
+import type { AddedInLoans, ShownTarget } from './loanTargets'
 import type { LinkPlace } from '../domain/instalmentSplit'
-import type { InformalLoanTarget, MovementTarget } from '../domain/linkTarget'
+import type { LinkTarget } from '../domain/linkTarget'
 import { linkEntry } from '../../entries/application/entryWrites'
 import type { SpendingBooks } from '../../workbook/domain/spendingBooks'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -15,34 +14,33 @@ export interface LinkTitles {
 }
 
 /**
- * What adding a movement in Loans and linking the row to it came to: both done, with one Undo for both, nothing done since
- * Loans refused the movement, or the movement added and the row not linked, with Undo for the movement alone. Either way the
- * movement added is named.
+ * What adding a record in Loans and linking the row to it came to: both done, with one Undo for both, nothing done since
+ * Loans refused the record, or the record added and the row not linked, with Undo for the record alone. Either way the
+ * record added is named.
  */
-export type MovementLinked =
-  | { readonly outcome: 'linked'; readonly movement: MovementTarget; readonly undo: () => Promise<UndoneInLoans> }
+export type RecordLinked<Target extends LinkTarget> =
+  | { readonly outcome: 'linked'; readonly record: ShownTarget & Target; readonly undo: () => Promise<UndoneInLoans> }
   | { readonly outcome: 'not-added'; readonly failure: unknown }
-  | { readonly outcome: 'not-linked'; readonly movement: MovementTarget; readonly failure: unknown; readonly undoInLoans: () => Promise<void> }
+  | { readonly outcome: 'not-linked'; readonly record: ShownTarget & Target; readonly failure: unknown; readonly undoInLoans: () => Promise<void> }
 
-/** After Undo took the link off, whether Loans took the movement back too, or why it keeps it. */
+/** After Undo took the link off, whether Loans took the record back too, or why it keeps it. */
 export type UndoneInLoans = { readonly kept: false } | { readonly kept: true; readonly failure: unknown }
 
 /**
- * Adds the movement to the informal loan in Loans, then links the row to it as `linkEntry` does, filing it under Loan principal.
- * Loans writes first, so a link never names a movement that is not there. When the link fails, the movement stays in Loans,
- * where it can be seen and deleted. Undo takes the link off first and the movement after.
+ * Adds the record in Loans, such as a movement of an informal loan or an extra payment of a bank loan, then links the row to it
+ * as `linkEntry` does, filing it under Loan principal. Loans writes first, so a link never names a record that is not there.
+ * When the link fails, the record stays in Loans, where it can be seen and deleted. Undo takes the link off first and the record after.
  */
-export async function addMovementAndLink(
+export async function addAndLink<Target extends LinkTarget>(
   store: Pick<WorkbookStore<SpendingBooks>, 'state' | 'write' | 'undo'>,
   row: Transaction,
-  loan: ShownTarget & InformalLoanTarget,
-  movement: NewMovement,
+  addInLoans: () => Promise<AddedInLoans<Target>>,
   place: LinkPlace,
   titles: LinkTitles,
-): Promise<MovementLinked> {
-  let added: Awaited<ReturnType<typeof addLoansMovement>>
+): Promise<RecordLinked<Target>> {
+  let added: AddedInLoans<Target>
   try {
-    added = await addLoansMovement(loan, movement, titles.inLoans)
+    added = await addInLoans()
   } catch (failure) {
     return { outcome: 'not-added', failure }
   }
@@ -52,7 +50,7 @@ export async function addMovementAndLink(
     const linked = await sessionWrite(store, titles.linked, (unit) => void linkEntry(unit, records, row, added.target, place), 'link')
     return {
       outcome: 'linked',
-      movement: added.target,
+      record: added.target,
       undo: async () => {
         if (linked !== null) await store.undo(linked)
         try {
@@ -64,6 +62,6 @@ export async function addMovementAndLink(
       },
     }
   } catch (failure) {
-    return { outcome: 'not-linked', movement: added.target, failure, undoInLoans: () => added.undo() }
+    return { outcome: 'not-linked', record: added.target, failure, undoInLoans: () => added.undo() }
   }
 }

@@ -3,6 +3,9 @@ import type { CivilDate } from '../../../../../shared/calendar/civilDate'
 import { addMonths, firstDayOf, monthKey, monthOf } from '../../../../../shared/calendar/monthKey'
 import type { MonthKey } from '../../../../../shared/calendar/monthKey'
 
+/** The IBAN of the fake home loan's account at Example Bank, which the fake rule whose rows pay the home loan tests. */
+export const FAKE_HOME_LOAN_IBAN = 'HR5523400091110000001'
+
 /** The day of the month the fake home loan's instalments fall due. */
 const DUE_DAY = 20
 

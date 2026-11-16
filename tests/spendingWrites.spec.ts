@@ -374,7 +374,7 @@ describe('a statement in the Spending file', () => {
     const run = statementDryRun(store.state.workbook!, { label: 'export.csv', rows: [rowOf('Shop', -7)], notes: [] }, civil('2026-10-30'))
     await store.write('Imported', (unit) => writeDryRun(unit, store.state.records!, run))
 
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'shop' }], category('Food/Groceries').id, null))
+    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'shop' }], category('Food/Groceries').id, null, null, null))
 
     expect(store.state.workbook!.rules).toMatchObject([{ order: 1, category: category('Food/Groceries').id }])
     expect(filedRows(store.state.workbook!)).toMatchObject([{ category: category('Food/Groceries').id, categorisedBy: 'rule' }])
@@ -382,7 +382,7 @@ describe('a statement in the Spending file', () => {
 
   it('moves a rule with its category when that is deleted into another, and one Undo puts it back', async () => {
     const store = await spendingStore()
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null))
+    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null, null, null))
 
     const receipt = await store.write('Deleted', (unit) => deleteInto(unit, store.state.records!, category('Food/Groceries'), category('Food/Restaurants')))
 
@@ -393,7 +393,7 @@ describe('a statement in the Spending file', () => {
 
   it('refuses to delete a category a rule names, which delete-into moves first', async () => {
     const store = await spendingStore()
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null))
+    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Shop' }], category('Food/Groceries').id, null, null, null))
 
     await expect(store.write('Deleted', (unit) => unit.of(CATEGORY_WRITES).remove(category('Food/Groceries')))).rejects.toThrow()
   })

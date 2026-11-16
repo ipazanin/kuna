@@ -3,13 +3,19 @@ import { computed, ref } from 'vue'
 import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
-import { deleteRule } from '../application/statementWrites'
+import { deleteRule, writeRulesInto } from '../application/statementWrites'
 import { ruleGroups } from '../domain/ruleGroups'
 import type { RuleOverlap } from '../domain/ruleGroups'
 import RuleDialog from './RuleDialog.vue'
 import { ruleTestOf } from './ruleTest'
 import { words } from './words'
+import { loanTargets } from '../../links/application/loanTargets'
+import { loanRuleOffers } from '../../links/domain/instalmentOffers'
+import type { LoanRuleOffer } from '../../links/domain/instalmentOffers'
+import { paidLoansIn, sameRecord } from '../../links/domain/linkTarget'
+import { loanLinks } from '../../links/presentation/loanLinks'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
+import type { SpendingRuleCondition } from '../../workbook/domain/spendingRule'
 import type { Category } from '../../workbook/domain/category'
 import type { SpendingRule } from '../../workbook/domain/spendingRule'
 import { words as spendingWords } from '../../words'
@@ -18,19 +24,56 @@ import { listInWords } from '../../../../shared/text/listInWords'
 import { plural } from '../../../../shared/text/translation'
 import AppCard from '../../../../shared/ui/AppCard.vue'
 import EmptyState from '../../../../shared/ui/EmptyState.vue'
+import ProposalRow from '../../../../shared/ui/ProposalRow.vue'
 
-/** Spending's rules under the category each files into, each with Change and Delete and where a withdrawal's cash goes, and a group's Add for several payees or IBANs at once. */
+/**
+ * Spending's rules under the category each files into, each with Change and Delete and where a withdrawal's cash goes or the
+ * loan its rows pay, and a group's Add for several payees or IBANs at once. Above them, a rule per loan that no rule names
+ * and whose linked rows' payee no rule tests yet, made with one tap.
+ */
 const store = useSpendingBooks()
 const writes = useRecordWrites(store)
+const loans = computed(() => loanTargets())
+
+/** A payee as a rule's line names it: the IBAN, or the words in quotes. */
+function testOf(condition: SpendingRuleCondition): string {
+  return condition.column === 'counterparty_iban' ? condition.iban : words.rules.quoted(condition.fragment)
+}
+
+const offers = computed(() => {
+  const book = store.state.workbook
+  const targets = loans.value
+  if (book === null || targets === null || typeof targets === 'string') return []
+  const names = new Map(book.categories.map((category) => [category.id, category.name]))
+  return loanRuleOffers(book, targets).map((offer) => ({
+    offer,
+    key: `${offer.loan.link.key} ${testOf(offer.condition)}`,
+    title: words.rules.offerTitle(testOf(offer.condition), offer.loan.loanName),
+    caption: words.rules.offerCaption(names.get(offer.category) ?? ''),
+  }))
+})
+
+async function makeRule(key: string, { condition, category, loan }: LoanRuleOffer): Promise<void> {
+  const book = store.state.workbook
+  if (book !== null)
+    await writes.write(words.rules.made, (unit) => writeRulesInto(unit, book, [condition], category, null, loan.link, loanLinks()), { key: `offer-${key}`, failedTitle: spendingWords.form.notSaved })
+}
 
 const groups = computed(() => {
   const book = store.state.workbook
   if (book === null) return []
   const names = new Map(book.categories.map((category) => [category.id, category.name]))
-  const testOf = (rule: SpendingRule) => (rule.condition.column === 'counterparty_iban' ? rule.condition.iban : words.rules.quoted(rule.condition.fragment))
+  const ruleTest = (rule: SpendingRule) => testOf(rule.condition)
   const categoryOf = (rule: SpendingRule) => names.get(rule.category) ?? ''
   const accounts = new Map(book.accounts.map((account) => [account.id, account.name]))
-  const goesToOf = ({ withdrawal }: SpendingRule): string | null => {
+  const targets = loans.value
+  const paidLoans = targets === null || typeof targets === 'string' ? null : paidLoansIn(targets)
+  const goesToOf = ({ withdrawal, link }: SpendingRule): string | null => {
+    if (link !== null) {
+      if (paidLoans === null) return words.rules.paysUnread
+      const loan = paidLoans.find((paid) => sameRecord(paid.link, link))
+      return loan === undefined ? words.rules.paysGone : words.rules.paysLoan(loan.loanName)
+    }
     if (withdrawal === null) return null
     const named = withdrawal.cashAccount === null ? undefined : accounts.get(withdrawal.cashAccount)
     return named === undefined ? words.rules.withdrawalByCurrency : words.rules.withdrawalTo(named)
@@ -39,7 +82,7 @@ const groups = computed(() => {
     ...group,
     rules: group.rules.map((rule) => ({ rule, test: ruleTestOf(rule.condition), goesTo: goesToOf(rule) })),
     warnings: sharingOneLater(group.overlaps).map(({ firsts, then, firstOnlyMoneyIn }) =>
-      words.rules.overlap({ test: listInWords(firsts.map(testOf)), category: categoryOf(firsts[0]!) }, { test: testOf(then), category: categoryOf(then) }, firstOnlyMoneyIn),
+      words.rules.overlap({ test: listInWords(firsts.map(ruleTest)), category: categoryOf(firsts[0]!) }, { test: ruleTest(then), category: categoryOf(then) }, firstOnlyMoneyIn),
     ),
   }))
 })
@@ -68,13 +111,19 @@ function openDialog(rule: SpendingRule | null, category: Category | null): void 
 
 async function remove(rule: SpendingRule): Promise<void> {
   const book = store.state.workbook
-  if (book !== null) await writes.write(words.rules.deleted, (unit) => deleteRule(unit, book, rule), { key: `delete-${rule.id}`, failedTitle: spendingWords.form.notDeleted })
+  if (book !== null) await writes.write(words.rules.deleted, (unit) => deleteRule(unit, book, rule, loanLinks()), { key: `delete-${rule.id}`, failedTitle: spendingWords.form.notDeleted })
 }
 </script>
 
 <template>
   <div>
-    <EmptyState v-if="groups.length === 0" icon="i-lucide-list-ordered" :title="words.rules.empty" :description="words.rules.emptyDescription" data-testid="spending-rules-empty">
+    <EmptyState
+      v-if="groups.length === 0 && offers.length === 0"
+      icon="i-lucide-list-ordered"
+      :title="words.rules.empty"
+      :description="words.rules.emptyDescription"
+      data-testid="spending-rules-empty"
+    >
       <template #actions>
         <UButton :label="words.rules.add" icon="i-lucide-plus" data-testid="spending-rules-add" @click="openDialog(null, null)" />
       </template>
@@ -83,7 +132,20 @@ async function remove(rule: SpendingRule): Promise<void> {
       <template #actions>
         <UButton :label="words.rules.add" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" data-testid="spending-rules-add" @click="openDialog(null, null)" />
       </template>
-      <div class="flex flex-col pt-3 pb-2">
+      <ul v-if="offers.length > 0" class="divide-y divide-default" data-testid="spending-rule-offers">
+        <ProposalRow v-for="{ offer, key, title, caption } in offers" :key="key" :title="title" :caption="caption" data-testid="spending-rule-offer">
+          <UButton
+            class="self-start"
+            :label="words.rules.makeRule"
+            icon="i-lucide-list-plus"
+            :loading="writes.saving(`offer-${key}`)"
+            :disabled="writes.refused.value"
+            data-testid="spending-rule-offer-make"
+            @click="makeRule(key, offer)"
+          />
+        </ProposalRow>
+      </ul>
+      <div v-if="groups.length > 0" class="flex flex-col pt-3 pb-2">
         <section v-for="group in groups" :key="group.category.id" data-testid="spending-rule-group">
           <div class="group-row flex items-center gap-2 px-4 sm:px-5">
             <span class="flex min-w-0 flex-1 flex-col py-2">

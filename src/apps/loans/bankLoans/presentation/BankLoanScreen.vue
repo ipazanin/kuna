@@ -5,7 +5,7 @@ import UAlert from '@nuxt/ui/components/Alert.vue'
 import UButton from '@nuxt/ui/components/Button.vue'
 
 import { statementPayments } from '../application/statementPayments'
-import { instalmentStandings } from '../domain/instalmentPayments'
+import { instalmentStandings, seenExtraPaymentDays } from '../domain/instalmentPayments'
 import { subsidyLastCovered } from '../domain/loanFigures'
 import { fractionOf } from '../domain/yearlyRate'
 import { balanceChart } from '../../balances/presentation/balanceChart'
@@ -65,7 +65,8 @@ const loanWords = provideLoanWords(() => book.value?.loan.repayment ?? 'annuity'
 const figures = computed(() => (book.value === null ? null : bankLoanFigures(book.value, day)))
 const payments = computed(() => statementPayments())
 const standings = computed(() => (book.value === null ? new Map<CivilDate, InstalmentStanding>() : instalmentStandings(book.value, payments.value, day)))
-const years = computed(() => (book.value === null ? [] : planYearsOnScreen(book.value, day, standings.value)))
+const extrasSeen = computed(() => (book.value === null ? new Set<CivilDate>() : seenExtraPaymentDays(book.value, payments.value)))
+const years = computed(() => (book.value === null ? [] : planYearsOnScreen(book.value, day, standings.value, extrasSeen.value)))
 const payer = computed(() => book.value?.loan.subsidy?.payer ?? '')
 const phone = usePhoneLayout()
 const estimateFrom = computed(() => years.value.flatMap((year) => year.lines).find((line) => line.estimate)?.date ?? null)

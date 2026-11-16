@@ -39,7 +39,7 @@ const WALLET = account(5, {
 const DOLLARS = account(6, { name: 'Dollars', kind: 'cash', bank: null, currency: USD, opening: accountMoneyFromAmount(0), openedOn: CASH.openedOn, rowsFrom: 'by-hand', iban: '', closed: false })
 
 function bankomat(withdrawal: RuleWithdrawal | null = { cashAccount: null }, into = BETWEEN): SpendingRule {
-  return { id: recordIdOf(RULE_RECORDS, 'rule-bankomat'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Bankomat' }, category: into, withdrawal }
+  return { id: recordIdOf(RULE_RECORDS, 'rule-bankomat'), order: 1, condition: { column: 'counterparty_contains', fragment: 'Bankomat' }, category: into, withdrawal, link: null }
 }
 
 function statementRow(on: Account, amount: number, payee: string, fields: Partial<StatementRow> = {}): StatementRow {
@@ -276,7 +276,7 @@ describe('cash legs written', () => {
 
   it('saves a rule that spots cash taken out, and refuses an account change that would leave it naming no cash account', async () => {
     const store = await storeWith([])
-    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Bankomat' }], BETWEEN, { cashAccount: CASH.id }))
+    await store.write('Rule', (unit) => writeRulesInto(unit, store.state.workbook!, [{ column: 'counterparty_contains', fragment: 'Bankomat' }], BETWEEN, { cashAccount: CASH.id }, null, null))
     expect(store.state.workbook!.rules).toMatchObject([{ category: BETWEEN, withdrawal: { cashAccount: CASH.id } }])
 
     await expect(store.write('Kind', (unit) => unit.of(ACCOUNT_WRITES).change(CASH, { ...CASH, kind: 'bank' }))).rejects.toThrow('names as the cash account one that is not a cash account')

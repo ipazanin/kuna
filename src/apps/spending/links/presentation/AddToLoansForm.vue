@@ -5,11 +5,13 @@ import UInput from '@nuxt/ui/components/Input.vue'
 import USelect from '@nuxt/ui/components/Select.vue'
 import { useToast } from '@nuxt/ui/composables/useToast'
 
-import { addMovementAndLink } from '../application/linkWithRecord'
+import { addAndLink } from '../application/linkWithRecord'
+import { addLoansMovement } from '../application/loanTargets'
 import type { ShownTarget } from '../application/loanTargets'
 import { movementKindsFor } from '../domain/linkTarget'
 import type { InformalLoanTarget, MovementKind } from '../domain/linkTarget'
-import { choiceText, words } from './words'
+import { toastLinkedInLoans } from './linkedInLoansToasts'
+import { words } from './words'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import type { Category } from '../../workbook/domain/category'
 import type { Transaction } from '../../workbook/domain/transaction'
@@ -19,9 +21,6 @@ import { absAccountMoney } from '../../../../shared/money/accountMoney'
 import { EURO } from '../../../../shared/money/currencyCode'
 import type { CurrencyCode } from '../../../../shared/money/currencyCode'
 import { amountForTyping, typedAmount } from '../../../../shared/money/typedAmount'
-import { writeFailureInWords } from '../../../../shared/storage/presentation/writeFailureInWords'
-import { UNDO_TOAST_DURATION } from '../../../../shared/storage/presentation/useRecordWrites'
-import { words as storageWords } from '../../../../shared/storage/presentation/words'
 import ChoiceButtons from '../../../../shared/ui/ChoiceButtons.vue'
 import DayField from '../../../../shared/ui/DayField.vue'
 import FormGrid from '../../../../shared/ui/FormGrid.vue'
@@ -94,53 +93,11 @@ async function save(): Promise<void> {
   try {
     const place = { currency: props.currency, categories: props.categories, language, notes: words.notes }
     const titles = { inLoans: words.add.inLoans, linked: words.linked }
-    const result = await addMovementAndLink(store, props.entry, picked, { day: on, kind: kind.value, amount: euros, note: note.value.trim() }, place, titles)
-    if (result.outcome === 'not-added') {
-      toast.add({ title: words.add.notAdded, description: writeFailureInWords(result.failure), icon: 'i-lucide-triangle-alert', color: 'error' })
-      return
-    }
-    if (result.outcome === 'not-linked') {
-      toast.add({
-        title: words.add.notLinked,
-        description: words.add.staysInLoans(writeFailureInWords(result.failure)),
-        duration: UNDO_TOAST_DURATION,
-        icon: 'i-lucide-triangle-alert',
-        color: 'warning',
-        actions: [{ label: storageWords.undo, icon: 'i-lucide-undo-2', color: 'neutral', variant: 'outline', onClick: () => void undoing(result.undoInLoans) }],
-      })
-      emit('linked')
-      return
-    }
-    toast.add({
-      title: words.add.done,
-      description: choiceText(result.movement),
-      duration: UNDO_TOAST_DURATION,
-      icon: 'i-lucide-check',
-      color: 'success',
-      actions: [{ label: storageWords.undo, icon: 'i-lucide-undo-2', color: 'neutral', variant: 'outline', onClick: () => void undoBoth(result.undo) }],
-    })
-    emit('linked')
+    const movement = { day: on, kind: kind.value, amount: euros, note: note.value.trim() }
+    const result = await addAndLink(store, props.entry, () => addLoansMovement(picked, movement, titles.inLoans), place, titles)
+    if (toastLinkedInLoans(toast, result, words.add)) emit('linked')
   } finally {
     saving.value = false
-  }
-}
-
-async function undoBoth(undo: () => Promise<{ readonly kept: false } | { readonly kept: true; readonly failure: unknown }>): Promise<void> {
-  try {
-    const undone = await undo()
-    if (undone.kept) toast.add({ title: storageWords.undone, description: words.add.keptInLoans(writeFailureInWords(undone.failure)), icon: 'i-lucide-undo-2', color: 'warning' })
-    else toast.add({ title: storageWords.undone, description: words.add.undone, icon: 'i-lucide-undo-2', color: 'neutral' })
-  } catch (failure) {
-    toast.add({ title: words.add.notUndone, description: writeFailureInWords(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
-  }
-}
-
-async function undoing(undo: () => Promise<void>): Promise<void> {
-  try {
-    await undo()
-    toast.add({ title: storageWords.undone, icon: 'i-lucide-undo-2', color: 'neutral' })
-  } catch (failure) {
-    toast.add({ title: words.add.notUndone, description: writeFailureInWords(failure), icon: 'i-lucide-triangle-alert', color: 'error' })
   }
 }
 </script>

@@ -29,3 +29,8 @@ export interface InformalLoan {
   readonly note: string
   readonly expected: ExpectedPlan | null
 }
+
+/** Whether a day falls before the loan starts, which no movement of it may. */
+export function beforeLoanStarts(loan: Pick<InformalLoan, 'start'>, day: CivilDate): boolean {
+  return day < loan.start
+}

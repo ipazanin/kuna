@@ -8,6 +8,7 @@ import USelect from '@nuxt/ui/components/Select.vue'
 import { MOVEMENT_WRITES, newMovement } from '../application/informalLoanWrites'
 import { MOVEMENT_KIND_NAMES } from './informalLoanView'
 import { useLoansBooks } from '../../workbook/application/loansStore'
+import { beforeLoanStarts } from '../../workbook/domain/informalLoan'
 import { MOVEMENT_KINDS } from '../../workbook/domain/movement'
 import type { Movement, MovementKind } from '../../workbook/domain/movement'
 import type { InformalLoanBook } from '../../workbook/domain/readLoanBook'
@@ -63,7 +64,7 @@ const parsedAmount = computed(() => {
 const errors = computed(() => {
   const day = parseCivilDate(date.value)
   return {
-    date: day === null ? loansWords.form.aDate(civilDate(2026, 10, 12)) : day < props.book.loan.start ? words.movementDialog.afterStart : null,
+    date: day === null ? loansWords.form.aDate(civilDate(2026, 10, 12)) : beforeLoanStarts(props.book.loan, day) ? words.movementDialog.afterStart : null,
     amount: parsedAmount.value === null ? loansWords.form.anAmount : null,
   }
 })

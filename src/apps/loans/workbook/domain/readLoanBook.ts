@@ -1,5 +1,6 @@
 import type { BankLoan } from './bankLoan'
 import type { ExtraPayment } from './extraPayment'
+import { beforeLoanStarts } from './informalLoan'
 import type { InformalLoan } from './informalLoan'
 import type { LateInstalment } from './lateInstalment'
 import {
@@ -181,7 +182,7 @@ export function readLoanBook(records: LoansRecords): LoanBook {
   const movements = readEach(records.movements, ({ record: movement }) => {
     const loan = informalLoans.get(movement.loan)
     if (loan === undefined) return [words.noInformalLoan]
-    return movement.date < loan.start ? [words.beforeStart(movement.date, loan.name, loan.start)] : []
+    return beforeLoanStarts(loan, movement.date) ? [words.beforeStart(movement.date, loan.name, loan.start)] : []
   })
 
   const loanScenarios = readEach(records.loanScenarios, ({ record: scenario }) => (scenario.start.kind === 'loan' && !bankLoans.has(scenario.start.loan) ? [words.noBankLoan] : []))

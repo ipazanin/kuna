@@ -175,6 +175,7 @@ const SCREEN_WORDS = {
     whatIf: bankLoanEnglish.whatIf,
     savedTries: bankLoanEnglish.savedTries,
     repayments: bankLoanEnglish.loanDialog.repayments,
+    planStatus: bankLoanEnglish.status,
     transactions: transactionsEnglish,
     rules: rulesEnglish,
     ruleChanges: ruleChangesEnglish.changes,
@@ -265,6 +266,7 @@ const SCREEN_WORDS = {
     whatIf: bankLoanCroatian.whatIf,
     savedTries: bankLoanCroatian.savedTries,
     repayments: bankLoanCroatian.loanDialog.repayments,
+    planStatus: bankLoanCroatian.status,
     transactions: transactionsCroatian,
     rules: rulesCroatian,
     ruleChanges: ruleChangesCroatian.changes,
@@ -7950,16 +7952,16 @@ export function spendingRuleFlowIn(language) {
       window.location.hash = '#/spending/settings?tab=rules'
     })
     await page.waitForSelector('[data-testid="spending-rule"]', { visible: true, timeout: 10_000 })
-    await countOf(page, '[data-testid="spending-rule"]', 3, 'Settings, Rules should list the three rules')
+    await countOf(page, '[data-testid="spending-rule"]', 4, 'Settings, Rules should list the four rules')
     await delay(300)
     await inspect?.('Settings, Rules with the new rule')
     await shoot('spending-rule-made')
     const buttons = await page.$$('[data-testid="spending-rule-delete"]')
     await press(buttons.at(-1))
     await toast(page, rules.deleted)
-    await countOf(page, '[data-testid="spending-rule"]', 2, 'Delete should take the rule off')
+    await countOf(page, '[data-testid="spending-rule"]', 3, 'Delete should take the rule off')
     await undoIn(page, press, words)
-    await countOf(page, '[data-testid="spending-rule"]', 3, 'Undo should bring the rule back')
+    await countOf(page, '[data-testid="spending-rule"]', 4, 'Undo should bring the rule back')
     await dismissToasts(page)
   }
 }
@@ -8001,7 +8003,7 @@ export function spendingRulesAddFlowIn(language) {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     const GROUP = '[data-testid="spending-rule-group"]'
     const OVERLAP = '[data-testid="spending-rule-overlap"]'
-    await countOf(page, GROUP, 2, 'the set should start with two rule groups')
+    await countOf(page, GROUP, 3, 'the set should start with three rule groups')
     await pressSelector(page, press, '[data-testid="spending-rules-add"]')
     await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
     await chooseCategory(page, press, await page.$('[data-testid="spending-rule-dialog-category"]'), fuel)
@@ -8018,11 +8020,11 @@ export function spendingRulesAddFlowIn(language) {
     await shoot('spending-rules-add-dialog')
     await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
     await toast(page, countedIn(words, rules.dialog.saved(3), 3))
-    await countOf(page, GROUP, 3, 'Fuel should join as a group')
+    await countOf(page, GROUP, 4, 'Fuel should join as a group')
     const fuelGroup = await ruleGroupOf(page, fuel)
     if ((await fuelGroup.$$('[data-testid="spending-rule"]')).length !== 3) throw new Error('Fuel should hold the three payees')
     await undoIn(page, press, words)
-    await countOf(page, GROUP, 2, 'one Undo should take all three rules back')
+    await countOf(page, GROUP, 3, 'one Undo should take all three rules back')
     await dismissToasts(page)
     await pressSelector(page, press, '[data-testid="spending-rules-add"]')
     await page.waitForSelector('[data-testid="spending-rule-dialog"]', { visible: true, timeout: 5_000 })
@@ -8030,7 +8032,7 @@ export function spendingRulesAddFlowIn(language) {
     await setTextArea(await page.$('[data-testid="spending-rule-dialog-lines"] textarea, textarea[data-testid="spending-rule-dialog-lines"]'), 'Ina Zadar\nIna Pleternica\nIna Kozjak Sjever')
     await pressSelector(page, press, '[data-testid="spending-rule-dialog-save"]')
     await toast(page, countedIn(words, rules.dialog.saved(3), 3))
-    await countOf(page, GROUP, 3, 'Fuel should join as a group')
+    await countOf(page, GROUP, 4, 'Fuel should join as a group')
     await dismissToasts(page)
     await delay(300)
     await inspect?.('Settings, Rules grouped by category')
@@ -12393,5 +12395,81 @@ export function chatBackOnDaysFlowIn(language) {
       await newChat(page, press)
       await forgetAssist(page)
     }
+  }
+}
+/**
+ * Spending's Rules tab on the sample set with the sample Loans file, which has no rules yet: the card offers rows to Example Bank
+ * as paying the home loan, Make rule writes it with its loan named on its line and in its dialog, and deleting it puts the offer back.
+ */
+export function spendingLoanRuleFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { rules } = words.spendingStatements
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await elementSays(page, '[data-testid="spending-rule-offer"]', [rules.offerTitle(rules.quoted('Example Bank'), 'Home loan')], 'the Rules card offers no rule for the home loan')
+    await inspect?.('the Rules card with the offer of a loan rule')
+    await shootAt(page, shoot, '[data-testid="spending-rules"]', 'spending-rules-loan-offer', { block: 'start' })
+    await pressSelector(page, press, '[data-testid="spending-rule-offer-make"]')
+    await toast(page, rules.made)
+    await page.waitForSelector('[data-testid="spending-rule-offers"]', { hidden: true, timeout: 10_000 })
+    await elementSays(page, '[data-testid="spending-rule-goes-to"]', [rules.paysLoan('Home loan')], 'the rule made from the offer does not name the loan')
+    await shootAt(page, shoot, '[data-testid="spending-rule-goes-to"]', 'spending-rules-loan-made')
+    await dismissToasts(page)
+    await pressSelector(page, press, '[data-testid="spending-rule-edit"]')
+    await elementSays(page, '[data-testid="spending-rule-dialog"]', [rules.dialog.pays, rules.dialog.paysHelp, rules.dialog.interestUnder], 'the rule dialog does not show the loan its rows pay')
+    await delay(300)
+    await inspect?.('the rule dialog of a rule whose rows pay the home loan')
+    await shoot('spending-rule-dialog-loan')
+    await pressSelector(page, press, '[data-testid="spending-rule-dialog-cancel"]')
+    await page.waitForSelector('[data-testid="spending-rule-dialog"]', { hidden: true, timeout: 5_000 })
+    await pressSelector(page, press, '[data-testid="spending-rule-delete"]')
+    await toast(page, rules.deleted)
+    await page.waitForSelector('[data-testid="spending-rule-offer"]', { visible: true, timeout: 10_000 })
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * Spending's To review on the statements set with the sample Loans file: the early repayment the home loan's rule filed whole
+ * is offered as an extra payment, its dialog records it in Loans and links the row, which leaves the card, and one Undo takes back both.
+ */
+export function spendingExtraPaymentFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const { extra } = words.spendingLinks
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    await elementSays(page, '[data-testid="spending-review-extra-payments"]', [extra.title, extra.record], 'To review offers no extra payment to record')
+    await inspect?.('To review with an extra payment to record')
+    await shootAt(page, shoot, '[data-testid="spending-review-extra-payments"]', 'spending-review-extra-payments')
+    await pressSelector(page, press, '[data-testid="spending-review-extra-payment-record"]')
+    await page.waitForSelector('[data-testid="spending-extra-payment"]', { visible: true, timeout: 5_000 })
+    await delay(300)
+    await inspect?.('the dialog that records an extra payment')
+    await shoot('spending-extra-payment-dialog')
+    await pressSelector(page, press, '[data-testid="spending-extra-payment-save"]')
+    await toast(page, extra.done)
+    await page.waitForSelector('[data-testid="spending-review-extra-payments"]', { hidden: true, timeout: 10_000 })
+    await undoIn(page, press, words)
+    await page.waitForSelector('[data-testid="spending-review-extra-payments"]', { visible: true, timeout: 10_000 })
+    await dismissToasts(page)
+  }
+}
+
+/**
+ * The home loan's plan with the sample Spending books, whose early repayment is linked to the extra payment in 2025: opening
+ * that year shows the extra payment as seen in your statement, which a phone shows once its row is tapped.
+ */
+export function loansExtraPaymentSeenFlowIn(language) {
+  const { planStatus } = SCREEN_WORDS[language]
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
+    const YEAR = '[data-testid="loan-plan"] li[data-year="2025"]'
+    await pressSelector(page, press, `${YEAR} [data-testid="plan-year"]`)
+    const row = await page.waitForSelector(`${YEAR} [data-testid="plan-row"][data-kind="extra-payment"]`, { visible: true, timeout: 10_000 })
+    const toggle = await row.$('[data-testid="plan-row-toggle"]')
+    if (toggle !== null && (await toggle.boundingBox()) !== null) await press(toggle)
+    await elementSays(page, YEAR, [planStatus.extraSeen], 'the plan does not show the extra payment as seen in your statement')
+    await inspect?.('the plan with the extra payment seen in your statement')
+    await shootAt(page, shoot, row, 'loans-plan-extra-payment-seen')
   }
 }

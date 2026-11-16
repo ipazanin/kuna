@@ -65,6 +65,9 @@ export interface ExtraPaymentTarget {
   readonly amount: Money
 }
 
+/** What an extra payment a row adds in Loans does to the rest of its loan: ends it sooner, or keeps the term with a lower instalment. */
+export type ExtraPaymentEffect = 'shorter-term' | 'lower-instalment'
+
 /** A record in another app that a row can be. */
 export type LinkTarget = InstalmentTarget | InformalLoanTarget | MovementTarget | ExtraPaymentTarget
 
@@ -81,6 +84,28 @@ export function linkStateOf<Target extends { readonly link: RowLink }>(link: Row
   if (targets === 'opening' || targets === 'failed') return { state: targets }
   const target = targets.find((candidate) => sameRecord(candidate.link, link))
   return target === undefined ? { state: 'gone' } : { state: 'there', target }
+}
+
+/** A bank loan whose instalments a row can pay, named as a rule whose rows pay it names it. */
+export interface PaidLoan {
+  /** The link of its instalments with no due date. */
+  readonly link: RowLink
+  readonly loanName: string
+}
+
+/** The loan an instalment's link names, the same for every instalment of the loan. */
+export function loanLinkOf(link: RowLink): RowLink {
+  return { ...link, due: null }
+}
+
+/** Each bank loan the targets have instalments of, in the order the targets name them first. */
+export function paidLoansIn(targets: readonly LinkTarget[]): readonly PaidLoan[] {
+  const loans: PaidLoan[] = []
+  for (const target of targets) {
+    if (target.kind !== 'instalment' || loans.some((loan) => sameRecord(loan.link, loanLinkOf(target.link)))) continue
+    loans.push({ link: loanLinkOf(target.link), loanName: target.loanName })
+  }
+  return loans
 }
 
 /** Whether two links name the same record. */
