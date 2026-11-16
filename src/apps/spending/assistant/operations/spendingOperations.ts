@@ -4,6 +4,7 @@ import type { BrowserFile } from '../../../../shared/app/browserFileCards'
 import { BANK_SETUP_OPERATIONS, isBankSetupStep, planBankSetup } from './bankSetupOperations'
 import { EVENT_OPERATIONS, isEventStep, writeEventStep } from './eventOperations'
 import { LABEL_OPERATIONS, isLabelStep, writeLabelStep } from './labelOperations'
+import { SHORTCUT_OPERATIONS, isShortcutStep, writeShortcutStep } from './shortcutOperations'
 import { NO_WARNINGS, proposalGroupsOf, statementLeftOut } from './proposalLines'
 import type { CardWarnings, StatementLeftOut } from './proposalLines'
 import { ADD_RECEIPT, keptPhotos, receiptsOutside, withPhotosRead, writeReceiptStep } from './receiptOperation'
@@ -354,6 +355,7 @@ export const SPENDING_OPERATIONS: readonly AssistantOperation[] = [
   },
   ...LABEL_OPERATIONS,
   ...EVENT_OPERATIONS,
+  ...SHORTCUT_OPERATIONS,
   ...REVIEW_OPERATIONS,
   ...WAITING_RECEIPT_OPERATIONS,
   IMPORT_STATEMENT,
@@ -528,6 +530,18 @@ function plannedSteps(
       if (added !== null) {
         book = { ...book, labels: [...book.labels, added] }
         if (as !== null) made.set(as, added.id)
+      }
+      continue
+    }
+    if (isShortcutStep(operation)) {
+      const written = writeShortcutStep(unit, book, records(), operation, field, idOf)
+      if (written !== null && 'shortcut' in written) {
+        book = { ...book, shortcuts: [...book.shortcuts, written.shortcut.shortcut], shortcutParts: [...book.shortcutParts, ...written.shortcut.parts] }
+        if (as !== null) made.set(as, written.shortcut.shortcut.id)
+      }
+      if (written !== null && 'entry' in written) {
+        book = { ...book, transactions: [...book.transactions, written.entry.row], items: [...book.items, ...written.entry.items] }
+        if (as !== null) made.set(as, written.entry.row.id)
       }
       continue
     }

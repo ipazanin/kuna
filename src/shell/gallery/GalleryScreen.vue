@@ -1,30 +1,14 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, h, ref } from 'vue'
-import { getGroupedRowModel } from '@tanstack/vue-table'
-import type { ExpandedState, GroupingState, SortingState } from '@tanstack/vue-table'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import UButton from '@nuxt/ui/components/Button.vue'
-import USelect from '@nuxt/ui/components/Select.vue'
-import USwitch from '@nuxt/ui/components/Switch.vue'
-import UTable from '@nuxt/ui/components/Table.vue'
-import type { TableColumn } from '@nuxt/ui/components/Table.vue'
 
-import { dateFormat } from '../../shared/calendar/dateFormat'
-import type { ChartRange } from '../../shared/charts/chartRange'
-import { chartTokens } from '../../shared/charts/chartTokens'
-import { formatMoney, formatPercent } from '../../shared/money/moneyFormat'
-import type { SyncControl, SyncRun } from '../../shared/sync/application/syncRun'
-import SyncStatus from '../../shared/sync/presentation/SyncStatus.vue'
+import { formatMoney } from '../../shared/money/moneyFormat'
 import AppCard from '../../shared/ui/AppCard.vue'
-import ChartCard from '../../shared/ui/ChartCard.vue'
-import type { ChartPointSelection } from '../../shared/ui/ChartCard.vue'
 import ChartLegend from '../../shared/ui/ChartLegend.vue'
 import ChoiceButtons from '../../shared/ui/ChoiceButtons.vue'
-import QuestionList from '../../shared/ui/QuestionList.vue'
 import MenuButton from '../../shared/ui/MenuButton.vue'
 import ColourSwatchPicker from '../../shared/ui/ColourSwatchPicker.vue'
 import DashboardGrid from '../../shared/ui/DashboardGrid.vue'
-import DonutCard from '../../shared/ui/DonutCard.vue'
-import type { DonutPart } from '../../shared/ui/DonutCard.vue'
 import DrillLink from '../../shared/ui/DrillLink.vue'
 import EmptyState from '../../shared/ui/EmptyState.vue'
 import GettingSetUpCard from '../../shared/ui/GettingSetUpCard.vue'
@@ -35,8 +19,6 @@ import FileDrop from '../../shared/ui/FileDrop.vue'
 import FilterChipRow from '../../shared/ui/FilterChipRow.vue'
 import FiltersSheet from '../../shared/ui/FiltersSheet.vue'
 import AskChatButton from '../../shared/ai/presentation/AskChatButton.vue'
-import { useChatElement } from '../../shared/ai/presentation/chatDock'
-import { assistKeyKept } from '../../shared/ai/presentation/aiProvider'
 import AppBrand from '../../shared/ui/AppBrand.vue'
 import AppMark from '../../shared/ui/AppMark.vue'
 import HomeLink from '../../shared/ui/HomeLink.vue'
@@ -54,17 +36,20 @@ import SortableHeader from '../../shared/ui/SortableHeader.vue'
 import type { SortDirection } from '../../shared/ui/SortableHeader.vue'
 import SparkLine from '../../shared/ui/SparkLine.vue'
 import { installedApps } from '../routing/appRegistry'
+import ChartSpecimens from './ChartSpecimens.vue'
+import ChatElementSpecimens from './ChatElementSpecimens.vue'
 import DialogSpecimens from './DialogSpecimens.vue'
 import FormattingGallery from './FormattingGallery.vue'
 import FoundationsGallery from './FoundationsGallery.vue'
 import GallerySection from './GallerySection.vue'
+import GroupedTableSpecimen from './GroupedTableSpecimen.vue'
+import QuestionListSpecimens from './QuestionListSpecimens.vue'
 import RowSpecimens from './RowSpecimens.vue'
 import ScenarioSpecimens from './ScenarioSpecimens.vue'
 import SplitEditorSpecimens from './SplitEditorSpecimens.vue'
-import { cashAtMonthEnd, costsByCategory, everyEuroEarned, incomeAgainstCosts, incomeByMonth, SAMPLE_HOLDINGS, valueMap } from './sampleCharts'
-import { SAMPLE_TRANSACTIONS } from './sampleTransactions'
-import type { SampleTransaction } from './sampleTransactions'
+import { BUCKET_LEGEND } from './sampleCharts'
 import StepSpecimen from './StepSpecimen.vue'
+import SyncStatusSpecimens from './SyncStatusSpecimens.vue'
 import { moneyFromCents, sumMoney } from '../../shared/money/money'
 
 /**
@@ -72,7 +57,6 @@ import { moneyFromCents, sumMoney } from '../../shared/money/money'
  * each of its states, with made-up figures. Each app adds a part of its own specimens. Only
  * development and fake builds have this page.
  */
-const tokens = chartTokens()
 const galleryLink = { path: '/gallery', hash: '#kpi-tile' }
 const themeLink = (theme: 'light' | 'dark') => `${import.meta.env.BASE_URL}?theme=${theme}#/gallery`
 
@@ -104,8 +88,6 @@ const CONTENTS = [
   ['write-progress', 'WriteProgress'],
 ] as const
 
-const lastSelection = ref<ChartPointSelection | null>(null)
-
 const BALANCE_POINTS = [180, 176, 171, 167, 154, 148, 140, 131, 121, 110, 97, 83, 67, 49, 29, 0]
 
 const FOUR_FACTS: readonly Fact[] = [
@@ -134,97 +116,6 @@ const FORM_FACTS: readonly Fact[] = [
   { label: '14.1 Porez', value: formatMoney(moneyFromCents(1_630)), caption: 'Settled', lang: 'hr' },
 ]
 
-const bucketLegend = [
-  { label: 'Income', colour: 'var(--bucket-income)' },
-  { label: 'Operating', colour: 'var(--bucket-operating)' },
-  { label: 'Taxes', colour: 'var(--bucket-taxes)' },
-  { label: 'Owner pay', colour: 'var(--bucket-owner-pay)' },
-  { label: 'Net', colour: 'var(--chart-ink)', mark: 'line' as const },
-  { label: 'October so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
-]
-
-const charts = {
-  incomeByMonth: incomeByMonth(tokens),
-  incomeAgainstCosts: incomeAgainstCosts(tokens),
-  cashAtMonthEnd: cashAtMonthEnd(tokens),
-  costsByCategory: costsByCategory(tokens),
-  everyEuroEarned: everyEuroEarned(tokens),
-  valueMap: valueMap(tokens),
-}
-
-const gainLegend = [
-  { label: 'Loss over 25%', colour: 'var(--loss-3)', mark: 'tile' as const },
-  { label: 'Loss of 10 to 25%', colour: 'var(--loss-2)', mark: 'tile' as const },
-  { label: 'Loss up to 10%', colour: 'var(--loss-1)', mark: 'tile' as const },
-  { label: 'Gain up to 10%', colour: 'var(--gain-1)', mark: 'tile' as const },
-  { label: 'Gain of 10 to 25%', colour: 'var(--gain-2)', mark: 'tile' as const },
-  { label: 'Gain over 25%', colour: 'var(--gain-3)', mark: 'tile' as const },
-]
-
-/** Made-up shares of a year's income, coloured by bucket as every chart colours them. */
-const EURO_PARTS: readonly DonutPart[] = [
-  { key: 'operating', label: 'Operating', value: moneyFromCents(2_908_487), colour: '--bucket-operating', to: galleryLink },
-  { key: 'taxes', label: 'Taxes', value: moneyFromCents(1_454_243), colour: '--bucket-taxes', to: galleryLink },
-  { key: 'owner-pay', label: 'Owner pay', value: moneyFromCents(2_492_988), colour: '--bucket-owner-pay', to: galleryLink },
-  { key: 'kept', label: 'Kept', value: moneyFromCents(3_531_734), colour: '--chart-deemphasis', to: null },
-]
-const TAX_PARTS: readonly DonutPart[] = [
-  { key: 'contributions', label: 'Payroll contributions', value: moneyFromCents(486_000), colour: '--series-3', to: galleryLink },
-  { key: 'corporate', label: 'Corporate income tax', value: moneyFromCents(412_500), colour: '--series-7', to: galleryLink },
-  { key: 'payroll-tax', label: 'Payroll tax', value: moneyFromCents(98_400), colour: '--series-1', to: galleryLink },
-  { key: 'dividend', label: 'Dividend tax', value: moneyFromCents(31_000), colour: '--series-5', to: galleryLink },
-]
-/** Made-up sectors, an open list: the four largest in size order, the rest grey. */
-const SECTOR_PARTS: readonly DonutPart[] = [
-  { key: 'technology', label: 'Information technology', value: moneyFromCents(700_000), colour: '--series-1', to: null },
-  { key: 'industrials', label: 'Industrials', value: moneyFromCents(200_000), colour: '--series-2', to: null },
-  { key: 'financials', label: 'Financials', value: moneyFromCents(60_000), colour: '--series-3', to: null },
-  { key: 'health-care', label: 'Health care', value: moneyFromCents(40_000), colour: '--series-4', to: null },
-  { key: 'other', label: 'Other and not known', value: moneyFromCents(35_000), colour: '--chart-deemphasis', to: null },
-]
-const REGION_PARTS: readonly DonutPart[] = [
-  { key: 'north-america', label: 'North America', value: moneyFromCents(640_000), colour: '--series-1', to: null },
-  { key: 'europe', label: 'Europe', value: moneyFromCents(250_000), colour: '--series-2', to: null },
-  { key: 'asia-pacific', label: 'Asia and Pacific', value: moneyFromCents(100_000), colour: '--series-3', to: null },
-  { key: 'other', label: 'Other and not known', value: moneyFromCents(45_000), colour: '--chart-deemphasis', to: null },
-]
-const OPEN_SPLITS = [
-  { value: 'sector', label: 'By sector' },
-  { value: 'region', label: 'By region' },
-]
-const openSplit = ref('sector')
-
-/** One of each state of the sync control, Allow access also after a closed popup, over a last sync whose statements step filed a statement. */
-const SYNC_CONTROLS: readonly SyncControl[] = [
-  { kind: 'ready', syncedAt: '2026-10-16T06:04:00Z' },
-  { kind: 'running', label: 'Statements', position: 2, of: 3, line: 'Filing 3 rows' },
-  { kind: 'sign-in', failure: null },
-  { kind: 'allow-access', scopes: ['drive.readonly', 'gmail.readonly'], labels: ['Mail', 'Statements'], failure: null },
-  { kind: 'allow-access', scopes: ['drive.readonly', 'gmail.readonly'], labels: ['Mail', 'Statements'], failure: "Google's window was closed before access was allowed." },
-  { kind: 'problems', count: 1, labels: ['Statements'] },
-]
-
-const SYNC_RUN: SyncRun = {
-  startedAt: '2026-10-16T06:03:52Z',
-  finishedAt: '2026-10-16T06:04:00Z',
-  groups: [
-    {
-      app: 'company',
-      name: 'Company',
-      steps: [
-        { id: 'books', label: 'Books', scopes: ['drive.file'], state: { kind: 'done', line: 'Up to date', writeId: null, link: null } },
-        { id: 'mail', label: 'Mail', scopes: ['gmail.readonly', 'drive.readonly'], state: { kind: 'done', line: 'Nothing new, already there 50', writeId: null, link: null } },
-        {
-          id: 'statements',
-          label: 'Statements',
-          scopes: ['drive.readonly'],
-          state: { kind: 'waits', line: 'Filed statement 028, 3 rows. 1 statement was not filed.', writeId: null, link: { label: 'Import', to: '/gallery' } },
-        },
-      ],
-    },
-  ],
-}
-
 const GALLERY_TABS = [
   { value: 'first', label: 'Queue', count: 3 },
   { value: 'second', label: 'Rules' },
@@ -241,20 +132,6 @@ const GALLERY_PERIODS = [
 ] as const
 const galleryPeriod = ref<(typeof GALLERY_PERIODS)[number]['value']>('all')
 
-const GALLERY_ANSWERS = [
-  { value: 'later', label: 'Decide later' },
-  { value: 'both', label: 'Keep both' },
-  { value: 'kept', label: 'Keep the one I have' },
-] as const
-type GalleryAnswer = (typeof GALLERY_ANSWERS)[number]['value']
-const galleryAnswers = ref<Readonly<Record<string, GalleryAnswer>>>({ bakery: 'both' })
-const galleryQuestions = computed(() =>
-  [
-    { key: 'market', row: 'Corner market', caption: '9 Nov 2026 · Main account', note: 'Looks like: CORNER MARKET LTD, −12.30 €, 10 Nov 2026', amount: moneyFromCents(-1230) },
-    { key: 'bakery', row: 'Bakery', caption: '8 Nov 2026 · Main account', note: 'Looks like: BAKERY 22, −4.20 €, 8 Nov 2026', amount: moneyFromCents(-420) },
-    { key: 'pharmacy', row: 'Pharmacy', caption: '7 Nov 2026 · Main account', amount: moneyFromCents(-1890) },
-  ].map((item) => ({ ...item, choice: galleryAnswers.value[item.key] ?? ('later' as const) })),
-)
 const GALLERY_RECEIPT_WAYS = [
   { value: 'type', label: 'Type it in', icon: 'i-lucide-keyboard' },
   { value: 'photo', label: 'Read the photo', icon: 'i-lucide-camera', description: 'Opens the camera on a phone' },
@@ -284,8 +161,6 @@ function pickGalleryLook(value: (typeof GALLERY_SHADES)[number]['value'] | (type
   if (value === 'pale' || value === 'deep') galleryShade.value = value
   else gallerySize.value = value
 }
-const GALLERY_RANGES: readonly ChartRange[] = ['1y', '3y', 'next-5y', 'all']
-const galleryRange = ref<ChartRange>('all')
 const GALLERY_CHIPS = ['EXQ', 'Category: Software subscriptions', 'Counterparty: A supplier whose name runs far past the width of a chip']
 const galleryChips = ref<readonly string[]>(GALLERY_CHIPS)
 const galleryFilterChips = computed(() => galleryChips.value.map((chip) => ({ id: chip, label: chip })))
@@ -306,108 +181,6 @@ const sortedPayees = computed(() => {
   return [...listed].sort((first, second) => sign * (first.cents - second.cents))
 })
 const payeesTotal = sumMoney(PAYEES.slice(0, 5).map((payee) => payee.cents))
-
-const shortDay = dateFormat({ day: 'numeric', month: 'short' })
-
-function sortableHeader(label: string, alignEnd = false) {
-  return ({ column }: { column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (descending?: boolean) => void } }) => {
-    const sorted = column.getIsSorted()
-    return h(UButton, {
-      label,
-      color: 'neutral',
-      variant: 'ghost',
-      size: 'xs',
-      class: ['-mx-2 font-medium text-muted', alignEnd ? 'ms-auto' : ''],
-      trailingIcon: sorted === 'asc' ? 'i-lucide-arrow-up' : sorted === 'desc' ? 'i-lucide-arrow-down' : 'i-lucide-arrow-up-down',
-      'aria-label': `Sort by ${label.toLowerCase()}`,
-      onClick: () => column.toggleSorting(sorted === 'asc'),
-    })
-  }
-}
-
-const groupByMonth = ref(true)
-const grouping = computed<GroupingState>({
-  get: () => (groupByMonth.value ? ['month'] : []),
-  set: (columns) => {
-    groupByMonth.value = columns.includes('month')
-  },
-})
-const sorting = ref<SortingState>([{ id: 'date', desc: true }])
-const expanded = ref<ExpandedState>(true)
-
-const tableTotal = moneyFromCents(SAMPLE_TRANSACTIONS.reduce((total, transaction) => total + transaction.amountCents, 0))
-
-/** As on Transactions, the category moves under the counterparty in a narrow card. */
-function sampleCategory(transaction: SampleTransaction) {
-  return h('span', { class: 'inline-flex items-center gap-1.5 text-toned' }, [
-    h('span', { class: 'size-2 rounded-[2px]', style: { background: `var(--bucket-${transaction.bucket})` }, 'aria-hidden': 'true' }),
-    transaction.category,
-  ])
-}
-
-const columns: TableColumn<SampleTransaction>[] = [
-  { accessorKey: 'month', header: 'Month' },
-  {
-    accessorKey: 'date',
-    header: sortableHeader('Date'),
-    cell: ({ row }) => {
-      if (row.getIsGrouped()) {
-        return h('span', { class: 'font-medium text-highlighted' }, `${row.getValue('month')}, ${row.subRows.length} rows`)
-      }
-      return h('span', { class: 'figure text-muted' }, shortDay(new Date(row.original.date)))
-    },
-  },
-  {
-    accessorKey: 'counterparty',
-    header: 'Counterparty',
-    cell: ({ row }) =>
-      row.getIsGrouped()
-        ? ''
-        : h('div', [h(DrillLink, { to: galleryLink, class: 'text-highlighted' }, () => row.original.counterparty), h('div', { class: 'mt-1 @2xl:hidden' }, [sampleCategory(row.original)])]),
-  },
-  {
-    accessorKey: 'category',
-    header: 'Category',
-    meta: { class: { th: 'hidden @2xl:table-cell', td: 'hidden @2xl:table-cell' } },
-    cell: ({ row }) => (row.getIsGrouped() ? '' : sampleCategory(row.original)),
-  },
-  {
-    accessorKey: 'account',
-    header: 'Account',
-    meta: { class: { th: 'hidden @4xl:table-cell', td: 'hidden @4xl:table-cell' } },
-    cell: ({ row }) => (row.getIsGrouped() ? '' : h('span', { class: 'text-muted' }, row.original.account)),
-  },
-  {
-    accessorKey: 'amountCents',
-    header: sortableHeader('Amount', true),
-    aggregationFn: 'sum',
-    meta: { class: { th: 'text-end', td: 'text-end' } },
-    cell: ({ row }) =>
-      h(MoneyText, {
-        cents: moneyFromCents(Number(row.getValue('amountCents'))),
-        ...(row.getIsGrouped() ? {} : { tone: 'flow' as const }),
-        class: row.getIsGrouped() ? 'font-medium text-highlighted' : '',
-      }),
-    footer: () => h(MoneyText, { cents: tableTotal, class: 'font-semibold text-highlighted' }),
-  },
-]
-
-const { ask: askAboutCash, marked: cashMarked } = useChatElement(
-  {
-    key: 'gallery.cash',
-    label: 'Cash on hand',
-    about: { kind: 'figure', app: 'company', report: 'overview', period: null, label: 'Cash on hand' },
-  },
-  'card',
-)
-const { ask: askAboutRent, marked: rentMarked } = useChatElement(
-  {
-    key: 'gallery.rent',
-    label: 'Rent',
-    about: { kind: 'record', app: 'spending', recordKind: 'transaction', id: 'gallery-rent' },
-  },
-  'row',
-)
 </script>
 
 <template>
@@ -546,234 +319,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
       </AppCard>
     </GallerySection>
 
-    <GallerySection
-      id="dashboard-grid"
-      title="DashboardGrid"
-      description="How a dashboard rearranges with the room it has, which the chat's dock takes from. Tiles go two to a row, then one row from @4xl, five or six three to a row from @3xl and one row from @8xl. Cards go two to a row from @4xl and three from @8xl. A pair sets two parts side by side from @8xl. A row of up to four cards is under ScenarioComparison."
-    >
-      <h3 class="type-label">Six tiles</h3>
-      <DashboardGrid layout="tiles">
-        <KpiTile v-for="index in 6" :key="index" :label="`Tile ${index}`" :value="formatMoney(moneyFromCents(index * 123_400))" :to="null" />
-      </DashboardGrid>
-      <h3 class="type-label">Three tiles, the odd last one across both on a phone</h3>
-      <DashboardGrid layout="tiles">
-        <KpiTile v-for="index in 3" :key="index" :label="`Tile ${index}`" :value="formatMoney(moneyFromCents(index * 51_000))" :to="null" />
-      </DashboardGrid>
-      <h3 class="type-label">A pair: a long card beside a column of cards</h3>
-      <DashboardGrid layout="pair">
-        <AppCard title="A long list" subtitle="Beside the column from @8xl, above it below.">
-          <ul class="flex flex-col px-4 pt-2 pb-3 sm:px-5">
-            <li v-for="index in 8" :key="index" class="border-b border-default py-2 type-body last:border-b-0">Row {{ index }}</li>
-          </ul>
-        </AppCard>
-        <DashboardGrid>
-          <AppCard title="A wide card" subtitle="Across both columns once two fit, one of the column once three do." class="@4xl:col-span-2 @8xl:col-span-1">
-            <p class="px-4 pt-3 pb-4 type-body sm:px-5">It says so with @4xl:col-span-2 @8xl:col-span-1.</p>
-          </AppCard>
-          <AppCard title="A card" subtitle="Half the width from @4xl.">
-            <p class="px-4 pt-3 pb-4 type-body sm:px-5">Two to a row.</p>
-          </AppCard>
-          <AppCard title="Another card" subtitle="Half the width from @4xl.">
-            <p class="px-4 pt-3 pb-4 type-body sm:px-5">Two to a row.</p>
-          </AppCard>
-        </DashboardGrid>
-      </DashboardGrid>
-    </GallerySection>
-
-    <GallerySection
-      id="chart-card"
-      title="ChartCard, ChartCanvas and ChartLegend"
-      description="A chart in a card with its legend, its table behind Table, a treemap that brings its own table, and its loading and empty states."
-    >
-      <p class="type-caption" aria-live="polite">
-        <template v-if="lastSelection"> Clicked {{ lastSelection.seriesName }}, {{ lastSelection.category }}. A screen turns this into a filter and opens the rows. </template>
-        <template v-else>Click any bar to see the selection a screen receives.</template>
-      </p>
-      <DashboardGrid>
-        <ChartCard
-          class="@4xl:col-span-2"
-          title="Income and costs by month"
-          description="Made-up income and costs by month for the gallery."
-          subtitle="Income above zero, costs below it by bucket. October is still running."
-          definition="Costs are operating, taxes and owner pay. Financing and transfers between your own accounts never enter these figures."
-          :option="charts.incomeAgainstCosts"
-          :height="320"
-          @select="lastSelection = $event"
-        >
-          <template #legend><ChartLegend :entries="bucketLegend" /></template>
-        </ChartCard>
-
-        <ChartCard
-          title="Income by month"
-          description="Made-up income by month for the gallery."
-          subtitle="The three-month average leaves out the month in progress."
-          :option="charts.incomeByMonth"
-          @select="lastSelection = $event"
-        >
-          <template #legend>
-            <ChartLegend
-              :entries="[
-                { label: 'Income', colour: 'var(--bucket-income)' },
-                { label: 'Three-month average', colour: 'var(--chart-ink)', mark: 'line' },
-                { label: 'October so far', colour: 'var(--bucket-income)', mark: 'hatched' },
-              ]"
-            />
-          </template>
-        </ChartCard>
-
-        <ChartCard
-          v-model:range="galleryRange"
-          title="Cash at month end"
-          description="Made-up month-end cash for the gallery."
-          subtitle="All accounts together, with the span it shows picked beside the legend"
-          :option="charts.cashAtMonthEnd"
-          :ranges="GALLERY_RANGES"
-        >
-          <template #legend>
-            <ChartLegend
-              :entries="[
-                { label: 'Cash', colour: 'var(--series-3)', mark: 'line' },
-                { label: 'A deposit', colour: 'var(--invest-buy)', mark: 'dot' },
-                { label: 'A withdrawal', colour: 'var(--invest-sale)', mark: 'dot' },
-                { label: 'A new rate', colour: 'var(--loan-interest)', mark: 'ring' },
-              ]"
-            />
-          </template>
-        </ChartCard>
-
-        <ChartCard
-          title="Operating costs by category"
-          description="Made-up operating costs by category for the gallery."
-          subtitle="Last 12 months against the 12 before"
-          :option="charts.costsByCategory"
-          :height="300"
-          @select="lastSelection = $event"
-        >
-          <template #legend>
-            <ChartLegend
-              :entries="[
-                { label: 'Last 12 months', colour: 'var(--bucket-operating)' },
-                { label: 'Prior 12 months', colour: 'var(--chart-ghost)', mark: 'ghost' },
-              ]"
-            />
-          </template>
-        </ChartCard>
-
-        <ChartCard
-          title="Every euro earned"
-          description="Made-up split of every euro earned for the gallery."
-          subtitle="Where each euro of income went. Still reads correctly in a loss-making period."
-          definition="Each bar is one window. The segments are shares of income in that window and add up to 100%."
-          :option="charts.everyEuroEarned"
-          :height="180"
-          @select="lastSelection = $event"
-        >
-          <template #legend>
-            <ChartLegend
-              :entries="[
-                { label: 'Kept', colour: 'var(--bucket-income)' },
-                { label: 'Operating', colour: 'var(--bucket-operating)' },
-                { label: 'Taxes', colour: 'var(--bucket-taxes)' },
-                { label: 'Owner pay', colour: 'var(--bucket-owner-pay)' },
-              ]"
-            />
-          </template>
-        </ChartCard>
-
-        <ChartCard
-          title="Value by holding"
-          description="Made-up holdings for the gallery, each sized by its value and tinted by its gain or loss."
-          subtitle="A chart with no category axis brings its own table"
-          :option="charts.valueMap"
-          :height="300"
-          @select="lastSelection = $event"
-        >
-          <template #legend><ChartLegend :entries="gainLegend" /></template>
-          <template #table>
-            <caption class="sr-only">
-              Value by holding
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col" class="text-start">Holding</th>
-                <th scope="col" class="text-end">Value</th>
-                <th scope="col" class="text-end">Gain</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="holding in SAMPLE_HOLDINGS" :key="holding.name">
-                <th scope="row" class="text-start font-normal text-toned">{{ holding.name }}</th>
-                <td class="text-end"><MoneyText :cents="holding.value" /></td>
-                <td class="figure text-end">{{ formatPercent(holding.gain, 'always') }}</td>
-              </tr>
-            </tbody>
-          </template>
-        </ChartCard>
-
-        <ChartCard
-          title="A collapsible chart"
-          description="Made-up month-end cash for the gallery, in a chart that folds away."
-          subtitle="A reference chart a screen opens folded"
-          collapse-id="gallery.chart"
-          summary="Cash rose in 9 of the last 12 months"
-          :option="charts.cashAtMonthEnd"
-          :height="200"
-        />
-
-        <ChartCard title="Loading" description="A chart while it reloads." subtitle="A refetch keeps the last frame, faded" :option="charts.cashAtMonthEnd" loading :height="200" />
-        <ChartCard title="Empty" description="No rows in the period." subtitle="No rows in the period" :option="{}" empty :height="200" />
-      </DashboardGrid>
-    </GallerySection>
-
-    <GallerySection
-      id="donut-card"
-      title="DonutCard"
-      description="One snapshot of at most five parts, the list beside the ring as its table, collapsible, with content below, and an open list coloured by size with a select in its header."
-    >
-      <DashboardGrid>
-        <DonutCard
-          title="Every euro earned, last 12 months"
-          description="Made-up split of a year's income for the gallery: operating 28%, taxes 14%, owner pay 24%, kept 34%."
-          subtitle="Where each euro of income went"
-          :parts="EURO_PARTS"
-          :total="formatMoney(moneyFromCents(10_387_452))"
-          total-label="income"
-        />
-        <DonutCard
-          title="Tax by type"
-          description="Made-up taxes paid in a year for the gallery, by type."
-          subtitle="Taxes paid in the year"
-          :parts="TAX_PARTS"
-          :total="formatMoney(moneyFromCents(1_027_900))"
-          total-label="paid"
-          collapse-id="gallery.donut"
-          :summary="`4 kinds of tax, ${formatMoney(moneyFromCents(1_027_900))} paid`"
-        >
-          <template #below>
-            <p class="mt-2 type-caption">
-              Less <span class="figure">{{ formatMoney(moneyFromCents(64_000)) }}</span> refunded, so the year's taxes come to <span class="figure">{{ formatMoney(moneyFromCents(963_900)) }}</span
-              >.
-            </p>
-          </template>
-        </DonutCard>
-        <DonutCard
-          title="Mix"
-          :description="
-            openSplit === 'sector'
-              ? 'Made-up holdings by sector for the gallery: information technology 68%, industrials 19%, financials 6%, health care 4%, other and not known 3%.'
-              : 'Made-up holdings by region for the gallery: North America 62%, Europe 24%, Asia and Pacific 10%, other and not known 4%.'
-          "
-          subtitle="An open list, its four largest in size order and the rest grey, picked in the header"
-          :parts="openSplit === 'sector' ? SECTOR_PARTS : REGION_PARTS"
-          :total="formatMoney(moneyFromCents(1_035_000))"
-          total-label="of holdings"
-        >
-          <template #actions>
-            <USelect v-model="openSplit" :items="OPEN_SPLITS" size="sm" aria-label="Split the value" class="w-36" />
-          </template>
-        </DonutCard>
-      </DashboardGrid>
-    </GallerySection>
+    <ChartSpecimens />
 
     <GallerySection id="page-tabs" title="PageTabs" description="A screen's inner tabs, written into the address, with a count where something waits.">
       <PageTabs :tabs="GALLERY_TABS" label="Gallery tabs">
@@ -875,54 +421,9 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
 
     <ScenarioSpecimens />
 
-    <GallerySection id="grouped-table" title="Grouped table" description="Nuxt UI's table, themed in vite.config.ts, only where grouping or sorting by a column earns it.">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <USwitch v-model="groupByMonth" label="Group by month" size="sm" />
-      </div>
-      <p class="type-body sm:hidden">The table is the layout from 640 px up. A phone lists the rows as cards.</p>
-      <div class="hidden sm:block">
-        <AppCard as="div" class="@container overflow-hidden">
-          <UTable
-            v-model:sorting="sorting"
-            v-model:grouping="grouping"
-            v-model:expanded="expanded"
-            :data="[...SAMPLE_TRANSACTIONS]"
-            :columns="columns"
-            :grouping-options="{ groupedColumnMode: 'remove', getGroupedRowModel: getGroupedRowModel() }"
-            sticky
-            class="max-h-[26rem]"
-          />
-        </AppCard>
-      </div>
-    </GallerySection>
+    <GroupedTableSpecimen />
 
-    <GallerySection
-      id="chat-tag"
-      title="Asking the chat about an element"
-      description="A page calls useChatElement with a key, a label and what the element is. AskChatButton calls its ask, which opens the chat about it, and the element binds its marked, with the shape it draws on. While the open chat is about it, a card keeps its surface under the accent wash with its border in accent, and a row takes the selected sidebar row's wash and bar. A dense row takes the icon alone. A button that names a task, such as Set up with the chat, sends it by itself, at md size beside a step's buttons and spinning while its action runs. It shows with a key kept."
-    >
-      <div v-if="assistKeyKept" class="flex flex-col gap-4">
-        <DashboardGrid layout="tiles">
-          <KpiTile v-bind="cashMarked" label="Cash on hand" :value="formatMoney(moneyFromCents(1_248_000))" :to="null" data-testid="gallery-chat-element">
-            <AskChatButton label="Cash on hand" class="mt-3" data-testid="gallery-chat-ask" @ask="askAboutCash" />
-          </KpiTile>
-        </DashboardGrid>
-        <ul class="flex max-w-md flex-col">
-          <li v-bind="rentMarked" class="flex items-center justify-between gap-2 rounded-control px-2 py-0.5 type-body" data-testid="gallery-chat-row">
-            Rent
-            <AskChatButton label="Rent" icon-only data-testid="gallery-chat-row-ask" @ask="askAboutRent" />
-          </li>
-          <li class="flex items-center justify-between gap-2 rounded-control px-2 py-0.5 type-body">
-            Groceries
-            <AskChatButton label="Groceries" icon-only />
-          </li>
-        </ul>
-        <div class="flex flex-wrap items-center gap-2">
-          <AskChatButton text="Set up with the chat" size="md" />
-          <AskChatButton text="Set up with the chat" size="md" loading />
-        </div>
-      </div>
-    </GallerySection>
+    <ChatElementSpecimens />
 
     <GallerySection
       id="controls"
@@ -935,7 +436,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
             Net taxes
             <InfoPopover subject="net taxes" definition="Taxes paid minus refunds, divided by client revenue for the same period." />
             <InfoPopover subject="the colours">
-              <div class="p-3"><ChartLegend :entries="bucketLegend.slice(0, 4)" /></div>
+              <div class="p-3"><ChartLegend :entries="BUCKET_LEGEND.slice(0, 4)" /></div>
             </InfoPopover>
           </div>
         </AppCard>
@@ -1065,42 +566,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
       </DashboardGrid>
     </GallerySection>
 
-    <GallerySection
-      id="question-list"
-      title="QuestionList"
-      description="Rows that each ask for one of a few choices, with an intro and a heading the card may already give. The answer being written shows busy. The amount slot puts a figure in a column beside each row's words."
-    >
-      <DashboardGrid>
-        <AppCard title="With its heading and amounts">
-          <div class="px-4 pt-3 pb-4 sm:px-5">
-            <QuestionList
-              :items="galleryQuestions"
-              :options="GALLERY_ANSWERS"
-              label="Which to keep"
-              heading="Rows that look like ones you have"
-              intro="Each looks like a row you have, with the same amount and at most 3 days apart."
-              :saving="{ key: 'market', choice: 'kept' }"
-              @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
-            >
-              <template #amount="{ item }">
-                <MoneyText :cents="item.amount" tone="flow" />
-              </template>
-            </QuestionList>
-          </div>
-        </AppCard>
-        <AppCard title="Inside a card that names the rows">
-          <div class="px-4 pt-3 pb-4 sm:px-5">
-            <QuestionList
-              :items="galleryQuestions"
-              :options="GALLERY_ANSWERS"
-              label="Which to keep"
-              intro="Each looks like a row you have, with the same amount and at most 3 days apart."
-              @answer="(key, choice) => (galleryAnswers = { ...galleryAnswers, [key]: choice })"
-            />
-          </div>
-        </AppCard>
-      </DashboardGrid>
-    </GallerySection>
+    <QuestionListSpecimens />
 
     <RowSpecimens />
 
@@ -1121,20 +587,7 @@ const { ask: askAboutRent, marked: rentMarked } = useChatElement(
       </AppCard>
     </GallerySection>
 
-    <GallerySection id="sync-status" title="Sync status" description="Every state of the sync control, in the sidebar and compact in the phone top bar.">
-      <div class="grid gap-3 sm:grid-cols-2 @4xl:grid-cols-4">
-        <AppCard v-for="(control, index) in SYNC_CONTROLS" :key="index" as="div" class="p-4"><SyncStatus :control="control" :run="SYNC_RUN" /></AppCard>
-      </div>
-      <h3 class="type-label">Compact, as in the phone top bar</h3>
-      <div class="flex flex-wrap gap-3">
-        <AppCard v-for="(control, index) in SYNC_CONTROLS" :key="index" as="div" class="p-4"><SyncStatus :control="control" :run="SYNC_RUN" compact /></AppCard>
-      </div>
-      <h3 class="type-label">While a write to the books runs</h3>
-      <div class="flex flex-wrap gap-3">
-        <AppCard as="div" class="w-60 p-4"><SyncStatus :control="SYNC_CONTROLS[0]!" :run="SYNC_RUN" saving /></AppCard>
-        <AppCard as="div" class="p-4"><SyncStatus :control="SYNC_CONTROLS[0]!" :run="SYNC_RUN" compact saving /></AppCard>
-      </div>
-    </GallerySection>
+    <SyncStatusSpecimens />
 
     <GallerySection id="write-progress" title="WriteProgress" description="The bar along the top of the page while a write to the books runs, shown here in place.">
       <AppCard as="div" class="p-4"><WriteProgress active label="Saving" /></AppCard>

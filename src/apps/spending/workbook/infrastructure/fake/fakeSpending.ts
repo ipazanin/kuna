@@ -20,12 +20,15 @@ import {
   RECEIPT_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
+  SHORTCUT_PART_RECORDS,
+  SHORTCUT_RECORDS,
   TRANSACTION_RECORDS,
 } from '../../domain/spendingKinds'
 import { plainLineOf } from '../../domain/beforeItems'
 import { rowItemsOf, wholeItemOf } from '../../domain/rowItems'
 import type { WholeFiling } from '../../domain/rowItems'
 import type { SpendingRule } from '../../domain/spendingRule'
+import type { Shortcut, ShortcutPart } from '../../domain/shortcut'
 import { BANK_ACCOUNTS_NOT_IN_KUNA_KEY, BANK_SYNC_DEPLOYMENT_KEY, bankLinkKey } from '../../domain/spendingSettings'
 import { BLANK_CELLS, NO_BANK_FACTS, storedRowOf } from '../../domain/transaction'
 import { FAKE_NEW_USD_IBAN, FAKE_POCKET_IBAN } from '../../../bankSync/infrastructure/fake/fakeBankSync'
@@ -640,6 +643,8 @@ function fakeEntries(set: FakeSpendingSet, day: CivilDate, bankSync: string | nu
       ...stored(LABEL_RECORDS, fakeLabels()),
       ...stored(EVENT_RECORDS, set === 'foreign' ? [] : fakeEvents(day)),
       ...stored(BUDGET_RECORDS, budgets),
+      ...stored(SHORTCUT_RECORDS, set === 'foreign' ? [] : FAKE_SHORTCUTS),
+      ...stored(SHORTCUT_PART_RECORDS, set === 'foreign' ? [] : fakeShortcutParts(transactions, idOf)),
       ...stored(RULE_RECORDS, set === 'statements' || set === 'copied' || set === 'synced' || set === 'cash' ? fakeRules(idOf) : []),
       ...stored(RECEIPT_RECORDS, receipts.receipts),
       ...(bankSync === null ? {} : stored(SETTING_RECORDS, fakeBankSyncSettings(bankSync, day))),
@@ -788,6 +793,32 @@ function waitingReceipts(day: CivilDate, idOf: (path: string) => RecordId): Retu
 /** The receipts and lines of the set, with a receipt that waits for the bank's row once the bank fills the accounts. */
 function withWaiting(split: ReturnType<typeof splitRowReceipt>, waiting: ReturnType<typeof splitRowReceipt> | null): ReturnType<typeof splitRowReceipt> {
   return waiting === null ? split : { receipts: [...split.receipts, ...waiting.receipts], lines: [...split.lines, ...waiting.lines] }
+}
+
+const COFFEE_SHORTCUT = fixedId(SHORTCUT_RECORDS, 2201)
+const BREAD_SHORTCUT = fixedId(SHORTCUT_RECORDS, 2202)
+
+/** Two quick adds on Cash: the morning coffee with its tip, and bread at the bakery. */
+const FAKE_SHORTCUTS: readonly Shortcut[] = [
+  { id: COFFEE_SHORTCUT, order: 1, name: language === 'hr' ? 'Kava' : 'Coffee', account: CASH, payee: 'Café on the square' },
+  { id: BREAD_SHORTCUT, order: 2, name: '', account: CASH, payee: 'Bakery' },
+]
+
+/** The coffee goes under the category of the sample's coffees on Cash, so it follows the starters, and its tip under Other. */
+function fakeShortcutParts(rows: readonly FakeRow[], idOf: (path: string) => RecordId): readonly ShortcutPart[] {
+  const coffee = rows.find((row) => row.account === CASH && row.payee === 'Café on the square')?.category ?? idOf('Food/Groceries')
+  return [
+    { id: fixedId(SHORTCUT_PART_RECORDS, 2301), shortcut: COFFEE_SHORTCUT, amount: accountMoneyFromAmount(-1.8), category: coffee, note: '', labels: [] },
+    {
+      id: fixedId(SHORTCUT_PART_RECORDS, 2302),
+      shortcut: COFFEE_SHORTCUT,
+      amount: accountMoneyFromAmount(-0.2),
+      category: idOf('Other/Other'),
+      note: language === 'hr' ? 'Napojnica' : 'Tip',
+      labels: [],
+    },
+    { id: fixedId(SHORTCUT_PART_RECORDS, 2303), shortcut: BREAD_SHORTCUT, amount: accountMoneyFromAmount(-2.4), category: idOf('Food/Groceries'), note: '', labels: [] },
+  ]
 }
 
 function fakeRules(idOf: (path: string) => RecordId): readonly SpendingRule[] {

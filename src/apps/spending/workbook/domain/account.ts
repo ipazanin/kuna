@@ -52,6 +52,11 @@ export function takesRowsByHand(account: Pick<Account, 'rowsFrom' | 'openedOn'>)
   return takesRowByHand(account.rowsFrom, account.openedOn, account.openedOn)
 }
 
+/** Whether a new typed row may go on the account: it is open and its rows come by hand. */
+export function takesNewRowsByHand(account: Pick<Account, 'closed' | 'rowsFrom' | 'openedOn'>): boolean {
+  return !account.closed && takesRowsByHand(account)
+}
+
 /** Whether the account says the bank brings its rows but holds no IBAN to find it by, which a write refuses and a reading doubts. */
 export function bankLinkWithoutIban(account: Pick<Account, 'rowsFrom' | 'iban'>): boolean {
   return account.rowsFrom === 'bank-link' && account.iban.trim() === ''

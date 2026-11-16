@@ -39,11 +39,14 @@ import {
   RECEIPT_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
+  SHORTCUT_PART_RECORDS,
+  SHORTCUT_RECORDS,
   TRANSACTION_RECORDS,
   LINE_RECORDS,
 } from '../workbook/domain/spendingKinds'
 import type { LinkableBank } from '../workbook/domain/spendingSettings'
 import type { SpendingRule } from '../workbook/domain/spendingRule'
+import type { Shortcut, ShortcutPart } from '../workbook/domain/shortcut'
 import type { Transaction } from '../workbook/domain/transaction'
 import { readableKind } from '../../../shared/app/assistantReader'
 import type { AppReader, ReceiptPayments, ReportFigure } from '../../../shared/app/assistantReader'
@@ -234,6 +237,23 @@ const ruleFields = (loans: () => AppTargets<LinkTarget>): FieldDocs<SpendingRule
     read: (rule) => paidLoanRead(rule, loans()),
   },
 })
+
+const SHORTCUT_FIELDS: FieldDocs<Shortcut> = {
+  id: { exposure: 'ref', to: SHORTCUT_RECORDS.name, meaning: 'The quick add.' },
+  order: { exposure: 'plain', meaning: 'Its place among the Quick add buttons on Entries, lowest first.' },
+  name: { exposure: 'free-text', meaning: 'What its button says, or empty to show the payee.' },
+  account: { exposure: 'ref', to: ACCOUNT_RECORDS.name, meaning: 'The account its entry goes on. One on a closed account shows no button.' },
+  payee: { exposure: 'party', meaning: 'Who its entry pays or is paid by. An alias for a person Kuna knows.' },
+}
+
+const SHORTCUT_PART_FIELDS: FieldDocs<ShortcutPart> = {
+  id: { exposure: 'ref', to: SHORTCUT_PART_RECORDS.name, meaning: 'The part.' },
+  shortcut: { exposure: 'ref', to: SHORTCUT_RECORDS.name, meaning: 'The quick add it is part of. One part writes an entry not split, and two or more one entry split into them.' },
+  amount: { exposure: 'plain', amount: 'account', sign: 'either', meaning: "Below zero for money out, in the account's currency. The parts add up to the entry." },
+  category: { exposure: 'ref', to: CATEGORY_RECORDS.name, meaning: 'What this part of the money is filed under.' },
+  note: { exposure: 'free-text', meaning: "The owner's note on this money, or empty." },
+  labels: { exposure: 'ref', to: LABEL_RECORDS.name, list: true, meaning: 'The labels this money carries.' },
+}
 
 const RECEIPT_FIELDS: FieldDocs<Receipt> = {
   id: { exposure: 'ref', to: RECEIPT_RECORDS.name, meaning: 'The receipt.' },
@@ -517,6 +537,22 @@ export function spendingReader(reading: SpendingReading): AppReader {
       readableKind({ kind: EVENT_RECORDS, about: words.reads.event, fields: EVENT_FIELDS, dated: null, rows: () => rows((book) => book.events), currencyOf: () => EURO }),
       readableKind({ kind: BUDGET_RECORDS, about: words.reads.budget, fields: BUDGET_FIELDS, dated: 'from', rows: () => rows((book) => book.budgets), currencyOf: () => EURO }),
       readableKind({ kind: RULE_RECORDS, about: words.reads.rule, fields: ruleFields(reading.linkTargets), dated: null, rows: () => rows((book) => book.rules), currencyOf: () => EURO }),
+      readableKind({
+        kind: SHORTCUT_RECORDS,
+        about: words.reads.shortcut,
+        fields: SHORTCUT_FIELDS,
+        dated: null,
+        rows: () => rows((book) => book.shortcuts),
+        currencyOf: (shortcut) => accountCurrency(shortcut.account),
+      }),
+      readableKind({
+        kind: SHORTCUT_PART_RECORDS,
+        about: words.reads.shortcutPart,
+        fields: SHORTCUT_PART_FIELDS,
+        dated: null,
+        rows: () => rows((book) => book.shortcutParts),
+        currencyOf: (part) => accountCurrency(rows((book) => book.shortcuts).find((shortcut) => shortcut.id === part.shortcut)?.account ?? ''),
+      }),
       readableKind<Receipt>({
         kind: RECEIPT_RECORDS,
         about: words.reads.receipt,

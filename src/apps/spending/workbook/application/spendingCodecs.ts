@@ -6,6 +6,7 @@ import { LABEL_CODEC } from '../domain/labelReading'
 import { ITEM_CODEC, LINE_CODEC } from '../domain/transactionItemReading'
 import { RECEIPT_CODEC } from '../domain/receiptReading'
 import { RULE_CODEC } from '../domain/ruleReading'
+import { SHORTCUT_CODEC, SHORTCUT_PART_CODEC } from '../domain/shortcutReading'
 import { SETTING_RECORDS } from '../domain/spendingKinds'
 import {
   BANK_ACCOUNTS_KEEP_MINE_KEY,
@@ -53,6 +54,8 @@ const SPENDING_CODECS = [
   TRANSACTION_CODEC,
   BUDGET_CODEC,
   RULE_CODEC,
+  SHORTCUT_CODEC,
+  SHORTCUT_PART_CODEC,
   RECEIPT_CODEC,
   LINE_CODEC,
   ITEM_CODEC,

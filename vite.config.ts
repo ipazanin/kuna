@@ -51,6 +51,8 @@ export default defineConfig(({ command, isPreview }) => ({
             footer: 'pb-[max(1rem,env(safe-area-inset-bottom))]',
           },
         },
+        // Two actions with Croatian labels are wider than a toast on a phone, so the second one moves to its own line.
+        toast: { slots: { actions: 'flex-wrap' } },
         select: { slots: { item: highlightedRow } },
         selectMenu: { slots: { item: highlightedRow } },
         inputMenu: { slots: { item: highlightedRow } },

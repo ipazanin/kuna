@@ -28,6 +28,10 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
     ],
   },
   {
+    reason: 'The labels on a part of a quick add, which Settings, Quick add sets. A label goes on the entry the quick add wrote through label-entries.',
+    fields: ['spending: ShortcutPart.labels'],
+  },
+  {
     reason: "A transfer moves money between your own accounts, so its legs write no payee. A plain entry's payee goes through add-entry and change-entry.",
     fields: ['spending: Transaction.payee'],
   },
@@ -73,6 +77,8 @@ export const FIELD_EXCEPTIONS: readonly FieldException[] = [
       'spending: Label.id',
       'spending: SpendingEvent.id',
       'spending: Receipt.id',
+      'spending: Shortcut.id',
+      'spending: ShortcutPart.id',
       'spending: TransactionItem.id',
       'spending: Transaction.id',
       'company: CategoryDraft.saved',
@@ -248,6 +254,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/labels/application/labelWrites.ts#deleteLabel',
       'src/apps/spending/events/application/eventWrites.ts#deleteEvent',
       'src/apps/spending/statements/application/statementWrites.ts#deleteRule',
+      'src/apps/spending/shortcuts/application/shortcutWrites.ts#deleteShortcut',
     ],
   },
   {
@@ -258,6 +265,7 @@ export const NO_FIELD_PATHS: readonly NoFieldPaths[] = [
       'src/apps/spending/categories/application/categoryWrites.ts#deleteInto',
       'src/apps/spending/labels/application/labelWrites.ts#labelRows',
       'src/apps/spending/events/application/eventWrites.ts#chooseEvent',
+      'src/apps/spending/shortcuts/application/shortcutWrites.ts#moveShortcut',
       'src/apps/spending/statements/application/statementWrites.ts#fileRow',
       'src/apps/spending/statements/application/statementWrites.ts#joinWithTyped',
       'src/apps/spending/statements/application/statementWrites.ts#notAPair',

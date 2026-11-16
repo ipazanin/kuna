@@ -24,9 +24,12 @@ import {
   RECEIPT_RECORDS,
   RULE_RECORDS,
   SETTING_RECORDS,
+  SHORTCUT_PART_RECORDS,
+  SHORTCUT_RECORDS,
   TRANSACTION_RECORDS,
 } from './spendingKinds'
 import type { SpendingRule } from './spendingRule'
+import type { Shortcut, ShortcutPart } from './shortcut'
 import {
   BANK_ACCOUNTS_KEEP_MINE_KEY,
   BANK_ACCOUNTS_NOT_IN_KUNA_KEY,
@@ -49,6 +52,7 @@ import { words } from './words'
 import { limitRuns, runsOverlap } from '../../budgets/domain/budgetCarry'
 import { eventProblem } from '../../events/domain/events'
 import { labelNameProblem } from '../../labels/domain/labels'
+import { shortcutPartProblem } from '../../shortcuts/domain/shortcuts'
 import { accountMoneyOfEuros, negateAccountMoney, sumAccountMoney } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
 import { restOfWhole } from '../../../../shared/money/partsOfWhole'
@@ -92,6 +96,8 @@ export interface SpendingRecords {
   readonly transactions: RecordsRead<StoredRow>
   readonly budgets: RecordsRead<Budget>
   readonly rules: RecordsRead<SpendingRule>
+  readonly shortcuts: RecordsRead<Shortcut>
+  readonly shortcutParts: RecordsRead<ShortcutPart>
   readonly receipts: RecordsRead<Receipt>
   /** The parts of entries as a file from before items keeps them. */
   readonly lines: RecordsRead<StoredLine>
@@ -110,6 +116,8 @@ export const SPENDING_PARTS: { readonly [Part in keyof SpendingRecords]: RecordK
   transactions: TRANSACTION_RECORDS,
   budgets: BUDGET_RECORDS,
   rules: RULE_RECORDS,
+  shortcuts: SHORTCUT_RECORDS,
+  shortcutParts: SHORTCUT_PART_RECORDS,
   receipts: RECEIPT_RECORDS,
   lines: LINE_RECORDS,
   items: ITEM_RECORDS,
@@ -127,6 +135,8 @@ export function spendingRecordsOf(of: <R>(kind: RecordKind<R>) => RecordsRead<R>
     transactions: of(SPENDING_PARTS.transactions),
     budgets: of(SPENDING_PARTS.budgets),
     rules: of(SPENDING_PARTS.rules),
+    shortcuts: of(SPENDING_PARTS.shortcuts),
+    shortcutParts: of(SPENDING_PARTS.shortcutParts),
     receipts: of(SPENDING_PARTS.receipts),
     lines: of(SPENDING_PARTS.lines),
     items: of(SPENDING_PARTS.items),
@@ -157,6 +167,10 @@ export interface SpendingBook {
   readonly budgets: readonly Budget[]
   /** In the order they are tried. */
   readonly rules: readonly SpendingRule[]
+  /** In the order they show. */
+  readonly shortcuts: readonly Shortcut[]
+  /** In the order of the file. */
+  readonly shortcutParts: readonly ShortcutPart[]
   readonly receipts: readonly Receipt[]
   /** Every row's items and the lines of receipts that wait for the bank's row, in the order of the file. A file from before items has them made from its rows and lines. */
   readonly items: readonly TransactionItem[]
@@ -302,6 +316,46 @@ function readRules(read: RecordsRead<SpendingRule>, categories: readonly Categor
   return { ...reading, facts: [...reading.facts].sort((earlier, later) => earlier.order - later.order) }
 }
 
+/** Why a shortcut does not count: it names no account in the file. */
+function readShortcuts(read: RecordsRead<Shortcut>, accounts: ReadonlyMap<string, Account>): Reading<Shortcut> {
+  return readEach(read, ({ record: shortcut }) => (accounts.has(shortcut.account) ? [] : [words.noAccount]))
+}
+
+const SHORTCUT_PART_REASONS = {
+  zero: words.amountIsZero,
+  'mixed-ways': words.shortcutMixedWays,
+  'unknown-category': words.noCategory,
+  'between-accounts': words.shortcutBetweenAccounts,
+  'unknown-label': words.shortcutNoLabel,
+} as const
+
+/** The parts of shortcuts as `shortcutPartProblem` says, each of a shortcut that counts, all of a shortcut's or none. */
+function readShortcutParts(read: RecordsRead<ShortcutPart>, shortcuts: readonly Shortcut[], categories: readonly Category[], labels: readonly Label[]): Reading<ShortcutPart> {
+  const counted = new Set(shortcuts.map((shortcut) => shortcut.id))
+  const siblingsOf = (part: ShortcutPart): readonly ShortcutPart[] => read.records.map((stored) => stored.record).filter((other) => other.shortcut === part.shortcut && other !== part)
+  const ownReason = (part: ShortcutPart): string | null => {
+    if (!counted.has(part.shortcut)) return words.noShortcut
+    const problem = shortcutPartProblem(part, siblingsOf(part), { categories, labels })
+    return problem === null ? null : SHORTCUT_PART_REASONS[problem]
+  }
+  const broken = new Set(read.records.filter((stored) => ownReason(stored.record) !== null).map((stored) => stored.record.shortcut))
+  return readEach(read, ({ record: part }) => {
+    const own = ownReason(part)
+    if (own !== null) return [own]
+    return broken.has(part.shortcut) ? [words.shortcutPartLeftOut] : []
+  })
+}
+
+/** The shortcuts with a part that counts, in order, and those without as left out. */
+function withParts(reading: Reading<Shortcut>, read: RecordsRead<Shortcut>, parts: readonly ShortcutPart[]): Reading<Shortcut> {
+  const held = new Set(parts.map((part) => part.shortcut))
+  const left = read.records.filter((stored) => reading.facts.includes(stored.record) && !held.has(stored.record.id))
+  return {
+    facts: reading.facts.filter((shortcut) => held.has(shortcut.id)).sort((earlier, later) => earlier.order - later.order),
+    problems: [...reading.problems, ...left.map((stored) => problemOf(stored, words.shortcutWithoutPart))],
+  }
+}
+
 function readReceipts(read: RecordsRead<Receipt>, transactions: ReadonlySet<string>, accounts: ReadonlyMap<string, Account>): Reading<Receipt> {
   const sharingRow = sharedKeys(
     read.records.filter((stored) => stored.record.transaction !== null),
@@ -421,7 +475,7 @@ function readHeld(read: RecordsRead<HeldBankRow>, accounts: ReadonlyMap<string, 
  * Reads the Spending file with the rules across records. A child names a group of its kind that counts, and each of the
  * three fixed kinds is one category. An entry names an account that counts, on or after its start day, and its other leg names it
  * back from another account. It has at least one item, which says what its money is. A limit is on a spending category, one a month, and never on a group and its child in the
- * same months. A rule names a category that counts, and one that spots a withdrawal files into Between my accounts and names a cash account or none. A receipt names an entry that counts, which no other receipt names, or while it waits for the bank's row an account that counts, and no other receipt holds its JIR or ZKI. A part
+ * same months. A rule names a category that counts, and one that spots a withdrawal files into Between my accounts and names a cash account or none. A shortcut names an account that counts and has parts, which `shortcutPartProblem` reads and which count all or none. A receipt names an entry that counts, which no other receipt names, or while it waits for the bank's row an account that counts, and no other receipt holds its JIR or ZKI. A part
  * of an entry names that entry, a category that counts and, when a receipt split it, that entry's receipt. A line of a waiting receipt names that receipt and no entry. The parts of an entry add up to its amount, and the lines of a waiting receipt to minus its total, and count all or none. Only the one item of an entry waiting on To review has no category, and a transfer's leg has one item.
  * A file from before items keeps an entry's category, note and link on the entry while it is not split, which then names a category that counts, and its
  * parts as lines, and is read as the items they make. Two accounts with one IBAN and currency, an account whose rows come from a bank link with no IBAN, a second category of a fixed
@@ -441,6 +495,9 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const lines = beforeItems ? readParts(records.lines, rows.facts, receipts.facts, categoryIds, true) : readEach(records.lines, () => [words.lineAfterMove])
   const labels = readLabels(records.labels)
   const events = readEvents(records.events)
+  const ownShortcuts = readShortcuts(records.shortcuts, accountsById)
+  const shortcutParts = readShortcutParts(records.shortcutParts, ownShortcuts.facts, categories.facts, labels.facts)
+  const shortcuts = withParts(ownShortcuts, records.shortcuts, shortcutParts.facts)
   const items = withKnownNames(
     readParts(records.items, rows.facts, receipts.facts, categoryIds, beforeItems),
     records.items,
@@ -450,7 +507,7 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
   const transactions = beforeItems ? rows : withItems(rows, records.transactions, items, records.items)
   const held = readHeld(records.held, accountsById, transactions.facts)
   const settings = readSettingRows(records.settings, SPENDING_SETTING_CHECKS, SPENDING_RETIRED_SETTING_KEYS, recordWords.settingUnknown)
-  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, receipts, lines, items, held, settings }
+  const readings: SpendingReadings = { accounts, categories, labels, events, transactions, budgets, rules, shortcuts, shortcutParts, receipts, lines, items, held, settings }
   return {
     accounts: accounts.facts,
     categories: categories.facts,
@@ -459,6 +516,8 @@ export function readSpendingBook(records: SpendingRecords): SpendingBook {
     transactions: transactions.facts,
     budgets: budgets.facts,
     rules: rules.facts,
+    shortcuts: shortcuts.facts,
+    shortcutParts: shortcutParts.facts,
     receipts: receipts.facts,
     items: beforeItems ? itemsBeforeItems(records.transactions, transactions.facts, lines.facts) : items.facts,
     held: held.facts,

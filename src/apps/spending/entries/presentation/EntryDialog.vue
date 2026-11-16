@@ -13,30 +13,27 @@ import { rememberLastAccount, startingAccount } from '../infrastructure/lastAcco
 import { words } from './words'
 import { knownPayees, payeeChoices } from '../domain/knownPayees'
 import { newTransfer } from '../domain/transfer'
-import { linkEntry, newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, unlinkEntry, writeEntry, writeTransfer } from '../application/entryWrites'
+import { newEntry, otherLegOf, deleteComesBack, removeEntry, removeSplitOf, writeEntry, writeTransfer } from '../application/entryWrites'
 import { addLabel } from '../../labels/application/labelWrites'
 import { labelCalled, labelNameProblem, newLabel } from '../../labels/domain/labels'
 import LabelsSelect from '../../labels/presentation/LabelsSelect.vue'
 import { words as labelWords } from '../../labels/presentation/words'
-import { loanTargets } from '../../links/application/loanTargets'
 import type { ShownTarget } from '../../links/application/loanTargets'
-import { beyondPlan, linkFiling, wholeLoanKindOf } from '../../links/domain/instalmentSplit'
 import { sideOf } from '../../categories/domain/rowSide'
-import { fixedCategoryIn, loanInterestCategoryIn } from '../../categories/domain/starterCategories'
 import { eventMembership } from '../../events/domain/eventMembership'
 import { eventsNewestFirst } from '../../events/domain/events'
-import { targetsFor } from '../../links/domain/linkTarget'
 import type { InformalLoanTarget } from '../../links/domain/linkTarget'
 import AddToLoansForm from '../../links/presentation/AddToLoansForm.vue'
-import { LINK_TONE, useLinkLines } from '../../links/presentation/linkLine'
-import { choiceText, words as linkWords } from '../../links/presentation/words'
+import EntryLinkField from '../../links/presentation/EntryLinkField.vue'
+import { words as linkWords } from '../../links/presentation/words'
 import { mapLinkOf } from '../../receipts/domain/photoPlace'
 import RowLines from '../../receipts/presentation/RowLines.vue'
 import { words as receiptWords } from '../../receipts/presentation/words'
+import { shortcutOffer } from '../../shortcuts/presentation/shortcutOffer'
 import { treatPayeeAsPerson } from '../../workbook/application/settingWrites'
 import { useSpendingBooks } from '../../workbook/application/spendingStore'
 import { fixedByBank } from '../domain/bankRows'
-import { beforeStartDay, takesRowsByHand } from '../../workbook/domain/account'
+import { beforeStartDay, takesNewRowsByHand } from '../../workbook/domain/account'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import type { Account } from '../../workbook/domain/account'
 import { BY_DAYS, OUT_OF_EVENTS } from '../../workbook/domain/event'
@@ -45,7 +42,6 @@ import { transferCategoryOf } from '../../workbook/domain/category'
 import type { Label } from '../../workbook/domain/label'
 import type { Transaction } from '../../workbook/domain/transaction'
 import { isSplit, itemizedRow, linkOfItems, rowItemsOf } from '../../workbook/domain/rowItems'
-import { rowLinkText } from '../../workbook/domain/rowLink'
 import { words as spendingWords } from '../../words'
 import { civilDate, parseCivilDate, today } from '../../../../shared/calendar/civilDate'
 import { dayRangeLabel } from '../../../../shared/calendar/dayLabel'
@@ -54,7 +50,6 @@ import { flaggedAsPerson } from '../../../../shared/privacy/domain/personPayees'
 import { assistKeyKept } from '../../../../shared/ai/presentation/aiProvider'
 import { absAccountMoney, negateAccountMoney, typedAccountAmount } from '../../../../shared/money/accountMoney'
 import type { AccountMoney } from '../../../../shared/money/accountMoney'
-import { formatAccountMoney, formatMoney } from '../../../../shared/money/moneyFormat'
 import type { UnitOfWork } from '../../../../shared/storage/application/repository'
 import { amountForTyping } from '../../../../shared/money/typedAmount'
 import type { RecordId } from '../../../../shared/storage/domain/recordId'
@@ -68,7 +63,6 @@ import MoneyInput from '../../../../shared/ui/MoneyInput.vue'
 import NoteLine from '../../../../shared/ui/NoteLine.vue'
 import { words as uiWords } from '../../../../shared/ui/words'
 import { EURO } from '../../../../shared/money/currencyCode'
-import { language } from '../../../../shared/text/language'
 
 /** Money out of an account, money into one, or a move between two of your accounts, typed as a positive amount. */
 const open = defineModel<boolean>('open', { required: true })
@@ -151,66 +145,25 @@ const receiptPlace = computed(() => {
 })
 const splitOpen = ref(false)
 
-const linkLineOf = useLinkLines()
-const heldLink = computed(() => linkOfItems(entryLines.value))
 /** The currency of the account the saved entry is on, which its link compares with Loans' plan in. */
 const entryCurrency = computed(() => (props.entry === null ? EURO : (accountOf(props.entry.account)?.currency ?? EURO)))
-/** The record in another app the entry is linked to. */
-const entryLink = computed(() => {
-  const link = heldLink.value
-  return link === null || props.entry === null ? null : linkLineOf.value(link, { amount: props.entry.amount, currency: entryCurrency.value })
-})
 
 /** What the entry's parts are: a receipt's lines, the plan's interest and principal its link split it into, or parts you made. */
 const splitNote = computed(() => {
   if (receipt.value !== null) return receiptWords.splitNote
-  const byLink = heldLink.value !== null && entryLines.value.some((line) => line.splitByLink)
+  const byLink = linkOfItems(entryLines.value) !== null && entryLines.value.some((line) => line.splitByLink)
   return byLink ? linkWords.splitNote : words.split.note
 })
 
-const loans = computed(() => loanTargets())
-/** The records of Loans a saved entry with no link can be linked to, none for a transfer's leg or while Loans is not open. */
-const openTargets = computed((): readonly ShownTarget[] => {
-  const held = loans.value
-  return props.entry === null || legs.value !== null || heldLink.value !== null || held === null || typeof held === 'string' ? [] : held
-})
-const linkTargets = computed(() => (props.entry === null ? [] : targetsFor(props.entry, entryCurrency.value, openTargets.value)))
-/** The informal loans a movement can be added to from the entry. */
-const informalLoans = computed(() => openTargets.value.filter((target): target is ShownTarget & InformalLoanTarget => target.kind === 'informal-loan'))
-/** While true, the dialog adds a movement to an informal loan from the saved entry, and its footer goes back or adds and links. */
-const addingToLoans = ref(false)
+/** While set, the dialog adds a movement to one of these informal loans from the saved entry, and its footer goes back or adds and links. */
+const loansToAddTo = ref<readonly (ShownTarget & InformalLoanTarget)[] | null>(null)
+const addingToLoans = computed(() => loansToAddTo.value !== null)
 const addingSaving = ref(false)
-/** What the picker says under each record: an instalment's share, or a movement's or extra payment's amount. */
-function choiceDetail(target: (typeof linkTargets.value)[number]): string {
-  if (target.kind === 'instalment') return target.interim ? linkWords.interimShare(formatMoney(target.yourShare)) : formatMoney(target.yourShare)
-  return target.kind === 'informal-loan' ? target.counterparty : formatMoney(target.amount)
-}
-const linkItems = computed(() => linkTargets.value.map((target) => ({ label: choiceText(target), value: rowLinkText(target.link), description: choiceDetail(target) })))
-const pickedLink = ref('')
-const pickedTarget = computed(() => linkTargets.value.find((target) => rowLinkText(target.link) === pickedLink.value) ?? null)
-
-/** What linking the picked record does to the entry's money, said before the person links it. */
-const linkNote = computed(() => {
-  const target = pickedTarget.value
-  if (target === null || props.entry === null) return ''
-  if (edited.value) return linkWords.saveFirst
-  const filing = linkFiling({ row: props.entry, items: entryLines.value }, target, { currency: entryCurrency.value, receipt: receipt.value !== null, categories: categories.value })
-  if (!filing.split && filing.why === 'principal')
-    return [linkWords.filesWhole(fixedCategoryIn(categories.value, wholeLoanKindOf(target), language).category.name), ...(split.value ? [linkWords.replacesParts] : [])].join(' ')
-  if (!filing.split) return linkWords.whole[filing.why]
-  const money = (amount: AccountMoney): string => formatAccountMoney(absAccountMoney(amount), entryCurrency.value)
-  const category = categories.value.find((candidate) => candidate.id === filing.category)?.name ?? loanInterestCategoryIn(categories.value, language).category.name
-  const beyond = beyondPlan(target, props.entry, entryCurrency.value) ?? 0
-  const differs = beyond === 0 ? null : (beyond > 0 ? linkWords.paidMore : linkWords.paidLess)(money(beyond), category)
-  return [linkWords.splits(money(filing.interest), money(filing.principal)), differs, split.value ? linkWords.replacesParts : null]
-    .filter((sentence): sentence is string => sentence !== null)
-    .join(' ')
-})
 
 /** The open accounts kept by hand, and the ones the entry is already on, closed or filled by the bank. */
 const choosable = computed(() => {
   const own = new Set([props.entry?.account, ...(legs.value ?? []).map((leg) => leg.account)])
-  return accounts.value.filter((candidate) => (!candidate.closed && takesRowsByHand(candidate)) || own.has(candidate.id))
+  return accounts.value.filter((candidate) => takesNewRowsByHand(candidate) || own.has(candidate.id))
 })
 const accountItems = computed(() => choosable.value.map((candidate) => ({ label: candidate.name, value: candidate.id as string, description: candidate.currency })))
 
@@ -262,8 +215,7 @@ watch(open, (opened) => {
   created.value = []
   labelRefused.value = null
   tried.value = false
-  pickedLink.value = ''
-  addingToLoans.value = false
+  loansToAddTo.value = null
   openedAs.value = formNow.value
 })
 
@@ -345,7 +297,6 @@ function eventItems(filedUnder: string | null): { label: string; value: EventCho
   ]
 }
 
-/** An amount above zero, or null. */
 function positive(text: string): AccountMoney | null {
   const typed = typedAccountAmount(text)
   return typed === null || typed <= 0 ? null : typed
@@ -372,20 +323,23 @@ async function save(): Promise<void> {
   const fromAccount = from.value
   const on = day.value
   if (Object.values(errors.value).some((error) => error !== null) || typed === null || fromAccount === null || on === null) return
-  const work = kind.value === 'transfer' ? transferWrite(fromAccount, typed, on) : entryWrite(fromAccount, typed, on)
+  const signed = kind.value === 'out' ? negateAccountMoney(typed) : typed
+  const work = kind.value === 'transfer' ? transferWrite(fromAccount, typed, on) : entryWrite(fromAccount, signed, on)
   if (work === null) return
   const adding = props.entry === null
-  if (!(await writes.write(adding ? words.dialog.added : words.dialog.saved, work, { failedTitle: adding ? spendingWords.form.notAdded : spendingWords.form.notSaved }))) return
+  const filed = adding && kind.value !== 'transfer' ? categories.value.find((candidate) => candidate.id === category.value) : undefined
+  const typedEntry = filed === undefined ? null : { account: fromAccount.id, payee: payee.value, amount: signed, category: filed.id, note: note.value, labels: labels.value }
+  const follow = typedEntry === null ? {} : shortcutOffer(store.state.workbook, () => store.state.records, writes, typedEntry, on)
+  if (!(await writes.write(adding ? words.dialog.added : words.dialog.saved, work, { failedTitle: adding ? spendingWords.form.notAdded : spendingWords.form.notSaved, ...follow }))) return
   rememberLastAccount(fromAccount)
   open.value = false
 }
 
-/** One entry added, or changed in place, which drops the other leg of what was a transfer. */
-function entryWrite(fromAccount: Account, typed: AccountMoney, on: CivilDate): ((unit: UnitOfWork) => void) | null {
+/** One entry of the signed amount added, or changed in place, which drops the other leg of what was a transfer. */
+function entryWrite(fromAccount: Account, amount: AccountMoney, on: CivilDate): ((unit: UnitOfWork) => void) | null {
   const filed = categories.value.find((candidate) => candidate.id === category.value)
   const records = store.state.records
   if ((filed === undefined && !split.value) || records === null) return null
-  const amount = kind.value === 'out' ? negateAccountMoney(typed) : typed
   const entry = newEntry({ account: fromAccount.id, date: on, amount, payee: payee.value, category: filed?.id ?? null, note: note.value, labels: split.value ? [] : labels.value, event: event.value })
   const parts = split.value ? entryLines.value.map((part) => ({ ...part, labels: partLabels.value[part.id] ?? part.labels, event: partEvents.value[part.id] ?? part.event })) : entry.items
   const before = props.entry === null ? null : { row: props.entry, items: entryLines.value }
@@ -430,24 +384,6 @@ async function treatPayee(): Promise<void> {
   })
 }
 
-/** Links the saved entry to the picked record in Loans, which splits an instalment off into interest and principal, with Undo, and closes the dialog. */
-async function addLink(): Promise<void> {
-  const entry = props.entry
-  const records = store.state.records
-  const target = pickedTarget.value
-  if (entry === null || records === null || target === null) return
-  const place = { currency: entryCurrency.value, categories: categories.value, language, notes: linkWords.notes }
-  if (await writes.write(linkWords.linked, (unit) => linkEntry(unit, records, entry, target, place), { key: 'link', failedTitle: spendingWords.form.notSaved })) open.value = false
-}
-
-/** Takes the entry's link off, with Undo, and closes the dialog. The entry keeps its category and its parts. */
-async function removeLink(): Promise<void> {
-  const entry = props.entry
-  const records = store.state.records
-  if (entry === null || records === null) return
-  if (await writes.write(linkWords.removed, (unit) => unlinkEntry(unit, records, entry), { key: 'remove-link', failedTitle: spendingWords.form.notSaved })) open.value = false
-}
-
 /** Takes the receipt and its lines off, or the parts you split the entry into, and closes the dialog. */
 async function removeSplit(): Promise<void> {
   const entry = props.entry
@@ -473,13 +409,13 @@ async function remove(): Promise<void> {
     :description="addingToLoans ? linkWords.add.help : words.dialog.description"
   >
     <AddToLoansForm
-      v-if="addingToLoans && entry !== null"
+      v-if="loansToAddTo !== null && entry !== null"
       id="spending-add-to-loans-form"
       v-model:saving="addingSaving"
       :entry="entry"
       :split="split"
       :currency="entryCurrency"
-      :loans="informalLoans"
+      :loans="loansToAddTo"
       :categories="categories"
       @linked="open = false"
     />
@@ -536,53 +472,18 @@ async function remove(): Promise<void> {
       <UFormField v-if="labelling && !split && events.length > 0" :label="words.dialog.event">
         <USelect v-model="event" :items="eventItems(category)" class="w-full" data-testid="spending-entry-event" />
       </UFormField>
-      <UFormField v-if="entryLink !== null" :label="linkWords.label" class="sm:col-span-2" data-testid="spending-entry-link">
-        <div class="flex flex-col items-start gap-1">
-          <NoteLine as="span" size="body" :tone="LINK_TONE[entryLink.look]" :icon="entryLink.icon">{{ entryLink.text }}</NoteLine>
-          <div class="flex flex-wrap gap-2">
-            <UButton v-if="entryLink.to !== null" :to="entryLink.to" :label="linkWords.open" color="neutral" variant="link" :disabled="edited" class="px-0" data-testid="spending-entry-link-open" />
-            <UButton
-              :label="linkWords.remove"
-              icon="i-lucide-unlink"
-              color="neutral"
-              variant="ghost"
-              :loading="writes.saving('remove-link')"
-              :disabled="writes.busy.value || writes.refused.value"
-              data-testid="spending-entry-link-remove"
-              @click="removeLink"
-            />
-          </div>
-        </div>
-      </UFormField>
-      <UFormField v-else-if="(linkItems.length > 0 || informalLoans.length > 0) && kind !== 'transfer'" :label="linkWords.pickLabel" class="sm:col-span-2" data-testid="spending-entry-link-pick">
-        <div class="flex flex-col items-start gap-2">
-          <USelectMenu v-if="linkItems.length > 0" v-model="pickedLink" :items="linkItems" value-key="value" :placeholder="linkWords.pick" class="w-full" data-testid="spending-entry-link-target" />
-          <div class="flex flex-wrap gap-2">
-            <UButton
-              v-if="linkItems.length > 0"
-              :label="linkWords.link"
-              icon="i-lucide-link"
-              color="neutral"
-              variant="outline"
-              :loading="writes.saving('link')"
-              :disabled="pickedTarget === null || edited || writes.busy.value || writes.refused.value"
-              data-testid="spending-entry-link-add"
-              @click="addLink"
-            />
-            <UButton
-              v-if="informalLoans.length > 0"
-              :label="linkWords.add.open"
-              icon="i-lucide-plus"
-              color="neutral"
-              variant="ghost"
-              :disabled="edited || writes.refused.value"
-              data-testid="spending-entry-add-to-loans"
-              @click="addingToLoans = true"
-            />
-          </div>
-          <p v-if="linkNote !== ''" class="type-caption" data-testid="spending-entry-link-note">{{ linkNote }}</p>
-        </div>
-      </UFormField>
+      <EntryLinkField
+        v-if="entry !== null"
+        :entry="entry"
+        :lines="entryLines"
+        :currency="entryCurrency"
+        :receipt="receipt !== null"
+        :categories="categories"
+        :linkable="legs === null && kind !== 'transfer'"
+        :edited="edited"
+        @done="open = false"
+        @add-to-loans="loansToAddTo = $event"
+      />
       <div v-if="split" class="flex flex-col items-start gap-2 sm:col-span-2" data-testid="spending-entry-lines">
         <p class="type-caption">{{ splitNote }}</p>
         <RowLines :lines="entryLines" :categories="categories" :currency="from?.currency ?? EURO" class="w-full">
@@ -672,7 +573,7 @@ async function remove(): Promise<void> {
       />
     </template>
     <template v-if="addingToLoans" #end>
-      <UButton :label="uiWords.back" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :disabled="addingSaving" data-testid="spending-add-to-loans-back" @click="addingToLoans = false" />
+      <UButton :label="uiWords.back" icon="i-lucide-arrow-left" color="neutral" variant="ghost" :disabled="addingSaving" data-testid="spending-add-to-loans-back" @click="loansToAddTo = null" />
       <UButton
         type="submit"
         form="spending-add-to-loans-form"

@@ -255,6 +255,28 @@ describe('a proposal', () => {
     expect(bookOf(d).settings.bankSyncDeployment).toBe('')
   })
 
+  it('refuses a quick add on a closed account, and writing one that shows no button', async () => {
+    const d = await desk()
+    const cash = bookOf(d).accounts.find((account) => account.kind === 'cash' && account.currency === 'EUR')!
+    const coffee = bookOf(d).shortcuts.find((shortcut) => shortcut.account === cash.id)!
+    await d.propose([stepOf(SPENDING_OPERATIONS, 'change-account', { account: d.ref('account', cash.id), closed: 'yes' })])
+    expect((await accept(d)).kind).toBe('done')
+    const added = await d.propose([
+      stepOf(SPENDING_OPERATIONS, 'add-shortcut', {
+        entry: null,
+        name: 'Tea',
+        account: d.ref('account', cash.id),
+        payee: 'A café',
+        kind: 'out',
+        parts: [{ amount: 2, category: d.ref('category', named(d, 'Coffee').id), note: '' }],
+      }),
+    ])
+    expect(added.text).toContain('never one that is closed')
+    const used = await d.propose([stepOf(SPENDING_OPERATIONS, 'use-shortcut', { shortcut: d.ref('shortcut', coffee.id), date: null, amount: null })])
+    expect(used.isError).toBe(true)
+    expect(used.text).toContain('shows no button')
+  })
+
   it('refuses alone when a record changed before Accept, and the next proposal still goes', async () => {
     const d = await desk()
     const groceries = named(d, 'Groceries')

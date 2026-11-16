@@ -31,7 +31,7 @@ export const ACCOUNT_WRITES: WriteRules<Account> = {
         : [],
     )
     const withoutIban = change.edits.flatMap((edit) => (edit.after !== null && 'record' in edit.after && bankLinkWithoutIban(edit.after.record) ? [words.bankLinkWithoutIban(edit.after.label)] : []))
-    return [...currencyChanged, ...withoutIban, ...dependentRefusals(['transactions', 'held', 'rules'], fresh, after)]
+    return [...currencyChanged, ...withoutIban, ...dependentRefusals(['transactions', 'held', 'rules', 'shortcuts'], fresh, after)]
   },
 }
 

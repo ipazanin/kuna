@@ -262,5 +262,6 @@
     "src/shared/storage/domain/recordCodec.ts",
     "src/shared/storage/domain/recordsRead.ts",
     "src/shared/storage/domain/storedFields.ts"
-  ]
+  ],
+  "longFiles": []
 }

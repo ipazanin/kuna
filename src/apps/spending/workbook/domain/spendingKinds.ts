@@ -7,6 +7,7 @@ import type { TransactionItem } from './transactionItem'
 import type { HeldBankRow } from './heldBankRow'
 import type { Receipt } from './receipt'
 import type { SpendingRule } from './spendingRule'
+import type { Shortcut, ShortcutPart } from './shortcut'
 import type { StoredLine } from './beforeItems'
 import type { StoredRow } from './transaction'
 import { recordKind } from '../../../../shared/storage/domain/recordKind'
@@ -40,6 +41,18 @@ export const RULE_RECORDS = recordKind<SpendingRule>('rule', {
   en: { one: 'rule', many: 'rules', article: 'a' },
   hr: { one: 'pravilo', of: 'pravila', few: 'pravila', other: 'pravila', gender: 'neuter' },
 })
+export const SHORTCUT_RECORDS = recordKind<Shortcut>('shortcut', {
+  en: { one: 'quick add', many: 'quick adds', article: 'a' },
+  hr: { one: 'brzi unos', of: 'brzog unosa', few: 'brza unosa', other: 'brzih unosa', gender: 'masculine' },
+})
+export const SHORTCUT_PART_RECORDS = recordKind<ShortcutPart>(
+  'shortcut-part',
+  {
+    en: { one: 'part of a quick add', many: 'parts of quick adds', article: 'a' },
+    hr: { one: 'dio brzog unosa', of: 'dijela brzog unosa', few: 'dijela brzog unosa', other: 'dijelova brzog unosa', gender: 'masculine' },
+  },
+  { kind: SHORTCUT_RECORDS, field: 'shortcut' },
+)
 export const RECEIPT_RECORDS = recordKind<Receipt>('receipt', {
   en: { one: 'receipt', many: 'receipts', article: 'a' },
   hr: { one: 'fiskalni račun', of: 'fiskalnog računa', few: 'fiskalna računa', other: 'fiskalnih računa', gender: 'masculine' },

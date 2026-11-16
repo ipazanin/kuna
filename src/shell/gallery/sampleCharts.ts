@@ -274,3 +274,13 @@ export function valueMap(tokens: ChartTokens): ChartOption {
     ],
   }
 }
+
+/** The buckets as every chart colours them, with the net and the month still running. */
+export const BUCKET_LEGEND = [
+  { label: 'Income', colour: 'var(--bucket-income)' },
+  { label: 'Operating', colour: 'var(--bucket-operating)' },
+  { label: 'Taxes', colour: 'var(--bucket-taxes)' },
+  { label: 'Owner pay', colour: 'var(--bucket-owner-pay)' },
+  { label: 'Net', colour: 'var(--chart-ink)', mark: 'line' as const },
+  { label: 'October so far', colour: 'var(--chart-deemphasis)', mark: 'hatched' as const },
+]

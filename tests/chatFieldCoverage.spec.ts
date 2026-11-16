@@ -349,6 +349,18 @@ const FIELD_SOURCES: readonly FieldSource[] = [
     operations: [{ name: 'add-event', renames: { 'days.from': 'from', 'days.to': 'to' } }],
   },
   { path: 'src/apps/spending/events/application/eventWrites.ts#changeEvent', from: ['changed'], operations: [{ name: 'change-event', renames: { 'days.from': 'from', 'days.to': 'to' } }] },
+  {
+    path: 'src/apps/spending/shortcuts/application/shortcutWrites.ts#addShortcut',
+    type: 'src/apps/spending/workbook/domain/shortcut.ts#Shortcut',
+    operations: [{ name: 'add-shortcut', renames: { order: 'move-shortcut:direction' } }],
+  },
+  {
+    path: 'src/apps/spending/shortcuts/application/shortcutWrites.ts#addShortcut',
+    type: 'src/apps/spending/workbook/domain/shortcut.ts#ShortcutPart',
+    operations: [{ name: 'add-shortcut', prefix: 'parts.', renames: { shortcut: 'add-shortcut:name' } }],
+  },
+  { path: 'src/apps/spending/shortcuts/application/shortcutWrites.ts#changeShortcut', from: ['draft'], operations: ['change-shortcut'] },
+  { path: 'src/apps/spending/shortcuts/application/shortcutWrites.ts#addEntryFromShortcut', from: ['day'], operations: [{ name: 'use-shortcut', renames: { day: 'date' } }] },
   { path: 'src/apps/spending/workbook/application/settingWrites.ts#treatPayeeAsPerson', from: ['payee', 'asPerson'], operations: ['flag-person'] },
   {
     path: 'src/apps/spending/receipts/application/receiptWrites.ts#writeReceiptSplit',

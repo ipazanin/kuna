@@ -29,6 +29,8 @@ export const SPENDING_SETTINGS_ROUTE = '/spending/settings'
 export const SPENDING_BANK_SYNC_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=bank-sync`
 /** The Assistant tab of Settings, which the chat can link to. */
 export const SPENDING_ASSISTANT_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=assistant`
+/** Settings' Quick add tab. */
+export const SPENDING_QUICK_ADD_LINK = `${SPENDING_SETTINGS_ROUTE}?tab=quick-add`
 
 /** An account's page, which names the account by its bare UUID in `?account=`. */
 export function accountLink(account: Account): RouteLocationRaw {

@@ -26,12 +26,15 @@ import {
   LINE_RECORDS,
   RECEIPT_RECORDS,
   RULE_RECORDS,
+  SHORTCUT_PART_RECORDS,
+  SHORTCUT_RECORDS,
   SETTING_RECORDS,
   TRANSACTION_RECORDS,
 } from '../../src/apps/spending/workbook/domain/spendingKinds'
 import { plainLineOf } from '../../src/apps/spending/workbook/domain/beforeItems'
 import { rowItemsOf, wholeItemOf } from '../../src/apps/spending/workbook/domain/rowItems'
 import type { SpendingRule } from '../../src/apps/spending/workbook/domain/spendingRule'
+import type { Shortcut, ShortcutPart } from '../../src/apps/spending/workbook/domain/shortcut'
 import type { RowLink } from '../../src/apps/spending/workbook/domain/rowLink'
 import type { StoredRow } from '../../src/apps/spending/workbook/domain/transaction'
 import type { LinkTarget } from '../../src/apps/spending/links/domain/linkTarget'
@@ -237,6 +240,28 @@ const RULE: SpendingRule = {
   link: null,
 }
 
+const SHORTCUT: Shortcut = { id: recordIdOf(SHORTCUT_RECORDS, 'shortcut-coffee'), order: 1, name: 'Coffee', account: SAVINGS.id, payee: 'Corner café' }
+
+const SHORTCUT_PART: ShortcutPart = {
+  id: recordIdOf(SHORTCUT_PART_RECORDS, 'shortcut-part-coffee'),
+  shortcut: SHORTCUT.id,
+  amount: accountMoneyFromAmount(-1.8),
+  category: RESTAURANTS.id,
+  note: '',
+  labels: [],
+}
+
+const SHORTCUT_BREAD: Shortcut = { id: recordIdOf(SHORTCUT_RECORDS, 'shortcut-bread'), order: 2, name: '', account: SAVINGS.id, payee: 'Bakery' }
+
+const SHORTCUT_BREAD_PART: ShortcutPart = {
+  id: recordIdOf(SHORTCUT_PART_RECORDS, 'shortcut-part-bread'),
+  shortcut: SHORTCUT_BREAD.id,
+  amount: accountMoneyFromAmount(-2.5),
+  category: GROCERIES.id,
+  note: '',
+  labels: [],
+}
+
 function linkedAccount(uid: string, iban: string, currency: string, described: Partial<LinkedAccount> = {}): LinkedAccount {
   return { uid, iban, currency, product: null, details: null, cashAccountType: null, usage: null, identificationHash: null, ...described }
 }
@@ -297,6 +322,7 @@ export const EXAMPLE_RECORDS: Readonly<Record<string, string>> = {
   'account-other': SAVINGS.id,
   'account-empty': WALLET.id,
   rule: RULE.id,
+  shortcut: SHORTCUT.id,
   label: RENOVATION.id,
   event: TRIP.id,
   'bank-account-missing': 'uid-pounds GBP',
@@ -373,6 +399,8 @@ export async function spendingDesk(used: Set<string>, ports: SpendingPorts = des
     ...stored(CATEGORY_RECORDS, [FOOD, GROCERIES, RESTAURANTS, RENT, SALARY, TRANSFER, FOR_COMPANY]),
     ...storedEntries(shape),
     ...stored(RULE_RECORDS, [RULE]),
+    ...stored(SHORTCUT_RECORDS, [SHORTCUT, SHORTCUT_BREAD]),
+    ...stored(SHORTCUT_PART_RECORDS, [SHORTCUT_PART, SHORTCUT_BREAD_PART]),
     ...stored(LABEL_RECORDS, [RENOVATION]),
     ...stored(EVENT_RECORDS, [TRIP]),
     ...stored(RECEIPT_RECORDS, [RECEIPT, WAITING_RECEIPT]),

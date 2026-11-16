@@ -173,7 +173,9 @@ function storedWithItems(rows: readonly Transaction[], items: readonly Transacti
 }
 
 /** The parts of a Spending book a test may give, with its setting rows in place of the settings they make. */
-type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'receipts' | 'items' | 'held' | 'stored'> & { readonly settingRows: readonly SettingRow[] }
+type BookParts = Pick<SpendingBook, 'accounts' | 'categories' | 'labels' | 'budgets' | 'rules' | 'shortcuts' | 'shortcutParts' | 'receipts' | 'items' | 'held' | 'stored'> & {
+  readonly settingRows: readonly SettingRow[]
+}
 
 /**
  * A Spending book over these rows in which every record counts. Unless given, it has the worked example's accounts and
@@ -189,6 +191,8 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
     events: [],
     budgets: [],
     rules: [],
+    shortcuts: [],
+    shortcutParts: [],
     receipts: [],
     items: wholeItems(transactions),
     held: [],
@@ -209,6 +213,8 @@ export function spendingBook(transactions: readonly Transaction[], parts: Partia
       transactions: counting(storedOf(book.stored.transactions)),
       budgets: counting(book.budgets),
       rules: counting(book.rules),
+      shortcuts: counting(book.shortcuts),
+      shortcutParts: counting(book.shortcutParts),
       receipts: counting(book.receipts),
       lines: counting(storedOf(book.stored.lines)),
       items: counting(storedOf(book.stored.items)),

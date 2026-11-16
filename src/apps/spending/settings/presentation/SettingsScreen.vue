@@ -4,6 +4,7 @@ import CategoriesCard from '../../categories/presentation/CategoriesCard.vue'
 import ReceiptsCard from '../../receipts/presentation/ReceiptsCard.vue'
 import { words as screenWords } from '../../screenWords'
 import RulesCard from '../../statements/presentation/RulesCard.vue'
+import ShortcutsCard from '../../shortcuts/presentation/ShortcutsCard.vue'
 import AppAssistCard from '../../../../shared/ai/presentation/AppAssistCard.vue'
 import PageHeader from '../../../../shared/ui/PageHeader.vue'
 import PageTabs from '../../../../shared/ui/PageTabs.vue'
@@ -15,6 +16,7 @@ import { SPENDING_APP } from '../../workbook/domain/spendingBooks'
 const TABS = [
   { value: 'general', label: words.tabs.general, icon: 'i-lucide-settings' },
   { value: 'rules', label: words.tabs.rules, icon: 'i-lucide-list-ordered' },
+  { value: 'quick-add', label: words.tabs.quickAdd, icon: 'i-lucide-zap' },
   { value: 'bank-sync', label: words.tabs.bankSync, icon: 'i-lucide-landmark' },
   { value: 'receipts', label: words.tabs.receipts, icon: 'i-lucide-receipt' },
   { value: 'assistant', label: words.tabs.assistant, icon: 'i-lucide-sparkles' },
@@ -33,6 +35,9 @@ const TABS = [
       </template>
       <template #rules>
         <RulesCard />
+      </template>
+      <template #quick-add>
+        <ShortcutsCard />
       </template>
       <template #bank-sync>
         <BankSyncCard />

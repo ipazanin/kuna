@@ -436,6 +436,11 @@ const baselineRules = {
     ignores: ['src/shared/money/**', 'src/shared/charts/**', 'src/**/infrastructure/fake/**', 'src/apps/loans/bankLoans/domain/yearlyRate.ts'],
     rules: { 'kuna/money-scale': 'error' },
   },
+  longFiles: {
+    files: ['src/**/*.vue'],
+    ignores: [],
+    rules: { 'max-lines': ['error', { max: 600, skipBlankLines: false, skipComments: false }] },
+  },
   domainRounding: {
     ...domainCode,
     rules: { 'kuna/domain-rounding': 'error' },

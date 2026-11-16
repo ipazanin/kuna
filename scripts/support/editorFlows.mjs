@@ -29,6 +29,7 @@ import { en as billingEnglish, hr as billingCroatian } from '../../src/apps/comp
 import { en as companyOverviewEnglish, hr as companyOverviewCroatian } from '../../src/apps/company/overview/presentation/words.ts'
 import { en as ownerShareEnglish, hr as ownerShareCroatian } from '../../src/apps/company/owner-share/presentation/words.ts'
 import { en as writesEnglish, hr as writesCroatian } from '../../src/shared/storage/presentation/words.ts'
+import { en as quickAddEnglish, hr as quickAddCroatian } from '../../src/apps/spending/shortcuts/presentation/words.ts'
 import { en as storageInfrastructureEnglish, hr as storageInfrastructureCroatian } from '../../src/shared/storage/infrastructure/words.ts'
 import { en as bankLoanEnglish, hr as bankLoanCroatian } from '../../src/apps/loans/bankLoans/presentation/words.ts'
 import { en as informalLoanEnglish, hr as informalLoanCroatian } from '../../src/apps/loans/informalLoans/presentation/words.ts'
@@ -12578,5 +12579,109 @@ export function loansExtraPaymentSeenFlowIn(language) {
     await elementSays(page, YEAR, [planStatus.extraSeen], 'the plan does not show the extra payment as seen in your statement')
     await inspect?.('the plan with the extra payment seen in your statement')
     await shootAt(page, shoot, row, 'loans-plan-extra-payment-seen')
+  }
+}
+
+/** The quick add button whose words hold the name. */
+async function quickAddButton(page, name) {
+  const handle = await page
+    .waitForFunction((wanted) => [...document.querySelectorAll('[data-testid="spending-quick-add-button"]')].find((button) => button.textContent?.includes(wanted)) ?? null, { timeout: 10_000 }, name)
+    .catch(() => {
+      throw new Error(`no Quick add button for ${name}`)
+    })
+  return handle.asElement()
+}
+
+/** Presses the toast's button with these words. */
+async function pressToastButton(page, press, label) {
+  const button = await page
+    .waitForFunction((selector, wanted) => [...document.querySelectorAll(`${selector} button`)].find((element) => element.textContent?.trim() === wanted) ?? null, { timeout: 5_000 }, TOAST, label)
+    .catch(() => {
+      throw new Error(`no toast offers ${label}`)
+    })
+  await press(button.asElement())
+}
+
+/** On the sample Spending file's Entries: the coffee's Quick add button adds one entry for today, split into the coffee and its tip, and Undo takes it back. */
+export function spendingQuickAddFlowIn(language) {
+  const quick = language === 'en' ? quickAddEnglish : quickAddCroatian
+  const writes = language === 'en' ? writesEnglish : writesCroatian
+  const coffee = language === 'en' ? 'Coffee' : 'Kava'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs?.(language === 'en' ? name : `${name}-${language}`)
+    const rowCount = () => page.$$eval('[data-testid="spending-row"]', (rows) => rows.length)
+    const rowsAre = (count, why) =>
+      page
+        .waitForFunction((wanted) => document.querySelectorAll('[data-testid="spending-row"]').length === wanted, { timeout: 10_000 }, count)
+        .catch(() => {
+          throw new Error(why)
+        })
+    await page.waitForSelector('[data-testid="spending-quick-add"]', { visible: true, timeout: 10_000 })
+    const before = await rowCount()
+    await inspect?.('Entries with its Quick add card')
+    await shoot('spending-entries-quick-add')
+    await press(await quickAddButton(page, coffee))
+    await toast(page, quick.added(coffee))
+    await rowsAre(before + 1, 'the Quick add button added no entry')
+    const amount = language === 'en' ? '2.00' : '2,00'
+    const added = await page.$$eval('[data-testid="spending-row"]', (rows, wanted) => rows.some((row) => row.textContent?.includes('Café on the square') && row.textContent?.includes(wanted)), amount)
+    if (!added) throw new Error('the new entry is not the coffee and its tip of 2.00')
+    await inspect?.('Entries after a quick add, with its toast')
+    await shoot('spending-quick-add-added')
+    await pressToastButton(page, press, writes.undo)
+    await toast(page, writes.undone)
+    await rowsAre(before, 'Undo did not take the quick add back')
+  }
+}
+
+/** On the sample Spending file's Entries: a third entry like two before it offers Make a Quick add, whose button then shows on the Quick add card. */
+export function spendingShortcutOfferFlowIn(language) {
+  const words = SCREEN_WORDS[language]
+  const quick = language === 'en' ? quickAddEnglish : quickAddCroatian
+  const payee = 'Kiosk on the corner'
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs?.(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-quick-add"]', { visible: true, timeout: 10_000 })
+    for (const time of [1, 2, 3]) {
+      await newSpendingEntry(page, press, words, 'out')
+      await chooseStartingWith(page, press, '[data-testid="spending-entry-account"]', 'Cash')
+      await typeAmount(page, press, 'spending-entry-amount', '1.5')
+      await choose(page, press, await page.$('[data-testid="spending-entry-category"]'), words.spendingStarter.Groceries)
+      await fill(page, 'spending-entry-payee', payee)
+      await pressSelector(page, press, '[data-testid="spending-entry-save"]')
+      await toast(page, words.spendingEntries.dialog.added)
+      const offered = await page.evaluate((selector, wanted) => [...document.querySelectorAll(`${selector} button`)].some((element) => element.textContent?.trim() === wanted), TOAST, quick.make)
+      if (offered !== (time === 3)) throw new Error(`entry ${time} of three ${offered ? 'offers' : 'does not offer'} a quick add`)
+      if (time < 3) await dismissToasts(page)
+    }
+    await inspect?.('the toast that offers a quick add')
+    await shoot('spending-shortcut-offer')
+    await pressToastButton(page, press, quick.make)
+    await toast(page, quick.made)
+    await quickAddButton(page, payee)
+    await inspect?.('the Quick add card with the new quick add')
+    await shoot('spending-shortcut-offer-made')
+  }
+}
+
+/** On Settings, Quick add of the sample Spending file: the coffee's dialog with its two parts, a third part added and taken off again. */
+export function spendingShortcutDialogFlowIn(language) {
+  return async (page, { press, shoot: shootAs, inspect }) => {
+    const shoot = (name) => shootAs?.(language === 'en' ? name : `${name}-${language}`)
+    await page.waitForSelector('[data-testid="spending-shortcuts"]', { visible: true, timeout: 10_000 })
+    await inspect?.('Settings, Quick add')
+    await shoot('spending-settings-quick-add')
+    await pressSelector(page, press, '[data-testid="spending-shortcut-edit"]')
+    await page.waitForSelector('[data-testid="spending-shortcut-dialog"]', { visible: true, timeout: 10_000 })
+    await delay(300)
+    const parts = () => page.$$eval('[data-testid="spending-shortcut-part"]', (found) => found.length)
+    if ((await parts()) !== 2) throw new Error('the coffee quick add does not show its coffee and its tip')
+    if ((await page.$('[data-testid="spending-shortcut-total"]')) === null) throw new Error('the quick add dialog does not say what a tap writes')
+    await inspect?.('the quick add dialog with two parts')
+    await shoot('spending-shortcut-dialog')
+    await pressSelector(page, press, '[data-testid="spending-shortcut-add-part"]')
+    if ((await parts()) !== 3) throw new Error('Add a part added no part')
+    await pressSelector(page, press, '[data-testid="spending-shortcut-part"]:last-child [data-testid="spending-shortcut-remove-part"]')
+    if ((await parts()) !== 2) throw new Error('Remove did not take the part off')
   }
 }

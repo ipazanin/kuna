@@ -13,9 +13,10 @@ import { ALL_MONTHS, SPENDING_ACCOUNTS_ROUTE, SPENDING_REVIEW_TAB } from '../../
 import EventPicker from './EventPicker.vue'
 import LabelPicker from './LabelPicker.vue'
 import SelectionBar from './SelectionBar.vue'
+import QuickAddCard from '../../shortcuts/presentation/QuickAddCard.vue'
 import { isBeforeItems } from '../../workbook/domain/beforeItems'
 import { plural } from '../../../../shared/text/translation'
-import { takesRowsByHand } from '../../workbook/domain/account'
+import { takesNewRowsByHand } from '../../workbook/domain/account'
 import { entriesNewestFirst } from '../../rates/domain/euroRows'
 import { everydayRates } from '../../../../shared/rates/domain/ratesState'
 import { useRates } from '../../../../shared/rates/application/pageRates'
@@ -91,7 +92,7 @@ const tabs = computed(() => [
   { value: 'import', label: statementWords.tabs.import, icon: 'i-lucide-file-up' },
 ])
 
-const canAdd = computed(() => accounts.value.some((candidate) => !candidate.closed && takesRowsByHand(candidate)))
+const canAdd = computed(() => accounts.value.some(takesNewRowsByHand))
 /** Whether the open accounts are all ones the bank fills, so no entry can be typed until one kept by hand is added. */
 const allFromBank = computed(() => !canAdd.value && accounts.value.some((candidate) => !candidate.closed))
 const canAddReceipt = computed(() => receiptAccounts(accounts.value).length > 0)
@@ -137,68 +138,72 @@ function openEntry(entry: Transaction | null): void {
     <ScreenSkeleton v-if="state.workbook === null && state.status !== 'error'" :heading="false" :cards="1" />
     <PageTabs v-else-if="state.workbook !== null" :tabs="tabs" :label="statementWords.tabs.label">
       <template #entries>
-        <EmptyState
-          v-if="transactions.length === 0"
-          icon="i-lucide-list"
-          :title="words.noEntries"
-          :description="canAdd ? words.noEntriesDescription : allFromBank ? words.allFromBank : words.needsAccount"
-          data-testid="spending-transactions-empty"
-        >
-          <template #actions>
-            <UButton v-if="canAdd" :label="words.add" icon="i-lucide-plus" data-testid="spending-add-entry" @click="openEntry(null)" />
-            <UButton v-else :label="accountWords.add" icon="i-lucide-landmark" :to="SPENDING_ACCOUNTS_ROUTE" data-testid="spending-go-to-accounts" />
-          </template>
-        </EmptyState>
-        <SelectionBar
-          v-if="picked !== null && transactions.length > 0"
-          :summary="plural(words.labelling.picked(picked.size), picked.size)"
-          :cancel-label="words.labelling.cancel"
-          @cancel="picked = null"
-        >
-          <UButton
-            v-if="hasEvents"
-            :label="words.inEvent.action"
-            icon="i-lucide-calendar-range"
-            color="neutral"
-            variant="outline"
-            :disabled="picked.size === 0"
-            data-testid="spending-selection-event"
-            @click="eventPickerOpen = true"
-          />
-          <UButton :label="words.labelling.label" icon="i-lucide-tag" :disabled="picked.size === 0" data-testid="spending-selection-label" @click="pickerOpen = true" />
-        </SelectionBar>
-        <AppCard v-if="transactions.length > 0" data-testid="spending-transactions">
-          <EntryFilters :filters="filters">
+        <!-- PageTabs gives the measure only to a lone card, so this stack of cards repeats it. -->
+        <div class="flex max-w-2xl flex-col gap-6">
+          <QuickAddCard v-if="picked === null" />
+          <EmptyState
+            v-if="transactions.length === 0"
+            icon="i-lucide-list"
+            :title="words.noEntries"
+            :description="canAdd ? words.noEntriesDescription : allFromBank ? words.allFromBank : words.needsAccount"
+            data-testid="spending-transactions-empty"
+          >
+            <template #actions>
+              <UButton v-if="canAdd" :label="words.add" icon="i-lucide-plus" data-testid="spending-add-entry" @click="openEntry(null)" />
+              <UButton v-else :label="accountWords.add" icon="i-lucide-landmark" :to="SPENDING_ACCOUNTS_ROUTE" data-testid="spending-go-to-accounts" />
+            </template>
+          </EmptyState>
+          <SelectionBar
+            v-if="picked !== null && transactions.length > 0"
+            :summary="plural(words.labelling.picked(picked.size), picked.size)"
+            :cancel-label="words.labelling.cancel"
+            @cancel="picked = null"
+          >
             <UButton
-              v-if="canLabel && picked === null && rows.length > 0"
-              :label="words.labelling.select"
-              :aria-label="words.labelling.selectHelp"
-              icon="i-lucide-list-checks"
-              size="sm"
+              v-if="hasEvents"
+              :label="words.inEvent.action"
+              icon="i-lucide-calendar-range"
               color="neutral"
               variant="outline"
-              class="sm:ms-auto"
-              data-testid="spending-select"
-              @click="picked = new Set()"
+              :disabled="picked.size === 0"
+              data-testid="spending-selection-event"
+              @click="eventPickerOpen = true"
             />
-          </EntryFilters>
-          <FilterTotals :filters="filters" />
-          <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="spending-transactions-none">{{ words.noMatch }}</p>
-          <template v-else>
-            <EntryList
-              :rows="listed"
-              :categories="categories"
-              :labels="labels"
-              :picked="picked"
-              :takes-receipt="takesReceipt"
-              data-testid="spending-transactions-list"
-              @open="openEntry"
-              @pick="pick"
-              @receipt="receiptPicker?.take($event)"
-            />
-            <ShowAllButton v-if="filters.month === ALL_MONTHS && rows.length > FIRST_SHOWN" v-model:expanded="allShown" :total="rows.length" class="px-4 pb-4 sm:px-5" />
-          </template>
-        </AppCard>
+            <UButton :label="words.labelling.label" icon="i-lucide-tag" :disabled="picked.size === 0" data-testid="spending-selection-label" @click="pickerOpen = true" />
+          </SelectionBar>
+          <AppCard v-if="transactions.length > 0" data-testid="spending-transactions">
+            <EntryFilters :filters="filters">
+              <UButton
+                v-if="canLabel && picked === null && rows.length > 0"
+                :label="words.labelling.select"
+                :aria-label="words.labelling.selectHelp"
+                icon="i-lucide-list-checks"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                class="sm:ms-auto"
+                data-testid="spending-select"
+                @click="picked = new Set()"
+              />
+            </EntryFilters>
+            <FilterTotals :filters="filters" />
+            <p v-if="rows.length === 0" class="px-4 pb-4 type-body sm:px-5" data-testid="spending-transactions-none">{{ words.noMatch }}</p>
+            <template v-else>
+              <EntryList
+                :rows="listed"
+                :categories="categories"
+                :labels="labels"
+                :picked="picked"
+                :takes-receipt="takesReceipt"
+                data-testid="spending-transactions-list"
+                @open="openEntry"
+                @pick="pick"
+                @receipt="receiptPicker?.take($event)"
+              />
+              <ShowAllButton v-if="filters.month === ALL_MONTHS && rows.length > FIRST_SHOWN" v-model:expanded="allShown" :total="rows.length" class="px-4 pb-4 sm:px-5" />
+            </template>
+          </AppCard>
+        </div>
       </template>
       <template #review>
         <ReviewPanel :takes-receipt="takesReceipt" @receipt="receiptPicker?.take($event)" @open="openEntry" />

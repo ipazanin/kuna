@@ -485,6 +485,8 @@ describe('reading receipts and lines', () => {
       transactions: read([storedRowOf(one.row!, { category: GROCERIES.id, note: '', link: null })]),
       budgets: read([]),
       rules: read([]),
+      shortcuts: read([]),
+      shortcutParts: read([]),
       receipts: read([one.receipt]),
       lines: read(lines.map(plainLineOf)),
       items: read([]),
