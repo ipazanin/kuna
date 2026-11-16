@@ -11441,7 +11441,7 @@ export function chatReceiptPathFlowIn(language, photos, path) {
  */
 export function chatSplitFlowIn(language) {
   const words = ASSIST_WORDS[language]
-  const request = language === 'en' ? 'Split the latest spend' : 'Podijeli zadnji trošak'
+  const request = language === 'en' ? 'Split the latest Landlord spend' : 'Podijeli zadnji trošak za Landlord'
   return async (page, { press, shoot: shootAs, inspect }) => {
     const shoot = (name) => shootAs(language === 'en' ? name : `${name}-${language}`)
     try {

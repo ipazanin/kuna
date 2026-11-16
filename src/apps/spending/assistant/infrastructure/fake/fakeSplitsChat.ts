@@ -23,13 +23,13 @@ const ANSWERS = {
 const says = ANSWERS[language]
 
 /**
- * Reads the latest spends of 10 or more, or of Harbour bistro when the message names it, their parts and the categories, and
+ * Reads the latest spends of 10 or more, or of Harbour bistro or Landlord when the message names one, their parts and the categories, and
  * proposes 5 of the first one not split and filed under spending to go under Household goods, the rest where it was.
  */
 export function splitReply({ request, tokens, typed }: FakeChatTurn): ModelReply {
   const answers = answersSince(request)
   if (answers.length === 0) {
-    const query = /harbour bistro/i.test(typed) ? 'Harbour bistro' : null
+    const query = /harbour bistro/i.test(typed) ? 'Harbour bistro' : /landlord/i.test(typed) ? 'Landlord' : null
     const spends = findRecordsArgs('spending', 'transaction', { query, filters: [{ field: 'amount', op: 'at-most', values: ['-10'] }], fields: ['payee', 'amount'], limit: 5 })
     return lookup(0, 'find_records', spends, tokens)
   }
